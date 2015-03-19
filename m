@@ -1,74 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id E7BFC6B0038
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 18:31:02 -0400 (EDT)
-Received: by pdbop1 with SMTP id op1so55870308pdb.2
-        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 15:31:02 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k6si5698881pdp.70.2015.03.18.15.31.01
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D83C76B0038
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 20:21:39 -0400 (EDT)
+Received: by lagg8 with SMTP id g8so49705022lag.1
+        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 17:21:39 -0700 (PDT)
+Received: from mail-la0-f43.google.com (mail-la0-f43.google.com. [209.85.215.43])
+        by mx.google.com with ESMTPS id r4si14008832lar.124.2015.03.18.17.21.37
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Mar 2015 15:31:01 -0700 (PDT)
-Date: Wed, 18 Mar 2015 15:31:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mremap: add MREMAP_NOHOLE flag --resend
-Message-Id: <20150318153100.5658b741277f3717b52e42d9@linux-foundation.org>
-In-Reply-To: <deaa4139de6e6422a0cec1e3282553aed3495e94.1426626497.git.shli@fb.com>
-References: <deaa4139de6e6422a0cec1e3282553aed3495e94.1426626497.git.shli@fb.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 18 Mar 2015 17:21:37 -0700 (PDT)
+Received: by ladw1 with SMTP id w1so49660702lad.0
+        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 17:21:37 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1426291715-16242-1-git-send-email-lauraa@codeaurora.org>
+References: <1426291715-16242-1-git-send-email-lauraa@codeaurora.org>
+Date: Wed, 18 Mar 2015 17:21:36 -0700
+Message-ID: <CAJAp7OhebH088EjXxo0tG__p8m11FiNw8qqG6k8eAky6cg2P8g@mail.gmail.com>
+Subject: Re: [PATCHv3] mm: Don't offset memmap for flatmem
+From: Bjorn Andersson <bjorn@kryo.se>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org, danielmicay@gmail.com, linux-api@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Andy Lutomirski <luto@amacapital.net>
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Srinivas Kandagatla <srinivas.kandagatla@linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, ssantosh@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Kevin Hilman <khilman@linaro.org>, Arnd Bergman <arnd@arndb.de>, Stephen Boyd <sboyd@codeaurora.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Kumar Gala <galak@codeaurora.org>
 
-On Tue, 17 Mar 2015 14:09:39 -0700 Shaohua Li <shli@fb.com> wrote:
+On Fri, Mar 13, 2015 at 5:08 PM, Laura Abbott <lauraa@codeaurora.org> wrote:
+> Srinivas Kandagatla reported bad page messages when trying to
+> remove the bottom 2MB on an ARM based IFC6410 board
+>
+> BUG: Bad page state in process swapper  pfn:fffa8
+> page:ef7fb500 count:0 mapcount:0 mapping:  (null) index:0x0
+> flags: 0x96640253(locked|error|dirty|active|arch_1|reclaim|mlocked)
+> page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
+> bad because of flags:
+> flags: 0x200041(locked|active|mlocked)
+> Modules linked in:
+> CPU: 0 PID: 0 Comm: swapper Not tainted 3.19.0-rc3-00007-g412f9ba-dirty #816
+> Hardware name: Qualcomm (Flattened Device Tree)
+> [<c0218280>] (unwind_backtrace) from [<c0212be8>] (show_stack+0x20/0x24)
+> [<c0212be8>] (show_stack) from [<c0af7124>] (dump_stack+0x80/0x9c)
+> [<c0af7124>] (dump_stack) from [<c0301570>] (bad_page+0xc8/0x128)
+> [<c0301570>] (bad_page) from [<c03018a8>] (free_pages_prepare+0x168/0x1e0)
+> [<c03018a8>] (free_pages_prepare) from [<c030369c>] (free_hot_cold_page+0x3c/0x174)
+> [<c030369c>] (free_hot_cold_page) from [<c0303828>] (__free_pages+0x54/0x58)
+> [<c0303828>] (__free_pages) from [<c030395c>] (free_highmem_page+0x38/0x88)
+> [<c030395c>] (free_highmem_page) from [<c0f62d5c>] (mem_init+0x240/0x430)
+> [<c0f62d5c>] (mem_init) from [<c0f5db3c>] (start_kernel+0x1e4/0x3c8)
+> [<c0f5db3c>] (start_kernel) from [<80208074>] (0x80208074)
+> Disabling lock debugging due to kernel taint
+>
+> Removing the lower 2MB made the start of the lowmem zone to no longer
+> be page block aligned. IFC6410 uses CONFIG_FLATMEM where
+> alloc_node_mem_map allocates memory for the mem_map. alloc_node_mem_map
+> will offset for unaligned nodes with the assumption the pfn/page
+> translation functions will account for the offset. The functions for
+> CONFIG_FLATMEM do not offset however, resulting in overrunning
+> the memmap array. Just use the allocated memmap without any offset
+> when running with CONFIG_FLATMEM to avoid the overrun.
+>
+> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+> Reported-by: Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+> ---
 
-> There was a similar patch posted before, but it doesn't get merged. I'd like
-> to try again if there are more discussions.
-> http://marc.info/?l=linux-mm&m=141230769431688&w=2
-> 
-> mremap can be used to accelerate realloc. The problem is mremap will
-> punch a hole in original VMA, which makes specific memory allocator
-> unable to utilize it. Jemalloc is an example. It manages memory in 4M
-> chunks. mremap a range of the chunk will punch a hole, which other
-> mmap() syscall can fill into. The 4M chunk is then fragmented, jemalloc
-> can't handle it.
+With this I can boot 8960 and 8064 without patching up the MEM ATAGs
+from the bootloader (as well as "reserving" smem).
 
-Daniel's changelog had additional details regarding the userspace
-allocators' behaviour.  It would be best to incorporate that into your
-changelog.
+Tested-by: Bjorn Andersson <bjorn.andersson@sonymobile.com>
 
-Daniel also had microbenchmark testing results for glibc and jemalloc. 
-Can you please do this?
-
-I'm not seeing any testing results for tcmalloc and I'm not seeing
-confirmation that this patch will be useful for tcmalloc.  Has anyone
-tried it, or sought input from tcmalloc developers?
-
-> This patch adds a new flag for mremap. With it, mremap will not punch the
-> hole. page tables of original vma will be zapped in the same way, but
-> vma is still there. That is original vma will look like a vma without
-> pagefault. Behavior of new vma isn't changed.
-> 
-> For private vma, accessing original vma will cause
-> page fault and just like the address of the vma has never been accessed.
-> So for anonymous, new page/zero page will be fault in. For file mapping,
-> new page will be allocated with file reading for cow, or pagefault will
-> use existing page cache.
-> 
-> For shared vma, original and new vma will map to the same file. We can
-> optimize this without zaping original vma's page table in this case, but
-> this patch doesn't do it yet.
-> 
-> Since with MREMAP_NOHOLE, original vma still exists. pagefault handler
-> for special vma might not able to handle pagefault for mremap'd area.
-> The patch doesn't allow vmas with VM_PFNMAP|VM_MIXEDMAP flags do NOHOLE
-> mremap.
-
-At some point (preferably an early point) we'd like a manpage update
-and a cc: to linux-man@vger.kernel.org please.
+Thanks,
+Bjorn
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
