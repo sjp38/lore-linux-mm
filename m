@@ -1,187 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
-	by kanga.kvack.org (Postfix) with ESMTP id EF0446B006C
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 10:05:19 -0400 (EDT)
-Received: by oifl3 with SMTP id l3so35417302oif.0
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 07:05:19 -0700 (PDT)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id ci11si3106696pdb.144.2015.03.19.07.05.19
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id A5C716B0038
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 10:10:30 -0400 (EDT)
+Received: by wggv3 with SMTP id v3so63574360wgg.1
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 07:10:30 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ht10si3192048wib.115.2015.03.19.07.10.28
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Mar 2015 07:05:19 -0700 (PDT)
-Received: by pacwe9 with SMTP id we9so76714578pac.1
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 07:05:19 -0700 (PDT)
-From: Roman Pen <r.peniaev@gmail.com>
-Subject: [RFC v2 2/3] mm/vmalloc: occupy newly allocated vmap block just after allocation
-Date: Thu, 19 Mar 2015 23:04:40 +0900
-Message-Id: <1426773881-5757-3-git-send-email-r.peniaev@gmail.com>
-In-Reply-To: <1426773881-5757-1-git-send-email-r.peniaev@gmail.com>
-References: <1426773881-5757-1-git-send-email-r.peniaev@gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 19 Mar 2015 07:10:29 -0700 (PDT)
+Date: Thu, 19 Mar 2015 14:10:22 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 4/4] mm: numa: Slow PTE scan rate if migration failures
+ occur
+Message-ID: <20150319141022.GD3087@suse.de>
+References: <20150312131045.GE3406@suse.de>
+ <CA+55aFx=81BGnQFNhnAGu6CetL7yifPsnD-+v7Y6QRqwgH47gQ@mail.gmail.com>
+ <20150312184925.GH3406@suse.de>
+ <20150317070655.GB10105@dastard>
+ <CA+55aFzdLnFdku-gnm3mGbeS=QauYBNkFQKYXJAGkrMd2jKXhw@mail.gmail.com>
+ <20150317205104.GA28621@dastard>
+ <CA+55aFzSPcNgxw4GC7aAV1r0P5LniyVVC66COz=3cgMcx73Nag@mail.gmail.com>
+ <20150317220840.GC28621@dastard>
+ <CA+55aFwne-fe_Gg-_GTUo+iOAbbNpLBa264JqSFkH79EULyAqw@mail.gmail.com>
+ <CA+55aFy-Mw74rAdLMMMUgnsG3ZttMWVNGz7CXZJY7q9fqyRYfg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CA+55aFy-Mw74rAdLMMMUgnsG3ZttMWVNGz7CXZJY7q9fqyRYfg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Roman Pen <r.peniaev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Dumazet <edumazet@google.com>, David Rientjes <rientjes@google.com>, WANG Chao <chaowang@redhat.com>, Fabian Frederick <fabf@skynet.be>, Christoph Lameter <cl@linux.com>, Gioh Kim <gioh.kim@lge.com>, Rob Jones <rob.jones@codethink.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-Previous implementation allocates new vmap block and repeats search of a free
-block from the very beginning, iterating over the CPU free list.
+On Wed, Mar 18, 2015 at 10:31:28AM -0700, Linus Torvalds wrote:
+> >  - something completely different that I am entirely missing
+> 
+> So I think there's something I'm missing. For non-shared mappings, I
+> still have the idea that pte_dirty should be the same as pte_write.
+> And yet, your testing of 3.19 shows that it's a big difference.
+> There's clearly something I'm completely missing.
+> 
 
-Why it can be better??
+Minimally, there is still the window where we clear the PTE to set the
+protections. During that window, a fault can occur. In the old code which
+was inherently racy and unsafe, the fault might still go ahead deferring
+a potential migration for a short period. In the current code, it'll stall
+on the lock, notice the PTE is changed and refault so the overhead is very
+different but functionally correct.
 
-1. Allocation can happen on one CPU, but search can be done on another CPU.
-   In worst case we preallocate amount of vmap blocks which is equal to
-   CPU number on the system.
+In the old code, pte_write had complex interactions with background
+cleaning and sync in the case of file mappings (not applicable to Dave's
+case but still it's unpredictable behaviour). pte_dirty is close but there
+are interactions with the application as the timing of writes vs the PTE
+scanner matter.
 
-2. In previous patch I added newly allocated block to the tail of free list
-   to avoid soon exhaustion of virtual space and give a chance to occupy
-   blocks which were allocated long time ago.  Thus to find newly allocated
-   block all the search sequence should be repeated, seems it is not efficient.
+Even if we restored the original behaviour, it would still be very difficult
+to understand all the interactions between userspace and kernel.  The patch
+below should be tested because it's clearer what the intent is. Using
+the VMA flags is coarse but it's not vulnerable to timing artifacts that
+behave differently depending on the machine. My preliminary testing shows
+it helps but not by much. It does not restore performance to where it was
+but it's easier to understand which is important if there are changes in
+the scheduler later.
 
-In this patch newly allocated block is occupied right away, address of virtual
-space is returned to the caller, so there is no any need to repeat the search
-sequence, allocation job is done.
+In combination, I also think that slowing PTE scanning when migration fails
+is the correct action even if it is unrelated to the patch Dave bisected
+to. It's stupid to increase scanning rates and incurs more faults when
+migrations are failing so I'll be testing that next.
 
-Signed-off-by: Roman Pen <r.peniaev@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric Dumazet <edumazet@google.com>
-Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: WANG Chao <chaowang@redhat.com>
-Cc: Fabian Frederick <fabf@skynet.be>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Gioh Kim <gioh.kim@lge.com>
-Cc: Rob Jones <rob.jones@codethink.co.uk>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- mm/vmalloc.c | 58 +++++++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 37 insertions(+), 21 deletions(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index db6bffb..9bd102c 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -791,13 +791,31 @@ static unsigned long addr_to_vb_idx(unsigned long addr)
- 	return addr;
- }
- 
--static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
-+static void *vmap_block_vaddr(unsigned long va_start, unsigned long pages_off)
-+{
-+	unsigned long addr;
-+
-+	addr = va_start + (pages_off << PAGE_SHIFT);
-+	BUG_ON(addr_to_vb_idx(addr) != addr_to_vb_idx(va_start));
-+	return (void *)addr;
-+}
-+
-+/**
-+ * new_vmap_block - allocates new vmap_block and occupies 2^order pages in this
-+ *                  block. Of course pages number can't exceed VMAP_BBMAP_BITS
-+ * @order:    how many 2^order pages should be occupied in newly allocated block
-+ * @gfp_mask: flags for the page level allocator
-+ *
-+ * Returns: virtual address in a newly allocated block or ERR_PTR(-errno)
-+ */
-+static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
- {
- 	struct vmap_block_queue *vbq;
- 	struct vmap_block *vb;
- 	struct vmap_area *va;
- 	unsigned long vb_idx;
- 	int node, err;
-+	void *vaddr;
- 
- 	node = numa_node_id();
- 
-@@ -821,9 +839,12 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
- 		return ERR_PTR(err);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 626e93db28ba..2f12e9fcf1a2 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1291,17 +1291,8 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		flags |= TNF_FAULT_LOCAL;
  	}
  
-+	vaddr = vmap_block_vaddr(va->va_start, 0);
- 	spin_lock_init(&vb->lock);
- 	vb->va = va;
--	vb->free = VMAP_BBMAP_BITS;
-+	/* At least something should be left free */
-+	BUG_ON(VMAP_BBMAP_BITS <= (1UL << order));
-+	vb->free = VMAP_BBMAP_BITS - (1UL << order);
- 	vb->dirty = 0;
- 	bitmap_zero(vb->dirty_map, VMAP_BBMAP_BITS);
- 	INIT_LIST_HEAD(&vb->free_list);
-@@ -841,7 +862,7 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
- 	spin_unlock(&vbq->lock);
- 	put_cpu_var(vmap_block_queue);
+-	/*
+-	 * Avoid grouping on DSO/COW pages in specific and RO pages
+-	 * in general, RO pages shouldn't hurt as much anyway since
+-	 * they can be in shared cache state.
+-	 *
+-	 * FIXME! This checks "pmd_dirty()" as an approximation of
+-	 * "is this a read-only page", since checking "pmd_write()"
+-	 * is even more broken. We haven't actually turned this into
+-	 * a writable page, so pmd_write() will always be false.
+-	 */
+-	if (!pmd_dirty(pmd))
++	/* See similar comment in do_numa_page for explanation */
++	if (!(vma->vm_flags & VM_WRITE))
+ 		flags |= TNF_NO_GROUP;
  
--	return vb;
-+	return vaddr;
- }
- 
- static void free_vmap_block(struct vmap_block *vb)
-@@ -905,7 +926,7 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
- {
- 	struct vmap_block_queue *vbq;
- 	struct vmap_block *vb;
--	unsigned long addr = 0;
-+	void *vaddr = NULL;
- 	unsigned int order;
- 
- 	BUG_ON(size & ~PAGE_MASK);
-@@ -920,43 +941,38 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
- 	}
- 	order = get_order(size);
- 
--again:
- 	rcu_read_lock();
- 	vbq = &get_cpu_var(vmap_block_queue);
- 	list_for_each_entry_rcu(vb, &vbq->free, free_list) {
--		int i;
-+		unsigned long pages_off;
- 
- 		spin_lock(&vb->lock);
--		if (vb->free < 1UL << order)
--			goto next;
-+		if (vb->free < (1UL << order)) {
-+			spin_unlock(&vb->lock);
-+			continue;
-+		}
- 
--		i = VMAP_BBMAP_BITS - vb->free;
--		addr = vb->va->va_start + (i << PAGE_SHIFT);
--		BUG_ON(addr_to_vb_idx(addr) !=
--				addr_to_vb_idx(vb->va->va_start));
-+		pages_off = VMAP_BBMAP_BITS - vb->free;
-+		vaddr = vmap_block_vaddr(vb->va->va_start, pages_off);
- 		vb->free -= 1UL << order;
- 		if (vb->free == 0) {
- 			spin_lock(&vbq->lock);
- 			list_del_rcu(&vb->free_list);
- 			spin_unlock(&vbq->lock);
- 		}
-+
- 		spin_unlock(&vb->lock);
- 		break;
--next:
--		spin_unlock(&vb->lock);
+ 	/*
+diff --git a/mm/memory.c b/mm/memory.c
+index 411144f977b1..20beb6647dba 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3069,16 +3069,19 @@ static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
  	}
  
- 	put_cpu_var(vmap_block_queue);
- 	rcu_read_unlock();
+ 	/*
+-	 * Avoid grouping on DSO/COW pages in specific and RO pages
+-	 * in general, RO pages shouldn't hurt as much anyway since
+-	 * they can be in shared cache state.
++	 * Avoid grouping on RO pages in general. RO pages shouldn't hurt as
++	 * much anyway since they can be in shared cache state. This misses
++	 * the case where a mapping is writable but the process never writes
++	 * to it but pte_write gets cleared during protection updates and
++	 * pte_dirty has unpredictable behaviour between PTE scan updates,
++	 * background writeback, dirty balancing and application behaviour.
+ 	 *
+-	 * FIXME! This checks "pmd_dirty()" as an approximation of
+-	 * "is this a read-only page", since checking "pmd_write()"
+-	 * is even more broken. We haven't actually turned this into
+-	 * a writable page, so pmd_write() will always be false.
++	 * TODO: Note that the ideal here would be to avoid a situation where a
++	 * NUMA fault is taken immediately followed by a write fault in
++	 * some cases which would have lower overhead overall but would be
++	 * invasive as the fault paths would need to be unified.
+ 	 */
+-	if (!pte_dirty(pte))
++	if (!(vma->vm_flags & VM_WRITE))
+ 		flags |= TNF_NO_GROUP;
  
--	if (!addr) {
--		vb = new_vmap_block(gfp_mask);
--		if (IS_ERR(vb))
--			return vb;
--		goto again;
--	}
-+	/* Allocate new block if nothing was found */
-+	if (!vaddr)
-+		vaddr = new_vmap_block(order, gfp_mask);
- 
--	return (void *)addr;
-+	return vaddr;
- }
- 
- static void vb_free(const void *addr, unsigned long size)
--- 
-2.2.2
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
