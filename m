@@ -1,47 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 281E46B0038
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 01:23:23 -0400 (EDT)
-Received: by pdnc3 with SMTP id c3so65257721pdn.0
-        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 22:23:22 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id we3si694021pab.16.2015.03.18.22.23.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Mar 2015 22:23:22 -0700 (PDT)
-Date: Wed, 18 Mar 2015 22:22:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mremap: add MREMAP_NOHOLE flag --resend
-Message-Id: <20150318222246.bc608dd0.akpm@linux-foundation.org>
-In-Reply-To: <20150319050826.GA1591708@devbig257.prn2.facebook.com>
-References: <deaa4139de6e6422a0cec1e3282553aed3495e94.1426626497.git.shli@fb.com>
-	<20150318153100.5658b741277f3717b52e42d9@linux-foundation.org>
-	<20150319050826.GA1591708@devbig257.prn2.facebook.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 169796B0038
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 01:30:01 -0400 (EDT)
+Received: by pabyw6 with SMTP id yw6so64800059pab.2
+        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 22:30:00 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id x4si692861pdr.44.2015.03.18.22.29.59
+        for <linux-mm@kvack.org>;
+        Wed, 18 Mar 2015 22:30:00 -0700 (PDT)
+From: Gioh Kim <gioh.kim@lge.com>
+Subject: [PATCH] [RFC] mm/compaction: initialize compaction information
+Date: Thu, 19 Mar 2015 14:30:31 +0900
+Message-Id: <1426743031-30096-1-git-send-email-gioh.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org, danielmicay@gmail.com, linux-api@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Andy Lutomirski <luto@amacapital.net>
+To: akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, iamjoonsoo.kim@lge.com, mgorman@suse.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gunho.lee@lge.com, Gioh Kim <gioh.kim@lge.com>
 
-On Wed, 18 Mar 2015 22:08:26 -0700 Shaohua Li <shli@fb.com> wrote:
+I tried to start compaction via /proc/sys/vm/compact_memory
+as soon as I turned on my ARM-based platform.
+But the compaction didn't start.
+I found some variables in struct zone are not initalized.
 
-> > Daniel also had microbenchmark testing results for glibc and jemalloc. 
-> > Can you please do this?
-> 
-> I run Daniel's microbenchmark too, and not surprise the result is
-> similar:
-> glibc: 32.82
-> jemalloc: 70.35
-> jemalloc+mremap: 33.01
-> tcmalloc: 68.81
-> 
-> but tcmalloc doesn't support mremap currently, so I cant test it.
+I think zone->compact_cached_free_pfn and some cache values for compaction
+are initalized when the kernel starts compaction, not via
+/proc/sys/vm/compact_memory.
+If my guess is correct, an initialization are needed for that case.
 
-But Daniel's changelog implies strongly that tcmalloc would benefit
-from his patch.  Was that inaccurate or is this a difference between
-his patch and yours?
+
+Signed-off-by: Gioh Kim <gioh.kim@lge.com>
+---
+ mm/compaction.c |    8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 8c0d945..944a9cc 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1299,6 +1299,14 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 		__reset_isolation_suitable(zone);
+ 
+ 	/*
++	 * If this is activated by /proc/sys/vm/compact_memory
++	 * and the first try, cached information for compaction is not
++	 * initialized.
++	 */
++	if (cc->order == -1 && zone->compact_cached_free_pfn == 0)
++		__reset_isolation_suitable(zone);
++
++	/*
+ 	 * Setup to move all movable pages to the end of the zone. Used cached
+ 	 * information on where the scanners should start but check that it
+ 	 * is initialised by ensuring the values are within zone boundaries.
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
