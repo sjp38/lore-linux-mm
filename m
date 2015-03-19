@@ -1,96 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 902D06B0038
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 05:02:02 -0400 (EDT)
-Received: by wibdy8 with SMTP id dy8so111730416wib.0
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 02:02:02 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x6si8016618wiw.114.2015.03.19.02.02.00
+Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B1DC6B0038
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 06:12:10 -0400 (EDT)
+Received: by lbnq5 with SMTP id q5so20918471lbn.0
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 03:12:09 -0700 (PDT)
+Received: from mail-la0-x230.google.com (mail-la0-x230.google.com. [2a00:1450:4010:c03::230])
+        by mx.google.com with ESMTPS id dd11si668739lac.21.2015.03.19.03.12.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 19 Mar 2015 02:02:00 -0700 (PDT)
-Message-ID: <550A9086.3080508@suse.cz>
-Date: Thu, 19 Mar 2015 10:01:58 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Mar 2015 03:12:08 -0700 (PDT)
+Received: by labjg1 with SMTP id jg1so57934711lab.2
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 03:12:07 -0700 (PDT)
+Date: Thu, 19 Mar 2015 13:12:05 +0300
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH 3/3] mm: idle memory tracking
+Message-ID: <20150319101205.GC27066@moon>
+References: <cover.1426706637.git.vdavydov@parallels.com>
+ <0b70e70137aa5232cce44a69c0b5e320f2745f7d.1426706637.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] [RFC] mm/compaction: initialize compaction information
-References: <1426743031-30096-1-git-send-email-gioh.kim@lge.com> <550A8BA9.9040005@suse.cz> <550A8E31.4040304@lge.com>
-In-Reply-To: <550A8E31.4040304@lge.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0b70e70137aa5232cce44a69c0b5e320f2745f7d.1426706637.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>, akpm@linux-foundation.org, rientjes@google.com, iamjoonsoo.kim@lge.com, mgorman@suse.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gunho.lee@lge.com
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/19/2015 09:52 AM, Gioh Kim wrote:
+On Wed, Mar 18, 2015 at 11:44:36PM +0300, Vladimir Davydov wrote:
+> Knowing the portion of memory that is not used by a certain application
+> or memory cgroup (idle memory) can be useful for partitioning the system
+> efficiently. Currently, the only means to estimate the amount of idle
+> memory provided by the kernel is /proc/PID/clear_refs. However, it has
+> two serious shortcomings:
 > 
+>  - it does not count unmapped file pages
+>  - it affects the reclaimer logic
 > 
-> 2015-03-19 i??i?? 5:41i?? Vlastimil Babka i?'(e??) i?' e,?:
->> On 03/19/2015 06:30 AM, Gioh Kim wrote:
->>
->> The code below this comment already does the initialization if the cached values
->> are outside zone boundaries (e.g. due to not being initialized). So if I go
->> through what your __reset_isolation_suitable(zone) call possibly fixes:
->>
->> - the code below comment should take care of zone->compact_cached_migrate_pfn
->> and zone->compact_cached_free_pfn.
->> - the value of zone->compact_blockskip_flush shouldn't affect whether compaction
->> is done.
->> - the state of pageblock_skip bits shouldn't matter for compaction via
->> /proc/sys... as that sets ignore_skip_hint = true
->>
->> It might be perhaps possible that the cached scanner positions are close to
->> meeting and compaction occurs but doesn't process much. That would be also true
->> if both were zero, but at least on my x86 system, lowest zone's start_pfn is 1
->> so that would be detected and corrected. Maybe it is zero on yours though? (ARM?).
-> 
-> YES, it is. As comment above, my platform is based on ARM.
+> This patch attempts to provide the userspace with the means to track
+> idle memory without the above mentioned limitations.
+...
+> +static void set_mem_idle(void)
+> +{
+> +	int nid;
+> +
+> +	for_each_online_node(nid)
+> +		set_mem_idle_node(nid);
+> +}
 
-Ah, I see.
-
-> zone's start_pfn is 0.
-
-OK, good to know that's possible. In that case it's clear that the proper
-initialization doesn't happen, and __compact_finished() decides that scanners
-have already met at pfn 0.
-
->>
->> So in any case, the problem should be identified in more detail so we know the
->> fix is not accidental. It could be also worthwile to always reset scanner
->> positions when doing a /proc triggered compaction, so it's not depending on what
->> happened before.
->>
-> 
-> Excuse my poor english.
-> I cannot catch exactly what you want.
-> Is this what you want? This resets the position if compaction is started via /proc.
-
-Yes that's right, but..
-
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 8c0d945..827ec06 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1587,8 +1587,10 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
->                  INIT_LIST_HEAD(&cc->freepages);
->                  INIT_LIST_HEAD(&cc->migratepages);
-> 
-> -               if (cc->order == -1 || !compaction_deferred(zone, cc->order))
-> +               if (cc->order == -1 || !compaction_deferred(zone, cc->order)) {
-> +                       __reset_isolation_suitable(zone);
-
-This will also trigger reset when called from kswapd through compact_pgdat() and
-!compaction_deferred() is true.
-The reset should be restricted to cc->order == -1 which only happens from /proc
-trigger.
-
->                          compact_zone(zone, cc);
-> +               }
-> 
->                  if (cc->order > 0) {
->                          if (zone_watermark_ok(zone, cc->order,
-> 
+Vladimir, might we need get_online_mems/put_online_mems here,
+or if node gets offline this wont be a problem? (Asking
+because i don't know).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
