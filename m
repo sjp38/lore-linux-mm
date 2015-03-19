@@ -1,60 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f42.google.com (mail-yh0-f42.google.com [209.85.213.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 936086B006C
-	for <linux-mm@kvack.org>; Sat, 21 Mar 2015 17:14:40 -0400 (EDT)
-Received: by yhpt93 with SMTP id t93so53685862yhp.0
-        for <linux-mm@kvack.org>; Sat, 21 Mar 2015 14:14:40 -0700 (PDT)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id hq9si3357387pac.15.2015.03.19.07.05.24
+Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D7D96B006E
+	for <linux-mm@kvack.org>; Sat, 21 Mar 2015 17:14:43 -0400 (EDT)
+Received: by ykek76 with SMTP id k76so57047600yke.0
+        for <linux-mm@kvack.org>; Sat, 21 Mar 2015 14:14:43 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id fv6si3081205pdb.149.2015.03.19.07.05.14
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Mar 2015 07:05:24 -0700 (PDT)
-Received: by pdbcz9 with SMTP id cz9so77201855pdb.3
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 07:05:23 -0700 (PDT)
+        Thu, 19 Mar 2015 07:05:15 -0700 (PDT)
+Received: by padcy3 with SMTP id cy3so76620591pad.3
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 07:05:14 -0700 (PDT)
 From: Roman Pen <r.peniaev@gmail.com>
-Subject: [RFC v2 3/3] mm/vmalloc: get rid of dirty bitmap inside vmap_block structure
-Date: Thu, 19 Mar 2015 23:04:41 +0900
-Message-Id: <1426773881-5757-4-git-send-email-r.peniaev@gmail.com>
+Subject: [RFC v2 1/3] mm/vmalloc: fix possible exhaustion of vmalloc space caused by vm_map_ram allocator
+Date: Thu, 19 Mar 2015 23:04:39 +0900
+Message-Id: <1426773881-5757-2-git-send-email-r.peniaev@gmail.com>
 In-Reply-To: <1426773881-5757-1-git-send-email-r.peniaev@gmail.com>
 References: <1426773881-5757-1-git-send-email-r.peniaev@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Roman Pen <r.peniaev@gmail.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Dumazet <edumazet@google.com>, David Rientjes <rientjes@google.com>, WANG Chao <chaowang@redhat.com>, Fabian Frederick <fabf@skynet.be>, Christoph Lameter <cl@linux.com>, Gioh Kim <gioh.kim@lge.com>, Rob Jones <rob.jones@codethink.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Roman Pen <r.peniaev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Dumazet <edumazet@google.com>, David Rientjes <rientjes@google.com>, WANG Chao <chaowang@redhat.com>, Fabian Frederick <fabf@skynet.be>, Christoph Lameter <cl@linux.com>, Gioh Kim <gioh.kim@lge.com>, Rob Jones <rob.jones@codethink.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-In original implementation of vm_map_ram made by Nick Piggin there were two
-bitmaps:  alloc_map and dirty_map.  None of them were used as supposed to be:
-finding a suitable free hole for next allocation in block. vm_map_ram allocates
-space sequentially in block and on free call marks pages as dirty, so freed
-space can't be reused anymore.
+If suitable block can't be found, new block is allocated and put into a head
+of a free list, so on next iteration this new block will be found first.
 
-Actually would be very interesting to know the real meaning of those bitmaps,
-maybe implementation was incomplete, etc.
+That's bad, because old blocks in a free list will not get a chance to be fully
+used, thus fragmentation will grow.
 
-But long time ago Zhang Yanfei removed alloc_map by these two commits:
+Let's consider this simple example:
 
-  mm/vmalloc.c: remove dead code in vb_alloc
-     3fcd76e8028e0be37b02a2002b4f56755daeda06
-  mm/vmalloc.c: remove alloc_map from vmap_block
-     b8e748b6c32999f221ea4786557b8e7e6c4e4e7a
+ #1 We have one block in a free list which is partially used, and where only
+    one page is free:
 
-In current patch I replaced dirty_map with two range variables: dirty min and
-max.  These variables store minimum and maximum position of dirty space in a
-block, since we need only to know the dirty range, not exact position of dirty
-pages.
+    HEAD |xxxxxxxxx-| TAIL
+                   ^
+                   free space for 1 page, order 0
 
-Why it was made? Several reasons: at first glance it seems that vm_map_ram
-allocator concerns about fragmentation thus it uses bitmaps for finding free
-hole, but it is not true.  To avoid complexity seems it is better to use
-something simple, like min or max range values.  Secondly, code also becomes
-simpler, without iteration over bitmap, just comparing values in min and max
-macros.  Thirdly, bitmap occupies up to 1024 bits (4MB is a max size of a
-block).  Here I replaced the whole bitmap with two longs.
+ #2 New allocation request of order 1 (2 pages) comes, new block is allocated
+    since we do not have free space to complete this request. New block is put
+    into a head of a free list:
 
-Finally vm_unmap_aliases should be slightly faster and the whole vmap_block
-structure occupies less memory.
+    HEAD |----------|xxxxxxxxx-| TAIL
+
+ #3 Two pages were occupied in a new found block:
+
+    HEAD |xx--------|xxxxxxxxx-| TAIL
+          ^
+          two pages mapped here
+
+ #4 New allocation request of order 0 (1 page) comes.  Block, which was created
+    on #2 step, is located at the beginning of a free list, so it will be found
+    first:
+
+  HEAD |xxX-------|xxxxxxxxx-| TAIL
+          ^                 ^
+          page mapped here, but better to use this hole
+
+It is obvious, that it is better to complete request of #4 step using the old
+block, where free space is left, because in other case fragmentation will be
+highly increased.
+
+But fragmentation is not only the case.  The most worst thing is that I can
+easily create scenario, when the whole vmalloc space is exhausted by blocks,
+which are not used, but already dirty and have several free pages.
+
+Let's consider this function which execution should be pinned to one CPU:
+
+ ------------------------------------------------------------------------------
+static void exhaust_virtual_space(struct page *pages[16], int iters)
+{
+	/* Firstly we have to map a big chunk, e.g. 16 pages.
+	 * Then we have to occupy the remaining space with smaller
+	 * chunks, i.e. 8 pages. At the end small hole should remain.
+	 * So at the end of our allocation sequence block looks like
+	 * this:
+	 *                XX  big chunk
+	 * |XXxxxxxxx-|    x  small chunk
+	 *                 -  hole, which is enough for a small chunk,
+	 *                    but is not enough for a big chunk
+	 */
+	while (iters--) {
+		int i;
+		void *vaddr;
+
+		/* Map/unmap big chunk */
+		vaddr = vm_map_ram(pages, 16, -1, PAGE_KERNEL);
+		vm_unmap_ram(vaddr, 16);
+
+		/* Map/unmap small chunks.
+		 *
+		 * -1 for hole, which should be left at the end of each block
+		 * to keep it partially used, with some free space available */
+		for (i = 0; i < (VMAP_BBMAP_BITS - 16) / 8 - 1; i++) {
+			vaddr = vm_map_ram(pages, 8, -1, PAGE_KERNEL);
+			vm_unmap_ram(vaddr, 8);
+		}
+	}
+}
+ ------------------------------------------------------------------------------
+
+On every iteration new block (1MB of vm area in my case) will be allocated and
+then will be occupied, without attempt to resolve small allocation request
+using previously allocated blocks in a free list.
+
+In case of random allocation (size should be randomly taken from the range
+[1..64] in 64-bit case or [1..32] in 32-bit case) situation is the same:
+new blocks continue to appear if maximum possible allocation size (32 or 64)
+passed to the allocator, because all remaining blocks in a free list do not
+have enough free space to complete this allocation request.
+
+In summary if new blocks are put into the head of a free list eventually
+virtual space will be exhausted.
+
+In current patch I simply put newly allocated block to the tail of a free list,
+thus reduce fragmentation, giving a chance to resolve allocation request using
+older blocks with possible holes left.
 
 Signed-off-by: Roman Pen <r.peniaev@gmail.com>
-Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Eric Dumazet <edumazet@google.com>
 Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
@@ -66,96 +128,24 @@ Cc: Gioh Kim <gioh.kim@lge.com>
 Cc: Rob Jones <rob.jones@codethink.co.uk>
 Cc: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
+Cc: stable@vger.kernel.org
 ---
- mm/vmalloc.c | 35 +++++++++++++++++------------------
- 1 file changed, 17 insertions(+), 18 deletions(-)
+ mm/vmalloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 9bd102c..5260e51 100644
+index 39c3388..db6bffb 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -760,7 +760,7 @@ struct vmap_block {
- 	spinlock_t lock;
- 	struct vmap_area *va;
- 	unsigned long free, dirty;
--	DECLARE_BITMAP(dirty_map, VMAP_BBMAP_BITS);
-+	unsigned long dirty_min, dirty_max; /*< dirty range */
- 	struct list_head free_list;
- 	struct rcu_head rcu_head;
- 	struct list_head purge;
-@@ -846,7 +846,8 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
- 	BUG_ON(VMAP_BBMAP_BITS <= (1UL << order));
- 	vb->free = VMAP_BBMAP_BITS - (1UL << order);
- 	vb->dirty = 0;
--	bitmap_zero(vb->dirty_map, VMAP_BBMAP_BITS);
-+	vb->dirty_min = VMAP_BBMAP_BITS;
-+	vb->dirty_max = 0;
- 	INIT_LIST_HEAD(&vb->free_list);
+@@ -837,7 +837,7 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
  
- 	vb_idx = addr_to_vb_idx(va->va_start);
-@@ -897,7 +898,8 @@ static void purge_fragmented_blocks(int cpu)
- 		if (vb->free + vb->dirty == VMAP_BBMAP_BITS && vb->dirty != VMAP_BBMAP_BITS) {
- 			vb->free = 0; /* prevent further allocs after releasing lock */
- 			vb->dirty = VMAP_BBMAP_BITS; /* prevent purging it again */
--			bitmap_fill(vb->dirty_map, VMAP_BBMAP_BITS);
-+			vb->dirty_min = 0;
-+			vb->dirty_max = VMAP_BBMAP_BITS;
- 			spin_lock(&vbq->lock);
- 			list_del_rcu(&vb->free_list);
- 			spin_unlock(&vbq->lock);
-@@ -990,6 +992,7 @@ static void vb_free(const void *addr, unsigned long size)
- 	order = get_order(size);
+ 	vbq = &get_cpu_var(vmap_block_queue);
+ 	spin_lock(&vbq->lock);
+-	list_add_rcu(&vb->free_list, &vbq->free);
++	list_add_tail_rcu(&vb->free_list, &vbq->free);
+ 	spin_unlock(&vbq->lock);
+ 	put_cpu_var(vmap_block_queue);
  
- 	offset = (unsigned long)addr & (VMAP_BLOCK_SIZE - 1);
-+	offset >>= PAGE_SHIFT;
- 
- 	vb_idx = addr_to_vb_idx((unsigned long)addr);
- 	rcu_read_lock();
-@@ -1000,7 +1003,10 @@ static void vb_free(const void *addr, unsigned long size)
- 	vunmap_page_range((unsigned long)addr, (unsigned long)addr + size);
- 
- 	spin_lock(&vb->lock);
--	BUG_ON(bitmap_allocate_region(vb->dirty_map, offset >> PAGE_SHIFT, order));
-+
-+	/* Expand dirty range */
-+	vb->dirty_min = min(vb->dirty_min, offset);
-+	vb->dirty_max = max(vb->dirty_max, offset + (1UL << order));
- 
- 	vb->dirty += 1UL << order;
- 	if (vb->dirty == VMAP_BBMAP_BITS) {
-@@ -1039,25 +1045,18 @@ void vm_unmap_aliases(void)
- 
- 		rcu_read_lock();
- 		list_for_each_entry_rcu(vb, &vbq->free, free_list) {
--			int i, j;
--
- 			spin_lock(&vb->lock);
--			i = find_first_bit(vb->dirty_map, VMAP_BBMAP_BITS);
--			if (i < VMAP_BBMAP_BITS) {
-+			if (vb->dirty) {
-+				unsigned long va_start = vb->va->va_start;
- 				unsigned long s, e;
- 
--				j = find_last_bit(vb->dirty_map,
--							VMAP_BBMAP_BITS);
--				j = j + 1; /* need exclusive index */
-+				s = va_start + (vb->dirty_min << PAGE_SHIFT);
-+				e = va_start + (vb->dirty_max << PAGE_SHIFT);
- 
--				s = vb->va->va_start + (i << PAGE_SHIFT);
--				e = vb->va->va_start + (j << PAGE_SHIFT);
--				flush = 1;
-+				start = min(s, start);
-+				end   = max(e, end);
- 
--				if (s < start)
--					start = s;
--				if (e > end)
--					end = e;
-+				flush = 1;
- 			}
- 			spin_unlock(&vb->lock);
- 		}
 -- 
 2.2.2
 
