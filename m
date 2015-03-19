@@ -1,238 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f171.google.com (mail-yk0-f171.google.com [209.85.160.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 009276B0038
-	for <linux-mm@kvack.org>; Sat, 21 Mar 2015 17:14:29 -0400 (EDT)
-Received: by ykfc206 with SMTP id c206so56784807ykf.1
-        for <linux-mm@kvack.org>; Sat, 21 Mar 2015 14:14:29 -0700 (PDT)
-Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
-        by mx.google.com with ESMTPS id cc10si2357178pad.30.2015.03.19.03.55.47
+Received: from mail-yh0-f42.google.com (mail-yh0-f42.google.com [209.85.213.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 936086B006C
+	for <linux-mm@kvack.org>; Sat, 21 Mar 2015 17:14:40 -0400 (EDT)
+Received: by yhpt93 with SMTP id t93so53685862yhp.0
+        for <linux-mm@kvack.org>; Sat, 21 Mar 2015 14:14:40 -0700 (PDT)
+Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
+        by mx.google.com with ESMTPS id hq9si3357387pac.15.2015.03.19.07.05.24
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Mar 2015 03:55:47 -0700 (PDT)
-Received: by pdnc3 with SMTP id c3so73065472pdn.0
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 03:55:47 -0700 (PDT)
-Date: Thu, 19 Mar 2015 03:55:45 -0700
-From: Kelley Nielsen <kelleynnn@gmail.com>
-Subject: [RFC v7 2/2] mm: swapoff prototype: frontswap handling added
-Message-ID: <20150319105545.GA8156@kelleynnn-virtual-machine>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        Thu, 19 Mar 2015 07:05:24 -0700 (PDT)
+Received: by pdbcz9 with SMTP id cz9so77201855pdb.3
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 07:05:23 -0700 (PDT)
+From: Roman Pen <r.peniaev@gmail.com>
+Subject: [RFC v2 3/3] mm/vmalloc: get rid of dirty bitmap inside vmap_block structure
+Date: Thu, 19 Mar 2015 23:04:41 +0900
+Message-Id: <1426773881-5757-4-git-send-email-r.peniaev@gmail.com>
+In-Reply-To: <1426773881-5757-1-git-send-email-r.peniaev@gmail.com>
+References: <1426773881-5757-1-git-send-email-r.peniaev@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, riel@surriel.com, riel@redhat.com, opw-kernel@googlegroups.com, hughd@google.com, akpm@linux-foundation.org, jamieliu@google.com, sjenning@linux.vnet.ibm.com, sarah.a.sharp@intel.com
+Cc: Roman Pen <r.peniaev@gmail.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Dumazet <edumazet@google.com>, David Rientjes <rientjes@google.com>, WANG Chao <chaowang@redhat.com>, Fabian Frederick <fabf@skynet.be>, Christoph Lameter <cl@linux.com>, Gioh Kim <gioh.kim@lge.com>, Rob Jones <rob.jones@codethink.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The prototype of the new swapoff (without the quadratic complexity)
-presently ignores the frontswap case. Pass the count of
-pages_to_unuse down the page table walks in try_to_unuse(),
-and return from the walk when the desired number of pages
-has been swapped back in.
+In original implementation of vm_map_ram made by Nick Piggin there were two
+bitmaps:  alloc_map and dirty_map.  None of them were used as supposed to be:
+finding a suitable free hole for next allocation in block. vm_map_ram allocates
+space sequentially in block and on free call marks pages as dirty, so freed
+space can't be reused anymore.
 
-Signed-off-by: Kelley Nielsen <kelleynnn@gmail.com>
+Actually would be very interesting to know the real meaning of those bitmaps,
+maybe implementation was incomplete, etc.
+
+But long time ago Zhang Yanfei removed alloc_map by these two commits:
+
+  mm/vmalloc.c: remove dead code in vb_alloc
+     3fcd76e8028e0be37b02a2002b4f56755daeda06
+  mm/vmalloc.c: remove alloc_map from vmap_block
+     b8e748b6c32999f221ea4786557b8e7e6c4e4e7a
+
+In current patch I replaced dirty_map with two range variables: dirty min and
+max.  These variables store minimum and maximum position of dirty space in a
+block, since we need only to know the dirty range, not exact position of dirty
+pages.
+
+Why it was made? Several reasons: at first glance it seems that vm_map_ram
+allocator concerns about fragmentation thus it uses bitmaps for finding free
+hole, but it is not true.  To avoid complexity seems it is better to use
+something simple, like min or max range values.  Secondly, code also becomes
+simpler, without iteration over bitmap, just comparing values in min and max
+macros.  Thirdly, bitmap occupies up to 1024 bits (4MB is a max size of a
+block).  Here I replaced the whole bitmap with two longs.
+
+Finally vm_unmap_aliases should be slightly faster and the whole vmap_block
+structure occupies less memory.
+
+Signed-off-by: Roman Pen <r.peniaev@gmail.com>
+Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Eric Dumazet <edumazet@google.com>
+Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: WANG Chao <chaowang@redhat.com>
+Cc: Fabian Frederick <fabf@skynet.be>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Gioh Kim <gioh.kim@lge.com>
+Cc: Rob Jones <rob.jones@codethink.co.uk>
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 ---
-Changes since v6:
+ mm/vmalloc.c | 35 +++++++++++++++++------------------
+ 1 file changed, 17 insertions(+), 18 deletions(-)
 
-- In try_to_unuse(), copy pages_to_unuse to local fs_pages_to_unuse
-  and pass by reference (instead of value) down the page table walk
-- create #define FRONTSWAP_PAGES_UNUSED to pass special code
-  back up the chain from unuse_pte_range()
-- Test for this return code in try_to_unuse() and exit before
-  orphans cleanup and retries
-- In unuse_pte_range, move decrement of frontswap pages count
-  next to call to delete_from_swap_cache(), so that it happens
-  on every unused swap slot instead of every pte unmap
-- Remove unnecessary goto after call to unuse_mm() in try_to_unuse()
-- Remove blank line in shmem.c/shmem_unuse_inode()
----
- mm/swapfile.c | 60 +++++++++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 42 insertions(+), 18 deletions(-)
-
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 79c47b6..e4f5289 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1144,9 +1144,11 @@ out_nolock:
- 	return ret;
- }
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 9bd102c..5260e51 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -760,7 +760,7 @@ struct vmap_block {
+ 	spinlock_t lock;
+ 	struct vmap_area *va;
+ 	unsigned long free, dirty;
+-	DECLARE_BITMAP(dirty_map, VMAP_BBMAP_BITS);
++	unsigned long dirty_min, dirty_max; /*< dirty range */
+ 	struct list_head free_list;
+ 	struct rcu_head rcu_head;
+ 	struct list_head purge;
+@@ -846,7 +846,8 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
+ 	BUG_ON(VMAP_BBMAP_BITS <= (1UL << order));
+ 	vb->free = VMAP_BBMAP_BITS - (1UL << order);
+ 	vb->dirty = 0;
+-	bitmap_zero(vb->dirty_map, VMAP_BBMAP_BITS);
++	vb->dirty_min = VMAP_BBMAP_BITS;
++	vb->dirty_max = 0;
+ 	INIT_LIST_HEAD(&vb->free_list);
  
-+#define FRONTSWAP_PAGES_UNUSED 2
- static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 				unsigned long addr, unsigned long end,
--				unsigned int type)
-+				unsigned int type,
-+				unsigned long *fs_pages_to_unuse)
- {
- 	struct page *page;
- 	swp_entry_t entry;
-@@ -1169,6 +1171,8 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 			continue;
- 		if (found_type != type)
- 			continue;
-+		if ((*fs_pages_to_unuse > 0) && (!frontswap_test(si, offset)))
-+				continue;
+ 	vb_idx = addr_to_vb_idx(va->va_start);
+@@ -897,7 +898,8 @@ static void purge_fragmented_blocks(int cpu)
+ 		if (vb->free + vb->dirty == VMAP_BBMAP_BITS && vb->dirty != VMAP_BBMAP_BITS) {
+ 			vb->free = 0; /* prevent further allocs after releasing lock */
+ 			vb->dirty = VMAP_BBMAP_BITS; /* prevent purging it again */
+-			bitmap_fill(vb->dirty_map, VMAP_BBMAP_BITS);
++			vb->dirty_min = 0;
++			vb->dirty_max = VMAP_BBMAP_BITS;
+ 			spin_lock(&vbq->lock);
+ 			list_del_rcu(&vb->free_list);
+ 			spin_unlock(&vbq->lock);
+@@ -990,6 +992,7 @@ static void vb_free(const void *addr, unsigned long size)
+ 	order = get_order(size);
  
- 		swap_map = &si->swap_map[offset];
- 		if (!swap_count(*swap_map))
-@@ -1205,11 +1209,18 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 		if (PageSwapCache(page) && (swap_count(*swap_map) == 0)) {
- 			wait_on_page_writeback(page);
- 			delete_from_swap_cache(page);
-+			if (*fs_pages_to_unuse > 0) {
-+				(*fs_pages_to_unuse)--;
-+				if (*fs_pages_to_unuse == 0)
-+					ret = FRONTSWAP_PAGES_UNUSED;
-+			}
- 		}
+ 	offset = (unsigned long)addr & (VMAP_BLOCK_SIZE - 1);
++	offset >>= PAGE_SHIFT;
  
- 		SetPageDirty(page);
- 		unlock_page(page);
- 		page_cache_release(page);
-+		if (ret == FRONTSWAP_PAGES_UNUSED)
-+			goto out;
- try_next:
- 		pte = pte_offset_map(pmd, addr);
- 	} while (pte++, addr += PAGE_SIZE, addr != end);
-@@ -1220,7 +1231,8 @@ out:
+ 	vb_idx = addr_to_vb_idx((unsigned long)addr);
+ 	rcu_read_lock();
+@@ -1000,7 +1003,10 @@ static void vb_free(const void *addr, unsigned long size)
+ 	vunmap_page_range((unsigned long)addr, (unsigned long)addr + size);
  
- static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
- 				unsigned long addr, unsigned long end,
--				unsigned int type)
-+				unsigned int type,
-+				unsigned long *fs_pages_to_unuse)
- {
- 	pmd_t *pmd;
- 	unsigned long next;
-@@ -1231,8 +1243,9 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
- 		next = pmd_addr_end(addr, end);
- 		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
- 			continue;
--		ret = unuse_pte_range(vma, pmd, addr, next, type);
--		if (ret < 0)
-+		ret = unuse_pte_range(vma, pmd, addr, next, type,
-+				fs_pages_to_unuse);
-+		if (ret < 0 || ret == 2)
- 			return ret;
- 	} while (pmd++, addr = next, addr != end);
- 	return 0;
-@@ -1240,7 +1253,8 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
- 
- static inline int unuse_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
- 				unsigned long addr, unsigned long end,
--				unsigned int type)
-+				unsigned int type,
-+				unsigned long *fs_pages_to_unuse)
- {
- 	pud_t *pud;
- 	unsigned long next;
-@@ -1251,14 +1265,16 @@ static inline int unuse_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
- 		next = pud_addr_end(addr, end);
- 		if (pud_none_or_clear_bad(pud))
- 			continue;
--		ret = unuse_pmd_range(vma, pud, addr, next, type);
--		if (ret < 0)
-+		ret = unuse_pmd_range(vma, pud, addr, next, type,
-+				fs_pages_to_unuse);
-+		if (ret < 0 || ret == 2)
- 			return ret;
- 	} while (pud++, addr = next, addr != end);
- 	return 0;
- }
- 
--static int unuse_vma(struct vm_area_struct *vma, unsigned int type)
-+static int unuse_vma(struct vm_area_struct *vma, unsigned int type,
-+		unsigned long *fs_pages_to_unuse)
- {
- 	pgd_t *pgd;
- 	unsigned long addr, end, next;
-@@ -1272,14 +1288,16 @@ static int unuse_vma(struct vm_area_struct *vma, unsigned int type)
- 		next = pgd_addr_end(addr, end);
- 		if (pgd_none_or_clear_bad(pgd))
- 			continue;
--		ret = unuse_pud_range(vma, pgd, addr, next, type);
--		if (ret < 0)
-+		ret = unuse_pud_range(vma, pgd, addr, next, type,
-+				fs_pages_to_unuse);
-+		if (ret < 0 || ret == 2)
- 			return ret;
- 	} while (pgd++, addr = next, addr != end);
- 	return 0;
- }
- 
--static int unuse_mm(struct mm_struct *mm, unsigned int type)
-+static int unuse_mm(struct mm_struct *mm, unsigned int type,
-+		unsigned long *fs_pages_to_unuse)
- {
- 	struct vm_area_struct *vma;
- 	int ret = 0;
-@@ -1287,7 +1305,7 @@ static int unuse_mm(struct mm_struct *mm, unsigned int type)
- 	down_read(&mm->mmap_sem);
- 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
- 		if (vma->anon_vma) {
--			ret = unuse_vma(vma, type);
-+			ret = unuse_vma(vma, type, fs_pages_to_unuse);
- 			if (ret)
- 				break;
- 		}
-@@ -1342,7 +1360,6 @@ static unsigned int find_next_to_unuse(struct swap_info_struct *si,
- 	return i;
- }
- 
--/* TODO: frontswap */
- #define MAX_RETRIES 3
- int try_to_unuse(unsigned int type, bool frontswap,
- 		 unsigned long pages_to_unuse)
-@@ -1354,10 +1371,14 @@ int try_to_unuse(unsigned int type, bool frontswap,
- 	struct swap_info_struct *si = swap_info[type];
- 	struct page *page;
- 	swp_entry_t entry;
-+	unsigned long fs_pages_to_unuse = 0;
- 	unsigned int i = 0;
- 	unsigned int oldi = 0;
- 	int retries = 0;
- 
-+	if (frontswap)
-+		fs_pages_to_unuse = pages_to_unuse;
+ 	spin_lock(&vb->lock);
+-	BUG_ON(bitmap_allocate_region(vb->dirty_map, offset >> PAGE_SHIFT, order));
 +
- retry:
- 	retval = shmem_unuse(type);
- 	if (retval)
-@@ -1381,9 +1402,7 @@ retry:
- 		mmput(prev_mm);
- 		prev_mm = mm;
++	/* Expand dirty range */
++	vb->dirty_min = min(vb->dirty_min, offset);
++	vb->dirty_max = max(vb->dirty_max, offset + (1UL << order));
  
--		retval = unuse_mm(mm, type);
--		if (retval)
--			goto out_put;
-+		retval = unuse_mm(mm, type, &fs_pages_to_unuse);
+ 	vb->dirty += 1UL << order;
+ 	if (vb->dirty == VMAP_BBMAP_BITS) {
+@@ -1039,25 +1045,18 @@ void vm_unmap_aliases(void)
  
- 		/*
- 		 * Make sure that we aren't completely killing
-@@ -1396,8 +1415,13 @@ retry:
+ 		rcu_read_lock();
+ 		list_for_each_entry_rcu(vb, &vbq->free, free_list) {
+-			int i, j;
+-
+ 			spin_lock(&vb->lock);
+-			i = find_first_bit(vb->dirty_map, VMAP_BBMAP_BITS);
+-			if (i < VMAP_BBMAP_BITS) {
++			if (vb->dirty) {
++				unsigned long va_start = vb->va->va_start;
+ 				unsigned long s, e;
  
- out_put:
- 	mmput(prev_mm);
--	if (retval)
-+	if (retval < 0)
-+		goto out;
-+	if (retval == FRONTSWAP_PAGES_UNUSED) {
-+		retval = 0;
- 		goto out;
-+	}
-+
- 	while ((i = find_next_to_unuse(si, i, frontswap)) != 0) {
- 		/*
- 		 * under global memory pressure, swap entries
-@@ -1410,7 +1434,7 @@ out_put:
- 		 */
- 		if (i < oldi) {
- 			retries++;
--			if (retries > MAX_RETRIES) {
-+			if ((retries > MAX_RETRIES) || frontswap) {
- 				retval = -EBUSY;
- 				goto out;
+-				j = find_last_bit(vb->dirty_map,
+-							VMAP_BBMAP_BITS);
+-				j = j + 1; /* need exclusive index */
++				s = va_start + (vb->dirty_min << PAGE_SHIFT);
++				e = va_start + (vb->dirty_max << PAGE_SHIFT);
+ 
+-				s = vb->va->va_start + (i << PAGE_SHIFT);
+-				e = vb->va->va_start + (j << PAGE_SHIFT);
+-				flush = 1;
++				start = min(s, start);
++				end   = max(e, end);
+ 
+-				if (s < start)
+-					start = s;
+-				if (e > end)
+-					end = e;
++				flush = 1;
  			}
+ 			spin_unlock(&vb->lock);
+ 		}
 -- 
-1.8.3.2
+2.2.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
