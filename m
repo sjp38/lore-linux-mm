@@ -1,70 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B9F76B006C
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 08:51:09 -0400 (EDT)
-Received: by weop45 with SMTP id p45so56404569weo.0
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 05:51:09 -0700 (PDT)
+Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
+	by kanga.kvack.org (Postfix) with ESMTP id CB0356B0038
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 09:04:27 -0400 (EDT)
+Received: by weop45 with SMTP id p45so56718711weo.0
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 06:04:27 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ib9si1995898wjb.198.2015.03.19.05.51.05
+        by mx.google.com with ESMTPS id ex13si2923436wid.100.2015.03.19.06.04.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 19 Mar 2015 05:51:05 -0700 (PDT)
-Message-ID: <550AC636.9030406@suse.cz>
-Date: Thu, 19 Mar 2015 13:51:02 +0100
+        Thu, 19 Mar 2015 06:04:26 -0700 (PDT)
+Message-ID: <550AC958.9010502@suse.cz>
+Date: Thu, 19 Mar 2015 14:04:24 +0100
 From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC, PATCH] pagemap: do not leak physical addresses to non-privileged
- userspace
-References: <1425935472-17949-1-git-send-email-kirill@shutemov.name> <20150316211122.GD11441@amd> <CAL82V5O6awBrpj8uf2_cEREzZWPfjLfqPtRbHEd5_zTkRLU8Sg@mail.gmail.com> <CALCETrU8SeOTSexLOi36sX7Smwfv0baraK=A3hq8twoyBN7NBg@mail.gmail.com>
-In-Reply-To: <CALCETrU8SeOTSexLOi36sX7Smwfv0baraK=A3hq8twoyBN7NBg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
+Subject: Re: [PATCH RFC] mm: protect suid binaries against rowhammer with
+ copy-on-read mappings
+References: <20150318083040.7838.76933.stgit@zurg> <20150318095702.GA2479@node.dhcp.inet.fi> <5509644C.40502@yandex-team.ru>
+In-Reply-To: <5509644C.40502@yandex-team.ru>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Mark Seaborn <mseaborn@chromium.org>
-Cc: Pavel Machek <pavel@ucw.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, "linux-mm@kvack.org" <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@parallels.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "Kirill A. Shutemov" <kirill@shutemov.name>, Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>
 
-On 03/17/2015 02:21 AM, Andy Lutomirski wrote:
-> On Mon, Mar 16, 2015 at 5:49 PM, Mark Seaborn <mseaborn@chromium.org> wrote:
->> On 16 March 2015 at 14:11, Pavel Machek <pavel@ucw.cz> wrote:
+On 03/18/2015 12:41 PM, Konstantin Khlebnikov wrote:
+> On 18.03.2015 12:57, Kirill A. Shutemov wrote:
 >>
->>> Can we do anything about that? Disabling cache flushes from userland
->>> should make it no longer exploitable.
+>> I don't think it worth it. The only right way to fix the problem is ECC
+>> memory.
 >>
->> Unfortunately there's no way to disable userland code's use of
->> CLFLUSH, as far as I know.
->>
->> Maybe Intel or AMD could disable CLFLUSH via a microcode update, but
->> they have not said whether that would be possible.
 > 
-> The Intel people I asked last week weren't confident.  For one thing,
-> I fully expect that rowhammer can be exploited using only reads and
-> writes with some clever tricks involving cache associativity.  I don't
-> think there are any fully-associative caches, although the cache
-> replacement algorithm could make the attacks interesting.
+> ECC seems good protection until somebody figure out how to break it too.
 
-I've been thinking the same. But maybe having to evict e.g. 16-way cache would
-mean accessing 16x more lines which could reduce the frequency for a single line
-below dangerous levels. Worth trying, though :)
-
-BTW, by using clever access patterns and measurement of access latencies one
-could also possibly determine which cache lines alias/colide, without needing to
-read pagemap. It would just take longer. Hugepages make that simpler as well.
-
-I just hope we are not going to disable lots of stuff including clflush and e.g.
-transparent hugepages just because some part of the currently sold hardware is
-vulnerable...
-
-Vlastimil
-
-> --Andy
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+I doubt that kind of attitude can get us very far. If we can't trust the
+hardware, we lose sooner or later.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
