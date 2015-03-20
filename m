@@ -1,65 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 186E26B0038
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 01:55:54 -0400 (EDT)
-Received: by pdbni2 with SMTP id ni2so98838904pdb.1
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 22:55:53 -0700 (PDT)
-Received: from mail-pd0-x234.google.com (mail-pd0-x234.google.com. [2607:f8b0:400e:c02::234])
-        by mx.google.com with ESMTPS id pc2si7259132pac.137.2015.03.19.22.55.53
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 222946B0038
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 03:01:55 -0400 (EDT)
+Received: by pdbop1 with SMTP id op1so100268659pdb.2
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 00:01:54 -0700 (PDT)
+Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id p1si7779013pdr.47.2015.03.20.00.01.52
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Mar 2015 22:55:53 -0700 (PDT)
-Received: by pdbni2 with SMTP id ni2so98838651pdb.1
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 22:55:53 -0700 (PDT)
-Date: Fri, 20 Mar 2015 14:55:59 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: mm/zsmalloc.c: count in handle's size when calculating
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Fri, 20 Mar 2015 00:01:53 -0700 (PDT)
+Received: from epcpsbgx2.samsung.com
+ (u162.gpu120.samsung.co.kr [203.254.230.162])
+ by mailout2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0NLI00L090V2Q240@mailout2.samsung.com> for linux-mm@kvack.org;
+ Fri, 20 Mar 2015 16:01:50 +0900 (KST)
+Date: Fri, 20 Mar 2015 07:01:50 +0000 (GMT)
+From: Yinghao Xie <yinghao.xie@samsung.com>
+Subject: Re: Re: mm/zsmalloc.c: count in handle's size when calculating
  pages_per_zspage
-Message-ID: <20150320055559.GA23604@swordfish>
-References: <430707086.362221426765159948.JavaMail.weblogic@epmlwas05d>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <430707086.362221426765159948.JavaMail.weblogic@epmlwas05d>
+Reply-to: yinghao.xie@samsung.com
+MIME-version: 1.0
+Content-transfer-encoding: base64
+Content-type: text/plain; charset=utf-8
+MIME-version: 1.0
+Message-id: <2096325123.41201426834909043.JavaMail.weblogic@epmlwas06d>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghao Xie <yinghao.xie@samsung.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, sergey.senozhatsky@gmail.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
+PiA+IEZyb20gMTU5ZDc0YjVhOGYzZDBmMDdlMThkZGFkNzRiNzAyNWNmMTdkY2M2OSBNb24gU2Vw
+IDE3IDAwOjAwOjAwDQo+IDIwMDENCj4gPiBGcm9tOiBZaW5naGFvIFhpZSA8eWluZ2hhby54aWVA
+c3Vtc3VuZy5jb20+DQo+ID4gRGF0ZTogVGh1LCAxOSBNYXIgMjAxNSAxOTozMjoyNSArMDgwMA0K
+PiA+IFN1YmplY3Q6IFtQQVRDSF0gbW0venNtYWxsb2MuYzogY291bnQgaW4gaGFuZGxlJ3Mgc2l6
+ZSB3aGVuDQo+ID4gY2FsY3VsYXRpbmcgIHNpemVfY2xhc3MncyBwYWdlc19wZXJfenNwYWdlDQo+
+ID4NCj4gPiAxLiBGaXggd2FzdGFnZSBjYWxjdWxhdGlvbjsNCj4gPiAyLiBJbmRpcmVjdCBoYW5k
+bGUgaW50cm9kdWNlZCBleHRyYSBaU19IQU5ETEVfU0laRSBzaXplIGZvciBlYWNoDQo+IG9iamVj
+dCxpdCdzIHRyYW5zcGFyZW50DQo+ID4gICAgZm9yIHVwcGVyIGZ1bmN0aW9uLCBidXQgYSBzaXpl
+X2NsYXNzJ3MgdG90YWwgb2JqZWN0cyB3aWxsIGNoYW5nZWQ6DQo+ID4gICAgdGFrZSB0aGUgNDNy
+ZCBjbGFzcyB3aGljaCBjbGFzc19zaXplID0gMzIgKyA0MyAqIDE2ID0gNzIwIGFzIGV4YW1wbGU6
+DQo+ID4gCTQwOTYgKiAxICUgNzIwID0gNDk2DQo+ID4gCTQwOTYgKiAyICUgNzIwID0gMjcyDQo+
+ID4gCTQwOTYgKiAzICUgNzIwID0gNDgNCj4gPiAJNDA5NiAqIDQgJTcyMCA9IDU0NA0KPiA+ICAg
+IGFmdGVyIGhhbmRsZSBpbnRyb2R1Y2VkLGNsYXNzX3NpemUgKyBaU19IQU5ETEVfU0laRSAoNCBv
+biAzMmJpdCkgPSA3MjQNCj4gPiAJNDA5NiAqIDEgJSA3MjQgPSA0NzYNCj4gPiAJNDA5NiAqIDIg
+JSA3MjQgPSAyMjgNCj4gPiAJNDA5NiAqIDMgJSA3MjQgPSA3MDQNCj4gPiAJNDA5NiAqIDQgJSA3
+MjQgPSA0NTYNCj4gPiAgICAgQ2xlYXJseSwgWlNfSEFORExFX1NJWkUgc2hvdWxkIGJlIGNvbnNp
+ZGVyZWQgd2hlbiBjYWxjdWxhdGluZw0KPiA+IHBhZ2VzX3Blcl96c3BhZ2U7DQo+IA0KPiBac21h
+bGxvYyBhZGRzIFpTX1NJWkVfSEFORExFIHRvIHNpemUgdXNlciBwYXNzZWQgYmVmb3JlIGdldHRp
+bmcgc2l6ZV9jbGFzcw0KPiBzbyB3ZSBkb24ndCBuZWVkIHRvIGNoYW5nZSBzaXplX2NsYXNzIHRv
+IGNhbGN1bGF0ZSBvcHRpbWFsIHBhZ2VzIGZvciB6c3BhZ2UuDQo+IA0KDQpJIHJlYWQgY29kZSBh
+Z2lhbixhbmQgYWdyZWVkIHdpdGggeW91LGl0IGlzIG15IG1pc3VuZGVyc3RhbmRpbmcNCg0KPiA+
+DQo+ID4gMy4gaW4gZ2V0X3NpemVfY2xhc3NfaW5kZXgoKSwgbWluKHpzX3NpemVfY2xhc3NlcyAt
+IDEsIGlkeCkgaW5zdXJlcyBhIGh1Z2UNCj4gY2xhc3Mncw0KPiA+ICAgIGluZGV4IDw9IHpzX3Np
+emVfY2xhc3NlcyAtIDEsIHNvIGl0J3Mgbm8gbmVlZCB0byBjaGVjayBhZ2FpbjsNCj4gDQo+IFNv
+cnJ5LCBJIGRvbid0IGdldCBpdCwgZWl0aGVyLg0KPg0KZGl0dG8sIG15IGZhdWx0LHNvcnJ5IA0K
+IA0KPiA+DQo+ID4gU2lnbmVkLW9mZi1ieTogWWluZ2hhbyBYaWUgPHlpbmdoYW8ueGllQHN1bXN1
+bmcuY29tPg0KPiA+IC0tLQ0KPiA+ICBtbS96c21hbGxvYy5jIHwgICAxNSArKysrKystLS0tLS0t
+LS0NCj4gPiAgMSBmaWxlIGNoYW5nZWQsIDYgaW5zZXJ0aW9ucygrKSwgOSBkZWxldGlvbnMoLSkN
+Cj4gPg0KPiA+IGRpZmYgLS1naXQgYS9tbS96c21hbGxvYy5jIGIvbW0venNtYWxsb2MuYyBpbmRl
+eCA0NjEyNDNlLi42NGMzNzliDQo+ID4gMTAwNjQ0DQo+ID4gLS0tIGEvbW0venNtYWxsb2MuYw0K
+PiA+ICsrKyBiL21tL3pzbWFsbG9jLmMNCj4gPiBAQCAtNzYwLDcgKzc2MCw4IEBAIG91dDoNCj4g
+PiAgICogdG8gZm9ybSBhIHpzcGFnZSBmb3IgZWFjaCBzaXplIGNsYXNzLiBUaGlzIGlzIGltcG9y
+dGFudA0KPiA+ICAgKiB0byByZWR1Y2Ugd2FzdGFnZSBkdWUgdG8gdW51c2FibGUgc3BhY2UgbGVm
+dCBhdCBlbmQgb2YNCj4gPiAgICogZWFjaCB6c3BhZ2Ugd2hpY2ggaXMgZ2l2ZW4gYXM6DQo+ID4g
+LSAqCXdhc3RhZ2UgPSBacCAtIFpwICUgc2l6ZV9jbGFzcw0KPiA+ICsgKgl3YXN0YWdlID0gWnAg
+JSAoY2xhc3Nfc2l6ZSArIFpTX0hBTkRMRV9TSVpFKQ0KPiA+ICsgKgl1c2FnZSA9IFpwIC0gd2Fz
+dGFnZQ0KPiA+ICAgKiB3aGVyZSBacCA9IHpzcGFnZSBzaXplID0gayAqIFBBR0VfU0laRSB3aGVy
+ZSBrID0gMSwgMiwgLi4uDQo+ID4gICAqDQo+ID4gICAqIEZvciBleGFtcGxlLCBmb3Igc2l6ZSBj
+bGFzcyBvZiAzLzggKiBQQUdFX1NJWkUsIHdlIHNob3VsZCBAQA0KPiA+IC03NzMsNiArNzc0LDkg
+QEAgc3RhdGljIGludCBnZXRfcGFnZXNfcGVyX3pzcGFnZShpbnQgY2xhc3Nfc2l6ZSkNCj4gPiAg
+CS8qIHpzcGFnZSBvcmRlciB3aGljaCBnaXZlcyBtYXhpbXVtIHVzZWQgc2l6ZSBwZXIgS0IgKi8N
+Cj4gPiAgCWludCBtYXhfdXNlZHBjX29yZGVyID0gMTsNCj4gPg0KPiA+ICsJaWYgKGNsYXNzX3Np
+emUgPiBaU19NQVhfQUxMT0NfU0laRSkNCj4gPiArCQljbGFzc19zaXplID0gWlNfTUFYX0FMTE9D
+X1NJWkU7DQo+ID4gKw0KPiA+ICAJZm9yIChpID0gMTsgaSA8PSBaU19NQVhfUEFHRVNfUEVSX1pT
+UEFHRTsgaSsrKSB7DQo+ID4gIAkJaW50IHpzcGFnZV9zaXplOw0KPiA+ICAJCWludCB3YXN0ZSwg
+dXNlZHBjOw0KPiA+IEBAIC0xNDI2LDExICsxNDMwLDYgQEAgdW5zaWduZWQgbG9uZyB6c19tYWxs
+b2Moc3RydWN0IHpzX3Bvb2wgKnBvb2wsDQo+IHNpemVfdCBzaXplKQ0KPiA+ICAJLyogZXh0cmEg
+c3BhY2UgaW4gY2h1bmsgdG8ga2VlcCB0aGUgaGFuZGxlICovDQo+ID4gIAlzaXplICs9IFpTX0hB
+TkRMRV9TSVpFOw0KPiA+ICAJY2xhc3MgPSBwb29sLT5zaXplX2NsYXNzW2dldF9zaXplX2NsYXNz
+X2luZGV4KHNpemUpXTsNCj4gPiAtCS8qIEluIGh1Z2UgY2xhc3Mgc2l6ZSwgd2Ugc3RvcmUgdGhl
+IGhhbmRsZSBpbnRvIGZpcnN0X3BhZ2UtPnByaXZhdGUgKi8NCj4gPiAtCWlmIChjbGFzcy0+aHVn
+ZSkgew0KPiA+IC0JCXNpemUgLT0gWlNfSEFORExFX1NJWkU7DQo+ID4gLQkJY2xhc3MgPSBwb29s
+LT5zaXplX2NsYXNzW2dldF9zaXplX2NsYXNzX2luZGV4KHNpemUpXTsNCj4gPiAtCX0NCj4gPg0K
+PiA+ICAJc3Bpbl9sb2NrKCZjbGFzcy0+bG9jayk7DQo+ID4gIAlmaXJzdF9wYWdlID0gZmluZF9n
+ZXRfenNwYWdlKGNsYXNzKTsgQEAgLTE4NTYsOSArMTg1NSw3IEBAIHN0cnVjdA0KPiA+IHpzX3Bv
+b2wgKnpzX2NyZWF0ZV9wb29sKGNoYXIgKm5hbWUsIGdmcF90IGZsYWdzKQ0KPiA+ICAJCXN0cnVj
+dCBzaXplX2NsYXNzICpjbGFzczsNCj4gPg0KPiA+ICAJCXNpemUgPSBaU19NSU5fQUxMT0NfU0la
+RSArIGkgKiBaU19TSVpFX0NMQVNTX0RFTFRBOw0KPiA+IC0JCWlmIChzaXplID4gWlNfTUFYX0FM
+TE9DX1NJWkUpDQo+ID4gLQkJCXNpemUgPSBaU19NQVhfQUxMT0NfU0laRTsNCj4gPiAtCQlwYWdl
+c19wZXJfenNwYWdlID0gZ2V0X3BhZ2VzX3Blcl96c3BhZ2Uoc2l6ZSk7DQo+ID4gKwkJcGFnZXNf
+cGVyX3pzcGFnZSA9IGdldF9wYWdlc19wZXJfenNwYWdlKHNpemUgKw0KPiBaU19IQU5ETEVfU0la
+RSk7DQo+ID4NCj4gPiAgCQkvKg0KPiA+ICAJCSAqIHNpemVfY2xhc3MgaXMgdXNlZCBmb3Igbm9y
+bWFsIHpzbWFsbG9jIG9wZXJhdGlvbiBzdWNoDQo+ID4gLS0NCj4gPiAxLjcuOS41DQo=
 
-Hello,
-
-sorry, I've a question.
-
-On (03/19/15 11:39), Yinghao Xie wrote:
-> @@ -1426,11 +1430,6 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
->  	/* extra space in chunk to keep the handle */
->  	size += ZS_HANDLE_SIZE;
->  	class = pool->size_class[get_size_class_index(size)];
-> -	/* In huge class size, we store the handle into first_page->private */
-> -	if (class->huge) {
-> -		size -= ZS_HANDLE_SIZE;
-> -		class = pool->size_class[get_size_class_index(size)];
-> -	}
-
-if huge class uses page->private to store a handle, shouldn't we pass
-"size -= ZS_HANDLE_SIZE" to get_size_class_index() ?
-
-	-ss
-
->  	spin_lock(&class->lock);
->  	first_page = find_get_zspage(class);
-> @@ -1856,9 +1855,7 @@ struct zs_pool *zs_create_pool(char *name, gfp_t flags)
->  		struct size_class *class;
->  
->  		size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA;
-> -		if (size > ZS_MAX_ALLOC_SIZE)
-> -			size = ZS_MAX_ALLOC_SIZE;
-> -		pages_per_zspage = get_pages_per_zspage(size);
-> +		pages_per_zspage = get_pages_per_zspage(size + ZS_HANDLE_SIZE);
->  
->  		/*
->  		 * size_class is used for normal zsmalloc operation such
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
