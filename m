@@ -1,41 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F8336B0038
-	for <linux-mm@kvack.org>; Sat, 21 Mar 2015 01:49:43 -0400 (EDT)
-Received: by oiag65 with SMTP id g65so106884789oia.2
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 22:49:42 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id h2si3470539obe.68.2015.03.20.22.49.17
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 092186B0038
+	for <linux-mm@kvack.org>; Sat, 21 Mar 2015 04:11:18 -0400 (EDT)
+Received: by pdbop1 with SMTP id op1so131077794pdb.2
+        for <linux-mm@kvack.org>; Sat, 21 Mar 2015 01:11:17 -0700 (PDT)
+Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
+        by mx.google.com with ESMTPS id i5si13269229pde.37.2015.03.21.01.11.16
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 20 Mar 2015 22:49:42 -0700 (PDT)
-Message-ID: <550D054A.9070808@huawei.com>
-Date: Sat, 21 Mar 2015 13:44:42 +0800
-From: Xie XiuQi <xiexiuqi@huawei.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 21 Mar 2015 01:11:17 -0700 (PDT)
+Received: by pdbcz9 with SMTP id cz9so130991440pdb.3
+        for <linux-mm@kvack.org>; Sat, 21 Mar 2015 01:11:16 -0700 (PDT)
+Date: Fri, 20 Mar 2015 23:41:25 +0800
+From: Wang YanQing <udknight@gmail.com>
+Subject: Re: [RFC] Strange do_munmap in mmap_region
+Message-ID: <20150320154125.GA3168@udknight>
+References: <20150228064647.GA9550@udknight.ahead-top.com>
+ <CALYGNiMLwhqQSmj58mT4MWk2RAuU-3TykoSd=XjuXVfqkL3NoA@mail.gmail.com>
+ <20150319151214.GA2175@udknight>
+ <CALYGNiPjEFLC2uiTGZMqP4TwDBit6+3VaiEpvGELYg8jDsVXBw@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] tracing: add trace event for memory-failure
-References: <1426734270-8146-1-git-send-email-xiexiuqi@huawei.com> <20150319103939.GD11544@pd.tnic> <550B9EF2.7000604@huawei.com> <3908561D78D1C84285E8C5FCA982C28F32A258C2@ORSMSX114.amr.corp.intel.com>
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F32A258C2@ORSMSX114.amr.corp.intel.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALYGNiPjEFLC2uiTGZMqP4TwDBit6+3VaiEpvGELYg8jDsVXBw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>, Borislav Petkov <bp@suse.de>
-Cc: "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "bhelgaas@google.com" <bhelgaas@google.com>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jingle.chen@huawei.com" <jingle.chen@huawei.com>
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, yinghai@kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On 2015/3/21 1:24, Luck, Tony wrote:
->> RAS user space tools like rasdaemon which base on trace event, could
->> receive mce error event, but no memory recovery result event. So, I
->> want to add this event to make this scenario complete.
+On Thu, Mar 19, 2015 at 06:36:54PM +0300, Konstantin Khlebnikov wrote:
+> > Assme process has vma in region 4096-8192, one page size, mapped to
+> > a file's first 4096 bytes, then a new map want to create vma in range
+> > 0-8192 to map 4096-1288 in file, please tell me what's your meaning:
+> > "so everything what was here before is unmapped in process"?
+> >
+> > Why we can just delete old vma for first 4096 size in file which reside
+> > in range 4096-8192 without notify user process? And create the new vma
+> > to occupy range 0-8192, do you think "everything" is really the same?
 > 
-> Excellent answer.  Are you going to write that patch for rasdaemon?
-
-Yes, I will ;-)
-
-> 
-> -Tony
+> Old and new vmas are intersects? Then that means userpace asked to
+> create new mapping at fixed address, so it tells kernel to unmap
+> everything in that range. Without MAP_FIXED kernel always choose free area.
 > 
 
+Thanks, Konstantin Khlebnikov, you cure my headache :)
+
+I haven't notice MAP_FIXED.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
