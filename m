@@ -1,51 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 589B16B0038
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 18:49:37 -0400 (EDT)
-Received: by pdbop1 with SMTP id op1so121272308pdb.2
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 15:49:37 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id fn4si11467095pab.203.2015.03.20.15.49.36
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Mar 2015 15:49:36 -0700 (PDT)
-Message-ID: <550CA3F9.9040201@oracle.com>
-Date: Fri, 20 Mar 2015 16:49:29 -0600
-From: David Ahern <david.ahern@oracle.com>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id E1E856B0038
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 18:51:44 -0400 (EDT)
+Received: by pdbop1 with SMTP id op1so121312766pdb.2
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 15:51:44 -0700 (PDT)
+Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id p9si11503410pdi.204.2015.03.20.15.51.42
+        for <linux-mm@kvack.org>;
+        Fri, 20 Mar 2015 15:51:44 -0700 (PDT)
+Date: Sat, 21 Mar 2015 09:51:39 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm: Use GFP_KERNEL allocation for the page cache in
+ page_cache_read
+Message-ID: <20150320225139.GL28621@dastard>
+References: <1426687766-518-1-git-send-email-mhocko@suse.cz>
+ <55098F3B.7070000@redhat.com>
+ <20150318145528.GK17241@dhcp22.suse.cz>
+ <20150319071439.GE28621@dastard>
+ <20150319124441.GC12466@dhcp22.suse.cz>
+ <20150320034820.GH28621@dastard>
+ <20150320131453.GA4821@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: 4.0.0-rc4: panic in free_block
-References: <550C37C9.2060200@oracle.com> <CA+55aFxoVPRuFJGuP_=0-NCiqx_NPeJBv+SAZqbAzeC9AhN+CA@mail.gmail.com>
-In-Reply-To: <CA+55aFxoVPRuFJGuP_=0-NCiqx_NPeJBv+SAZqbAzeC9AhN+CA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150320131453.GA4821@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Sage Weil <sage@inktank.com>, Mark Fasheh <mfasheh@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 3/20/15 3:17 PM, Linus Torvalds wrote:
-> In other words, if I read that sparc asm right (and it is very likely
-> that I do *not*), then "objp" is NULL, and that's why you crash.
+On Fri, Mar 20, 2015 at 02:14:53PM +0100, Michal Hocko wrote:
+> On Fri 20-03-15 14:48:20, Dave Chinner wrote:
+> > On Thu, Mar 19, 2015 at 01:44:41PM +0100, Michal Hocko wrote:
+> > > > allocations where the caller cannot pass a gfp_mask need to obey
+> > > > the mapping_gfp_mask that is set by the mapping owner....
+> > > 
+> > > Hmm, I thought this is true only when the function might be called from
+> > > the fs path.
+> > 
+> > How do you know in, say, mpage_readpages, you aren't being called
+> > from a fs path that holds locks? e.g. we can get there from ext4
+> > doing readdir, so it is holding an i_mutex lock at that point.
+> > 
+> > Many other paths into mpages_readpages don't hold locks, but there
+> > are some that do, and those that do need functionals like this to
+> > obey the mapping_gfp_mask because it is set appropriately for the
+> > allocation context of the inode that owns the mapping....
+> 
+> What about the following?
+> ---
+> From 5d905cb291138d61bbab056845d6e53bc4451ec8 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Thu, 19 Mar 2015 14:56:56 +0100
+> Subject: [PATCH 1/2] mm: do not ignore mapping_gfp_mask in page cache
+>  allocation paths
 
-That does appear to be why. I put a WARN_ON before 
-clear_obj_pfmemalloc() if objpp[i] is NULL. I got 2 splats during an 
-'allyesconfig' build and the system stayed up.
+Looks reasonable, though I though there were more places that that
+in the mapping paths that need to be careful...
 
->
-> That's odd, because we know that objp cannot be NULL in
-> kmem_slab_free() (even if we allowed it, like with kfree(),
-> remove_vma() cannot possibly have a NULL vma, since ti dereferences it
-> multiple times).
->
-> So I must be misreading this completely. Somebody with better sparc
-> debugging mojo should double-check my logic. How would objp be NULL?
+Cheers,
 
-I'll add checks to higher layers and see if it reveals anything.
-
-I did ask around and apparently this bug is hit only with the new M7 
-processors. DaveM: that's why you are not hitting this.
-
-David
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
