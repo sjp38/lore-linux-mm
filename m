@@ -1,106 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 697686B006E
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 11:53:45 -0400 (EDT)
-Received: by wgra20 with SMTP id a20so92818088wgr.3
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 08:53:44 -0700 (PDT)
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com. [195.75.94.111])
-        by mx.google.com with ESMTPS id us7si7574870wjc.151.2015.03.20.08.53.43
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C8FF6B0038
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 12:09:14 -0400 (EDT)
+Received: by lbblx11 with SMTP id lx11so56646304lbb.3
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 09:09:13 -0700 (PDT)
+Received: from mail-lb0-x22c.google.com (mail-lb0-x22c.google.com. [2a00:1450:4010:c04::22c])
+        by mx.google.com with ESMTPS id z6si328496lag.156.2015.03.20.09.09.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 20 Mar 2015 08:53:44 -0700 (PDT)
-Received: from /spool/local
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Fri, 20 Mar 2015 15:53:42 -0000
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 4357417D805A
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 15:54:05 +0000 (GMT)
-Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t2KFrdYh3801428
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 15:53:39 GMT
-Received: from d06av04.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av04.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t2KFratt005657
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 09:53:38 -0600
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [PATCH 2/2] powerpc/mm: Tracking vDSO remap
-Date: Fri, 20 Mar 2015 16:53:28 +0100
-Message-Id: <462eda8901babf0a08b5ef642684ae1c6303bd5b.1426866405.git.ldufour@linux.vnet.ibm.com>
-In-Reply-To: <cover.1426866405.git.ldufour@linux.vnet.ibm.com>
-References: <cover.1426866405.git.ldufour@linux.vnet.ibm.com>
-In-Reply-To: <cover.1426866405.git.ldufour@linux.vnet.ibm.com>
-References: <cover.1426866405.git.ldufour@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Mar 2015 09:09:12 -0700 (PDT)
+Received: by lbcgn8 with SMTP id gn8so78679370lbc.2
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 09:09:12 -0700 (PDT)
+Date: Fri, 20 Mar 2015 19:09:10 +0300
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH -next v2 0/4] mm: replace mmap_sem for mm->exe_file
+ serialization
+Message-ID: <20150320160910.GA27066@moon>
+References: <1426372766-3029-1-git-send-email-dave@stgolabs.net>
+ <20150315142137.GA21741@redhat.com>
+ <1426431270.28068.92.camel@stgolabs.net>
+ <20150315152652.GA24590@redhat.com>
+ <1426434125.28068.100.camel@stgolabs.net>
+ <20150315170521.GA2278@moon>
+ <CAGXu5j+S1iw6VCjqfS_sPTOjNz8XAy0kkFD7dTvvTTgagx-PMA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGXu5j+S1iw6VCjqfS_sPTOjNz8XAy0kkFD7dTvvTTgagx-PMA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, user-mode-linux-user@lists.sourceforge.net, linux-arch@vger.kernel.org, linux-mm@kvack.org
-Cc: cov@codeaurora.org, criu@openvz.org
+To: Kees Cook <keescook@chromium.org>
+Cc: Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, koct9i@gmail.com, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Some processes (CRIU) are moving the vDSO area using the mremap system
-call. As a consequence the kernel reference to the vDSO base address is
-no more valid and the signal return frame built once the vDSO has been
-moved is not pointing to the new sigreturn address.
+On Mon, Mar 16, 2015 at 03:08:40PM -0700, Kees Cook wrote:
+> >
+> >> Ok I think I am finally seeing where you are going. And I like it *a
+> >> lot* because it allows us to basically replace mmap_sem with rcu
+> >> (MMF_EXE_FILE_CHANGED being the only user that requires a lock!!), but
+> >> am afraid it might not be possible. I mean currently we have no rule wrt
+> >> to users that don't deal with prctl.
+> >>
+> >> Forbidding multiple exe_file changes to be generic would certainly
+> >> change address space semantics, probably for the better (tighter around
+> >> security), but changed nonetheless so users would have a right to
+> >> complain, no? So if we can get away with removing MMF_EXE_FILE_CHANGED
+> >> I'm all for it. Andrew?
+> 
+> I can't figure out why MMF_EXE_FILE_CHANGED is used to stop a second
+> change. But it does seem useful to mark a process as "hey, we know for
+> sure this the exe_file changed on this process" from an accounting
+> perspective.
 
-This patch handles vDSO remapping and unmapping.
+Sure, except it start being more stopper for further development so
+ripping it off would help ;)
 
-Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
----
- arch/powerpc/include/asm/mmu_context.h | 35 +++++++++++++++++++++++++++++++++-
- 1 file changed, 34 insertions(+), 1 deletion(-)
+> 
+> And I'd agree about the malware: it would never use this interface, so
+> there's no security benefit I can see. Maybe I haven't had enough
+> coffee, though. :)
 
-diff --git a/arch/powerpc/include/asm/mmu_context.h b/arch/powerpc/include/asm/mmu_context.h
-index 73382eba02dc..ce7fc93518ee 100644
---- a/arch/powerpc/include/asm/mmu_context.h
-+++ b/arch/powerpc/include/asm/mmu_context.h
-@@ -8,7 +8,6 @@
- #include <linux/spinlock.h>
- #include <asm/mmu.h>	
- #include <asm/cputable.h>
--#include <asm-generic/mm_hooks.h>
- #include <asm/cputhreads.h>
- 
- /*
-@@ -109,5 +108,39 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
- #endif
- }
- 
-+static inline void arch_dup_mmap(struct mm_struct *oldmm,
-+				 struct mm_struct *mm)
-+{
-+}
-+
-+static inline void arch_exit_mmap(struct mm_struct *mm)
-+{
-+}
-+
-+static inline void arch_unmap(struct mm_struct *mm,
-+			struct vm_area_struct *vma,
-+			unsigned long start, unsigned long end)
-+{
-+	if (start <= mm->context.vdso_base && mm->context.vdso_base < end)
-+		mm->context.vdso_base = 0;
-+}
-+
-+static inline void arch_bprm_mm_init(struct mm_struct *mm,
-+				     struct vm_area_struct *vma)
-+{
-+}
-+
-+static inline void arch_remap(struct mm_struct *mm,
-+			      unsigned long old_start, unsigned long old_end,
-+			      unsigned long new_start, unsigned long new_end)
-+{
-+	/*
-+	 * mremap don't allow moving multiple vma so we can limit the check
-+	 * to old_start == vdso_base.
-+	 */
-+	if (old_start == mm->context.vdso_base)
-+		mm->context.vdso_base = new_start;
-+}
-+
- #endif /* __KERNEL__ */
- #endif /* __ASM_POWERPC_MMU_CONTEXT_H */
--- 
-1.9.1
+Yes, same here, would never use it either.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
