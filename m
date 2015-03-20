@@ -1,68 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AE086B0038
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 10:31:44 -0400 (EDT)
-Received: by ignm3 with SMTP id m3so30794422ign.0
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 07:31:44 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0116.hostedemail.com. [216.40.44.116])
-        by mx.google.com with ESMTP id d65si4385522iod.11.2015.03.20.07.31.43
-        for <linux-mm@kvack.org>;
-        Fri, 20 Mar 2015 07:31:43 -0700 (PDT)
-Date: Fri, 20 Mar 2015 10:31:39 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v4 1/5] mm: cma: add trace events to debug
- physically-contiguous memory allocations
-Message-ID: <20150320103139.1f5e79ea@gandalf.local.home>
-In-Reply-To: <550BFA8F.9050803@partner.samsung.com>
-References: <cover.1426521377.git.s.strogin@partner.samsung.com>
-	<a1127b32325d3c527636912eefd6892bd8fc746d.1426521377.git.s.strogin@partner.samsung.com>
-	<550741BD.9080109@partner.samsung.com>
-	<20150316194750.04885ee7@grimm.local.home>
-	<550B2F0A.3010909@partner.samsung.com>
-	<20150319163406.4050cdaf@gandalf.local.home>
-	<550BFA8F.9050803@partner.samsung.com>
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id EC4BB6B0038
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 10:34:14 -0400 (EDT)
+Received: by wibg7 with SMTP id g7so146146627wib.1
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 07:34:14 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h9si7202751wjy.213.2015.03.20.07.34.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 20 Mar 2015 07:34:13 -0700 (PDT)
+Date: Fri, 20 Mar 2015 15:34:10 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [LKP] [mm] cc87317726f: WARNING: CPU: 0
+ PID:1atdrivers/iommu/io-pgtable-arm.c:413 __arm_lpae_unmap+0x341/0x380()
+Message-ID: <20150320143410.GD4821@dhcp22.suse.cz>
+References: <1426643634.5570.14.camel@intel.com>
+ <201503182045.DEC48482.OtSOQOLVFFHFJM@I-love.SAKURA.ne.jp>
+ <1426730222.5570.41.camel@intel.com>
+ <201503202234.HIA00180.MQVLSFFtHOOFJO@I-love.SAKURA.ne.jp>
+ <20150320133820.GB4821@dhcp22.suse.cz>
+ <201503202302.EDF82384.OtFVHMFOLSJOFQ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201503202302.EDF82384.OtFVHMFOLSJOFQ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Strogin <s.strogin@partner.samsung.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, Aleksei Mateosian <a.mateosian@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, gioh.kim@lge.com, pavel@ucw.cz, stefan.strogin@gmail.com, Ingo Molnar <mingo@redhat.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: ying.huang@intel.com, hannes@cmpxchg.org, torvalds@linux-foundation.org, rientjes@google.com, akpm@linux-foundation.org, david@fromorbit.com, linux-kernel@vger.kernel.org, lkp@01.org, linux-mm@kvack.org
 
-On Fri, 20 Mar 2015 13:46:39 +0300
-Stefan Strogin <s.strogin@partner.samsung.com> wrote:
- 
-> Ah, thanks, I see. So will this solve the described issue?
-> +	TP_fast_assign(
-> +		__entry->page = page;
-> +		__entry->pfn = page_to_pfn(__entry->page) : 0;
-> /* or -1 as Ingo suggested */
-> +		__entry->count = count;
-> +	),
-> +
-> +	TP_printk("page=%p pfn=%lu count=%u",
-> +		  __entry->page,
-> +		  __entry->pfn,
-> +		  __entry->count)
-> 
-> Should we do the same in trace/events/kmem.h then?
-> 
-> But really I'm not sure why page_to_pfn()/pfn_to_page() can return
-> different results... I thought that there can appear new 'struct page'
-> entries arrays throughout one boot due to memory hotplug or smth. But
-> how can existing 'struct page' entries associated with the same physical
-> pages change their physical addresses? Or how can one physical address
-> correspond to different physical page throughout one boot?
+On Fri 20-03-15 23:02:09, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Fri 20-03-15 22:34:21, Tetsuo Handa wrote:
+> > > Huang Ying wrote:
+> > > > > > BTW: the test is run on 32 bit system.
+> > > > > 
+> > > > > That sounds like the cause of your problem. The system might be out of
+> > > > > address space available for the kernel (only 1GB if x86_32). You should
+> > > > > try running tests on 64 bit systems.
+> > > > 
+> > > > We run test on 32 bit and 64 bit systems.  Try to catch problems on both
+> > > > platforms.  I think we still need to support 32 bit systems?
+> > > 
+> > > Yes, testing on both platforms is good. But please read
+> > > http://lwn.net/Articles/627419/ , http://lwn.net/Articles/635354/ and
+> > > http://lwn.net/Articles/636017/ . Then please add __GFP_NORETRY to memory
+> > > allocations in btrfs code if it is appropriate.
+> > 
+> > I guess you meant __GFP_NOFAIL?
+> > 
+> No. btrfs's selftest (which is not using __GFP_NOFAIL) is already looping
+> forever. If we want to avoid btrfs's selftest from looping forever, btrfs
+> needs __GFP_NORETRY than __GFP_NOFAIL (until we establish a way to safely
+> allow small allocations to fail).
 
-I don't know if those mappings can change. I'm just warning you that if
-they can, then you can have an issue with it. If that's the case, then
-it would be best to do the work in the tracepoint instead of the print.
-
-One benefit for making this change is that it will let userspace tools
-such as perf and trace-cmd parse it better.
-
--- Steve
-
+Sigh. If the code is using GFP_NOFS allocation (which seem to be the
+case because it worked with the 9879de7373fc) and the proper fix for
+this IMO is to simply not retry endlessly for these allocations.  We
+have to sort some other issues before we can make NOFS allocations fail
+but let's not pile more workarounds on top in the meantime. But if btrfs
+people really think __GFP_NORETRY then I do not really care much.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
