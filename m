@@ -1,99 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 222946B0038
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 03:01:55 -0400 (EDT)
-Received: by pdbop1 with SMTP id op1so100268659pdb.2
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 00:01:54 -0700 (PDT)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id p1si7779013pdr.47.2015.03.20.00.01.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 20 Mar 2015 00:01:53 -0700 (PDT)
-Received: from epcpsbgx2.samsung.com
- (u162.gpu120.samsung.co.kr [203.254.230.162])
- by mailout2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTP id <0NLI00L090V2Q240@mailout2.samsung.com> for linux-mm@kvack.org;
- Fri, 20 Mar 2015 16:01:50 +0900 (KST)
-Date: Fri, 20 Mar 2015 07:01:50 +0000 (GMT)
-From: Yinghao Xie <yinghao.xie@samsung.com>
-Subject: Re: Re: mm/zsmalloc.c: count in handle's size when calculating
- pages_per_zspage
-Reply-to: yinghao.xie@samsung.com
-MIME-version: 1.0
-Content-transfer-encoding: base64
-Content-type: text/plain; charset=utf-8
-MIME-version: 1.0
-Message-id: <2096325123.41201426834909043.JavaMail.weblogic@epmlwas06d>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id EBF7B6B0038
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 03:06:12 -0400 (EDT)
+Received: by pabxg6 with SMTP id xg6so87418835pab.0
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 00:06:12 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id g12si7759927pat.50.2015.03.20.00.06.11
+        for <linux-mm@kvack.org>;
+        Fri, 20 Mar 2015 00:06:12 -0700 (PDT)
+Date: Fri, 20 Mar 2015 15:05:51 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [mmotm:master 332/380] kernel/fork.c:697:37: sparse: incorrect type
+ in argument 1 (different base types)
+Message-ID: <201503201550.I45PtavU%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-PiA+IEZyb20gMTU5ZDc0YjVhOGYzZDBmMDdlMThkZGFkNzRiNzAyNWNmMTdkY2M2OSBNb24gU2Vw
-IDE3IDAwOjAwOjAwDQo+IDIwMDENCj4gPiBGcm9tOiBZaW5naGFvIFhpZSA8eWluZ2hhby54aWVA
-c3Vtc3VuZy5jb20+DQo+ID4gRGF0ZTogVGh1LCAxOSBNYXIgMjAxNSAxOTozMjoyNSArMDgwMA0K
-PiA+IFN1YmplY3Q6IFtQQVRDSF0gbW0venNtYWxsb2MuYzogY291bnQgaW4gaGFuZGxlJ3Mgc2l6
-ZSB3aGVuDQo+ID4gY2FsY3VsYXRpbmcgIHNpemVfY2xhc3MncyBwYWdlc19wZXJfenNwYWdlDQo+
-ID4NCj4gPiAxLiBGaXggd2FzdGFnZSBjYWxjdWxhdGlvbjsNCj4gPiAyLiBJbmRpcmVjdCBoYW5k
-bGUgaW50cm9kdWNlZCBleHRyYSBaU19IQU5ETEVfU0laRSBzaXplIGZvciBlYWNoDQo+IG9iamVj
-dCxpdCdzIHRyYW5zcGFyZW50DQo+ID4gICAgZm9yIHVwcGVyIGZ1bmN0aW9uLCBidXQgYSBzaXpl
-X2NsYXNzJ3MgdG90YWwgb2JqZWN0cyB3aWxsIGNoYW5nZWQ6DQo+ID4gICAgdGFrZSB0aGUgNDNy
-ZCBjbGFzcyB3aGljaCBjbGFzc19zaXplID0gMzIgKyA0MyAqIDE2ID0gNzIwIGFzIGV4YW1wbGU6
-DQo+ID4gCTQwOTYgKiAxICUgNzIwID0gNDk2DQo+ID4gCTQwOTYgKiAyICUgNzIwID0gMjcyDQo+
-ID4gCTQwOTYgKiAzICUgNzIwID0gNDgNCj4gPiAJNDA5NiAqIDQgJTcyMCA9IDU0NA0KPiA+ICAg
-IGFmdGVyIGhhbmRsZSBpbnRyb2R1Y2VkLGNsYXNzX3NpemUgKyBaU19IQU5ETEVfU0laRSAoNCBv
-biAzMmJpdCkgPSA3MjQNCj4gPiAJNDA5NiAqIDEgJSA3MjQgPSA0NzYNCj4gPiAJNDA5NiAqIDIg
-JSA3MjQgPSAyMjgNCj4gPiAJNDA5NiAqIDMgJSA3MjQgPSA3MDQNCj4gPiAJNDA5NiAqIDQgJSA3
-MjQgPSA0NTYNCj4gPiAgICAgQ2xlYXJseSwgWlNfSEFORExFX1NJWkUgc2hvdWxkIGJlIGNvbnNp
-ZGVyZWQgd2hlbiBjYWxjdWxhdGluZw0KPiA+IHBhZ2VzX3Blcl96c3BhZ2U7DQo+IA0KPiBac21h
-bGxvYyBhZGRzIFpTX1NJWkVfSEFORExFIHRvIHNpemUgdXNlciBwYXNzZWQgYmVmb3JlIGdldHRp
-bmcgc2l6ZV9jbGFzcw0KPiBzbyB3ZSBkb24ndCBuZWVkIHRvIGNoYW5nZSBzaXplX2NsYXNzIHRv
-IGNhbGN1bGF0ZSBvcHRpbWFsIHBhZ2VzIGZvciB6c3BhZ2UuDQo+IA0KDQpJIHJlYWQgY29kZSBh
-Z2lhbixhbmQgYWdyZWVkIHdpdGggeW91LGl0IGlzIG15IG1pc3VuZGVyc3RhbmRpbmcNCg0KPiA+
-DQo+ID4gMy4gaW4gZ2V0X3NpemVfY2xhc3NfaW5kZXgoKSwgbWluKHpzX3NpemVfY2xhc3NlcyAt
-IDEsIGlkeCkgaW5zdXJlcyBhIGh1Z2UNCj4gY2xhc3Mncw0KPiA+ICAgIGluZGV4IDw9IHpzX3Np
-emVfY2xhc3NlcyAtIDEsIHNvIGl0J3Mgbm8gbmVlZCB0byBjaGVjayBhZ2FpbjsNCj4gDQo+IFNv
-cnJ5LCBJIGRvbid0IGdldCBpdCwgZWl0aGVyLg0KPg0KZGl0dG8sIG15IGZhdWx0LHNvcnJ5IA0K
-IA0KPiA+DQo+ID4gU2lnbmVkLW9mZi1ieTogWWluZ2hhbyBYaWUgPHlpbmdoYW8ueGllQHN1bXN1
-bmcuY29tPg0KPiA+IC0tLQ0KPiA+ICBtbS96c21hbGxvYy5jIHwgICAxNSArKysrKystLS0tLS0t
-LS0NCj4gPiAgMSBmaWxlIGNoYW5nZWQsIDYgaW5zZXJ0aW9ucygrKSwgOSBkZWxldGlvbnMoLSkN
-Cj4gPg0KPiA+IGRpZmYgLS1naXQgYS9tbS96c21hbGxvYy5jIGIvbW0venNtYWxsb2MuYyBpbmRl
-eCA0NjEyNDNlLi42NGMzNzliDQo+ID4gMTAwNjQ0DQo+ID4gLS0tIGEvbW0venNtYWxsb2MuYw0K
-PiA+ICsrKyBiL21tL3pzbWFsbG9jLmMNCj4gPiBAQCAtNzYwLDcgKzc2MCw4IEBAIG91dDoNCj4g
-PiAgICogdG8gZm9ybSBhIHpzcGFnZSBmb3IgZWFjaCBzaXplIGNsYXNzLiBUaGlzIGlzIGltcG9y
-dGFudA0KPiA+ICAgKiB0byByZWR1Y2Ugd2FzdGFnZSBkdWUgdG8gdW51c2FibGUgc3BhY2UgbGVm
-dCBhdCBlbmQgb2YNCj4gPiAgICogZWFjaCB6c3BhZ2Ugd2hpY2ggaXMgZ2l2ZW4gYXM6DQo+ID4g
-LSAqCXdhc3RhZ2UgPSBacCAtIFpwICUgc2l6ZV9jbGFzcw0KPiA+ICsgKgl3YXN0YWdlID0gWnAg
-JSAoY2xhc3Nfc2l6ZSArIFpTX0hBTkRMRV9TSVpFKQ0KPiA+ICsgKgl1c2FnZSA9IFpwIC0gd2Fz
-dGFnZQ0KPiA+ICAgKiB3aGVyZSBacCA9IHpzcGFnZSBzaXplID0gayAqIFBBR0VfU0laRSB3aGVy
-ZSBrID0gMSwgMiwgLi4uDQo+ID4gICAqDQo+ID4gICAqIEZvciBleGFtcGxlLCBmb3Igc2l6ZSBj
-bGFzcyBvZiAzLzggKiBQQUdFX1NJWkUsIHdlIHNob3VsZCBAQA0KPiA+IC03NzMsNiArNzc0LDkg
-QEAgc3RhdGljIGludCBnZXRfcGFnZXNfcGVyX3pzcGFnZShpbnQgY2xhc3Nfc2l6ZSkNCj4gPiAg
-CS8qIHpzcGFnZSBvcmRlciB3aGljaCBnaXZlcyBtYXhpbXVtIHVzZWQgc2l6ZSBwZXIgS0IgKi8N
-Cj4gPiAgCWludCBtYXhfdXNlZHBjX29yZGVyID0gMTsNCj4gPg0KPiA+ICsJaWYgKGNsYXNzX3Np
-emUgPiBaU19NQVhfQUxMT0NfU0laRSkNCj4gPiArCQljbGFzc19zaXplID0gWlNfTUFYX0FMTE9D
-X1NJWkU7DQo+ID4gKw0KPiA+ICAJZm9yIChpID0gMTsgaSA8PSBaU19NQVhfUEFHRVNfUEVSX1pT
-UEFHRTsgaSsrKSB7DQo+ID4gIAkJaW50IHpzcGFnZV9zaXplOw0KPiA+ICAJCWludCB3YXN0ZSwg
-dXNlZHBjOw0KPiA+IEBAIC0xNDI2LDExICsxNDMwLDYgQEAgdW5zaWduZWQgbG9uZyB6c19tYWxs
-b2Moc3RydWN0IHpzX3Bvb2wgKnBvb2wsDQo+IHNpemVfdCBzaXplKQ0KPiA+ICAJLyogZXh0cmEg
-c3BhY2UgaW4gY2h1bmsgdG8ga2VlcCB0aGUgaGFuZGxlICovDQo+ID4gIAlzaXplICs9IFpTX0hB
-TkRMRV9TSVpFOw0KPiA+ICAJY2xhc3MgPSBwb29sLT5zaXplX2NsYXNzW2dldF9zaXplX2NsYXNz
-X2luZGV4KHNpemUpXTsNCj4gPiAtCS8qIEluIGh1Z2UgY2xhc3Mgc2l6ZSwgd2Ugc3RvcmUgdGhl
-IGhhbmRsZSBpbnRvIGZpcnN0X3BhZ2UtPnByaXZhdGUgKi8NCj4gPiAtCWlmIChjbGFzcy0+aHVn
-ZSkgew0KPiA+IC0JCXNpemUgLT0gWlNfSEFORExFX1NJWkU7DQo+ID4gLQkJY2xhc3MgPSBwb29s
-LT5zaXplX2NsYXNzW2dldF9zaXplX2NsYXNzX2luZGV4KHNpemUpXTsNCj4gPiAtCX0NCj4gPg0K
-PiA+ICAJc3Bpbl9sb2NrKCZjbGFzcy0+bG9jayk7DQo+ID4gIAlmaXJzdF9wYWdlID0gZmluZF9n
-ZXRfenNwYWdlKGNsYXNzKTsgQEAgLTE4NTYsOSArMTg1NSw3IEBAIHN0cnVjdA0KPiA+IHpzX3Bv
-b2wgKnpzX2NyZWF0ZV9wb29sKGNoYXIgKm5hbWUsIGdmcF90IGZsYWdzKQ0KPiA+ICAJCXN0cnVj
-dCBzaXplX2NsYXNzICpjbGFzczsNCj4gPg0KPiA+ICAJCXNpemUgPSBaU19NSU5fQUxMT0NfU0la
-RSArIGkgKiBaU19TSVpFX0NMQVNTX0RFTFRBOw0KPiA+IC0JCWlmIChzaXplID4gWlNfTUFYX0FM
-TE9DX1NJWkUpDQo+ID4gLQkJCXNpemUgPSBaU19NQVhfQUxMT0NfU0laRTsNCj4gPiAtCQlwYWdl
-c19wZXJfenNwYWdlID0gZ2V0X3BhZ2VzX3Blcl96c3BhZ2Uoc2l6ZSk7DQo+ID4gKwkJcGFnZXNf
-cGVyX3pzcGFnZSA9IGdldF9wYWdlc19wZXJfenNwYWdlKHNpemUgKw0KPiBaU19IQU5ETEVfU0la
-RSk7DQo+ID4NCj4gPiAgCQkvKg0KPiA+ICAJCSAqIHNpemVfY2xhc3MgaXMgdXNlZCBmb3Igbm9y
-bWFsIHpzbWFsbG9jIG9wZXJhdGlvbiBzdWNoDQo+ID4gLS0NCj4gPiAxLjcuOS41DQo=
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   60319c74c8a7816a4b392f51a12a77cde302262b
+commit: 7a5f64d9a72a65046cfdc05a02f84e6462ae5bff [332/380] mm: rcu-protected get_mm_exe_file()
+reproduce:
+  # apt-get install sparse
+  git checkout 7a5f64d9a72a65046cfdc05a02f84e6462ae5bff
+  make ARCH=x86_64 allmodconfig
+  make C=1 CF=-D__CHECK_ENDIAN__
 
+
+sparse warnings: (new ones prefixed by >>)
+
+   kernel/fork.c:552:19: sparse: incorrect type in assignment (different address spaces)
+   kernel/fork.c:552:19:    expected struct task_struct [noderef] <asn:4>*owner
+   kernel/fork.c:552:19:    got struct task_struct *p
+>> kernel/fork.c:697:37: sparse: incorrect type in argument 1 (different base types)
+   kernel/fork.c:697:37:    expected struct lockdep_map *lock
+   kernel/fork.c:697:37:    got struct rw_semaphore *<noident>
+   kernel/fork.c:1036:9: sparse: incorrect type in assignment (different address spaces)
+   kernel/fork.c:1036:9:    expected struct sighand_struct *volatile <noident>
+   kernel/fork.c:1036:9:    got struct sighand_struct [noderef] <asn:4>*<noident>
+   kernel/fork.c:1186:41: sparse: implicit cast to nocast type
+   kernel/fork.c:1187:41: sparse: implicit cast to nocast type
+   kernel/fork.c:1314:42: sparse: implicit cast to nocast type
+   kernel/fork.c:1315:43: sparse: implicit cast to nocast type
+   kernel/fork.c:1317:57: sparse: implicit cast to nocast type
+   kernel/fork.c:1501:32: sparse: incorrect type in assignment (different address spaces)
+   kernel/fork.c:1501:32:    expected struct task_struct [noderef] <asn:4>*real_parent
+   kernel/fork.c:1501:32:    got struct task_struct *
+   include/linux/ptrace.h:183:45: sparse: incorrect type in argument 2 (different address spaces)
+   include/linux/ptrace.h:183:45:    expected struct task_struct *new_parent
+   include/linux/ptrace.h:183:45:    got struct task_struct [noderef] <asn:4>*parent
+   kernel/fork.c:1544:54: sparse: incorrect type in argument 2 (different address spaces)
+   kernel/fork.c:1544:54:    expected struct list_head *head
+   kernel/fork.c:1544:54:    got struct list_head [noderef] <asn:4>*<noident>
+   kernel/fork.c:1279:27: sparse: dereference of noderef expression
+   kernel/fork.c:1281:22: sparse: dereference of noderef expression
+   kernel/fork.c:1614:22: sparse: dereference of noderef expression
+   In file included from include/linux/srcu.h:33:0,
+                    from include/linux/notifier.h:15,
+                    from include/linux/memory_hotplug.h:6,
+                    from include/linux/mmzone.h:790,
+                    from include/linux/gfp.h:5,
+                    from include/linux/slab.h:14,
+                    from kernel/fork.c:14:
+   kernel/fork.c: In function 'set_mm_exe_file':
+   kernel/fork.c:699:17: warning: passing argument 1 of 'lock_is_held' from incompatible pointer type
+       lock_is_held(&mm->mmap_sem));
+                    ^
+   include/linux/rcupdate.h:528:53: note: in definition of macro 'rcu_lockdep_assert'
+      if (debug_lockdep_rcu_enabled() && !__warned && !(c)) { \
+                                                        ^
+   include/linux/rcupdate.h:810:2: note: in expansion of macro '__rcu_dereference_protected'
+     __rcu_dereference_protected((p), (c), __rcu)
+     ^
+   kernel/fork.c:697:30: note: in expansion of macro 'rcu_dereference_protected'
+     struct file *old_exe_file = rcu_dereference_protected(mm->exe_file,
+                                 ^
+   In file included from include/linux/spinlock_types.h:18:0,
+                    from include/linux/spinlock.h:81,
+                    from include/linux/mmzone.h:7,
+                    from include/linux/gfp.h:5,
+                    from include/linux/slab.h:14,
+                    from kernel/fork.c:14:
+   include/linux/lockdep.h:341:12: note: expected 'struct lockdep_map *' but argument is of type 'struct rw_semaphore *'
+    extern int lock_is_held(struct lockdep_map *lock);
+               ^
+--
+   kernel/sys.c:886:49: sparse: incorrect type in argument 2 (different modifiers)
+   kernel/sys.c:886:49:    expected unsigned long [nocast] [usertype] *ut
+   kernel/sys.c:886:49:    got unsigned long *<noident>
+   kernel/sys.c:886:49: sparse: implicit cast to nocast type
+   kernel/sys.c:886:59: sparse: incorrect type in argument 3 (different modifiers)
+   kernel/sys.c:886:59:    expected unsigned long [nocast] [usertype] *st
+   kernel/sys.c:886:59:    got unsigned long *<noident>
+   kernel/sys.c:886:59: sparse: implicit cast to nocast type
+   kernel/sys.c:948:32: sparse: incorrect type in argument 1 (different address spaces)
+   kernel/sys.c:948:32:    expected struct task_struct *p1
+   kernel/sys.c:948:32:    got struct task_struct [noderef] <asn:4>*real_parent
+   kernel/sys.c:1550:25: sparse: implicit cast to nocast type
+   kernel/sys.c:1553:49: sparse: incorrect type in argument 2 (different modifiers)
+   kernel/sys.c:1553:49:    expected unsigned long [nocast] [usertype] *ut
+   kernel/sys.c:1553:49:    got unsigned long *<noident>
+   kernel/sys.c:1553:49: sparse: implicit cast to nocast type
+   kernel/sys.c:1553:57: sparse: incorrect type in argument 3 (different modifiers)
+   kernel/sys.c:1553:57:    expected unsigned long [nocast] [usertype] *st
+   kernel/sys.c:1553:57:    got unsigned long *<noident>
+   kernel/sys.c:1553:57: sparse: implicit cast to nocast type
+   kernel/sys.c:1579:51: sparse: incorrect type in argument 2 (different modifiers)
+   kernel/sys.c:1579:51:    expected unsigned long [nocast] [usertype] *ut
+   kernel/sys.c:1579:51:    got unsigned long *<noident>
+   kernel/sys.c:1579:51: sparse: implicit cast to nocast type
+   kernel/sys.c:1579:61: sparse: incorrect type in argument 3 (different modifiers)
+   kernel/sys.c:1579:61:    expected unsigned long [nocast] [usertype] *st
+   kernel/sys.c:1579:61:    got unsigned long *<noident>
+   kernel/sys.c:1579:61: sparse: implicit cast to nocast type
+>> kernel/sys.c:1690:43: sparse: incorrect type in argument 2 (different address spaces)
+   kernel/sys.c:1690:43:    expected struct path const *path2
+   kernel/sys.c:1690:43:    got struct path [noderef] <asn:4>*<noident>
+   kernel/sys.c:2034:16: sparse: incorrect type in argument 1 (different address spaces)
+   kernel/sys.c:2034:16:    expected void const volatile [noderef] <asn:1>*<noident>
+   kernel/sys.c:2034:16:    got int [noderef] <asn:1>**tid_addr
+
+vim +697 kernel/fork.c
+
+   681			mmdrop(mm);
+   682		}
+   683	}
+   684	EXPORT_SYMBOL_GPL(mmput);
+   685	
+   686	/**
+   687	 * set_mm_exe_file - change a reference to the mm's executable file
+   688	 *
+   689	 * This changes mm's executale file (shown as symlink /proc/[pid]/exe).
+   690	 *
+   691	 * Main users are mmput(), sys_execve() and sys_prctl(PR_SET_MM_MAP/EXE_FILE).
+   692	 * Callers prevent concurrent invocations: in mmput() nobody alive left,
+   693	 * in execve task is single-threaded, prctl holds mmap_sem exclusively.
+   694	 */
+   695	void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
+   696	{
+ > 697		struct file *old_exe_file = rcu_dereference_protected(mm->exe_file,
+   698				!atomic_read(&mm->mm_users) || current->in_execve ||
+   699				lock_is_held(&mm->mmap_sem));
+   700	
+   701		if (new_exe_file)
+   702			get_file(new_exe_file);
+   703		rcu_assign_pointer(mm->exe_file, new_exe_file);
+   704		if (old_exe_file)
+   705			fput(old_exe_file);
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
