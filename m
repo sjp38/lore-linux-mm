@@ -1,86 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 467216B0071
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 16:48:22 -0400 (EDT)
-Received: by pacwe9 with SMTP id we9so119645605pac.1
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 13:48:22 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id fe5si11515967pdb.39.2015.03.20.13.48.20
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id E0A346B006C
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 17:17:45 -0400 (EDT)
+Received: by iedm5 with SMTP id m5so38671818ied.3
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 14:17:45 -0700 (PDT)
+Received: from mail-ig0-x22d.google.com (mail-ig0-x22d.google.com. [2607:f8b0:4001:c05::22d])
+        by mx.google.com with ESMTPS id o1si5654397icp.73.2015.03.20.14.17.45
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 20 Mar 2015 13:48:21 -0700 (PDT)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH V3 4/4] hugetlbfs: document min_size mount option and cleanup
-Date: Fri, 20 Mar 2015 13:47:10 -0700
-Message-Id: <0a9330b14a050bdf8ebb9c02722e9bbdd13eaa3f.1426880500.git.mike.kravetz@oracle.com>
-In-Reply-To: <cover.1426880499.git.mike.kravetz@oracle.com>
-References: <cover.1426880499.git.mike.kravetz@oracle.com>
-In-Reply-To: <cover.1426880499.git.mike.kravetz@oracle.com>
-References: <cover.1426880499.git.mike.kravetz@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Mar 2015 14:17:45 -0700 (PDT)
+Received: by igcqo1 with SMTP id qo1so2422534igc.0
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 14:17:45 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <550C37C9.2060200@oracle.com>
+References: <550C37C9.2060200@oracle.com>
+Date: Fri, 20 Mar 2015 14:17:43 -0700
+Message-ID: <CA+55aFxoVPRuFJGuP_=0-NCiqx_NPeJBv+SAZqbAzeC9AhN+CA@mail.gmail.com>
+Subject: Re: 4.0.0-rc4: panic in free_block
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andi Kleen <andi@firstfloor.org>, David Rientjes <rientjes@google.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: David Ahern <david.ahern@oracle.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Add min_size mount option to the hugetlbfs documentation.  Also,
-add the missing pagesize option and mention that size can be
-specified as bytes or a percentage of huge page pool.
+On Fri, Mar 20, 2015 at 8:07 AM, David Ahern <david.ahern@oracle.com> wrote:
+> Instruction DUMP: 86230003  8730f00d  8728f006 <d658c007> 8600c007 8e0ac008 2ac1c002  c658e030  d458e028
 
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- Documentation/vm/hugetlbpage.txt | 31 ++++++++++++++++++++++---------
- 1 file changed, 22 insertions(+), 9 deletions(-)
+Ok, so it's d658c007 that faults, which is that
 
-diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
-index f2d3a10..b32b9cd 100644
---- a/Documentation/vm/hugetlbpage.txt
-+++ b/Documentation/vm/hugetlbpage.txt
-@@ -267,21 +267,34 @@ call, then it is required that system administrator mount a file system of
- type hugetlbfs:
- 
-   mount -t hugetlbfs \
--	-o uid=<value>,gid=<value>,mode=<value>,size=<value>,nr_inodes=<value> \
--	none /mnt/huge
-+	-o uid=<value>,gid=<value>,mode=<value>,pagesize=<value>,size=<value>,\
-+	min_size=<value>,nr_inodes=<value> none /mnt/huge
- 
- This command mounts a (pseudo) filesystem of type hugetlbfs on the directory
- /mnt/huge.  Any files created on /mnt/huge uses huge pages.  The uid and gid
- options sets the owner and group of the root of the file system.  By default
- the uid and gid of the current process are taken.  The mode option sets the
- mode of root of file system to value & 01777.  This value is given in octal.
--By default the value 0755 is picked. The size option sets the maximum value of
--memory (huge pages) allowed for that filesystem (/mnt/huge). The size is
--rounded down to HPAGE_SIZE.  The option nr_inodes sets the maximum number of
--inodes that /mnt/huge can use.  If the size or nr_inodes option is not
--provided on command line then no limits are set.  For size and nr_inodes
--options, you can use [G|g]/[M|m]/[K|k] to represent giga/mega/kilo. For
--example, size=2K has the same meaning as size=2048.
-+By default the value 0755 is picked. If the paltform supports multiple huge
-+page sizes, the pagesize option can be used to specify the huge page size and
-+associated pool.  pagesize is specified in bytes.  If pagesize is not specified
-+the paltform's default huge page size and associated pool will be used. The
-+size option sets the maximum value of memory (huge pages) allowed for that
-+filesystem (/mnt/huge).  The size option can be specified in bytes, or as a
-+percentage of the specified huge page pool (nr_hugepages).  The size is
-+rounded down to HPAGE_SIZE boundary.  The min_size option sets the minimum
-+value of memory (huge pages) allowed for the filesystem.  min_size can be
-+specified in the same way as size, either bytes or a percentage of the
-+huge page pool.  At mount time, the number of huge pages specified by
-+min_size are reserved for use by the filesystem.  If there are not enough
-+free huge pages available, the mount will fail.  As huge pages are allocated
-+to the filesystem and freed, the reserve count is adjusted so that the sum
-+of allocated and reserved huge pages is always at least min_size.  The option
-+nr_inodes sets the maximum number of inodes that /mnt/huge can use.  If the
-+size, min_size or nr_inodes option is not provided on command line then
-+no limits are set.  For pagesize, size, min_size and nr_inodes options, you
-+can use [G|g]/[M|m]/[K|k] to represent giga/mega/kilo. For example, size=2K
-+has the same meaning as size=2048.
- 
- While read system calls are supported on files that reside on hugetlb
- file systems, write system calls are not.
--- 
-2.1.0
+        ldx  [ %g3 + %g7 ], %o3
+
+instruction.
+
+Looking at your objdump:
+
+> free_block():
+> /opt/dahern/linux.git/kbuild/../mm/slab.c:3265
+>   55de64:       10 68 00 47     b  %xcc, 55df80 <free_block+0x158>
+>   55de68:       85 30 b0 02     srlx  %g2, 2, %g2
+> clear_obj_pfmemalloc():
+> /opt/dahern/linux.git/kbuild/../mm/slab.c:224
+>   55de6c:       98 0b 3f fe     and  %o4, -2, %o4
+>   55de70:       d8 76 40 00     stx  %o4, [ %i1 ]
+> virt_to_head_page():
+> /opt/dahern/linux.git/kbuild/../include/linux/mm.h:554
+>   55de74:       c6 5c 80 00     ldx  [ %l2 ], %g3
+>   55de78:       ce 5c 40 00     ldx  [ %l1 ], %g7
+>   55de7c:       86 23 00 03     sub  %o4, %g3, %g3
+>   55de80:       87 30 f0 0d     srlx  %g3, 0xd, %g3
+>   55de84:       87 28 f0 06     sllx  %g3, 6, %g3
+> test_bit():
+> /opt/dahern/linux.git/kbuild/../include/asm-generic/bitops/non-atomic.h:105
+>   55de88:       d6 58 c0 07     ldx  [ %g3 + %g7 ], %o3
+> virt_to_head_page():
+> /opt/dahern/linux.git/kbuild/../include/linux/mm.h:554
+>   55de8c:       86 00 c0 07     add  %g3, %g7, %g3
+
+I think that's the load of "page->flags" which is almost certainly
+part of that initial
+
+                page = virt_to_head_page(objp);
+
+at the top of the loop in free_block(). In fact, it's probably from
+compound_head_fast() which does
+
+        if (unlikely(PageTail(page)))
+                if (likely(__get_page_tail(page)))
+                        return;
+
+so I think it's about to test the PG_tail bit.
+
+So it's the virt_to_page(x) that has returned 0006100000000000. For
+sparc64, that's
+
+   #define virt_to_page(kaddr)    pfn_to_page(__pa(kaddr)>>PAGE_SHIFT)
+
+Looking at the code generation, I think %g7 (0x0006000000000000) is
+VMEMMAP_BASE, and %g3 is "pfn << 6", where the "<< 6" is because a
+"struct page" is 64 bytes.
+
+And looking at that
+
+        sub  %o4, %g3, %g3
+
+I think that's "__pa(x)", so I think %o4 is 'x'. That also matches the
+"and  %o4, -2, %o4", which would be the clear_obj_pfmemalloc().
+
+And %o4 is 0.
+
+In other words, if I read that sparc asm right (and it is very likely
+that I do *not*), then "objp" is NULL, and that's why you crash.
+
+That's odd, because we know that objp cannot be NULL in
+kmem_slab_free() (even if we allowed it, like with kfree(),
+remove_vma() cannot possibly have a NULL vma, since ti dereferences it
+multiple times).
+
+So I must be misreading this completely. Somebody with better sparc
+debugging mojo should double-check my logic. How would objp be NULL?
+
+                        Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
