@@ -1,55 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id BCE076B0038
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 09:38:25 -0400 (EDT)
-Received: by wixw10 with SMTP id w10so20839557wix.0
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 06:38:25 -0700 (PDT)
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id E730A6B0038
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 09:49:37 -0400 (EDT)
+Received: by wixw10 with SMTP id w10so27035350wix.0
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 06:49:37 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f2si3254579wib.87.2015.03.20.06.38.22
+        by mx.google.com with ESMTPS id ua5si7067909wjc.197.2015.03.20.06.49.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 20 Mar 2015 06:38:22 -0700 (PDT)
-Date: Fri, 20 Mar 2015 14:38:20 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [LKP] [mm] cc87317726f: WARNING: CPU: 0 PID:
- 1atdrivers/iommu/io-pgtable-arm.c:413 __arm_lpae_unmap+0x341/0x380()
-Message-ID: <20150320133820.GB4821@dhcp22.suse.cz>
-References: <CA+55aFxWTg_kCxGChLJGU=DFg0K_q842bkziktXu6B2fX=mXYQ@mail.gmail.com>
- <20150317192413.GA7772@phnom.home.cmpxchg.org>
- <1426643634.5570.14.camel@intel.com>
- <201503182045.DEC48482.OtSOQOLVFFHFJM@I-love.SAKURA.ne.jp>
- <1426730222.5570.41.camel@intel.com>
- <201503202234.HIA00180.MQVLSFFtHOOFJO@I-love.SAKURA.ne.jp>
+        Fri, 20 Mar 2015 06:49:36 -0700 (PDT)
+Message-ID: <550C256E.70507@suse.cz>
+Date: Fri, 20 Mar 2015 14:49:34 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201503202234.HIA00180.MQVLSFFtHOOFJO@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH][RFCv2] mm/compaction: reset compaction scanner positions
+References: <1426743031-30096-1-git-send-email-gioh.kim@lge.com> <550A8BA9.9040005@suse.cz> <550A8E31.4040304@lge.com> <550A9086.3080508@suse.cz> <550B5CD1.5010306@lge.com> <550C19F6.9080408@lge.com>
+In-Reply-To: <550C19F6.9080408@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: ying.huang@intel.com, hannes@cmpxchg.org, torvalds@linux-foundation.org, rientjes@google.com, akpm@linux-foundation.org, david@fromorbit.com, linux-kernel@vger.kernel.org, lkp@01.org, linux-mm@kvack.org
+To: Gioh Kim <gioh.kim@lge.com>, akpm@linux-foundation.org, rientjes@google.com, iamjoonsoo.kim@lge.com, mgorman@suse.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gunho.lee@lge.com
 
-On Fri 20-03-15 22:34:21, Tetsuo Handa wrote:
-> Huang Ying wrote:
-> > > > BTW: the test is run on 32 bit system.
-> > > 
-> > > That sounds like the cause of your problem. The system might be out of
-> > > address space available for the kernel (only 1GB if x86_32). You should
-> > > try running tests on 64 bit systems.
-> > 
-> > We run test on 32 bit and 64 bit systems.  Try to catch problems on both
-> > platforms.  I think we still need to support 32 bit systems?
-> 
-> Yes, testing on both platforms is good. But please read
-> http://lwn.net/Articles/627419/ , http://lwn.net/Articles/635354/ and
-> http://lwn.net/Articles/636017/ . Then please add __GFP_NORETRY to memory
-> allocations in btrfs code if it is appropriate.
+On 03/20/2015 02:00 PM, Gioh Kim wrote:
+> I'm attaching the patch for discussion.
+> According to Vlastimil's advice, I move the reseting before compact_zone(),
+> and write more description.
+>
+> Vlastimil, can I have your name at Acked-by or Signed-off-by?
 
-I guess you meant __GFP_NOFAIL?
+Yes. But note below that whitespace seems broken in the patch.
 
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> Which one do you prefer?
+
+Acked-by, as Signed-off-by is for maintainers who resend the patches 
+towards Linus.
+
+> ------------------------- 8< ----------------------
+>
+>   From 575983c887e6478ca7cbba49a892dbc4cd69986b Mon Sep 17 00:00:00 2001
+> From: Gioh Kim <gioh.kim@lge.com>
+> Date: Fri, 20 Mar 2015 21:09:13 +0900
+> Subject: [PATCH] [RFCv2] mm/compaction: reset compaction scanner positions
+>
+> When the compaction is activated via /proc/sys/vm/compact_memory
+> it would better scan the whole zone.
+> And some platform, for instance ARM, has the start_pfn of a zone as zero.
+> Therefore the first try to compaction via /proc doesn't work.
+> It needs to force to reset compaction scanner position at first.
+>
+> Signed-off-by: Gioh Kim <gioh.kim@lge.com>
+> ---
+>    mm/compaction.c |    8 ++++++++
+>    1 file changed, 8 insertions(+)
+>
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 8c0d945..ccf48ce 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1587,6 +1587,14 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
+>                   INIT_LIST_HEAD(&cc->freepages);
+>                   INIT_LIST_HEAD(&cc->migratepages);
+>
+> +               /*
+> +                * When called via /proc/sys/vm/compact_memory
+> +                * this makes sure we compact the whole zone regardless of
+> +                * cached scanner positions.
+> +                */
+> +               if (cc->order == -1)
+> +                       __reset_isolation_suitable(zone);
+
+Indentation seems off, some tabs vs spaces issue?
+
+> +
+>                   if (cc->order == -1 || !compaction_deferred(zone, cc->order))
+>                           compact_zone(zone, cc);
+>
+> --
+> 1.7.9.5
+>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
