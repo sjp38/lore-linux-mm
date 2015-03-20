@@ -1,71 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 993726B0038
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 16:47:54 -0400 (EDT)
-Received: by pdbni2 with SMTP id ni2so118887544pdb.1
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 13:47:54 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id p5si11525189par.19.2015.03.20.13.47.51
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 631666B006C
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 16:48:01 -0400 (EDT)
+Received: by pacwe9 with SMTP id we9so119637778pac.1
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 13:48:01 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id w4si11142121pdi.213.2015.03.20.13.47.57
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Mar 2015 13:47:53 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 20 Mar 2015 13:47:59 -0700 (PDT)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH V3 0/4] hugetlbfs: add min_size filesystem mount option
-Date: Fri, 20 Mar 2015 13:47:06 -0700
-Message-Id: <cover.1426880499.git.mike.kravetz@oracle.com>
+Subject: [PATCH V3 1/4] hugetlbfs: add minimum size tracking fields to subpool structure
+Date: Fri, 20 Mar 2015 13:47:07 -0700
+Message-Id: <3b1775e06c1cb376570eab1084f482730ba8dd7d.1426880499.git.mike.kravetz@oracle.com>
+In-Reply-To: <cover.1426880499.git.mike.kravetz@oracle.com>
+References: <cover.1426880499.git.mike.kravetz@oracle.com>
+In-Reply-To: <cover.1426880499.git.mike.kravetz@oracle.com>
+References: <cover.1426880499.git.mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andi Kleen <andi@firstfloor.org>, David Rientjes <rientjes@google.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-hugetlbfs allocates huge pages from the global pool as needed.  Even if
-the global pool contains a sufficient number pages for the filesystem
-size at mount time, those global pages could be grabbed for some other
-use.  As a result, filesystem huge page allocations may fail due to lack
-of pages.
+Add a field to the subpool structure to indicate the minimimum
+number of huge pages to always be used by this subpool.  This
+minimum count includes allocated pages as well as reserved pages.
+If the minimum number of pages for the subpool have not been
+allocated, pages are reserved up to this minimum.  An additional
+field (rsv_hpages) is used to track the number of pages reserved
+to meet this minimum size.  The hstate pointer in the subpool
+is convenient to have when reserving and unreserving the pages.
 
-Applications such as a database want to use huge pages for performance
-reasons.  hugetlbfs filesystem semantics with ownership and modes work
-well to manage access to a pool of huge pages.  However, the application
-would like some reasonable assurance that allocations will not fail due
-to a lack of huge pages.  At application startup time, the application
-would like to configure itself to use a specific number of huge pages.
-Before starting, the application can check to make sure that enough huge
-pages exist in the system global pools.  However, there are no guarantees
-that those pages will be available when needed by the application.  What
-the application wants is exclusive use of a subset of huge pages.
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+---
+ include/linux/hugetlb.h | 8 +++++++-
+ mm/hugetlb.c            | 3 +--
+ 2 files changed, 8 insertions(+), 3 deletions(-)
 
-Add a new hugetlbfs mount option 'min_size=<value>' to indicate that
-the specified number of pages will be available for use by the filesystem.
-At mount time, this number of huge pages will be reserved for exclusive
-use of the filesystem.  If there is not a sufficient number of free pages,
-the mount will fail.  As pages are allocated to and freeed from the
-filesystem, the number of reserved pages is adjusted so that the specified
-minimum is maintained.
-
-V3:
-  Struct init and comment cleanup as suggested by Andrew Morton
-  Cleaned up size option argument parsing to hopefully be more clear
-  Fixed kbuild warning introduced in V2
-  Made documentation more explicit and added descriptions for 'existing'
-  pagesize options and ability to specify size as a percent
-V2:
-  Added ability to specify minimum size. Suggsted by David Rientjes
-V1:
-  Comments from RFC addressed/incorporated
-
-Mike Kravetz (4):
-  hugetlbfs: add minimum size tracking fields to subpool structure
-  hugetlbfs: add minimum size accounting to subpools
-  hugetlbfs: accept subpool min_size mount option and setup accordingly
-  hugetlbfs: document min_size mount option and cleanup
-
- Documentation/vm/hugetlbpage.txt |  31 +++++---
- fs/hugetlbfs/inode.c             |  90 ++++++++++++++++++-----
- include/linux/hugetlb.h          |  11 ++-
- mm/hugetlb.c                     | 151 +++++++++++++++++++++++++++++++--------
- 4 files changed, 224 insertions(+), 59 deletions(-)
-
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 431b7fc..2ec06a1 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -22,7 +22,13 @@ struct mmu_gather;
+ struct hugepage_subpool {
+ 	spinlock_t lock;
+ 	long count;
+-	long max_hpages, used_hpages;
++	long max_hpages;	/* Maximum huge pages or -1 if no maximum. */
++	long used_hpages;	/* Used count against maximum, includes */
++				/* both alloced and reserved pages. */
++	struct hstate *hstate;
++	long min_hpages;	/* Minimum huge pages or -1 if no minimum. */
++	long rsv_hpages;	/* Pages reserved against global pool to */
++				/* sasitfy minimum size. */
+ };
+ 
+ struct resv_map {
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 85032de..0b4a01c 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -77,14 +77,13 @@ struct hugepage_subpool *hugepage_new_subpool(long nr_blocks)
+ {
+ 	struct hugepage_subpool *spool;
+ 
+-	spool = kmalloc(sizeof(*spool), GFP_KERNEL);
++	spool = kzalloc(sizeof(*spool), GFP_KERNEL);
+ 	if (!spool)
+ 		return NULL;
+ 
+ 	spin_lock_init(&spool->lock);
+ 	spool->count = 1;
+ 	spool->max_hpages = nr_blocks;
+-	spool->used_hpages = 0;
+ 
+ 	return spool;
+ }
 -- 
 2.1.0
 
