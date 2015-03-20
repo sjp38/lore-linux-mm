@@ -1,88 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DE6C6B0038
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 09:14:57 -0400 (EDT)
-Received: by wegp1 with SMTP id p1so81846456weg.1
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 06:14:57 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id he10si6963659wjc.188.2015.03.20.06.14.55
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id D8A1B6B006E
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 09:34:47 -0400 (EDT)
+Received: by igcau2 with SMTP id au2so18352830igc.0
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 06:34:47 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id x8si9385821pdk.135.2015.03.20.06.34.46
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 20 Mar 2015 06:14:55 -0700 (PDT)
-Date: Fri, 20 Mar 2015 14:14:53 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: Use GFP_KERNEL allocation for the page cache in
- page_cache_read
-Message-ID: <20150320131453.GA4821@dhcp22.suse.cz>
-References: <1426687766-518-1-git-send-email-mhocko@suse.cz>
- <55098F3B.7070000@redhat.com>
- <20150318145528.GK17241@dhcp22.suse.cz>
- <20150319071439.GE28621@dastard>
- <20150319124441.GC12466@dhcp22.suse.cz>
- <20150320034820.GH28621@dastard>
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 20 Mar 2015 06:34:47 -0700 (PDT)
+Subject: Re: [LKP] [mm] cc87317726f: WARNING: CPU: 0 PID: 1atdrivers/iommu/io-pgtable-arm.c:413 __arm_lpae_unmap+0x341/0x380()
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <CA+55aFxWTg_kCxGChLJGU=DFg0K_q842bkziktXu6B2fX=mXYQ@mail.gmail.com>
+	<20150317192413.GA7772@phnom.home.cmpxchg.org>
+	<1426643634.5570.14.camel@intel.com>
+	<201503182045.DEC48482.OtSOQOLVFFHFJM@I-love.SAKURA.ne.jp>
+	<1426730222.5570.41.camel@intel.com>
+In-Reply-To: <1426730222.5570.41.camel@intel.com>
+Message-Id: <201503202234.HIA00180.MQVLSFFtHOOFJO@I-love.SAKURA.ne.jp>
+Date: Fri, 20 Mar 2015 22:34:21 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150320034820.GH28621@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Sage Weil <sage@inktank.com>, Mark Fasheh <mfasheh@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: ying.huang@intel.com
+Cc: hannes@cmpxchg.org, torvalds@linux-foundation.org, mhocko@suse.cz, rientjes@google.com, akpm@linux-foundation.org, david@fromorbit.com, linux-kernel@vger.kernel.org, lkp@01.org, linux-mm@kvack.org
 
-On Fri 20-03-15 14:48:20, Dave Chinner wrote:
-> On Thu, Mar 19, 2015 at 01:44:41PM +0100, Michal Hocko wrote:
-> > On Thu 19-03-15 18:14:39, Dave Chinner wrote:
-> > > On Wed, Mar 18, 2015 at 03:55:28PM +0100, Michal Hocko wrote:
-> > > > On Wed 18-03-15 10:44:11, Rik van Riel wrote:
-> > > > > On 03/18/2015 10:09 AM, Michal Hocko wrote:
-> > > > > > page_cache_read has been historically using page_cache_alloc_cold to
-> > > > > > allocate a new page. This means that mapping_gfp_mask is used as the
-> > > > > > base for the gfp_mask. Many filesystems are setting this mask to
-> > > > > > GFP_NOFS to prevent from fs recursion issues. page_cache_read is,
-> > > > > > however, not called from the fs layer 
-> > > > > 
-> > > > > Is that true for filesystems that have directories in
-> > > > > the page cache?
-> > > > 
-> > > > I haven't found any explicit callers of filemap_fault except for ocfs2
-> > > > and ceph and those seem OK to me. Which filesystems you have in mind?
-> > > 
-> > > Just about every major filesystem calls filemap_fault through the
-> > > .fault callout.
+Huang Ying wrote:
+> > > BTW: the test is run on 32 bit system.
 > > 
-> > That is right but the callback is called from the VM layer where we
-> > obviously do not take any fs locks (we are holding only mmap_sem
-> > for reading).
-> > Those who call filemap_fault directly (ocfs2 and ceph) and those
-> > who call the callback directly: qxl_ttm_fault, radeon_ttm_fault,
-> > kernfs_vma_fault, shm_fault seem to be safe from the reclaim recursion
-> > POV. radeon_ttm_fault takes a lock for reading but that one doesn't seem
-> > to be used from the reclaim context.
-> > 
-> > Or did I miss your point? Are you concerned about some fs overloading
-> > filemap_fault and do some locking before delegating to filemap_fault?
+> > That sounds like the cause of your problem. The system might be out of
+> > address space available for the kernel (only 1GB if x86_32). You should
+> > try running tests on 64 bit systems.
 > 
-> The latter:
-> 
-> https://git.kernel.org/cgit/linux/kernel/git/dgc/linux-xfs.git/commit/?h=xfs-mmap-lock&id=de0e8c20ba3a65b0f15040aabbefdc1999876e6b
+> We run test on 32 bit and 64 bit systems.  Try to catch problems on both
+> platforms.  I think we still need to support 32 bit systems?
 
-I will have a look at the code to see what we can do about it.
- 
-> > > GFP_KERNEL allocation for mappings is simply wrong. All mapping
-> > > allocations where the caller cannot pass a gfp_mask need to obey
-> > > the mapping_gfp_mask that is set by the mapping owner....
-> > 
-> > Hmm, I thought this is true only when the function might be called from
-> > the fs path.
-> 
-> How do you know in, say, mpage_readpages, you aren't being called
-> from a fs path that holds locks? e.g. we can get there from ext4
-> doing readdir, so it is holding an i_mutex lock at that point.
-> 
-> Many other paths into mpages_readpages don't hold locks, but there
-> are some that do, and those that do need functionals like this to
-> obey the mapping_gfp_mask because it is set appropriately for the
-> allocation context of the inode that owns the mapping....
+Yes, testing on both platforms is good. But please read
+http://lwn.net/Articles/627419/ , http://lwn.net/Articles/635354/ and
+http://lwn.net/Articles/636017/ . Then please add __GFP_NORETRY to memory
+allocations in btrfs code if it is appropriate.
 
-What about the following?
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
