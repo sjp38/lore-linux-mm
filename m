@@ -1,65 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C8FF6B0038
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 12:09:14 -0400 (EDT)
-Received: by lbblx11 with SMTP id lx11so56646304lbb.3
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 09:09:13 -0700 (PDT)
-Received: from mail-lb0-x22c.google.com (mail-lb0-x22c.google.com. [2a00:1450:4010:c04::22c])
-        by mx.google.com with ESMTPS id z6si328496lag.156.2015.03.20.09.09.12
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D7536B0038
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 12:24:27 -0400 (EDT)
+Received: by pdbcz9 with SMTP id cz9so112894109pdb.3
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 09:24:27 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id a4si10002308pdm.207.2015.03.20.09.24.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Mar 2015 09:09:12 -0700 (PDT)
-Received: by lbcgn8 with SMTP id gn8so78679370lbc.2
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 09:09:12 -0700 (PDT)
-Date: Fri, 20 Mar 2015 19:09:10 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH -next v2 0/4] mm: replace mmap_sem for mm->exe_file
- serialization
-Message-ID: <20150320160910.GA27066@moon>
-References: <1426372766-3029-1-git-send-email-dave@stgolabs.net>
- <20150315142137.GA21741@redhat.com>
- <1426431270.28068.92.camel@stgolabs.net>
- <20150315152652.GA24590@redhat.com>
- <1426434125.28068.100.camel@stgolabs.net>
- <20150315170521.GA2278@moon>
- <CAGXu5j+S1iw6VCjqfS_sPTOjNz8XAy0kkFD7dTvvTTgagx-PMA@mail.gmail.com>
+        Fri, 20 Mar 2015 09:24:26 -0700 (PDT)
+Message-ID: <550C49B0.6070600@oracle.com>
+Date: Fri, 20 Mar 2015 09:24:16 -0700
+From: Mike Kravetz <mike.kravetz@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGXu5j+S1iw6VCjqfS_sPTOjNz8XAy0kkFD7dTvvTTgagx-PMA@mail.gmail.com>
+Subject: Re: [PATCH V2 4/4] hugetlbfs: document min_size mount option
+References: <cover.1426549010.git.mike.kravetz@oracle.com>	<3c82f2203e5453ddf3b29431863034afc7699303.1426549011.git.mike.kravetz@oracle.com>	<20150318144108.e235862e0be30ff626e01820@linux-foundation.org>	<550A2B9A.3060905@oracle.com> <20150318192324.e0386907.akpm@linux-foundation.org>
+In-Reply-To: <20150318192324.e0386907.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, koct9i@gmail.com, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Mon, Mar 16, 2015 at 03:08:40PM -0700, Kees Cook wrote:
-> >
-> >> Ok I think I am finally seeing where you are going. And I like it *a
-> >> lot* because it allows us to basically replace mmap_sem with rcu
-> >> (MMF_EXE_FILE_CHANGED being the only user that requires a lock!!), but
-> >> am afraid it might not be possible. I mean currently we have no rule wrt
-> >> to users that don't deal with prctl.
-> >>
-> >> Forbidding multiple exe_file changes to be generic would certainly
-> >> change address space semantics, probably for the better (tighter around
-> >> security), but changed nonetheless so users would have a right to
-> >> complain, no? So if we can get away with removing MMF_EXE_FILE_CHANGED
-> >> I'm all for it. Andrew?
-> 
-> I can't figure out why MMF_EXE_FILE_CHANGED is used to stop a second
-> change. But it does seem useful to mark a process as "hey, we know for
-> sure this the exe_file changed on this process" from an accounting
-> perspective.
+On 03/18/2015 07:23 PM, Andrew Morton wrote:
+> On Wed, 18 Mar 2015 18:51:22 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+>
+>>> Nowhere here is the reader told the units of "size".  We should at
+>>> least describe that, and maybe even rename the thing to min_bytes.
+>>>
+>>
+>> Ok, I will add that the size is in unit of bytes.  My choice of
+>> 'min_size' as a name for the new mount option was influenced by
+>> the existing 'size' mount option.  I'm open to any suggestions
+>> for the name of this new mount option.
+>
+> Yes, due to the preexisting "size" I think we're stuck with "min_size".
+> We could use min_size_bytes I guess, but the operator needs to go look
+> up the units of "size" anyway.
+>
 
-Sure, except it start being more stopper for further development so
-ripping it off would help ;)
+Well, the existing size option can also be specified as a percentage of
+the huge page pool size.  This is in the current code.  There is a
+mount option 'pagesize=' that allows one to select which huge page
+(size) pool should be used. If none is specified the default huge page
+pool is used.  There is no documentation for this pagesize option or
+using size to specify a percentage of the huge page pool size.
 
-> 
-> And I'd agree about the malware: it would never use this interface, so
-> there's no security benefit I can see. Maybe I haven't had enough
-> coffee, though. :)
-
-Yes, same here, would never use it either.
+I'll add this to the hugetlbpage.txt documentation.
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
