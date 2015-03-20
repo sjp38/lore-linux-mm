@@ -1,48 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 17D696B0038
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 03:43:21 -0400 (EDT)
-Received: by pdbcz9 with SMTP id cz9so101165140pdb.3
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 00:43:20 -0700 (PDT)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id k2si7521705pdj.249.2015.03.20.00.43.19
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 7857E6B0038
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 03:51:35 -0400 (EDT)
+Received: by wegp1 with SMTP id p1so75664026weg.1
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 00:51:35 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m9si2141269wib.51.2015.03.20.00.51.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 20 Mar 2015 00:43:19 -0700 (PDT)
-Received: from epcpsbgx1.samsung.com
- (u161.gpu120.samsung.co.kr [203.254.230.161])
- by mailout4.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTP id <0NLI005HU2S5QU00@mailout4.samsung.com> for linux-mm@kvack.org;
- Fri, 20 Mar 2015 16:43:17 +0900 (KST)
-Date: Fri, 20 Mar 2015 07:43:16 +0000 (GMT)
-From: Yinghao Xie <yinghao.xie@samsung.com>
-Subject: [PATCH] mm/zsmalloc.c: fix comment for get_pages_per_zspage
-Reply-to: yinghao.xie@samsung.com
-MIME-version: 1.0
-Content-transfer-encoding: base64
-Content-type: text/plain; charset=utf-8
-MIME-version: 1.0
-Message-id: <444988883.44981426837395023.JavaMail.weblogic@epmlwas06d>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 20 Mar 2015 00:51:34 -0700 (PDT)
+Message-ID: <550BD183.5020005@suse.cz>
+Date: Fri, 20 Mar 2015 08:51:31 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [PATCH] [RFC] mm/compaction: initialize compaction information
+References: <1426743031-30096-1-git-send-email-gioh.kim@lge.com> <550A8BA9.9040005@suse.cz> <550A8E31.4040304@lge.com> <550A9086.3080508@suse.cz> <550B5CD1.5010306@lge.com>
+In-Reply-To: <550B5CD1.5010306@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Gioh Kim <gioh.kim@lge.com>, akpm@linux-foundation.org, rientjes@google.com, iamjoonsoo.kim@lge.com, mgorman@suse.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gunho.lee@lge.com
 
-U3VnZ2VzdGVkLWJ5OiBNaW5jaGFuIEtpbSA8bWluY2hhbkBrZXJuZWwub3JnPg0KU2lnbmVkLW9m
-Zi1ieTogWWluZ2hhbyBYaWUgPHlpbmdoYW8ueGllQHN1bXN1bmcuY29tPg0KLS0tDQogbW0venNt
-YWxsb2MuYyB8ICAgIDMgKystDQogMSBmaWxlIGNoYW5nZWQsIDIgaW5zZXJ0aW9ucygrKSwgMSBk
-ZWxldGlvbigtKQ0KDQpkaWZmIC0tZ2l0IGEvbW0venNtYWxsb2MuYyBiL21tL3pzbWFsbG9jLmMN
-CmluZGV4IDQ2MTI0M2UuLjNlNjEzY2MgMTAwNjQ0DQotLS0gYS9tbS96c21hbGxvYy5jDQorKysg
-Yi9tbS96c21hbGxvYy5jDQpAQCAtNzYwLDcgKzc2MCw4IEBAIG91dDoNCiAgKiB0byBmb3JtIGEg
-enNwYWdlIGZvciBlYWNoIHNpemUgY2xhc3MuIFRoaXMgaXMgaW1wb3J0YW50DQogICogdG8gcmVk
-dWNlIHdhc3RhZ2UgZHVlIHRvIHVudXNhYmxlIHNwYWNlIGxlZnQgYXQgZW5kIG9mDQogICogZWFj
-aCB6c3BhZ2Ugd2hpY2ggaXMgZ2l2ZW4gYXM6DQotICogICAgIHdhc3RhZ2UgPSBacCAtIFpwICUg
-c2l6ZV9jbGFzcw0KKyAqICAgICB3YXN0YWdlID0gWnAgJSBjbGFzc19zaXplDQorICogICAgIHVz
-YWdlID0gWnAgLSB3YXN0YWdlDQogICogd2hlcmUgWnAgPSB6c3BhZ2Ugc2l6ZSA9IGsgKiBQQUdF
-X1NJWkUgd2hlcmUgayA9IDEsIDIsIC4uLg0KICAqDQogICogRm9yIGV4YW1wbGUsIGZvciBzaXpl
-IGNsYXNzIG9mIDMvOCAqIFBBR0VfU0laRSwgd2Ugc2hvdWxkDQotLQ0KMS43LjkuNQ0K
+On 03/20/2015 12:33 AM, Gioh Kim wrote:
+>>> diff --git a/mm/compaction.c b/mm/compaction.c
+>>> index 8c0d945..827ec06 100644
+>>> --- a/mm/compaction.c
+>>> +++ b/mm/compaction.c
+>>> @@ -1587,8 +1587,10 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
+>>>                    INIT_LIST_HEAD(&cc->freepages);
+>>>                    INIT_LIST_HEAD(&cc->migratepages);
+>>>
+>>> -               if (cc->order == -1 || !compaction_deferred(zone, cc->order))
+>>> +               if (cc->order == -1 || !compaction_deferred(zone, cc->order)) {
+>>> +                       __reset_isolation_suitable(zone);
+>>
+>> This will also trigger reset when called from kswapd through compact_pgdat() and
+>> !compaction_deferred() is true.
+>> The reset should be restricted to cc->order == -1 which only happens from /proc
+>> trigger.
+>>
+>>>                            compact_zone(zone, cc);
+>>> +               }
+>>>
+>>>                    if (cc->order > 0) {
+>>>                            if (zone_watermark_ok(zone, cc->order,
+>>>
+>>
+>>
+>
+> I've not been familiar with compaction code.
+> I think cc->order is -1 only if __compact_pgdat is called via /proc.
 
+Yes that's what I meant.
+
+> This is ugly but I don't have better solution.
+> Do you have better idea?
+
+It's not ugly IMHO. There are more tests for -1 like this, e.g. in
+compaction_suitable(). Maybe just add some comment such as:
+
+/*
+  * When called via /proc/sys/vm/compact_memory make sure we compact
+  * the whole zone regardless of cached scanner positions.
+  */
+
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 8c0d945..5b4e255 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1587,6 +1587,9 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
+>                   INIT_LIST_HEAD(&cc->freepages);
+>                   INIT_LIST_HEAD(&cc->migratepages);
+>
+> +               if (cc->order == -1)
+> +                       __reset_isolation_suitable(zone);
+> +
+>                   if (cc->order == -1 || !compaction_deferred(zone, cc->order))
+>                           compact_zone(zone, cc);
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
