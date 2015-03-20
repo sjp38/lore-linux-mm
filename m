@@ -1,35 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B0696B0038
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 15:42:51 -0400 (EDT)
-Received: by pacwe9 with SMTP id we9so118168546pac.1
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 12:42:51 -0700 (PDT)
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BF3F6B0038
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 15:47:03 -0400 (EDT)
+Received: by pdbni2 with SMTP id ni2so117592881pdb.1
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 12:47:03 -0700 (PDT)
 Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id oz10si11299125pdb.15.2015.03.20.12.42.49
+        by mx.google.com with ESMTP id fn4si10876377pab.203.2015.03.20.12.47.01
         for <linux-mm@kvack.org>;
-        Fri, 20 Mar 2015 12:42:50 -0700 (PDT)
-Date: Fri, 20 Mar 2015 15:42:47 -0400 (EDT)
-Message-Id: <20150320.154247.1709779134937698942.davem@davemloft.net>
+        Fri, 20 Mar 2015 12:47:02 -0700 (PDT)
+Date: Fri, 20 Mar 2015 15:47:00 -0400 (EDT)
+Message-Id: <20150320.154700.1250039074828760104.davem@davemloft.net>
 Subject: Re: 4.0.0-rc4: panic in free_block
 From: David Miller <davem@davemloft.net>
-In-Reply-To: <CA+55aFyQWa0PjT-3y-HB9P-UAzThrZme5gj1P6P6hMTTF9cMtA@mail.gmail.com>
-References: <CA+55aFxhNphSMrNvwqj0AQRzuqRdPG11J6DaazKWMb2U+H7wKg@mail.gmail.com>
-	<550C5078.8040402@oracle.com>
+In-Reply-To: <550C6151.8070803@oracle.com>
+References: <550C5078.8040402@oracle.com>
 	<CA+55aFyQWa0PjT-3y-HB9P-UAzThrZme5gj1P6P6hMTTF9cMtA@mail.gmail.com>
+	<550C6151.8070803@oracle.com>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org
-Cc: david.ahern@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org
+To: david.ahern@oracle.com
+Cc: torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org
 
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 20 Mar 2015 09:58:25 -0700
+From: David Ahern <david.ahern@oracle.com>
+Date: Fri, 20 Mar 2015 12:05:05 -0600
 
-> 128 cpu's is still "unusual"
+> DaveM: do you mind if I submit a patch to change the default for sparc
+> to SLUB?
 
-As unusual as the system I do all of my kernel builds on :-)
+I think we're jumping the gun about all of this, and doing anything
+with default Kconfig settings would be entirely premature until we
+know what the real bug is.
+
+On my T4-2 I've used nothing but SLAB and haven't hit any of these
+problems.  I can't even remember the last time I turned SLUB on,
+and it's just because I'm lazy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
