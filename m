@@ -1,55 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D7536B0038
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 12:24:27 -0400 (EDT)
-Received: by pdbcz9 with SMTP id cz9so112894109pdb.3
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 09:24:27 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id a4si10002308pdm.207.2015.03.20.09.24.25
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id CAD6D6B0038
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 12:48:49 -0400 (EDT)
+Received: by igbud6 with SMTP id ud6so59265564igb.1
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 09:48:49 -0700 (PDT)
+Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com. [2607:f8b0:4001:c05::235])
+        by mx.google.com with ESMTPS id ke13si5076692icb.101.2015.03.20.09.48.49
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Mar 2015 09:24:26 -0700 (PDT)
-Message-ID: <550C49B0.6070600@oracle.com>
-Date: Fri, 20 Mar 2015 09:24:16 -0700
-From: Mike Kravetz <mike.kravetz@oracle.com>
+        Fri, 20 Mar 2015 09:48:49 -0700 (PDT)
+Received: by igbud6 with SMTP id ud6so59265329igb.1
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 09:48:49 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH V2 4/4] hugetlbfs: document min_size mount option
-References: <cover.1426549010.git.mike.kravetz@oracle.com>	<3c82f2203e5453ddf3b29431863034afc7699303.1426549011.git.mike.kravetz@oracle.com>	<20150318144108.e235862e0be30ff626e01820@linux-foundation.org>	<550A2B9A.3060905@oracle.com> <20150318192324.e0386907.akpm@linux-foundation.org>
-In-Reply-To: <20150318192324.e0386907.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <550C37C9.2060200@oracle.com>
+References: <550C37C9.2060200@oracle.com>
+Date: Fri, 20 Mar 2015 09:48:48 -0700
+Message-ID: <CA+55aFxhNphSMrNvwqj0AQRzuqRdPG11J6DaazKWMb2U+H7wKg@mail.gmail.com>
+Subject: Re: 4.0.0-rc4: panic in free_block
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: David Ahern <david.ahern@oracle.com>, "David S. Miller" <davem@davemloft.net>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, sparclinux@vger.kernel.org
 
-On 03/18/2015 07:23 PM, Andrew Morton wrote:
-> On Wed, 18 Mar 2015 18:51:22 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
->
->>> Nowhere here is the reader told the units of "size".  We should at
->>> least describe that, and maybe even rename the thing to min_bytes.
->>>
->>
->> Ok, I will add that the size is in unit of bytes.  My choice of
->> 'min_size' as a name for the new mount option was influenced by
->> the existing 'size' mount option.  I'm open to any suggestions
->> for the name of this new mount option.
->
-> Yes, due to the preexisting "size" I think we're stuck with "min_size".
-> We could use min_size_bytes I guess, but the operator needs to go look
-> up the units of "size" anyway.
->
+[ Added Davem and the sparc mailing list, since it happens on sparc
+and that just makes me suspicious ]
 
-Well, the existing size option can also be specified as a percentage of
-the huge page pool size.  This is in the current code.  There is a
-mount option 'pagesize=' that allows one to select which huge page
-(size) pool should be used. If none is specified the default huge page
-pool is used.  There is no documentation for this pagesize option or
-using size to specify a percentage of the huge page pool size.
+On Fri, Mar 20, 2015 at 8:07 AM, David Ahern <david.ahern@oracle.com> wrote:
+> I can easily reproduce the panic below doing a kernel build with make -j N,
+> N=128, 256, etc. This is a 1024 cpu system running 4.0.0-rc4.
 
-I'll add this to the hugetlbpage.txt documentation.
--- 
-Mike Kravetz
+3.19 is fine? Because I dont' think I've seen any reports like this
+for others, and what stands out is sparc (and to a lesser degree "1024
+cpus", which obviously gets a lot less testing)
+
+> The top 3 frames are consistently:
+>     free_block+0x60
+>     cache_flusharray+0xac
+>     kmem_cache_free+0xfc
+>
+> After that one path has been from __mmdrop and the others are like below,
+> from remove_vma.
+>
+> Unable to handle kernel paging request at virtual address 0006100000000000
+
+One thing you *might* check is if the problem goes away if you select
+CONFIG_SLUB instead of CONFIG_SLAB. I'd really like to just get rid of
+SLAB. The whole "we have multiple different allocators" is a mess and
+causes test coverage issues.
+
+Apart from testing with CONFIG_SLUB, if 3.19 is ok and you seem to be
+able to "easily reproduce" this, the obvious thing to do is to try to
+bisect it.
+
+                         Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
