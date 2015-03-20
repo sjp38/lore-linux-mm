@@ -1,60 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id D56DE6B0038
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 13:02:23 -0400 (EDT)
-Received: by igcau2 with SMTP id au2so24371203igc.0
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 10:02:23 -0700 (PDT)
-Received: from mail-ie0-x22d.google.com (mail-ie0-x22d.google.com. [2607:f8b0:4001:c03::22d])
-        by mx.google.com with ESMTPS id d19si5132969icc.71.2015.03.20.10.02.23
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Mar 2015 10:02:23 -0700 (PDT)
-Received: by ieclw3 with SMTP id lw3so97245939iec.2
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 10:02:23 -0700 (PDT)
+Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id DC05F6B0038
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 13:24:23 -0400 (EDT)
+Received: by iedm5 with SMTP id m5so33924729ied.3
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 10:24:23 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id ac10si10368696pac.147.2015.03.20.10.24.23
+        for <linux-mm@kvack.org>;
+        Fri, 20 Mar 2015 10:24:23 -0700 (PDT)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [PATCH] tracing: add trace event for memory-failure
+Date: Fri, 20 Mar 2015 17:24:21 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F32A258C2@ORSMSX114.amr.corp.intel.com>
+References: <1426734270-8146-1-git-send-email-xiexiuqi@huawei.com>
+ <20150319103939.GD11544@pd.tnic> <550B9EF2.7000604@huawei.com>
+In-Reply-To: <550B9EF2.7000604@huawei.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <20150320041357.GO10105@dastard>
-References: <20150317205104.GA28621@dastard>
-	<CA+55aFzSPcNgxw4GC7aAV1r0P5LniyVVC66COz=3cgMcx73Nag@mail.gmail.com>
-	<20150317220840.GC28621@dastard>
-	<CA+55aFwne-fe_Gg-_GTUo+iOAbbNpLBa264JqSFkH79EULyAqw@mail.gmail.com>
-	<CA+55aFy-Mw74rAdLMMMUgnsG3ZttMWVNGz7CXZJY7q9fqyRYfg@mail.gmail.com>
-	<CA+55aFyxA9u2cVzV+S7TSY9ZvRXCX=z22YAbi9mdPVBKmqgR5g@mail.gmail.com>
-	<20150319224143.GI10105@dastard>
-	<CA+55aFy5UeNnFUTi619cs3b9Up2NQ1wbuyvcCS614+o3=z=wBQ@mail.gmail.com>
-	<20150320002311.GG28621@dastard>
-	<CA+55aFyqXDVv9JkkhvM26x6PC5V82corR7HQNxmkeGZjOCxD=A@mail.gmail.com>
-	<20150320041357.GO10105@dastard>
-Date: Fri, 20 Mar 2015 10:02:23 -0700
-Message-ID: <CA+55aFx1pywykWa0ThcHgE7wzdVuyOBSx27iyx_FtZpYSJbKGQ@mail.gmail.com>
-Subject: Re: [PATCH 4/4] mm: numa: Slow PTE scan rate if migration failures occur
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: Xie XiuQi <xiexiuqi@huawei.com>, Borislav Petkov <bp@suse.de>
+Cc: "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "bhelgaas@google.com" <bhelgaas@google.com>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jingle.chen@huawei.com" <jingle.chen@huawei.com>
 
-On Thu, Mar 19, 2015 at 9:13 PM, Dave Chinner <david@fromorbit.com> wrote:
->
-> Testing now. It's a bit faster - three runs gave 7m35s, 7m20s and
-> 7m36s. IOWs's a bit better, but not significantly. page migrations
-> are pretty much unchanged, too:
->
->            558,632      migrate:mm_migrate_pages ( +-  6.38% )
-
-Ok. That was kind of the expected thing.
-
-I don't really know the NUMA fault rate limiting code, but one thing
-that strikes me is that if it tries to balance the NUMA faults against
-the *regular* faults, then maybe just the fact that we end up taking
-more COW faults after a NUMA fault then means that the NUMA rate
-limiting code now gets over-eager (because it sees all those extra
-non-numa faults).
-
-Mel, does that sound at all possible? I really have never looked at
-the magic automatic rate handling..
-
-                         Linus
+PiBSQVMgdXNlciBzcGFjZSB0b29scyBsaWtlIHJhc2RhZW1vbiB3aGljaCBiYXNlIG9uIHRyYWNl
+IGV2ZW50LCBjb3VsZA0KPiByZWNlaXZlIG1jZSBlcnJvciBldmVudCwgYnV0IG5vIG1lbW9yeSBy
+ZWNvdmVyeSByZXN1bHQgZXZlbnQuIFNvLCBJDQo+IHdhbnQgdG8gYWRkIHRoaXMgZXZlbnQgdG8g
+bWFrZSB0aGlzIHNjZW5hcmlvIGNvbXBsZXRlLg0KDQpFeGNlbGxlbnQgYW5zd2VyLiAgQXJlIHlv
+dSBnb2luZyB0byB3cml0ZSB0aGF0IHBhdGNoIGZvciByYXNkYWVtb24/DQoNCi1Ub255DQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
