@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B7F96B0038
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 18:17:06 -0400 (EDT)
-Received: by pagj4 with SMTP id j4so30363495pag.2
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 15:17:06 -0700 (PDT)
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 803FB6B0038
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 18:19:27 -0400 (EDT)
+Received: by padcy3 with SMTP id cy3so121538127pad.3
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 15:19:27 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id iy5si141054pbd.62.2015.03.20.15.17.05
+        by mx.google.com with ESMTPS id cz8si11673411pdb.85.2015.03.20.15.19.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Mar 2015 15:17:05 -0700 (PDT)
-Date: Fri, 20 Mar 2015 15:17:03 -0700
+        Fri, 20 Mar 2015 15:19:26 -0700 (PDT)
+Date: Fri, 20 Mar 2015 15:19:25 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH V7] Allow compaction of unevictable pages
-Message-Id: <20150320151703.dfd116931ddb397ade8bfd8c@linux-foundation.org>
+Message-Id: <20150320151925.8bbd4c62af3d3739860c0ecb@linux-foundation.org>
 In-Reply-To: <1426859390-10974-1-git-send-email-emunson@akamai.com>
 References: <1426859390-10974-1-git-send-email-emunson@akamai.com>
 Mime-Version: 1.0
@@ -25,25 +25,12 @@ Cc: Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Chri
 
 On Fri, 20 Mar 2015 09:49:50 -0400 Eric B Munson <emunson@akamai.com> wrote:
 
-> Currently, pages which are marked as unevictable are protected from
-> compaction, but not from other types of migration.  The POSIX real time
-> extension explicitly states that mlock() will prevent a major page
-> fault, but the spirit of this is that mlock() should give a process the
-> ability to control sources of latency, including minor page faults.
-> However, the mlock manpage only explicitly says that a locked page will
-> not be written to swap and this can cause some confusion.  The
-> compaction code today does not give a developer who wants to avoid swap
-> but wants to have large contiguous areas available any method to achieve
-> this state.  This patch introduces a sysctl for controlling compaction
-> behavior with respect to the unevictable lru.  Users that demand no page
-> faults after a page is present can set compact_unevictable_allowed to 0
-> and users who need the large contiguous areas can enable compaction on
-> locked memory by leaving the default value of 1.
+>  Documentation/sysctl/vm.txt |   11 +++++++++++
+>  include/linux/compaction.h  |    1 +
+>  kernel/sysctl.c             |    9 +++++++++
+>  mm/compaction.c             |    7 +++++++
 
-Do we really really really need the /proc knob?  We're already
-migrating these pages so users of mlock will occasionally see some
-latency - how likely is it that this patch will significantly damage
-anyone?
+Documentation/vm/unevictable-lru.txt might benefit from an update.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
