@@ -1,45 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 44EFD6B006C
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2015 20:48:04 -0400 (EDT)
-Received: by obbgg8 with SMTP id gg8so89487288obb.1
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 17:48:04 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id kg7si3211740obb.56.2015.03.20.17.48.03
+Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F8336B0038
+	for <linux-mm@kvack.org>; Sat, 21 Mar 2015 01:49:43 -0400 (EDT)
+Received: by oiag65 with SMTP id g65so106884789oia.2
+        for <linux-mm@kvack.org>; Fri, 20 Mar 2015 22:49:42 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id h2si3470539obe.68.2015.03.20.22.49.17
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 20 Mar 2015 17:48:03 -0700 (PDT)
-Message-ID: <550CBDB8.1090501@oracle.com>
-Date: Fri, 20 Mar 2015 18:39:20 -0600
-From: David Ahern <david.ahern@oracle.com>
+        Fri, 20 Mar 2015 22:49:42 -0700 (PDT)
+Message-ID: <550D054A.9070808@huawei.com>
+Date: Sat, 21 Mar 2015 13:44:42 +0800
+From: Xie XiuQi <xiexiuqi@huawei.com>
 MIME-Version: 1.0
-Subject: Re: 4.0.0-rc4: panic in free_block
-References: <550C37C9.2060200@oracle.com> <CA+55aFxoVPRuFJGuP_=0-NCiqx_NPeJBv+SAZqbAzeC9AhN+CA@mail.gmail.com> <550CA3F9.9040201@oracle.com> <550CB8D1.9030608@oracle.com> <alpine.DEB.2.10.1503201731560.22072@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1503201731560.22072@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Subject: Re: [PATCH] tracing: add trace event for memory-failure
+References: <1426734270-8146-1-git-send-email-xiexiuqi@huawei.com> <20150319103939.GD11544@pd.tnic> <550B9EF2.7000604@huawei.com> <3908561D78D1C84285E8C5FCA982C28F32A258C2@ORSMSX114.amr.corp.intel.com>
+In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F32A258C2@ORSMSX114.amr.corp.intel.com>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Luck, Tony" <tony.luck@intel.com>, Borislav Petkov <bp@suse.de>
+Cc: "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "bhelgaas@google.com" <bhelgaas@google.com>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jingle.chen@huawei.com" <jingle.chen@huawei.com>
 
-On 3/20/15 6:34 PM, David Rientjes wrote:
-> On Fri, 20 Mar 2015, David Ahern wrote:
->
->> Here's another data point: If I disable NUMA I don't see the problem.
->> Performance drops, but no NULL pointer splats which would have been panics.
->>
->> The 128 cpu ldom with NUMA enabled shows the problem every single time I do a
->> kernel compile (-j 128). With NUMA disabled I have done 3 allyesconfig
->> compiles without hitting the problem. I'll put the compiles into a loop while
->> I head out for dinner.
->>
->
-> It might be helpful to enable CONFIG_DEBUG_SLAB if you're reproducing it.
->
+On 2015/3/21 1:24, Luck, Tony wrote:
+>> RAS user space tools like rasdaemon which base on trace event, could
+>> receive mce error event, but no memory recovery result event. So, I
+>> want to add this event to make this scenario complete.
+> 
+> Excellent answer.  Are you going to write that patch for rasdaemon?
 
-I enabled that and a few other DEBUG configs earlier -- nothing popped 
-out. I'll do it again -- and others when I return.
+Yes, I will ;-)
+
+> 
+> -Tony
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
