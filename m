@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-	by kanga.kvack.org (Postfix) with ESMTP id EB2B6828FD
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 01:07:57 -0400 (EDT)
-Received: by qcbkw5 with SMTP id kw5so136951793qcb.2
-        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 22:07:57 -0700 (PDT)
-Received: from mail-qc0-x22a.google.com (mail-qc0-x22a.google.com. [2607:f8b0:400d:c01::22a])
-        by mx.google.com with ESMTPS id 1si11183921qgh.89.2015.03.22.22.07.57
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 75162828FD
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 01:08:00 -0400 (EDT)
+Received: by qgf74 with SMTP id 74so11564133qgf.2
+        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 22:08:00 -0700 (PDT)
+Received: from mail-qg0-x234.google.com (mail-qg0-x234.google.com. [2607:f8b0:400d:c04::234])
+        by mx.google.com with ESMTPS id 5si11245737qkv.48.2015.03.22.22.07.59
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 22 Mar 2015 22:07:57 -0700 (PDT)
-Received: by qcay5 with SMTP id y5so46455468qca.1
-        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 22:07:57 -0700 (PDT)
+        Sun, 22 Mar 2015 22:07:59 -0700 (PDT)
+Received: by qgep97 with SMTP id p97so5815746qge.1
+        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 22:07:59 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 02/18] writeback: reorganize [__]wb_update_bandwidth()
-Date: Mon, 23 Mar 2015 01:07:31 -0400
-Message-Id: <1427087267-16592-3-git-send-email-tj@kernel.org>
+Subject: [PATCH 03/18] writeback: implement wb_domain
+Date: Mon, 23 Mar 2015 01:07:32 -0400
+Message-Id: <1427087267-16592-4-git-send-email-tj@kernel.org>
 In-Reply-To: <1427087267-16592-1-git-send-email-tj@kernel.org>
 References: <1427087267-16592-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,29 +22,32 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
 Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, Tejun Heo <tj@kernel.org>
 
-__wb_update_bandwidth() is called from two places -
-fs/fs-writeback.c::balance_dirty_pages() and
-mm/page-writeback.c::wb_writeback().  The latter updates only the
-write bandwidth while the former also deals with the dirty ratelimit.
-The two callsites are distinguished by whether @thresh parameter is
-zero or not, which is cryptic.  In addition, the two files define
-their own different versions of wb_update_bandwidth() on top of
-__wb_update_bandwidth(), which is confusing to say the least.  This
-patch cleans up [__]wb_update_bandwidth() in the following ways.
+Dirtyable memory is distributed to a wb (bdi_writeback) according to
+the relative bandwidth the wb is writing out in the whole system.
+This distribution is global - each wb is measured against all other
+wb's and gets the proportinately sized portion of the memory in the
+whole system.
 
-* __wb_update_bandwidth() now takes explicit @update_ratelimit
-  parameter to gate dirty ratelimit handling.
+For cgroup writeback, the amount of dirtyable memory is scoped by
+memcg and thus each wb would need to be measured and controlled in its
+memcg.  IOW, a wb will belong to two writeback domains - the global
+and memcg domains.
 
-* mm/page-writeback.c::wb_update_bandwidth() is flattened into its
-  caller - balance_dirty_pages().
+Currently, what constitutes the global writeback domain are scattered
+across a number of global states.  This patch starts collecting them
+into struct wb_domain.
 
-* fs/fs-writeback.c::wb_update_bandwidth() is moved to
-  mm/page-writeback.c and __wb_update_bandwidth() is made static.
+* fprop_global which serves as the basis for proportional bandwidth
+  measurement and its period timer are moved into struct wb_domain.
 
-* While at it, add a lockdep assertion to __wb_update_bandwidth().
+* global_wb_domain hosts the states for the global domain.
 
-Except for the lockdep addition, this is pure reorganization and
-doesn't introduce any behavioral changes.
+* While at it, flatten wb_writeout_fraction() into its callers.  This
+  thin wrapper doesn't provide any actual benefits while getting in
+  the way.
+
+This is pure reorganization and doesn't introduce any behavioral
+changes.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 Cc: Jens Axboe <axboe@kernel.dk>
@@ -52,136 +55,214 @@ Cc: Jan Kara <jack@suse.cz>
 Cc: Wu Fengguang <fengguang.wu@intel.com>
 Cc: Greg Thelen <gthelen@google.com>
 ---
- fs/fs-writeback.c         | 10 ----------
- include/linux/writeback.h |  9 +--------
- mm/page-writeback.c       | 45 ++++++++++++++++++++++-----------------------
- 3 files changed, 23 insertions(+), 41 deletions(-)
+ include/linux/writeback.h | 32 +++++++++++++++++++++
+ mm/page-writeback.c       | 72 ++++++++++++++++++-----------------------------
+ 2 files changed, 59 insertions(+), 45 deletions(-)
 
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 890cff1..3d9b360 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -1079,16 +1079,6 @@ static bool over_bground_thresh(struct bdi_writeback *wb)
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index 82e0e39..5af0a57e 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -7,6 +7,7 @@
+ #include <linux/sched.h>
+ #include <linux/workqueue.h>
+ #include <linux/fs.h>
++#include <linux/flex_proportions.h>
+ 
+ DECLARE_PER_CPU(int, dirty_throttle_leaks);
+ 
+@@ -87,6 +88,36 @@ struct writeback_control {
+ };
+ 
+ /*
++ * A wb_domain represents a domain that wb's (bdi_writeback's) belong to
++ * and are measured against each other in.  There always is one global
++ * domain, global_wb_domain, that every wb in the system is a member of.
++ * This allows measuring the relative bandwidth of each wb to distribute
++ * dirtyable memory accordingly.
++ */
++struct wb_domain {
++	/*
++	 * Scale the writeback cache size proportional to the relative
++	 * writeout speed.
++	 *
++	 * We do this by keeping a floating proportion between BDIs, based
++	 * on page writeback completions [end_page_writeback()]. Those
++	 * devices that write out pages fastest will get the larger share,
++	 * while the slower will get a smaller share.
++	 *
++	 * We use page writeout completions because we are interested in
++	 * getting rid of dirty pages. Having them written out is the
++	 * primary goal.
++	 *
++	 * We introduce a concept of time, a period over which we measure
++	 * these events, because demand can/will vary over time. The length
++	 * of this period itself is measured in page writeback completions.
++	 */
++	struct fprop_global completions;
++	struct timer_list period_timer;	/* timer for aging of completions */
++	unsigned long period_time;
++};
++
++/*
+  * fs/fs-writeback.c
+  */	
+ struct bdi_writeback;
+@@ -120,6 +151,7 @@ static inline void laptop_sync_completion(void) { }
+ #endif
+ void throttle_vm_writeout(gfp_t gfp_mask);
+ bool zone_dirty_ok(struct zone *zone);
++int wb_domain_init(struct wb_domain *dom, gfp_t gfp);
+ 
+ extern unsigned long global_dirty_limit;
+ 
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index d9ebabe..3c6ccc7 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -124,29 +124,7 @@ EXPORT_SYMBOL(laptop_mode);
+ 
+ unsigned long global_dirty_limit;
+ 
+-/*
+- * Scale the writeback cache size proportional to the relative writeout speeds.
+- *
+- * We do this by keeping a floating proportion between BDIs, based on page
+- * writeback completions [end_page_writeback()]. Those devices that write out
+- * pages fastest will get the larger share, while the slower will get a smaller
+- * share.
+- *
+- * We use page writeout completions because we are interested in getting rid of
+- * dirty pages. Having them written out is the primary goal.
+- *
+- * We introduce a concept of time, a period over which we measure these events,
+- * because demand can/will vary over time. The length of this period itself is
+- * measured in page writeback completions.
+- *
+- */
+-static struct fprop_global writeout_completions;
+-
+-static void writeout_period(unsigned long t);
+-/* Timer for aging of writeout_completions */
+-static struct timer_list writeout_period_timer =
+-		TIMER_DEFERRED_INITIALIZER(writeout_period, 0, 0);
+-static unsigned long writeout_period_time = 0;
++static struct wb_domain global_wb_domain;
+ 
+ /*
+  * Length of period for aging writeout fractions of bdis. This is an
+@@ -433,24 +411,26 @@ static unsigned long wp_next_time(unsigned long cur_time)
  }
  
  /*
-- * Called under wb->list_lock. If there are multiple wb per bdi,
-- * only the flusher working on the first wb should do it.
+- * Increment the BDI's writeout completion count and the global writeout
++ * Increment the wb's writeout completion count and the global writeout
+  * completion count. Called from test_clear_page_writeback().
+  */
+ static inline void __wb_writeout_inc(struct bdi_writeback *wb)
+ {
++	struct wb_domain *dom = &global_wb_domain;
++
+ 	__inc_wb_stat(wb, WB_WRITTEN);
+-	__fprop_inc_percpu_max(&writeout_completions, &wb->completions,
++	__fprop_inc_percpu_max(&dom->completions, &wb->completions,
+ 			       wb->bdi->max_prop_frac);
+ 	/* First event after period switching was turned off? */
+-	if (!unlikely(writeout_period_time)) {
++	if (!unlikely(dom->period_time)) {
+ 		/*
+ 		 * We can race with other __bdi_writeout_inc calls here but
+ 		 * it does not cause any harm since the resulting time when
+ 		 * timer will fire and what is in writeout_period_time will be
+ 		 * roughly the same.
+ 		 */
+-		writeout_period_time = wp_next_time(jiffies);
+-		mod_timer(&writeout_period_timer, writeout_period_time);
++		dom->period_time = wp_next_time(jiffies);
++		mod_timer(&dom->period_timer, dom->period_time);
+ 	}
+ }
+ 
+@@ -465,37 +445,37 @@ void wb_writeout_inc(struct bdi_writeback *wb)
+ EXPORT_SYMBOL_GPL(wb_writeout_inc);
+ 
+ /*
+- * Obtain an accurate fraction of the BDI's portion.
 - */
--static void wb_update_bandwidth(struct bdi_writeback *wb,
--				unsigned long start_time)
+-static void wb_writeout_fraction(struct bdi_writeback *wb,
+-				 long *numerator, long *denominator)
 -{
--	__wb_update_bandwidth(wb, 0, 0, 0, 0, 0, start_time);
+-	fprop_fraction_percpu(&writeout_completions, &wb->completions,
+-				numerator, denominator);
 -}
 -
 -/*
-  * Explicit flushing or periodic writeback of "old" data.
-  *
-  * Define "old": the first time one of an inode's pages is dirtied, we mark the
-diff --git a/include/linux/writeback.h b/include/linux/writeback.h
-index 75349bb..82e0e39 100644
---- a/include/linux/writeback.h
-+++ b/include/linux/writeback.h
-@@ -154,14 +154,7 @@ int dirty_writeback_centisecs_handler(struct ctl_table *, int,
- void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
- unsigned long wb_dirty_limit(struct bdi_writeback *wb, unsigned long dirty);
+  * On idle system, we can be called long after we scheduled because we use
+  * deferred timers so count with missed periods.
+  */
+ static void writeout_period(unsigned long t)
+ {
+-	int miss_periods = (jiffies - writeout_period_time) /
++	struct wb_domain *dom = (void *)t;
++	int miss_periods = (jiffies - dom->period_time) /
+ 						 VM_COMPLETIONS_PERIOD_LEN;
  
--void __wb_update_bandwidth(struct bdi_writeback *wb,
--			   unsigned long thresh,
--			   unsigned long bg_thresh,
--			   unsigned long dirty,
--			   unsigned long bdi_thresh,
--			   unsigned long bdi_dirty,
--			   unsigned long start_time);
--
-+void wb_update_bandwidth(struct bdi_writeback *wb, unsigned long start_time);
- void page_writeback_init(void);
- void balance_dirty_pages_ratelimited(struct address_space *mapping);
- 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index fd441ea..d9ebabe 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1160,19 +1160,22 @@ static void wb_update_dirty_ratelimit(struct bdi_writeback *wb,
- 	trace_bdi_dirty_ratelimit(wb->bdi, dirty_rate, task_ratelimit);
+-	if (fprop_new_period(&writeout_completions, miss_periods + 1)) {
+-		writeout_period_time = wp_next_time(writeout_period_time +
++	if (fprop_new_period(&dom->completions, miss_periods + 1)) {
++		dom->period_time = wp_next_time(dom->period_time +
+ 				miss_periods * VM_COMPLETIONS_PERIOD_LEN);
+-		mod_timer(&writeout_period_timer, writeout_period_time);
++		mod_timer(&dom->period_timer, dom->period_time);
+ 	} else {
+ 		/*
+ 		 * Aging has zeroed all fractions. Stop wasting CPU on period
+ 		 * updates.
+ 		 */
+-		writeout_period_time = 0;
++		dom->period_time = 0;
+ 	}
  }
  
--void __wb_update_bandwidth(struct bdi_writeback *wb,
--			   unsigned long thresh,
--			   unsigned long bg_thresh,
--			   unsigned long dirty,
--			   unsigned long wb_thresh,
--			   unsigned long wb_dirty,
--			   unsigned long start_time)
-+static void __wb_update_bandwidth(struct bdi_writeback *wb,
-+				  unsigned long thresh,
-+				  unsigned long bg_thresh,
-+				  unsigned long dirty,
-+				  unsigned long wb_thresh,
-+				  unsigned long wb_dirty,
-+				  unsigned long start_time,
-+				  bool update_ratelimit)
- {
- 	unsigned long now = jiffies;
- 	unsigned long elapsed = now - wb->bw_time_stamp;
- 	unsigned long dirtied;
- 	unsigned long written;
- 
-+	lockdep_assert_held(&wb->list_lock);
++int wb_domain_init(struct wb_domain *dom, gfp_t gfp)
++{
++	memset(dom, 0, sizeof(*dom));
++	init_timer_deferrable(&dom->period_timer);
++	dom->period_timer.function = writeout_period;
++	dom->period_timer.data = (unsigned long)dom;
++	return fprop_global_init(&dom->completions, gfp);
++}
 +
- 	/*
- 	 * rate-limit, only update once every 200ms.
- 	 */
-@@ -1189,7 +1192,7 @@ void __wb_update_bandwidth(struct bdi_writeback *wb,
- 	if (elapsed > HZ && time_before(wb->bw_time_stamp, start_time))
- 		goto snapshot;
- 
--	if (thresh) {
-+	if (update_ratelimit) {
- 		global_update_bandwidth(thresh, dirty, now);
- 		wb_update_dirty_ratelimit(wb, thresh, bg_thresh, dirty,
- 					  wb_thresh, wb_dirty,
-@@ -1203,20 +1206,9 @@ snapshot:
- 	wb->bw_time_stamp = now;
- }
- 
--static void wb_update_bandwidth(struct bdi_writeback *wb,
--				unsigned long thresh,
--				unsigned long bg_thresh,
--				unsigned long dirty,
--				unsigned long wb_thresh,
--				unsigned long wb_dirty,
--				unsigned long start_time)
-+void wb_update_bandwidth(struct bdi_writeback *wb, unsigned long start_time)
- {
--	if (time_is_after_eq_jiffies(wb->bw_time_stamp + BANDWIDTH_INTERVAL))
--		return;
--	spin_lock(&wb->list_lock);
--	__wb_update_bandwidth(wb, thresh, bg_thresh, dirty,
--			      wb_thresh, wb_dirty, start_time);
--	spin_unlock(&wb->list_lock);
-+	__wb_update_bandwidth(wb, 0, 0, 0, 0, 0, start_time, false);
- }
- 
  /*
-@@ -1467,8 +1459,15 @@ static void balance_dirty_pages(struct address_space *mapping,
- 		if (dirty_exceeded && !wb->dirty_exceeded)
- 			wb->dirty_exceeded = 1;
+  * bdi_min_ratio keeps the sum of the minimum dirty shares of all
+  * registered backing devices, which, for obvious reasons, can not
+@@ -579,6 +559,7 @@ static unsigned long hard_dirty_limit(unsigned long thresh)
+  */
+ unsigned long wb_dirty_limit(struct bdi_writeback *wb, unsigned long dirty)
+ {
++	struct wb_domain *dom = &global_wb_domain;
+ 	u64 wb_dirty;
+ 	long numerator, denominator;
+ 	unsigned long wb_min_ratio, wb_max_ratio;
+@@ -586,7 +567,8 @@ unsigned long wb_dirty_limit(struct bdi_writeback *wb, unsigned long dirty)
+ 	/*
+ 	 * Calculate this BDI's share of the dirty ratio.
+ 	 */
+-	wb_writeout_fraction(wb, &numerator, &denominator);
++	fprop_fraction_percpu(&dom->completions, &wb->completions,
++			      &numerator, &denominator);
  
--		wb_update_bandwidth(wb, dirty_thresh, background_thresh,
--				    nr_dirty, wb_thresh, wb_dirty, start_time);
-+		if (time_is_before_jiffies(wb->bw_time_stamp +
-+					   BANDWIDTH_INTERVAL)) {
-+			spin_lock(&wb->list_lock);
-+			__wb_update_bandwidth(wb, dirty_thresh,
-+					      background_thresh, nr_dirty,
-+					      wb_thresh, wb_dirty, start_time,
-+					      true);
-+			spin_unlock(&wb->list_lock);
-+		}
+ 	wb_dirty = (dirty * (100 - bdi_min_ratio)) / 100;
+ 	wb_dirty *= numerator;
+@@ -1831,7 +1813,7 @@ void __init page_writeback_init(void)
+ 	writeback_set_ratelimit();
+ 	register_cpu_notifier(&ratelimit_nb);
  
- 		dirty_ratelimit = wb->dirty_ratelimit;
- 		pos_ratio = wb_position_ratio(wb, dirty_thresh,
+-	fprop_global_init(&writeout_completions, GFP_KERNEL);
++	BUG_ON(wb_domain_init(&global_wb_domain, GFP_KERNEL));
+ }
+ 
+ /**
 -- 
 2.1.0
 
