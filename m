@@ -1,70 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 41D696B0038
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 13:34:39 -0400 (EDT)
-Received: by igcau2 with SMTP id au2so36936576igc.1
-        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 10:34:39 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id d15si1352016ioe.23.2015.03.23.10.34.38
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 63CFC6B0038
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 14:11:50 -0400 (EDT)
+Received: by wegp1 with SMTP id p1so144595193weg.1
+        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 11:11:50 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id de8si12970553wib.80.2015.03.23.11.11.48
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Mar 2015 10:34:38 -0700 (PDT)
-Message-ID: <55104EAA.4060607@oracle.com>
-Date: Mon, 23 Mar 2015 11:34:34 -0600
-From: David Ahern <david.ahern@oracle.com>
-MIME-Version: 1.0
-Subject: Re: 4.0.0-rc4: panic in free_block
-References: <550F5852.5020405@oracle.com>	<20150322.220024.1171832215344978787.davem@davemloft.net>	<20150322.221906.1670737065885267482.davem@davemloft.net> <20150323.122530.812870422534676208.davem@davemloft.net>
-In-Reply-To: <20150323.122530.812870422534676208.davem@davemloft.net>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 23 Mar 2015 11:11:48 -0700 (PDT)
+Message-ID: <1427134273.2412.12.camel@stgolabs.net>
+Subject: Re: [PATCH] mm: fix lockdep build in rcu-protected get_mm_exe_file()
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Mon, 23 Mar 2015 11:11:13 -0700
+In-Reply-To: <20150320144715.24899.24547.stgit@buzz>
+References: <20150320144715.24899.24547.stgit@buzz>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: torvalds@linux-foundation.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bpicco@meloft.net
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>
 
-On 3/23/15 10:25 AM, David Miller wrote:
-> [PATCH] sparc64: Fix several bugs in memmove().
->
-> Firstly, handle zero length calls properly.  Believe it or not there
-> are a few of these happening during early boot.
->
-> Next, we can't just drop to a memcpy() call in the forward copy case
-> where dst <= src.  The reason is that the cache initializing stores
-> used in the Niagara memcpy() implementations can end up clearing out
-> cache lines before we've sourced their original contents completely.
->
-> For example, considering NG4memcpy, the main unrolled loop begins like
-> this:
->
->       load   src + 0x00
->       load   src + 0x08
->       load   src + 0x10
->       load   src + 0x18
->       load   src + 0x20
->       store  dst + 0x00
->
-> Assume dst is 64 byte aligned and let's say that dst is src - 8 for
-> this memcpy() call.  That store at the end there is the one to the
-> first line in the cache line, thus clearing the whole line, which thus
-> clobbers "src + 0x28" before it even gets loaded.
->
-> To avoid this, just fall through to a simple copy only mildly
-> optimized for the case where src and dst are 8 byte aligned and the
-> length is a multiple of 8 as well.  We could get fancy and call
-> GENmemcpy() but this is good enough for how this thing is actually
-> used.
->
-> Reported-by: David Ahern <david.ahern@oracle.com>
-> Reported-by: Bob Picco <bpicco@meloft.net>
-> Signed-off-by: David S. Miller <davem@davemloft.net>
+Actually, here's a patch that gets rid of that condition, per Oleg.
 
-seems like a formality at this point, but this resolves the panic on the 
-M7-based ldom and baremetal. The T5-8 failed to boot, but it could be a 
-different problem.
+What do you think?
 
-Thanks for the fast turnaround,
-David
+8<------------------------------------------------
+Subject: [PATCH -next] prctl: avoid using mmap_sem for exe_file serialization
+
+Oleg cleverly suggested using xchg() to set the new
+mm->exe_file instead of calling set_mm_exe_file()
+which requires some form of serialization -- mmap_sem
+in this case. For archs that do not have atomic rmw
+instructions we still fallback to a spinlock alternative,
+so this should always be safe.  As such, we only need the
+mmap_sem for looking up the backing vm_file, which can be
+done sharing the lock. Naturally, this means we need to
+manually deal with both the new and old file reference
+counting, and we need not worry about the MMF_EXE_FILE_CHANGED
+bits, which can probably be deleted in the future anyway.
+
+Suggested-by: Oleg Nesterov <oleg@redhat.com>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Signed-off-by: Davidlohr Bueso <dave@stgolabs.net>
+---
+ kernel/fork.c | 11 ++++++-----
+ kernel/sys.c  | 43 ++++++++++++++++++++++++++-----------------
+ 2 files changed, 32 insertions(+), 22 deletions(-)
+
+diff --git a/kernel/fork.c b/kernel/fork.c
+index bea5f36..98858b5 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -688,15 +688,16 @@ EXPORT_SYMBOL_GPL(mmput);
+  *
+  * This changes mm's executale file (shown as symlink /proc/[pid]/exe).
+  *
+- * Main users are mmput(), sys_execve() and sys_prctl(PR_SET_MM_MAP/EXE_FILE).
+- * Callers prevent concurrent invocations: in mmput() nobody alive left,
+- * in execve task is single-threaded, prctl holds mmap_sem exclusively.
++ * Main users are mmput() and sys_execve(). Callers prevent concurrent
++ * invocations: in mmput() nobody alive left, in execve task is single
++ * threaded. sys_prctl(PR_SET_MM_MAP/EXE_FILE) also needs to set the
++ * mm->exe_file, but does so without using set_mm_exe_file() in order
++ * to do avoid the need for any locks.
+  */
+ void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
+ {
+ 	struct file *old_exe_file = rcu_dereference_protected(mm->exe_file,
+-			!atomic_read(&mm->mm_users) || current->in_execve ||
+-			lock_is_held(&mm->mmap_sem));
++			!atomic_read(&mm->mm_users) || current->in_execve);
+ 
+ 	if (new_exe_file)
+ 		get_file(new_exe_file);
+diff --git a/kernel/sys.c b/kernel/sys.c
+index 3be3449..1da6b17 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -1649,14 +1649,13 @@ SYSCALL_DEFINE1(umask, int, mask)
+ 	return mask;
+ }
+ 
+-static int prctl_set_mm_exe_file_locked(struct mm_struct *mm, unsigned int fd)
++static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
+ {
+ 	struct fd exe;
++	struct file *old_exe, *exe_file;
+ 	struct inode *inode;
+ 	int err;
+ 
+-	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
+-
+ 	exe = fdget(fd);
+ 	if (!exe.file)
+ 		return -EBADF;
+@@ -1680,15 +1679,22 @@ static int prctl_set_mm_exe_file_locked(struct mm_struct *mm, unsigned int fd)
+ 	/*
+ 	 * Forbid mm->exe_file change if old file still mapped.
+ 	 */
++	exe_file = get_mm_exe_file(mm);
+ 	err = -EBUSY;
+ 	if (mm->exe_file) {
+ 		struct vm_area_struct *vma;
+ 
+-		for (vma = mm->mmap; vma; vma = vma->vm_next)
+-			if (vma->vm_file &&
+-			    path_equal(&vma->vm_file->f_path,
++		down_read(&mm->mmap_sem);
++		for (vma = mm->mmap; vma; vma = vma->vm_next) {
++			if (!vma->vm_file)
++				continue;
++			if (path_equal(&vma->vm_file->f_path,
+ 				       &mm->exe_file->f_path))
+-				goto exit;
++				goto exit_err;
++		}
++
++		up_read(&mm->mmap_sem);
++		fput(exe_file);
+ 	}
+ 
+ 	/*
+@@ -1702,10 +1708,18 @@ static int prctl_set_mm_exe_file_locked(struct mm_struct *mm, unsigned int fd)
+ 		goto exit;
+ 
+ 	err = 0;
+-	set_mm_exe_file(mm, exe.file);	/* this grabs a reference to exe.file */
++	/* set the new file, lockless */
++	get_file(exe.file);
++	old_exe = xchg(&mm->exe_file, exe.file);
++	if (old_exe)
++		fput(old_exe);
+ exit:
+ 	fdput(exe);
+ 	return err;
++exit_err:
++	up_read(&mm->mmap_sem);
++	fput(exe_file);
++	goto exit;
+ }
+ 
+ #ifdef CONFIG_CHECKPOINT_RESTORE
+@@ -1840,10 +1854,9 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
+ 		user_auxv[AT_VECTOR_SIZE - 1] = AT_NULL;
+ 	}
+ 
+-	down_write(&mm->mmap_sem);
+ 	if (prctl_map.exe_fd != (u32)-1)
+-		error = prctl_set_mm_exe_file_locked(mm, prctl_map.exe_fd);
+-	downgrade_write(&mm->mmap_sem);
++		error = prctl_set_mm_exe_file(mm, prctl_map.exe_fd);
++	down_read(&mm->mmap_sem);
+ 	if (error)
+ 		goto out;
+ 
+@@ -1909,12 +1922,8 @@ static int prctl_set_mm(int opt, unsigned long addr,
+ 	if (!capable(CAP_SYS_RESOURCE))
+ 		return -EPERM;
+ 
+-	if (opt == PR_SET_MM_EXE_FILE) {
+-		down_write(&mm->mmap_sem);
+-		error = prctl_set_mm_exe_file_locked(mm, (unsigned int)addr);
+-		up_write(&mm->mmap_sem);
+-		return error;
+-	}
++	if (opt == PR_SET_MM_EXE_FILE)
++		return prctl_set_mm_exe_file(mm, (unsigned int)addr);
+ 
+ 	if (addr >= TASK_SIZE || addr < mmap_min_addr)
+ 		return -EINVAL;
+-- 
+2.1.4
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
