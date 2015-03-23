@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C5FB6B006E
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 08:52:40 -0400 (EDT)
-Received: by wgs2 with SMTP id 2so38189539wgs.1
-        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 05:52:39 -0700 (PDT)
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com. [74.125.82.54])
-        by mx.google.com with ESMTPS id um2si928581wjc.201.2015.03.23.05.52.38
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C12AD6B0071
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 08:54:44 -0400 (EDT)
+Received: by wixw10 with SMTP id w10so61604519wix.0
+        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 05:54:44 -0700 (PDT)
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com. [74.125.82.182])
+        by mx.google.com with ESMTPS id ln3si11639410wic.72.2015.03.23.05.54.42
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Mar 2015 05:52:38 -0700 (PDT)
-Received: by wgra20 with SMTP id a20so145101215wgr.3
-        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 05:52:38 -0700 (PDT)
-Message-ID: <55100C93.9040607@plexistor.com>
-Date: Mon, 23 Mar 2015 14:52:35 +0200
+        Mon, 23 Mar 2015 05:54:43 -0700 (PDT)
+Received: by wetk59 with SMTP id k59so137038003wet.3
+        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 05:54:42 -0700 (PDT)
+Message-ID: <55100D10.6090902@plexistor.com>
+Date: Mon, 23 Mar 2015 14:54:40 +0200
 From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Subject: [PATCH 2/3] dax: use pfn_mkwrite to update c/mtime + freeze protection
+Subject: [PATCH 3/3] RFC: dax: dax_prepare_freeze
 References: <55100B78.501@plexistor.com>
 In-Reply-To: <55100B78.501@plexistor.com>
 Content-Type: text/plain; charset=utf-8
@@ -24,98 +24,98 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>
 
-From: Yigal Korman <yigal@plexistor.com>
+From: Boaz Harrosh <boaz@plexistor.com>
 
-[v1]
-Without this patch, c/mtime is not updated correctly when mmap'ed page is
-first read from and then written to.
+When freezing an FS, we must write protect all IS_DAX()
+inodes that have an mmap mapping on an inode. Otherwise
+application will be able to modify previously faulted-in
+file pages.
 
-A new xfstest is submitted for testing this (generic/080)
+I'm actually doing a full unmap_mapping_range because
+there is no readily available "mapping_write_protect" like
+functionality. I do not think it is worth it to define one
+just for here and just for some extra read-faults after an
+fs_freeze.
 
-[v2]
-Jan Kara has pointed out that if we add the
-sb_start/end_pagefault pair in the new pfn_mkwrite we
-are then fixing another bug where: A user could start
-writing to the page while filesystem is frozen.
+How hot-path is fs_freeze at all?
 
 CC: Jan Kara <jack@suse.cz>
 CC: Matthew Wilcox <matthew.r.wilcox@intel.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Yigal Korman <yigal@plexistor.com>
 Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
 ---
- fs/dax.c           | 17 +++++++++++++++++
- fs/ext2/file.c     |  1 +
- fs/ext4/file.c     |  1 +
+ fs/dax.c           | 30 ++++++++++++++++++++++++++++++
+ fs/super.c         |  3 +++
  include/linux/fs.h |  1 +
- 4 files changed, 20 insertions(+)
+ 3 files changed, 34 insertions(+)
 
 diff --git a/fs/dax.c b/fs/dax.c
-index ed1619e..d0bd1f4 100644
+index d0bd1f4..f3fc28b 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -464,6 +464,23 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- EXPORT_SYMBOL_GPL(dax_fault);
- 
- /**
-+ * dax_pfn_mkwrite - handle first write to DAX page
-+ * @vma: The virtual memory area where the fault occurred
-+ * @vmf: The description of the fault
-+ *
+@@ -549,3 +549,33 @@ int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
+ 	return dax_zero_page_range(inode, from, length, get_block);
+ }
+ EXPORT_SYMBOL_GPL(dax_truncate_page);
++
++/* This is meant to be called as part of freeze_super. otherwise we might
++ * Need some extra locking before calling here.
 + */
-+int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
++void dax_prepare_freeze(struct super_block *sb)
 +{
-+	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
++	struct inode *inode;
 +
-+	sb_start_pagefault(sb);
-+	file_update_time(vma->vm_file);
-+	sb_end_pagefault(sb);
-+	return VM_FAULT_NOPAGE;
++	/* TODO: each DAX fs has some private mount option to enable DAX. If
++	 * We made that option a generic MS_DAX_ENABLE super_block flag we could
++	 * Avoid the 95% extra unneeded loop-on-all-inodes every freeze.
++	 * if (!(sb->s_flags & MS_DAX_ENABLE))
++	 *	return 0;
++	 */
++
++	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
++		/* TODO: For freezing we can actually do with write-protecting
++		 * the page. But I cannot find a ready made function that does
++		 * that for a giving mapping (with all the proper locking).
++		 * How performance sensitive is the all sb_freeze API?
++		 * For now we can just unmap the all mapping, and pay extra
++		 * on read faults.
++		 */
++		/* NOTE: Do not unmap private COW mapped pages it will not
++		 * modify the FS.
++		 */
++		if (IS_DAX(inode))
++			unmap_mapping_range(inode->i_mapping, 0, 0, 0);
++	}
 +}
-+EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
-+
-+/**
-  * dax_zero_page_range - zero a range within a page of a DAX file
-  * @inode: The file being truncated
-  * @from: The file offset that is being truncated to
-diff --git a/fs/ext2/file.c b/fs/ext2/file.c
-index e317017..866a3ce 100644
---- a/fs/ext2/file.c
-+++ b/fs/ext2/file.c
-@@ -39,6 +39,7 @@ static int ext2_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- static const struct vm_operations_struct ext2_dax_vm_ops = {
- 	.fault		= ext2_dax_fault,
- 	.page_mkwrite	= ext2_dax_mkwrite,
-+	.pfn_mkwrite	= dax_pfn_mkwrite,
- };
+diff --git a/fs/super.c b/fs/super.c
+index 2b7dc90..9ef490c 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -1329,6 +1329,9 @@ int freeze_super(struct super_block *sb)
+ 	/* All writers are done so after syncing there won't be dirty data */
+ 	sync_filesystem(sb);
  
- static int ext2_file_mmap(struct file *file, struct vm_area_struct *vma)
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index 33a09da..b43a7a6 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -206,6 +206,7 @@ static int ext4_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- static const struct vm_operations_struct ext4_dax_vm_ops = {
- 	.fault		= ext4_dax_fault,
- 	.page_mkwrite	= ext4_dax_mkwrite,
-+	.pfn_mkwrite	= dax_pfn_mkwrite,
- };
- #else
- #define ext4_dax_vm_ops	ext4_file_vm_ops
++	/* Need to take care of DAX mmaped inodes */
++	dax_prepare_freeze(sb);
++
+ 	/* Now wait for internal filesystem counter */
+ 	sb->s_writers.frozen = SB_FREEZE_FS;
+ 	smp_wmb();
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index b4d71b5..24af817 100644
+index 24af817..3b943d4 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -2597,6 +2597,7 @@ int dax_clear_blocks(struct inode *, sector_t block, long size);
- int dax_zero_page_range(struct inode *, loff_t from, unsigned len, get_block_t);
- int dax_truncate_page(struct inode *, loff_t from, get_block_t);
+@@ -2599,6 +2599,7 @@ int dax_truncate_page(struct inode *, loff_t from, get_block_t);
  int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
-+int dax_pfn_mkwrite(struct vm_area_struct *, struct vm_fault *);
+ int dax_pfn_mkwrite(struct vm_area_struct *, struct vm_fault *);
  #define dax_mkwrite(vma, vmf, gb)	dax_fault(vma, vmf, gb)
++void dax_prepare_freeze(struct super_block *sb);
  
  #ifdef CONFIG_BLOCK
+ typedef void (dio_submit_t)(int rw, struct bio *bio, struct inode *inode,
 -- 
 1.9.3
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
