@@ -1,450 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 90BCC8296B
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 01:08:23 -0400 (EDT)
-Received: by qgep97 with SMTP id p97so5819863qge.1
-        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 22:08:23 -0700 (PDT)
-Received: from mail-qg0-x232.google.com (mail-qg0-x232.google.com. [2607:f8b0:400d:c04::232])
-        by mx.google.com with ESMTPS id n80si11222027qkh.72.2015.03.22.22.08.21
+Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 68F888296B
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 01:08:24 -0400 (EDT)
+Received: by qcto4 with SMTP id o4so136809613qct.3
+        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 22:08:24 -0700 (PDT)
+Received: from mail-qg0-x233.google.com (mail-qg0-x233.google.com. [2607:f8b0:400d:c04::233])
+        by mx.google.com with ESMTPS id f35si11172859qkf.126.2015.03.22.22.08.23
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 22 Mar 2015 22:08:22 -0700 (PDT)
-Received: by qgep97 with SMTP id p97so5819638qge.1
-        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 22:08:21 -0700 (PDT)
+        Sun, 22 Mar 2015 22:08:23 -0700 (PDT)
+Received: by qgep97 with SMTP id p97so5819873qge.1
+        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 22:08:23 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 17/18] writeback: implement memcg writeback domain based throttling
-Date: Mon, 23 Mar 2015 01:07:46 -0400
-Message-Id: <1427087267-16592-18-git-send-email-tj@kernel.org>
+Subject: [PATCH 18/18] mm: vmscan: remove memcg stalling on writeback pages during direct reclaim
+Date: Mon, 23 Mar 2015 01:07:47 -0400
+Message-Id: <1427087267-16592-19-git-send-email-tj@kernel.org>
 In-Reply-To: <1427087267-16592-1-git-send-email-tj@kernel.org>
 References: <1427087267-16592-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
-Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, Tejun Heo <tj@kernel.org>
+Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>
 
-While cgroup writeback support now connects memcg and blkcg so that
-writeback IOs are properly attributed and controlled, the IO back
-pressure propagation mechanism implemented in balance_dirty_pages()
-and its subroutines wasn't aware of cgroup writeback.
+Because writeback wasn't cgroup aware before, the usual dirty
+throttling mechanism in balance_dirty_pages() didn't work for
+processes under memcg limit.  The writeback path didn't know how much
+memory is available or how fast the dirty pages are being written out
+for a given memcg and balance_dirty_pages() didn't have any measure of
+IO back pressure for the memcg.
 
-Processes belonging to a memcg may have access to only subset of total
-memory available in the system and not factoring this into dirty
-throttling rendered it completely ineffective for processes under
-memcg limits and memcg ended up building a separate ad-hoc degenerate
-mechanism directly into vmscan code to limit page dirtying.
+To work around the issue, memcg implemented an ad-hoc dirty throttling
+mechanism in the direct reclaim path by stalling on pages under
+writeback which are encountered during direct reclaim scan.  This is
+rather ugly and crude - none of the configurability, fairness, or
+bandwidth-proportional distribution of the normal path.
 
-The previous patches updated balance_dirty_pages() and its subroutines
-so that they can deal with multiple wb_domain's (writeback domains)
-and defined per-memcg wb_domain.  Processes belonging to a non-root
-memcg are bound to two wb_domains, global wb_domain and memcg
-wb_domain, and should be throttled according to IO pressures from both
-domains.  This patch updates dirty throttling code so that it repeats
-similar calculations for the two domains - the differences between the
-two are few and minor - and applies the lower of the two sets of
-resulting constraints.
+The previous patches implemented proper memcg aware dirty throttling
+and the ad-hoc mechanism is no longer necessary.  Remove it.
 
-wb_over_bg_thresh(), which controls when background writeback
-terminates, is also updated to consider both global and memcg
-wb_domains.  It returns true if dirty is over bg_thresh for either
-domain.
-
-This makes the dirty throttling mechanism operational for memcg
-domains including writeback-bandwidth-proportional dirty page
-distribution inside them but the ad-hoc memcg throttling mechanism in
-vmscan is still in place.  The next patch will rip it out.
+Note: I removed the parts which seemed obvious and it behaves fine
+      while testing but my understanding of this code path is
+      rudimentary and it's quite possible that I got something wrong.
+      Please let me know if I got some wrong or more global_reclaim()
+      sites should be updated.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 Cc: Jens Axboe <axboe@kernel.dk>
 Cc: Jan Kara <jack@suse.cz>
 Cc: Wu Fengguang <fengguang.wu@intel.com>
 Cc: Greg Thelen <gthelen@google.com>
+Cc: Vladimir Davydov <vdavydov@parallels.com>
 ---
- include/linux/memcontrol.h |   9 +++
- mm/memcontrol.c            |  43 ++++++++++++
- mm/page-writeback.c        | 158 ++++++++++++++++++++++++++++++++++++++-------
- 3 files changed, 188 insertions(+), 22 deletions(-)
+ mm/vmscan.c | 109 ++++++++++++++++++------------------------------------------
+ 1 file changed, 33 insertions(+), 76 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index e3177be..c3eb19e 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -392,6 +392,8 @@ enum {
- 
- struct list_head *mem_cgroup_cgwb_list(struct mem_cgroup *memcg);
- struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb);
-+void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pavail,
-+			 unsigned long *pdirty, unsigned long *pwriteback);
- 
- #else	/* CONFIG_CGROUP_WRITEBACK */
- 
-@@ -400,6 +402,13 @@ static inline struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb)
- 	return NULL;
- }
- 
-+static inline void mem_cgroup_wb_stats(struct bdi_writeback *wb,
-+				       unsigned long *pavail,
-+				       unsigned long *pdirty,
-+				       unsigned long *pwriteback)
-+{
-+}
-+
- #endif	/* CONFIG_CGROUP_WRITEBACK */
- 
- struct sock;
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 108acfc..d76f61c 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4111,6 +4111,49 @@ struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb)
- 	return &memcg->cgwb_domain;
- }
- 
-+/**
-+ * mem_cgroup_wb_stats - retrieve writeback related stats from its memcg
-+ * @wb: bdi_writeback in question
-+ * @pavail: out parameter for number of available pages
-+ * @pdirty: out parameter for number of dirty pages
-+ * @pwriteback: out parameter for number of pages under writeback
-+ *
-+ * Determine the numbers of available, dirty, and writeback pages in @wb's
-+ * memcg.  Dirty and writeback are self-explanatory.  Available is a bit
-+ * more involved.
-+ *
-+ * A memcg's headroom is "min(max, high) - used".  The available memory is
-+ * calculated as the lowest headroom of itself and the ancestors plus the
-+ * number of pages already being used for file pages.  Note that this
-+ * doesn't consider the actual amount of available memory in the system.
-+ * The caller should further cap *@pavail accordingly.
-+ */
-+void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pavail,
-+			 unsigned long *pdirty, unsigned long *pwriteback)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
-+	struct mem_cgroup *parent;
-+	unsigned long head_room = PAGE_COUNTER_MAX;
-+	unsigned long file_pages;
-+
-+	*pdirty = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_DIRTY);
-+
-+	/* this should eventually include NR_UNSTABLE_NFS */
-+	*pwriteback = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_WRITEBACK);
-+
-+	file_pages = mem_cgroup_nr_lru_pages(memcg, (1 << LRU_INACTIVE_FILE) |
-+						    (1 << LRU_ACTIVE_FILE));
-+	while ((parent = parent_mem_cgroup(memcg))) {
-+		unsigned long ceiling = min(memcg->memory.limit, memcg->high);
-+		unsigned long used = page_counter_read(&memcg->memory);
-+
-+		head_room = min(head_room, ceiling - min(ceiling, used));
-+		memcg = parent;
-+	}
-+
-+	*pavail = file_pages + head_room;
-+}
-+
- #else	/* CONFIG_CGROUP_WRITEBACK */
- 
- static int memcg_wb_domain_init(struct mem_cgroup *memcg, gfp_t gfp)
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 9ccd37e..88e7553 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -160,6 +160,14 @@ struct dirty_throttle_control {
- #define GDTC_INIT(__wb)		.dom = &global_wb_domain,		\
- 				DTC_INIT_COMMON(__wb)
- #define GDTC_INIT_NO_WB		.dom = &global_wb_domain
-+#define MDTC_INIT(__wb, __gdtc)	.dom = mem_cgroup_wb_domain(__wb),	\
-+				.gdtc = __gdtc,				\
-+				DTC_INIT_COMMON(__wb)
-+
-+static bool mdtc_valid(struct dirty_throttle_control *dtc)
-+{
-+	return dtc->dom;
-+}
- 
- static struct wb_domain *dtc_dom(struct dirty_throttle_control *dtc)
- {
-@@ -207,6 +215,12 @@ static void wb_min_max_ratio(struct bdi_writeback *wb,
- 
- #define GDTC_INIT(__wb)		DTC_INIT_COMMON(__wb)
- #define GDTC_INIT_NO_WB
-+#define MDTC_INIT(__wb, __gdtc)
-+
-+static bool mdtc_valid(struct dirty_throttle_control *dtc)
-+{
-+	return false;
-+}
- 
- static struct wb_domain *dtc_dom(struct dirty_throttle_control *dtc)
- {
-@@ -668,6 +682,15 @@ static unsigned long hard_dirty_limit(struct wb_domain *dom,
- 	return max(thresh, dom->dirty_limit);
- }
- 
-+/* memory available to a memcg domain is capped by system-wide clean memory */
-+static void mdtc_cap_avail(struct dirty_throttle_control *mdtc)
-+{
-+	struct dirty_throttle_control *gdtc = mdtc_gdtc(mdtc);
-+	unsigned long clean = gdtc->avail - min(gdtc->avail, gdtc->dirty);
-+
-+	mdtc->avail = min(mdtc->avail, clean);
-+}
-+
- /**
-  * __wb_dirty_limit - @wb's share of dirty throttling threshold
-  * @dtc: dirty_throttle_context of interest
-@@ -1269,11 +1292,12 @@ static void wb_update_dirty_ratelimit(struct dirty_throttle_control *dtc,
- 	trace_bdi_dirty_ratelimit(wb->bdi, dirty_rate, task_ratelimit);
- }
- 
--static void __wb_update_bandwidth(struct dirty_throttle_control *dtc,
-+static void __wb_update_bandwidth(struct dirty_throttle_control *gdtc,
-+				  struct dirty_throttle_control *mdtc,
- 				  unsigned long start_time,
- 				  bool update_ratelimit)
- {
--	struct bdi_writeback *wb = dtc->wb;
-+	struct bdi_writeback *wb = gdtc->wb;
- 	unsigned long now = jiffies;
- 	unsigned long elapsed = now - wb->bw_time_stamp;
- 	unsigned long dirtied;
-@@ -1298,8 +1322,17 @@ static void __wb_update_bandwidth(struct dirty_throttle_control *dtc,
- 		goto snapshot;
- 
- 	if (update_ratelimit) {
--		domain_update_bandwidth(dtc, now);
--		wb_update_dirty_ratelimit(dtc, dirtied, elapsed);
-+		domain_update_bandwidth(gdtc, now);
-+		wb_update_dirty_ratelimit(gdtc, dirtied, elapsed);
-+
-+		/*
-+		 * @mdtc is always NULL if !CGROUP_WRITEBACK but the
-+		 * compiler has no way to figure that out.  Help it.
-+		 */
-+		if (IS_ENABLED(CONFIG_CGROUP_WRITEBACK) && mdtc) {
-+			domain_update_bandwidth(mdtc, now);
-+			wb_update_dirty_ratelimit(mdtc, dirtied, elapsed);
-+		}
- 	}
- 	wb_update_write_bandwidth(wb, elapsed, written);
- 
-@@ -1313,7 +1346,7 @@ void wb_update_bandwidth(struct bdi_writeback *wb, unsigned long start_time)
- {
- 	struct dirty_throttle_control gdtc = { GDTC_INIT(wb) };
- 
--	__wb_update_bandwidth(&gdtc, start_time, false);
-+	__wb_update_bandwidth(&gdtc, NULL, start_time, false);
- }
- 
- /*
-@@ -1480,7 +1513,11 @@ static void balance_dirty_pages(struct address_space *mapping,
- 				unsigned long pages_dirtied)
- {
- 	struct dirty_throttle_control gdtc_stor = { GDTC_INIT(wb) };
-+	struct dirty_throttle_control mdtc_stor = { MDTC_INIT(wb, &gdtc_stor) };
- 	struct dirty_throttle_control * const gdtc = &gdtc_stor;
-+	struct dirty_throttle_control * const mdtc = mdtc_valid(&mdtc_stor) ?
-+						     &mdtc_stor : NULL;
-+	struct dirty_throttle_control *sdtc;
- 	unsigned long nr_reclaimable;	/* = file_dirty + unstable_nfs */
- 	long period;
- 	long pause;
-@@ -1497,6 +1534,7 @@ static void balance_dirty_pages(struct address_space *mapping,
- 	for (;;) {
- 		unsigned long now = jiffies;
- 		unsigned long dirty, thresh, bg_thresh;
-+		unsigned long m_dirty, m_thresh, m_bg_thresh;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9f8d3c0..d084c95 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -929,53 +929,24 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			nr_congested++;
  
  		/*
- 		 * Unstable writes are a feature of certain networked
-@@ -1523,6 +1561,32 @@ static void balance_dirty_pages(struct address_space *mapping,
- 			bg_thresh = gdtc->bg_thresh;
- 		}
- 
-+		if (mdtc) {
-+			unsigned long writeback;
-+
-+			/*
-+			 * If @wb belongs to !root memcg, repeat the same
-+			 * basic calculations for the memcg domain.
-+			 */
-+			mem_cgroup_wb_stats(wb, &mdtc->avail, &mdtc->dirty,
-+					    &writeback);
-+			mdtc_cap_avail(mdtc);
-+			mdtc->dirty += writeback;
-+
-+			domain_dirty_limits(mdtc);
-+
-+			if (unlikely(strictlimit)) {
-+				wb_dirty_limits(mdtc);
-+				m_dirty = mdtc->wb_dirty;
-+				m_thresh = mdtc->wb_thresh;
-+				m_bg_thresh = mdtc->wb_bg_thresh;
+-		 * If a page at the tail of the LRU is under writeback, there
+-		 * are three cases to consider.
+-		 *
+-		 * 1) If reclaim is encountering an excessive number of pages
+-		 *    under writeback and this page is both under writeback and
+-		 *    PageReclaim then it indicates that pages are being queued
+-		 *    for IO but are being recycled through the LRU before the
+-		 *    IO can complete. Waiting on the page itself risks an
+-		 *    indefinite stall if it is impossible to writeback the
+-		 *    page due to IO error or disconnected storage so instead
+-		 *    note that the LRU is being scanned too quickly and the
+-		 *    caller can stall after page list has been processed.
+-		 *
+-		 * 2) Global reclaim encounters a page, memcg encounters a
+-		 *    page that is not marked for immediate reclaim or
+-		 *    the caller does not have __GFP_IO. In this case mark
+-		 *    the page for immediate reclaim and continue scanning.
+-		 *
+-		 *    __GFP_IO is checked  because a loop driver thread might
+-		 *    enter reclaim, and deadlock if it waits on a page for
+-		 *    which it is needed to do the write (loop masks off
+-		 *    __GFP_IO|__GFP_FS for this reason); but more thought
+-		 *    would probably show more reasons.
+-		 *
+-		 *    Don't require __GFP_FS, since we're not going into the
+-		 *    FS, just waiting on its writeback completion. Worryingly,
+-		 *    ext4 gfs2 and xfs allocate pages with
+-		 *    grab_cache_page_write_begin(,,AOP_FLAG_NOFS), so testing
+-		 *    may_enter_fs here is liable to OOM on them.
+-		 *
+-		 * 3) memcg encounters a page that is not already marked
+-		 *    PageReclaim. memcg does not have any dirty pages
+-		 *    throttling so we could easily OOM just because too many
+-		 *    pages are in writeback and there is nothing else to
+-		 *    reclaim. Wait for the writeback to complete.
++		 * A page at the tail of the LRU is under writeback.  If
++		 * reclaim is encountering an excessive number of pages
++		 * under writeback and this page is both under writeback
++		 * and PageReclaim then it indicates that pages are being
++		 * queued for IO but are being recycled through the LRU
++		 * before the IO can complete.  Waiting on the page itself
++		 * risks an indefinite stall if it is impossible to
++		 * writeback the page due to IO error or disconnected
++		 * storage so instead note that the LRU is being scanned
++		 * too quickly and the caller can stall after page list has
++		 * been processed.
+ 		 */
+ 		if (PageWriteback(page)) {
+-			/* Case 1 above */
+ 			if (current_is_kswapd() &&
+ 			    PageReclaim(page) &&
+ 			    test_bit(ZONE_WRITEBACK, &zone->flags)) {
+ 				nr_immediate++;
+-				goto keep_locked;
+-
+-			/* Case 2 above */
+-			} else if (global_reclaim(sc) ||
+-			    !PageReclaim(page) || !(sc->gfp_mask & __GFP_IO)) {
 +			} else {
-+				m_dirty = mdtc->dirty;
-+				m_thresh = mdtc->thresh;
-+				m_bg_thresh = mdtc->bg_thresh;
-+			}
-+		}
-+
- 		/*
- 		 * Throttle it only when the background writeback cannot
- 		 * catch-up. This avoids (excessively) small writeouts
-@@ -1531,18 +1595,31 @@ static void balance_dirty_pages(struct address_space *mapping,
- 		 * In strictlimit case make decision based on the wb counters
- 		 * and limits. Small writeouts when the wb limits are ramping
- 		 * up are the price we consciously pay for strictlimit-ing.
-+		 *
-+		 * If memcg domain is in effect, @dirty should be under
-+		 * both global and memcg freerun ceilings.
- 		 */
--		if (dirty <= dirty_freerun_ceiling(thresh, bg_thresh)) {
-+		if (dirty <= dirty_freerun_ceiling(thresh, bg_thresh) &&
-+		    (!mdtc ||
-+		     m_dirty <= dirty_freerun_ceiling(m_thresh, m_bg_thresh))) {
-+			unsigned long intv = dirty_poll_interval(dirty, thresh);
-+			unsigned long m_intv = ULONG_MAX;
-+
- 			current->dirty_paused_when = now;
- 			current->nr_dirtied = 0;
--			current->nr_dirtied_pause =
--				dirty_poll_interval(dirty, thresh);
-+			if (mdtc)
-+				m_intv = dirty_poll_interval(m_dirty, m_thresh);
-+			current->nr_dirtied_pause = min(intv, m_intv);
- 			break;
+ 				/*
+ 				 * This is slightly racy - end_page_writeback()
+ 				 * might have just cleared PageReclaim, then
+@@ -989,13 +960,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 				 */
+ 				SetPageReclaim(page);
+ 				nr_writeback++;
+-
+-				goto keep_locked;
+-
+-			/* Case 3 above */
+-			} else {
+-				wait_on_page_writeback(page);
+ 			}
++			goto keep_locked;
  		}
  
- 		if (unlikely(!writeback_in_progress(wb)))
- 			wb_start_background_writeback(wb);
+ 		if (!force_reclaim)
+@@ -1423,9 +1389,6 @@ static int too_many_isolated(struct zone *zone, int file,
+ 	if (current_is_kswapd())
+ 		return 0;
  
-+		/*
-+		 * Calculate global domain's pos_ratio and select the
-+		 * global dtc by default.
-+		 */
- 		if (!strictlimit)
- 			wb_dirty_limits(gdtc);
- 
-@@ -1550,6 +1627,25 @@ static void balance_dirty_pages(struct address_space *mapping,
- 			((gdtc->dirty > gdtc->thresh) || strictlimit);
- 
- 		wb_position_ratio(gdtc);
-+		sdtc = gdtc;
-+
-+		if (mdtc) {
-+			/*
-+			 * If memcg domain is in effect, calculate its
-+			 * pos_ratio.  @wb should satisfy constraints from
-+			 * both global and memcg domains.  Choose the one
-+			 * w/ lower pos_ratio.
-+			 */
-+			if (!strictlimit)
-+				wb_dirty_limits(mdtc);
-+
-+			dirty_exceeded |= (mdtc->wb_dirty > mdtc->wb_thresh) &&
-+				((mdtc->dirty > mdtc->thresh) || strictlimit);
-+
-+			wb_position_ratio(mdtc);
-+			if (mdtc->pos_ratio < gdtc->pos_ratio)
-+				sdtc = mdtc;
-+		}
- 
- 		if (dirty_exceeded && !wb->dirty_exceeded)
- 			wb->dirty_exceeded = 1;
-@@ -1557,14 +1653,15 @@ static void balance_dirty_pages(struct address_space *mapping,
- 		if (time_is_before_jiffies(wb->bw_time_stamp +
- 					   BANDWIDTH_INTERVAL)) {
- 			spin_lock(&wb->list_lock);
--			__wb_update_bandwidth(gdtc, start_time, true);
-+			__wb_update_bandwidth(gdtc, mdtc, start_time, true);
- 			spin_unlock(&wb->list_lock);
- 		}
- 
-+		/* throttle according to the chosen dtc */
- 		dirty_ratelimit = wb->dirty_ratelimit;
--		task_ratelimit = ((u64)dirty_ratelimit * gdtc->pos_ratio) >>
-+		task_ratelimit = ((u64)dirty_ratelimit * sdtc->pos_ratio) >>
- 							RATELIMIT_CALC_SHIFT;
--		max_pause = wb_max_pause(wb, gdtc->wb_dirty);
-+		max_pause = wb_max_pause(wb, sdtc->wb_dirty);
- 		min_pause = wb_min_pause(wb, max_pause,
- 					 task_ratelimit, dirty_ratelimit,
- 					 &nr_dirtied_pause);
-@@ -1587,11 +1684,11 @@ static void balance_dirty_pages(struct address_space *mapping,
- 		 */
- 		if (pause < min_pause) {
- 			trace_balance_dirty_pages(bdi,
--						  gdtc->thresh,
--						  gdtc->bg_thresh,
--						  gdtc->dirty,
--						  gdtc->wb_thresh,
--						  gdtc->wb_dirty,
-+						  sdtc->thresh,
-+						  sdtc->bg_thresh,
-+						  sdtc->dirty,
-+						  sdtc->wb_thresh,
-+						  sdtc->wb_dirty,
- 						  dirty_ratelimit,
- 						  task_ratelimit,
- 						  pages_dirtied,
-@@ -1616,11 +1713,11 @@ static void balance_dirty_pages(struct address_space *mapping,
- 
- pause:
- 		trace_balance_dirty_pages(bdi,
--					  gdtc->thresh,
--					  gdtc->bg_thresh,
--					  gdtc->dirty,
--					  gdtc->wb_thresh,
--					  gdtc->wb_dirty,
-+					  sdtc->thresh,
-+					  sdtc->bg_thresh,
-+					  sdtc->dirty,
-+					  sdtc->wb_thresh,
-+					  sdtc->wb_dirty,
- 					  dirty_ratelimit,
- 					  task_ratelimit,
- 					  pages_dirtied,
-@@ -1651,7 +1748,7 @@ pause:
- 		 * more page. However wb_dirty has accounting errors.  So use
- 		 * the larger and more IO friendly wb_stat_error.
- 		 */
--		if (gdtc->wb_dirty <= wb_stat_error(wb))
-+		if (sdtc->wb_dirty <= wb_stat_error(wb))
- 			break;
- 
- 		if (fatal_signal_pending(current))
-@@ -1775,7 +1872,10 @@ EXPORT_SYMBOL(balance_dirty_pages_ratelimited);
- bool wb_over_bg_thresh(struct bdi_writeback *wb)
- {
- 	struct dirty_throttle_control gdtc_stor = { GDTC_INIT(wb) };
-+	struct dirty_throttle_control mdtc_stor = { MDTC_INIT(wb, &gdtc_stor) };
- 	struct dirty_throttle_control * const gdtc = &gdtc_stor;
-+	struct dirty_throttle_control * const mdtc = mdtc_valid(&mdtc_stor) ?
-+						     &mdtc_stor : NULL;
+-	if (!global_reclaim(sc))
+-		return 0;
+-
+ 	if (file) {
+ 		inactive = zone_page_state(zone, NR_INACTIVE_FILE);
+ 		isolated = zone_page_state(zone, NR_ISOLATED_FILE);
+@@ -1615,35 +1578,29 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 		set_bit(ZONE_WRITEBACK, &zone->flags);
  
  	/*
- 	 * Similar to balance_dirty_pages() but ignores pages being written
-@@ -1792,6 +1892,20 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
- 	if (wb_stat(wb, WB_RECLAIMABLE) > __wb_dirty_limit(gdtc))
- 		return true;
+-	 * memcg will stall in page writeback so only consider forcibly
+-	 * stalling for global reclaim
++	 * Tag a zone as congested if all the dirty pages scanned were
++	 * backed by a congested BDI and wait_iff_congested will stall.
+ 	 */
+-	if (global_reclaim(sc)) {
+-		/*
+-		 * Tag a zone as congested if all the dirty pages scanned were
+-		 * backed by a congested BDI and wait_iff_congested will stall.
+-		 */
+-		if (nr_dirty && nr_dirty == nr_congested)
+-			set_bit(ZONE_CONGESTED, &zone->flags);
++	if (nr_dirty && nr_dirty == nr_congested)
++		set_bit(ZONE_CONGESTED, &zone->flags);
  
-+	if (mdtc) {
-+		unsigned long writeback;
-+
-+		mem_cgroup_wb_stats(wb, &mdtc->avail, &mdtc->dirty, &writeback);
-+		mdtc_cap_avail(mdtc);
-+		domain_dirty_limits(mdtc);	/* ditto, ignore writeback */
-+
-+		if (mdtc->dirty > mdtc->bg_thresh)
-+			return true;
-+
-+		if (wb_stat(wb, WB_RECLAIMABLE) > __wb_dirty_limit(mdtc))
-+			return true;
-+	}
-+
- 	return false;
- }
+-		/*
+-		 * If dirty pages are scanned that are not queued for IO, it
+-		 * implies that flushers are not keeping up. In this case, flag
+-		 * the zone ZONE_DIRTY and kswapd will start writing pages from
+-		 * reclaim context.
+-		 */
+-		if (nr_unqueued_dirty == nr_taken)
+-			set_bit(ZONE_DIRTY, &zone->flags);
++	/*
++	 * If dirty pages are scanned that are not queued for IO, it
++	 * implies that flushers are not keeping up. In this case, flag the
++	 * zone ZONE_DIRTY and kswapd will start writing pages from reclaim
++	 * context.
++	 */
++	if (nr_unqueued_dirty == nr_taken)
++		set_bit(ZONE_DIRTY, &zone->flags);
  
+-		/*
+-		 * If kswapd scans pages marked marked for immediate
+-		 * reclaim and under writeback (nr_immediate), it implies
+-		 * that pages are cycling through the LRU faster than
+-		 * they are written so also forcibly stall.
+-		 */
+-		if (nr_immediate && current_may_throttle())
+-			congestion_wait(BLK_RW_ASYNC, HZ/10);
+-	}
++	/*
++	 * If kswapd scans pages marked marked for immediate reclaim and
++	 * under writeback (nr_immediate), it implies that pages are
++	 * cycling through the LRU faster than they are written so also
++	 * forcibly stall.
++	 */
++	if (nr_immediate && current_may_throttle())
++		congestion_wait(BLK_RW_ASYNC, HZ/10);
+ 
+ 	/*
+ 	 * Stall direct reclaim for IO completions if underlying BDIs or zone
 -- 
 2.1.0
 
