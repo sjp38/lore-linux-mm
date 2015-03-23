@@ -1,164 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id AEC686B0071
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 08:56:48 -0400 (EDT)
-Received: by wixw10 with SMTP id w10so34342102wix.0
-        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 05:56:48 -0700 (PDT)
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com. [74.125.82.41])
-        by mx.google.com with ESMTPS id k8si11645830wiy.84.2015.03.23.05.56.46
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 306326B0073
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 09:02:07 -0400 (EDT)
+Received: by wixw10 with SMTP id w10so34425893wix.0
+        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 06:02:06 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gj3si1151744wjd.98.2015.03.23.06.02.04
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Mar 2015 05:56:47 -0700 (PDT)
-Received: by wgra20 with SMTP id a20so145196530wgr.3
-        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 05:56:46 -0700 (PDT)
-Message-ID: <55100D8B.90409@plexistor.com>
-Date: Mon, 23 Mar 2015 14:56:43 +0200
-From: Boaz Harrosh <boaz@plexistor.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 23 Mar 2015 06:02:05 -0700 (PDT)
+Date: Mon, 23 Mar 2015 14:02:01 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: Use GFP_KERNEL allocation for the page cache in
+ page_cache_read
+Message-ID: <20150323130201.GB29084@dhcp22.suse.cz>
+References: <1426687766-518-1-git-send-email-mhocko@suse.cz>
+ <55098F3B.7070000@redhat.com>
+ <20150318145528.GK17241@dhcp22.suse.cz>
+ <20150319071439.GE28621@dastard>
+ <20150319124441.GC12466@dhcp22.suse.cz>
+ <20150320034820.GH28621@dastard>
+ <20150320131453.GA4821@dhcp22.suse.cz>
+ <20150320225139.GL28621@dastard>
 MIME-Version: 1.0
-Subject: [PATCH v4] xfstest: generic/080 test that mmap-write updates c/mtime
-References: <55100B78.501@plexistor.com>
-In-Reply-To: <55100B78.501@plexistor.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150320225139.GL28621@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Sage Weil <sage@inktank.com>, Mark Fasheh <mfasheh@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-From: Dave Chinner <dchinner@redhat.com>
+On Sat 21-03-15 09:51:39, Dave Chinner wrote:
+> On Fri, Mar 20, 2015 at 02:14:53PM +0100, Michal Hocko wrote:
+> > On Fri 20-03-15 14:48:20, Dave Chinner wrote:
+> > > On Thu, Mar 19, 2015 at 01:44:41PM +0100, Michal Hocko wrote:
+> > > > > allocations where the caller cannot pass a gfp_mask need to obey
+> > > > > the mapping_gfp_mask that is set by the mapping owner....
+> > > > 
+> > > > Hmm, I thought this is true only when the function might be called from
+> > > > the fs path.
+> > > 
+> > > How do you know in, say, mpage_readpages, you aren't being called
+> > > from a fs path that holds locks? e.g. we can get there from ext4
+> > > doing readdir, so it is holding an i_mutex lock at that point.
+> > > 
+> > > Many other paths into mpages_readpages don't hold locks, but there
+> > > are some that do, and those that do need functionals like this to
+> > > obey the mapping_gfp_mask because it is set appropriately for the
+> > > allocation context of the inode that owns the mapping....
+> > 
+> > What about the following?
+> > ---
+> > From 5d905cb291138d61bbab056845d6e53bc4451ec8 Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.cz>
+> > Date: Thu, 19 Mar 2015 14:56:56 +0100
+> > Subject: [PATCH 1/2] mm: do not ignore mapping_gfp_mask in page cache
+> >  allocation paths
+> 
+> Looks reasonable, though I though there were more places that that
+> in the mapping paths that need to be careful...
 
-when using mmap() for file i/o, writing to the file should update
-it's c/mtime. Specifically if we first mmap-read from a page, then
-memap-write to the same page.
+I have focused on those which involve page cache allocation because
+those are obvious. We might need others but I do not see them right now.
 
-This test was failing for the initial submission of DAX because
-pfn based mapping do not have an page_mkwrite called for them.
-The new Kernel patches that introduce pfn_mkwrite fixes this test.
-
-Written by Dave Chinner but edited and tested by:
-	Omer Zilberberg
-
-Dave hands-up man, it looks like you edited this directly
-in the email, but there was not even a single typo.
-
-Tested-by: Omer Zilberberg <omzg@plexistor.com>
-Tested-by: Boaz Harrosh <boaz@plexistor.com>
-Signed-off-by: Omer Zilberberg <omzg@plexistor.com>
-Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
-Reviewed-by: Eryu Guan <eguan@redhat.com>
----
- tests/generic/080     | 78 +++++++++++++++++++++++++++++++++++++++++++++++++++
- tests/generic/080.out |  2 ++
- tests/generic/group   |  1 +
- 3 files changed, 81 insertions(+)
- create mode 100755 tests/generic/080
- create mode 100644 tests/generic/080.out
-
-diff --git a/tests/generic/080 b/tests/generic/080
-new file mode 100755
-index 0000000..43c93d7
---- /dev/null
-+++ b/tests/generic/080
-@@ -0,0 +1,78 @@
-+#! /bin/bash
-+# FS QA Test No. 080
-+#
-+# Verify that mtime is updated when writing to mmap-ed pages
-+#
-+#-----------------------------------------------------------------------
-+# This program is free software; you can redistribute it and/or
-+# modify it under the terms of the GNU General Public License as
-+# published by the Free Software Foundation.
-+#
-+# This program is distributed in the hope that it would be useful,
-+# but WITHOUT ANY WARRANTY; without even the implied warranty of
-+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+# GNU General Public License for more details.
-+#
-+# You should have received a copy of the GNU General Public License
-+# along with this program; if not, write the Free Software Foundation,
-+# Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-+#-----------------------------------------------------------------------
-+#
-+
-+seq=`basename $0`
-+seqres=$RESULT_DIR/$seq
-+echo "QA output created by $seq"
-+
-+here=`pwd`
-+tmp=/tmp/$$
-+status=0
-+trap "_cleanup; exit \$status" 0 1 2 3 15
-+
-+_cleanup()
-+{
-+	cd /
-+	rm -f $tmp.*
-+	rm -f $testfile
-+}
-+
-+# get standard environment, filters and checks
-+. ./common/rc
-+. ./common/filter
-+
-+# real QA test starts here
-+_supported_fs generic
-+_supported_os IRIX Linux
-+_require_test
-+
-+echo "Silence is golden."
-+rm -f $seqres.full
-+
-+# pattern the file.
-+testfile=$TEST_DIR/mmap_mtime_testfile
-+$XFS_IO_PROG -f -c "pwrite 0 4k" -c fsync $testfile >> $seqres.full
-+
-+# sample timestamps.
-+mtime1=`stat -c %Y $testfile`
-+ctime1=`stat -c %Z $testfile`
-+echo "before mwrite: $mtime1 $ctime1" >> $seqres.full
-+
-+# map read followed by map write to trigger timestamp change
-+sleep 2
-+$XFS_IO_PROG -c "mmap 0 4k" -c "mread 0 4k" -c "mwrite 0 4k" $testfile \
-+	>> $seqres.full
-+
-+# sample and verify that timestamps have changed.
-+mtime2=`stat -c %Y $testfile`
-+ctime2=`stat -c %Z $testfile`
-+echo "after mwrite : $mtime2 $ctime2" >> $seqres.full
-+
-+if [ "$mtime1" == "$mtime2" ]; then
-+	echo "mtime not updated"
-+	let status=$status+1
-+fi
-+if [ "$ctime1" == "$ctime2" ]; then
-+	echo "ctime not updated"
-+	let status=$status+1
-+fi
-+
-+exit
-diff --git a/tests/generic/080.out b/tests/generic/080.out
-new file mode 100644
-index 0000000..cccac52
---- /dev/null
-+++ b/tests/generic/080.out
-@@ -0,0 +1,2 @@
-+QA output created by 080
-+Silence is golden.
-diff --git a/tests/generic/group b/tests/generic/group
-index d56d3ce..8154401 100644
---- a/tests/generic/group
-+++ b/tests/generic/group
-@@ -79,6 +79,7 @@
- 077 acl attr auto enospc
- 078 auto quick metadata
- 079 acl attr ioctl metadata auto quick
-+080 auto quick
- 083 rw auto enospc stress
- 088 perms auto quick
- 089 metadata auto
+I will include this patch for the next submit after I manage to wrap my
+head around up-coming xfs changes and come up with something for
+page_cache_read vs OOM killer issue.
 -- 
-1.9.3
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
