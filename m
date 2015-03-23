@@ -1,89 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 310946B0078
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 06:04:50 -0400 (EDT)
-Received: by wetk59 with SMTP id k59so133366547wet.3
-        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 03:04:49 -0700 (PDT)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.195])
-        by mx.google.com with ESMTP id zb3si404047wjc.137.2015.03.23.03.04.47
-        for <linux-mm@kvack.org>;
-        Mon, 23 Mar 2015 03:04:48 -0700 (PDT)
-Date: Mon, 23 Mar 2015 12:04:33 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 00/16] Sanitize usage of ->flags and ->mapping for tail
- pages
-Message-ID: <20150323100433.GA30088@node.dhcp.inet.fi>
-References: <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com>
- <alpine.LSU.2.11.1503221713370.3913@eggly.anvils>
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id A665F6B0038
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 08:01:37 -0400 (EDT)
+Received: by wixw10 with SMTP id w10so33469889wix.0
+        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 05:01:37 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i10si11436882wif.64.2015.03.23.05.01.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 23 Mar 2015 05:01:35 -0700 (PDT)
+Date: Mon, 23 Mar 2015 12:01:31 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 4/4] mm: numa: Slow PTE scan rate if migration failures
+ occur
+Message-ID: <20150323120131.GB4701@suse.de>
+References: <20150317220840.GC28621@dastard>
+ <CA+55aFwne-fe_Gg-_GTUo+iOAbbNpLBa264JqSFkH79EULyAqw@mail.gmail.com>
+ <CA+55aFy-Mw74rAdLMMMUgnsG3ZttMWVNGz7CXZJY7q9fqyRYfg@mail.gmail.com>
+ <CA+55aFyxA9u2cVzV+S7TSY9ZvRXCX=z22YAbi9mdPVBKmqgR5g@mail.gmail.com>
+ <20150319224143.GI10105@dastard>
+ <CA+55aFy5UeNnFUTi619cs3b9Up2NQ1wbuyvcCS614+o3=z=wBQ@mail.gmail.com>
+ <20150320002311.GG28621@dastard>
+ <CA+55aFyqXDVv9JkkhvM26x6PC5V82corR7HQNxmkeGZjOCxD=A@mail.gmail.com>
+ <20150320041357.GO10105@dastard>
+ <CA+55aFx1pywykWa0ThcHgE7wzdVuyOBSx27iyx_FtZpYSJbKGQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1503221713370.3913@eggly.anvils>
+In-Reply-To: <CA+55aFx1pywykWa0ThcHgE7wzdVuyOBSx27iyx_FtZpYSJbKGQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On Sun, Mar 22, 2015 at 05:28:47PM -0700, Hugh Dickins wrote:
-> On Thu, 19 Mar 2015, Kirill A. Shutemov wrote:
+On Fri, Mar 20, 2015 at 10:02:23AM -0700, Linus Torvalds wrote:
+> On Thu, Mar 19, 2015 at 9:13 PM, Dave Chinner <david@fromorbit.com> wrote:
+> >
+> > Testing now. It's a bit faster - three runs gave 7m35s, 7m20s and
+> > 7m36s. IOWs's a bit better, but not significantly. page migrations
+> > are pretty much unchanged, too:
+> >
+> >            558,632      migrate:mm_migrate_pages ( +-  6.38% )
 > 
-> > Currently we take naive approach to page flags on compound -- we set the
-> > flag on the page without consideration if the flag makes sense for tail
-> > page or for compound page in general. This patchset try to sort this out
-> > by defining per-flag policy on what need to be done if page-flag helper
-> > operate on compound page.
-> > 
-> > The last patch in patchset also sanitize usege of page->mapping for tail
-> > pages. We don't define meaning of page->mapping for tail pages. Currently
-> > it's always NULL, which can be inconsistent with head page and potentially
-> > lead to problems.
-> > 
-> > For now I catched one case of illigal usage of page flags or ->mapping:
-> > sound subsystem allocates pages with __GFP_COMP and maps them with PTEs.
-> > It leads to setting dirty bit on tail pages and access to tail_page's
-> > ->mapping. I don't see any bad behaviour caused by this, but worth fixing
-> > anyway.
+> Ok. That was kind of the expected thing.
 > 
-> But there's nothing to fix there.  We're more used to having page->mapping
-> set by filesystems, but it is normal for drivers to have pages with NULL
-> page->mapping mapped into userspace (and it's not accidental that they
-> appear !PageAnon); and subpages of compound pages mapped into userspace,
-> and set_page_dirty applied to them.
-
-Yes, it works until some sound driver decide it wants to use
-page->mappging.
-
-It's just pure luck that it happened to work in this particular case.
-
-> > This patchset makes more sense if you take my THP refcounting into
-> > account: we will see more compound pages mapped with PTEs and we need to
-> > define behaviour of flags on compound pages to avoid bugs.
+> I don't really know the NUMA fault rate limiting code, but one thing
+> that strikes me is that if it tries to balance the NUMA faults against
+> the *regular* faults, then maybe just the fact that we end up taking
+> more COW faults after a NUMA fault then means that the NUMA rate
+> limiting code now gets over-eager (because it sees all those extra
+> non-numa faults).
 > 
-> Yes, I quite understand that you want to clarify the usage of different
-> page flags to yourself, to help towards a policy of what to do with each
-> of them when subpages of a huge compound page are mapped into userspace;
-> but I don't see that we need this patchset in the kernel now, given that
-> it adds unnecessary overhead into several low-level inline functions.
+> Mel, does that sound at all possible? I really have never looked at
+> the magic automatic rate handling..
+> 
 
-We already have subpages of compound page mapped to userspace -- the sound
-case.
+It should not be trying to balance against regular faults as it has no
+information on it. The trapping of additional faults to mark the PTE
+writable will alter timing so it indirectly affects how many migration
+faults there but this is only a side-effect IMO.
 
-And what overhead are you talking about?
-
-Check for compound or head bit is practically free in most cases since you
-are going to check other bits in the same cache line anyway. Probably a
-bit more expensive if the flag is encoded in ->mapping or somewhere else.
-(on 32-bit x86 ->mapping case is also free, since it's in the same cache
-line as ->flags).
-
-You only need to pay the expense if you hit tail page which is very rare
-in current kernel. I think we can pay this cost for correctness.
-
-We will shave some cost of compound_head() if/when my refcounting patchset
-get merged: no need of barrier anymore.
+There is more overhead now due to losing the writable information and
+that should be reduced so I tried a few approaches.  Ultimately, the one
+that performed the best and was easiest to understand simply preserved
+the writable bit across the protection update and page fault. I'll post
+it later when I stick a changelog on it.
 
 -- 
- Kirill A. Shutemov
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
