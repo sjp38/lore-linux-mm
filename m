@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 41CF56B0073
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 00:55:23 -0400 (EDT)
-Received: by qgf74 with SMTP id 74so11432132qgf.2
-        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 21:55:23 -0700 (PDT)
-Received: from mail-qc0-x230.google.com (mail-qc0-x230.google.com. [2607:f8b0:400d:c01::230])
-        by mx.google.com with ESMTPS id i204si11178528qhc.57.2015.03.22.21.55.18
+Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 2933C6B0074
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 00:55:25 -0400 (EDT)
+Received: by qgfa8 with SMTP id a8so137691938qgf.0
+        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 21:55:25 -0700 (PDT)
+Received: from mail-qc0-x22d.google.com (mail-qc0-x22d.google.com. [2607:f8b0:400d:c01::22d])
+        by mx.google.com with ESMTPS id l63si11219328qhl.27.2015.03.22.21.55.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 22 Mar 2015 21:55:18 -0700 (PDT)
-Received: by qcto4 with SMTP id o4so136674410qct.3
-        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 21:55:18 -0700 (PDT)
+        Sun, 22 Mar 2015 21:55:20 -0700 (PDT)
+Received: by qcbjx9 with SMTP id jx9so97999433qcb.0
+        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 21:55:20 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 06/48] cgroup, block: implement task_get_css() and use it in bio_associate_current()
-Date: Mon, 23 Mar 2015 00:54:17 -0400
-Message-Id: <1427086499-15657-7-git-send-email-tj@kernel.org>
+Subject: [PATCH 07/48] blkcg: implement task_get_blkcg_css()
+Date: Mon, 23 Mar 2015 00:54:18 -0400
+Message-Id: <1427086499-15657-8-git-send-email-tj@kernel.org>
 In-Reply-To: <1427086499-15657-1-git-send-email-tj@kernel.org>
 References: <1427086499-15657-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,91 +22,46 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
 Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, Tejun Heo <tj@kernel.org>
 
-bio_associate_current() currently open codes task_css() and
-css_tryget_online() to find and pin $current's blkcg css.  Abstract it
-into task_get_css() which is implemented from cgroup side.  As a task
-is always associated with an online css for every subsystem except
-while the css_set update is propagating, task_get_css() retries till
-css_tryget_online() succeeds.
-
-This is a cleanup and shouldn't lead to noticeable behavior changes.
+Implement a wrapper around task_get_css() to acquire the blkcg css for
+a given task.  The wrapper is necessary for cgroup writeback support
+as there will be places outside blkcg proper trying to acquire
+blkcg_css and blkio_cgrp_id will be undefined when !CONFIG_BLK_CGROUP.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
-Cc: Li Zefan <lizefan@huawei.com>
-Cc: Jens Axboe <axboe@kernel.dk>
-Cc: Vivek Goyal <vgoyal@redhat.com>
 ---
- block/bio.c            | 11 +----------
- include/linux/cgroup.h | 25 +++++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 10 deletions(-)
+ include/linux/blk-cgroup.h | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
-diff --git a/block/bio.c b/block/bio.c
-index f66a4ea..968683e 100644
---- a/block/bio.c
-+++ b/block/bio.c
-@@ -1987,7 +1987,6 @@ EXPORT_SYMBOL(bioset_create_nobvec);
- int bio_associate_current(struct bio *bio)
- {
- 	struct io_context *ioc;
--	struct cgroup_subsys_state *css;
- 
- 	if (bio->bi_ioc)
- 		return -EBUSY;
-@@ -1996,17 +1995,9 @@ int bio_associate_current(struct bio *bio)
- 	if (!ioc)
- 		return -ENOENT;
- 
--	/* acquire active ref on @ioc and associate */
- 	get_io_context_active(ioc);
- 	bio->bi_ioc = ioc;
--
--	/* associate blkcg if exists */
--	rcu_read_lock();
--	css = task_css(current, blkio_cgrp_id);
--	if (css && css_tryget_online(css))
--		bio->bi_css = css;
--	rcu_read_unlock();
--
-+	bio->bi_css = task_get_css(current, blkio_cgrp_id);
- 	return 0;
+diff --git a/include/linux/blk-cgroup.h b/include/linux/blk-cgroup.h
+index 65f0c17..4dc643f 100644
+--- a/include/linux/blk-cgroup.h
++++ b/include/linux/blk-cgroup.h
+@@ -195,6 +195,12 @@ static inline struct blkcg *bio_blkcg(struct bio *bio)
+ 	return task_blkcg(current);
  }
  
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index b9cb94c..e7da0aa 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -774,6 +774,31 @@ static inline struct cgroup_subsys_state *task_css(struct task_struct *task,
- }
- 
- /**
-+ * task_get_css - find and get the css for (task, subsys)
-+ * @task: the target task
-+ * @subsys_id: the target subsystem ID
-+ *
-+ * Find the css for the (@task, @subsys_id) combination, increment a
-+ * reference on and return it.  This function is guaranteed to return a
-+ * valid css.
-+ */
 +static inline struct cgroup_subsys_state *
-+task_get_css(struct task_struct *task, int subsys_id)
++task_get_blkcg_css(struct task_struct *task)
 +{
-+	struct cgroup_subsys_state *css;
-+
-+	rcu_read_lock();
-+	while (true) {
-+		css = task_css(task, subsys_id);
-+		if (likely(css_tryget_online(css)))
-+			break;
-+		cpu_relax();
-+	}
-+	rcu_read_unlock();
-+	return css;
++	return task_get_css(task, blkio_cgrp_id);
 +}
 +
-+/**
-  * task_css_is_root - test whether a task belongs to the root css
-  * @task: the target task
-  * @subsys_id: the target subsystem ID
+ /**
+  * blkcg_parent - get the parent of a blkcg
+  * @blkcg: blkcg of interest
+@@ -573,6 +579,12 @@ struct blkcg_policy {
+ 
+ #define blkcg_root_css	((struct cgroup_subsys_state *)ERR_PTR(-EINVAL))
+ 
++static inline struct cgroup_subsys_state *
++task_get_blkcg_css(struct task_struct *task)
++{
++	return NULL;
++}
++
+ #ifdef CONFIG_BLOCK
+ 
+ static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg, void *key) { return NULL; }
 -- 
 2.1.0
 
