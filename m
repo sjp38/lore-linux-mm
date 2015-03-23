@@ -1,67 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C2986B0038
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 16:08:47 -0400 (EDT)
-Received: by pagv19 with SMTP id v19so26716535pag.2
-        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 13:08:47 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id vi11si2550863pab.48.2015.03.23.13.08.46
-        for <linux-mm@kvack.org>;
-        Mon, 23 Mar 2015 13:08:46 -0700 (PDT)
-Date: Mon, 23 Mar 2015 16:08:42 -0400 (EDT)
-Message-Id: <20150323.160842.746728270630955268.davem@davemloft.net>
-Subject: Re: 4.0.0-rc4: panic in free_block
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <21776.28626.30072.920618@quad.stoffel.home>
-References: <21776.17527.912997.355420@quad.stoffel.home>
-	<20150323.151613.1149103262130397921.davem@davemloft.net>
-	<21776.28626.30072.920618@quad.stoffel.home>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id B9CA46B0038
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 17:04:39 -0400 (EDT)
+Received: by pacwe9 with SMTP id we9so203068251pac.1
+        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 14:04:39 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id pc10si1110548pdb.109.2015.03.23.06.26.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Mar 2015 06:26:32 -0700 (PDT)
+Received: by pacwe9 with SMTP id we9so191749582pac.1
+        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 06:26:32 -0700 (PDT)
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: [PATCH 2/2] zsmalloc: remove extra cond_resched() in __zs_compact
+Date: Mon, 23 Mar 2015 22:26:39 +0900
+Message-Id: <1427117199-2763-3-git-send-email-sergey.senozhatsky@gmail.com>
+In-Reply-To: <1427117199-2763-1-git-send-email-sergey.senozhatsky@gmail.com>
+References: <1427117199-2763-1-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john@stoffel.org
-Cc: david.ahern@oracle.com, torvalds@linux-foundation.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bpicco@meloft.net
+To: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>
+Cc: Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-From: "John Stoffel" <john@stoffel.org>
-Date: Mon, 23 Mar 2015 15:56:02 -0400
+Do not perform cond_resched() before the busy compaction
+loop in __zs_compact(), because this loop does it when
+needed.
 
->>>>>> "David" == David Miller <davem@davemloft.net> writes:
-> 
-> David> From: "John Stoffel" <john@stoffel.org>
-> David> Date: Mon, 23 Mar 2015 12:51:03 -0400
-> 
->>> Would it make sense to have some memmove()/memcopy() tests on bootup
->>> to catch problems like this?  I know this is a strange case, and
->>> probably not too common, but how hard would it be to wire up tests
->>> that go through 1 to 128 byte memmove() on bootup to make sure things
->>> work properly?
->>> 
->>> This seems like one of those critical, but subtle things to be
->>> checked.  And doing it only on bootup wouldn't slow anything down and
->>> would (ideally) automatically get us coverage when people add new
->>> archs or update the code.
-> 
-> David> One of two things is already happening.
-> 
-> David> There have been assembler memcpy/memset development test harnesses
-> David> around that most arch developers are using, and those test things
-> David> rather extensively.
-> 
-> David> Also, the memcpy/memset routines on sparc in particular are completely
-> David> shared with glibc, we use the same exact code in both trees.  So it's
-> David> getting tested there too.
-> 
-> Thats' good to know.   I wasn't sure.
-> 
-> David> memmove() is just not handled this way.
-> 
-> Bummers.  So why isn't this covered by the glibc tests too?
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+---
+ mm/zsmalloc.c | 2 --
+ 1 file changed, 2 deletions(-)
 
-Because the kernel's memmove() is different from the one we use in glibc
-on sparc.  In fact, we use the generic C version in glibc which expands
-to forward and backward word copies.
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index d1bbb04..d920e8b 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -1715,8 +1715,6 @@ static unsigned long __zs_compact(struct zs_pool *pool,
+ 	struct page *dst_page = NULL;
+ 	unsigned long nr_total_migrated = 0;
+ 
+-	cond_resched();
+-
+ 	spin_lock(&class->lock);
+ 	while ((src_page = isolate_source_page(class))) {
+ 
+-- 
+2.3.3.262.ge80e85a
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
