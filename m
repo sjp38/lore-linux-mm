@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
-	by kanga.kvack.org (Postfix) with ESMTP id BBCA8828FD
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 01:07:56 -0400 (EDT)
-Received: by qcbkw5 with SMTP id kw5so136951609qcb.2
-        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 22:07:56 -0700 (PDT)
-Received: from mail-qg0-x232.google.com (mail-qg0-x232.google.com. [2607:f8b0:400d:c04::232])
-        by mx.google.com with ESMTPS id 28si11172589qkx.125.2015.03.22.22.07.55
+Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
+	by kanga.kvack.org (Postfix) with ESMTP id EB2B6828FD
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 01:07:57 -0400 (EDT)
+Received: by qcbkw5 with SMTP id kw5so136951793qcb.2
+        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 22:07:57 -0700 (PDT)
+Received: from mail-qc0-x22a.google.com (mail-qc0-x22a.google.com. [2607:f8b0:400d:c01::22a])
+        by mx.google.com with ESMTPS id 1si11183921qgh.89.2015.03.22.22.07.57
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 22 Mar 2015 22:07:56 -0700 (PDT)
-Received: by qgep97 with SMTP id p97so5815238qge.1
-        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 22:07:55 -0700 (PDT)
+        Sun, 22 Mar 2015 22:07:57 -0700 (PDT)
+Received: by qcay5 with SMTP id y5so46455468qca.1
+        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 22:07:57 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 01/18] memcg: make mem_cgroup_read_{stat|event}() iterate possible cpus instead of online
-Date: Mon, 23 Mar 2015 01:07:30 -0400
-Message-Id: <1427087267-16592-2-git-send-email-tj@kernel.org>
+Subject: [PATCH 02/18] writeback: reorganize [__]wb_update_bandwidth()
+Date: Mon, 23 Mar 2015 01:07:31 -0400
+Message-Id: <1427087267-16592-3-git-send-email-tj@kernel.org>
 In-Reply-To: <1427087267-16592-1-git-send-email-tj@kernel.org>
 References: <1427087267-16592-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,137 +22,166 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
 Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, Tejun Heo <tj@kernel.org>
 
-cpu_possible_mask represents the CPUs which are actually possible
-during that boot instance.  For systems which don't support CPU
-hotplug, this will match cpu_online_mask exactly in most cases.  Even
-for systems which support CPU hotplug, the number of possible CPU
-slots is highly unlikely to diverge greatly from the number of online
-CPUs.  The only cases where the difference between possible and online
-caused problems were when the boot code failed to initialize the
-possible mask and left it fully set at NR_CPUS - 1.
+__wb_update_bandwidth() is called from two places -
+fs/fs-writeback.c::balance_dirty_pages() and
+mm/page-writeback.c::wb_writeback().  The latter updates only the
+write bandwidth while the former also deals with the dirty ratelimit.
+The two callsites are distinguished by whether @thresh parameter is
+zero or not, which is cryptic.  In addition, the two files define
+their own different versions of wb_update_bandwidth() on top of
+__wb_update_bandwidth(), which is confusing to say the least.  This
+patch cleans up [__]wb_update_bandwidth() in the following ways.
 
-As such, most per-cpu constructs allocate for all possible CPUs and
-often iterate over the possibles, which also has the benefit of
-avoiding the blocking CPU hotplug synchronization.
+* __wb_update_bandwidth() now takes explicit @update_ratelimit
+  parameter to gate dirty ratelimit handling.
 
-memcg open codes per-cpu stat counting for mem_cgroup_read_stat() and
-mem_cgroup_read_events(), which iterates over online CPUs and handles
-CPU hotplug operations explicitly.  This complexity doesn't actually
-buy anything.  Switch to iterating over the possibles and drop the
-explicit CPU hotplug handling.
+* mm/page-writeback.c::wb_update_bandwidth() is flattened into its
+  caller - balance_dirty_pages().
 
-Eventually, we want to convert memcg to use percpu_counter instead of
-its own custom implementation which also benefits from quick access
-w/o summing for cases where larger error margin is acceptable.
+* fs/fs-writeback.c::wb_update_bandwidth() is moved to
+  mm/page-writeback.c and __wb_update_bandwidth() is made static.
 
-This will allow mem_cgroup_read_stat() to be called from non-sleepable
-contexts which will be used by cgroup writeback.
+* While at it, add a lockdep assertion to __wb_update_bandwidth().
+
+Except for the lockdep addition, this is pure reorganization and
+doesn't introduce any behavioral changes.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Jens Axboe <axboe@kernel.dk>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Greg Thelen <gthelen@google.com>
 ---
- mm/memcontrol.c | 51 ++-------------------------------------------------
- 1 file changed, 2 insertions(+), 49 deletions(-)
+ fs/fs-writeback.c         | 10 ----------
+ include/linux/writeback.h |  9 +--------
+ mm/page-writeback.c       | 45 ++++++++++++++++++++++-----------------------
+ 3 files changed, 23 insertions(+), 41 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a6fa6fe..ab483e9 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -323,11 +323,6 @@ struct mem_cgroup {
- 	 * percpu counter.
- 	 */
- 	struct mem_cgroup_stat_cpu __percpu *stat;
--	/*
--	 * used when a cpu is offlined or other synchronizations
--	 * See mem_cgroup_read_stat().
--	 */
--	struct mem_cgroup_stat_cpu nocpu_base;
- 	spinlock_t pcp_counter_lock;
- 
- #if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
-@@ -808,15 +803,8 @@ static long mem_cgroup_read_stat(struct mem_cgroup *memcg,
- 	long val = 0;
- 	int cpu;
- 
--	get_online_cpus();
--	for_each_online_cpu(cpu)
-+	for_each_possible_cpu(cpu)
- 		val += per_cpu(memcg->stat->count[idx], cpu);
--#ifdef CONFIG_HOTPLUG_CPU
--	spin_lock(&memcg->pcp_counter_lock);
--	val += memcg->nocpu_base.count[idx];
--	spin_unlock(&memcg->pcp_counter_lock);
--#endif
--	put_online_cpus();
- 	return val;
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 890cff1..3d9b360 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -1079,16 +1079,6 @@ static bool over_bground_thresh(struct bdi_writeback *wb)
  }
  
-@@ -826,15 +814,8 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
- 	unsigned long val = 0;
- 	int cpu;
- 
--	get_online_cpus();
--	for_each_online_cpu(cpu)
-+	for_each_possible_cpu(cpu)
- 		val += per_cpu(memcg->stat->events[idx], cpu);
--#ifdef CONFIG_HOTPLUG_CPU
--	spin_lock(&memcg->pcp_counter_lock);
--	val += memcg->nocpu_base.events[idx];
--	spin_unlock(&memcg->pcp_counter_lock);
--#endif
--	put_online_cpus();
- 	return val;
- }
- 
-@@ -2182,37 +2163,12 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
- 	mutex_unlock(&percpu_charge_mutex);
- }
- 
--/*
-- * This function drains percpu counter value from DEAD cpu and
-- * move it to local cpu. Note that this function can be preempted.
+ /*
+- * Called under wb->list_lock. If there are multiple wb per bdi,
+- * only the flusher working on the first wb should do it.
 - */
--static void mem_cgroup_drain_pcp_counter(struct mem_cgroup *memcg, int cpu)
+-static void wb_update_bandwidth(struct bdi_writeback *wb,
+-				unsigned long start_time)
 -{
--	int i;
--
--	spin_lock(&memcg->pcp_counter_lock);
--	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
--		long x = per_cpu(memcg->stat->count[i], cpu);
--
--		per_cpu(memcg->stat->count[i], cpu) = 0;
--		memcg->nocpu_base.count[i] += x;
--	}
--	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++) {
--		unsigned long x = per_cpu(memcg->stat->events[i], cpu);
--
--		per_cpu(memcg->stat->events[i], cpu) = 0;
--		memcg->nocpu_base.events[i] += x;
--	}
--	spin_unlock(&memcg->pcp_counter_lock);
+-	__wb_update_bandwidth(wb, 0, 0, 0, 0, 0, start_time);
 -}
 -
- static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
- 					unsigned long action,
- 					void *hcpu)
- {
- 	int cpu = (unsigned long)hcpu;
- 	struct memcg_stock_pcp *stock;
--	struct mem_cgroup *iter;
+-/*
+  * Explicit flushing or periodic writeback of "old" data.
+  *
+  * Define "old": the first time one of an inode's pages is dirtied, we mark the
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index 75349bb..82e0e39 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -154,14 +154,7 @@ int dirty_writeback_centisecs_handler(struct ctl_table *, int,
+ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
+ unsigned long wb_dirty_limit(struct bdi_writeback *wb, unsigned long dirty);
  
- 	if (action == CPU_ONLINE)
- 		return NOTIFY_OK;
-@@ -2220,9 +2176,6 @@ static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
- 	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN)
- 		return NOTIFY_OK;
- 
--	for_each_mem_cgroup(iter)
--		mem_cgroup_drain_pcp_counter(iter, cpu);
+-void __wb_update_bandwidth(struct bdi_writeback *wb,
+-			   unsigned long thresh,
+-			   unsigned long bg_thresh,
+-			   unsigned long dirty,
+-			   unsigned long bdi_thresh,
+-			   unsigned long bdi_dirty,
+-			   unsigned long start_time);
 -
- 	stock = &per_cpu(memcg_stock, cpu);
- 	drain_stock(stock);
- 	return NOTIFY_OK;
++void wb_update_bandwidth(struct bdi_writeback *wb, unsigned long start_time);
+ void page_writeback_init(void);
+ void balance_dirty_pages_ratelimited(struct address_space *mapping);
+ 
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index fd441ea..d9ebabe 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1160,19 +1160,22 @@ static void wb_update_dirty_ratelimit(struct bdi_writeback *wb,
+ 	trace_bdi_dirty_ratelimit(wb->bdi, dirty_rate, task_ratelimit);
+ }
+ 
+-void __wb_update_bandwidth(struct bdi_writeback *wb,
+-			   unsigned long thresh,
+-			   unsigned long bg_thresh,
+-			   unsigned long dirty,
+-			   unsigned long wb_thresh,
+-			   unsigned long wb_dirty,
+-			   unsigned long start_time)
++static void __wb_update_bandwidth(struct bdi_writeback *wb,
++				  unsigned long thresh,
++				  unsigned long bg_thresh,
++				  unsigned long dirty,
++				  unsigned long wb_thresh,
++				  unsigned long wb_dirty,
++				  unsigned long start_time,
++				  bool update_ratelimit)
+ {
+ 	unsigned long now = jiffies;
+ 	unsigned long elapsed = now - wb->bw_time_stamp;
+ 	unsigned long dirtied;
+ 	unsigned long written;
+ 
++	lockdep_assert_held(&wb->list_lock);
++
+ 	/*
+ 	 * rate-limit, only update once every 200ms.
+ 	 */
+@@ -1189,7 +1192,7 @@ void __wb_update_bandwidth(struct bdi_writeback *wb,
+ 	if (elapsed > HZ && time_before(wb->bw_time_stamp, start_time))
+ 		goto snapshot;
+ 
+-	if (thresh) {
++	if (update_ratelimit) {
+ 		global_update_bandwidth(thresh, dirty, now);
+ 		wb_update_dirty_ratelimit(wb, thresh, bg_thresh, dirty,
+ 					  wb_thresh, wb_dirty,
+@@ -1203,20 +1206,9 @@ snapshot:
+ 	wb->bw_time_stamp = now;
+ }
+ 
+-static void wb_update_bandwidth(struct bdi_writeback *wb,
+-				unsigned long thresh,
+-				unsigned long bg_thresh,
+-				unsigned long dirty,
+-				unsigned long wb_thresh,
+-				unsigned long wb_dirty,
+-				unsigned long start_time)
++void wb_update_bandwidth(struct bdi_writeback *wb, unsigned long start_time)
+ {
+-	if (time_is_after_eq_jiffies(wb->bw_time_stamp + BANDWIDTH_INTERVAL))
+-		return;
+-	spin_lock(&wb->list_lock);
+-	__wb_update_bandwidth(wb, thresh, bg_thresh, dirty,
+-			      wb_thresh, wb_dirty, start_time);
+-	spin_unlock(&wb->list_lock);
++	__wb_update_bandwidth(wb, 0, 0, 0, 0, 0, start_time, false);
+ }
+ 
+ /*
+@@ -1467,8 +1459,15 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 		if (dirty_exceeded && !wb->dirty_exceeded)
+ 			wb->dirty_exceeded = 1;
+ 
+-		wb_update_bandwidth(wb, dirty_thresh, background_thresh,
+-				    nr_dirty, wb_thresh, wb_dirty, start_time);
++		if (time_is_before_jiffies(wb->bw_time_stamp +
++					   BANDWIDTH_INTERVAL)) {
++			spin_lock(&wb->list_lock);
++			__wb_update_bandwidth(wb, dirty_thresh,
++					      background_thresh, nr_dirty,
++					      wb_thresh, wb_dirty, start_time,
++					      true);
++			spin_unlock(&wb->list_lock);
++		}
+ 
+ 		dirty_ratelimit = wb->dirty_ratelimit;
+ 		pos_ratio = wb_position_ratio(wb, dirty_thresh,
 -- 
 2.1.0
 
