@@ -1,45 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f41.google.com (mail-yh0-f41.google.com [209.85.213.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A2CD6B0038
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 15:58:59 -0400 (EDT)
-Received: by yhpt93 with SMTP id t93so74480845yhp.0
-        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 12:58:59 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id f188si829499ykd.88.2015.03.23.12.58.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 23 Mar 2015 12:58:58 -0700 (PDT)
-Message-ID: <5510707A.2090509@oracle.com>
-Date: Mon, 23 Mar 2015 13:58:50 -0600
-From: David Ahern <david.ahern@oracle.com>
-MIME-Version: 1.0
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C2986B0038
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 16:08:47 -0400 (EDT)
+Received: by pagv19 with SMTP id v19so26716535pag.2
+        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 13:08:47 -0700 (PDT)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
+        by mx.google.com with ESMTP id vi11si2550863pab.48.2015.03.23.13.08.46
+        for <linux-mm@kvack.org>;
+        Mon, 23 Mar 2015 13:08:46 -0700 (PDT)
+Date: Mon, 23 Mar 2015 16:08:42 -0400 (EDT)
+Message-Id: <20150323.160842.746728270630955268.davem@davemloft.net>
 Subject: Re: 4.0.0-rc4: panic in free_block
-References: <20150322.221906.1670737065885267482.davem@davemloft.net>	<20150323.122530.812870422534676208.davem@davemloft.net>	<55104EAA.4060607@oracle.com> <20150323.153537.1167433221134028872.davem@davemloft.net>
-In-Reply-To: <20150323.153537.1167433221134028872.davem@davemloft.net>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <21776.28626.30072.920618@quad.stoffel.home>
+References: <21776.17527.912997.355420@quad.stoffel.home>
+	<20150323.151613.1149103262130397921.davem@davemloft.net>
+	<21776.28626.30072.920618@quad.stoffel.home>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: torvalds@linux-foundation.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bpicco@meloft.net
+To: john@stoffel.org
+Cc: david.ahern@oracle.com, torvalds@linux-foundation.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bpicco@meloft.net
 
-On 3/23/15 1:35 PM, David Miller wrote:
-> From: David Ahern <david.ahern@oracle.com>
-> Date: Mon, 23 Mar 2015 11:34:34 -0600
->
->> seems like a formality at this point, but this resolves the panic on
->> the M7-based ldom and baremetal. The T5-8 failed to boot, but it could
->> be a different problem.
->
-> Specifically, does the T5-8 boot without my patch applied?
->
+From: "John Stoffel" <john@stoffel.org>
+Date: Mon, 23 Mar 2015 15:56:02 -0400
 
-I am running around in circles with it... it takes 15 minutes after a 
-hard reset to get logged in, and I forgot that the 2.6.39 can't handle 
--j 1024 either (task scheduler problem), and then I wasted time waiting 
-for sandwich shop to learn how to use mobile app ordering, ...
+>>>>>> "David" == David Miller <davem@davemloft.net> writes:
+> 
+> David> From: "John Stoffel" <john@stoffel.org>
+> David> Date: Mon, 23 Mar 2015 12:51:03 -0400
+> 
+>>> Would it make sense to have some memmove()/memcopy() tests on bootup
+>>> to catch problems like this?  I know this is a strange case, and
+>>> probably not too common, but how hard would it be to wire up tests
+>>> that go through 1 to 128 byte memmove() on bootup to make sure things
+>>> work properly?
+>>> 
+>>> This seems like one of those critical, but subtle things to be
+>>> checked.  And doing it only on bootup wouldn't slow anything down and
+>>> would (ideally) automatically get us coverage when people add new
+>>> archs or update the code.
+> 
+> David> One of two things is already happening.
+> 
+> David> There have been assembler memcpy/memset development test harnesses
+> David> around that most arch developers are using, and those test things
+> David> rather extensively.
+> 
+> David> Also, the memcpy/memset routines on sparc in particular are completely
+> David> shared with glibc, we use the same exact code in both trees.  So it's
+> David> getting tested there too.
+> 
+> Thats' good to know.   I wasn't sure.
+> 
+> David> memmove() is just not handled this way.
+> 
+> Bummers.  So why isn't this covered by the glibc tests too?
 
-I'll respond as soon as I can.
+Because the kernel's memmove() is different from the one we use in glibc
+on sparc.  In fact, we use the generic C version in glibc which expands
+to forward and backward word copies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
