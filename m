@@ -1,41 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 246976B006E
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 08:50:15 -0400 (EDT)
-Received: by wibgn9 with SMTP id gn9so61465435wib.1
-        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 05:50:14 -0700 (PDT)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id v10si1257859wju.8.2015.03.23.05.50.13
-        for <linux-mm@kvack.org>;
-        Mon, 23 Mar 2015 05:50:13 -0700 (PDT)
-Date: Mon, 23 Mar 2015 14:50:09 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 11/24] huge tmpfs: shrinker to migrate and free underused
- holes
-Message-ID: <20150323125009.GC30088@node.dhcp.inet.fi>
-References: <alpine.LSU.2.11.1502201941340.14414@eggly.anvils>
- <alpine.LSU.2.11.1502202008010.14414@eggly.anvils>
- <550AFFD5.40607@yandex-team.ru>
- <alpine.LSU.2.11.1503222046510.5278@eggly.anvils>
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C5FB6B006E
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 08:52:40 -0400 (EDT)
+Received: by wgs2 with SMTP id 2so38189539wgs.1
+        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 05:52:39 -0700 (PDT)
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com. [74.125.82.54])
+        by mx.google.com with ESMTPS id um2si928581wjc.201.2015.03.23.05.52.38
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Mar 2015 05:52:38 -0700 (PDT)
+Received: by wgra20 with SMTP id a20so145101215wgr.3
+        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 05:52:38 -0700 (PDT)
+Message-ID: <55100C93.9040607@plexistor.com>
+Date: Mon, 23 Mar 2015 14:52:35 +0200
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1503222046510.5278@eggly.anvils>
+Subject: [PATCH 2/3] dax: use pfn_mkwrite to update c/mtime + freeze protection
+References: <55100B78.501@plexistor.com>
+In-Reply-To: <55100B78.501@plexistor.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Ning Qu <quning@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>
 
-On Sun, Mar 22, 2015 at 09:40:02PM -0700, Hugh Dickins wrote:
-> (I think Kirill has a problem of that kind in his page_remove_rmap scan).
+From: Yigal Korman <yigal@plexistor.com>
 
-Ouch! Thanks for noticing this. 
+[v1]
+Without this patch, c/mtime is not updated correctly when mmap'ed page is
+first read from and then written to.
 
-It should work fine while we are anon-THP only, but it need to be fixed to
-work with files.
+A new xfstest is submitted for testing this (generic/080)
 
+[v2]
+Jan Kara has pointed out that if we add the
+sb_start/end_pagefault pair in the new pfn_mkwrite we
+are then fixing another bug where: A user could start
+writing to the page while filesystem is frozen.
+
+CC: Jan Kara <jack@suse.cz>
+CC: Matthew Wilcox <matthew.r.wilcox@intel.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Yigal Korman <yigal@plexistor.com>
+Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
+---
+ fs/dax.c           | 17 +++++++++++++++++
+ fs/ext2/file.c     |  1 +
+ fs/ext4/file.c     |  1 +
+ include/linux/fs.h |  1 +
+ 4 files changed, 20 insertions(+)
+
+diff --git a/fs/dax.c b/fs/dax.c
+index ed1619e..d0bd1f4 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -464,6 +464,23 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ EXPORT_SYMBOL_GPL(dax_fault);
+ 
+ /**
++ * dax_pfn_mkwrite - handle first write to DAX page
++ * @vma: The virtual memory area where the fault occurred
++ * @vmf: The description of the fault
++ *
++ */
++int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
++{
++	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
++
++	sb_start_pagefault(sb);
++	file_update_time(vma->vm_file);
++	sb_end_pagefault(sb);
++	return VM_FAULT_NOPAGE;
++}
++EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
++
++/**
+  * dax_zero_page_range - zero a range within a page of a DAX file
+  * @inode: The file being truncated
+  * @from: The file offset that is being truncated to
+diff --git a/fs/ext2/file.c b/fs/ext2/file.c
+index e317017..866a3ce 100644
+--- a/fs/ext2/file.c
++++ b/fs/ext2/file.c
+@@ -39,6 +39,7 @@ static int ext2_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ static const struct vm_operations_struct ext2_dax_vm_ops = {
+ 	.fault		= ext2_dax_fault,
+ 	.page_mkwrite	= ext2_dax_mkwrite,
++	.pfn_mkwrite	= dax_pfn_mkwrite,
+ };
+ 
+ static int ext2_file_mmap(struct file *file, struct vm_area_struct *vma)
+diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+index 33a09da..b43a7a6 100644
+--- a/fs/ext4/file.c
++++ b/fs/ext4/file.c
+@@ -206,6 +206,7 @@ static int ext4_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ static const struct vm_operations_struct ext4_dax_vm_ops = {
+ 	.fault		= ext4_dax_fault,
+ 	.page_mkwrite	= ext4_dax_mkwrite,
++	.pfn_mkwrite	= dax_pfn_mkwrite,
+ };
+ #else
+ #define ext4_dax_vm_ops	ext4_file_vm_ops
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index b4d71b5..24af817 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2597,6 +2597,7 @@ int dax_clear_blocks(struct inode *, sector_t block, long size);
+ int dax_zero_page_range(struct inode *, loff_t from, unsigned len, get_block_t);
+ int dax_truncate_page(struct inode *, loff_t from, get_block_t);
+ int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
++int dax_pfn_mkwrite(struct vm_area_struct *, struct vm_fault *);
+ #define dax_mkwrite(vma, vmf, gb)	dax_fault(vma, vmf, gb)
+ 
+ #ifdef CONFIG_BLOCK
 -- 
- Kirill A. Shutemov
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
