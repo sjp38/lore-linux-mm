@@ -1,101 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C5286B00CC
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 00:56:47 -0400 (EDT)
-Received: by qgfa8 with SMTP id a8so137705384qgf.0
-        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 21:56:47 -0700 (PDT)
-Received: from mail-qg0-x235.google.com (mail-qg0-x235.google.com. [2607:f8b0:400d:c04::235])
-        by mx.google.com with ESMTPS id z123si11161615qhd.91.2015.03.22.21.56.24
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 36C976B00CE
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 00:56:49 -0400 (EDT)
+Received: by qgep97 with SMTP id p97so5699318qge.1
+        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 21:56:49 -0700 (PDT)
+Received: from mail-qc0-x22d.google.com (mail-qc0-x22d.google.com. [2607:f8b0:400d:c01::22d])
+        by mx.google.com with ESMTPS id 145si11175289qht.77.2015.03.22.21.56.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 22 Mar 2015 21:56:24 -0700 (PDT)
-Received: by qgfa8 with SMTP id a8so137701591qgf.0
-        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 21:56:23 -0700 (PDT)
+        Sun, 22 Mar 2015 21:56:25 -0700 (PDT)
+Received: by qcbkw5 with SMTP id kw5so136831750qcb.2
+        for <linux-mm@kvack.org>; Sun, 22 Mar 2015 21:56:25 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 45/48] writeback: dirty inodes against their matching cgroup bdi_writeback's
-Date: Mon, 23 Mar 2015 00:54:56 -0400
-Message-Id: <1427086499-15657-46-git-send-email-tj@kernel.org>
+Subject: [PATCH 46/48] buffer, writeback: make __block_write_full_page() honor cgroup writeback
+Date: Mon, 23 Mar 2015 00:54:57 -0400
+Message-Id: <1427086499-15657-47-git-send-email-tj@kernel.org>
 In-Reply-To: <1427086499-15657-1-git-send-email-tj@kernel.org>
 References: <1427086499-15657-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
-Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, Tejun Heo <tj@kernel.org>
+Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-__mark_inode_dirty() always dirtied the inode against the root wb
-(bdi_writeback).  The previous patches added all the infrastructure
-necessary to attribute an inode against the wb of the dirtying cgroup.
+[__]block_write_full_page() is used to implement ->writepage in
+various filesystems.  All writeback logic is now updated to handle
+cgroup writeback and the block cgroup to issue IOs for is encoded in
+writeback_control and can be retrieved from the inode; however,
+[__]block_write_full_page() currently ignores the blkcg indicated by
+inode and issues all bio's without explicit blkcg association.
 
-This patch updates __mark_inode_dirty() so that it uses the wb
-associated with the inode instead of unconditionally using the root
-one.
-
-Currently, none of the filesystems has FS_CGROUP_WRITEBACK and all
-pages will keep being dirtied against the root wb.
+This patch adds submit_bh_blkcg() which associates the bio with the
+specified blkio cgroup before issuing and uses it in
+__block_write_full_page() so that the issued bio's are associated with
+inode_to_writeback_blkcg_css(inode).
 
 v2: Updated for per-inode wb association.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 Cc: Jens Axboe <axboe@kernel.dk>
 Cc: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- fs/fs-writeback.c | 23 +++++++++++------------
- 1 file changed, 11 insertions(+), 12 deletions(-)
+ fs/buffer.c                 | 26 ++++++++++++++++++++------
+ include/linux/backing-dev.h | 12 ++++++++++++
+ 2 files changed, 32 insertions(+), 6 deletions(-)
 
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 57b2282..890cff1 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -1442,7 +1442,6 @@ static noinline void block_dump___mark_inode_dirty(struct inode *inode)
- void __mark_inode_dirty(struct inode *inode, int flags)
- {
- 	struct super_block *sb = inode->i_sb;
--	struct backing_dev_info *bdi = NULL;
- 	int dirtytime;
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 4aa1dc2..f2d594c 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -30,6 +30,7 @@
+ #include <linux/quotaops.h>
+ #include <linux/highmem.h>
+ #include <linux/export.h>
++#include <linux/backing-dev.h>
+ #include <linux/writeback.h>
+ #include <linux/hash.h>
+ #include <linux/suspend.h>
+@@ -44,6 +45,9 @@
+ #include <trace/events/block.h>
  
- 	trace_writeback_mark_inode_dirty(inode, flags);
-@@ -1512,21 +1511,21 @@ void __mark_inode_dirty(struct inode *inode, int flags)
- 		 * reposition it (that would break b_dirty time-ordering).
- 		 */
- 		if (!was_dirty) {
-+			struct bdi_writeback *wb = inode_to_wb(inode);
- 			bool wakeup_bdi = false;
--			bdi = inode_to_bdi(inode);
+ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
++static int submit_bh_blkcg(int rw, struct buffer_head *bh,
++			   unsigned long bio_flags,
++			   struct cgroup_subsys_state *blkcg_css);
  
- 			spin_unlock(&inode->i_lock);
--			spin_lock(&bdi->wb.list_lock);
-+			spin_lock(&wb->list_lock);
+ #define BH_ENTRY(list) list_entry((list), struct buffer_head, b_assoc_buffers)
  
--			WARN(bdi_cap_writeback_dirty(bdi) &&
--			     !test_bit(WB_registered, &bdi->wb.state),
--			     "bdi-%s not registered\n", bdi->name);
-+			WARN(bdi_cap_writeback_dirty(wb->bdi) &&
-+			     !test_bit(WB_registered, &wb->state),
-+			     "bdi-%s not registered\n", wb->bdi->name);
+@@ -1704,8 +1708,8 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
+ 	struct buffer_head *bh, *head;
+ 	unsigned int blocksize, bbits;
+ 	int nr_underway = 0;
+-	int write_op = (wbc->sync_mode == WB_SYNC_ALL ?
+-			WRITE_SYNC : WRITE);
++	int write_op = (wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : WRITE);
++	struct cgroup_subsys_state *blkcg_css = inode_to_wb_blkcg_css(inode);
  
- 			inode->dirtied_when = jiffies;
--			wakeup_bdi = inode_wb_list_move_locked(inode, &bdi->wb,
--					dirtytime ? &bdi->wb.b_dirty_time :
--						    &bdi->wb.b_dirty);
--			spin_unlock(&bdi->wb.list_lock);
-+			wakeup_bdi = inode_wb_list_move_locked(inode, wb,
-+					dirtytime ? &wb->b_dirty_time :
-+						    &wb->b_dirty);
-+			spin_unlock(&wb->list_lock);
- 			trace_writeback_dirty_inode_enqueue(inode);
- 
- 			/*
-@@ -1535,8 +1534,8 @@ void __mark_inode_dirty(struct inode *inode, int flags)
- 			 * to make sure background write-back happens
- 			 * later.
- 			 */
--			if (bdi_cap_writeback_dirty(bdi) && wakeup_bdi)
--				wb_wakeup_delayed(&bdi->wb);
-+			if (bdi_cap_writeback_dirty(wb->bdi) && wakeup_bdi)
-+				wb_wakeup_delayed(wb);
- 			return;
+ 	head = create_page_buffers(page, inode,
+ 					(1 << BH_Dirty)|(1 << BH_Uptodate));
+@@ -1794,7 +1798,7 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
+ 	do {
+ 		struct buffer_head *next = bh->b_this_page;
+ 		if (buffer_async_write(bh)) {
+-			submit_bh(write_op, bh);
++			submit_bh_blkcg(write_op, bh, 0, blkcg_css);
+ 			nr_underway++;
  		}
+ 		bh = next;
+@@ -1848,7 +1852,7 @@ recover:
+ 		struct buffer_head *next = bh->b_this_page;
+ 		if (buffer_async_write(bh)) {
+ 			clear_buffer_dirty(bh);
+-			submit_bh(write_op, bh);
++			submit_bh_blkcg(write_op, bh, 0, blkcg_css);
+ 			nr_underway++;
+ 		}
+ 		bh = next;
+@@ -3017,7 +3021,9 @@ void guard_bio_eod(int rw, struct bio *bio)
  	}
+ }
+ 
+-int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
++static int submit_bh_blkcg(int rw, struct buffer_head *bh,
++			   unsigned long bio_flags,
++			   struct cgroup_subsys_state *blkcg_css)
+ {
+ 	struct bio *bio;
+ 	int ret = 0;
+@@ -3040,6 +3046,9 @@ int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
+ 	 */
+ 	bio = bio_alloc(GFP_NOIO, 1);
+ 
++	if (blkcg_css)
++		bio_associate_blkcg(bio, blkcg_css);
++
+ 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
+ 	bio->bi_bdev = bh->b_bdev;
+ 	bio->bi_io_vec[0].bv_page = bh->b_page;
+@@ -3070,11 +3079,16 @@ int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
+ 	bio_put(bio);
+ 	return ret;
+ }
++
++int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
++{
++	return submit_bh_blkcg(rw, bh, bio_flags, NULL);
++}
+ EXPORT_SYMBOL_GPL(_submit_bh);
+ 
+ int submit_bh(int rw, struct buffer_head *bh)
+ {
+-	return _submit_bh(rw, bh, 0);
++	return submit_bh_blkcg(rw, bh, 0, NULL);
+ }
+ EXPORT_SYMBOL(submit_bh);
+ 
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index fee39cd..a9a843c 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -394,6 +394,12 @@ static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
+ 	return inode->i_wb;
+ }
+ 
++static inline struct cgroup_subsys_state *
++inode_to_wb_blkcg_css(struct inode *inode)
++{
++	return inode_to_wb(inode)->blkcg_css;
++}
++
+ struct wb_iter {
+ 	int			start_blkcg_id;
+ 	struct radix_tree_iter	tree_iter;
+@@ -511,6 +517,12 @@ static inline void wb_blkcg_offline(struct blkcg *blkcg)
+ {
+ }
+ 
++static inline struct cgroup_subsys_state *
++inode_to_wb_blkcg_css(struct inode *inode)
++{
++	return blkcg_root_css;
++}
++
+ struct wb_iter {
+ 	int		next_id;
+ };
 -- 
 2.1.0
 
