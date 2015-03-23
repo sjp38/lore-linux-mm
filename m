@@ -1,76 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DF386B0038
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 12:51:11 -0400 (EDT)
-Received: by wgra20 with SMTP id a20so150831150wgr.3
-        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 09:51:10 -0700 (PDT)
-Received: from mailrelay3.lanline.com (mailrelay3.lanline.com. [216.187.10.24])
-        by mx.google.com with ESMTPS id na9si12571599wic.65.2015.03.23.09.51.08
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 218FC6B0038
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2015 13:00:03 -0400 (EDT)
+Received: by ieclw3 with SMTP id lw3so40698153iec.2
+        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 10:00:03 -0700 (PDT)
+Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com. [2607:f8b0:4001:c03::233])
+        by mx.google.com with ESMTPS id 89si1276738iod.8.2015.03.23.10.00.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 23 Mar 2015 09:51:09 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Mar 2015 10:00:02 -0700 (PDT)
+Received: by ieclw3 with SMTP id lw3so40697912iec.2
+        for <linux-mm@kvack.org>; Mon, 23 Mar 2015 10:00:02 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <21776.17527.912997.355420@quad.stoffel.home>
-Date: Mon, 23 Mar 2015 12:51:03 -0400
-From: "John Stoffel" <john@stoffel.org>
-Subject: Re: 4.0.0-rc4: panic in free_block
 In-Reply-To: <20150323.122530.812870422534676208.davem@davemloft.net>
 References: <550F5852.5020405@oracle.com>
 	<20150322.220024.1171832215344978787.davem@davemloft.net>
 	<20150322.221906.1670737065885267482.davem@davemloft.net>
 	<20150323.122530.812870422534676208.davem@davemloft.net>
+Date: Mon, 23 Mar 2015 10:00:02 -0700
+Message-ID: <CA+55aFzepCj56MPVgYmMem+yfYpSOX7tBRtPHeOQxXp31Tghhg@mail.gmail.com>
+Subject: Re: 4.0.0-rc4: panic in free_block
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Miller <davem@davemloft.net>
-Cc: david.ahern@oracle.com, torvalds@linux-foundation.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bpicco@meloft.net
+Cc: David Ahern <david.ahern@oracle.com>, sparclinux@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, bpicco@meloft.net
 
+On Mon, Mar 23, 2015 at 9:25 AM, David Miller <davem@davemloft.net> wrote:
+>
+> Ok, here is what I committed.
 
-David> ====================
-David> [PATCH] sparc64: Fix several bugs in memmove().
+So I wonder - looking at that assembly, I get the feeling that it
+isn't any better code than gcc could generate from simple C code.
 
-David> Firstly, handle zero length calls properly.  Believe it or not there
-David> are a few of these happening during early boot.
+Would it perhaps be better to turn memmove() into C?
 
-David> Next, we can't just drop to a memcpy() call in the forward copy case
-David> where dst <= src.  The reason is that the cache initializing stores
-David> used in the Niagara memcpy() implementations can end up clearing out
-David> cache lines before we've sourced their original contents completely.
+That's particularly true because if I read this code right, it now
+seems to seriously pessimise non-overlapping memmove's, in that it now
+*always* uses that slow downward copy if the destination is below the
+source.
 
-David> For example, considering NG4memcpy, the main unrolled loop begins like
-David> this:
+Now, admittedly, the kernel doesn't use a lot of memmov's, but this
+still falls back on the "byte at a time" model for a lot of cases (all
+non-64-bit-aligned ones). I could imagine those existing. And some
+people (reasonably) hate memcpy because they've been burnt by the
+overlapping case and end up using memmove as a "safe alternative", so
+it's not necessarily just the overlapping case that might trigger
+this.
 
-David>      load   src + 0x00
-David>      load   src + 0x08
-David>      load   src + 0x10
-David>      load   src + 0x18
-David>      load   src + 0x20
-David>      store  dst + 0x00
+Maybe the code could be something like
 
-David> Assume dst is 64 byte aligned and let's say that dst is src - 8 for
-David> this memcpy() call.  That store at the end there is the one to the
-David> first line in the cache line, thus clearing the whole line, which thus
-David> clobbers "src + 0x28" before it even gets loaded.
+    void *memmove(void *dst, const void *src, size_t n);
+    {
+        // non-overlapping cases
+        if (src + n <= dst)
+            return memcpy(dst, src, n);
+        if (dst + n <= src)
+            return memcpy(dst, src, n);
 
-David> To avoid this, just fall through to a simple copy only mildly
-David> optimized for the case where src and dst are 8 byte aligned and the
-David> length is a multiple of 8 as well.  We could get fancy and call
-David> GENmemcpy() but this is good enough for how this thing is actually
-David> used.
+        // overlapping, but we know we
+        //  (a) copy upwards
+        //  (b) initialize the result in at most chunks of 64
+        if (dst+64 <= src)
+            return memcpy(dst, src, n);
 
-Would it make sense to have some memmove()/memcopy() tests on bootup
-to catch problems like this?  I know this is a strange case, and
-probably not too common, but how hard would it be to wire up tests
-that go through 1 to 128 byte memmove() on bootup to make sure things
-work properly?
+        .. do the backwards thing ..
+    }
 
-This seems like one of those critical, but subtle things to be
-checked.  And doing it only on bootup wouldn't slow anything down and
-would (ideally) automatically get us coverage when people add new
-archs or update the code.
+(ok, maybe I got it wrong, but you get the idea).
 
-John
+I *think* gcc should do ok on the above kind of code, and not generate
+wildly different code from your handcoded version.
+
+                            Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
