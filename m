@@ -1,20 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id C301E6B0038
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 19:08:44 -0400 (EDT)
-Received: by igbqf9 with SMTP id qf9so11281845igb.1
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 16:08:44 -0700 (PDT)
-Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com. [2607:f8b0:4001:c05::235])
-        by mx.google.com with ESMTPS id l5si915247icj.104.2015.03.24.16.08.44
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id E6B526B006C
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 19:09:12 -0400 (EDT)
+Received: by igcau2 with SMTP id au2so86323899igc.0
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 16:09:12 -0700 (PDT)
+Received: from mail-ie0-x232.google.com (mail-ie0-x232.google.com. [2607:f8b0:4001:c03::232])
+        by mx.google.com with ESMTPS id bd10si948811icc.42.2015.03.24.16.09.12
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Mar 2015 16:08:44 -0700 (PDT)
-Received: by igcxg11 with SMTP id xg11so11523420igc.0
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 16:08:44 -0700 (PDT)
-Date: Tue, 24 Mar 2015 16:08:41 -0700 (PDT)
+        Tue, 24 Mar 2015 16:09:12 -0700 (PDT)
+Received: by iedfl3 with SMTP id fl3so11133572ied.1
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 16:09:12 -0700 (PDT)
+Date: Tue, 24 Mar 2015 16:09:10 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch 1/4] fs, jfs: remove slab object constructor
-Message-ID: <alpine.DEB.2.10.1503241607240.21805@chino.kir.corp.google.com>
+Subject: [patch 2/4] mm, mempool: disallow mempools based on slab caches with
+ constructors
+In-Reply-To: <alpine.DEB.2.10.1503241607240.21805@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1503241608540.21805@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1503241607240.21805@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -22,96 +25,55 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Kleikamp <shaggy@kernel.org>, Christoph Hellwig <hch@lst.de>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net
 
-Mempools based on slab caches with object constructors are risky because
-element allocation can happen either from the slab cache itself, meaning
-the constructor is properly called before returning, or from the mempool
-reserve pool, meaning the constructor is not called before returning,
-depending on the allocation context.
+All occurrences of mempools based on slab caches with object constructors
+have been removed from the tree, so disallow creating them.
 
-For this reason, we should disallow creating mempools based on slab
-caches that have object constructors.  Callers of mempool_alloc() will
-be responsible for properly initializing the returned element.
+We can only dereference mem->ctor in mm/mempool.c without including
+mm/slab.h in include/linux/mempool.h.  So simply note the restriction,
+just like the comment restrictig usage of __GFP_ZERO, and warn on
+kernels with CONFIG_DEBUG_VM() if such a mempool is allocated from.
 
-Then, it doesn't matter if the element came from the slab cache or the
-mempool reserved pool.
-
-The only occurrence of a mempool being based on a slab cache with an
-object constructor in the tree is in fs/jfs/jfs_metapage.c.  Remove it
-and properly initialize the element in alloc_metapage().
-
-At the same time, META_free is never used, so remove it as well.
+We don't want to incur this check on every element allocation, so use
+VM_BUG_ON().
 
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- fs/jfs/jfs_metapage.c | 31 ++++++++++++-------------------
- fs/jfs/jfs_metapage.h |  1 -
- 2 files changed, 12 insertions(+), 20 deletions(-)
+ include/linux/mempool.h | 3 ++-
+ mm/mempool.c            | 2 ++
+ 2 files changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/fs/jfs/jfs_metapage.c b/fs/jfs/jfs_metapage.c
---- a/fs/jfs/jfs_metapage.c
-+++ b/fs/jfs/jfs_metapage.c
-@@ -183,30 +183,23 @@ static inline void remove_metapage(struct page *page, struct metapage *mp)
+diff --git a/include/linux/mempool.h b/include/linux/mempool.h
+--- a/include/linux/mempool.h
++++ b/include/linux/mempool.h
+@@ -36,7 +36,8 @@ extern void mempool_free(void *element, mempool_t *pool);
  
- #endif
+ /*
+  * A mempool_alloc_t and mempool_free_t that get the memory from
+- * a slab that is passed in through pool_data.
++ * a slab cache that is passed in through pool_data.
++ * Note: the slab cache may not have a ctor function.
+  */
+ void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data);
+ void mempool_free_slab(void *element, void *pool_data);
+diff --git a/mm/mempool.c b/mm/mempool.c
+--- a/mm/mempool.c
++++ b/mm/mempool.c
+@@ -15,6 +15,7 @@
+ #include <linux/mempool.h>
+ #include <linux/blkdev.h>
+ #include <linux/writeback.h>
++#include "slab.h"
  
--static void init_once(void *foo)
--{
--	struct metapage *mp = (struct metapage *)foo;
--
--	mp->lid = 0;
--	mp->lsn = 0;
--	mp->flag = 0;
--	mp->data = NULL;
--	mp->clsn = 0;
--	mp->log = NULL;
--	set_bit(META_free, &mp->flag);
--	init_waitqueue_head(&mp->wait);
--}
--
- static inline struct metapage *alloc_metapage(gfp_t gfp_mask)
+ static void add_element(mempool_t *pool, void *element)
  {
--	return mempool_alloc(metapage_mempool, gfp_mask);
-+	struct metapage *mp = mempool_alloc(metapage_mempool, gfp_mask);
-+
-+	if (mp) {
-+		mp->lid = 0;
-+		mp->lsn = 0;
-+		mp->data = NULL;
-+		mp->clsn = 0;
-+		mp->log = NULL;
-+		init_waitqueue_head(&mp->wait);
-+	}
-+	return mp;
- }
- 
- static inline void free_metapage(struct metapage *mp)
+@@ -332,6 +333,7 @@ EXPORT_SYMBOL(mempool_free);
+ void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data)
  {
--	mp->flag = 0;
--	set_bit(META_free, &mp->flag);
--
- 	mempool_free(mp, metapage_mempool);
+ 	struct kmem_cache *mem = pool_data;
++	VM_BUG_ON(mem->ctor);
+ 	return kmem_cache_alloc(mem, gfp_mask);
  }
- 
-@@ -216,7 +209,7 @@ int __init metapage_init(void)
- 	 * Allocate the metapage structures
- 	 */
- 	metapage_cache = kmem_cache_create("jfs_mp", sizeof(struct metapage),
--					   0, 0, init_once);
-+					   0, 0, NULL);
- 	if (metapage_cache == NULL)
- 		return -ENOMEM;
- 
-diff --git a/fs/jfs/jfs_metapage.h b/fs/jfs/jfs_metapage.h
---- a/fs/jfs/jfs_metapage.h
-+++ b/fs/jfs/jfs_metapage.h
-@@ -48,7 +48,6 @@ struct metapage {
- 
- /* metapage flag */
- #define META_locked	0
--#define META_free	1
- #define META_dirty	2
- #define META_sync	3
- #define META_discard	4
+ EXPORT_SYMBOL(mempool_alloc_slab);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
