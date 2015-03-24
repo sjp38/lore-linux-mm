@@ -1,174 +1,257 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 21BCA6B006E
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 08:58:00 -0400 (EDT)
-Received: by wibg7 with SMTP id g7so73999476wib.1
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 05:57:59 -0700 (PDT)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id ct6si16054853wib.33.2015.03.24.05.57.57
-        for <linux-mm@kvack.org>;
-        Tue, 24 Mar 2015 05:57:58 -0700 (PDT)
-Date: Tue, 24 Mar 2015 14:57:52 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 11/24] huge tmpfs: shrinker to migrate and free underused
- holes
-Message-ID: <20150324125752.GA4642@node.dhcp.inet.fi>
-References: <alpine.LSU.2.11.1502201941340.14414@eggly.anvils>
- <alpine.LSU.2.11.1502202008010.14414@eggly.anvils>
- <550AFFD5.40607@yandex-team.ru>
- <alpine.LSU.2.11.1503222046510.5278@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1503222046510.5278@eggly.anvils>
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id AB1986B0038
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 09:11:57 -0400 (EDT)
+Received: by pdnc3 with SMTP id c3so221220734pdn.0
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 06:11:57 -0700 (PDT)
+Received: from mail.sfc.wide.ad.jp (shonan.sfc.wide.ad.jp. [203.178.142.130])
+        by mx.google.com with ESMTPS id y10si5550043pdl.126.2015.03.24.06.11.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Mar 2015 06:11:55 -0700 (PDT)
+From: Hajime Tazaki <tazaki@sfc.wide.ad.jp>
+Subject: [RFC PATCH 00/11] an introduction of library operating system for Linux (LibOS)
+Date: Tue, 24 Mar 2015 22:10:31 +0900
+Message-Id: <1427202642-1716-1-git-send-email-tazaki@sfc.wide.ad.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Ning Qu <quning@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-arch@vger.kernel.org
+Cc: Hajime Tazaki <tazaki@sfc.wide.ad.jp>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Jhristoph Lameter <cl@linux.com>, Jekka Enberg <penberg@kernel.org>, Javid Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jndrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Rusty Russell <rusty@rustcorp.com.au>, Mathieu Lacage <mathieu.lacage@gmail.com>
 
-On Sun, Mar 22, 2015 at 09:40:02PM -0700, Hugh Dickins wrote:
-> (I think Kirill has a problem of that kind in his page_remove_rmap scan).
-> 
-> It will be interesting to see what Kirill does to maintain the stats
-> for huge pagecache: but he will have no difficulty in finding fields
-> to store counts, because he's got lots of spare fields in those 511
-> tail pages - that's a useful benefit of the compound page, but does
-> prevent the tails from being used in ordinary ways.  (I did try using
-> team_head[1].team_usage for more, but atomicity needs prevented it.)
+This is an introduction of library operating system (LibOS) for Linux.
 
-The patch below should address the race you pointed, if I've got all
-right. Not hugely happy with the change though.
+Our objective is to build the kernel network stack as a shared library
+that can be linked to by userspace programs to provide network stack
+personalization and testing facilities, and allow researchers to more
+easily simulate complex network topologies of linux routers/hosts.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 435c90f59227..a3e6b35520f8 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -423,8 +423,17 @@ static inline void page_mapcount_reset(struct page *page)
- 
- static inline int page_mapcount(struct page *page)
- {
-+	int ret;
- 	VM_BUG_ON_PAGE(PageSlab(page), page);
--	return atomic_read(&page->_mapcount) + compound_mapcount(page) + 1;
-+	ret = atomic_read(&page->_mapcount) + 1;
-+	if (compound_mapcount(page)) {
-+		/*
-+		 * positive compound_mapcount() offsets ->_mapcount by one --
-+		 * substract here.
-+		*/
-+	       ret += compound_mapcount(page) - 1;
-+	}
-+	return ret;
- }
- 
- static inline int page_count(struct page *page)
-diff --git a/mm/rmap.c b/mm/rmap.c
-index fc6eee4ed476..f4ab976276e7 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1066,9 +1066,17 @@ void do_page_add_anon_rmap(struct page *page,
- 		 * disabled.
- 		 */
- 		if (compound) {
-+			int i;
- 			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
- 			__inc_zone_page_state(page,
- 					      NR_ANON_TRANSPARENT_HUGEPAGES);
-+			/*
-+			 * While compound_mapcount() is positive we keep *one*
-+			 * mapcount reference in all subpages. It's required
-+			 * for atomic removal from rmap.
-+			 */
-+			for (i = 0; i < nr; i++)
-+				atomic_set(&page[i]._mapcount, 0);
- 		}
- 		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, nr);
- 	}
-@@ -1103,10 +1111,19 @@ void page_add_new_anon_rmap(struct page *page,
- 	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
- 	SetPageSwapBacked(page);
- 	if (compound) {
-+		int i;
-+
- 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
- 		/* increment count (starts at -1) */
- 		atomic_set(compound_mapcount_ptr(page), 0);
- 		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+		/*
-+		 * While compound_mapcount() is positive we keep *one* mapcount
-+		 * reference in all subpages. It's required for atomic removal
-+		 * from rmap.
-+		 */
-+		for (i = 0; i < nr; i++)
-+			atomic_set(&page[i]._mapcount, 0);
- 	} else {
- 		/* Anon THP always mapped first with PMD */
- 		VM_BUG_ON_PAGE(PageTransCompound(page), page);
-@@ -1174,9 +1191,6 @@ out:
-  */
- void page_remove_rmap(struct page *page, bool compound)
- {
--	int nr = compound ? hpage_nr_pages(page) : 1;
--	bool partial_thp_unmap;
--
- 	if (!PageAnon(page)) {
- 		VM_BUG_ON_PAGE(compound && !PageHuge(page), page);
- 		page_remove_file_rmap(page);
-@@ -1184,10 +1198,20 @@ void page_remove_rmap(struct page *page, bool compound)
- 	}
- 
- 	/* page still mapped by someone else? */
--	if (!atomic_add_negative(-1, compound ?
--			       compound_mapcount_ptr(page) :
--			       &page->_mapcount))
-+	if (compound) {
-+		int i;
-+
-+		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-+		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
-+			return;
-+		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+		for (i = 0; i < hpage_nr_pages(page); i++)
-+			page_remove_rmap(page + i, false);
- 		return;
-+	} else {
-+		if (!atomic_add_negative(-1, &page->_mapcount))
-+			return;
-+	}
- 
- 	/* Hugepages are not counted in NR_ANON_PAGES for now. */
- 	if (unlikely(PageHuge(page)))
-@@ -1198,26 +1222,12 @@ void page_remove_rmap(struct page *page, bool compound)
- 	 * these counters are not modified in interrupt context, and
- 	 * pte lock(a spinlock) is held, which implies preemption disabled.
- 	 */
--	if (compound) {
--		int i;
--		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
--		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
--		/* The page can be mapped with ptes */
--		for (i = 0; i < hpage_nr_pages(page); i++)
--			if (page_mapcount(page + i))
--				nr--;
--		partial_thp_unmap = nr != hpage_nr_pages(page);
--	} else if (PageTransCompound(page)) {
--		partial_thp_unmap = !compound_mapcount(page);
--	} else
--		partial_thp_unmap = false;
--
--	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
-+	__dec_zone_page_state(page, NR_ANON_PAGES);
- 
- 	if (unlikely(PageMlocked(page)))
- 		clear_page_mlock(page);
- 
--	if (partial_thp_unmap)
-+	if (PageTransCompound(page))
- 		deferred_split_huge_page(compound_head(page));
- 
- 	/*
+Although the architecture itself can virtualize various things, the
+current design only focuses on the network stack. You can benefit
+network stack feature such as TCP, UDP, SCTP, DCCP (IPv4 and IPv6),
+Mobie IPv6, Multipath TCP (IPv4/IPv6, out-of-tree at the present
+moment), and netlink with various userspace applications (quagga,
+iproute2, iperf, wget, and thttpd).
+
+== What is LibOS ? ==
+
+The library exposes an entry point as API, which is lib_init(), in
+order to connect userspace applications to the (userspace-version)
+kernel network stack. The clock source, virtual struct net_device, and
+scheduler are provided by caller while kernel resource like system
+calls is provided by callee.
+
+Once the LibOS is initialized via the API, userspace applications with
+POSIX socket can use the system calls defined in LibOS by replacing
+from the original socket-related symbols to the LibOS-specific
+one. Then application can benefit the network stack of LibOS without
+involving the host network stack.
+
+Currently, there are two users of LibOS: Network Stack in Userspace
+(NUSE) and ns-3 network simulatior with Direct Code Execution
+(DCE). These codes are managed at an external repository(*1).
+
+
+== How to use it ? ==
+
+to build the library,
+% make {defconfig,menuconfig} ARCH=lib
+
+then, build it.
+% make library ARCH=lib
+
+You will see liblinux-$(KERNELVERSION).so in the top directory.
+
+== More information ==
+
+The crucial difference between UML (user-mode linux) and this approach
+is that we allow multiple network stack instances to co-exist within a
+single process with dlmopen(3) like linking for easy debugging.
+
+
+These patches are also available on this branch:
+
+git://github.com/libos-nuse/net-next-nuse.git for-asm-upstream
+
+
+For further information, here is a slideset presented at the last
+netdev0.1 conference.
+
+http://www.slideshare.net/hajimetazaki/library-operating-system-for-linux-netdev01
+
+I would appreciate any kind of your feedback regarding to upstream
+this feature.
+
+*1 https://github.com/libos-nuse/linux-libos-tools
+
+
+Hajime Tazaki (11):
+  sysctl: make some functions unstatic to access by arch/lib
+  slab: add private memory allocator header for arch/lib
+  lib: public headers and API implementations for userspace programs
+  lib: memory management (kernel glue code)
+  lib: time handling (kernel glue code)
+  lib: context and scheduling handling (kernel glue code)
+  lib: sysctl handling (kernel glue code)
+  lib: other kernel glue layer code
+  lib: asm-generic files
+  lib: libos build scripts and documentation
+  lib: tools used for test scripts
+
+ Documentation/virtual/libos-howto.txt | 143 ++++++++
+ MAINTAINERS                           |   9 +
+ arch/lib/.gitignore                   |   8 +
+ arch/lib/Kconfig                      | 121 +++++++
+ arch/lib/Makefile                     | 248 +++++++++++++
+ arch/lib/Makefile.print               |  44 +++
+ arch/lib/cred.c                       |  16 +
+ arch/lib/dcache.c                     |  93 +++++
+ arch/lib/defconfig                    | 653 ++++++++++++++++++++++++++++++++++
+ arch/lib/filemap.c                    |  27 ++
+ arch/lib/fs.c                         | 287 +++++++++++++++
+ arch/lib/generate-linker-script.py    |  50 +++
+ arch/lib/glue.c                       | 336 +++++++++++++++++
+ arch/lib/hrtimer.c                    | 122 +++++++
+ arch/lib/include/asm/Kbuild           |  55 +++
+ arch/lib/include/asm/atomic.h         |  47 +++
+ arch/lib/include/asm/barrier.h        |   8 +
+ arch/lib/include/asm/bitsperlong.h    |  12 +
+ arch/lib/include/asm/current.h        |   7 +
+ arch/lib/include/asm/elf.h            |  10 +
+ arch/lib/include/asm/hardirq.h        |   8 +
+ arch/lib/include/asm/page.h           |  14 +
+ arch/lib/include/asm/pgtable.h        |  30 ++
+ arch/lib/include/asm/processor.h      |  19 +
+ arch/lib/include/asm/ptrace.h         |   4 +
+ arch/lib/include/asm/segment.h        |   6 +
+ arch/lib/include/asm/sembuf.h         |   4 +
+ arch/lib/include/asm/shmbuf.h         |   4 +
+ arch/lib/include/asm/shmparam.h       |   4 +
+ arch/lib/include/asm/sigcontext.h     |   6 +
+ arch/lib/include/asm/slab.h           |  21 ++
+ arch/lib/include/asm/stat.h           |   4 +
+ arch/lib/include/asm/statfs.h         |   4 +
+ arch/lib/include/asm/swab.h           |   7 +
+ arch/lib/include/asm/thread_info.h    |  35 ++
+ arch/lib/include/asm/uaccess.h        |  14 +
+ arch/lib/include/asm/unistd.h         |   4 +
+ arch/lib/include/sim-assert.h         |  23 ++
+ arch/lib/include/sim-init.h           | 134 +++++++
+ arch/lib/include/sim-printf.h         |  13 +
+ arch/lib/include/sim-types.h          |  53 +++
+ arch/lib/include/sim.h                |  51 +++
+ arch/lib/include/uapi/asm/byteorder.h |   6 +
+ arch/lib/inode.c                      | 146 ++++++++
+ arch/lib/lib-device.c                 | 187 ++++++++++
+ arch/lib/lib-socket.c                 | 410 +++++++++++++++++++++
+ arch/lib/lib.c                        | 289 +++++++++++++++
+ arch/lib/lib.h                        |  21 ++
+ arch/lib/modules.c                    |  36 ++
+ arch/lib/pid.c                        |  29 ++
+ arch/lib/print.c                      |  56 +++
+ arch/lib/proc.c                       | 164 +++++++++
+ arch/lib/processor.mk                 |   7 +
+ arch/lib/random.c                     |  53 +++
+ arch/lib/sched.c                      | 365 +++++++++++++++++++
+ arch/lib/security.c                   |  45 +++
+ arch/lib/seq.c                        | 122 +++++++
+ arch/lib/slab.c                       | 200 +++++++++++
+ arch/lib/softirq.c                    | 104 ++++++
+ arch/lib/splice.c                     |  20 ++
+ arch/lib/super.c                      | 210 +++++++++++
+ arch/lib/sysctl.c                     | 284 +++++++++++++++
+ arch/lib/sysfs.c                      |  83 +++++
+ arch/lib/tasklet-hrtimer.c            |  57 +++
+ arch/lib/tasklet.c                    |  76 ++++
+ arch/lib/time.c                       | 149 ++++++++
+ arch/lib/timer.c                      | 230 ++++++++++++
+ arch/lib/vmscan.c                     |  26 ++
+ arch/lib/workqueue.c                  | 242 +++++++++++++
+ fs/proc/proc_sysctl.c                 |  16 +-
+ include/linux/slab.h                  |  12 +
+ tools/testing/libos/.gitignore        |   6 +
+ tools/testing/libos/Makefile          |  38 ++
+ tools/testing/libos/README            |  15 +
+ tools/testing/libos/bisect.sh         |  10 +
+ tools/testing/libos/dce-test.sh       |  23 ++
+ tools/testing/libos/nuse-test.sh      |  57 +++
+ 77 files changed, 6544 insertions(+), 8 deletions(-)
+ create mode 100644 Documentation/virtual/libos-howto.txt
+ create mode 100644 arch/lib/.gitignore
+ create mode 100644 arch/lib/Kconfig
+ create mode 100644 arch/lib/Makefile
+ create mode 100644 arch/lib/Makefile.print
+ create mode 100644 arch/lib/cred.c
+ create mode 100644 arch/lib/dcache.c
+ create mode 100644 arch/lib/defconfig
+ create mode 100644 arch/lib/filemap.c
+ create mode 100644 arch/lib/fs.c
+ create mode 100755 arch/lib/generate-linker-script.py
+ create mode 100644 arch/lib/glue.c
+ create mode 100644 arch/lib/hrtimer.c
+ create mode 100644 arch/lib/include/asm/Kbuild
+ create mode 100644 arch/lib/include/asm/atomic.h
+ create mode 100644 arch/lib/include/asm/barrier.h
+ create mode 100644 arch/lib/include/asm/bitsperlong.h
+ create mode 100644 arch/lib/include/asm/current.h
+ create mode 100644 arch/lib/include/asm/elf.h
+ create mode 100644 arch/lib/include/asm/hardirq.h
+ create mode 100644 arch/lib/include/asm/page.h
+ create mode 100644 arch/lib/include/asm/pgtable.h
+ create mode 100644 arch/lib/include/asm/processor.h
+ create mode 100644 arch/lib/include/asm/ptrace.h
+ create mode 100644 arch/lib/include/asm/segment.h
+ create mode 100644 arch/lib/include/asm/sembuf.h
+ create mode 100644 arch/lib/include/asm/shmbuf.h
+ create mode 100644 arch/lib/include/asm/shmparam.h
+ create mode 100644 arch/lib/include/asm/sigcontext.h
+ create mode 100644 arch/lib/include/asm/slab.h
+ create mode 100644 arch/lib/include/asm/stat.h
+ create mode 100644 arch/lib/include/asm/statfs.h
+ create mode 100644 arch/lib/include/asm/swab.h
+ create mode 100644 arch/lib/include/asm/thread_info.h
+ create mode 100644 arch/lib/include/asm/uaccess.h
+ create mode 100644 arch/lib/include/asm/unistd.h
+ create mode 100644 arch/lib/include/sim-assert.h
+ create mode 100644 arch/lib/include/sim-init.h
+ create mode 100644 arch/lib/include/sim-printf.h
+ create mode 100644 arch/lib/include/sim-types.h
+ create mode 100644 arch/lib/include/sim.h
+ create mode 100644 arch/lib/include/uapi/asm/byteorder.h
+ create mode 100644 arch/lib/inode.c
+ create mode 100644 arch/lib/lib-device.c
+ create mode 100644 arch/lib/lib-socket.c
+ create mode 100644 arch/lib/lib.c
+ create mode 100644 arch/lib/lib.h
+ create mode 100644 arch/lib/modules.c
+ create mode 100644 arch/lib/pid.c
+ create mode 100644 arch/lib/print.c
+ create mode 100644 arch/lib/proc.c
+ create mode 100644 arch/lib/processor.mk
+ create mode 100644 arch/lib/random.c
+ create mode 100644 arch/lib/sched.c
+ create mode 100644 arch/lib/security.c
+ create mode 100644 arch/lib/seq.c
+ create mode 100644 arch/lib/slab.c
+ create mode 100644 arch/lib/softirq.c
+ create mode 100644 arch/lib/splice.c
+ create mode 100644 arch/lib/super.c
+ create mode 100644 arch/lib/sysctl.c
+ create mode 100644 arch/lib/sysfs.c
+ create mode 100644 arch/lib/tasklet-hrtimer.c
+ create mode 100644 arch/lib/tasklet.c
+ create mode 100644 arch/lib/time.c
+ create mode 100644 arch/lib/timer.c
+ create mode 100644 arch/lib/vmscan.c
+ create mode 100644 arch/lib/workqueue.c
+ create mode 100644 tools/testing/libos/.gitignore
+ create mode 100644 tools/testing/libos/Makefile
+ create mode 100644 tools/testing/libos/README
+ create mode 100755 tools/testing/libos/bisect.sh
+ create mode 100755 tools/testing/libos/dce-test.sh
+ create mode 100755 tools/testing/libos/nuse-test.sh
+
 -- 
- Kirill A. Shutemov
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
