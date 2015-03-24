@@ -1,85 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 0441A6B0070
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 11:24:41 -0400 (EDT)
-Received: by padcy3 with SMTP id cy3so228828119pad.3
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 08:24:40 -0700 (PDT)
-Received: from mail-pd0-x234.google.com (mail-pd0-x234.google.com. [2607:f8b0:400e:c02::234])
-        by mx.google.com with ESMTPS id ch12si6002890pdb.146.2015.03.24.08.24.40
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 474C56B0038
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 11:27:58 -0400 (EDT)
+Received: by wibdy8 with SMTP id dy8so78051870wib.0
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 08:27:57 -0700 (PDT)
+Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
+        by mx.google.com with ESMTPS id di3si24551wid.48.2015.03.24.08.27.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Mar 2015 08:24:40 -0700 (PDT)
-Received: by pdnc3 with SMTP id c3so224606373pdn.0
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 08:24:40 -0700 (PDT)
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: [PATCH 2/2] zsmalloc: micro-optimize zs_object_copy()
-Date: Wed, 25 Mar 2015 00:24:47 +0900
-Message-Id: <1427210687-6634-3-git-send-email-sergey.senozhatsky@gmail.com>
-In-Reply-To: <1427210687-6634-1-git-send-email-sergey.senozhatsky@gmail.com>
-References: <1427210687-6634-1-git-send-email-sergey.senozhatsky@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 24 Mar 2015 08:27:56 -0700 (PDT)
+Message-ID: <55118277.5070909@nod.at>
+Date: Tue, 24 Mar 2015 16:27:51 +0100
+From: Richard Weinberger <richard@nod.at>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH 00/11] an introduction of library operating system
+ for Linux (LibOS)
+References: <1427202642-1716-1-git-send-email-tazaki@sfc.wide.ad.jp>	<551164ED.5000907@nod.at>	<m2twxacw13.wl@sfc.wide.ad.jp>	<55117565.6080002@nod.at> <m2sicuctb2.wl@sfc.wide.ad.jp>
+In-Reply-To: <m2sicuctb2.wl@sfc.wide.ad.jp>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Hajime Tazaki <tazaki@sfc.wide.ad.jp>
+Cc: linux-arch@vger.kernel.org, arnd@arndb.de, corbet@lwn.net, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, jdike@addtoit.com, rusty@rustcorp.com.au, mathieu.lacage@gmail.com
 
-A micro-optimization. Avoid additional branching and reduce
-(a bit) registry pressure (f.e. s_off += size; d_off += size;
-may be calculated twise: first for >= PAGE_SIZE check and later
-for offset update in "else" clause).
+Am 24.03.2015 um 16:24 schrieb Hajime Tazaki:
+> I was thinking that such 'architectural' differences in core
+> idea (like system call handling, execution model, process
+> context design, etc) is better to have a different architecture
+> even if some part of the code is similar.
+> 
+> Isn't it also the same to the other 'hardware-dependent'
+> architectures' case like between arm and arm64 ?
+> 
+> of course I'm also happy to share the code between us,
+> especially _pure_ userspace part like (virtual) NIC with
+> tap or pcap because we also need that part, but we kept such
+> code at an external codebase (i.e., linux-libos-tools).
 
-/scripts/bloat-o-meter shows some improvement
+I'd say you should try hard to re-use/integrate your work in arch/um.
+With um we already have an architecture which targets userspace,
+having two needs a very good justification.
 
-add/remove: 0/0 grow/shrink: 0/1 up/down: 0/-10 (-10)
-function                          old     new   delta
-zs_object_copy                    550     540     -10
-
-Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
----
- mm/zsmalloc.c | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
-
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 7af4456..dc35328 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -1535,28 +1535,27 @@ static void zs_object_copy(unsigned long src, unsigned long dst,
- 		if (written == class->size)
- 			break;
- 
--		if (s_off + size >= PAGE_SIZE) {
-+		s_off += size;
-+		s_size -= size;
-+		d_off += size;
-+		d_size -= size;
-+
-+		if (s_off >= PAGE_SIZE) {
- 			kunmap_atomic(s_addr);
- 			s_page = get_next_page(s_page);
- 			BUG_ON(!s_page);
- 			s_addr = kmap_atomic(s_page);
- 			s_size = class->size - written;
- 			s_off = 0;
--		} else {
--			s_off += size;
--			s_size -= size;
- 		}
- 
--		if (d_off + size >= PAGE_SIZE) {
-+		if (d_off >= PAGE_SIZE) {
- 			kunmap_atomic(d_addr);
- 			d_page = get_next_page(d_page);
- 			BUG_ON(!d_page);
- 			d_addr = kmap_atomic(d_page);
- 			d_size = class->size - written;
- 			d_off = 0;
--		} else {
--			d_off += size;
--			d_size -= size;
- 		}
- 	}
- 
--- 
-2.3.4
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
