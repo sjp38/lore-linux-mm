@@ -1,64 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 79CAC6B0038
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 16:06:02 -0400 (EDT)
-Received: by wetk59 with SMTP id k59so3036110wet.3
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 13:06:01 -0700 (PDT)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.195])
-        by mx.google.com with ESMTP id c9si8721092wiy.123.2015.03.24.13.06.00
-        for <linux-mm@kvack.org>;
-        Tue, 24 Mar 2015 13:06:00 -0700 (PDT)
-Date: Tue, 24 Mar 2015 22:04:42 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 00/16] Sanitize usage of ->flags and ->mapping for tail
- pages
-Message-ID: <20150324200442.GA6269@node.dhcp.inet.fi>
-References: <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com>
- <CALYGNiOSczCjcJPWocXFnBm=mF7zjeA+xd9j=wBS_ZjZL5z0Pw@mail.gmail.com>
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 573246B0038
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 16:23:31 -0400 (EDT)
+Received: by igcau2 with SMTP id au2so82999574igc.0
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 13:23:31 -0700 (PDT)
+Received: from mail-ig0-x22c.google.com (mail-ig0-x22c.google.com. [2607:f8b0:4001:c05::22c])
+        by mx.google.com with ESMTPS id ga12si9670465igd.34.2015.03.24.13.23.30
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Mar 2015 13:23:30 -0700 (PDT)
+Received: by igcau2 with SMTP id au2so82999425igc.0
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 13:23:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALYGNiOSczCjcJPWocXFnBm=mF7zjeA+xd9j=wBS_ZjZL5z0Pw@mail.gmail.com>
+In-Reply-To: <20150324153306.GG4701@suse.de>
+References: <1427113443-20973-1-git-send-email-mgorman@suse.de>
+	<20150324115141.GS28621@dastard>
+	<20150324153306.GG4701@suse.de>
+Date: Tue, 24 Mar 2015 13:23:30 -0700
+Message-ID: <CA+55aFzPCbfMKPEpxntCvEK_SqjbBTppyZMW7W2C+ppnA4W4fw@mail.gmail.com>
+Subject: Re: [PATCH 0/3] Reduce system overhead of automatic NUMA balancing
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On Tue, Mar 24, 2015 at 08:39:49PM +0300, Konstantin Khlebnikov wrote:
-> On Thu, Mar 19, 2015 at 8:08 PM, Kirill A. Shutemov
-> <kirill.shutemov@linux.intel.com> wrote:
-> > Currently we take naive approach to page flags on compound -- we set the
-> > flag on the page without consideration if the flag makes sense for tail
-> > page or for compound page in general. This patchset try to sort this out
-> > by defining per-flag policy on what need to be done if page-flag helper
-> > operate on compound page.
-> >
-> > The last patch in patchset also sanitize usege of page->mapping for tail
-> > pages. We don't define meaning of page->mapping for tail pages. Currently
-> > it's always NULL, which can be inconsistent with head page and potentially
-> > lead to problems.
-> >
-> > For now I catched one case of illigal usage of page flags or ->mapping:
-> > sound subsystem allocates pages with __GFP_COMP and maps them with PTEs.
-> > It leads to setting dirty bit on tail pages and access to tail_page's
-> > ->mapping. I don't see any bad behaviour caused by this, but worth fixing
-> > anyway.
-> 
-> Do you mean call of set_page_dirty() from zap_pte_range() ?
+On Tue, Mar 24, 2015 at 8:33 AM, Mel Gorman <mgorman@suse.de> wrote:
+> On Tue, Mar 24, 2015 at 10:51:41PM +1100, Dave Chinner wrote:
+>>
+>> So it looks like the patch set fixes the remaining regression and in
+>> 2 of the four cases actually improves performance....
+>
+> \o/
 
-No. I trigger it earlier: set_page_dirty() from do_shared_fault().
+W00t.
 
-> I think this should be replaced with vma operation:
-> vma->vm_ops->set_page_dirty()
+> Linus, these three patches plus the small fixlet for pmd_mkyoung (to match
+> pte_mkyoung) is already in Andrew's tree. I'm expecting it'll arrive to
+> you before 4.0 assuming nothing else goes pear shaped.
 
-Does anybody know why would we want to dirtying pages with ->mapping ==
-NULL?
+Yup. Thanks Mel,
 
-I don't see a place where we can make any use of this. We probably could
-avoid dirting such pages. Hm?
-
--- 
- Kirill A. Shutemov
+                          Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
