@@ -1,36 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BB946B006E
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 12:05:27 -0400 (EDT)
-Received: by pagj7 with SMTP id j7so2597336pag.2
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 09:05:26 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id a17si6247164pbu.75.2015.03.24.09.05.25
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 891476B006E
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 12:13:45 -0400 (EDT)
+Received: by ieclw3 with SMTP id lw3so1386274iec.2
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 09:13:45 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0141.hostedemail.com. [216.40.44.141])
+        by mx.google.com with ESMTP id ie16si107065igb.54.2015.03.24.09.13.44
         for <linux-mm@kvack.org>;
-        Tue, 24 Mar 2015 09:05:26 -0700 (PDT)
-Date: Tue, 24 Mar 2015 12:05:22 -0400 (EDT)
-Message-Id: <20150324.120522.577453784216935829.davem@davemloft.net>
-Subject: Re: 4.0.0-rc4: panic in free_block
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20150324145753.GC10685@zareason>
-References: <20150322.221906.1670737065885267482.davem@davemloft.net>
-	<20150323.122530.812870422534676208.davem@davemloft.net>
-	<20150324145753.GC10685@zareason>
+        Tue, 24 Mar 2015 09:13:44 -0700 (PDT)
+Message-ID: <1427213619.5642.34.camel@perches.com>
+Subject: Re: [RFC PATCH 01/11] sysctl: make some functions unstatic to
+ access by arch/lib
+From: Joe Perches <joe@perches.com>
+Date: Tue, 24 Mar 2015 09:13:39 -0700
+In-Reply-To: <1427202642-1716-2-git-send-email-tazaki@sfc.wide.ad.jp>
+References: <1427202642-1716-1-git-send-email-tazaki@sfc.wide.ad.jp>
+	 <1427202642-1716-2-git-send-email-tazaki@sfc.wide.ad.jp>
+Content-Type: text/plain; charset="ISO-8859-1"
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bpicco@meloft.net
-Cc: david.ahern@oracle.com, torvalds@linux-foundation.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hajime Tazaki <tazaki@sfc.wide.ad.jp>
+Cc: linux-arch@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Jhristoph Lameter <cl@linux.com>, Jekka Enberg <penberg@kernel.org>, Javid Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jndrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Rusty Russell <rusty@rustcorp.com.au>, Mathieu Lacage <mathieu.lacage@gmail.com>
 
-From: Bob Picco <bpicco@meloft.net>
-Date: Tue, 24 Mar 2015 10:57:53 -0400
+On Tue, 2015-03-24 at 22:10 +0900, Hajime Tazaki wrote:
+> libos (arch/lib) emulates a sysctl-like interface by a function call of
+> userspace by enumerating sysctl tree from sysctl_table_root. It requires
+> to be publicly accessible to this symbol and related functions.
+[]
+> diff --git a/fs/proc/proc_sysctl.c b/fs/proc/proc_sysctl.c
+[]
+> @@ -77,7 +77,7 @@ static int namecmp(const char *name1, int len1, const char *name2, int len2)
+>  }
+>  
+>  /* Called under sysctl_lock */
+> -static struct ctl_table *find_entry(struct ctl_table_header **phead,
+> +struct ctl_table *find_entry(struct ctl_table_header **phead,
 
-> Seems solid with 2.6.39 on M7-4. Jalap?no is happy with current sparc.git.
+find_entry and all of the <foo>_entry functions below it
+are overly generic names.  Maybe prefix with ctl_table_
 
-Thanks for all the testing, it's been integrated into the -stable
-queues as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
