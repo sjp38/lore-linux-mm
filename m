@@ -1,56 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id EE4446B0038
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 15:04:36 -0400 (EDT)
-Received: by wibg7 with SMTP id g7so83029870wib.1
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 12:04:36 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w20si182145wjr.194.2015.03.24.12.04.34
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Mar 2015 12:04:35 -0700 (PDT)
-Date: Tue, 24 Mar 2015 20:02:29 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] mm: fix lockdep build in rcu-protected
-	get_mm_exe_file()
-Message-ID: <20150324190229.GC11834@redhat.com>
-References: <20150320144715.24899.24547.stgit@buzz> <1427134273.2412.12.camel@stgolabs.net> <20150323191055.GA10212@redhat.com> <55119B3B.5020403@yandex-team.ru> <20150324181016.GA9678@redhat.com> <CALYGNiP15BLtxMmMnpEu94jZBtce7tCtJnavrguqFr1d2XxH_A@mail.gmail.com>
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 79CAC6B0038
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 16:06:02 -0400 (EDT)
+Received: by wetk59 with SMTP id k59so3036110wet.3
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 13:06:01 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id c9si8721092wiy.123.2015.03.24.13.06.00
+        for <linux-mm@kvack.org>;
+        Tue, 24 Mar 2015 13:06:00 -0700 (PDT)
+Date: Tue, 24 Mar 2015 22:04:42 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 00/16] Sanitize usage of ->flags and ->mapping for tail
+ pages
+Message-ID: <20150324200442.GA6269@node.dhcp.inet.fi>
+References: <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <CALYGNiOSczCjcJPWocXFnBm=mF7zjeA+xd9j=wBS_ZjZL5z0Pw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALYGNiP15BLtxMmMnpEu94jZBtce7tCtJnavrguqFr1d2XxH_A@mail.gmail.com>
+In-Reply-To: <CALYGNiOSczCjcJPWocXFnBm=mF7zjeA+xd9j=wBS_ZjZL5z0Pw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Davidlohr Bueso <dave@stgolabs.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 03/24, Konstantin Khlebnikov wrote:
->
-> On Tue, Mar 24, 2015 at 9:10 PM, Oleg Nesterov <oleg@redhat.com> wrote:
-> >>>
-> >>> "atomic_read(&mm->mm_users) <= 1" looks a bit more "safe". But again,
-> >>> I won't insist.
-> >>
-> >> Not so safe: this will race with get_task_mm().
+On Tue, Mar 24, 2015 at 08:39:49PM +0300, Konstantin Khlebnikov wrote:
+> On Thu, Mar 19, 2015 at 8:08 PM, Kirill A. Shutemov
+> <kirill.shutemov@linux.intel.com> wrote:
+> > Currently we take naive approach to page flags on compound -- we set the
+> > flag on the page without consideration if the flag makes sense for tail
+> > page or for compound page in general. This patchset try to sort this out
+> > by defining per-flag policy on what need to be done if page-flag helper
+> > operate on compound page.
 > >
-> > How?
->
-> I mean rcu/lockdep debug migh race with get_task_mm() and generate
-> false-positive warning about non-protected rcu_dereference.
+> > The last patch in patchset also sanitize usege of page->mapping for tail
+> > pages. We don't define meaning of page->mapping for tail pages. Currently
+> > it's always NULL, which can be inconsistent with head page and potentially
+> > lead to problems.
+> >
+> > For now I catched one case of illigal usage of page flags or ->mapping:
+> > sound subsystem allocates pages with __GFP_COMP and maps them with PTEs.
+> > It leads to setting dirty bit on tail pages and access to tail_page's
+> > ->mapping. I don't see any bad behaviour caused by this, but worth fixing
+> > anyway.
+> 
+> Do you mean call of set_page_dirty() from zap_pte_range() ?
 
-Still can't understand, I think it can't... and if it could, then this
-warning would not be false positive.
+No. I trigger it earlier: set_page_dirty() from do_shared_fault().
 
-Anut this doesn't matter because we seem to agree this check should go away.
+> I think this should be replaced with vma operation:
+> vma->vm_ops->set_page_dirty()
 
-> > Yeees, probably rcu_dereference_raw() would be even better. set_mm_exe_file()
-> > must be called only if nobody but us can access this mm.
->
-> Yep.
+Does anybody know why would we want to dirtying pages with ->mapping ==
+NULL?
 
-Great. Davidlohr will you agree?
+I don't see a place where we can make any use of this. We probably could
+avoid dirting such pages. Hm?
 
-Oleg.
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
