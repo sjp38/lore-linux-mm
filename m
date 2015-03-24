@@ -1,149 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C3696B0038
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 08:37:50 -0400 (EDT)
-Received: by weoy45 with SMTP id y45so12496418weo.2
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 05:37:49 -0700 (PDT)
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com. [74.125.82.54])
-        by mx.google.com with ESMTPS id y1si16850338wiw.27.2015.03.24.05.37.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Mar 2015 05:37:48 -0700 (PDT)
-Received: by wgdm6 with SMTP id m6so170099819wgd.2
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 05:37:47 -0700 (PDT)
-Message-ID: <55115A99.40705@plexistor.com>
-Date: Tue, 24 Mar 2015 14:37:45 +0200
-From: Boaz Harrosh <boaz@plexistor.com>
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 21BCA6B006E
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 08:58:00 -0400 (EDT)
+Received: by wibg7 with SMTP id g7so73999476wib.1
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 05:57:59 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.203])
+        by mx.google.com with ESMTP id ct6si16054853wib.33.2015.03.24.05.57.57
+        for <linux-mm@kvack.org>;
+        Tue, 24 Mar 2015 05:57:58 -0700 (PDT)
+Date: Tue, 24 Mar 2015 14:57:52 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 11/24] huge tmpfs: shrinker to migrate and free underused
+ holes
+Message-ID: <20150324125752.GA4642@node.dhcp.inet.fi>
+References: <alpine.LSU.2.11.1502201941340.14414@eggly.anvils>
+ <alpine.LSU.2.11.1502202008010.14414@eggly.anvils>
+ <550AFFD5.40607@yandex-team.ru>
+ <alpine.LSU.2.11.1503222046510.5278@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] RFC: dax: dax_prepare_freeze
-References: <55100B78.501@plexistor.com> <55100D10.6090902@plexistor.com>
-In-Reply-To: <55100D10.6090902@plexistor.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1503222046510.5278@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Ning Qu <quning@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 03/23/2015 02:54 PM, Boaz Harrosh wrote:
-> From: Boaz Harrosh <boaz@plexistor.com>
+On Sun, Mar 22, 2015 at 09:40:02PM -0700, Hugh Dickins wrote:
+> (I think Kirill has a problem of that kind in his page_remove_rmap scan).
 > 
-> When freezing an FS, we must write protect all IS_DAX()
-> inodes that have an mmap mapping on an inode. Otherwise
-> application will be able to modify previously faulted-in
-> file pages.
-> 
-> I'm actually doing a full unmap_mapping_range because
-> there is no readily available "mapping_write_protect" like
-> functionality. I do not think it is worth it to define one
-> just for here and just for some extra read-faults after an
-> fs_freeze.
-> 
-> How hot-path is fs_freeze at all?
-> 
+> It will be interesting to see what Kirill does to maintain the stats
+> for huge pagecache: but he will have no difficulty in finding fields
+> to store counts, because he's got lots of spare fields in those 511
+> tail pages - that's a useful benefit of the compound page, but does
+> prevent the tails from being used in ordinary ways.  (I did try using
+> team_head[1].team_usage for more, but atomicity needs prevented it.)
 
-OK So reinspecting this was a complete raw RFC. I need to do
-more work on this thing
+The patch below should address the race you pointed, if I've got all
+right. Not hugely happy with the change though.
 
-comments below ...
-
-> CC: Jan Kara <jack@suse.cz>
-> CC: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
-> ---
->  fs/dax.c           | 30 ++++++++++++++++++++++++++++++
->  fs/super.c         |  3 +++
->  include/linux/fs.h |  1 +
->  3 files changed, 34 insertions(+)
-> 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index d0bd1f4..f3fc28b 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -549,3 +549,33 @@ int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
->  	return dax_zero_page_range(inode, from, length, get_block);
->  }
->  EXPORT_SYMBOL_GPL(dax_truncate_page);
-> +
-> +/* This is meant to be called as part of freeze_super. otherwise we might
-> + * Need some extra locking before calling here.
-> + */
-> +void dax_prepare_freeze(struct super_block *sb)
-> +{
-> +	struct inode *inode;
-> +
-> +	/* TODO: each DAX fs has some private mount option to enable DAX. If
-> +	 * We made that option a generic MS_DAX_ENABLE super_block flag we could
-> +	 * Avoid the 95% extra unneeded loop-on-all-inodes every freeze.
-> +	 * if (!(sb->s_flags & MS_DAX_ENABLE))
-> +	 *	return 0;
-> +	 */
-> +
-> +	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
-> +		/* TODO: For freezing we can actually do with write-protecting
-> +		 * the page. But I cannot find a ready made function that does
-> +		 * that for a giving mapping (with all the proper locking).
-> +		 * How performance sensitive is the all sb_freeze API?
-> +		 * For now we can just unmap the all mapping, and pay extra
-> +		 * on read faults.
-> +		 */
-> +		/* NOTE: Do not unmap private COW mapped pages it will not
-> +		 * modify the FS.
-> +		 */
-> +		if (IS_DAX(inode))
-> +			unmap_mapping_range(inode->i_mapping, 0, 0, 0);
-
-So what happens here is that we loop on all sb->s_inodes every freeze
-and in the not DAX case just do nothing.
-
-It could be nice to have a flag at the sb level to tel us if we need
-to expect IS_DAX() inodes at all, for example when we are mounted on
-an harddisk it should not be set.
-
-All of ext2/4 and now Dave's xfs have their own
-	XFS_MOUNT_DAX / EXT2_MOUNT_DAX / EXT4_MOUNT_DAX
-
-Is it OK if I unify all this on sb->s_flags |= MS_MOUNT_DAX so I can check it
-here in Generic code? The option parsing will be done by each FS but
-the flag be global?
-
-> +	}
-> +}
-> diff --git a/fs/super.c b/fs/super.c
-> index 2b7dc90..9ef490c 100644
-> --- a/fs/super.c
-> +++ b/fs/super.c
-> @@ -1329,6 +1329,9 @@ int freeze_super(struct super_block *sb)
->  	/* All writers are done so after syncing there won't be dirty data */
->  	sync_filesystem(sb);
->  
-> +	/* Need to take care of DAX mmaped inodes */
-> +	dax_prepare_freeze(sb);
-> +
-
-So if CONFIG_FS_DAX is not set this will not compile I need to
-define an empty one if not set
-
-Cheers
-Boaz
-
-
->  	/* Now wait for internal filesystem counter */
->  	sb->s_writers.frozen = SB_FREEZE_FS;
->  	smp_wmb();
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 24af817..3b943d4 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -2599,6 +2599,7 @@ int dax_truncate_page(struct inode *, loff_t from, get_block_t);
->  int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
->  int dax_pfn_mkwrite(struct vm_area_struct *, struct vm_fault *);
->  #define dax_mkwrite(vma, vmf, gb)	dax_fault(vma, vmf, gb)
-> +void dax_prepare_freeze(struct super_block *sb);
->  
->  #ifdef CONFIG_BLOCK
->  typedef void (dio_submit_t)(int rw, struct bio *bio, struct inode *inode,
-> 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 435c90f59227..a3e6b35520f8 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -423,8 +423,17 @@ static inline void page_mapcount_reset(struct page *page)
+ 
+ static inline int page_mapcount(struct page *page)
+ {
++	int ret;
+ 	VM_BUG_ON_PAGE(PageSlab(page), page);
+-	return atomic_read(&page->_mapcount) + compound_mapcount(page) + 1;
++	ret = atomic_read(&page->_mapcount) + 1;
++	if (compound_mapcount(page)) {
++		/*
++		 * positive compound_mapcount() offsets ->_mapcount by one --
++		 * substract here.
++		*/
++	       ret += compound_mapcount(page) - 1;
++	}
++	return ret;
+ }
+ 
+ static inline int page_count(struct page *page)
+diff --git a/mm/rmap.c b/mm/rmap.c
+index fc6eee4ed476..f4ab976276e7 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1066,9 +1066,17 @@ void do_page_add_anon_rmap(struct page *page,
+ 		 * disabled.
+ 		 */
+ 		if (compound) {
++			int i;
+ 			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+ 			__inc_zone_page_state(page,
+ 					      NR_ANON_TRANSPARENT_HUGEPAGES);
++			/*
++			 * While compound_mapcount() is positive we keep *one*
++			 * mapcount reference in all subpages. It's required
++			 * for atomic removal from rmap.
++			 */
++			for (i = 0; i < nr; i++)
++				atomic_set(&page[i]._mapcount, 0);
+ 		}
+ 		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, nr);
+ 	}
+@@ -1103,10 +1111,19 @@ void page_add_new_anon_rmap(struct page *page,
+ 	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
+ 	SetPageSwapBacked(page);
+ 	if (compound) {
++		int i;
++
+ 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+ 		/* increment count (starts at -1) */
+ 		atomic_set(compound_mapcount_ptr(page), 0);
+ 		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
++		/*
++		 * While compound_mapcount() is positive we keep *one* mapcount
++		 * reference in all subpages. It's required for atomic removal
++		 * from rmap.
++		 */
++		for (i = 0; i < nr; i++)
++			atomic_set(&page[i]._mapcount, 0);
+ 	} else {
+ 		/* Anon THP always mapped first with PMD */
+ 		VM_BUG_ON_PAGE(PageTransCompound(page), page);
+@@ -1174,9 +1191,6 @@ out:
+  */
+ void page_remove_rmap(struct page *page, bool compound)
+ {
+-	int nr = compound ? hpage_nr_pages(page) : 1;
+-	bool partial_thp_unmap;
+-
+ 	if (!PageAnon(page)) {
+ 		VM_BUG_ON_PAGE(compound && !PageHuge(page), page);
+ 		page_remove_file_rmap(page);
+@@ -1184,10 +1198,20 @@ void page_remove_rmap(struct page *page, bool compound)
+ 	}
+ 
+ 	/* page still mapped by someone else? */
+-	if (!atomic_add_negative(-1, compound ?
+-			       compound_mapcount_ptr(page) :
+-			       &page->_mapcount))
++	if (compound) {
++		int i;
++
++		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
++		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
++			return;
++		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
++		for (i = 0; i < hpage_nr_pages(page); i++)
++			page_remove_rmap(page + i, false);
+ 		return;
++	} else {
++		if (!atomic_add_negative(-1, &page->_mapcount))
++			return;
++	}
+ 
+ 	/* Hugepages are not counted in NR_ANON_PAGES for now. */
+ 	if (unlikely(PageHuge(page)))
+@@ -1198,26 +1222,12 @@ void page_remove_rmap(struct page *page, bool compound)
+ 	 * these counters are not modified in interrupt context, and
+ 	 * pte lock(a spinlock) is held, which implies preemption disabled.
+ 	 */
+-	if (compound) {
+-		int i;
+-		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+-		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
+-		/* The page can be mapped with ptes */
+-		for (i = 0; i < hpage_nr_pages(page); i++)
+-			if (page_mapcount(page + i))
+-				nr--;
+-		partial_thp_unmap = nr != hpage_nr_pages(page);
+-	} else if (PageTransCompound(page)) {
+-		partial_thp_unmap = !compound_mapcount(page);
+-	} else
+-		partial_thp_unmap = false;
+-
+-	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
++	__dec_zone_page_state(page, NR_ANON_PAGES);
+ 
+ 	if (unlikely(PageMlocked(page)))
+ 		clear_page_mlock(page);
+ 
+-	if (partial_thp_unmap)
++	if (PageTransCompound(page))
+ 		deferred_split_huge_page(compound_head(page));
+ 
+ 	/*
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
