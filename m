@@ -1,255 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id AB1986B0038
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 09:11:57 -0400 (EDT)
-Received: by pdnc3 with SMTP id c3so221220734pdn.0
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 06:11:57 -0700 (PDT)
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A0E66B006C
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 09:12:05 -0400 (EDT)
+Received: by pagv19 with SMTP id v19so50440162pag.2
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 06:12:05 -0700 (PDT)
 Received: from mail.sfc.wide.ad.jp (shonan.sfc.wide.ad.jp. [203.178.142.130])
-        by mx.google.com with ESMTPS id y10si5550043pdl.126.2015.03.24.06.11.55
+        by mx.google.com with ESMTPS id pw8si5642518pbc.60.2015.03.24.06.12.03
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Mar 2015 06:11:55 -0700 (PDT)
+        Tue, 24 Mar 2015 06:12:04 -0700 (PDT)
 From: Hajime Tazaki <tazaki@sfc.wide.ad.jp>
-Subject: [RFC PATCH 00/11] an introduction of library operating system for Linux (LibOS)
-Date: Tue, 24 Mar 2015 22:10:31 +0900
-Message-Id: <1427202642-1716-1-git-send-email-tazaki@sfc.wide.ad.jp>
+Subject: [RFC PATCH 01/11] sysctl: make some functions unstatic to access by arch/lib
+Date: Tue, 24 Mar 2015 22:10:32 +0900
+Message-Id: <1427202642-1716-2-git-send-email-tazaki@sfc.wide.ad.jp>
+In-Reply-To: <1427202642-1716-1-git-send-email-tazaki@sfc.wide.ad.jp>
+References: <1427202642-1716-1-git-send-email-tazaki@sfc.wide.ad.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-arch@vger.kernel.org
 Cc: Hajime Tazaki <tazaki@sfc.wide.ad.jp>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Jhristoph Lameter <cl@linux.com>, Jekka Enberg <penberg@kernel.org>, Javid Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jndrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Rusty Russell <rusty@rustcorp.com.au>, Mathieu Lacage <mathieu.lacage@gmail.com>
 
-This is an introduction of library operating system (LibOS) for Linux.
+libos (arch/lib) emulates a sysctl-like interface by a function call of
+userspace by enumerating sysctl tree from sysctl_table_root. It requires
+to be publicly accessible to this symbol and related functions.
 
-Our objective is to build the kernel network stack as a shared library
-that can be linked to by userspace programs to provide network stack
-personalization and testing facilities, and allow researchers to more
-easily simulate complex network topologies of linux routers/hosts.
+Signed-off-by: Hajime Tazaki <tazaki@sfc.wide.ad.jp>
+---
+ fs/proc/proc_sysctl.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
 
-Although the architecture itself can virtualize various things, the
-current design only focuses on the network stack. You can benefit
-network stack feature such as TCP, UDP, SCTP, DCCP (IPv4 and IPv6),
-Mobie IPv6, Multipath TCP (IPv4/IPv6, out-of-tree at the present
-moment), and netlink with various userspace applications (quagga,
-iproute2, iperf, wget, and thttpd).
-
-== What is LibOS ? ==
-
-The library exposes an entry point as API, which is lib_init(), in
-order to connect userspace applications to the (userspace-version)
-kernel network stack. The clock source, virtual struct net_device, and
-scheduler are provided by caller while kernel resource like system
-calls is provided by callee.
-
-Once the LibOS is initialized via the API, userspace applications with
-POSIX socket can use the system calls defined in LibOS by replacing
-from the original socket-related symbols to the LibOS-specific
-one. Then application can benefit the network stack of LibOS without
-involving the host network stack.
-
-Currently, there are two users of LibOS: Network Stack in Userspace
-(NUSE) and ns-3 network simulatior with Direct Code Execution
-(DCE). These codes are managed at an external repository(*1).
-
-
-== How to use it ? ==
-
-to build the library,
-% make {defconfig,menuconfig} ARCH=lib
-
-then, build it.
-% make library ARCH=lib
-
-You will see liblinux-$(KERNELVERSION).so in the top directory.
-
-== More information ==
-
-The crucial difference between UML (user-mode linux) and this approach
-is that we allow multiple network stack instances to co-exist within a
-single process with dlmopen(3) like linking for easy debugging.
-
-
-These patches are also available on this branch:
-
-git://github.com/libos-nuse/net-next-nuse.git for-asm-upstream
-
-
-For further information, here is a slideset presented at the last
-netdev0.1 conference.
-
-http://www.slideshare.net/hajimetazaki/library-operating-system-for-linux-netdev01
-
-I would appreciate any kind of your feedback regarding to upstream
-this feature.
-
-*1 https://github.com/libos-nuse/linux-libos-tools
-
-
-Hajime Tazaki (11):
-  sysctl: make some functions unstatic to access by arch/lib
-  slab: add private memory allocator header for arch/lib
-  lib: public headers and API implementations for userspace programs
-  lib: memory management (kernel glue code)
-  lib: time handling (kernel glue code)
-  lib: context and scheduling handling (kernel glue code)
-  lib: sysctl handling (kernel glue code)
-  lib: other kernel glue layer code
-  lib: asm-generic files
-  lib: libos build scripts and documentation
-  lib: tools used for test scripts
-
- Documentation/virtual/libos-howto.txt | 143 ++++++++
- MAINTAINERS                           |   9 +
- arch/lib/.gitignore                   |   8 +
- arch/lib/Kconfig                      | 121 +++++++
- arch/lib/Makefile                     | 248 +++++++++++++
- arch/lib/Makefile.print               |  44 +++
- arch/lib/cred.c                       |  16 +
- arch/lib/dcache.c                     |  93 +++++
- arch/lib/defconfig                    | 653 ++++++++++++++++++++++++++++++++++
- arch/lib/filemap.c                    |  27 ++
- arch/lib/fs.c                         | 287 +++++++++++++++
- arch/lib/generate-linker-script.py    |  50 +++
- arch/lib/glue.c                       | 336 +++++++++++++++++
- arch/lib/hrtimer.c                    | 122 +++++++
- arch/lib/include/asm/Kbuild           |  55 +++
- arch/lib/include/asm/atomic.h         |  47 +++
- arch/lib/include/asm/barrier.h        |   8 +
- arch/lib/include/asm/bitsperlong.h    |  12 +
- arch/lib/include/asm/current.h        |   7 +
- arch/lib/include/asm/elf.h            |  10 +
- arch/lib/include/asm/hardirq.h        |   8 +
- arch/lib/include/asm/page.h           |  14 +
- arch/lib/include/asm/pgtable.h        |  30 ++
- arch/lib/include/asm/processor.h      |  19 +
- arch/lib/include/asm/ptrace.h         |   4 +
- arch/lib/include/asm/segment.h        |   6 +
- arch/lib/include/asm/sembuf.h         |   4 +
- arch/lib/include/asm/shmbuf.h         |   4 +
- arch/lib/include/asm/shmparam.h       |   4 +
- arch/lib/include/asm/sigcontext.h     |   6 +
- arch/lib/include/asm/slab.h           |  21 ++
- arch/lib/include/asm/stat.h           |   4 +
- arch/lib/include/asm/statfs.h         |   4 +
- arch/lib/include/asm/swab.h           |   7 +
- arch/lib/include/asm/thread_info.h    |  35 ++
- arch/lib/include/asm/uaccess.h        |  14 +
- arch/lib/include/asm/unistd.h         |   4 +
- arch/lib/include/sim-assert.h         |  23 ++
- arch/lib/include/sim-init.h           | 134 +++++++
- arch/lib/include/sim-printf.h         |  13 +
- arch/lib/include/sim-types.h          |  53 +++
- arch/lib/include/sim.h                |  51 +++
- arch/lib/include/uapi/asm/byteorder.h |   6 +
- arch/lib/inode.c                      | 146 ++++++++
- arch/lib/lib-device.c                 | 187 ++++++++++
- arch/lib/lib-socket.c                 | 410 +++++++++++++++++++++
- arch/lib/lib.c                        | 289 +++++++++++++++
- arch/lib/lib.h                        |  21 ++
- arch/lib/modules.c                    |  36 ++
- arch/lib/pid.c                        |  29 ++
- arch/lib/print.c                      |  56 +++
- arch/lib/proc.c                       | 164 +++++++++
- arch/lib/processor.mk                 |   7 +
- arch/lib/random.c                     |  53 +++
- arch/lib/sched.c                      | 365 +++++++++++++++++++
- arch/lib/security.c                   |  45 +++
- arch/lib/seq.c                        | 122 +++++++
- arch/lib/slab.c                       | 200 +++++++++++
- arch/lib/softirq.c                    | 104 ++++++
- arch/lib/splice.c                     |  20 ++
- arch/lib/super.c                      | 210 +++++++++++
- arch/lib/sysctl.c                     | 284 +++++++++++++++
- arch/lib/sysfs.c                      |  83 +++++
- arch/lib/tasklet-hrtimer.c            |  57 +++
- arch/lib/tasklet.c                    |  76 ++++
- arch/lib/time.c                       | 149 ++++++++
- arch/lib/timer.c                      | 230 ++++++++++++
- arch/lib/vmscan.c                     |  26 ++
- arch/lib/workqueue.c                  | 242 +++++++++++++
- fs/proc/proc_sysctl.c                 |  16 +-
- include/linux/slab.h                  |  12 +
- tools/testing/libos/.gitignore        |   6 +
- tools/testing/libos/Makefile          |  38 ++
- tools/testing/libos/README            |  15 +
- tools/testing/libos/bisect.sh         |  10 +
- tools/testing/libos/dce-test.sh       |  23 ++
- tools/testing/libos/nuse-test.sh      |  57 +++
- 77 files changed, 6544 insertions(+), 8 deletions(-)
- create mode 100644 Documentation/virtual/libos-howto.txt
- create mode 100644 arch/lib/.gitignore
- create mode 100644 arch/lib/Kconfig
- create mode 100644 arch/lib/Makefile
- create mode 100644 arch/lib/Makefile.print
- create mode 100644 arch/lib/cred.c
- create mode 100644 arch/lib/dcache.c
- create mode 100644 arch/lib/defconfig
- create mode 100644 arch/lib/filemap.c
- create mode 100644 arch/lib/fs.c
- create mode 100755 arch/lib/generate-linker-script.py
- create mode 100644 arch/lib/glue.c
- create mode 100644 arch/lib/hrtimer.c
- create mode 100644 arch/lib/include/asm/Kbuild
- create mode 100644 arch/lib/include/asm/atomic.h
- create mode 100644 arch/lib/include/asm/barrier.h
- create mode 100644 arch/lib/include/asm/bitsperlong.h
- create mode 100644 arch/lib/include/asm/current.h
- create mode 100644 arch/lib/include/asm/elf.h
- create mode 100644 arch/lib/include/asm/hardirq.h
- create mode 100644 arch/lib/include/asm/page.h
- create mode 100644 arch/lib/include/asm/pgtable.h
- create mode 100644 arch/lib/include/asm/processor.h
- create mode 100644 arch/lib/include/asm/ptrace.h
- create mode 100644 arch/lib/include/asm/segment.h
- create mode 100644 arch/lib/include/asm/sembuf.h
- create mode 100644 arch/lib/include/asm/shmbuf.h
- create mode 100644 arch/lib/include/asm/shmparam.h
- create mode 100644 arch/lib/include/asm/sigcontext.h
- create mode 100644 arch/lib/include/asm/slab.h
- create mode 100644 arch/lib/include/asm/stat.h
- create mode 100644 arch/lib/include/asm/statfs.h
- create mode 100644 arch/lib/include/asm/swab.h
- create mode 100644 arch/lib/include/asm/thread_info.h
- create mode 100644 arch/lib/include/asm/uaccess.h
- create mode 100644 arch/lib/include/asm/unistd.h
- create mode 100644 arch/lib/include/sim-assert.h
- create mode 100644 arch/lib/include/sim-init.h
- create mode 100644 arch/lib/include/sim-printf.h
- create mode 100644 arch/lib/include/sim-types.h
- create mode 100644 arch/lib/include/sim.h
- create mode 100644 arch/lib/include/uapi/asm/byteorder.h
- create mode 100644 arch/lib/inode.c
- create mode 100644 arch/lib/lib-device.c
- create mode 100644 arch/lib/lib-socket.c
- create mode 100644 arch/lib/lib.c
- create mode 100644 arch/lib/lib.h
- create mode 100644 arch/lib/modules.c
- create mode 100644 arch/lib/pid.c
- create mode 100644 arch/lib/print.c
- create mode 100644 arch/lib/proc.c
- create mode 100644 arch/lib/processor.mk
- create mode 100644 arch/lib/random.c
- create mode 100644 arch/lib/sched.c
- create mode 100644 arch/lib/security.c
- create mode 100644 arch/lib/seq.c
- create mode 100644 arch/lib/slab.c
- create mode 100644 arch/lib/softirq.c
- create mode 100644 arch/lib/splice.c
- create mode 100644 arch/lib/super.c
- create mode 100644 arch/lib/sysctl.c
- create mode 100644 arch/lib/sysfs.c
- create mode 100644 arch/lib/tasklet-hrtimer.c
- create mode 100644 arch/lib/tasklet.c
- create mode 100644 arch/lib/time.c
- create mode 100644 arch/lib/timer.c
- create mode 100644 arch/lib/vmscan.c
- create mode 100644 arch/lib/workqueue.c
- create mode 100644 tools/testing/libos/.gitignore
- create mode 100644 tools/testing/libos/Makefile
- create mode 100644 tools/testing/libos/README
- create mode 100755 tools/testing/libos/bisect.sh
- create mode 100755 tools/testing/libos/dce-test.sh
- create mode 100755 tools/testing/libos/nuse-test.sh
-
+diff --git a/fs/proc/proc_sysctl.c b/fs/proc/proc_sysctl.c
+index f92d5dd..e3de095 100644
+--- a/fs/proc/proc_sysctl.c
++++ b/fs/proc/proc_sysctl.c
+@@ -35,7 +35,7 @@ static struct ctl_table root_table[] = {
+ 	},
+ 	{ }
+ };
+-static struct ctl_table_root sysctl_table_root = {
++struct ctl_table_root sysctl_table_root = {
+ 	.default_set.dir.header = {
+ 		{{.count = 1,
+ 		  .nreg = 1,
+@@ -61,7 +61,7 @@ static void sysctl_print_dir(struct ctl_dir *dir)
+ 	pr_cont("%s/", dir->header.ctl_table[0].procname);
+ }
+ 
+-static int namecmp(const char *name1, int len1, const char *name2, int len2)
++int namecmp(const char *name1, int len1, const char *name2, int len2)
+ {
+ 	int minlen;
+ 	int cmp;
+@@ -77,7 +77,7 @@ static int namecmp(const char *name1, int len1, const char *name2, int len2)
+ }
+ 
+ /* Called under sysctl_lock */
+-static struct ctl_table *find_entry(struct ctl_table_header **phead,
++struct ctl_table *find_entry(struct ctl_table_header **phead,
+ 	struct ctl_dir *dir, const char *name, int namelen)
+ {
+ 	struct ctl_table_header *head;
+@@ -309,7 +309,7 @@ static struct ctl_table *lookup_entry(struct ctl_table_header **phead,
+ 	return entry;
+ }
+ 
+-static struct ctl_node *first_usable_entry(struct rb_node *node)
++struct ctl_node *first_usable_entry(struct rb_node *node)
+ {
+ 	struct ctl_node *ctl_node;
+ 
+@@ -321,7 +321,7 @@ static struct ctl_node *first_usable_entry(struct rb_node *node)
+ 	return NULL;
+ }
+ 
+-static void first_entry(struct ctl_dir *dir,
++void first_entry(struct ctl_dir *dir,
+ 	struct ctl_table_header **phead, struct ctl_table **pentry)
+ {
+ 	struct ctl_table_header *head = NULL;
+@@ -339,7 +339,7 @@ static void first_entry(struct ctl_dir *dir,
+ 	*pentry = entry;
+ }
+ 
+-static void next_entry(struct ctl_table_header **phead, struct ctl_table **pentry)
++void next_entry(struct ctl_table_header **phead, struct ctl_table **pentry)
+ {
+ 	struct ctl_table_header *head = *phead;
+ 	struct ctl_table *entry = *pentry;
+@@ -822,7 +822,7 @@ static const struct dentry_operations proc_sys_dentry_operations = {
+ 	.d_compare	= proc_sys_compare,
+ };
+ 
+-static struct ctl_dir *find_subdir(struct ctl_dir *dir,
++struct ctl_dir *find_subdir(struct ctl_dir *dir,
+ 				   const char *name, int namelen)
+ {
+ 	struct ctl_table_header *head;
+@@ -924,7 +924,7 @@ failed:
+ 	return subdir;
+ }
+ 
+-static struct ctl_dir *xlate_dir(struct ctl_table_set *set, struct ctl_dir *dir)
++struct ctl_dir *xlate_dir(struct ctl_table_set *set, struct ctl_dir *dir)
+ {
+ 	struct ctl_dir *parent;
+ 	const char *procname;
 -- 
 2.1.0
 
