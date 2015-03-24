@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E6B526B006C
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 19:09:12 -0400 (EDT)
-Received: by igcau2 with SMTP id au2so86323899igc.0
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 16:09:12 -0700 (PDT)
-Received: from mail-ie0-x232.google.com (mail-ie0-x232.google.com. [2607:f8b0:4001:c03::232])
-        by mx.google.com with ESMTPS id bd10si948811icc.42.2015.03.24.16.09.12
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FDEC6B0070
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 19:09:35 -0400 (EDT)
+Received: by igcau2 with SMTP id au2so60898624igc.1
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 16:09:35 -0700 (PDT)
+Received: from mail-ig0-x230.google.com (mail-ig0-x230.google.com. [2607:f8b0:4001:c05::230])
+        by mx.google.com with ESMTPS id s5si968278icb.10.2015.03.24.16.09.35
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Mar 2015 16:09:12 -0700 (PDT)
-Received: by iedfl3 with SMTP id fl3so11133572ied.1
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 16:09:12 -0700 (PDT)
-Date: Tue, 24 Mar 2015 16:09:10 -0700 (PDT)
+        Tue, 24 Mar 2015 16:09:35 -0700 (PDT)
+Received: by igbud6 with SMTP id ud6so86446064igb.1
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 16:09:35 -0700 (PDT)
+Date: Tue, 24 Mar 2015 16:09:32 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch 2/4] mm, mempool: disallow mempools based on slab caches with
- constructors
+Subject: [patch v2 3/4] mm, mempool: poison elements backed by slab
+ allocator
 In-Reply-To: <alpine.DEB.2.10.1503241607240.21805@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1503241608540.21805@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1503241609140.21805@chino.kir.corp.google.com>
 References: <alpine.DEB.2.10.1503241607240.21805@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -25,55 +25,116 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Kleikamp <shaggy@kernel.org>, Christoph Hellwig <hch@lst.de>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net
 
-All occurrences of mempools based on slab caches with object constructors
-have been removed from the tree, so disallow creating them.
+Mempools keep elements in a reserved pool for contexts in which
+allocation may not be possible.  When an element is allocated from the
+reserved pool, its memory contents is the same as when it was added to
+the reserved pool.
 
-We can only dereference mem->ctor in mm/mempool.c without including
-mm/slab.h in include/linux/mempool.h.  So simply note the restriction,
-just like the comment restrictig usage of __GFP_ZERO, and warn on
-kernels with CONFIG_DEBUG_VM() if such a mempool is allocated from.
+Because of this, elements lack any free poisoning to detect
+use-after-free errors.
 
-We don't want to incur this check on every element allocation, so use
-VM_BUG_ON().
+This patch adds free poisoning for elements backed by the slab allocator.
+This is possible because the mempool layer knows the object size of each
+element.
+
+When an element is added to the reserved pool, it is poisoned with
+POISON_FREE.  When it is removed from the reserved pool, the contents are
+checked for POISON_FREE.  If there is a mismatch, a warning is emitted to
+the kernel log.
+
+This is only effective for configs with CONFIG_DEBUG_SLAB or
+CONFIG_SLUB_DEBUG_ON.
 
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- include/linux/mempool.h | 3 ++-
- mm/mempool.c            | 2 ++
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ v2: switch dependency to CONFIG_DEBUG_SLAB or CONFIG_SLUB_DEBUG_ON
 
-diff --git a/include/linux/mempool.h b/include/linux/mempool.h
---- a/include/linux/mempool.h
-+++ b/include/linux/mempool.h
-@@ -36,7 +36,8 @@ extern void mempool_free(void *element, mempool_t *pool);
- 
- /*
-  * A mempool_alloc_t and mempool_free_t that get the memory from
-- * a slab that is passed in through pool_data.
-+ * a slab cache that is passed in through pool_data.
-+ * Note: the slab cache may not have a ctor function.
-  */
- void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data);
- void mempool_free_slab(void *element, void *pool_data);
+ mm/mempool.c | 65 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 63 insertions(+), 2 deletions(-)
+
 diff --git a/mm/mempool.c b/mm/mempool.c
 --- a/mm/mempool.c
 +++ b/mm/mempool.c
-@@ -15,6 +15,7 @@
- #include <linux/mempool.h>
- #include <linux/blkdev.h>
+@@ -17,16 +17,77 @@
  #include <linux/writeback.h>
-+#include "slab.h"
+ #include "slab.h"
  
++#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB_DEBUG_ON)
++static void poison_error(mempool_t *pool, void *element, size_t size,
++			 size_t byte)
++{
++	const int nr = pool->curr_nr;
++	const int start = max_t(int, byte - (BITS_PER_LONG / 8), 0);
++	const int end = min_t(int, byte + (BITS_PER_LONG / 8), size);
++	int i;
++
++	pr_err("BUG: mempool element poison mismatch\n");
++	pr_err("Mempool %p size %ld\n", pool, size);
++	pr_err(" nr=%d @ %p: %s0x", nr, element, start > 0 ? "... " : "");
++	for (i = start; i < end; i++)
++		pr_cont("%x ", *(u8 *)(element + i));
++	pr_cont("%s\n", end < size ? "..." : "");
++	dump_stack();
++}
++
++static void check_slab_element(mempool_t *pool, void *element)
++{
++	if (pool->free == mempool_free_slab || pool->free == mempool_kfree) {
++		size_t size = ksize(element);
++		u8 *obj = element;
++		size_t i;
++
++		for (i = 0; i < size; i++) {
++			u8 exp = (i < size - 1) ? POISON_FREE : POISON_END;
++
++			if (obj[i] != exp) {
++				poison_error(pool, element, size, i);
++				return;
++			}
++		}
++		memset(obj, POISON_INUSE, size);
++	}
++}
++
++static void poison_slab_element(mempool_t *pool, void *element)
++{
++	if (pool->alloc == mempool_alloc_slab ||
++	    pool->alloc == mempool_kmalloc) {
++		size_t size = ksize(element);
++		u8 *obj = element;
++
++		memset(obj, POISON_FREE, size - 1);
++		obj[size - 1] = POISON_END;
++	}
++}
++#else /* CONFIG_DEBUG_SLAB || CONFIG_SLUB_DEBUG_ON */
++static inline void check_slab_element(mempool_t *pool, void *element)
++{
++}
++static inline void poison_slab_element(mempool_t *pool, void *element)
++{
++}
++#endif /* CONFIG_DEBUG_SLAB || CONFIG_SLUB_DEBUG_ON */
++
  static void add_element(mempool_t *pool, void *element)
  {
-@@ -332,6 +333,7 @@ EXPORT_SYMBOL(mempool_free);
- void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data)
- {
- 	struct kmem_cache *mem = pool_data;
-+	VM_BUG_ON(mem->ctor);
- 	return kmem_cache_alloc(mem, gfp_mask);
+ 	BUG_ON(pool->curr_nr >= pool->min_nr);
++	poison_slab_element(pool, element);
+ 	pool->elements[pool->curr_nr++] = element;
  }
- EXPORT_SYMBOL(mempool_alloc_slab);
+ 
+ static void *remove_element(mempool_t *pool)
+ {
+-	BUG_ON(pool->curr_nr <= 0);
+-	return pool->elements[--pool->curr_nr];
++	void *element = pool->elements[--pool->curr_nr];
++
++	BUG_ON(pool->curr_nr < 0);
++	check_slab_element(pool, element);
++	return element;
+ }
+ 
+ /**
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
