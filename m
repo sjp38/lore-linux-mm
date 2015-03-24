@@ -1,63 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 526936B0071
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 10:43:05 -0400 (EDT)
-Received: by wgbcc7 with SMTP id cc7so172850600wgb.0
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 07:43:04 -0700 (PDT)
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com. [195.75.94.110])
-        by mx.google.com with ESMTPS id h5si17268134wie.91.2015.03.24.07.43.03
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id DB4686B0072
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 10:49:24 -0400 (EDT)
+Received: by pacwe9 with SMTP id we9so227916635pac.1
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 07:49:24 -0700 (PDT)
+Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
+        by mx.google.com with ESMTPS id bu12si5956190pdb.92.2015.03.24.07.49.23
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 24 Mar 2015 07:43:03 -0700 (PDT)
-Received: from /spool/local
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Tue, 24 Mar 2015 14:43:02 -0000
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 4BBF01B0806B
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 14:43:26 +0000 (GMT)
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t2OEh0jF58065020
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 14:43:00 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t2OEgw2a027513
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 08:42:59 -0600
-Message-ID: <551177F0.3070006@de.ibm.com>
-Date: Tue, 24 Mar 2015 15:42:56 +0100
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Remove usages of ACCESS_ONCE
-References: <1427150680.2515.36.camel@j-VirtualBox>
-In-Reply-To: <1427150680.2515.36.camel@j-VirtualBox>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Tue, 24 Mar 2015 07:49:24 -0700 (PDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout4.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NLQ00AKI1CSI960@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 24 Mar 2015 14:53:16 +0000 (GMT)
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+Subject: [PATCH 0/2] KASan for arm64
+Date: Tue, 24 Mar 2015 17:49:02 +0300
+Message-id: <1427208544-8232-1-git-send-email-a.ryabinin@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Low <jason.low2@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Aswin Chandramouleeswaran <aswin@hp.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Davidlohr Bueso <dave@stgolabs.net>, Rik van Riel <riel@redhat.com>
+To: linux-arm-kernel@lists.infradead.org
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <a.ryabinin@samsung.com>
 
-Am 23.03.2015 um 23:44 schrieb Jason Low:
-> Commit 38c5ce936a08 converted ACCESS_ONCE usage in gup_pmd_range() to
-> READ_ONCE, since ACCESS_ONCE doesn't work reliably on non-scalar types.
-> 
-> This patch removes the rest of the usages of ACCESS_ONCE, and use
-> READ_ONCE for the read accesses. This also makes things cleaner,
-> instead of using separate/multiple sets of APIs.
-> 
-> Signed-off-by: Jason Low <jason.low2@hp.com>
+Hi,
 
-Reviewed-by: Christian Borntraeger <borntraeger@de.ibm.com>
+This adds KASan for arm64.
+First patch is a small prep, all major changes in the second.
 
-one remark or question:
+It was lightly tested in qemu.
+I should get a real hardware quite soon to test this.
 
-> -	anon_mapping = (unsigned long) ACCESS_ONCE(page->mapping);
-> +	anon_mapping = (unsigned long)READ_ONCE(page->mapping);
+TODO:
+	Add more interceptors for memory accessing functions (memcmp, strlen, ...),
+	though this could be done later.
 
-Were the white space changes intentional? IIRC checkpatch does prefer
-it your way and you have changed several places - so I assume yes.
-Either way, its probably fine to change that along.
 
-Christian
+Andrey Ryabinin (2):
+  kasan, x86: move KASAN_SHADOW_OFFSET to the arch Kconfig
+  arm64: add KASan support
+
+ arch/arm64/Kconfig                   |   7 ++
+ arch/arm64/include/asm/pgtable.h     |   3 +-
+ arch/arm64/include/asm/string.h      |  16 +++
+ arch/arm64/include/asm/thread_info.h |   8 ++
+ arch/arm64/kernel/head.S             |   3 +
+ arch/arm64/kernel/module.c           |  16 ++-
+ arch/arm64/kernel/setup.c            |   2 +
+ arch/arm64/lib/memcpy.S              |   3 +
+ arch/arm64/lib/memmove.S             |   7 +-
+ arch/arm64/lib/memset.S              |   3 +
+ arch/arm64/mm/Makefile               |   3 +
+ arch/arm64/mm/kasan_init.c           | 211 +++++++++++++++++++++++++++++++++++
+ arch/x86/Kconfig                     |   4 +
+ lib/Kconfig.kasan                    |   4 -
+ 14 files changed, 280 insertions(+), 10 deletions(-)
+ create mode 100644 arch/arm64/mm/kasan_init.c
+
+-- 
+2.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
