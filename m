@@ -1,58 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 12F546B006E
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 14:30:50 -0400 (EDT)
-Received: by pdbcz9 with SMTP id cz9so1311426pdb.3
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 11:30:49 -0700 (PDT)
-Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
-        by mx.google.com with ESMTPS id ib4si50132pbb.168.2015.03.24.11.30.48
+Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
+	by kanga.kvack.org (Postfix) with ESMTP id C428D6B0038
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 14:51:00 -0400 (EDT)
+Received: by qgep97 with SMTP id p97so3965227qge.1
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 11:51:00 -0700 (PDT)
+Received: from ham-cannon.twitter.com ([8.25.196.27])
+        by mx.google.com with ESMTPS id z82si100613qhd.91.2015.03.24.11.50.51
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Mar 2015 11:30:49 -0700 (PDT)
-Message-ID: <1427221835.2515.52.camel@j-VirtualBox>
-Subject: Re: [PATCH] mm: Remove usages of ACCESS_ONCE
-From: Jason Low <jason.low2@hp.com>
-Date: Tue, 24 Mar 2015 11:30:35 -0700
-In-Reply-To: <20150324103003.GC14241@dhcp22.suse.cz>
-References: <1427150680.2515.36.camel@j-VirtualBox>
-	 <20150324103003.GC14241@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 24 Mar 2015 11:50:51 -0700 (PDT)
+Date: Tue, 24 Mar 2015 11:50:47 -0700
+From: Matt Mullins <mmullins@twopensource.com>
+Subject: Re: [PATCH v11 21/21] brd: Rename XIP to DAX
+Message-ID: <20150324185046.GA4994@whiteoak.sf.office.twttr.net>
+References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1411677218-29146-22-git-send-email-matthew.r.wilcox@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1411677218-29146-22-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Aswin Chandramouleeswaran <aswin@hp.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Davidlohr Bueso <dave@stgolabs.net>, Rik van Riel <riel@redhat.com>, jason.low2@hp.com
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, msharbiani@twopensource.com
 
-On Tue, 2015-03-24 at 11:30 +0100, Michal Hocko wrote:
-> On Mon 23-03-15 15:44:40, Jason Low wrote:
-> > Commit 38c5ce936a08 converted ACCESS_ONCE usage in gup_pmd_range() to
-> > READ_ONCE, since ACCESS_ONCE doesn't work reliably on non-scalar types.
-> > 
-> > This patch removes the rest of the usages of ACCESS_ONCE, and use
-> > READ_ONCE for the read accesses. This also makes things cleaner,
-> > instead of using separate/multiple sets of APIs.
-> > 
-> > Signed-off-by: Jason Low <jason.low2@hp.com>
-> 
-> Makes sense to me. I would prefer a patch split into two parts. One which
-> changes potentially dangerous usage of ACCESS_ONCE and the cleanup. This
-> will make the life of those who backport patches into older kernels
-> easier a bit.
+On Thu, Sep 25, 2014 at 04:33:38PM -0400, Matthew Wilcox wrote:
+> --- a/drivers/block/brd.c
+> +++ b/drivers/block/brd.c
+> @@ -97,13 +97,13 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
+>  	 * Must use NOIO because we don't want to recurse back into the
+>  	 * block or filesystem layers from page reclaim.
+>  	 *
+> -	 * Cannot support XIP and highmem, because our ->direct_access
+> -	 * routine for XIP must return memory that is always addressable.
+> -	 * If XIP was reworked to use pfns and kmap throughout, this
+> +	 * Cannot support DAX and highmem, because our ->direct_access
+> +	 * routine for DAX must return memory that is always addressable.
+> +	 * If DAX was reworked to use pfns and kmap throughout, this
+>  	 * restriction might be able to be lifted.
+>  	 */
+>  	gfp_flags = GFP_NOIO | __GFP_ZERO;
+> -#ifndef CONFIG_BLK_DEV_XIP
+> +#ifndef CONFIG_BLK_DEV_RAM_DAX
+>  	gfp_flags |= __GFP_HIGHMEM;
+>  #endif
+>  	page = alloc_page(gfp_flags);
 
-Okay, so have a patch 1 which fixes the following:
+We're also developing a user of direct_access, and we ended up with some
+questions about the sleeping guarantees of the direct_access API.
 
-    pte_t pte = ACCESS_ONCE(*ptep);
-    pgd_t pgd = ACCESS_ONCE(*pgdp);
+Since brd is currently the only (x86) implementation of DAX in Linus's tree,
+I've been testing against that.  We noticed that the brd implementation of DAX
+can call into alloc_page() with __GFP_WAIT if we call direct_access() on a page
+that has not yet been allocated.  This is compounded by the fact that brd does
+not support size > PAGE_SIZE (and thus I call bdev_direct_access() on each use),
+though the limitation makes sense -- I shouldn't expect the brd driver to be
+able to allocate a gigabyte of contiguous memory.
 
-and the rest of the changes in the cleanup patch 2?
+The potential sleeping behavior was somewhat surprising to me, as I would expect
+the NV-DIMM device implementation to simply offset the pfn at which the device
+is located rather than perform a memory allocation.  What are the guaranteed
+and/or expected contexts from which direct_access() can be safely called?
 
-> I won't insist though.
-> 
-> Acked-by: Michal Hocko <mhocko@suse.cz>
+While I can easily punt this usage to a work queue (that's what we already do
+for devices where we need to submit a bio), part of our desire to use
+direct_access is to avoid additional latency.
 
-Thanks,
-Jason
+If it would make more sense for us to test against (for example) the pmem or an
+mtd-block driver instead, as you've discussed with Mathieu Desnoyers, then I'd
+be happy to work with those in our environment as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
