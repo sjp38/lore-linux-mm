@@ -1,43 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D4686B006C
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 13:43:50 -0400 (EDT)
-Received: by qgfa8 with SMTP id a8so532039qgf.0
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 10:43:50 -0700 (PDT)
-Received: from mail-qg0-x22d.google.com (mail-qg0-x22d.google.com. [2607:f8b0:400d:c04::22d])
-        by mx.google.com with ESMTPS id f186si4717228qhe.32.2015.03.24.10.43.48
+Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
+	by kanga.kvack.org (Postfix) with ESMTP id F27776B0038
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 14:12:22 -0400 (EDT)
+Received: by weop45 with SMTP id p45so848678weo.0
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 11:12:22 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id bb4si719944wib.69.2015.03.24.11.12.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Mar 2015 10:43:49 -0700 (PDT)
-Received: by qgfa8 with SMTP id a8so530926qgf.0
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 10:43:48 -0700 (PDT)
-Date: Tue, 24 Mar 2015 13:43:45 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCHv2] percpu: Fix trivial typos in comments
-Message-ID: <20150324174345.GJ3880@htj.duckdns.org>
-References: <20150306220228.GC15052@htj.duckdns.org>
- <1425681042-8416-1-git-send-email-yguerrini@tomshardware.fr>
+        Tue, 24 Mar 2015 11:12:21 -0700 (PDT)
+Date: Tue, 24 Mar 2015 19:10:16 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] mm: fix lockdep build in rcu-protected
+	get_mm_exe_file()
+Message-ID: <20150324181016.GA9678@redhat.com>
+References: <20150320144715.24899.24547.stgit@buzz> <1427134273.2412.12.camel@stgolabs.net> <20150323191055.GA10212@redhat.com> <55119B3B.5020403@yandex-team.ru>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1425681042-8416-1-git-send-email-yguerrini@tomshardware.fr>
+In-Reply-To: <55119B3B.5020403@yandex-team.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yannick Guerrini <yguerrini@tomshardware.fr>
-Cc: cl@linux-foundation.org, trivial@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Fri, Mar 06, 2015 at 11:30:42PM +0100, Yannick Guerrini wrote:
-> Change 'tranlated' to 'translated'
-> Change 'mutliples' to 'multiples'
-> 
-> Signed-off-by: Yannick Guerrini <yguerrini@tomshardware.fr>
+On 03/24, Konstantin Khlebnikov wrote:
+>
+> On 23.03.2015 22:10, Oleg Nesterov wrote:
+>> On 03/23, Davidlohr Bueso wrote:
+>>>
+>>>   void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
+>>>   {
+>>>   	struct file *old_exe_file = rcu_dereference_protected(mm->exe_file,
+>>> -			!atomic_read(&mm->mm_users) || current->in_execve ||
+>>> -			lock_is_held(&mm->mmap_sem));
+>>> +			!atomic_read(&mm->mm_users) || current->in_execve);
+>>
+>> Thanks, looks correct at first glance...
+>>
+>> But can't we remove the ->in_execve check above? and check
+>>
+>> 			atomic_read(&mm->mm_users) <= 1
+>>
+>> instead. OK, this is subjective, I won't insist. Just current->in_execve
+>> looks a bit confusing, it means "I swear, the caller is flush_old_exec()
+>> and this mm is actualy bprm->mm".
+>>
+>> "atomic_read(&mm->mm_users) <= 1" looks a bit more "safe". But again,
+>> I won't insist.
+>
+> Not so safe: this will race with get_task_mm().
 
-Applied to wq/for-4.1.
+How?
 
-Thanks.
+If set_mm_exe_file() can race with get_task_mm() then we have a bug.
+And it will be reported ;)
 
--- 
-tejun
+> A lot of proc files grab temporary reference to task mm.
+> But this just a debug -- we can place here "true".
+
+Yeees, probably rcu_dereference_raw() would be even better. set_mm_exe_file()
+must be called only if nobody but us can access this mm.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
