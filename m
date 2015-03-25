@@ -1,86 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 257846B0038
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 05:18:36 -0400 (EDT)
-Received: by wibgn9 with SMTP id gn9so29074645wib.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 02:18:35 -0700 (PDT)
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com. [195.75.94.111])
-        by mx.google.com with ESMTPS id h2si21588880wiv.16.2015.03.25.02.18.34
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id DBF766B0038
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 05:21:50 -0400 (EDT)
+Received: by lbbug6 with SMTP id ug6so12876874lbb.3
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 02:21:50 -0700 (PDT)
+Received: from forward-corp1f.mail.yandex.net (forward-corp1f.mail.yandex.net. [95.108.130.40])
+        by mx.google.com with ESMTPS id wu9si1499318lbc.116.2015.03.25.02.21.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 25 Mar 2015 02:18:34 -0700 (PDT)
-Received: from /spool/local
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Wed, 25 Mar 2015 09:18:33 -0000
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 48A4C1B08070
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 09:18:57 +0000 (GMT)
-Received: from d06av11.portsmouth.uk.ibm.com (d06av11.portsmouth.uk.ibm.com [9.149.37.252])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t2P9IVGt64880882
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 09:18:31 GMT
-Received: from d06av11.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t2P9IUKC012733
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 03:18:31 -0600
-Message-ID: <55127D65.7060605@de.ibm.com>
-Date: Wed, 25 Mar 2015 10:18:29 +0100
-From: Christian Borntraeger <borntraeger@de.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Mar 2015 02:21:49 -0700 (PDT)
+Message-ID: <55127E2A.4040204@yandex-team.ru>
+Date: Wed, 25 Mar 2015 12:21:46 +0300
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/6] mm/gup: Replace ACCESS_ONCE with READ_ONCE for STRICT_MM_TYPECHECKS
-References: <1427274719-25890-1-git-send-email-mpe@ellerman.id.au> <1427274719-25890-5-git-send-email-mpe@ellerman.id.au>
-In-Reply-To: <1427274719-25890-5-git-send-email-mpe@ellerman.id.au>
-Content-Type: text/plain; charset=iso-8859-15
+Subject: Re: [PATCH v2] prctl: avoid using mmap_sem for exe_file serialization
+References: <20150320144715.24899.24547.stgit@buzz>	 <1427134273.2412.12.camel@stgolabs.net> <20150323191055.GA10212@redhat.com>	 <55119B3B.5020403@yandex-team.ru> <20150324181016.GA9678@redhat.com>	 <CALYGNiP15BLtxMmMnpEu94jZBtce7tCtJnavrguqFr1d2XxH_A@mail.gmail.com>	 <20150324190229.GC11834@redhat.com> <1427247055.2412.23.camel@stgolabs.net>
+In-Reply-To: <1427247055.2412.23.camel@stgolabs.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@ozlabs.org
-Cc: linux-kernel@vger.kernel.org, aneesh.kumar@in.ibm.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, steve.capper@linaro.org, linux-mm@kvack.org, Jason Low <jason.low2@hp.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Am 25.03.2015 um 10:11 schrieb Michael Ellerman:
-> If STRICT_MM_TYPECHECKS is enabled the generic gup code fails to build
-> because we are using ACCESS_ONCE on non-scalar types.
-> 
-> Convert all uses to READ_ONCE.
-
-There is a similar patch from Jason Low in Andrews patch.
-If that happens in 4.0-rc, we probably want to merge this before 4.0.
-
-
-> 
-> Cc: akpm@linux-foundation.org
-> Cc: kirill.shutemov@linux.intel.com
-> Cc: aarcange@redhat.com
-> Cc: borntraeger@de.ibm.com
-> Cc: steve.capper@linaro.org
-> Cc: linux-mm@kvack.org
-> Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+On 25.03.2015 04:30, Davidlohr Bueso wrote:
+> Oleg cleverly suggested using xchg() to set the new
+> mm->exe_file instead of calling set_mm_exe_file()
+> which requires some form of serialization -- mmap_sem
+> in this case. For archs that do not have atomic rmw
+> instructions we still fallback to a spinlock alternative,
+> so this should always be safe.  As such, we only need the
+> mmap_sem for looking up the backing vm_file, which can be
+> done sharing the lock. Naturally, this means we need to
+> manually deal with both the new and old file reference
+> counting, and we need not worry about the MMF_EXE_FILE_CHANGED
+> bits, which can probably be deleted in the future anyway.
+>
+> Suggested-by: Oleg Nesterov <oleg@redhat.com>
+> Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 > ---
->  mm/gup.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/gup.c b/mm/gup.c
-> index a6e24e246f86..120c3adc843c 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -901,7 +901,7 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
->  		 *
->  		 * for an example see gup_get_pte in arch/x86/mm/gup.c
->  		 */
-> -		pte_t pte = ACCESS_ONCE(*ptep);
-> +		pte_t pte = READ_ONCE(*ptep);
->  		struct page *page;
-> 
->  		/*
-> @@ -1191,7 +1191,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
->  	local_irq_save(flags);
->  	pgdp = pgd_offset(mm, addr);
->  	do {
-> -		pgd_t pgd = ACCESS_ONCE(*pgdp);
-> +		pgd_t pgd = READ_ONCE(*pgdp);
-> 
->  		next = pgd_addr_end(addr, end);
->  		if (pgd_none(pgd))
-> 
+> Changes from v1:
+> 	- use rcu_dereference_raw()
+> 	- comment lockless use in flush_old_exec()
+>
+>   fs/exec.c     |  6 ++++++
+>   kernel/fork.c | 19 +++++++++++++------
+>   kernel/sys.c  | 43 ++++++++++++++++++++++++++-----------------
+>   3 files changed, 45 insertions(+), 23 deletions(-)
+>
+> diff --git a/fs/exec.c b/fs/exec.c
+> index 314e8d8..02bfd98 100644
+> --- a/fs/exec.c
+> +++ b/fs/exec.c
+> @@ -1082,7 +1082,13 @@ int flush_old_exec(struct linux_binprm * bprm)
+>   	if (retval)
+>   		goto out;
+>
+> +	/*
+> +	 * Must be called _before_ exec_mmap() as bprm->mm is
+> +	 * not visible until then. This also enables the update
+> +	 * to be lockless.
+> +	 */
+>   	set_mm_exe_file(bprm->mm, bprm->file);
+> +
+>   	/*
+>   	 * Release all of the old mmap stuff
+>   	 */
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index 3847f34..347f69c 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -688,15 +688,22 @@ EXPORT_SYMBOL_GPL(mmput);
+>    *
+>    * This changes mm's executale file (shown as symlink /proc/[pid]/exe).
+>    *
+> - * Main users are mmput(), sys_execve() and sys_prctl(PR_SET_MM_MAP/EXE_FILE).
+> - * Callers prevent concurrent invocations: in mmput() nobody alive left,
+> - * in execve task is single-threaded, prctl holds mmap_sem exclusively.
+> + * Main users are mmput() and sys_execve(). Callers prevent concurrent
+> + * invocations: in mmput() nobody alive left, in execve task is single
+> + * threaded. sys_prctl(PR_SET_MM_MAP/EXE_FILE) also needs to set the
+> + * mm->exe_file, but does so without using set_mm_exe_file() in order
+> + * to do avoid the need for any locks.
+>    */
+>   void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
+>   {
+> -	struct file *old_exe_file = rcu_dereference_protected(mm->exe_file,
+> -			!atomic_read(&mm->mm_users) || current->in_execve ||
+> -			lockdep_is_held(&mm->mmap_sem));
+> +	struct file *old_exe_file;
+> +
+> +	/*
+> +	 * It is safe to dereference the exe_file without RCU as
+> +	 * this function is only called if nobody else can access
+> +	 * this mm -- see comment above for justification.
+> +	 */
+> +	old_exe_file = rcu_dereference_raw(mm->exe_file);
+>
+>   	if (new_exe_file)
+>   		get_file(new_exe_file);
+> diff --git a/kernel/sys.c b/kernel/sys.c
+> index 3be3449..1da6b17 100644
+> --- a/kernel/sys.c
+> +++ b/kernel/sys.c
+> @@ -1649,14 +1649,13 @@ SYSCALL_DEFINE1(umask, int, mask)
+>   	return mask;
+>   }
+>
+> -static int prctl_set_mm_exe_file_locked(struct mm_struct *mm, unsigned int fd)
+> +static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
+>   {
+>   	struct fd exe;
+> +	struct file *old_exe, *exe_file;
+>   	struct inode *inode;
+>   	int err;
+>
+> -	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
+> -
+>   	exe = fdget(fd);
+>   	if (!exe.file)
+>   		return -EBADF;
+> @@ -1680,15 +1679,22 @@ static int prctl_set_mm_exe_file_locked(struct mm_struct *mm, unsigned int fd)
+>   	/*
+>   	 * Forbid mm->exe_file change if old file still mapped.
+>   	 */
+> +	exe_file = get_mm_exe_file(mm);
+>   	err = -EBUSY;
+>   	if (mm->exe_file) {
+
+exe_file not mm->exe_file
+
+>   		struct vm_area_struct *vma;
+>
+> -		for (vma = mm->mmap; vma; vma = vma->vm_next)
+> -			if (vma->vm_file &&
+> -			    path_equal(&vma->vm_file->f_path,
+> +		down_read(&mm->mmap_sem);
+> +		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> +			if (!vma->vm_file)
+> +				continue;
+> +			if (path_equal(&vma->vm_file->f_path,
+>   				       &mm->exe_file->f_path))
+
+same here
+
+> -				goto exit;
+> +				goto exit_err;
+> +		}
+> +
+> +		up_read(&mm->mmap_sem);
+> +		fput(exe_file);
+>   	}
+>
+>   	/*
+> @@ -1702,10 +1708,18 @@ static int prctl_set_mm_exe_file_locked(struct mm_struct *mm, unsigned int fd)
+>   		goto exit;
+>
+>   	err = 0;
+> -	set_mm_exe_file(mm, exe.file);	/* this grabs a reference to exe.file */
+> +	/* set the new file, lockless */
+> +	get_file(exe.file);
+> +	old_exe = xchg(&mm->exe_file, exe.file);
+> +	if (old_exe)
+> +		fput(old_exe);
+>   exit:
+>   	fdput(exe);
+>   	return err;
+> +exit_err:
+> +	up_read(&mm->mmap_sem);
+> +	fput(exe_file);
+> +	goto exit;
+>   }
+>
+>   #ifdef CONFIG_CHECKPOINT_RESTORE
+> @@ -1840,10 +1854,9 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
+>   		user_auxv[AT_VECTOR_SIZE - 1] = AT_NULL;
+>   	}
+>
+> -	down_write(&mm->mmap_sem);
+>   	if (prctl_map.exe_fd != (u32)-1)
+> -		error = prctl_set_mm_exe_file_locked(mm, prctl_map.exe_fd);
+> -	downgrade_write(&mm->mmap_sem);
+> +		error = prctl_set_mm_exe_file(mm, prctl_map.exe_fd);
+> +	down_read(&mm->mmap_sem);
+>   	if (error)
+>   		goto out;
+>
+> @@ -1909,12 +1922,8 @@ static int prctl_set_mm(int opt, unsigned long addr,
+>   	if (!capable(CAP_SYS_RESOURCE))
+>   		return -EPERM;
+>
+> -	if (opt == PR_SET_MM_EXE_FILE) {
+> -		down_write(&mm->mmap_sem);
+> -		error = prctl_set_mm_exe_file_locked(mm, (unsigned int)addr);
+> -		up_write(&mm->mmap_sem);
+> -		return error;
+> -	}
+> +	if (opt == PR_SET_MM_EXE_FILE)
+> +		return prctl_set_mm_exe_file(mm, (unsigned int)addr);
+>
+>   	if (addr >= TASK_SIZE || addr < mmap_min_addr)
+>   		return -EINVAL;
+>
+
+
+-- 
+Konstantin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
