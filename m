@@ -1,134 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3099D6B0032
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 19:25:29 -0400 (EDT)
-Received: by pabxg6 with SMTP id xg6so44128316pab.0
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 16:25:28 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id by8si5698806pdb.43.2015.03.25.16.25.26
-        for <linux-mm@kvack.org>;
-        Wed, 25 Mar 2015 16:25:28 -0700 (PDT)
-Message-ID: <551343E3.3050709@lge.com>
-Date: Thu, 26 Mar 2015 08:25:23 +0900
-From: Gioh Kim <gioh.kim@lge.com>
+Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 781AC6B0032
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 20:01:43 -0400 (EDT)
+Received: by oier21 with SMTP id r21so36080927oie.1
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 17:01:43 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id yg17si2611727obb.92.2015.03.25.17.01.42
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 25 Mar 2015 17:01:42 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm/memory-failure.c: define page types for
+ action_result() in one place
+Date: Wed, 25 Mar 2015 23:56:03 +0000
+Message-ID: <20150325235603.GA14825@hori1.linux.bs1.fc.nec.co.jp>
+References: <1426746272-24306-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <alpine.DEB.2.10.1503242058300.20696@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1503242058300.20696@chino.kir.corp.google.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <101EA0CF4854064EB9B7D68873A83C56@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [RFCv2] mm: page allocation for less fragmentation
-References: <1427251155-12322-1-git-send-email-gioh.kim@lge.com> <551333D6.20708@suse.cz>
-In-Reply-To: <551333D6.20708@suse.cz>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, mgorman@suse.de, riel@redhat.com, hannes@cmpxchg.org, rientjes@google.com, vdavydov@parallels.com, iamjoonsoo.kim@lge.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gunho.lee@lge.com
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>, Xie XiuQi <xiexiuqi@huawei.com>, Steven Rostedt <rostedt@goodmis.org>, Chen Gong <gong.chen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-
-
-2015-03-26 i??i ? 7:16i?? Vlastimil Babka i?'(e??) i?' e,?:
-> On 25.3.2015 3:39, Gioh Kim wrote:
->> My driver allocates more than 40MB pages via alloc_page() at a time and
->> maps them at virtual address. Totally it uses 300~400MB pages.
->>
->> If I run a heavy load test for a few days in 1GB memory system, I cannot allocate even order=3 pages
->> because-of the external fragmentation.
->>
->> I thought I needed a anti-fragmentation solution for my driver.
->> But there is no allocation function that considers fragmentation.
->> The compaction is not helpful because it is only for movable pages, not unmovable pages.
->>
->> This patch proposes a allocation function allocates only pages in the same pageblock.
->>
->> I tested this patch like following:
->>
->> 1. When the driver allocates about 400MB and do "cat /proc/pagetypeinfo;cat /proc/buddyinfo"
->>
->> Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
->> Node    0, zone   Normal, type    Unmovable   3864    728    394    216    129     47     18      9      1      0      0
->> Node    0, zone   Normal, type  Reclaimable    902     96     68     17      3      0      1      0      0      0      0
->> Node    0, zone   Normal, type      Movable   5146    663    178     91     43     16      4      0      0      0      0
->> Node    0, zone   Normal, type      Reserve      1      4      6      6      2      1      1      1      0      1      1
->> Node    0, zone   Normal, type          CMA      0      0      0      0      0      0      0      0      0      0      0
->> Node    0, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
->>
->> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate
->> Node 0, zone   Normal          135            3          124            2            0            0
->> Node 0, zone   Normal   9880   1489    647    332    177     64     24     10      1      1      1
->>
->> 2. The driver frees all pages and allocates pages again with alloc_pages_compact.
+On Tue, Mar 24, 2015 at 09:02:13PM -0700, David Rientjes wrote:
+> On Thu, 19 Mar 2015, Naoya Horiguchi wrote:
+>=20
+> > This cleanup patch moves all strings passed to action_result() into a s=
+ingle
+> > array action_page_type so that a reader can easily find which kind of a=
+ction
+> > results are possible. And this patch also fixes the odd lines to be pri=
+nted
+> > out, like "unknown page state page" or "free buddy, 2nd try page".
+> >=20
+> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > ---
+> >  mm/memory-failure.c | 107 +++++++++++++++++++++++++++++++++++++-------=
+--------
+> >  1 file changed, 76 insertions(+), 31 deletions(-)
+> >=20
+> > diff --git v3.19.orig/mm/memory-failure.c v3.19/mm/memory-failure.c
+> > index d487f8dc6d39..afb740e1c8b0 100644
+> > --- v3.19.orig/mm/memory-failure.c
+> > +++ v3.19/mm/memory-failure.c
+> > @@ -521,6 +521,52 @@ static const char *action_name[] =3D {
+> >  	[RECOVERED] =3D "Recovered",
+> >  };
+> > =20
+> > +enum page_type {
+> > +	KERNEL,
+> > +	KERNEL_HIGH_ORDER,
+> > +	SLAB,
+> > +	DIFFERENT_COMPOUND,
+> > +	POISONED_HUGE,
+> > +	HUGE,
+> > +	FREE_HUGE,
+> > +	UNMAP_FAILED,
+> > +	DIRTY_SWAPCACHE,
+> > +	CLEAN_SWAPCACHE,
+> > +	DIRTY_MLOCKED_LRU,
+> > +	CLEAN_MLOCKED_LRU,
+> > +	DIRTY_UNEVICTABLE_LRU,
+> > +	CLEAN_UNEVICTABLE_LRU,
+> > +	DIRTY_LRU,
+> > +	CLEAN_LRU,
+> > +	TRUNCATED_LRU,
+> > +	BUDDY,
+> > +	BUDDY_2ND,
+> > +	UNKNOWN,
+> > +};
+> > +
+>=20
+> I like the patch because of the consistency in output and think it's wort=
+h=20
+> the extra 1% .text size.
+>=20
+> My only concern is the generic naming of the enum members. =20
+> memory-failure.c is already an offender with "enum outcome" and the namin=
+g=20
+> of its members.
 >
-> This is not a good test setup. You shouldn't switch the allocation types during
-> single system boot. You should compare results from a boot where common
-> allocation is used and from a boot where your new allocation is used.
+> Would you mind renaming these to be prefixed with "MSG_"?
 
-The new allocator is slower so I don't think it can replace current allocator.
-I don't aim to change general allocator.
-The main pupose of the new allocator is a specific allocator if system has too much fragmentation.
-If some drivers consume much memory and generate fragmentation, it can use new allocator instead at the time.
-I want to make a kind of compaction for drivers that allocates unmovable pages.
+no, your naming is clearer and represents better what it is, so I agree wit=
+h it.
 
-Therefore I tested like that.
-I first generated fragmentation and called the new allocator.
-I wanted to check whether the fragmentation was caused by my driver
-and the pages of the driver was able to be compacted.
-I thought the pages was compacted.
+> These enums should be anonymous, too, nothing is referencing enum outcome=
+=20
+> or your new enum page_type.
+>=20
 
-If I freed pages and called the commmon allocator again,
-it could decrease a little fragmentation (not much as the new allocator).
-But there was no pages compaction and fragmentation would increase soon.
+Or the type of action_result()'s 2nd parameter can be "enum page_type".
 
-
->
->> This is a kind of compaction of the driver.
->> Following is the result of "cat /proc/pagetypeinfo;cat /proc/buddyinfo"
->>
->> Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
->> Node    0, zone   Normal, type    Unmovable      8      5      1    432    272     91     37     11      1      0      0
->> Node    0, zone   Normal, type  Reclaimable    901     96     68     17      3      0      1      0      0      0      0
->> Node    0, zone   Normal, type      Movable   4790    776    192     91     43     16      4      0      0      0      0
->> Node    0, zone   Normal, type      Reserve      1      4      6      6      2      1      1      1      0      1      1
->> Node    0, zone   Normal, type          CMA      0      0      0      0      0      0      0      0      0      0      0
->> Node    0, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
->>
->> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate
->> Node 0, zone   Normal          135            3          124            2            0            0
->> Node 0, zone   Normal   5693    877    266    544    320    108     43     12      1      1      1
->
-> The number of unmovable pageblocks didn't change here. The stats for free
-> unmovable pages does look better for higher orders than in the first listing
-> above, but even the common allocation logic would give you that result, if you
-> allocated your 400 MB using (many) order-0 allocations (since you apparently
-> don't care about physically contiguous memory). That would also prefer order-0
-> free pages before splitting higher orders. So this doesn't demonstrate benefits
-> of the alloc_pages_compact() approach I'm afraid. The results suggest that the
-> system was in a worst state when the first allocation happened, and meanwhile
-> some pages were freed, creating the large numbers of order-0 unmovable free
-> pages. Or maybe the system got fragmented in the first allocation because your
-> driver tries to allocate the memory with high-order allocations before falling
-> back to lower orders? That would probably defeat the natural anti-fragmentation
-> of the buddy system.
-
-My driver is allocating pages only with alloc_page, not alloc_pages with high order.
-
-Yes, if I freed pages and called alloc_page again, it could decrease fragmentation at the time.
-But there was no compaction and fragmentation would increase soon,
-because the allocated pages was scattered all over the system.
-
-The new allocator compacts pages. I believe it can decrease fragmentation for long time.
-
->
-> So a proper test could be based on this:
->
->> If I run a heavy load test for a few days in 1GB memory system, I cannot
-> allocate even order=3 pages
->> because-of the external fragmentation.
->
-> With this patch, is the situation quantifiably better? Can you post the
-> pagetype/buddyinfo for system boot where all driver allocations use the common
-> allocator, and system boot with the patch? That should be comparable if the
-> workload is the same for both boots.
->
-
-OK. I'll. I can be good test.
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
