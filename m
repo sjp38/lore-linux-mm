@@ -1,102 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B9F36B0038
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 08:11:26 -0400 (EDT)
-Received: by wgdm6 with SMTP id m6so24965326wgd.2
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 05:11:25 -0700 (PDT)
-Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com. [2a00:1450:400c:c05::232])
-        by mx.google.com with ESMTPS id fx9si4793584wib.15.2015.03.25.05.11.23
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 6888F6B0038
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 08:50:40 -0400 (EDT)
+Received: by wibbg6 with SMTP id bg6so22347938wib.0
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 05:50:39 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bj5si4262378wjc.22.2015.03.25.05.50.37
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Mar 2015 05:11:24 -0700 (PDT)
-Received: by wibg7 with SMTP id g7so72886075wib.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 05:11:23 -0700 (PDT)
-Date: Wed, 25 Mar 2015 13:11:19 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v2 2/2] powerpc/mm: Tracking vDSO remap
-Message-ID: <20150325121118.GA2542@gmail.com>
-References: <20150323085209.GA28965@gmail.com>
- <cover.1427280806.git.ldufour@linux.vnet.ibm.com>
- <25152b76585716dc635945c3455ab9b49e645f6d.1427280806.git.ldufour@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <25152b76585716dc635945c3455ab9b49e645f6d.1427280806.git.ldufour@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 25 Mar 2015 05:50:38 -0700 (PDT)
+Message-ID: <1427287827.7390.7.camel@stgolabs.net>
+Subject: Re: [PATCH v3] prctl: avoid using mmap_sem for exe_file
+ serialization
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Wed, 25 Mar 2015 05:50:27 -0700
+In-Reply-To: <55129735.9030204@yandex-team.ru>
+References: <20150320144715.24899.24547.stgit@buzz>
+	 <1427134273.2412.12.camel@stgolabs.net> <20150323191055.GA10212@redhat.com>
+			 <55119B3B.5020403@yandex-team.ru> <20150324181016.GA9678@redhat.com>
+	 <CALYGNiP15BLtxMmMnpEu94jZBtce7tCtJnavrguqFr1d2XxH_A@mail.gmail.com>
+	 <20150324190229.GC11834@redhat.com> <1427247055.2412.23.camel@stgolabs.net>
+		 <55127E2A.4040204@yandex-team.ru> <1427280150.2412.26.camel@stgolabs.net>
+	 <55129735.9030204@yandex-team.ru>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, user-mode-linux-user@lists.sourceforge.net, linux-arch@vger.kernel.org, linux-mm@kvack.org, cov@codeaurora.org, criu@openvz.org
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
+On Wed, 2015-03-25 at 14:08 +0300, Konstantin Khlebnikov wrote:
+> Reviewed-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-* Laurent Dufour <ldufour@linux.vnet.ibm.com> wrote:
+Thanks.
 
-> Some processes (CRIU) are moving the vDSO area using the mremap system
-> call. As a consequence the kernel reference to the vDSO base address is
-> no more valid and the signal return frame built once the vDSO has been
-> moved is not pointing to the new sigreturn address.
-> 
-> This patch handles vDSO remapping and unmapping.
-> 
-> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> ---
->  arch/powerpc/include/asm/mmu_context.h | 36 +++++++++++++++++++++++++++++++++-
->  1 file changed, 35 insertions(+), 1 deletion(-)
-> 
-> diff --git a/arch/powerpc/include/asm/mmu_context.h b/arch/powerpc/include/asm/mmu_context.h
-> index 73382eba02dc..be5dca3f7826 100644
-> --- a/arch/powerpc/include/asm/mmu_context.h
-> +++ b/arch/powerpc/include/asm/mmu_context.h
-> @@ -8,7 +8,6 @@
->  #include <linux/spinlock.h>
->  #include <asm/mmu.h>	
->  #include <asm/cputable.h>
-> -#include <asm-generic/mm_hooks.h>
->  #include <asm/cputhreads.h>
->  
->  /*
-> @@ -109,5 +108,40 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
->  #endif
->  }
->  
-> +static inline void arch_dup_mmap(struct mm_struct *oldmm,
-> +				 struct mm_struct *mm)
-> +{
-> +}
-> +
-> +static inline void arch_exit_mmap(struct mm_struct *mm)
-> +{
-> +}
-> +
-> +static inline void arch_unmap(struct mm_struct *mm,
-> +			struct vm_area_struct *vma,
-> +			unsigned long start, unsigned long end)
-> +{
-> +	if (start <= mm->context.vdso_base && mm->context.vdso_base < end)
-> +		mm->context.vdso_base = 0;
-> +}
-> +
-> +static inline void arch_bprm_mm_init(struct mm_struct *mm,
-> +				     struct vm_area_struct *vma)
-> +{
-> +}
-> +
-> +#define __HAVE_ARCH_REMAP
-> +static inline void arch_remap(struct mm_struct *mm,
-> +			      unsigned long old_start, unsigned long old_end,
-> +			      unsigned long new_start, unsigned long new_end)
-> +{
-> +	/*
-> +	 * mremap don't allow moving multiple vma so we can limit the check
-> +	 * to old_start == vdso_base.
+> If this is preparation for future rework of mmap_sem maybe we could
+> postpone committing this patch.
 
-s/mremap don't allow moving multiple vma
-  mremap() doesn't allow moving multiple vmas
-
-right?
-
-Thanks,
-
-	Ingo
+Personally, I think this patch is fine to commit for v4.1, along with
+your rcu one, regardless of my mmap_sem work (which is still a wip).
+Furthermore we've already got all the exe_file users updated now in
+next, so I'd like to wrap this exe_file thing up if nobody has any
+objections.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
