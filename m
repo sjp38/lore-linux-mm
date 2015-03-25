@@ -1,76 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C1DA66B0038
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 12:01:30 -0400 (EDT)
-Received: by qgh3 with SMTP id 3so37689202qgh.2
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 09:01:30 -0700 (PDT)
-Received: from mail-qg0-x22e.google.com (mail-qg0-x22e.google.com. [2607:f8b0:400d:c04::22e])
-        by mx.google.com with ESMTPS id b136si2578119qka.31.2015.03.25.09.01.23
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CF416B006E
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 12:22:29 -0400 (EDT)
+Received: by wixw10 with SMTP id w10so78380945wix.0
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 09:22:28 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n7si23505582wik.1.2015.03.25.09.22.26
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Mar 2015 09:01:24 -0700 (PDT)
-Received: by qgf60 with SMTP id 60so35547475qgf.3
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 09:01:23 -0700 (PDT)
-Date: Wed, 25 Mar 2015 12:01:15 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCHSET 1/3 v2 block/for-4.1/core] writeback: cgroup writeback
- support
-Message-ID: <20150325160115.GR3880@htj.duckdns.org>
-References: <1427086499-15657-1-git-send-email-tj@kernel.org>
- <20150325154022.GC29728@redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 25 Mar 2015 09:22:27 -0700 (PDT)
+Message-ID: <5512E0C0.6060406@suse.cz>
+Date: Wed, 25 Mar 2015 17:22:24 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150325154022.GC29728@redhat.com>
+Subject: Re: [PATCH] mremap: add MREMAP_NOHOLE flag --resend
+References: <deaa4139de6e6422a0cec1e3282553aed3495e94.1426626497.git.shli@fb.com>	<20150318153100.5658b741277f3717b52e42d9@linux-foundation.org>	<550A5FF8.90504@gmail.com> <CADpJO7zBLhjecbiQeTubnTReiicVLr0-K43KbB4uCL5w_dyqJg@mail.gmail.com> <550E6D9D.1060507@gmail.com>
+In-Reply-To: <550E6D9D.1060507@gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com
+To: Daniel Micay <danielmicay@gmail.com>, Aliaksey Kandratsenka <alkondratenko@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-api@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Andy Lutomirski <luto@amacapital.net>, "google-perftools@googlegroups.com" <google-perftools@googlegroups.com>
 
-Hello, Vivek.
+On 03/22/2015 08:22 AM, Daniel Micay wrote:
+> BTW, THP currently interacts very poorly with the jemalloc/tcmalloc
+> madvise purging. The part where khugepaged assigns huge pages to dense
+> spans of pages is*great*. The part where the kernel hands out a huge
+> page on for a fault in a 2M span can be awful. It causes the model
+> inside the allocator of uncommitted vs. committed pages to break down.
+>
+> For example, the allocator might use 1M of a huge page and then start
+> purging. The purging will split it into 4k pages, so there will be 1M of
+> zeroed 4k pages that are considered purged by the allocator. Over time,
+> this can cripple purging. Search for "jemalloc huge pages" and you'll
+> find lots of horror stories about this.
 
-On Wed, Mar 25, 2015 at 11:40:22AM -0400, Vivek Goyal wrote:
-> I have 32G of RAM on my system and I setup a write bandwidth of 1MB/s
-> on the disk and allowed a dd to run. That dd quickly consumed 5G of
-> page cache before it reached to a steady state. Sounds like too much
-> of cache consumption which will be drained at a speed of 1MB/s. Not
-> sure if this is expected or bdi back-pressure is not being applied soon
-> enough.
+I'm not sure I get your description right. The problem I know about is 
+where "purging" means madvise(MADV_DONTNEED) and khugepaged later 
+collapses a new hugepage that will repopulate the purged parts, 
+increasing the memory usage. One can limit this via 
+/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none . That 
+setting doesn't affect the page fault THP allocations, which however 
+happen only in newly accessed hugepage-sized areas and not partially 
+purged ones, though.
 
-Ooh, the system will happily dirty certain amount of memory regardless
-of the writeback speed.  The default is bg_thresh 10% and thresh 20%
-which puts the target ratio at 15%.  On a 32G system this is ~4.8G, so
-sounds about right.  This is intentional as otherwise we may end up
-threshing worloads which can perfectly fit in the memory due to slow
-backing device.  e.g. a workload which has 4G dirty footprint would
-work perfectly fine in the above setup regardless of the speed of the
-backing device.  If we capped dirty memory at, say, 120s of write
-bandwidth, which is 120MB in this case, that workload would suffer
-horribly for no good reason.
+> I think a THP implementation playing that played well with purging would
+> need to drop the page fault heuristic and rely on a significantly better
+> khugepaged.
 
-The proportional distribution of dirty pages is really just
-proportional.  If you don't have higher bw backing device active on
-the system, whatever is active, however slow that may be, get to
-consume the entirety of the allowable dirty memory.  This doesn't
-necessarily make sense for things like USB sticks, so we have per-bdi
-max_ratio which can be set from userland for devices which aren't
-supposed to host those sort of workloads (as you aren't gonna run a DB
-workload on your thumbdrive).
+See here http://lwn.net/Articles/636162/ (the "Compaction" part)
 
-So, that's where that 5G amount came from, but while you're
-excercising cgroup writeback path, it isn't really doing anything
-differently from before if you don't configure memcg limits.  This is
-the same behavior which would happen in the global case.  Try to
-configure different cgroups w/ different memory limits and write to
-devices with differing write speeds.  They all will converge to ~15%
-of the allowable memory in each cgroup and the dirty pages in each
-cgroup will be distributed according to each device's writeback speed
-in that cgroup.
+The objection is that some short-lived workloads like gcc have to map 
+hugepages immediately if they are to benefit from them. I still plan to 
+improve khugepaged and allow admins to say that they don't want THP page 
+faults (and rely solely on khugepaged which has more information to 
+judge additional memory usage), but I'm not sure if it would be an 
+acceptable default behavior.
+One workaround in the current state for jemalloc and friends could be to 
+use madvise(MADV_NOHUGEPAGE) on hugepage-sized/aligned areas where it 
+wants to purge parts of them via madvise(MADV_DONTNEED). It could mean 
+overhead of another syscall and tracking of where this was applied and 
+when it makes sense to undo this and allow THP to be collapsed again, 
+though, and it would also split vma's.
 
-Thanks.
+> This would mean faulting in a span of memory would no longer
+> be faster. Having a flag to populate a range with madvise would help a
 
--- 
-tejun
+If it's a newly mapped memory, there's mmap(MAP_POPULATE). There is also 
+a madvise(MADV_WILLNEED), which sounds like what you want, but I don't 
+know what the implementation does exactly - it was apparently added for 
+paging in ahead, and maybe it ignores unpopulated anonymous areas, but 
+it would probably be well in spirit of the flag to make it prepopulate 
+those.
+
+> lot though, since the allocator knows exactly how much it's going to
+> clobber with the memcpy. There will still be a threshold where mremap
+> gets significantly faster, but it would move it higher.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
