@@ -1,73 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 47A6B6B0038
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 06:25:26 -0400 (EDT)
-Received: by padcy3 with SMTP id cy3so24464348pad.3
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 03:25:26 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id an5si3011683pbd.208.2015.03.25.03.25.25
-        for <linux-mm@kvack.org>;
-        Wed, 25 Mar 2015 03:25:25 -0700 (PDT)
-Date: Wed, 25 Mar 2015 18:25:01 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [next:master 6753/6952] drivers/hwmon/w83795.c:312:16: sparse:
- incorrect type in initializer (different modifiers)
-Message-ID: <201503251859.Sj2lt6iy%fengguang.wu@intel.com>
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 0934F6B0038
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 06:40:50 -0400 (EDT)
+Received: by wibbg6 with SMTP id bg6so18023804wib.0
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 03:40:49 -0700 (PDT)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
+        by mx.google.com with ESMTPS id ua5si3602506wjc.197.2015.03.25.03.40.47
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Mar 2015 03:40:48 -0700 (PDT)
+Received: by wixw10 with SMTP id w10so32181048wix.0
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 03:40:47 -0700 (PDT)
+Message-ID: <551290AC.7080402@plexistor.com>
+Date: Wed, 25 Mar 2015 12:40:44 +0200
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH 3/3] RFC: dax: dax_prepare_freeze
+References: <55100B78.501@plexistor.com> <55100D10.6090902@plexistor.com> <55115A99.40705@plexistor.com> <20150325022633.GB31342@dastard> <5512725A.1010905@plexistor.com> <20150325094135.GI31342@dastard>
+In-Reply-To: <20150325094135.GI31342@dastard>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartosz Golaszewski <bgolaszewski@baylibre.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Dave Chinner <david@fromorbit.com>, Boaz Harrosh <boaz@plexistor.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>
 
-tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-head:   b2dfdab2f61ed5eb57317136d6efbb973f79210e
-commit: f8e5b425f5eea40759a0ccc17caa7f4d660d0d4a [6753/6952] hwmon: (w83795) use find_closest_descending() in pwm_freq_to_reg()
-reproduce:
-  # apt-get install sparse
-  git checkout f8e5b425f5eea40759a0ccc17caa7f4d660d0d4a
-  make ARCH=x86_64 allmodconfig
-  make C=1 CF=-D__CHECK_ENDIAN__
+On 03/25/2015 11:41 AM, Dave Chinner wrote:
+> On Wed, Mar 25, 2015 at 10:31:22AM +0200, Boaz Harrosh wrote:
+>> On 03/25/2015 04:26 AM, Dave Chinner wrote:
+<>
+>> sync and fsync should and will work correctly, but this does not
+>> solve our problem. because what turns pages to read-only is the
+>> writeback. And we do not have this in dax. Therefore we need to
+>> do this here as a special case.
+> 
+> We can still use exactly the same dirty tracking as we use for data
+> writeback. The difference is that we don't need to go through all
+> teh page writeback; we can just flush the CPU caches and mark all
+> the mappings clean, then clear the I_DIRTY_PAGES flag and move on to
+> inode writeback....
+> 
 
+I see what you mean. the sb wide sync will not step into mmaped inodes
+and fsync them.
 
-sparse warnings: (new ones prefixed by >>)
+If we go my way and write NT (None Temporal) style in Kernel.
+NT instructions exist since xeon and all the Intel iX core CPUs have
+them. In tests we conducted doing xeon NT-writes vs
+regular-writes-and-cl_flush at .fsync showed minimum of 20% improvement.
+That is on very large IOs. On 4k IOs it was even better.
 
->> drivers/hwmon/w83795.c:312:16: sparse: incorrect type in initializer (different modifiers)
-   drivers/hwmon/w83795.c:312:16:    expected unsigned short *__fc_a
-   drivers/hwmon/w83795.c:312:16:    got unsigned short static const [toplevel] *<noident>
+It looks like you have a much better picture in your mind how to
+fit this properly at the inode-dirty picture. Can you attempt a rough draft?
 
-vim +312 drivers/hwmon/w83795.c
+If we are going the NT way. Then we can only I_DIRTY_ track the mmaped
+inodes. For me this is really scary because I do not want to trigger
+any writeback threads. If you could please draw me an outline (or write
+something up ;-)) it would be great.
 
-   296		unsigned long base_clock;
-   297	
-   298		if (reg & 0x80) {
-   299			base_clock = clkin * 1000 / ((clkin == 48000) ? 384 : 256);
-   300			return base_clock / ((reg & 0x7f) + 1);
-   301		} else
-   302			return pwm_freq_cksel0[reg & 0x0f];
-   303	}
-   304	
-   305	static u8 pwm_freq_to_reg(unsigned long val, u16 clkin)
-   306	{
-   307		unsigned long base_clock;
-   308		u8 reg0, reg1;
-   309		unsigned long best0, best1;
-   310	
-   311		/* Best fit for cksel = 0 */
- > 312		reg0 = find_closest_descending(val, pwm_freq_cksel0,
-   313					       ARRAY_SIZE(pwm_freq_cksel0));
-   314		if (val < 375)	/* cksel = 1 can't beat this */
-   315			return reg0;
-   316		best0 = pwm_freq_cksel0[reg0];
-   317	
-   318		/* Best fit for cksel = 1 */
-   319		base_clock = clkin * 1000 / ((clkin == 48000) ? 384 : 256);
-   320		reg1 = clamp_val(DIV_ROUND_CLOSEST(base_clock, val), 1, 128);
+> Cheers,
+> Dave.
 
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+Thanks
+Boaz
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
