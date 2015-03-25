@@ -1,55 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 6217B6B0032
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 14:57:07 -0400 (EDT)
-Received: by pagj7 with SMTP id j7so37778286pag.2
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 11:57:07 -0700 (PDT)
-Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
-        by mx.google.com with ESMTPS id xt6si4883239pbc.59.2015.03.25.11.57.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Mar 2015 11:57:06 -0700 (PDT)
-Received: by pdbcz9 with SMTP id cz9so37084787pdb.3
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 11:57:06 -0700 (PDT)
-Date: Wed, 25 Mar 2015 11:56:56 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 05/16] page-flags: define behavior of FS/IO-related flags
- on compound pages
-In-Reply-To: <20150325102344.GA10471@node.dhcp.inet.fi>
-Message-ID: <alpine.LSU.2.11.1503251149290.3915@eggly.anvils>
-References: <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com> <1426784902-125149-6-git-send-email-kirill.shutemov@linux.intel.com> <550B15A0.9090308@intel.com> <20150319200252.GA13348@node.dhcp.inet.fi> <alpine.LSU.2.11.1503221613280.2680@eggly.anvils>
- <20150323121726.GB30088@node.dhcp.inet.fi> <alpine.LSU.2.11.1503241406270.1591@eggly.anvils> <20150325102344.GA10471@node.dhcp.inet.fi>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id E6F566B0032
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 16:00:30 -0400 (EDT)
+Received: by pagj7 with SMTP id j7so39365191pag.2
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 13:00:30 -0700 (PDT)
+Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
+        by mx.google.com with ESMTP id to6si5105084pac.14.2015.03.25.13.00.28
+        for <linux-mm@kvack.org>;
+        Wed, 25 Mar 2015 13:00:29 -0700 (PDT)
+Date: Thu, 26 Mar 2015 07:00:24 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 3/3] RFC: dax: dax_prepare_freeze
+Message-ID: <20150325200024.GJ31342@dastard>
+References: <55100B78.501@plexistor.com>
+ <55100D10.6090902@plexistor.com>
+ <20150323224047.GQ28621@dastard>
+ <551100E3.9010007@plexistor.com>
+ <20150325022221.GA31342@dastard>
+ <55126D77.7040105@plexistor.com>
+ <20150325092922.GH31342@dastard>
+ <55128BC6.7090105@plexistor.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <55128BC6.7090105@plexistor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.de>, alsa-devel@alsa-project.org
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>
 
-On Wed, 25 Mar 2015, Kirill A. Shutemov wrote:
+On Wed, Mar 25, 2015 at 12:19:50PM +0200, Boaz Harrosh wrote:
+> On 03/25/2015 11:29 AM, Dave Chinner wrote:
+> > On Wed, Mar 25, 2015 at 10:10:31AM +0200, Boaz Harrosh wrote:
+> >> On 03/25/2015 04:22 AM, Dave Chinner wrote:
+> >>> On Tue, Mar 24, 2015 at 08:14:59AM +0200, Boaz Harrosh wrote:
+> >> <>
+> <>
+> >> The sync does happen, .fsync of the FS is called on each
+> >> file just as if the user called it. If this is broken it just
+> >> needs to be fixed there at the .fsync vector. POSIX mandate
+> >> persistence at .fsync so at the vfs layer we rely on that.
+> > 
+> > right now, the filesystems will see that there are no dirty pages
+> > on the inode, and then just sync the inode metadata. They will do
+> > nothing else as filesystems are not aware of CPU cachelines at all.
+> > 
 > 
-> We only need tail refcounting for THP, so I think this should fix the issue:
+> Sigh yes. There is this bug. And I am sitting on a wide fix for this.
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 4a3a38522ab4..9ab432660adb 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -456,7 +456,7 @@ static inline int page_count(struct page *page)
->  
->  static inline bool __compound_tail_refcounted(struct page *page)
->  {
-> -       return !PageSlab(page) && !PageHeadHuge(page);
-> +       return !PageSlab(page) && !PageHeadHuge(page) && PageAnon(page);
->  }
->  
->  /*
+> The strategy is. All Kernel writes are done with a new copy_user_nt.
+> NT stands for none-temporal. This shows 20% improvements since cachelines
+> need not be fetched when written too.
 
-Yes, that should be a good fix for the mapcount issue.
-And no coincidence that it's just what I needed too,
-when reusing the PG_compound_lock bit: see my 10/24
-(which had to rearrange mm.h. not having your 1/16).
+That's unenforcable for mmap writes from userspace. And those are
+the writes that will trigger the dirty write mapping problem.
 
-Hugh
+> >> And because of that nothing turned the
+> >> user mappings to read only. This is what I do here but
+> >> instead of write-protecting I just unmap because it is
+> >> easier for me to code it.
+> > 
+> > That doesn't mean it is the correct solution.
+> 
+> Please note that even if we properly .fsync cachlines the page-faults
+> are orthogonal to this. There is no point in making mmapped dax pages
+> read-only after every .fsync and pay a page-fault. We should leave them
+> mapped has is. The only place that we need page protection is at freeze
+> time.
+
+Actually, current behaviour of filesystems is that fsync cleans all
+the pages in the range, and means all the mappings are marked
+read-only and so we get new calls into .page_mkwrite when write
+faults occur. We need that .page_mkwrite call to be able to a)
+update the mtime of the inode, and b) mark the inode "data dirty" so
+that fsync knows it needs to do something....
+
+Hence I'd much prefer we start with identical behaviour to normal
+files, then we can optimise from a sane start point when write page
+faults show up as a performance problem. i.e. Correctness first,
+performance second.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
