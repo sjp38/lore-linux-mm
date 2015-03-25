@@ -1,64 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id A5AB06B0038
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 13:01:53 -0400 (EDT)
-Received: by wixw10 with SMTP id w10so79198194wix.0
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 10:01:53 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cl5si5360177wjc.37.2015.03.25.10.01.51
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 924906B0032
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 14:33:23 -0400 (EDT)
+Received: by wgra20 with SMTP id a20so37648658wgr.3
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 11:33:23 -0700 (PDT)
+Received: from mail-wg0-x234.google.com (mail-wg0-x234.google.com. [2a00:1450:400c:c00::234])
+        by mx.google.com with ESMTPS id ey12si6417211wid.87.2015.03.25.11.33.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 25 Mar 2015 10:01:52 -0700 (PDT)
-Message-ID: <5512E9FC.7090105@suse.cz>
-Date: Wed, 25 Mar 2015 18:01:48 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Mar 2015 11:33:21 -0700 (PDT)
+Received: by wgdm6 with SMTP id m6so37930987wgd.2
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 11:33:21 -0700 (PDT)
+Date: Wed, 25 Mar 2015 19:33:16 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v3 2/2] powerpc/mm: Tracking vDSO remap
+Message-ID: <20150325183316.GA9090@gmail.com>
+References: <20150325121118.GA2542@gmail.com>
+ <cover.1427289960.git.ldufour@linux.vnet.ibm.com>
+ <b6ce07f8e1e0d654371aee70bd8eac310456d0df.1427289960.git.ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [patch 08/12] mm: page_alloc: wait for OOM killer progress before
- retrying
-References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>	<1427264236-17249-9-git-send-email-hannes@cmpxchg.org> <201503252315.FBJ09847.FSOtOJQFOMLFVH@I-love.SAKURA.ne.jp>
-In-Reply-To: <201503252315.FBJ09847.FSOtOJQFOMLFVH@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b6ce07f8e1e0d654371aee70bd8eac310456d0df.1427289960.git.ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, hannes@cmpxchg.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, ying.huang@intel.com, aarcange@redhat.com, david@fromorbit.com, mhocko@suse.cz, tytso@mit.edu
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, user-mode-linux-user@lists.sourceforge.net, linux-arch@vger.kernel.org, linux-mm@kvack.org, cov@codeaurora.org, criu@openvz.org
 
-On 03/25/2015 03:15 PM, Tetsuo Handa wrote:
-> Johannes Weiner wrote:
->> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
->> index 5cfda39b3268..e066ac7353a4 100644
->> --- a/mm/oom_kill.c
->> +++ b/mm/oom_kill.c
->> @@ -711,12 +711,15 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
->>   		killed = 1;
->>   	}
->>   out:
->> +	if (test_thread_flag(TIF_MEMDIE))
->> +		return true;
->>   	/*
->> -	 * Give the killed threads a good chance of exiting before trying to
->> -	 * allocate memory again.
->> +	 * Wait for any outstanding OOM victims to die.  In rare cases
->> +	 * victims can get stuck behind the allocating tasks, so the
->> +	 * wait needs to be bounded.  It's crude alright, but cheaper
->> +	 * than keeping a global dependency tree between all tasks.
->>   	 */
->> -	if (killed)
->> -		schedule_timeout_killable(1);
->> +	wait_event_timeout(oom_victims_wait, !atomic_read(&oom_victims), HZ);
->>
->>   	return true;
->>   }
->
-> out_of_memory() returning true with bounded wait effectively means that
-> wait forever without choosing subsequent OOM victims when first OOM victim
-> failed to die. The system will lock up, won't it?
 
-And after patch 12, does this mean that you may not be waiting long 
-enough for the victim to die, before you fail the allocation, 
-prematurely? I can imagine there would be situations where the victim is 
-not deadlocked, but still take more than HZ to finish, no?
+* Laurent Dufour <ldufour@linux.vnet.ibm.com> wrote:
+
+> +static inline void arch_unmap(struct mm_struct *mm,
+> +			struct vm_area_struct *vma,
+> +			unsigned long start, unsigned long end)
+> +{
+> +	if (start <= mm->context.vdso_base && mm->context.vdso_base < end)
+> +		mm->context.vdso_base = 0;
+> +}
+
+So AFAICS PowerPC can have multi-page vDSOs, right?
+
+So what happens if I munmap() the middle or end of the vDSO? The above 
+condition only seems to cover unmaps that affect the first page. I 
+think 'affects any page' ought to be the right condition? (But I know 
+nothing about PowerPC so I might be wrong.)
+
+
+> +#define __HAVE_ARCH_REMAP
+> +static inline void arch_remap(struct mm_struct *mm,
+> +			      unsigned long old_start, unsigned long old_end,
+> +			      unsigned long new_start, unsigned long new_end)
+> +{
+> +	/*
+> +	 * mremap() doesn't allow moving multiple vmas so we can limit the
+> +	 * check to old_start == vdso_base.
+> +	 */
+> +	if (old_start == mm->context.vdso_base)
+> +		mm->context.vdso_base = new_start;
+> +}
+
+mremap() doesn't allow moving multiple vmas, but it allows the 
+movement of multi-page vmas and it also allows partial mremap()s, 
+where it will split up a vma.
+
+In particular, what happens if an mremap() is done with 
+old_start == vdso_base, but a shorter end than the end of the vDSO? 
+(i.e. a partial mremap() with fewer pages than the vDSO size)
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
