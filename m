@@ -1,75 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id B275F6B0032
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 20:27:10 -0400 (EDT)
-Received: by pdbcz9 with SMTP id cz9so44700478pdb.3
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 17:27:10 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id ia1si5768739pbc.241.2015.03.25.17.27.09
+Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 27DBE6B0032
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 20:41:48 -0400 (EDT)
+Received: by oifl3 with SMTP id l3so36764506oif.0
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 17:41:47 -0700 (PDT)
+Received: from mezzanine.sirena.org.uk (mezzanine.sirena.org.uk. [2400:8900::f03c:91ff:fedb:4f4])
+        by mx.google.com with ESMTPS id fp4si4365001pac.23.2015.03.25.09.20.46
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Mar 2015 17:27:09 -0700 (PDT)
-Received: by pacwe9 with SMTP id we9so45384666pac.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 17:27:09 -0700 (PDT)
-Date: Thu, 26 Mar 2015 09:27:17 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [withdrawn]
- zsmalloc-remove-extra-cond_resched-in-__zs_compact.patch removed from -mm
- tree
-Message-ID: <20150326002717.GA1669@swordfish>
-References: <5513199f.t25SPuX5ULuM6JS8%akpm@linux-foundation.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Wed, 25 Mar 2015 09:20:46 -0700 (PDT)
+Date: Wed, 25 Mar 2015 09:20:56 -0700
+From: Mark Brown <broonie@kernel.org>
+Message-ID: <20150325162056.GG3572@sirena.org.uk>
+References: <201503250933.dBZIxVT3%fengguang.wu@intel.com>
+ <1427282984-29296-1-git-send-email-javi.merino@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="ulDeV4rPMk/y39in"
 Content-Disposition: inline
-In-Reply-To: <5513199f.t25SPuX5ULuM6JS8%akpm@linux-foundation.org>
+In-Reply-To: <1427282984-29296-1-git-send-email-javi.merino@arm.com>
+Subject: Re: [PATCH] ASoC: pcm512x: use DIV_ROUND_CLOSEST_ULL() from kernel.h
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan@kernel.org
-Cc: akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, ngupta@vflare.org, sfr@canb.auug.org.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Javi Merino <javi.merino@arm.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, kbuild-all@01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Rosin <peda@axentia.se>, Liam Girdwood <lgirdwood@gmail.com>, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.de>
 
-On (03/25/15 13:25), akpm@linux-foundation.org wrote:
-> The patch titled
->      Subject: zsmalloc: remove extra cond_resched() in __zs_compact
-> has been removed from the -mm tree.  Its filename was
->      zsmalloc-remove-extra-cond_resched-in-__zs_compact.patch
-> 
-> This patch was dropped because it was withdrawn
-> 
-> ------------------------------------------------------
-> From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Subject: zsmalloc: remove extra cond_resched() in __zs_compact
-> 
-> Do not perform cond_resched() before the busy compaction loop in
-> __zs_compact(), because this loop does it when needed.
-> 
-> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Nitin Gupta <ngupta@vflare.org>
-> Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  mm/zsmalloc.c |    2 --
->  1 file changed, 2 deletions(-)
-> 
-> diff -puN mm/zsmalloc.c~zsmalloc-remove-extra-cond_resched-in-__zs_compact mm/zsmalloc.c
-> --- a/mm/zsmalloc.c~zsmalloc-remove-extra-cond_resched-in-__zs_compact
-> +++ a/mm/zsmalloc.c
-> @@ -1717,8 +1717,6 @@ static unsigned long __zs_compact(struct
->  	struct page *dst_page = NULL;
->  	unsigned long nr_total_migrated = 0;
->  
-> -	cond_resched();
-> -
->  	spin_lock(&class->lock);
->  	while ((src_page = isolate_source_page(class))) {
->  
 
-Hello,
+--ulDeV4rPMk/y39in
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-Minchan, did I miss your NACK on this patch? or could you please ACK it?
+On Wed, Mar 25, 2015 at 11:29:44AM +0000, Javi Merino wrote:
+> Now that the kernel provides DIV_ROUND_CLOSEST_ULL(), drop the internal
+> implementation and use the kernel one.
 
-	-ss
+Acked-by: Mark Brown <broonie@kernel.org>
+
+--ulDeV4rPMk/y39in
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAEBCAAGBQJVEuBnAAoJECTWi3JdVIfQIKgH/Ai3PZAB5dNdAI83kLJIP1Fy
+fWCr+8g6EP/hTFpKGJOa+u1C2klN4rIqrEBESrDAF3zLLsKDHUTKxnfyJiMUibTh
+Z0luTmblQ4EoiNl3cn0QpBfJXzi0f8Q302VXgT5t8zRlennjLcH1Nujw8Wn0UXVN
+UcIRRhBNA3+KKq4O4x1A29eCKyQMa2TWtgCxESV7s7SONImMXIP6h4+QBQdZJQtt
+L4Tv2ueKwwef91pgdYafh+BuS7ksxZ509oq5UpG2vCS01GmcawQEJhVj7DMauk0j
+pQUXI8o369qYFD4cZCOUGJnu1gkFRhVi8bizXzmYqiSRAvGSozMy8JDF5dFaOcE=
+=NCvM
+-----END PGP SIGNATURE-----
+
+--ulDeV4rPMk/y39in--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
