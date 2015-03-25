@@ -1,68 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 0934F6B0038
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 06:40:50 -0400 (EDT)
-Received: by wibbg6 with SMTP id bg6so18023804wib.0
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 03:40:49 -0700 (PDT)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id ua5si3602506wjc.197.2015.03.25.03.40.47
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CF3C6B0038
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 06:42:43 -0400 (EDT)
+Received: by wgra20 with SMTP id a20so22214124wgr.3
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 03:42:42 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id sd9si3603091wjb.210.2015.03.25.03.42.40
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Mar 2015 03:40:48 -0700 (PDT)
-Received: by wixw10 with SMTP id w10so32181048wix.0
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 03:40:47 -0700 (PDT)
-Message-ID: <551290AC.7080402@plexistor.com>
-Date: Wed, 25 Mar 2015 12:40:44 +0200
-From: Boaz Harrosh <boaz@plexistor.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] RFC: dax: dax_prepare_freeze
-References: <55100B78.501@plexistor.com> <55100D10.6090902@plexistor.com> <55115A99.40705@plexistor.com> <20150325022633.GB31342@dastard> <5512725A.1010905@plexistor.com> <20150325094135.GI31342@dastard>
-In-Reply-To: <20150325094135.GI31342@dastard>
-Content-Type: text/plain; charset=utf-8
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 25 Mar 2015 03:42:41 -0700 (PDT)
+Message-ID: <1427280150.2412.26.camel@stgolabs.net>
+Subject: [PATCH v3] prctl: avoid using mmap_sem for exe_file serialization
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Wed, 25 Mar 2015 03:42:30 -0700
+In-Reply-To: <55127E2A.4040204@yandex-team.ru>
+References: <20150320144715.24899.24547.stgit@buzz>
+	 <1427134273.2412.12.camel@stgolabs.net> <20150323191055.GA10212@redhat.com>
+		 <55119B3B.5020403@yandex-team.ru> <20150324181016.GA9678@redhat.com>
+	 <CALYGNiP15BLtxMmMnpEu94jZBtce7tCtJnavrguqFr1d2XxH_A@mail.gmail.com>
+	 <20150324190229.GC11834@redhat.com> <1427247055.2412.23.camel@stgolabs.net>
+	 <55127E2A.4040204@yandex-team.ru>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>, Boaz Harrosh <boaz@plexistor.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 03/25/2015 11:41 AM, Dave Chinner wrote:
-> On Wed, Mar 25, 2015 at 10:31:22AM +0200, Boaz Harrosh wrote:
->> On 03/25/2015 04:26 AM, Dave Chinner wrote:
-<>
->> sync and fsync should and will work correctly, but this does not
->> solve our problem. because what turns pages to read-only is the
->> writeback. And we do not have this in dax. Therefore we need to
->> do this here as a special case.
-> 
-> We can still use exactly the same dirty tracking as we use for data
-> writeback. The difference is that we don't need to go through all
-> teh page writeback; we can just flush the CPU caches and mark all
-> the mappings clean, then clear the I_DIRTY_PAGES flag and move on to
-> inode writeback....
-> 
+Oleg cleverly suggested using xchg() to set the new
+mm->exe_file instead of calling set_mm_exe_file()
+which requires some form of serialization -- mmap_sem
+in this case. For archs that do not have atomic rmw
+instructions we still fallback to a spinlock alternative,
+so this should always be safe.  As such, we only need the
+mmap_sem for looking up the backing vm_file, which can be
+done sharing the lock. Naturally, this means we need to
+manually deal with both the new and old file reference
+counting, and we need not worry about the MMF_EXE_FILE_CHANGED
+bits, which can probably be deleted in the future anyway.
 
-I see what you mean. the sb wide sync will not step into mmaped inodes
-and fsync them.
+Suggested-by: Oleg Nesterov <oleg@redhat.com>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, 
+Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+---
 
-If we go my way and write NT (None Temporal) style in Kernel.
-NT instructions exist since xeon and all the Intel iX core CPUs have
-them. In tests we conducted doing xeon NT-writes vs
-regular-writes-and-cl_flush at .fsync showed minimum of 20% improvement.
-That is on very large IOs. On 4k IOs it was even better.
+Changes from v2: use correct exe_file (sigh), per Konstantin.
 
-It looks like you have a much better picture in your mind how to
-fit this properly at the inode-dirty picture. Can you attempt a rough draft?
+ fs/exec.c     |  6 ++++++
+ kernel/fork.c | 19 +++++++++++++------
+ kernel/sys.c  | 47 ++++++++++++++++++++++++++++-------------------
+ 3 files changed, 47 insertions(+), 25 deletions(-)
 
-If we are going the NT way. Then we can only I_DIRTY_ track the mmaped
-inodes. For me this is really scary because I do not want to trigger
-any writeback threads. If you could please draw me an outline (or write
-something up ;-)) it would be great.
+diff --git a/fs/exec.c b/fs/exec.c
+index 314e8d8..02bfd98 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1082,7 +1082,13 @@ int flush_old_exec(struct linux_binprm * bprm)
+ 	if (retval)
+ 		goto out;
+ 
++	/*
++	 * Must be called _before_ exec_mmap() as bprm->mm is
++	 * not visibile until then. This also enables the update
++	 * to be lockless.
++	 */
+ 	set_mm_exe_file(bprm->mm, bprm->file);
++
+ 	/*
+ 	 * Release all of the old mmap stuff
+ 	 */
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 3847f34..347f69c 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -688,15 +688,22 @@ EXPORT_SYMBOL_GPL(mmput);
+  *
+  * This changes mm's executale file (shown as symlink /proc/[pid]/exe).
+  *
+- * Main users are mmput(), sys_execve() and sys_prctl(PR_SET_MM_MAP/EXE_FILE).
+- * Callers prevent concurrent invocations: in mmput() nobody alive left,
+- * in execve task is single-threaded, prctl holds mmap_sem exclusively.
++ * Main users are mmput() and sys_execve(). Callers prevent concurrent
++ * invocations: in mmput() nobody alive left, in execve task is single
++ * threaded. sys_prctl(PR_SET_MM_MAP/EXE_FILE) also needs to set the
++ * mm->exe_file, but does so without using set_mm_exe_file() in order
++ * to do avoid the need for any locks.
+  */
+ void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
+ {
+-	struct file *old_exe_file = rcu_dereference_protected(mm->exe_file,
+-			!atomic_read(&mm->mm_users) || current->in_execve ||
+-			lockdep_is_held(&mm->mmap_sem));
++	struct file *old_exe_file;
++
++	/*
++	 * It is safe to dereference the exe_file without RCU as
++	 * this function is only called if nobody else can access
++	 * this mm -- see comment above for justification.
++	 */
++	old_exe_file = rcu_dereference_raw(mm->exe_file);
+ 
+ 	if (new_exe_file)
+ 		get_file(new_exe_file);
+diff --git a/kernel/sys.c b/kernel/sys.c
+index 3be3449..a4e372b 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -1649,14 +1649,13 @@ SYSCALL_DEFINE1(umask, int, mask)
+ 	return mask;
+ }
+ 
+-static int prctl_set_mm_exe_file_locked(struct mm_struct *mm, unsigned int fd)
++static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
+ {
+ 	struct fd exe;
++	struct file *old_exe, *exe_file;
+ 	struct inode *inode;
+ 	int err;
+ 
+-	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
+-
+ 	exe = fdget(fd);
+ 	if (!exe.file)
+ 		return -EBADF;
+@@ -1680,15 +1679,22 @@ static int prctl_set_mm_exe_file_locked(struct mm_struct *mm, unsigned int fd)
+ 	/*
+ 	 * Forbid mm->exe_file change if old file still mapped.
+ 	 */
++	exe_file = get_mm_exe_file(mm);
+ 	err = -EBUSY;
+-	if (mm->exe_file) {
++	if (exe_file) {
+ 		struct vm_area_struct *vma;
+ 
+-		for (vma = mm->mmap; vma; vma = vma->vm_next)
+-			if (vma->vm_file &&
+-			    path_equal(&vma->vm_file->f_path,
+-				       &mm->exe_file->f_path))
+-				goto exit;
++		down_read(&mm->mmap_sem);
++		for (vma = mm->mmap; vma; vma = vma->vm_next) {
++			if (!vma->vm_file)
++				continue;
++			if (path_equal(&vma->vm_file->f_path,
++				       &exe_file->f_path))
++				goto exit_err;
++		}
++
++		up_read(&mm->mmap_sem);
++		fput(exe_file);
+ 	}
+ 
+ 	/*
+@@ -1702,10 +1708,18 @@ static int prctl_set_mm_exe_file_locked(struct mm_struct *mm, unsigned int fd)
+ 		goto exit;
+ 
+ 	err = 0;
+-	set_mm_exe_file(mm, exe.file);	/* this grabs a reference to exe.file */
++	/* set the new file, lockless */
++	get_file(exe.file);
++	old_exe = xchg(&mm->exe_file, exe.file);
++	if (old_exe)
++		fput(old_exe);
+ exit:
+ 	fdput(exe);
+ 	return err;
++exit_err:
++	up_read(&mm->mmap_sem);
++	fput(exe_file);
++	goto exit;
+ }
+ 
+ #ifdef CONFIG_CHECKPOINT_RESTORE
+@@ -1840,10 +1854,9 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
+ 		user_auxv[AT_VECTOR_SIZE - 1] = AT_NULL;
+ 	}
+ 
+-	down_write(&mm->mmap_sem);
+ 	if (prctl_map.exe_fd != (u32)-1)
+-		error = prctl_set_mm_exe_file_locked(mm, prctl_map.exe_fd);
+-	downgrade_write(&mm->mmap_sem);
++		error = prctl_set_mm_exe_file(mm, prctl_map.exe_fd);
++	down_read(&mm->mmap_sem);
+ 	if (error)
+ 		goto out;
+ 
+@@ -1909,12 +1922,8 @@ static int prctl_set_mm(int opt, unsigned long addr,
+ 	if (!capable(CAP_SYS_RESOURCE))
+ 		return -EPERM;
+ 
+-	if (opt == PR_SET_MM_EXE_FILE) {
+-		down_write(&mm->mmap_sem);
+-		error = prctl_set_mm_exe_file_locked(mm, (unsigned int)addr);
+-		up_write(&mm->mmap_sem);
+-		return error;
+-	}
++	if (opt == PR_SET_MM_EXE_FILE)
++		return prctl_set_mm_exe_file(mm, (unsigned int)addr);
+ 
+ 	if (addr >= TASK_SIZE || addr < mmap_min_addr)
+ 		return -EINVAL;
+-- 
+2.1.4
 
-> Cheers,
-> Dave.
-
-Thanks
-Boaz
 
 
 --
