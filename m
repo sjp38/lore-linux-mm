@@ -1,63 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id A03156B0032
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 14:36:53 -0400 (EDT)
-Received: by wibg7 with SMTP id g7so120384612wib.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 11:36:53 -0700 (PDT)
-Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com. [2a00:1450:400c:c05::232])
-        by mx.google.com with ESMTPS id p8si5757906wjx.82.2015.03.25.11.36.51
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 6217B6B0032
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 14:57:07 -0400 (EDT)
+Received: by pagj7 with SMTP id j7so37778286pag.2
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 11:57:07 -0700 (PDT)
+Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
+        by mx.google.com with ESMTPS id xt6si4883239pbc.59.2015.03.25.11.57.06
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Mar 2015 11:36:52 -0700 (PDT)
-Received: by wixw10 with SMTP id w10so81036556wix.0
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 11:36:51 -0700 (PDT)
-Date: Wed, 25 Mar 2015 19:36:47 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v3 2/2] powerpc/mm: Tracking vDSO remap
-Message-ID: <20150325183647.GA9331@gmail.com>
-References: <20150325121118.GA2542@gmail.com>
- <cover.1427289960.git.ldufour@linux.vnet.ibm.com>
- <b6ce07f8e1e0d654371aee70bd8eac310456d0df.1427289960.git.ldufour@linux.vnet.ibm.com>
- <20150325183316.GA9090@gmail.com>
+        Wed, 25 Mar 2015 11:57:06 -0700 (PDT)
+Received: by pdbcz9 with SMTP id cz9so37084787pdb.3
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 11:57:06 -0700 (PDT)
+Date: Wed, 25 Mar 2015 11:56:56 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 05/16] page-flags: define behavior of FS/IO-related flags
+ on compound pages
+In-Reply-To: <20150325102344.GA10471@node.dhcp.inet.fi>
+Message-ID: <alpine.LSU.2.11.1503251149290.3915@eggly.anvils>
+References: <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com> <1426784902-125149-6-git-send-email-kirill.shutemov@linux.intel.com> <550B15A0.9090308@intel.com> <20150319200252.GA13348@node.dhcp.inet.fi> <alpine.LSU.2.11.1503221613280.2680@eggly.anvils>
+ <20150323121726.GB30088@node.dhcp.inet.fi> <alpine.LSU.2.11.1503241406270.1591@eggly.anvils> <20150325102344.GA10471@node.dhcp.inet.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150325183316.GA9090@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, user-mode-linux-user@lists.sourceforge.net, linux-arch@vger.kernel.org, linux-mm@kvack.org, cov@codeaurora.org, criu@openvz.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.de>, alsa-devel@alsa-project.org
 
-
-* Ingo Molnar <mingo@kernel.org> wrote:
-
-> > +#define __HAVE_ARCH_REMAP
-> > +static inline void arch_remap(struct mm_struct *mm,
-> > +			      unsigned long old_start, unsigned long old_end,
-> > +			      unsigned long new_start, unsigned long new_end)
-> > +{
-> > +	/*
-> > +	 * mremap() doesn't allow moving multiple vmas so we can limit the
-> > +	 * check to old_start == vdso_base.
-> > +	 */
-> > +	if (old_start == mm->context.vdso_base)
-> > +		mm->context.vdso_base = new_start;
-> > +}
+On Wed, 25 Mar 2015, Kirill A. Shutemov wrote:
 > 
-> mremap() doesn't allow moving multiple vmas, but it allows the 
-> movement of multi-page vmas and it also allows partial mremap()s, 
-> where it will split up a vma.
+> We only need tail refcounting for THP, so I think this should fix the issue:
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 4a3a38522ab4..9ab432660adb 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -456,7 +456,7 @@ static inline int page_count(struct page *page)
+>  
+>  static inline bool __compound_tail_refcounted(struct page *page)
+>  {
+> -       return !PageSlab(page) && !PageHeadHuge(page);
+> +       return !PageSlab(page) && !PageHeadHuge(page) && PageAnon(page);
+>  }
+>  
+>  /*
 
-I.e. mremap() supports the shrinking (and growing) of vmas. In that 
-case mremap() will unmap the end of the vma and will shrink the 
-remaining vDSO vma.
+Yes, that should be a good fix for the mapcount issue.
+And no coincidence that it's just what I needed too,
+when reusing the PG_compound_lock bit: see my 10/24
+(which had to rearrange mm.h. not having your 1/16).
 
-Doesn't that result in a non-working vDSO that should zero out 
-vdso_base?
-
-Thanks,
-
-	Ingo
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
