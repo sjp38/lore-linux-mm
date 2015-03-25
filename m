@@ -1,63 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id DE21E6B0032
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 19:09:48 -0400 (EDT)
-Received: by pacwe9 with SMTP id we9so43666479pac.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 16:09:48 -0700 (PDT)
-Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com. [2607:f8b0:400e:c02::236])
-        by mx.google.com with ESMTPS id gl5si5659017pbc.6.2015.03.25.16.09.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Mar 2015 16:09:48 -0700 (PDT)
-Received: by pdbcz9 with SMTP id cz9so43016896pdb.3
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 16:09:47 -0700 (PDT)
-Date: Wed, 25 Mar 2015 16:09:38 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: avoid tail page refcounting on non-THP compound
- pages
-In-Reply-To: <20150325225633.GA14549@node.dhcp.inet.fi>
-Message-ID: <alpine.LSU.2.11.1503251602570.4703@eggly.anvils>
-References: <1427323275-114866-1-git-send-email-kirill.shutemov@linux.intel.com> <alpine.LSU.2.11.1503251544120.4490@eggly.anvils> <alpine.LSU.2.11.1503251545510.4490@eggly.anvils> <20150325225633.GA14549@node.dhcp.inet.fi>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3099D6B0032
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 19:25:29 -0400 (EDT)
+Received: by pabxg6 with SMTP id xg6so44128316pab.0
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 16:25:28 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id by8si5698806pdb.43.2015.03.25.16.25.26
+        for <linux-mm@kvack.org>;
+        Wed, 25 Mar 2015 16:25:28 -0700 (PDT)
+Message-ID: <551343E3.3050709@lge.com>
+Date: Thu, 26 Mar 2015 08:25:23 +0900
+From: Gioh Kim <gioh.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFCv2] mm: page allocation for less fragmentation
+References: <1427251155-12322-1-git-send-email-gioh.kim@lge.com> <551333D6.20708@suse.cz>
+In-Reply-To: <551333D6.20708@suse.cz>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, mgorman@suse.de, riel@redhat.com, hannes@cmpxchg.org, rientjes@google.com, vdavydov@parallels.com, iamjoonsoo.kim@lge.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gunho.lee@lge.com
 
-On Thu, 26 Mar 2015, Kirill A. Shutemov wrote:
-> On Wed, Mar 25, 2015 at 03:48:48PM -0700, Hugh Dickins wrote:
-> > On Wed, 25 Mar 2015, Hugh Dickins wrote:
-> > > On Thu, 26 Mar 2015, Kirill A. Shutemov wrote:
-> > > > 
-> > > > Since currently all THP pages are anonymous and all drivers pages are
-> > > > not, we can fix the __compound_tail_refcounted() check by requiring
-> > > > PageAnon() to enable tail page refcounting.
-> > > > 
-> > > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > > 
-> > > Acked-by: Hugh Dickins <hughd@google.com>
-> > 
-> > Oh, hold on a moment: does this actually build in a tree without your
-> > page-flags.h consolidation?  It didn't when I tried to add a PageAnon
-> > test there for my series against v3.19, has something changed in v4.0?
-> 
-> No. I haven't tried to build it without my patchset, but it seems it
-> wouldn't.
-> 
-> Just check: it would build for me on top of [PATCH 01/16], you've acked.
 
-Yes, I'm happy with your 1/16 (which is already there in mmotm),
-it's just that I'd imagined this __compound_tail_refcounted() fix
-should go to v4.0 (if not stable too: you've decided against, okay).
 
-What do you think, should Andrew hold it back for v4.1, or should
-your page-flags.h accelerate into v4.0 as precondition for this fix?
+2015-03-26 i??i ? 7:16i?? Vlastimil Babka i?'(e??) i?' e,?:
+> On 25.3.2015 3:39, Gioh Kim wrote:
+>> My driver allocates more than 40MB pages via alloc_page() at a time and
+>> maps them at virtual address. Totally it uses 300~400MB pages.
+>>
+>> If I run a heavy load test for a few days in 1GB memory system, I cannot allocate even order=3 pages
+>> because-of the external fragmentation.
+>>
+>> I thought I needed a anti-fragmentation solution for my driver.
+>> But there is no allocation function that considers fragmentation.
+>> The compaction is not helpful because it is only for movable pages, not unmovable pages.
+>>
+>> This patch proposes a allocation function allocates only pages in the same pageblock.
+>>
+>> I tested this patch like following:
+>>
+>> 1. When the driver allocates about 400MB and do "cat /proc/pagetypeinfo;cat /proc/buddyinfo"
+>>
+>> Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
+>> Node    0, zone   Normal, type    Unmovable   3864    728    394    216    129     47     18      9      1      0      0
+>> Node    0, zone   Normal, type  Reclaimable    902     96     68     17      3      0      1      0      0      0      0
+>> Node    0, zone   Normal, type      Movable   5146    663    178     91     43     16      4      0      0      0      0
+>> Node    0, zone   Normal, type      Reserve      1      4      6      6      2      1      1      1      0      1      1
+>> Node    0, zone   Normal, type          CMA      0      0      0      0      0      0      0      0      0      0      0
+>> Node    0, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
+>>
+>> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate
+>> Node 0, zone   Normal          135            3          124            2            0            0
+>> Node 0, zone   Normal   9880   1489    647    332    177     64     24     10      1      1      1
+>>
+>> 2. The driver frees all pages and allocates pages again with alloc_pages_compact.
+>
+> This is not a good test setup. You shouldn't switch the allocation types during
+> single system boot. You should compare results from a boot where common
+> allocation is used and from a boot where your new allocation is used.
 
-Either is fine with me; but if the latter, then a week's exposure
-in linux-next first would probably be best.
+The new allocator is slower so I don't think it can replace current allocator.
+I don't aim to change general allocator.
+The main pupose of the new allocator is a specific allocator if system has too much fragmentation.
+If some drivers consume much memory and generate fragmentation, it can use new allocator instead at the time.
+I want to make a kind of compaction for drivers that allocates unmovable pages.
 
-Hugh
+Therefore I tested like that.
+I first generated fragmentation and called the new allocator.
+I wanted to check whether the fragmentation was caused by my driver
+and the pages of the driver was able to be compacted.
+I thought the pages was compacted.
+
+If I freed pages and called the commmon allocator again,
+it could decrease a little fragmentation (not much as the new allocator).
+But there was no pages compaction and fragmentation would increase soon.
+
+
+>
+>> This is a kind of compaction of the driver.
+>> Following is the result of "cat /proc/pagetypeinfo;cat /proc/buddyinfo"
+>>
+>> Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
+>> Node    0, zone   Normal, type    Unmovable      8      5      1    432    272     91     37     11      1      0      0
+>> Node    0, zone   Normal, type  Reclaimable    901     96     68     17      3      0      1      0      0      0      0
+>> Node    0, zone   Normal, type      Movable   4790    776    192     91     43     16      4      0      0      0      0
+>> Node    0, zone   Normal, type      Reserve      1      4      6      6      2      1      1      1      0      1      1
+>> Node    0, zone   Normal, type          CMA      0      0      0      0      0      0      0      0      0      0      0
+>> Node    0, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
+>>
+>> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate
+>> Node 0, zone   Normal          135            3          124            2            0            0
+>> Node 0, zone   Normal   5693    877    266    544    320    108     43     12      1      1      1
+>
+> The number of unmovable pageblocks didn't change here. The stats for free
+> unmovable pages does look better for higher orders than in the first listing
+> above, but even the common allocation logic would give you that result, if you
+> allocated your 400 MB using (many) order-0 allocations (since you apparently
+> don't care about physically contiguous memory). That would also prefer order-0
+> free pages before splitting higher orders. So this doesn't demonstrate benefits
+> of the alloc_pages_compact() approach I'm afraid. The results suggest that the
+> system was in a worst state when the first allocation happened, and meanwhile
+> some pages were freed, creating the large numbers of order-0 unmovable free
+> pages. Or maybe the system got fragmented in the first allocation because your
+> driver tries to allocate the memory with high-order allocations before falling
+> back to lower orders? That would probably defeat the natural anti-fragmentation
+> of the buddy system.
+
+My driver is allocating pages only with alloc_page, not alloc_pages with high order.
+
+Yes, if I freed pages and called alloc_page again, it could decrease fragmentation at the time.
+But there was no compaction and fragmentation would increase soon,
+because the allocated pages was scattered all over the system.
+
+The new allocator compacts pages. I believe it can decrease fragmentation for long time.
+
+>
+> So a proper test could be based on this:
+>
+>> If I run a heavy load test for a few days in 1GB memory system, I cannot
+> allocate even order=3 pages
+>> because-of the external fragmentation.
+>
+> With this patch, is the situation quantifiably better? Can you post the
+> pagetype/buddyinfo for system boot where all driver allocations use the common
+> allocator, and system boot with the patch? That should be comparable if the
+> workload is the same for both boots.
+>
+
+OK. I'll. I can be good test.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
