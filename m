@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C6456B0038
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 09:44:15 -0400 (EDT)
-Received: by wixw10 with SMTP id w10so39409282wix.0
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 06:44:14 -0700 (PDT)
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
-        by mx.google.com with ESMTPS id n10si22668607wiw.97.2015.03.25.06.44.12
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 666CE6B0038
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 09:47:45 -0400 (EDT)
+Received: by wgra20 with SMTP id a20so28058610wgr.3
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 06:47:44 -0700 (PDT)
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com. [74.125.82.45])
+        by mx.google.com with ESMTPS id e5si4472339wjw.70.2015.03.25.06.47.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Mar 2015 06:44:13 -0700 (PDT)
-Received: by wibgn9 with SMTP id gn9so39459148wib.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 06:44:12 -0700 (PDT)
-Message-ID: <5512BBAA.8070508@plexistor.com>
-Date: Wed, 25 Mar 2015 15:44:10 +0200
+        Wed, 25 Mar 2015 06:47:43 -0700 (PDT)
+Received: by wgbcc7 with SMTP id cc7so28093609wgb.0
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 06:47:43 -0700 (PDT)
+Message-ID: <5512BC7C.7060709@plexistor.com>
+Date: Wed, 25 Mar 2015 15:47:40 +0200
 From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Subject: [PATCH 3/3] dax: Unify ext2/4_{dax,}_file_operations
+Subject: [FIXME] NOT-GOOD: dax: dax_prepare_freeze
 References: <5512B961.8070409@plexistor.com>
 In-Reply-To: <5512B961.8070409@plexistor.com>
 Content-Type: text/plain; charset=utf-8
@@ -25,221 +25,111 @@ List-ID: <linux-mm.kvack.org>
 To: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>
 
 
-The original dax patchset split the ext2/4_file_operations
-because of the two NULL splice_read/splice_write in the dax
-case.
+This is just for reference!
 
-At vfs if splice_read/splice_write are NULL would then call
-default_splice_read/write.
+When freezing an FS, we must write protect all IS_DAX()
+inodes that have an mmap mapping on an inode. Otherwise
+application will be able to modify previously faulted-in
+file pages.
 
-What we do here is make generic_file_splice_read aware of
-IS_DAX() so the original ext2/4_file_operations can be used
-as is.
+I'm actually doing a full unmap_mapping_range because
+there is no readily available "mapping_write_protect" like
+functionality. I do not think it is worth it to define one
+just for here and just for some extra read-faults after an
+fs_freeze.
 
-For write it appears that iter_file_splice_write is just fine.
-It uses the regular f_op->write(file,..) or new_sync_write(file, ...).
+How hot-path is fs_freeze at all?
+
+FIXME: As pointed out by Dave this is completely the wrong
+       fix because we need to first fsync all cache dirty
+       inodes, and only for those write protect. So maybe
+       plug this in the regular sb_sync path, checking the
+       FREEZE flag.
 
 CC: Dave Chinner <dchinner@redhat.com>
-CC: Matthew Wilcox <willy@linux.intel.com>
-Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
+CC: Jan Kara <jack@suse.cz>
+CC: Matthew Wilcox <matthew.r.wilcox@intel.com>
+NOT-Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
 ---
- fs/ext2/ext2.h  |  1 -
- fs/ext2/file.c  | 18 ------------------
- fs/ext2/inode.c |  5 +----
- fs/ext2/namei.c | 10 ++--------
- fs/ext4/ext4.h  |  1 -
- fs/ext4/file.c  | 20 --------------------
- fs/ext4/inode.c |  5 +----
- fs/ext4/namei.c | 10 ++--------
- fs/splice.c     |  3 +++
- 9 files changed, 9 insertions(+), 64 deletions(-)
+ fs/dax.c           | 29 +++++++++++++++++++++++++++++
+ fs/super.c         |  3 +++
+ include/linux/fs.h |  5 +++++
+ 3 files changed, 37 insertions(+)
 
-diff --git a/fs/ext2/ext2.h b/fs/ext2/ext2.h
-index 678f9ab..8d15feb 100644
---- a/fs/ext2/ext2.h
-+++ b/fs/ext2/ext2.h
-@@ -793,7 +793,6 @@ extern int ext2_fsync(struct file *file, loff_t start, loff_t end,
- 		      int datasync);
- extern const struct inode_operations ext2_file_inode_operations;
- extern const struct file_operations ext2_file_operations;
--extern const struct file_operations ext2_dax_file_operations;
+diff --git a/fs/dax.c b/fs/dax.c
+index d0bd1f4..ec99d1c 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -26,6 +26,7 @@
+ #include <linux/sched.h>
+ #include <linux/uio.h>
+ #include <linux/vmstat.h>
++#include "internal.h"
  
- /* inode.c */
- extern const struct address_space_operations ext2_aops;
-diff --git a/fs/ext2/file.c b/fs/ext2/file.c
-index 866a3ce..19cac93 100644
---- a/fs/ext2/file.c
-+++ b/fs/ext2/file.c
-@@ -109,24 +109,6 @@ const struct file_operations ext2_file_operations = {
- 	.splice_write	= iter_file_splice_write,
- };
- 
--#ifdef CONFIG_FS_DAX
--const struct file_operations ext2_dax_file_operations = {
--	.llseek		= generic_file_llseek,
--	.read		= new_sync_read,
--	.write		= new_sync_write,
--	.read_iter	= generic_file_read_iter,
--	.write_iter	= generic_file_write_iter,
--	.unlocked_ioctl = ext2_ioctl,
--#ifdef CONFIG_COMPAT
--	.compat_ioctl	= ext2_compat_ioctl,
--#endif
--	.mmap		= ext2_file_mmap,
--	.open		= dquot_file_open,
--	.release	= ext2_release_file,
--	.fsync		= ext2_fsync,
--};
--#endif
--
- const struct inode_operations ext2_file_inode_operations = {
- #ifdef CONFIG_EXT2_FS_XATTR
- 	.setxattr	= generic_setxattr,
-diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index 6434bc0..6fdbe80 100644
---- a/fs/ext2/inode.c
-+++ b/fs/ext2/inode.c
-@@ -1388,10 +1388,7 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
- 
- 	if (S_ISREG(inode->i_mode)) {
- 		inode->i_op = &ext2_file_inode_operations;
--		if (test_opt(inode->i_sb, DAX)) {
--			inode->i_mapping->a_ops = &ext2_aops;
--			inode->i_fop = &ext2_dax_file_operations;
--		} else if (test_opt(inode->i_sb, NOBH)) {
-+		if (test_opt(inode->i_sb, NOBH)) {
- 			inode->i_mapping->a_ops = &ext2_nobh_aops;
- 			inode->i_fop = &ext2_file_operations;
- 		} else {
-diff --git a/fs/ext2/namei.c b/fs/ext2/namei.c
-index 148f6e3..ce42293 100644
---- a/fs/ext2/namei.c
-+++ b/fs/ext2/namei.c
-@@ -104,10 +104,7 @@ static int ext2_create (struct inode * dir, struct dentry * dentry, umode_t mode
- 		return PTR_ERR(inode);
- 
- 	inode->i_op = &ext2_file_inode_operations;
--	if (test_opt(inode->i_sb, DAX)) {
--		inode->i_mapping->a_ops = &ext2_aops;
--		inode->i_fop = &ext2_dax_file_operations;
--	} else if (test_opt(inode->i_sb, NOBH)) {
-+	if (test_opt(inode->i_sb, NOBH)) {
- 		inode->i_mapping->a_ops = &ext2_nobh_aops;
- 		inode->i_fop = &ext2_file_operations;
- 	} else {
-@@ -125,10 +122,7 @@ static int ext2_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
- 		return PTR_ERR(inode);
- 
- 	inode->i_op = &ext2_file_inode_operations;
--	if (test_opt(inode->i_sb, DAX)) {
--		inode->i_mapping->a_ops = &ext2_aops;
--		inode->i_fop = &ext2_dax_file_operations;
--	} else if (test_opt(inode->i_sb, NOBH)) {
-+	if (test_opt(inode->i_sb, NOBH)) {
- 		inode->i_mapping->a_ops = &ext2_nobh_aops;
- 		inode->i_fop = &ext2_file_operations;
- 	} else {
-diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
-index f63c3d5..8a3981e 100644
---- a/fs/ext4/ext4.h
-+++ b/fs/ext4/ext4.h
-@@ -2593,7 +2593,6 @@ extern const struct file_operations ext4_dir_operations;
- /* file.c */
- extern const struct inode_operations ext4_file_inode_operations;
- extern const struct file_operations ext4_file_operations;
--extern const struct file_operations ext4_dax_file_operations;
- extern loff_t ext4_llseek(struct file *file, loff_t offset, int origin);
- 
- /* inline.c */
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index b43a7a6..557140a 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -625,26 +625,6 @@ const struct file_operations ext4_file_operations = {
- 	.fallocate	= ext4_fallocate,
- };
- 
--#ifdef CONFIG_FS_DAX
--const struct file_operations ext4_dax_file_operations = {
--	.llseek		= ext4_llseek,
--	.read		= new_sync_read,
--	.write		= new_sync_write,
--	.read_iter	= generic_file_read_iter,
--	.write_iter	= ext4_file_write_iter,
--	.unlocked_ioctl = ext4_ioctl,
--#ifdef CONFIG_COMPAT
--	.compat_ioctl	= ext4_compat_ioctl,
--#endif
--	.mmap		= ext4_file_mmap,
--	.open		= ext4_file_open,
--	.release	= ext4_release_file,
--	.fsync		= ext4_sync_file,
--	/* Splice not yet supported with DAX */
--	.fallocate	= ext4_fallocate,
--};
--#endif
--
- const struct inode_operations ext4_file_inode_operations = {
- 	.setattr	= ext4_setattr,
- 	.getattr	= ext4_getattr,
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 5cb9a21..ec60deb 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -4091,10 +4091,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
- 
- 	if (S_ISREG(inode->i_mode)) {
- 		inode->i_op = &ext4_file_inode_operations;
--		if (test_opt(inode->i_sb, DAX))
--			inode->i_fop = &ext4_dax_file_operations;
--		else
--			inode->i_fop = &ext4_file_operations;
-+		inode->i_fop = &ext4_file_operations;
- 		ext4_set_aops(inode);
- 	} else if (S_ISDIR(inode->i_mode)) {
- 		inode->i_op = &ext4_dir_inode_operations;
-diff --git a/fs/ext4/namei.c b/fs/ext4/namei.c
-index 28fe71a..2291923 100644
---- a/fs/ext4/namei.c
-+++ b/fs/ext4/namei.c
-@@ -2235,10 +2235,7 @@ retry:
- 	err = PTR_ERR(inode);
- 	if (!IS_ERR(inode)) {
- 		inode->i_op = &ext4_file_inode_operations;
--		if (test_opt(inode->i_sb, DAX))
--			inode->i_fop = &ext4_dax_file_operations;
--		else
--			inode->i_fop = &ext4_file_operations;
-+		inode->i_fop = &ext4_file_operations;
- 		ext4_set_aops(inode);
- 		err = ext4_add_nondir(handle, dentry, inode);
- 		if (!err && IS_DIRSYNC(dir))
-@@ -2302,10 +2299,7 @@ retry:
- 	err = PTR_ERR(inode);
- 	if (!IS_ERR(inode)) {
- 		inode->i_op = &ext4_file_inode_operations;
--		if (test_opt(inode->i_sb, DAX))
--			inode->i_fop = &ext4_dax_file_operations;
--		else
--			inode->i_fop = &ext4_file_operations;
-+		inode->i_fop = &ext4_file_operations;
- 		ext4_set_aops(inode);
- 		d_tmpfile(dentry, inode);
- 		err = ext4_orphan_add(handle, inode);
-diff --git a/fs/splice.c b/fs/splice.c
-index 7968da9..7d2fbb7 100644
---- a/fs/splice.c
-+++ b/fs/splice.c
-@@ -524,6 +524,9 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
- 	loff_t isize, left;
- 	int ret;
- 
-+	if (IS_DAX(in->f_mapping->host))
-+		return default_file_splice_read(in, ppos, pipe, len, flags);
+ int dax_clear_blocks(struct inode *inode, sector_t block, long size)
+ {
+@@ -549,3 +550,31 @@ int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
+ 	return dax_zero_page_range(inode, from, length, get_block);
+ }
+ EXPORT_SYMBOL_GPL(dax_truncate_page);
 +
- 	isize = i_size_read(in->f_mapping->host);
- 	if (unlikely(*ppos >= isize))
- 		return 0;
++/* This is meant to be called as part of freeze_super. otherwise we might
++ * Need some extra locking before calling here.
++ */
++void dax_prepare_freeze(struct super_block *sb)
++{
++	struct inode *inode;
++
++	if (!(sb->s_bdev && sb->s_bdev->bd_disk->fops->direct_access))
++		return;
++
++	spin_lock(&inode_sb_list_lock);
++	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
++		/* TODO: For freezing we can actually do with write-protecting
++		 * the page. But I cannot find a ready made function that does
++		 * that for a giving mapping (with all the proper locking).
++		 * How performance sensitive is the all sb_freeze API?
++		 * For now we can just unmap the all mapping, and pay extra
++		 * on read faults.
++		 */
++		/* NOTE: Do not unmap private COW mapped pages it will not
++		 * modify the FS.
++		 */
++		if (IS_DAX(inode))
++			unmap_mapping_range(inode->i_mapping, 0, 0, 0);
++	}
++	spin_unlock(&inode_sb_list_lock);
++}
+diff --git a/fs/super.c b/fs/super.c
+index 2b7dc90..9ef490c 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -1329,6 +1329,9 @@ int freeze_super(struct super_block *sb)
+ 	/* All writers are done so after syncing there won't be dirty data */
+ 	sync_filesystem(sb);
+ 
++	/* Need to take care of DAX mmaped inodes */
++	dax_prepare_freeze(sb);
++
+ 	/* Now wait for internal filesystem counter */
+ 	sb->s_writers.frozen = SB_FREEZE_FS;
+ 	smp_wmb();
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 24af817..ac48ba6 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2599,6 +2599,11 @@ int dax_truncate_page(struct inode *, loff_t from, get_block_t);
+ int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
+ int dax_pfn_mkwrite(struct vm_area_struct *, struct vm_fault *);
+ #define dax_mkwrite(vma, vmf, gb)	dax_fault(vma, vmf, gb)
++#ifdef CONFIG_FS_DAX
++void dax_prepare_freeze(struct super_block *sb);
++#else /* !CONFIG_FS_DAX */
++static inline void dax_prepare_freeze(struct super_block *sb){}
++#endif /* !CONFIG_FS_DAX */
+ 
+ #ifdef CONFIG_BLOCK
+ typedef void (dio_submit_t)(int rw, struct bio *bio, struct inode *inode,
 -- 
 1.9.3
 
