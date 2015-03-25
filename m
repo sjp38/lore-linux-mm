@@ -1,68 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E58C6B0038
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 07:30:29 -0400 (EDT)
-Received: by pagj7 with SMTP id j7so26143734pag.2
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 04:30:29 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id xd14si3232194pac.211.2015.03.25.04.30.27
-        for <linux-mm@kvack.org>;
-        Wed, 25 Mar 2015 04:30:27 -0700 (PDT)
-From: Javi Merino <javi.merino@arm.com>
-Subject: [PATCH] ASoC: pcm512x: use DIV_ROUND_CLOSEST_ULL() from kernel.h
-Date: Wed, 25 Mar 2015 11:29:44 +0000
-Message-Id: <1427282984-29296-1-git-send-email-javi.merino@arm.com>
-In-Reply-To: <201503250933.dBZIxVT3%fengguang.wu@intel.com>
-References: <201503250933.dBZIxVT3%fengguang.wu@intel.com>
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B9F36B0038
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 08:11:26 -0400 (EDT)
+Received: by wgdm6 with SMTP id m6so24965326wgd.2
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 05:11:25 -0700 (PDT)
+Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com. [2a00:1450:400c:c05::232])
+        by mx.google.com with ESMTPS id fx9si4793584wib.15.2015.03.25.05.11.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Mar 2015 05:11:24 -0700 (PDT)
+Received: by wibg7 with SMTP id g7so72886075wib.1
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 05:11:23 -0700 (PDT)
+Date: Wed, 25 Mar 2015 13:11:19 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v2 2/2] powerpc/mm: Tracking vDSO remap
+Message-ID: <20150325121118.GA2542@gmail.com>
+References: <20150323085209.GA28965@gmail.com>
+ <cover.1427280806.git.ldufour@linux.vnet.ibm.com>
+ <25152b76585716dc635945c3455ab9b49e645f6d.1427280806.git.ldufour@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <25152b76585716dc635945c3455ab9b49e645f6d.1427280806.git.ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: hannes@cmpxchg.org, kbuild-all@01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Javi Merino <javi.merino@arm.com>, Peter Rosin <peda@axentia.se>, Mark Brown <broonie@kernel.org>, Liam Girdwood <lgirdwood@gmail.com>, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.de>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, user-mode-linux-user@lists.sourceforge.net, linux-arch@vger.kernel.org, linux-mm@kvack.org, cov@codeaurora.org, criu@openvz.org
 
-Now that the kernel provides DIV_ROUND_CLOSEST_ULL(), drop the internal
-implementation and use the kernel one.
 
-Cc: Peter Rosin <peda@axentia.se>
-Cc: Mark Brown <broonie@kernel.org>
-Cc: Liam Girdwood <lgirdwood@gmail.com>
-Cc: Jaroslav Kysela <perex@perex.cz>
-Cc: Takashi Iwai <tiwai@suse.de>
-Reported-by: kbuild test robot <fengguang.wu@intel.com>
-Signed-off-by: Javi Merino <javi.merino@arm.com>
----
-Patches in the -mm tree now provide a DIV_ROUND_CLOSEST_ULL()
-implementation in kernel.h[0].  If I understand it correctly, this
-patch should go via the -mm tree as well with appropriate Acks from
-the maintainers.
+* Laurent Dufour <ldufour@linux.vnet.ibm.com> wrote:
 
-[0] http://ozlabs.org/~akpm/mmots/broken-out/kernelh-implement-div_round_closest_ull.patch
+> Some processes (CRIU) are moving the vDSO area using the mremap system
+> call. As a consequence the kernel reference to the vDSO base address is
+> no more valid and the signal return frame built once the vDSO has been
+> moved is not pointing to the new sigreturn address.
+> 
+> This patch handles vDSO remapping and unmapping.
+> 
+> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> ---
+>  arch/powerpc/include/asm/mmu_context.h | 36 +++++++++++++++++++++++++++++++++-
+>  1 file changed, 35 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/powerpc/include/asm/mmu_context.h b/arch/powerpc/include/asm/mmu_context.h
+> index 73382eba02dc..be5dca3f7826 100644
+> --- a/arch/powerpc/include/asm/mmu_context.h
+> +++ b/arch/powerpc/include/asm/mmu_context.h
+> @@ -8,7 +8,6 @@
+>  #include <linux/spinlock.h>
+>  #include <asm/mmu.h>	
+>  #include <asm/cputable.h>
+> -#include <asm-generic/mm_hooks.h>
+>  #include <asm/cputhreads.h>
+>  
+>  /*
+> @@ -109,5 +108,40 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
+>  #endif
+>  }
+>  
+> +static inline void arch_dup_mmap(struct mm_struct *oldmm,
+> +				 struct mm_struct *mm)
+> +{
+> +}
+> +
+> +static inline void arch_exit_mmap(struct mm_struct *mm)
+> +{
+> +}
+> +
+> +static inline void arch_unmap(struct mm_struct *mm,
+> +			struct vm_area_struct *vma,
+> +			unsigned long start, unsigned long end)
+> +{
+> +	if (start <= mm->context.vdso_base && mm->context.vdso_base < end)
+> +		mm->context.vdso_base = 0;
+> +}
+> +
+> +static inline void arch_bprm_mm_init(struct mm_struct *mm,
+> +				     struct vm_area_struct *vma)
+> +{
+> +}
+> +
+> +#define __HAVE_ARCH_REMAP
+> +static inline void arch_remap(struct mm_struct *mm,
+> +			      unsigned long old_start, unsigned long old_end,
+> +			      unsigned long new_start, unsigned long new_end)
+> +{
+> +	/*
+> +	 * mremap don't allow moving multiple vma so we can limit the check
+> +	 * to old_start == vdso_base.
 
- sound/soc/codecs/pcm512x.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+s/mremap don't allow moving multiple vma
+  mremap() doesn't allow moving multiple vmas
 
-diff --git a/sound/soc/codecs/pcm512x.c b/sound/soc/codecs/pcm512x.c
-index 9974f201a08f..a3dad00b5afc 100644
---- a/sound/soc/codecs/pcm512x.c
-+++ b/sound/soc/codecs/pcm512x.c
-@@ -18,6 +18,7 @@
- #include <linux/init.h>
- #include <linux/module.h>
- #include <linux/clk.h>
-+#include <linux/kernel.h>
- #include <linux/pm_runtime.h>
- #include <linux/regmap.h>
- #include <linux/regulator/consumer.h>
-@@ -31,8 +32,6 @@
- 
- #define DIV_ROUND_DOWN_ULL(ll, d) \
- 	({ unsigned long long _tmp = (ll); do_div(_tmp, d); _tmp; })
--#define DIV_ROUND_CLOSEST_ULL(ll, d) \
--	({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
- 
- #define PCM512x_NUM_SUPPLIES 3
- static const char * const pcm512x_supply_names[PCM512x_NUM_SUPPLIES] = {
--- 
-1.9.1
+right?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
