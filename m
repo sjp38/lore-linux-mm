@@ -1,46 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 499036B0032
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 17:55:25 -0400 (EDT)
-Received: by pdbcz9 with SMTP id cz9so41354163pdb.3
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 14:55:25 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k6si5439663pdp.70.2015.03.25.14.55.24
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 12B816B0032
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 18:16:50 -0400 (EDT)
+Received: by wgdm6 with SMTP id m6so43960417wgd.2
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 15:16:49 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h3si7349045wix.93.2015.03.25.15.16.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Mar 2015 14:55:24 -0700 (PDT)
-Date: Wed, 25 Mar 2015 14:55:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch v2 4/4] mm, mempool: poison elements backed by page
- allocator
-Message-Id: <20150325145523.94d1033b93cd5c1010df93bf@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.10.1503241609370.21805@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1503241607240.21805@chino.kir.corp.google.com>
-	<alpine.DEB.2.10.1503241609370.21805@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 25 Mar 2015 15:16:48 -0700 (PDT)
+Message-ID: <551333D6.20708@suse.cz>
+Date: Wed, 25 Mar 2015 23:16:54 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [RFCv2] mm: page allocation for less fragmentation
+References: <1427251155-12322-1-git-send-email-gioh.kim@lge.com>
+In-Reply-To: <1427251155-12322-1-git-send-email-gioh.kim@lge.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Dave Kleikamp <shaggy@kernel.org>, Christoph Hellwig <hch@lst.de>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, Andrey Ryabinin <a.ryabinin@samsung.com>
+To: Gioh Kim <gioh.kim@lge.com>, akpm@linux-foundation.org, mgorman@suse.de, riel@redhat.com, hannes@cmpxchg.org, rientjes@google.com, vdavydov@parallels.com, iamjoonsoo.kim@lge.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gunho.lee@lge.com
 
-On Tue, 24 Mar 2015 16:10:01 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+On 25.3.2015 3:39, Gioh Kim wrote:
+> My driver allocates more than 40MB pages via alloc_page() at a time and
+> maps them at virtual address. Totally it uses 300~400MB pages.
+> 
+> If I run a heavy load test for a few days in 1GB memory system, I cannot allocate even order=3 pages
+> because-of the external fragmentation.
+> 
+> I thought I needed a anti-fragmentation solution for my driver.
+> But there is no allocation function that considers fragmentation.
+> The compaction is not helpful because it is only for movable pages, not unmovable pages.
+> 
+> This patch proposes a allocation function allocates only pages in the same pageblock.
+> 
+> I tested this patch like following:
+> 
+> 1. When the driver allocates about 400MB and do "cat /proc/pagetypeinfo;cat /proc/buddyinfo"
+> 
+> Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
+> Node    0, zone   Normal, type    Unmovable   3864    728    394    216    129     47     18      9      1      0      0
+> Node    0, zone   Normal, type  Reclaimable    902     96     68     17      3      0      1      0      0      0      0
+> Node    0, zone   Normal, type      Movable   5146    663    178     91     43     16      4      0      0      0      0
+> Node    0, zone   Normal, type      Reserve      1      4      6      6      2      1      1      1      0      1      1
+> Node    0, zone   Normal, type          CMA      0      0      0      0      0      0      0      0      0      0      0
+> Node    0, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
+> 
+> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate
+> Node 0, zone   Normal          135            3          124            2            0            0
+> Node 0, zone   Normal   9880   1489    647    332    177     64     24     10      1      1      1
+> 
+> 2. The driver frees all pages and allocates pages again with alloc_pages_compact.
 
-> Elements backed by the slab allocator are poisoned when added to a
-> mempool's reserved pool.
-> 
-> It is also possible to poison elements backed by the page allocator
-> because the mempool layer knows the allocation order.
-> 
-> This patch extends mempool element poisoning to include memory backed by
-> the page allocator.
-> 
-> This is only effective for configs with CONFIG_DEBUG_SLAB or
-> CONFIG_SLUB_DEBUG_ON.
-> 
+This is not a good test setup. You shouldn't switch the allocation types during
+single system boot. You should compare results from a boot where common
+allocation is used and from a boot where your new allocation is used.
 
-Maybe mempools should get KASAN treatment (as well as this)?
+> This is a kind of compaction of the driver.
+> Following is the result of "cat /proc/pagetypeinfo;cat /proc/buddyinfo"
+> 
+> Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
+> Node    0, zone   Normal, type    Unmovable      8      5      1    432    272     91     37     11      1      0      0
+> Node    0, zone   Normal, type  Reclaimable    901     96     68     17      3      0      1      0      0      0      0
+> Node    0, zone   Normal, type      Movable   4790    776    192     91     43     16      4      0      0      0      0
+> Node    0, zone   Normal, type      Reserve      1      4      6      6      2      1      1      1      0      1      1
+> Node    0, zone   Normal, type          CMA      0      0      0      0      0      0      0      0      0      0      0
+> Node    0, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
+> 
+> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate
+> Node 0, zone   Normal          135            3          124            2            0            0
+> Node 0, zone   Normal   5693    877    266    544    320    108     43     12      1      1      1
+
+The number of unmovable pageblocks didn't change here. The stats for free
+unmovable pages does look better for higher orders than in the first listing
+above, but even the common allocation logic would give you that result, if you
+allocated your 400 MB using (many) order-0 allocations (since you apparently
+don't care about physically contiguous memory). That would also prefer order-0
+free pages before splitting higher orders. So this doesn't demonstrate benefits
+of the alloc_pages_compact() approach I'm afraid. The results suggest that the
+system was in a worst state when the first allocation happened, and meanwhile
+some pages were freed, creating the large numbers of order-0 unmovable free
+pages. Or maybe the system got fragmented in the first allocation because your
+driver tries to allocate the memory with high-order allocations before falling
+back to lower orders? That would probably defeat the natural anti-fragmentation
+of the buddy system.
+
+So a proper test could be based on this:
+
+> If I run a heavy load test for a few days in 1GB memory system, I cannot
+allocate even order=3 pages
+> because-of the external fragmentation.
+
+With this patch, is the situation quantifiably better? Can you post the
+pagetype/buddyinfo for system boot where all driver allocations use the common
+allocator, and system boot with the patch? That should be comparable if the
+workload is the same for both boots.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
