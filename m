@@ -1,49 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FD066B0038
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 05:24:54 -0400 (EDT)
-Received: by pacwe9 with SMTP id we9so23038122pac.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 02:24:53 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id qp10si2875341pbc.10.2015.03.25.02.24.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Mar 2015 02:24:53 -0700 (PDT)
-Message-ID: <1427275489.31588.1.camel@ellerman.id.au>
-Subject: Re: [PATCH 5/6] mm/gup: Replace ACCESS_ONCE with READ_ONCE for
- STRICT_MM_TYPECHECKS
-From: Michael Ellerman <mpe@ellerman.id.au>
-Date: Wed, 25 Mar 2015 20:24:49 +1100
-In-Reply-To: <55127D65.7060605@de.ibm.com>
-References: <1427274719-25890-1-git-send-email-mpe@ellerman.id.au>
-	 <1427274719-25890-5-git-send-email-mpe@ellerman.id.au>
-	 <55127D65.7060605@de.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id EA8006B0038
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 05:29:39 -0400 (EDT)
+Received: by pabxg6 with SMTP id xg6so23258044pab.0
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 02:29:39 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id ok14si2916013pdb.2.2015.03.25.02.29.37
+        for <linux-mm@kvack.org>;
+        Wed, 25 Mar 2015 02:29:38 -0700 (PDT)
+Date: Wed, 25 Mar 2015 20:29:22 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 3/3] RFC: dax: dax_prepare_freeze
+Message-ID: <20150325092922.GH31342@dastard>
+References: <55100B78.501@plexistor.com>
+ <55100D10.6090902@plexistor.com>
+ <20150323224047.GQ28621@dastard>
+ <551100E3.9010007@plexistor.com>
+ <20150325022221.GA31342@dastard>
+ <55126D77.7040105@plexistor.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <55126D77.7040105@plexistor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, aneesh.kumar@in.ibm.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, steve.capper@linaro.org, linux-mm@kvack.org, Jason Low <jason.low2@hp.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>
 
-On Wed, 2015-03-25 at 10:18 +0100, Christian Borntraeger wrote:
-> Am 25.03.2015 um 10:11 schrieb Michael Ellerman:
-> > If STRICT_MM_TYPECHECKS is enabled the generic gup code fails to build
-> > because we are using ACCESS_ONCE on non-scalar types.
+On Wed, Mar 25, 2015 at 10:10:31AM +0200, Boaz Harrosh wrote:
+> On 03/25/2015 04:22 AM, Dave Chinner wrote:
+> > On Tue, Mar 24, 2015 at 08:14:59AM +0200, Boaz Harrosh wrote:
+> <>
 > > 
-> > Convert all uses to READ_ONCE.
+> > Then we have wider problem with DAX, then: sync doesn't work
+> > properly. i.e. if we still has write mapped pages, then we haven't
+> > flushed dirty cache lines on write-mapped files to the persistent
+> > domain by the time sync completes.
+> > 
+> > So, this shouldn't be some special case that only the freeze code
+> > takes into account - we need to make sure that sync (and therefore
+> > freeze) flushes all dirty cache lines and marks all mappings
+> > clean....
+> > 
 > 
-> There is a similar patch from Jason Low in Andrews patch.
+> This is not how I understood it and how I read the code.
+> 
+> The sync does happen, .fsync of the FS is called on each
+> file just as if the user called it. If this is broken it just
+> needs to be fixed there at the .fsync vector. POSIX mandate
+> persistence at .fsync so at the vfs layer we rely on that.
 
-Ah sorry, I didn't think to check.
+right now, the filesystems will see that there are no dirty pages
+on the inode, and then just sync the inode metadata. They will do
+nothing else as filesystems are not aware of CPU cachelines at all.
 
-> If that happens in 4.0-rc, we probably want to merge this before 4.0.
+> So everything at this stage should be synced to real media.
 
-My series can wait, it's not urgent. So I'll plan to merge mine once Andrew's
-tree has gone into Linus' tree for 4.1.
+Actually no. This is what intel are introducing new CPU instructions
+for - so fsync can flush the cpu caches and commit them to th
+persistence domain correctly.
 
-cheers
+> What does not happen is writeback. since dax does not have
+> any writeback.
 
+Which is precisely the problem we need to address - we don't need
+writeback to a block device, but we do need the dirty CPU cachelines
+flushed and the mappings cleaned.
+
+> And because of that nothing turned the
+> user mappings to read only. This is what I do here but
+> instead of write-protecting I just unmap because it is
+> easier for me to code it.
+
+That doesn't mean it is the correct solution.
+
+Cheers,
+
+Dave.
+
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
