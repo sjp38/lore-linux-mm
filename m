@@ -1,68 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id C2AFD6B0038
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 03:51:28 -0400 (EDT)
-Received: by wibg7 with SMTP id g7so67995723wib.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 00:51:28 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id el10si2858487wjd.180.2015.03.25.00.51.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 25 Mar 2015 00:51:27 -0700 (PDT)
-Date: Wed, 25 Mar 2015 08:51:23 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: Remove usages of ACCESS_ONCE
-Message-ID: <20150325075123.GA22386@dhcp22.suse.cz>
-References: <1427150680.2515.36.camel@j-VirtualBox>
- <20150324103003.GC14241@dhcp22.suse.cz>
- <1427221835.2515.52.camel@j-VirtualBox>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 11CF16B0038
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 04:07:37 -0400 (EDT)
+Received: by pdbop1 with SMTP id op1so20708542pdb.2
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 01:07:36 -0700 (PDT)
+Received: from us-alimail-mta1.hst.scl.en.alidc.net (mail113-248.mail.alibaba.com. [205.204.113.248])
+        by mx.google.com with ESMTP id vy7si2529445pac.53.2015.03.25.01.07.34
+        for <linux-mm@kvack.org>;
+        Wed, 25 Mar 2015 01:07:36 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <048301d066d1$653e63d0$2fbb2b70$@alibaba-inc.com>
+In-Reply-To: <048301d066d1$653e63d0$2fbb2b70$@alibaba-inc.com>
+Subject: Re: [patch 06/12] mm: oom_kill: simplify OOM killer locking
+Date: Wed, 25 Mar 2015 16:05:57 +0800
+Message-ID: <048701d066d2$86b182d0$94148870$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1427221835.2515.52.camel@j-VirtualBox>
+Content-Type: text/plain;
+	charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Low <jason.low2@hp.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Aswin Chandramouleeswaran <aswin@hp.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Davidlohr Bueso <dave@stgolabs.net>, Rik van Riel <riel@redhat.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hillf Danton <hillf.zj@alibaba-inc.com>
 
-On Tue 24-03-15 11:30:35, Jason Low wrote:
-> On Tue, 2015-03-24 at 11:30 +0100, Michal Hocko wrote:
-> > On Mon 23-03-15 15:44:40, Jason Low wrote:
-> > > Commit 38c5ce936a08 converted ACCESS_ONCE usage in gup_pmd_range() to
-> > > READ_ONCE, since ACCESS_ONCE doesn't work reliably on non-scalar types.
-> > > 
-> > > This patch removes the rest of the usages of ACCESS_ONCE, and use
-> > > READ_ONCE for the read accesses. This also makes things cleaner,
-> > > instead of using separate/multiple sets of APIs.
-> > > 
-> > > Signed-off-by: Jason Low <jason.low2@hp.com>
-> > 
-> > Makes sense to me. I would prefer a patch split into two parts. One which
-> > changes potentially dangerous usage of ACCESS_ONCE and the cleanup. This
-> > will make the life of those who backport patches into older kernels
-> > easier a bit.
-> 
-> Okay, so have a patch 1 which fixes the following:
-> 
->     pte_t pte = ACCESS_ONCE(*ptep);
->     pgd_t pgd = ACCESS_ONCE(*pgdp);
-> 
-> and the rest of the changes in the cleanup patch 2?
 
-Thanks!
+> --- a/include/linux/oom.h
+> +++ b/include/linux/oom.h
+> @@ -32,6 +32,8 @@ enum oom_scan_t {
+>  /* Thread is the potential origin of an oom condition; kill first on oom */
+>  #define OOM_FLAG_ORIGIN		((__force oom_flags_t)0x1)
+> 
+> +extern struct mutex oom_lock;
+> +
+>  static inline void set_current_oom_origin(void)
+>  {
+>  	current->signal->oom_flags |= OOM_FLAG_ORIGIN;
+> @@ -60,9 +62,6 @@ extern void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+>  			     struct mem_cgroup *memcg, nodemask_t *nodemask,
+>  			     const char *message);
+> 
+> -extern bool oom_zonelist_trylock(struct zonelist *zonelist, gfp_t gfp_flags);
+> -extern void oom_zonelist_unlock(struct zonelist *zonelist, gfp_t gfp_flags);
+Alternately expose three functions, rather than oom_lock mutex?
+bool oom_trylock(void);
+void oom_lock(void);
+void oom_unlock(void);
 
-> 
-> > I won't insist though.
-> > 
-> > Acked-by: Michal Hocko <mhocko@suse.cz>
-> 
-> Thanks,
-> Jason
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
