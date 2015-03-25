@@ -1,83 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EA8006B0038
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 05:29:39 -0400 (EDT)
-Received: by pabxg6 with SMTP id xg6so23258044pab.0
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 02:29:39 -0700 (PDT)
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id DD5026B0038
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 05:41:52 -0400 (EDT)
+Received: by pdbcz9 with SMTP id cz9so23054800pdb.3
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 02:41:52 -0700 (PDT)
 Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id ok14si2916013pdb.2.2015.03.25.02.29.37
+        by mx.google.com with ESMTP id yy3si2862538pbb.193.2015.03.25.02.41.50
         for <linux-mm@kvack.org>;
-        Wed, 25 Mar 2015 02:29:38 -0700 (PDT)
-Date: Wed, 25 Mar 2015 20:29:22 +1100
+        Wed, 25 Mar 2015 02:41:52 -0700 (PDT)
+Date: Wed, 25 Mar 2015 20:41:35 +1100
 From: Dave Chinner <david@fromorbit.com>
 Subject: Re: [PATCH 3/3] RFC: dax: dax_prepare_freeze
-Message-ID: <20150325092922.GH31342@dastard>
+Message-ID: <20150325094135.GI31342@dastard>
 References: <55100B78.501@plexistor.com>
  <55100D10.6090902@plexistor.com>
- <20150323224047.GQ28621@dastard>
- <551100E3.9010007@plexistor.com>
- <20150325022221.GA31342@dastard>
- <55126D77.7040105@plexistor.com>
+ <55115A99.40705@plexistor.com>
+ <20150325022633.GB31342@dastard>
+ <5512725A.1010905@plexistor.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <55126D77.7040105@plexistor.com>
+In-Reply-To: <5512725A.1010905@plexistor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Boaz Harrosh <boaz@plexistor.com>
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>
 
-On Wed, Mar 25, 2015 at 10:10:31AM +0200, Boaz Harrosh wrote:
-> On 03/25/2015 04:22 AM, Dave Chinner wrote:
-> > On Tue, Mar 24, 2015 at 08:14:59AM +0200, Boaz Harrosh wrote:
+On Wed, Mar 25, 2015 at 10:31:22AM +0200, Boaz Harrosh wrote:
+> On 03/25/2015 04:26 AM, Dave Chinner wrote:
 > <>
+> >>> +	/* TODO: each DAX fs has some private mount option to enable DAX. If
+> >>> +	 * We made that option a generic MS_DAX_ENABLE super_block flag we could
+> >>> +	 * Avoid the 95% extra unneeded loop-on-all-inodes every freeze.
+> >>> +	 * if (!(sb->s_flags & MS_DAX_ENABLE))
+> >>> +	 *	return 0;
+> >>> +	 */
+> >>> +
+> >>> +	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
 > > 
-> > Then we have wider problem with DAX, then: sync doesn't work
-> > properly. i.e. if we still has write mapped pages, then we haven't
-> > flushed dirty cache lines on write-mapped files to the persistent
-> > domain by the time sync completes.
-> > 
-> > So, this shouldn't be some special case that only the freeze code
-> > takes into account - we need to make sure that sync (and therefore
-> > freeze) flushes all dirty cache lines and marks all mappings
-> > clean....
+> > missing locking.
 > > 
 > 
-> This is not how I understood it and how I read the code.
+> I will please need help here. This is very deep inside the freeze process
+> we area already holding bunch of locks. We know that nothing can be modified
+> at this stage. We are completely read-only.
+
+Which means we could stillbe reading new inodes in off disk and
+hence the sb->s_inodes list can be changing. Memory reclaim can be
+running via the shrinker, freeing clean inodes, hence the
+sb->s_inodes list can be changing.
+
+>From fs/inode.c:
+
+/*
+ * Inode locking rules:
+.....
+ * inode_sb_list_lock protects:
+ *   sb->s_inodes, inode->i_sb_list
+
+This...
+
+> >>> +		/* TODO: For freezing we can actually do with write-protecting
+> >>> +		 * the page. But I cannot find a ready made function that does
+> >>> +		 * that for a giving mapping (with all the proper locking).
+> >>> +		 * How performance sensitive is the all sb_freeze API?
+> >>> +		 * For now we can just unmap the all mapping, and pay extra
+> >>> +		 * on read faults.
+> >>> +		 */
+> >>> +		/* NOTE: Do not unmap private COW mapped pages it will not
+> >>> +		 * modify the FS.
+> >>> +		 */
+> >>> +		if (IS_DAX(inode))
+> >>> +			unmap_mapping_range(inode->i_mapping, 0, 0, 0);
+> >>
+> >> So what happens here is that we loop on all sb->s_inodes every freeze
+> >> and in the not DAX case just do nothing.
+> > 
+> > Which is real bad and known to be a performance issue. See Josef's
+> > recent sync scalability patchset posting that only tracks and walks
+> > dirty inodes...
 > 
-> The sync does happen, .fsync of the FS is called on each
-> file just as if the user called it. If this is broken it just
-> needs to be fixed there at the .fsync vector. POSIX mandate
-> persistence at .fsync so at the vfs layer we rely on that.
+> Sure but how hot is freeze? Josef's fixed the very hot sync path,
+> but freeze happens once in a blue moon. Do we care?
 
-right now, the filesystems will see that there are no dirty pages
-on the inode, and then just sync the inode metadata. They will do
-nothing else as filesystems are not aware of CPU cachelines at all.
+Yes, because if you have 50 million cached inodes on a filesystem,
+it's going to take a long time to traverse them all, and right now
+the inode_sb_list_lock is a *global lock*.
 
-> So everything at this stage should be synced to real media.
+> >> It could be nice to have a flag at the sb level to tel us if we need
+> >> to expect IS_DAX() inodes at all, for example when we are mounted on
+> >> an harddisk it should not be set.
+> >>
+> >> All of ext2/4 and now Dave's xfs have their own
+> >> 	XFS_MOUNT_DAX / EXT2_MOUNT_DAX / EXT4_MOUNT_DAX
+> >>
+> >> Is it OK if I unify all this on sb->s_flags |= MS_MOUNT_DAX so I can check it
+> >> here in Generic code? The option parsing will be done by each FS but
+> >> the flag be global?
+> > 
+> > No, because as I mentioned in another thread we're going to end up
+> > with filesystems that don't have "mount wide" DAX behaviour, and we
+> > have to check every dirty inode anyway. And....
+> > 
+> 
+> Sure! but let us contract with the FS, that please set the MS_MOUNT_DAX
+> if there is any chance at all that IS_DAX() comes out true, so we loop
+> here. 
 
-Actually no. This is what intel are introducing new CPU instructions
-for - so fsync can flush the cpu caches and commit them to th
-persistence domain correctly.
+The mount option is irrelevant here - we should only be looping over
+dirty inodes.  We don't care if they are DAX or not - we have to
+iterate them and ensure they are properly clean. We already have
+infrastructure to do this - we should use it and fix the problem
+once and for all rather than hacking special case code into random
+places.
 
-> What does not happen is writeback. since dax does not have
-> any writeback.
+> BTW: We must loop this way on every sb inode because we do not have
+> dirty inodes. There is no "dirty"ing going on in dax, not of inodes
+> and not of pages.
 
-Which is precisely the problem we need to address - we don't need
-writeback to a block device, but we do need the dirty CPU cachelines
-flushed and the mappings cleaned.
+Precisely the problem we need to address. We do have dirty inodes,
+we just never set the fact they have dirty "pages" on them and hence
+never do data writeback on them.
 
-> And because of that nothing turned the
-> user mappings to read only. This is what I do here but
-> instead of write-protecting I just unmap because it is
-> easier for me to code it.
+> > ... it's the wrong approach - sync_filesystem(sb) shoul dbe handling
+> > this problem, so that sync and fsync work correctly, and then you
+> > don't care about whether DAX is supported or not...
+> > 
+> 
+> sync and fsync should and will work correctly, but this does not
+> solve our problem. because what turns pages to read-only is the
+> writeback. And we do not have this in dax. Therefore we need to
+> do this here as a special case.
 
-That doesn't mean it is the correct solution.
+We can still use exactly the same dirty tracking as we use for data
+writeback. The difference is that we don't need to go through all
+teh page writeback; we can just flush the CPU caches and mark all
+the mappings clean, then clear the I_DIRTY_PAGES flag and move on to
+inode writeback....
 
 Cheers,
 
 Dave.
-
 -- 
 Dave Chinner
 david@fromorbit.com
