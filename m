@@ -1,77 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 477CA6B0038
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 06:16:26 -0400 (EDT)
-Received: by pabxg6 with SMTP id xg6so24422283pab.0
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 03:16:26 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id fp1si3058354pbb.20.2015.03.25.03.16.25
-        for <linux-mm@kvack.org>;
-        Wed, 25 Mar 2015 03:16:25 -0700 (PDT)
-Date: Wed, 25 Mar 2015 18:15:45 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [next:master 6752/6952] drivers/hwmon/lm85.c:194:16: sparse:
- incorrect type in initializer (different modifiers)
-Message-ID: <201503251844.PFDwmGXL%fengguang.wu@intel.com>
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id AA1036B0038
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 06:19:54 -0400 (EDT)
+Received: by wibg7 with SMTP id g7so103532235wib.1
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 03:19:54 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
+        by mx.google.com with ESMTPS id h9si3502497wjy.213.2015.03.25.03.19.52
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Mar 2015 03:19:53 -0700 (PDT)
+Received: by wixw10 with SMTP id w10so31414889wix.0
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 03:19:52 -0700 (PDT)
+Message-ID: <55128BC6.7090105@plexistor.com>
+Date: Wed, 25 Mar 2015 12:19:50 +0200
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH 3/3] RFC: dax: dax_prepare_freeze
+References: <55100B78.501@plexistor.com> <55100D10.6090902@plexistor.com> <20150323224047.GQ28621@dastard> <551100E3.9010007@plexistor.com> <20150325022221.GA31342@dastard> <55126D77.7040105@plexistor.com> <20150325092922.GH31342@dastard>
+In-Reply-To: <20150325092922.GH31342@dastard>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartosz Golaszewski <bgolaszewski@baylibre.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>
 
-tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-head:   b2dfdab2f61ed5eb57317136d6efbb973f79210e
-commit: 07502c794be12a1d42445169f70585f215d10f8c [6752/6952] hwmon: (lm85) use find_closest() in x_TO_REG() functions
-reproduce:
-  # apt-get install sparse
-  git checkout 07502c794be12a1d42445169f70585f215d10f8c
-  make ARCH=x86_64 allmodconfig
-  make C=1 CF=-D__CHECK_ENDIAN__
+On 03/25/2015 11:29 AM, Dave Chinner wrote:
+> On Wed, Mar 25, 2015 at 10:10:31AM +0200, Boaz Harrosh wrote:
+>> On 03/25/2015 04:22 AM, Dave Chinner wrote:
+>>> On Tue, Mar 24, 2015 at 08:14:59AM +0200, Boaz Harrosh wrote:
+>> <>
+<>
+>> The sync does happen, .fsync of the FS is called on each
+>> file just as if the user called it. If this is broken it just
+>> needs to be fixed there at the .fsync vector. POSIX mandate
+>> persistence at .fsync so at the vfs layer we rely on that.
+> 
+> right now, the filesystems will see that there are no dirty pages
+> on the inode, and then just sync the inode metadata. They will do
+> nothing else as filesystems are not aware of CPU cachelines at all.
+> 
 
+Sigh yes. There is this bug. And I am sitting on a wide fix for this.
 
-sparse warnings: (new ones prefixed by >>)
+The strategy is. All Kernel writes are done with a new copy_user_nt.
+NT stands for none-temporal. This shows 20% improvements since cachelines
+need not be fetched when written too.
 
->> drivers/hwmon/lm85.c:194:16: sparse: incorrect type in initializer (different modifiers)
-   drivers/hwmon/lm85.c:194:16:    expected int *__fc_a
-   drivers/hwmon/lm85.c:194:16:    got int static const [toplevel] *<noident>
->> drivers/hwmon/lm85.c:210:16: sparse: incorrect type in initializer (different modifiers)
-   drivers/hwmon/lm85.c:210:16:    expected int *__fc_a
-   drivers/hwmon/lm85.c:210:16:    got int const *map
+The arches that do not have NT instructions, will use a generic
+copy_user_nt that does a copy_user and then flush cashes.
+Same flush cashes we do before DMA IO. (effectively every 4k)
+[Its more complicated with the edges and all, by I have solved
+ all this. Will post in a week or two]
 
-vim +194 drivers/hwmon/lm85.c
+So what is left is the mmaped inodes. The logic here is that
+at .fsync vector dax inodes will do a cl_flush only if mapping_mapped()
+is true. Also .msync is the same as .fsync
 
-   188		2000, 2500, 3300, 4000, 5000, 6600, 8000, 10000,
-   189		13300, 16000, 20000, 26600, 32000, 40000, 53300, 80000
-   190	};
-   191	
-   192	static int RANGE_TO_REG(long range)
-   193	{
- > 194		return find_closest(range, lm85_range_map, ARRAY_SIZE(lm85_range_map));
-   195	}
-   196	#define RANGE_FROM_REG(val)	lm85_range_map[(val) & 0x0f]
-   197	
-   198	/* These are the PWM frequency encodings */
-   199	static const int lm85_freq_map[8] = { /* 1 Hz */
-   200		10, 15, 23, 30, 38, 47, 61, 94
-   201	};
-   202	static const int adm1027_freq_map[8] = { /* 1 Hz */
-   203		11, 15, 22, 29, 35, 44, 59, 88
-   204	};
-   205	#define FREQ_MAP_LEN	8
-   206	
-   207	static int FREQ_TO_REG(const int *map,
-   208			       unsigned int map_size, unsigned long freq)
-   209	{
- > 210		return find_closest(freq, map, map_size);
-   211	}
-   212	
-   213	static int FREQ_FROM_REG(const int *map, u8 reg)
+And one last thing we also call .fsync at vm_operations_struct->close
+because it is allowed for an app to do mmap, munmap, .fsync so we just
+call dax .fsync at munmap always.
 
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+So by now we should be covered for fsync guaranty.
+
+>> So everything at this stage should be synced to real media.
+> 
+> Actually no. This is what intel are introducing new CPU instructions
+> for - so fsync can flush the cpu caches and commit them to th
+> persistence domain correctly.
+> 
+
+The new intel instructions are for an optimization, and they will
+fit in the picture for the CPUs that have it. But there are already
+NT instructions for existing CPUs. (Just not as fast and precise)
+
+Every ARCH will do its best under a small API
+	copy_user_nt	- data is at media
+	memset_nt	- data is at media
+	cl_flush	- partial written cachelines flushed to media 
+	sfence		- New data seen by all CPUs
+
+>> What does not happen is writeback. since dax does not have
+>> any writeback.
+> 
+> Which is precisely the problem we need to address - we don't need
+> writeback to a block device, but we do need the dirty CPU cachelines
+> flushed and the mappings cleaned.
+> 
+
+I see what you mean. Since nothing dirtied the inode then above
+.fsync will not be called and we have not pushed mmap data to
+media.
+
+Again here we only need to do this for mmaped inodes, because
+Kernel written data is (will be) written NT style.
+
+>> And because of that nothing turned the
+>> user mappings to read only. This is what I do here but
+>> instead of write-protecting I just unmap because it is
+>> easier for me to code it.
+> 
+> That doesn't mean it is the correct solution.
+
+Please note that even if we properly .fsync cachlines the page-faults
+are orthogonal to this. There is no point in making mmapped dax pages
+read-only after every .fsync and pay a page-fault. We should leave them
+mapped has is. The only place that we need page protection is at freeze
+time.
+
+But I see that we might have a problem with .fsync not being called.
+I see that you sent a second mail. I'll try to answer there.
+
+> Cheers,
+> Dave.
+
+Thanks
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
