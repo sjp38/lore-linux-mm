@@ -1,78 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id B0E536B0038
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 01:29:13 -0400 (EDT)
-Received: by pdnc3 with SMTP id c3so17015375pdn.0
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 22:29:13 -0700 (PDT)
-Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com. [2607:f8b0:400e:c02::22b])
-        by mx.google.com with ESMTPS id e6si1935883pdo.202.2015.03.24.22.29.12
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 308716B0038
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 02:07:27 -0400 (EDT)
+Received: by wibgn9 with SMTP id gn9so23068187wib.1
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 23:07:26 -0700 (PDT)
+Received: from mail-wg0-x22b.google.com (mail-wg0-x22b.google.com. [2a00:1450:400c:c00::22b])
+        by mx.google.com with ESMTPS id x1si3205682wif.79.2015.03.24.23.07.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Mar 2015 22:29:13 -0700 (PDT)
-Received: by pdnc3 with SMTP id c3so17015108pdn.0
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 22:29:12 -0700 (PDT)
-Date: Wed, 25 Mar 2015 14:29:22 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH 1/2] zsmalloc: do not remap dst page while prepare next
- src page
-Message-ID: <20150325052922.GA1675@swordfish>
-References: <1427210687-6634-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1427210687-6634-2-git-send-email-sergey.senozhatsky@gmail.com>
- <5512421D.4000603@samsung.com>
+        Tue, 24 Mar 2015 23:07:25 -0700 (PDT)
+Received: by wgs2 with SMTP id 2so15034424wgs.1
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 23:07:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5512421D.4000603@samsung.com>
+In-Reply-To: <20150324150054.a9050b7814860790e1d9b0d0@linux-foundation.org>
+References: <1426773881-5757-1-git-send-email-r.peniaev@gmail.com>
+	<1426773881-5757-2-git-send-email-r.peniaev@gmail.com>
+	<20150324150054.a9050b7814860790e1d9b0d0@linux-foundation.org>
+Date: Wed, 25 Mar 2015 15:07:24 +0900
+Message-ID: <CACZ9PQUHctju1GkMz_DDYj2YM7hO1FF-=7mFes2_HHqx53jCEw@mail.gmail.com>
+Subject: Re: [RFC v2 1/3] mm/vmalloc: fix possible exhaustion of vmalloc space
+ caused by vm_map_ram allocator
+From: Roman Peniaev <r.peniaev@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Heesub Shin <heesub.shin@samsung.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, sunae.seo@samsung.com, cmlaika.kim@samsung.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Eric Dumazet <edumazet@google.com>, David Rientjes <rientjes@google.com>, WANG Chao <chaowang@redhat.com>, Fabian Frederick <fabf@skynet.be>, Christoph Lameter <cl@linux.com>, Gioh Kim <gioh.kim@lge.com>, Rob Jones <rob.jones@codethink.co.uk>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
 
-On (03/25/15 14:05), Heesub Shin wrote:
-> No, it's not unnecessary. We should do kunmap_atomic() in the reverse
-> order of kmap_atomic(), so unfortunately it's inevitable to
-> kunmap_atomic() both on d_addr and s_addr.
-> 
+On Wed, Mar 25, 2015 at 7:00 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Thu, 19 Mar 2015 23:04:39 +0900 Roman Pen <r.peniaev@gmail.com> wrote:
+>
+>> If suitable block can't be found, new block is allocated and put into a head
+>> of a free list, so on next iteration this new block will be found first.
+>>
+>> ...
+>>
+>> Cc: stable@vger.kernel.org
+>>
+>> ...
+>>
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -837,7 +837,7 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
+>>
+>>       vbq = &get_cpu_var(vmap_block_queue);
+>>       spin_lock(&vbq->lock);
+>> -     list_add_rcu(&vb->free_list, &vbq->free);
+>> +     list_add_tail_rcu(&vb->free_list, &vbq->free);
+>>       spin_unlock(&vbq->lock);
+>>       put_cpu_var(vmap_block_queue);
+>>
+>
+> I'm not sure about the cc:stable here.  There is potential for
+> unexpected side-effects
 
-Andrew, can you please drop this patch?
+Only one potential side-effect I see is that allocator has to iterate
+up to 6 (7 on 64-bit systems) blocks in a free list two times.
+The second patch fixes this by occupying the block right away after
+allocation.  But even the second patch is not applied - iterating 6 (7)
+blocks (and this is the worst and rare case) is not a big deal comparing
+to the size of a free list, which increases over time, if this patch was
+not applied.
 
+I can compare the behaviour of the allocator, which puts new blocks to the
+head of a free list, with the tetris game: sooner or later coming blocks
+will reach the top, and you will lose, even if you are the champion.
 
-> > 
-> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> > ---
-> >  mm/zsmalloc.c | 2 --
-> >  1 file changed, 2 deletions(-)
-> > 
-> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> > index d920e8b..7af4456 100644
-> > --- a/mm/zsmalloc.c
-> > +++ b/mm/zsmalloc.c
-> > @@ -1536,12 +1536,10 @@ static void zs_object_copy(unsigned long src, unsigned long dst,
-> >  			break;
-> >  
-> >  		if (s_off + size >= PAGE_SIZE) {
-> > -			kunmap_atomic(d_addr);
-> >  			kunmap_atomic(s_addr);
-> 
-> Removing kunmap_atomic(d_addr) here may cause BUG_ON() at __kunmap_atomic().
-> 
-> I tried yours to see it really happens:
-> > kernel BUG at arch/arm/mm/highmem.c:113!
+> and I don't *think* people are hurting from
+> this issue in real life.  Or maybe I'm wrong about that?
 
-oh, arm. tested on x86_64 only. I see why it happens there. thanks for reporting.
+Yes, probably they are not.  I showed one special synthetic scenario, which
+works pretty well and exhausts the virtual space very fast, another scenario
+is a random one, which also works, but very slow.
 
+I think drivers tend only to preallocate (not frequent usage) or to pass
+sequential sizes to vm_map_ram.  In these cases everything will be fine.
+Also free list is a CPU variable.  Good and fast reproduction happens only
+if you bind a vm_map_ram call to the CPU or use uniprocessor system.
 
-sorry, should have checked.
+Probably the conjunction of all of these reasons hid the problem for a
+long time.  But I tend to think that this is a bug, long-standing bug.
 
-> > Internal error: Oops - BUG: 0 [#1] SMP ARM
-> > Modules linked in:
-> > CPU: 2 PID: 1774 Comm: bash Not tainted 4.0.0-rc2-mm1+ #105
-> > Hardware name: ARM-Versatile Express
-> > task: ee971300 ti: e8a26000 task.ti: e8a26000
-> > PC is at __kunmap_atomic+0x144/0x14c
-> > LR is at zs_object_copy+0x19c/0x2dc
-
-	-ss
+--
+Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
