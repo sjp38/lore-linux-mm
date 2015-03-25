@@ -1,81 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 303906B0032
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 16:05:21 -0400 (EDT)
-Received: by pdbcz9 with SMTP id cz9so38773235pdb.3
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 13:05:20 -0700 (PDT)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id ce13si5058612pdb.224.2015.03.25.13.05.19
-        for <linux-mm@kvack.org>;
-        Wed, 25 Mar 2015 13:05:20 -0700 (PDT)
-Date: Thu, 26 Mar 2015 07:05:16 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 3/3] RFC: dax: dax_prepare_freeze
-Message-ID: <20150325200516.GK31342@dastard>
-References: <55100B78.501@plexistor.com>
- <55100D10.6090902@plexistor.com>
- <55115A99.40705@plexistor.com>
- <20150325022633.GB31342@dastard>
- <5512725A.1010905@plexistor.com>
- <20150325094135.GI31342@dastard>
- <551290AC.7080402@plexistor.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <551290AC.7080402@plexistor.com>
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FA7F6B0032
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 16:23:55 -0400 (EDT)
+Received: by pdbcz9 with SMTP id cz9so39228112pdb.3
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 13:23:55 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id xy3si5107463pbc.188.2015.03.25.13.23.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Mar 2015 13:23:54 -0700 (PDT)
+Date: Wed, 25 Mar 2015 13:23:53 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [mmotm:master 219/458] mm/huge_memory.c:1397:3: error: implicit
+ declaration of function 'pmd_mkclean'
+Message-Id: <20150325132353.ce2c6461f8ce8bb083004af8@linux-foundation.org>
+In-Reply-To: <201503251512.LuQ8VtXp%fengguang.wu@intel.com>
+References: <201503251512.LuQ8VtXp%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Minchan Kim <minchan@kernel.org>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Wed, Mar 25, 2015 at 12:40:44PM +0200, Boaz Harrosh wrote:
-> On 03/25/2015 11:41 AM, Dave Chinner wrote:
-> > On Wed, Mar 25, 2015 at 10:31:22AM +0200, Boaz Harrosh wrote:
-> >> On 03/25/2015 04:26 AM, Dave Chinner wrote:
-> <>
-> >> sync and fsync should and will work correctly, but this does not
-> >> solve our problem. because what turns pages to read-only is the
-> >> writeback. And we do not have this in dax. Therefore we need to
-> >> do this here as a special case.
-> > 
-> > We can still use exactly the same dirty tracking as we use for data
-> > writeback. The difference is that we don't need to go through all
-> > teh page writeback; we can just flush the CPU caches and mark all
-> > the mappings clean, then clear the I_DIRTY_PAGES flag and move on to
-> > inode writeback....
-> > 
+On Wed, 25 Mar 2015 15:16:14 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+
+> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> head:   e077e8e0158533bb824f3e2d9c0eaaaf4679b0ca
+> commit: 2f7e175e0801020803aeba52576d53c0fe69805b [219/458] mm: don't split THP page when syscall is called
+> config: i386-randconfig-nexr0-0322 (attached as .config)
+> reproduce:
+>   git checkout 2f7e175e0801020803aeba52576d53c0fe69805b
+>   # save the attached .config to linux build tree
+>   make ARCH=i386 
 > 
-> I see what you mean. the sb wide sync will not step into mmaped inodes
-> and fsync them.
+> Note: the mmotm/master HEAD e077e8e0158533bb824f3e2d9c0eaaaf4679b0ca builds fine.
+>       It only hurts bisectibility.
 > 
-> If we go my way and write NT (None Temporal) style in Kernel.
-> NT instructions exist since xeon and all the Intel iX core CPUs have
-> them. In tests we conducted doing xeon NT-writes vs
-> regular-writes-and-cl_flush at .fsync showed minimum of 20% improvement.
-> That is on very large IOs. On 4k IOs it was even better.
-
-As I said before, relying on specific instructions is a non-starter
-for mmap writes, and that's the problem we need to solve here.
-
-> It looks like you have a much better picture in your mind how to
-> fit this properly at the inode-dirty picture. Can you attempt a rough draft?
+> All error/warnings:
 > 
-> If we are going the NT way. Then we can only I_DIRTY_ track the mmaped
-> inodes. For me this is really scary because I do not want to trigger
-> any writeback threads. If you could please draw me an outline (or write
-> something up ;-)) it would be great.
+>    mm/huge_memory.c: In function 'madvise_free_huge_pmd':
+> >> mm/huge_memory.c:1397:3: error: implicit declaration of function 'pmd_mkclean' [-Werror=implicit-function-declaration]
+>       orig_pmd = pmd_mkclean(orig_pmd);
+>       ^
+> >> mm/huge_memory.c:1397:12: error: incompatible types when assigning to type 'pmd_t' from type 'int'
+>       orig_pmd = pmd_mkclean(orig_pmd);
+>                ^
+>    cc1: some warnings being treated as errors
 
-Writeback threads are not used for fsync - they are used for sync
-and background writeback. They are already active on DAX filesystems
-that track dirty inodes on the VFS superblock, as this is the way
-inodes are written back on some filesystems.
+Thanks.  I reordered things so
 
-Cheers,
+x86-add-pmd_-for-thp.patch
+x86-add-pmd_-for-thp-fix.patch
+sparc-add-pmd_-for-thp.patch
+sparc-add-pmd_-for-thp-fix.patch
+powerpc-add-pmd_-for-thp.patch
+arm-add-pmd_mkclean-for-thp.patch
+arm64-add-pmd_-for-thp.patch
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+come before
+
+mm-support-madvisemadv_free.patch
+mm-support-madvisemadv_free-fix.patch
+mm-support-madvisemadv_free-fix-2.patch
+mm-dont-split-thp-page-when-syscall-is-called.patch
+mm-dont-split-thp-page-when-syscall-is-called-fix.patch
+mm-dont-split-thp-page-when-syscall-is-called-fix-2.patch
+mm-free-swp_entry-in-madvise_free.patch
+mm-move-lazy-free-pages-to-inactive-list.patch
+
+which should fix it up.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
