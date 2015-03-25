@@ -1,183 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 890EE6B0032
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 20:41:10 -0400 (EDT)
-Received: by pdbcz9 with SMTP id cz9so10046787pdb.3
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 17:41:10 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id xz4si1083593pbb.196.2015.03.24.17.41.09
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Mar 2015 17:41:09 -0700 (PDT)
-Received: by padcy3 with SMTP id cy3so10097387pad.3
-        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 17:41:09 -0700 (PDT)
-Date: Tue, 24 Mar 2015 17:41:06 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 11/24] huge tmpfs: shrinker to migrate and free underused
- holes
-In-Reply-To: <20150324125752.GA4642@node.dhcp.inet.fi>
-Message-ID: <alpine.LSU.2.11.1503241646290.2532@eggly.anvils>
-References: <alpine.LSU.2.11.1502201941340.14414@eggly.anvils> <alpine.LSU.2.11.1502202008010.14414@eggly.anvils> <550AFFD5.40607@yandex-team.ru> <alpine.LSU.2.11.1503222046510.5278@eggly.anvils> <20150324125752.GA4642@node.dhcp.inet.fi>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id C2AB16B0038
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2015 21:01:48 -0400 (EDT)
+Received: by pdnc3 with SMTP id c3so10712912pdn.0
+        for <linux-mm@kvack.org>; Tue, 24 Mar 2015 18:01:48 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id l1si1165209pdm.154.2015.03.24.18.01.46
+        for <linux-mm@kvack.org>;
+        Tue, 24 Mar 2015 18:01:47 -0700 (PDT)
+Message-ID: <551208F8.4020706@lge.com>
+Date: Wed, 25 Mar 2015 10:01:44 +0900
+From: Gioh Kim <gioh.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC v2 1/3] mm/vmalloc: fix possible exhaustion of vmalloc space
+ caused by vm_map_ram allocator
+References: <1426773881-5757-1-git-send-email-r.peniaev@gmail.com> <1426773881-5757-2-git-send-email-r.peniaev@gmail.com>
+In-Reply-To: <1426773881-5757-2-git-send-email-r.peniaev@gmail.com>
+Content-Type: text/plain; charset=euc-kr
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Hugh Dickins <hughd@google.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Ning Qu <quning@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-
-On Tue, 24 Mar 2015, Kirill A. Shutemov wrote:
-> On Sun, Mar 22, 2015 at 09:40:02PM -0700, Hugh Dickins wrote:
-> > (I think Kirill has a problem of that kind in his page_remove_rmap scan).
-
-(And this one I mentioned to you at the conference :)
-
-> > 
-> > It will be interesting to see what Kirill does to maintain the stats
-> > for huge pagecache: but he will have no difficulty in finding fields
-> > to store counts, because he's got lots of spare fields in those 511
-> > tail pages - that's a useful benefit of the compound page, but does
-> > prevent the tails from being used in ordinary ways.  (I did try using
-> > team_head[1].team_usage for more, but atomicity needs prevented it.)
-> 
-> The patch below should address the race you pointed, if I've got all
-> right. Not hugely happy with the change though.
-
-Yes, without thinking too hard about it, something like what you have
-below should do it.  Not very pretty; maybe a neater idea will come up.
-
-Hugh
+To: Roman Pen <r.peniaev@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Eric Dumazet <edumazet@google.com>, David Rientjes <rientjes@google.com>, WANG Chao <chaowang@redhat.com>, Fabian Frederick <fabf@skynet.be>, Christoph Lameter <cl@linux.com>, Rob Jones <rob.jones@codethink.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 435c90f59227..a3e6b35520f8 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -423,8 +423,17 @@ static inline void page_mapcount_reset(struct page *page)
->  
->  static inline int page_mapcount(struct page *page)
->  {
-> +	int ret;
->  	VM_BUG_ON_PAGE(PageSlab(page), page);
-> -	return atomic_read(&page->_mapcount) + compound_mapcount(page) + 1;
-> +	ret = atomic_read(&page->_mapcount) + 1;
-> +	if (compound_mapcount(page)) {
-> +		/*
-> +		 * positive compound_mapcount() offsets ->_mapcount by one --
-> +		 * substract here.
-> +		*/
-> +	       ret += compound_mapcount(page) - 1;
-> +	}
-> +	return ret;
->  }
->  
->  static inline int page_count(struct page *page)
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index fc6eee4ed476..f4ab976276e7 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1066,9 +1066,17 @@ void do_page_add_anon_rmap(struct page *page,
->  		 * disabled.
->  		 */
->  		if (compound) {
-> +			int i;
->  			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
->  			__inc_zone_page_state(page,
->  					      NR_ANON_TRANSPARENT_HUGEPAGES);
-> +			/*
-> +			 * While compound_mapcount() is positive we keep *one*
-> +			 * mapcount reference in all subpages. It's required
-> +			 * for atomic removal from rmap.
-> +			 */
-> +			for (i = 0; i < nr; i++)
-> +				atomic_set(&page[i]._mapcount, 0);
->  		}
->  		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, nr);
->  	}
-> @@ -1103,10 +1111,19 @@ void page_add_new_anon_rmap(struct page *page,
->  	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
->  	SetPageSwapBacked(page);
->  	if (compound) {
-> +		int i;
-> +
->  		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
->  		/* increment count (starts at -1) */
->  		atomic_set(compound_mapcount_ptr(page), 0);
->  		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-> +		/*
-> +		 * While compound_mapcount() is positive we keep *one* mapcount
-> +		 * reference in all subpages. It's required for atomic removal
-> +		 * from rmap.
-> +		 */
-> +		for (i = 0; i < nr; i++)
-> +			atomic_set(&page[i]._mapcount, 0);
->  	} else {
->  		/* Anon THP always mapped first with PMD */
->  		VM_BUG_ON_PAGE(PageTransCompound(page), page);
-> @@ -1174,9 +1191,6 @@ out:
->   */
->  void page_remove_rmap(struct page *page, bool compound)
->  {
-> -	int nr = compound ? hpage_nr_pages(page) : 1;
-> -	bool partial_thp_unmap;
-> -
->  	if (!PageAnon(page)) {
->  		VM_BUG_ON_PAGE(compound && !PageHuge(page), page);
->  		page_remove_file_rmap(page);
-> @@ -1184,10 +1198,20 @@ void page_remove_rmap(struct page *page, bool compound)
->  	}
->  
->  	/* page still mapped by someone else? */
-> -	if (!atomic_add_negative(-1, compound ?
-> -			       compound_mapcount_ptr(page) :
-> -			       &page->_mapcount))
-> +	if (compound) {
-> +		int i;
-> +
-> +		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-> +		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
-> +			return;
-> +		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-> +		for (i = 0; i < hpage_nr_pages(page); i++)
-> +			page_remove_rmap(page + i, false);
->  		return;
-> +	} else {
-> +		if (!atomic_add_negative(-1, &page->_mapcount))
-> +			return;
-> +	}
->  
->  	/* Hugepages are not counted in NR_ANON_PAGES for now. */
->  	if (unlikely(PageHuge(page)))
-> @@ -1198,26 +1222,12 @@ void page_remove_rmap(struct page *page, bool compound)
->  	 * these counters are not modified in interrupt context, and
->  	 * pte lock(a spinlock) is held, which implies preemption disabled.
->  	 */
-> -	if (compound) {
-> -		int i;
-> -		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-> -		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-> -		/* The page can be mapped with ptes */
-> -		for (i = 0; i < hpage_nr_pages(page); i++)
-> -			if (page_mapcount(page + i))
-> -				nr--;
-> -		partial_thp_unmap = nr != hpage_nr_pages(page);
-> -	} else if (PageTransCompound(page)) {
-> -		partial_thp_unmap = !compound_mapcount(page);
-> -	} else
-> -		partial_thp_unmap = false;
-> -
-> -	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
-> +	__dec_zone_page_state(page, NR_ANON_PAGES);
->  
->  	if (unlikely(PageMlocked(page)))
->  		clear_page_mlock(page);
->  
-> -	if (partial_thp_unmap)
-> +	if (PageTransCompound(page))
->  		deferred_split_huge_page(compound_head(page));
->  
->  	/*
-> -- 
->  Kirill A. Shutemov
+> In current patch I simply put newly allocated block to the tail of a free list,
+> thus reduce fragmentation, giving a chance to resolve allocation request using
+> older blocks with possible holes left.
+
+It's great.
+I think this might be helpful for fragmentation by mix of long-time, short-time mappings.
+I do thank you for your work.
+
+> 
+> Signed-off-by: Roman Pen <r.peniaev@gmail.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Eric Dumazet <edumazet@google.com>
+> Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: WANG Chao <chaowang@redhat.com>
+> Cc: Fabian Frederick <fabf@skynet.be>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Gioh Kim <gioh.kim@lge.com>
+> Cc: Rob Jones <rob.jones@codethink.co.uk>
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: stable@vger.kernel.org
+> ---
+>   mm/vmalloc.c | 2 +-
+>   1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 39c3388..db6bffb 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -837,7 +837,7 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
+>   
+>   	vbq = &get_cpu_var(vmap_block_queue);
+>   	spin_lock(&vbq->lock);
+> -	list_add_rcu(&vb->free_list, &vbq->free);
+> +	list_add_tail_rcu(&vb->free_list, &vbq->free);
+>   	spin_unlock(&vbq->lock);
+>   	put_cpu_var(vmap_block_queue);
+>   
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
