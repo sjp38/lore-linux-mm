@@ -1,104 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 781AC6B0032
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 20:01:43 -0400 (EDT)
-Received: by oier21 with SMTP id r21so36080927oie.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 17:01:43 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id yg17si2611727obb.92.2015.03.25.17.01.42
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C98286B0032
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 20:19:36 -0400 (EDT)
+Received: by igcxg11 with SMTP id xg11so40750863igc.0
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 17:19:36 -0700 (PDT)
+Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com. [2607:f8b0:4001:c05::233])
+        by mx.google.com with ESMTPS id r2si3585547igh.60.2015.03.25.17.19.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 25 Mar 2015 17:01:42 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm/memory-failure.c: define page types for
- action_result() in one place
-Date: Wed, 25 Mar 2015 23:56:03 +0000
-Message-ID: <20150325235603.GA14825@hori1.linux.bs1.fc.nec.co.jp>
-References: <1426746272-24306-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <alpine.DEB.2.10.1503242058300.20696@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1503242058300.20696@chino.kir.corp.google.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <101EA0CF4854064EB9B7D68873A83C56@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Mar 2015 17:19:36 -0700 (PDT)
+Received: by igcau2 with SMTP id au2so4228707igc.1
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 17:19:36 -0700 (PDT)
+Date: Wed, 25 Mar 2015 17:19:33 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mremap: add MREMAP_NOHOLE flag --resend
+In-Reply-To: <55131F70.7020503@gmail.com>
+Message-ID: <alpine.DEB.2.10.1503251710400.31453@chino.kir.corp.google.com>
+References: <deaa4139de6e6422a0cec1e3282553aed3495e94.1426626497.git.shli@fb.com> <20150318153100.5658b741277f3717b52e42d9@linux-foundation.org> <550A5FF8.90504@gmail.com> <CADpJO7zBLhjecbiQeTubnTReiicVLr0-K43KbB4uCL5w_dyqJg@mail.gmail.com> <550E6D9D.1060507@gmail.com>
+ <5512E0C0.6060406@suse.cz> <55131F70.7020503@gmail.com>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>, Xie XiuQi <xiexiuqi@huawei.com>, Steven Rostedt <rostedt@goodmis.org>, Chen Gong <gong.chen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Daniel Micay <danielmicay@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Aliaksey Kandratsenka <alkondratenko@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-api@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Andy Lutomirski <luto@amacapital.net>, "google-perftools@googlegroups.com" <google-perftools@googlegroups.com>
 
-On Tue, Mar 24, 2015 at 09:02:13PM -0700, David Rientjes wrote:
-> On Thu, 19 Mar 2015, Naoya Horiguchi wrote:
->=20
-> > This cleanup patch moves all strings passed to action_result() into a s=
-ingle
-> > array action_page_type so that a reader can easily find which kind of a=
-ction
-> > results are possible. And this patch also fixes the odd lines to be pri=
-nted
-> > out, like "unknown page state page" or "free buddy, 2nd try page".
-> >=20
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > ---
-> >  mm/memory-failure.c | 107 +++++++++++++++++++++++++++++++++++++-------=
---------
-> >  1 file changed, 76 insertions(+), 31 deletions(-)
-> >=20
-> > diff --git v3.19.orig/mm/memory-failure.c v3.19/mm/memory-failure.c
-> > index d487f8dc6d39..afb740e1c8b0 100644
-> > --- v3.19.orig/mm/memory-failure.c
-> > +++ v3.19/mm/memory-failure.c
-> > @@ -521,6 +521,52 @@ static const char *action_name[] =3D {
-> >  	[RECOVERED] =3D "Recovered",
-> >  };
-> > =20
-> > +enum page_type {
-> > +	KERNEL,
-> > +	KERNEL_HIGH_ORDER,
-> > +	SLAB,
-> > +	DIFFERENT_COMPOUND,
-> > +	POISONED_HUGE,
-> > +	HUGE,
-> > +	FREE_HUGE,
-> > +	UNMAP_FAILED,
-> > +	DIRTY_SWAPCACHE,
-> > +	CLEAN_SWAPCACHE,
-> > +	DIRTY_MLOCKED_LRU,
-> > +	CLEAN_MLOCKED_LRU,
-> > +	DIRTY_UNEVICTABLE_LRU,
-> > +	CLEAN_UNEVICTABLE_LRU,
-> > +	DIRTY_LRU,
-> > +	CLEAN_LRU,
-> > +	TRUNCATED_LRU,
-> > +	BUDDY,
-> > +	BUDDY_2ND,
-> > +	UNKNOWN,
-> > +};
-> > +
->=20
-> I like the patch because of the consistency in output and think it's wort=
-h=20
-> the extra 1% .text size.
->=20
-> My only concern is the generic naming of the enum members. =20
-> memory-failure.c is already an offender with "enum outcome" and the namin=
-g=20
-> of its members.
->
-> Would you mind renaming these to be prefixed with "MSG_"?
+On Wed, 25 Mar 2015, Daniel Micay wrote:
 
-no, your naming is clearer and represents better what it is, so I agree wit=
-h it.
+> > I'm not sure I get your description right. The problem I know about is
+> > where "purging" means madvise(MADV_DONTNEED) and khugepaged later
+> > collapses a new hugepage that will repopulate the purged parts,
+> > increasing the memory usage. One can limit this via
+> > /sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none . That
+> > setting doesn't affect the page fault THP allocations, which however
+> > happen only in newly accessed hugepage-sized areas and not partially
+> > purged ones, though.
+> 
+> Since jemalloc doesn't unmap memory but instead does recycling itself in
+> userspace, it ends up with large spans of free virtual memory and gets
+> *lots* of huge pages from the page fault heuristic. It keeps track of
+> active vs. dirty (not purged) vs. clean (purged / untouched) ranges
+> everywhere, and will purge dirty ranges as they build up.
+> 
+> The THP allocation on page faults mean it ends up with memory that's
+> supposed to be clean but is really not.
+> 
+> A worst case example with the (up until recently) default chunk size of
+> 4M is allocating a bunch of 2.1M allocations. Chunks are naturally
+> aligned, so each one can be represented as 2 huge pages. It increases
+> memory usage by nearly *50%*. The allocator thinks the tail is clean
+> memory, but it's not. When the allocations are freed, it will purge the
+> 2.1M at the head (once enough dirty memory builds up) but all of the
+> tail memory will be leaked until something else is allocated there and
+> then freed.
+> 
 
-> These enums should be anonymous, too, nothing is referencing enum outcome=
-=20
-> or your new enum page_type.
->=20
-
-Or the type of action_result()'s 2nd parameter can be "enum page_type".
-
-Thanks,
-Naoya Horiguchi=
+With tcmalloc, it's simple to always expand the heap by mmaping 2MB ranges 
+for size classes <= 2MB, allocate its own metadata from an arena that is 
+also expanded in 2MB range, and always do madvise(MADV_DONTNEED) for the 
+longest span on the freelist when it does periodic memory freeing back to 
+the kernel, and even better if the freed memory splits at most one 
+hugepage.  When memory is pulled from the freelist of memory that has 
+already been returned to the kernel, you can return a span that will make 
+it eligible to be collapsed into a hugepage based on your setting of 
+max_ptes_none, trying to consolidate the memory as much as possible.  If 
+your malloc is implemented in a way to understand the benefit of 
+hugepages, and how much memory you're willing to sacrifice (max_ptes_none) 
+for it, then you should _never_ be increasing memory usage by 50%.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
