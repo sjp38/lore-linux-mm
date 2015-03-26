@@ -1,128 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CD316B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 15:50:23 -0400 (EDT)
-Received: by igbqf9 with SMTP id qf9so1874312igb.1
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 12:50:23 -0700 (PDT)
-Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com. [2607:f8b0:4001:c03::22b])
-        by mx.google.com with ESMTPS id y2si5648798ics.105.2015.03.26.12.50.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Mar 2015 12:50:22 -0700 (PDT)
-Received: by iedfl3 with SMTP id fl3so61997360ied.1
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 12:50:22 -0700 (PDT)
-Date: Thu, 26 Mar 2015 12:50:20 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 03/12] mm: oom_kill: switch test-and-clear of known
- TIF_MEMDIE to clear
-In-Reply-To: <20150326110532.GB18560@cmpxchg.org>
-Message-ID: <alpine.DEB.2.10.1503261231440.9410@chino.kir.corp.google.com>
-References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org> <1427264236-17249-4-git-send-email-hannes@cmpxchg.org> <alpine.DEB.2.10.1503252025230.16714@chino.kir.corp.google.com> <20150326110532.GB18560@cmpxchg.org>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id EAFD76B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 15:58:38 -0400 (EDT)
+Received: by pdnc3 with SMTP id c3so72862731pdn.0
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 12:58:38 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id gq8si9708837pbc.83.2015.03.26.12.58.36
+        for <linux-mm@kvack.org>;
+        Thu, 26 Mar 2015 12:58:38 -0700 (PDT)
+Date: Fri, 27 Mar 2015 06:58:22 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [patch 00/12] mm: page_alloc: improve OOM mechanism and policy
+Message-ID: <20150326195822.GB28129@dastard>
+References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Michal Hocko <mhocko@suse.cz>, Theodore Ts'o <tytso@mit.edu>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.cz>, Theodore Ts'o <tytso@mit.edu>
 
-On Thu, 26 Mar 2015, Johannes Weiner wrote:
-
-> > > exit_oom_victim() already knows that TIF_MEMDIE is set, and nobody
-> > > else can clear it concurrently.  Use clear_thread_flag() directly.
-> > > 
-> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > 
-> > For the oom killer, that's true because of task_lock(): we always only set 
-> > TIF_MEMDIE when there is a valid p->mm and it's cleared in the exit path 
-> > after the unlock, acting as a barrier, when p->mm is set to NULL so it's 
-> > no longer a valid victim.  So that part is fine.
-> > 
-> > The problem is the android low memory killer that does 
-> > mark_tsk_oom_victim() without the protection of task_lock(), it's just rcu 
-> > protected so the reference to the task itself is guaranteed to still be 
-> > valid.
+On Wed, Mar 25, 2015 at 02:17:04AM -0400, Johannes Weiner wrote:
+> Hi everybody,
 > 
-> But this is about *setting* it without a lock.  My point was that once
-> TIF_MEMDIE is actually set, the task owns it and nobody else can clear
-> it for them, so it's safe to test and clear non-atomically from the
-> task's own context.  Am I missing something?
+> in the recent past we've had several reports and discussions on how to
+> deal with allocations hanging in the allocator upon OOM.
 > 
+> The idea of this series is mainly to make the mechanism of detecting
+> OOM situations reliable enough that we can be confident about failing
+> allocations, and then leave the fallback strategy to the caller rather
+> than looping forever in the allocator.
+> 
+> The other part is trying to reduce the __GFP_NOFAIL deadlock rate, at
+> least for the short term while we don't have a reservation system yet.
 
-Yes, I'm thinking about the following which already exists before your 
-patch:
+A valid goal, but I think this series goes about it the wrong way.
+i.e. it forces us to use __GFP_NOFAIL rather than providing us a
+valid fallback mechanism to access reserves.
 
-	tskA			tskB
-	----			----
-	lowmem_scan()
-	-> tskB->mm != NULL
-	-> selected = tskB
-				exit_mm()
-				exit_oom_victim()
-				-> TIF_MEMDIE not set, return	
-	mark_oom_victim(tskB)
-	-> set TIF_MEMDIE
+....
 
-And now if tskA fails to exit then the oom killer is going to stall 
-forever because we don't check for p->mm != NULL when testing eligible 
-processes for TIF_MEMDIE.
+>  mm: page_alloc: emergency reserve access for __GFP_NOFAIL allocations
+> 
+> An exacerbation of the victim-stuck-behind-allocation scenario are
+> __GFP_NOFAIL allocations, because they will actually deadlock.  To
+> avoid this, or try to, give __GFP_NOFAIL allocations access to not
+> just the OOM reserves but also the system's emergency reserves.
+> 
+> This is basically a poor man's reservation system, which could or
+> should be replaced later on with an explicit reservation system that
+> e.g. filesystems have control over for use by transactions.
+> 
+> It's obviously not bulletproof and might still lock up, but it should
+> greatly reduce the likelihood.  AFAIK Andrea, whose idea this was, has
+> been using this successfully for some time.
 
-So there's nothing wrong with your patch, I'm just digesting all of this 
-new mark_oom_victim() stuff.
+So, if we want GFP_NOFS allocations to be able to dip into a
+small extra reservation to make progress at ENOMEM, we have to use
+use __GFP_NOFAIL because looping ourselves won't allow use of these
+extra reserves?
 
-Acked-by: David Rientjes <rientjes@google.com>
+>  mm: page_alloc: do not lock up GFP_NOFS allocations upon OOM
+> 
+> Another hang that was reported was from NOFS allocations.  The trouble
+> with these is that they can't issue or wait for writeback during page
+> reclaim, and so we don't want to OOM kill on their behalf.  However,
+> with such restrictions on making progress, they are prone to hangs.
 
-I think the lmk should be doing this, in addition:
+And because this effectively means GFP_NOFS allocations are
+going to fail much more often, we're either going to have to loop
+ourselves or use __GFP_NOFAIL...
 
+> This patch makes NOFS allocations fail if reclaim can't free anything.
+> 
+> It would be good if the filesystem people could weigh in on whether
+> they can deal with failing GFP_NOFS allocations, or annotate the
+> exceptions with __GFP_NOFAIL etc.  It could well be that a middle
+> ground is required that allows using the OOM killer before giving up.
 
-android, lmk: avoid setting TIF_MEMDIE if process has already exited
+... which looks to me like a catch-22 situation for us: We
+have reserves, but callers need to use __GFP_NOFAIL to access them.
+GFP_NOFS is going to fail more often, so callers need to handle that
+in some way, either by looping or erroring out.
 
-TIF_MEMDIE should not be set on a process if it does not have a valid 
-->mm, and this is protected by task_lock().
+But if we loop manually because we try to handle ENOMEM situations
+gracefully (e.g. try a number of times before erroring out) we can't
+dip into the reserves because the only semantics being provided are
+"try-once-without-reserves" or "try-forever-with-reserves".  i.e.
+what we actually need here is "try-once-with-reserves" semantics so
+that we can make progress after a failing GFP_NOFS
+"try-once-without-reserves" allocation.
 
-If TIF_MEMDIE gets set after the mm has detached, and the process fails to 
-exit, then the oom killer will defer forever waiting for it to exit.
+IOWS, __GFP_NOFAIL is not the answer here - it's GFP_NOFS |
+__GFP_USE_RESERVE that we need on the failure fallback path. Which,
+incidentally, is trivial to add to the XFS allocation code. Indeed,
+I'll request that you test series like this on metadata intensive
+filesystem workloads on XFS under memory stress and quantify how
+many new "XFS: possible deadlock in memory allocation" warnings are
+emitted. If the patch set floods the system with such warnings, then
+it means the proposed means the fallback for "caller handles
+allocation failure" is not making progress.
 
-Make sure that the mm is still valid before setting TIF_MEMDIE by way of 
-mark_tsk_oom_victim().
+Cheers,
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
-diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
---- a/drivers/staging/android/lowmemorykiller.c
-+++ b/drivers/staging/android/lowmemorykiller.c
-@@ -156,20 +156,27 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
- 			     p->pid, p->comm, oom_score_adj, tasksize);
- 	}
- 	if (selected) {
--		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
--			     selected->pid, selected->comm,
--			     selected_oom_score_adj, selected_tasksize);
--		lowmem_deathpending_timeout = jiffies + HZ;
-+		task_lock(selected);
-+		if (!selected->mm) {
-+			/* Already exited, cannot do mark_tsk_oom_victim() */
-+			task_unlock(selected);
-+			goto out;
-+		}
- 		/*
- 		 * FIXME: lowmemorykiller shouldn't abuse global OOM killer
- 		 * infrastructure. There is no real reason why the selected
- 		 * task should have access to the memory reserves.
- 		 */
- 		mark_tsk_oom_victim(selected);
-+		task_unlock(selected);
-+		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
-+			     selected->pid, selected->comm,
-+			     selected_oom_score_adj, selected_tasksize);
-+		lowmem_deathpending_timeout = jiffies + HZ;
- 		send_sig(SIGKILL, selected, 0);
- 		rem += selected_tasksize;
- 	}
--
-+out:
- 	lowmem_print(4, "lowmem_scan %lu, %x, return %lu\n",
- 		     sc->nr_to_scan, sc->gfp_mask, rem);
- 	rcu_read_unlock();
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
