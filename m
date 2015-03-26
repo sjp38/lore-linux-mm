@@ -1,114 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id A09686B0032
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 20:50:22 -0400 (EDT)
-Received: by pdbni2 with SMTP id ni2so45302829pdb.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 17:50:22 -0700 (PDT)
-Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
-        by mx.google.com with ESMTPS id r1si5873025pdp.197.2015.03.25.17.50.21
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 66C7B6B0032
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 20:51:34 -0400 (EDT)
+Received: by igcau2 with SMTP id au2so116940759igc.0
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 17:51:34 -0700 (PDT)
+Received: from mail-ig0-x22e.google.com (mail-ig0-x22e.google.com. [2607:f8b0:4001:c05::22e])
+        by mx.google.com with ESMTPS id i17si3633552icm.95.2015.03.25.17.51.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Mar 2015 17:50:21 -0700 (PDT)
-Received: by pacwe9 with SMTP id we9so45912797pac.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 17:50:21 -0700 (PDT)
-Date: Thu, 26 Mar 2015 09:50:09 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mremap: add MREMAP_NOHOLE flag --resend
-Message-ID: <20150326005009.GA7658@blaptop>
-References: <deaa4139de6e6422a0cec1e3282553aed3495e94.1426626497.git.shli@fb.com>
- <20150318153100.5658b741277f3717b52e42d9@linux-foundation.org>
- <550A5FF8.90504@gmail.com>
- <CADpJO7zBLhjecbiQeTubnTReiicVLr0-K43KbB4uCL5w_dyqJg@mail.gmail.com>
- <20150323051731.GA2616341@devbig257.prn2.facebook.com>
- <CADpJO7zk8J3q7Bw9NibV9CzLarO+YkfeshyFTTq=XeS5qziBiA@mail.gmail.com>
- <55117724.6030102@gmail.com>
+        Wed, 25 Mar 2015 17:51:33 -0700 (PDT)
+Received: by igbud6 with SMTP id ud6so117196724igb.1
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 17:51:33 -0700 (PDT)
+Date: Wed, 25 Mar 2015 17:51:31 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 01/12] mm: oom_kill: remove unnecessary locking in
+ oom_enable()
+In-Reply-To: <1427264236-17249-2-git-send-email-hannes@cmpxchg.org>
+Message-ID: <alpine.DEB.2.10.1503251744290.32157@chino.kir.corp.google.com>
+References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org> <1427264236-17249-2-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55117724.6030102@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Micay <danielmicay@gmail.com>
-Cc: Aliaksey Kandratsenka <alkondratenko@gmail.com>, Shaohua Li <shli@fb.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-api@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Andy Lutomirski <luto@amacapital.net>, "google-perftools@googlegroups.com" <google-perftools@googlegroups.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Michal Hocko <mhocko@suse.cz>, Theodore Ts'o <tytso@mit.edu>
 
-Hello Daniel,
+On Wed, 25 Mar 2015, Johannes Weiner wrote:
 
-On Tue, Mar 24, 2015 at 10:39:32AM -0400, Daniel Micay wrote:
-> On 24/03/15 01:25 AM, Aliaksey Kandratsenka wrote:
-> > 
-> > Well, I don't have any workloads. I'm just maintaining a library that
-> > others run various workloads on. Part of the problem is lack of good
-> > and varied malloc benchmarks which could allow us that prevent
-> > regression. So this makes me a bit more cautious on performance
-> > matters.
-> > 
-> > But I see your point. Indeed I have no evidence at all that exclusive
-> > locking might cause observable performance difference.
+> Setting oom_killer_disabled to false is atomic, there is no need for
+> further synchronization with ongoing allocations trying to OOM-kill.
 > 
-> I'm sure it matters but I expect you'd need *many* cores running many
-> threads before it started to outweigh the benefit of copying pages
-> instead of data.
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  mm/oom_kill.c | 2 --
+>  1 file changed, 2 deletions(-)
 > 
-> Thinking about it a bit more, it would probably make sense for mremap to
-> start with the optimistic assumption that the reader lock is enough here
-> when using MREMAP_NOHOLE|MREMAP_FIXED. It only needs the writer lock if
-> the destination mapping is incomplete or doesn't match, which is an edge
-> case as holes would mean thread unsafety.
-> 
-> An ideal allocator will toggle on PROT_NONE when overcommit is disabled
-> so this assumption would be wrong. The heuristic could just be adjusted
-> to assume the dest VMA will match with MREMAP_NOHOLE|MREMAP_FIXED when
-> full memory accounting isn't enabled. The fallback would never ended up
-> being needed in existing use cases that I'm aware of, and would just add
-> the overhead of a quick lock, O(log n) check and unlock with the reader
-> lock held anyway. Another flag isn't really necessary.
-> 
-> >>> Another notable thing is how mlock effectively disables MADV_DONTNEED for
-> >>> jemalloc{1,2} and tcmalloc, lowers page faults count and thus improves
-> >>> runtime. It can be seen that tcmalloc+mlock on thp-less configuration is
-> >>> slightly better on runtime to glibc. The later spends a ton of time in
-> >>> kernel,
-> >>> probably handling minor page faults, and the former burns cpu in user space
-> >>> doing memcpy-s. So "tons of memcpys" seems to be competitive to what glibc
-> >>> is
-> >>> doing in this benchmark.
-> >>
-> >> mlock disables MADV_DONTNEED, so this is an unfair comparsion. With it,
-> >> allocator will use more memory than expected.
-> > 
-> > Do not agree with unfair. I'm actually hoping MADV_FREE to provide
-> > most if not all of benefits of mlock in this benchmark. I believe it's
-> > not too unreasonable expectation.
-> 
-> MADV_FREE will still result in as many page faults, just no zeroing.
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 2b665da1b3c9..73763e489e86 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -488,9 +488,7 @@ bool oom_killer_disable(void)
+>   */
+>  void oom_killer_enable(void)
+>  {
+> -	down_write(&oom_sem);
+>  	oom_killer_disabled = false;
+> -	up_write(&oom_sem);
+>  }
+>  
+>  #define K(x) ((x) << (PAGE_SHIFT-10))
 
-I didn't follow this thread. However, as you mentioned MADV_FREE will
-make many page fault, I jump into here.
-One of the benefit with MADV_FREE in current implementation is to
-avoid page fault as well as no zeroing.
-Why did you see many page fault?
+I haven't looked through the new disable-oom-killer-for-pm patchset that 
+was merged, but this oom_killer_disabled thing already looks improperly 
+handled.  I think any correctness or cleanups in this area would be very 
+helpful.
 
+I think mark_tsk_oom_victim() in mem_cgroup_out_of_memory() is just 
+luckily not racing with a call to oom_killer_enable() and triggering the 
+WARN_ON(oom_killer_disabled) since there's no "oom_sem" held here, and 
+it's an improper context based on the comment of mark_tsk_oom_victim().  
+There might be something else that is intended but not implemented 
+correctly that I'm unaware of, but I know of no reason why setting of 
+oom_killer_disabled would need to take a semaphore?
 
-> 
-> I get ~20k requests/s with jemalloc on the ebizzy benchmark with this
-> dual core ivy bridge laptop. It jumps to ~60k requests/s with MADV_FREE
-> IIRC, but disabling purging via MALLOC_CONF=lg_dirty_mult:-1 leads to
-> 3.5 *million* requests/s. It has a similar impact with TCMalloc.
+I'm thinking it has something to do with the remainder of that comment, 
+specifically the "never after oom has been disabled already."
 
-When I tested MADV_FREE with ebizzy, I saw similar result two or three
-times fater than MADV_DONTNEED. But It's no free cost. It incurs MADV_FREE
-cost itself*(ie, enumerating all of page table in the range and clear
-dirty bit and tlb flush). Of course, it has mmap_sem with read-side lock.
-If you see great improve when you disable purging, I guess mainly it's
-caused by no lock of mmap_sem so some threads can allocate while other
-threads can do page fault. The reason I think so is I saw similar result
-when I implemented vrange syscall which hold mmap_sem read-side lock
-during very short time(ie, marking the volatile into vma, ie O(1) while
-MADV_FREE holds a lock during enumerating all of pages in the range, ie O(N))
-
--- 
-Kind regards,
-Minchan Kim
+Michal?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
