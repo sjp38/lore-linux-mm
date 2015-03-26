@@ -1,81 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 268FD6B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 11:10:56 -0400 (EDT)
-Received: by wgbcc7 with SMTP id cc7so67098829wgb.0
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 08:10:55 -0700 (PDT)
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id AE0B76B006E
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 11:17:52 -0400 (EDT)
+Received: by wgra20 with SMTP id a20so67779948wgr.3
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 08:17:52 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id k12si10335518wjw.177.2015.03.26.08.10.53
+        by mx.google.com with ESMTPS id uw10si10405591wjc.110.2015.03.26.08.17.50
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Mar 2015 08:10:54 -0700 (PDT)
-Date: Thu, 26 Mar 2015 11:10:50 -0400
+        Thu, 26 Mar 2015 08:17:51 -0700 (PDT)
+Date: Thu, 26 Mar 2015 11:17:46 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 04/12] mm: oom_kill: remove unnecessary locking in
- exit_oom_victim()
-Message-ID: <20150326151050.GB23973@cmpxchg.org>
+Subject: Re: [patch 06/12] mm: oom_kill: simplify OOM killer locking
+Message-ID: <20150326151746.GC23973@cmpxchg.org>
 References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
- <1427264236-17249-5-git-send-email-hannes@cmpxchg.org>
- <20150326125348.GF15257@dhcp22.suse.cz>
- <20150326130106.GG15257@dhcp22.suse.cz>
+ <1427264236-17249-7-git-send-email-hannes@cmpxchg.org>
+ <20150326133111.GJ15257@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150326130106.GG15257@dhcp22.suse.cz>
+In-Reply-To: <20150326133111.GJ15257@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
 Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>
 
-On Thu, Mar 26, 2015 at 02:01:06PM +0100, Michal Hocko wrote:
-> On Thu 26-03-15 13:53:48, Michal Hocko wrote:
-> > On Wed 25-03-15 02:17:08, Johannes Weiner wrote:
-> > > Disabling the OOM killer needs to exclude allocators from entering,
-> > > not existing victims from exiting.
+On Thu, Mar 26, 2015 at 02:31:11PM +0100, Michal Hocko wrote:
+> On Wed 25-03-15 02:17:10, Johannes Weiner wrote:
+> > The zonelist locking and the oom_sem are two overlapping locks that
+> > are used to serialize global OOM killing against different things.
 > > 
-> > The idea was that exit_oom_victim doesn't miss a waiter.
+> > The historical zonelist locking serializes OOM kills from allocations
+> > with overlapping zonelists against each other to prevent killing more
+> > tasks than necessary in the same memory domain.  Only when neither
+> > tasklists nor zonelists from two concurrent OOM kills overlap (tasks
+> > in separate memcgs bound to separate nodes) are OOM kills allowed to
+> > execute in parallel.
 > > 
-> > exit_oom_victim is doing
-> > 	atomic_dec_return(&oom_victims) && oom_killer_disabled)
+> > The younger oom_sem is a read-write lock to serialize OOM killing
+> > against the PM code trying to disable the OOM killer altogether.
 > > 
-> > so there is a full (implicit) memory barrier befor oom_killer_disabled
-> > check. The other part is trickier. oom_killer_disable does:
-> > 	oom_killer_disabled = true;
-> >         up_write(&oom_sem);
+> > However, the OOM killer is a fairly cold error path, there is really
+> > no reason to optimize for highly performant and concurrent OOM kills.
+> > And the oom_sem is just flat-out redundant.
 > > 
-> >         wait_event(oom_victims_wait, !atomic_read(&oom_victims));
-> > 
-> > up_write doesn't guarantee a full memory barrier AFAICS in
-> > Documentation/memory-barriers.txt (although the generic and x86
-> > implementations seem to implement it as a full barrier) but wait_event
-> > implies the full memory barrier (prepare_to_wait_event does spin
-> > lock&unlock) before checking the condition in the slow path. This should
-> > be sufficient and docummented...
-> > 
-> > 	/*
-> > 	 * We do not need to hold oom_sem here because oom_killer_disable
-> > 	 * guarantees that oom_killer_disabled chage is visible before
-> > 	 * the waiter is put into sleep (prepare_to_wait_event) so
-> > 	 * we cannot miss a wake up.
-> > 	 */
-> > 
-> > in unmark_oom_victim()
+> > Replace both locking schemes with a single global mutex serializing
+> > OOM kills regardless of context.
 > 
-> OK, I can see that the next patch removes oom_killer_disabled
-> completely. The dependency won't be there and so the concerns about the
-> memory barriers.
+> OK, this is much simpler.
 > 
-> Is there any reason why the ordering is done this way? It would sound
-> more logical to me.
+> You have missed drivers/tty/sysrq.c which should take the lock as well.
+> ZONE_OOM_LOCKED can be removed as well. __out_of_memory in the kerneldoc
+> should be renamed.
 
-I honestly didn't even think about the dependency between the lock and
-this check.  They both looked unnecessary to me and I stopped putting
-any more thought into it once I had convinced myself that they are.
+Argh, an older version had the lock inside out_of_memory() and I never
+updated the caller when I changed the rules.  Thanks.  I'll fix both.
 
-The order was chosen because the waitqueue generalization seemed like
-a bigger deal.  One is just an unnecessary lock, but this extra check
-cost me quite some time debugging and seems like a much more harmful
-piece of code to fix.  It's no problem to reorder the patches, though.
+> > @@ -795,27 +728,21 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+> >   */
+> >  void pagefault_out_of_memory(void)
+> >  {
+> > -	struct zonelist *zonelist;
+> > -
+> > -	down_read(&oom_sem);
+> >  	if (mem_cgroup_oom_synchronize(true))
+> > -		goto unlock;
+> > +		return;
+> 
+> OK, so we are back to what David has asked previously. We do not need
+> the lock for memcg and oom_killer_disabled because we know that no tasks
+> (except for potential oom victim) are lurking around at the time
+> oom_killer_disable() is called. So I guess we want to stick a comment
+> into mem_cgroup_oom_synchronize before we check for oom_killer_disabled.
+
+I would prefer everybody that sets TIF_MEMDIE and kills a task to hold
+the lock, including memcg.  Simplicity is one thing, but also a global
+OOM kill might not even be necessary when it's racing with the memcg.
+
+> After those are fixed, feel free to add
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
