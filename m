@@ -1,190 +1,243 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C20B6B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 02:07:11 -0400 (EDT)
-Received: by pacwe9 with SMTP id we9so53182387pac.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 23:07:11 -0700 (PDT)
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 585876B006C
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 02:07:12 -0400 (EDT)
+Received: by pacwe9 with SMTP id we9so53182801pac.1
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 23:07:12 -0700 (PDT)
 Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id pf7si6923584pac.2.2015.03.25.23.07.09
+        by mx.google.com with ESMTP id gs2si6837587pac.152.2015.03.25.23.07.10
         for <linux-mm@kvack.org>;
-        Wed, 25 Mar 2015 23:07:10 -0700 (PDT)
+        Wed, 25 Mar 2015 23:07:11 -0700 (PDT)
 From: Namhyung Kim <namhyung@kernel.org>
-Subject: [PATCHSET 0/6] perf kmem: Implement page allocation analysis (v4)
-Date: Thu, 26 Mar 2015 15:00:30 +0900
-Message-Id: <1427349636-9796-1-git-send-email-namhyung@kernel.org>
+Subject: [PATCH 1/6] tracing, mm: Record pfn instead of pointer to struct page
+Date: Thu, 26 Mar 2015 15:00:31 +0900
+Message-Id: <1427349636-9796-2-git-send-email-namhyung@kernel.org>
+In-Reply-To: <1427349636-9796-1-git-send-email-namhyung@kernel.org>
+References: <1427349636-9796-1-git-send-email-namhyung@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org
+Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>
 
-Hello,
+The struct page is opaque for userspace tools, so it'd be better to save
+pfn in order to identify page frames.
 
-Currently perf kmem command only analyzes SLAB memory allocation.  And
-I'd like to introduce page allocation analysis also.  Users can use
- --slab and/or --page option to select it.  If none of these options
-are used, it does slab allocation analysis for backward compatibility.
+The textual output of $debugfs/tracing/trace file remains unchanged and
+only raw (binary) data format is changed - but thanks to libtraceevent,
+userspace tools which deal with the raw data (like perf and trace-cmd)
+can parse the format easily.  So impact on the userspace will also be
+minimal.
 
- * changes in v4)
-  - use pfn instead of struct page * in tracepoints  (Joonsoo, Ingo)
-  - print gfp flags in human readable string  (Joonsoo, Minchan)
+Based-on-patch-by: Joonsoo Kim <js1304@gmail.com>
+Acked-by: Ingo Molnar <mingo@kernel.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>
+Cc: linux-mm@kvack.org
+Signed-off-by: Namhyung Kim <namhyung@kernel.org>
+---
+ include/trace/events/filemap.h |  8 ++++----
+ include/trace/events/kmem.h    | 42 +++++++++++++++++++++---------------------
+ include/trace/events/vmscan.h  |  8 ++++----
+ 3 files changed, 29 insertions(+), 29 deletions(-)
 
-* changes in v3)
-  - add live page statistics
-
- * changes in v2)
-  - Use thousand grouping for big numbers - i.e. 12345 -> 12,345  (Ingo)
-  - Improve output stat readability  (Ingo)
-  - Remove alloc size column as it can be calculated from hits and order
-
-Patch 1 is to convert tracepoint to save pfn instead of struct page *.
-Patch 2 implements basic support for page allocation analysis, patch 3
-deals with the callsite and patch 4 implements sorting.  Patch 5
-introduces live page analysis which is to focus on currently allocated
-pages only.  Finally patch 6 prints gfp flags in human readable string.
-
-In this patchset, I used two kmem events: kmem:mm_page_alloc and
-kmem_page_free for analysis as they can track almost all of memory
-allocation/free path AFAIK.  However, unlike slab tracepoint events,
-those page allocation events don't provide callsite info directly.  So
-I recorded callchains and extracted callsites like below:
-
-Normal page allocation callchains look like this:
-
-  360a7e __alloc_pages_nodemask
-  3a711c alloc_pages_current
-  357bc7 __page_cache_alloc   <-- callsite
-  357cf6 pagecache_get_page
-   48b0a prepare_pages
-   494d3 __btrfs_buffered_write
-   49cdf btrfs_file_write_iter
-  3ceb6e new_sync_write
-  3cf447 vfs_write
-  3cff99 sys_write
-  7556e9 system_call
-    f880 __write_nocancel
-   33eb9 cmd_record
-   4b38e cmd_kmem
-   7aa23 run_builtin
-   27a9a main
-   20800 __libc_start_main
-
-But first two are internal page allocation functions so it should be
-skipped.  To determine such allocation functions, I used following regex:
-
-  ^_?_?(alloc|get_free|get_zeroed)_pages?
-
-This gave me a following list of functions (you can see this with -v):
-
-  alloc func: __get_free_pages
-  alloc func: get_zeroed_page
-  alloc func: alloc_pages_exact
-  alloc func: __alloc_pages_direct_compact
-  alloc func: __alloc_pages_nodemask
-  alloc func: alloc_page_interleave
-  alloc func: alloc_pages_current
-  alloc func: alloc_pages_vma
-  alloc func: alloc_page_buffers
-  alloc func: alloc_pages_exact_nid
-
-After skipping those function, it got '__page_cache_alloc'.
-
-Other information such as allocation order, migration type and gfp
-flags are provided by tracepoint events.
-
-Basically the output will be sorted by total allocation bytes, but you
-can change it by using -s/--sort option.  The following sort keys are
-added to support page analysis: page, order, mtype, gfp.  Existing
-'callsite', 'bytes' and 'hit' sort keys also can be used.
-
-An example follows:
-
-  # perf kmem record --page sleep 5
-  [ perf record: Woken up 2 times to write data ]
-  [ perf record: Captured and wrote 1.065 MB perf.data (2949 samples) ]
-
-  # perf kmem stat --page --caller -l 10
-  # GFP flags
-  # ---------
-  # 00000010: GFP_NOIO
-  # 000000d0: GFP_KERNEL
-  # 00000200: GFP_NOWARN
-  # 000052d0: GFP_KERNEL|GFP_NOWARN|GFP_NORETRY|GFP_COMP
-  # 000084d0: GFP_KERNEL|GFP_REPEAT|GFP_ZERO
-  # 000200d0: GFP_USER
-  # 000200d2: GFP_HIGHUSER
-  # 000200da: GFP_HIGHUSER_MOVABLE
-  # 000280da: GFP_HIGHUSER_MOVABLE|GFP_ZERO
-  # 002084d0: GFP_KERNEL|GFP_REPEAT|GFP_ZERO|GFP_NOTRACK
-  # 0102005a: GFP_NOFS|GFP_HARDWALL|GFP_MOVABLE
-  
-  ---------------------------------------------------------------------------------------------------------
-   Total alloc (KB) | Hits      | Order | Migration type | GFP flags | Callsite
-  ---------------------------------------------------------------------------------------------------------
-                 16 |         1 |     2 |      UNMOVABLE |  000052d0 | alloc_skb_with_frags
-                 24 |         3 |     1 |      UNMOVABLE |  000052d0 | alloc_skb_with_frags
-              3,876 |       969 |     0 |        MOVABLE |  000200da | shmem_alloc_page
-                972 |       243 |     0 |      UNMOVABLE |  000000d0 | __pollwait
-                624 |       156 |     0 |        MOVABLE |  0102005a | __page_cache_alloc
-                304 |        76 |     0 |      UNMOVABLE |  000200d0 | dma_generic_alloc_coherent
-                108 |        27 |     0 |        MOVABLE |  000280da | handle_mm_fault
-                 56 |        14 |     0 |      UNMOVABLE |  002084d0 | pte_alloc_one
-                 24 |         6 |     0 |        MOVABLE |  000200da | do_wp_page
-                 16 |         4 |     0 |      UNMOVABLE |  00000200 | __tlb_remove_page
-   ...              | ...       | ...   | ...            | ...       | ...
-  ---------------------------------------------------------------------------------------------------------
-  
-  SUMMARY (page allocator)
-  ========================
-  Total allocation requests     :            1,518   [            6,096 KB ]
-  Total free requests           :            1,431   [            5,748 KB ]
-  
-  Total alloc+freed requests    :            1,330   [            5,344 KB ]
-  Total alloc-only requests     :              188   [              752 KB ]
-  Total free-only requests      :              101   [              404 KB ]
-  
-  Total allocation failures     :                0   [                0 KB ]
-  
-  Order     Unmovable   Reclaimable       Movable      Reserved  CMA/Isolated
-  -----  ------------  ------------  ------------  ------------  ------------
-      0           351             .         1,163             .             .
-      1             3             .             .             .             .
-      2             1             .             .             .             .
-      3             .             .             .             .             .
-      4             .             .             .             .             .
-      5             .             .             .             .             .
-      6             .             .             .             .             .
-      7             .             .             .             .             .
-      8             .             .             .             .             .
-      9             .             .             .             .             .
-     10             .             .             .             .             .
-
-
-I have some idea how to improve it.  But I'd also like to hear other
-idea, suggestion, feedback and so on.
-
-This is available at perf/kmem-page-v4 branch on my tree:
-
-  git://git.kernel.org/pub/scm/linux/kernel/git/namhyung/linux-perf.git
-
-Thanks,
-Namhyung
-
-
-Namhyung Kim (6):
-  tracing, mm: Record pfn instead of pointer to struct page
-  perf kmem: Analyze page allocator events also
-  perf kmem: Implement stat --page --caller
-  perf kmem: Support sort keys on page analysis
-  perf kmem: Add --live option for current allocation stat
-  perf kmem: Print gfp flags in human readable string
-
- include/trace/events/filemap.h         |    8 +-
- include/trace/events/kmem.h            |   42 +-
- include/trace/events/vmscan.h          |    8 +-
- tools/perf/Documentation/perf-kmem.txt |   19 +-
- tools/perf/builtin-kmem.c              | 1159 ++++++++++++++++++++++++++++++--
- 5 files changed, 1149 insertions(+), 87 deletions(-)
-
+diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
+index 0421f49a20f7..42febb6bc1d5 100644
+--- a/include/trace/events/filemap.h
++++ b/include/trace/events/filemap.h
+@@ -18,14 +18,14 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
+ 	TP_ARGS(page),
+ 
+ 	TP_STRUCT__entry(
+-		__field(struct page *, page)
++		__field(unsigned long, pfn)
+ 		__field(unsigned long, i_ino)
+ 		__field(unsigned long, index)
+ 		__field(dev_t, s_dev)
+ 	),
+ 
+ 	TP_fast_assign(
+-		__entry->page = page;
++		__entry->pfn = page_to_pfn(page);
+ 		__entry->i_ino = page->mapping->host->i_ino;
+ 		__entry->index = page->index;
+ 		if (page->mapping->host->i_sb)
+@@ -37,8 +37,8 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
+ 	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu",
+ 		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
+ 		__entry->i_ino,
+-		__entry->page,
+-		page_to_pfn(__entry->page),
++		pfn_to_page(__entry->pfn),
++		__entry->pfn,
+ 		__entry->index << PAGE_SHIFT)
+ );
+ 
+diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
+index 4ad10baecd4d..81ea59812117 100644
+--- a/include/trace/events/kmem.h
++++ b/include/trace/events/kmem.h
+@@ -154,18 +154,18 @@ TRACE_EVENT(mm_page_free,
+ 	TP_ARGS(page, order),
+ 
+ 	TP_STRUCT__entry(
+-		__field(	struct page *,	page		)
++		__field(	unsigned long,	pfn		)
+ 		__field(	unsigned int,	order		)
+ 	),
+ 
+ 	TP_fast_assign(
+-		__entry->page		= page;
++		__entry->pfn		= page_to_pfn(page);
+ 		__entry->order		= order;
+ 	),
+ 
+ 	TP_printk("page=%p pfn=%lu order=%d",
+-			__entry->page,
+-			page_to_pfn(__entry->page),
++			pfn_to_page(__entry->pfn),
++			__entry->pfn,
+ 			__entry->order)
+ );
+ 
+@@ -176,18 +176,18 @@ TRACE_EVENT(mm_page_free_batched,
+ 	TP_ARGS(page, cold),
+ 
+ 	TP_STRUCT__entry(
+-		__field(	struct page *,	page		)
++		__field(	unsigned long,	pfn		)
+ 		__field(	int,		cold		)
+ 	),
+ 
+ 	TP_fast_assign(
+-		__entry->page		= page;
++		__entry->pfn		= page_to_pfn(page);
+ 		__entry->cold		= cold;
+ 	),
+ 
+ 	TP_printk("page=%p pfn=%lu order=0 cold=%d",
+-			__entry->page,
+-			page_to_pfn(__entry->page),
++			pfn_to_page(__entry->pfn),
++			__entry->pfn,
+ 			__entry->cold)
+ );
+ 
+@@ -199,22 +199,22 @@ TRACE_EVENT(mm_page_alloc,
+ 	TP_ARGS(page, order, gfp_flags, migratetype),
+ 
+ 	TP_STRUCT__entry(
+-		__field(	struct page *,	page		)
++		__field(	unsigned long,	pfn		)
+ 		__field(	unsigned int,	order		)
+ 		__field(	gfp_t,		gfp_flags	)
+ 		__field(	int,		migratetype	)
+ 	),
+ 
+ 	TP_fast_assign(
+-		__entry->page		= page;
++		__entry->pfn		= page ? page_to_pfn(page) : -1UL;
+ 		__entry->order		= order;
+ 		__entry->gfp_flags	= gfp_flags;
+ 		__entry->migratetype	= migratetype;
+ 	),
+ 
+ 	TP_printk("page=%p pfn=%lu order=%d migratetype=%d gfp_flags=%s",
+-		__entry->page,
+-		__entry->page ? page_to_pfn(__entry->page) : 0,
++		__entry->pfn != -1UL ? pfn_to_page(__entry->pfn) : NULL,
++		__entry->pfn != -1UL ? __entry->pfn : 0,
+ 		__entry->order,
+ 		__entry->migratetype,
+ 		show_gfp_flags(__entry->gfp_flags))
+@@ -227,20 +227,20 @@ DECLARE_EVENT_CLASS(mm_page,
+ 	TP_ARGS(page, order, migratetype),
+ 
+ 	TP_STRUCT__entry(
+-		__field(	struct page *,	page		)
++		__field(	unsigned long,	pfn		)
+ 		__field(	unsigned int,	order		)
+ 		__field(	int,		migratetype	)
+ 	),
+ 
+ 	TP_fast_assign(
+-		__entry->page		= page;
++		__entry->pfn		= page ? page_to_pfn(page) : -1UL;
+ 		__entry->order		= order;
+ 		__entry->migratetype	= migratetype;
+ 	),
+ 
+ 	TP_printk("page=%p pfn=%lu order=%u migratetype=%d percpu_refill=%d",
+-		__entry->page,
+-		__entry->page ? page_to_pfn(__entry->page) : 0,
++		__entry->pfn != -1UL ? pfn_to_page(__entry->pfn) : NULL,
++		__entry->pfn != -1UL ? __entry->pfn : 0,
+ 		__entry->order,
+ 		__entry->migratetype,
+ 		__entry->order == 0)
+@@ -260,7 +260,7 @@ DEFINE_EVENT_PRINT(mm_page, mm_page_pcpu_drain,
+ 	TP_ARGS(page, order, migratetype),
+ 
+ 	TP_printk("page=%p pfn=%lu order=%d migratetype=%d",
+-		__entry->page, page_to_pfn(__entry->page),
++		pfn_to_page(__entry->pfn), __entry->pfn,
+ 		__entry->order, __entry->migratetype)
+ );
+ 
+@@ -275,7 +275,7 @@ TRACE_EVENT(mm_page_alloc_extfrag,
+ 		alloc_migratetype, fallback_migratetype),
+ 
+ 	TP_STRUCT__entry(
+-		__field(	struct page *,	page			)
++		__field(	unsigned long,	pfn			)
+ 		__field(	int,		alloc_order		)
+ 		__field(	int,		fallback_order		)
+ 		__field(	int,		alloc_migratetype	)
+@@ -284,7 +284,7 @@ TRACE_EVENT(mm_page_alloc_extfrag,
+ 	),
+ 
+ 	TP_fast_assign(
+-		__entry->page			= page;
++		__entry->pfn			= page_to_pfn(page);
+ 		__entry->alloc_order		= alloc_order;
+ 		__entry->fallback_order		= fallback_order;
+ 		__entry->alloc_migratetype	= alloc_migratetype;
+@@ -294,8 +294,8 @@ TRACE_EVENT(mm_page_alloc_extfrag,
+ 	),
+ 
+ 	TP_printk("page=%p pfn=%lu alloc_order=%d fallback_order=%d pageblock_order=%d alloc_migratetype=%d fallback_migratetype=%d fragmenting=%d change_ownership=%d",
+-		__entry->page,
+-		page_to_pfn(__entry->page),
++		pfn_to_page(__entry->pfn),
++		__entry->pfn,
+ 		__entry->alloc_order,
+ 		__entry->fallback_order,
+ 		pageblock_order,
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index 69590b6ffc09..f66476b96264 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -336,18 +336,18 @@ TRACE_EVENT(mm_vmscan_writepage,
+ 	TP_ARGS(page, reclaim_flags),
+ 
+ 	TP_STRUCT__entry(
+-		__field(struct page *, page)
++		__field(unsigned long, pfn)
+ 		__field(int, reclaim_flags)
+ 	),
+ 
+ 	TP_fast_assign(
+-		__entry->page = page;
++		__entry->pfn = page_to_pfn(page);
+ 		__entry->reclaim_flags = reclaim_flags;
+ 	),
+ 
+ 	TP_printk("page=%p pfn=%lu flags=%s",
+-		__entry->page,
+-		page_to_pfn(__entry->page),
++		pfn_to_page(__entry->pfn),
++		__entry->pfn,
+ 		show_reclaim_flags(__entry->reclaim_flags))
+ );
+ 
 -- 
 2.3.3
 
