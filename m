@@ -1,60 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 7881D6B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 14:23:56 -0400 (EDT)
-Received: by wgdm6 with SMTP id m6so74074940wgd.2
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 11:23:56 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id t4si2061wix.72.2015.03.26.11.23.54
+	by kanga.kvack.org (Postfix) with ESMTP id DADA26B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 14:55:17 -0400 (EDT)
+Received: by wgdm6 with SMTP id m6so74974622wgd.2
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 11:55:17 -0700 (PDT)
+Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
+        by mx.google.com with ESMTPS id f16si11372203wjq.86.2015.03.26.11.55.15
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Mar 2015 11:23:55 -0700 (PDT)
-Date: Thu, 26 Mar 2015 14:23:52 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 08/12] mm: page_alloc: wait for OOM killer progress
- before retrying
-Message-ID: <20150326182352.GB16898@phnom.home.cmpxchg.org>
-References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
- <1427264236-17249-9-git-send-email-hannes@cmpxchg.org>
- <20150326155846.GQ15257@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 26 Mar 2015 11:55:16 -0700 (PDT)
+Message-ID: <5514560A.7040707@nod.at>
+Date: Thu, 26 Mar 2015 19:55:06 +0100
+From: Richard Weinberger <richard@nod.at>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150326155846.GQ15257@dhcp22.suse.cz>
+Subject: Re: [RFC PATCH 00/11] an introduction of library operating system
+ for Linux (LibOS)
+References: <1427202642-1716-1-git-send-email-tazaki@sfc.wide.ad.jp>	<551164ED.5000907@nod.at>	<m2twxacw13.wl@sfc.wide.ad.jp>	<55117565.6080002@nod.at>	<m2sicuctb2.wl@sfc.wide.ad.jp>	<55118277.5070909@nod.at>	<m2bnjhcevt.wl@sfc.wide.ad.jp>	<55133BAF.30301@nod.at> <m2h9t7bubh.wl@wide.ad.jp>
+In-Reply-To: <m2h9t7bubh.wl@wide.ad.jp>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>
+To: Hajime Tazaki <tazaki@wide.ad.jp>
+Cc: linux-arch@vger.kernel.org, arnd@arndb.de, corbet@lwn.net, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, jdike@addtoit.com, rusty@rustcorp.com.au, mathieu.lacage@gmail.com
 
-On Thu, Mar 26, 2015 at 04:58:46PM +0100, Michal Hocko wrote:
-> On Wed 25-03-15 02:17:12, Johannes Weiner wrote:
-> > There is not much point in rushing back to the freelists and burning
-> > CPU cycles in direct reclaim when somebody else is in the process of
-> > OOM killing, or right after issuing a kill ourselves, because it could
-> > take some time for the OOM victim to release memory.
+Hi!
+
+Am 26.03.2015 um 17:24 schrieb Hajime Tazaki:
+> thank you for your deep review on the source code !
 > 
-> Yes this makes sense and it is better than what we have now. The
-> question is how long we should wait. I can see you have gone with HZ.
-> What is the value based on? Have your testing shown that the OOM victim
-> manages to die within a second most of the time?
+>> feeling that "lib" is the wrong name.
+>> It has not much do to with an architecture.
 > 
-> I do not want to get into which value is the best discussion but I would
-> expect a larger value. Most OOM victims are not blocked so they would
-> wake up soon. This is a safety net for those who are blocked and I do
-> not think we have to expedite those rare cases and rather optimize for
-> "regular" OOM situations. How about 10-30s?
+> could you care to elaborate your feeling more explicitly ?
+> 
+> what is an architecture here and what is _not_ an
+> architecture ? 
+> is UML an architecture in your sense (probably yes, but why)?
 
-Yup, I agree with that reasoning.  We can certainly go higher than HZ.
+UML is an architecture as it binds the whole kernel to a computer
+interface. Linux userspace in that case.
 
-However, we should probably try to stay within the thresholds of any
-lock/hang detection watchdogs, which on a higher level includes the
-user itself, who might get confused if the machine hangs for 30s.
+> and what is arch/lib missing for an architecture ?
 
-As I replied to Vlastimil, once the OOM victim hangs for several
-seconds without a deadlock, failing the allocation wouldn't seem
-entirely unreasonable, either.
+Your arch/lib does not bind the Linux kernel to an interface.
+It takes some part of Linux and duplicates kernel core subsystems
+to make that part work on its own.
+For example arch/lib contains a stub implementation of core VFS
+functions like register_filesystem().
+Also it does not seem to use the kernel scheduler, you have your own.
 
-But yes, something like 5-10s would still sound good to me.
+This also infers that arch/lib will be broken most of the time as
+every time the networking stack references a new symbol it
+has to be duplicated into arch/lib.
+
+But this does not mean that your idea is bad, all I want to say that
+I'm not sure whether arch/lib is the right approach.
+Maybe Arnd has a better idea.
+
+>> Apart from that, I really like your idea!
+> 
+> great to hear that ;)
+> 
+>> You don't implement an architecture, you take some part of Linux
+>> (the networking stack) and create stubs around it to make it work.
+>> That means that we'd also have to duplicate kernel functions into
+>> arch/lib to keep it running.
+> 
+> again, the above same questions.
+> 
+> it (arch/lib) is a hardware-independent architecture which
+> provides necessary features to the remainder of kernel code,
+> isn't it ?
+
+The stuff in arch/ is the code to glue the kernel to
+a specific piece of hardware.
+Your code does something between. You duplicate kernel core features
+to make a specific piece of code work in userland.
+
+> answers to those questions are really helpful for a feedback
+> on this RFC patches.
+> 
+>> BTW: It does not build here:
+>> ---cut---
+>>   LIB           liblinux-4.0.0-rc5.so
+> 
+> fixed, thanks: though the issue was in the external code
+> base (i.e., linux-libos-tools). there was a parallel build
+> (make -jX) problem.
+> 
+> # you may need to git pull at arch/lib/tools to reflect the updates.
+
+Will retry later.
+
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
