@@ -1,46 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 056136B006C
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 11:04:29 -0400 (EDT)
-Received: by wgra20 with SMTP id a20so67308215wgr.3
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 08:04:28 -0700 (PDT)
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 268FD6B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 11:10:56 -0400 (EDT)
+Received: by wgbcc7 with SMTP id cc7so67098829wgb.0
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 08:10:55 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id u5si10295779wjy.196.2015.03.26.08.04.26
+        by mx.google.com with ESMTPS id k12si10335518wjw.177.2015.03.26.08.10.53
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Mar 2015 08:04:26 -0700 (PDT)
-Date: Thu, 26 Mar 2015 11:04:18 -0400
+        Thu, 26 Mar 2015 08:10:54 -0700 (PDT)
+Date: Thu, 26 Mar 2015 11:10:50 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [patch 04/12] mm: oom_kill: remove unnecessary locking in
  exit_oom_victim()
-Message-ID: <20150326150418.GA23973@cmpxchg.org>
+Message-ID: <20150326151050.GB23973@cmpxchg.org>
 References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
  <1427264236-17249-5-git-send-email-hannes@cmpxchg.org>
  <20150326125348.GF15257@dhcp22.suse.cz>
+ <20150326130106.GG15257@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150326125348.GF15257@dhcp22.suse.cz>
+In-Reply-To: <20150326130106.GG15257@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
 Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>
 
-On Thu, Mar 26, 2015 at 01:53:48PM +0100, Michal Hocko wrote:
-> On Wed 25-03-15 02:17:08, Johannes Weiner wrote:
-> > Right now the only waiter is suspend code, which achieves quiescence
-> > by disabling the OOM killer.  But later on we want to add waits that
-> > hold the lock instead to stop new victims from showing up.
+On Thu, Mar 26, 2015 at 02:01:06PM +0100, Michal Hocko wrote:
+> On Thu 26-03-15 13:53:48, Michal Hocko wrote:
+> > On Wed 25-03-15 02:17:08, Johannes Weiner wrote:
+> > > Disabling the OOM killer needs to exclude allocators from entering,
+> > > not existing victims from exiting.
+> > 
+> > The idea was that exit_oom_victim doesn't miss a waiter.
+> > 
+> > exit_oom_victim is doing
+> > 	atomic_dec_return(&oom_victims) && oom_killer_disabled)
+> > 
+> > so there is a full (implicit) memory barrier befor oom_killer_disabled
+> > check. The other part is trickier. oom_killer_disable does:
+> > 	oom_killer_disabled = true;
+> >         up_write(&oom_sem);
+> > 
+> >         wait_event(oom_victims_wait, !atomic_read(&oom_victims));
+> > 
+> > up_write doesn't guarantee a full memory barrier AFAICS in
+> > Documentation/memory-barriers.txt (although the generic and x86
+> > implementations seem to implement it as a full barrier) but wait_event
+> > implies the full memory barrier (prepare_to_wait_event does spin
+> > lock&unlock) before checking the condition in the slow path. This should
+> > be sufficient and docummented...
+> > 
+> > 	/*
+> > 	 * We do not need to hold oom_sem here because oom_killer_disable
+> > 	 * guarantees that oom_killer_disabled chage is visible before
+> > 	 * the waiter is put into sleep (prepare_to_wait_event) so
+> > 	 * we cannot miss a wake up.
+> > 	 */
+> > 
+> > in unmark_oom_victim()
 > 
-> It is not entirely clear what you mean by this from the current context.
-> exit_oom_victim is not called from any context which would be locked by
-> any OOM internals so it should be safe to use the locking.
+> OK, I can see that the next patch removes oom_killer_disabled
+> completely. The dependency won't be there and so the concerns about the
+> memory barriers.
+> 
+> Is there any reason why the ordering is done this way? It would sound
+> more logical to me.
 
-A later patch will add another wait_event() to wait for oom victims to
-drop to zero.  But that new consumer won't be disabling the OOM killer
-to prevent new victims from showing up, it will just hold the lock to
-exclude OOM kills.  So the exiting victims shouldn't get stuck on that
-lock which the guy that is waiting for them is holding.
+I honestly didn't even think about the dependency between the lock and
+this check.  They both looked unnecessary to me and I stopped putting
+any more thought into it once I had convinced myself that they are.
+
+The order was chosen because the waitqueue generalization seemed like
+a bigger deal.  One is just an unnecessary lock, but this extra check
+cost me quite some time debugging and seems like a much more harmful
+piece of code to fix.  It's no problem to reorder the patches, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
