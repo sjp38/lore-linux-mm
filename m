@@ -1,71 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id E39D16B0032
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 23:37:00 -0400 (EDT)
-Received: by igcau2 with SMTP id au2so119417149igc.0
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 20:37:00 -0700 (PDT)
-Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com. [2607:f8b0:4001:c05::234])
-        by mx.google.com with ESMTPS id u5si3918536icv.40.2015.03.25.20.37.00
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 59E696B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 01:39:27 -0400 (EDT)
+Received: by pacwz10 with SMTP id wz10so1522639pac.2
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 22:39:26 -0700 (PDT)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com. [209.85.220.50])
+        by mx.google.com with ESMTPS id bf5si6794480pbb.45.2015.03.25.22.39.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Mar 2015 20:37:00 -0700 (PDT)
-Received: by igcau2 with SMTP id au2so6302100igc.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 20:37:00 -0700 (PDT)
-Message-ID: <55137ED7.6000300@gmail.com>
-Date: Wed, 25 Mar 2015 23:36:55 -0400
-From: Daniel Micay <danielmicay@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mremap: add MREMAP_NOHOLE flag --resend
-References: <deaa4139de6e6422a0cec1e3282553aed3495e94.1426626497.git.shli@fb.com> <20150318153100.5658b741277f3717b52e42d9@linux-foundation.org> <550A5FF8.90504@gmail.com> <CADpJO7zBLhjecbiQeTubnTReiicVLr0-K43KbB4uCL5w_dyqJg@mail.gmail.com> <550E6D9D.1060507@gmail.com> <5512E0C0.6060406@suse.cz> <55131F70.7020503@gmail.com> <alpine.DEB.2.10.1503251710400.31453@chino.kir.corp.google.com> <551351CA.3090803@gmail.com> <alpine.DEB.2.10.1503251914260.16714@chino.kir.corp.google.com> <55137C06.9020608@gmail.com>
-In-Reply-To: <55137C06.9020608@gmail.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="fkRdFvaECUfOwRNlDWWPUfxapEi6OUESe"
+        Wed, 25 Mar 2015 22:39:26 -0700 (PDT)
+Received: by pabxg6 with SMTP id xg6so52683514pab.0
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 22:39:26 -0700 (PDT)
+From: Viresh Kumar <viresh.kumar@linaro.org>
+Subject: [RFC] vmstat: Avoid waking up idle-cpu to service shepherd work
+Date: Thu, 26 Mar 2015 11:09:01 +0530
+Message-Id: <359c926bc85cdf79650e39f2344c2083002545bb.1427347966.git.viresh.kumar@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Aliaksey Kandratsenka <alkondratenko@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-api@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Andy Lutomirski <luto@amacapital.net>, "google-perftools@googlegroups.com" <google-perftools@googlegroups.com>
+To: akpm@linux-foundation.org, hannes@cmpxchg.org, cl@linux.com
+Cc: linaro-kernel@lists.linaro.org, linux-kernel@vger.kernel.org, vinmenon@codeaurora.org, shashim@codeaurora.org, mhocko@suse.cz, mgorman@suse.de, dave@stgolabs.net, koct9i@gmail.com, linux-mm@kvack.org, Viresh Kumar <viresh.kumar@linaro.org>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---fkRdFvaECUfOwRNlDWWPUfxapEi6OUESe
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+A delayed work to schedule vmstat_shepherd() is queued at periodic intervals for
+internal working of vmstat core. This work and its timer end up waking an idle
+cpu sometimes, as this always stays on CPU0.
 
-jemalloc doesn't really use free lists or sbrk for user allocations much
-at all: thread caches are arrays of pointers (easier to flush and no
-need to deref stale memory), red-black trees manage chunks and runs
-within chunks, and runs use bitmaps. It can use sbrk as an alternate
-source of chunks, but it defaults to using mmap and there's no real
-advantage to switching it.
+Because we re-queue the work from its handler, idle_cpu() returns false and so
+the timer (used by delayed work) never migrates to any other CPU.
 
-THP currently seems to be designed around the assumption that all
-userspace allocators are variants of dlmalloc...
+This may not be the desired behavior always as waking up an idle CPU to queue
+work on few other CPUs isn't good from power-consumption point of view.
 
+In order to avoid waking up an idle core, we can replace schedule_delayed_work()
+with a normal work plus a separate timer. The timer handler will then queue the
+work after re-arming the timer. If the CPU was idle before the timer fired,
+idle_cpu() will mostly return true and the next timer shall be migrated to a
+non-idle CPU.
 
---fkRdFvaECUfOwRNlDWWPUfxapEi6OUESe
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
+But the timer core has a limitation, when the timer is re-armed from its
+handler, timer core disables migration of that timer to other cores. Details of
+that limitation are present in kernel/time/timer.c:__mod_timer() routine.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+Another simple yet effective solution can be to keep two timers with same
+handler and keep toggling between them, so that the above limitation doesn't
+hold true anymore.
 
-iQIcBAEBCAAGBQJVE37XAAoJEPnnEuWa9fIqWGsQAIcv47DkrYMIHMjcI76ZgTlJ
-xIPQp54tN6/irfJmlZVR3YYxpfL/PkjRmnsmTuiXgD/ngrl3xLi2j0yGObiYIeoh
-iZU4V/YOt6a5Qe6cmonsIvCCvUL3glqp94F8k+JoSBr8GTvykzkqKXvstzJXZkvT
-xBOYmFfO7GvQlJDpwX6P3bj/Yq3ldIkiq/UiGo8w8DTcsUdqlNYjU9JZlhQwiukF
-J5cysbA3YuuxS6ZFrQdyAI1p30PIIKMTIXjluVWNsybREPtsapvEaWiotEdE/DFU
-fACW0m6EWL1yq0uDi1BWXESrufEiIB3jXYB4TFTmynuRf1LToXZm1sqyk+7OUz5+
-Pjg1L+hEv08nLVcDduJlSJzRcp2uV4wLKAWd369aWafmQrTsAViREemKLzaV7XJV
-4ec6+z+8oA293uKA585jMElR/SHelku3yAiPoCiw1hxFZHKBIHvDdGFQaXaxgdsr
-YZ9ViCiUSkNAyNGF15SY9LkVWqzF0rl1viX2jxSvBn0JUY4UK4AIplq75MmH28Y6
-XbZpNslIIDUKTJRI9VluA9Yw/Rp5OJKjmsCq/Rzr4skQGVRNsz6UrLeENTgbJLAy
-Q7aQ7X/aGqHbwCbhPH6DNBDOwv7TWTvfZl6gyDpa/klAmluaPntBu1x5u716zLVF
-rEpOzWMmvkW2Ha5slZIw
-=SD8J
------END PGP SIGNATURE-----
+This patch replaces schedule_delayed_work() with schedule_work() plus two
+timers. After this, it was seen that the timer and its do get migrated to other
+non-idle CPUs, when the local cpu is idle.
 
---fkRdFvaECUfOwRNlDWWPUfxapEi6OUESe--
+Tested-by: Vinayak Menon <vinmenon@codeaurora.org>
+Tested-by: Shiraz Hashim <shashim@codeaurora.org>
+Signed-off-by: Viresh Kumar <viresh.kumar@linaro.org>
+---
+This patch isn't sent to say its the best way forward, but to get a discussion
+started on the same.
+
+ mm/vmstat.c | 31 +++++++++++++++++++++++++------
+ 1 file changed, 25 insertions(+), 6 deletions(-)
+
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 4f5cd974e11a..d45e4243a046 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1424,8 +1424,18 @@ static bool need_update(int cpu)
+  * inactivity.
+  */
+ static void vmstat_shepherd(struct work_struct *w);
++static DECLARE_WORK(shepherd, vmstat_shepherd);
+ 
+-static DECLARE_DELAYED_WORK(shepherd, vmstat_shepherd);
++/*
++ * Two timers are used here to avoid waking up an idle CPU. If a single timer is
++ * kept, then re-arming the timer from its handler doesn't let us migrate it.
++ */
++static struct timer_list shepherd_timer[2];
++#define toggle_timer() (shepherd_timer_index = !shepherd_timer_index,	\
++			&shepherd_timer[shepherd_timer_index])
++
++static void vmstat_shepherd_timer(unsigned long data);
++static int shepherd_timer_index;
+ 
+ static void vmstat_shepherd(struct work_struct *w)
+ {
+@@ -1441,15 +1451,19 @@ static void vmstat_shepherd(struct work_struct *w)
+ 				&per_cpu(vmstat_work, cpu), 0);
+ 
+ 	put_online_cpus();
++}
+ 
+-	schedule_delayed_work(&shepherd,
+-		round_jiffies_relative(sysctl_stat_interval));
++static void vmstat_shepherd_timer(unsigned long data)
++{
++	mod_timer(toggle_timer(),
++		  jiffies + round_jiffies_relative(sysctl_stat_interval));
++	schedule_work(&shepherd);
+ 
+ }
+ 
+ static void __init start_shepherd_timer(void)
+ {
+-	int cpu;
++	int cpu, i = -1;
+ 
+ 	for_each_possible_cpu(cpu)
+ 		INIT_DELAYED_WORK(per_cpu_ptr(&vmstat_work, cpu),
+@@ -1459,8 +1473,13 @@ static void __init start_shepherd_timer(void)
+ 		BUG();
+ 	cpumask_copy(cpu_stat_off, cpu_online_mask);
+ 
+-	schedule_delayed_work(&shepherd,
+-		round_jiffies_relative(sysctl_stat_interval));
++	while (++i < 2) {
++		init_timer(&shepherd_timer[i]);
++		shepherd_timer[i].function = vmstat_shepherd_timer;
++	};
++
++	mod_timer(toggle_timer(),
++		  jiffies + round_jiffies_relative(sysctl_stat_interval));
+ }
+ 
+ static void vmstat_cpu_dead(int node)
+-- 
+2.3.0.rc0.44.ga94655d
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
