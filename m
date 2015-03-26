@@ -1,95 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id A584C6B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 18:51:02 -0400 (EDT)
-Received: by igbqf9 with SMTP id qf9so5707764igb.1
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 15:51:02 -0700 (PDT)
-Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com. [2607:f8b0:4001:c05::236])
-        by mx.google.com with ESMTPS id w10si125270icb.106.2015.03.26.15.51.01
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 1931E6B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 19:23:24 -0400 (EDT)
+Received: by ieclw3 with SMTP id lw3so58971165iec.2
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 16:23:23 -0700 (PDT)
+Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com. [2607:f8b0:4001:c03::22b])
+        by mx.google.com with ESMTPS id iq3si212583igb.15.2015.03.26.16.23.23
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Mar 2015 15:51:01 -0700 (PDT)
-Received: by igcxg11 with SMTP id xg11so5785632igc.0
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 15:51:01 -0700 (PDT)
-Date: Thu, 26 Mar 2015 15:50:59 -0700 (PDT)
+        Thu, 26 Mar 2015 16:23:23 -0700 (PDT)
+Received: by ieclw3 with SMTP id lw3so58971085iec.2
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 16:23:23 -0700 (PDT)
+Date: Thu, 26 Mar 2015 16:23:21 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2 4/4] mm, mempool: poison elements backed by page
- allocator
-In-Reply-To: <CAPAsAGwipUr7NBWjQ_xjA0CfeiZ0NuYAg13M4jYmWVe4V8Jjmg@mail.gmail.com>
-Message-ID: <alpine.DEB.2.10.1503261542060.16259@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1503241607240.21805@chino.kir.corp.google.com> <alpine.DEB.2.10.1503241609370.21805@chino.kir.corp.google.com> <CAPAsAGwipUr7NBWjQ_xjA0CfeiZ0NuYAg13M4jYmWVe4V8Jjmg@mail.gmail.com>
+Subject: [patch 1/2] mm, doc: cleanup and clarify munmap behavior for hugetlb
+ memory
+Message-ID: <alpine.DEB.2.10.1503261621570.20009@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Kleikamp <shaggy@kernel.org>, Christoph Hellwig <hch@lst.de>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, jfs-discussion@lists.sourceforge.net
+To: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>
+Cc: Davide Libenzi <davidel@xmailserver.org>, Luiz Capitulino <lcapitulino@redhat.com>, Shuah Khan <shuahkh@osg.samsung.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, Eric B Munson <emunson@akamai.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-doc@vger.kernel.org
 
-On Thu, 26 Mar 2015, Andrey Ryabinin wrote:
+munmap(2) of hugetlb memory requires a length that is hugepage aligned,
+otherwise it may fail.  Add this to the documentation.
 
-> > +static void check_element(mempool_t *pool, void *element)
-> > +{
-> > +       /* Mempools backed by slab allocator */
-> > +       if (pool->free == mempool_free_slab || pool->free == mempool_kfree)
-> > +               __check_element(pool, element, ksize(element));
-> > +
-> > +       /* Mempools backed by page allocator */
-> > +       if (pool->free == mempool_free_pages) {
-> > +               int order = (int)(long)pool->pool_data;
-> > +               void *addr = page_address(element);
-> > +
-> > +               __check_element(pool, addr, 1UL << (PAGE_SHIFT + order));
-> >         }
-> >  }
-> >
-> > -static void poison_slab_element(mempool_t *pool, void *element)
-> > +static void __poison_element(void *element, size_t size)
-> >  {
-> > -       if (pool->alloc == mempool_alloc_slab ||
-> > -           pool->alloc == mempool_kmalloc) {
-> > -               size_t size = ksize(element);
-> > -               u8 *obj = element;
-> > +       u8 *obj = element;
-> > +
-> > +       memset(obj, POISON_FREE, size - 1);
-> > +       obj[size - 1] = POISON_END;
-> > +}
-> > +
-> > +static void poison_element(mempool_t *pool, void *element)
-> > +{
-> > +       /* Mempools backed by slab allocator */
-> > +       if (pool->alloc == mempool_alloc_slab || pool->alloc == mempool_kmalloc)
-> > +               __poison_element(element, ksize(element));
-> > +
-> > +       /* Mempools backed by page allocator */
-> > +       if (pool->alloc == mempool_alloc_pages) {
-> > +               int order = (int)(long)pool->pool_data;
-> > +               void *addr = page_address(element);
-> >
-> > -               memset(obj, POISON_FREE, size - 1);
-> > -               obj[size - 1] = POISON_END;
-> > +               __poison_element(addr, 1UL << (PAGE_SHIFT + order));
-> 
-> I think, it would be better to use kernel_map_pages() here and in
-> check_element().
+This also cleans up the documentation and separates it into logical
+units: one part refers to MAP_HUGETLB and another part refers to
+requirements for shared memory segments.
 
-Hmm, interesting suggestion.
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ Documentation/vm/hugetlbpage.txt | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 
-> This implies that poison_element()/check_element() has to be moved out of
-> CONFIG_DEBUG_SLAB || CONFIG_SLUB_DEBUG_ON ifdef (keeping only slab
-> poisoning under this ifdef).
-
-The mempool poisoning introduced here is really its own poisoning built on 
-top of whatever the mempool allocator is.  Otherwise, it would have called 
-into the slab subsystem to do the poisoning and include any allocated 
-space beyond the object size itself.  Mempool poisoning is agnostic to the 
-underlying memory just like the chain of elements is, mempools don't even 
-store size.
-
-We don't have a need to set PAGE_EXT_DEBUG_POISON on these pages sitting 
-in the reserved pool, nor do we have a need to do kmap_atomic() since it's 
-already mapped and must be mapped to be on the reserved pool, which is 
-handled by mempool_free().
+diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
+--- a/Documentation/vm/hugetlbpage.txt
++++ b/Documentation/vm/hugetlbpage.txt
+@@ -289,15 +289,20 @@ file systems, write system calls are not.
+ Regular chown, chgrp, and chmod commands (with right permissions) could be
+ used to change the file attributes on hugetlbfs.
+ 
+-Also, it is important to note that no such mount command is required if the
++Also, it is important to note that no such mount command is required if
+ applications are going to use only shmat/shmget system calls or mmap with
+-MAP_HUGETLB.  Users who wish to use hugetlb page via shared memory segment
+-should be a member of a supplementary group and system admin needs to
+-configure that gid into /proc/sys/vm/hugetlb_shm_group.  It is possible for
+-same or different applications to use any combination of mmaps and shm*
+-calls, though the mount of filesystem will be required for using mmap calls
+-without MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see
+-map_hugetlb.c.
++MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see map_hugetlb
++below.
++
++Users who wish to use hugetlb memory via shared memory segment should be a
++member of a supplementary group and system admin needs to configure that gid
++into /proc/sys/vm/hugetlb_shm_group.  It is possible for same or different
++applications to use any combination of mmaps and shm* calls, though the mount of
++filesystem will be required for using mmap calls without MAP_HUGETLB.
++
++When using munmap(2) to unmap hugetlb memory, the length specified must be
++hugepage aligned, otherwise it will fail with errno set to EINVAL.
++
+ 
+ Examples
+ ========
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
