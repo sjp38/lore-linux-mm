@@ -1,114 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id EAFD76B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 15:58:38 -0400 (EDT)
-Received: by pdnc3 with SMTP id c3so72862731pdn.0
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 12:58:38 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id gq8si9708837pbc.83.2015.03.26.12.58.36
-        for <linux-mm@kvack.org>;
-        Thu, 26 Mar 2015 12:58:38 -0700 (PDT)
-Date: Fri, 27 Mar 2015 06:58:22 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [patch 00/12] mm: page_alloc: improve OOM mechanism and policy
-Message-ID: <20150326195822.GB28129@dastard>
-References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
+Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C97866B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 16:03:14 -0400 (EDT)
+Received: by iedm5 with SMTP id m5so55554297ied.3
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 13:03:14 -0700 (PDT)
+Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com. [2607:f8b0:4001:c05::236])
+        by mx.google.com with ESMTPS id r2si190171igh.60.2015.03.26.13.03.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Mar 2015 13:03:14 -0700 (PDT)
+Received: by igcau2 with SMTP id au2so2227638igc.0
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 13:03:14 -0700 (PDT)
+Date: Thu, 26 Mar 2015 13:03:12 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch][resend] MAP_HUGETLB munmap fails with size not 2MB
+ aligned
+In-Reply-To: <alpine.DEB.2.10.1503261221470.5119@davide-lnx3>
+Message-ID: <alpine.DEB.2.10.1503261250430.9410@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1410221518160.31326@davide-lnx3> <alpine.LSU.2.11.1503251708530.5592@eggly.anvils> <alpine.DEB.2.10.1503251754320.26501@davide-lnx3> <alpine.DEB.2.10.1503251938170.16714@chino.kir.corp.google.com> <alpine.DEB.2.10.1503260431290.2755@mbplnx>
+ <alpine.DEB.2.10.1503261201440.8238@chino.kir.corp.google.com> <alpine.DEB.2.10.1503261221470.5119@davide-lnx3>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.cz>, Theodore Ts'o <tytso@mit.edu>
+To: Davide Libenzi <davidel@xmailserver.org>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, Eric B Munson <emunson@akamai.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Wed, Mar 25, 2015 at 02:17:04AM -0400, Johannes Weiner wrote:
-> Hi everybody,
+On Thu, 26 Mar 2015, Davide Libenzi wrote:
+
+> > Yes, this munmap() behavior of lengths <= hugepage_size - PAGE_SIZE for a 
+> > hugetlb vma is long standing and there may be applications that break as a 
+> > result of changing the behavior: a database that reserves all allocated 
+> > hugetlb memory with mmap() so that it always has exclusive access to those 
+> > hugepages, whether they are faulted or not, and maintains its own hugepage 
+> > pool (which is common), may test the return value of munmap() and depend 
+> > on it returning -EINVAL to determine if it is freeing memory that was 
+> > either dynamically allocated or mapped from the hugetlb reserved pool.
 > 
-> in the recent past we've had several reports and discussions on how to
-> deal with allocations hanging in the allocator upon OOM.
+> You went a long way to create such a case.
+> But, in your case, that application will erroneously considering hugepage 
+> mmaped memory, as dynamically allocated, since it will always get EINVAL, 
+> unless it passes an aligned size. Aligned size, which a fix like the one 
+> posted in the patch will still leave as success.
+
+There was a patch proposed last week to add reserved pools to the 
+hugetlbfs mount option specifically for the case where a large database 
+wants sole reserved access to the hugepage pool.  This is why hugetlbfs 
+pages become reserved on mmap().  In that case, the database never wants 
+to do munmap() and instead maintains its own hugepage pool.
+
+That makes the usual database case, mmap() all necessary hugetlb pages to 
+reserve them, even easier since they have historically had to maintain 
+this pool amongst various processes.
+
+Is there a process out there that tests for munmap(ptr) == EINVAL and, if 
+true, returns ptr to its hugepage pool?  I can't say for certain that none 
+exist, that's why the potential for breakage exists.
+
+> OTOH, an application, which might be more common than the one you posted,
+> which calls munmap() to release a pointer which it validly got from a 
+> previous mmap(), will leak huge pages as all the issued munmaps will fail.
 > 
-> The idea of this series is mainly to make the mechanism of detecting
-> OOM situations reliable enough that we can be confident about failing
-> allocations, and then leave the fallback strategy to the caller rather
-> than looping forever in the allocator.
+
+That application would have to be ignoring an EINVAL return value.
+
+> > If we were to go back in time and decide this when the munmap() behavior 
+> > for hugetlb vmas was originally introduced, that would be valid.  The 
+> > problem is that it could lead to userspace breakage and that's a 
+> > non-starter.
+> > 
+> > What we can do is improve the documentation and man-page to clearly 
+> > specify the long-standing behavior so that nobody encounters unexpected 
+> > results in the future.
 > 
-> The other part is trying to reduce the __GFP_NOFAIL deadlock rate, at
-> least for the short term while we don't have a reservation system yet.
-
-A valid goal, but I think this series goes about it the wrong way.
-i.e. it forces us to use __GFP_NOFAIL rather than providing us a
-valid fallback mechanism to access reserves.
-
-....
-
->  mm: page_alloc: emergency reserve access for __GFP_NOFAIL allocations
+> This way you will leave the mmap API with broken semantics.
+> In any case, I am done arguing.
+> I will leave to Andrew to sort it out, and to Michael Kerrisk to update 
+> the mmap man pages with the new funny behaviour.
 > 
-> An exacerbation of the victim-stuck-behind-allocation scenario are
-> __GFP_NOFAIL allocations, because they will actually deadlock.  To
-> avoid this, or try to, give __GFP_NOFAIL allocations access to not
-> just the OOM reserves but also the system's emergency reserves.
-> 
-> This is basically a poor man's reservation system, which could or
-> should be replaced later on with an explicit reservation system that
-> e.g. filesystems have control over for use by transactions.
-> 
-> It's obviously not bulletproof and might still lock up, but it should
-> greatly reduce the likelihood.  AFAIK Andrea, whose idea this was, has
-> been using this successfully for some time.
 
-So, if we want GFP_NOFS allocations to be able to dip into a
-small extra reservation to make progress at ENOMEM, we have to use
-use __GFP_NOFAIL because looping ourselves won't allow use of these
-extra reserves?
+The behavior is certainly not new, it has always been the case for 
+munmap() on hugetlb vmas.
 
->  mm: page_alloc: do not lock up GFP_NOFS allocations upon OOM
-> 
-> Another hang that was reported was from NOFS allocations.  The trouble
-> with these is that they can't issue or wait for writeback during page
-> reclaim, and so we don't want to OOM kill on their behalf.  However,
-> with such restrictions on making progress, they are prone to hangs.
-
-And because this effectively means GFP_NOFS allocations are
-going to fail much more often, we're either going to have to loop
-ourselves or use __GFP_NOFAIL...
-
-> This patch makes NOFS allocations fail if reclaim can't free anything.
-> 
-> It would be good if the filesystem people could weigh in on whether
-> they can deal with failing GFP_NOFS allocations, or annotate the
-> exceptions with __GFP_NOFAIL etc.  It could well be that a middle
-> ground is required that allows using the OOM killer before giving up.
-
-... which looks to me like a catch-22 situation for us: We
-have reserves, but callers need to use __GFP_NOFAIL to access them.
-GFP_NOFS is going to fail more often, so callers need to handle that
-in some way, either by looping or erroring out.
-
-But if we loop manually because we try to handle ENOMEM situations
-gracefully (e.g. try a number of times before erroring out) we can't
-dip into the reserves because the only semantics being provided are
-"try-once-without-reserves" or "try-forever-with-reserves".  i.e.
-what we actually need here is "try-once-with-reserves" semantics so
-that we can make progress after a failing GFP_NOFS
-"try-once-without-reserves" allocation.
-
-IOWS, __GFP_NOFAIL is not the answer here - it's GFP_NOFS |
-__GFP_USE_RESERVE that we need on the failure fallback path. Which,
-incidentally, is trivial to add to the XFS allocation code. Indeed,
-I'll request that you test series like this on metadata intensive
-filesystem workloads on XFS under memory stress and quantify how
-many new "XFS: possible deadlock in memory allocation" warnings are
-emitted. If the patch set floods the system with such warnings, then
-it means the proposed means the fallback for "caller handles
-allocation failure" is not making progress.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+In a strict POSIX interpretation, it refers only to pages in the sense of
+what is returned by sysconf(_SC_PAGESIZE).  Such vmas are not backed by 
+any pages of size sysconf(_SC_PAGESIZE), so this behavior is undefined.  
+It would be best to modify the man page to explicitly state this for 
+MAP_HUGETLB.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
