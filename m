@@ -1,168 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D0E96B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 10:09:02 -0400 (EDT)
-Received: by pdbop1 with SMTP id op1so63798301pdb.2
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 07:09:02 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
-        by mx.google.com with ESMTP id ng17si8568684pdb.51.2015.03.26.07.09.00
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 45E556B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 10:10:09 -0400 (EDT)
+Received: by pdnc3 with SMTP id c3so64033010pdn.0
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 07:10:09 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTP id g12si8589071pat.3.2015.03.26.07.10.08
         for <linux-mm@kvack.org>;
-        Thu, 26 Mar 2015 07:09:00 -0700 (PDT)
-Message-ID: <551412FB.4090406@akamai.com>
-Date: Thu, 26 Mar 2015 10:08:59 -0400
-From: Eric B Munson <emunson@akamai.com>
+        Thu, 26 Mar 2015 07:10:08 -0700 (PDT)
+Date: Thu, 26 Mar 2015 11:10:10 -0300
+From: Arnaldo Carvalho de Melo <acme@kernel.org>
+Subject: Re: [PATCH 6/6] perf kmem: Print gfp flags in human readable string
+Message-ID: <20150326141010.GC21510@kernel.org>
+References: <1427349636-9796-1-git-send-email-namhyung@kernel.org>
+ <1427349636-9796-7-git-send-email-namhyung@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [patch][resend] MAP_HUGETLB munmap fails with size not 2MB aligned
-References: <alpine.DEB.2.10.1410221518160.31326@davide-lnx3> <alpine.LSU.2.11.1503251708530.5592@eggly.anvils> <alpine.DEB.2.10.1503251754320.26501@davide-lnx3> <alpine.DEB.2.10.1503251938170.16714@chino.kir.corp.google.com> <alpine.DEB.2.10.1503260431290.2755@mbplnx>
-In-Reply-To: <alpine.DEB.2.10.1503260431290.2755@mbplnx>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1427349636-9796-7-git-send-email-namhyung@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davide Libenzi <davidel@xmailserver.org>, David Rientjes <rientjes@google.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Namhyung Kim <namhyung@kernel.org>
+Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+Em Thu, Mar 26, 2015 at 03:00:36PM +0900, Namhyung Kim escreveu:
+> Save libtraceevent output and print it in the header.
+> 
+>   # perf kmem stat --page --caller
+>   # GFP flags
+>   # ---------
+>   # 00000010: GFP_NOIO
+>   # 000000d0: GFP_KERNEL
+>   # 00000200: GFP_NOWARN
+>   # 000084d0: GFP_KERNEL|GFP_REPEAT|GFP_ZERO
+>   # 000200d2: GFP_HIGHUSER
+>   # 000200da: GFP_HIGHUSER_MOVABLE
+>   # 000280da: GFP_HIGHUSER_MOVABLE|GFP_ZERO
+>   # 002084d0: GFP_KERNEL|GFP_REPEAT|GFP_ZERO|GFP_NOTRACK
+>   # 0102005a: GFP_NOFS|GFP_HARDWALL|GFP_MOVABLE
+> 
+>   ---------------------------------------------------------------------------------------------------------
+>    Total alloc (KB) | Hits      | Order | Migration type | GFP flags | Callsite
+>   ---------------------------------------------------------------------------------------------------------
+>                  60 |        15 |     0 |      UNMOVABLE |  002084d0 | pte_alloc_one
+>                  40 |        10 |     0 |        MOVABLE |  000280da | handle_mm_fault
+>                  24 |         6 |     0 |        MOVABLE |  000200da | do_wp_page
+>                  24 |         6 |     0 |      UNMOVABLE |  000000d0 | __pollwait
+>    ...
 
-On 03/26/2015 07:56 AM, Davide Libenzi wrote:
-> On Wed, 25 Mar 2015, David Rientjes wrote:
-> 
->> I looked at this thread at http://marc.info/?t=141392508800001
->> since I didn't have it in my mailbox, and I didn't get a chance
->> to actually run your test code.
->> 
->> In short, I think what you're saying is that
->> 
->> ptr = mmap(..., 4KB, ..., MAP_HUGETLB | ..., ...) munmap(ptr,
->> 4KB) == EINVAL
-> 
-> I am not sure you have read the email correctly:
-> 
-> munmap(mmap(size, HUGETLB), size) = EFAIL
-> 
-> For every size not multiple of the huge page size. Whereas:
-> 
-> munmap(mmap(size, HUGETLB), ALIGN(size, HUGEPAGE_SIZE)) = OK
+Perhaps you could compact it further by doing things like:
 
-I think Davide is right here, this is a long existing bug in the
-MAP_HUGETLB implementation.  Specifically, the mmap man page says:
+    # 00000010:      NIO: GFP_NOIO
+    # 000000d0:        K: GFP_KERNEL
+    # 00000200:       NW: GFP_NOWARN
+    # 000084d0:    K|R|Z: GFP_KERNEL|GFP_REPEAT|GFP_ZERO
+    # 000200d2:       HU: GFP_HIGHUSER
+    # 000200da:      HUM: GFP_HIGHUSER_MOVABLE
+    # 000280da:    HUM|Z: GFP_HIGHUSER_MOVABLE|GFP_ZERO
+    # 002084d0: K|R|Z|NT: GFP_KERNEL|GFP_REPEAT|GFP_ZERO|GFP_NOTRACK
+    # 0102005a: NFS|HW|M: GFP_NOFS|GFP_HARDWALL|GFP_MOVABLE
 
-All pages containing a part of the indicated range are unmapped, and
-subsequent references to these pages will generate SIGSEGV.
+    -------------------------------------------------------------------------
+    Total(KB) | Hits | Ord | Migr.| GFP flg  | Callsite
+    -------------------------------------------------------------------------
+           60 |   15 |   0 | UNMV | K|R|Z|NT | pte_alloc_one
+           40 |   10 |   0 |   MV |    HUM|Z | handle_mm_fault
+           24 |    6 |   0 |   MV |      HUM | do_wp_page
+           24 |    6 |   0 | UNMV |        K | __pollwait
 
-I realize that huge pages may not have been considered by those that
-wrote the spec.  But if I read this I would assume that all pages,
-regardless of size, touched by the munmap() request should be unmapped.
+I.e. using mnemonics instead of a hex number for the GFP flag, reducing
+the need to lookup the header.
 
-Please include
-Acked-by: Eric B Munson <emunson@akamai.com>
-to the original patch.  I would like to see the mmap man page adjusted
-to make note of this behavior as well.
+Just my 2 cents :-)
+
+- Arnaldo
 
 > 
+> Requested-by: Joonsoo Kim <js1304@gmail.com>
+> Suggested-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Namhyung Kim <namhyung@kernel.org>
+> ---
+>  tools/perf/builtin-kmem.c | 81 +++++++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 81 insertions(+)
 > 
->> Respecting the mmap(2) POSIX specification?  I don't think 
->> mmap(..., 4KB, ..., MAP_HUGETLB | ..., ...) mapping 2MB violates
->>  POSIX.1-2001 and not only because it obviously doesn't address 
->> MAP_HUGETLB, but I don't think the spec says the system cannot
->> map more memory than len.
->> 
->> Using MAP_HUGETLB is really more a library function than anything
->> else since you could easily implement the same behavior in a
->> library.  That function includes aligning len to the hugepage
->> size, so doing
->> 
->> ptr = mmap(..., 4KB, ..., MAP_HUGETLB | ..., ...)
->> 
->> is the equivalent to doing
->> 
->> ptr = mmap(..., hugepage_size, ..., MAP_HUGETLB | ..., ...)
->> 
->> and that doesn't violate any spec.  But your patch doesn't change
->> mmap() at all, so let's forget about that.
-> 
-> That is what every mmap() implementation does, irrespectively of
-> any page size. And that is also what the POSIX spec states. The
-> size will be automatically rounded up to a multiple of the
-> underline physical page size. The problem is not mmap() though, in
-> this case.
-> 
-> 
->> The question you pose is whether munmap(ptr, 4KB) should succeed
->> for a hugetlb vma and in your patch you align this to the
->> hugepage size of the vma in the same manner that munmap(ptr, 2KB)
->> would be aligned to PAGE_SIZE for a non-hugetlb vma.
->> 
->> The munmap() spec says the whole pages that include any part of
->> the passed length should be unmapped.  In spirit, I would agree
->> with you that the page size for the vma is the hugepage size so
->> that would be what would be unmapped.
->> 
->> But that's going by a spec that doesn't address hugepages and is
->> worded in a way that {PAGE_SIZE} is the base unit that both
->> mmap() and munmap() is done.  It carries no notion of variable
->> page sizes and how hugepages should be handled with respect to
->> pages of {PAGE_SIZE} length.  So I think this is beyond the scope
->> of the spec: any length is aligned to PAGE_SIZE, but the munmap()
->> behavior for hugetlb vmas is not restricted.
->> 
->> It would seem too dangerous at this point to change the behavior
->> of munmap(ptr, 4KB) on a hugetlb vma and that userspace bugs
->> could actually arise from aligning to the hugepage size.
-> 
-> You mean, there is an harder failure than the current failure? :)
-> 
-> 
->> Some applications purposefully reserve hugetlb pages by mmap()
->> and never munmap() them so they have exclusive access to
->> hugepages that were allocated either at boot or runtime by the
->> sysadmin.  If they depend on the return value of munmap() to
->> determine if memory to free is memory dynamically allocated by
->> the application or reserved as hugetlb memory, then this would
->> cause them to break.  I can't say for certain that no such 
->> application exists.
-> 
-> The fact that certain applications will seldomly call an API,
-> should be no reason for API to have bugs, or at the very least, a
-> bahviour which not only in not documented in the man pages, but
-> also totally unrespectful of the normal mmap/munmap semantics. 
-> Again, the scenario that you are picturing, is one where an
-> application relies on a permanent (that is what it is - it always
-> fails unless the munmap size is multiple than huge page size)
-> failure of munmap, to do some productive task. An munmap() of huge
-> page aligned size, will succeed in both case (vanilla, and patch).
-> 
-> 
->> Since hugetlb memory is beyond the scope of the POSIX.1-2001
->> munmap() specification, and there's a potential userspace
->> breakage if the length becomes hugepage aligned, I think the
->> do_unmap() implementation is correct as it stands.
-> 
-> If the length is huge page aligned, it will be working with or
-> without patch applied. The problem is for the other 2097151 out of
-> 2097152 cases, where length is not indeed aligned to 2MB (or
-> whatever hugepage size is for the architecture).
-> 
-> 
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-
-iQIcBAEBAgAGBQJVFBL4AAoJELbVsDOpoOa9KoIQAIi/gAmfaQMvv9GEskFMM8Su
-x3RKDf7ldHfDYbrwqKBllp/Hp3hrF0IZM5PFvq7edOEAYbgSkhIQAu0QdI2RdVlU
-iKCjk4/RI2sAtNjHXZ7XrPSipBhWmbWc83cCTo38ZCbaWRwsiZ0p5t7U/K1I35tb
-IKJPu8vTU3d1VupNp2Fse7VD/ImwO2HWMPXCkTT8KUcyVVKLWGQ37cSsN4jPbkQP
-yqHhpzGX9P8Qkh0Hs6BFl6kjRheIKIhTD4o8Yq5kJGgXH6O8r09riMIquhogCru+
-TFFVW97zjgyjRqSYE3GHu2oCdc4LLuAoRxxDMzaRqcw1C3nqKmtjB3wJEf/Pcina
-UcbTlqdDjDAHy6adNb06k2q2WNNn3CdoAQIRs/mjSvdDMN+gh7TDWKMXqtv4AODc
-3xedLGL2bidHCzmgrxDU1hkRjMR8DoW2MCayQoOSIpOwVhXeA2koNbgHpJD3Gboh
-0y9FvLNoXMQkBi8eksatfT/kT4xn25F7OMwdP5u0euGidXsOSLz4p/87bBJpCzmr
-CptQ/V+T7HgMglby8fLfZK9GE5CuwskMzrevF2cUAhyVIkXoiItD6FAh9v6SOjbh
-jy4Ctq2xkCbAKhsmrUnoUOVRNlnJ8m0I9Eq1gyWHy6qU3UDmY6XBXbJEPERRbn2T
-MZfuVLJLSR4Nrm7fdHoL
-=C3GM
------END PGP SIGNATURE-----
+> diff --git a/tools/perf/builtin-kmem.c b/tools/perf/builtin-kmem.c
+> index c09e332f7f38..502f6944a04c 100644
+> --- a/tools/perf/builtin-kmem.c
+> +++ b/tools/perf/builtin-kmem.c
+> @@ -545,6 +545,72 @@ static bool valid_page(u64 pfn_or_page)
+>  	return true;
+>  }
+>  
+> +struct gfp_flag {
+> +	unsigned int flags;
+> +	char *human_readable;
+> +};
+> +
+> +static struct gfp_flag *gfps;
+> +static int nr_gfps;
+> +
+> +static int gfpcmp(const void *a, const void *b)
+> +{
+> +	const struct gfp_flag *fa = a;
+> +	const struct gfp_flag *fb = b;
+> +
+> +	return fa->flags - fb->flags;
+> +}
+> +
+> +static int parse_gfp_flags(struct perf_evsel *evsel, struct perf_sample *sample,
+> +			   unsigned int gfp_flags)
+> +{
+> +	struct pevent_record record = {
+> +		.cpu = sample->cpu,
+> +		.data = sample->raw_data,
+> +		.size = sample->raw_size,
+> +	};
+> +	struct trace_seq seq;
+> +	char *str;
+> +
+> +	if (nr_gfps) {
+> +		struct gfp_flag key = {
+> +			.flags = gfp_flags,
+> +		};
+> +
+> +		if (bsearch(&key, gfps, nr_gfps, sizeof(*gfps), gfpcmp))
+> +			return 0;
+> +	}
+> +
+> +	trace_seq_init(&seq);
+> +	pevent_event_info(&seq, evsel->tp_format, &record);
+> +
+> +	str = strtok(seq.buffer, " ");
+> +	while (str) {
+> +		if (!strncmp(str, "gfp_flags=", 10)) {
+> +			struct gfp_flag *new;
+> +
+> +			new = realloc(gfps, (nr_gfps + 1) * sizeof(*gfps));
+> +			if (new == NULL)
+> +				return -ENOMEM;
+> +
+> +			gfps = new;
+> +			new += nr_gfps++;
+> +
+> +			new->flags = gfp_flags;
+> +			new->human_readable = strdup(str + 10);
+> +			if (new->human_readable == NULL)
+> +				return -ENOMEM;
+> +
+> +			qsort(gfps, nr_gfps, sizeof(*gfps), gfpcmp);
+> +		}
+> +
+> +		str = strtok(NULL, " ");
+> +	}
+> +
+> +	trace_seq_destroy(&seq);
+> +	return 0;
+> +}
+> +
+>  static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
+>  						struct perf_sample *sample)
+>  {
+> @@ -577,6 +643,9 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
+>  		return 0;
+>  	}
+>  
+> +	if (parse_gfp_flags(evsel, sample, gfp_flags) < 0)
+> +		return -1;
+> +
+>  	callsite = find_callsite(evsel, sample);
+>  
+>  	/*
+> @@ -877,6 +946,16 @@ static void __print_page_caller_result(struct perf_session *session, int n_lines
+>  	printf("%.105s\n", graph_dotted_line);
+>  }
+>  
+> +static void print_gfp_flags(void)
+> +{
+> +	int i;
+> +
+> +	printf("# GFP flags\n");
+> +	printf("# ---------\n");
+> +	for (i = 0; i < nr_gfps; i++)
+> +		printf("# %08x: %s\n", gfps[i].flags, gfps[i].human_readable);
+> +}
+> +
+>  static void print_slab_summary(void)
+>  {
+>  	printf("\nSUMMARY (SLAB allocator)");
+> @@ -946,6 +1025,8 @@ static void print_slab_result(struct perf_session *session)
+>  
+>  static void print_page_result(struct perf_session *session)
+>  {
+> +	if (caller_flag || alloc_flag)
+> +		print_gfp_flags();
+>  	if (caller_flag)
+>  		__print_page_caller_result(session, caller_lines);
+>  	if (alloc_flag)
+> -- 
+> 2.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
