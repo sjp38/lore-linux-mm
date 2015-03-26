@@ -1,72 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D55D6B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 15:39:06 -0400 (EDT)
-Received: by pdbop1 with SMTP id op1so72191247pdb.2
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 12:39:05 -0700 (PDT)
-Received: from x35.xmailserver.org (x35.xmailserver.org. [64.71.152.41])
-        by mx.google.com with ESMTPS id ri8si9590750pbc.225.2015.03.26.12.39.05
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CD316B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 15:50:23 -0400 (EDT)
+Received: by igbqf9 with SMTP id qf9so1874312igb.1
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 12:50:23 -0700 (PDT)
+Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com. [2607:f8b0:4001:c03::22b])
+        by mx.google.com with ESMTPS id y2si5648798ics.105.2015.03.26.12.50.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 26 Mar 2015 12:39:05 -0700 (PDT)
-Received: from davide-lnx3.corp.ebay.com
-	by x35.xmailserver.org with [XMail 1.27 ESMTP Server]
-	id <S423AA1> for <linux-mm@kvack.org> from <davidel@xmailserver.org>;
-	Thu, 26 Mar 2015 15:39:14 -0400
-Date: Thu, 26 Mar 2015 12:39:00 -0700 (PDT)
-From: Davide Libenzi <davidel@xmailserver.org>
-Subject: Re: [patch][resend] MAP_HUGETLB munmap fails with size not 2MB
- aligned
-In-Reply-To: <alpine.DEB.2.10.1503261201440.8238@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1503261221470.5119@davide-lnx3>
-References: <alpine.DEB.2.10.1410221518160.31326@davide-lnx3> <alpine.LSU.2.11.1503251708530.5592@eggly.anvils> <alpine.DEB.2.10.1503251754320.26501@davide-lnx3> <alpine.DEB.2.10.1503251938170.16714@chino.kir.corp.google.com> <alpine.DEB.2.10.1503260431290.2755@mbplnx>
- <alpine.DEB.2.10.1503261201440.8238@chino.kir.corp.google.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Mar 2015 12:50:22 -0700 (PDT)
+Received: by iedfl3 with SMTP id fl3so61997360ied.1
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 12:50:22 -0700 (PDT)
+Date: Thu, 26 Mar 2015 12:50:20 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 03/12] mm: oom_kill: switch test-and-clear of known
+ TIF_MEMDIE to clear
+In-Reply-To: <20150326110532.GB18560@cmpxchg.org>
+Message-ID: <alpine.DEB.2.10.1503261231440.9410@chino.kir.corp.google.com>
+References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org> <1427264236-17249-4-git-send-email-hannes@cmpxchg.org> <alpine.DEB.2.10.1503252025230.16714@chino.kir.corp.google.com> <20150326110532.GB18560@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, Eric B Munson <emunson@akamai.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Michal Hocko <mhocko@suse.cz>, Theodore Ts'o <tytso@mit.edu>
 
-On Thu, 26 Mar 2015, David Rientjes wrote:
+On Thu, 26 Mar 2015, Johannes Weiner wrote:
 
-> Yes, this munmap() behavior of lengths <= hugepage_size - PAGE_SIZE for a 
-> hugetlb vma is long standing and there may be applications that break as a 
-> result of changing the behavior: a database that reserves all allocated 
-> hugetlb memory with mmap() so that it always has exclusive access to those 
-> hugepages, whether they are faulted or not, and maintains its own hugepage 
-> pool (which is common), may test the return value of munmap() and depend 
-> on it returning -EINVAL to determine if it is freeing memory that was 
-> either dynamically allocated or mapped from the hugetlb reserved pool.
-
-You went a long way to create such a case.
-But, in your case, that application will erroneously considering hugepage 
-mmaped memory, as dynamically allocated, since it will always get EINVAL, 
-unless it passes an aligned size. Aligned size, which a fix like the one 
-posted in the patch will still leave as success.
-OTOH, an application, which might be more common than the one you posted,
-which calls munmap() to release a pointer which it validly got from a 
-previous mmap(), will leak huge pages as all the issued munmaps will fail.
-
-
-> If we were to go back in time and decide this when the munmap() behavior 
-> for hugetlb vmas was originally introduced, that would be valid.  The 
-> problem is that it could lead to userspace breakage and that's a 
-> non-starter.
+> > > exit_oom_victim() already knows that TIF_MEMDIE is set, and nobody
+> > > else can clear it concurrently.  Use clear_thread_flag() directly.
+> > > 
+> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > 
+> > For the oom killer, that's true because of task_lock(): we always only set 
+> > TIF_MEMDIE when there is a valid p->mm and it's cleared in the exit path 
+> > after the unlock, acting as a barrier, when p->mm is set to NULL so it's 
+> > no longer a valid victim.  So that part is fine.
+> > 
+> > The problem is the android low memory killer that does 
+> > mark_tsk_oom_victim() without the protection of task_lock(), it's just rcu 
+> > protected so the reference to the task itself is guaranteed to still be 
+> > valid.
 > 
-> What we can do is improve the documentation and man-page to clearly 
-> specify the long-standing behavior so that nobody encounters unexpected 
-> results in the future.
+> But this is about *setting* it without a lock.  My point was that once
+> TIF_MEMDIE is actually set, the task owns it and nobody else can clear
+> it for them, so it's safe to test and clear non-atomically from the
+> task's own context.  Am I missing something?
+> 
 
-This way you will leave the mmap API with broken semantics.
-In any case, I am done arguing.
-I will leave to Andrew to sort it out, and to Michael Kerrisk to update 
-the mmap man pages with the new funny behaviour.
+Yes, I'm thinking about the following which already exists before your 
+patch:
+
+	tskA			tskB
+	----			----
+	lowmem_scan()
+	-> tskB->mm != NULL
+	-> selected = tskB
+				exit_mm()
+				exit_oom_victim()
+				-> TIF_MEMDIE not set, return	
+	mark_oom_victim(tskB)
+	-> set TIF_MEMDIE
+
+And now if tskA fails to exit then the oom killer is going to stall 
+forever because we don't check for p->mm != NULL when testing eligible 
+processes for TIF_MEMDIE.
+
+So there's nothing wrong with your patch, I'm just digesting all of this 
+new mark_oom_victim() stuff.
+
+Acked-by: David Rientjes <rientjes@google.com>
+
+I think the lmk should be doing this, in addition:
 
 
+android, lmk: avoid setting TIF_MEMDIE if process has already exited
 
-- Davide
+TIF_MEMDIE should not be set on a process if it does not have a valid 
+->mm, and this is protected by task_lock().
 
+If TIF_MEMDIE gets set after the mm has detached, and the process fails to 
+exit, then the oom killer will defer forever waiting for it to exit.
+
+Make sure that the mm is still valid before setting TIF_MEMDIE by way of 
+mark_tsk_oom_victim().
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
+--- a/drivers/staging/android/lowmemorykiller.c
++++ b/drivers/staging/android/lowmemorykiller.c
+@@ -156,20 +156,27 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
+ 			     p->pid, p->comm, oom_score_adj, tasksize);
+ 	}
+ 	if (selected) {
+-		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
+-			     selected->pid, selected->comm,
+-			     selected_oom_score_adj, selected_tasksize);
+-		lowmem_deathpending_timeout = jiffies + HZ;
++		task_lock(selected);
++		if (!selected->mm) {
++			/* Already exited, cannot do mark_tsk_oom_victim() */
++			task_unlock(selected);
++			goto out;
++		}
+ 		/*
+ 		 * FIXME: lowmemorykiller shouldn't abuse global OOM killer
+ 		 * infrastructure. There is no real reason why the selected
+ 		 * task should have access to the memory reserves.
+ 		 */
+ 		mark_tsk_oom_victim(selected);
++		task_unlock(selected);
++		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
++			     selected->pid, selected->comm,
++			     selected_oom_score_adj, selected_tasksize);
++		lowmem_deathpending_timeout = jiffies + HZ;
+ 		send_sig(SIGKILL, selected, 0);
+ 		rem += selected_tasksize;
+ 	}
+-
++out:
+ 	lowmem_print(4, "lowmem_scan %lu, %x, return %lu\n",
+ 		     sc->nr_to_scan, sc->gfp_mask, rem);
+ 	rcu_read_unlock();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
