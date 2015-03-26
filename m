@@ -1,65 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id CD6716B006C
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 12:07:46 -0400 (EDT)
-Received: by wibg7 with SMTP id g7so154257366wib.1
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 09:07:46 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r6si10660577wjx.75.2015.03.26.09.07.44
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 564E96B006E
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 12:08:05 -0400 (EDT)
+Received: by pacwz10 with SMTP id wz10so16016952pac.2
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 09:08:05 -0700 (PDT)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id nb4si8921348pbc.184.2015.03.26.09.08.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 26 Mar 2015 09:07:44 -0700 (PDT)
-Date: Thu, 26 Mar 2015 17:07:42 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 06/12] mm: oom_kill: simplify OOM killer locking
-Message-ID: <20150326160742.GR15257@dhcp22.suse.cz>
-References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
- <1427264236-17249-7-git-send-email-hannes@cmpxchg.org>
- <20150326133111.GJ15257@dhcp22.suse.cz>
- <20150326151746.GC23973@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150326151746.GC23973@cmpxchg.org>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Thu, 26 Mar 2015 09:08:04 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NLT00C4JUC3RQ30@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 26 Mar 2015 16:12:03 +0000 (GMT)
+Message-id: <55142EDA.4020301@samsung.com>
+Date: Thu, 26 Mar 2015 19:07:54 +0300
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [patch v2 4/4] mm, mempool: poison elements backed by page
+ allocator
+References: <alpine.DEB.2.10.1503241607240.21805@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1503241609370.21805@chino.kir.corp.google.com>
+ <20150325145523.94d1033b93cd5c1010df93bf@linux-foundation.org>
+In-reply-to: <20150325145523.94d1033b93cd5c1010df93bf@linux-foundation.org>
+Content-type: text/plain; charset=windows-1252
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>
+To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
+Cc: Dave Kleikamp <shaggy@kernel.org>, Christoph Hellwig <hch@lst.de>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net
 
-On Thu 26-03-15 11:17:46, Johannes Weiner wrote:
-> On Thu, Mar 26, 2015 at 02:31:11PM +0100, Michal Hocko wrote:
-[...]
-> > > @@ -795,27 +728,21 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
-> > >   */
-> > >  void pagefault_out_of_memory(void)
-> > >  {
-> > > -	struct zonelist *zonelist;
-> > > -
-> > > -	down_read(&oom_sem);
-> > >  	if (mem_cgroup_oom_synchronize(true))
-> > > -		goto unlock;
-> > > +		return;
-> > 
-> > OK, so we are back to what David has asked previously. We do not need
-> > the lock for memcg and oom_killer_disabled because we know that no tasks
-> > (except for potential oom victim) are lurking around at the time
-> > oom_killer_disable() is called. So I guess we want to stick a comment
-> > into mem_cgroup_oom_synchronize before we check for oom_killer_disabled.
+On 03/26/2015 12:55 AM, Andrew Morton wrote:
+> On Tue, 24 Mar 2015 16:10:01 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 > 
-> I would prefer everybody that sets TIF_MEMDIE and kills a task to hold
-> the lock, including memcg.  Simplicity is one thing, but also a global
-> OOM kill might not even be necessary when it's racing with the memcg.
-
-sure I am find with that.
- 
-> > After those are fixed, feel free to add
-> > Acked-by: Michal Hocko <mhocko@suse.cz>
+>> Elements backed by the slab allocator are poisoned when added to a
+>> mempool's reserved pool.
+>>
+>> It is also possible to poison elements backed by the page allocator
+>> because the mempool layer knows the allocation order.
+>>
+>> This patch extends mempool element poisoning to include memory backed by
+>> the page allocator.
+>>
+>> This is only effective for configs with CONFIG_DEBUG_SLAB or
+>> CONFIG_SLUB_DEBUG_ON.
+>>
 > 
-> Thanks.
+> Maybe mempools should get KASAN treatment (as well as this)?
+> 
 
--- 
-Michal Hocko
-SUSE Labs
+Certainly, I could cook a patch tomorrow.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
