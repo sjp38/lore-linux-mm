@@ -1,70 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 55C0C6B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 05:48:50 -0400 (EDT)
-Received: by wgs2 with SMTP id 2so57933662wgs.1
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 02:48:49 -0700 (PDT)
-Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com. [2a00:1450:400c:c05::22c])
-        by mx.google.com with ESMTPS id qa2si27308343wic.10.2015.03.26.02.48.48
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id BED7D6B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 05:53:06 -0400 (EDT)
+Received: by wibg7 with SMTP id g7so141683434wib.1
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 02:53:06 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f1si9769903wiy.32.2015.03.26.02.53.04
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Mar 2015 02:48:49 -0700 (PDT)
-Received: by wiaa2 with SMTP id a2so14270462wia.0
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 02:48:48 -0700 (PDT)
-Date: Thu, 26 Mar 2015 10:48:44 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v3 2/2] powerpc/mm: Tracking vDSO remap
-Message-ID: <20150326094844.GB15407@gmail.com>
-References: <20150325121118.GA2542@gmail.com>
- <cover.1427289960.git.ldufour@linux.vnet.ibm.com>
- <b6ce07f8e1e0d654371aee70bd8eac310456d0df.1427289960.git.ldufour@linux.vnet.ibm.com>
- <20150325183316.GA9090@gmail.com>
- <1427317797.6468.86.camel@kernel.crashing.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 26 Mar 2015 02:53:05 -0700 (PDT)
+Date: Thu, 26 Mar 2015 10:53:02 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: Use GFP_KERNEL allocation for the page cache in
+ page_cache_read
+Message-ID: <20150326095302.GA15257@dhcp22.suse.cz>
+References: <1426687766-518-1-git-send-email-mhocko@suse.cz>
+ <55098F3B.7070000@redhat.com>
+ <20150318145528.GK17241@dhcp22.suse.cz>
+ <20150319071439.GE28621@dastard>
+ <20150319124441.GC12466@dhcp22.suse.cz>
+ <20150320034820.GH28621@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1427317797.6468.86.camel@kernel.crashing.org>
+In-Reply-To: <20150320034820.GH28621@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, user-mode-linux-user@lists.sourceforge.net, linux-arch@vger.kernel.org, linux-mm@kvack.org, cov@codeaurora.org, criu@openvz.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Sage Weil <sage@inktank.com>, Mark Fasheh <mfasheh@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-
-* Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
-
-> > > +#define __HAVE_ARCH_REMAP
-> > > +static inline void arch_remap(struct mm_struct *mm,
-> > > +			      unsigned long old_start, unsigned long old_end,
-> > > +			      unsigned long new_start, unsigned long new_end)
-> > > +{
-> > > +	/*
-> > > +	 * mremap() doesn't allow moving multiple vmas so we can limit the
-> > > +	 * check to old_start == vdso_base.
-> > > +	 */
-> > > +	if (old_start == mm->context.vdso_base)
-> > > +		mm->context.vdso_base = new_start;
-> > > +}
-> > 
-> > mremap() doesn't allow moving multiple vmas, but it allows the 
-> > movement of multi-page vmas and it also allows partial mremap()s, 
-> > where it will split up a vma.
-> > 
-> > In particular, what happens if an mremap() is done with 
-> > old_start == vdso_base, but a shorter end than the end of the vDSO? 
-> > (i.e. a partial mremap() with fewer pages than the vDSO size)
+On Fri 20-03-15 14:48:20, Dave Chinner wrote:
+> On Thu, Mar 19, 2015 at 01:44:41PM +0100, Michal Hocko wrote:
+[...]
+> > Or did I miss your point? Are you concerned about some fs overloading
+> > filemap_fault and do some locking before delegating to filemap_fault?
 > 
-> Is there a way to forbid splitting ? Does x86 deal with that case at 
-> all or it doesn't have to for some other reason ?
+> The latter:
+> 
+> https://git.kernel.org/cgit/linux/kernel/git/dgc/linux-xfs.git/commit/?h=xfs-mmap-lock&id=de0e8c20ba3a65b0f15040aabbefdc1999876e6b
 
-So we use _install_special_mapping() - maybe PowerPC does that too? 
-That adds VM_DONTEXPAND which ought to prevent some - but not all - of 
-the VM API weirdnesses.
-
-On x86 we'll just dump core if someone unmaps the vdso.
-
-Thanks,
-
-	Ingo
+Hmm. I am completely unfamiliar with the xfs code but my reading of
+964aa8d9e4d3..723cac484733 is that the newly introduced lock should be
+OK from the reclaim recursion POV. It protects against truncate and
+punch hole, right? Or are there any internal paths which I am missing
+and would cause problems if we do GFP_FS with XFS_MMAPLOCK_SHARED held?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
