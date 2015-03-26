@@ -1,106 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 543E86B0073
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 11:32:57 -0400 (EDT)
-Received: by wibgn9 with SMTP id gn9so90774967wib.1
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 08:32:57 -0700 (PDT)
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CD6A6B007B
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 11:38:52 -0400 (EDT)
+Received: by wgbcc7 with SMTP id cc7so68010363wgb.0
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 08:38:51 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jh6si28720917wid.94.2015.03.26.08.32.55
+        by mx.google.com with ESMTPS id nf9si28746036wic.28.2015.03.26.08.38.48
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 26 Mar 2015 08:32:55 -0700 (PDT)
-Date: Thu, 26 Mar 2015 16:32:53 +0100
+        Thu, 26 Mar 2015 08:38:48 -0700 (PDT)
+Date: Thu, 26 Mar 2015 16:38:47 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 12/12] mm: page_alloc: do not lock up low-order
- allocations upon OOM
-Message-ID: <20150326153253.GO15257@dhcp22.suse.cz>
+Subject: Re: [patch 08/12] mm: page_alloc: wait for OOM killer progress
+ before retrying
+Message-ID: <20150326153847.GP15257@dhcp22.suse.cz>
 References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
- <1427264236-17249-13-git-send-email-hannes@cmpxchg.org>
+ <1427264236-17249-9-git-send-email-hannes@cmpxchg.org>
+ <201503252315.FBJ09847.FSOtOJQFOMLFVH@I-love.SAKURA.ne.jp>
+ <20150326112445.GC18560@cmpxchg.org>
+ <20150326143223.GM15257@dhcp22.suse.cz>
+ <20150326152343.GE23973@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1427264236-17249-13-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <20150326152343.GE23973@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, ying.huang@intel.com, aarcange@redhat.com, david@fromorbit.com, tytso@mit.edu
 
-On Wed 25-03-15 02:17:16, Johannes Weiner wrote:
-> When both page reclaim and the OOM killer fail to free memory, there
-> are no more options for the allocator to make progress on its own.
+On Thu 26-03-15 11:23:43, Johannes Weiner wrote:
+> On Thu, Mar 26, 2015 at 03:32:23PM +0100, Michal Hocko wrote:
+> > On Thu 26-03-15 07:24:45, Johannes Weiner wrote:
+> > > On Wed, Mar 25, 2015 at 11:15:48PM +0900, Tetsuo Handa wrote:
+> > > > Johannes Weiner wrote:
+> > [...]
+> > > > >  	/*
+> > > > > -	 * Acquire the oom lock.  If that fails, somebody else is
+> > > > > -	 * making progress for us.
+> > > > > +	 * This allocating task can become the OOM victim itself at
+> > > > > +	 * any point before acquiring the lock.  In that case, exit
+> > > > > +	 * quickly and don't block on the lock held by another task
+> > > > > +	 * waiting for us to exit.
+> > > > >  	 */
+> > > > > -	if (!mutex_trylock(&oom_lock)) {
+> > > > > -		*did_some_progress = 1;
+> > > > > -		schedule_timeout_uninterruptible(1);
+> > > > > -		return NULL;
+> > > > > +	if (test_thread_flag(TIF_MEMDIE) || mutex_lock_killable(&oom_lock)) {
+> > > > > +		alloc_flags |= ALLOC_NO_WATERMARKS;
+> > > > > +		goto alloc;
+> > > > >  	}
+> > > > 
+> > > > When a thread group has 1000 threads and most of them are doing memory allocation
+> > > > request, all of them will get fatal_signal_pending() == true when one of them are
+> > > > chosen by OOM killer.
+> > > > This code will allow most of them to access memory reserves, won't it?
+> > > 
+> > > Ah, good point!  Only TIF_MEMDIE should get reserve access, not just
+> > > any dying thread.  Thanks, I'll fix it in v2.
+> > 
+> > Do you plan to post this v2 here for review?
 > 
-> Don't risk hanging these allocations.  Leave it to the allocation site
-> to implement the fallback policy for failing allocations.
-
-The changelog communicates the impact of this patch _very_ poorly. The
-potential regression space is quite large. Every syscall which is not
-allowed to return ENOMEM and it relies on an allocation would have to be
-audited or a common mechanism to catch them deployed.
-
-I really believe this is a good thing _longterm_ but I still do not
-think it is the upstream material anytime soon without extensive testing
-which is even not mentioned here.
-
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/page_alloc.c | 19 ++++++-------------
->  1 file changed, 6 insertions(+), 13 deletions(-)
+> Yeah, I was going to wait for feedback to settle before updating the
+> code.  But I was thinking something like this?
 > 
 > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 9e45e97aa934..f2b1a17416c4 100644
+> index 9ce9c4c083a0..106793a75461 100644
 > --- a/mm/page_alloc.c
 > +++ b/mm/page_alloc.c
-> @@ -2331,12 +2331,10 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...)
->  
->  static inline struct page *
->  __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order, int alloc_flags,
-> -	const struct alloc_context *ac, unsigned long *did_some_progress)
-> +		      const struct alloc_context *ac)
->  {
->  	struct page *page = NULL;
->  
-> -	*did_some_progress = 0;
-> -
->  	/*
->  	 * This allocating task can become the OOM victim itself at
->  	 * any point before acquiring the lock.  In that case, exit
-> @@ -2376,13 +2374,9 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order, int alloc_flags,
->  			goto out;
+> @@ -2344,7 +2344,8 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+>  	 * waiting for us to exit.
+>  	 */
+>  	if (test_thread_flag(TIF_MEMDIE) || mutex_lock_killable(&oom_lock)) {
+> -		alloc_flags |= ALLOC_NO_WATERMARKS;
+> +		if (test_thread_flag(TIF_MEMDIE))
+> +			alloc_flags |= ALLOC_NO_WATERMARKS;
+>  		goto alloc;
 >  	}
->  
-> -	if (out_of_memory(ac->zonelist, gfp_mask, order, ac->nodemask, false)) {
-> -		*did_some_progress = 1;
-> -	} else {
-> +	if (!out_of_memory(ac->zonelist, gfp_mask, order, ac->nodemask, false))
->  		/* Oops, these shouldn't happen with the OOM killer disabled */
-> -		if (WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
-> -			*did_some_progress = 1;
-> -	}
-> +		WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
->  
->  	/*
->  	 * Allocate from the OOM killer reserves.
-> @@ -2799,13 +2793,12 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	}
->  
->  	/* Reclaim has failed us, start killing things */
-> -	page = __alloc_pages_may_oom(gfp_mask, order, alloc_flags, ac,
-> -				     &did_some_progress);
-> +	page = __alloc_pages_may_oom(gfp_mask, order, alloc_flags, ac);
->  	if (page)
->  		goto got_pg;
->  
-> -	/* Retry as long as the OOM killer is making progress */
-> -	if (did_some_progress)
-> +	/* Wait for user to order more dimms, cuz these are done */
-> +	if (gfp_mask & __GFP_NOFAIL)
->  		goto retry;
->  
->  noretry:
-> -- 
-> 2.3.3
-> 
 
+OK, I have expected something like this. I understand why you want to
+retry inside this function. But I would prefer if gfp_to_alloc_flags was
+used here so that we do not have that TIF_MEMDIE logic duplicated at two
+places.
 -- 
 Michal Hocko
 SUSE Labs
