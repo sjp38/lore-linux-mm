@@ -1,64 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id E77696B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 17:44:10 -0400 (EDT)
-Received: by pdbcz9 with SMTP id cz9so75053738pdb.3
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 14:44:10 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id ma14si22081pbc.200.2015.03.26.14.44.08
-        for <linux-mm@kvack.org>;
-        Thu, 26 Mar 2015 14:44:09 -0700 (PDT)
-Date: Fri, 27 Mar 2015 08:43:54 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] mm: Use GFP_KERNEL allocation for the page cache in
- page_cache_read
-Message-ID: <20150326214354.GG28129@dastard>
-References: <1426687766-518-1-git-send-email-mhocko@suse.cz>
- <55098F3B.7070000@redhat.com>
- <20150318145528.GK17241@dhcp22.suse.cz>
- <20150319071439.GE28621@dastard>
- <20150319124441.GC12466@dhcp22.suse.cz>
- <20150320034820.GH28621@dastard>
- <20150326095302.GA15257@dhcp22.suse.cz>
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A584C6B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 18:51:02 -0400 (EDT)
+Received: by igbqf9 with SMTP id qf9so5707764igb.1
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 15:51:02 -0700 (PDT)
+Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com. [2607:f8b0:4001:c05::236])
+        by mx.google.com with ESMTPS id w10si125270icb.106.2015.03.26.15.51.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Mar 2015 15:51:01 -0700 (PDT)
+Received: by igcxg11 with SMTP id xg11so5785632igc.0
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 15:51:01 -0700 (PDT)
+Date: Thu, 26 Mar 2015 15:50:59 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2 4/4] mm, mempool: poison elements backed by page
+ allocator
+In-Reply-To: <CAPAsAGwipUr7NBWjQ_xjA0CfeiZ0NuYAg13M4jYmWVe4V8Jjmg@mail.gmail.com>
+Message-ID: <alpine.DEB.2.10.1503261542060.16259@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1503241607240.21805@chino.kir.corp.google.com> <alpine.DEB.2.10.1503241609370.21805@chino.kir.corp.google.com> <CAPAsAGwipUr7NBWjQ_xjA0CfeiZ0NuYAg13M4jYmWVe4V8Jjmg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150326095302.GA15257@dhcp22.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Sage Weil <sage@inktank.com>, Mark Fasheh <mfasheh@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Kleikamp <shaggy@kernel.org>, Christoph Hellwig <hch@lst.de>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, jfs-discussion@lists.sourceforge.net
 
-On Thu, Mar 26, 2015 at 10:53:02AM +0100, Michal Hocko wrote:
-> On Fri 20-03-15 14:48:20, Dave Chinner wrote:
-> > On Thu, Mar 19, 2015 at 01:44:41PM +0100, Michal Hocko wrote:
-> [...]
-> > > Or did I miss your point? Are you concerned about some fs overloading
-> > > filemap_fault and do some locking before delegating to filemap_fault?
-> > 
-> > The latter:
-> > 
-> > https://git.kernel.org/cgit/linux/kernel/git/dgc/linux-xfs.git/commit/?h=xfs-mmap-lock&id=de0e8c20ba3a65b0f15040aabbefdc1999876e6b
+On Thu, 26 Mar 2015, Andrey Ryabinin wrote:
+
+> > +static void check_element(mempool_t *pool, void *element)
+> > +{
+> > +       /* Mempools backed by slab allocator */
+> > +       if (pool->free == mempool_free_slab || pool->free == mempool_kfree)
+> > +               __check_element(pool, element, ksize(element));
+> > +
+> > +       /* Mempools backed by page allocator */
+> > +       if (pool->free == mempool_free_pages) {
+> > +               int order = (int)(long)pool->pool_data;
+> > +               void *addr = page_address(element);
+> > +
+> > +               __check_element(pool, addr, 1UL << (PAGE_SHIFT + order));
+> >         }
+> >  }
+> >
+> > -static void poison_slab_element(mempool_t *pool, void *element)
+> > +static void __poison_element(void *element, size_t size)
+> >  {
+> > -       if (pool->alloc == mempool_alloc_slab ||
+> > -           pool->alloc == mempool_kmalloc) {
+> > -               size_t size = ksize(element);
+> > -               u8 *obj = element;
+> > +       u8 *obj = element;
+> > +
+> > +       memset(obj, POISON_FREE, size - 1);
+> > +       obj[size - 1] = POISON_END;
+> > +}
+> > +
+> > +static void poison_element(mempool_t *pool, void *element)
+> > +{
+> > +       /* Mempools backed by slab allocator */
+> > +       if (pool->alloc == mempool_alloc_slab || pool->alloc == mempool_kmalloc)
+> > +               __poison_element(element, ksize(element));
+> > +
+> > +       /* Mempools backed by page allocator */
+> > +       if (pool->alloc == mempool_alloc_pages) {
+> > +               int order = (int)(long)pool->pool_data;
+> > +               void *addr = page_address(element);
+> >
+> > -               memset(obj, POISON_FREE, size - 1);
+> > -               obj[size - 1] = POISON_END;
+> > +               __poison_element(addr, 1UL << (PAGE_SHIFT + order));
 > 
-> Hmm. I am completely unfamiliar with the xfs code but my reading of
-> 964aa8d9e4d3..723cac484733 is that the newly introduced lock should be
-> OK from the reclaim recursion POV. It protects against truncate and
-> punch hole, right? Or are there any internal paths which I am missing
-> and would cause problems if we do GFP_FS with XFS_MMAPLOCK_SHARED held?
+> I think, it would be better to use kernel_map_pages() here and in
+> check_element().
 
-It might be OK, but you're only looking at the example I gave you,
-not the fundamental issue it demonstrates. That is: filesystems may
-have *internal dependencies that are unknown to the page cache or mm
-subsystem*. Hence the page cache or mm allocations cannot
-arbitrarily ignore allocation constraints the filesystem assigns to
-mapping operations....
+Hmm, interesting suggestion.
 
-Cheers,
+> This implies that poison_element()/check_element() has to be moved out of
+> CONFIG_DEBUG_SLAB || CONFIG_SLUB_DEBUG_ON ifdef (keeping only slab
+> poisoning under this ifdef).
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+The mempool poisoning introduced here is really its own poisoning built on 
+top of whatever the mempool allocator is.  Otherwise, it would have called 
+into the slab subsystem to do the poisoning and include any allocated 
+space beyond the object size itself.  Mempool poisoning is agnostic to the 
+underlying memory just like the chain of elements is, mempools don't even 
+store size.
+
+We don't have a need to set PAGE_EXT_DEBUG_POISON on these pages sitting 
+in the reserved pool, nor do we have a need to do kmap_atomic() since it's 
+already mapped and must be mapped to be on the reserved pool, which is 
+handled by mempool_free().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
