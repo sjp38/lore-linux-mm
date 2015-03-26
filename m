@@ -1,210 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CD606B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 10:11:32 -0400 (EDT)
-Received: by wixm2 with SMTP id m2so12587218wix.0
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 07:11:32 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m3si10873327wix.2.2015.03.26.07.11.30
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 48B096B006C
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 10:17:41 -0400 (EDT)
+Received: by wgs2 with SMTP id 2so66084321wgs.1
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 07:17:40 -0700 (PDT)
+Received: from mail-wi0-x230.google.com (mail-wi0-x230.google.com. [2a00:1450:400c:c05::230])
+        by mx.google.com with ESMTPS id gz6si10115750wjc.142.2015.03.26.07.17.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 26 Mar 2015 07:11:30 -0700 (PDT)
-Date: Thu, 26 Mar 2015 15:11:28 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 07/12] mm: page_alloc: inline should_alloc_retry()
-Message-ID: <20150326141128.GL15257@dhcp22.suse.cz>
-References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
- <1427264236-17249-8-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Mar 2015 07:17:39 -0700 (PDT)
+Received: by wibg7 with SMTP id g7so150310998wib.1
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 07:17:39 -0700 (PDT)
+Date: Thu, 26 Mar 2015 15:17:31 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v3 2/2] powerpc/mm: Tracking vDSO remap
+Message-ID: <20150326141730.GA23060@gmail.com>
+References: <20150325121118.GA2542@gmail.com>
+ <cover.1427289960.git.ldufour@linux.vnet.ibm.com>
+ <b6ce07f8e1e0d654371aee70bd8eac310456d0df.1427289960.git.ldufour@linux.vnet.ibm.com>
+ <20150325183316.GA9090@gmail.com>
+ <20150325183647.GA9331@gmail.com>
+ <1427317867.6468.87.camel@kernel.crashing.org>
+ <20150326094330.GA15407@gmail.com>
+ <5513E16D.1030101@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1427264236-17249-8-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <5513E16D.1030101@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, user-mode-linux-user@lists.sourceforge.net, linux-arch@vger.kernel.org, linux-mm@kvack.org, cov@codeaurora.org, criu@openvz.org
 
-On Wed 25-03-15 02:17:11, Johannes Weiner wrote:
-> The should_alloc_retry() function was meant to encapsulate retry
-> conditions of the allocator slowpath, but there are still checks
-> remaining in the main function, and much of how the retrying is
-> performed also depends on the OOM killer progress.  The physical
-> separation of those conditions make the code hard to follow.
-> 
-> Inline the should_alloc_retry() checks.  Notes:
-> 
-> - The __GFP_NOFAIL check is already done in __alloc_pages_may_oom(),
->   replace it with looping on OOM killer progress
-> 
-> - The pm_suspended_storage() check is meant to skip the OOM killer
->   when reclaim has no IO available, move to __alloc_pages_may_oom()
-> 
-> - The order < PAGE_ALLOC_COSTLY order is re-united with its original
->   counterpart of checking whether reclaim actually made any progress
 
-it should be order <= PAGE_ALLOC_COSTLY
- 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+* Laurent Dufour <ldufour@linux.vnet.ibm.com> wrote:
 
-The resulting code looks much better and logical.
-
-After the COSTLY check is fixed.
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
->  mm/page_alloc.c | 104 +++++++++++++++++---------------------------------------
->  1 file changed, 32 insertions(+), 72 deletions(-)
+> > I argue we should use the right condition to clear vdso_base: if 
+> > the vDSO gets at least partially unmapped. Otherwise there's 
+> > little point in the whole patch: either correctly track whether 
+> > the vDSO is OK, or don't ...
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 9ebc760187ac..c1224ba45548 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2329,48 +2329,6 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...)
->  		show_mem(filter);
->  }
->  
-> -static inline int
-> -should_alloc_retry(gfp_t gfp_mask, unsigned int order,
-> -				unsigned long did_some_progress,
-> -				unsigned long pages_reclaimed)
-> -{
-> -	/* Do not loop if specifically requested */
-> -	if (gfp_mask & __GFP_NORETRY)
-> -		return 0;
-> -
-> -	/* Always retry if specifically requested */
-> -	if (gfp_mask & __GFP_NOFAIL)
-> -		return 1;
-> -
-> -	/*
-> -	 * Suspend converts GFP_KERNEL to __GFP_WAIT which can prevent reclaim
-> -	 * making forward progress without invoking OOM. Suspend also disables
-> -	 * storage devices so kswapd will not help. Bail if we are suspending.
-> -	 */
-> -	if (!did_some_progress && pm_suspended_storage())
-> -		return 0;
-> -
-> -	/*
-> -	 * In this implementation, order <= PAGE_ALLOC_COSTLY_ORDER
-> -	 * means __GFP_NOFAIL, but that may not be true in other
-> -	 * implementations.
-> -	 */
-> -	if (order <= PAGE_ALLOC_COSTLY_ORDER)
-> -		return 1;
-> -
-> -	/*
-> -	 * For order > PAGE_ALLOC_COSTLY_ORDER, if __GFP_REPEAT is
-> -	 * specified, then we retry until we no longer reclaim any pages
-> -	 * (above), or we've reclaimed an order of pages at least as
-> -	 * large as the allocation's order. In both cases, if the
-> -	 * allocation still fails, we stop retrying.
-> -	 */
-> -	if (gfp_mask & __GFP_REPEAT && pages_reclaimed < (1 << order))
-> -		return 1;
-> -
-> -	return 0;
-> -}
-> -
->  static inline struct page *
->  __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
->  	const struct alloc_context *ac, unsigned long *did_some_progress)
-> @@ -2409,16 +2367,18 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
->  		/* The OOM killer does not needlessly kill tasks for lowmem */
->  		if (ac->high_zoneidx < ZONE_NORMAL)
->  			goto out;
-> -		/* The OOM killer does not compensate for light reclaim */
-> +		/* The OOM killer does not compensate for IO-less reclaim */
->  		if (!(gfp_mask & __GFP_FS)) {
->  			/*
->  			 * XXX: Page reclaim didn't yield anything,
->  			 * and the OOM killer can't be invoked, but
-> -			 * keep looping as per should_alloc_retry().
-> +			 * keep looping as per tradition.
->  			 */
->  			*did_some_progress = 1;
->  			goto out;
->  		}
-> +		if (pm_suspended_storage())
-> +			goto out;
->  		/* The OOM killer may not free memory on a specific node */
->  		if (gfp_mask & __GFP_THISNODE)
->  			goto out;
-> @@ -2801,40 +2761,40 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	if (page)
->  		goto got_pg;
->  
-> -	/* Check if we should retry the allocation */
-> +	/* Do not loop if specifically requested */
-> +	if (gfp_mask & __GFP_NORETRY)
-> +		goto noretry;
-> +
-> +	/* Keep reclaiming pages as long as there is reasonable progress */
->  	pages_reclaimed += did_some_progress;
-> -	if (should_alloc_retry(gfp_mask, order, did_some_progress,
-> -						pages_reclaimed)) {
-> -		/*
-> -		 * If we fail to make progress by freeing individual
-> -		 * pages, but the allocation wants us to keep going,
-> -		 * start OOM killing tasks.
-> -		 */
-> -		if (!did_some_progress) {
-> -			page = __alloc_pages_may_oom(gfp_mask, order, ac,
-> -							&did_some_progress);
-> -			if (page)
-> -				goto got_pg;
-> -			if (!did_some_progress)
-> -				goto nopage;
-> -		}
-> +	if ((did_some_progress && order < PAGE_ALLOC_COSTLY_ORDER) ||
-> +	    ((gfp_mask & __GFP_REPEAT) && pages_reclaimed < (1 << order))) {
->  		/* Wait for some write requests to complete then retry */
->  		wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC, HZ/50);
->  		goto retry;
-> -	} else {
-> -		/*
-> -		 * High-order allocations do not necessarily loop after
-> -		 * direct reclaim and reclaim/compaction depends on compaction
-> -		 * being called after reclaim so call directly if necessary
-> -		 */
-> -		page = __alloc_pages_direct_compact(gfp_mask, order,
-> -					alloc_flags, ac, migration_mode,
-> -					&contended_compaction,
-> -					&deferred_compaction);
-> -		if (page)
-> -			goto got_pg;
->  	}
->  
-> +	/* Reclaim has failed us, start killing things */
-> +	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
-> +	if (page)
-> +		goto got_pg;
-> +
-> +	/* Retry as long as the OOM killer is making progress */
-> +	if (did_some_progress)
-> +		goto retry;
-> +
-> +noretry:
-> +	/*
-> +	 * High-order allocations do not necessarily loop after
-> +	 * direct reclaim and reclaim/compaction depends on compaction
-> +	 * being called after reclaim so call directly if necessary
-> +	 */
-> +	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags,
-> +					    ac, migration_mode,
-> +					    &contended_compaction,
-> +					    &deferred_compaction);
-> +	if (page)
-> +		goto got_pg;
->  nopage:
->  	warn_alloc_failed(gfp_mask, order, NULL);
->  got_pg:
-> -- 
-> 2.3.3
+> That's a good option, but it may be hard to achieve in the case the 
+> vDSO area has been splitted in multiple pieces.
+>
+> Not sure there is a right way to handle that, here this is a best 
+> effort, allowing a process to unmap its vDSO and having the 
+> sigreturn call done through the stack area (it has to make it 
+> executable).
 > 
+> Anyway I'll dig into that, assuming that the vdso_base pointer 
+> should be clear if a part of the vDSO is moved or unmapped. The 
+> patch will be larger since I'll have to get the vDSO size which is 
+> private to the vdso.c file.
 
--- 
-Michal Hocko
-SUSE Labs
+At least for munmap() I don't think that's a worry: once unmapped 
+(even if just partially), vdso_base becomes zero and won't ever be set 
+again.
+
+So no need to track the zillion pieces, should there be any: Humpty 
+Dumpty won't be whole again, right?
+
+> > There's also the question of mprotect(): can users mprotect() the 
+> > vDSO on PowerPC?
+> 
+> Yes, mprotect() the vDSO is allowed on PowerPC, as it is on x86, and 
+> certainly all the other architectures. Furthermore, if it is done on 
+> a partial part of the vDSO it is splitting the vma...
+
+btw., CRIU's main purpose here is to reconstruct a vDSO that was 
+originally randomized, but whose address must now be reproduced as-is, 
+right?
+
+In that sense detecting the 'good' mremap() as your patch does should 
+do the trick and is certainly not objectionable IMHO - I was just 
+wondering whether we could make a perfect job very simply.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
