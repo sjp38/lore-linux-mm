@@ -1,102 +1,296 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B3F86B006E
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 21:21:21 -0400 (EDT)
-Received: by igcau2 with SMTP id au2so4879234igc.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 18:21:20 -0700 (PDT)
-Received: from mail-ie0-x230.google.com (mail-ie0-x230.google.com. [2607:f8b0:4001:c03::230])
-        by mx.google.com with ESMTPS id ww20si3702603icb.51.2015.03.25.18.21.20
+Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 126CE6B0032
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2015 22:07:06 -0400 (EDT)
+Received: by oiag65 with SMTP id g65so37872202oia.2
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 19:07:05 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id pz6si2773987obc.88.2015.03.25.19.07.04
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Mar 2015 18:21:20 -0700 (PDT)
-Received: by iecvj10 with SMTP id vj10so36082257iec.0
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 18:21:20 -0700 (PDT)
-Message-ID: <55135F06.4000906@gmail.com>
-Date: Wed, 25 Mar 2015 21:21:10 -0400
-From: Daniel Micay <danielmicay@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 25 Mar 2015 19:07:05 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v3] mm/memory-failure.c: define page types for
+ action_result() in one place
+Date: Thu, 26 Mar 2015 02:02:04 +0000
+Message-ID: <20150326020204.GA22910@hori1.linux.bs1.fc.nec.co.jp>
+References: <1427331500-5453-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1427331500-5453-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <875A3248F72AFD468FD49D4FCBD4591C@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [PATCH] mremap: add MREMAP_NOHOLE flag --resend
-References: <deaa4139de6e6422a0cec1e3282553aed3495e94.1426626497.git.shli@fb.com> <20150318153100.5658b741277f3717b52e42d9@linux-foundation.org> <550A5FF8.90504@gmail.com> <CADpJO7zBLhjecbiQeTubnTReiicVLr0-K43KbB4uCL5w_dyqJg@mail.gmail.com> <20150323051731.GA2616341@devbig257.prn2.facebook.com> <CADpJO7zk8J3q7Bw9NibV9CzLarO+YkfeshyFTTq=XeS5qziBiA@mail.gmail.com> <55117724.6030102@gmail.com> <20150326005009.GA7658@blaptop>
-In-Reply-To: <20150326005009.GA7658@blaptop>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="gWdQ5wWODA4o1bSuSbrBd7JDhcQbGfSI0"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Aliaksey Kandratsenka <alkondratenko@gmail.com>, Shaohua Li <shli@fb.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-api@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Andy Lutomirski <luto@amacapital.net>, "google-perftools@googlegroups.com" <google-perftools@googlegroups.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>, Xie XiuQi <xiexiuqi@huawei.com>, Steven Rostedt <rostedt@goodmis.org>, Chen Gong <gong.chen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---gWdQ5wWODA4o1bSuSbrBd7JDhcQbGfSI0
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+I have a bit more adjustment, so let me repost ver.3.
+---
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v3] mm/memory-failure.c: define page types for
+ action_result() in one place
 
-> I didn't follow this thread. However, as you mentioned MADV_FREE will
-> make many page fault, I jump into here.
-> One of the benefit with MADV_FREE in current implementation is to
-> avoid page fault as well as no zeroing.
-> Why did you see many page fault?
+This cleanup patch moves all strings passed to action_result() into a singl=
+e
+array action_page_type so that a reader can easily find which kind of actio=
+n
+results are possible. And this patch also fixes the odd lines to be printed
+out, like "unknown page state page" or "free buddy, 2nd try page".
 
-I think I just misunderstood why it was still so much slower than not
-using purging at all.
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Reviewed-by: Andi Kleen <ak@linux.intel.com>
+---
+ChangeLog v2 -> v3:
+- rename action_page_type to action_page_types
+- rename enum page_type to enum action_page_type
 
->> I get ~20k requests/s with jemalloc on the ebizzy benchmark with this
->> dual core ivy bridge laptop. It jumps to ~60k requests/s with MADV_FRE=
-E
->> IIRC, but disabling purging via MALLOC_CONF=3Dlg_dirty_mult:-1 leads t=
-o
->> 3.5 *million* requests/s. It has a similar impact with TCMalloc.
->=20
-> When I tested MADV_FREE with ebizzy, I saw similar result two or three
-> times fater than MADV_DONTNEED. But It's no free cost. It incurs MADV_F=
-REE
-> cost itself*(ie, enumerating all of page table in the range and clear
-> dirty bit and tlb flush). Of course, it has mmap_sem with read-side loc=
-k.
-> If you see great improve when you disable purging, I guess mainly it's
-> caused by no lock of mmap_sem so some threads can allocate while other
-> threads can do page fault. The reason I think so is I saw similar resul=
-t
-> when I implemented vrange syscall which hold mmap_sem read-side lock
-> during very short time(ie, marking the volatile into vma, ie O(1) while=
+ChangeLog v1 -> v2:
+- fix DIRTY_UNEVICTABLE_LRU typo
+- adding "MSG_" prefix to each enum value
+- use declaration with type "enum page_type" instead of int
+- define action_type_type as "static const char * const" (not "static const=
+ char *")
+---
+ mm/memory-failure.c | 108 +++++++++++++++++++++++++++++++++++++-----------=
+----
+ 1 file changed, 77 insertions(+), 31 deletions(-)
 
-> MADV_FREE holds a lock during enumerating all of pages in the range, ie=
- O(N))
-
-It stops doing mmap after getting warmed up since it never unmaps so I
-don't think mmap_sem is a contention issue. It could just be caused by
-the cost of the system call itself and TLB flush. I found perf to be
-fairly useless in identifying where the time was being spent.
-
-It might be much more important to purge very large ranges in one go
-with MADV_FREE. It's a different direction than the current compromises
-forced by MADV_DONTNEED.
-
-
---gWdQ5wWODA4o1bSuSbrBd7JDhcQbGfSI0
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJVE18GAAoJEPnnEuWa9fIqC68QAJEVXESm4ZtUrtyXhW+NTxy/
-L49+LLO03Eg6epvhCd85NJ60PJtUxDu6bLOnCctF8Jm/0xq0DN04GcNkKh/hMT4w
-nzZDmD/fz6BgWCS29dCA07QBMs8VuuC6BiW3JakS5xuP9yt6lezFk1IEbByB01PR
-jiGBjqM0S7dnJJDpeVvuha9kS7YBorWM6xc1iyo11pdK71GgCCEcqRXm+rggcuBx
-2DGqQItYx4uO4LKysLIumMwJ/Gqwsg1GVuL3Ufg8chFBw7E8xPtGEA8c/wcQTbwG
-0jzKCdz0OU2VTb31NIaJl9d4OQBbUjjStYCA1qktjobmaf6KYJ6dNEA1QevmVX7p
-2wZ5duZNI9MZt9ZrDoLtAlxdzFFoweXsQIFMHXOzNXcTuPj3UQYK6M35AT1kppYA
-RPdWl/OFYzcJiioJEs9wVteKYuOsVFxRtRDqUD9a9H3X6opJ7kQhQyuyw8/af7v/
-uf9S6WlDXxZCqsefHCpbvjnExKBHL7NMh7PeQnduPIdsJyJXhzofu1HzxQCrhdmw
-aJZL6jVXZIuIUEsdk3QixdSFNwtQ+TDeIBplZR5ep+S3UxOqR8vka8CiFmeKEonX
-G5Bi0LQVBZ5BQaI722yOpywR/aXqmeZUbcULqi7HEr1i2ZNPWDjHk+dwuiBGQQbR
-j6ySNFdhv2QS0C5sDME6
-=7xwN
------END PGP SIGNATURE-----
-
---gWdQ5wWODA4o1bSuSbrBd7JDhcQbGfSI0--
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 181850a760ea..f5e2eea963ee 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -523,6 +523,52 @@ static const char *action_name[] =3D {
+ 	[RECOVERED] =3D "Recovered",
+ };
+=20
++enum action_page_type {
++	MSG_KERNEL,
++	MSG_KERNEL_HIGH_ORDER,
++	MSG_SLAB,
++	MSG_DIFFERENT_COMPOUND,
++	MSG_POISONED_HUGE,
++	MSG_HUGE,
++	MSG_FREE_HUGE,
++	MSG_UNMAP_FAILED,
++	MSG_DIRTY_SWAPCACHE,
++	MSG_CLEAN_SWAPCACHE,
++	MSG_DIRTY_MLOCKED_LRU,
++	MSG_CLEAN_MLOCKED_LRU,
++	MSG_DIRTY_UNEVICTABLE_LRU,
++	MSG_CLEAN_UNEVICTABLE_LRU,
++	MSG_DIRTY_LRU,
++	MSG_CLEAN_LRU,
++	MSG_TRUNCATED_LRU,
++	MSG_BUDDY,
++	MSG_BUDDY_2ND,
++	MSG_UNKNOWN,
++};
++
++static const char * const action_page_types[] =3D {
++	[MSG_KERNEL]			=3D "reserved kernel page",
++	[MSG_KERNEL_HIGH_ORDER]		=3D "high-order kernel page",
++	[MSG_SLAB]			=3D "kernel slab page",
++	[MSG_DIFFERENT_COMPOUND]	=3D "different compound page after locking",
++	[MSG_POISONED_HUGE]		=3D "huge page already hardware poisoned",
++	[MSG_HUGE]			=3D "huge page",
++	[MSG_FREE_HUGE]			=3D "free huge page",
++	[MSG_UNMAP_FAILED]		=3D "unmapping failed page",
++	[MSG_DIRTY_SWAPCACHE]		=3D "dirty swapcache page",
++	[MSG_CLEAN_SWAPCACHE]		=3D "clean swapcache page",
++	[MSG_DIRTY_MLOCKED_LRU]		=3D "dirty mlocked LRU page",
++	[MSG_CLEAN_MLOCKED_LRU]		=3D "clean mlocked LRU page",
++	[MSG_DIRTY_UNEVICTABLE_LRU]	=3D "dirty unevictable LRU page",
++	[MSG_CLEAN_UNEVICTABLE_LRU]	=3D "clean unevictable LRU page",
++	[MSG_DIRTY_LRU]			=3D "dirty LRU page",
++	[MSG_CLEAN_LRU]			=3D "clean LRU page",
++	[MSG_TRUNCATED_LRU]		=3D "already truncated LRU page",
++	[MSG_BUDDY]			=3D "free buddy page",
++	[MSG_BUDDY_2ND]			=3D "free buddy page (2nd try)",
++	[MSG_UNKNOWN]			=3D "unknown page",
++};
++
+ /*
+  * XXX: It is possible that a page is isolated from LRU cache,
+  * and then kept in swap cache or failed to remove from page cache.
+@@ -779,10 +825,10 @@ static int me_huge_page(struct page *p, unsigned long=
+ pfn)
+ static struct page_state {
+ 	unsigned long mask;
+ 	unsigned long res;
+-	char *msg;
++	enum action_page_type type;
+ 	int (*action)(struct page *p, unsigned long pfn);
+ } error_states[] =3D {
+-	{ reserved,	reserved,	"reserved kernel",	me_kernel },
++	{ reserved,	reserved,	MSG_KERNEL,	me_kernel },
+ 	/*
+ 	 * free pages are specially detected outside this table:
+ 	 * PG_buddy pages only make a small fraction of all free pages.
+@@ -793,31 +839,31 @@ static struct page_state {
+ 	 * currently unused objects without touching them. But just
+ 	 * treat it as standard kernel for now.
+ 	 */
+-	{ slab,		slab,		"kernel slab",	me_kernel },
++	{ slab,		slab,		MSG_SLAB,	me_kernel },
+=20
+ #ifdef CONFIG_PAGEFLAGS_EXTENDED
+-	{ head,		head,		"huge",		me_huge_page },
+-	{ tail,		tail,		"huge",		me_huge_page },
++	{ head,		head,		MSG_HUGE,		me_huge_page },
++	{ tail,		tail,		MSG_HUGE,		me_huge_page },
+ #else
+-	{ compound,	compound,	"huge",		me_huge_page },
++	{ compound,	compound,	MSG_HUGE,		me_huge_page },
+ #endif
+=20
+-	{ sc|dirty,	sc|dirty,	"dirty swapcache",	me_swapcache_dirty },
+-	{ sc|dirty,	sc,		"clean swapcache",	me_swapcache_clean },
++	{ sc|dirty,	sc|dirty,	MSG_DIRTY_SWAPCACHE,	me_swapcache_dirty },
++	{ sc|dirty,	sc,		MSG_CLEAN_SWAPCACHE,	me_swapcache_clean },
+=20
+-	{ mlock|dirty,	mlock|dirty,	"dirty mlocked LRU",	me_pagecache_dirty },
+-	{ mlock|dirty,	mlock,		"clean mlocked LRU",	me_pagecache_clean },
++	{ mlock|dirty,	mlock|dirty,	MSG_DIRTY_MLOCKED_LRU,	me_pagecache_dirty },
++	{ mlock|dirty,	mlock,		MSG_CLEAN_MLOCKED_LRU,	me_pagecache_clean },
+=20
+-	{ unevict|dirty, unevict|dirty,	"dirty unevictable LRU", me_pagecache_dir=
+ty },
+-	{ unevict|dirty, unevict,	"clean unevictable LRU", me_pagecache_clean },
++	{ unevict|dirty, unevict|dirty,	MSG_DIRTY_UNEVICTABLE_LRU,	me_pagecache_d=
+irty },
++	{ unevict|dirty, unevict,	MSG_CLEAN_UNEVICTABLE_LRU,	me_pagecache_clean }=
+,
+=20
+-	{ lru|dirty,	lru|dirty,	"dirty LRU",	me_pagecache_dirty },
+-	{ lru|dirty,	lru,		"clean LRU",	me_pagecache_clean },
++	{ lru|dirty,	lru|dirty,	MSG_DIRTY_LRU,	me_pagecache_dirty },
++	{ lru|dirty,	lru,		MSG_CLEAN_LRU,	me_pagecache_clean },
+=20
+ 	/*
+ 	 * Catchall entry: must be at end.
+ 	 */
+-	{ 0,		0,		"unknown page state",	me_unknown },
++	{ 0,		0,		MSG_UNKNOWN,	me_unknown },
+ };
+=20
+ #undef dirty
+@@ -837,10 +883,10 @@ static struct page_state {
+  * "Dirty/Clean" indication is not 100% accurate due to the possibility of
+  * setting PG_dirty outside page lock. See also comment above set_page_dir=
+ty().
+  */
+-static void action_result(unsigned long pfn, char *msg, int result)
++static void action_result(unsigned long pfn, enum action_page_type type, i=
+nt result)
+ {
+-	pr_err("MCE %#lx: %s page recovery: %s\n",
+-		pfn, msg, action_name[result]);
++	pr_err("MCE %#lx: recovery action for %s: %s\n",
++		pfn, action_page_types[type], action_name[result]);
+ }
+=20
+ static int page_action(struct page_state *ps, struct page *p,
+@@ -856,11 +902,11 @@ static int page_action(struct page_state *ps, struct =
+page *p,
+ 		count--;
+ 	if (count !=3D 0) {
+ 		printk(KERN_ERR
+-		       "MCE %#lx: %s page still referenced by %d users\n",
+-		       pfn, ps->msg, count);
++		       "MCE %#lx: %s still referenced by %d users\n",
++		       pfn, action_page_types[ps->type], count);
+ 		result =3D FAILED;
+ 	}
+-	action_result(pfn, ps->msg, result);
++	action_result(pfn, ps->type, result);
+=20
+ 	/* Could do more checks here if page looks ok */
+ 	/*
+@@ -1109,7 +1155,7 @@ int memory_failure(unsigned long pfn, int trapno, int=
+ flags)
+ 	if (!(flags & MF_COUNT_INCREASED) &&
+ 		!get_page_unless_zero(hpage)) {
+ 		if (is_free_buddy_page(p)) {
+-			action_result(pfn, "free buddy", DELAYED);
++			action_result(pfn, MSG_BUDDY, DELAYED);
+ 			return 0;
+ 		} else if (PageHuge(hpage)) {
+ 			/*
+@@ -1126,12 +1172,12 @@ int memory_failure(unsigned long pfn, int trapno, i=
+nt flags)
+ 			}
+ 			set_page_hwpoison_huge_page(hpage);
+ 			res =3D dequeue_hwpoisoned_huge_page(hpage);
+-			action_result(pfn, "free huge",
++			action_result(pfn, MSG_FREE_HUGE,
+ 				      res ? IGNORED : DELAYED);
+ 			unlock_page(hpage);
+ 			return res;
+ 		} else {
+-			action_result(pfn, "high order kernel", IGNORED);
++			action_result(pfn, MSG_KERNEL_HIGH_ORDER, IGNORED);
+ 			return -EBUSY;
+ 		}
+ 	}
+@@ -1153,9 +1199,10 @@ int memory_failure(unsigned long pfn, int trapno, in=
+t flags)
+ 			 */
+ 			if (is_free_buddy_page(p)) {
+ 				if (flags & MF_COUNT_INCREASED)
+-					action_result(pfn, "free buddy", DELAYED);
++					action_result(pfn, MSG_BUDDY, DELAYED);
+ 				else
+-					action_result(pfn, "free buddy, 2nd try", DELAYED);
++					action_result(pfn, MSG_BUDDY_2ND,
++						      DELAYED);
+ 				return 0;
+ 			}
+ 		}
+@@ -1168,7 +1215,7 @@ int memory_failure(unsigned long pfn, int trapno, int=
+ flags)
+ 	 * If this happens just bail out.
+ 	 */
+ 	if (compound_head(p) !=3D hpage) {
+-		action_result(pfn, "different compound page after locking", IGNORED);
++		action_result(pfn, MSG_DIFFERENT_COMPOUND, IGNORED);
+ 		res =3D -EBUSY;
+ 		goto out;
+ 	}
+@@ -1208,8 +1255,7 @@ int memory_failure(unsigned long pfn, int trapno, int=
+ flags)
+ 	 * on the head page to show that the hugepage is hwpoisoned
+ 	 */
+ 	if (PageHuge(p) && PageTail(p) && TestSetPageHWPoison(hpage)) {
+-		action_result(pfn, "hugepage already hardware poisoned",
+-				IGNORED);
++		action_result(pfn, MSG_POISONED_HUGE, IGNORED);
+ 		unlock_page(hpage);
+ 		put_page(hpage);
+ 		return 0;
+@@ -1238,7 +1284,7 @@ int memory_failure(unsigned long pfn, int trapno, int=
+ flags)
+ 	 */
+ 	if (hwpoison_user_mappings(p, pfn, trapno, flags, &hpage)
+ 	    !=3D SWAP_SUCCESS) {
+-		action_result(pfn, "unmapping failed", IGNORED);
++		action_result(pfn, MSG_UNMAP_FAILED, IGNORED);
+ 		res =3D -EBUSY;
+ 		goto out;
+ 	}
+@@ -1247,7 +1293,7 @@ int memory_failure(unsigned long pfn, int trapno, int=
+ flags)
+ 	 * Torn down by someone else?
+ 	 */
+ 	if (PageLRU(p) && !PageSwapCache(p) && p->mapping =3D=3D NULL) {
+-		action_result(pfn, "already truncated LRU", IGNORED);
++		action_result(pfn, MSG_TRUNCATED_LRU, IGNORED);
+ 		res =3D -EBUSY;
+ 		goto out;
+ 	}
+--=20
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
