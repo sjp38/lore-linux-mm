@@ -1,64 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DE7F6B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 13:09:36 -0400 (EDT)
-Received: by pdnc3 with SMTP id c3so68728090pdn.0
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 10:09:36 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id v5si9147699pdo.216.2015.03.26.10.09.34
-        for <linux-mm@kvack.org>;
-        Thu, 26 Mar 2015 10:09:35 -0700 (PDT)
-Date: Thu, 26 Mar 2015 13:09:18 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Should implementations of ->direct_access be allowed to sleep?
-Message-ID: <20150326170918.GO4003@linux.intel.com>
-References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
- <1411677218-29146-22-git-send-email-matthew.r.wilcox@intel.com>
- <20150324185046.GA4994@whiteoak.sf.office.twttr.net>
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F9336B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 13:25:37 -0400 (EDT)
+Received: by wibbg6 with SMTP id bg6so73087122wib.0
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 10:25:36 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id jj2si11713231wid.42.2015.03.26.10.25.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 26 Mar 2015 10:25:35 -0700 (PDT)
+Message-ID: <5514410C.7090408@suse.cz>
+Date: Thu, 26 Mar 2015 18:25:32 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150324185046.GA4994@whiteoak.sf.office.twttr.net>
+Subject: Re: [PATCH] mremap: add MREMAP_NOHOLE flag --resend
+References: <deaa4139de6e6422a0cec1e3282553aed3495e94.1426626497.git.shli@fb.com> <20150318153100.5658b741277f3717b52e42d9@linux-foundation.org> <550A5FF8.90504@gmail.com> <CADpJO7zBLhjecbiQeTubnTReiicVLr0-K43KbB4uCL5w_dyqJg@mail.gmail.com> <550E6D9D.1060507@gmail.com> <5512E0C0.6060406@suse.cz> <55131F70.7020503@gmail.com> <alpine.DEB.2.10.1503251710400.31453@chino.kir.corp.google.com> <551351CA.3090803@gmail.com> <alpine.DEB.2.10.1503251914260.16714@chino.kir.corp.google.com> <55137C06.9020608@gmail.com>
+In-Reply-To: <55137C06.9020608@gmail.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, msharbiani@twopensource.com
+To: Daniel Micay <danielmicay@gmail.com>, David Rientjes <rientjes@google.com>
+Cc: Aliaksey Kandratsenka <alkondratenko@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-api@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Andy Lutomirski <luto@amacapital.net>, "google-perftools@googlegroups.com" <google-perftools@googlegroups.com>
 
-On Tue, Mar 24, 2015 at 11:50:47AM -0700, Matt Mullins wrote:
-> We're also developing a user of direct_access, and we ended up with some
-> questions about the sleeping guarantees of the direct_access API.
+On 03/26/2015 04:24 AM, Daniel Micay wrote:
+> It's all well and good to say that you shouldn't do that, but it's the
+> basis of the design in jemalloc and other zone-based arena allocators.
+>
+> There's a chosen chunk size and chunks are naturally aligned. An
+> allocation is either a span of chunks (chunk-aligned) or has metadata
+> stored in the chunk header. This also means chunks can be assigned to
+> arenas for a high level of concurrency. Thread caching is then only
+> necessary for batching operations to amortize the cost of locking rather
+> than to reduce contention. Per-CPU arenas can be implemented quite well
+> by using sched_getcpu() to move threads around whenever it detects that
+> another thread allocated from the arena.
+>
+> With >= 2M chunks, madvise purging works very well at the chunk level
+> but there's also fine-grained purging within chunks and it completely
+> breaks down from THP page faults.
 
-That's a great question.  Since DAX can always sleep when it's calling
-into bdev_direct_access(), I hadn't thought about it (DAX is basically
-called to handle page faults and do I/O; both of which are expected
-to sleep).
+Are you sure it's due to page faults and not khugepaged + high value 
+(such as the default 511) of max_ptes_none? As reported here?
 
-> Since brd is currently the only (x86) implementation of DAX in Linus's tree,
-> I've been testing against that.  We noticed that the brd implementation of DAX
-> can call into alloc_page() with __GFP_WAIT if we call direct_access() on a page
-> that has not yet been allocated.  This is compounded by the fact that brd does
-> not support size > PAGE_SIZE (and thus I call bdev_direct_access() on each use),
-> though the limitation makes sense -- I shouldn't expect the brd driver to be
-> able to allocate a gigabyte of contiguous memory.
-> 
-> The potential sleeping behavior was somewhat surprising to me, as I would expect
-> the NV-DIMM device implementation to simply offset the pfn at which the device
-> is located rather than perform a memory allocation.  What are the guaranteed
-> and/or expected contexts from which direct_access() can be safely called?
+https://bugzilla.kernel.org/show_bug.cgi?id=93111
 
-Yes, for 'real' NV-DIMM devices, as you can see by the ones in tree,
-as well as the pmem driver that Ross has been posting, it's a simple
-piece of arithmetic.  The question is whether we should make all users
-of ->direct_access accommodate brd, or whether we should change brd so
-that it doesn't sleep.
-
-I'm leaning towards the latter.  But I'm not sure what GFP flags to
-recommend that brd use ... GFP_NOWAIT | __GFP_ZERO, perhaps?
-
-> If it would make more sense for us to test against (for example) the pmem or an
-> mtd-block driver instead, as you've discussed with Mathieu Desnoyers, then I'd
-> be happy to work with those in our environment as well.
-
-I use Ross's pmem driver for my testing mostly.
+Once you have faulted in a THP, and then purged part of it and split it, 
+I don't think page faults in the purged part can lead to a new THP 
+collapse, only khugepaged can do that AFAIK.
+And if you mmap smaller than 2M areas (i.e. your 256K chunks), that 
+should prevent THP page faults on the first fault within the chunk as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
