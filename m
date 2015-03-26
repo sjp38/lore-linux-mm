@@ -1,84 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 9227E6B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 16:45:54 -0400 (EDT)
-Received: by igcau2 with SMTP id au2so3236557igc.0
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 13:45:54 -0700 (PDT)
-Received: from mail-ig0-x22d.google.com (mail-ig0-x22d.google.com. [2607:f8b0:4001:c05::22d])
-        by mx.google.com with ESMTPS id t8si282367igz.37.2015.03.26.13.45.54
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Mar 2015 13:45:54 -0700 (PDT)
-Received: by igbud6 with SMTP id ud6so3168322igb.1
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 13:45:53 -0700 (PDT)
-Message-ID: <55146FFF.80809@gmail.com>
-Date: Thu, 26 Mar 2015 16:45:51 -0400
-From: Daniel Micay <danielmicay@gmail.com>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 24AC46B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 16:58:24 -0400 (EDT)
+Received: by pabxg6 with SMTP id xg6so74140454pab.0
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 13:58:23 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id sv6si9913860pbc.7.2015.03.26.13.58.21
+        for <linux-mm@kvack.org>;
+        Thu, 26 Mar 2015 13:58:22 -0700 (PDT)
+Date: Fri, 27 Mar 2015 07:58:05 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 3/3] RFC: dax: dax_prepare_freeze
+Message-ID: <20150326205805.GC28129@dastard>
+References: <55100B78.501@plexistor.com>
+ <55100D10.6090902@plexistor.com>
+ <20150323224047.GQ28621@dastard>
+ <551100E3.9010007@plexistor.com>
+ <20150325022221.GA31342@dastard>
+ <55126D77.7040105@plexistor.com>
+ <20150325092922.GH31342@dastard>
+ <55128BC6.7090105@plexistor.com>
+ <20150325200024.GJ31342@dastard>
+ <5513BD01.5080603@plexistor.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mremap: add MREMAP_NOHOLE flag --resend
-References: <deaa4139de6e6422a0cec1e3282553aed3495e94.1426626497.git.shli@fb.com> <20150318153100.5658b741277f3717b52e42d9@linux-foundation.org> <550A5FF8.90504@gmail.com> <CADpJO7zBLhjecbiQeTubnTReiicVLr0-K43KbB4uCL5w_dyqJg@mail.gmail.com> <550E6D9D.1060507@gmail.com> <5512E0C0.6060406@suse.cz> <55131F70.7020503@gmail.com> <alpine.DEB.2.10.1503251710400.31453@chino.kir.corp.google.com> <551351CA.3090803@gmail.com> <alpine.DEB.2.10.1503251914260.16714@chino.kir.corp.google.com> <55137C06.9020608@gmail.com> <5514410C.7090408@suse.cz>
-In-Reply-To: <5514410C.7090408@suse.cz>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="CXXGB5B0s7ABUfNSFOK4Jx0Xl5vd2XchI"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5513BD01.5080603@plexistor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>
-Cc: Aliaksey Kandratsenka <alkondratenko@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-api@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Andy Lutomirski <luto@amacapital.net>, "google-perftools@googlegroups.com" <google-perftools@googlegroups.com>
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---CXXGB5B0s7ABUfNSFOK4Jx0Xl5vd2XchI
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+On Thu, Mar 26, 2015 at 10:02:09AM +0200, Boaz Harrosh wrote:
+> On 03/25/2015 10:00 PM, Dave Chinner wrote:
+> > On Wed, Mar 25, 2015 at 12:19:50PM +0200, Boaz Harrosh wrote:
+> >> On 03/25/2015 11:29 AM, Dave Chinner wrote:
+> >>> On Wed, Mar 25, 2015 at 10:10:31AM +0200, Boaz Harrosh wrote:
+> >>>> On 03/25/2015 04:22 AM, Dave Chinner wrote:
+> >>>>> On Tue, Mar 24, 2015 at 08:14:59AM +0200, Boaz Harrosh wrote:
+> >>>> <>
+> >> <>
+> >>>> The sync does happen, .fsync of the FS is called on each
+> >>>> file just as if the user called it. If this is broken it just
+> >>>> needs to be fixed there at the .fsync vector. POSIX mandate
+> >>>> persistence at .fsync so at the vfs layer we rely on that.
+> >>>
+> >>> right now, the filesystems will see that there are no dirty pages
+> >>> on the inode, and then just sync the inode metadata. They will do
+> >>> nothing else as filesystems are not aware of CPU cachelines at all.
+> >>>
+> >>
+> >> Sigh yes. There is this bug. And I am sitting on a wide fix for this.
+> >>
+> >> The strategy is. All Kernel writes are done with a new copy_user_nt.
+> >> NT stands for none-temporal. This shows 20% improvements since cachelines
+> >> need not be fetched when written too.
+> > 
+> > That's unenforcable for mmap writes from userspace. And those are
+> > the writes that will trigger the dirty write mapping problem.
+> > 
+> 
+> So for them I was thinking of just doing the .fsync on every
+> unmap (ie vm_operations_struct->close)
 
-> Are you sure it's due to page faults and not khugepaged + high value
-> (such as the default 511) of max_ptes_none? As reported here?
->=20
-> https://bugzilla.kernel.org/show_bug.cgi?id=3D93111
->=20
-> Once you have faulted in a THP, and then purged part of it and split it=
-,
-> I don't think page faults in the purged part can lead to a new THP
-> collapse, only khugepaged can do that AFAIK.
-> And if you mmap smaller than 2M areas (i.e. your 256K chunks), that
-> should prevent THP page faults on the first fault within the chunk as w=
-ell.
+That is not necessary, I think - it can be handled by the background
+writeback thread just fine.
 
-Hm, that's probably it. The page faults would still be an issue when
-reserving ranges on 64-bit for parallel chunk allocation and to make
-sure the lowest address chunks are the oldest from the start, which is
-likely down the road.
+> So now we know that only inodes that have an active vm mapping
+> are in need of sync.
 
-A nice property of 2M chunks is that mremap doesn't need to split huge
-pages and neither does purging at the chunk level. I'd expect that to be
-a *good thing* rather than something that needs to be avoided due to an
-aggressive heuristic.
+Easy enough.
 
+> >> Please note that even if we properly .fsync cachlines the page-faults
+> >> are orthogonal to this. There is no point in making mmapped dax pages
+> >> read-only after every .fsync and pay a page-fault. We should leave them
+> >> mapped has is. The only place that we need page protection is at freeze
+> >> time.
+> > 
+> > Actually, current behaviour of filesystems is that fsync cleans all
+> > the pages in the range, and means all the mappings are marked
+> > read-only and so we get new calls into .page_mkwrite when write
+> > faults occur. We need that .page_mkwrite call to be able to a)
+> > update the mtime of the inode, and b) mark the inode "data dirty" so
+> > that fsync knows it needs to do something....
+> > 
+> > Hence I'd much prefer we start with identical behaviour to normal
+> > files, then we can optimise from a sane start point when write page
+> > faults show up as a performance problem. i.e. Correctness first,
+> > performance second.
+> 
+> OK, (you see when you speak slow I understand fast ;-)). I agree then
+> I'll see if I can schedule some time for this. My boss will be very
+> angry with me about this. But I will need help please, and some hands
+> holding. Unless someone else volunteers to work on this ?
 
---CXXGB5B0s7ABUfNSFOK4Jx0Xl5vd2XchI
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
+It's not hard - you should be able to make somethign work from the
+untested, uncompiled skeleton below....
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+Cheers,
 
-iQIcBAEBCAAGBQJVFHAAAAoJEPnnEuWa9fIqXJwP/RgybET2Sd1xie/EZsHeHqvZ
-yBo3tIlGwKT8JU2aYRRp7sNkqx6W3MWLofQ8Liuz/OPwxF4RhgHL93pJrmLL5Hxi
-2XYNMbri9fvTT2e5jkW6QrDdtRg9CC2vW4MmhDW8sCoewFxa1SDXOILAHp9uE0RI
-0Yt+S04W/HLS9jjhVRheBoX9aCx5atUQ8dwoHKyaFl+LD+C11etXpWNjj1VVIFdw
-Wa+rKnLZT+E/4IPRHYdPzwuacwkovk8Tzw3Ma/PzE14YYeVDHUkowjsrsVxaWB+q
-s94irGZZYH9aiF7unhvSZorPvrgxr7Gcl0x/gWb2glUzSvnsTp/ICc3b6dllOkJE
-C9aezfij/X0j2vP/A2ZT/5fuQQ2kzZgL5iVBkYbB2sYqobEkJjl4tTRHEj5FqidZ
-ezN7a6y4Eyl+vrYbXSDtmr9YdyMkIlphfVtzr4386mhthlmFzXYcTu32XF4Gt8jV
-ecfZSd9UzHvgZUDTicSI9oIXuWHwq0TYrtTS1BP0gOij6YTYWRA/mp3z+Cyew6wH
-ecUFl0zWtRV1CwBzwIR53Sce2Wi5qnIWGzZoWihkecHToMB4j4XI+OcHT6MAh2NV
-rlZ8St8In+dwQoy5ZmhlpCQo9yDIByAdX1mPqWBtD3kE+KM50W4EGxLK/XPzVrIW
-TBK7XZXuMvg3mCIi2Gox
-=Q199
------END PGP SIGNATURE-----
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
---CXXGB5B0s7ABUfNSFOK4Jx0Xl5vd2XchI--
+dax: hack in dirty mapping tracking to fsync/sync/writeback
+
+Not-signed-off-by: Dave Chinner <dchinner@redhat.com>
+---
+ fs/dax.c            | 27 ++++++++++++++++++++++++++-
+ fs/xfs/xfs_file.c   |  2 ++
+ mm/page-writeback.c |  5 +++++
+ 3 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/fs/dax.c b/fs/dax.c
+index 0121f7d..61cbd76 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -27,6 +27,29 @@
+ #include <linux/uio.h>
+ #include <linux/vmstat.h>
+ 
++/*
++ * flush the mapping to the persistent domain within the byte range of (start,
++ * end). This is required by data integrity operations to ensure file data is on
++ * persistent storage prior to completion of the operation. It also requires us
++ * to clean the mappings (i.e. write -> RO) so that we'll get a new fault when
++ * the file is written to again so wehave an indication that we need to flush
++ * the mapping if a data integrity operation takes place.
++ *
++ * We don't need commits to storage here - the filesystems will issue flushes
++ * appropriately at the conclusion of the data integrity operation via REQ_FUA
++ * writes or blkdev_issue_flush() commands.  This requires the DAX block device
++ * to implement persistent storage domain fencing/commits on receiving a
++ * REQ_FLUSH or REQ_FUA request so that this works as expected by the higher
++ * layers.
++ */
++int dax_flush_mapping(struct address_space *mapping, loff_t start, loff_t end)
++{
++	/* XXX: make ptes in range clean */
++
++	/* XXX: flush CPU caches  */
++	return 0;
++}
++
+ int dax_clear_blocks(struct inode *inode, sector_t block, long size)
+ {
+ 	struct block_device *bdev = inode->i_sb->s_bdev;
+@@ -472,8 +495,10 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 		file_update_time(vma->vm_file);
+ 	}
+ 	result = __dax_fault(vma, vmf, get_block, complete_unwritten);
+-	if (vmf->flags & FAULT_FLAG_WRITE)
++	if (vmf->flags & FAULT_FLAG_WRITE) {
++		__mark_inode_dirty(file_inode(vma->vm_file, I_DIRTY_PAGES);
+ 		sb_end_pagefault(sb);
++	}
+ 
+ 	return result;
+ }
+diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+index 8017175..43e6c8e 100644
+--- a/fs/xfs/xfs_file.c
++++ b/fs/xfs/xfs_file.c
+@@ -1453,6 +1453,8 @@ xfs_filemap_page_mkwrite(
+ 	}
+ 
+ 	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
++	if (IS_DAX(inode))
++		__mark_inode_dirty(file_inode(vma->vm_file, I_DIRTY_PAGES);
+ 	sb_end_pagefault(inode->i_sb);
+ 
+ 	return ret;
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 45e187b..aa2fa76 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2029,6 +2029,11 @@ int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
+ 
+ 	if (wbc->nr_to_write <= 0)
+ 		return 0;
++
++	if (wbc->sync == WB_SYNC_ALL && IS_DAX(mapping->host))
++		return dax_flush_mapping(mapping, wbc->range_start,
++						  wbc->range_end);
++
+ 	if (mapping->a_ops->writepages)
+ 		ret = mapping->a_ops->writepages(mapping, wbc);
+ 	else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
