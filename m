@@ -1,203 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 45E556B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 10:10:09 -0400 (EDT)
-Received: by pdnc3 with SMTP id c3so64033010pdn.0
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 07:10:09 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id g12si8589071pat.3.2015.03.26.07.10.08
-        for <linux-mm@kvack.org>;
-        Thu, 26 Mar 2015 07:10:08 -0700 (PDT)
-Date: Thu, 26 Mar 2015 11:10:10 -0300
-From: Arnaldo Carvalho de Melo <acme@kernel.org>
-Subject: Re: [PATCH 6/6] perf kmem: Print gfp flags in human readable string
-Message-ID: <20150326141010.GC21510@kernel.org>
-References: <1427349636-9796-1-git-send-email-namhyung@kernel.org>
- <1427349636-9796-7-git-send-email-namhyung@kernel.org>
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CD606B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 10:11:32 -0400 (EDT)
+Received: by wixm2 with SMTP id m2so12587218wix.0
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 07:11:32 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m3si10873327wix.2.2015.03.26.07.11.30
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 26 Mar 2015 07:11:30 -0700 (PDT)
+Date: Thu, 26 Mar 2015 15:11:28 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 07/12] mm: page_alloc: inline should_alloc_retry()
+Message-ID: <20150326141128.GL15257@dhcp22.suse.cz>
+References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
+ <1427264236-17249-8-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1427349636-9796-7-git-send-email-namhyung@kernel.org>
+In-Reply-To: <1427264236-17249-8-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Namhyung Kim <namhyung@kernel.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>
 
-Em Thu, Mar 26, 2015 at 03:00:36PM +0900, Namhyung Kim escreveu:
-> Save libtraceevent output and print it in the header.
+On Wed 25-03-15 02:17:11, Johannes Weiner wrote:
+> The should_alloc_retry() function was meant to encapsulate retry
+> conditions of the allocator slowpath, but there are still checks
+> remaining in the main function, and much of how the retrying is
+> performed also depends on the OOM killer progress.  The physical
+> separation of those conditions make the code hard to follow.
 > 
->   # perf kmem stat --page --caller
->   # GFP flags
->   # ---------
->   # 00000010: GFP_NOIO
->   # 000000d0: GFP_KERNEL
->   # 00000200: GFP_NOWARN
->   # 000084d0: GFP_KERNEL|GFP_REPEAT|GFP_ZERO
->   # 000200d2: GFP_HIGHUSER
->   # 000200da: GFP_HIGHUSER_MOVABLE
->   # 000280da: GFP_HIGHUSER_MOVABLE|GFP_ZERO
->   # 002084d0: GFP_KERNEL|GFP_REPEAT|GFP_ZERO|GFP_NOTRACK
->   # 0102005a: GFP_NOFS|GFP_HARDWALL|GFP_MOVABLE
+> Inline the should_alloc_retry() checks.  Notes:
 > 
->   ---------------------------------------------------------------------------------------------------------
->    Total alloc (KB) | Hits      | Order | Migration type | GFP flags | Callsite
->   ---------------------------------------------------------------------------------------------------------
->                  60 |        15 |     0 |      UNMOVABLE |  002084d0 | pte_alloc_one
->                  40 |        10 |     0 |        MOVABLE |  000280da | handle_mm_fault
->                  24 |         6 |     0 |        MOVABLE |  000200da | do_wp_page
->                  24 |         6 |     0 |      UNMOVABLE |  000000d0 | __pollwait
->    ...
-
-Perhaps you could compact it further by doing things like:
-
-    # 00000010:      NIO: GFP_NOIO
-    # 000000d0:        K: GFP_KERNEL
-    # 00000200:       NW: GFP_NOWARN
-    # 000084d0:    K|R|Z: GFP_KERNEL|GFP_REPEAT|GFP_ZERO
-    # 000200d2:       HU: GFP_HIGHUSER
-    # 000200da:      HUM: GFP_HIGHUSER_MOVABLE
-    # 000280da:    HUM|Z: GFP_HIGHUSER_MOVABLE|GFP_ZERO
-    # 002084d0: K|R|Z|NT: GFP_KERNEL|GFP_REPEAT|GFP_ZERO|GFP_NOTRACK
-    # 0102005a: NFS|HW|M: GFP_NOFS|GFP_HARDWALL|GFP_MOVABLE
-
-    -------------------------------------------------------------------------
-    Total(KB) | Hits | Ord | Migr.| GFP flg  | Callsite
-    -------------------------------------------------------------------------
-           60 |   15 |   0 | UNMV | K|R|Z|NT | pte_alloc_one
-           40 |   10 |   0 |   MV |    HUM|Z | handle_mm_fault
-           24 |    6 |   0 |   MV |      HUM | do_wp_page
-           24 |    6 |   0 | UNMV |        K | __pollwait
-
-I.e. using mnemonics instead of a hex number for the GFP flag, reducing
-the need to lookup the header.
-
-Just my 2 cents :-)
-
-- Arnaldo
-
+> - The __GFP_NOFAIL check is already done in __alloc_pages_may_oom(),
+>   replace it with looping on OOM killer progress
 > 
-> Requested-by: Joonsoo Kim <js1304@gmail.com>
-> Suggested-by: Minchan Kim <minchan@kernel.org>
-> Signed-off-by: Namhyung Kim <namhyung@kernel.org>
+> - The pm_suspended_storage() check is meant to skip the OOM killer
+>   when reclaim has no IO available, move to __alloc_pages_may_oom()
+> 
+> - The order < PAGE_ALLOC_COSTLY order is re-united with its original
+>   counterpart of checking whether reclaim actually made any progress
+
+it should be order <= PAGE_ALLOC_COSTLY
+ 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+
+The resulting code looks much better and logical.
+
+After the COSTLY check is fixed.
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
 > ---
->  tools/perf/builtin-kmem.c | 81 +++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 81 insertions(+)
+>  mm/page_alloc.c | 104 +++++++++++++++++---------------------------------------
+>  1 file changed, 32 insertions(+), 72 deletions(-)
 > 
-> diff --git a/tools/perf/builtin-kmem.c b/tools/perf/builtin-kmem.c
-> index c09e332f7f38..502f6944a04c 100644
-> --- a/tools/perf/builtin-kmem.c
-> +++ b/tools/perf/builtin-kmem.c
-> @@ -545,6 +545,72 @@ static bool valid_page(u64 pfn_or_page)
->  	return true;
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 9ebc760187ac..c1224ba45548 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2329,48 +2329,6 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...)
+>  		show_mem(filter);
 >  }
 >  
-> +struct gfp_flag {
-> +	unsigned int flags;
-> +	char *human_readable;
-> +};
+> -static inline int
+> -should_alloc_retry(gfp_t gfp_mask, unsigned int order,
+> -				unsigned long did_some_progress,
+> -				unsigned long pages_reclaimed)
+> -{
+> -	/* Do not loop if specifically requested */
+> -	if (gfp_mask & __GFP_NORETRY)
+> -		return 0;
+> -
+> -	/* Always retry if specifically requested */
+> -	if (gfp_mask & __GFP_NOFAIL)
+> -		return 1;
+> -
+> -	/*
+> -	 * Suspend converts GFP_KERNEL to __GFP_WAIT which can prevent reclaim
+> -	 * making forward progress without invoking OOM. Suspend also disables
+> -	 * storage devices so kswapd will not help. Bail if we are suspending.
+> -	 */
+> -	if (!did_some_progress && pm_suspended_storage())
+> -		return 0;
+> -
+> -	/*
+> -	 * In this implementation, order <= PAGE_ALLOC_COSTLY_ORDER
+> -	 * means __GFP_NOFAIL, but that may not be true in other
+> -	 * implementations.
+> -	 */
+> -	if (order <= PAGE_ALLOC_COSTLY_ORDER)
+> -		return 1;
+> -
+> -	/*
+> -	 * For order > PAGE_ALLOC_COSTLY_ORDER, if __GFP_REPEAT is
+> -	 * specified, then we retry until we no longer reclaim any pages
+> -	 * (above), or we've reclaimed an order of pages at least as
+> -	 * large as the allocation's order. In both cases, if the
+> -	 * allocation still fails, we stop retrying.
+> -	 */
+> -	if (gfp_mask & __GFP_REPEAT && pages_reclaimed < (1 << order))
+> -		return 1;
+> -
+> -	return 0;
+> -}
+> -
+>  static inline struct page *
+>  __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+>  	const struct alloc_context *ac, unsigned long *did_some_progress)
+> @@ -2409,16 +2367,18 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+>  		/* The OOM killer does not needlessly kill tasks for lowmem */
+>  		if (ac->high_zoneidx < ZONE_NORMAL)
+>  			goto out;
+> -		/* The OOM killer does not compensate for light reclaim */
+> +		/* The OOM killer does not compensate for IO-less reclaim */
+>  		if (!(gfp_mask & __GFP_FS)) {
+>  			/*
+>  			 * XXX: Page reclaim didn't yield anything,
+>  			 * and the OOM killer can't be invoked, but
+> -			 * keep looping as per should_alloc_retry().
+> +			 * keep looping as per tradition.
+>  			 */
+>  			*did_some_progress = 1;
+>  			goto out;
+>  		}
+> +		if (pm_suspended_storage())
+> +			goto out;
+>  		/* The OOM killer may not free memory on a specific node */
+>  		if (gfp_mask & __GFP_THISNODE)
+>  			goto out;
+> @@ -2801,40 +2761,40 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	if (page)
+>  		goto got_pg;
+>  
+> -	/* Check if we should retry the allocation */
+> +	/* Do not loop if specifically requested */
+> +	if (gfp_mask & __GFP_NORETRY)
+> +		goto noretry;
 > +
-> +static struct gfp_flag *gfps;
-> +static int nr_gfps;
-> +
-> +static int gfpcmp(const void *a, const void *b)
-> +{
-> +	const struct gfp_flag *fa = a;
-> +	const struct gfp_flag *fb = b;
-> +
-> +	return fa->flags - fb->flags;
-> +}
-> +
-> +static int parse_gfp_flags(struct perf_evsel *evsel, struct perf_sample *sample,
-> +			   unsigned int gfp_flags)
-> +{
-> +	struct pevent_record record = {
-> +		.cpu = sample->cpu,
-> +		.data = sample->raw_data,
-> +		.size = sample->raw_size,
-> +	};
-> +	struct trace_seq seq;
-> +	char *str;
-> +
-> +	if (nr_gfps) {
-> +		struct gfp_flag key = {
-> +			.flags = gfp_flags,
-> +		};
-> +
-> +		if (bsearch(&key, gfps, nr_gfps, sizeof(*gfps), gfpcmp))
-> +			return 0;
-> +	}
-> +
-> +	trace_seq_init(&seq);
-> +	pevent_event_info(&seq, evsel->tp_format, &record);
-> +
-> +	str = strtok(seq.buffer, " ");
-> +	while (str) {
-> +		if (!strncmp(str, "gfp_flags=", 10)) {
-> +			struct gfp_flag *new;
-> +
-> +			new = realloc(gfps, (nr_gfps + 1) * sizeof(*gfps));
-> +			if (new == NULL)
-> +				return -ENOMEM;
-> +
-> +			gfps = new;
-> +			new += nr_gfps++;
-> +
-> +			new->flags = gfp_flags;
-> +			new->human_readable = strdup(str + 10);
-> +			if (new->human_readable == NULL)
-> +				return -ENOMEM;
-> +
-> +			qsort(gfps, nr_gfps, sizeof(*gfps), gfpcmp);
-> +		}
-> +
-> +		str = strtok(NULL, " ");
-> +	}
-> +
-> +	trace_seq_destroy(&seq);
-> +	return 0;
-> +}
-> +
->  static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
->  						struct perf_sample *sample)
->  {
-> @@ -577,6 +643,9 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
->  		return 0;
+> +	/* Keep reclaiming pages as long as there is reasonable progress */
+>  	pages_reclaimed += did_some_progress;
+> -	if (should_alloc_retry(gfp_mask, order, did_some_progress,
+> -						pages_reclaimed)) {
+> -		/*
+> -		 * If we fail to make progress by freeing individual
+> -		 * pages, but the allocation wants us to keep going,
+> -		 * start OOM killing tasks.
+> -		 */
+> -		if (!did_some_progress) {
+> -			page = __alloc_pages_may_oom(gfp_mask, order, ac,
+> -							&did_some_progress);
+> -			if (page)
+> -				goto got_pg;
+> -			if (!did_some_progress)
+> -				goto nopage;
+> -		}
+> +	if ((did_some_progress && order < PAGE_ALLOC_COSTLY_ORDER) ||
+> +	    ((gfp_mask & __GFP_REPEAT) && pages_reclaimed < (1 << order))) {
+>  		/* Wait for some write requests to complete then retry */
+>  		wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC, HZ/50);
+>  		goto retry;
+> -	} else {
+> -		/*
+> -		 * High-order allocations do not necessarily loop after
+> -		 * direct reclaim and reclaim/compaction depends on compaction
+> -		 * being called after reclaim so call directly if necessary
+> -		 */
+> -		page = __alloc_pages_direct_compact(gfp_mask, order,
+> -					alloc_flags, ac, migration_mode,
+> -					&contended_compaction,
+> -					&deferred_compaction);
+> -		if (page)
+> -			goto got_pg;
 >  	}
 >  
-> +	if (parse_gfp_flags(evsel, sample, gfp_flags) < 0)
-> +		return -1;
+> +	/* Reclaim has failed us, start killing things */
+> +	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
+> +	if (page)
+> +		goto got_pg;
 > +
->  	callsite = find_callsite(evsel, sample);
->  
->  	/*
-> @@ -877,6 +946,16 @@ static void __print_page_caller_result(struct perf_session *session, int n_lines
->  	printf("%.105s\n", graph_dotted_line);
->  }
->  
-> +static void print_gfp_flags(void)
-> +{
-> +	int i;
+> +	/* Retry as long as the OOM killer is making progress */
+> +	if (did_some_progress)
+> +		goto retry;
 > +
-> +	printf("# GFP flags\n");
-> +	printf("# ---------\n");
-> +	for (i = 0; i < nr_gfps; i++)
-> +		printf("# %08x: %s\n", gfps[i].flags, gfps[i].human_readable);
-> +}
-> +
->  static void print_slab_summary(void)
->  {
->  	printf("\nSUMMARY (SLAB allocator)");
-> @@ -946,6 +1025,8 @@ static void print_slab_result(struct perf_session *session)
->  
->  static void print_page_result(struct perf_session *session)
->  {
-> +	if (caller_flag || alloc_flag)
-> +		print_gfp_flags();
->  	if (caller_flag)
->  		__print_page_caller_result(session, caller_lines);
->  	if (alloc_flag)
+> +noretry:
+> +	/*
+> +	 * High-order allocations do not necessarily loop after
+> +	 * direct reclaim and reclaim/compaction depends on compaction
+> +	 * being called after reclaim so call directly if necessary
+> +	 */
+> +	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags,
+> +					    ac, migration_mode,
+> +					    &contended_compaction,
+> +					    &deferred_compaction);
+> +	if (page)
+> +		goto got_pg;
+>  nopage:
+>  	warn_alloc_failed(gfp_mask, order, NULL);
+>  got_pg:
 > -- 
 > 2.3.3
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
