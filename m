@@ -1,243 +1,531 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 585876B006C
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 02:07:12 -0400 (EDT)
-Received: by pacwe9 with SMTP id we9so53182801pac.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 23:07:12 -0700 (PDT)
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 24962900015
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 02:07:15 -0400 (EDT)
+Received: by pdbni2 with SMTP id ni2so52611330pdb.1
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 23:07:14 -0700 (PDT)
 Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id gs2si6837587pac.152.2015.03.25.23.07.10
+        by mx.google.com with ESMTP id dt4si6929073pdb.1.2015.03.25.23.07.11
         for <linux-mm@kvack.org>;
-        Wed, 25 Mar 2015 23:07:11 -0700 (PDT)
+        Wed, 25 Mar 2015 23:07:12 -0700 (PDT)
 From: Namhyung Kim <namhyung@kernel.org>
-Subject: [PATCH 1/6] tracing, mm: Record pfn instead of pointer to struct page
-Date: Thu, 26 Mar 2015 15:00:31 +0900
-Message-Id: <1427349636-9796-2-git-send-email-namhyung@kernel.org>
+Subject: [PATCH 3/6] perf kmem: Implement stat --page --caller
+Date: Thu, 26 Mar 2015 15:00:33 +0900
+Message-Id: <1427349636-9796-4-git-send-email-namhyung@kernel.org>
 In-Reply-To: <1427349636-9796-1-git-send-email-namhyung@kernel.org>
 References: <1427349636-9796-1-git-send-email-namhyung@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>
+Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org
 
-The struct page is opaque for userspace tools, so it'd be better to save
-pfn in order to identify page frames.
+It perf kmem support caller statistics for page.  Unlike slab case,
+the tracepoints in page allocator don't provide callsite info.  So
+it records with callchain and extracts callsite info.
 
-The textual output of $debugfs/tracing/trace file remains unchanged and
-only raw (binary) data format is changed - but thanks to libtraceevent,
-userspace tools which deal with the raw data (like perf and trace-cmd)
-can parse the format easily.  So impact on the userspace will also be
-minimal.
+Note that the callchain contains several memory allocation functions
+which has no meaning for users.  So skip those functions to get proper
+callsites.  I used following regex pattern to skip the allocator
+functions:
 
-Based-on-patch-by: Joonsoo Kim <js1304@gmail.com>
-Acked-by: Ingo Molnar <mingo@kernel.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>
-Cc: linux-mm@kvack.org
+  ^_?_?(alloc|get_free|get_zeroed)_pages?
+
+This gave me a following list of functions:
+
+  # perf kmem record --page sleep 3
+  # perf kmem stat --page -v
+  ...
+  alloc func: __get_free_pages
+  alloc func: get_zeroed_page
+  alloc func: alloc_pages_exact
+  alloc func: __alloc_pages_direct_compact
+  alloc func: __alloc_pages_nodemask
+  alloc func: alloc_page_interleave
+  alloc func: alloc_pages_current
+  alloc func: alloc_pages_vma
+  alloc func: alloc_page_buffers
+  alloc func: alloc_pages_exact_nid
+  ...
+
+The output looks mostly same as --alloc (I also added callsite column
+to that) but groups entries by callsite.  Currently, the order,
+migrate type and GFP flag info is for the last allocation and not
+guaranteed to be same for all allocations from the callsite.
+
+  ---------------------------------------------------------------------------------------------
+   Total_alloc (KB) | Hits      | Order | Migration type | GFP flags | Callsite
+  ---------------------------------------------------------------------------------------------
+              1,064 |       266 |     0 |      UNMOVABLE |  000000d0 | __pollwait
+                 52 |        13 |     0 |      UNMOVABLE |  002084d0 | pte_alloc_one
+                 44 |        11 |     0 |        MOVABLE |  000280da | handle_mm_fault
+                 20 |         5 |     0 |        MOVABLE |  000200da | do_cow_fault
+                 20 |         5 |     0 |        MOVABLE |  000200da | do_wp_page
+                 16 |         4 |     0 |      UNMOVABLE |  000084d0 | __pmd_alloc
+                 16 |         4 |     0 |      UNMOVABLE |  00000200 | __tlb_remove_page
+                 12 |         3 |     0 |      UNMOVABLE |  000084d0 | __pud_alloc
+                  8 |         2 |     0 |      UNMOVABLE |  00000010 | bio_copy_user_iov
+                  4 |         1 |     0 |      UNMOVABLE |  000200d2 | pipe_write
+                  4 |         1 |     0 |        MOVABLE |  000280da | do_wp_page
+                  4 |         1 |     0 |      UNMOVABLE |  002084d0 | pgd_alloc
+  ---------------------------------------------------------------------------------------------
+
 Signed-off-by: Namhyung Kim <namhyung@kernel.org>
 ---
- include/trace/events/filemap.h |  8 ++++----
- include/trace/events/kmem.h    | 42 +++++++++++++++++++++---------------------
- include/trace/events/vmscan.h  |  8 ++++----
- 3 files changed, 29 insertions(+), 29 deletions(-)
+ tools/perf/builtin-kmem.c | 283 +++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 265 insertions(+), 18 deletions(-)
 
-diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
-index 0421f49a20f7..42febb6bc1d5 100644
---- a/include/trace/events/filemap.h
-+++ b/include/trace/events/filemap.h
-@@ -18,14 +18,14 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
- 	TP_ARGS(page),
+diff --git a/tools/perf/builtin-kmem.c b/tools/perf/builtin-kmem.c
+index da3531197c4b..3f33d033b82d 100644
+--- a/tools/perf/builtin-kmem.c
++++ b/tools/perf/builtin-kmem.c
+@@ -10,6 +10,7 @@
+ #include "util/header.h"
+ #include "util/session.h"
+ #include "util/tool.h"
++#include "util/callchain.h"
  
- 	TP_STRUCT__entry(
--		__field(struct page *, page)
-+		__field(unsigned long, pfn)
- 		__field(unsigned long, i_ino)
- 		__field(unsigned long, index)
- 		__field(dev_t, s_dev)
- 	),
+ #include "util/parse-options.h"
+ #include "util/trace-event.h"
+@@ -21,6 +22,7 @@
+ #include <linux/rbtree.h>
+ #include <linux/string.h>
+ #include <locale.h>
++#include <regex.h>
  
- 	TP_fast_assign(
--		__entry->page = page;
-+		__entry->pfn = page_to_pfn(page);
- 		__entry->i_ino = page->mapping->host->i_ino;
- 		__entry->index = page->index;
- 		if (page->mapping->host->i_sb)
-@@ -37,8 +37,8 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
- 	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu",
- 		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
- 		__entry->i_ino,
--		__entry->page,
--		page_to_pfn(__entry->page),
-+		pfn_to_page(__entry->pfn),
-+		__entry->pfn,
- 		__entry->index << PAGE_SHIFT)
- );
+ static int	kmem_slab;
+ static int	kmem_page;
+@@ -241,6 +243,7 @@ static unsigned long nr_page_fails;
+ static unsigned long nr_page_nomatch;
  
-diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-index 4ad10baecd4d..81ea59812117 100644
---- a/include/trace/events/kmem.h
-+++ b/include/trace/events/kmem.h
-@@ -154,18 +154,18 @@ TRACE_EVENT(mm_page_free,
- 	TP_ARGS(page, order),
+ static bool use_pfn;
++static struct perf_session *kmem_session;
  
- 	TP_STRUCT__entry(
--		__field(	struct page *,	page		)
-+		__field(	unsigned long,	pfn		)
- 		__field(	unsigned int,	order		)
- 	),
+ #define MAX_MIGRATE_TYPES  6
+ #define MAX_PAGE_ORDER     11
+@@ -250,6 +253,7 @@ static int order_stats[MAX_PAGE_ORDER][MAX_MIGRATE_TYPES];
+ struct page_stat {
+ 	struct rb_node 	node;
+ 	u64 		page;
++	u64 		callsite;
+ 	int 		order;
+ 	unsigned 	gfp_flags;
+ 	unsigned 	migrate_type;
+@@ -262,8 +266,138 @@ struct page_stat {
+ static struct rb_root page_tree;
+ static struct rb_root page_alloc_tree;
+ static struct rb_root page_alloc_sorted;
++static struct rb_root page_caller_tree;
++static struct rb_root page_caller_sorted;
  
- 	TP_fast_assign(
--		__entry->page		= page;
-+		__entry->pfn		= page_to_pfn(page);
- 		__entry->order		= order;
- 	),
+-static struct page_stat *search_page(unsigned long page, bool create)
++struct alloc_func {
++	u64 start;
++	u64 end;
++	char *name;
++};
++
++static int nr_alloc_funcs;
++static struct alloc_func *alloc_func_list;
++
++static int funcmp(const void *a, const void *b)
++{
++	const struct alloc_func *fa = a;
++	const struct alloc_func *fb = b;
++
++	if (fa->start > fb->start)
++		return 1;
++	else
++		return -1;
++}
++
++static int callcmp(const void *a, const void *b)
++{
++	const struct alloc_func *fa = a;
++	const struct alloc_func *fb = b;
++
++	if (fb->start <= fa->start && fa->end < fb->end)
++		return 0;
++
++	if (fa->start > fb->start)
++		return 1;
++	else
++		return -1;
++}
++
++static int build_alloc_func_list(void)
++{
++	int ret;
++	struct map *kernel_map;
++	struct symbol *sym;
++	struct rb_node *node;
++	struct alloc_func *func;
++	struct machine *machine = &kmem_session->machines.host;
++
++	regex_t alloc_func_regex;
++	const char pattern[] = "^_?_?(alloc|get_free|get_zeroed)_pages?";
++
++	ret = regcomp(&alloc_func_regex, pattern, REG_EXTENDED);
++	if (ret) {
++		char err[BUFSIZ];
++
++		regerror(ret, &alloc_func_regex, err, sizeof(err));
++		pr_err("Invalid regex: %s\n%s", pattern, err);
++		return -EINVAL;
++	}
++
++	kernel_map = machine->vmlinux_maps[MAP__FUNCTION];
++	map__load(kernel_map, NULL);
++
++	map__for_each_symbol(kernel_map, sym, node) {
++		if (regexec(&alloc_func_regex, sym->name, 0, NULL, 0))
++			continue;
++
++		func = realloc(alloc_func_list,
++			       (nr_alloc_funcs + 1) * sizeof(*func));
++		if (func == NULL)
++			return -ENOMEM;
++
++		pr_debug("alloc func: %s\n", sym->name);
++		func[nr_alloc_funcs].start = sym->start;
++		func[nr_alloc_funcs].end   = sym->end;
++		func[nr_alloc_funcs].name  = sym->name;
++
++		alloc_func_list = func;
++		nr_alloc_funcs++;
++	}
++
++	qsort(alloc_func_list, nr_alloc_funcs, sizeof(*func), funcmp);
++
++	regfree(&alloc_func_regex);
++	return 0;
++}
++
++/*
++ * Find first non-memory allocation function from callchain.
++ * The allocation functions are in the 'alloc_func_list'.
++ */
++static u64 find_callsite(struct perf_evsel *evsel, struct perf_sample *sample)
++{
++	struct addr_location al;
++	struct machine *machine = &kmem_session->machines.host;
++	struct callchain_cursor_node *node;
++
++	if (alloc_func_list == NULL)
++		build_alloc_func_list();
++
++	al.thread = machine__findnew_thread(machine, sample->pid, sample->tid);
++	sample__resolve_callchain(sample, NULL, evsel, &al, 16);
++
++	callchain_cursor_commit(&callchain_cursor);
++	while (true) {
++		struct alloc_func key, *caller;
++		u64 addr;
++
++		node = callchain_cursor_current(&callchain_cursor);
++		if (node == NULL)
++			break;
++
++		key.start = key.end = node->ip;
++		caller = bsearch(&key, alloc_func_list, nr_alloc_funcs,
++				 sizeof(key), callcmp);
++		if (!caller) {
++			/* found */
++			if (node->map)
++				addr = map__unmap_ip(node->map, node->ip);
++			else
++				addr = node->ip;
++
++			return addr;
++		} else
++			pr_debug3("skipping alloc function: %s\n", caller->name);
++
++		callchain_cursor_advance(&callchain_cursor);
++	}
++
++	pr_debug2("unknown callsite: %"PRIx64 "\n", sample->ip);
++	return sample->ip;
++}
++
++static struct page_stat *search_page(u64 page, bool create)
+ {
+ 	struct rb_node **node = &page_tree.rb_node;
+ 	struct rb_node *parent = NULL;
+@@ -357,6 +491,41 @@ static struct page_stat *search_page_alloc_stat(struct page_stat *stat, bool cre
+ 	return data;
+ }
  
- 	TP_printk("page=%p pfn=%lu order=%d",
--			__entry->page,
--			page_to_pfn(__entry->page),
-+			pfn_to_page(__entry->pfn),
-+			__entry->pfn,
- 			__entry->order)
- );
++static struct page_stat *search_page_caller_stat(u64 callsite, bool create)
++{
++	struct rb_node **node = &page_caller_tree.rb_node;
++	struct rb_node *parent = NULL;
++	struct page_stat *data;
++
++	while (*node) {
++		s64 cmp;
++
++		parent = *node;
++		data = rb_entry(*node, struct page_stat, node);
++
++		cmp = data->callsite - callsite;
++		if (cmp < 0)
++			node = &parent->rb_left;
++		else if (cmp > 0)
++			node = &parent->rb_right;
++		else
++			return data;
++	}
++
++	if (!create)
++		return NULL;
++
++	data = zalloc(sizeof(*data));
++	if (data != NULL) {
++		data->callsite = callsite;
++
++		rb_link_node(&data->node, parent, node);
++		rb_insert_color(&data->node, &page_caller_tree);
++	}
++
++	return data;
++}
++
+ static bool valid_page(u64 pfn_or_page)
+ {
+ 	if (use_pfn && pfn_or_page == -1UL)
+@@ -375,6 +544,7 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
+ 	unsigned int migrate_type = perf_evsel__intval(evsel, sample,
+ 						       "migratetype");
+ 	u64 bytes = kmem_page_size << order;
++	u64 callsite;
+ 	struct page_stat *stat;
+ 	struct page_stat this = {
+ 		.order = order,
+@@ -397,6 +567,8 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
+ 		return 0;
+ 	}
  
-@@ -176,18 +176,18 @@ TRACE_EVENT(mm_page_free_batched,
- 	TP_ARGS(page, cold),
++	callsite = find_callsite(evsel, sample);
++
+ 	/*
+ 	 * This is to find the current page (with correct gfp flags and
+ 	 * migrate type) at free event.
+@@ -408,6 +580,7 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
+ 	stat->order = order;
+ 	stat->gfp_flags = gfp_flags;
+ 	stat->migrate_type = migrate_type;
++	stat->callsite = callsite;
  
- 	TP_STRUCT__entry(
--		__field(	struct page *,	page		)
-+		__field(	unsigned long,	pfn		)
- 		__field(	int,		cold		)
- 	),
+ 	this.page = page;
+ 	stat = search_page_alloc_stat(&this, true);
+@@ -416,6 +589,18 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
  
- 	TP_fast_assign(
--		__entry->page		= page;
-+		__entry->pfn		= page_to_pfn(page);
- 		__entry->cold		= cold;
- 	),
+ 	stat->nr_alloc++;
+ 	stat->alloc_bytes += bytes;
++	stat->callsite = callsite;
++
++	stat = search_page_caller_stat(callsite, true);
++	if (stat == NULL)
++		return -ENOMEM;
++
++	stat->order = order;
++	stat->gfp_flags = gfp_flags;
++	stat->migrate_type = migrate_type;
++
++	stat->nr_alloc++;
++	stat->alloc_bytes += bytes;
  
- 	TP_printk("page=%p pfn=%lu order=0 cold=%d",
--			__entry->page,
--			page_to_pfn(__entry->page),
-+			pfn_to_page(__entry->pfn),
-+			__entry->pfn,
- 			__entry->cold)
- );
+ 	order_stats[order][migrate_type]++;
  
-@@ -199,22 +199,22 @@ TRACE_EVENT(mm_page_alloc,
- 	TP_ARGS(page, order, gfp_flags, migratetype),
+@@ -455,6 +640,7 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
+ 	this.page = page;
+ 	this.gfp_flags = stat->gfp_flags;
+ 	this.migrate_type = stat->migrate_type;
++	this.callsite = stat->callsite;
  
- 	TP_STRUCT__entry(
--		__field(	struct page *,	page		)
-+		__field(	unsigned long,	pfn		)
- 		__field(	unsigned int,	order		)
- 		__field(	gfp_t,		gfp_flags	)
- 		__field(	int,		migratetype	)
- 	),
+ 	rb_erase(&stat->node, &page_tree);
+ 	free(stat);
+@@ -466,6 +652,13 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
+ 	stat->nr_free++;
+ 	stat->free_bytes += bytes;
  
- 	TP_fast_assign(
--		__entry->page		= page;
-+		__entry->pfn		= page ? page_to_pfn(page) : -1UL;
- 		__entry->order		= order;
- 		__entry->gfp_flags	= gfp_flags;
- 		__entry->migratetype	= migratetype;
- 	),
++	stat = search_page_caller_stat(this.callsite, false);
++	if (stat == NULL)
++		return -ENOENT;
++
++	stat->nr_free++;
++	stat->free_bytes += bytes;
++
+ 	return 0;
+ }
  
- 	TP_printk("page=%p pfn=%lu order=%d migratetype=%d gfp_flags=%s",
--		__entry->page,
--		__entry->page ? page_to_pfn(__entry->page) : 0,
-+		__entry->pfn != -1UL ? pfn_to_page(__entry->pfn) : NULL,
-+		__entry->pfn != -1UL ? __entry->pfn : 0,
- 		__entry->order,
- 		__entry->migratetype,
- 		show_gfp_flags(__entry->gfp_flags))
-@@ -227,20 +227,20 @@ DECLARE_EVENT_CLASS(mm_page,
- 	TP_ARGS(page, order, migratetype),
+@@ -576,41 +769,89 @@ static const char * const migrate_type_str[] = {
+ 	"UNKNOWN",
+ };
  
- 	TP_STRUCT__entry(
--		__field(	struct page *,	page		)
-+		__field(	unsigned long,	pfn		)
- 		__field(	unsigned int,	order		)
- 		__field(	int,		migratetype	)
- 	),
+-static void __print_page_result(struct rb_root *root,
+-				struct perf_session *session __maybe_unused,
+-				int n_lines)
++static void __print_page_alloc_result(struct perf_session *session, int n_lines)
+ {
+-	struct rb_node *next = rb_first(root);
++	struct rb_node *next = rb_first(&page_alloc_sorted);
++	struct machine *machine = &session->machines.host;
+ 	const char *format;
  
- 	TP_fast_assign(
--		__entry->page		= page;
-+		__entry->pfn		= page ? page_to_pfn(page) : -1UL;
- 		__entry->order		= order;
- 		__entry->migratetype	= migratetype;
- 	),
+-	printf("\n%.86s\n", graph_dotted_line);
+-	printf(" %-16s | Total alloc (KB) | Hits      | Order | Migration type | GFP flags\n",
++	printf("\n%.105s\n", graph_dotted_line);
++	printf(" %-16s | Total alloc (KB) | Hits      | Order | Migration type | GFP flags | Callsite\n",
+ 	       use_pfn ? "PFN" : "Page");
+-	printf("%.86s\n", graph_dotted_line);
++	printf("%.105s\n", graph_dotted_line);
  
- 	TP_printk("page=%p pfn=%lu order=%u migratetype=%d percpu_refill=%d",
--		__entry->page,
--		__entry->page ? page_to_pfn(__entry->page) : 0,
-+		__entry->pfn != -1UL ? pfn_to_page(__entry->pfn) : NULL,
-+		__entry->pfn != -1UL ? __entry->pfn : 0,
- 		__entry->order,
- 		__entry->migratetype,
- 		__entry->order == 0)
-@@ -260,7 +260,7 @@ DEFINE_EVENT_PRINT(mm_page, mm_page_pcpu_drain,
- 	TP_ARGS(page, order, migratetype),
+ 	if (use_pfn)
+-		format = " %16llu | %'16llu | %'9d | %5d | %14s |  %08lx\n";
++		format = " %16llu | %'16llu | %'9d | %5d | %14s |  %08lx | %s\n";
+ 	else
+-		format = " %016llx | %'16llu | %'9d | %5d | %14s |  %08lx\n";
++		format = " %016llx | %'16llu | %'9d | %5d | %14s |  %08lx | %s\n";
  
- 	TP_printk("page=%p pfn=%lu order=%d migratetype=%d",
--		__entry->page, page_to_pfn(__entry->page),
-+		pfn_to_page(__entry->pfn), __entry->pfn,
- 		__entry->order, __entry->migratetype)
- );
+ 	while (next && n_lines--) {
+ 		struct page_stat *data;
++		struct symbol *sym;
++		struct map *map;
++		char buf[32];
++		char *caller = buf;
  
-@@ -275,7 +275,7 @@ TRACE_EVENT(mm_page_alloc_extfrag,
- 		alloc_migratetype, fallback_migratetype),
+ 		data = rb_entry(next, struct page_stat, node);
++		sym = machine__find_kernel_function(machine, data->callsite,
++						    &map, NULL);
++		if (sym && sym->name)
++			caller = sym->name;
++		else
++			scnprintf(buf, sizeof(buf), "%"PRIx64, data->callsite);
  
- 	TP_STRUCT__entry(
--		__field(	struct page *,	page			)
-+		__field(	unsigned long,	pfn			)
- 		__field(	int,		alloc_order		)
- 		__field(	int,		fallback_order		)
- 		__field(	int,		alloc_migratetype	)
-@@ -284,7 +284,7 @@ TRACE_EVENT(mm_page_alloc_extfrag,
- 	),
+ 		printf(format, (unsigned long long)data->page,
+ 		       (unsigned long long)data->alloc_bytes / 1024,
+ 		       data->nr_alloc, data->order,
+ 		       migrate_type_str[data->migrate_type],
+-		       (unsigned long)data->gfp_flags);
++		       (unsigned long)data->gfp_flags, caller);
++
++		next = rb_next(next);
++	}
++
++	if (n_lines == -1)
++		printf(" ...              | ...              | ...       | ...   | ...            | ...       | ...\n");
++
++	printf("%.105s\n", graph_dotted_line);
++}
++
++static void __print_page_caller_result(struct perf_session *session, int n_lines)
++{
++	struct rb_node *next = rb_first(&page_caller_sorted);
++	struct machine *machine = &session->machines.host;
++
++	printf("\n%.105s\n", graph_dotted_line);
++	printf(" Total alloc (KB) | Hits      | Order | Migration type | GFP flags | Callsite\n");
++	printf("%.105s\n", graph_dotted_line);
++
++	while (next && n_lines--) {
++		struct page_stat *data;
++		struct symbol *sym;
++		struct map *map;
++		char buf[32];
++		char *caller = buf;
++
++		data = rb_entry(next, struct page_stat, node);
++		sym = machine__find_kernel_function(machine, data->callsite,
++						    &map, NULL);
++		if (sym && sym->name)
++			caller = sym->name;
++		else
++			scnprintf(buf, sizeof(buf), "%"PRIx64, data->callsite);
++
++		printf(" %'16llu | %'9d | %5d | %14s |  %08lx | %s\n",
++		       (unsigned long long)data->alloc_bytes / 1024,
++		       data->nr_alloc, data->order,
++		       migrate_type_str[data->migrate_type],
++		       (unsigned long)data->gfp_flags, caller);
  
- 	TP_fast_assign(
--		__entry->page			= page;
-+		__entry->pfn			= page_to_pfn(page);
- 		__entry->alloc_order		= alloc_order;
- 		__entry->fallback_order		= fallback_order;
- 		__entry->alloc_migratetype	= alloc_migratetype;
-@@ -294,8 +294,8 @@ TRACE_EVENT(mm_page_alloc_extfrag,
- 	),
+ 		next = rb_next(next);
+ 	}
  
- 	TP_printk("page=%p pfn=%lu alloc_order=%d fallback_order=%d pageblock_order=%d alloc_migratetype=%d fallback_migratetype=%d fragmenting=%d change_ownership=%d",
--		__entry->page,
--		page_to_pfn(__entry->page),
-+		pfn_to_page(__entry->pfn),
-+		__entry->pfn,
- 		__entry->alloc_order,
- 		__entry->fallback_order,
- 		pageblock_order,
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index 69590b6ffc09..f66476b96264 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -336,18 +336,18 @@ TRACE_EVENT(mm_vmscan_writepage,
- 	TP_ARGS(page, reclaim_flags),
+ 	if (n_lines == -1)
+-		printf(" ...              | ...              | ...       | ...   | ...            | ...     \n");
++		printf(" ...              | ...       | ...   | ...            | ...       | ...\n");
  
- 	TP_STRUCT__entry(
--		__field(struct page *, page)
-+		__field(unsigned long, pfn)
- 		__field(int, reclaim_flags)
- 	),
+-	printf("%.86s\n", graph_dotted_line);
++	printf("%.105s\n", graph_dotted_line);
+ }
  
- 	TP_fast_assign(
--		__entry->page = page;
-+		__entry->pfn = page_to_pfn(page);
- 		__entry->reclaim_flags = reclaim_flags;
- 	),
+ static void print_slab_summary(void)
+@@ -682,8 +923,10 @@ static void print_slab_result(struct perf_session *session)
  
- 	TP_printk("page=%p pfn=%lu flags=%s",
--		__entry->page,
--		page_to_pfn(__entry->page),
-+		pfn_to_page(__entry->pfn),
-+		__entry->pfn,
- 		show_reclaim_flags(__entry->reclaim_flags))
- );
+ static void print_page_result(struct perf_session *session)
+ {
++	if (caller_flag)
++		__print_page_caller_result(session, caller_lines);
+ 	if (alloc_flag)
+-		__print_page_result(&page_alloc_sorted, session, alloc_lines);
++		__print_page_alloc_result(session, alloc_lines);
+ 	print_page_summary();
+ }
  
+@@ -802,6 +1045,7 @@ static void sort_result(void)
+ 	}
+ 	if (kmem_page) {
+ 		__sort_page_result(&page_alloc_tree, &page_alloc_sorted);
++		__sort_page_result(&page_caller_tree, &page_caller_sorted);
+ 	}
+ }
+ 
+@@ -839,8 +1083,8 @@ static int __cmd_kmem(struct perf_session *session)
+ 	}
+ 
+ 	setup_pager();
+-	err = perf_session__process_events(session); {
+-	if (err != 0)
++	err = perf_session__process_events(session);
++	if (err != 0) {
+ 		pr_err("error during process events: %d\n", err);
+ 		goto out;
+ 	}
+@@ -1084,7 +1328,7 @@ static int __cmd_record(int argc, const char **argv)
+ 	if (kmem_slab)
+ 		rec_argc += ARRAY_SIZE(slab_events);
+ 	if (kmem_page)
+-		rec_argc += ARRAY_SIZE(page_events);
++		rec_argc += ARRAY_SIZE(page_events) + 1; /* for -g */
+ 
+ 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
+ 
+@@ -1099,6 +1343,8 @@ static int __cmd_record(int argc, const char **argv)
+ 			rec_argv[i] = strdup(slab_events[j]);
+ 	}
+ 	if (kmem_page) {
++		rec_argv[i++] = strdup("-g");
++
+ 		for (j = 0; j < ARRAY_SIZE(page_events); j++, i++)
+ 			rec_argv[i] = strdup(page_events[j]);
+ 	}
+@@ -1157,7 +1403,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
+ 		return __cmd_record(argc, argv);
+ 	}
+ 
+-	session = perf_session__new(&file, false, &perf_kmem);
++	kmem_session = session = perf_session__new(&file, false, &perf_kmem);
+ 	if (session == NULL)
+ 		return -1;
+ 
+@@ -1170,6 +1416,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
+ 		}
+ 
+ 		kmem_page_size = pevent_get_page_size(evsel->tp_format->pevent);
++		symbol_conf.use_callchain = true;
+ 	}
+ 
+ 	symbol__init(&session->header.env);
 -- 
 2.3.3
 
