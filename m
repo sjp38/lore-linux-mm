@@ -1,54 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f182.google.com (mail-yk0-f182.google.com [209.85.160.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 877CB6B006C
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 10:58:08 -0400 (EDT)
-Received: by ykel193 with SMTP id l193so9928570yke.2
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 07:58:08 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id hv1si5254021qcb.11.2015.03.26.07.58.07
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 056136B006C
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 11:04:29 -0400 (EDT)
+Received: by wgra20 with SMTP id a20so67308215wgr.3
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 08:04:28 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id u5si10295779wjy.196.2015.03.26.08.04.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 26 Mar 2015 07:58:07 -0700 (PDT)
-Message-ID: <55141E75.4090403@oracle.com>
-Date: Thu, 26 Mar 2015 09:57:57 -0500
-From: Dave Kleikamp <dave.kleikamp@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Mar 2015 08:04:26 -0700 (PDT)
+Date: Thu, 26 Mar 2015 11:04:18 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 04/12] mm: oom_kill: remove unnecessary locking in
+ exit_oom_victim()
+Message-ID: <20150326150418.GA23973@cmpxchg.org>
+References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
+ <1427264236-17249-5-git-send-email-hannes@cmpxchg.org>
+ <20150326125348.GF15257@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [patch 1/4] fs, jfs: remove slab object constructor
-References: <alpine.DEB.2.10.1503241607240.21805@chino.kir.corp.google.com> <alpine.LRH.2.02.1503252157330.6657@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.10.1503251935180.16714@chino.kir.corp.google.com> <20150326072800.GA26163@lst.de>
-In-Reply-To: <20150326072800.GA26163@lst.de>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150326125348.GF15257@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>, David Rientjes <rientjes@google.com>
-Cc: Mikulas Patocka <mpatocka@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Kleikamp <shaggy@kernel.org>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>
 
-On 03/26/2015 02:28 AM, Christoph Hellwig wrote:
-> On Wed, Mar 25, 2015 at 07:37:40PM -0700, David Rientjes wrote:
->> That would be true only for
->>
->> 	ptr = mempool_alloc(gfp, pool);
->> 	mempool_free(ptr, pool);
->>
->> and nothing in between, and that's pretty pointless.  Typically, callers 
->> allocate memory, modify it, and then free it.  When that happens with 
->> mempools, and we can't allocate slab because of the gfp context, mempools 
->> will return elements in the state in which they were freed (modified, not 
->> as constructed).
+On Thu, Mar 26, 2015 at 01:53:48PM +0100, Michal Hocko wrote:
+> On Wed 25-03-15 02:17:08, Johannes Weiner wrote:
+> > Right now the only waiter is suspend code, which achieves quiescence
+> > by disabling the OOM killer.  But later on we want to add waits that
+> > hold the lock instead to stop new victims from showing up.
 > 
-> The historic slab allocator (Solaris and early Linux) expects objects
-> to be returned in the same / similar enough form as the constructor
-> returned it, and the constructor is only called when allocating pages
-> from the page pool.
+> It is not entirely clear what you mean by this from the current context.
+> exit_oom_victim is not called from any context which would be locked by
+> any OOM internals so it should be safe to use the locking.
 
-I'm pretty sure that this was the intention of the jfs code. Returned
-objects should have these fields returned to their initial values. It
-does seem error-prone, though. If jfs is in fact the last user of the
-constructor, it's probably time for it to die.
-
-> 
-> I have to admit that I haven't used this feature forever, and I have no idea if
-> people changed how the allocator works in the meantime.
+A later patch will add another wait_event() to wait for oom victims to
+drop to zero.  But that new consumer won't be disabling the OOM killer
+to prevent new victims from showing up, it will just hold the lock to
+exclude OOM kills.  So the exiting victims shouldn't get stuck on that
+lock which the guy that is waiting for them is holding.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
