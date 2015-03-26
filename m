@@ -1,76 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E0C46B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 15:32:42 -0400 (EDT)
-Received: by pdbcz9 with SMTP id cz9so72008492pdb.3
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 12:32:41 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id ms3si9571717pbb.228.2015.03.26.12.32.39
-        for <linux-mm@kvack.org>;
-        Thu, 26 Mar 2015 12:32:40 -0700 (PDT)
-Date: Fri, 27 Mar 2015 06:32:24 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Should implementations of ->direct_access be allowed to sleep?
-Message-ID: <20150326193224.GA28129@dastard>
-References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
- <1411677218-29146-22-git-send-email-matthew.r.wilcox@intel.com>
- <20150324185046.GA4994@whiteoak.sf.office.twttr.net>
- <20150326170918.GO4003@linux.intel.com>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D55D6B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 15:39:06 -0400 (EDT)
+Received: by pdbop1 with SMTP id op1so72191247pdb.2
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 12:39:05 -0700 (PDT)
+Received: from x35.xmailserver.org (x35.xmailserver.org. [64.71.152.41])
+        by mx.google.com with ESMTPS id ri8si9590750pbc.225.2015.03.26.12.39.05
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 26 Mar 2015 12:39:05 -0700 (PDT)
+Received: from davide-lnx3.corp.ebay.com
+	by x35.xmailserver.org with [XMail 1.27 ESMTP Server]
+	id <S423AA1> for <linux-mm@kvack.org> from <davidel@xmailserver.org>;
+	Thu, 26 Mar 2015 15:39:14 -0400
+Date: Thu, 26 Mar 2015 12:39:00 -0700 (PDT)
+From: Davide Libenzi <davidel@xmailserver.org>
+Subject: Re: [patch][resend] MAP_HUGETLB munmap fails with size not 2MB
+ aligned
+In-Reply-To: <alpine.DEB.2.10.1503261201440.8238@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1503261221470.5119@davide-lnx3>
+References: <alpine.DEB.2.10.1410221518160.31326@davide-lnx3> <alpine.LSU.2.11.1503251708530.5592@eggly.anvils> <alpine.DEB.2.10.1503251754320.26501@davide-lnx3> <alpine.DEB.2.10.1503251938170.16714@chino.kir.corp.google.com> <alpine.DEB.2.10.1503260431290.2755@mbplnx>
+ <alpine.DEB.2.10.1503261201440.8238@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150326170918.GO4003@linux.intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, msharbiani@twopensource.com
+To: David Rientjes <rientjes@google.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, Eric B Munson <emunson@akamai.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu, Mar 26, 2015 at 01:09:18PM -0400, Matthew Wilcox wrote:
-> On Tue, Mar 24, 2015 at 11:50:47AM -0700, Matt Mullins wrote:
-> > We're also developing a user of direct_access, and we ended up with some
-> > questions about the sleeping guarantees of the direct_access API.
+On Thu, 26 Mar 2015, David Rientjes wrote:
+
+> Yes, this munmap() behavior of lengths <= hugepage_size - PAGE_SIZE for a 
+> hugetlb vma is long standing and there may be applications that break as a 
+> result of changing the behavior: a database that reserves all allocated 
+> hugetlb memory with mmap() so that it always has exclusive access to those 
+> hugepages, whether they are faulted or not, and maintains its own hugepage 
+> pool (which is common), may test the return value of munmap() and depend 
+> on it returning -EINVAL to determine if it is freeing memory that was 
+> either dynamically allocated or mapped from the hugetlb reserved pool.
+
+You went a long way to create such a case.
+But, in your case, that application will erroneously considering hugepage 
+mmaped memory, as dynamically allocated, since it will always get EINVAL, 
+unless it passes an aligned size. Aligned size, which a fix like the one 
+posted in the patch will still leave as success.
+OTOH, an application, which might be more common than the one you posted,
+which calls munmap() to release a pointer which it validly got from a 
+previous mmap(), will leak huge pages as all the issued munmaps will fail.
+
+
+> If we were to go back in time and decide this when the munmap() behavior 
+> for hugetlb vmas was originally introduced, that would be valid.  The 
+> problem is that it could lead to userspace breakage and that's a 
+> non-starter.
 > 
-> That's a great question.  Since DAX can always sleep when it's calling
-> into bdev_direct_access(), I hadn't thought about it (DAX is basically
-> called to handle page faults and do I/O; both of which are expected
-> to sleep).
-> 
-> > Since brd is currently the only (x86) implementation of DAX in Linus's tree,
-> > I've been testing against that.  We noticed that the brd implementation of DAX
-> > can call into alloc_page() with __GFP_WAIT if we call direct_access() on a page
-> > that has not yet been allocated.  This is compounded by the fact that brd does
-> > not support size > PAGE_SIZE (and thus I call bdev_direct_access() on each use),
-> > though the limitation makes sense -- I shouldn't expect the brd driver to be
-> > able to allocate a gigabyte of contiguous memory.
-> > 
-> > The potential sleeping behavior was somewhat surprising to me, as I would expect
-> > the NV-DIMM device implementation to simply offset the pfn at which the device
-> > is located rather than perform a memory allocation.  What are the guaranteed
-> > and/or expected contexts from which direct_access() can be safely called?
-> 
-> Yes, for 'real' NV-DIMM devices, as you can see by the ones in tree,
-> as well as the pmem driver that Ross has been posting, it's a simple
-> piece of arithmetic.  The question is whether we should make all users
-> of ->direct_access accommodate brd, or whether we should change brd so
-> that it doesn't sleep.
-> 
-> I'm leaning towards the latter.  But I'm not sure what GFP flags to
-> recommend that brd use ... GFP_NOWAIT | __GFP_ZERO, perhaps?
+> What we can do is improve the documentation and man-page to clearly 
+> specify the long-standing behavior so that nobody encounters unexpected 
+> results in the future.
 
-What, so we get random IO failures under memory pressure?
+This way you will leave the mmap API with broken semantics.
+In any case, I am done arguing.
+I will leave to Andrew to sort it out, and to Michael Kerrisk to update 
+the mmap man pages with the new funny behaviour.
 
-I really think we should allow .direct_access to sleep. It means we
-can use existing drivers and it also allows future implementations
-that might require, say, RDMA to be performed to update a page
-before access is granted. i.e. .direct_access is the first hook into
-the persistent device at page fault time....
 
-Cheers,
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+- Davide
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
