@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id C1A21900015
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 02:07:22 -0400 (EDT)
-Received: by pacwe9 with SMTP id we9so53186857pac.1
-        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 23:07:22 -0700 (PDT)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 03F68900015
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 02:07:25 -0400 (EDT)
+Received: by pabxg6 with SMTP id xg6so53303679pab.0
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2015 23:07:24 -0700 (PDT)
 Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id oz10si6912431pdb.15.2015.03.25.23.07.12
+        by mx.google.com with ESMTP id te6si6822365pbc.185.2015.03.25.23.07.12
         for <linux-mm@kvack.org>;
-        Wed, 25 Mar 2015 23:07:13 -0700 (PDT)
+        Wed, 25 Mar 2015 23:07:14 -0700 (PDT)
 From: Namhyung Kim <namhyung@kernel.org>
-Subject: [PATCH 6/6] perf kmem: Print gfp flags in human readable string
-Date: Thu, 26 Mar 2015 15:00:36 +0900
-Message-Id: <1427349636-9796-7-git-send-email-namhyung@kernel.org>
+Subject: [PATCH 5/6] perf kmem: Add --live option for current allocation stat
+Date: Thu, 26 Mar 2015 15:00:35 +0900
+Message-Id: <1427349636-9796-6-git-send-email-namhyung@kernel.org>
 In-Reply-To: <1427349636-9796-1-git-send-email-namhyung@kernel.org>
 References: <1427349636-9796-1-git-send-email-namhyung@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,150 +19,254 @@ List-ID: <linux-mm.kvack.org>
 To: Arnaldo Carvalho de Melo <acme@kernel.org>
 Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org
 
-Save libtraceevent output and print it in the header.
+Currently perf kmem shows total (page) allocation stat by default, but
+sometimes one might want to see live (total alloc-only) requests/pages
+only.  The new --live option does this by subtracting freed allocation
+from the stat.
 
-  # perf kmem stat --page --caller
-  # GFP flags
-  # ---------
-  # 00000010: GFP_NOIO
-  # 000000d0: GFP_KERNEL
-  # 00000200: GFP_NOWARN
-  # 000084d0: GFP_KERNEL|GFP_REPEAT|GFP_ZERO
-  # 000200d2: GFP_HIGHUSER
-  # 000200da: GFP_HIGHUSER_MOVABLE
-  # 000280da: GFP_HIGHUSER_MOVABLE|GFP_ZERO
-  # 002084d0: GFP_KERNEL|GFP_REPEAT|GFP_ZERO|GFP_NOTRACK
-  # 0102005a: GFP_NOFS|GFP_HARDWALL|GFP_MOVABLE
-
-  ---------------------------------------------------------------------------------------------------------
-   Total alloc (KB) | Hits      | Order | Migration type | GFP flags | Callsite
-  ---------------------------------------------------------------------------------------------------------
-                 60 |        15 |     0 |      UNMOVABLE |  002084d0 | pte_alloc_one
-                 40 |        10 |     0 |        MOVABLE |  000280da | handle_mm_fault
-                 24 |         6 |     0 |        MOVABLE |  000200da | do_wp_page
-                 24 |         6 |     0 |      UNMOVABLE |  000000d0 | __pollwait
-   ...
-
-Requested-by: Joonsoo Kim <js1304@gmail.com>
-Suggested-by: Minchan Kim <minchan@kernel.org>
 Signed-off-by: Namhyung Kim <namhyung@kernel.org>
 ---
- tools/perf/builtin-kmem.c | 81 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 81 insertions(+)
+ tools/perf/Documentation/perf-kmem.txt |   5 ++
+ tools/perf/builtin-kmem.c              | 103 ++++++++++++++++++++-------------
+ 2 files changed, 69 insertions(+), 39 deletions(-)
 
+diff --git a/tools/perf/Documentation/perf-kmem.txt b/tools/perf/Documentation/perf-kmem.txt
+index 0ebd9c8bfdbf..5a2d9aaf1933 100644
+--- a/tools/perf/Documentation/perf-kmem.txt
++++ b/tools/perf/Documentation/perf-kmem.txt
+@@ -56,6 +56,11 @@ OPTIONS
+ --page::
+ 	Analyze page allocator events
+ 
++--live::
++	Show live page stat.  The perf kmem shows total allocation stat by
++	default, but this option shows live (currently allocated) pages
++	instead.  (This option works with --page option only)
++
+ SEE ALSO
+ --------
+ linkperf:perf-record[1]
 diff --git a/tools/perf/builtin-kmem.c b/tools/perf/builtin-kmem.c
-index c09e332f7f38..502f6944a04c 100644
+index 2f9322b59140..c09e332f7f38 100644
 --- a/tools/perf/builtin-kmem.c
 +++ b/tools/perf/builtin-kmem.c
-@@ -545,6 +545,72 @@ static bool valid_page(u64 pfn_or_page)
- 	return true;
+@@ -244,6 +244,7 @@ static unsigned long nr_page_fails;
+ static unsigned long nr_page_nomatch;
+ 
+ static bool use_pfn;
++static bool live_page;
+ static struct perf_session *kmem_session;
+ 
+ #define MAX_MIGRATE_TYPES  6
+@@ -264,7 +265,7 @@ struct page_stat {
+ 	int 		nr_free;
+ };
+ 
+-static struct rb_root page_tree;
++static struct rb_root page_live_tree;
+ static struct rb_root page_alloc_tree;
+ static struct rb_root page_alloc_sorted;
+ static struct rb_root page_caller_tree;
+@@ -398,10 +399,19 @@ static u64 find_callsite(struct perf_evsel *evsel, struct perf_sample *sample)
+ 	return sample->ip;
  }
  
-+struct gfp_flag {
-+	unsigned int flags;
-+	char *human_readable;
++struct sort_dimension {
++	const char		name[20];
++	sort_fn_t		cmp;
++	struct list_head	list;
 +};
 +
-+static struct gfp_flag *gfps;
-+static int nr_gfps;
-+
-+static int gfpcmp(const void *a, const void *b)
-+{
-+	const struct gfp_flag *fa = a;
-+	const struct gfp_flag *fb = b;
-+
-+	return fa->flags - fb->flags;
-+}
-+
-+static int parse_gfp_flags(struct perf_evsel *evsel, struct perf_sample *sample,
-+			   unsigned int gfp_flags)
-+{
-+	struct pevent_record record = {
-+		.cpu = sample->cpu,
-+		.data = sample->raw_data,
-+		.size = sample->raw_size,
-+	};
-+	struct trace_seq seq;
-+	char *str;
-+
-+	if (nr_gfps) {
-+		struct gfp_flag key = {
-+			.flags = gfp_flags,
-+		};
-+
-+		if (bsearch(&key, gfps, nr_gfps, sizeof(*gfps), gfpcmp))
-+			return 0;
-+	}
-+
-+	trace_seq_init(&seq);
-+	pevent_event_info(&seq, evsel->tp_format, &record);
-+
-+	str = strtok(seq.buffer, " ");
-+	while (str) {
-+		if (!strncmp(str, "gfp_flags=", 10)) {
-+			struct gfp_flag *new;
-+
-+			new = realloc(gfps, (nr_gfps + 1) * sizeof(*gfps));
-+			if (new == NULL)
-+				return -ENOMEM;
-+
-+			gfps = new;
-+			new += nr_gfps++;
-+
-+			new->flags = gfp_flags;
-+			new->human_readable = strdup(str + 10);
-+			if (new->human_readable == NULL)
-+				return -ENOMEM;
-+
-+			qsort(gfps, nr_gfps, sizeof(*gfps), gfpcmp);
-+		}
-+
-+		str = strtok(NULL, " ");
-+	}
-+
-+	trace_seq_destroy(&seq);
-+	return 0;
-+}
-+
- static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
- 						struct perf_sample *sample)
++static LIST_HEAD(page_alloc_sort_input);
++static LIST_HEAD(page_caller_sort_input);
+ 
+-static struct page_stat *search_page(u64 page, bool create)
++static struct page_stat *search_page_live_stat(struct page_stat *this,
++					       bool create)
  {
-@@ -577,6 +643,9 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
+-	struct rb_node **node = &page_tree.rb_node;
++	struct rb_node **node = &page_live_tree.rb_node;
+ 	struct rb_node *parent = NULL;
+ 	struct page_stat *data;
+ 
+@@ -411,7 +421,7 @@ static struct page_stat *search_page(u64 page, bool create)
+ 		parent = *node;
+ 		data = rb_entry(*node, struct page_stat, node);
+ 
+-		cmp = data->page - page;
++		cmp = data->page - this->page;
+ 		if (cmp < 0)
+ 			node = &parent->rb_left;
+ 		else if (cmp > 0)
+@@ -425,24 +435,17 @@ static struct page_stat *search_page(u64 page, bool create)
+ 
+ 	data = zalloc(sizeof(*data));
+ 	if (data != NULL) {
+-		data->page = page;
++		data->page = this->page;
++		data->order = this->order;
++		data->migrate_type = this->migrate_type;
++		data->gfp_flags = this->gfp_flags;
+ 
+ 		rb_link_node(&data->node, parent, node);
+-		rb_insert_color(&data->node, &page_tree);
++		rb_insert_color(&data->node, &page_live_tree);
+ 	}
+ 
+ 	return data;
+ }
+-
+-struct sort_dimension {
+-	const char		name[20];
+-	sort_fn_t		cmp;
+-	struct list_head	list;
+-};
+-
+-static LIST_HEAD(page_alloc_sort_input);
+-static LIST_HEAD(page_caller_sort_input);
+-
+ static struct page_stat *search_page_alloc_stat(struct page_stat *this,
+ 						bool create)
+ {
+@@ -580,17 +583,8 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
+ 	 * This is to find the current page (with correct gfp flags and
+ 	 * migrate type) at free event.
+ 	 */
+-	stat = search_page(page, true);
+-	if (stat == NULL)
+-		return -ENOMEM;
+-
+-	stat->order = order;
+-	stat->gfp_flags = gfp_flags;
+-	stat->migrate_type = migrate_type;
+-	stat->callsite = callsite;
+-
+ 	this.page = page;
+-	stat = search_page_alloc_stat(&this, true);
++	stat = search_page_live_stat(&this, true);
+ 	if (stat == NULL)
+ 		return -ENOMEM;
+ 
+@@ -598,6 +592,16 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
+ 	stat->alloc_bytes += bytes;
+ 	stat->callsite = callsite;
+ 
++	if (!live_page) {
++		stat = search_page_alloc_stat(&this, true);
++		if (stat == NULL)
++			return -ENOMEM;
++
++		stat->nr_alloc++;
++		stat->alloc_bytes += bytes;
++		stat->callsite = callsite;
++	}
++
+ 	this.callsite = callsite;
+ 	stat = search_page_caller_stat(&this, true);
+ 	if (stat == NULL)
+@@ -630,7 +634,8 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
+ 	nr_page_frees++;
+ 	total_page_free_bytes += bytes;
+ 
+-	stat = search_page(page, false);
++	this.page = page;
++	stat = search_page_live_stat(&this, false);
+ 	if (stat == NULL) {
+ 		pr_debug2("missing free at page %"PRIx64" (order: %d)\n",
+ 			  page, order);
+@@ -641,20 +646,23 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
  		return 0;
  	}
  
-+	if (parse_gfp_flags(evsel, sample, gfp_flags) < 0)
-+		return -1;
-+
- 	callsite = find_callsite(evsel, sample);
+-	this.page = page;
+ 	this.gfp_flags = stat->gfp_flags;
+ 	this.migrate_type = stat->migrate_type;
+ 	this.callsite = stat->callsite;
  
- 	/*
-@@ -877,6 +946,16 @@ static void __print_page_caller_result(struct perf_session *session, int n_lines
- 	printf("%.105s\n", graph_dotted_line);
+-	rb_erase(&stat->node, &page_tree);
++	rb_erase(&stat->node, &page_live_tree);
+ 	free(stat);
+ 
+-	stat = search_page_alloc_stat(&this, false);
+-	if (stat == NULL)
+-		return -ENOENT;
++	if (live_page) {
++		order_stats[this.order][this.migrate_type]--;
++	} else {
++		stat = search_page_alloc_stat(&this, false);
++		if (stat == NULL)
++			return -ENOMEM;
+ 
+-	stat->nr_free++;
+-	stat->free_bytes += bytes;
++		stat->nr_free++;
++		stat->free_bytes += bytes;
++	}
+ 
+ 	stat = search_page_caller_stat(&this, false);
+ 	if (stat == NULL)
+@@ -663,6 +671,16 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
+ 	stat->nr_free++;
+ 	stat->free_bytes += bytes;
+ 
++	if (live_page) {
++		stat->nr_alloc--;
++		stat->alloc_bytes -= bytes;
++
++		if (stat->nr_alloc == 0) {
++			rb_erase(&stat->node, &page_caller_tree);
++			free(stat);
++		}
++	}
++
+ 	return 0;
  }
  
-+static void print_gfp_flags(void)
-+{
-+	int i;
-+
-+	printf("# GFP flags\n");
-+	printf("# ---------\n");
-+	for (i = 0; i < nr_gfps; i++)
-+		printf("# %08x: %s\n", gfps[i].flags, gfps[i].human_readable);
-+}
-+
- static void print_slab_summary(void)
- {
- 	printf("\nSUMMARY (SLAB allocator)");
-@@ -946,6 +1025,8 @@ static void print_slab_result(struct perf_session *session)
+@@ -780,8 +798,8 @@ static void __print_page_alloc_result(struct perf_session *session, int n_lines)
+ 	const char *format;
  
- static void print_page_result(struct perf_session *session)
- {
-+	if (caller_flag || alloc_flag)
-+		print_gfp_flags();
- 	if (caller_flag)
- 		__print_page_caller_result(session, caller_lines);
- 	if (alloc_flag)
+ 	printf("\n%.105s\n", graph_dotted_line);
+-	printf(" %-16s | Total alloc (KB) | Hits      | Order | Migration type | GFP flags | Callsite\n",
+-	       use_pfn ? "PFN" : "Page");
++	printf(" %-16s | %5s alloc (KB) | Hits      | Order | Migration type | GFP flags | Callsite\n",
++	       use_pfn ? "PFN" : "Page", live_page ? "Live" : "Total");
+ 	printf("%.105s\n", graph_dotted_line);
+ 
+ 	if (use_pfn)
+@@ -825,7 +843,8 @@ static void __print_page_caller_result(struct perf_session *session, int n_lines
+ 	struct machine *machine = &session->machines.host;
+ 
+ 	printf("\n%.105s\n", graph_dotted_line);
+-	printf(" Total alloc (KB) | Hits      | Order | Migration type | GFP flags | Callsite\n");
++	printf(" %5s alloc (KB) | Hits      | Order | Migration type | GFP flags | Callsite\n",
++	       live_page ? "Live" : "Total");
+ 	printf("%.105s\n", graph_dotted_line);
+ 
+ 	while (next && n_lines--) {
+@@ -1050,8 +1069,13 @@ static void sort_result(void)
+ 				   &slab_caller_sort);
+ 	}
+ 	if (kmem_page) {
+-		__sort_page_result(&page_alloc_tree, &page_alloc_sorted,
+-				   &page_alloc_sort);
++		if (live_page)
++			__sort_page_result(&page_live_tree, &page_alloc_sorted,
++					   &page_alloc_sort);
++		else
++			__sort_page_result(&page_alloc_tree, &page_alloc_sorted,
++					   &page_alloc_sort);
++
+ 		__sort_page_result(&page_caller_tree, &page_caller_sorted,
+ 				   &page_caller_sort);
+ 	}
+@@ -1591,6 +1615,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
+ 			   parse_slab_opt),
+ 	OPT_CALLBACK_NOOPT(0, "page", NULL, NULL, "Analyze page allocator",
+ 			   parse_page_opt),
++	OPT_BOOLEAN(0, "live", &live_page, "Show live page stat"),
+ 	OPT_END()
+ 	};
+ 	const char *const kmem_subcommands[] = { "record", "stat", NULL };
 -- 
 2.3.3
 
