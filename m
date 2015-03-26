@@ -1,38 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 139636B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 16:05:07 -0400 (EDT)
-Received: by igcau2 with SMTP id au2so2272802igc.0
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 13:05:06 -0700 (PDT)
-Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com. [2607:f8b0:4001:c05::22b])
-        by mx.google.com with ESMTPS id py6si5686646icb.94.2015.03.26.13.05.06
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FD9B6B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 16:18:25 -0400 (EDT)
+Received: by pdbni2 with SMTP id ni2so73186429pdb.1
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 13:18:25 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id qh9si2791311pab.98.2015.03.26.13.18.24
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Mar 2015 13:05:06 -0700 (PDT)
-Received: by igcxg11 with SMTP id xg11so2289181igc.0
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 13:05:06 -0700 (PDT)
-Date: Thu, 26 Mar 2015 13:05:04 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 01/12] mm: oom_kill: remove unnecessary locking in
- oom_enable()
-In-Reply-To: <1427264236-17249-2-git-send-email-hannes@cmpxchg.org>
-Message-ID: <alpine.DEB.2.10.1503261304540.9410@chino.kir.corp.google.com>
-References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org> <1427264236-17249-2-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Thu, 26 Mar 2015 13:18:24 -0700 (PDT)
+Date: Thu, 26 Mar 2015 13:18:22 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC] vmstat: Avoid waking up idle-cpu to service shepherd work
+Message-Id: <20150326131822.fce6609efdd85b89ceb3f61c@linux-foundation.org>
+In-Reply-To: <359c926bc85cdf79650e39f2344c2083002545bb.1427347966.git.viresh.kumar@linaro.org>
+References: <359c926bc85cdf79650e39f2344c2083002545bb.1427347966.git.viresh.kumar@linaro.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Michal Hocko <mhocko@suse.cz>, Theodore Ts'o <tytso@mit.edu>
+To: Viresh Kumar <viresh.kumar@linaro.org>
+Cc: hannes@cmpxchg.org, cl@linux.com, linaro-kernel@lists.linaro.org, linux-kernel@vger.kernel.org, vinmenon@codeaurora.org, shashim@codeaurora.org, mhocko@suse.cz, mgorman@suse.de, dave@stgolabs.net, koct9i@gmail.com, linux-mm@kvack.org, Suresh Siddha <suresh.b.siddha@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-On Wed, 25 Mar 2015, Johannes Weiner wrote:
+On Thu, 26 Mar 2015 11:09:01 +0530 Viresh Kumar <viresh.kumar@linaro.org> wrote:
 
-> Setting oom_killer_disabled to false is atomic, there is no need for
-> further synchronization with ongoing allocations trying to OOM-kill.
+> A delayed work to schedule vmstat_shepherd() is queued at periodic intervals for
+> internal working of vmstat core. This work and its timer end up waking an idle
+> cpu sometimes, as this always stays on CPU0.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Because we re-queue the work from its handler, idle_cpu() returns false and so
+> the timer (used by delayed work) never migrates to any other CPU.
+> 
+> This may not be the desired behavior always as waking up an idle CPU to queue
+> work on few other CPUs isn't good from power-consumption point of view.
+> 
+> In order to avoid waking up an idle core, we can replace schedule_delayed_work()
+> with a normal work plus a separate timer. The timer handler will then queue the
+> work after re-arming the timer. If the CPU was idle before the timer fired,
+> idle_cpu() will mostly return true and the next timer shall be migrated to a
+> non-idle CPU.
+> 
+> But the timer core has a limitation, when the timer is re-armed from its
+> handler, timer core disables migration of that timer to other cores. Details of
+> that limitation are present in kernel/time/timer.c:__mod_timer() routine.
+> 
+> Another simple yet effective solution can be to keep two timers with same
+> handler and keep toggling between them, so that the above limitation doesn't
+> hold true anymore.
+> 
+> This patch replaces schedule_delayed_work() with schedule_work() plus two
+> timers. After this, it was seen that the timer and its do get migrated to other
+> non-idle CPUs, when the local cpu is idle.
 
-Acked-by: David Rientjes <rientjes@google.com>
+Shouldn't this be viewed as a shortcoming of the core timer code? 
+
+vmstat_shepherd() is merely rescheduling itself with
+schedule_delayed_work().  That's a dead bog simple operation and if
+it's producing suboptimal behaviour then we shouldn't be fixing it with
+elaborate workarounds in the caller?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
