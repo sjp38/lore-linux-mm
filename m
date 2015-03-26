@@ -1,100 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id DADA26B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 14:55:17 -0400 (EDT)
-Received: by wgdm6 with SMTP id m6so74974622wgd.2
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 11:55:17 -0700 (PDT)
-Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
-        by mx.google.com with ESMTPS id f16si11372203wjq.86.2015.03.26.11.55.15
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id EB8B76B006C
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 14:55:56 -0400 (EDT)
+Received: by wibg7 with SMTP id g7so23256968wib.1
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 11:55:56 -0700 (PDT)
+Received: from mail-wg0-x22b.google.com (mail-wg0-x22b.google.com. [2a00:1450:400c:c00::22b])
+        by mx.google.com with ESMTPS id co6si11387208wjb.54.2015.03.26.11.55.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 26 Mar 2015 11:55:16 -0700 (PDT)
-Message-ID: <5514560A.7040707@nod.at>
-Date: Thu, 26 Mar 2015 19:55:06 +0100
-From: Richard Weinberger <richard@nod.at>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Mar 2015 11:55:55 -0700 (PDT)
+Received: by wgbcc7 with SMTP id cc7so74015418wgb.0
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 11:55:55 -0700 (PDT)
+Date: Thu, 26 Mar 2015 19:55:50 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v4 2/2] powerpc/mm: Tracking vDSO remap
+Message-ID: <20150326185550.GA25547@gmail.com>
+References: <20150326141730.GA23060@gmail.com>
+ <cover.1427390952.git.ldufour@linux.vnet.ibm.com>
+ <7fdae652993cf88bdd633d65e5a8f81c7ad8a1e3.1427390952.git.ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 00/11] an introduction of library operating system
- for Linux (LibOS)
-References: <1427202642-1716-1-git-send-email-tazaki@sfc.wide.ad.jp>	<551164ED.5000907@nod.at>	<m2twxacw13.wl@sfc.wide.ad.jp>	<55117565.6080002@nod.at>	<m2sicuctb2.wl@sfc.wide.ad.jp>	<55118277.5070909@nod.at>	<m2bnjhcevt.wl@sfc.wide.ad.jp>	<55133BAF.30301@nod.at> <m2h9t7bubh.wl@wide.ad.jp>
-In-Reply-To: <m2h9t7bubh.wl@wide.ad.jp>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <7fdae652993cf88bdd633d65e5a8f81c7ad8a1e3.1427390952.git.ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hajime Tazaki <tazaki@wide.ad.jp>
-Cc: linux-arch@vger.kernel.org, arnd@arndb.de, corbet@lwn.net, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, jdike@addtoit.com, rusty@rustcorp.com.au, mathieu.lacage@gmail.com
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, user-mode-linux-user@lists.sourceforge.net, linux-arch@vger.kernel.org, linux-mm@kvack.org, cov@codeaurora.org, criu@openvz.org
 
-Hi!
 
-Am 26.03.2015 um 17:24 schrieb Hajime Tazaki:
-> thank you for your deep review on the source code !
-> 
->> feeling that "lib" is the wrong name.
->> It has not much do to with an architecture.
-> 
-> could you care to elaborate your feeling more explicitly ?
-> 
-> what is an architecture here and what is _not_ an
-> architecture ? 
-> is UML an architecture in your sense (probably yes, but why)?
+* Laurent Dufour <ldufour@linux.vnet.ibm.com> wrote:
 
-UML is an architecture as it binds the whole kernel to a computer
-interface. Linux userspace in that case.
+> +{
+> +	unsigned long vdso_end, vdso_start;
+> +
+> +	if (!mm->context.vdso_base)
+> +		return;
+> +	vdso_start = mm->context.vdso_base;
+> +
+> +#ifdef CONFIG_PPC64
+> +	/* Calling is_32bit_task() implies that we are dealing with the
+> +	 * current process memory. If there is a call path where mm is not
+> +	 * owned by the current task, then we'll have need to store the
+> +	 * vDSO size in the mm->context.
+> +	 */
+> +	BUG_ON(current->mm != mm);
+> +	if (is_32bit_task())
+> +		vdso_end = vdso_start + (vdso32_pages << PAGE_SHIFT);
+> +	else
+> +		vdso_end = vdso_start + (vdso64_pages << PAGE_SHIFT);
+> +#else
+> +	vdso_end = vdso_start + (vdso32_pages << PAGE_SHIFT);
+> +#endif
+> +	vdso_end += (1<<PAGE_SHIFT); /* data page */
+> +
+> +	/* Check if the vDSO is in the range of the remapped area */
+> +	if ((vdso_start <= old_start && old_start < vdso_end) ||
+> +	    (vdso_start < old_end && old_end <= vdso_end)  ||
+> +	    (old_start <= vdso_start && vdso_start < old_end)) {
+> +		/* Update vdso_base if the vDSO is entirely moved. */
+> +		if (old_start == vdso_start && old_end == vdso_end &&
+> +		    (old_end - old_start) == (new_end - new_start))
+> +			mm->context.vdso_base = new_start;
+> +		else
+> +			mm->context.vdso_base = 0;
+> +	}
+> +}
 
-> and what is arch/lib missing for an architecture ?
+Oh my, that really looks awfully complex, as you predicted, and right 
+in every mremap() call.
 
-Your arch/lib does not bind the Linux kernel to an interface.
-It takes some part of Linux and duplicates kernel core subsystems
-to make that part work on its own.
-For example arch/lib contains a stub implementation of core VFS
-functions like register_filesystem().
-Also it does not seem to use the kernel scheduler, you have your own.
+I'm fine with your original, imperfect, KISS approach. Sorry about 
+this detour ...
 
-This also infers that arch/lib will be broken most of the time as
-every time the networking stack references a new symbol it
-has to be duplicated into arch/lib.
-
-But this does not mean that your idea is bad, all I want to say that
-I'm not sure whether arch/lib is the right approach.
-Maybe Arnd has a better idea.
-
->> Apart from that, I really like your idea!
-> 
-> great to hear that ;)
-> 
->> You don't implement an architecture, you take some part of Linux
->> (the networking stack) and create stubs around it to make it work.
->> That means that we'd also have to duplicate kernel functions into
->> arch/lib to keep it running.
-> 
-> again, the above same questions.
-> 
-> it (arch/lib) is a hardware-independent architecture which
-> provides necessary features to the remainder of kernel code,
-> isn't it ?
-
-The stuff in arch/ is the code to glue the kernel to
-a specific piece of hardware.
-Your code does something between. You duplicate kernel core features
-to make a specific piece of code work in userland.
-
-> answers to those questions are really helpful for a feedback
-> on this RFC patches.
-> 
->> BTW: It does not build here:
->> ---cut---
->>   LIB           liblinux-4.0.0-rc5.so
-> 
-> fixed, thanks: though the issue was in the external code
-> base (i.e., linux-libos-tools). there was a parallel build
-> (make -jX) problem.
-> 
-> # you may need to git pull at arch/lib/tools to reflect the updates.
-
-Will retry later.
+Reviewed-by: Ingo Molnar <mingo@kernel.org>
 
 Thanks,
-//richard
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
