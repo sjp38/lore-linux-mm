@@ -1,72 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 1931E6B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 19:23:24 -0400 (EDT)
-Received: by ieclw3 with SMTP id lw3so58971165iec.2
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 16:23:23 -0700 (PDT)
-Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com. [2607:f8b0:4001:c03::22b])
-        by mx.google.com with ESMTPS id iq3si212583igb.15.2015.03.26.16.23.23
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 12DD46B006C
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 19:23:55 -0400 (EDT)
+Received: by igcau2 with SMTP id au2so22367202igc.1
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 16:23:54 -0700 (PDT)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id n14si2658657igx.1.2015.03.26.16.23.54
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Mar 2015 16:23:23 -0700 (PDT)
-Received: by ieclw3 with SMTP id lw3so58971085iec.2
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 16:23:23 -0700 (PDT)
-Date: Thu, 26 Mar 2015 16:23:21 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch 1/2] mm, doc: cleanup and clarify munmap behavior for hugetlb
- memory
-Message-ID: <alpine.DEB.2.10.1503261621570.20009@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 26 Mar 2015 16:23:54 -0700 (PDT)
+Message-ID: <1427412183.6468.148.camel@kernel.crashing.org>
+Subject: Re: [PATCH v3 2/2] powerpc/mm: Tracking vDSO remap
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Fri, 27 Mar 2015 10:23:03 +1100
+In-Reply-To: <20150326094330.GA15407@gmail.com>
+References: <20150325121118.GA2542@gmail.com>
+	 <cover.1427289960.git.ldufour@linux.vnet.ibm.com>
+	 <b6ce07f8e1e0d654371aee70bd8eac310456d0df.1427289960.git.ldufour@linux.vnet.ibm.com>
+	 <20150325183316.GA9090@gmail.com> <20150325183647.GA9331@gmail.com>
+	 <1427317867.6468.87.camel@kernel.crashing.org>
+	 <20150326094330.GA15407@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>
-Cc: Davide Libenzi <davidel@xmailserver.org>, Luiz Capitulino <lcapitulino@redhat.com>, Shuah Khan <shuahkh@osg.samsung.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, Eric B Munson <emunson@akamai.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-doc@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, user-mode-linux-user@lists.sourceforge.net, linux-arch@vger.kernel.org, linux-mm@kvack.org, cov@codeaurora.org, criu@openvz.org
 
-munmap(2) of hugetlb memory requires a length that is hugepage aligned,
-otherwise it may fail.  Add this to the documentation.
+On Thu, 2015-03-26 at 10:43 +0100, Ingo Molnar wrote:
+> * Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
+> 
+> > On Wed, 2015-03-25 at 19:36 +0100, Ingo Molnar wrote:
+> > > * Ingo Molnar <mingo@kernel.org> wrote:
+> > > 
+> > > > > +#define __HAVE_ARCH_REMAP
+> > > > > +static inline void arch_remap(struct mm_struct *mm,
+> > > > > +			      unsigned long old_start, unsigned long old_end,
+> > > > > +			      unsigned long new_start, unsigned long new_end)
+> > > > > +{
+> > > > > +	/*
+> > > > > +	 * mremap() doesn't allow moving multiple vmas so we can limit the
+> > > > > +	 * check to old_start == vdso_base.
+> > > > > +	 */
+> > > > > +	if (old_start == mm->context.vdso_base)
+> > > > > +		mm->context.vdso_base = new_start;
+> > > > > +}
+> > > > 
+> > > > mremap() doesn't allow moving multiple vmas, but it allows the 
+> > > > movement of multi-page vmas and it also allows partial mremap()s, 
+> > > > where it will split up a vma.
+> > > 
+> > > I.e. mremap() supports the shrinking (and growing) of vmas. In that 
+> > > case mremap() will unmap the end of the vma and will shrink the 
+> > > remaining vDSO vma.
+> > > 
+> > > Doesn't that result in a non-working vDSO that should zero out 
+> > > vdso_base?
+> > 
+> > Right. Now we can't completely prevent the user from shooting itself 
+> > in the foot I suppose, though there is a legit usage scenario which 
+> > is to move the vDSO around which it would be nice to support. I 
+> > think it's reasonable to put the onus on the user here to do the 
+> > right thing.
+> 
+> I argue we should use the right condition to clear vdso_base: if the 
+> vDSO gets at least partially unmapped. Otherwise there's little point 
+> in the whole patch: either correctly track whether the vDSO is OK, or 
+> don't ...
 
-This also cleans up the documentation and separates it into logical
-units: one part refers to MAP_HUGETLB and another part refers to
-requirements for shared memory segments.
+Well, if we are going to clear it at all yes, we should probably be a
+bit smarter about it. My point however was we probably don't need to be
+super robust about dealing with any crazy scenario userspace might
+conceive.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- Documentation/vm/hugetlbpage.txt | 21 +++++++++++++--------
- 1 file changed, 13 insertions(+), 8 deletions(-)
+> There's also the question of mprotect(): can users mprotect() the vDSO 
+> on PowerPC?
 
-diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
---- a/Documentation/vm/hugetlbpage.txt
-+++ b/Documentation/vm/hugetlbpage.txt
-@@ -289,15 +289,20 @@ file systems, write system calls are not.
- Regular chown, chgrp, and chmod commands (with right permissions) could be
- used to change the file attributes on hugetlbfs.
- 
--Also, it is important to note that no such mount command is required if the
-+Also, it is important to note that no such mount command is required if
- applications are going to use only shmat/shmget system calls or mmap with
--MAP_HUGETLB.  Users who wish to use hugetlb page via shared memory segment
--should be a member of a supplementary group and system admin needs to
--configure that gid into /proc/sys/vm/hugetlb_shm_group.  It is possible for
--same or different applications to use any combination of mmaps and shm*
--calls, though the mount of filesystem will be required for using mmap calls
--without MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see
--map_hugetlb.c.
-+MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see map_hugetlb
-+below.
-+
-+Users who wish to use hugetlb memory via shared memory segment should be a
-+member of a supplementary group and system admin needs to configure that gid
-+into /proc/sys/vm/hugetlb_shm_group.  It is possible for same or different
-+applications to use any combination of mmaps and shm* calls, though the mount of
-+filesystem will be required for using mmap calls without MAP_HUGETLB.
-+
-+When using munmap(2) to unmap hugetlb memory, the length specified must be
-+hugepage aligned, otherwise it will fail with errno set to EINVAL.
-+
- 
- Examples
- ========
+Nothing prevents it. But here too, I wouldn't bother. The user might be
+doing on purpose expecting to catch the resulting signal for example
+(though arguably a signal from a sigreturn frame is ... odd).
+
+Cheers,
+Ben.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
