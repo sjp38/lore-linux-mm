@@ -1,179 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 351F46B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 03:49:34 -0400 (EDT)
-Received: by wixm2 with SMTP id m2so5319093wix.0
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 00:49:33 -0700 (PDT)
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com. [209.85.212.177])
-        by mx.google.com with ESMTPS id gi11si26826014wic.70.2015.03.26.00.49.32
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 82F996B006E
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 04:02:13 -0400 (EDT)
+Received: by wibg7 with SMTP id g7so10417896wib.1
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 01:02:13 -0700 (PDT)
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com. [209.85.212.178])
+        by mx.google.com with ESMTPS id p12si8554546wjr.195.2015.03.26.01.02.11
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Mar 2015 00:49:32 -0700 (PDT)
-Received: by wiaa2 with SMTP id a2so10183754wia.0
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 00:49:32 -0700 (PDT)
-Message-ID: <5513BA09.3020303@plexistor.com>
-Date: Thu, 26 Mar 2015 09:49:29 +0200
+        Thu, 26 Mar 2015 01:02:12 -0700 (PDT)
+Received: by wiaa2 with SMTP id a2so10576627wia.0
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 01:02:11 -0700 (PDT)
+Message-ID: <5513BD01.5080603@plexistor.com>
+Date: Thu, 26 Mar 2015 10:02:09 +0200
 From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] mm: New pfn_mkwrite same as page_mkwrite for VM_PFNMAP
-References: <5512B961.8070409@plexistor.com> <5512BA5D.8070609@plexistor.com> <20150325143448.GA11906@node.dhcp.inet.fi>
-In-Reply-To: <20150325143448.GA11906@node.dhcp.inet.fi>
+Subject: Re: [PATCH 3/3] RFC: dax: dax_prepare_freeze
+References: <55100B78.501@plexistor.com> <55100D10.6090902@plexistor.com> <20150323224047.GQ28621@dastard> <551100E3.9010007@plexistor.com> <20150325022221.GA31342@dastard> <55126D77.7040105@plexistor.com> <20150325092922.GH31342@dastard> <55128BC6.7090105@plexistor.com> <20150325200024.GJ31342@dastard>
+In-Reply-To: <20150325200024.GJ31342@dastard>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>
 
-On 03/25/2015 04:34 PM, Kirill A. Shutemov wrote:
-> On Wed, Mar 25, 2015 at 03:38:37PM +0200, Boaz Harrosh wrote:
->> From: Yigal Korman <yigal@plexistor.com>
+On 03/25/2015 10:00 PM, Dave Chinner wrote:
+> On Wed, Mar 25, 2015 at 12:19:50PM +0200, Boaz Harrosh wrote:
+>> On 03/25/2015 11:29 AM, Dave Chinner wrote:
+>>> On Wed, Mar 25, 2015 at 10:10:31AM +0200, Boaz Harrosh wrote:
+>>>> On 03/25/2015 04:22 AM, Dave Chinner wrote:
+>>>>> On Tue, Mar 24, 2015 at 08:14:59AM +0200, Boaz Harrosh wrote:
+>>>> <>
+>> <>
+>>>> The sync does happen, .fsync of the FS is called on each
+>>>> file just as if the user called it. If this is broken it just
+>>>> needs to be fixed there at the .fsync vector. POSIX mandate
+>>>> persistence at .fsync so at the vfs layer we rely on that.
+>>>
+>>> right now, the filesystems will see that there are no dirty pages
+>>> on the inode, and then just sync the inode metadata. They will do
+>>> nothing else as filesystems are not aware of CPU cachelines at all.
+>>>
 >>
->> This will allow FS that uses VM_PFNMAP | VM_MIXEDMAP (no page structs)
->> to get notified when access is a write to a read-only PFN.
+>> Sigh yes. There is this bug. And I am sitting on a wide fix for this.
 >>
->> This can happen if we mmap() a file then first mmap-read from it
->> to page-in a read-only PFN, than we mmap-write to the same page.
->>
->> We need this functionality to fix a DAX bug, where in the scenario
->> above we fail to set ctime/mtime though we modified the file.
->> An xfstest is attached to this patchset that shows the failure
->> and the fix. (A DAX patch will follow)
->>
->> This functionality is extra important for us, because upon
->> dirtying of a pmem page we also want to RDMA the page to a
->> remote cluster node.
->>
->> We define a new pfn_mkwrite and do not reuse page_mkwrite because
->>   1 - The name ;-)
->>   2 - But mainly because it would take a very long and tedious
->>       audit of all page_mkwrite functions of VM_MIXEDMAP/VM_PFNMAP
->>       users. To make sure they do not now CRASH. For example current
->>       DAX code (which this is for) would crash.
->>       If we would want to reuse page_mkwrite, We will need to first
->>       patch all users, so to not-crash-on-no-page. Then enable this
->>       patch. But even if I did that I would not sleep so well at night.
->>       Adding a new vector is the safest thing to do, and is not that
->>       expensive. an extra pointer at a static function vector per driver.
->>       Also the new vector is better for performance, because else we
->>       Will call all current Kernel vectors, so to:
->> 	check-ha-no-page-do-nothing and return.
->>
->> No need to call it from do_shared_fault because do_wp_page is called to
->> change pte permissions anyway.
->>
->> CC: Matthew Wilcox <matthew.r.wilcox@intel.com>
->> CC: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->> CC: Jan Kara <jack@suse.cz>
->> CC: Andrew Morton <akpm@linux-foundation.org>
->> CC: Hugh Dickins <hughd@google.com>
->> CC: Mel Gorman <mgorman@suse.de>
->> CC: linux-mm@kvack.org
->>
->> Signed-off-by: Yigal Korman <yigal@plexistor.com>
->> Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
+>> The strategy is. All Kernel writes are done with a new copy_user_nt.
+>> NT stands for none-temporal. This shows 20% improvements since cachelines
+>> need not be fetched when written too.
 > 
-> This is not going to apply to -mm. do_wp_page() is reworked there.
-> BTW, shouldn't we rename it to do_wp_fault() or something?
+> That's unenforcable for mmap writes from userspace. And those are
+> the writes that will trigger the dirty write mapping problem.
 > 
 
-Wowhoo you were not kidding ;-)
+So for them I was thinking of just doing the .fsync on every
+unmap (ie vm_operations_struct->close)
 
-I'll redo this patch based on linux-next/akpm branch. I will
-need an hard up testing. Current patch I had for 6 month and
-I'm confident about it. I'll need to stare at this real hard.
+So now we know that only inodes that have an active vm mapping
+are in need of sync.
 
->> ---
->>  include/linux/mm.h |  2 ++
->>  mm/memory.c        | 28 +++++++++++++++++++++++++++-
-> 
-> Documentation/filesystems/Locking ?
-> 
->>  2 files changed, 29 insertions(+), 1 deletion(-)
+>>>> And because of that nothing turned the
+>>>> user mappings to read only. This is what I do here but
+>>>> instead of write-protecting I just unmap because it is
+>>>> easier for me to code it.
+>>>
+>>> That doesn't mean it is the correct solution.
 >>
->> diff --git a/include/linux/mm.h b/include/linux/mm.h
->> index 47a9392..1cd820c 100644
->> --- a/include/linux/mm.h
->> +++ b/include/linux/mm.h
->> @@ -250,6 +250,8 @@ struct vm_operations_struct {
->>  	/* notification that a previously read-only page is about to become
->>  	 * writable, if an error is returned it will cause a SIGBUS */
->>  	int (*page_mkwrite)(struct vm_area_struct *vma, struct vm_fault *vmf);
->> +	/* same as page_mkwrite when using VM_PFNMAP|VM_MIXEDMAP */
+>> Please note that even if we properly .fsync cachlines the page-faults
+>> are orthogonal to this. There is no point in making mmapped dax pages
+>> read-only after every .fsync and pay a page-fault. We should leave them
+>> mapped has is. The only place that we need page protection is at freeze
+>> time.
 > 
-> New line before the comment?
+> Actually, current behaviour of filesystems is that fsync cleans all
+> the pages in the range, and means all the mappings are marked
+> read-only and so we get new calls into .page_mkwrite when write
+> faults occur. We need that .page_mkwrite call to be able to a)
+> update the mtime of the inode, and b) mark the inode "data dirty" so
+> that fsync knows it needs to do something....
 > 
->> +	int (*pfn_mkwrite)(struct vm_area_struct *vma, struct vm_fault *vmf);
->>  
->>  	/* called by access_process_vm when get_user_pages() fails, typically
->>  	 * for use by special VMAs that can switch between memory and hardware
->> diff --git a/mm/memory.c b/mm/memory.c
->> index 8068893..8d640d1 100644
->> --- a/mm/memory.c
->> +++ b/mm/memory.c
->> @@ -1982,6 +1982,23 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
->>  	return ret;
->>  }
->>  
->> +static int do_pfn_mkwrite(struct vm_area_struct *vma, unsigned long address)
->> +{
->> +	if (vma->vm_ops && vma->vm_ops->pfn_mkwrite) {
->> +		struct vm_fault vmf = {
->> +			.page = 0,
+> Hence I'd much prefer we start with identical behaviour to normal
+> files, then we can optimise from a sane start point when write page
+> faults show up as a performance problem. i.e. Correctness first,
+> performance second.
 > 
-> .page = NULL,
-> 
->> +			.pgoff = (((address & PAGE_MASK) - vma->vm_start)
->> +						>> PAGE_SHIFT) + vma->vm_pgoff,
-> 
-> .pgoff = linear_page_index(vma, address),
-> 
->> +			.virtual_address = (void __user *)(address & PAGE_MASK),
->> +			.flags = FAULT_FLAG_WRITE | FAULT_FLAG_MKWRITE,
->> +		};
->> +
->> +		return vma->vm_ops->pfn_mkwrite(vma, &vmf);
->> +	}
->> +
->> +	return 0;
->> +}
->> +
->>  /*
->>   * This routine handles present pages, when users try to write
->>   * to a shared page. It is done by copying the page to a new address
->> @@ -2025,8 +2042,17 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
->>  		 * accounting on raw pfn maps.
->>  		 */
->>  		if ((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
->> -				     (VM_WRITE|VM_SHARED))
->> +				     (VM_WRITE|VM_SHARED)) {
->> +			pte_unmap_unlock(page_table, ptl);
-> 
-> It would be nice to avoid ptl drop if ->pfn_mkwrite is not defined for the
-> vma.
 
-OK Yes, I will move the if (vma->vm_ops && vma->vm_ops->pfn_mkwrite)
-to out here surrounding the unlock/lock
+OK, (you see when you speak slow I understand fast ;-)). I agree then
+I'll see if I can schedule some time for this. My boss will be very
+angry with me about this. But I will need help please, and some hands
+holding. Unless someone else volunteers to work on this ?
 
+> Cheers,
+> Dave.
 > 
->> +			ret = do_pfn_mkwrite(vma, address);
->> +			if (ret & VM_FAULT_ERROR)
->> +				return ret;
->> +			page_table = pte_offset_map_lock(mm, pmd, address,
->> +							 &ptl);
->> +			if (!pte_same(*page_table, orig_pte))
->> +				goto unlock;
->>  			goto reuse;
->> +		}
->>  		goto gotten;
->>  	}
->>  
 
-Thank you Kirill, very much. I was hopping you'll have a look at this
-see all the fine implications.
-
-I will fix and send, after some hard testing.
-
+Thanks
 Boaz
 
 --
