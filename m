@@ -1,47 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 203206B0032
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 03:28:03 -0400 (EDT)
-Received: by wibg7 with SMTP id g7so9884876wib.1
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 00:28:02 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id c1si9133026wie.19.2015.03.26.00.28.00
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id BA22D6B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 03:39:25 -0400 (EDT)
+Received: by pacwz10 with SMTP id wz10so4242090pac.2
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 00:39:25 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id bt5si7163736pdb.156.2015.03.26.00.39.24
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Mar 2015 00:28:01 -0700 (PDT)
-Date: Thu, 26 Mar 2015 08:28:00 +0100
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [patch 1/4] fs, jfs: remove slab object constructor
-Message-ID: <20150326072800.GA26163@lst.de>
-References: <alpine.DEB.2.10.1503241607240.21805@chino.kir.corp.google.com> <alpine.LRH.2.02.1503252157330.6657@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.10.1503251935180.16714@chino.kir.corp.google.com>
+        Thu, 26 Mar 2015 00:39:24 -0700 (PDT)
+Received: by pacwz10 with SMTP id wz10so4241812pac.2
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 00:39:24 -0700 (PDT)
+Date: Thu, 26 Mar 2015 16:39:17 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [withdrawn]
+ zsmalloc-remove-extra-cond_resched-in-__zs_compact.patch removed from -mm
+ tree
+Message-ID: <20150326073916.GB26725@blaptop>
+References: <5513199f.t25SPuX5ULuM6JS8%akpm@linux-foundation.org>
+ <20150326002717.GA1669@swordfish>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1503251935180.16714@chino.kir.corp.google.com>
+In-Reply-To: <20150326002717.GA1669@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Mikulas Patocka <mpatocka@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Kleikamp <shaggy@kernel.org>, Christoph Hellwig <hch@lst.de>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, ngupta@vflare.org, sfr@canb.auug.org.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Mar 25, 2015 at 07:37:40PM -0700, David Rientjes wrote:
-> That would be true only for
+Hello Sergey,
+
+Sorry for slow response.
+I am overwhelmed with too much to do. :(
+
+On Thu, Mar 26, 2015 at 09:27:17AM +0900, Sergey Senozhatsky wrote:
+> On (03/25/15 13:25), akpm@linux-foundation.org wrote:
+> > The patch titled
+> >      Subject: zsmalloc: remove extra cond_resched() in __zs_compact
+> > has been removed from the -mm tree.  Its filename was
+> >      zsmalloc-remove-extra-cond_resched-in-__zs_compact.patch
+> > 
+> > This patch was dropped because it was withdrawn
+> > 
+> > ------------------------------------------------------
+> > From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> > Subject: zsmalloc: remove extra cond_resched() in __zs_compact
+> > 
+> > Do not perform cond_resched() before the busy compaction loop in
+> > __zs_compact(), because this loop does it when needed.
+> > 
+> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> > Cc: Minchan Kim <minchan@kernel.org>
+> > Cc: Nitin Gupta <ngupta@vflare.org>
+> > Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+> > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> > ---
+> > 
+> >  mm/zsmalloc.c |    2 --
+> >  1 file changed, 2 deletions(-)
+> > 
+> > diff -puN mm/zsmalloc.c~zsmalloc-remove-extra-cond_resched-in-__zs_compact mm/zsmalloc.c
+> > --- a/mm/zsmalloc.c~zsmalloc-remove-extra-cond_resched-in-__zs_compact
+> > +++ a/mm/zsmalloc.c
+> > @@ -1717,8 +1717,6 @@ static unsigned long __zs_compact(struct
+> >  	struct page *dst_page = NULL;
+> >  	unsigned long nr_total_migrated = 0;
+> >  
+> > -	cond_resched();
+> > -
+> >  	spin_lock(&class->lock);
+> >  	while ((src_page = isolate_source_page(class))) {
+> >  
 > 
-> 	ptr = mempool_alloc(gfp, pool);
-> 	mempool_free(ptr, pool);
+> Hello,
 > 
-> and nothing in between, and that's pretty pointless.  Typically, callers 
-> allocate memory, modify it, and then free it.  When that happens with 
-> mempools, and we can't allocate slab because of the gfp context, mempools 
-> will return elements in the state in which they were freed (modified, not 
-> as constructed).
+> Minchan, did I miss your NACK on this patch? or could you please ACK it?
 
-The historic slab allocator (Solaris and early Linux) expects objects
-to be returned in the same / similar enough form as the constructor
-returned it, and the constructor is only called when allocating pages
-from the page pool.
+I saw this patch yesterday night but didn't acked intentionally because
+I was not sure and too tired to see the code so I postpone.
 
-I have to admit that I haven't used this feature forever, and I have no idea if
-people changed how the allocator works in the meantime.
+If we removed cond_resched out of outer loop(ie, your patch), we lose
+the chance to reschedule if alloc_target_page fails(ie, there is no
+zspage in ZS_ALMOST_FULL and ZS_ALMOST_EMPTY).
+It might be not rare event if we does compation successfully for a
+size_class. However, with next coming higher size_class for __zs_compact,
+we will encounter cond_resched during compaction.
+So, I am happy to ack. :)
+
+Acked-by: Minchan Kim <minchan@kernel.org>
+
+> 
+> 	-ss
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
