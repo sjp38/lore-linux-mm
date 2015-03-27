@@ -1,157 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id A55B26B0038
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 18:08:51 -0400 (EDT)
-Received: by wibbg6 with SMTP id bg6so41741796wib.0
-        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 15:08:51 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id k8si5971822wic.31.2015.03.27.15.08.49
-        for <linux-mm@kvack.org>;
-        Fri, 27 Mar 2015 15:08:50 -0700 (PDT)
-Date: Sat, 28 Mar 2015 00:08:46 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] thp: do not adjust zone water marks if khugepaged is not
- started
-Message-ID: <20150327220846.GB26190@node.dhcp.inet.fi>
-References: <1427456378-214780-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20150327144708.0223cc2e55862655259d2720@linux-foundation.org>
- <20150327150026.7500f1081e8c30c2303afecd@linux-foundation.org>
+Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 360276B0038
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 18:23:56 -0400 (EDT)
+Received: by oicf142 with SMTP id f142so78603001oic.3
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 15:23:56 -0700 (PDT)
+Received: from e38.co.us.ibm.com (e38.co.us.ibm.com. [32.97.110.159])
+        by mx.google.com with ESMTPS id kg7si1912371obb.56.2015.03.27.15.23.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 27 Mar 2015 15:23:55 -0700 (PDT)
+Received: from /spool/local
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Fri, 27 Mar 2015 16:23:55 -0600
+Received: from b03cxnp08028.gho.boulder.ibm.com (b03cxnp08028.gho.boulder.ibm.com [9.17.130.20])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 44B983E4003B
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 16:23:52 -0600 (MDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by b03cxnp08028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t2RMNgUG43384914
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 15:23:42 -0700
+Received: from d03av01.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t2RMNpTi017211
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 16:23:52 -0600
+Date: Fri, 27 Mar 2015 15:23:50 -0700
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: [PATCH v2] mm: vmscan: do not throttle based on pfmemalloc reserves
+ if node has no reclaimable pages
+Message-ID: <20150327222350.GA22887@linux.vnet.ibm.com>
+References: <20150327192850.GA18701@linux.vnet.ibm.com>
+ <5515BAF7.6070604@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150327150026.7500f1081e8c30c2303afecd@linux-foundation.org>
+In-Reply-To: <5515BAF7.6070604@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Mel Gorman <mgorman@suse.de>, anton@sambar.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Dan Streetman <ddstreet@ieee.org>
 
-On Fri, Mar 27, 2015 at 03:00:26PM -0700, Andrew Morton wrote:
-> On Fri, 27 Mar 2015 14:47:08 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+On 27.03.2015 [13:17:59 -0700], Dave Hansen wrote:
+> On 03/27/2015 12:28 PM, Nishanth Aravamudan wrote:
+> > @@ -2585,7 +2585,7 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
+> >  
+> >         for (i = 0; i <= ZONE_NORMAL; i++) {
+> >                 zone = &pgdat->node_zones[i];
+> > -               if (!populated_zone(zone))
+> > +               if (!populated_zone(zone) || !zone_reclaimable(zone))
+> >                         continue;
+> >  
+> >                 pfmemalloc_reserve += min_wmark_pages(zone);
 > 
-> > Fair enough, but take a look at start_khugepaged():
-> > 
-> > : static int start_khugepaged(void)
-> > : {
-> > : 	int err = 0;
-> > : 	if (khugepaged_enabled()) {
-> > : 		if (!khugepaged_thread)
-> > : 			khugepaged_thread = kthread_run(khugepaged, NULL,
-> > : 							"khugepaged");
-> > : 		if (unlikely(IS_ERR(khugepaged_thread))) {
-> > : 			pr_err("khugepaged: kthread_run(khugepaged) failed\n");
-> > : 			err = PTR_ERR(khugepaged_thread);
-> > : 			khugepaged_thread = NULL;
-> > 
-> > -->> stop here 
-> > 
-> > : 		}
-> > : 
-> > : 		if (!list_empty(&khugepaged_scan.mm_head))
-> > : 			wake_up_interruptible(&khugepaged_wait);
-> > : 
-> > : 		set_recommended_min_free_kbytes();
-> > : 	} else if (khugepaged_thread) {
-> > : 		kthread_stop(khugepaged_thread);
-> > : 		khugepaged_thread = NULL;
-> > : 	}
-> > : 
-> > : 	return err;
-> > : }
-> 
-> Looking more closely...  This code seems a bit screwy.
-> 
-> - why is set_recommended_min_free_kbytes() a late_initcall?  We've
->   already done that within
->   subsys_initcall->hugepage_init->set_recommended_min_free_kbytes()
-> 
-> - there isn't much point in running start_khugepaged() if we've just
->   set transparent_hugepage_flags to zero.
-> 
-> - start_khugepaged() is misnamed.
-> 
-> So something like this?
+> Do you really want zone_reclaimable()?  Or do you want something more
+> direct like "zone_reclaimable_pages(zone) == 0"?
 
-Yeah, looks good to me.
+Yeah, I guess in my testing this worked out to be the same, since
+zone_reclaimable_pages(zone) is 0 and so zone_reclaimable(zone) will
+always be false. Thanks!
 
-> --- a/mm/huge_memory.c~a
-> +++ a/mm/huge_memory.c
-> @@ -110,10 +110,6 @@ static int set_recommended_min_free_kbyt
->  	int nr_zones = 0;
->  	unsigned long recommended_min;
->  
-> -	/* khugepaged thread has stopped to failed to start */
-> -	if (!khugepaged_thread)
-> -		return 0;
-> -
->  	for_each_populated_zone(zone)
->  		nr_zones++;
->  
-> @@ -145,9 +141,8 @@ static int set_recommended_min_free_kbyt
->  	setup_per_zone_wmarks();
->  	return 0;
->  }
-> -late_initcall(set_recommended_min_free_kbytes);
->  
-> -static int start_khugepaged(void)
-> +static int start_stop_khugepaged(void)
->  {
->  	int err = 0;
->  	if (khugepaged_enabled()) {
-> @@ -158,6 +153,7 @@ static int start_khugepaged(void)
->  			pr_err("khugepaged: kthread_run(khugepaged) failed\n");
->  			err = PTR_ERR(khugepaged_thread);
->  			khugepaged_thread = NULL;
-> +			goto fail;
->  		}
->  
->  		if (!list_empty(&khugepaged_scan.mm_head))
-> @@ -168,7 +164,7 @@ static int start_khugepaged(void)
->  		kthread_stop(khugepaged_thread);
->  		khugepaged_thread = NULL;
->  	}
-> -
-> +fail:
->  	return err;
->  }
->  
-> @@ -302,7 +298,7 @@ static ssize_t enabled_store(struct kobj
->  		int err;
->  
->  		mutex_lock(&khugepaged_mutex);
-> -		err = start_khugepaged();
-> +		err = start_stop_khugepaged();
->  		mutex_unlock(&khugepaged_mutex);
->  
->  		if (err)
-> @@ -651,12 +647,13 @@ static int __init hugepage_init(void)
->  	 * where the extra memory used could hurt more than TLB overhead
->  	 * is likely to save.  The admin can still enable it through /sys.
->  	 */
-> -	if (totalram_pages < (512 << (20 - PAGE_SHIFT)))
-> +	if (totalram_pages < (512 << (20 - PAGE_SHIFT))) {
->  		transparent_hugepage_flags = 0;
-> -
-> -	err = start_khugepaged();
-> -	if (err)
-> -		goto err_khugepaged;
-> +	} else {
-> +		err = start_stop_khugepaged();
-> +		if (err)
-> +			goto err_khugepaged;
-> +	}
->  
->  	return 0;
->  err_khugepaged:
-> _
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Based upon 675becce15 ("mm: vmscan: do not throttle based on pfmemalloc
+reserves if node has no ZONE_NORMAL") from Mel.
 
--- 
- Kirill A. Shutemov
+We have a system with the following topology:
+
+# numactl -H
+available: 3 nodes (0,2-3)
+node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
+23 24 25 26 27 28 29 30 31
+node 0 size: 28273 MB
+node 0 free: 27323 MB
+node 2 cpus:
+node 2 size: 16384 MB
+node 2 free: 0 MB
+node 3 cpus: 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47
+node 3 size: 30533 MB
+node 3 free: 13273 MB
+node distances:
+node   0   2   3
+  0:  10  20  20
+  2:  20  10  20
+  3:  20  20  10
+
+Node 2 has no free memory, because:
+# cat /sys/devices/system/node/node2/hugepages/hugepages-16777216kB/nr_hugepages
+1
+
+This leads to the following zoneinfo:
+
+Node 2, zone      DMA
+  pages free     0
+        min      1840
+        low      2300
+        high     2760
+        scanned  0
+        spanned  262144
+        present  262144
+        managed  262144
+...
+  all_unreclaimable: 1
+
+If one then attempts to allocate some normal 16M hugepages via
+
+echo 37 > /proc/sys/vm/nr_hugepages
+
+The echo never returns and kswapd2 consumes CPU cycles.
+
+This is because throttle_direct_reclaim ends up calling
+wait_event(pfmemalloc_wait, pfmemalloc_watermark_ok...).
+pfmemalloc_watermark_ok() in turn checks all zones on the node if there
+are any reserves, and if so, then indicates the watermarks are ok, by
+seeing if there are sufficient free pages.
+
+675becce15 added a condition already for memoryless nodes. In this case,
+though, the node has memory, it is just all consumed (and not
+reclaimable). Effectively, though, the result is the same on this call
+to pfmemalloc_watermark_ok() and thus seems like a reasonable additional
+condition.
+
+With this change, the afore-mentioned 16M hugepage allocation attempt
+succeeds and correctly round-robins between Nodes 1 and 3.
+
+Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+
+---
+v1 -> v2:
+  Check against zone_reclaimable_pages, rather zone_reclaimable, based
+  upon feedback from Dave Hansen.
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 5e8eadd71bac..c627fa4c991f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2646,7 +2646,8 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
+ 
+ 	for (i = 0; i <= ZONE_NORMAL; i++) {
+ 		zone = &pgdat->node_zones[i];
+-		if (!populated_zone(zone))
++		if (!populated_zone(zone) ||
++		    zone_reclaimable_pages(zone) == 0)
+ 			continue;
+ 
+ 		pfmemalloc_reserve += min_wmark_pages(zone);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
