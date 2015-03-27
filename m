@@ -1,36 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id DF8416B0038
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 11:13:16 -0400 (EDT)
-Received: by pabxg6 with SMTP id xg6so98414052pab.0
-        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 08:13:16 -0700 (PDT)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id lq10si3261263pab.61.2015.03.27.08.13.14
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 12A576B0038
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 11:40:22 -0400 (EDT)
+Received: by lbbug6 with SMTP id ug6so66422278lbb.3
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 08:40:21 -0700 (PDT)
+Received: from plane.gmane.org (plane.gmane.org. [80.91.229.3])
+        by mx.google.com with ESMTPS id z6si1617939lag.156.2015.03.27.08.40.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 27 Mar 2015 08:13:15 -0700 (PDT)
-MIME-version: 1.0
-Content-type: text/plain; charset=windows-1252; format=flowed
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NLV00JETMGLZFA0@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 27 Mar 2015 15:17:09 +0000 (GMT)
-Content-transfer-encoding: 8BIT
-Message-id: <55157384.6020209@samsung.com>
-Date: Fri, 27 Mar 2015 16:13:08 +0100
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 27 Mar 2015 08:40:20 -0700 (PDT)
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
+	id 1YbWMe-0002tI-Kp
+	for linux-mm@kvack.org; Fri, 27 Mar 2015 16:40:04 +0100
+Received: from 217-67-201-162.itsa.net.pl ([217.67.201.162])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 16:40:04 +0100
+Received: from m.krawczuk by 217-67-201-162.itsa.net.pl with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 16:40:04 +0100
 From: Mateusz Krawczuk <m.krawczuk@samsung.com>
 Subject: Re: [PATCH 04/16] page-flags: define PG_locked behavior on compound
  pages
-References: 
- <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1426784902-125149-5-git-send-email-kirill.shutemov@linux.intel.com>
-In-reply-to: 
- <1426784902-125149-5-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Fri, 27 Mar 2015 16:11:16 +0100
+Message-ID: <55157314.5080008@samsung.com>
+References: <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com> <1426784902-125149-5-git-send-email-kirill.shutemov@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1426784902-125149-5-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 
 Hi!
 
@@ -392,6 +395,7 @@ Samsung R&D Institute Poland
 >   		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
 >   		 * clear SWAP_HAS_CACHE flag.
 >
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
