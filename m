@@ -1,65 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 92EF06B006C
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 13:09:17 -0400 (EDT)
-Received: by labe2 with SMTP id e2so75292058lab.3
-        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 10:09:16 -0700 (PDT)
-Received: from forward-corp1m.cmail.yandex.net (forward-corp1m.cmail.yandex.net. [5.255.216.100])
-        by mx.google.com with ESMTPS id k10si1765700lbs.115.2015.03.27.10.09.15
+Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
+	by kanga.kvack.org (Postfix) with ESMTP id A38946B0038
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 14:07:23 -0400 (EDT)
+Received: by qcbjx9 with SMTP id jx9so23490016qcb.0
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 11:07:23 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n80si2610203qkh.72.2015.03.27.11.07.21
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Mar 2015 10:09:15 -0700 (PDT)
-Message-ID: <55158EB5.5040301@yandex-team.ru>
-Date: Fri, 27 Mar 2015 20:09:09 +0300
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+        Fri, 27 Mar 2015 11:07:22 -0700 (PDT)
+Date: Fri, 27 Mar 2015 14:06:26 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 28/48] writeback: implement and use mapping_congested()
+Message-ID: <20150327180626.GA19117@redhat.com>
+References: <1427086499-15657-1-git-send-email-tj@kernel.org>
+ <1427086499-15657-29-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 3/4] mm, shmem: Add shmem resident memory accounting
-References: <1427474441-17708-1-git-send-email-vbabka@suse.cz> <1427474441-17708-4-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1427474441-17708-4-git-send-email-vbabka@suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1427086499-15657-29-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Jerome Marchand <jmarchan@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-doc@vger.kernel.org, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com
 
-On 27.03.2015 19:40, Vlastimil Babka wrote:
-> From: Jerome Marchand <jmarchan@redhat.com>
->
-> Currently looking at /proc/<pid>/status or statm, there is no way to
-> distinguish shmem pages from pages mapped to a regular file (shmem
-> pages are mapped to /dev/zero), even though their implication in
-> actual memory use is quite different.
-> This patch adds MM_SHMEMPAGES counter to mm_rss_stat to account for
-> shmem pages instead of MM_FILEPAGES.
->
-> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+On Mon, Mar 23, 2015 at 12:54:39AM -0400, Tejun Heo wrote:
+> In several places, bdi_congested() and its wrappers are used to
+> determine whether more IOs should be issued.  With cgroup writeback
+> support, this question can't be answered solely based on the bdi
+> (backing_dev_info).  It's dependent on whether the filesystem and bdi
+> support cgroup writeback and the blkcg the asking task belongs to.
+> 
+> This patch implements mapping_congested() and its wrappers which take
+> @mapping and @task and determines the congestion state considering
+> cgroup writeback for the combination.  The new functions replace
+> bdi_*congested() calls in places where the query is about specific
+> mapping and task.
+> 
+> There are several filesystem users which also fit this criteria but
+> they should be updated when each filesystem implements cgroup
+> writeback support.
+> 
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Cc: Jens Axboe <axboe@kernel.dk>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Vivek Goyal <vgoyal@redhat.com>
 > ---
+>  fs/fs-writeback.c           | 39 +++++++++++++++++++++++++++++++++++++++
+>  include/linux/backing-dev.h | 27 +++++++++++++++++++++++++++
+>  mm/fadvise.c                |  2 +-
+>  mm/readahead.c              |  2 +-
+>  mm/vmscan.c                 | 12 ++++++------
+>  5 files changed, 74 insertions(+), 8 deletions(-)
+> 
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index 48db5e6..015f359 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -130,6 +130,45 @@ static void __wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
+>  	wb_queue_work(wb, work);
+>  }
+>  
+> +#ifdef CONFIG_CGROUP_WRITEBACK
+> +
+> +/**
+> + * mapping_congested - test whether a mapping is congested for a task
+> + * @mapping: address space to test for congestion
+> + * @task: task to test congestion for
+> + * @cong_bits: mask of WB_[a]sync_congested bits to test
+> + *
+> + * Tests whether @mapping is congested for @task.  @cong_bits is the mask
+> + * of congestion bits to test and the return value is the mask of set bits.
+> + *
+> + * If cgroup writeback is enabled for @mapping, its congestion state for
+> + * @task is determined by whether the cgwb (cgroup bdi_writeback) for the
+> + * blkcg of %current on @mapping->backing_dev_info is congested; otherwise,
+> + * the root's congestion state is used.
+> + */
+> +int mapping_congested(struct address_space *mapping,
+> +		      struct task_struct *task, int cong_bits)
+> +{
+> +	struct inode *inode = mapping->host;
+> +	struct backing_dev_info *bdi = inode_to_bdi(inode);
+> +	struct bdi_writeback *wb;
+> +	int ret = 0;
+> +
+> +	if (!inode || !inode_cgwb_enabled(inode))
+> +		return wb_congested(&bdi->wb, cong_bits);
+> +
+> +	rcu_read_lock();
+> +	wb = wb_find_current(bdi);
 
+Hi Tejun,
 
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -327,9 +327,12 @@ struct core_state {
->   };
->
->   enum {
-> -	MM_FILEPAGES,
-> -	MM_ANONPAGES,
-> -	MM_SWAPENTS,
-> +	MM_FILEPAGES,	/* Resident file mapping pages */
-> +	MM_ANONPAGES,	/* Resident anonymous pages */
-> +	MM_SWAPENTS,	/* Anonymous swap entries */
-> +#ifdef CONFIG_SHMEM
-> +	MM_SHMEMPAGES,	/* Resident shared memory pages */
-> +#endif
+I am wondering that why do we lookup bdi_writeback using blkcg of
+task and why not use the bdi_writeback associated with inode?
 
-I prefer to keep that counter unconditionally:
-kernel has MM_SWAPENTS even without CONFIG_SWAP.
+IIUC, whole idea is to attach an inode to bdi_writeback (and
+change it later if need be) and that writeback is used for
+controlling IO to that inode. And blkcg associated with the
+writeback will be put in bio which in turn will be used
+by block layer.
 
->   	NR_MM_COUNTERS
->   };
->
+IOW, blkcg of a bio gets decided by the bdi_writeback
+attached to inode and current writer does not seem to
+matter. So I am not sure why mapping_congested() should
+take task's blkcg into consideration instead of just
+taking bdi_writeback from inode and see if it is congested
+or not.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
