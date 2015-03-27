@@ -1,97 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 3ACFF6B0032
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 05:54:19 -0400 (EDT)
-Received: by wibgn9 with SMTP id gn9so23773546wib.1
-        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 02:54:18 -0700 (PDT)
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 2779E6B0032
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 06:07:45 -0400 (EDT)
+Received: by wgbgs4 with SMTP id gs4so2692325wgb.0
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 03:07:44 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j2si3075216wia.46.2015.03.27.02.54.17
+        by mx.google.com with ESMTPS id eu17si3128015wid.50.2015.03.27.03.07.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 27 Mar 2015 02:54:17 -0700 (PDT)
-Date: Fri, 27 Mar 2015 09:54:13 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: Move zone lock to a different cache line than order-0
- free page lists
-Message-ID: <20150327095413.GO4701@suse.de>
+        Fri, 27 Mar 2015 03:07:43 -0700 (PDT)
+Message-ID: <55152BED.9050500@suse.cz>
+Date: Fri, 27 Mar 2015 11:07:41 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+Subject: Re: mm: lru_add_drain_all hangs
+References: <5514CF37.1020403@oracle.com>
+In-Reply-To: <5514CF37.1020403@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Huang Ying <ying.huang@intel.com>, LKML <linux-kernel@vger.kernel.org>, LKP ML <lkp@01.org>, linux-mm@kvack.org
+To: Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
 
-Huang Ying reported the following problem due to commit 3484b2de9499
-("mm: rearrange zone fields into read-only, page alloc, statistics and
-page reclaim lines") from the Intel performance tests
+On 03/27/2015 04:32 AM, Sasha Levin wrote:
+> Hi all,
+> 
+> I've started seeing pretty frequent hangs within lru_add_drain_all(). It doesn't
+> seem to be hanging on a specific thing, and it appears that even a moderate load
+> can cause it to hang (just 50 trinity threads in this case).
+> 
+> Notice that I've bumped up the hang timer to 20 minutes.
+> 
+> [ 3605.506554] INFO: task trinity-c0:14641 blocked for more than 1200 seconds.
+> [ 3605.507997]       Not tainted 4.0.0-rc5-next-20150324-sasha-00038-g04b74cc #2088
+> [ 3605.508889] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> [ 3605.509704] trinity-c0      D ffff8800776efd28 26512 14641   9194 0x10000000
+> [ 3605.510704]  ffff8800776efd28 ffff880077633ca8 0000000000000000 0000000000000000
+> [ 3605.511568]  ffff8800261e0558 ffff8800261e0530 ffff880077633008 ffff8802f5c33000
+> [ 3605.513025]  ffff880077633000 ffff8800776efd08 ffff8800776e8000 ffffed000eedd002
+> [ 3605.514004] Call Trace:
+> [ 3605.514368] schedule (./arch/x86/include/asm/bitops.h:311 (discriminator 1) kernel/sched/core.c:2827 (discriminator 1))
+> [ 3605.515025] schedule_preempt_disabled (kernel/sched/core.c:2859)
+> [ 3605.516025] mutex_lock_nested (kernel/locking/mutex.c:585 kernel/locking/mutex.c:623)
+> [ 3605.517265] ? lru_add_drain_all (mm/swap.c:867)
+> [ 3605.518663] ? rcu_eqs_exit_common (kernel/rcu/tree.c:735 (discriminator 8))
+> [ 3605.519305] ? lru_add_drain_all (mm/swap.c:867)
+> [ 3605.519879] ? mutex_trylock (kernel/locking/mutex.c:621)
+> [ 3605.520982] ? context_tracking_user_exit (kernel/context_tracking.c:164)
+> [ 3605.522302] ? perf_syscall_exit (kernel/trace/trace_syscalls.c:549)
+> [ 3605.523610] lru_add_drain_all (mm/swap.c:867)
+> [ 3605.524628] SyS_mlock (mm/mlock.c:618 mm/mlock.c:607)
+> [ 3605.526112] tracesys_phase2 (arch/x86/kernel/entry_64.S:344)
+> [ 3605.527819] 1 lock held by trinity-c0/14641:
+> [ 3605.528951] #0: (lock#4){+.+...}, at: lru_add_drain_all (mm/swap.c:867)
+> [ 3605.530561] Mutex: counter: -1 owner: trinity-c7
 
-    24b7e5819ad5cbef  3484b2de9499df23c4604a513b
-    ----------------  --------------------------
-             %stddev     %change         %stddev
-                 \          |                \
-        152288 \261  0%     -46.2%      81911 \261  0%  aim7.jobs-per-min
-           237 \261  0%     +85.6%        440 \261  0%  aim7.time.elapsed_time
-           237 \261  0%     +85.6%        440 \261  0%  aim7.time.elapsed_time.max
-         25026 \261  0%     +70.7%      42712 \261  0%  aim7.time.system_time
-       2186645 \261  5%     +32.0%    2885949 \261  4%  aim7.time.voluntary_context_switches
-       4576561 \261  1%     +24.9%    5715773 \261  0%  aim7.time.involuntary_context_switches
+So that's the statically defined mutex in lru_add_drain_all() itself, right?
+Many processes are waiting for it, except the owner trinity-c7:
 
-The problem is specific to very large machines under stress. It was not
-reproducible with the machines I had used to justify the original patch
-because large numbers of CPUs are required. When pressure is high enough,
-the cache line is bouncing between CPUs trying to acquire the lock and
-the holder of the lock adjusting free lists. The intention was that the
-acquirer of the lock would automatically have the cache line holding the
-free lists but according to Huang, this is not a universal win.
+> [ 3614.918852] trinity-c7      D ffff8802f4487b58 26976 16252   9410 0x10000000
+> [ 3614.919580]  ffff8802f4487b58 ffff8802f6b98ca8 0000000000000000 0000000000000000
+> [ 3614.920435]  ffff88017d3e0558 ffff88017d3e0530 ffff8802f6b98008 ffff88016bad0000
+> [ 3614.921219]  ffff8802f6b98000 ffff8802f4487b38 ffff8802f4480000 ffffed005e890002
+> [ 3614.922069] Call Trace:
+> [ 3614.922346] schedule (./arch/x86/include/asm/bitops.h:311 (discriminator 1) kernel/sched/core.c:2827 (discriminator 1))
+> [ 3614.923023] schedule_preempt_disabled (kernel/sched/core.c:2859)
+> [ 3614.923707] mutex_lock_nested (kernel/locking/mutex.c:585 kernel/locking/mutex.c:623)
+> [ 3614.924486] ? lru_add_drain_all (mm/swap.c:867)
+> [ 3614.925211] ? trace_hardirqs_on_caller (kernel/locking/lockdep.c:2580 kernel/locking/lockdep.c:2622)
+> [ 3614.925970] ? lru_add_drain_all (mm/swap.c:867)
+> [ 3614.926692] ? mutex_trylock (kernel/locking/mutex.c:621)
+> [ 3614.927464] ? mpol_new (mm/mempolicy.c:285)
+> [ 3614.928044] lru_add_drain_all (mm/swap.c:867)
+> [ 3614.928608] migrate_prep (mm/migrate.c:64)
+> [ 3614.929092] SYSC_mbind (mm/mempolicy.c:1188 mm/mempolicy.c:1319)
+> [ 3614.929619] ? rcu_eqs_exit_common (kernel/rcu/tree.c:735 (discriminator 8))
+> [ 3614.930318] ? __mpol_equal (mm/mempolicy.c:1304)
+> [ 3614.930877] ? trace_hardirqs_on (kernel/locking/lockdep.c:2630)
+> [ 3614.931485] ? syscall_trace_enter_phase2 (arch/x86/kernel/ptrace.c:1592)
+> [ 3614.932184] SyS_mbind (mm/mempolicy.c:1301)
 
-One possibility is to move the zone lock to its own cache line but it
-increases the size of the zone. This patch moves the lock to the other
-end of the free lists where they do not contend under high pressure. It
-does mean the page allocator paths now require more cache lines but Huang
-reports that it restores performance to previous levels on large machines
+That looks like trinity-c7 is waiting ot in too, but later on (after some more
+listings like this for trinity-c7, probably threads?) we have:
 
-             %stddev     %change         %stddev
-                 \          |                \
-         84568 \261  1%     +94.3%     164280 \261  1%  aim7.jobs-per-min
-       2881944 \261  2%     -35.1%    1870386 \261  8%  aim7.time.voluntary_context_switches
-           681 \261  1%      -3.4%        658 \261  0%  aim7.time.user_time
-       5538139 \261  0%     -12.1%    4867884 \261  0%  aim7.time.involuntary_context_switches
-         44174 \261  1%     -46.0%      23848 \261  1%  aim7.time.system_time
-           426 \261  1%     -48.4%        219 \261  1%  aim7.time.elapsed_time
-           426 \261  1%     -48.4%        219 \261  1%  aim7.time.elapsed_time.max
-           468 \261  1%     -43.1%        266 \261  2%  uptime.boot
+> [ 3615.523625] trinity-c7      D ffff8801fd9c7aa8 26688 16935   9518 0x10000000
+> [ 3615.525214]  ffff8801fd9c7aa8 ffff8801fd9c7a48 ffffffffb802b7e0 ffffed0100000000
+> [ 3615.528062]  ffff88017d3e0558 ffff88017d3e0530 ffff8801ee47b008 ffff8801bb6e0000
+> [ 3615.529887]  ffff8801ee47b000 ffffed002fa7c0d2 ffff8801fd9c0000 ffffed003fb38002
+> [ 3615.531155] Call Trace:
+> [ 3615.531560] schedule (./arch/x86/include/asm/bitops.h:311 (discriminator 1) kernel/sched/core.c:2827 (discriminator 1))
+> [ 3615.532609] schedule_timeout (kernel/time/timer.c:1475)
+> [ 3615.533650] ? console_conditional_schedule (kernel/time/timer.c:1460)
+> [ 3615.534961] ? sched_clock_cpu (kernel/sched/clock.c:311)
+> [ 3615.536960] ? debug_smp_processor_id (lib/smp_processor_id.c:57)
+> [ 3615.539059] ? get_lock_stats (kernel/locking/lockdep.c:249)
+> [ 3615.539912] ? mark_held_locks (kernel/locking/lockdep.c:2546)
+> [ 3615.540903] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
+> [ 3615.542034] ? trace_hardirqs_on_caller (kernel/locking/lockdep.c:2580 kernel/locking/lockdep.c:2622)
+> [ 3615.543579] wait_for_completion (include/linux/spinlock.h:342 kernel/sched/completion.c:76 kernel/sched/completion.c:93 kernel/sched/completion.c:101 kernel/sched/completion.c:122)
+> [ 3615.545156] ? debug_smp_processor_id (lib/smp_processor_id.c:57)
+> [ 3615.546833] ? out_of_line_wait_on_atomic_t (kernel/sched/completion.c:121)
+> [ 3615.547976] ? wake_up_state (kernel/sched/core.c:2973)
+> [ 3615.548805] flush_work (kernel/workqueue.c:510 kernel/workqueue.c:2735)
+> [ 3615.549610] ? flush_work (kernel/workqueue.c:2706 kernel/workqueue.c:2733)
+> [ 3615.550487] ? __queue_work (kernel/workqueue.c:1388)
+> [ 3615.551481] ? work_busy (kernel/workqueue.c:2727)
+> [ 3615.552403] ? destroy_worker (kernel/workqueue.c:2320)
+> [ 3615.553302] ? wait_for_completion (kernel/sched/completion.c:64 kernel/sched/completion.c:93 kernel/sched/completion.c:101 kernel/sched/completion.c:122)
+> [ 3615.554486] ? trace_hardirqs_on_caller (kernel/locking/lockdep.c:2580 kernel/locking/lockdep.c:2622)
+> [ 3615.556238] lru_add_drain_all (include/linux/cpumask.h:116 include/linux/cpumask.h:189 mm/swap.c:883)
+> [ 3615.557283] SyS_mlockall (include/linux/sched.h:3075 include/linux/sched.h:3086 mm/mlock.c:698 mm/mlock.c:683)
+> [ 3615.558366] tracesys_phase2 (arch/x86/kernel/entry_64.S:344)
 
-Reported-and-tested-by: Huang Ying <ying.huang@intel.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/linux/mmzone.h | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+This one is waiting for work queue completion and could be the culprit?
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index f279d9c158cd..2782df47101e 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -474,16 +474,15 @@ struct zone {
- 	unsigned long		wait_table_bits;
- 
- 	ZONE_PADDING(_pad1_)
--
--	/* Write-intensive fields used from the page allocator */
--	spinlock_t		lock;
--
- 	/* free areas of different sizes */
- 	struct free_area	free_area[MAX_ORDER];
- 
- 	/* zone flags, see below */
- 	unsigned long		flags;
- 
-+	/* Write-intensive fields used from the page allocator */
-+	spinlock_t		lock;
-+
- 	ZONE_PADDING(_pad2_)
- 
- 	/* Write-intensive fields used by page reclaim */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
