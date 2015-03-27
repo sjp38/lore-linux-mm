@@ -1,183 +1,397 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CB1C6B0038
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 11:05:23 -0400 (EDT)
-Received: by wgra20 with SMTP id a20so102057882wgr.3
-        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 08:05:23 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id o7si3682965wiv.59.2015.03.27.08.05.21
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id DF8416B0038
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 11:13:16 -0400 (EDT)
+Received: by pabxg6 with SMTP id xg6so98414052pab.0
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 08:13:16 -0700 (PDT)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id lq10si3261263pab.61.2015.03.27.08.13.14
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Mar 2015 08:05:21 -0700 (PDT)
-Date: Fri, 27 Mar 2015 11:05:09 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 00/12] mm: page_alloc: improve OOM mechanism and policy
-Message-ID: <20150327150509.GA21119@cmpxchg.org>
-References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
- <20150326195822.GB28129@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150326195822.GB28129@dastard>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Fri, 27 Mar 2015 08:13:15 -0700 (PDT)
+MIME-version: 1.0
+Content-type: text/plain; charset=windows-1252; format=flowed
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NLV00JETMGLZFA0@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 27 Mar 2015 15:17:09 +0000 (GMT)
+Content-transfer-encoding: 8BIT
+Message-id: <55157384.6020209@samsung.com>
+Date: Fri, 27 Mar 2015 16:13:08 +0100
+From: Mateusz Krawczuk <m.krawczuk@samsung.com>
+Subject: Re: [PATCH 04/16] page-flags: define PG_locked behavior on compound
+ pages
+References: 
+ <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1426784902-125149-5-git-send-email-kirill.shutemov@linux.intel.com>
+In-reply-to: 
+ <1426784902-125149-5-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.cz>, Theodore Ts'o <tytso@mit.edu>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au
 
-On Fri, Mar 27, 2015 at 06:58:22AM +1100, Dave Chinner wrote:
-> On Wed, Mar 25, 2015 at 02:17:04AM -0400, Johannes Weiner wrote:
-> > Hi everybody,
-> > 
-> > in the recent past we've had several reports and discussions on how to
-> > deal with allocations hanging in the allocator upon OOM.
-> > 
-> > The idea of this series is mainly to make the mechanism of detecting
-> > OOM situations reliable enough that we can be confident about failing
-> > allocations, and then leave the fallback strategy to the caller rather
-> > than looping forever in the allocator.
-> > 
-> > The other part is trying to reduce the __GFP_NOFAIL deadlock rate, at
-> > least for the short term while we don't have a reservation system yet.
-> 
-> A valid goal, but I think this series goes about it the wrong way.
-> i.e. it forces us to use __GFP_NOFAIL rather than providing us a
-> valid fallback mechanism to access reserves.
+Hi!
 
-I think you misunderstood the goal.
+This patch breaks build of linux next since 2015-03-25 on arm using 
+exynos_defconfig with arm-linux-gnueabi-linaro_4.7.4-2014.04, 
+arm-linux-gnueabi-linaro_4.8.3-2014.04 and 
+arm-linux-gnueabi-4.7.3-12ubuntu1(from ubuntu 14.04 lts). Compiler shows 
+this error message:
+mm/migrate.c: In function ?migrate_pages?:
+mm/migrate.c:1148:1: internal compiler error: in push_minipool_fix, at 
+config/arm/arm.c:13500
+Please submit a full bug report,
+with preprocessed source if appropriate.
+See <file:///usr/share/doc/gcc-4.7/README.Bugs> for instructions.
 
-While I agree that reserves would be the optimal fallback strategy,
-this series is about avoiding deadlocks in existing callsites that
-currently can not fail.  This is about getting the best out of our
-existing mechanisms until we have universal reservation coverage,
-which will take time to devise and transition our codebase to.
+It builds fine with arm-linux-gnueabi-linaro_4.9.1-2014.07.
 
-GFP_NOFS sites are currently one of the sites that can deadlock inside
-the allocator, even though many of them seem to have fallback code.
-My reasoning here is that if you *have* an exit strategy for failing
-allocations that is smarter than hanging, we should probably use that.
+Best Regards
+Mateusz Krawczuk
+Samsung R&D Institute Poland
 
-> >  mm: page_alloc: emergency reserve access for __GFP_NOFAIL allocations
-> > 
-> > An exacerbation of the victim-stuck-behind-allocation scenario are
-> > __GFP_NOFAIL allocations, because they will actually deadlock.  To
-> > avoid this, or try to, give __GFP_NOFAIL allocations access to not
-> > just the OOM reserves but also the system's emergency reserves.
-> > 
-> > This is basically a poor man's reservation system, which could or
-> > should be replaced later on with an explicit reservation system that
-> > e.g. filesystems have control over for use by transactions.
-> > 
-> > It's obviously not bulletproof and might still lock up, but it should
-> > greatly reduce the likelihood.  AFAIK Andrea, whose idea this was, has
-> > been using this successfully for some time.
-> 
-> So, if we want GFP_NOFS allocations to be able to dip into a
-> small extra reservation to make progress at ENOMEM, we have to use
-> use __GFP_NOFAIL because looping ourselves won't allow use of these
-> extra reserves?
-
-As I said, this series is not about providing reserves just yet.  It
-is about using the fallback strategies you already implemented.  And
-where you don't have any, it's about making the allocator's last way
-of forward progress, the OOM killer, more reliable.
-
-If you have an allocation site that is endlessly looping around calls
-to the allocator, it means you DON'T have a fallback strategy.  In
-that case, it would be in your interest to tell the allocator, such
-that it can take measures to break the infinite loop.
-
-However, those measures are not without their own risk and they need
-to be carefully sequenced to reduce the risk for deadlocks.  E.g. we
-can not give __GFP_NOFAIL allocations access to the statically-sized
-emergency reserves without taking steps to free memory at the same
-time, because then we'd just trade forward progress of that allocation
-against forward progress of some memory reclaimer later on which finds
-the emergency reserves exhausted.
-
-> >  mm: page_alloc: do not lock up GFP_NOFS allocations upon OOM
-> > 
-> > Another hang that was reported was from NOFS allocations.  The trouble
-> > with these is that they can't issue or wait for writeback during page
-> > reclaim, and so we don't want to OOM kill on their behalf.  However,
-> > with such restrictions on making progress, they are prone to hangs.
-> 
-> And because this effectively means GFP_NOFS allocations are
-> going to fail much more often, we're either going to have to loop
-> ourselves or use __GFP_NOFAIL...
-> 
-> > This patch makes NOFS allocations fail if reclaim can't free anything.
-> > 
-> > It would be good if the filesystem people could weigh in on whether
-> > they can deal with failing GFP_NOFS allocations, or annotate the
-> > exceptions with __GFP_NOFAIL etc.  It could well be that a middle
-> > ground is required that allows using the OOM killer before giving up.
-> 
-> ... which looks to me like a catch-22 situation for us: We
-> have reserves, but callers need to use __GFP_NOFAIL to access them.
-> GFP_NOFS is going to fail more often, so callers need to handle that
-> in some way, either by looping or erroring out.
-> 
-> But if we loop manually because we try to handle ENOMEM situations
-> gracefully (e.g. try a number of times before erroring out) we can't
-> dip into the reserves because the only semantics being provided are
-> "try-once-without-reserves" or "try-forever-with-reserves".  i.e.
-> what we actually need here is "try-once-with-reserves" semantics so
-> that we can make progress after a failing GFP_NOFS
-> "try-once-without-reserves" allocation.
+  dniu 19.03.2015 o 18:08, Kirill A. Shutemov pisze:
+> lock_page() must operate on the whole compound page. It doesn't make
+> much sense to lock part of compound page. Change code to use head page's
+> PG_locked, if tail page is passed.
 >
-> IOWS, __GFP_NOFAIL is not the answer here - it's GFP_NOFS |
-> __GFP_USE_RESERVE that we need on the failure fallback path. Which,
-> incidentally, is trivial to add to the XFS allocation code. Indeed,
-> I'll request that you test series like this on metadata intensive
-> filesystem workloads on XFS under memory stress and quantify how
-> many new "XFS: possible deadlock in memory allocation" warnings are
-> emitted. If the patch set floods the system with such warnings, then
-> it means the proposed means the fallback for "caller handles
-> allocation failure" is not making progress.
-
-Again, we don't have reserves with this series, we only have a small
-pool to compensate for OOM kills getting stuck behind the allocation.
-They are an extension of the OOM killer that can not live on their own
-right now, so the best we could do at this point is give you a way to
-annotate NOFS allocations to OOM kill (and then try the OOM reserves)
-before failing the allocation.
-
-However, since that can still fail, what would be your ultimate course
-of action?  The reason I'm asking is because the message you are
-quoting is from this piece of code:
-
-void *
-kmem_alloc(size_t size, xfs_km_flags_t flags)
-{
-	int	retries = 0;
-	gfp_t	lflags = kmem_flags_convert(flags);
-	void	*ptr;
-
-	do {
-		ptr = kmalloc(size, lflags);
-		if (ptr || (flags & (KM_MAYFAIL|KM_NOSLEEP)))
-			return ptr;
-		if (!(++retries % 100))
-			xfs_err(NULL,
-		"possible memory allocation deadlock in %s (mode:0x%x)",
-					__func__, lflags);
-		congestion_wait(BLK_RW_ASYNC, HZ/50);
-	} while (1);
-}
-
-and that does not implement a fallback strategy.  The only way to not
-trigger those warnings is continuing to loop in the allocator, so you
-might as well use __GFP_NOFAIL here.  This is not the sort of callsite
-that "mm: page_alloc: do not lock up GFP_NOFS allocations upon OOM"
-had in mind, because it will continue to lock up on OOM either way.
-Only instead of in the allocator, it will lock up in the xfs code.
-
-This is a NOFAIL caller, so it would benefit from those changes in the
-series that make __GFP_NOFAIL more reliable.
-
-But what about your other NOFS callers?  Are there any that have
-actual fallback code?  Those that the allocator should fail rather
-than hang if it runs out of memory?  Those are what 11/12 is about.
+> This patch also get rid of custom helprer functions --
+> __set_page_locked() and __clear_page_locked(). They replaced with
+> helpers generated by __SETPAGEFLAG/__CLEARPAGEFLAG. Tail pages to these
+> helper would trigger VM_BUG_ON().
+>
+> SLUB uses PG_locked as a bit spin locked. IIUC, tail pages should never
+> appear there. VM_BUG_ON() is added to make sure that this assumption is
+> correct.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>   fs/cifs/file.c             |  8 ++++----
+>   include/linux/page-flags.h |  2 +-
+>   include/linux/pagemap.h    | 25 ++++++++-----------------
+>   mm/filemap.c               | 15 +++++++++------
+>   mm/ksm.c                   |  2 +-
+>   mm/memory-failure.c        |  2 +-
+>   mm/migrate.c               |  2 +-
+>   mm/shmem.c                 |  4 ++--
+>   mm/slub.c                  |  2 ++
+>   mm/swap_state.c            |  4 ++--
+>   mm/vmscan.c                |  4 ++--
+>   mm/zswap.c                 |  4 ++--
+>   12 files changed, 35 insertions(+), 39 deletions(-)
+>
+> diff --git a/fs/cifs/file.c b/fs/cifs/file.c
+> index ca30c391a894..b9fd85dfee9b 100644
+> --- a/fs/cifs/file.c
+> +++ b/fs/cifs/file.c
+> @@ -3413,13 +3413,13 @@ readpages_get_pages(struct address_space *mapping, struct list_head *page_list,
+>   	 * should have access to this page, we're safe to simply set
+>   	 * PG_locked without checking it first.
+>   	 */
+> -	__set_page_locked(page);
+> +	__SetPageLocked(page);
+>   	rc = add_to_page_cache_locked(page, mapping,
+>   				      page->index, GFP_KERNEL);
+>
+>   	/* give up if we can't stick it in the cache */
+>   	if (rc) {
+> -		__clear_page_locked(page);
+> +		__ClearPageLocked(page);
+>   		return rc;
+>   	}
+>
+> @@ -3440,10 +3440,10 @@ readpages_get_pages(struct address_space *mapping, struct list_head *page_list,
+>   		if (*bytes + PAGE_CACHE_SIZE > rsize)
+>   			break;
+>
+> -		__set_page_locked(page);
+> +		__SetPageLocked(page);
+>   		if (add_to_page_cache_locked(page, mapping, page->index,
+>   								GFP_KERNEL)) {
+> -			__clear_page_locked(page);
+> +			__ClearPageLocked(page);
+>   			break;
+>   		}
+>   		list_move_tail(&page->lru, tmplist);
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index 32ea62c0ad30..10bdde20b14c 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -269,7 +269,7 @@ static inline struct page *compound_head_fast(struct page *page)
+>   	return page;
+>   }
+>
+> -TESTPAGEFLAG(Locked, locked, ANY)
+> +__PAGEFLAG(Locked, locked, NO_TAIL)
+>   PAGEFLAG(Error, error, ANY) TESTCLEARFLAG(Error, error, ANY)
+>   PAGEFLAG(Referenced, referenced, ANY) TESTCLEARFLAG(Referenced, referenced, ANY)
+>   	__SETPAGEFLAG(Referenced, referenced, ANY)
+> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+> index 4b3736f7065c..7c3790764795 100644
+> --- a/include/linux/pagemap.h
+> +++ b/include/linux/pagemap.h
+> @@ -426,18 +426,9 @@ extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
+>   				unsigned int flags);
+>   extern void unlock_page(struct page *page);
+>
+> -static inline void __set_page_locked(struct page *page)
+> -{
+> -	__set_bit(PG_locked, &page->flags);
+> -}
+> -
+> -static inline void __clear_page_locked(struct page *page)
+> -{
+> -	__clear_bit(PG_locked, &page->flags);
+> -}
+> -
+>   static inline int trylock_page(struct page *page)
+>   {
+> +	page = compound_head(page);
+>   	return (likely(!test_and_set_bit_lock(PG_locked, &page->flags)));
+>   }
+>
+> @@ -490,9 +481,9 @@ extern int wait_on_page_bit_killable_timeout(struct page *page,
+>
+>   static inline int wait_on_page_locked_killable(struct page *page)
+>   {
+> -	if (PageLocked(page))
+> -		return wait_on_page_bit_killable(page, PG_locked);
+> -	return 0;
+> +	if (!PageLocked(page))
+> +		return 0;
+> +	return wait_on_page_bit_killable(compound_head(page), PG_locked);
+>   }
+>
+>   extern wait_queue_head_t *page_waitqueue(struct page *page);
+> @@ -511,7 +502,7 @@ static inline void wake_up_page(struct page *page, int bit)
+>   static inline void wait_on_page_locked(struct page *page)
+>   {
+>   	if (PageLocked(page))
+> -		wait_on_page_bit(page, PG_locked);
+> +		wait_on_page_bit(compound_head(page), PG_locked);
+>   }
+>
+>   /*
+> @@ -656,17 +647,17 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask);
+>
+>   /*
+>    * Like add_to_page_cache_locked, but used to add newly allocated pages:
+> - * the page is new, so we can just run __set_page_locked() against it.
+> + * the page is new, so we can just run __SetPageLocked() against it.
+>    */
+>   static inline int add_to_page_cache(struct page *page,
+>   		struct address_space *mapping, pgoff_t offset, gfp_t gfp_mask)
+>   {
+>   	int error;
+>
+> -	__set_page_locked(page);
+> +	__SetPageLocked(page);
+>   	error = add_to_page_cache_locked(page, mapping, offset, gfp_mask);
+>   	if (unlikely(error))
+> -		__clear_page_locked(page);
+> +		__ClearPageLocked(page);
+>   	return error;
+>   }
+>
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 12548d03c11d..467768d4263b 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -615,11 +615,11 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+>   	void *shadow = NULL;
+>   	int ret;
+>
+> -	__set_page_locked(page);
+> +	__SetPageLocked(page);
+>   	ret = __add_to_page_cache_locked(page, mapping, offset,
+>   					 gfp_mask, &shadow);
+>   	if (unlikely(ret))
+> -		__clear_page_locked(page);
+> +		__ClearPageLocked(page);
+>   	else {
+>   		/*
+>   		 * The page might have been evicted from cache only
+> @@ -742,6 +742,7 @@ EXPORT_SYMBOL_GPL(add_page_wait_queue);
+>    */
+>   void unlock_page(struct page *page)
+>   {
+> +	page = compound_head(page);
+>   	VM_BUG_ON_PAGE(!PageLocked(page), page);
+>   	clear_bit_unlock(PG_locked, &page->flags);
+>   	smp_mb__after_atomic();
+> @@ -806,18 +807,20 @@ EXPORT_SYMBOL_GPL(page_endio);
+>    */
+>   void __lock_page(struct page *page)
+>   {
+> -	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+> +	struct page *page_head = compound_head(page);
+> +	DEFINE_WAIT_BIT(wait, &page_head->flags, PG_locked);
+>
+> -	__wait_on_bit_lock(page_waitqueue(page), &wait, bit_wait_io,
+> +	__wait_on_bit_lock(page_waitqueue(page_head), &wait, bit_wait_io,
+>   							TASK_UNINTERRUPTIBLE);
+>   }
+>   EXPORT_SYMBOL(__lock_page);
+>
+>   int __lock_page_killable(struct page *page)
+>   {
+> -	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+> +	struct page *page_head = compound_head(page);
+> +	DEFINE_WAIT_BIT(wait, &page_head->flags, PG_locked);
+>
+> -	return __wait_on_bit_lock(page_waitqueue(page), &wait,
+> +	return __wait_on_bit_lock(page_waitqueue(page_head), &wait,
+>   					bit_wait_io, TASK_KILLABLE);
+>   }
+>   EXPORT_SYMBOL_GPL(__lock_page_killable);
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> index 4162dce2eb44..23138e99a531 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -1884,7 +1884,7 @@ struct page *ksm_might_need_to_copy(struct page *page,
+>
+>   		SetPageDirty(new_page);
+>   		__SetPageUptodate(new_page);
+> -		__set_page_locked(new_page);
+> +		__SetPageLocked(new_page);
+>   	}
+>
+>   	return new_page;
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index d487f8dc6d39..399eee44d13d 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -1136,7 +1136,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+>   	/*
+>   	 * We ignore non-LRU pages for good reasons.
+>   	 * - PG_locked is only well defined for LRU pages and a few others
+> -	 * - to avoid races with __set_page_locked()
+> +	 * - to avoid races with __SetPageLocked()
+>   	 * - to avoid races with __SetPageSlab*() (and more non-atomic ops)
+>   	 * The check (unnecessarily) ignores LRU pages being isolated and
+>   	 * walked by the page reclaim code, however that's not a big loss.
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 6aa9a4222ea9..114602a68111 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -1734,7 +1734,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+>   		flush_tlb_range(vma, mmun_start, mmun_end);
+>
+>   	/* Prepare a page as a migration target */
+> -	__set_page_locked(new_page);
+> +	__SetPageLocked(new_page);
+>   	SetPageSwapBacked(new_page);
+>
+>   	/* anon mapping, we can simply copy page->mapping to the new page: */
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 80b360c7bcd1..2e2b943c8e62 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -981,7 +981,7 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
+>   	copy_highpage(newpage, oldpage);
+>   	flush_dcache_page(newpage);
+>
+> -	__set_page_locked(newpage);
+> +	__SetPageLocked(newpage);
+>   	SetPageUptodate(newpage);
+>   	SetPageSwapBacked(newpage);
+>   	set_page_private(newpage, swap_index);
+> @@ -1173,7 +1173,7 @@ repeat:
+>   		}
+>
+>   		__SetPageSwapBacked(page);
+> -		__set_page_locked(page);
+> +		__SetPageLocked(page);
+>   		if (sgp == SGP_WRITE)
+>   			__SetPageReferenced(page);
+>
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 2584d4ff02eb..f33ae2b7a5e7 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -338,11 +338,13 @@ static inline int oo_objects(struct kmem_cache_order_objects x)
+>    */
+>   static __always_inline void slab_lock(struct page *page)
+>   {
+> +	VM_BUG_ON_PAGE(PageTail(page), page);
+>   	bit_spin_lock(PG_locked, &page->flags);
+>   }
+>
+>   static __always_inline void slab_unlock(struct page *page)
+>   {
+> +	VM_BUG_ON_PAGE(PageTail(page), page);
+>   	__bit_spin_unlock(PG_locked, &page->flags);
+>   }
+>
+> diff --git a/mm/swap_state.c b/mm/swap_state.c
+> index 405923f77334..d1c4a25b4362 100644
+> --- a/mm/swap_state.c
+> +++ b/mm/swap_state.c
+> @@ -357,7 +357,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+>   		}
+>
+>   		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
+> -		__set_page_locked(new_page);
+> +		__SetPageLocked(new_page);
+>   		SetPageSwapBacked(new_page);
+>   		err = __add_to_swap_cache(new_page, entry);
+>   		if (likely(!err)) {
+> @@ -371,7 +371,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+>   		}
+>   		radix_tree_preload_end();
+>   		ClearPageSwapBacked(new_page);
+> -		__clear_page_locked(new_page);
+> +		__ClearPageLocked(new_page);
+>   		/*
+>   		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
+>   		 * clear SWAP_HAS_CACHE flag.
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 260c413d39cd..dc6cd51577a6 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1062,7 +1062,7 @@ unmap:
+>   				VM_BUG_ON_PAGE(PageSwapCache(page), page);
+>   				if (!page_freeze_refs(page, 1))
+>   					goto keep_locked;
+> -				__clear_page_locked(page);
+> +				__ClearPageLocked(page);
+>   				count_vm_event(PGLAZYFREED);
+>   				goto free_it;
+>   			}
+> @@ -1174,7 +1174,7 @@ unmap:
+>   		 * we obviously don't have to worry about waking up a process
+>   		 * waiting on the page lock, because there are no references.
+>   		 */
+> -		__clear_page_locked(page);
+> +		__ClearPageLocked(page);
+>   free_it:
+>   		nr_reclaimed++;
+>
+> diff --git a/mm/zswap.c b/mm/zswap.c
+> index 4249e82ff934..f8583f1fc938 100644
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -490,7 +490,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
+>   		}
+>
+>   		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
+> -		__set_page_locked(new_page);
+> +		__SetPageLocked(new_page);
+>   		SetPageSwapBacked(new_page);
+>   		err = __add_to_swap_cache(new_page, entry);
+>   		if (likely(!err)) {
+> @@ -501,7 +501,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
+>   		}
+>   		radix_tree_preload_end();
+>   		ClearPageSwapBacked(new_page);
+> -		__clear_page_locked(new_page);
+> +		__ClearPageLocked(new_page);
+>   		/*
+>   		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
+>   		 * clear SWAP_HAS_CACHE flag.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
