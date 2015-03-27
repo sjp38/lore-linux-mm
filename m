@@ -1,121 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id EEC926B0072
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 12:40:56 -0400 (EDT)
-Received: by wgs2 with SMTP id 2so105479019wgs.1
-        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 09:40:56 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id uo8si4105073wjc.43.2015.03.27.09.40.47
+Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 92EF06B006C
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 13:09:17 -0400 (EDT)
+Received: by labe2 with SMTP id e2so75292058lab.3
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 10:09:16 -0700 (PDT)
+Received: from forward-corp1m.cmail.yandex.net (forward-corp1m.cmail.yandex.net. [5.255.216.100])
+        by mx.google.com with ESMTPS id k10si1765700lbs.115.2015.03.27.10.09.15
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 27 Mar 2015 09:40:48 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 4/4] mm, procfs: Display VmAnon, VmFile and VmShm in /proc/pid/status
-Date: Fri, 27 Mar 2015 17:40:41 +0100
-Message-Id: <1427474441-17708-5-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1427474441-17708-1-git-send-email-vbabka@suse.cz>
-References: <1427474441-17708-1-git-send-email-vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Mar 2015 10:09:15 -0700 (PDT)
+Message-ID: <55158EB5.5040301@yandex-team.ru>
+Date: Fri, 27 Mar 2015 20:09:09 +0300
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 3/4] mm, shmem: Add shmem resident memory accounting
+References: <1427474441-17708-1-git-send-email-vbabka@suse.cz> <1427474441-17708-4-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1427474441-17708-4-git-send-email-vbabka@suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Jerome Marchand <jmarchan@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-doc@vger.kernel.org, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Vlastimil Babka <vbabka@suse.cz>
+To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Jerome Marchand <jmarchan@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-doc@vger.kernel.org, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>
 
-From: Jerome Marchand <jmarchan@redhat.com>
+On 27.03.2015 19:40, Vlastimil Babka wrote:
+> From: Jerome Marchand <jmarchan@redhat.com>
+>
+> Currently looking at /proc/<pid>/status or statm, there is no way to
+> distinguish shmem pages from pages mapped to a regular file (shmem
+> pages are mapped to /dev/zero), even though their implication in
+> actual memory use is quite different.
+> This patch adds MM_SHMEMPAGES counter to mm_rss_stat to account for
+> shmem pages instead of MM_FILEPAGES.
+>
+> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> ---
 
-It's currently inconvenient to retrieve MM_ANONPAGES value from status
-and statm files and there is no way to separate MM_FILEPAGES and
-MM_SHMEMPAGES. Add VmAnon, VmFile and VmShm lines in /proc/<pid>/status
-to solve these issues.
 
-Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- Documentation/filesystems/proc.txt | 10 +++++++++-
- fs/proc/task_mmu.c                 | 13 +++++++++++--
- 2 files changed, 20 insertions(+), 3 deletions(-)
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -327,9 +327,12 @@ struct core_state {
+>   };
+>
+>   enum {
+> -	MM_FILEPAGES,
+> -	MM_ANONPAGES,
+> -	MM_SWAPENTS,
+> +	MM_FILEPAGES,	/* Resident file mapping pages */
+> +	MM_ANONPAGES,	/* Resident anonymous pages */
+> +	MM_SWAPENTS,	/* Anonymous swap entries */
+> +#ifdef CONFIG_SHMEM
+> +	MM_SHMEMPAGES,	/* Resident shared memory pages */
+> +#endif
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 8b30543..c777adb 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -168,6 +168,9 @@ read the file /proc/PID/status:
-   VmLck:         0 kB
-   VmHWM:       476 kB
-   VmRSS:       476 kB
-+  VmAnon:      352 kB
-+  VmFile:      120 kB
-+  VmShm:         4 kB
-   VmData:      156 kB
-   VmStk:        88 kB
-   VmExe:        68 kB
-@@ -224,7 +227,12 @@ Table 1-2: Contents of the status files (as of 2.6.30-rc7)
-  VmSize                      total program size
-  VmLck                       locked memory size
-  VmHWM                       peak resident set size ("high water mark")
-- VmRSS                       size of memory portions
-+ VmRSS                       size of memory portions. It contains the three
-+                             following parts (VmRSS = VmAnon + VmFile + VmShm)
-+ VmAnon                      size of resident anonymous memory
-+ VmFile                      size of resident file mappings
-+ VmShm                       size of resident shmem memory (includes SysV shm,
-+                             mapping of tmpfs and shared anonymous mappings)
-  VmData                      size of data, stack, and text segments
-  VmStk                       size of data, stack, and text segments
-  VmExe                       size of text segment
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index e86e137..1eeacd3 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -22,7 +22,7 @@
- 
- void task_mem(struct seq_file *m, struct mm_struct *mm)
- {
--	unsigned long data, text, lib, swap, ptes, pmds;
-+	unsigned long data, text, lib, swap, ptes, pmds, anon, file, shmem;
- 	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
- 
- 	/*
-@@ -39,6 +39,9 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
- 	if (hiwater_rss < mm->hiwater_rss)
- 		hiwater_rss = mm->hiwater_rss;
- 
-+	anon = get_mm_counter(mm, MM_ANONPAGES);
-+	file = get_mm_counter(mm, MM_FILEPAGES);
-+	shmem = get_mm_counter_shmem(mm);
- 	data = mm->total_vm - mm->shared_vm - mm->stack_vm;
- 	text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK)) >> 10;
- 	lib = (mm->exec_vm << (PAGE_SHIFT-10)) - text;
-@@ -52,6 +55,9 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
- 		"VmPin:\t%8lu kB\n"
- 		"VmHWM:\t%8lu kB\n"
- 		"VmRSS:\t%8lu kB\n"
-+		"VmAnon:\t%8lu kB\n"
-+		"VmFile:\t%8lu kB\n"
-+		"VmShm:\t%8lu kB\n"
- 		"VmData:\t%8lu kB\n"
- 		"VmStk:\t%8lu kB\n"
- 		"VmExe:\t%8lu kB\n"
-@@ -65,6 +71,9 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
- 		mm->pinned_vm << (PAGE_SHIFT-10),
- 		hiwater_rss << (PAGE_SHIFT-10),
- 		total_rss << (PAGE_SHIFT-10),
-+		anon << (PAGE_SHIFT-10),
-+		file << (PAGE_SHIFT-10),
-+		shmem << (PAGE_SHIFT-10),
- 		data << (PAGE_SHIFT-10),
- 		mm->stack_vm << (PAGE_SHIFT-10), text, lib,
- 		ptes >> 10,
-@@ -82,7 +91,7 @@ unsigned long task_statm(struct mm_struct *mm,
- 			 unsigned long *data, unsigned long *resident)
- {
- 	*shared = get_mm_counter(mm, MM_FILEPAGES) +
--		get_mm_counter(mm, MM_SHMEMPAGES);
-+		get_mm_counter_shmem(mm);
- 	*text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK))
- 								>> PAGE_SHIFT;
- 	*data = mm->total_vm - mm->shared_vm;
--- 
-2.1.4
+I prefer to keep that counter unconditionally:
+kernel has MM_SWAPENTS even without CONFIG_SWAP.
+
+>   	NR_MM_COUNTERS
+>   };
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
