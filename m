@@ -1,111 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id B3C3C6B0032
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 05:47:38 -0400 (EDT)
-Received: by wiaa2 with SMTP id a2so23569032wia.0
-        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 02:47:38 -0700 (PDT)
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 3ACFF6B0032
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 05:54:19 -0400 (EDT)
+Received: by wibgn9 with SMTP id gn9so23773546wib.1
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 02:54:18 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fu19si2408115wjc.14.2015.03.27.02.47.36
+        by mx.google.com with ESMTPS id j2si3075216wia.46.2015.03.27.02.54.17
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 27 Mar 2015 02:47:37 -0700 (PDT)
-Message-ID: <55152737.6060404@suse.cz>
-Date: Fri, 27 Mar 2015 10:47:35 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Fri, 27 Mar 2015 02:54:17 -0700 (PDT)
+Date: Fri, 27 Mar 2015 09:54:13 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: Move zone lock to a different cache line than order-0
+ free page lists
+Message-ID: <20150327095413.GO4701@suse.de>
 MIME-Version: 1.0
-Subject: Re: [patch][resend] MAP_HUGETLB munmap fails with size not 2MB aligned
-References: <alpine.DEB.2.10.1410221518160.31326@davide-lnx3> <alpine.LSU.2.11.1503251708530.5592@eggly.anvils> <alpine.DEB.2.10.1503251754320.26501@davide-lnx3> <alpine.DEB.2.10.1503251938170.16714@chino.kir.corp.google.com> <alpine.DEB.2.10.1503260431290.2755@mbplnx> <alpine.DEB.2.10.1503261201440.8238@chino.kir.corp.google.com> <alpine.DEB.2.10.1503261221470.5119@davide-lnx3> <alpine.DEB.2.10.1503261250430.9410@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1503261250430.9410@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Davide Libenzi <davidel@xmailserver.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, Eric B Munson <emunson@akamai.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-man@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Huang Ying <ying.huang@intel.com>, LKML <linux-kernel@vger.kernel.org>, LKP ML <lkp@01.org>, linux-mm@kvack.org
 
-Might be too late in this thread, but in case you are going to continue and/or
-repost:
+Huang Ying reported the following problem due to commit 3484b2de9499
+("mm: rearrange zone fields into read-only, page alloc, statistics and
+page reclaim lines") from the Intel performance tests
 
-[CC += linux-api@vger.kernel.org]
-(also linux-man and Michael to match my other reply)
+    24b7e5819ad5cbef  3484b2de9499df23c4604a513b
+    ----------------  --------------------------
+             %stddev     %change         %stddev
+                 \          |                \
+        152288 \261  0%     -46.2%      81911 \261  0%  aim7.jobs-per-min
+           237 \261  0%     +85.6%        440 \261  0%  aim7.time.elapsed_time
+           237 \261  0%     +85.6%        440 \261  0%  aim7.time.elapsed_time.max
+         25026 \261  0%     +70.7%      42712 \261  0%  aim7.time.system_time
+       2186645 \261  5%     +32.0%    2885949 \261  4%  aim7.time.voluntary_context_switches
+       4576561 \261  1%     +24.9%    5715773 \261  0%  aim7.time.involuntary_context_switches
 
-    Since this is a kernel-user-space API change, please CC linux-api@. The
-kernel source file Documentation/SubmitChecklist notes that all Linux kernel
-patches that change userspace interfaces should be CCed to
-linux-api@vger.kernel.org, so that the various parties who are interested in API
-changes are informed. For further information, see
-https://www.kernel.org/doc/man-pages/linux-api-ml.html
+The problem is specific to very large machines under stress. It was not
+reproducible with the machines I had used to justify the original patch
+because large numbers of CPUs are required. When pressure is high enough,
+the cache line is bouncing between CPUs trying to acquire the lock and
+the holder of the lock adjusting free lists. The intention was that the
+acquirer of the lock would automatically have the cache line holding the
+free lists but according to Huang, this is not a universal win.
 
+One possibility is to move the zone lock to its own cache line but it
+increases the size of the zone. This patch moves the lock to the other
+end of the free lists where they do not contend under high pressure. It
+does mean the page allocator paths now require more cache lines but Huang
+reports that it restores performance to previous levels on large machines
 
-On 03/26/2015 09:03 PM, David Rientjes wrote:
-> On Thu, 26 Mar 2015, Davide Libenzi wrote:
-> 
->> > Yes, this munmap() behavior of lengths <= hugepage_size - PAGE_SIZE for a 
->> > hugetlb vma is long standing and there may be applications that break as a 
->> > result of changing the behavior: a database that reserves all allocated 
->> > hugetlb memory with mmap() so that it always has exclusive access to those 
->> > hugepages, whether they are faulted or not, and maintains its own hugepage 
->> > pool (which is common), may test the return value of munmap() and depend 
->> > on it returning -EINVAL to determine if it is freeing memory that was 
->> > either dynamically allocated or mapped from the hugetlb reserved pool.
->> 
->> You went a long way to create such a case.
->> But, in your case, that application will erroneously considering hugepage 
->> mmaped memory, as dynamically allocated, since it will always get EINVAL, 
->> unless it passes an aligned size. Aligned size, which a fix like the one 
->> posted in the patch will still leave as success.
-> 
-> There was a patch proposed last week to add reserved pools to the 
-> hugetlbfs mount option specifically for the case where a large database 
-> wants sole reserved access to the hugepage pool.  This is why hugetlbfs 
-> pages become reserved on mmap().  In that case, the database never wants 
-> to do munmap() and instead maintains its own hugepage pool.
-> 
-> That makes the usual database case, mmap() all necessary hugetlb pages to 
-> reserve them, even easier since they have historically had to maintain 
-> this pool amongst various processes.
-> 
-> Is there a process out there that tests for munmap(ptr) == EINVAL and, if 
-> true, returns ptr to its hugepage pool?  I can't say for certain that none 
-> exist, that's why the potential for breakage exists.
-> 
->> OTOH, an application, which might be more common than the one you posted,
->> which calls munmap() to release a pointer which it validly got from a 
->> previous mmap(), will leak huge pages as all the issued munmaps will fail.
->> 
-> 
-> That application would have to be ignoring an EINVAL return value.
-> 
->> > If we were to go back in time and decide this when the munmap() behavior 
->> > for hugetlb vmas was originally introduced, that would be valid.  The 
->> > problem is that it could lead to userspace breakage and that's a 
->> > non-starter.
->> > 
->> > What we can do is improve the documentation and man-page to clearly 
->> > specify the long-standing behavior so that nobody encounters unexpected 
->> > results in the future.
->> 
->> This way you will leave the mmap API with broken semantics.
->> In any case, I am done arguing.
->> I will leave to Andrew to sort it out, and to Michael Kerrisk to update 
->> the mmap man pages with the new funny behaviour.
->> 
-> 
-> The behavior is certainly not new, it has always been the case for 
-> munmap() on hugetlb vmas.
-> 
-> In a strict POSIX interpretation, it refers only to pages in the sense of
-> what is returned by sysconf(_SC_PAGESIZE).  Such vmas are not backed by 
-> any pages of size sysconf(_SC_PAGESIZE), so this behavior is undefined.  
-> It would be best to modify the man page to explicitly state this for 
-> MAP_HUGETLB.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+             %stddev     %change         %stddev
+                 \          |                \
+         84568 \261  1%     +94.3%     164280 \261  1%  aim7.jobs-per-min
+       2881944 \261  2%     -35.1%    1870386 \261  8%  aim7.time.voluntary_context_switches
+           681 \261  1%      -3.4%        658 \261  0%  aim7.time.user_time
+       5538139 \261  0%     -12.1%    4867884 \261  0%  aim7.time.involuntary_context_switches
+         44174 \261  1%     -46.0%      23848 \261  1%  aim7.time.system_time
+           426 \261  1%     -48.4%        219 \261  1%  aim7.time.elapsed_time
+           426 \261  1%     -48.4%        219 \261  1%  aim7.time.elapsed_time.max
+           468 \261  1%     -43.1%        266 \261  2%  uptime.boot
+
+Reported-and-tested-by: Huang Ying <ying.huang@intel.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ include/linux/mmzone.h | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index f279d9c158cd..2782df47101e 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -474,16 +474,15 @@ struct zone {
+ 	unsigned long		wait_table_bits;
+ 
+ 	ZONE_PADDING(_pad1_)
+-
+-	/* Write-intensive fields used from the page allocator */
+-	spinlock_t		lock;
+-
+ 	/* free areas of different sizes */
+ 	struct free_area	free_area[MAX_ORDER];
+ 
+ 	/* zone flags, see below */
+ 	unsigned long		flags;
+ 
++	/* Write-intensive fields used from the page allocator */
++	spinlock_t		lock;
++
+ 	ZONE_PADDING(_pad2_)
+ 
+ 	/* Write-intensive fields used by page reclaim */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
