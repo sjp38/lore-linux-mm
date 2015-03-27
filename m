@@ -1,64 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 261F96B0032
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 04:37:37 -0400 (EDT)
-Received: by wibbg6 with SMTP id bg6so17920130wib.0
-        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 01:37:36 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id dr2si2085249wid.108.2015.03.27.01.37.34
-        for <linux-mm@kvack.org>;
-        Fri, 27 Mar 2015 01:37:35 -0700 (PDT)
-From: Borislav Petkov <bp@alien8.de>
-Subject: [PATCH] mm, trivial: Simplify flag check
-Date: Fri, 27 Mar 2015 09:35:46 +0100
-Message-Id: <1427445346-18858-1-git-send-email-bp@alien8.de>
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 98F2F6B0032
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 05:16:24 -0400 (EDT)
+Received: by wiaa2 with SMTP id a2so22526746wia.0
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 02:16:24 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id hi10si2936465wib.37.2015.03.27.02.16.22
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Mar 2015 02:16:23 -0700 (PDT)
+Date: Fri, 27 Mar 2015 10:16:13 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC] vmstat: Avoid waking up idle-cpu to service shepherd work
+Message-ID: <20150327091613.GE27490@worktop.programming.kicks-ass.net>
+References: <359c926bc85cdf79650e39f2344c2083002545bb.1427347966.git.viresh.kumar@linaro.org>
+ <20150326131822.fce6609efdd85b89ceb3f61c@linux-foundation.org>
+ <CAKohpo=nTXutbVVf-7iAwtgya4zUL686XbG69ExQ3Pi=VQRE-A@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKohpo=nTXutbVVf-7iAwtgya4zUL686XbG69ExQ3Pi=VQRE-A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: trivial@kernel.org
-Cc: linux-mm@kvack.org
+To: Viresh Kumar <viresh.kumar@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, hannes@cmpxchg.org, Christoph Lameter <cl@linux.com>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, vinmenon@codeaurora.org, shashim@codeaurora.org, Michal Hocko <mhocko@suse.cz>, mgorman@suse.de, dave@stgolabs.net, koct9i@gmail.com, Linux Memory Management List <linux-mm@kvack.org>, Suresh Siddha <suresh.b.siddha@intel.com>, Thomas Gleixner <tglx@linutronix.de>
 
-From: Borislav Petkov <bp@suse.de>
+On Fri, Mar 27, 2015 at 10:19:54AM +0530, Viresh Kumar wrote:
+> On 27 March 2015 at 01:48, Andrew Morton <akpm@linux-foundation.org> wrote:
+> > Shouldn't this be viewed as a shortcoming of the core timer code?
+> 
+> Yeah, it is. Some (not so pretty) solutions were tried earlier to fix that, but
+> they are rejected for obviously reasons [1].
+> 
+> > vmstat_shepherd() is merely rescheduling itself with
+> > schedule_delayed_work().  That's a dead bog simple operation and if
+> > it's producing suboptimal behaviour then we shouldn't be fixing it with
+> > elaborate workarounds in the caller?
+> 
+> I understand that, and that's why I sent it as an RFC to get the discussion
+> started. Does anyone else have got another (acceptable) idea to get this
+> resolved ?
 
-Flip the flag test so that it is the simplest. No functional change,
-just a small readability improvement:
+So the issue seems to be that we need base->running_timer in order to
+tell if a callback is running, right?
 
-No code changed:
+We could align the base on 8 bytes to gain an extra bit in the pointer
+and use that bit to indicate the running state. Then these sites can
+spin on that bit while we can change the actual base pointer.
 
-  # arch/x86/kernel/sys_x86_64.o:
-
-   text    data     bss     dec     hex filename
-   1551      24       0    1575     627 sys_x86_64.o.before
-   1551      24       0    1575     627 sys_x86_64.o.after
-
-md5:
-   70708d1b1ad35cc891118a69dc1a63f9  sys_x86_64.o.before.asm
-   70708d1b1ad35cc891118a69dc1a63f9  sys_x86_64.o.after.asm
-
-Signed-off-by: Borislav Petkov <bp@suse.de>
----
- include/linux/mm.h | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 47a93928b90f..43e876e9e28b 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1973,10 +1973,10 @@ extern unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info);
- static inline unsigned long
- vm_unmapped_area(struct vm_unmapped_area_info *info)
- {
--	if (!(info->flags & VM_UNMAPPED_AREA_TOPDOWN))
--		return unmapped_area(info);
--	else
-+	if (info->flags & VM_UNMAPPED_AREA_TOPDOWN)
- 		return unmapped_area_topdown(info);
-+	else
-+		return unmapped_area(info);
- }
- 
- /* truncate.c */
--- 
-2.3.3
+Since the timer->base pointer is locked through the base->lock and
+hand-over is safe vs lock_timer_base, this should all work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
