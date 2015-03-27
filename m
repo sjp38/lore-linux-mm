@@ -1,55 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 98F2F6B0032
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 05:16:24 -0400 (EDT)
-Received: by wiaa2 with SMTP id a2so22526746wia.0
-        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 02:16:24 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id hi10si2936465wib.37.2015.03.27.02.16.22
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id D18536B0032
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 05:22:08 -0400 (EDT)
+Received: by wgra20 with SMTP id a20so92238480wgr.3
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 02:22:08 -0700 (PDT)
+Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
+        by mx.google.com with ESMTPS id bu8si2292385wib.29.2015.03.27.02.22.06
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Mar 2015 02:16:23 -0700 (PDT)
-Date: Fri, 27 Mar 2015 10:16:13 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC] vmstat: Avoid waking up idle-cpu to service shepherd work
-Message-ID: <20150327091613.GE27490@worktop.programming.kicks-ass.net>
-References: <359c926bc85cdf79650e39f2344c2083002545bb.1427347966.git.viresh.kumar@linaro.org>
- <20150326131822.fce6609efdd85b89ceb3f61c@linux-foundation.org>
- <CAKohpo=nTXutbVVf-7iAwtgya4zUL686XbG69ExQ3Pi=VQRE-A@mail.gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 27 Mar 2015 02:22:07 -0700 (PDT)
+Message-ID: <55152137.20405@nod.at>
+Date: Fri, 27 Mar 2015 10:21:59 +0100
+From: Richard Weinberger <richard@nod.at>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKohpo=nTXutbVVf-7iAwtgya4zUL686XbG69ExQ3Pi=VQRE-A@mail.gmail.com>
+Subject: Re: [RFC PATCH 00/11] an introduction of library operating system
+ for Linux (LibOS)
+References: <1427202642-1716-1-git-send-email-tazaki@sfc.wide.ad.jp>	<551164ED.5000907@nod.at>	<m2twxacw13.wl@sfc.wide.ad.jp>	<55117565.6080002@nod.at>	<m2sicuctb2.wl@sfc.wide.ad.jp>	<55118277.5070909@nod.at>	<m2bnjhcevt.wl@sfc.wide.ad.jp>	<55133BAF.30301@nod.at>	<m2h9t7bubh.wl@wide.ad.jp>	<5514560A.7040707@nod.at> <m28uejaqyn.wl@wide.ad.jp>
+In-Reply-To: <m28uejaqyn.wl@wide.ad.jp>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Viresh Kumar <viresh.kumar@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, hannes@cmpxchg.org, Christoph Lameter <cl@linux.com>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, vinmenon@codeaurora.org, shashim@codeaurora.org, Michal Hocko <mhocko@suse.cz>, mgorman@suse.de, dave@stgolabs.net, koct9i@gmail.com, Linux Memory Management List <linux-mm@kvack.org>, Suresh Siddha <suresh.b.siddha@intel.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Hajime Tazaki <tazaki@wide.ad.jp>
+Cc: linux-arch@vger.kernel.org, arnd@arndb.de, corbet@lwn.net, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, jdike@addtoit.com, rusty@rustcorp.com.au, mathieu.lacage@gmail.com
 
-On Fri, Mar 27, 2015 at 10:19:54AM +0530, Viresh Kumar wrote:
-> On 27 March 2015 at 01:48, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > Shouldn't this be viewed as a shortcoming of the core timer code?
+Am 27.03.2015 um 07:34 schrieb Hajime Tazaki:
+>>> it (arch/lib) is a hardware-independent architecture which
+>>> provides necessary features to the remainder of kernel code,
+>>> isn't it ?
+>>
+>> The stuff in arch/ is the code to glue the kernel to
+>> a specific piece of hardware.
+>> Your code does something between. You duplicate kernel core features
+>> to make a specific piece of code work in userland.
 > 
-> Yeah, it is. Some (not so pretty) solutions were tried earlier to fix that, but
-> they are rejected for obviously reasons [1].
-> 
-> > vmstat_shepherd() is merely rescheduling itself with
-> > schedule_delayed_work().  That's a dead bog simple operation and if
-> > it's producing suboptimal behaviour then we shouldn't be fixing it with
-> > elaborate workarounds in the caller?
-> 
-> I understand that, and that's why I sent it as an RFC to get the discussion
-> started. Does anyone else have got another (acceptable) idea to get this
-> resolved ?
+> indeed, 'something between' would be an appropriate word.
 
-So the issue seems to be that we need base->running_timer in order to
-tell if a callback is running, right?
+Just an idea popping out of my head...
 
-We could align the base on 8 bytes to gain an extra bit in the pointer
-and use that bit to indicate the running state. Then these sites can
-spin on that bit while we can change the actual base pointer.
+What about putting libos into tools/testing/ and make it much more generic and framework alike.
+With more generic I mean that libos could be a stubbing framework for the kernel.
+i.e. you specify the subsystem you want to test/stub and the framework helps you doing so.
+A lot of the stubs you're placing in arch/lib could be auto-generated as the
+vast majority of all kernel methods you stub are no-ops which call only lib_assert(false).
 
-Since the timer->base pointer is locked through the base->lock and
-hand-over is safe vs lock_timer_base, this should all work.
+Using that approach only very few kernel core components have to be duplicated and
+actually implemented by hand.
+Hence, less maintenance overhead and libos is not broken all the time.
+
+What do you think?
+
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
