@@ -1,124 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DABB6B0075
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 22:15:23 -0400 (EDT)
-Received: by pacwz10 with SMTP id wz10so29889886pac.2
-        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 19:15:23 -0700 (PDT)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id us8si743181pbc.183.2015.03.26.19.15.07
-        for <linux-mm@kvack.org>;
-        Thu, 26 Mar 2015 19:15:09 -0700 (PDT)
-From: Namhyung Kim <namhyung@kernel.org>
-Subject: [PATCH 7/7] perf kmem: Add kmem.default config option
-Date: Fri, 27 Mar 2015 11:08:07 +0900
-Message-Id: <1427422087-17239-8-git-send-email-namhyung@kernel.org>
-In-Reply-To: <1427422087-17239-1-git-send-email-namhyung@kernel.org>
-References: <1427422087-17239-1-git-send-email-namhyung@kernel.org>
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id EC9506B0032
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2015 22:34:56 -0400 (EDT)
+Received: by pdbni2 with SMTP id ni2so81626176pdb.1
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 19:34:56 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id yi7si798926pbc.190.2015.03.26.19.34.56
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Mar 2015 19:34:56 -0700 (PDT)
+Received: by pacwe9 with SMTP id we9so81360193pac.1
+        for <linux-mm@kvack.org>; Thu, 26 Mar 2015 19:34:56 -0700 (PDT)
+Date: Fri, 27 Mar 2015 11:34:48 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [withdrawn]
+ zsmalloc-remove-extra-cond_resched-in-__zs_compact.patch removed from -mm
+ tree
+Message-ID: <20150327023448.GC26725@blaptop>
+References: <5513199f.t25SPuX5ULuM6JS8%akpm@linux-foundation.org>
+ <20150326002717.GA1669@swordfish>
+ <20150326073916.GB26725@blaptop>
+ <20150326081313.GB1669@swordfish>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150326081313.GB1669@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, Taeung Song <treeze.taeung@gmail.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, ngupta@vflare.org, sfr@canb.auug.org.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Currently perf kmem command will select --slab if neither --slab nor
---page is given for backward compatibility.  Add kmem.default config
-option to select the default value ('page' or 'slab').
+On Thu, Mar 26, 2015 at 05:13:13PM +0900, Sergey Senozhatsky wrote:
+> On (03/26/15 16:39), Minchan Kim wrote:
+> > Hello Sergey,
+> > 
+> > Sorry for slow response.
+> > I am overwhelmed with too much to do. :(
+> > 
+> 
+> Hello,
+> sure, no problem.
+> 
+> > > > diff -puN mm/zsmalloc.c~zsmalloc-remove-extra-cond_resched-in-__zs_compact mm/zsmalloc.c
+> > > > --- a/mm/zsmalloc.c~zsmalloc-remove-extra-cond_resched-in-__zs_compact
+> > > > +++ a/mm/zsmalloc.c
+> > > > @@ -1717,8 +1717,6 @@ static unsigned long __zs_compact(struct
+> > > >  	struct page *dst_page = NULL;
+> > > >  	unsigned long nr_total_migrated = 0;
+> > > >  
+> > > > -	cond_resched();
+> > > > -
+> > > >  	spin_lock(&class->lock);
+> > > >  	while ((src_page = isolate_source_page(class))) {
+> 
+> > 
+> > If we removed cond_resched out of outer loop(ie, your patch), we lose
+> > the chance to reschedule if alloc_target_page fails(ie, there is no
+> > zspage in ZS_ALMOST_FULL and ZS_ALMOST_EMPTY).
+> 
+> 
+> in outer loop we have preemption enabled and unlocked class. wouldn't that help?
+> (hm, UP system?)
 
-  # cat ~/.perfconfig
-  [kmem]
-  	default = page
+It depends on preemption model. If you enable full preemption, you are right
+but if you enable just voluntary preemption, cond_resched will help latency.
 
-  # perf kmem stat
+Thanks.
 
-  SUMMARY (page allocator)
-  ========================
-  Total allocation requests     :            1,518   [            6,096 KB ]
-  Total free requests           :            1,431   [            5,748 KB ]
-
-  Total alloc+freed requests    :            1,330   [            5,344 KB ]
-  Total alloc-only requests     :              188   [              752 KB ]
-  Total free-only requests      :              101   [              404 KB ]
-
-  Total allocation failures     :                0   [                0 KB ]
-  ...
-
-Cc: Taeung Song <treeze.taeung@gmail.com>
-Signed-off-by: Namhyung Kim <namhyung@kernel.org>
----
- tools/perf/builtin-kmem.c | 32 +++++++++++++++++++++++++++++---
- 1 file changed, 29 insertions(+), 3 deletions(-)
-
-diff --git a/tools/perf/builtin-kmem.c b/tools/perf/builtin-kmem.c
-index 0046e8cebed5..5b29cbecf37b 100644
---- a/tools/perf/builtin-kmem.c
-+++ b/tools/perf/builtin-kmem.c
-@@ -28,6 +28,10 @@ static int	kmem_slab;
- static int	kmem_page;
- 
- static long	kmem_page_size;
-+static enum {
-+	KMEM_SLAB,
-+	KMEM_PAGE,
-+} kmem_default = KMEM_SLAB;  /* for backward compatibility */
- 
- struct alloc_stat;
- typedef int (*sort_fn_t)(void *, void *);
-@@ -1673,7 +1677,8 @@ static int parse_sort_opt(const struct option *opt __maybe_unused,
- 	if (!arg)
- 		return -1;
- 
--	if (kmem_page > kmem_slab) {
-+	if (kmem_page > kmem_slab ||
-+	    (kmem_page == 0 && kmem_slab == 0 && kmem_default == KMEM_PAGE)) {
- 		if (caller_flag > alloc_flag)
- 			return setup_page_sorting(&page_caller_sort, arg);
- 		else
-@@ -1789,6 +1794,22 @@ static int __cmd_record(int argc, const char **argv)
- 	return cmd_record(i, rec_argv, NULL);
- }
- 
-+static int kmem_config(const char *var, const char *value, void *cb)
-+{
-+	if (!strcmp(var, "kmem.default")) {
-+		if (!strcmp(value, "slab"))
-+			kmem_default = KMEM_SLAB;
-+		else if (!strcmp(value, "page"))
-+			kmem_default = KMEM_PAGE;
-+		else
-+			pr_err("invalid default value ('slab' or 'page' required): %s\n",
-+			       value);
-+		return 0;
-+	}
-+
-+	return perf_default_config(var, value, cb);
-+}
-+
- int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
- {
- 	const char * const default_slab_sort = "frag,hit,bytes";
-@@ -1825,14 +1846,19 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
- 	};
- 	int ret = -1;
- 
-+	perf_config(kmem_config, NULL);
- 	argc = parse_options_subcommand(argc, argv, kmem_options,
- 					kmem_subcommands, kmem_usage, 0);
- 
- 	if (!argc)
- 		usage_with_options(kmem_usage, kmem_options);
- 
--	if (kmem_slab == 0 && kmem_page == 0)
--		kmem_slab = 1;  /* for backward compatibility */
-+	if (kmem_slab == 0 && kmem_page == 0) {
-+		if (kmem_default == KMEM_SLAB)
-+			kmem_slab = 1;
-+		else
-+			kmem_page = 1;
-+	}
- 
- 	if (!strncmp(argv[0], "rec", 3)) {
- 		symbol__init(NULL);
 -- 
-2.3.4
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
