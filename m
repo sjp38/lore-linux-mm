@@ -1,41 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 278036B0038
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 16:18:07 -0400 (EDT)
-Received: by pdbni2 with SMTP id ni2so106531152pdb.1
-        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 13:18:06 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id lx6si4172171pdb.209.2015.03.27.13.18.06
-        for <linux-mm@kvack.org>;
-        Fri, 27 Mar 2015 13:18:06 -0700 (PDT)
-Message-ID: <5515BAF7.6070604@intel.com>
-Date: Fri, 27 Mar 2015 13:17:59 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 431FE6B0038
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 17:06:17 -0400 (EDT)
+Received: by qcay5 with SMTP id y5so27561406qca.1
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 14:06:17 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q36si2068988qkh.69.2015.03.27.14.06.16
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Mar 2015 14:06:16 -0700 (PDT)
+Date: Fri, 27 Mar 2015 17:06:13 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 21/48] writeback: make backing_dev_info host
+ cgroup-specific bdi_writebacks
+Message-ID: <20150327210612.GA23840@redhat.com>
+References: <1427086499-15657-1-git-send-email-tj@kernel.org>
+ <1427086499-15657-22-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: vmscan: do not throttle based on pfmemalloc reserves
- if node has no reclaimable zones
-References: <20150327192850.GA18701@linux.vnet.ibm.com>
-In-Reply-To: <20150327192850.GA18701@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1427086499-15657-22-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>
-Cc: anton@sambar.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Dan Streetman <ddstreet@ieee.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com
 
-On 03/27/2015 12:28 PM, Nishanth Aravamudan wrote:
-> @@ -2585,7 +2585,7 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
->  
->         for (i = 0; i <= ZONE_NORMAL; i++) {
->                 zone = &pgdat->node_zones[i];
-> -               if (!populated_zone(zone))
-> +               if (!populated_zone(zone) || !zone_reclaimable(zone))
->                         continue;
->  
->                 pfmemalloc_reserve += min_wmark_pages(zone);
+On Mon, Mar 23, 2015 at 12:54:32AM -0400, Tejun Heo wrote:
 
-Do you really want zone_reclaimable()?  Or do you want something more
-direct like "zone_reclaimable_pages(zone) == 0"?
+[..]
+> +/**
+> + * inode_attach_wb - associate an inode with its wb
+> + * @inode: inode of interest
+> + * @page: page being dirtied (may be NULL)
+> + *
+> + * If @inode doesn't have its wb, associate it with the wb matching the
+> + * memcg of @page or, if @page is NULL, %current.  May be called w/ or w/o
+> + * @inode->i_lock.
+> + */
+> +static inline void inode_attach_wb(struct inode *inode, struct page *page)
+> +{
+> +	if (!inode->i_wb)
+> +		__inode_attach_wb(inode, page);
+> +}
+
+Hi Tejun,
+
+I was curious to know that why do we need this "struct page *page" when
+trying to attach a inode to a bdi_writeback. Is using current's cgroup
+always not sufficient?
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
