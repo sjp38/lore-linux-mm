@@ -1,59 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 559636B0032
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 05:30:29 -0400 (EDT)
-Received: by pacwz10 with SMTP id wz10so39552433pac.2
-        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 02:30:29 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id vz4si2095891pac.137.2015.03.27.02.30.28
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 48F456B0032
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 05:45:49 -0400 (EDT)
+Received: by wgra20 with SMTP id a20so92862748wgr.3
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 02:45:48 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f9si2374167wjx.87.2015.03.27.02.45.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Mar 2015 02:30:28 -0700 (PDT)
-Date: Fri, 27 Mar 2015 10:30:23 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC] vmstat: Avoid waking up idle-cpu to service shepherd work
-Message-ID: <20150327093023.GA32047@worktop.ger.corp.intel.com>
-References: <359c926bc85cdf79650e39f2344c2083002545bb.1427347966.git.viresh.kumar@linaro.org>
- <20150326131822.fce6609efdd85b89ceb3f61c@linux-foundation.org>
- <CAKohpo=nTXutbVVf-7iAwtgya4zUL686XbG69ExQ3Pi=VQRE-A@mail.gmail.com>
- <20150327091613.GE27490@worktop.programming.kicks-ass.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 27 Mar 2015 02:45:47 -0700 (PDT)
+Message-ID: <551526C8.1000105@suse.cz>
+Date: Fri, 27 Mar 2015 10:45:44 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150327091613.GE27490@worktop.programming.kicks-ass.net>
+Subject: Re: [patch][resend] MAP_HUGETLB munmap fails with size not 2MB aligned
+References: <alpine.DEB.2.10.1410221518160.31326@davide-lnx3> <alpine.LSU.2.11.1503251708530.5592@eggly.anvils> <alpine.DEB.2.10.1503251754320.26501@davide-lnx3> <alpine.DEB.2.10.1503251938170.16714@chino.kir.corp.google.com> <alpine.DEB.2.10.1503260431290.2755@mbplnx> <alpine.DEB.2.10.1503261201440.8238@chino.kir.corp.google.com> <alpine.DEB.2.10.1503261221470.5119@davide-lnx3>
+In-Reply-To: <alpine.DEB.2.10.1503261221470.5119@davide-lnx3>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Viresh Kumar <viresh.kumar@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, hannes@cmpxchg.org, Christoph Lameter <cl@linux.com>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, vinmenon@codeaurora.org, shashim@codeaurora.org, Michal Hocko <mhocko@suse.cz>, mgorman@suse.de, dave@stgolabs.net, koct9i@gmail.com, Linux Memory Management List <linux-mm@kvack.org>, Suresh Siddha <suresh.b.siddha@intel.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Davide Libenzi <davidel@xmailserver.org>, David Rientjes <rientjes@google.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, Eric B Munson <emunson@akamai.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-man@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>
 
-On Fri, Mar 27, 2015 at 10:16:13AM +0100, Peter Zijlstra wrote:
-> On Fri, Mar 27, 2015 at 10:19:54AM +0530, Viresh Kumar wrote:
-> > On 27 March 2015 at 01:48, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > > Shouldn't this be viewed as a shortcoming of the core timer code?
-> > 
-> > Yeah, it is. Some (not so pretty) solutions were tried earlier to fix that, but
-> > they are rejected for obviously reasons [1].
-> > 
-> > > vmstat_shepherd() is merely rescheduling itself with
-> > > schedule_delayed_work().  That's a dead bog simple operation and if
-> > > it's producing suboptimal behaviour then we shouldn't be fixing it with
-> > > elaborate workarounds in the caller?
-> > 
-> > I understand that, and that's why I sent it as an RFC to get the discussion
-> > started. Does anyone else have got another (acceptable) idea to get this
-> > resolved ?
+On 03/26/2015 08:39 PM, Davide Libenzi wrote:
+> On Thu, 26 Mar 2015, David Rientjes wrote:
 > 
-> So the issue seems to be that we need base->running_timer in order to
-> tell if a callback is running, right?
+>> Yes, this munmap() behavior of lengths <= hugepage_size - PAGE_SIZE for a 
+>> hugetlb vma is long standing and there may be applications that break as a 
+>> result of changing the behavior: a database that reserves all allocated 
+>> hugetlb memory with mmap() so that it always has exclusive access to those 
+>> hugepages, whether they are faulted or not, and maintains its own hugepage 
+>> pool (which is common), may test the return value of munmap() and depend 
+>> on it returning -EINVAL to determine if it is freeing memory that was 
+>> either dynamically allocated or mapped from the hugetlb reserved pool.
 > 
-> We could align the base on 8 bytes to gain an extra bit in the pointer
-> and use that bit to indicate the running state. Then these sites can
-> spin on that bit while we can change the actual base pointer.
+> You went a long way to create such a case.
+> But, in your case, that application will erroneously considering hugepage 
+> mmaped memory, as dynamically allocated, since it will always get EINVAL, 
+> unless it passes an aligned size. Aligned size, which a fix like the one 
+> posted in the patch will still leave as success.
+> OTOH, an application, which might be more common than the one you posted,
+> which calls munmap() to release a pointer which it validly got from a 
+> previous mmap(), will leak huge pages as all the issued munmaps will fail.
+> 
+> 
+>> If we were to go back in time and decide this when the munmap() behavior 
+>> for hugetlb vmas was originally introduced, that would be valid.  The 
+>> problem is that it could lead to userspace breakage and that's a 
+>> non-starter.
+>> 
+>> What we can do is improve the documentation and man-page to clearly 
+>> specify the long-standing behavior so that nobody encounters unexpected 
+>> results in the future.
+> 
+> This way you will leave the mmap API with broken semantics.
+> In any case, I am done arguing.
+> I will leave to Andrew to sort it out, and to Michael Kerrisk to update 
+> the mmap man pages with the new funny behaviour.
 
-Even though tvec_base has ____cacheline_aligned stuck on, most are
-allocated using kzalloc_node() which does not actually respect that but
-already guarantees a minimum u64 alignment, so I think we can use that
-third bit without too much magic.
++ CC's
+
+You know that people don't always magically CC themselves, or read all of
+lkml/linux-mm? :)
+
+> 
+> 
+> - Davide
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
