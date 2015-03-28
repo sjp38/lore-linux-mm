@@ -1,145 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 360276B0038
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 18:23:56 -0400 (EDT)
-Received: by oicf142 with SMTP id f142so78603001oic.3
-        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 15:23:56 -0700 (PDT)
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com. [32.97.110.159])
-        by mx.google.com with ESMTPS id kg7si1912371obb.56.2015.03.27.15.23.55
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 831616B0038
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 21:28:55 -0400 (EDT)
+Received: by iecvj10 with SMTP id vj10so83301758iec.0
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 18:28:55 -0700 (PDT)
+Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com. [2607:f8b0:4001:c05::22f])
+        by mx.google.com with ESMTPS id s10si3593656igg.4.2015.03.27.18.28.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 27 Mar 2015 15:23:55 -0700 (PDT)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Fri, 27 Mar 2015 16:23:55 -0600
-Received: from b03cxnp08028.gho.boulder.ibm.com (b03cxnp08028.gho.boulder.ibm.com [9.17.130.20])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 44B983E4003B
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 16:23:52 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by b03cxnp08028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t2RMNgUG43384914
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 15:23:42 -0700
-Received: from d03av01.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t2RMNpTi017211
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2015 16:23:52 -0600
-Date: Fri, 27 Mar 2015 15:23:50 -0700
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: [PATCH v2] mm: vmscan: do not throttle based on pfmemalloc reserves
- if node has no reclaimable pages
-Message-ID: <20150327222350.GA22887@linux.vnet.ibm.com>
-References: <20150327192850.GA18701@linux.vnet.ibm.com>
- <5515BAF7.6070604@intel.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Mar 2015 18:28:55 -0700 (PDT)
+Received: by igcxg11 with SMTP id xg11so34536474igc.0
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 18:28:54 -0700 (PDT)
+Date: Fri, 27 Mar 2015 18:28:53 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: Move zone lock to a different cache line than order-0
+ free page lists
+In-Reply-To: <20150327095413.GO4701@suse.de>
+Message-ID: <alpine.DEB.2.10.1503271828400.5628@chino.kir.corp.google.com>
+References: <20150327095413.GO4701@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5515BAF7.6070604@intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Mel Gorman <mgorman@suse.de>, anton@sambar.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Dan Streetman <ddstreet@ieee.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, LKML <linux-kernel@vger.kernel.org>, LKP ML <lkp@01.org>, linux-mm@kvack.org
 
-On 27.03.2015 [13:17:59 -0700], Dave Hansen wrote:
-> On 03/27/2015 12:28 PM, Nishanth Aravamudan wrote:
-> > @@ -2585,7 +2585,7 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
-> >  
-> >         for (i = 0; i <= ZONE_NORMAL; i++) {
-> >                 zone = &pgdat->node_zones[i];
-> > -               if (!populated_zone(zone))
-> > +               if (!populated_zone(zone) || !zone_reclaimable(zone))
-> >                         continue;
-> >  
-> >                 pfmemalloc_reserve += min_wmark_pages(zone);
+On Fri, 27 Mar 2015, Mel Gorman wrote:
+
+> Huang Ying reported the following problem due to commit 3484b2de9499
+> ("mm: rearrange zone fields into read-only, page alloc, statistics and
+> page reclaim lines") from the Intel performance tests
 > 
-> Do you really want zone_reclaimable()?  Or do you want something more
-> direct like "zone_reclaimable_pages(zone) == 0"?
+>     24b7e5819ad5cbef  3484b2de9499df23c4604a513b
+>     ----------------  --------------------------
+>              %stddev     %change         %stddev
+>                  \          |                \
+>         152288 \261  0%     -46.2%      81911 \261  0%  aim7.jobs-per-min
+>            237 \261  0%     +85.6%        440 \261  0%  aim7.time.elapsed_time
+>            237 \261  0%     +85.6%        440 \261  0%  aim7.time.elapsed_time.max
+>          25026 \261  0%     +70.7%      42712 \261  0%  aim7.time.system_time
+>        2186645 \261  5%     +32.0%    2885949 \261  4%  aim7.time.voluntary_context_switches
+>        4576561 \261  1%     +24.9%    5715773 \261  0%  aim7.time.involuntary_context_switches
+> 
+> The problem is specific to very large machines under stress. It was not
+> reproducible with the machines I had used to justify the original patch
+> because large numbers of CPUs are required. When pressure is high enough,
+> the cache line is bouncing between CPUs trying to acquire the lock and
+> the holder of the lock adjusting free lists. The intention was that the
+> acquirer of the lock would automatically have the cache line holding the
+> free lists but according to Huang, this is not a universal win.
+> 
+> One possibility is to move the zone lock to its own cache line but it
+> increases the size of the zone. This patch moves the lock to the other
+> end of the free lists where they do not contend under high pressure. It
+> does mean the page allocator paths now require more cache lines but Huang
+> reports that it restores performance to previous levels on large machines
+> 
+>              %stddev     %change         %stddev
+>                  \          |                \
+>          84568 \261  1%     +94.3%     164280 \261  1%  aim7.jobs-per-min
+>        2881944 \261  2%     -35.1%    1870386 \261  8%  aim7.time.voluntary_context_switches
+>            681 \261  1%      -3.4%        658 \261  0%  aim7.time.user_time
+>        5538139 \261  0%     -12.1%    4867884 \261  0%  aim7.time.involuntary_context_switches
+>          44174 \261  1%     -46.0%      23848 \261  1%  aim7.time.system_time
+>            426 \261  1%     -48.4%        219 \261  1%  aim7.time.elapsed_time
+>            426 \261  1%     -48.4%        219 \261  1%  aim7.time.elapsed_time.max
+>            468 \261  1%     -43.1%        266 \261  2%  uptime.boot
+> 
+> Reported-and-tested-by: Huang Ying <ying.huang@intel.com>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Yeah, I guess in my testing this worked out to be the same, since
-zone_reclaimable_pages(zone) is 0 and so zone_reclaimable(zone) will
-always be false. Thanks!
-
-Based upon 675becce15 ("mm: vmscan: do not throttle based on pfmemalloc
-reserves if node has no ZONE_NORMAL") from Mel.
-
-We have a system with the following topology:
-
-# numactl -H
-available: 3 nodes (0,2-3)
-node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
-23 24 25 26 27 28 29 30 31
-node 0 size: 28273 MB
-node 0 free: 27323 MB
-node 2 cpus:
-node 2 size: 16384 MB
-node 2 free: 0 MB
-node 3 cpus: 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47
-node 3 size: 30533 MB
-node 3 free: 13273 MB
-node distances:
-node   0   2   3
-  0:  10  20  20
-  2:  20  10  20
-  3:  20  20  10
-
-Node 2 has no free memory, because:
-# cat /sys/devices/system/node/node2/hugepages/hugepages-16777216kB/nr_hugepages
-1
-
-This leads to the following zoneinfo:
-
-Node 2, zone      DMA
-  pages free     0
-        min      1840
-        low      2300
-        high     2760
-        scanned  0
-        spanned  262144
-        present  262144
-        managed  262144
-...
-  all_unreclaimable: 1
-
-If one then attempts to allocate some normal 16M hugepages via
-
-echo 37 > /proc/sys/vm/nr_hugepages
-
-The echo never returns and kswapd2 consumes CPU cycles.
-
-This is because throttle_direct_reclaim ends up calling
-wait_event(pfmemalloc_wait, pfmemalloc_watermark_ok...).
-pfmemalloc_watermark_ok() in turn checks all zones on the node if there
-are any reserves, and if so, then indicates the watermarks are ok, by
-seeing if there are sufficient free pages.
-
-675becce15 added a condition already for memoryless nodes. In this case,
-though, the node has memory, it is just all consumed (and not
-reclaimable). Effectively, though, the result is the same on this call
-to pfmemalloc_watermark_ok() and thus seems like a reasonable additional
-condition.
-
-With this change, the afore-mentioned 16M hugepage allocation attempt
-succeeds and correctly round-robins between Nodes 1 and 3.
-
-Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-
----
-v1 -> v2:
-  Check against zone_reclaimable_pages, rather zone_reclaimable, based
-  upon feedback from Dave Hansen.
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 5e8eadd71bac..c627fa4c991f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2646,7 +2646,8 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
- 
- 	for (i = 0; i <= ZONE_NORMAL; i++) {
- 		zone = &pgdat->node_zones[i];
--		if (!populated_zone(zone))
-+		if (!populated_zone(zone) ||
-+		    zone_reclaimable_pages(zone) == 0)
- 			continue;
- 
- 		pfmemalloc_reserve += min_wmark_pages(zone);
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
