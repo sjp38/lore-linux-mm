@@ -1,192 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AE246B0038
-	for <linux-mm@kvack.org>; Sat, 28 Mar 2015 09:45:04 -0400 (EDT)
-Received: by pdcp1 with SMTP id p1so33568900pdc.3
-        for <linux-mm@kvack.org>; Sat, 28 Mar 2015 06:45:03 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id gg9si1723229pbc.104.2015.03.28.06.45.02
+Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 537066B0038
+	for <linux-mm@kvack.org>; Sat, 28 Mar 2015 11:51:33 -0400 (EDT)
+Received: by lagg8 with SMTP id g8so90328103lag.1
+        for <linux-mm@kvack.org>; Sat, 28 Mar 2015 08:51:32 -0700 (PDT)
+Received: from mail-lb0-x229.google.com (mail-lb0-x229.google.com. [2a00:1450:4010:c04::229])
+        by mx.google.com with ESMTPS id o3si3587561laf.47.2015.03.28.08.51.30
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 28 Mar 2015 06:45:02 -0700 (PDT)
-Date: Sat, 28 Mar 2015 14:44:57 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC] vmstat: Avoid waking up idle-cpu to service shepherd work
-Message-ID: <20150328134457.GK27490@worktop.programming.kicks-ass.net>
-References: <359c926bc85cdf79650e39f2344c2083002545bb.1427347966.git.viresh.kumar@linaro.org>
- <20150326131822.fce6609efdd85b89ceb3f61c@linux-foundation.org>
- <CAKohpo=nTXutbVVf-7iAwtgya4zUL686XbG69ExQ3Pi=VQRE-A@mail.gmail.com>
- <20150327091613.GE27490@worktop.programming.kicks-ass.net>
- <20150327093023.GA32047@worktop.ger.corp.intel.com>
- <CAOh2x=nbisppmuBwfLWndyCPKem1N_KzoTxyAYcQuL77T_bJfw@mail.gmail.com>
- <20150328095322.GH27490@worktop.programming.kicks-ass.net>
- <55169723.3070006@linaro.org>
+        Sat, 28 Mar 2015 08:51:31 -0700 (PDT)
+Received: by lboc7 with SMTP id c7so25070294lbo.1
+        for <linux-mm@kvack.org>; Sat, 28 Mar 2015 08:51:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55169723.3070006@linaro.org>
+In-Reply-To: <20150224001228.GA11456@amt.cnet>
+References: <CABYiri9MEbEnZikqTU3d=w6rxtsgumH2gJ++Qzi1yZKGn6it+Q@mail.gmail.com>
+ <20150224001228.GA11456@amt.cnet>
+From: Andrey Korolyov <andrey@xdel.ru>
+Date: Sat, 28 Mar 2015 18:51:09 +0300
+Message-ID: <CABYiri_U7oB==4-cxegjVQJ_dX62d0tX=D0cUAPTpV_xjCukEw@mail.gmail.com>
+Subject: Re: copy_huge_page: unable to handle kernel NULL pointer dereference
+ at 0000000000000008
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: viresh kumar <viresh.kumar@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, vinmenon@codeaurora.org, shashim@codeaurora.org, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, dave@stgolabs.net, Konstantin Khlebnikov <koct9i@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Suresh Siddha <suresh.b.siddha@intel.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: linux-mm@kvack.org, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, wanpeng.li@linux.intel.com, jipan yang <jipan.yang@gmail.com>
 
-On Sat, Mar 28, 2015 at 05:27:23PM +0530, viresh kumar wrote:
-> So probably we need to make 'base' aligned to 8 bytes ?
+On Tue, Feb 24, 2015 at 3:12 AM, Marcelo Tosatti <mtosatti@redhat.com> wrote:
+> On Wed, Feb 04, 2015 at 08:34:04PM +0400, Andrey Korolyov wrote:
+>> >Hi,
+>> >
+>> >I've seen the problem quite a few times.  Before spending more time on
+>> >it, I'd like to have a quick check here to see if anyone ever saw the
+>> >same problem?  Hope it is a relevant question with this mail list.
+>> >
+>> >
+>> >Jul  2 11:08:21 arno-3 kernel: [ 2165.078623] BUG: unable to handle
+>> >kernel NULL pointer dereference at 0000000000000008
+>> >Jul  2 11:08:21 arno-3 kernel: [ 2165.078916] IP: [<ffffffff8118d0fa>]
+>> >copy_huge_page+0x8a/0x2a0
+>> >Jul  2 11:08:21 arno-3 kernel: [ 2165.079128] PGD 0
+>> >Jul  2 11:08:21 arno-3 kernel: [ 2165.079198] Oops: 0000 [#1] SMP
+>> >Jul  2 11:08:21 arno-3 kernel: [ 2165.079319] Modules linked in:
+>> >ip6table_filter ip6_tables ebtable_nat ebtables ipt_MASQUERADE
+>> >iptable_nat nf_nat_ipv4 nf_nat nf_conntrack_ipv4 nf_defrag_ipv4
+>> >xt_state nf_conntrack ipt_REJECT xt_CHECKSUM iptable_mangle xt_tcpudp
+>> >iptable_filter ip_tables x_tables kvm_intel kvm bridge stp llc ast ttm
+>> >drm_kms_helper drm sysimgblt sysfillrect syscopyarea lp mei_me ioatdma
+>> >ext2 parport mei shpchp dcdbas joydev mac_hid lpc_ich acpi_pad wmi
+>> >hid_generic usbhid hid ixgbe igb dca i2c_algo_bit ahci ptp libahci
+>> >mdio pps_core
+>> >Jul  2 11:08:21 arno-3 kernel: [ 2165.081090] CPU: 19 PID: 3494 Comm:
+>> >qemu-system-x86 Not tainted 3.11.0-15-generic #25~precise1-Ubuntu
+>> >Jul  2 11:08:21 arno-3 kernel: [ 2165.081424] Hardware name: Dell Inc.
+>> >PowerEdge C6220 II/09N44V, BIOS 2.0.3 07/03/2013
+>> >Jul  2 11:08:21 arno-3 kernel: [ 2165.081705] task: ffff881026750000
+>> >ti: ffff881026056000 task.ti: ffff881026056000
+>> >Jul  2 11:08:21 arno-3 kernel: [ 2165.081973] RIP:
+>> >0010:[<ffffffff8118d0fa>]  [<ffffffff8118d0fa>]
+>> >copy_huge_page+0x8a/0x2a0
+>>
+>>
+>> Hello,
+>>
+>> sorry for possible top-posting, the same issue appears on at least
+>> 3.10 LTS series. The original thread is at
+>> http://marc.info/?l=kvm&m=14043742300901.
+>
+> Andrey,
+>
+> I am unable to access the URL above?
+>
+>> The necessary components for failure to reappear are a single running
+>> kvm guest and mounted large thp: hugepagesz=1G (seemingly the same as
+>> in initial report). With default 2M pages everything is working well,
+>> the same for 3.18 with 1G THP. Are there any obvious clues for the
+>> issue?
+>>
+>> Thanks!
+>
+>
 
-Yeah, something like the below (at the very end) should ensure the thing
-is cacheline aligned, that should give us a fair few bits.
+Hello,
 
-> So, what you are suggesting is something like this (untested):
-
-> @@ -1202,6 +1208,7 @@ static inline void __run_timers(struct tvec_base *base)
->                         timer_stats_account_timer(timer);
-> 
->                         base->running_timer = timer;
-> +                       tbase_set_running(timer->base);
->                         detach_expired_timer(timer, base);
-> 
->                         if (irqsafe) {
-> @@ -1216,6 +1223,7 @@ static inline void __run_timers(struct tvec_base *base)
->                 }
->         }
->         base->running_timer = NULL;
-> +       tbase_clear_running(timer->base);
->         spin_unlock_irq(&base->lock);
->  }
-
-That's broken. You need to clear running on all the timers you set it
-on. Furthermore, you need to revalidate timer->base == base after
-call_timer_fn().
-
-Something like so:
-
-diff --git a/kernel/time/timer.c b/kernel/time/timer.c
-index 2d3f5c504939..489ce182f8ec 100644
---- a/kernel/time/timer.c
-+++ b/kernel/time/timer.c
-@@ -1213,6 +1213,21 @@ static inline void __run_timers(struct tvec_base *base)
- 				call_timer_fn(timer, fn, data);
- 				spin_lock_irq(&base->lock);
- 			}
-+
-+			if (unlikely(timer->base != base)) {
-+				unsigned long flags;
-+				struct tvec_base *tbase;
-+
-+				spin_unlock(&base->lock);
-+
-+				tbase = lock_timer_base(timer, &flags);
-+				tbase_clear_running(timer->base);
-+				spin_unlock(&tbase->lock);
-+
-+				spin_lock(&base->lock);
-+			} else {
-+				tbase_clear_running(timer->base);
-+			}
- 		}
- 	}
- 	base->running_timer = NULL;
-
-Also, once you have tbase_running, we can take base->running_timer out
-altogether.
-
-> Now there are few issues I see here (Sorry if they are all imaginary):
-> - In case a timer re-arms itself from its handler and is migrated from CPU A to B, what
->   happens if the re-armed timer fires before the first handler finishes ? i.e. timer->fn()
->   hasn't finished running on CPU A and it has fired again on CPU B. Wouldn't this expose
->   us to a lot of other problems? It wouldn't be serialized to itself anymore ?
-
-What I said above.
-
-> - Because the timer has migrated to another CPU, the locking in __run_timers()
->   needs to be fixed. And that will make it complicated ..
-
-Hardly.
-
->   - __run_timer() doesn't lock bases of other CPUs, and it has to do it now..
-
-Yep, but rarely.
-
->   - We probably need to take locks of both local CPU and the one to which timer migrated.
-
-Nope, or rather, not at the same time. That's what the NULL magic buys
-us.
-
-> - Its possible now that there can be more than one running timer for a base, which wasn't
->   true earlier. Not sure if it will break something.
-
-Only if you messed it up real bad :-)
-
----
- kernel/time/timer.c | 36 ++++++++----------------------------
- 1 file changed, 8 insertions(+), 28 deletions(-)
-
-diff --git a/kernel/time/timer.c b/kernel/time/timer.c
-index 2d3f5c504939..c8c45bf50b2e 100644
---- a/kernel/time/timer.c
-+++ b/kernel/time/timer.c
-@@ -93,6 +93,7 @@ struct tvec_base {
- struct tvec_base boot_tvec_bases;
- EXPORT_SYMBOL(boot_tvec_bases);
- static DEFINE_PER_CPU(struct tvec_base *, tvec_bases) = &boot_tvec_bases;
-+static DEFINE_PER_CPU(struct tvec_base, __tvec_bases);
- 
- /* Functions below help us manage 'deferrable' flag */
- static inline unsigned int tbase_get_deferrable(struct tvec_base *base)
-@@ -1534,46 +1535,25 @@ EXPORT_SYMBOL(schedule_timeout_uninterruptible);
- 
- static int init_timers_cpu(int cpu)
- {
--	int j;
--	struct tvec_base *base;
-+	struct tvec_base *base = per_cpu(tvec_bases, cpu);
- 	static char tvec_base_done[NR_CPUS];
-+	int j;
- 
- 	if (!tvec_base_done[cpu]) {
- 		static char boot_done;
- 
--		if (boot_done) {
--			/*
--			 * The APs use this path later in boot
--			 */
--			base = kzalloc_node(sizeof(*base), GFP_KERNEL,
--					    cpu_to_node(cpu));
--			if (!base)
--				return -ENOMEM;
--
--			/* Make sure tvec_base has TIMER_FLAG_MASK bits free */
--			if (WARN_ON(base != tbase_get_base(base))) {
--				kfree(base);
--				return -ENOMEM;
--			}
--			per_cpu(tvec_bases, cpu) = base;
-+		if (!boot_done) {
-+			boot_done = 1; /* skip the boot cpu */
- 		} else {
--			/*
--			 * This is for the boot CPU - we use compile-time
--			 * static initialisation because per-cpu memory isn't
--			 * ready yet and because the memory allocators are not
--			 * initialised either.
--			 */
--			boot_done = 1;
--			base = &boot_tvec_bases;
-+			base = per_cpu_ptr(&__tvec_bases);
-+			per_cpu(tvec_bases, cpu) = base;
- 		}
-+
- 		spin_lock_init(&base->lock);
- 		tvec_base_done[cpu] = 1;
- 		base->cpu = cpu;
--	} else {
--		base = per_cpu(tvec_bases, cpu);
- 	}
- 
--
- 	for (j = 0; j < TVN_SIZE; j++) {
- 		INIT_LIST_HEAD(base->tv5.vec + j);
- 		INIT_LIST_HEAD(base->tv4.vec + j);
+Marcelo, sorry, I`ve missed your reply in time. The working link, for
+example is http://www.spinics.net/lists/linux-mm/msg75658.html. The
+reproducer is a very simple, you need 1G THP and mounted hugetlbfs.
+What is interesting, if guest is backed by THP like '-object
+memory-backend-file,id=mem,size=1G,mem-path=/hugepages,share=on' the
+failure is less likely to occur.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
