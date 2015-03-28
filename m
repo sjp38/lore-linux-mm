@@ -1,51 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A03A6B0038
-	for <linux-mm@kvack.org>; Sat, 28 Mar 2015 00:28:39 -0400 (EDT)
-Received: by oifl3 with SMTP id l3so91724113oif.0
-        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 21:28:39 -0700 (PDT)
-Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com. [209.85.218.45])
-        by mx.google.com with ESMTPS id h3si2290819obz.71.2015.03.27.21.28.38
+Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E07B6B0038
+	for <linux-mm@kvack.org>; Sat, 28 Mar 2015 00:34:57 -0400 (EDT)
+Received: by oicf142 with SMTP id f142so82480889oic.3
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 21:34:57 -0700 (PDT)
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com. [209.85.214.179])
+        by mx.google.com with ESMTPS id om9si2289523oeb.76.2015.03.27.21.34.56
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Mar 2015 21:28:38 -0700 (PDT)
-Received: by oifl3 with SMTP id l3so91724035oif.0
-        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 21:28:38 -0700 (PDT)
+        Fri, 27 Mar 2015 21:34:56 -0700 (PDT)
+Received: by obvd1 with SMTP id d1so21773380obv.0
+        for <linux-mm@kvack.org>; Fri, 27 Mar 2015 21:34:56 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20150327120240.GC23123@twins.programming.kicks-ass.net>
+In-Reply-To: <20150327141922.GC5481@dhcp22.suse.cz>
 References: <359c926bc85cdf79650e39f2344c2083002545bb.1427347966.git.viresh.kumar@linaro.org>
-	<20150326131822.fce6609efdd85b89ceb3f61c@linux-foundation.org>
-	<CAKohpo=nTXutbVVf-7iAwtgya4zUL686XbG69ExQ3Pi=VQRE-A@mail.gmail.com>
-	<20150327091613.GE27490@worktop.programming.kicks-ass.net>
-	<20150327093023.GA32047@worktop.ger.corp.intel.com>
-	<alpine.DEB.2.11.1503270610430.19514@gentwo.org>
-	<20150327120240.GC23123@twins.programming.kicks-ass.net>
-Date: Sat, 28 Mar 2015 09:58:38 +0530
-Message-ID: <CAKohpomiqOcmZe+tAPNv_kX=+FmtMu8K=Qgze1y2SvgJ1A16NQ@mail.gmail.com>
+	<20150327141922.GC5481@dhcp22.suse.cz>
+Date: Sat, 28 Mar 2015 10:04:56 +0530
+Message-ID: <CAKohpo=3x8hPe9AEJWNgRvD1iT+npbX+-k0t3EZEDyHUsv4AqQ@mail.gmail.com>
 Subject: Re: [RFC] vmstat: Avoid waking up idle-cpu to service shepherd work
 From: Viresh Kumar <viresh.kumar@linaro.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, vinmenon@codeaurora.org, shashim@codeaurora.org, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, dave@stgolabs.net, Konstantin Khlebnikov <koct9i@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Suresh Siddha <suresh.b.siddha@intel.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, vinmenon@codeaurora.org, shashim@codeaurora.org, Mel Gorman <mgorman@suse.de>, dave@stgolabs.net, Konstantin Khlebnikov <koct9i@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>
 
-On 27 March 2015 at 17:32, Peter Zijlstra <peterz@infradead.org> wrote:
-> What's not clear to me is why that thing is allocated at all, AFAICT
-> something like:
->
-> static DEFINE_PER_CPU(struct tvec_base, tvec_bases);
->
-> Should do the right thing and be much simpler.
+On 27 March 2015 at 19:49, Michal Hocko <mhocko@suse.cz> wrote:
 
-Does this comment from timers.c answers your query ?
+> Wouldn't something like I was suggesting few months back
+> (http://article.gmane.org/gmane.linux.kernel.mm/127569) solve this
+> problem as well? Scheduler should be idle aware, no? I mean it shouldn't
+> wake up an idle CPU if the task might run on another one.
 
-                        /*
-                         * This is for the boot CPU - we use compile-time
-                         * static initialisation because per-cpu memory isn't
-                         * ready yet and because the memory allocators are not
-                         * initialised either.
-                         */
+Probably yes. Lets see what others have to say about it..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
