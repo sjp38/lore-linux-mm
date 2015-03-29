@@ -1,52 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 33FB5900017
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2015 13:51:49 -0400 (EDT)
-Received: by wibg7 with SMTP id g7so73708629wib.1
-        for <linux-mm@kvack.org>; Sun, 29 Mar 2015 10:51:48 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id uk6si11936418wjc.162.2015.03.29.10.51.47
-        for <linux-mm@kvack.org>;
-        Sun, 29 Mar 2015 10:51:48 -0700 (PDT)
-Date: Sun, 29 Mar 2015 20:51:38 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv4 15/24] mm, thp: remove infrastructure for handling
- splitting PMDs
-Message-ID: <20150329175138.GC976@node.dhcp.inet.fi>
-References: <1425486792-93161-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1425486792-93161-16-git-send-email-kirill.shutemov@linux.intel.com>
- <87bnjbn5sw.fsf@linux.vnet.ibm.com>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 397846B008A
+	for <linux-mm@kvack.org>; Sun, 29 Mar 2015 14:17:10 -0400 (EDT)
+Received: by wibg7 with SMTP id g7so77750106wib.1
+        for <linux-mm@kvack.org>; Sun, 29 Mar 2015 11:17:09 -0700 (PDT)
+Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
+        by mx.google.com with ESMTPS id ib9si13894543wjb.198.2015.03.29.11.17.07
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 29 Mar 2015 11:17:08 -0700 (PDT)
+Message-ID: <5518419E.8010007@nod.at>
+Date: Sun, 29 Mar 2015 20:17:02 +0200
+From: Richard Weinberger <richard@nod.at>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87bnjbn5sw.fsf@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 08/11] lib: other kernel glue layer code
+References: <1427202642-1716-1-git-send-email-tazaki@sfc.wide.ad.jp> <1427202642-1716-9-git-send-email-tazaki@sfc.wide.ad.jp>
+In-Reply-To: <1427202642-1716-9-git-send-email-tazaki@sfc.wide.ad.jp>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hajime Tazaki <tazaki@sfc.wide.ad.jp>, linux-arch@vger.kernel.org
+Cc: Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Jhristoph Lameter <cl@linux.com>, Jekka Enberg <penberg@kernel.org>, Javid Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jndrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, Jeff Dike <jdike@addtoit.com>, Rusty Russell <rusty@rustcorp.com.au>, Mathieu Lacage <mathieu.lacage@gmail.com>, Christoph Paasch <christoph.paasch@gmail.com>
 
-On Sun, Mar 29, 2015 at 09:40:07PM +0530, Aneesh Kumar K.V wrote:
-> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
+Am 24.03.2015 um 14:10 schrieb Hajime Tazaki:
+> These files are used to provide the same function calls so that other
+> network stack code keeps untouched.
 > 
-> > With new refcounting we don't need to mark PMDs splitting. Let's drop code
-> > to handle this.
-> >
-> > Arch-specific code will removed separately.
-> >
-> 
-> Can you explain this more ? Why we don't care of PMD splitting case even
-> w.r.t to split_huge_page() ? 
+> Signed-off-by: Hajime Tazaki <tazaki@sfc.wide.ad.jp>
+> Signed-off-by: Christoph Paasch <christoph.paasch@gmail.com>
+> ---
+>  arch/lib/cred.c     |  16 +++
+>  arch/lib/dcache.c   |  93 +++++++++++++++
+>  arch/lib/filemap.c  |  27 +++++
+>  arch/lib/fs.c       | 287 ++++++++++++++++++++++++++++++++++++++++++++
+>  arch/lib/glue.c     | 336 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  arch/lib/inode.c    | 146 +++++++++++++++++++++++
+>  arch/lib/modules.c  |  36 ++++++
+>  arch/lib/pid.c      |  29 +++++
+>  arch/lib/print.c    |  56 +++++++++
+>  arch/lib/proc.c     | 164 +++++++++++++++++++++++++
+>  arch/lib/random.c   |  53 +++++++++
+>  arch/lib/security.c |  45 +++++++
+>  arch/lib/seq.c      | 122 +++++++++++++++++++
+>  arch/lib/splice.c   |  20 ++++
+>  arch/lib/super.c    | 210 ++++++++++++++++++++++++++++++++
+>  arch/lib/sysfs.c    |  83 +++++++++++++
+>  arch/lib/vmscan.c   |  26 ++++
+>  17 files changed, 1749 insertions(+)
 
-It used to be required to keep kernel from updating page refcounts while
-we splitting the page. Now with split_huge_pmd() we can split one PMD a
-time without blocking refcounting. Once all PMDs split we can freeze the
-page's refcounts with compound lock[1] and split underlying compound page.
+BTW: Why do you need these stub implementations at all?
+If I read your code correctly it is because you're linking against the whole net/ directory.
+Let's take register_filesystem() again as example. net/socket.c references it in sock_init().
+Maybe it would make sense to split socket.c into two files, net/socket.c and net/sockfs.c.
+Such that you could link only net/socket.o.
+Of course you'd have to convince networking folks first. :D
 
-[1] compound lock is replaced with migration entries by the end of the
-    patchset.
+By linking selectively objects files from net/ you could get rid of a lot unneeded stubs.
 
--- 
- Kirill A. Shutemov
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
