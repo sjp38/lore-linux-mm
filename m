@@ -1,62 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E7976B007D
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2015 13:24:57 -0400 (EDT)
-Received: by padcy3 with SMTP id cy3so144664853pad.3
-        for <linux-mm@kvack.org>; Sun, 29 Mar 2015 10:24:56 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id q15si11501055pdl.129.2015.03.29.10.24.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 29 Mar 2015 10:24:56 -0700 (PDT)
-Date: Sun, 29 Mar 2015 19:24:47 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC] vmstat: Avoid waking up idle-cpu to service shepherd work
-Message-ID: <20150329172447.GM27490@worktop.programming.kicks-ass.net>
-References: <359c926bc85cdf79650e39f2344c2083002545bb.1427347966.git.viresh.kumar@linaro.org>
- <20150326131822.fce6609efdd85b89ceb3f61c@linux-foundation.org>
- <CAKohpo=nTXutbVVf-7iAwtgya4zUL686XbG69ExQ3Pi=VQRE-A@mail.gmail.com>
- <20150327091613.GE27490@worktop.programming.kicks-ass.net>
- <20150327093023.GA32047@worktop.ger.corp.intel.com>
- <CAOh2x=nbisppmuBwfLWndyCPKem1N_KzoTxyAYcQuL77T_bJfw@mail.gmail.com>
- <20150328095322.GH27490@worktop.programming.kicks-ass.net>
- <55169723.3070006@linaro.org>
- <20150328134457.GK27490@worktop.programming.kicks-ass.net>
- <CAKohpokgT+PfczvpBV2zEzuGMvu0VY50L7EGtyxvLkY2C9z2hQ@mail.gmail.com>
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id C4EFC6B0082
+	for <linux-mm@kvack.org>; Sun, 29 Mar 2015 13:42:41 -0400 (EDT)
+Received: by wibgn9 with SMTP id gn9so96084657wib.1
+        for <linux-mm@kvack.org>; Sun, 29 Mar 2015 10:42:41 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id u2si13812615wju.72.2015.03.29.10.42.39
+        for <linux-mm@kvack.org>;
+        Sun, 29 Mar 2015 10:42:40 -0700 (PDT)
+Date: Sun, 29 Mar 2015 20:42:23 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv4 12/24] thp: PMD splitting without splitting compound
+ page
+Message-ID: <20150329174223.GA976@node.dhcp.inet.fi>
+References: <1425486792-93161-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1425486792-93161-13-git-send-email-kirill.shutemov@linux.intel.com>
+ <87ego7n6ha.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAKohpokgT+PfczvpBV2zEzuGMvu0VY50L7EGtyxvLkY2C9z2hQ@mail.gmail.com>
+In-Reply-To: <87ego7n6ha.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Viresh Kumar <viresh.kumar@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, vinmenon@codeaurora.org, shashim@codeaurora.org, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, dave@stgolabs.net, Konstantin Khlebnikov <koct9i@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Suresh Siddha <suresh.b.siddha@intel.com>, Thomas Gleixner <tglx@linutronix.de>, realmz6@gmail.com
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, Mar 29, 2015 at 05:31:32PM +0530, Viresh Kumar wrote:
-> Warning:
+On Sun, Mar 29, 2015 at 09:25:29PM +0530, Aneesh Kumar K.V wrote:
+> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
 > 
-> config: blackfin-allyesconfig (attached as .config)
-> reproduce:
->   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross
-> -O ~/bin/make.cross
->   chmod +x ~/bin/make.cross
->   git checkout ca713e393c6eceb54e803df204772a3d6e6c7981
->   # save the attached .config to linux build tree
->   make.cross ARCH=blackfin
+> > Current split_huge_page() combines two operations: splitting PMDs into
+> > tables of PTEs and splitting underlying compound page. This patch
+> > changes split_huge_pmd() implementation to split the given PMD without
+> > splitting other PMDs this page mapped with or underlying compound page.
+> >
+> > In order to do this we have to get rid of tail page refcounting, which
+> > uses _mapcount of tail pages. Tail page refcounting is needed to be able
+> > to split THP page at any point: we always know which of tail pages is
+> > pinned (i.e. by get_user_pages()) and can distribute page count
+> > correctly.
+> >
+> > We can avoid this by allowing split_huge_page() to fail if the compound
+> > page is pinned. This patch removes all infrastructure for tail page
+> > refcounting and make split_huge_page() to always return -EBUSY. All
+> > split_huge_page() users already know how to handle its fail. Proper
+> > implementation will be added later.
+> >
+> > Without tail page refcounting, implementation of split_huge_pmd() is
+> > pretty straight-forward.
+> >
+> > Memory cgroup is not yet ready for new refcouting. Let's disable it on
+> > Kconfig level.
+> >
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> .....
+> .....
 > 
-> All error/warnings:
+> >  static inline int page_mapped(struct page *page)
+> >  {
+> > -	return atomic_read(&(page)->_mapcount) + compound_mapcount(page) >= 0;
+> > +	int i;
+> > +	if (likely(!PageCompound(page)))
+> > +		return atomic_read(&page->_mapcount) >= 0;
+> > +	if (compound_mapcount(page))
+> > +		return 1;
+> > +	for (i = 0; i < hpage_nr_pages(page); i++) {
+> > +		if (atomic_read(&page[i]._mapcount) >= 0)
+> > +			return 1;
+> > +	}
 > 
->    kernel/time/timer.c: In function 'init_timers':
-> >> kernel/time/timer.c:1648:2: error: call to '__compiletime_assert_1648' declared with attribute error: BUILD_BUG_ON failed: __alignof__(struct tvec_base) & TIMER_FLAG_MASK
+> do we need to loop with head page here ? ie,
 
-Ha, this is because blackfin is broken.
+We do need to loop if we have only tail pages mapped. Partial unmap case.
 
-blackfin doesn't respect ____cacheline_aligned and NOPs it for UP
-builds. Why it thinks {__,}__cacheline_aligned semantics should differ
-between SMP/UP is a mystery to me, we have the &_in_smp primitives for
-that.
+> 
+> page = compound_page(page);
 
-So just ignore this, let the blackfin people deal with it.
+compound_head() ?
+
+This function expects to see head page on input. I'll put VM_BUG_ON()
+there to make sure we don't call it tail pages.
+
+> > +	return 0;
+> >  }
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
