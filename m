@@ -1,47 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 665506B006E
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2015 05:13:21 -0400 (EDT)
-Received: by wgbgs4 with SMTP id gs4so49459512wgb.0
-        for <linux-mm@kvack.org>; Sun, 29 Mar 2015 02:13:20 -0700 (PDT)
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
-        by mx.google.com with ESMTPS id s10si12758906wia.11.2015.03.29.02.13.19
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id ACBB76B0071
+	for <linux-mm@kvack.org>; Sun, 29 Mar 2015 06:24:47 -0400 (EDT)
+Received: by wgbgs4 with SMTP id gs4so50363213wgb.0
+        for <linux-mm@kvack.org>; Sun, 29 Mar 2015 03:24:47 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id ny6si2179435wic.43.2015.03.29.03.24.45
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 29 Mar 2015 02:13:20 -0700 (PDT)
-Received: by wibgn9 with SMTP id gn9so86278057wib.1
-        for <linux-mm@kvack.org>; Sun, 29 Mar 2015 02:13:19 -0700 (PDT)
-Message-ID: <5517C22D.8040003@plexistor.com>
-Date: Sun, 29 Mar 2015 12:13:17 +0300
-From: Boaz Harrosh <boaz@plexistor.com>
+        Sun, 29 Mar 2015 03:24:46 -0700 (PDT)
+Date: Sun, 29 Mar 2015 12:24:40 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC] vmstat: Avoid waking up idle-cpu to service shepherd work
+Message-ID: <20150329102440.GC32047@worktop.ger.corp.intel.com>
+References: <359c926bc85cdf79650e39f2344c2083002545bb.1427347966.git.viresh.kumar@linaro.org>
+ <20150326131822.fce6609efdd85b89ceb3f61c@linux-foundation.org>
+ <CAKohpo=nTXutbVVf-7iAwtgya4zUL686XbG69ExQ3Pi=VQRE-A@mail.gmail.com>
+ <20150327091613.GE27490@worktop.programming.kicks-ass.net>
+ <20150327093023.GA32047@worktop.ger.corp.intel.com>
+ <CAOh2x=nbisppmuBwfLWndyCPKem1N_KzoTxyAYcQuL77T_bJfw@mail.gmail.com>
+ <20150328095322.GH27490@worktop.programming.kicks-ass.net>
+ <55169723.3070006@linaro.org>
+ <20150328134457.GK27490@worktop.programming.kicks-ass.net>
 MIME-Version: 1.0
-Subject: Re: Should implementations of ->direct_access be allowed to sleep?
-References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com> <1411677218-29146-22-git-send-email-matthew.r.wilcox@intel.com> <20150324185046.GA4994@whiteoak.sf.office.twttr.net> <20150326170918.GO4003@linux.intel.com> <20150326193224.GA28129@dastard> <5517B18A.3050305@plexistor.com>
-In-Reply-To: <5517B18A.3050305@plexistor.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150328134457.GK27490@worktop.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@linux.intel.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, msharbiani@twopensource.com
+To: viresh kumar <viresh.kumar@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, vinmenon@codeaurora.org, shashim@codeaurora.org, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, dave@stgolabs.net, Konstantin Khlebnikov <koct9i@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Suresh Siddha <suresh.b.siddha@intel.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On 03/29/2015 11:02 AM, Boaz Harrosh wrote:
-> On 03/26/2015 09:32 PM, Dave Chinner wrote:
-<>
-> I think that ->direct_access should not be any different then
-> any other block-device access, ie allow to sleep.
+On Sat, Mar 28, 2015 at 02:44:57PM +0100, Peter Zijlstra wrote:
+> > Now there are few issues I see here (Sorry if they are all imaginary):
+> > - In case a timer re-arms itself from its handler and is migrated from CPU A to B, what
+> >   happens if the re-armed timer fires before the first handler finishes ? i.e. timer->fn()
+> >   hasn't finished running on CPU A and it has fired again on CPU B. Wouldn't this expose
+> >   us to a lot of other problems? It wouldn't be serialized to itself anymore ?
 > 
+> What I said above.
 
-BTW: Matthew you yourself have said that after a page-load of memcpy
-a user should call sched otherwise bad things will happen to the system
-you even commented so on one of my patches when you thought I was
-allowing a single memcpy bigger than a page.
-
-So if the user *must* call sched after a call to ->direct_access that
-is a "sleep" No?
-
-Thanks
-Boaz
+What I didn't say, but had thought of is that __run_timer() should skip
+any timer that has RUNNING set -- for obvious reasons :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
