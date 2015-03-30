@@ -1,59 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 11BEB6B0032
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 10:00:04 -0400 (EDT)
-Received: by pactp5 with SMTP id tp5so1725488pac.1
-        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 07:00:03 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id w1si14934793pdh.80.2015.03.30.07.00.02
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id DA8D06B0032
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 10:10:41 -0400 (EDT)
+Received: by pddn5 with SMTP id n5so60822400pdd.2
+        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 07:10:41 -0700 (PDT)
+Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com. [122.248.162.2])
+        by mx.google.com with ESMTPS id jp11si12099145pbb.255.2015.03.30.07.10.39
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Mar 2015 07:00:02 -0700 (PDT)
-Date: Mon, 30 Mar 2015 15:59:48 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC] vmstat: Avoid waking up idle-cpu to service shepherd work
-Message-ID: <20150330135948.GY23123@twins.programming.kicks-ass.net>
-References: <20150327091613.GE27490@worktop.programming.kicks-ass.net>
- <20150327093023.GA32047@worktop.ger.corp.intel.com>
- <CAOh2x=nbisppmuBwfLWndyCPKem1N_KzoTxyAYcQuL77T_bJfw@mail.gmail.com>
- <20150328095322.GH27490@worktop.programming.kicks-ass.net>
- <55169723.3070006@linaro.org>
- <20150328134457.GK27490@worktop.programming.kicks-ass.net>
- <20150329102440.GC32047@worktop.ger.corp.intel.com>
- <CAKohpon2GSpk+6pNuHEsDC55hHtowwfGJivPM0Gh0wt1A2cd-w@mail.gmail.com>
- <20150330124746.GI21418@twins.programming.kicks-ass.net>
- <CAKohpo=2_v8n+tnrEbb4bYAxU8cgA+OWpTNe8XX3yjpzL4ySGw@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 30 Mar 2015 07:10:40 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 30 Mar 2015 19:40:36 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 9E70AE0056
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 19:42:52 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t2UEAVMn33685538
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 19:40:33 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t2UDxQP5019317
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 19:29:27 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCHv4 18/24] thp, mm: split_huge_page(): caller need to lock page
+In-Reply-To: <1425486792-93161-19-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1425486792-93161-1-git-send-email-kirill.shutemov@linux.intel.com> <1425486792-93161-19-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Mon, 30 Mar 2015 19:40:29 +0530
+Message-ID: <87mw2ulgoa.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKohpo=2_v8n+tnrEbb4bYAxU8cgA+OWpTNe8XX3yjpzL4ySGw@mail.gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Viresh Kumar <viresh.kumar@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, vinmenon@codeaurora.org, shashim@codeaurora.org, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, dave@stgolabs.net, Konstantin Khlebnikov <koct9i@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Suresh Siddha <suresh.b.siddha@intel.com>, Thomas Gleixner <tglx@linutronix.de>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Mar 30, 2015 at 06:44:22PM +0530, Viresh Kumar wrote:
-> On 30 March 2015 at 18:17, Peter Zijlstra <peterz@infradead.org> wrote:
-> > No, I means something else with that. We can remove the
-> > tvec_base::running_timer field. Everything that uses that can use
-> > tbase_running() AFAICT.
-> 
-> Okay, there is one instance which still needs it.
-> 
-> migrate_timers():
-> 
->         BUG_ON(old_base->running_timer);
-> 
-> What I wasn't sure about it is if we get can drop this statement or not.
-> If we decide not to drop it, then we can convert running_timer into a bool.
+"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
 
-Yeah, so that _should_ not trigger (obviously), and while I agree with
-the sentiment of sanity checks, I'm not sure its worth keeping that
-variable around just for that.
+> We're going to use migration entries instead of compound_lock() to
+> stabilize page refcounts. Setup and remove migration entries require
+> page to be locked.
+>
+> Some of split_huge_page() callers already have the page locked. Let's
+> require everybody to lock the page before calling split_huge_page().
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Anyway, while I'm looking at struct tvec_base I notice the cpu member
-should be second after the lock, that'll save 8 bytes on the structure
-on 64bit machines.
+Why not have split_huge_page_locked/unlocked, and call the one which
+takes lock internally every where ?
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
