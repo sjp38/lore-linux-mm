@@ -1,76 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DFEB6B006E
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 16:54:20 -0400 (EDT)
-Received: by wgdm6 with SMTP id m6so188754428wgd.2
-        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 13:54:20 -0700 (PDT)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id fo8si1833334wib.48.2015.03.30.13.54.18
-        for <linux-mm@kvack.org>;
-        Mon, 30 Mar 2015 13:54:18 -0700 (PDT)
-Date: Mon, 30 Mar 2015 23:54:13 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm/mmap.c: use while instead of if+goto
-Message-ID: <20150330205413.GA4458@node.dhcp.inet.fi>
-References: <1427744435-6304-1-git-send-email-linux@rasmusvillemoes.dk>
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 768A26B0032
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 17:14:50 -0400 (EDT)
+Received: by lajy8 with SMTP id y8so12862087laj.0
+        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 14:14:49 -0700 (PDT)
+Received: from mail-la0-x236.google.com (mail-la0-x236.google.com. [2a00:1450:4010:c03::236])
+        by mx.google.com with ESMTPS id s12si7818538lbm.84.2015.03.30.14.14.47
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Mar 2015 14:14:48 -0700 (PDT)
+Received: by lajy8 with SMTP id y8so12861550laj.0
+        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 14:14:47 -0700 (PDT)
+Date: Tue, 31 Mar 2015 00:14:46 +0300
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH 4/4] mm: make every pte dirty on do_swap_page
+Message-ID: <20150330211446.GE18876@moon>
+References: <1426036838-18154-1-git-send-email-minchan@kernel.org>
+ <1426036838-18154-4-git-send-email-minchan@kernel.org>
+ <20150330052250.GA3008@blaptop>
+ <20150330085112.GB10982@moon>
+ <20150330085915.GC3008@blaptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1427744435-6304-1-git-send-email-linux@rasmusvillemoes.dk>
+In-Reply-To: <20150330085915.GC3008@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Roman Gushchin <klamm@yandex-team.ru>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Yalin.Wang@sonymobile.com, Hugh Dickins <hughd@google.com>, Pavel Emelyanov <xemul@parallels.com>
 
-On Mon, Mar 30, 2015 at 09:40:35PM +0200, Rasmus Villemoes wrote:
-> The creators of the C language gave us the while keyword. Let's use
-> that instead of synthesizing it from if+goto.
+On Mon, Mar 30, 2015 at 05:59:15PM +0900, Minchan Kim wrote:
+> Hi Cyrill,
 > 
-> Made possible by 6597d783397a ("mm/mmap.c: replace find_vma_prepare()
-> with clearer find_vma_links()").
+> On Mon, Mar 30, 2015 at 11:51:12AM +0300, Cyrill Gorcunov wrote:
+> > On Mon, Mar 30, 2015 at 02:22:50PM +0900, Minchan Kim wrote:
+> > > 2nd description trial.
+> > ...
+> > Hi Minchan, could you please point for which repo this patch,
+> > linux-next?
 > 
-> Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-
-
-Looks good, except both your plus-lines are over 80-characters long for no
-reason.
-
-> ---
->  mm/mmap.c | 8 ++------
->  1 file changed, 2 insertions(+), 6 deletions(-)
+> It was based on v4.0-rc5-mmotm-2015-03-24-17-02.
+> As well, I confirmed it was applied on local-next-20150327.
 > 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index da9990acc08b..e1ae629b1e9c 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -1553,11 +1553,9 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
->  
->  	/* Clear old maps */
->  	error = -ENOMEM;
-> -munmap_back:
-> -	if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
-> +	while (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
->  		if (do_munmap(mm, addr, len))
->  			return -ENOMEM;
-> -		goto munmap_back;
->  	}
->  
->  	/*
-> @@ -2741,11 +2739,9 @@ static unsigned long do_brk(unsigned long addr, unsigned long len)
->  	/*
->  	 * Clear old maps.  this also does some error checking for us
->  	 */
-> - munmap_back:
-> -	if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
-> +	while (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
->  		if (do_munmap(mm, addr, len))
->  			return -ENOMEM;
-> -		goto munmap_back;
->  	}
->  
->  	/* Check against address space limits *after* clearing old maps... */
--- 
- Kirill A. Shutemov
+> Thanks.
+
+Hi Minchan! I managed to fetch mmotm and the change looks
+reasonable to me. Still better to wait for review from Mel
+or Hugh, maybe I miss something obvious.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
