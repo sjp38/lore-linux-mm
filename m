@@ -1,103 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id A938382907
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2015 21:35:39 -0400 (EDT)
-Received: by pdbni2 with SMTP id ni2so159178562pdb.1
-        for <linux-mm@kvack.org>; Sun, 29 Mar 2015 18:35:39 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id dr4si12575782pdb.162.2015.03.29.18.35.38
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id C89E26B006C
+	for <linux-mm@kvack.org>; Sun, 29 Mar 2015 21:59:24 -0400 (EDT)
+Received: by pacwe9 with SMTP id we9so152106396pac.1
+        for <linux-mm@kvack.org>; Sun, 29 Mar 2015 18:59:24 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id c1si12636531pde.169.2015.03.29.18.59.20
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 29 Mar 2015 18:35:38 -0700 (PDT)
-Received: by pacwe9 with SMTP id we9so151648317pac.1
-        for <linux-mm@kvack.org>; Sun, 29 Mar 2015 18:35:38 -0700 (PDT)
-Date: Sun, 29 Mar 2015 18:35:34 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [patch 1/2] mm, doc: cleanup and clarify munmap behavior for
- hugetlb memory
-In-Reply-To: <alpine.DEB.2.10.1503261621570.20009@chino.kir.corp.google.com>
-Message-ID: <alpine.LSU.2.11.1503291801400.1052@eggly.anvils>
-References: <alpine.DEB.2.10.1503261621570.20009@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 29 Mar 2015 18:59:23 -0700 (PDT)
+Message-ID: <5518AAE5.8060308@huawei.com>
+Date: Mon, 30 Mar 2015 09:46:13 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: arm/ksm: Unable to handle kernel paging request in get_ksm_page()
+ and ksm_scan_thread()
+References: <55140869.7060507@huawei.com> <55161D0E.9070604@huawei.com> <alpine.LSU.2.11.1503291701580.1052@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1503291701580.1052@eggly.anvils>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Davide Libenzi <davidel@xmailserver.org>, Luiz Capitulino <lcapitulino@redhat.com>, Shuah Khan <shuahkh@osg.samsung.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, Eric B Munson <emunson@akamai.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-doc@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, neilb@suse.de, heiko.carstens@de.ibm.com, dhowells@redhat.com, izik.eidus@ravellosystems.com, aarcange@redhat.com, chrisw@sous-sol.org, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, weiyuan.wei@huawei.com
 
-On Thu, 26 Mar 2015, David Rientjes wrote:
+On 2015/3/30 8:43, Hugh Dickins wrote:
 
-> munmap(2) of hugetlb memory requires a length that is hugepage aligned,
-> otherwise it may fail.  Add this to the documentation.
-
-Thanks for taking this on, David.  But although munmap(2) is the one
-Davide called out, it goes beyond that, doesn't it?  To mprotect and
-madvise and ...
-
-I don't want to work out the list myself: is_vm_hugetlb_page() is
-special-cased all over, and different syscalls react differently.
-
-Which is another reason why, like you, I much prefer not to interfere
-with the long established behavior: it would be very easy to introduce
-bugs and worse inconsistencies.
-
-And mprotect(2) is a good example of why we should not mess around
-with the long established API here: changing an mprotect from failing
-on a particular size to acting on a larger size is not a safe change.
-
-Eric, I apologize for bringing you in to the discussion, and then
-ignoring your input.  I understand that you would like MAP_HUGETLB
-to behave more understandably.  We can all agree that the existing
-behavior is unsatisfying.  But it's many years too late now to 
-change it around - and I suspect that a full exercise to do so would
-actually discover some good reasons why the original choices were made.
-
+> On Sat, 28 Mar 2015, Xishi Qiu wrote:
+>> On 2015/3/26 21:23, Xishi Qiu wrote:
+>>
+>>> Here are two panic logs from smart phone test, and the kernel version is v3.10.
+>>>
+>>> log1 is "Unable to handle kernel paging request at virtual address c0704da020", it should be ffffffc0704da020, right?
 > 
-> This also cleans up the documentation and separates it into logical
-> units: one part refers to MAP_HUGETLB and another part refers to
-> requirements for shared memory segments.
+> That one was an oops at get_ksm_page+0x34/0x150: I'm pretty sure that
+> comes from the "kpfn = ACCESS_ONCE(stable_node->kpfn)" line, that the
+> stable_node pointer (in x21 or x22) has upper bits cleared; which
+> suggests corruption of the rmap_item supposed to point to it.
 > 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  Documentation/vm/hugetlbpage.txt | 21 +++++++++++++--------
->  1 file changed, 13 insertions(+), 8 deletions(-)
+> get_ksm_page() is tricky with ACCESS_ONCEs against page migration,
+> and the structures tricky with unions; but pointers overlay pointers
+> in those unions, I don't see any way we might pick up an address with
+> the upper 24 or 32 bits cleared due to that.
 > 
-> diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
-> --- a/Documentation/vm/hugetlbpage.txt
-> +++ b/Documentation/vm/hugetlbpage.txt
-> @@ -289,15 +289,20 @@ file systems, write system calls are not.
->  Regular chown, chgrp, and chmod commands (with right permissions) could be
->  used to change the file attributes on hugetlbfs.
->  
-> -Also, it is important to note that no such mount command is required if the
-> +Also, it is important to note that no such mount command is required if
->  applications are going to use only shmat/shmget system calls or mmap with
-> -MAP_HUGETLB.  Users who wish to use hugetlb page via shared memory segment
-> -should be a member of a supplementary group and system admin needs to
-> -configure that gid into /proc/sys/vm/hugetlb_shm_group.  It is possible for
-> -same or different applications to use any combination of mmaps and shm*
-> -calls, though the mount of filesystem will be required for using mmap calls
-> -without MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see
-> -map_hugetlb.c.
-> +MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see map_hugetlb
-> +below.
-> +
-> +Users who wish to use hugetlb memory via shared memory segment should be a
-> +member of a supplementary group and system admin needs to configure that gid
-> +into /proc/sys/vm/hugetlb_shm_group.  It is possible for same or different
-> +applications to use any combination of mmaps and shm* calls, though the mount of
-> +filesystem will be required for using mmap calls without MAP_HUGETLB.
-> +
-> +When using munmap(2) to unmap hugetlb memory, the length specified must be
-> +hugepage aligned, otherwise it will fail with errno set to EINVAL.
+>>> and log2 is "Unable to handle kernel paging request at virtual address 1e000796", it should be ffffffc01e000796, right?
+> 
+> And this one was an oops at ksm_scan_thread+0x4ac/0xce0; as is the oops
+> you posted below.  Which contains lots of hex numbers, but very little
+> info I can work from.
+> 
+> Please make a CONFIG_DEBUG_INFO=y build of one of the kernels you're
+> hitting this with, then use the disassembler (objdump -ld perhaps) to
+> identify precisely which line of ksm.c that is oopsing on: the compiler
+> will have inlined more interesting functions into ksm_scan_thread, so
+> I haven't a clue where it's actually oopsing.
+> 
+> Maybe we'll find that it's also oopsing on a kernel virtual address
+> from an rmap_item, maybe we won't.
+> 
+> And I don't read arm64 assembler at all, so I shall be rather limited
+> in what I can tell you, I'm afraid.
+> 
+>>>
+>>> I cann't repeat the panic by test, so could anyone tell me this is the 
+>>> bug of ksm or other reason?
+> 
+> I've not heard of any problem like this with KSM on other architectures.
+> Maybe it is making some assumption which is invalid on arm64, but I'd
+> have thought we'd have heard about that before now.  My guess is that
+> something in your kernel is stamping on KSM's structures.
+> 
+> A relevant experiment (after identifying the oops line in your current
+> kernel) might be to switch from CONFIG_SLAB=y to CONFIG_SLUB=y or vice
+> versa.  I doubt SLAB or SLUB is to blame, but changing allocator might
+> shake things up in a way that either hides the problem, or shifts it
+> elsewhere.
+> 
+> Hugh
+> 
 
-Perhaps just adding something like "The same is true for mprotect(2)
-and other such memory system calls." is good enough for here.
+Hi Hugh,
 
-> +
->  
->  Examples
->  ========
+Thanks for your reply. There are 3 cases as follows, at first I think maybe
+something causes the oops, but all of the cases are relevant to "rmap_item",
+so I have no idea.
+
+1. ksm_scan_thread+0xa88/0xce0 -> unstable_tree_search_insert() -> tree_rmap_item = rb_entry(*new, struct rmap_item, node);
+
+2. ksm_scan_thread+0x4ac/0xce0 -> get_next_rmap_item() -> if ((rmap_item->address & PAGE_MASK) == addr)
+
+3. get_ksm_page+0x34/0x150 -> get_ksm_page() -> kpfn = ACCESS_ONCE(stable_node->kpfn);
+
+Thanks,
+Xishi Qiu
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
