@@ -1,106 +1,214 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CE5B6B0032
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 19:47:06 -0400 (EDT)
-Received: by igbud6 with SMTP id ud6so3998218igb.1
-        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 16:47:06 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0005.hostedemail.com. [216.40.44.5])
-        by mx.google.com with ESMTP id w10si10229321icb.106.2015.03.30.16.47.05
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 90DCB6B006C
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 19:47:50 -0400 (EDT)
+Received: by igcau2 with SMTP id au2so2597926igc.1
+        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 16:47:50 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0201.hostedemail.com. [216.40.44.201])
+        by mx.google.com with ESMTP id lp9si10584267igb.52.2015.03.30.16.47.50
         for <linux-mm@kvack.org>;
-        Mon, 30 Mar 2015 16:47:05 -0700 (PDT)
+        Mon, 30 Mar 2015 16:47:50 -0700 (PDT)
 From: Joe Perches <joe@perches.com>
-Subject: [PATCH 00/25] treewide: Use bool function return values of true/false not 1/0
-Date: Mon, 30 Mar 2015 16:45:58 -0700
-Message-Id: <cover.1427759009.git.joe@perches.com>
+Subject: [PATCH 16/25] include/linux: Use bool function return values of true/false not 1/0
+Date: Mon, 30 Mar 2015 16:46:14 -0700
+Message-Id: <5edb9453646625a405ef0a642bec0819c0e6c2eb.1427759009.git.joe@perches.com>
+In-Reply-To: <cover.1427759009.git.joe@perches.com>
+References: <cover.1427759009.git.joe@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvmarm@lists.cs.columbia.edu, kvm@vger.kernel.org, linux-omap@vger.kernel.org, kvm-ppc@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-nfs@vger.kernel.org, linux-ide@vger.kernel.org, kgdb-bugreport@lists.sourceforge.net, linux-mm@kvack.org, linux-pm@vger.kernel.org, netdev@vger.kernel.org, alsa-devel@alsa-project.org, bridge@lists.linux-foundation.org, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, patches@opensource.wolfsonmicro.com
-Cc: linux-hexagon@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, sparclinux@vger.kernel.org, linux-scsi@vger.kernel.org, linux-security-module@vger.kernel.org
+To: linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, Jason Wessel <jason.wessel@windriver.com>, Samuel Ortiz <sameo@linux.intel.com>, Lee Jones <lee.jones@linaro.org>, Sebastian Reichel <sre@kernel.org>, Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Michael Buesch <m@bues.ch>
+Cc: linux-ide@vger.kernel.org, kgdb-bugreport@lists.sourceforge.net, linux-mm@kvack.org, linux-pm@vger.kernel.org, netdev@vger.kernel.org
 
-Joe Perches (25):
-  arm: Use bool function return values of true/false not 1/0
-  arm64: Use bool function return values of true/false not 1/0
-  hexagon: Use bool function return values of true/false not 1/0
-  ia64: Use bool function return values of true/false not 1/0
-  mips: Use bool function return values of true/false not 1/0
-  powerpc: Use bool function return values of true/false not 1/0
-  s390: Use bool function return values of true/false not 1/0
-  sparc: Use bool function return values of true/false not 1/0
-  tile: Use bool function return values of true/false not 1/0
-  unicore32: Use bool function return values of true/false not 1/0
-  x86: Use bool function return values of true/false not 1/0
-  virtio_console: Use bool function return values of true/false not 1/0
-  csiostor: Use bool function return values of true/false not 1/0
-  dcache: Use bool function return values of true/false not 1/0
-  nfsd: nfs4state: Use bool function return values of true/false not 1/0
-  include/linux: Use bool function return values of true/false not 1/0
-  sound: Use bool function return values of true/false not 1/0
-  rcu: tree_plugin: Use bool function return values of true/false not 1/0
-  sched: Use bool function return values of true/false not 1/0
-  ftrace: Use bool function return values of true/false not 1/0
-  slub: Use bool function return values of true/false not 1/0
-  bridge: Use bool function return values of true/false not 1/0
-  netfilter: Use bool function return values of true/false not 1/0
-  security: Use bool function return values of true/false not 1/0
-  sound: wm5100-tables: Use bool function return values of true/false not 1/0
+Use the normal return values for bool functions
 
- arch/arm/include/asm/dma-mapping.h           |  8 ++--
- arch/arm/include/asm/kvm_emulate.h           |  2 +-
- arch/arm/mach-omap2/powerdomain.c            | 14 +++---
- arch/arm64/include/asm/dma-mapping.h         |  2 +-
- arch/hexagon/include/asm/dma-mapping.h       |  2 +-
- arch/ia64/include/asm/dma-mapping.h          |  2 +-
- arch/mips/include/asm/dma-mapping.h          |  2 +-
- arch/powerpc/include/asm/dcr-native.h        |  2 +-
- arch/powerpc/include/asm/dma-mapping.h       |  4 +-
- arch/powerpc/include/asm/kvm_book3s_64.h     |  4 +-
- arch/powerpc/sysdev/dcr.c                    |  2 +-
- arch/s390/include/asm/dma-mapping.h          |  2 +-
- arch/sparc/mm/init_64.c                      |  8 ++--
- arch/tile/include/asm/dma-mapping.h          |  2 +-
- arch/unicore32/include/asm/dma-mapping.h     |  2 +-
- arch/x86/include/asm/archrandom.h            |  2 +-
- arch/x86/include/asm/dma-mapping.h           |  2 +-
- arch/x86/include/asm/kvm_para.h              |  2 +-
- arch/x86/kvm/cpuid.h                         |  2 +-
- arch/x86/kvm/vmx.c                           | 72 ++++++++++++++--------------
- drivers/char/virtio_console.c                |  2 +-
- drivers/scsi/csiostor/csio_scsi.c            |  4 +-
- fs/dcache.c                                  | 12 ++---
- fs/nfsd/nfs4state.c                          |  2 +-
- include/linux/blkdev.h                       |  2 +-
- include/linux/ide.h                          |  2 +-
- include/linux/kgdb.h                         |  2 +-
- include/linux/mfd/db8500-prcmu.h             |  2 +-
- include/linux/mm.h                           |  2 +-
- include/linux/power_supply.h                 |  8 ++--
- include/linux/ssb/ssb_driver_extif.h         |  2 +-
- include/linux/ssb/ssb_driver_gige.h          | 16 +++----
- include/sound/soc.h                          |  4 +-
- kernel/rcu/tree_plugin.h                     |  4 +-
- kernel/sched/auto_group.h                    |  2 +-
- kernel/sched/completion.c                    | 16 ++++---
- kernel/trace/ftrace.c                        | 10 ++--
- mm/slub.c                                    | 12 ++---
- net/bridge/br_private.h                      |  2 +-
- net/ipv4/netfilter/ipt_ah.c                  |  2 +-
- net/netfilter/ipset/ip_set_hash_ip.c         |  8 ++--
- net/netfilter/ipset/ip_set_hash_ipmark.c     |  8 ++--
- net/netfilter/ipset/ip_set_hash_ipport.c     |  8 ++--
- net/netfilter/ipset/ip_set_hash_ipportip.c   |  8 ++--
- net/netfilter/ipset/ip_set_hash_ipportnet.c  |  8 ++--
- net/netfilter/ipset/ip_set_hash_net.c        |  8 ++--
- net/netfilter/ipset/ip_set_hash_netiface.c   |  8 ++--
- net/netfilter/ipset/ip_set_hash_netport.c    |  8 ++--
- net/netfilter/ipset/ip_set_hash_netportnet.c |  8 ++--
- net/netfilter/xt_connlimit.c                 |  2 +-
- net/netfilter/xt_hashlimit.c                 |  2 +-
- net/netfilter/xt_ipcomp.c                    |  2 +-
- security/apparmor/file.c                     |  8 ++--
- security/apparmor/policy.c                   | 10 ++--
- sound/soc/codecs/wm5100-tables.c             | 12 ++---
- 55 files changed, 178 insertions(+), 176 deletions(-)
+Signed-off-by: Joe Perches <joe@perches.com>
+---
+ include/linux/blkdev.h               |  2 +-
+ include/linux/ide.h                  |  2 +-
+ include/linux/kgdb.h                 |  2 +-
+ include/linux/mfd/db8500-prcmu.h     |  2 +-
+ include/linux/mm.h                   |  2 +-
+ include/linux/power_supply.h         |  8 ++++----
+ include/linux/ssb/ssb_driver_extif.h |  2 +-
+ include/linux/ssb/ssb_driver_gige.h  | 16 ++++++++--------
+ 8 files changed, 18 insertions(+), 18 deletions(-)
 
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index 5d93a66..eced869 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -1591,7 +1591,7 @@ static inline bool blk_integrity_merge_bio(struct request_queue *rq,
+ }
+ static inline bool blk_integrity_is_initialized(struct gendisk *g)
+ {
+-	return 0;
++	return false;
+ }
+ 
+ #endif /* CONFIG_BLK_DEV_INTEGRITY */
+diff --git a/include/linux/ide.h b/include/linux/ide.h
+index 93b5ca7..1ba07db 100644
+--- a/include/linux/ide.h
++++ b/include/linux/ide.h
+@@ -1411,7 +1411,7 @@ void ide_acpi_port_init_devices(ide_hwif_t *);
+ extern void ide_acpi_set_state(ide_hwif_t *hwif, int on);
+ #else
+ static inline int ide_acpi_init(void) { return 0; }
+-static inline bool ide_port_acpi(ide_hwif_t *hwif) { return 0; }
++static inline bool ide_port_acpi(ide_hwif_t *hwif) { return false; }
+ static inline int ide_acpi_exec_tfs(ide_drive_t *drive) { return 0; }
+ static inline void ide_acpi_get_timing(ide_hwif_t *hwif) { ; }
+ static inline void ide_acpi_push_timing(ide_hwif_t *hwif) { ; }
+diff --git a/include/linux/kgdb.h b/include/linux/kgdb.h
+index e465bb1..840f494 100644
+--- a/include/linux/kgdb.h
++++ b/include/linux/kgdb.h
+@@ -292,7 +292,7 @@ extern bool kgdb_nmi_poll_knock(void);
+ #else
+ static inline int kgdb_register_nmi_console(void) { return 0; }
+ static inline int kgdb_unregister_nmi_console(void) { return 0; }
+-static inline bool kgdb_nmi_poll_knock(void) { return 1; }
++static inline bool kgdb_nmi_poll_knock(void) { return true; }
+ #endif
+ 
+ extern int kgdb_register_io_module(struct kgdb_io *local_kgdb_io_ops);
+diff --git a/include/linux/mfd/db8500-prcmu.h b/include/linux/mfd/db8500-prcmu.h
+index 0bd6944..3b06175 100644
+--- a/include/linux/mfd/db8500-prcmu.h
++++ b/include/linux/mfd/db8500-prcmu.h
+@@ -744,7 +744,7 @@ static inline int db8500_prcmu_load_a9wdog(u8 id, u32 val)
+ 
+ static inline bool db8500_prcmu_is_ac_wake_requested(void)
+ {
+-	return 0;
++	return false;
+ }
+ 
+ static inline int db8500_prcmu_set_arm_opp(u8 opp)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 4a3a385..164108c 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -819,7 +819,7 @@ static inline int cpu_pid_to_cpupid(int nid, int pid)
+ 
+ static inline bool cpupid_pid_unset(int cpupid)
+ {
+-	return 1;
++	return true;
+ }
+ 
+ static inline void page_cpupid_reset_last(struct page *page)
+diff --git a/include/linux/power_supply.h b/include/linux/power_supply.h
+index 75a1dd8..b0b45c7 100644
+--- a/include/linux/power_supply.h
++++ b/include/linux/power_supply.h
+@@ -350,12 +350,12 @@ static inline bool power_supply_is_amp_property(enum power_supply_property psp)
+ 	case POWER_SUPPLY_PROP_CURRENT_NOW:
+ 	case POWER_SUPPLY_PROP_CURRENT_AVG:
+ 	case POWER_SUPPLY_PROP_CURRENT_BOOT:
+-		return 1;
++		return true;
+ 	default:
+ 		break;
+ 	}
+ 
+-	return 0;
++	return false;
+ }
+ 
+ static inline bool power_supply_is_watt_property(enum power_supply_property psp)
+@@ -378,12 +378,12 @@ static inline bool power_supply_is_watt_property(enum power_supply_property psp)
+ 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+ 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:
+ 	case POWER_SUPPLY_PROP_POWER_NOW:
+-		return 1;
++		return true;
+ 	default:
+ 		break;
+ 	}
+ 
+-	return 0;
++	return false;
+ }
+ 
+ #endif /* __LINUX_POWER_SUPPLY_H__ */
+diff --git a/include/linux/ssb/ssb_driver_extif.h b/include/linux/ssb/ssb_driver_extif.h
+index a410e84..5766b6f 100644
+--- a/include/linux/ssb/ssb_driver_extif.h
++++ b/include/linux/ssb/ssb_driver_extif.h
+@@ -198,7 +198,7 @@ struct ssb_extif {
+ 
+ static inline bool ssb_extif_available(struct ssb_extif *extif)
+ {
+-	return 0;
++	return false;
+ }
+ 
+ static inline
+diff --git a/include/linux/ssb/ssb_driver_gige.h b/include/linux/ssb/ssb_driver_gige.h
+index 0688472..65f7740 100644
+--- a/include/linux/ssb/ssb_driver_gige.h
++++ b/include/linux/ssb/ssb_driver_gige.h
+@@ -75,7 +75,7 @@ static inline bool ssb_gige_have_roboswitch(struct pci_dev *pdev)
+ 	if (dev)
+ 		return !!(dev->dev->bus->sprom.boardflags_lo &
+ 			  SSB_GIGE_BFL_ROBOSWITCH);
+-	return 0;
++	return false;
+ }
+ 
+ /* Returns whether we can only do one DMA at once. */
+@@ -85,7 +85,7 @@ static inline bool ssb_gige_one_dma_at_once(struct pci_dev *pdev)
+ 	if (dev)
+ 		return ((dev->dev->bus->chip_id == 0x4785) &&
+ 			(dev->dev->bus->chip_rev < 2));
+-	return 0;
++	return false;
+ }
+ 
+ /* Returns whether we must flush posted writes. */
+@@ -94,7 +94,7 @@ static inline bool ssb_gige_must_flush_posted_writes(struct pci_dev *pdev)
+ 	struct ssb_gige *dev = pdev_to_ssb_gige(pdev);
+ 	if (dev)
+ 		return (dev->dev->bus->chip_id == 0x4785);
+-	return 0;
++	return false;
+ }
+ 
+ /* Get the device MAC address */
+@@ -158,7 +158,7 @@ static inline void ssb_gige_exit(void)
+ 
+ static inline bool pdev_is_ssb_gige_core(struct pci_dev *pdev)
+ {
+-	return 0;
++	return false;
+ }
+ static inline struct ssb_gige * pdev_to_ssb_gige(struct pci_dev *pdev)
+ {
+@@ -166,19 +166,19 @@ static inline struct ssb_gige * pdev_to_ssb_gige(struct pci_dev *pdev)
+ }
+ static inline bool ssb_gige_is_rgmii(struct pci_dev *pdev)
+ {
+-	return 0;
++	return false;
+ }
+ static inline bool ssb_gige_have_roboswitch(struct pci_dev *pdev)
+ {
+-	return 0;
++	return false;
+ }
+ static inline bool ssb_gige_one_dma_at_once(struct pci_dev *pdev)
+ {
+-	return 0;
++	return false;
+ }
+ static inline bool ssb_gige_must_flush_posted_writes(struct pci_dev *pdev)
+ {
+-	return 0;
++	return false;
+ }
+ static inline int ssb_gige_get_macaddr(struct pci_dev *pdev, u8 *macaddr)
+ {
 -- 
 2.1.2
 
