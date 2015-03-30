@@ -1,81 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 602B6900015
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 12:17:16 -0400 (EDT)
-Received: by obcjt1 with SMTP id jt1so126424932obc.2
-        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 09:17:16 -0700 (PDT)
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com. [209.85.214.170])
-        by mx.google.com with ESMTPS id sa5si6416176oeb.7.2015.03.30.09.17.09
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DD976B0032
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 12:25:33 -0400 (EDT)
+Received: by wgbdm7 with SMTP id dm7so74913162wgb.1
+        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 09:25:32 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id kc1si18926147wjc.145.2015.03.30.09.25.31
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Mar 2015 09:17:09 -0700 (PDT)
-Received: by obvd1 with SMTP id d1so62266592obv.0
-        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 09:17:08 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150330135948.GY23123@twins.programming.kicks-ass.net>
-References: <20150327091613.GE27490@worktop.programming.kicks-ass.net>
-	<20150327093023.GA32047@worktop.ger.corp.intel.com>
-	<CAOh2x=nbisppmuBwfLWndyCPKem1N_KzoTxyAYcQuL77T_bJfw@mail.gmail.com>
-	<20150328095322.GH27490@worktop.programming.kicks-ass.net>
-	<55169723.3070006@linaro.org>
-	<20150328134457.GK27490@worktop.programming.kicks-ass.net>
-	<20150329102440.GC32047@worktop.ger.corp.intel.com>
-	<CAKohpon2GSpk+6pNuHEsDC55hHtowwfGJivPM0Gh0wt1A2cd-w@mail.gmail.com>
-	<20150330124746.GI21418@twins.programming.kicks-ass.net>
-	<CAKohpo=2_v8n+tnrEbb4bYAxU8cgA+OWpTNe8XX3yjpzL4ySGw@mail.gmail.com>
-	<20150330135948.GY23123@twins.programming.kicks-ass.net>
-Date: Mon, 30 Mar 2015 21:47:01 +0530
-Message-ID: <CAKohponEAivnev-fcWdjD0OcwQaXHN58tESCfqbZ_-W+_N+DvA@mail.gmail.com>
+        Mon, 30 Mar 2015 09:25:32 -0700 (PDT)
+Date: Mon, 30 Mar 2015 18:25:19 +0200
+From: Peter Zijlstra <peterz@infradead.org>
 Subject: Re: [RFC] vmstat: Avoid waking up idle-cpu to service shepherd work
-From: Viresh Kumar <viresh.kumar@linaro.org>
-Content-Type: text/plain; charset=UTF-8
+Message-ID: <20150330162519.GB23123@twins.programming.kicks-ass.net>
+References: <CAOh2x=nbisppmuBwfLWndyCPKem1N_KzoTxyAYcQuL77T_bJfw@mail.gmail.com>
+ <20150328095322.GH27490@worktop.programming.kicks-ass.net>
+ <55169723.3070006@linaro.org>
+ <20150328134457.GK27490@worktop.programming.kicks-ass.net>
+ <20150329102440.GC32047@worktop.ger.corp.intel.com>
+ <CAKohpon2GSpk+6pNuHEsDC55hHtowwfGJivPM0Gh0wt1A2cd-w@mail.gmail.com>
+ <20150330124746.GI21418@twins.programming.kicks-ass.net>
+ <CAKohpo=2_v8n+tnrEbb4bYAxU8cgA+OWpTNe8XX3yjpzL4ySGw@mail.gmail.com>
+ <20150330135948.GY23123@twins.programming.kicks-ass.net>
+ <CAKohponEAivnev-fcWdjD0OcwQaXHN58tESCfqbZ_-W+_N+DvA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKohponEAivnev-fcWdjD0OcwQaXHN58tESCfqbZ_-W+_N+DvA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
+To: Viresh Kumar <viresh.kumar@linaro.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, vinmenon@codeaurora.org, shashim@codeaurora.org, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, dave@stgolabs.net, Konstantin Khlebnikov <koct9i@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Suresh Siddha <suresh.b.siddha@intel.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On 30 March 2015 at 19:29, Peter Zijlstra <peterz@infradead.org> wrote:
-> Yeah, so that _should_ not trigger (obviously), and while I agree with
-> the sentiment of sanity checks, I'm not sure its worth keeping that
-> variable around just for that.
+On Mon, Mar 30, 2015 at 09:47:01PM +0530, Viresh Kumar wrote:
+> And all I get it is 8256 bytes, with or without the change.
 
-I read it as I can remove it then ? :)
+Duh, rounded up to cacheline boundary ;-)
 
-> Anyway, while I'm looking at struct tvec_base I notice the cpu member
-> should be second after the lock, that'll save 8 bytes on the structure
-> on 64bit machines.
+Trades two 4 byte holes at the start for a bigger 'hole' at the end.
 
-Hmm, I tried it on my macbook-pro.
+struct tvec_base {
+        spinlock_t                 lock;                 /*     0     2 */
 
-$ uname -a
-Linux vireshk 3.13.0-46-generic #79-Ubuntu SMP Tue Mar 10 20:06:50 UTC
-2015 x86_64 x86_64 x86_64 GNU/Linux
+        /* XXX 6 bytes hole, try to pack */
 
-$ gcc --version
-gcc (Ubuntu 4.8.2-19ubuntu1) 4.8.2
+        struct timer_list *        running_timer;        /*     8     8 */
+        long unsigned int          timer_jiffies;        /*    16     8 */
+        long unsigned int          next_timer;           /*    24     8 */
+        long unsigned int          active_timers;        /*    32     8 */
+        long unsigned int          all_timers;           /*    40     8 */
+        int                        cpu;                  /*    48     4 */
 
-config: arch/x86/configs/x86_64_defconfig
+        /* XXX 4 bytes hole, try to pack */
 
-And all I get it is 8256 bytes, with or without the change.
+        struct tvec_root           tv1;                  /*    56  4096 */
+        /* --- cacheline 64 boundary (4096 bytes) was 56 bytes ago --- */
+        struct tvec                tv2;                  /*  4152  1024 */
+        /* --- cacheline 80 boundary (5120 bytes) was 56 bytes ago --- */
+        struct tvec                tv3;                  /*  5176  1024 */
+        /* --- cacheline 96 boundary (6144 bytes) was 56 bytes ago --- */
+        struct tvec                tv4;                  /*  6200  1024 */
+        /* --- cacheline 112 boundary (7168 bytes) was 56 bytes ago --- */
+        struct tvec                tv5;                  /*  7224  1024 */
+        /* --- cacheline 128 boundary (8192 bytes) was 56 bytes ago --- */
 
-diff --git a/kernel/time/timer.c b/kernel/time/timer.c
-index 2d3f5c504939..afc5d74678df 100644
---- a/kernel/time/timer.c
-+++ b/kernel/time/timer.c
-@@ -77,12 +77,12 @@ struct tvec_root {
+        /* size: 8256, cachelines: 129, members: 12 */
+        /* sum members: 8238, holes: 2, sum holes: 10 */
+        /* padding: 8 */
+};
 
- struct tvec_base {
-        spinlock_t lock;
-+       int cpu;
-        struct timer_list *running_timer;
-        unsigned long timer_jiffies;
-        unsigned long next_timer;
-        unsigned long active_timers;
-        unsigned long all_timers;
--       int cpu;
-        struct tvec_root tv1;
-        struct tvec tv2;
-        struct tvec tv3;
+vs
+
+struct tvec_base {
+	spinlock_t                 lock;                 /*     0     2 */
+
+	/* XXX 2 bytes hole, try to pack */
+
+	int                        cpu;                  /*     4     4 */
+	struct timer_list *        running_timer;        /*     8     8 */
+	long unsigned int          timer_jiffies;        /*    16     8 */
+	long unsigned int          next_timer;           /*    24     8 */
+	long unsigned int          active_timers;        /*    32     8 */
+	long unsigned int          all_timers;           /*    40     8 */
+	struct tvec_root           tv1;                  /*    48  4096 */
+	/* --- cacheline 64 boundary (4096 bytes) was 48 bytes ago --- */
+	struct tvec                tv2;                  /*  4144  1024 */
+	/* --- cacheline 80 boundary (5120 bytes) was 48 bytes ago --- */
+	struct tvec                tv3;                  /*  5168  1024 */
+	/* --- cacheline 96 boundary (6144 bytes) was 48 bytes ago --- */
+	struct tvec                tv4;                  /*  6192  1024 */
+	/* --- cacheline 112 boundary (7168 bytes) was 48 bytes ago --- */
+	struct tvec                tv5;                  /*  7216  1024 */
+	/* --- cacheline 128 boundary (8192 bytes) was 48 bytes ago --- */
+
+	/* size: 8256, cachelines: 129, members: 12 */
+	/* sum members: 8238, holes: 1, sum holes: 2 */
+	/* padding: 16 */
+};
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
