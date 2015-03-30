@@ -1,85 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id C42166B0073
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 11:45:55 -0400 (EDT)
-Received: by pacgg7 with SMTP id gg7so41447558pac.0
-        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 08:45:55 -0700 (PDT)
-Received: from e28smtp01.in.ibm.com (e28smtp01.in.ibm.com. [122.248.162.1])
-        by mx.google.com with ESMTPS id ex2si15281834pbb.31.2015.03.30.08.45.53
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id AEA3C6B0075
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 12:03:43 -0400 (EDT)
+Received: by qgh3 with SMTP id 3so176865243qgh.2
+        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 09:03:43 -0700 (PDT)
+Received: from mail-qc0-x230.google.com (mail-qc0-x230.google.com. [2607:f8b0:400d:c01::230])
+        by mx.google.com with ESMTPS id y62si2756528qky.22.2015.03.30.09.03.42
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 30 Mar 2015 08:45:55 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 30 Mar 2015 21:15:51 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 32C14E0045
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 21:18:06 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay01.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t2UFjl5F29884648
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 21:15:47 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t2UFjke1007718
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 21:15:47 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCHv4 19/24] thp, mm: use migration entries to freeze page counts on split
-In-Reply-To: <20150330152652.GC5849@node.dhcp.inet.fi>
-References: <1425486792-93161-1-git-send-email-kirill.shutemov@linux.intel.com> <1425486792-93161-20-git-send-email-kirill.shutemov@linux.intel.com> <87h9t2le07.fsf@linux.vnet.ibm.com> <20150330152652.GC5849@node.dhcp.inet.fi>
-Date: Mon, 30 Mar 2015 21:15:47 +0530
-Message-ID: <87bnjalc9g.fsf@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Mar 2015 09:03:42 -0700 (PDT)
+Received: by qcbjx9 with SMTP id jx9so75352593qcb.0
+        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 09:03:42 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <551412FB.4090406@akamai.com>
+References: <alpine.DEB.2.10.1410221518160.31326@davide-lnx3>
+ <alpine.LSU.2.11.1503251708530.5592@eggly.anvils> <alpine.DEB.2.10.1503251754320.26501@davide-lnx3>
+ <alpine.DEB.2.10.1503251938170.16714@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1503260431290.2755@mbplnx> <551412FB.4090406@akamai.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Mon, 30 Mar 2015 12:03:21 -0400
+Message-ID: <CAHGf_=p8yYDGVn-utH7UUOnoF9+W15_WG_xGwN-h3=hMKbYDyw@mail.gmail.com>
+Subject: Re: [patch][resend] MAP_HUGETLB munmap fails with size not 2MB aligned
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Eric B Munson <emunson@akamai.com>
+Cc: Davide Libenzi <davidel@xmailserver.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-"Kirill A. Shutemov" <kirill@shutemov.name> writes:
-
-> On Mon, Mar 30, 2015 at 08:38:08PM +0530, Aneesh Kumar K.V wrote:
->> ....
->> ....
->>  +static void freeze_page(struct anon_vma *anon_vma, struct page *page)
->> > +{
->> > +	struct anon_vma_chain *avc;
->> > +	struct vm_area_struct *vma;
->> > +	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
->> 
->> So this get called only with head page, We also do
->> BUG_ON(PageTail(page)) in the caller.  But
->> 
->> 
->> > +	unsigned long addr, haddr;
->> > +	unsigned long mmun_start, mmun_end;
->> > +	pgd_t *pgd;
->> > +	pud_t *pud;
->> > +	pmd_t *pmd;
->> > +	pte_t *start_pte, *pte;
->> > +	spinlock_t *ptl;
->> ......
->> 
->> 
->> > +
->> > +static void unfreeze_page(struct anon_vma *anon_vma, struct page *page)
->> > +{
->> > +	struct anon_vma_chain *avc;
->> > +	pgoff_t pgoff = page_to_pgoff(page);
->> 
->> Why ? Can this get called for tail pages ?
+On Thu, Mar 26, 2015 at 10:08 AM, Eric B Munson <emunson@akamai.com> wrote:
+> -----BEGIN PGP SIGNED MESSAGE-----
+> Hash: SHA1
 >
-> It cannot. pgoff is offset of head page (and therefore whole compound
-> page) within rmapping.
+> On 03/26/2015 07:56 AM, Davide Libenzi wrote:
+>> On Wed, 25 Mar 2015, David Rientjes wrote:
+>>
+>>> I looked at this thread at http://marc.info/?t=141392508800001
+>>> since I didn't have it in my mailbox, and I didn't get a chance
+>>> to actually run your test code.
+>>>
+>>> In short, I think what you're saying is that
+>>>
+>>> ptr = mmap(..., 4KB, ..., MAP_HUGETLB | ..., ...) munmap(ptr,
+>>> 4KB) == EINVAL
+>>
+>> I am not sure you have read the email correctly:
+>>
+>> munmap(mmap(size, HUGETLB), size) = EFAIL
+>>
+>> For every size not multiple of the huge page size. Whereas:
+>>
+>> munmap(mmap(size, HUGETLB), ALIGN(size, HUGEPAGE_SIZE)) = OK
 >
+> I think Davide is right here, this is a long existing bug in the
+> MAP_HUGETLB implementation.  Specifically, the mmap man page says:
+>
+> All pages containing a part of the indicated range are unmapped, and
+> subsequent references to these pages will generate SIGSEGV.
+>
+> I realize that huge pages may not have been considered by those that
+> wrote the spec.  But if I read this I would assume that all pages,
+> regardless of size, touched by the munmap() request should be unmapped.
+>
+> Please include
+> Acked-by: Eric B Munson <emunson@akamai.com>
+> to the original patch.  I would like to see the mmap man page adjusted
+> to make note of this behavior as well.
 
-This we can use 
+This is just a bug fix and I never think this has large risk. But
+caution, we might revert immediately
+if this patch arise some regression even if it's come from broken
+application code.
 
-	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-        
-similar to what we do in freeze_page(). The difference between
-freeze/unfreeze confused me.
-
--aneesh
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
