@@ -1,61 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id BFB5D6B0032
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 11:14:47 -0400 (EDT)
-Received: by wicne17 with SMTP id ne17so35577972wic.0
-        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 08:14:47 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id es14si18580717wjc.122.2015.03.30.08.14.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Mar 2015 08:14:46 -0700 (PDT)
-Date: Mon, 30 Mar 2015 17:14:31 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC] vmstat: Avoid waking up idle-cpu to service shepherd work
-Message-ID: <20150330151431.GA23123@twins.programming.kicks-ass.net>
-References: <359c926bc85cdf79650e39f2344c2083002545bb.1427347966.git.viresh.kumar@linaro.org>
- <20150326131822.fce6609efdd85b89ceb3f61c@linux-foundation.org>
- <CAKohpo=nTXutbVVf-7iAwtgya4zUL686XbG69ExQ3Pi=VQRE-A@mail.gmail.com>
- <20150327091613.GE27490@worktop.programming.kicks-ass.net>
- <20150327093023.GA32047@worktop.ger.corp.intel.com>
- <CAOh2x=nbisppmuBwfLWndyCPKem1N_KzoTxyAYcQuL77T_bJfw@mail.gmail.com>
- <20150328095322.GH27490@worktop.programming.kicks-ass.net>
- <20150330150818.GE3909@dhcp22.suse.cz>
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 225EF6B0032
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 11:21:09 -0400 (EDT)
+Received: by wgbdm7 with SMTP id dm7so72762658wgb.1
+        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 08:21:08 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.227])
+        by mx.google.com with ESMTP id p18si18648907wjw.18.2015.03.30.08.21.06
+        for <linux-mm@kvack.org>;
+        Mon, 30 Mar 2015 08:21:07 -0700 (PDT)
+Date: Mon, 30 Mar 2015 18:20:51 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv4 18/24] thp, mm: split_huge_page(): caller need to lock
+ page
+Message-ID: <20150330152051.GA5849@node.dhcp.inet.fi>
+References: <1425486792-93161-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1425486792-93161-19-git-send-email-kirill.shutemov@linux.intel.com>
+ <87mw2ulgoa.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150330150818.GE3909@dhcp22.suse.cz>
+In-Reply-To: <87mw2ulgoa.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Viresh Kumar <viresh.kumar@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, hannes@cmpxchg.org, Christoph Lameter <cl@linux.com>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, vinmenon@codeaurora.org, shashim@codeaurora.org, mgorman@suse.de, dave@stgolabs.net, koct9i@gmail.com, Linux Memory Management List <linux-mm@kvack.org>, Suresh Siddha <suresh.b.siddha@intel.com>, Thomas Gleixner <tglx@linutronix.de>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Mar 30, 2015 at 05:08:18PM +0200, Michal Hocko wrote:
-> On Sat 28-03-15 10:53:22, Peter Zijlstra wrote:
-> [...]
-> > Alternatively the thing hocko suggests is an utter fail too. You cannot
-> > stuff that into hardirq context, that's insane.
+On Mon, Mar 30, 2015 at 07:40:29PM +0530, Aneesh Kumar K.V wrote:
+> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
 > 
-> I guess you are referring to
-> http://article.gmane.org/gmane.linux.kernel.mm/127569, right?
+> > We're going to use migration entries instead of compound_lock() to
+> > stabilize page refcounts. Setup and remove migration entries require
+> > page to be locked.
+> >
+> > Some of split_huge_page() callers already have the page locked. Let's
+> > require everybody to lock the page before calling split_huge_page().
+> >
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 > 
-> Why cannot we do something like refresh_cpu_vm_stats from the IRQ
-> context?  Especially the first zone stat part.
+> Why not have split_huge_page_locked/unlocked, and call the one which
+> takes lock internally every where ?
 
-Big machines have big zone counts. There are machines with >200 nodes.
-Although with the current trend of bigger nodes, the number of nodes
-seems to come down as well. Still.
+We could do that, but it's not obvoius for me what is benefit. Couple of
+lines on caller side?
 
-> The per-cpu pagesets is
-> more costly and it would need a special treatment, alright. A simple
-> way would be to splice the lists from the per-cpu context and then free
-> those pages from the kthread context.
-> 
-> I am still wondering why those two things were squashed into a single
-> place. Why kswapd is not doing the pcp cleanup?
-
-Probably because they could be. The problem with kswapd is that its per
-node, not per cpu.
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
