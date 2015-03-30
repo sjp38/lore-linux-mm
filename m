@@ -1,87 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id AC8A46B0032
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 16:32:16 -0400 (EDT)
-Received: by padcy3 with SMTP id cy3so177313734pad.3
-        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 13:32:16 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id u12si7094123pbs.132.2015.03.30.13.32.15
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Mar 2015 13:32:15 -0700 (PDT)
-Received: by patj18 with SMTP id j18so21470447pat.2
-        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 13:32:15 -0700 (PDT)
-Date: Mon, 30 Mar 2015 13:32:13 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [patch][resend] MAP_HUGETLB munmap fails with size not 2MB
- aligned
-In-Reply-To: <CAHGf_=p8yYDGVn-utH7UUOnoF9+W15_WG_xGwN-h3=hMKbYDyw@mail.gmail.com>
-Message-ID: <alpine.LSU.2.11.1503301323440.2485@eggly.anvils>
-References: <alpine.DEB.2.10.1410221518160.31326@davide-lnx3> <alpine.LSU.2.11.1503251708530.5592@eggly.anvils> <alpine.DEB.2.10.1503251754320.26501@davide-lnx3> <alpine.DEB.2.10.1503251938170.16714@chino.kir.corp.google.com> <alpine.DEB.2.10.1503260431290.2755@mbplnx>
- <551412FB.4090406@akamai.com> <CAHGf_=p8yYDGVn-utH7UUOnoF9+W15_WG_xGwN-h3=hMKbYDyw@mail.gmail.com>
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DFEB6B006E
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 16:54:20 -0400 (EDT)
+Received: by wgdm6 with SMTP id m6so188754428wgd.2
+        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 13:54:20 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.227])
+        by mx.google.com with ESMTP id fo8si1833334wib.48.2015.03.30.13.54.18
+        for <linux-mm@kvack.org>;
+        Mon, 30 Mar 2015 13:54:18 -0700 (PDT)
+Date: Mon, 30 Mar 2015 23:54:13 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm/mmap.c: use while instead of if+goto
+Message-ID: <20150330205413.GA4458@node.dhcp.inet.fi>
+References: <1427744435-6304-1-git-send-email-linux@rasmusvillemoes.dk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1427744435-6304-1-git-send-email-linux@rasmusvillemoes.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Eric B Munson <emunson@akamai.com>, Davide Libenzi <davidel@xmailserver.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Roman Gushchin <klamm@yandex-team.ru>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 30 Mar 2015, KOSAKI Motohiro wrote:
-> On Thu, Mar 26, 2015 at 10:08 AM, Eric B Munson <emunson@akamai.com> wrote:
-> > On 03/26/2015 07:56 AM, Davide Libenzi wrote:
-> >> On Wed, 25 Mar 2015, David Rientjes wrote:
-> >>
-> >>> I looked at this thread at http://marc.info/?t=141392508800001
-> >>> since I didn't have it in my mailbox, and I didn't get a chance
-> >>> to actually run your test code.
-> >>>
-> >>> In short, I think what you're saying is that
-> >>>
-> >>> ptr = mmap(..., 4KB, ..., MAP_HUGETLB | ..., ...) munmap(ptr,
-> >>> 4KB) == EINVAL
-> >>
-> >> I am not sure you have read the email correctly:
-> >>
-> >> munmap(mmap(size, HUGETLB), size) = EFAIL
-> >>
-> >> For every size not multiple of the huge page size. Whereas:
-> >>
-> >> munmap(mmap(size, HUGETLB), ALIGN(size, HUGEPAGE_SIZE)) = OK
-> >
-> > I think Davide is right here, this is a long existing bug in the
-> > MAP_HUGETLB implementation.  Specifically, the mmap man page says:
-> >
-> > All pages containing a part of the indicated range are unmapped, and
-> > subsequent references to these pages will generate SIGSEGV.
-> >
-> > I realize that huge pages may not have been considered by those that
-> > wrote the spec.  But if I read this I would assume that all pages,
-> > regardless of size, touched by the munmap() request should be unmapped.
-> >
-> > Please include
-> > Acked-by: Eric B Munson <emunson@akamai.com>
-> > to the original patch.  I would like to see the mmap man page adjusted
-> > to make note of this behavior as well.
+On Mon, Mar 30, 2015 at 09:40:35PM +0200, Rasmus Villemoes wrote:
+> The creators of the C language gave us the while keyword. Let's use
+> that instead of synthesizing it from if+goto.
 > 
-> This is just a bug fix and I never think this has large risk. But
-> caution, we might revert immediately
-> if this patch arise some regression even if it's come from broken
-> application code.
+> Made possible by 6597d783397a ("mm/mmap.c: replace find_vma_prepare()
+> with clearer find_vma_links()").
 > 
-> Acked-by: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+> Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
 
-and, without wishing to be confrontational,
-Nacked-by: Hugh Dickins <hughd@google.com>
 
-I agree with you that the risk on munmap is probably not large;
-but I still have no interest in spending more time on changing
-twelve-year-old established behaviour in this way, then looking
-out for the regressions and preparing to revert.
+Looks good, except both your plus-lines are over 80-characters long for no
+reason.
 
-The risk is larger on mprotect, and the other calls which this
-patch as is would leave inconsistent with munmap.
-
-Hugh
+> ---
+>  mm/mmap.c | 8 ++------
+>  1 file changed, 2 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index da9990acc08b..e1ae629b1e9c 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1553,11 +1553,9 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+>  
+>  	/* Clear old maps */
+>  	error = -ENOMEM;
+> -munmap_back:
+> -	if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
+> +	while (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
+>  		if (do_munmap(mm, addr, len))
+>  			return -ENOMEM;
+> -		goto munmap_back;
+>  	}
+>  
+>  	/*
+> @@ -2741,11 +2739,9 @@ static unsigned long do_brk(unsigned long addr, unsigned long len)
+>  	/*
+>  	 * Clear old maps.  this also does some error checking for us
+>  	 */
+> - munmap_back:
+> -	if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
+> +	while (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
+>  		if (do_munmap(mm, addr, len))
+>  			return -ENOMEM;
+> -		goto munmap_back;
+>  	}
+>  
+>  	/* Check against address space limits *after* clearing old maps... */
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
