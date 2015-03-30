@@ -1,65 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 997B06B006E
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 11:40:50 -0400 (EDT)
-Received: by pdnc3 with SMTP id c3so179427537pdn.0
-        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 08:40:50 -0700 (PDT)
-Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com. [122.248.162.9])
-        by mx.google.com with ESMTPS id jc8si15266398pbd.25.2015.03.30.08.40.47
+Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id CFE916B0071
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 11:42:59 -0400 (EDT)
+Received: by iedm5 with SMTP id m5so121049355ied.3
+        for <linux-mm@kvack.org>; Mon, 30 Mar 2015 08:42:59 -0700 (PDT)
+Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
+        by mx.google.com with ESMTPS id lp9si9595048igb.52.2015.03.30.08.42.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 30 Mar 2015 08:40:49 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 30 Mar 2015 21:10:45 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id BF1F0E0045
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 21:13:00 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t2UFeguh43974742
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 21:10:42 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t2UFTYuB032437
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2015 20:59:35 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCHv4 00/24] THP refcounting redesign
-In-Reply-To: <1425486792-93161-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1425486792-93161-1-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Mon, 30 Mar 2015 21:10:41 +0530
-Message-ID: <87ego6lchy.fsf@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Mon, 30 Mar 2015 08:42:59 -0700 (PDT)
+Date: Mon, 30 Mar 2015 10:42:55 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC] vmstat: Avoid waking up idle-cpu to service shepherd
+ work
+In-Reply-To: <20150330150818.GE3909@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.11.1503301041400.7251@gentwo.org>
+References: <359c926bc85cdf79650e39f2344c2083002545bb.1427347966.git.viresh.kumar@linaro.org> <20150326131822.fce6609efdd85b89ceb3f61c@linux-foundation.org> <CAKohpo=nTXutbVVf-7iAwtgya4zUL686XbG69ExQ3Pi=VQRE-A@mail.gmail.com> <20150327091613.GE27490@worktop.programming.kicks-ass.net>
+ <20150327093023.GA32047@worktop.ger.corp.intel.com> <CAOh2x=nbisppmuBwfLWndyCPKem1N_KzoTxyAYcQuL77T_bJfw@mail.gmail.com> <20150328095322.GH27490@worktop.programming.kicks-ass.net> <20150330150818.GE3909@dhcp22.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Peter Zijlstra <peterz@infradead.org>, Viresh Kumar <viresh.kumar@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, hannes@cmpxchg.org, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, vinmenon@codeaurora.org, shashim@codeaurora.org, mgorman@suse.de, dave@stgolabs.net, koct9i@gmail.com, Linux Memory Management List <linux-mm@kvack.org>, Suresh Siddha <suresh.b.siddha@intel.com>, Thomas Gleixner <tglx@linutronix.de>
 
-"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
+On Mon, 30 Mar 2015, Michal Hocko wrote:
 
-> Hello everybody,
->
-> It's bug-fix update of my thp refcounting work.
->
-> The goal of patchset is to make refcounting on THP pages cheaper with
-> simpler semantics and allow the same THP compound page to be mapped with
-> PMD and PTEs. This is required to get reasonable THP-pagecache
-> implementation.
->
-> With the new refcounting design it's much easier to protect against
-> split_huge_page(): simple reference on a page will make you the deal.
-> It makes gup_fast() implementation simpler and doesn't require
-> special-case in futex code to handle tail THP pages.
->
-> It should improve THP utilization over the system since splitting THP in
-> one process doesn't necessary lead to splitting the page in all other
-> processes have the page mapped.
+> Why cannot we do something like refresh_cpu_vm_stats from the IRQ
+> context?  Especially the first zone stat part. The per-cpu pagesets is
+> more costly and it would need a special treatment, alright. A simple
+> way would be to splice the lists from the per-cpu context and then free
+> those pages from the kthread context.
 
-Can we split this series into two. The compound_lock removal and using
-migration entries ro freeze page count can be made into a seperate
-series ?
+That would work.
 
--aneesh
+> I am still wondering why those two things were squashed into a single
+> place. Why kswapd is not doing the pcp cleanup?
+
+They were squashed together by me for conveniences sake. They could be
+separated. AFAICT the pcp cleanup could be done only on demand and we
+already have logic for that when flushihng via IPI.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
