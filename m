@@ -1,49 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 434886B0032
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 07:51:29 -0400 (EDT)
-Received: by pactp5 with SMTP id tp5so17586440pac.1
-        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 04:51:28 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id eu8si19153152pdb.133.2015.03.31.04.51.27
-        for <linux-mm@kvack.org>;
-        Tue, 31 Mar 2015 04:51:28 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] mm: use PageAnon() and PageKsm() helpers in page_anon_vma()
-Date: Tue, 31 Mar 2015 14:50:47 +0300
-Message-Id: <1427802647-16764-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id E37E66B0032
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 09:11:04 -0400 (EDT)
+Received: by iebmp1 with SMTP id mp1so7836701ieb.0
+        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 06:11:04 -0700 (PDT)
+Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
+        by mx.google.com with ESMTPS id h12si5248237ioh.103.2015.03.31.06.11.03
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Tue, 31 Mar 2015 06:11:04 -0700 (PDT)
+Date: Tue, 31 Mar 2015 08:11:02 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm: use PageAnon() and PageKsm() helpers in
+ page_anon_vma()
+In-Reply-To: <1427802647-16764-1-git-send-email-kirill.shutemov@linux.intel.com>
+Message-ID: <alpine.DEB.2.11.1503310810320.13959@gentwo.org>
+References: <1427802647-16764-1-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>
 
-page_anon_vma() directly checks PAGE_MAPPING_ANON and PAGE_MAPPING_KSM
-bits on page->mapping to find out if page->mapping is anon_vma;
+On Tue, 31 Mar 2015, Kirill A. Shutemov wrote:
 
-Let's use PageAnon() and PageKsm() helpers instead. It helps readability
-and makes page_anon_vma() work correctly on tail pages.
+> Let's use PageAnon() and PageKsm() helpers instead. It helps readability
+> and makes page_anon_vma() work correctly on tail pages.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- include/linux/rmap.h | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
-
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 9c5ff69fa0cd..21f10e53bb9e 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -108,8 +108,7 @@ static inline void put_anon_vma(struct anon_vma *anon_vma)
- 
- static inline struct anon_vma *page_anon_vma(struct page *page)
- {
--	if (((unsigned long)page->mapping & PAGE_MAPPING_FLAGS) !=
--					    PAGE_MAPPING_ANON)
-+	if (!PageAnon(page) || PageKsm(page))
- 		return NULL;
- 	return page_rmapping(page);
- }
--- 
-2.1.4
+But it adds a branch due to the use of ||.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
