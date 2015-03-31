@@ -1,105 +1,357 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 727966B0038
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 18:54:57 -0400 (EDT)
-Received: by pacgg7 with SMTP id gg7so33120889pac.0
-        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 15:54:57 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id vz4si24568pac.137.2015.03.31.15.54.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Mar 2015 15:54:56 -0700 (PDT)
-Date: Tue, 31 Mar 2015 15:54:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm: free large amount of 0-order pages in workqueue
-Message-Id: <20150331155455.dd725010cec78112cd549c5b@linux-foundation.org>
-In-Reply-To: <551B222E.4000009@oracle.com>
-References: <1427839895-16434-1-git-send-email-sasha.levin@oracle.com>
-	<20150331153127.2eb8cc2f04c742dde7a8c96c@linux-foundation.org>
-	<551B222E.4000009@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 3560F6B0038
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 19:10:46 -0400 (EDT)
+Received: by pacgg7 with SMTP id gg7so33448983pac.0
+        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 16:10:45 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id rn6si77422pab.108.2015.03.31.16.10.43
+        for <linux-mm@kvack.org>;
+        Tue, 31 Mar 2015 16:10:44 -0700 (PDT)
+From: Gioh Kim <gioh.kim@lge.com>
+Subject: [PATCH] add generic callbacks into compaction
+Date: Wed,  1 Apr 2015 08:11:30 +0900
+Message-Id: <1427843490-27084-1-git-send-email-gioh.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: linux-kernel@vger.kernel.org, mhocko@suse.cz, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, open@kvack.org, list@kvack.org, MEMORY MANAGEMENT <linux-mm@kvack.org>
+To: rusty@rustcorp.com.au, mst@redhat.com, mgorman@suse.de, minchan@kernel.org
+Cc: jlayton@poochiereds.net, bfields@fieldses.org, akpm@linux-foundation.org, koct9i@gmail.com, iamjoonsoo.kim@lge.com, virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Gioh Kim <gioh.kim@lge.com>
 
-On Tue, 31 Mar 2015 18:39:42 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
+I sent a patch about page allocation for less fragmentation.
+http://permalink.gmane.org/gmane.linux.kernel.mm/130599
 
-> 
-> > Stick a cond_resched() in __vunmap() ;)
-> 
-> If only it was that simple :)
-> 
-> Not only it get called in atomic context, 
+It proposes a page allocator allocates pages in the same pageblock
+for the drivers to move their unmovable pages. Some drivers which comsumes many pages
+and increases system fragmentation use the allocator to move their pages to
+decrease fragmentation.
 
-Drat.  Who's calling vfree() from non-interrupt, atomic context for
-vast regions?
+I think I can try another approach.
+There is a compaction code for balloon pages.
+But the compaction code cannot migrate pages of other drivers.
+If there is a generic migration framework applicable to any drivers,
+drivers can register their migration functions.
+And the compaction can migrate movable pages and also driver's pages.
 
-> but the problem is not just the
-> thread locking up, it's also lock dependency which causes other processes
-> to lock up. This is the example I've mentioned in the commit log with shmem.
-> 
-> We have one random process crying about being stuck for two minutes:
-> 
-> [ 2885.711517] INFO: task trinity-c5:7071 blocked for more than 120 seconds.
-> [ 2885.714534]       Not tainted 4.0.0-rc6-next-20150331-sasha-00036-g29ef5d2 #2108
-> [ 2885.717519] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> [ 2885.719472] trinity-c5      D ffff88011604fc18 26704  7071   9144 0x10000004
-> [ 2885.721271]  ffff88011604fc18 ffff880127bb3d80 0000000000000001 0000000000000000
-> [ 2885.722842]  ffff8801291e1588 ffff8801291e1560 ffff880127bb3008 ffff8801f9218000
-> [ 2885.724431]  ffff880127bb3000 ffff88011604fbf8 ffff880116048000 ffffed0022c09002
-> [ 2885.726088] Call Trace:
-> [ 2885.726612] schedule (./arch/x86/include/asm/bitops.h:311 (discriminator 1) kernel/sched/core.c:2827 (discriminator 1))
-> [ 2885.727523] schedule_preempt_disabled (kernel/sched/core.c:2859)
-> [ 2885.728639] mutex_lock_nested (kernel/locking/mutex.c:585 kernel/locking/mutex.c:623)
-> [ 2885.736019] chown_common (fs/open.c:595)
-> [ 2885.745761] SyS_fchown (fs/open.c:663 fs/open.c:650)
-> [ 2885.746714] tracesys_phase2 (arch/x86/kernel/entry_64.S:340)
-> [ 2885.747758] 2 locks held by trinity-c5/7071:
-> [ 2885.748545] #0: (sb_writers#10){.+.+.+}, at: mnt_want_write_file (fs/namespace.c:445)
-> [ 2885.751407] #1: (&sb->s_type->i_mutex_key#15){+.+.+.}, at: chown_common (fs/open.c:595)
-> [ 2885.755143] Mutex: counter: -1 owner: trinity-c6
-> 
-> While shmem is work tirelessly to free up it's pages:
-> 
-> [ 2896.340953] trinity-c6      R  running task    27040  6561   9144 0x10000006
-> [ 2896.342673]  ffff8802e72576a8 ffff8802e7257758 ffffffffabfdd628 003c5e36ef1674fa
-> [ 2896.344267]  ffff8801533e1588 ffff8801533e1560 ffff8802d3963778 ffff8802ad220000
-> [ 2896.345824]  ffff8802d3963000 0000000000000000 ffff8802e7250000 ffffed005ce4a002
-> [ 2896.347286] Call Trace:
-> [ 2896.347784] ? trace_hardirqs_on_thunk (arch/x86/lib/thunk_64.S:42)
-> [ 2896.348977] preempt_schedule_common (./arch/x86/include/asm/preempt.h:77 (discriminator 1) kernel/sched/core.c:2867 (discriminator 1))
-> [ 2896.350279] preempt_schedule (kernel/sched/core.c:2893)
-> [ 2896.351349] ___preempt_schedule (arch/x86/lib/thunk_64.S:51)
-> [ 2896.353782] __debug_check_no_obj_freed (lib/debugobjects.c:713)
-> [ 2896.360001] debug_check_no_obj_freed (lib/debugobjects.c:727)
-> [ 2896.361574] free_pages_prepare (mm/page_alloc.c:823)
-> [ 2896.362657] free_hot_cold_page (mm/page_alloc.c:1550)
-> [ 2896.363735] free_hot_cold_page_list (mm/page_alloc.c:1596 (discriminator 3))
-> [ 2896.364846] release_pages (mm/swap.c:935)
-> [ 2896.367979] __pagevec_release (include/linux/pagevec.h:44 mm/swap.c:1013)
-> [ 2896.369149] shmem_undo_range (include/linux/pagevec.h:69 mm/shmem.c:446)
-> [ 2896.377070] shmem_truncate_range (mm/shmem.c:541)
-> [ 2896.378450] shmem_setattr (mm/shmem.c:577)
-> [ 2896.379556] notify_change (fs/attr.c:270)
-> [ 2896.382804] do_truncate (fs/open.c:62)
-> [ 2896.387739] do_sys_ftruncate.constprop.4 (fs/open.c:191)
-> [ 2896.389450] SyS_ftruncate (fs/open.c:199)
-> [ 2896.390879] tracesys_phase2 (arch/x86/kernel/entry_64.S:340)
+I'm not familiar with virtualization so I couldn't test this patch yet.
+But if mm developers agree with this approach, I will complete this patch.
 
-OK, so shmem_undo_range() is full of cond_resched()s but it's holding
-i_mutex for too long.  Hugh, fix your junk!
+I would do appreciate any feedback.
 
-Rather than mucking with the core page allocator I really do think it
-would be better to bodge the offending callers for this problem.
+Signed-off-by: Gioh Kim <gioh.kim@lge.com>
+---
+ drivers/virtio/virtio_balloon.c    |    2 ++
+ include/linux/balloon_compaction.h |   23 +++++++++---
+ include/linux/fs.h                 |    3 ++
+ include/linux/pagemap.h            |   26 ++++++++++++++
+ mm/balloon_compaction.c            |   68 ++++++++++++++++++++++++++++++++++--
+ mm/compaction.c                    |    7 ++--
+ mm/migrate.c                       |   24 ++++++-------
+ 7 files changed, 129 insertions(+), 24 deletions(-)
 
-And/or maybe extend the softlockup timeout when crazy debug options are
-selected.  You're the only person who this will hurt ;)
-
-
-
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index 0413157..cd9b8e4 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -486,6 +486,8 @@ static int virtballoon_probe(struct virtio_device *vdev)
+ 
+ 	balloon_devinfo_init(&vb->vb_dev_info);
+ #ifdef CONFIG_BALLOON_COMPACTION
++	vb->vb_dev_info.mapping = balloon_mapping_alloc(&vb->vb_dev_info,
++							&balloon_aops);
+ 	vb->vb_dev_info.migratepage = virtballoon_migratepage;
+ #endif
+ 
+diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+index 9b0a15d..0af32b3 100644
+--- a/include/linux/balloon_compaction.h
++++ b/include/linux/balloon_compaction.h
+@@ -62,6 +62,7 @@ struct balloon_dev_info {
+ 	struct list_head pages;		/* Pages enqueued & handled to Host */
+ 	int (*migratepage)(struct balloon_dev_info *, struct page *newpage,
+ 			struct page *page, enum migrate_mode mode);
++	struct address_space *mapping;
+ };
+ 
+ extern struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info);
+@@ -76,10 +77,22 @@ static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
+ }
+ 
+ #ifdef CONFIG_BALLOON_COMPACTION
+-extern bool balloon_page_isolate(struct page *page);
+-extern void balloon_page_putback(struct page *page);
+-extern int balloon_page_migrate(struct page *newpage,
+-				struct page *page, enum migrate_mode mode);
++extern const struct address_space_operations balloon_aops;
++extern int balloon_page_isolate(struct page *page);
++extern int balloon_page_putback(struct page *page);
++extern int balloon_page_migrate(struct address_space *mapping,
++				struct page *newpage,
++				struct page *page,
++				enum migrate_mode mode);
++
++extern struct address_space
++*balloon_mapping_alloc(struct balloon_dev_info *b_dev_info,
++		       const struct address_space_operations *a_ops);
++
++static inline void balloon_mapping_free(struct address_space *balloon_mapping)
++{
++	kfree(balloon_mapping);
++}
+ 
+ /*
+  * __is_movable_balloon_page - helper to perform @page PageBalloon tests
+@@ -123,6 +136,7 @@ static inline bool isolated_balloon_page(struct page *page)
+ static inline void balloon_page_insert(struct balloon_dev_info *balloon,
+ 				       struct page *page)
+ {
++	page->mapping = balloon->mapping;
+ 	__SetPageBalloon(page);
+ 	SetPagePrivate(page);
+ 	set_page_private(page, (unsigned long)balloon);
+@@ -139,6 +153,7 @@ static inline void balloon_page_insert(struct balloon_dev_info *balloon,
+  */
+ static inline void balloon_page_delete(struct page *page)
+ {
++	page->mapping = NULL;
+ 	__ClearPageBalloon(page);
+ 	set_page_private(page, 0);
+ 	if (PagePrivate(page)) {
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index b4d71b5..de463b9 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -368,6 +368,9 @@ struct address_space_operations {
+ 	 */
+ 	int (*migratepage) (struct address_space *,
+ 			struct page *, struct page *, enum migrate_mode);
++	int (*isolatepage)(struct page *);
++	int (*putbackpage)(struct page *);
++
+ 	int (*launder_page) (struct page *);
+ 	int (*is_partially_uptodate) (struct page *, unsigned long,
+ 					unsigned long);
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 4b3736f..715b5b2 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -25,6 +25,7 @@ enum mapping_flags {
+ 	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
+ 	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
+ 	AS_EXITING	= __GFP_BITS_SHIFT + 4, /* final truncate in progress */
++	AS_MIGRATABLE   = __GFP_BITS_SHIFT + 5,
+ };
+ 
+ static inline void mapping_set_error(struct address_space *mapping, int error)
+@@ -54,6 +55,31 @@ static inline int mapping_unevictable(struct address_space *mapping)
+ 	return !!mapping;
+ }
+ 
++static inline void mapping_set_migratable(struct address_space *mapping)
++{
++	set_bit(AS_MIGRATABLE, &mapping->flags);
++}
++
++static inline void mapping_clear_migratable(struct address_space *mapping)
++{
++	clear_bit(AS_MIGRATABLE, &mapping->flags);
++}
++
++static inline int __mapping_ops(struct address_space *mapping)
++{
++	return mapping->a_ops &&
++		mapping->a_ops->migratepage &&
++		mapping->a_ops->isolatepage &&
++		mapping->a_ops->putbackpage;
++}
++
++static inline int mapping_migratable(struct address_space *mapping)
++{
++	if (mapping && __mapping_ops(mapping))
++		return test_bit(AS_MIGRATABLE, &mapping->flags);
++	return !!mapping;
++}
++
+ static inline void mapping_set_exiting(struct address_space *mapping)
+ {
+ 	set_bit(AS_EXITING, &mapping->flags);
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index fcad832..2e9d635 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -131,8 +131,11 @@ static inline void __putback_balloon_page(struct page *page)
+ }
+ 
+ /* __isolate_lru_page() counterpart for a ballooned page */
+-bool balloon_page_isolate(struct page *page)
++int balloon_page_isolate(struct page *page)
+ {
++	if (!balloon_page_movable(page))
++		return false;
++
+ 	/*
+ 	 * Avoid burning cycles with pages that are yet under __free_pages(),
+ 	 * or just got freed under us.
+@@ -173,8 +176,11 @@ bool balloon_page_isolate(struct page *page)
+ }
+ 
+ /* putback_lru_page() counterpart for a ballooned page */
+-void balloon_page_putback(struct page *page)
++int balloon_page_putback(struct page *page)
+ {
++	if (!isolated_balloon_page(page))
++		return 0;
++
+ 	/*
+ 	 * 'lock_page()' stabilizes the page and prevents races against
+ 	 * concurrent isolation threads attempting to re-isolate it.
+@@ -190,15 +196,20 @@ void balloon_page_putback(struct page *page)
+ 		dump_page(page, "not movable balloon page");
+ 	}
+ 	unlock_page(page);
++	return 0;
+ }
+ 
+ /* move_to_new_page() counterpart for a ballooned page */
+-int balloon_page_migrate(struct page *newpage,
++int balloon_page_migrate(struct address_space *mapping,
++			 struct page *newpage,
+ 			 struct page *page, enum migrate_mode mode)
+ {
+ 	struct balloon_dev_info *balloon = balloon_page_device(page);
+ 	int rc = -EAGAIN;
+ 
++	if (!isolated_balloon_page(page))
++		return 0;
++
+ 	/*
+ 	 * Block others from accessing the 'newpage' when we get around to
+ 	 * establishing additional references. We should be the only one
+@@ -218,4 +229,55 @@ int balloon_page_migrate(struct page *newpage,
+ 	unlock_page(newpage);
+ 	return rc;
+ }
++
++/* define the balloon_mapping->a_ops callback to allow balloon page migration */
++const struct address_space_operations balloon_aops = {
++	.migratepage = balloon_page_migrate,
++	.isolatepage = balloon_page_isolate,
++	.putbackpage = balloon_page_putback,
++};
++EXPORT_SYMBOL_GPL(balloon_aops);
++
++struct address_space *balloon_mapping_alloc(struct balloon_dev_info *b_dev_info,
++				const struct address_space_operations *a_ops)
++{
++	struct address_space *mapping;
++
++	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
++	if (!mapping)
++		return ERR_PTR(-ENOMEM);
++
++	/*
++	 * Give a clean 'zeroed' status to all elements of this special
++	 * balloon page->mapping struct address_space instance.
++	 */
++	address_space_init_once(mapping);
++
++	/*
++	 * Set mapping->flags appropriately, to allow balloon pages
++	 * ->mapping identification.
++	 */
++	mapping_set_migratable(mapping);
++	mapping_set_gfp_mask(mapping, balloon_mapping_gfp_mask());
++
++	/* balloon's page->mapping->a_ops callback descriptor */
++	mapping->a_ops = a_ops;
++
++	/*
++	 * Establish a pointer reference back to the balloon device descriptor
++	 * this particular page->mapping will be servicing.
++	 * This is used by compaction / migration procedures to identify and
++	 * access the balloon device pageset while isolating / migrating pages.
++	 *
++	 * As some balloon drivers can register multiple balloon devices
++	 * for a single guest, this also helps compaction / migration to
++	 * properly deal with multiple balloon pagesets, when required.
++	 */
++	mapping->private_data = b_dev_info;
++	b_dev_info->mapping = mapping;
++
++	return mapping;
++}
++EXPORT_SYMBOL_GPL(balloon_mapping_alloc);
++
+ #endif /* CONFIG_BALLOON_COMPACTION */
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 8c0d945..9fbcb7b 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -740,12 +740,9 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		 * Skip any other type of page
+ 		 */
+ 		if (!PageLRU(page)) {
+-			if (unlikely(balloon_page_movable(page))) {
+-				if (balloon_page_isolate(page)) {
+-					/* Successfully isolated */
++			if (mapping_migratable(page->mapping))
++				if (page->mapping->a_ops->isolatepage(page))
+ 					goto isolate_success;
+-				}
+-			}
+ 			continue;
+ 		}
+ 
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 85e0426..37cb366 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -71,6 +71,12 @@ int migrate_prep_local(void)
+ 	return 0;
+ }
+ 
++static bool isolated_migratable_page(struct page *page)
++{
++	return page_mapped(page) == 0 &&
++		mapping_migratable(page->mapping);
++}
++
+ /*
+  * Put previously isolated pages back onto the appropriate lists
+  * from where they were once taken off for compaction/migration.
+@@ -91,9 +97,9 @@ void putback_movable_pages(struct list_head *l)
+ 		}
+ 		list_del(&page->lru);
+ 		dec_zone_page_state(page, NR_ISOLATED_ANON +
+-				page_is_file_cache(page));
+-		if (unlikely(isolated_balloon_page(page)))
+-			balloon_page_putback(page);
++				    page_is_file_cache(page));
++		if (unlikely(isolated_migratable_page(page)))
++			page->mapping->a_ops->putbackpage(page);
+ 		else
+ 			putback_lru_page(page);
+ 	}
+@@ -843,15 +849,9 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 		}
+ 	}
+ 
+-	if (unlikely(isolated_balloon_page(page))) {
+-		/*
+-		 * A ballooned page does not need any special attention from
+-		 * physical to virtual reverse mapping procedures.
+-		 * Skip any attempt to unmap PTEs or to remap swap cache,
+-		 * in order to avoid burning cycles at rmap level, and perform
+-		 * the page migration right away (proteced by page lock).
+-		 */
+-		rc = balloon_page_migrate(newpage, page, mode);
++	if (unlikely(isolated_migratable_page(page))) {
++		rc = page->mapping->a_ops->migratepage(page->mapping,
++						       newpage, page, mode);
+ 		goto out_unlock;
+ 	}
+ 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
