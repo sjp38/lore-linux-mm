@@ -1,41 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 600386B0032
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 10:35:40 -0400 (EDT)
-Received: by wgoe14 with SMTP id e14so21331768wgo.0
-        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 07:35:39 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
-        by mx.google.com with ESMTP id ek3si29246191wid.2.2015.03.31.07.35.37
-        for <linux-mm@kvack.org>;
-        Tue, 31 Mar 2015 07:35:38 -0700 (PDT)
-Date: Tue, 31 Mar 2015 17:35:34 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: use PageAnon() and PageKsm() helpers in
- page_anon_vma()
-Message-ID: <20150331143534.GA10808@node.dhcp.inet.fi>
-References: <1427802647-16764-1-git-send-email-kirill.shutemov@linux.intel.com>
- <alpine.DEB.2.11.1503310810320.13959@gentwo.org>
+Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
+	by kanga.kvack.org (Postfix) with ESMTP id E664C6B0032
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 11:26:26 -0400 (EDT)
+Received: by qcay5 with SMTP id y5so16477789qca.1
+        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 08:26:26 -0700 (PDT)
+Received: from mail-qg0-x229.google.com (mail-qg0-x229.google.com. [2607:f8b0:400d:c04::229])
+        by mx.google.com with ESMTPS id m34si13977984qgd.35.2015.03.31.08.26.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Mar 2015 08:26:25 -0700 (PDT)
+Received: by qgfa8 with SMTP id a8so17538708qgf.0
+        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 08:26:25 -0700 (PDT)
+Date: Tue, 31 Mar 2015 11:26:22 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCHSET 1/3 v2 block/for-4.1/core] writeback: cgroup writeback
+ support
+Message-ID: <20150331152622.GD9974@htj.duckdns.org>
+References: <1427086499-15657-1-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1503310810320.13959@gentwo.org>
+In-Reply-To: <1427086499-15657-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>
+To: axboe@kernel.dk
+Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com
 
-On Tue, Mar 31, 2015 at 08:11:02AM -0500, Christoph Lameter wrote:
-> On Tue, 31 Mar 2015, Kirill A. Shutemov wrote:
-> 
-> > Let's use PageAnon() and PageKsm() helpers instead. It helps readability
-> > and makes page_anon_vma() work correctly on tail pages.
-> 
-> But it adds a branch due to the use of ||.
+Hello, guys.
 
-Which caller is hot enough to care?
+I updated all three patchsets to reflect the accumulated fixes and the
+mapping_congested() change pointed out by Vivek, which BTW is now
+inode_congested() - the whole function was a bit botched from
+conversion from the multi-wb dirtying support, should be fine now.
+
+ git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git review-cgroup-writeback-20150331
+ git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git review-cgroup-writeback-backpressure-20150331
+ git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git review-cgroup-writeback-switch-20150331
+
+Jan, filesystem ppl, if you have any comments, please let me know;
+otherwise, I'll post the next version of the patchset in a couple
+days.
+
+Thanks.
 
 -- 
- Kirill A. Shutemov
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
