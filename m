@@ -1,119 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id C702F6B0038
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 17:46:56 -0400 (EDT)
-Received: by pddn5 with SMTP id n5so33330143pdd.2
-        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 14:46:56 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id e4si21076921pdp.245.2015.03.31.14.46.54
-        for <linux-mm@kvack.org>;
-        Tue, 31 Mar 2015 14:46:55 -0700 (PDT)
-Date: Wed, 1 Apr 2015 08:46:51 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] mm: Use GFP_KERNEL allocation for the page cache in
- page_cache_read
-Message-ID: <20150331214651.GB8465@dastard>
-References: <1426687766-518-1-git-send-email-mhocko@suse.cz>
- <55098F3B.7070000@redhat.com>
- <20150318145528.GK17241@dhcp22.suse.cz>
- <20150319071439.GE28621@dastard>
- <20150319124441.GC12466@dhcp22.suse.cz>
- <20150320034820.GH28621@dastard>
- <20150326095302.GA15257@dhcp22.suse.cz>
- <20150326214354.GG28129@dastard>
- <20150330082218.GA3909@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150330082218.GA3909@dhcp22.suse.cz>
+Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 479CE6B0038
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 18:11:52 -0400 (EDT)
+Received: by obcjt1 with SMTP id jt1so50632218obc.2
+        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 15:11:52 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id ht4si10512945obb.23.2015.03.31.15.11.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Mar 2015 15:11:51 -0700 (PDT)
+From: Sasha Levin <sasha.levin@oracle.com>
+Subject: [PATCH 1/2] mm: free large amount of 0-order pages in workqueue
+Date: Tue, 31 Mar 2015 18:11:32 -0400
+Message-Id: <1427839895-16434-1-git-send-email-sasha.levin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Sage Weil <sage@inktank.com>, Mark Fasheh <mfasheh@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: mhocko@suse.cz, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On Mon, Mar 30, 2015 at 10:22:18AM +0200, Michal Hocko wrote:
-> On Fri 27-03-15 08:43:54, Dave Chinner wrote:
-> > On Thu, Mar 26, 2015 at 10:53:02AM +0100, Michal Hocko wrote:
-> > > On Fri 20-03-15 14:48:20, Dave Chinner wrote:
-> > > > On Thu, Mar 19, 2015 at 01:44:41PM +0100, Michal Hocko wrote:
-> > > [...]
-> > > > > Or did I miss your point? Are you concerned about some fs overloading
-> > > > > filemap_fault and do some locking before delegating to filemap_fault?
-> > > > 
-> > > > The latter:
-> > > > 
-> > > > https://git.kernel.org/cgit/linux/kernel/git/dgc/linux-xfs.git/commit/?h=xfs-mmap-lock&id=de0e8c20ba3a65b0f15040aabbefdc1999876e6b
-> > > 
-> > > Hmm. I am completely unfamiliar with the xfs code but my reading of
-> > > 964aa8d9e4d3..723cac484733 is that the newly introduced lock should be
-> > > OK from the reclaim recursion POV. It protects against truncate and
-> > > punch hole, right? Or are there any internal paths which I am missing
-> > > and would cause problems if we do GFP_FS with XFS_MMAPLOCK_SHARED held?
-> > 
-> > It might be OK, but you're only looking at the example I gave you,
-> > not the fundamental issue it demonstrates. That is: filesystems may
-> > have *internal dependencies that are unknown to the page cache or mm
-> > subsystem*. Hence the page cache or mm allocations cannot
-> > arbitrarily ignore allocation constraints the filesystem assigns to
-> > mapping operations....
-> 
-> I fully understand that. I am just trying to understand what are the
-> real requirements from filesystems wrt filemap_fault. mapping gfp mask is
-> not usable much for that because e.g. xfs has GFP_NOFS set for the whole
-> inode life AFAICS. And it seems that this context is not really required
-> even after the recent code changes.
-> We can add gfp_mask into struct vm_fault and initialize it to
-> mapping_gfp_mask | GFP_IOFS and .fault() callback might overwrite it. This
-> would be cleaner than unconditional gfp manipulation (the patch below).
-> 
-> But we are in a really hard position if the GFP_NOFS context is really
-> required here. We shouldn't really trigger OOM killer because that could
-> be premature and way too disruptive. We can retry the page fault or the
-> allocation but that both sound suboptimal to me.
+Freeing pages became a rather costly operation, specially when multiple debug
+options are enabled. This causes hangs when an attempt to free a large amount
+of 0-order is made. Two examples are vfree()ing large block of memory, and
+punching a hole in a shmem filesystem.
 
-GFP_NOFS has also been required in the mapping mask in the past
-because reclaim from page cache allocation points had a nasty habit
-of blowing the stack. In XFS, we replaced AOP_FLAG_NOFS calls with
-the GFP_NOFS mapping mask because the AOP_FLAG_NOFS didn't give us
-the coverage needed on mapping allocation calls to prevent the
-problems being reported.
+To avoid that, move any free operations that involve batching pages into a
+list to a workqueue handler where they could be freed later.
 
-Yes, we now have a larger stack, but as I've said in the past,
-GFP_NOFS is used for several different reasons by subsystems -
-recursion can be bad in more ways than one, and GFP_NOFS is the only
-hammer we have...
+Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+---
+ mm/page_alloc.c |   50 ++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 46 insertions(+), 4 deletions(-)
 
-> This hasn't been tested yet it just shows the idea mentioned above.
-> ---
-> From 292cfcbbe18b2afc8d2bc0cf568ca4c5842d4c8f Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.cz>
-> Date: Fri, 27 Mar 2015 13:33:51 +0100
-> Subject: [PATCH] mm: Allow GFP_IOFS for page_cache_read page cache allocation
-> 
-> page_cache_read has been historically using page_cache_alloc_cold to
-> allocate a new page. This means that mapping_gfp_mask is used as the
-> base for the gfp_mask. Many filesystems are setting this mask to
-> GFP_NOFS to prevent from fs recursion issues. page_cache_read is,
-> however, not called from the fs layera directly so it doesn't need this
-> protection normally.
-
-It can be called from a page fault while copying into or out of a
-user buffer from a read()/write() system call. Hence the page fault
-can be nested inside filesystem locks. Indeed, the canonical reason
-for why we can't take the i_mutex in the page fault path is exactly
-this. i.e. the user buffer might be a mmap()d region of the same
-file and so we have mmap_sem/i_mutex inversion issues.
-
-This is the same case - we can be taking page faults with filesystem
-locks held, and that means we've got problems if the page fault then
-recurses back into the filesystem and trips over those locks...
-
-Cheers,
-
-Dave.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5bd9711..812ca75 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1586,10 +1586,11 @@ out:
+ 	local_irq_restore(flags);
+ }
+ 
+-/*
+- * Free a list of 0-order pages
+- */
+-void free_hot_cold_page_list(struct list_head *list, bool cold)
++static LIST_HEAD(free_hot_page_list);
++static LIST_HEAD(free_cold_page_list);
++static DEFINE_SPINLOCK(free_page_lock);
++
++static void __free_hot_cold_page_list(struct list_head *list, bool cold)
+ {
+ 	struct page *page, *next;
+ 
+@@ -1599,6 +1600,47 @@ void free_hot_cold_page_list(struct list_head *list, bool cold)
+ 	}
+ }
+ 
++static void free_page_lists_work(struct work_struct *work)
++{
++	LIST_HEAD(hot_pages);
++	LIST_HEAD(cold_pages);
++	unsigned long flags;
++
++	spin_lock_irqsave(&free_page_lock, flags);
++	list_cut_position(&hot_pages, &free_hot_page_list,
++					free_hot_page_list.prev);
++	list_cut_position(&cold_pages, &free_cold_page_list,
++					free_cold_page_list.prev);
++	spin_unlock_irqrestore(&free_page_lock, flags);
++
++	__free_hot_cold_page_list(&hot_pages, false);
++	__free_hot_cold_page_list(&cold_pages, true);
++}
++
++static DECLARE_WORK(free_page_work, free_page_lists_work);
++
++/*
++ * Free a list of 0-order pages
++ */
++void free_hot_cold_page_list(struct list_head *list, bool cold)
++{
++	unsigned long flags;
++
++	if (unlikely(!keventd_up())) {
++		__free_hot_cold_page_list(list, cold);
++		return;
++	}
++
++	spin_lock_irqsave(&free_page_lock, flags);
++	if(cold)
++		list_splice_tail(list, &free_cold_page_list);
++	else
++		list_splice_tail(list, &free_hot_page_list);
++	spin_unlock_irqrestore(&free_page_lock, flags);
++
++	schedule_work(&free_page_work);
++}
++
+ /*
+  * split_page takes a non-compound higher-order page, and splits it into
+  * n (1<<order) sub-pages: page[0..n]
 -- 
-Dave Chinner
-david@fromorbit.com
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
