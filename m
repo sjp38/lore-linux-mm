@@ -1,66 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id E5D2F6B0032
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 07:33:56 -0400 (EDT)
-Received: by pddn5 with SMTP id n5so18071585pdd.2
-        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 04:33:56 -0700 (PDT)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id lx6si19073771pdb.209.2015.03.31.04.33.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 31 Mar 2015 04:33:55 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NM200AC3QYZCZ10@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 31 Mar 2015 12:37:47 +0100 (BST)
-Message-id: <551A861B.7020701@samsung.com>
-Date: Tue, 31 Mar 2015 14:33:47 +0300
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-MIME-version: 1.0
-Subject: Re: [patch v2 4/4] mm, mempool: poison elements backed by page
- allocator
-References: <alpine.DEB.2.10.1503241607240.21805@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1503241609370.21805@chino.kir.corp.google.com>
- <CAPAsAGwipUr7NBWjQ_xjA0CfeiZ0NuYAg13M4jYmWVe4V8Jjmg@mail.gmail.com>
- <alpine.DEB.2.10.1503261542060.16259@chino.kir.corp.google.com>
-In-reply-to: <alpine.DEB.2.10.1503261542060.16259@chino.kir.corp.google.com>
-Content-type: text/plain; charset=windows-1252
-Content-transfer-encoding: 7bit
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 434886B0032
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 07:51:29 -0400 (EDT)
+Received: by pactp5 with SMTP id tp5so17586440pac.1
+        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 04:51:28 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id eu8si19153152pdb.133.2015.03.31.04.51.27
+        for <linux-mm@kvack.org>;
+        Tue, 31 Mar 2015 04:51:28 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm: use PageAnon() and PageKsm() helpers in page_anon_vma()
+Date: Tue, 31 Mar 2015 14:50:47 +0300
+Message-Id: <1427802647-16764-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Kleikamp <shaggy@kernel.org>, Christoph Hellwig <hch@lst.de>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, jfs-discussion@lists.sourceforge.net
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 03/27/2015 01:50 AM, David Rientjes wrote:
-> We don't have a need to set PAGE_EXT_DEBUG_POISON on these pages sitting 
-> in the reserved pool, nor do we have a need to do kmap_atomic() since it's 
-> already mapped and must be mapped to be on the reserved pool, which is 
-> handled by mempool_free().
-> 
+page_anon_vma() directly checks PAGE_MAPPING_ANON and PAGE_MAPPING_KSM
+bits on page->mapping to find out if page->mapping is anon_vma;
 
-Hmm.. I just realized that this statement might be wrong.
-Why pages has to be mapped to be on reserved pool?
-mempool could be used for highmem pages and there is no need to kmap()
-until these pages will be used.
+Let's use PageAnon() and PageKsm() helpers instead. It helps readability
+and makes page_anon_vma() work correctly on tail pages.
 
-drbd (drivers/block/drbd) already uses mempool for highmem pages:
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/linux/rmap.h | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-static int drbd_create_mempools(void)
-{
-....
-	drbd_md_io_page_pool = mempool_create_page_pool(DRBD_MIN_POOL_PAGES, 0);
-....
-}
-
-
-
-static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_hold(local)
-{
-....
-		page = mempool_alloc(drbd_md_io_page_pool, __GFP_HIGHMEM|__GFP_WAIT);
-		copy_highpage(page, b->bm_pages[page_nr]);
-
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 9c5ff69fa0cd..21f10e53bb9e 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -108,8 +108,7 @@ static inline void put_anon_vma(struct anon_vma *anon_vma)
+ 
+ static inline struct anon_vma *page_anon_vma(struct page *page)
+ {
+-	if (((unsigned long)page->mapping & PAGE_MAPPING_FLAGS) !=
+-					    PAGE_MAPPING_ANON)
++	if (!PageAnon(page) || PageKsm(page))
+ 		return NULL;
+ 	return page_rmapping(page);
+ }
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
