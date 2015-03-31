@@ -1,33 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id E37E66B0032
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 09:11:04 -0400 (EDT)
-Received: by iebmp1 with SMTP id mp1so7836701ieb.0
-        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 06:11:04 -0700 (PDT)
-Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
-        by mx.google.com with ESMTPS id h12si5248237ioh.103.2015.03.31.06.11.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 31 Mar 2015 06:11:04 -0700 (PDT)
-Date: Tue, 31 Mar 2015 08:11:02 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 600386B0032
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 10:35:40 -0400 (EDT)
+Received: by wgoe14 with SMTP id e14so21331768wgo.0
+        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 07:35:39 -0700 (PDT)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id ek3si29246191wid.2.2015.03.31.07.35.37
+        for <linux-mm@kvack.org>;
+        Tue, 31 Mar 2015 07:35:38 -0700 (PDT)
+Date: Tue, 31 Mar 2015 17:35:34 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: [PATCH] mm: use PageAnon() and PageKsm() helpers in
  page_anon_vma()
-In-Reply-To: <1427802647-16764-1-git-send-email-kirill.shutemov@linux.intel.com>
-Message-ID: <alpine.DEB.2.11.1503310810320.13959@gentwo.org>
+Message-ID: <20150331143534.GA10808@node.dhcp.inet.fi>
 References: <1427802647-16764-1-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+ <alpine.DEB.2.11.1503310810320.13959@gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.11.1503310810320.13959@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>
 
-On Tue, 31 Mar 2015, Kirill A. Shutemov wrote:
+On Tue, Mar 31, 2015 at 08:11:02AM -0500, Christoph Lameter wrote:
+> On Tue, 31 Mar 2015, Kirill A. Shutemov wrote:
+> 
+> > Let's use PageAnon() and PageKsm() helpers instead. It helps readability
+> > and makes page_anon_vma() work correctly on tail pages.
+> 
+> But it adds a branch due to the use of ||.
 
-> Let's use PageAnon() and PageKsm() helpers instead. It helps readability
-> and makes page_anon_vma() work correctly on tail pages.
+Which caller is hot enough to care?
 
-But it adds a branch due to the use of ||.
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
