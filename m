@@ -1,133 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AFE76B006E
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 17:08:17 -0400 (EDT)
-Received: by pddn5 with SMTP id n5so32472485pdd.2
-        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 14:08:16 -0700 (PDT)
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id AC2046B0071
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 17:20:27 -0400 (EDT)
+Received: by pdbni2 with SMTP id ni2so32786350pdb.1
+        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 14:20:27 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ep3si14258567pbd.133.2015.03.31.14.08.15
+        by mx.google.com with ESMTPS id ur3si19889608pac.8.2015.03.31.14.20.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Mar 2015 14:08:16 -0700 (PDT)
-Date: Tue, 31 Mar 2015 14:08:14 -0700
+        Tue, 31 Mar 2015 14:20:26 -0700 (PDT)
+Date: Tue, 31 Mar 2015 14:20:25 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 3/3] mm: hugetlb: cleanup using PageHugeActive flag
-Message-Id: <20150331140814.b939a57340cb1d3bf6b32c9d@linux-foundation.org>
-In-Reply-To: <1427791840-11247-4-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1427791840-11247-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1427791840-11247-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: Slab infrastructure for bulk object allocation and freeing V2
+Message-Id: <20150331142025.63249f2f0189aee231a6e0c8@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.11.1503300927290.6646@gentwo.org>
+References: <alpine.DEB.2.11.1503300927290.6646@gentwo.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linuxfoundation.org, Pekka Enberg <penberg@kernel.org>, iamjoonsoo@lge.com
 
-On Tue, 31 Mar 2015 08:50:46 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On Mon, 30 Mar 2015 09:31:19 -0500 (CDT) Christoph Lameter <cl@linux.com> wrote:
 
-> Now we have an easy access to hugepages' activeness, so existing helpers to
-> get the information can be cleaned up.
+> After all of the earlier discussions I thought it would be better to
+> first get agreement on the basic way to allow implementation of the
+> bulk alloc in the common slab code. So this is a revision of the initial
+> proposal and it just covers the first patch.
+> 
+> 
+> 
+> This patch adds the basic infrastructure for alloc / free operations
+> on pointer arrays. It includes a generic function in the common
+> slab code that is used in this infrastructure patch to
+> create the unoptimized functionality for slab bulk operations.
+> 
+> Allocators can then provide optimized allocation functions
+> for situations in which large numbers of objects are needed.
+> These optimization may avoid taking locks repeatedly and
+> bypass metadata creation if all objects in slab pages
+> can be used to provide the objects required.
 
-Similarly.  Also I adapted the code to fit in with
-http://ozlabs.org/~akpm/mmots/broken-out/mm-consolidate-all-page-flags-helpers-in-linux-page-flagsh.patch
+This patch doesn't really do anything.  I guess nailing down the
+interface helps a bit.
 
 
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-hugetlb-cleanup-using-pagehugeactive-flag-fix
+> @@ -289,6 +289,8 @@ static __always_inline int kmalloc_index
+>  void *__kmalloc(size_t size, gfp_t flags);
+>  void *kmem_cache_alloc(struct kmem_cache *, gfp_t flags);
+>  void kmem_cache_free(struct kmem_cache *, void *);
+> +void kmem_cache_free_array(struct kmem_cache *, size_t, void **);
+> +int kmem_cache_alloc_array(struct kmem_cache *, gfp_t, size_t, void **);
+> 
+>  #ifdef CONFIG_NUMA
+>  void *__kmalloc_node(size_t size, gfp_t flags, int node);
+> Index: linux/mm/slab_common.c
+> ===================================================================
+> --- linux.orig/mm/slab_common.c	2015-03-30 08:48:12.923927793 -0500
+> +++ linux/mm/slab_common.c	2015-03-30 08:57:41.737572817 -0500
+> @@ -105,6 +105,29 @@ static inline int kmem_cache_sanity_chec
+>  }
+>  #endif
+> 
+> +int __kmem_cache_alloc_array(struct kmem_cache *s, gfp_t flags, size_t nr,
+> +								void **p)
+> +{
+> +	size_t i;
+> +
+> +	for (i = 0; i < nr; i++) {
+> +		void *x = p[i] = kmem_cache_alloc(s, flags);
+> +		if (!x)
+> +			return i;
+> +	}
+> +	return nr;
+> +}
 
-s/PageHugeActive/page_huge_active/
+Some documentation would be nice.  It's a major new interface, exported
+to modules.  And it isn't completely obvious, because the return
+semantics are weird.
 
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Rientjes <rientjes@google.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
+What's the reason for returning a partial result when ENOMEM?  Some
+callers will throw away the partial result and simply fail out.  If a
+caller attempts to go ahead and use the partial result then great, but
+you can bet that nobody will actually runtime test this situation, so
+the interface is an invitation for us to release partially-tested code
+into the wild.
 
- include/linux/hugetlb.h    |    7 -------
- include/linux/page-flags.h |    7 +++++++
- mm/hugetlb.c               |    4 ++--
- mm/memory_hotplug.c        |    2 +-
- 4 files changed, 10 insertions(+), 10 deletions(-)
 
-diff -puN include/linux/hugetlb.h~mm-hugetlb-cleanup-using-pagehugeactive-flag-fix include/linux/hugetlb.h
---- a/include/linux/hugetlb.h~mm-hugetlb-cleanup-using-pagehugeactive-flag-fix
-+++ a/include/linux/hugetlb.h
-@@ -44,8 +44,6 @@ extern int hugetlb_max_hstate __read_mos
- #define for_each_hstate(h) \
- 	for ((h) = hstates; (h) < &hstates[hugetlb_max_hstate]; (h)++)
- 
--int PageHugeActive(struct page *page);
--
- struct hugepage_subpool *hugepage_new_subpool(struct hstate *h, long max_hpages,
- 						long min_hpages);
- void hugepage_put_subpool(struct hugepage_subpool *spool);
-@@ -115,11 +113,6 @@ unsigned long hugetlb_change_protection(
- 
- #else /* !CONFIG_HUGETLB_PAGE */
- 
--static inline int PageHugeActive(struct page *page)
--{
--	return 0;
--}
--
- static inline void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
- {
- }
-diff -puN mm/hugetlb.c~mm-hugetlb-cleanup-using-pagehugeactive-flag-fix mm/hugetlb.c
---- a/mm/hugetlb.c~mm-hugetlb-cleanup-using-pagehugeactive-flag-fix
-+++ a/mm/hugetlb.c
-@@ -3909,10 +3909,10 @@ int dequeue_hwpoisoned_huge_page(struct
- 
- 	spin_lock(&hugetlb_lock);
- 	/*
--	 * Just checking !PageHugeActive is not enough, because that could be
-+	 * Just checking !page_huge_active is not enough, because that could be
- 	 * an isolated/hwpoisoned hugepage (which have >0 refcount).
- 	 */
--	if (!PageHugeActive(hpage) && !page_count(hpage)) {
-+	if (!page_huge_active(hpage) && !page_count(hpage)) {
- 		/*
- 		 * Hwpoisoned hugepage isn't linked to activelist or freelist,
- 		 * but dangling hpage->lru can trigger list-debug warnings
-diff -puN mm/memory_hotplug.c~mm-hugetlb-cleanup-using-pagehugeactive-flag-fix mm/memory_hotplug.c
---- a/mm/memory_hotplug.c~mm-hugetlb-cleanup-using-pagehugeactive-flag-fix
-+++ a/mm/memory_hotplug.c
-@@ -1373,7 +1373,7 @@ static unsigned long scan_movable_pages(
- 			if (PageLRU(page))
- 				return pfn;
- 			if (PageHuge(page)) {
--				if (PageHugeActive(page))
-+				if (page_huge_active(page))
- 					return pfn;
- 				else
- 					pfn = round_up(pfn + 1,
-diff -puN include/linux/page-flags.h~mm-hugetlb-cleanup-using-pagehugeactive-flag-fix include/linux/page-flags.h
---- a/include/linux/page-flags.h~mm-hugetlb-cleanup-using-pagehugeactive-flag-fix
-+++ a/include/linux/page-flags.h
-@@ -549,11 +549,18 @@ static inline void ClearPageCompound(str
- #ifdef CONFIG_HUGETLB_PAGE
- int PageHuge(struct page *page);
- int PageHeadHuge(struct page *page);
-+bool page_huge_active(struct page *page);
- #else
- TESTPAGEFLAG_FALSE(Huge)
- TESTPAGEFLAG_FALSE(HeadHuge)
-+
-+static inline bool page_huge_active(struct page *page)
-+{
-+	return 0;
-+}
- #endif
- 
-+
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- /*
-  * PageHuge() only returns true for hugetlbfs pages, but not for
-_
+Instead of the above, did you consider doing
+
+int __weak kmem_cache_alloc_array(struct kmem_cache *s, gfp_t flags, size_t nr,
+
+?
+
+This way we save a level of function call and all that wrapper code in
+the allocators simply disappears.
+
+> --- linux.orig/mm/slab.c	2015-03-30 08:48:12.923927793 -0500
+> +++ linux/mm/slab.c	2015-03-30 08:49:08.398137844 -0500
+> @@ -3401,6 +3401,17 @@ void *kmem_cache_alloc(struct kmem_cache
+>  }
+>  EXPORT_SYMBOL(kmem_cache_alloc);
+> 
+> +void kmem_cache_free_array(struct kmem_cache *s, size_t size, void **p) {
+> +	__kmem_cache_free_array(s, size, p);
+> +}
+
+Coding style is weird.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
