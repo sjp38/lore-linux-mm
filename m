@@ -1,60 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 4193F6B0038
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 07:51:01 -0400 (EDT)
-Received: by wgbdm7 with SMTP id dm7so50471286wgb.1
-        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 04:51:00 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
-        by mx.google.com with ESMTP id d11si12223780wic.37.2015.04.01.04.50.58
-        for <linux-mm@kvack.org>;
-        Wed, 01 Apr 2015 04:50:59 -0700 (PDT)
-Date: Wed, 1 Apr 2015 14:50:54 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: use PageAnon() and PageKsm() helpers in
- page_anon_vma()
-Message-ID: <20150401115054.GB17153@node.dhcp.inet.fi>
-References: <1427802647-16764-1-git-send-email-kirill.shutemov@linux.intel.com>
- <alpine.DEB.2.11.1503310810320.13959@gentwo.org>
- <20150331143534.GA10808@node.dhcp.inet.fi>
- <20150331133338.ed4ab6cc9a5ab6f6ad4301eb@linux-foundation.org>
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 50F516B006C
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 07:53:54 -0400 (EDT)
+Received: by wixo5 with SMTP id o5so46349558wix.1
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 04:53:53 -0700 (PDT)
+Received: from mail-ph.de-nserver.de (mail-ph.de-nserver.de. [85.158.179.214])
+        by mx.google.com with ESMTPS id bs17si2870960wjb.133.2015.04.01.04.53.52
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Apr 2015 04:53:52 -0700 (PDT)
+Message-ID: <551BDC4F.4010000@profihost.ag>
+Date: Wed, 01 Apr 2015 13:53:51 +0200
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150331133338.ed4ab6cc9a5ab6f6ad4301eb@linux-foundation.org>
+Subject: Re: kernel 3.18.10: THP refcounting bug
+References: <551BBE1A.4040404@profihost.ag> <20150401113122.GA17153@node.dhcp.inet.fi>
+In-Reply-To: <20150401113122.GA17153@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>
+To: linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, sasha.levin@oracle.com
 
-On Tue, Mar 31, 2015 at 01:33:38PM -0700, Andrew Morton wrote:
-> On Tue, 31 Mar 2015 17:35:34 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-> 
-> > On Tue, Mar 31, 2015 at 08:11:02AM -0500, Christoph Lameter wrote:
-> > > On Tue, 31 Mar 2015, Kirill A. Shutemov wrote:
-> > > 
-> > > > Let's use PageAnon() and PageKsm() helpers instead. It helps readability
-> > > > and makes page_anon_vma() work correctly on tail pages.
-> > > 
-> > > But it adds a branch due to the use of ||.
-> > 
-> > Which caller is hot enough to care?
-> > 
-> 
-> It's a surprisingly expensive patch.
-> 
->    text    data     bss     dec     hex filename
-> 
->   19984    1153   15192   36329    8de9 mm/ksm.o-before
->   20028    1153   15216   36397    8e2d mm/ksm.o-after
-> 
->   14728     116    5168   20012    4e2c mm/rmap.o-before
->   14763     116    5192   20071    4e67 mm/rmap.o-after
-> 
->   25723    1417    9776   36916    9034 mm/swapfile.o-before
->   25769    1417    9800   36986    907a mm/swapfile.o-after
-> 
-> 197 bytes more text+bss, 125 bytes more text.
-> 
-> (Why the heck do changes like this allegedly affect bss size?)
+Hi,
 
-What about this?
+while using 3.18.9 i got several times the following stack trace:
+
+kernel BUG at mm/filemap.c:203!
+invalid opcode: 0000 [#1] SMP
+Modules linked in: dm_mod netconsole usbhid sd_mod sg ata_generic
+virtio_net virtio_scsi uhci_hcd ehci_hcd usbcore virtio_pci usb_common
+virtio_ring ata_piix virtio floppy
+CPU: 3 PID: 1 Comm: busybox Tainted: G    B          3.18.9 #1
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
+rel-1.7.5.1-0-g8936dbb-20141113_115728-nilsson.home.kraxel.org 04/01/2014
+task: ffff880137b98000 ti: ffff880137b94000 task.ti: ffff880137b94000
+RIP: 0010:[<ffffffff81134495>]  [<ffffffff81134495>]
+__delete_from_page_cache+0x2b5/0x2c0
+RSP: 0018:ffff880137b97be8  EFLAGS: 00010046
+RAX: 0000000000000000 RBX: 0000000000000003 RCX: 00000000ffffffd0
+RDX: 0000000000000030 RSI: 000000000000000a RDI: ffff88013f9696c0
+RBP: ffff880137b97c38 R08: 0000000000000000 R09: ffffea0002e927c0
+R10: ffff8800bba92da0 R11: ffff880137b97c00 R12: ffffea0002e92480
+R13: ffff8800bba8c4c8 R14: 0000000000000000 R15: ffff8800bba8c4d0
+FS:  00007f5a79e0b700(0000) GS:ffff880139060000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00000000023c3138 CR3: 00000000b84ba000 CR4: 00000000000006e0
+Stack:
+ 000000000000000e ffff880137b97d48 ffff8800bba92da0 ffff8800bba92dc8
+ ffff880137b97c68 ffffea0002e92480 ffff8800bba8c4c8 0000000000000000
+ 0000000000000000 0000000000000000 ffff880137b97c68 ffffffff81134604
+Call Trace:
+ [<ffffffff81134604>] delete_from_page_cache+0x44/0x70
+ [<ffffffff811413cb>] truncate_inode_page+0x5b/0x90
+ [<ffffffff811415a4>] truncate_inode_pages_range+0x1a4/0x6c0
+ [<ffffffff81141b45>] truncate_inode_pages+0x15/0x20
+ [<ffffffff81141c4c>] truncate_inode_pages_final+0x3c/0x50
+ [<ffffffff811bb83c>] evict+0x16c/0x180
+ [<ffffffff811bbed5>] iput+0x105/0x190
+ [<ffffffff811b0c19>] do_unlinkat+0x189/0x2b0
+ [<ffffffff811b1a46>] SyS_unlink+0x16/0x20
+ [<ffffffff815f6592>] system_call_fastpath+0x12/0x17
+Code: 66 0f 1f 44 00 00 48 8b 75 c0 4c 89 ff e8 e4 5d 1f 00 84 c0 0f 85
+5e fe ff ff e9 41 fe ff ff 0f 1f 80 00 00 00 00 e8 75 70 4b 00 <0f> 0b
+66 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 55 83 e2 fd 48
+RIP  [<ffffffff81134495>] __delete_from_page_cache+0x2b5/0x2c0
+ RSP <ffff880137b97be8>
+---[ end trace a4727cb71335dbd4 ]---
+
+Is this a known bug?
+
+Thanks!
+
+--
+Greets,
+Stefan
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
