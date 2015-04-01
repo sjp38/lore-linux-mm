@@ -1,94 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 509696B0032
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 15:40:09 -0400 (EDT)
-Received: by pdbni2 with SMTP id ni2so64788385pdb.1
-        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 12:40:09 -0700 (PDT)
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A2FB6B0032
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 15:57:47 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so13827911pde.3
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 12:57:47 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id qe8si4245090pdb.99.2015.04.01.12.40.08
+        by mx.google.com with ESMTPS id ny12si4252706pab.202.2015.04.01.12.57.46
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Apr 2015 12:40:08 -0700 (PDT)
-Date: Wed, 1 Apr 2015 12:40:07 -0700
+        Wed, 01 Apr 2015 12:57:46 -0700 (PDT)
+Date: Wed, 1 Apr 2015 12:57:45 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/migrate: Mark unmap_and_move() "noinline" to avoid
- ICE in gcc 4.7.3
-Message-Id: <20150401124007.20c440cc43a482f698f461b8@linux-foundation.org>
-In-Reply-To: <551BBEC5.7070801@arm.com>
-References: <20150324004537.GA24816@verge.net.au>
-	<CAKv+Gu-0jPk=KQ4gY32ELc+BVbe=1QdcrwQ+Pb=RkdwO9K3Vkw@mail.gmail.com>
-	<20150324161358.GA694@kahuna>
-	<20150326003939.GA25368@verge.net.au>
-	<20150326133631.GB2805@arm.com>
-	<CANMBJr68dsbYvvHUzy6U4m4fEM6nq8dVHBH4kLQ=0c4QNOhLPQ@mail.gmail.com>
-	<20150327002554.GA5527@verge.net.au>
-	<20150327100612.GB1562@arm.com>
-	<7hbnj99epe.fsf@deeprootsystems.com>
-	<CAKv+Gu_ZHZFm-1eXn+r7fkEHOxqSmj+Q+Mmy7k6LK531vSfAjQ@mail.gmail.com>
-	<7h8uec95t2.fsf@deeprootsystems.com>
-	<alpine.DEB.2.10.1504011130030.14762@ayla.of.borg>
-	<551BBEC5.7070801@arm.com>
+Subject: Re: [PATCH] mm: use PageAnon() and PageKsm() helpers in
+ page_anon_vma()
+Message-Id: <20150401125745.421a6af61bd20246a76c5b83@linux-foundation.org>
+In-Reply-To: <20150401115054.GB17153@node.dhcp.inet.fi>
+References: <1427802647-16764-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<alpine.DEB.2.11.1503310810320.13959@gentwo.org>
+	<20150331143534.GA10808@node.dhcp.inet.fi>
+	<20150331133338.ed4ab6cc9a5ab6f6ad4301eb@linux-foundation.org>
+	<20150401115054.GB17153@node.dhcp.inet.fi>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marc Zyngier <marc.zyngier@arm.com>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Kevin Hilman <khilman@kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <Will.Deacon@arm.com>, Simon Horman <horms@verge.net.au>, Tyler Baker <tyler.baker@linaro.org>, Nishanth Menon <nm@ti.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Magnus Damm <magnus.damm@gmail.com>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux Kernel Development <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>
 
-On Wed, 01 Apr 2015 10:47:49 +0100 Marc Zyngier <marc.zyngier@arm.com> wrote:
+On Wed, 1 Apr 2015 14:50:54 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-> > -static int unmap_and_move(new_page_t get_new_page, free_page_t put_new_page,
-> > -			unsigned long private, struct page *page, int force,
-> > -			enum migrate_mode mode)
-> > +static noinline int unmap_and_move(new_page_t get_new_page,
-> > +				   free_page_t put_new_page,
-> > +				   unsigned long private, struct page *page,
-> > +				   int force, enum migrate_mode mode)
-> >  {
-> >  	int rc = 0;
-> >  	int *result = NULL;
-> > 
+> >From adc384977898173d65c2567fc5eb421da9b272e0 Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Wed, 1 Apr 2015 14:33:56 +0300
+> Subject: [PATCH] mm: uninline and cleanup page-mapping related helpers
 > 
-> Ouch. That's really ugly. And on 32bit ARM, we end-up spilling half of
-> the parameters on the stack, which is not going to help performance
-> either (not that this would be useful on 32bit ARM anyway...).
+> Most-used page->mapping helper -- page_mapping() -- has already
+> uninlined. Let's uninline also page_rmapping() and page_anon_vma().
+> It saves us depending on configuration around 400 bytes in text:
 > 
-> Any chance you could make this dependent on some compiler detection
-> mechanism?
+>    text	   data	    bss	    dec	    hex	filename
+>  660318	  99254	 410000	1169572	 11d8a4	mm/built-in.o-before
+>  659854	  99254	 410000	1169108	 11d6d4	mm/built-in.o
 
-With my arm compiler (gcc-4.4.4) the patch makes no difference -
-unmap_and_move() isn't being inlined anyway.
+Well, code size isn't the only thing to care about.  Some functions
+really should be inlined for performance reasons even if that makes the
+overall code larger.  But the changes you're proposing here look OK to
+me.
 
-How does this look?
+> As side effect page_anon_vma() now works properly on tail pages.
 
-Kevin, could you please retest?  I might have fat-fingered something...
-
---- a/mm/migrate.c~mm-migrate-mark-unmap_and_move-noinline-to-avoid-ice-in-gcc-473-fix
-+++ a/mm/migrate.c
-@@ -901,10 +901,20 @@ out:
- }
- 
- /*
-+ * gcc-4.7.3 on arm gets an ICE when inlining unmap_and_move().  Work around
-+ * it.
-+ */
-+#if GCC_VERSION == 40703 && defined(CONFIG_ARM)
-+#define ICE_noinline noinline
-+#else
-+#define ICE_noinline
-+#endif
-+
-+/*
-  * Obtain the lock on page, remove all ptes and migrate the page
-  * to the newly allocated page in newpage.
-  */
--static noinline int unmap_and_move(new_page_t get_new_page,
-+static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 				   free_page_t put_new_page,
- 				   unsigned long private, struct page *page,
- 				   int force, enum migrate_mode mode)
-_
+Let's fix the bug in a separate patch, please.  One which can be
+backported to earlier kernels if that should be needed.  ie: it should
+precede any uninlining.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
