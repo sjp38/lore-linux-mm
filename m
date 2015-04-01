@@ -1,357 +1,342 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id CA77A6B0070
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 08:16:52 -0400 (EDT)
-Received: by wgdm6 with SMTP id m6so51139295wgd.2
-        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 05:16:52 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gm10si17213073wib.42.2015.04.01.05.16.50
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 01 Apr 2015 05:16:51 -0700 (PDT)
-Message-ID: <551BE1B1.8060908@suse.cz>
-Date: Wed, 01 Apr 2015 14:16:49 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D4676B0038
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 08:28:54 -0400 (EDT)
+Received: by pacgg7 with SMTP id gg7so51025763pac.0
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 05:28:53 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id pz14si2679656pab.169.2015.04.01.05.28.52
+        for <linux-mm@kvack.org>;
+        Wed, 01 Apr 2015 05:28:52 -0700 (PDT)
+Date: Wed, 1 Apr 2015 13:28:44 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH 2/2] arm64: add KASan support
+Message-ID: <20150401122843.GA28616@e104818-lin.cambridge.arm.com>
+References: <1427208544-8232-1-git-send-email-a.ryabinin@samsung.com>
+ <1427208544-8232-3-git-send-email-a.ryabinin@samsung.com>
 MIME-Version: 1.0
-Subject: Re: [RFCv3] mm: page allocation for less fragmentation
-References: <1427359540-14833-1-git-send-email-gioh.kim@lge.com>
-In-Reply-To: <1427359540-14833-1-git-send-email-gioh.kim@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1427208544-8232-3-git-send-email-a.ryabinin@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: linux-arm-kernel@lists.infradead.org, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On 03/26/2015 09:45 AM, Gioh Kim wrote:
-> My platform is suffering with the external fragmentation problem.
-> If I run a heavy load test for a few days in 1GB memory system, I cannot
-> allocate even order=3 pages because-of the external fragmentation.
->
-> I found that my driver is main reason.
-> It repeats to allocate 16MB pages with alloc_page(GFP_KERNEL) and
-> totally consumes 300~400MB pages of 1GB system.
->
-> I thought I needed a anti-fragmentation solution for my driver.
-> But there is no allocation function that considers fragmentation.
-> The compaction is not helpful because it is only for movable pages, not
-> unmovable pages.
->
-> This patch proposes a allocation function allocates only pages in the same
-> pageblock.
->
-> I tested this patch like following to check that I can get high order page
-> with new allocator.
->
-> 1. When the driver allocates about 400MB and do "cat /proc/pagetypeinfo;cat
-> /proc/buddyinfo"
->
-> Free pages count per migrate type at order       0      1      2      3      4
-> 5      6      7      8      9     10
-> Node    0, zone   Normal, type    Unmovable   3864    728    394    216    129
-> 47     18      9      1      0      0
-> Node    0, zone   Normal, type  Reclaimable    902     96     68     17      3
-> 0      1      0      0      0      0
-> Node    0, zone   Normal, type      Movable   5146    663    178     91     43
-> 16      4      0      0      0      0
-> Node    0, zone   Normal, type      Reserve      1      4      6      6      2
-> 1      1      1      0      1      1
-> Node    0, zone   Normal, type          CMA      0      0      0      0      0
-> 0      0      0      0      0      0
-> Node    0, zone   Normal, type      Isolate      0      0      0      0      0
-> 0      0      0      0      0      0
->
-> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve
-> CMA      Isolate
-> Node 0, zone   Normal          135            3          124            2
-> 0            0
-> Node 0, zone   Normal   9880   1489    647    332    177     64     24     10
-> 1      1      1
->
-> 2. The driver allocates pages with alloc_pages_compact
-> and copy page contents and free old pages.
-> This is a kind of compaction of the driver.
-> Following is the result of "cat /proc/pagetypeinfo;cat /proc/buddyinfo"
->
-> Free pages count per migrate type at order       0      1      2      3      4
-> 5      6      7      8      9     10
-> Node    0, zone   Normal, type    Unmovable      8      5      1    432    272
-> 91     37     11      1      0      0
-> Node    0, zone   Normal, type  Reclaimable    901     96     68     17      3
-> 0      1      0      0      0      0
-> Node    0, zone   Normal, type      Movable   4790    776    192     91     43
-> 16      4      0      0      0      0
-> Node    0, zone   Normal, type      Reserve      1      4      6      6      2
-> 1      1      1      0      1      1
-> Node    0, zone   Normal, type          CMA      0      0      0      0      0
-> 0      0      0      0      0      0
-> Node    0, zone   Normal, type      Isolate      0      0      0      0      0
-> 0      0      0      0      0      0
->
-> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve
-> CMA      Isolate
-> Node 0, zone   Normal          135            3          124            2
-> 0            0
-> Node 0, zone   Normal   5693    877    266    544    320    108     43     12
-> 1      1      1
->
-> I found that high order pages are increased.
+Hi Andrey,
 
-Again, this test is not a good argument as explained in my reply to v2.
+On Tue, Mar 24, 2015 at 05:49:04PM +0300, Andrey Ryabinin wrote:
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index 4085df1..10bbd71 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -41,6 +41,7 @@ config ARM64
+>  	select HAVE_ARCH_AUDITSYSCALL
+>  	select HAVE_ARCH_BITREVERSE
+>  	select HAVE_ARCH_JUMP_LABEL
+> +	select HAVE_ARCH_KASAN if SPARSEMEM_VMEMMAP
+>  	select HAVE_ARCH_KGDB
+>  	select HAVE_ARCH_SECCOMP_FILTER
+>  	select HAVE_ARCH_TRACEHOOK
+> @@ -116,6 +117,12 @@ config GENERIC_CSUM
+>  config GENERIC_CALIBRATE_DELAY
+>  	def_bool y
+>  
+> +config KASAN_SHADOW_OFFSET
+> +	hex
+> +	default 0xdfff200000000000 if ARM64_VA_BITS_48
+> +	default 0xdffffc8000000000 if ARM64_VA_BITS_42
+> +	default 0xdfffff9000000000 if ARM64_VA_BITS_39
 
->
->
-> And I did another test. Following test is counting mixed blocks
-> after page allocation.
+Can we compute these at build time in some C header? Or they need to be
+passed to gcc when compiling the kernel so that it generates the right
+instrumentation?
 
-How is "mixed" defined and determined?
+I'm not familiar with KASan but is the offset address supposed to be
+accessible? The addresses encoded above would always generate a fault
+(level 0 / address size fault).
 
-> In virtualbox system with 4-CPUs and 768MB memory I had runned kernel build
-> and I allocated pages with alloc_page and alloc_pages_compact.
->
-> 1. kernel build make -j8 and cat /proc/pagetypeinfo
-> Number of mixed blocks    Unmovable  Reclaimable      Movable      Reserve
-> Node 0, zone      DMA            0            0            3            1
-> Node 0, zone   Normal            8           10           89            0
->
-> 2. alloc_pages_compact(GFP_USER, 4096) X 10-times and cat /proc/pagetypeinfo
-> Number of mixed blocks    Unmovable  Reclaimable      Movable      Reserve
-> Node 0, zone      DMA            0            0            3            1
-> Node 0, zone   Normal            8           10           89            0
->
-> I found there is no more fragmentation.
->
-> Following is alloc_pages test.
->
-> 1. kernel build naje -j8 and cat /proc/pagetypeinfo
->
-> Number of mixed blocks    Unmovable  Reclaimable      Movable      Reserve
-> Node 0, zone      DMA            0            0            3            1
-> Node 0, zone   Normal            8            7          100            1
->
-> 2. alloc_page(GFP_USER) X 4096-times X 10-times and cat /proc/pagetypeinfo
->
-> Number of mixed blocks    Unmovable  Reclaimable      Movable      Reserve
-> Node 0, zone      DMA            0            0            3            1
-> Node 0, zone   Normal           37            7          105            1
->
-> It generates fragmentation.
->
-> With above two tests I can get more high order pages and less mixed blocks.
+> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+> index bd5db28..f5ce010 100644
+> --- a/arch/arm64/include/asm/pgtable.h
+> +++ b/arch/arm64/include/asm/pgtable.h
+> @@ -40,7 +40,7 @@
+>   *	fixed mappings and modules
+>   */
+>  #define VMEMMAP_SIZE		ALIGN((1UL << (VA_BITS - PAGE_SHIFT)) * sizeof(struct page), PUD_SIZE)
+> -#define VMALLOC_START		(UL(0xffffffffffffffff) << VA_BITS)
+> +#define VMALLOC_START		((UL(0xffffffffffffffff) << VA_BITS) + (UL(1) << (VA_BITS - 3)))
 
-Please include also data for "more high order pages".
+I assume that's where you want to make room for KASan? Some comments and
+macros would be useful for why this is needed and how it is calculated.
+It also needs to be disabled when KASan is not enabled.
 
-> The new allocator isn't to replace the common allocator alloc_pages.
-> It can be applied to a certain drivers that allocates many pages and don't need
-> fast allocation.
+> diff --git a/arch/arm64/kernel/head.S b/arch/arm64/kernel/head.S
+> index 51c9811..1a99e95 100644
+> --- a/arch/arm64/kernel/head.S
+> +++ b/arch/arm64/kernel/head.S
+> @@ -482,6 +482,9 @@ __mmap_switched:
+>  	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
+>  	str_l	x24, memstart_addr, x6		// Save PHYS_OFFSET
+>  	mov	x29, #0
+> +#ifdef CONFIG_KASAN
+> +	b kasan_early_init
+> +#endif
 
-As Mel said, this seems rather specialized, the benefits seem to be 
-limited to a corner case, and similar to CMA, which could have some 
-relaxed mode of operation where it doesn't guarantee to be completely 
-contiguous, but with some best-effort approach it would give you 
-probably more compact ranges of pages than this patch?
+Nitpick: tab between b and kasan_early_init.
 
-> When the system has serious fragmentation you can free pages and alloc pages
-> via alloc_page to decrease fragmentation. But it would last short and
-> fragmentation would increase soon. The new allocator can work like compaction
-> so that it decrease fragmentation for long time.
->
->
-> This patch is based on 3.16.
-> allocflags_to_migratetype should be changed into gfpflags_to_migratetype for
-> v4.0.
->
->
-> Changelog since v1:
-> - change argument of page order into page count
->
-> Changelog since v2:
-> - bug fix
-> - do not allocate page in different migratetype pageblock
-> - add new test result of mixed block count
->
-> Signed-off-by: Gioh Kim <gioh.kim@lge.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: Mel Gorman <mgorman@suse.de>
-> CC: Rik van Riel <riel@redhat.com>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> CC: David Rientjes <rientjes@google.com>
-> CC: Vladimir Davydov <vdavydov@parallels.com>
-> CC: linux-mm@kvack.org
-> CC: linux-kernel@vger.kernel.org
-> ---
->   mm/page_alloc.c |  160 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
->   1 file changed, 160 insertions(+)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 86c9a72..826618b 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6646,3 +6646,163 @@ void dump_page(struct page *page, const char *reason)
->   	dump_page_badflags(page, reason, 0);
->   }
->   EXPORT_SYMBOL(dump_page);
+> diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
+> new file mode 100644
+> index 0000000..df537da
+> --- /dev/null
+> +++ b/arch/arm64/mm/kasan_init.c
+> @@ -0,0 +1,211 @@
+> +#include <linux/kasan.h>
+> +#include <linux/kernel.h>
+> +#include <linux/memblock.h>
+> +#include <linux/start_kernel.h>
 > +
-> +static unsigned long alloc_freepages_block(unsigned long start_pfn,
-> +					   unsigned long end_pfn,
-> +					   int count,
-> +					   struct list_head *freelist)
+> +#include <asm/page.h>
+> +#include <asm/pgtable.h>
+> +#include <asm/tlbflush.h>
+> +
+> +static char kasan_zero_page[PAGE_SIZE] __page_aligned_bss;
+
+Can we not use the system's zero_page or it's not initialised yet?
+
+> +static pgd_t tmp_page_table[PTRS_PER_PGD] __initdata __aligned(PAGE_SIZE);
+> +
+> +#if CONFIG_PGTABLE_LEVELS > 3
+> +static pud_t kasan_zero_pud[PTRS_PER_PUD] __page_aligned_bss;
+> +#endif
+> +#if CONFIG_PGTABLE_LEVELS > 2
+> +static pmd_t kasan_zero_pmd[PTRS_PER_PMD] __page_aligned_bss;
+> +#endif
+> +static pte_t kasan_zero_pte[PTRS_PER_PTE] __page_aligned_bss;
+> +
+> +static void __init init_kasan_page_tables(void)
 > +{
-> +	int total_alloc = 0;
-> +	struct page *cursor, *valid_page = NULL;
+> +	int i;
 > +
-> +	cursor = pfn_to_page(start_pfn);
+> +#if CONFIG_PGTABLE_LEVELS > 3
+> +	for (i = 0; i < PTRS_PER_PUD; i++)
+> +		set_pud(&kasan_zero_pud[i], __pud(__pa(kasan_zero_pmd)
+> +							| PAGE_KERNEL));
+> +#endif
+> +#if CONFIG_PGTABLE_LEVELS > 2
+> +	for (i = 0; i < PTRS_PER_PMD; i++)
+> +		set_pmd(&kasan_zero_pmd[i], __pmd(__pa(kasan_zero_pte)
+> +							| PAGE_KERNEL));
+> +#endif
+
+These don't look right. You are setting page attributes on table
+entries. You should use the standard pmd_populate etc. macros here, see
+early_fixmap_init() as an example.
+
+> +	for (i = 0; i < PTRS_PER_PTE; i++)
+> +		set_pte(&kasan_zero_pte[i], __pte(__pa(kasan_zero_page)
+> +							| PAGE_KERNEL));
+
+PAGE_KERNEL is pgprot_t, so you mix the types here. Just do something
+like:
+
+	set_pte(..., pfn_pte(zero_pfn, PAGE_KERNEL_RO));
+
+(shouldn't it be read-only?)
+
+> +void __init kasan_map_early_shadow(pgd_t *pgdp)
+> +{
+> +	int i;
+> +	unsigned long start = KASAN_SHADOW_START;
+> +	unsigned long end = KASAN_SHADOW_END;
+> +	pgd_t pgd;
 > +
-> +	/* Isolate free pages. */
-> +	for (; start_pfn < end_pfn; start_pfn++, cursor++) {
-> +		int alloc, i;
-> +		struct page *page = cursor;
+> +#if CONFIG_PGTABLE_LEVELS > 3
+> +	pgd = __pgd(__pa(kasan_zero_pud) | PAGE_KERNEL);
+> +#elif CONFIG_PGTABLE_LEVELS > 2
+> +	pgd = __pgd(__pa(kasan_zero_pmd) | PAGE_KERNEL);
+> +#else
+> +	pgd = __pgd(__pa(kasan_zero_pte) | PAGE_KERNEL);
+> +#endif
 > +
-> +		if (!pfn_valid_within(start_pfn))
-> +			continue;
+> +	for (i = pgd_index(start); start < end; i++) {
+> +		set_pgd(&pgdp[i], pgd);
+> +		start += PGDIR_SIZE;
+> +	}
+> +}
+
+Same problem as above with PAGE_KERNEL. You should just use
+pgd_populate().
+
 > +
-> +		if (!valid_page)
-> +			valid_page = page;
-> +		if (!PageBuddy(page))
-> +			continue;
+> +void __init kasan_early_init(void)
+> +{
+> +	init_kasan_page_tables();
+> +	kasan_map_early_shadow(swapper_pg_dir);
+> +	kasan_map_early_shadow(idmap_pg_dir);
+> +	flush_tlb_all();
+> +	start_kernel();
+> +}
+
+Why do you need to map the kasan page tables into the idmap?
+
 > +
-> +		if (!PageBuddy(page))
-> +			continue;
+> +static void __init clear_pgds(unsigned long start,
+> +			unsigned long end)
+> +{
+> +	for (; start && start < end; start += PGDIR_SIZE)
+> +		set_pgd(pgd_offset_k(start), __pgd(0));
+> +}
+
+We have dedicated pgd_clear() macro.
+
 > +
-> +		/* allocate only low-order pages */
-> +		if (page_order(page) >= 3) {
-> +			start_pfn += (1 << page_order(page)) - 1;
-> +			cursor += (1 << page_order(page)) - 1;
-> +			continue;
+> +static int __init zero_pte_populate(pmd_t *pmd, unsigned long addr,
+> +				unsigned long end)
+> +{
+> +	pte_t *pte = pte_offset_kernel(pmd, addr);
+> +
+> +	while (addr + PAGE_SIZE <= end) {
+> +		set_pte(pte, __pte(__pa(kasan_zero_page)
+> +					| PAGE_KERNEL_RO));
+
+See above for a pfn_pte() usage.
+
+> +		addr += PAGE_SIZE;
+> +		pte = pte_offset_kernel(pmd, addr);
+> +	}
+> +	return 0;
+> +}
+> +
+> +static int __init zero_pmd_populate(pud_t *pud, unsigned long addr,
+> +				unsigned long end)
+> +{
+> +	int ret = 0;
+> +	pmd_t *pmd = pmd_offset(pud, addr);
+> +
+> +	while (IS_ALIGNED(addr, PMD_SIZE) && addr + PMD_SIZE <= end) {
+> +		set_pmd(pmd, __pmd(__pa(kasan_zero_pte)
+> +					| PAGE_KERNEL_RO));
+> +		addr += PMD_SIZE;
+> +		pmd++;
+> +	}
+> +
+> +	if (addr < end) {
+> +		if (pmd_none(*pmd)) {
+> +			void *p = vmemmap_alloc_block(PAGE_SIZE, NUMA_NO_NODE);
+> +			if (!p)
+> +				return -ENOMEM;
+> +			set_pmd(pmd, __pmd(__pa(p) | PAGE_KERNEL));
 > +		}
+> +		ret = zero_pte_populate(pmd, addr, end);
+> +	}
+> +	return ret;
+> +}
 > +
-> +		/* Found a free pages, break it into order-0 pages */
-> +		alloc = split_free_page(page);
+> +static int __init zero_pud_populate(pgd_t *pgd, unsigned long addr,
+> +				unsigned long end)
+> +{
+> +	int ret = 0;
+> +	pud_t *pud = pud_offset(pgd, addr);
 > +
-> +		total_alloc += alloc;
-> +		for (i = 0; i < alloc; i++) {
-> +			list_add(&page->lru, freelist);
-> +			page++;
+> +#if CONFIG_PGTABLE_LEVELS > 2
+> +	while (IS_ALIGNED(addr, PUD_SIZE) && addr + PUD_SIZE <= end) {
+> +		set_pud(pud, __pud(__pa(kasan_zero_pmd)
+> +					| PAGE_KERNEL_RO));
+> +		addr += PUD_SIZE;
+> +		pud++;
+> +	}
+> +#endif
+> +
+> +	if (addr < end) {
+> +		if (pud_none(*pud)) {
+> +			void *p = vmemmap_alloc_block(PAGE_SIZE, NUMA_NO_NODE);
+> +			if (!p)
+> +				return -ENOMEM;
+> +			set_pud(pud, __pud(__pa(p) | PAGE_KERNEL));
 > +		}
+> +		ret = zero_pmd_populate(pud, addr, end);
+> +	}
+> +	return ret;
+> +}
 > +
-> +		if (total_alloc >= count)
+> +static int __init zero_pgd_populate(unsigned long addr, unsigned long end)
+> +{
+> +	int ret = 0;
+> +	pgd_t *pgd = pgd_offset_k(addr);
+> +
+> +#if CONFIG_PGTABLE_LEVELS > 3
+> +	 while (IS_ALIGNED(addr, PGDIR_SIZE) && addr + PGDIR_SIZE <= end) {
+> +		set_pgd(pgd, __pgd(__pa(kasan_zero_pud)
+> +					| PAGE_KERNEL_RO));
+> +		addr += PGDIR_SIZE;
+> +		pgd++;
+> +	}
+> +#endif
+
+All these PAGE_KERNEL_RO on table entries are wrong. Please use the
+standard pgd/pud/pmd_populate macros.
+
+As for the while loops above, we have a standard way to avoid the
+#ifdef's by using pgd_addr_end() etc. See __create_mapping() as an
+example, there are a few others throughout the kernel.
+
+> +
+> +	 if (addr < end) {
+> +		 if (pgd_none(*pgd)) {
+> +			 void *p = vmemmap_alloc_block(PAGE_SIZE, NUMA_NO_NODE);
+> +			 if (!p)
+> +				 return -ENOMEM;
+> +			 set_pgd(pgd, __pgd(__pa(p) | PAGE_KERNEL));
+
+I'm just commenting here but it applies to the previous functions. You
+may be able to use functions like vmmemap_pgd_populate() which look very
+similar (and they also use pgd_populate instead of the set_pgd).
+
+> +static void cpu_set_ttbr1(unsigned long ttbr1)
+> +{
+> +	asm(
+> +	"	msr	ttbr1_el1, %0\n"
+> +	"	isb"
+> +	:
+> +	: "r" (ttbr1));
+> +}
+> +
+> +void __init kasan_init(void)
+> +{
+> +	struct memblock_region *reg;
+> +
+> +	memcpy(tmp_page_table, swapper_pg_dir, sizeof(tmp_page_table));
+> +	cpu_set_ttbr1(__pa(tmp_page_table));
+
+Why is this needed? The code lacks comments in several places but here I
+couldn't figure out what the point is.
+
+> +
+> +	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
+> +
+> +	populate_zero_shadow(KASAN_SHADOW_START,
+> +			(unsigned long)kasan_mem_to_shadow((void *)MODULES_VADDR));
+> +
+> +	for_each_memblock(memory, reg) {
+> +		void *start = (void *)__phys_to_virt(reg->base);
+> +		void *end = (void *)__phys_to_virt(reg->base + reg->size);
+> +
+> +		if (start >= end)
 > +			break;
 > +
-> +		if (alloc) {
-> +			start_pfn += alloc - 1;
-> +			cursor += alloc - 1;
-> +			continue;
-> +		}
+> +		vmemmap_populate((unsigned long)kasan_mem_to_shadow(start),
+> +				(unsigned long)kasan_mem_to_shadow(end),
+> +				pfn_to_nid(virt_to_pfn(start)));
 > +	}
 > +
-> +	return total_alloc;
+> +	memset(kasan_zero_page, 0, PAGE_SIZE);
+> +	cpu_set_ttbr1(__pa(swapper_pg_dir));
+> +	init_task.kasan_depth = 0;
 > +}
-> +
-> +static int rmqueue_compact(struct zone *zone, int nr_request,
-> +			   int migratetype, struct list_head *freepages)
-> +{
-> +	unsigned int current_order;
-> +	struct free_area *area;
-> +	struct page *page;
-> +	unsigned long block_start_pfn;	/* start of current pageblock */
-> +	unsigned long block_end_pfn;	/* end of current pageblock */
-> +	int total_alloc = 0;
-> +	unsigned long flags;
-> +	struct page *next;
-> +	int to_free = 0;
-> +	int nr_remain = nr_request;
-> +	int loop_count = 0;
-> +
-> +	spin_lock_irqsave(&zone->lock, flags);
-> +
-> +	/* Find a page of the appropriate size in the preferred list */
-> +	current_order = 0;
-> +	page = NULL;
-> +	while (current_order < 3) {
-> +		int alloc;
-> +
-> +		area = &(zone->free_area[current_order]);
-> +
-> +		if (list_empty(&area->free_list[migratetype]))
-> +			goto next_order;
-> +
-> +		page = list_entry(area->free_list[migratetype].next,
-> +				  struct page, lru);
-> +
-> +		/*
-> +		 * check migratetype of pageblock,
-> +		 * some pages can be set as different migratetype
-> +		 * by rmqueue_fallback
-> +		 */
-> +		if (get_pageblock_migratetype(page) != migratetype) {
-> +			if (list_is_last(&page->lru,
-> +					 &area->free_list[migratetype]))
-> +				goto next_order;
-> +			page = list_next_entry(page, lru);
-> +		}
-> +
-> +		block_start_pfn = page_to_pfn(page) & ~(pageblock_nr_pages - 1);
-> +		block_end_pfn = min(block_start_pfn + pageblock_nr_pages,
-> +				    zone_end_pfn(zone));
-> +
-> +		alloc = alloc_freepages_block(block_start_pfn,
-> +						 block_end_pfn,
-> +						 nr_remain,
-> +						 freepages);
-> +		WARN(alloc == 0, "alloc can be ZERO????");
-> +
-> +		total_alloc += alloc;
-> +		nr_remain -= alloc;
-> +
-> +		if (nr_remain <= 0)
-> +			break;
-> +
-> +		continue;
-> +next_order:
-> +		current_order++;
-> +		loop_count = 0;
-> +	}
-> +	__mod_zone_page_state(zone, NR_ALLOC_BATCH, -total_alloc);
-> +	__count_zone_vm_events(PGALLOC, zone, total_alloc);
-> +
-> +	spin_unlock_irqrestore(&zone->lock, flags);
-> +
-> +	list_for_each_entry_safe(page, next, freepages, lru) {
-> +		if (to_free >= nr_request) {
-> +			list_del(&page->lru);
-> +			atomic_dec(&page->_count);
-> +			__free_pages_ok(page, 0);
-> +		}
-> +		to_free++;
-> +	}
-> +
-> +	list_for_each_entry(page, freepages, lru) {
-> +		arch_alloc_page(page, 0);
-> +		kernel_map_pages(page, 1, 1);
-> +	}
-> +	return total_alloc < nr_request ? total_alloc : nr_request;
-> +}
-> +
-> +int alloc_pages_compact(gfp_t gfp_mask, int nr_request,
-> +			struct list_head *freepages)
-> +{
-> +	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
-> +	struct zone *preferred_zone;
-> +	struct zoneref *preferred_zoneref;
-> +
-> +	preferred_zoneref = first_zones_zonelist(node_zonelist(numa_node_id(),
-> +							       gfp_mask),
-> +						 high_zoneidx,
-> +						 &cpuset_current_mems_allowed,
-> +						 &preferred_zone);
-> +	if (!preferred_zone)
-> +		return 0;
-> +
-> +	return rmqueue_compact(preferred_zone, nr_request,
-> +			       allocflags_to_migratetype(gfp_mask), freepages);
-> +}
-> +EXPORT_SYMBOL(alloc_pages_compact);
->
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
