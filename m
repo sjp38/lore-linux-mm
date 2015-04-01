@@ -1,60 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E7BAA6B0032
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 18:00:19 -0400 (EDT)
-Received: by wiaa2 with SMTP id a2so83120014wia.0
-        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 15:00:19 -0700 (PDT)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id g6si5512061wjn.160.2015.04.01.15.00.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 01 Apr 2015 15:00:18 -0700 (PDT)
-Date: Wed, 1 Apr 2015 22:59:50 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH] mm/migrate: Mark unmap_and_move() "noinline" to avoid
- ICE in gcc 4.7.3
-Message-ID: <20150401215950.GC4027@n2100.arm.linux.org.uk>
-References: <CANMBJr68dsbYvvHUzy6U4m4fEM6nq8dVHBH4kLQ=0c4QNOhLPQ@mail.gmail.com>
- <20150327002554.GA5527@verge.net.au>
- <20150327100612.GB1562@arm.com>
- <7hbnj99epe.fsf@deeprootsystems.com>
- <CAKv+Gu_ZHZFm-1eXn+r7fkEHOxqSmj+Q+Mmy7k6LK531vSfAjQ@mail.gmail.com>
- <7h8uec95t2.fsf@deeprootsystems.com>
- <alpine.DEB.2.10.1504011130030.14762@ayla.of.borg>
- <551BBEC5.7070801@arm.com>
- <20150401124007.20c440cc43a482f698f461b8@linux-foundation.org>
- <7hwq1v4iq4.fsf@deeprootsystems.com>
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 61D5B6B0032
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 18:02:51 -0400 (EDT)
+Received: by wiaa2 with SMTP id a2so83183267wia.0
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 15:02:51 -0700 (PDT)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id r6si5558032wjx.75.2015.04.01.15.02.49
+        for <linux-mm@kvack.org>;
+        Wed, 01 Apr 2015 15:02:50 -0700 (PDT)
+Date: Thu, 2 Apr 2015 01:02:46 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: use PageAnon() and PageKsm() helpers in
+ page_anon_vma()
+Message-ID: <20150401220246.GA19758@node.dhcp.inet.fi>
+References: <1427802647-16764-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <alpine.DEB.2.11.1503310810320.13959@gentwo.org>
+ <20150331143534.GA10808@node.dhcp.inet.fi>
+ <20150331133338.ed4ab6cc9a5ab6f6ad4301eb@linux-foundation.org>
+ <20150401115054.GB17153@node.dhcp.inet.fi>
+ <20150401125745.421a6af61bd20246a76c5b83@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <7hwq1v4iq4.fsf@deeprootsystems.com>
+In-Reply-To: <20150401125745.421a6af61bd20246a76c5b83@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kevin Hilman <khilman@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Marc Zyngier <marc.zyngier@arm.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <Will.Deacon@arm.com>, Simon Horman <horms@verge.net.au>, Tyler Baker <tyler.baker@linaro.org>, Nishanth Menon <nm@ti.com>, Arnd Bergmann <arnd@arndb.de>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Magnus Damm <magnus.damm@gmail.com>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux Kernel Development <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>
 
-On Wed, Apr 01, 2015 at 02:54:59PM -0700, Kevin Hilman wrote:
-> Your patch on top of Geert's still compiles fine for me with gcc-4.7.3.
-> However, I'm not sure how specific we can be on the versions.  
+On Wed, Apr 01, 2015 at 12:57:45PM -0700, Andrew Morton wrote:
+> On Wed, 1 Apr 2015 14:50:54 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 > 
-> /me goes to test a few more compilers...   OK...
+> > >From adc384977898173d65c2567fc5eb421da9b272e0 Mon Sep 17 00:00:00 2001
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > Date: Wed, 1 Apr 2015 14:33:56 +0300
+> > Subject: [PATCH] mm: uninline and cleanup page-mapping related helpers
+> > 
+> > Most-used page->mapping helper -- page_mapping() -- has already
+> > uninlined. Let's uninline also page_rmapping() and page_anon_vma().
+> > It saves us depending on configuration around 400 bytes in text:
+> > 
+> >    text	   data	    bss	    dec	    hex	filename
+> >  660318	  99254	 410000	1169572	 11d8a4	mm/built-in.o-before
+> >  659854	  99254	 410000	1169108	 11d6d4	mm/built-in.o
 > 
-> ICE: 4.7.1, 4.7.3, 4.8.3
-> OK: 4.6.3, 4.9.2, 4.9.3
+> Well, code size isn't the only thing to care about.  Some functions
+> really should be inlined for performance reasons even if that makes the
+> overall code larger.  But the changes you're proposing here look OK to
+> me.
 > 
-> The diff below[2] on top of yours compiles fine here and at least covers
-> the compilers I *know* to trigger the ICE.
+> > As side effect page_anon_vma() now works properly on tail pages.
+> 
+> Let's fix the bug in a separate patch, please.  One which can be
+> backported to earlier kernels if that should be needed.  ie: it should
+> precede any uninlining.
 
-Interesting.  I'm using stock gcc 4.7.4 here, though I'm not building
--next (only mainline + my tree + arm-soc) and it hasn't shown a problem
-yet.
+The bug is not triggerable in current upsteam. AFAIK, we don't call
+page_anon_vma() on tail pages of THP, since we don't map THP with PTEs
+yet. For rest of cases we will get NULL, which is valid answer.
 
-I think we need to ask the question: is the bug in stock GCC or Linaro
-GCC?  If it's not in stock GCC, then it's a GCC vendor problem :)
+Do you still want "page = compound_head(page);" line in separate patch?
 
 -- 
-FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
-according to speedtest.net.
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
