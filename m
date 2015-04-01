@@ -1,58 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A2FB6B0032
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 15:57:47 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so13827911pde.3
-        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 12:57:47 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ny12si4252706pab.202.2015.04.01.12.57.46
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id C2B3F6B0032
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 16:09:46 -0400 (EDT)
+Received: by pactp5 with SMTP id tp5so61778664pac.1
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 13:09:46 -0700 (PDT)
+Received: from mail-pd0-x233.google.com (mail-pd0-x233.google.com. [2607:f8b0:400e:c02::233])
+        by mx.google.com with ESMTPS id fa2si4301854pbd.12.2015.04.01.13.09.45
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Apr 2015 12:57:46 -0700 (PDT)
-Date: Wed, 1 Apr 2015 12:57:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: use PageAnon() and PageKsm() helpers in
- page_anon_vma()
-Message-Id: <20150401125745.421a6af61bd20246a76c5b83@linux-foundation.org>
-In-Reply-To: <20150401115054.GB17153@node.dhcp.inet.fi>
-References: <1427802647-16764-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<alpine.DEB.2.11.1503310810320.13959@gentwo.org>
-	<20150331143534.GA10808@node.dhcp.inet.fi>
-	<20150331133338.ed4ab6cc9a5ab6f6ad4301eb@linux-foundation.org>
-	<20150401115054.GB17153@node.dhcp.inet.fi>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 01 Apr 2015 13:09:45 -0700 (PDT)
+Received: by pdea3 with SMTP id a3so14123153pde.3
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 13:09:45 -0700 (PDT)
+Date: Wed, 1 Apr 2015 13:09:32 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: kernel 3.18.10: THP refcounting bug
+In-Reply-To: <20150401134132.GB17886@node.dhcp.inet.fi>
+Message-ID: <alpine.LSU.2.11.1504011236220.4832@eggly.anvils>
+References: <551BBE1A.4040404@profihost.ag> <20150401113122.GA17153@node.dhcp.inet.fi> <551BDC4F.4010000@profihost.ag> <20150401134132.GB17886@node.dhcp.inet.fi>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>
+Cc: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, linux-mm@kvack.org, sasha.levin@oracle.com, Hugh Dickins <hughd@google.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-On Wed, 1 Apr 2015 14:50:54 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+On Wed, 1 Apr 2015, Kirill A. Shutemov wrote:
+> On Wed, Apr 01, 2015 at 01:53:51PM +0200, Stefan Priebe - Profihost AG wrote:
+> > Hi,
+> > 
+> > while using 3.18.9 i got several times the following stack trace:
+> > 
+> > kernel BUG at mm/filemap.c:203!
+> > invalid opcode: 0000 [#1] SMP
+> > Modules linked in: dm_mod netconsole usbhid sd_mod sg ata_generic
+> > virtio_net virtio_scsi uhci_hcd ehci_hcd usbcore virtio_pci usb_common
+> > virtio_ring ata_piix virtio floppy
+> > CPU: 3 PID: 1 Comm: busybox Tainted: G    B          3.18.9 #1
 
-> >From adc384977898173d65c2567fc5eb421da9b272e0 Mon Sep 17 00:00:00 2001
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Date: Wed, 1 Apr 2015 14:33:56 +0300
-> Subject: [PATCH] mm: uninline and cleanup page-mapping related helpers
+The "B" in that Tainted string means that earlier Stefan got a
+"Bad page" report.  Please look for that in /var/log/messages,
+and post us what it said.
+
+It's not at all surprising to hit a BUG_ON(page_mapped(page)) after we
+already know that the page refcounting is messed up; though of course
+it's possible that the two are unrelated (and perhaps weeks apart).
+
+> > Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
+> > rel-1.7.5.1-0-g8936dbb-20141113_115728-nilsson.home.kraxel.org 04/01/2014
+> > task: ffff880137b98000 ti: ffff880137b94000 task.ti: ffff880137b94000
+> > RIP: 0010:[<ffffffff81134495>]  [<ffffffff81134495>]
+> > __delete_from_page_cache+0x2b5/0x2c0
+> > RSP: 0018:ffff880137b97be8  EFLAGS: 00010046
+> > RAX: 0000000000000000 RBX: 0000000000000003 RCX: 00000000ffffffd0
+> > RDX: 0000000000000030 RSI: 000000000000000a RDI: ffff88013f9696c0
+> > RBP: ffff880137b97c38 R08: 0000000000000000 R09: ffffea0002e927c0
+> > R10: ffff8800bba92da0 R11: ffff880137b97c00 R12: ffffea0002e92480
+> > R13: ffff8800bba8c4c8 R14: 0000000000000000 R15: ffff8800bba8c4d0
+> > FS:  00007f5a79e0b700(0000) GS:ffff880139060000(0000) knlGS:0000000000000000
+> > CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> > CR2: 00000000023c3138 CR3: 00000000b84ba000 CR4: 00000000000006e0
+> > Stack:
+> >  000000000000000e ffff880137b97d48 ffff8800bba92da0 ffff8800bba92dc8
+> >  ffff880137b97c68 ffffea0002e92480 ffff8800bba8c4c8 0000000000000000
+> >  0000000000000000 0000000000000000 ffff880137b97c68 ffffffff81134604
+> > Call Trace:
+> >  [<ffffffff81134604>] delete_from_page_cache+0x44/0x70
+> >  [<ffffffff811413cb>] truncate_inode_page+0x5b/0x90
+> >  [<ffffffff811415a4>] truncate_inode_pages_range+0x1a4/0x6c0
+> >  [<ffffffff81141b45>] truncate_inode_pages+0x15/0x20
+> >  [<ffffffff81141c4c>] truncate_inode_pages_final+0x3c/0x50
+> >  [<ffffffff811bb83c>] evict+0x16c/0x180
+> >  [<ffffffff811bbed5>] iput+0x105/0x190
+> >  [<ffffffff811b0c19>] do_unlinkat+0x189/0x2b0
+> >  [<ffffffff811b1a46>] SyS_unlink+0x16/0x20
+> >  [<ffffffff815f6592>] system_call_fastpath+0x12/0x17
+> > Code: 66 0f 1f 44 00 00 48 8b 75 c0 4c 89 ff e8 e4 5d 1f 00 84 c0 0f 85
+> > 5e fe ff ff e9 41 fe ff ff 0f 1f 80 00 00 00 00 e8 75 70 4b 00 <0f> 0b
+> > 66 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 55 83 e2 fd 48
+> > RIP  [<ffffffff81134495>] __delete_from_page_cache+0x2b5/0x2c0
+> >  RSP <ffff880137b97be8>
+> > ---[ end trace a4727cb71335dbd4 ]---
+> > 
+> > Is this a known bug?
 > 
-> Most-used page->mapping helper -- page_mapping() -- has already
-> uninlined. Let's uninline also page_rmapping() and page_anon_vma().
-> It saves us depending on configuration around 400 bytes in text:
+> +Hugh, Konstantin.
 > 
->    text	   data	    bss	    dec	    hex	filename
->  660318	  99254	 410000	1169572	 11d8a4	mm/built-in.o-before
->  659854	  99254	 410000	1169108	 11d6d4	mm/built-in.o
+> Nothing I recognize. Looks somewhat like[1], but not really.
+> 
+> Do you have a way to reproduce? What fs it was?
+> 
+> [1] lkml.kernel.org/g/20140603042121.GA27177@redhat.com
 
-Well, code size isn't the only thing to care about.  Some functions
-really should be inlined for performance reasons even if that makes the
-overall code larger.  But the changes you're proposing here look OK to
-me.
+I put a lot of thought into that one, but never found a convincing
+answer.  Either it went away, or Dave grew tired of re-reporting it
+and getting no fix.
 
-> As side effect page_anon_vma() now works properly on tail pages.
+For an instant, I wondered if your recent discovery of page mapcount
+being used for two purposes on a compound tail could account for these;
+but I don't think so, Stefan's stacktrace shows we're dealing with an
+ordinary filesystem page, which should be neither compound nor tail.
 
-Let's fix the bug in a separate patch, please.  One which can be
-backported to earlier kernels if that should be needed.  ie: it should
-precede any uninlining.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
