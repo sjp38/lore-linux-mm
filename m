@@ -1,43 +1,64 @@
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH] mm: kill kmemcheck
-Date: Thu, 12 Mar 2015 09:47:54 -0400
-Message-ID: <20150312094754.458606bb@gandalf.local.home>
-References: <1426074547-21888-1-git-send-email-sasha.levin@oracle.com>
- <1426132192.25936.7.camel@ellerman.id.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-Return-path: <linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org>
-In-Reply-To: <1426132192.25936.7.camel@ellerman.id.au>
-List-Unsubscribe: <https://lists.ozlabs.org/options/linuxppc-dev>,
- <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=unsubscribe>
-List-Archive: <http://lists.ozlabs.org/pipermail/linuxppc-dev/>
-List-Post: <mailto:linuxppc-dev@lists.ozlabs.org>
-List-Help: <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=help>
-List-Subscribe: <https://lists.ozlabs.org/listinfo/linuxppc-dev>,
- <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=subscribe>
-Errors-To: linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org
-Sender: "Linuxppc-dev"
- <linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, Geert Uytterhoeven <geert+renesas@glider.be>, "open list:SUPERH" <linux-sh@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Mackerras <paulus@samba.org>, Pavel Machek <pavel@ucw.cz>, Miklos Szeredi <mszeredi@suse.cz>, Christoph Lameter <cl@linux.com>, Marek Szyprowski <m.szyprowski@samsung.com>, "open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Russell King <linux@arm.linux.org.uk>, Jingoo Han <jg1.han@samsung.com>, James Morris <jmorris@namei.org>, Chris Bainbridge <chris.bainbridge@gmail.com>, Antti Palosaari <crope@iki.fi>, Mel Gorman <mgorman@suse.de>, Ritesh Harjani <ritesh.harjani@gmail.com>, Shaohua Li <shli@kernel.org>, Alexander Duyck <alexander.h.duyck@intel.com>, Wang Nan <wangnan0@huawei>
-List-Id: linux-mm.kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id D71A46B0038
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 00:23:04 -0400 (EDT)
+Received: by pdbni2 with SMTP id ni2so42180448pdb.1
+        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 21:23:04 -0700 (PDT)
+Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
+        by mx.google.com with ESMTPS id vn7si989978pbc.27.2015.03.31.21.23.03
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 31 Mar 2015 21:23:04 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp ([10.7.69.201])
+	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t314N0BU014786
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Wed, 1 Apr 2015 13:23:00 +0900 (JST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v3 3/3] mm: hugetlb: cleanup using PageHugeActive flag
+Date: Wed, 1 Apr 2015 03:27:38 +0000
+Message-ID: <20150401032733.GA16407@hori1.linux.bs1.fc.nec.co.jp>
+References: <1427791840-11247-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1427791840-11247-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20150331140814.b939a57340cb1d3bf6b32c9d@linux-foundation.org>
+In-Reply-To: <20150331140814.b939a57340cb1d3bf6b32c9d@linux-foundation.org>
+Content-Language: ja-JP
+Content-Type: multipart/mixed;
+	boundary="_002_20150401032733GA16407hori1linuxbs1fcneccojp_"
+MIME-Version: 1.0
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-T24gVGh1LCAxMiBNYXIgMjAxNSAxNDo0OTo1MiArMTEwMApNaWNoYWVsIEVsbGVybWFuIDxtcGVA
-ZWxsZXJtYW4uaWQuYXU+IHdyb3RlOgo+IAo+ID5Gcm9tIERvY3VtZW50YXRpb24va2FzYW4udHh0
-Ogo+IAo+ICAgICB0aGVyZWZvcmUgeW91IHdpbGwgbmVlZCBhIGNlcnRhaW4gdmVyc2lvbiBvZiBH
-Q0MgPiA0LjkuMgo+IAo+IEFGQUlLIGdjYyA0LjkuMyBoYXNuJ3QgYmVlbiByZWxlYXNlZCB5ZXQu
-IChPciBkb2VzIGl0IG1lYW4gPj0gNC45LjIgPykKCkl0IG1lYW5zIDQuOS4yLiBJIGFsc28gZmVl
-bCB0aGF0IHRoaXMgbWFrZXMgaXQgdG9vIHByZW1hdHVyZSB0byByZW1vdmUKa21lbWNoZWNrLCBh
-cyBub3QgZXZlcnlvbmUgKGluY2x1ZGluZyBteXNlbGYpIGhhcyB0aGUgbGF0ZXN0IGFuZApncmVh
-dGVzdCBnY2Mgb24gdGhlaXIgc3lzdGVtcy4KCj4gCj4gQ2FuIHdlIHBlcmhhcHMgd2FpdCB1bnRp
-bCB0aGVyZSBpcyBhIHJlbGVhc2VkIHZlcnNpb24gb2YgR0NDIHRoYXQgc3VwcG9ydHMKPiBLQVNh
-bj8gQW5kIG1heWJlIHRoZW4gYSB0b3VjaCBsb25nZXIgc28gZm9sa3MgY2FuIHRlc3QgaXQgd29y
-a3Mgb24gdGhlaXIKPiBwbGF0Zm9ybXM/Cj4gCgpOb3RlLCBJIHJlcGxpZWQgdG8gdGhpcyBjdXR0
-aW5nIG91dCB0aGUgQ2MncyB0byB0aGUgaW5kaXZpZHVhbHMgc28gdGhhdAppdCBjYW4gaGF2ZSBh
-IHdpZGVyIGF1ZGllbmNlISAoZmlndXJlIG91dCB3aGF0IEkgbWVhbiBieSB0aGF0KS4gWW91IGNh
-bgpzZWUgbXkgcmVwbHkgb24gTEtNTCAoaGludCwgeW91IHdvbnQgc2VlIHRoZSBvcmlnaW5hbCBl
-bWFpbCwgb3IgdGhpcwpjdXJyZW50IHRocmVhZCBmb3IgdGhhdCBtYXR0ZXIpLgoKLS0gU3RldmUK
-X19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX18KTGludXhwcGMt
-ZGV2IG1haWxpbmcgbGlzdApMaW51eHBwYy1kZXZAbGlzdHMub3psYWJzLm9yZwpodHRwczovL2xp
-c3RzLm96bGFicy5vcmcvbGlzdGluZm8vbGludXhwcGMtZGV2
+--_002_20150401032733GA16407hori1linuxbs1fcneccojp_
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-Transfer-Encoding: quoted-printable
+
+
+--_002_20150401032733GA16407hori1linuxbs1fcneccojp_
+Content-Type: text/plain; name="ATT00001.txt"
+Content-Description: ATT00001.txt
+Content-Disposition: attachment; filename="ATT00001.txt"; size=531;
+	creation-date="Wed, 01 Apr 2015 03:27:38 GMT";
+	modification-date="Wed, 01 Apr 2015 03:27:38 GMT"
+Content-ID: <BF38411DCC452645A09A85A66E138AD7@gisp.nec.co.jp>
+Content-Transfer-Encoding: base64
+
+T24gVHVlLCBNYXIgMzEsIDIwMTUgYXQgMDI6MDg6MTRQTSAtMDcwMCwgQW5kcmV3IE1vcnRvbiB3
+cm90ZToNCj4gT24gVHVlLCAzMSBNYXIgMjAxNSAwODo1MDo0NiArMDAwMCBOYW95YSBIb3JpZ3Vj
+aGkgPG4taG9yaWd1Y2hpQGFoLmpwLm5lYy5jb20+IHdyb3RlOg0KPiANCj4gPiBOb3cgd2UgaGF2
+ZSBhbiBlYXN5IGFjY2VzcyB0byBodWdlcGFnZXMnIGFjdGl2ZW5lc3MsIHNvIGV4aXN0aW5nIGhl
+bHBlcnMgdG8NCj4gPiBnZXQgdGhlIGluZm9ybWF0aW9uIGNhbiBiZSBjbGVhbmVkIHVwLg0KPiAN
+Cj4gU2ltaWxhcmx5LiAgQWxzbyBJIGFkYXB0ZWQgdGhlIGNvZGUgdG8gZml0IGluIHdpdGgNCj4g
+aHR0cDovL296bGFicy5vcmcvfmFrcG0vbW1vdHMvYnJva2VuLW91dC9tbS1jb25zb2xpZGF0ZS1h
+bGwtcGFnZS1mbGFncy1oZWxwZXJzLWluLWxpbnV4LXBhZ2UtZmxhZ3NoLnBhdGNoDQoNClRoYW5r
+cywgbW92aW5nIHRoZSBkZWNsYXJhdGlvbi9kZWZpbml0aW9uIHRvIGluY2x1ZGUvbGludXgvcGFn
+ZS1mbGFncy5oIGlzIE9LLg0K
+
+--_002_20150401032733GA16407hori1linuxbs1fcneccojp_--
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
