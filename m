@@ -1,81 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 67FB26B006C
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 18:53:05 -0400 (EDT)
-Received: by pactp5 with SMTP id tp5so65230768pac.1
-        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 15:53:05 -0700 (PDT)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id td9si4729933pac.213.2015.04.01.15.53.02
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B5476B0038
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 19:13:59 -0400 (EDT)
+Received: by pddn5 with SMTP id n5so69675239pdd.2
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 16:13:59 -0700 (PDT)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id n7si4822007pdr.125.2015.04.01.16.13.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 01 Apr 2015 15:53:04 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp ([10.7.69.201])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t31Mr0QL002875
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Thu, 2 Apr 2015 07:53:00 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm: numa: disable change protection for vma(VM_HUGETLB)
-Date: Wed, 1 Apr 2015 04:14:27 +0000
-Message-ID: <20150401041426.GA16703@hori1.linux.bs1.fc.nec.co.jp>
-References: <1427708426-31610-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20150330102802.GQ4701@suse.de> <55192885.5010608@gmail.com>
- <20150330115901.GR4701@suse.de>
- <20150331014554.GA8128@hori1.linux.bs1.fc.nec.co.jp>
- <20150331143521.652d655e396d961410179d4d@linux-foundation.org>
-In-Reply-To: <20150331143521.652d655e396d961410179d4d@linux-foundation.org>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <1248571FEC3F644894A7F2606ACC02AA@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Apr 2015 16:13:58 -0700 (PDT)
+Received: by pactp5 with SMTP id tp5so65656159pac.1
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 16:13:58 -0700 (PDT)
+Date: Wed, 1 Apr 2015 16:13:47 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCHv4 12/24] thp: PMD splitting without splitting compound
+ page
+In-Reply-To: <20150401131753.GD17153@node.dhcp.inet.fi>
+Message-ID: <alpine.LSU.2.11.1504011600120.5710@eggly.anvils>
+References: <1425486792-93161-1-git-send-email-kirill.shutemov@linux.intel.com> <1425486792-93161-13-git-send-email-kirill.shutemov@linux.intel.com> <87lhicbbf8.fsf@linux.vnet.ibm.com> <20150401131753.GD17153@node.dhcp.inet.fi>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Naoya Horiguchi <nao.horiguchi@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Mar 31, 2015 at 02:35:21PM -0700, Andrew Morton wrote:
-> On Tue, 31 Mar 2015 01:45:55 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec=
-.com> wrote:
->=20
-> > Currently when a process accesses to hugetlb range protected with PROTN=
-ONE,
-> > unexpected COWs are triggered, which finally put hugetlb subsystem into
-> > broken/uncontrollable state, where for example h->resv_huge_pages is su=
-btracted
-> > too much and wrapped around to a very large number, and free hugepage p=
-ool
-> > is no longer maintainable.
-> >=20
-> > This patch simply stops changing protection for vma(VM_HUGETLB) to fix =
-the
-> > problem. And this also allows us to avoid useless overhead of minor fau=
-lts.
-> >=20
+On Wed, 1 Apr 2015, Kirill A. Shutemov wrote:
+> On Wed, Apr 01, 2015 at 12:08:35PM +0530, Aneesh Kumar K.V wrote:
+> > 
+> > With this we now have pte mapping part of a compound page(). Now the
+> > gneric gup implementation does
+> > 
+> > gup_pte_range()
+> > 	ptem = ptep = pte_offset_map(&pmd, addr);
+> > 	do {
+> > 
+> > ....
 > > ...
-> >
-> > --- a/kernel/sched/fair.c
-> > +++ b/kernel/sched/fair.c
-> > @@ -2161,8 +2161,10 @@ void task_numa_work(struct callback_head *work)
-> >  		vma =3D mm->mmap;
-> >  	}
-> >  	for (; vma; vma =3D vma->vm_next) {
-> > -		if (!vma_migratable(vma) || !vma_policy_mof(vma))
-> > +		if (!vma_migratable(vma) || !vma_policy_mof(vma) ||
-> > +			is_vm_hugetlb_page(vma)) {
-> >  			continue;
-> > +		}
-> > =20
-> >  		/*
-> >  		 * Shared library pages mapped by multiple processes are not
->=20
-> Which kernel version(s) need this patch?
+> > 		if (!page_cache_get_speculative(page))
+> > 			goto pte_unmap;
+> > .....
+> >         }
+> > 
+> > That page_cache_get_speculative will fail in our case because it does
+> > if (unlikely(!get_page_unless_zero(page))) on a tail page. ??
+> 
+> Nice catch, thanks.
 
-I don't bisect completely, but the problem this patch is mentioning is visi=
-ble
-since v4.0-rc1 (not reproduced at v3.19).
+Indeed; but it's not the generic gup implementation,
+it's just the generic fast gup implementation.
 
-Thanks,
-Naoya Horiguchi=
+> 
+> But the problem is not exclusive to my patchset. In current kernel some
+> drivers (sound, for instance) map compound pages with PTEs.
+
+Nobody has cared whether fast gup works on those, just so long as
+slow gup works on those without VM_IO | VM_PFNMAP.  Whereas people did
+care that fast gup work on THPs, so gave them more complicated handling.
+
+> 
+> We can try to get page_cache_get_speculative() work on PTE-mapped tail
+> pages. Untested patch is below.
+
+I didn't check through; but we'll agree that it's sad to see the
+complexity you've managed to reduce elsewhere now popping up again
+in other places.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
