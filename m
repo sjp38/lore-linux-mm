@@ -1,61 +1,278 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id D71A46B0038
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 00:23:04 -0400 (EDT)
-Received: by pdbni2 with SMTP id ni2so42180448pdb.1
-        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 21:23:04 -0700 (PDT)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id vn7si989978pbc.27.2015.03.31.21.23.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 31 Mar 2015 21:23:04 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp ([10.7.69.201])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t314N0BU014786
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Wed, 1 Apr 2015 13:23:00 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v3 3/3] mm: hugetlb: cleanup using PageHugeActive flag
-Date: Wed, 1 Apr 2015 03:27:38 +0000
-Message-ID: <20150401032733.GA16407@hori1.linux.bs1.fc.nec.co.jp>
-References: <1427791840-11247-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1427791840-11247-4-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20150331140814.b939a57340cb1d3bf6b32c9d@linux-foundation.org>
-In-Reply-To: <20150331140814.b939a57340cb1d3bf6b32c9d@linux-foundation.org>
-Content-Language: ja-JP
-Content-Type: multipart/mixed;
-	boundary="_002_20150401032733GA16407hori1linuxbs1fcneccojp_"
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F9416B006C
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 00:23:24 -0400 (EDT)
+Received: by pdmh5 with SMTP id h5so29740292pdm.3
+        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 21:23:24 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id 1si995111pdh.152.2015.03.31.21.23.21
+        for <linux-mm@kvack.org>;
+        Tue, 31 Mar 2015 21:23:23 -0700 (PDT)
+Message-ID: <551B72B7.2030209@lge.com>
+Date: Wed, 01 Apr 2015 13:23:19 +0900
+From: Gioh Kim <gioh.kim@lge.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH] add generic callbacks into compaction
+References: <034101d06c2c$9132f0e0$b398d2a0$@alibaba-inc.com> <034201d06c2e$6435d790$2ca186b0$@alibaba-inc.com>
+In-Reply-To: <034201d06c2e$6435d790$2ca186b0$@alibaba-inc.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
-
---_002_20150401032733GA16407hori1linuxbs1fcneccojp_
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: quoted-printable
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
 
---_002_20150401032733GA16407hori1linuxbs1fcneccojp_
-Content-Type: text/plain; name="ATT00001.txt"
-Content-Description: ATT00001.txt
-Content-Disposition: attachment; filename="ATT00001.txt"; size=531;
-	creation-date="Wed, 01 Apr 2015 03:27:38 GMT";
-	modification-date="Wed, 01 Apr 2015 03:27:38 GMT"
-Content-ID: <BF38411DCC452645A09A85A66E138AD7@gisp.nec.co.jp>
-Content-Transfer-Encoding: base64
 
-T24gVHVlLCBNYXIgMzEsIDIwMTUgYXQgMDI6MDg6MTRQTSAtMDcwMCwgQW5kcmV3IE1vcnRvbiB3
-cm90ZToNCj4gT24gVHVlLCAzMSBNYXIgMjAxNSAwODo1MDo0NiArMDAwMCBOYW95YSBIb3JpZ3Vj
-aGkgPG4taG9yaWd1Y2hpQGFoLmpwLm5lYy5jb20+IHdyb3RlOg0KPiANCj4gPiBOb3cgd2UgaGF2
-ZSBhbiBlYXN5IGFjY2VzcyB0byBodWdlcGFnZXMnIGFjdGl2ZW5lc3MsIHNvIGV4aXN0aW5nIGhl
-bHBlcnMgdG8NCj4gPiBnZXQgdGhlIGluZm9ybWF0aW9uIGNhbiBiZSBjbGVhbmVkIHVwLg0KPiAN
-Cj4gU2ltaWxhcmx5LiAgQWxzbyBJIGFkYXB0ZWQgdGhlIGNvZGUgdG8gZml0IGluIHdpdGgNCj4g
-aHR0cDovL296bGFicy5vcmcvfmFrcG0vbW1vdHMvYnJva2VuLW91dC9tbS1jb25zb2xpZGF0ZS1h
-bGwtcGFnZS1mbGFncy1oZWxwZXJzLWluLWxpbnV4LXBhZ2UtZmxhZ3NoLnBhdGNoDQoNClRoYW5r
-cywgbW92aW5nIHRoZSBkZWNsYXJhdGlvbi9kZWZpbml0aW9uIHRvIGluY2x1ZGUvbGludXgvcGFn
-ZS1mbGFncy5oIGlzIE9LLg0K
+2015-04-01 i??i?? 12:46i?? Hillf Danton i?'(e??) i?' e,?:
+>>
+>> I sent a patch about page allocation for less fragmentation.
+>> http://permalink.gmane.org/gmane.linux.kernel.mm/130599
+>>
+>> It proposes a page allocator allocates pages in the same pageblock
+>> for the drivers to move their unmovable pages. Some drivers which comsumes many pages
+>> and increases system fragmentation use the allocator to move their pages to
+>> decrease fragmentation.
+>>
+>> I think I can try another approach.
+>> There is a compaction code for balloon pages.
+>> But the compaction code cannot migrate pages of other drivers.
+>> If there is a generic migration framework applicable to any drivers,
+>> drivers can register their migration functions.
+>> And the compaction can migrate movable pages and also driver's pages.
+>>
+>> I'm not familiar with virtualization so I couldn't test this patch yet.
+>
+> A RFC, no?
 
---_002_20150401032733GA16407hori1linuxbs1fcneccojp_--
+YES, this is a RFC. It's my fault. I'm sorry.
+
+>> But if mm developers agree with this approach, I will complete this patch.
+>>
+>> I would do appreciate any feedback.
+>>
+>> Signed-off-by: Gioh Kim <gioh.kim@lge.com>
+>> ---
+>>   drivers/virtio/virtio_balloon.c    |    2 ++
+>>   include/linux/balloon_compaction.h |   23 +++++++++---
+>>   include/linux/fs.h                 |    3 ++
+>>   include/linux/pagemap.h            |   26 ++++++++++++++
+>>   mm/balloon_compaction.c            |   68 ++++++++++++++++++++++++++++++++++--
+>>   mm/compaction.c                    |    7 ++--
+>>   mm/migrate.c                       |   24 ++++++-------
+>>   7 files changed, 129 insertions(+), 24 deletions(-)
+>>
+>> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+>> index 0413157..cd9b8e4 100644
+>> --- a/drivers/virtio/virtio_balloon.c
+>> +++ b/drivers/virtio/virtio_balloon.c
+>> @@ -486,6 +486,8 @@ static int virtballoon_probe(struct virtio_device *vdev)
+>>
+>>   	balloon_devinfo_init(&vb->vb_dev_info);
+>>   #ifdef CONFIG_BALLOON_COMPACTION
+>> +	vb->vb_dev_info.mapping = balloon_mapping_alloc(&vb->vb_dev_info,
+>> +							&balloon_aops);
+>>   	vb->vb_dev_info.migratepage = virtballoon_migratepage;
+>>   #endif
+>>
+>> diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+>> index 9b0a15d..0af32b3 100644
+>> --- a/include/linux/balloon_compaction.h
+>> +++ b/include/linux/balloon_compaction.h
+>> @@ -62,6 +62,7 @@ struct balloon_dev_info {
+>>   	struct list_head pages;		/* Pages enqueued & handled to Host */
+>>   	int (*migratepage)(struct balloon_dev_info *, struct page *newpage,
+>>   			struct page *page, enum migrate_mode mode);
+>> +	struct address_space *mapping;
+>
+> Better if a comment line is added.
+
+I got it.
+
+>>   };
+>>
+>>   extern struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info);
+>> @@ -76,10 +77,22 @@ static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
+>>   }
+>>
+>>   #ifdef CONFIG_BALLOON_COMPACTION
+>> -extern bool balloon_page_isolate(struct page *page);
+>> -extern void balloon_page_putback(struct page *page);
+>> -extern int balloon_page_migrate(struct page *newpage,
+>> -				struct page *page, enum migrate_mode mode);
+>> +extern const struct address_space_operations balloon_aops;
+>> +extern int balloon_page_isolate(struct page *page);
+>> +extern int balloon_page_putback(struct page *page);
+>> +extern int balloon_page_migrate(struct address_space *mapping,
+>> +				struct page *newpage,
+>> +				struct page *page,
+>> +				enum migrate_mode mode);
+>> +
+>> +extern struct address_space
+>> +*balloon_mapping_alloc(struct balloon_dev_info *b_dev_info,
+>> +		       const struct address_space_operations *a_ops);
+>> +
+>> +static inline void balloon_mapping_free(struct address_space *balloon_mapping)
+>> +{
+>> +	kfree(balloon_mapping);
+>> +}
+>>
+>>   /*
+>>    * __is_movable_balloon_page - helper to perform @page PageBalloon tests
+>> @@ -123,6 +136,7 @@ static inline bool isolated_balloon_page(struct page *page)
+>>   static inline void balloon_page_insert(struct balloon_dev_info *balloon,
+>>   				       struct page *page)
+>>   {
+>> +	page->mapping = balloon->mapping;
+>>   	__SetPageBalloon(page);
+>>   	SetPagePrivate(page);
+>>   	set_page_private(page, (unsigned long)balloon);
+>> @@ -139,6 +153,7 @@ static inline void balloon_page_insert(struct balloon_dev_info *balloon,
+>>    */
+>>   static inline void balloon_page_delete(struct page *page)
+>>   {
+>> +	page->mapping = NULL;
+>>   	__ClearPageBalloon(page);
+>>   	set_page_private(page, 0);
+>>   	if (PagePrivate(page)) {
+>> diff --git a/include/linux/fs.h b/include/linux/fs.h
+>> index b4d71b5..de463b9 100644
+>> --- a/include/linux/fs.h
+>> +++ b/include/linux/fs.h
+>> @@ -368,6 +368,9 @@ struct address_space_operations {
+>>   	 */
+>>   	int (*migratepage) (struct address_space *,
+>>   			struct page *, struct page *, enum migrate_mode);
+>> +	int (*isolatepage)(struct page *);
+>> +	int (*putbackpage)(struct page *);
+>> +
+>>   	int (*launder_page) (struct page *);
+>>   	int (*is_partially_uptodate) (struct page *, unsigned long,
+>>   					unsigned long);
+>> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+>> index 4b3736f..715b5b2 100644
+>> --- a/include/linux/pagemap.h
+>> +++ b/include/linux/pagemap.h
+>> @@ -25,6 +25,7 @@ enum mapping_flags {
+>>   	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
+>>   	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
+>>   	AS_EXITING	= __GFP_BITS_SHIFT + 4, /* final truncate in progress */
+>> +	AS_MIGRATABLE   = __GFP_BITS_SHIFT + 5,
+>>   };
+>>
+>>   static inline void mapping_set_error(struct address_space *mapping, int error)
+>> @@ -54,6 +55,31 @@ static inline int mapping_unevictable(struct address_space *mapping)
+>>   	return !!mapping;
+>>   }
+>>
+>> +static inline void mapping_set_migratable(struct address_space *mapping)
+>> +{
+>> +	set_bit(AS_MIGRATABLE, &mapping->flags);
+>> +}
+>> +
+>> +static inline void mapping_clear_migratable(struct address_space *mapping)
+>> +{
+>> +	clear_bit(AS_MIGRATABLE, &mapping->flags);
+>> +}
+>> +
+>> +static inline int __mapping_ops(struct address_space *mapping)
+>> +{
+>> +	return mapping->a_ops &&
+>> +		mapping->a_ops->migratepage &&
+>> +		mapping->a_ops->isolatepage &&
+>> +		mapping->a_ops->putbackpage;
+>> +}
+>> +
+>> +static inline int mapping_migratable(struct address_space *mapping)
+>> +{
+>> +	if (mapping && __mapping_ops(mapping))
+>
+> s/__mapping_ops/__mapping_migratable/ given naming hurts brain?
+
+Good. I'll change it. Thank you.
+
+>
+>> +		return test_bit(AS_MIGRATABLE, &mapping->flags);
+>> +	return !!mapping;
+>> +}
+>> +
+>>   static inline void mapping_set_exiting(struct address_space *mapping)
+>>   {
+>>   	set_bit(AS_EXITING, &mapping->flags);
+>> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+>> index fcad832..2e9d635 100644
+>> --- a/mm/balloon_compaction.c
+>> +++ b/mm/balloon_compaction.c
+>> @@ -131,8 +131,11 @@ static inline void __putback_balloon_page(struct page *page)
+>>   }
+>>
+>>   /* __isolate_lru_page() counterpart for a ballooned page */
+>> -bool balloon_page_isolate(struct page *page)
+>> +int balloon_page_isolate(struct page *page)
+>>   {
+>> +	if (!balloon_page_movable(page))
+>> +		return false;
+>> +
+>>   	/*
+>>   	 * Avoid burning cycles with pages that are yet under __free_pages(),
+>>   	 * or just got freed under us.
+>> @@ -173,8 +176,11 @@ bool balloon_page_isolate(struct page *page)
+>>   }
+>>
+>>   /* putback_lru_page() counterpart for a ballooned page */
+>> -void balloon_page_putback(struct page *page)
+>> +int balloon_page_putback(struct page *page)
+>>   {
+>> +	if (!isolated_balloon_page(page))
+>> +		return 0;
+>> +
+>>   	/*
+>>   	 * 'lock_page()' stabilizes the page and prevents races against
+>>   	 * concurrent isolation threads attempting to re-isolate it.
+>> @@ -190,15 +196,20 @@ void balloon_page_putback(struct page *page)
+>>   		dump_page(page, "not movable balloon page");
+>>   	}
+>>   	unlock_page(page);
+>> +	return 0;
+>>   }
+>>
+>>   /* move_to_new_page() counterpart for a ballooned page */
+>> -int balloon_page_migrate(struct page *newpage,
+>> +int balloon_page_migrate(struct address_space *mapping,
+>> +			 struct page *newpage,
+>
+> Looks the newly added mapping is not necessary, yes?
+
+Please refer to struct address_space_operations.
+int (*migratepage) (struct address_space *,
+		struct page *, struct page *, enum migrate_mode);
+
+
+>>   			 struct page *page, enum migrate_mode mode)
+>>   {
+>>   	struct balloon_dev_info *balloon = balloon_page_device(page);
+>>   	int rc = -EAGAIN;
+>>
+>> +	if (!isolated_balloon_page(page))
+>> +		return 0;
+>> +
+>>   	/*
+>>   	 * Block others from accessing the 'newpage' when we get around to
+>>   	 * establishing additional references. We should be the only one
+>> @@ -218,4 +229,55 @@ int balloon_page_migrate(struct page *newpage,
+>>   	unlock_page(newpage);
+>>   	return rc;
+>>   }
+>> +
+>> +/* define the balloon_mapping->a_ops callback to allow balloon page migration */
+>> +const struct address_space_operations balloon_aops = {
+>> +	.migratepage = balloon_page_migrate,
+>> +	.isolatepage = balloon_page_isolate,
+>> +	.putbackpage = balloon_page_putback,
+>> +};
+>> +EXPORT_SYMBOL_GPL(balloon_aops);
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
