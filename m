@@ -1,66 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id CA7156B0032
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 17:39:08 -0400 (EDT)
-Received: by pdbni2 with SMTP id ni2so67582533pdb.1
-        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 14:39:08 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id kv3si4530742pbc.61.2015.04.01.14.39.06
-        for <linux-mm@kvack.org>;
-        Wed, 01 Apr 2015 14:39:07 -0700 (PDT)
-Date: Thu, 2 Apr 2015 08:39:02 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [patch 00/12] mm: page_alloc: improve OOM mechanism and policy
-Message-ID: <20150401213902.GE8465@dastard>
-References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
- <20150326195822.GB28129@dastard>
- <20150327150509.GA21119@cmpxchg.org>
- <20150330003240.GB28621@dastard>
- <20150401151920.GB23824@dhcp22.suse.cz>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 752506B0032
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 17:55:03 -0400 (EDT)
+Received: by patj18 with SMTP id j18so64141130pat.2
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 14:55:03 -0700 (PDT)
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com. [209.85.220.46])
+        by mx.google.com with ESMTPS id t17si4585605pdl.223.2015.04.01.14.55.02
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Apr 2015 14:55:02 -0700 (PDT)
+Received: by pacgg7 with SMTP id gg7so64152370pac.0
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 14:55:02 -0700 (PDT)
+From: Kevin Hilman <khilman@kernel.org>
+Subject: Re: [PATCH] mm/migrate: Mark unmap_and_move() "noinline" to avoid ICE in gcc 4.7.3
+References: <20150324004537.GA24816@verge.net.au>
+	<CAKv+Gu-0jPk=KQ4gY32ELc+BVbe=1QdcrwQ+Pb=RkdwO9K3Vkw@mail.gmail.com>
+	<20150324161358.GA694@kahuna> <20150326003939.GA25368@verge.net.au>
+	<20150326133631.GB2805@arm.com>
+	<CANMBJr68dsbYvvHUzy6U4m4fEM6nq8dVHBH4kLQ=0c4QNOhLPQ@mail.gmail.com>
+	<20150327002554.GA5527@verge.net.au> <20150327100612.GB1562@arm.com>
+	<7hbnj99epe.fsf@deeprootsystems.com>
+	<CAKv+Gu_ZHZFm-1eXn+r7fkEHOxqSmj+Q+Mmy7k6LK531vSfAjQ@mail.gmail.com>
+	<7h8uec95t2.fsf@deeprootsystems.com>
+	<alpine.DEB.2.10.1504011130030.14762@ayla.of.borg>
+	<551BBEC5.7070801@arm.com>
+	<20150401124007.20c440cc43a482f698f461b8@linux-foundation.org>
+Date: Wed, 01 Apr 2015 14:54:59 -0700
+In-Reply-To: <20150401124007.20c440cc43a482f698f461b8@linux-foundation.org>
+	(Andrew Morton's message of "Wed, 1 Apr 2015 12:40:07 -0700")
+Message-ID: <7hwq1v4iq4.fsf@deeprootsystems.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150401151920.GB23824@dhcp22.suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Theodore Ts'o <tytso@mit.edu>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Marc Zyngier <marc.zyngier@arm.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <Will.Deacon@arm.com>, Simon Horman <horms@verge.net.au>, Tyler Baker <tyler.baker@linaro.org>, Nishanth Menon <nm@ti.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Magnus Damm <magnus.damm@gmail.com>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux Kernel Development <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, Apr 01, 2015 at 05:19:20PM +0200, Michal Hocko wrote:
-> On Mon 30-03-15 11:32:40, Dave Chinner wrote:
-> > On Fri, Mar 27, 2015 at 11:05:09AM -0400, Johannes Weiner wrote:
-> [...]
-> > > GFP_NOFS sites are currently one of the sites that can deadlock inside
-> > > the allocator, even though many of them seem to have fallback code.
-> > > My reasoning here is that if you *have* an exit strategy for failing
-> > > allocations that is smarter than hanging, we should probably use that.
-> > 
-> > We already do that for allocations where we can handle failure in
-> > GFP_NOFS conditions. It is, however, somewhat useless if we can't
-> > tell the allocator to try really hard if we've already had a failure
-> > and we are already in memory reclaim conditions (e.g. a shrinker
-> > trying to clean dirty objects so they can be reclaimed).
-> > 
-> > From that perspective, I think that this patch set aims force us
-> > away from handling fallbacks ourselves because a) it makes GFP_NOFS
-> > more likely to fail, and b) provides no mechanism to "try harder"
-> > when we really need the allocation to succeed.
-> 
-> You can ask for this "try harder" by __GFP_HIGH flag. Would that help
-> in your fallback case?
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-That dips into GFP_ATOMIC reserves, right? What is the impact on the
-GFP_ATOMIC allocations that need it? We typically see network cards
-fail GFP_ATOMIC allocations before XFS starts complaining about
-allocation failures, so i suspect that this might just make things
-worse rather than better...
+> On Wed, 01 Apr 2015 10:47:49 +0100 Marc Zyngier <marc.zyngier@arm.com> wrote:
+>
+>> > -static int unmap_and_move(new_page_t get_new_page, free_page_t put_new_page,
+>> > -			unsigned long private, struct page *page, int force,
+>> > -			enum migrate_mode mode)
+>> > +static noinline int unmap_and_move(new_page_t get_new_page,
+>> > +				   free_page_t put_new_page,
+>> > +				   unsigned long private, struct page *page,
+>> > +				   int force, enum migrate_mode mode)
+>> >  {
+>> >  	int rc = 0;
+>> >  	int *result = NULL;
+>> > 
+>> 
+>> Ouch. That's really ugly. And on 32bit ARM, we end-up spilling half of
+>> the parameters on the stack, which is not going to help performance
+>> either (not that this would be useful on 32bit ARM anyway...).
+>> 
+>> Any chance you could make this dependent on some compiler detection
+>> mechanism?
+>
+> With my arm compiler (gcc-4.4.4) the patch makes no difference -
+> unmap_and_move() isn't being inlined anyway.
+>
+> How does this look?
+>
+> Kevin, could you please retest?  I might have fat-fingered something...
 
-Cheers,
+Your patch on top of Geert's still compiles fine for me with gcc-4.7.3.
+However, I'm not sure how specific we can be on the versions.  
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+/me goes to test a few more compilers...   OK...
+
+ICE: 4.7.1, 4.7.3, 4.8.3
+OK: 4.6.3, 4.9.2, 4.9.3
+
+The diff below[2] on top of yours compiles fine here and at least covers
+the compilers I *know* to trigger the ICE.
+
+Kevin
+
+
+[1]
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 25fd7f6291de..6e15ae3248e0 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -901,10 +901,10 @@ out:
+ }
+ 
+ /*
+- * gcc-4.7.3 on arm gets an ICE when inlining unmap_and_move().  Work around
++ * gcc 4.7 and 4.8 on arm gets an ICE when inlining unmap_and_move().  Work around
+  * it.
+  */
+-#if GCC_VERSION == 40703 && defined(CONFIG_ARM)
++#if (GCC_VERSION >= 40700 && GCC_VERSION < 40900) && defined(CONFIG_ARM)
+ #define ICE_noinline noinline
+ #else
+ #define ICE_noinline
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
