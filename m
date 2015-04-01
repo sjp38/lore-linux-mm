@@ -1,81 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 50F516B006C
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 07:53:54 -0400 (EDT)
-Received: by wixo5 with SMTP id o5so46349558wix.1
-        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 04:53:53 -0700 (PDT)
-Received: from mail-ph.de-nserver.de (mail-ph.de-nserver.de. [85.158.179.214])
-        by mx.google.com with ESMTPS id bs17si2870960wjb.133.2015.04.01.04.53.52
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id B9A8D6B0070
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 08:05:36 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so42224310wid.0
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 05:05:36 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f1si2901423wjw.184.2015.04.01.05.05.34
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Apr 2015 04:53:52 -0700 (PDT)
-Message-ID: <551BDC4F.4010000@profihost.ag>
-Date: Wed, 01 Apr 2015 13:53:51 +0200
-From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 01 Apr 2015 05:05:34 -0700 (PDT)
+Message-ID: <551BDF0A.2090503@suse.cz>
+Date: Wed, 01 Apr 2015 14:05:30 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: kernel 3.18.10: THP refcounting bug
-References: <551BBE1A.4040404@profihost.ag> <20150401113122.GA17153@node.dhcp.inet.fi>
-In-Reply-To: <20150401113122.GA17153@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Subject: Re: [RFCv2] mm: page allocation for less fragmentation
+References: <1427251155-12322-1-git-send-email-gioh.kim@lge.com> <551333D6.20708@suse.cz> <551343E3.3050709@lge.com>
+In-Reply-To: <551343E3.3050709@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, sasha.levin@oracle.com
+To: Gioh Kim <gioh.kim@lge.com>, akpm@linux-foundation.org, mgorman@suse.de, riel@redhat.com, hannes@cmpxchg.org, rientjes@google.com, vdavydov@parallels.com, iamjoonsoo.kim@lge.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gunho.lee@lge.com
 
-Hi,
+On 03/26/2015 12:25 AM, Gioh Kim wrote:
+>
+>
+> 2015-03-26 i??i ? 7:16i?? Vlastimil Babka i?'(e??) i?' e,?:
+>> On 25.3.2015 3:39, Gioh Kim wrote:
+>>> My driver allocates more than 40MB pages via alloc_page() at a time and
+>>> maps them at virtual address. Totally it uses 300~400MB pages.
+>>>
+>>> If I run a heavy load test for a few days in 1GB memory system, I cannot allocate even order=3 pages
+>>> because-of the external fragmentation.
+>>>
+>>> I thought I needed a anti-fragmentation solution for my driver.
+>>> But there is no allocation function that considers fragmentation.
+>>> The compaction is not helpful because it is only for movable pages, not unmovable pages.
+>>>
+>>> This patch proposes a allocation function allocates only pages in the same pageblock.
+>>>
+>>> I tested this patch like following:
+>>>
+>>> 1. When the driver allocates about 400MB and do "cat /proc/pagetypeinfo;cat /proc/buddyinfo"
+>>>
+>>> Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
+>>> Node    0, zone   Normal, type    Unmovable   3864    728    394    216    129     47     18      9      1      0      0
+>>> Node    0, zone   Normal, type  Reclaimable    902     96     68     17      3      0      1      0      0      0      0
+>>> Node    0, zone   Normal, type      Movable   5146    663    178     91     43     16      4      0      0      0      0
+>>> Node    0, zone   Normal, type      Reserve      1      4      6      6      2      1      1      1      0      1      1
+>>> Node    0, zone   Normal, type          CMA      0      0      0      0      0      0      0      0      0      0      0
+>>> Node    0, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
+>>>
+>>> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate
+>>> Node 0, zone   Normal          135            3          124            2            0            0
+>>> Node 0, zone   Normal   9880   1489    647    332    177     64     24     10      1      1      1
+>>>
+>>> 2. The driver frees all pages and allocates pages again with alloc_pages_compact.
+>>
+>> This is not a good test setup. You shouldn't switch the allocation types during
+>> single system boot. You should compare results from a boot where common
+>> allocation is used and from a boot where your new allocation is used.
+>
+> The new allocator is slower so I don't think it can replace current allocator.
+> I don't aim to change general allocator.
 
-while using 3.18.9 i got several times the following stack trace:
+I don't say you should replace current allocator for everything. Use it 
+just for your driver, that's fine. But when you perform/simulate your 
+driver allocation, use either the general allocator or the new 
+allocator, don't change from one to another during a single boot.
 
-kernel BUG at mm/filemap.c:203!
-invalid opcode: 0000 [#1] SMP
-Modules linked in: dm_mod netconsole usbhid sd_mod sg ata_generic
-virtio_net virtio_scsi uhci_hcd ehci_hcd usbcore virtio_pci usb_common
-virtio_ring ata_piix virtio floppy
-CPU: 3 PID: 1 Comm: busybox Tainted: G    B          3.18.9 #1
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
-rel-1.7.5.1-0-g8936dbb-20141113_115728-nilsson.home.kraxel.org 04/01/2014
-task: ffff880137b98000 ti: ffff880137b94000 task.ti: ffff880137b94000
-RIP: 0010:[<ffffffff81134495>]  [<ffffffff81134495>]
-__delete_from_page_cache+0x2b5/0x2c0
-RSP: 0018:ffff880137b97be8  EFLAGS: 00010046
-RAX: 0000000000000000 RBX: 0000000000000003 RCX: 00000000ffffffd0
-RDX: 0000000000000030 RSI: 000000000000000a RDI: ffff88013f9696c0
-RBP: ffff880137b97c38 R08: 0000000000000000 R09: ffffea0002e927c0
-R10: ffff8800bba92da0 R11: ffff880137b97c00 R12: ffffea0002e92480
-R13: ffff8800bba8c4c8 R14: 0000000000000000 R15: ffff8800bba8c4d0
-FS:  00007f5a79e0b700(0000) GS:ffff880139060000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 00000000023c3138 CR3: 00000000b84ba000 CR4: 00000000000006e0
-Stack:
- 000000000000000e ffff880137b97d48 ffff8800bba92da0 ffff8800bba92dc8
- ffff880137b97c68 ffffea0002e92480 ffff8800bba8c4c8 0000000000000000
- 0000000000000000 0000000000000000 ffff880137b97c68 ffffffff81134604
-Call Trace:
- [<ffffffff81134604>] delete_from_page_cache+0x44/0x70
- [<ffffffff811413cb>] truncate_inode_page+0x5b/0x90
- [<ffffffff811415a4>] truncate_inode_pages_range+0x1a4/0x6c0
- [<ffffffff81141b45>] truncate_inode_pages+0x15/0x20
- [<ffffffff81141c4c>] truncate_inode_pages_final+0x3c/0x50
- [<ffffffff811bb83c>] evict+0x16c/0x180
- [<ffffffff811bbed5>] iput+0x105/0x190
- [<ffffffff811b0c19>] do_unlinkat+0x189/0x2b0
- [<ffffffff811b1a46>] SyS_unlink+0x16/0x20
- [<ffffffff815f6592>] system_call_fastpath+0x12/0x17
-Code: 66 0f 1f 44 00 00 48 8b 75 c0 4c 89 ff e8 e4 5d 1f 00 84 c0 0f 85
-5e fe ff ff e9 41 fe ff ff 0f 1f 80 00 00 00 00 e8 75 70 4b 00 <0f> 0b
-66 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 55 83 e2 fd 48
-RIP  [<ffffffff81134495>] __delete_from_page_cache+0x2b5/0x2c0
- RSP <ffff880137b97be8>
----[ end trace a4727cb71335dbd4 ]---
+> The main pupose of the new allocator is a specific allocator if system has too much fragmentation.
+> If some drivers consume much memory and generate fragmentation, it can use new allocator instead at the time.
+> I want to make a kind of compaction for drivers that allocates unmovable pages.
+>
+> Therefore I tested like that.
+> I first generated fragmentation and called the new allocator.
+> I wanted to check whether the fragmentation was caused by my driver
+> and the pages of the driver was able to be compacted.
+> I thought the pages was compacted.
+>
+> If I freed pages and called the commmon allocator again,
+> it could decrease a little fragmentation (not much as the new allocator).
+> But there was no pages compaction and fragmentation would increase soon.
 
-Is this a known bug?
+Yes, we need data comparing common/new allocator in the same scenario. 
+Presumably that's what you have in v3 submission.
 
-Thanks!
+>
+>
+>>
+>>> This is a kind of compaction of the driver.
+>>> Following is the result of "cat /proc/pagetypeinfo;cat /proc/buddyinfo"
+>>>
+>>> Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
+>>> Node    0, zone   Normal, type    Unmovable      8      5      1    432    272     91     37     11      1      0      0
+>>> Node    0, zone   Normal, type  Reclaimable    901     96     68     17      3      0      1      0      0      0      0
+>>> Node    0, zone   Normal, type      Movable   4790    776    192     91     43     16      4      0      0      0      0
+>>> Node    0, zone   Normal, type      Reserve      1      4      6      6      2      1      1      1      0      1      1
+>>> Node    0, zone   Normal, type          CMA      0      0      0      0      0      0      0      0      0      0      0
+>>> Node    0, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
+>>>
+>>> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate
+>>> Node 0, zone   Normal          135            3          124            2            0            0
+>>> Node 0, zone   Normal   5693    877    266    544    320    108     43     12      1      1      1
+>>
+>> The number of unmovable pageblocks didn't change here. The stats for free
+>> unmovable pages does look better for higher orders than in the first listing
+>> above, but even the common allocation logic would give you that result, if you
+>> allocated your 400 MB using (many) order-0 allocations (since you apparently
+>> don't care about physically contiguous memory). That would also prefer order-0
+>> free pages before splitting higher orders. So this doesn't demonstrate benefits
+>> of the alloc_pages_compact() approach I'm afraid. The results suggest that the
+>> system was in a worst state when the first allocation happened, and meanwhile
+>> some pages were freed, creating the large numbers of order-0 unmovable free
+>> pages. Or maybe the system got fragmented in the first allocation because your
+>> driver tries to allocate the memory with high-order allocations before falling
+>> back to lower orders? That would probably defeat the natural anti-fragmentation
+>> of the buddy system.
+>
+> My driver is allocating pages only with alloc_page, not alloc_pages with high order.
+>
+> Yes, if I freed pages and called alloc_page again, it could decrease fragmentation at the time.
+> But there was no compaction and fragmentation would increase soon,
+> because the allocated pages was scattered all over the system.
+>
+> The new allocator compacts pages. I believe it can decrease fragmentation for long time.
 
---
-Greets,
-Stefan
+If that's what v3 shows, ok. Let me check.
+
+>>
+>> So a proper test could be based on this:
+>>
+>>> If I run a heavy load test for a few days in 1GB memory system, I cannot
+>> allocate even order=3 pages
+>>> because-of the external fragmentation.
+>>
+>> With this patch, is the situation quantifiably better? Can you post the
+>> pagetype/buddyinfo for system boot where all driver allocations use the common
+>> allocator, and system boot with the patch? That should be comparable if the
+>> workload is the same for both boots.
+>>
+>
+> OK. I'll. I can be good test.
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
