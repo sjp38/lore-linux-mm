@@ -1,54 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FB6A6B0038
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 03:21:27 -0400 (EDT)
-Received: by obvd1 with SMTP id d1so65986620obv.0
-        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 00:21:26 -0700 (PDT)
-Received: from mail-ob0-x22e.google.com (mail-ob0-x22e.google.com. [2607:f8b0:4003:c01::22e])
-        by mx.google.com with ESMTPS id m2si1127841obq.13.2015.04.01.00.21.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Apr 2015 00:21:26 -0700 (PDT)
-Received: by obbgh1 with SMTP id gh1so62786498obb.1
-        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 00:21:25 -0700 (PDT)
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 80C366B0038
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 05:37:33 -0400 (EDT)
+Received: by wiaa2 with SMTP id a2so58720605wia.0
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 02:37:32 -0700 (PDT)
+Received: from andre.telenet-ops.be (andre.telenet-ops.be. [195.130.132.53])
+        by mx.google.com with ESMTP id wt7si2163935wjc.159.2015.04.01.02.37.31
+        for <linux-mm@kvack.org>;
+        Wed, 01 Apr 2015 02:37:31 -0700 (PDT)
+Date: Wed, 1 Apr 2015 11:37:13 +0200 (CEST)
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Subject: [PATCH] mm/migrate: Mark unmap_and_move() "noinline" to avoid ICE
+ in gcc 4.7.3 (was: Re: Possible regression in  gcc 4.7.3 next-20150323 due
+ to "ARM, arm64: kvm: get rid of the bounce page")
+In-Reply-To: <7h8uec95t2.fsf@deeprootsystems.com>
+Message-ID: <alpine.DEB.2.10.1504011130030.14762@ayla.of.borg>
+References: <20150324004537.GA24816@verge.net.au> <CAKv+Gu-0jPk=KQ4gY32ELc+BVbe=1QdcrwQ+Pb=RkdwO9K3Vkw@mail.gmail.com> <20150324161358.GA694@kahuna> <20150326003939.GA25368@verge.net.au> <20150326133631.GB2805@arm.com> <CANMBJr68dsbYvvHUzy6U4m4fEM6nq8dVHBH4kLQ=0c4QNOhLPQ@mail.gmail.com>
+ <20150327002554.GA5527@verge.net.au> <20150327100612.GB1562@arm.com> <7hbnj99epe.fsf@deeprootsystems.com> <CAKv+Gu_ZHZFm-1eXn+r7fkEHOxqSmj+Q+Mmy7k6LK531vSfAjQ@mail.gmail.com> <7h8uec95t2.fsf@deeprootsystems.com>
 MIME-Version: 1.0
-In-Reply-To: <20150331163808.6ffa50f3140b50828bd5dba8@linux-foundation.org>
-References: <1427562483-29839-1-git-send-email-kuleshovmail@gmail.com>
-	<20150331163808.6ffa50f3140b50828bd5dba8@linux-foundation.org>
-Date: Wed, 1 Apr 2015 13:21:25 +0600
-Message-ID: <CANCZXo52sHS_2QP=mSkPayqo5A02DzN9j=m3ZQN++4v9GcTu0g@mail.gmail.com>
-Subject: Re: [PATCH] mm/memblock: add debug output for the memblock_add
-From: Alexander Kuleshov <kuleshovmail@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=ISO-8859-7
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, Philipp Hachtmann <phacht@linux.vnet.ibm.com>, Fabian Frederick <fabf@skynet.be>, Catalin Marinas <catalin.marinas@arm.com>, Emil Medve <Emilian.Medve@freescale.com>, Akinobu Mita <akinobu.mita@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Kevin Hilman <khilman@kernel.org>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Simon Horman <horms@verge.net.au>, Tyler Baker <tyler.baker@linaro.org>, Nishanth Menon <nm@ti.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, Marc Zyngier <Marc.Zyngier@arm.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Magnus Damm <magnus.damm@gmail.com>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Development <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-2015-04-01 5:38 GMT+06:00 Andrew Morton <akpm@linux-foundation.org>:
-> On Sat, 28 Mar 2015 23:08:03 +0600 Alexander Kuleshov <kuleshovmail@gmail.com> wrote:
->
-> I guess this should be "memblock_add:".  That's what
-> memblock_reserve_region() does?
->
-> --- a/mm/memblock.c~mm-memblock-add-debug-output-for-the-memblock_add-fix
-> +++ a/mm/memblock.c
-> @@ -587,7 +587,7 @@ static int __init_memblock memblock_add_
->  {
->         struct memblock_type *_rgn = &memblock.memory;
->
-> -       memblock_dbg("memblock_memory: [%#016llx-%#016llx] flags %#02lx %pF\n",
-> +       memblock_dbg("memblock_add: [%#016llx-%#016llx] flags %#02lx %pF\n",
->                      (unsigned long long)base,
->                      (unsigned long long)base + size - 1,
->                      flags, (void *)_RET_IP_);
-> _
->
+	Hi Kevin,
 
-Yes, it is much cleaner. Thank you Andrew.
+On Tue, 31 Mar 2015, Kevin Hilman wrote:
+> Ard Biesheuvel <ard.biesheuvel@linaro.org> writes:
+> Nope, that branch is already part of linux-next, and linux-next still
+> fails to compile for 20+ defconfigs[1]
+> 
+> > Could you elaborate on the issue please? What is the error you are
+> > getting, and can you confirm that is is caused by ld choking on the
+> > linker script? If not, this is another error than the one we have been
+> > trying to fix
+> 
+> It's definitely not linker script related.
+> 
+> Using "arm-linux-gnueabi-gcc (Ubuntu/Linaro 4.7.3-12ubuntu1) 4.7.3",
+> here's the error when building for multi_v7_defconfig (full log
+> available[2]):
+> 
+> ../mm/migrate.c: In function 'migrate_pages':
+> ../mm/migrate.c:1148:1: internal compiler error: in push_minipool_fix, at config/arm/arm.c:13101
+> Please submit a full bug report,
+> with preprocessed source if appropriate.
+> See <file:///usr/share/doc/gcc-4.7/README.Bugs> for instructions.
+> Preprocessed source stored into /tmp/ccO1Nz1m.out file, please attach
+> this to your bugreport.
+> make[2]: *** [mm/migrate.o] Error 1
+> make[2]: Target `__build' not remade because of errors.
+> make[1]: *** [mm] Error 2
+> 
+> build bisect points to commit 21f992084aeb[3], but that doesn't revert
+> cleanly so I haven't got any further than that yet.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I installed gcc-arm-linux-gnueabi (4:4.7.2-1 from Ubuntu 14.04 LTS) and could
+reproduce the ICE. I came up with the workaround below.
+Does this work for you?
