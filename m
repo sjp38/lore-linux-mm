@@ -1,129 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 0819D6B0038
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 05:47:55 -0400 (EDT)
-Received: by qgh3 with SMTP id 3so37463622qgh.2
-        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 02:47:54 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id f91si1310311qgd.11.2015.04.01.02.47.54
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 4193F6B0038
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 07:51:01 -0400 (EDT)
+Received: by wgbdm7 with SMTP id dm7so50471286wgb.1
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 04:51:00 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id d11si12223780wic.37.2015.04.01.04.50.58
         for <linux-mm@kvack.org>;
-        Wed, 01 Apr 2015 02:47:54 -0700 (PDT)
-Message-ID: <551BBEC5.7070801@arm.com>
-Date: Wed, 01 Apr 2015 10:47:49 +0100
-From: Marc Zyngier <marc.zyngier@arm.com>
+        Wed, 01 Apr 2015 04:50:59 -0700 (PDT)
+Date: Wed, 1 Apr 2015 14:50:54 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: use PageAnon() and PageKsm() helpers in
+ page_anon_vma()
+Message-ID: <20150401115054.GB17153@node.dhcp.inet.fi>
+References: <1427802647-16764-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <alpine.DEB.2.11.1503310810320.13959@gentwo.org>
+ <20150331143534.GA10808@node.dhcp.inet.fi>
+ <20150331133338.ed4ab6cc9a5ab6f6ad4301eb@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/migrate: Mark unmap_and_move() "noinline" to avoid
- ICE in gcc 4.7.3
-References: <20150324004537.GA24816@verge.net.au> <CAKv+Gu-0jPk=KQ4gY32ELc+BVbe=1QdcrwQ+Pb=RkdwO9K3Vkw@mail.gmail.com> <20150324161358.GA694@kahuna> <20150326003939.GA25368@verge.net.au> <20150326133631.GB2805@arm.com> <CANMBJr68dsbYvvHUzy6U4m4fEM6nq8dVHBH4kLQ=0c4QNOhLPQ@mail.gmail.com> <20150327002554.GA5527@verge.net.au> <20150327100612.GB1562@arm.com> <7hbnj99epe.fsf@deeprootsystems.com> <CAKv+Gu_ZHZFm-1eXn+r7fkEHOxqSmj+Q+Mmy7k6LK531vSfAjQ@mail.gmail.com> <7h8uec95t2.fsf@deeprootsystems.com> <alpine.DEB.2.10.1504011130030.14762@ayla.of.borg>
-In-Reply-To: <alpine.DEB.2.10.1504011130030.14762@ayla.of.borg>
-Content-Type: text/plain; charset=iso-8859-7
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150331133338.ed4ab6cc9a5ab6f6ad4301eb@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>, Kevin Hilman <khilman@kernel.org>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <Will.Deacon@arm.com>, Simon Horman <horms@verge.net.au>, Tyler Baker <tyler.baker@linaro.org>, Nishanth Menon <nm@ti.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Magnus Damm <magnus.damm@gmail.com>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Development <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>
 
-On 01/04/15 10:37, Geert Uytterhoeven wrote:
-> 	Hi Kevin,
+On Tue, Mar 31, 2015 at 01:33:38PM -0700, Andrew Morton wrote:
+> On Tue, 31 Mar 2015 17:35:34 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 > 
-> On Tue, 31 Mar 2015, Kevin Hilman wrote:
->> Ard Biesheuvel <ard.biesheuvel@linaro.org> writes:
->> Nope, that branch is already part of linux-next, and linux-next still
->> fails to compile for 20+ defconfigs[1]
->>
->>> Could you elaborate on the issue please? What is the error you are
->>> getting, and can you confirm that is is caused by ld choking on the
->>> linker script? If not, this is another error than the one we have been
->>> trying to fix
->>
->> It's definitely not linker script related.
->>
->> Using "arm-linux-gnueabi-gcc (Ubuntu/Linaro 4.7.3-12ubuntu1) 4.7.3",
->> here's the error when building for multi_v7_defconfig (full log
->> available[2]):
->>
->> ../mm/migrate.c: In function 'migrate_pages':
->> ../mm/migrate.c:1148:1: internal compiler error: in push_minipool_fix, at config/arm/arm.c:13101
->> Please submit a full bug report,
->> with preprocessed source if appropriate.
->> See <file:///usr/share/doc/gcc-4.7/README.Bugs> for instructions.
->> Preprocessed source stored into /tmp/ccO1Nz1m.out file, please attach
->> this to your bugreport.
->> make[2]: *** [mm/migrate.o] Error 1
->> make[2]: Target `__build' not remade because of errors.
->> make[1]: *** [mm] Error 2
->>
->> build bisect points to commit 21f992084aeb[3], but that doesn't revert
->> cleanly so I haven't got any further than that yet.
+> > On Tue, Mar 31, 2015 at 08:11:02AM -0500, Christoph Lameter wrote:
+> > > On Tue, 31 Mar 2015, Kirill A. Shutemov wrote:
+> > > 
+> > > > Let's use PageAnon() and PageKsm() helpers instead. It helps readability
+> > > > and makes page_anon_vma() work correctly on tail pages.
+> > > 
+> > > But it adds a branch due to the use of ||.
+> > 
+> > Which caller is hot enough to care?
+> > 
 > 
-> I installed gcc-arm-linux-gnueabi (4:4.7.2-1 from Ubuntu 14.04 LTS) and could
-> reproduce the ICE. I came up with the workaround below.
-> Does this work for you?
+> It's a surprisingly expensive patch.
 > 
-> From 7ebe83316eaf1952e55a76754ce7a5832e461b8c Mon Sep 17 00:00:00 2001
-> From: Geert Uytterhoeven <geert+renesas@glider.be>
-> Date: Wed, 1 Apr 2015 11:22:51 +0200
-> Subject: [PATCH] mm/migrate: Mark unmap_and_move() "noinline" to avoid ICE in
->  gcc 4.7.3
-> MIME-Version: 1.0
-> Content-Type: text/plain; charset=UTF-8
-> Content-Transfer-Encoding: 8bit
+>    text    data     bss     dec     hex filename
 > 
-> With gcc version 4.7.3 (Ubuntu/Linaro 4.7.3-12ubuntu1) :
+>   19984    1153   15192   36329    8de9 mm/ksm.o-before
+>   20028    1153   15216   36397    8e2d mm/ksm.o-after
 > 
->     mm/migrate.c: In function !migrate_pagesc:
->     mm/migrate.c:1148:1: internal compiler error: in push_minipool_fix, at config/arm/arm.c:13500
->     Please submit a full bug report,
->     with preprocessed source if appropriate.
->     See <file:///usr/share/doc/gcc-4.7/README.Bugs> for instructions.
->     Preprocessed source stored into /tmp/ccPoM1tr.out file, please attach this to your bugreport.
->     make[1]: *** [mm/migrate.o] Error 1
->     make: *** [mm/migrate.o] Error 2
+>   14728     116    5168   20012    4e2c mm/rmap.o-before
+>   14763     116    5192   20071    4e67 mm/rmap.o-after
 > 
-> Mark unmap_and_move() (which is used in a single place only) "noinline"
-> to work around this compiler bug.
+>   25723    1417    9776   36916    9034 mm/swapfile.o-before
+>   25769    1417    9800   36986    907a mm/swapfile.o-after
 > 
-> Reported-by: Kevin Hilman <khilman@kernel.org>
-> Signed-off-by: Geert Uytterhoeven <geert+renesas@glider.be>
-> ---
->  mm/migrate.c | 7 ++++---
->  1 file changed, 4 insertions(+), 3 deletions(-)
+> 197 bytes more text+bss, 125 bytes more text.
 > 
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 114602a68111d809..98f8574456c2010c 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -904,9 +904,10 @@ out:
->   * Obtain the lock on page, remove all ptes and migrate the page
->   * to the newly allocated page in newpage.
->   */
-> -static int unmap_and_move(new_page_t get_new_page, free_page_t put_new_page,
-> -			unsigned long private, struct page *page, int force,
-> -			enum migrate_mode mode)
-> +static noinline int unmap_and_move(new_page_t get_new_page,
-> +				   free_page_t put_new_page,
-> +				   unsigned long private, struct page *page,
-> +				   int force, enum migrate_mode mode)
->  {
->  	int rc = 0;
->  	int *result = NULL;
-> 
+> (Why the heck do changes like this allegedly affect bss size?)
 
-Ouch. That's really ugly. And on 32bit ARM, we end-up spilling half of
-the parameters on the stack, which is not going to help performance
-either (not that this would be useful on 32bit ARM anyway...).
-
-Any chance you could make this dependent on some compiler detection
-mechanism?
-
-Thanks,
-
-	M.
--- 
-Jazz is not dead. It just smells funny...
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+What about this?
