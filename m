@@ -1,160 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 71B746B0038
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 09:31:53 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so3844921pde.3
-        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 06:31:53 -0700 (PDT)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id ko8si2925009pdb.191.2015.04.01.06.31.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 01 Apr 2015 06:31:52 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout3.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NM400HP6R3S3610@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 01 Apr 2015 14:35:52 +0100 (BST)
-From: Stefan Strogin <s.strogin@partner.samsung.com>
-Subject: [PATCH] mm: cma: add trace events for CMA allocations and freeings
-Date: Wed, 01 Apr 2015 16:31:43 +0300
-Message-id: <1427895103-9431-1-git-send-email-s.strogin@partner.samsung.com>
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 4678A6B0038
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 09:41:36 -0400 (EDT)
+Received: by wixo5 with SMTP id o5so29961797wix.1
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 06:41:35 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
+        by mx.google.com with ESMTP id ck8si3410682wjb.30.2015.04.01.06.41.34
+        for <linux-mm@kvack.org>;
+        Wed, 01 Apr 2015 06:41:35 -0700 (PDT)
+Date: Wed, 1 Apr 2015 16:41:32 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: kernel 3.18.10: THP refcounting bug
+Message-ID: <20150401134132.GB17886@node.dhcp.inet.fi>
+References: <551BBE1A.4040404@profihost.ag>
+ <20150401113122.GA17153@node.dhcp.inet.fi>
+ <551BDC4F.4010000@profihost.ag>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <551BDC4F.4010000@profihost.ag>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Stefan Strogin <s.strogin@partner.samsung.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Sasha Levin <sasha.levin@oracle.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, Aleksei Mateosian <a.mateosian@samsung.com>, gioh.kim@lge.com, stefan.strogin@gmail.com
+To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+Cc: linux-mm@kvack.org, sasha.levin@oracle.com, Hugh Dickins <hughd@google.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-Add trace events for cma_alloc() and cma_release().
+On Wed, Apr 01, 2015 at 01:53:51PM +0200, Stefan Priebe - Profihost AG wrote:
+> Hi,
+> 
+> while using 3.18.9 i got several times the following stack trace:
+> 
+> kernel BUG at mm/filemap.c:203!
+> invalid opcode: 0000 [#1] SMP
+> Modules linked in: dm_mod netconsole usbhid sd_mod sg ata_generic
+> virtio_net virtio_scsi uhci_hcd ehci_hcd usbcore virtio_pci usb_common
+> virtio_ring ata_piix virtio floppy
+> CPU: 3 PID: 1 Comm: busybox Tainted: G    B          3.18.9 #1
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
+> rel-1.7.5.1-0-g8936dbb-20141113_115728-nilsson.home.kraxel.org 04/01/2014
+> task: ffff880137b98000 ti: ffff880137b94000 task.ti: ffff880137b94000
+> RIP: 0010:[<ffffffff81134495>]  [<ffffffff81134495>]
+> __delete_from_page_cache+0x2b5/0x2c0
+> RSP: 0018:ffff880137b97be8  EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: 0000000000000003 RCX: 00000000ffffffd0
+> RDX: 0000000000000030 RSI: 000000000000000a RDI: ffff88013f9696c0
+> RBP: ffff880137b97c38 R08: 0000000000000000 R09: ffffea0002e927c0
+> R10: ffff8800bba92da0 R11: ffff880137b97c00 R12: ffffea0002e92480
+> R13: ffff8800bba8c4c8 R14: 0000000000000000 R15: ffff8800bba8c4d0
+> FS:  00007f5a79e0b700(0000) GS:ffff880139060000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00000000023c3138 CR3: 00000000b84ba000 CR4: 00000000000006e0
+> Stack:
+>  000000000000000e ffff880137b97d48 ffff8800bba92da0 ffff8800bba92dc8
+>  ffff880137b97c68 ffffea0002e92480 ffff8800bba8c4c8 0000000000000000
+>  0000000000000000 0000000000000000 ffff880137b97c68 ffffffff81134604
+> Call Trace:
+>  [<ffffffff81134604>] delete_from_page_cache+0x44/0x70
+>  [<ffffffff811413cb>] truncate_inode_page+0x5b/0x90
+>  [<ffffffff811415a4>] truncate_inode_pages_range+0x1a4/0x6c0
+>  [<ffffffff81141b45>] truncate_inode_pages+0x15/0x20
+>  [<ffffffff81141c4c>] truncate_inode_pages_final+0x3c/0x50
+>  [<ffffffff811bb83c>] evict+0x16c/0x180
+>  [<ffffffff811bbed5>] iput+0x105/0x190
+>  [<ffffffff811b0c19>] do_unlinkat+0x189/0x2b0
+>  [<ffffffff811b1a46>] SyS_unlink+0x16/0x20
+>  [<ffffffff815f6592>] system_call_fastpath+0x12/0x17
+> Code: 66 0f 1f 44 00 00 48 8b 75 c0 4c 89 ff e8 e4 5d 1f 00 84 c0 0f 85
+> 5e fe ff ff e9 41 fe ff ff 0f 1f 80 00 00 00 00 e8 75 70 4b 00 <0f> 0b
+> 66 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 55 83 e2 fd 48
+> RIP  [<ffffffff81134495>] __delete_from_page_cache+0x2b5/0x2c0
+>  RSP <ffff880137b97be8>
+> ---[ end trace a4727cb71335dbd4 ]---
+> 
+> Is this a known bug?
 
-The cma_alloc tracepoint is used both for successful and failed allocations,
-in case of allocation failure pfn=-1UL is stored and printed.
++Hugh, Konstantin.
 
-Signed-off-by: Stefan Strogin <stefan.strogin@gmail.com>
----
+Nothing I recognize. Looks somewhat like[1], but not really.
 
-Took out from the patch set "mm: cma: add some debug information for CMA" v4
-(http://thread.gmane.org/gmane.linux.kernel.mm/129903) because of probable
-uselessness of the rest of the patches.
+Do you have a way to reproduce? What fs it was?
 
-Changes from the version from the patch set:
-- Constify the struct page * parameter passed to the tracepoints.
-- Pass both pfn and struct page * to the tracepoints to decrease unnecessary
-  pfn_to_page() and page_to_pfn() calls and avoid using them in TP_printk.
-- Store and print pfn=-1UL instead of pfn=0, because 0th pfn can truly exist
-  on some architectures.
+[1] lkml.kernel.org/g/20140603042121.GA27177@redhat.com
 
- include/trace/events/cma.h | 63 ++++++++++++++++++++++++++++++++++++++++++++++
- mm/cma.c                   |  5 ++++
- 2 files changed, 68 insertions(+)
- create mode 100644 include/trace/events/cma.h
-
-diff --git a/include/trace/events/cma.h b/include/trace/events/cma.h
-new file mode 100644
-index 0000000..e01b35d
---- /dev/null
-+++ b/include/trace/events/cma.h
-@@ -0,0 +1,63 @@
-+#undef TRACE_SYSTEM
-+#define TRACE_SYSTEM cma
-+
-+#if !defined(_TRACE_CMA_H) || defined(TRACE_HEADER_MULTI_READ)
-+#define _TRACE_CMA_H
-+
-+#include <linux/types.h>
-+#include <linux/tracepoint.h>
-+
-+TRACE_EVENT(cma_alloc,
-+
-+	TP_PROTO(unsigned long pfn, const struct page *page,
-+		 unsigned int count),
-+
-+	TP_ARGS(pfn, page, count),
-+
-+	TP_STRUCT__entry(
-+		__field(unsigned long, pfn)
-+		__field(const struct page *, page)
-+		__field(unsigned int, count)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->pfn = pfn;
-+		__entry->page = page;
-+		__entry->count = count;
-+	),
-+
-+	TP_printk("pfn=%lx page=%p count=%u",
-+		  __entry->pfn,
-+		  __entry->page,
-+		  __entry->count)
-+);
-+
-+TRACE_EVENT(cma_release,
-+
-+	TP_PROTO(unsigned long pfn, const struct page *page,
-+		 unsigned int count),
-+
-+	TP_ARGS(pfn, page, count),
-+
-+	TP_STRUCT__entry(
-+		__field(unsigned long, pfn)
-+		__field(const struct page *, page)
-+		__field(unsigned int, count)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->pfn = pfn;
-+		__entry->page = page;
-+		__entry->count = count;
-+	),
-+
-+	TP_printk("pfn=%lx page=%p count=%u",
-+		  __entry->pfn,
-+		  __entry->page,
-+		  __entry->count)
-+);
-+
-+#endif /* _TRACE_CMA_H */
-+
-+/* This part must be outside protection */
-+#include <trace/define_trace.h>
-diff --git a/mm/cma.c b/mm/cma.c
-index 47203fa..e9410b7c 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -23,6 +23,7 @@
- #  define DEBUG
- #endif
- #endif
-+#define CREATE_TRACE_POINTS
- 
- #include <linux/memblock.h>
- #include <linux/err.h>
-@@ -34,6 +35,7 @@
- #include <linux/cma.h>
- #include <linux/highmem.h>
- #include <linux/io.h>
-+#include <trace/events/cma.h>
- 
- #include "cma.h"
- 
-@@ -414,6 +416,8 @@ struct page *cma_alloc(struct cma *cma, unsigned int count, unsigned int align)
- 		start = bitmap_no + mask + 1;
- 	}
- 
-+	trace_cma_alloc(page ? pfn : -1UL, page, count);
-+
- 	pr_debug("%s(): returned %p\n", __func__, page);
- 	return page;
- }
-@@ -446,6 +450,7 @@ bool cma_release(struct cma *cma, const struct page *pages, unsigned int count)
- 
- 	free_contig_range(pfn, count);
- 	cma_clear_bitmap(cma, pfn, count);
-+	trace_cma_release(pfn, pages, count);
- 
- 	return true;
- }
 -- 
-2.1.0
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
