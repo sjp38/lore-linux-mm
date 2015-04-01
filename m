@@ -1,205 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EECF6B0038
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 21:53:05 -0400 (EDT)
-Received: by padcy3 with SMTP id cy3so36740294pad.3
-        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 18:53:05 -0700 (PDT)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id z7si552221pas.78.2015.03.31.18.53.03
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id C5C366B0038
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2015 23:29:09 -0400 (EDT)
+Received: by igcau2 with SMTP id au2so37140886igc.0
+        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 20:29:09 -0700 (PDT)
+Received: from mail-ie0-x22a.google.com (mail-ie0-x22a.google.com. [2607:f8b0:4001:c03::22a])
+        by mx.google.com with ESMTPS id b19si801838ign.50.2015.03.31.20.29.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 31 Mar 2015 18:53:04 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp ([10.7.69.201])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t311r0PU021262
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Wed, 1 Apr 2015 10:53:01 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v3 2/3] mm: hugetlb: introduce PageHugeActive flag
-Date: Wed, 1 Apr 2015 01:40:55 +0000
-Message-ID: <20150401014054.GA16385@hori1.linux.bs1.fc.nec.co.jp>
-References: <1427791840-11247-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1427791840-11247-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20150331140610.a146030d6a2e3abc6e4c9ba4@linux-foundation.org>
-In-Reply-To: <20150331140610.a146030d6a2e3abc6e4c9ba4@linux-foundation.org>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <A46B079E03F5E243A12404E875B7BF4A@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Mar 2015 20:29:09 -0700 (PDT)
+Received: by iedm5 with SMTP id m5so33127422ied.3
+        for <linux-mm@kvack.org>; Tue, 31 Mar 2015 20:29:09 -0700 (PDT)
+Date: Tue, 31 Mar 2015 20:29:06 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 21/25] slub: Use bool function return values of true/false
+ not 1/0
+In-Reply-To: <e5d4c7a9a3496ac77ad5a07ce7f917b694053558.1427759010.git.joe@perches.com>
+Message-ID: <alpine.DEB.2.10.1503312028550.24341@chino.kir.corp.google.com>
+References: <cover.1427759009.git.joe@perches.com> <e5d4c7a9a3496ac77ad5a07ce7f917b694053558.1427759010.git.joe@perches.com>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Joe Perches <joe@perches.com>
+Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Tue, Mar 31, 2015 at 02:06:10PM -0700, Andrew Morton wrote:
-> On Tue, 31 Mar 2015 08:50:46 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec=
-.com> wrote:
->=20
-> > We are not safe from calling isolate_huge_page() on a hugepage concurre=
-ntly,
-> > which can make the victim hugepage in invalid state and results in BUG_=
-ON().
-> >=20
-> > The root problem of this is that we don't have any information on struc=
-t page
-> > (so easily accessible) about hugepages' activeness. Note that hugepages=
-'
-> > activeness means just being linked to hstate->hugepage_activelist, whic=
-h is
-> > not the same as normal pages' activeness represented by PageActive flag=
-.
-> >=20
-> > Normal pages are isolated by isolate_lru_page() which prechecks PageLRU=
- before
-> > isolation, so let's do similarly for hugetlb with a new PageHugeActive =
-flag.
-> >=20
-> > Set/ClearPageHugeActive should be called within hugetlb_lock. But huget=
-lb_cow()
-> > and hugetlb_no_page() don't do this, being justified because in these f=
-unction
-> > SetPageHugeActive is called right after the hugepage is allocated and n=
-o other
-> > thread tries to isolate it.
-> >=20
-> > ...
-> >
-> > +/*
-> > + * Page flag to show that the hugepage is "active/in-use" (i.e. being =
-linked to
-> > + * hstate->hugepage_activelist.)
-> > + *
-> > + * This function can be called for tail pages, but never returns true =
-for them.
-> > + */
-> > +int PageHugeActive(struct page *page)
-> > +{
-> > +	VM_BUG_ON_PAGE(!PageHuge(page), page);
-> > +	return PageHead(page) && PagePrivate(&page[1]);
-> > +}
->=20
-> This is not a "page flag".  It is a regular old C function which tests
-> for a certain page state.  Yes, it kind of pretends to act like a
-> separate page flag but its use of the peculiar naming convention is
-> rather misleading.
->=20
-> I mean, if you see
->=20
-> 	SetPageHugeActive(page);
->=20
-> then you expect that to be doing set_bit(PG_hugeactive, &page->flags)
-> but that isn't what it does, so the name is misleading.
->=20
-> Agree?
+On Mon, 30 Mar 2015, Joe Perches wrote:
 
-Yes I agree, page_huge_active() is fine for me.
+> Use the normal return values for bool functions
+> 
+> Signed-off-by: Joe Perches <joe@perches.com>
 
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: mm-hugetlb-introduce-pagehugeactive-flag-fix
->=20
-> s/PageHugeActive/page_huge_active/, make it return bool
->=20
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
->=20
->  mm/hugetlb.c |   22 +++++++++++-----------
->  1 file changed, 11 insertions(+), 11 deletions(-)
->=20
-> diff -puN mm/hugetlb.c~mm-hugetlb-introduce-pagehugeactive-flag-fix mm/hu=
-getlb.c
-> --- a/mm/hugetlb.c~mm-hugetlb-introduce-pagehugeactive-flag-fix
-> +++ a/mm/hugetlb.c
-> @@ -925,25 +925,25 @@ struct hstate *size_to_hstate(unsigned l
->  }
-> =20
->  /*
-> - * Page flag to show that the hugepage is "active/in-use" (i.e. being li=
-nked to
-> - * hstate->hugepage_activelist.)
-> + * Test to determine whether the hugepage is "active/in-use" (i.e. being=
- linked
-> + * to hstate->hugepage_activelist.)
->   *
->   * This function can be called for tail pages, but never returns true fo=
-r them.
->   */
-> -int PageHugeActive(struct page *page)
-> +bool page_huge_active(struct page *page)
->  {
->  	VM_BUG_ON_PAGE(!PageHuge(page), page);
->  	return PageHead(page) && PagePrivate(&page[1]);
->  }
-> =20
->  /* never called for tail page */
-> -void SetPageHugeActive(struct page *page)
-> +void set_page_huge_active(struct page *page)
->  {
->  	VM_BUG_ON_PAGE(!PageHeadHuge(page), page);
->  	SetPagePrivate(&page[1]);
->  }
-> =20
-> -void ClearPageHugeActive(struct page *page)
-> +void clear_page_huge_active(struct page *page)
->  {
->  	VM_BUG_ON_PAGE(!PageHeadHuge(page), page);
->  	ClearPagePrivate(&page[1]);
-> @@ -977,7 +977,7 @@ void free_huge_page(struct page *page)
->  		restore_reserve =3D true;
-> =20
->  	spin_lock(&hugetlb_lock);
-> -	ClearPageHugeActive(page);
-> +	clear_page_huge_active(page);
->  	hugetlb_cgroup_uncharge_page(hstate_index(h),
->  				     pages_per_huge_page(h), page);
->  	if (restore_reserve)
-> @@ -2998,7 +2998,7 @@ retry_avoidcopy:
->  	copy_user_huge_page(new_page, old_page, address, vma,
->  			    pages_per_huge_page(h));
->  	__SetPageUptodate(new_page);
-> -	SetPageHugeActive(new_page);
-> +	set_page_huge_active(new_page);
-> =20
->  	mmun_start =3D address & huge_page_mask(h);
->  	mmun_end =3D mmun_start + huge_page_size(h);
-> @@ -3111,7 +3111,7 @@ retry:
->  		}
->  		clear_huge_page(page, address, pages_per_huge_page(h));
->  		__SetPageUptodate(page);
-> -		SetPageHugeActive(page);
-> +		set_page_huge_active(page);
-> =20
->  		if (vma->vm_flags & VM_MAYSHARE) {
->  			int err;
-> @@ -3946,11 +3946,11 @@ bool isolate_huge_page(struct page *page
-> =20
->  	VM_BUG_ON_PAGE(!PageHead(page), page);
->  	spin_lock(&hugetlb_lock);
-> -	if (!PageHugeActive(page) || !get_page_unless_zero(page)) {
-> +	if (!page_huge_active(page) || !get_page_unless_zero(page)) {
->  		ret =3D false;
->  		goto unlock;
->  	}
-> -	ClearPageHugeActive(page);
-> +	clear_page_huge_active(page);
->  	list_move_tail(&page->lru, list);
->  unlock:
->  	spin_unlock(&hugetlb_lock);
-> @@ -3961,7 +3961,7 @@ void putback_active_hugepage(struct page
->  {
->  	VM_BUG_ON_PAGE(!PageHead(page), page);
->  	spin_lock(&hugetlb_lock);
-> -	SetPageHugeActive(page);
-> +	set_page_huge_active(page);
->  	list_move_tail(&page->lru, &(page_hstate(page))->hugepage_activelist);
->  	spin_unlock(&hugetlb_lock);
->  	put_page(page);
-> =
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
