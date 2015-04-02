@@ -1,76 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 98F826B0038
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2015 10:25:39 -0400 (EDT)
-Received: by iedm5 with SMTP id m5so70209600ied.3
-        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 07:25:39 -0700 (PDT)
-Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
-        by mx.google.com with ESMTPS id fs4si17739498igb.15.2015.04.02.07.25.38
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id A68F56B0038
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2015 11:03:05 -0400 (EDT)
+Received: by wibgn9 with SMTP id gn9so108927470wib.1
+        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 08:03:05 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id md11si9914152wic.55.2015.04.02.08.03.03
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 02 Apr 2015 07:25:38 -0700 (PDT)
-Date: Thu, 2 Apr 2015 09:25:37 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Slab infrastructure for bulk object allocation and freeing V2
-In-Reply-To: <20150331142025.63249f2f0189aee231a6e0c8@linux-foundation.org>
-Message-ID: <alpine.DEB.2.11.1504020922120.28416@gentwo.org>
-References: <alpine.DEB.2.11.1503300927290.6646@gentwo.org> <20150331142025.63249f2f0189aee231a6e0c8@linux-foundation.org>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 02 Apr 2015 08:03:03 -0700 (PDT)
+Date: Thu, 2 Apr 2015 17:02:58 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 0/9 v2] Helper to abstract vma handling in media layer
+Message-ID: <20150402150258.GA31277@quack.suse.cz>
+References: <1426593399-6549-1-git-send-email-jack@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1426593399-6549-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linuxfoundation.org, Pekka Enberg <penberg@kernel.org>, iamjoonsoo@lge.com
+To: linux-media@vger.kernel.org
+Cc: Hans Verkuil <hans.verkuil@cisco.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>, Jan Kara <jack@suse.cz>
 
-On Tue, 31 Mar 2015, Andrew Morton wrote:
+  Hello,
 
-> This patch doesn't really do anything.  I guess nailing down the
-> interface helps a bit.
+On Tue 17-03-15 12:56:30, Jan Kara wrote:
+>   After a long pause I'm sending second version of my patch series to abstract
+> vma handling from the various media drivers. After this patch set drivers have
+> to know much less details about vmas, their types, and locking. My motivation
+> for the series is that I want to change get_user_pages() locking and I want to
+> handle subtle locking details in as few places as possible.
+> 
+> The core of the series is the new helper get_vaddr_pfns() which is given a
+> virtual address and it fills in PFNs into provided array. If PFNs correspond to
+> normal pages it also grabs references to these pages. The difference from
+> get_user_pages() is that this function can also deal with pfnmap, mixed, and io
+> mappings which is what the media drivers need.
+> 
+> I have tested the patches with vivid driver so at least vb2 code got some
+> exposure. Conversion of other drivers was just compile-tested so I'd like to
+> ask respective maintainers if they could have a look.  Also I'd like to ask mm
+> folks to check patch 2/9 implementing the helper. Thanks!
+  Ping? Any reactions?
 
-Right.
+								Honza
 
-> to modules.  And it isn't completely obvious, because the return
-> semantics are weird.
-
-Ok.
-
-> What's the reason for returning a partial result when ENOMEM?  Some
-> callers will throw away the partial result and simply fail out.  If a
-> caller attempts to go ahead and use the partial result then great, but
-> you can bet that nobody will actually runtime test this situation, so
-> the interface is an invitation for us to release partially-tested code
-> into the wild.
-
-Just rely on the fact that small allocations never fail? The caller get
-all the requested objects if the function returns?
-
-> Instead of the above, did you consider doing
->
-> int __weak kmem_cache_alloc_array(struct kmem_cache *s, gfp_t flags, size_t nr,
->
-> ?
->
-> This way we save a level of function call and all that wrapper code in
-> the allocators simply disappears.
-
-I think we will need the auxiliary function in the common code later
-because that allows the allocations to only do the allocations that
-can be optimized and for the rest just fall back to the generic
-implementations. There may be situations in which the optimizations wont
-work. For SLUB this may be the case f.e. if debug options are enabled.
-
-> > --- linux.orig/mm/slab.c	2015-03-30 08:48:12.923927793 -0500
-> > +++ linux/mm/slab.c	2015-03-30 08:49:08.398137844 -0500
-> > @@ -3401,6 +3401,17 @@ void *kmem_cache_alloc(struct kmem_cache
-> >  }
-> >  EXPORT_SYMBOL(kmem_cache_alloc);
-> >
-> > +void kmem_cache_free_array(struct kmem_cache *s, size_t size, void **p) {
-> > +	__kmem_cache_free_array(s, size, p);
-> > +}
->
-> Coding style is weird.
-
-Ok. Will fix.
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
