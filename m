@@ -1,74 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FB456B0038
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2015 08:08:30 -0400 (EDT)
-Received: by wgdm6 with SMTP id m6so83163374wgd.2
-        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 05:08:29 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id bz12si8432094wjb.80.2015.04.02.05.08.28
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B3266B006C
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2015 08:09:10 -0400 (EDT)
+Received: by wibgn9 with SMTP id gn9so102867665wib.1
+        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 05:09:10 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.203])
+        by mx.google.com with ESMTP id eh6si9039849wib.92.2015.04.02.05.09.08
         for <linux-mm@kvack.org>;
-        Thu, 02 Apr 2015 05:08:28 -0700 (PDT)
-Date: Thu, 2 Apr 2015 15:08:24 +0300
+        Thu, 02 Apr 2015 05:09:08 -0700 (PDT)
+Date: Thu, 2 Apr 2015 15:09:05 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] thp: do not adjust zone water marks if khugepaged is not
- started
-Message-ID: <20150402120824.GC24028@node.dhcp.inet.fi>
-References: <1427456378-214780-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20150327144708.0223cc2e55862655259d2720@linux-foundation.org>
- <20150327150026.7500f1081e8c30c2303afecd@linux-foundation.org>
+Subject: Re: [PATCH] mm: get page_cache_get_speculative() work on tail pages
+Message-ID: <20150402120905.GD24028@node.dhcp.inet.fi>
+References: <1427928772-100068-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <alpine.LSU.2.11.1504011617300.6431@eggly.anvils>
+ <20150401235651.GA20597@node.dhcp.inet.fi>
+ <alpine.LSU.2.11.1504011705310.6939@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150327150026.7500f1081e8c30c2303afecd@linux-foundation.org>
+In-Reply-To: <alpine.LSU.2.11.1504011705310.6939@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Steve Capper <steve.capper@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Fri, Mar 27, 2015 at 03:00:26PM -0700, Andrew Morton wrote:
-> On Fri, 27 Mar 2015 14:47:08 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
-> > Fair enough, but take a look at start_khugepaged():
+On Wed, Apr 01, 2015 at 05:08:53PM -0700, Hugh Dickins wrote:
+> On Thu, 2 Apr 2015, Kirill A. Shutemov wrote:
+> > On Wed, Apr 01, 2015 at 04:21:30PM -0700, Hugh Dickins wrote:
+> > > On Thu, 2 Apr 2015, Kirill A. Shutemov wrote:
+> > > 
+> > > > Generic RCU fast GUP rely on page_cache_get_speculative() to obtain pin
+> > > > on pte-mapped page.  As pointed by Aneesh during review of my compound
+> > > > pages refcounting rework, page_cache_get_speculative() would fail on
+> > > > pte-mapped tail page, since tail pages always have page->_count == 0.
+> > > > 
+> > > > That means we would never be able to successfully obtain pin on
+> > > > pte-mapped tail page via generic RCU fast GUP.
+> > > > 
+> > > > But the problem is not exclusive to my patchset. In current kernel some
+> > > > drivers (sound, for instance) already map compound pages with PTEs.
+> > > 
+> > > Hah, you were sending this as I was replying to the original thread.
+> > > 
+> > > Do we care if fast gup fails on some hardware driver's compound pages?
+> > > I don't think we do, and it would be better not to complicate the
+> > > low-level page_cache_get_speculative for them.
 > > 
-> > : static int start_khugepaged(void)
-> > : {
-> > : 	int err = 0;
-> > : 	if (khugepaged_enabled()) {
-> > : 		if (!khugepaged_thread)
-> > : 			khugepaged_thread = kthread_run(khugepaged, NULL,
-> > : 							"khugepaged");
-> > : 		if (unlikely(IS_ERR(khugepaged_thread))) {
-> > : 			pr_err("khugepaged: kthread_run(khugepaged) failed\n");
-> > : 			err = PTR_ERR(khugepaged_thread);
-> > : 			khugepaged_thread = NULL;
+> > Fair enough :-/
 > > 
-> > -->> stop here 
-> > 
-> > : 		}
-> > : 
-> > : 		if (!list_empty(&khugepaged_scan.mm_head))
-> > : 			wake_up_interruptible(&khugepaged_wait);
-> > : 
-> > : 		set_recommended_min_free_kbytes();
-> > : 	} else if (khugepaged_thread) {
-> > : 		kthread_stop(khugepaged_thread);
-> > : 		khugepaged_thread = NULL;
-> > : 	}
-> > : 
-> > : 	return err;
-> > : }
+> > I'll check tomorrow if it will look more reasonable on gup_pte_range()
+> > level, rather than page_cache_get_speculative().
 > 
-> Looking more closely...  This code seems a bit screwy.
-> 
-> - why is set_recommended_min_free_kbytes() a late_initcall?  We've
->   already done that within
->   subsys_initcall->hugepage_init->set_recommended_min_free_kbytes()
-> 
-> - there isn't much point in running start_khugepaged() if we've just
->   set transparent_hugepage_flags to zero.
-> 
-> - start_khugepaged() is misnamed.
-> 
-> So something like this?
+> But we don't need it on the (fast) gup_pte_range() level either, do we?
+> Or do you have THP changes in mmotm which are now demanding this?
 
-Looks like you didn't apply this. Here's proper patch:
+No. I'll keep it local to my patchset.
+
+-- 
+ Kirill A. Shutemov
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
