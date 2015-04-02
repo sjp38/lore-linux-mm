@@ -1,55 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D0266B0038
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2015 18:21:53 -0400 (EDT)
-Received: by igcau2 with SMTP id au2so56540528igc.1
-        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 15:21:53 -0700 (PDT)
-Received: from mail-ie0-x230.google.com (mail-ie0-x230.google.com. [2607:f8b0:4001:c03::230])
-        by mx.google.com with ESMTPS id qa6si5890117icb.82.2015.04.02.15.21.53
+	by kanga.kvack.org (Postfix) with ESMTP id 686836B0038
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2015 18:40:59 -0400 (EDT)
+Received: by igcxg11 with SMTP id xg11so85485899igc.0
+        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 15:40:59 -0700 (PDT)
+Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com. [2607:f8b0:4001:c05::231])
+        by mx.google.com with ESMTPS id o64si5603186ioo.84.2015.04.02.15.40.58
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Apr 2015 15:21:53 -0700 (PDT)
-Received: by ierf6 with SMTP id f6so79824157ier.2
-        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 15:21:52 -0700 (PDT)
-Date: Thu, 2 Apr 2015 15:21:50 -0700 (PDT)
+        Thu, 02 Apr 2015 15:40:58 -0700 (PDT)
+Received: by ignm3 with SMTP id m3so56741073ign.0
+        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 15:40:58 -0700 (PDT)
+Date: Thu, 2 Apr 2015 15:40:56 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch] madvise.2: specify MADV_REMOVE returns EINVAL for
- hugetlbfs
-Message-ID: <alpine.DEB.2.10.1504021517540.9951@chino.kir.corp.google.com>
+Subject: Re: [patch 1/2] mm, doc: cleanup and clarify munmap behavior for
+ hugetlb memory
+In-Reply-To: <alpine.LSU.2.11.1503291801400.1052@eggly.anvils>
+Message-ID: <alpine.DEB.2.10.1504021536210.15536@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1503261621570.20009@chino.kir.corp.google.com> <alpine.LSU.2.11.1503291801400.1052@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mtk.manpages@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Davide Libenzi <davidel@xmailserver.org>, Luiz Capitulino <lcapitulino@redhat.com>, Shuah Khan <shuahkh@osg.samsung.com>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, Eric B Munson <emunson@akamai.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-doc@vger.kernel.org
 
-madvise(2) actually returns with error EINVAL for MADV_REMOVE when used 
-for hugetlb vmas, not EOPNOTSUPP, and this has been the case since 
-MADV_REMOVE was introduced in commit f6b3ec238d12 ("madvise(MADV_REMOVE): 
-remove pages from tmpfs shm backing store").
+On Sun, 29 Mar 2015, Hugh Dickins wrote:
 
-Specify the exact behavior.
+> > munmap(2) of hugetlb memory requires a length that is hugepage aligned,
+> > otherwise it may fail.  Add this to the documentation.
+> 
+> Thanks for taking this on, David.  But although munmap(2) is the one
+> Davide called out, it goes beyond that, doesn't it?  To mprotect and
+> madvise and ...
+> 
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- man2/madvise.2 | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+Yes, good point, munmap(2) isn't special in this case, the alignment to 
+the native page size of the platform should apply to madvise, mbind, 
+mincore, mlock, mprotect, remap_file_pages, etc.
 
-diff --git a/man2/madvise.2 b/man2/madvise.2
-index a3d93bb..00db39d 100644
---- a/man2/madvise.2
-+++ b/man2/madvise.2
-@@ -184,7 +184,9 @@ any filesystem which supports the
- .BR FALLOC_FL_PUNCH_HOLE
- mode also supports
- .BR MADV_REMOVE .
--Other filesystems fail with the error
-+Hugetlbfs will fail with the error
-+.BR EINVAL
-+and other filesystems fail with the error
- .BR EOPNOTSUPP .
- .TP
- .BR MADV_DONTFORK " (since Linux 2.6.16)"
+I'd hesitate to compile any authoritative list on the behavior in 
+Documentation/vm/hugetlbpage.txt since it would exclude future extensions, 
+but I'll update it to be more inclusive of other mm syscalls rather than 
+specify only munmap(2).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
