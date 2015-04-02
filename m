@@ -1,60 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CDF66B006E
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 20:09:02 -0400 (EDT)
-Received: by padcy3 with SMTP id cy3so66797530pad.3
-        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 17:09:02 -0700 (PDT)
-Received: from mail-pd0-x233.google.com (mail-pd0-x233.google.com. [2607:f8b0:400e:c02::233])
-        by mx.google.com with ESMTPS id gp4si4878404pbc.196.2015.04.01.17.09.00
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Apr 2015 17:09:00 -0700 (PDT)
-Received: by pdbni2 with SMTP id ni2so70877145pdb.1
-        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 17:09:00 -0700 (PDT)
-Date: Wed, 1 Apr 2015 17:08:53 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: get page_cache_get_speculative() work on tail
- pages
-In-Reply-To: <20150401235651.GA20597@node.dhcp.inet.fi>
-Message-ID: <alpine.LSU.2.11.1504011705310.6939@eggly.anvils>
-References: <1427928772-100068-1-git-send-email-kirill.shutemov@linux.intel.com> <alpine.LSU.2.11.1504011617300.6431@eggly.anvils> <20150401235651.GA20597@node.dhcp.inet.fi>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 25B396B0038
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2015 21:52:11 -0400 (EDT)
+Received: by pacgg7 with SMTP id gg7so69087641pac.0
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2015 18:52:10 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id z7si5256002pas.78.2015.04.01.18.52.09
+        for <linux-mm@kvack.org>;
+        Wed, 01 Apr 2015 18:52:10 -0700 (PDT)
+Date: Thu, 2 Apr 2015 09:51:14 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [PATCH mmotm] set_page_huge_active() can be static
+Message-ID: <20150402015114.GA32212@lkp-sb04>
+References: <201504020952.5zwySb4V%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201504020952.5zwySb4V%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Steve Capper <steve.capper@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Johannes Weiner <hannes@cmpxchg.org>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Luiz Capitulino <lcapitulino@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Thu, 2 Apr 2015, Kirill A. Shutemov wrote:
-> On Wed, Apr 01, 2015 at 04:21:30PM -0700, Hugh Dickins wrote:
-> > On Thu, 2 Apr 2015, Kirill A. Shutemov wrote:
-> > 
-> > > Generic RCU fast GUP rely on page_cache_get_speculative() to obtain pin
-> > > on pte-mapped page.  As pointed by Aneesh during review of my compound
-> > > pages refcounting rework, page_cache_get_speculative() would fail on
-> > > pte-mapped tail page, since tail pages always have page->_count == 0.
-> > > 
-> > > That means we would never be able to successfully obtain pin on
-> > > pte-mapped tail page via generic RCU fast GUP.
-> > > 
-> > > But the problem is not exclusive to my patchset. In current kernel some
-> > > drivers (sound, for instance) already map compound pages with PTEs.
-> > 
-> > Hah, you were sending this as I was replying to the original thread.
-> > 
-> > Do we care if fast gup fails on some hardware driver's compound pages?
-> > I don't think we do, and it would be better not to complicate the
-> > low-level page_cache_get_speculative for them.
-> 
-> Fair enough :-/
-> 
-> I'll check tomorrow if it will look more reasonable on gup_pte_range()
-> level, rather than page_cache_get_speculative().
 
-But we don't need it on the (fast) gup_pte_range() level either, do we?
-Or do you have THP changes in mmotm which are now demanding this?
+Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+---
+ hugetlb.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Hugh
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index b527a7a..e837e0b 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -937,13 +937,13 @@ bool page_huge_active(struct page *page)
+ }
+ 
+ /* never called for tail page */
+-void set_page_huge_active(struct page *page)
++static void set_page_huge_active(struct page *page)
+ {
+ 	VM_BUG_ON_PAGE(!PageHeadHuge(page), page);
+ 	SetPagePrivate(&page[1]);
+ }
+ 
+-void clear_page_huge_active(struct page *page)
++static void clear_page_huge_active(struct page *page)
+ {
+ 	VM_BUG_ON_PAGE(!PageHeadHuge(page), page);
+ 	ClearPagePrivate(&page[1]);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
