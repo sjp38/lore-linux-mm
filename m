@@ -1,48 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 686836B0038
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2015 18:40:59 -0400 (EDT)
-Received: by igcxg11 with SMTP id xg11so85485899igc.0
-        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 15:40:59 -0700 (PDT)
-Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com. [2607:f8b0:4001:c05::231])
-        by mx.google.com with ESMTPS id o64si5603186ioo.84.2015.04.02.15.40.58
+Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id EB2626B0038
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2015 18:50:17 -0400 (EDT)
+Received: by ierf6 with SMTP id f6so80201212ier.2
+        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 15:50:17 -0700 (PDT)
+Received: from mail-ig0-x22d.google.com (mail-ig0-x22d.google.com. [2607:f8b0:4001:c05::22d])
+        by mx.google.com with ESMTPS id d15si5637266ioe.23.2015.04.02.15.50.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Apr 2015 15:40:58 -0700 (PDT)
-Received: by ignm3 with SMTP id m3so56741073ign.0
-        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 15:40:58 -0700 (PDT)
-Date: Thu, 2 Apr 2015 15:40:56 -0700 (PDT)
+        Thu, 02 Apr 2015 15:50:17 -0700 (PDT)
+Received: by igbud6 with SMTP id ud6so89075223igb.1
+        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 15:50:17 -0700 (PDT)
+Date: Thu, 2 Apr 2015 15:50:15 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/2] mm, doc: cleanup and clarify munmap behavior for
- hugetlb memory
-In-Reply-To: <alpine.LSU.2.11.1503291801400.1052@eggly.anvils>
-Message-ID: <alpine.DEB.2.10.1504021536210.15536@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1503261621570.20009@chino.kir.corp.google.com> <alpine.LSU.2.11.1503291801400.1052@eggly.anvils>
+Subject: [patch -mm] mm, doc: cleanup and clarify munmap behavior for hugetlb
+ memory fix
+In-Reply-To: <alpine.DEB.2.10.1504021536210.15536@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1504021547330.15536@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1503261621570.20009@chino.kir.corp.google.com> <alpine.LSU.2.11.1503291801400.1052@eggly.anvils> <alpine.DEB.2.10.1504021536210.15536@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Davide Libenzi <davidel@xmailserver.org>, Luiz Capitulino <lcapitulino@redhat.com>, Shuah Khan <shuahkh@osg.samsung.com>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, Eric B Munson <emunson@akamai.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-doc@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Jonathan Corbet <corbet@lwn.net>, Davide Libenzi <davidel@xmailserver.org>, Luiz Capitulino <lcapitulino@redhat.com>, Shuah Khan <shuahkh@osg.samsung.com>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, Eric B Munson <emunson@akamai.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-doc@vger.kernel.org
 
-On Sun, 29 Mar 2015, Hugh Dickins wrote:
+Don't only specify munmap(2) behavior with respect the hugetlb memory, all 
+other syscalls get naturally aligned to the native page size of the 
+processor.  Rather, pick out munmap(2) as a specific example.
 
-> > munmap(2) of hugetlb memory requires a length that is hugepage aligned,
-> > otherwise it may fail.  Add this to the documentation.
-> 
-> Thanks for taking this on, David.  But although munmap(2) is the one
-> Davide called out, it goes beyond that, doesn't it?  To mprotect and
-> madvise and ...
-> 
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ Documentation/vm/hugetlbpage.txt | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
 
-Yes, good point, munmap(2) isn't special in this case, the alignment to 
-the native page size of the platform should apply to madvise, mbind, 
-mincore, mlock, mprotect, remap_file_pages, etc.
-
-I'd hesitate to compile any authoritative list on the behavior in 
-Documentation/vm/hugetlbpage.txt since it would exclude future extensions, 
-but I'll update it to be more inclusive of other mm syscalls rather than 
-specify only munmap(2).
+diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
+index 1270fb1..030977f 100644
+--- a/Documentation/vm/hugetlbpage.txt
++++ b/Documentation/vm/hugetlbpage.txt
+@@ -313,8 +313,11 @@ into /proc/sys/vm/hugetlb_shm_group.  It is possible for same or different
+ applications to use any combination of mmaps and shm* calls, though the mount of
+ filesystem will be required for using mmap calls without MAP_HUGETLB.
+ 
+-When using munmap(2) to unmap hugetlb memory, the length specified must be
+-hugepage aligned, otherwise it will fail with errno set to EINVAL.
++Syscalls that operate on memory backed by hugetlb pages only have their lengths
++aligned to the native page size of the processor; they will normally fail with
++errno set to EINVAL or exclude hugetlb pages that extend beyond the length if
++not hugepage aligned.  For example, munmap(2) will fail if memory is backed by
++a hugetlb page and the length is smaller than the hugepage size.
+ 
+ 
+ Examples
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
