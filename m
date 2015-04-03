@@ -1,92 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id CE0796B0038
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2015 19:01:46 -0400 (EDT)
-Received: by igbqf9 with SMTP id qf9so85298925igb.1
-        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 16:01:46 -0700 (PDT)
-Received: from mail-ie0-x22c.google.com (mail-ie0-x22c.google.com. [2607:f8b0:4001:c03::22c])
-        by mx.google.com with ESMTPS id b6si5973007icl.49.2015.04.02.16.01.46
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B3FE6B0032
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2015 21:04:03 -0400 (EDT)
+Received: by ignm3 with SMTP id m3so58026712ign.0
+        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 18:04:03 -0700 (PDT)
+Received: from mail-ie0-x22d.google.com (mail-ie0-x22d.google.com. [2607:f8b0:4001:c03::22d])
+        by mx.google.com with ESMTPS id 65si5850916ioq.94.2015.04.02.18.04.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Apr 2015 16:01:46 -0700 (PDT)
-Received: by iedfl3 with SMTP id fl3so90435530ied.1
-        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 16:01:46 -0700 (PDT)
-Date: Thu, 2 Apr 2015 16:01:44 -0700 (PDT)
+        Thu, 02 Apr 2015 18:04:02 -0700 (PDT)
+Received: by iedfl3 with SMTP id fl3so92113349ied.1
+        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 18:04:02 -0700 (PDT)
+Date: Thu, 2 Apr 2015 18:04:00 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch] android, lmk: avoid setting TIF_MEMDIE if process has already
- exited
-In-Reply-To: <alpine.DEB.2.10.1503261231440.9410@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1504021558220.15536@chino.kir.corp.google.com>
-References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org> <1427264236-17249-4-git-send-email-hannes@cmpxchg.org> <alpine.DEB.2.10.1503252025230.16714@chino.kir.corp.google.com> <20150326110532.GB18560@cmpxchg.org>
- <alpine.DEB.2.10.1503261231440.9410@chino.kir.corp.google.com>
+Subject: Re: [patch v2 4/4] mm, mempool: poison elements backed by page
+ allocator
+In-Reply-To: <551A861B.7020701@samsung.com>
+Message-ID: <alpine.DEB.2.10.1504021803170.20229@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1503241607240.21805@chino.kir.corp.google.com> <alpine.DEB.2.10.1503241609370.21805@chino.kir.corp.google.com> <CAPAsAGwipUr7NBWjQ_xjA0CfeiZ0NuYAg13M4jYmWVe4V8Jjmg@mail.gmail.com> <alpine.DEB.2.10.1503261542060.16259@chino.kir.corp.google.com>
+ <551A861B.7020701@samsung.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="531381512-533442710-1428015705=:15536"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: =?UTF-8?Q?Arve_Hj=C3=B8nnev=C3=A5g?= <arve@android.com>, Riley Andrews <riandrews@android.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@driverdev.osuosl.org
+To: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Kleikamp <shaggy@kernel.org>, Christoph Hellwig <hch@lst.de>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, jfs-discussion@lists.sourceforge.net
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Tue, 31 Mar 2015, Andrey Ryabinin wrote:
 
---531381512-533442710-1428015705=:15536
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: 8BIT
+> > We don't have a need to set PAGE_EXT_DEBUG_POISON on these pages sitting 
+> > in the reserved pool, nor do we have a need to do kmap_atomic() since it's 
+> > already mapped and must be mapped to be on the reserved pool, which is 
+> > handled by mempool_free().
+> > 
+> 
+> Hmm.. I just realized that this statement might be wrong.
+> Why pages has to be mapped to be on reserved pool?
+> mempool could be used for highmem pages and there is no need to kmap()
+> until these pages will be used.
+> 
+> drbd (drivers/block/drbd) already uses mempool for highmem pages:
+> 
 
-TIF_MEMDIE should not be set on a process if it does not have a valid 
-->mm, and this is protected by task_lock().
-
-If TIF_MEMDIE gets set after the mm has detached, and the process fails to 
-exit, then the oom killer will defer forever waiting for it to exit.
-
-Make sure that the mm is still valid before setting TIF_MEMDIE by way of 
-mark_tsk_oom_victim().
-
-Cc: "Arve HjA,nnevAJPYg" <arve@android.com>
-Cc: Riley Andrews <riandrews@android.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- drivers/staging/android/lowmemorykiller.c | 17 ++++++++++++-----
- 1 file changed, 12 insertions(+), 5 deletions(-)
-
-diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
---- a/drivers/staging/android/lowmemorykiller.c
-+++ b/drivers/staging/android/lowmemorykiller.c
-@@ -156,20 +156,27 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
- 			     p->pid, p->comm, oom_score_adj, tasksize);
- 	}
- 	if (selected) {
--		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
--			     selected->pid, selected->comm,
--			     selected_oom_score_adj, selected_tasksize);
--		lowmem_deathpending_timeout = jiffies + HZ;
-+		task_lock(selected);
-+		if (!selected->mm) {
-+			/* Already exited, cannot do mark_tsk_oom_victim() */
-+			task_unlock(selected);
-+			goto out;
-+		}
- 		/*
- 		 * FIXME: lowmemorykiller shouldn't abuse global OOM killer
- 		 * infrastructure. There is no real reason why the selected
- 		 * task should have access to the memory reserves.
- 		 */
- 		mark_tsk_oom_victim(selected);
-+		task_unlock(selected);
-+		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
-+			     selected->pid, selected->comm,
-+			     selected_oom_score_adj, selected_tasksize);
-+		lowmem_deathpending_timeout = jiffies + HZ;
- 		send_sig(SIGKILL, selected, 0);
- 		rem += selected_tasksize;
- 	}
--
-+out:
- 	lowmem_print(4, "lowmem_scan %lu, %x, return %lu\n",
- 		     sc->nr_to_scan, sc->gfp_mask, rem);
- 	rcu_read_unlock();
---531381512-533442710-1428015705=:15536--
+Yes, you're exactly right, I didn't see this because the mempool is 
+created in one file and then solely used in another file, but regardless 
+we still need protection from this usecase.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
