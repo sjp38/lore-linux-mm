@@ -1,50 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B3FE6B0032
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2015 21:04:03 -0400 (EDT)
-Received: by ignm3 with SMTP id m3so58026712ign.0
-        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 18:04:03 -0700 (PDT)
-Received: from mail-ie0-x22d.google.com (mail-ie0-x22d.google.com. [2607:f8b0:4001:c03::22d])
-        by mx.google.com with ESMTPS id 65si5850916ioq.94.2015.04.02.18.04.02
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 421F46B006E
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2015 21:05:19 -0400 (EDT)
+Received: by pddn5 with SMTP id n5so105807816pdd.2
+        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 18:05:19 -0700 (PDT)
+Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com. [2607:f8b0:400e:c02::22e])
+        by mx.google.com with ESMTPS id ry1si9655743pab.199.2015.04.02.18.05.18
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Apr 2015 18:04:02 -0700 (PDT)
-Received: by iedfl3 with SMTP id fl3so92113349ied.1
-        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 18:04:02 -0700 (PDT)
-Date: Thu, 2 Apr 2015 18:04:00 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2 4/4] mm, mempool: poison elements backed by page
- allocator
-In-Reply-To: <551A861B.7020701@samsung.com>
-Message-ID: <alpine.DEB.2.10.1504021803170.20229@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1503241607240.21805@chino.kir.corp.google.com> <alpine.DEB.2.10.1503241609370.21805@chino.kir.corp.google.com> <CAPAsAGwipUr7NBWjQ_xjA0CfeiZ0NuYAg13M4jYmWVe4V8Jjmg@mail.gmail.com> <alpine.DEB.2.10.1503261542060.16259@chino.kir.corp.google.com>
- <551A861B.7020701@samsung.com>
+        Thu, 02 Apr 2015 18:05:18 -0700 (PDT)
+Received: by pddn5 with SMTP id n5so105807478pdd.2
+        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 18:05:18 -0700 (PDT)
+Date: Thu, 2 Apr 2015 18:05:10 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [patch -mm] mm, doc: cleanup and clarify munmap behavior for
+ hugetlb memory fix
+In-Reply-To: <alpine.DEB.2.10.1504021547330.15536@chino.kir.corp.google.com>
+Message-ID: <alpine.LSU.2.11.1504021802340.7876@eggly.anvils>
+References: <alpine.DEB.2.10.1503261621570.20009@chino.kir.corp.google.com> <alpine.LSU.2.11.1503291801400.1052@eggly.anvils> <alpine.DEB.2.10.1504021536210.15536@chino.kir.corp.google.com> <alpine.DEB.2.10.1504021547330.15536@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Kleikamp <shaggy@kernel.org>, Christoph Hellwig <hch@lst.de>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, jfs-discussion@lists.sourceforge.net
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Jonathan Corbet <corbet@lwn.net>, Davide Libenzi <davidel@xmailserver.org>, Luiz Capitulino <lcapitulino@redhat.com>, Shuah Khan <shuahkh@osg.samsung.com>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, Eric B Munson <emunson@akamai.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-doc@vger.kernel.org
 
-On Tue, 31 Mar 2015, Andrey Ryabinin wrote:
+On Thu, 2 Apr 2015, David Rientjes wrote:
 
-> > We don't have a need to set PAGE_EXT_DEBUG_POISON on these pages sitting 
-> > in the reserved pool, nor do we have a need to do kmap_atomic() since it's 
-> > already mapped and must be mapped to be on the reserved pool, which is 
-> > handled by mempool_free().
-> > 
+> Don't only specify munmap(2) behavior with respect the hugetlb memory, all 
+> other syscalls get naturally aligned to the native page size of the 
+> processor.  Rather, pick out munmap(2) as a specific example.
 > 
-> Hmm.. I just realized that this statement might be wrong.
-> Why pages has to be mapped to be on reserved pool?
-> mempool could be used for highmem pages and there is no need to kmap()
-> until these pages will be used.
-> 
-> drbd (drivers/block/drbd) already uses mempool for highmem pages:
-> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Yes, you're exactly right, I didn't see this because the mempool is 
-created in one file and then solely used in another file, but regardless 
-we still need protection from this usecase.
+Thanks, yes, good wording: it is best to be a bit vague here,
+since each msyscall takes the approach most convenient for it.
+
+Acked-by: Hugh Dickins <hughd@google.com>
+
+> ---
+>  Documentation/vm/hugetlbpage.txt | 7 +++++--
+>  1 file changed, 5 insertions(+), 2 deletions(-)
+> 
+> diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
+> index 1270fb1..030977f 100644
+> --- a/Documentation/vm/hugetlbpage.txt
+> +++ b/Documentation/vm/hugetlbpage.txt
+> @@ -313,8 +313,11 @@ into /proc/sys/vm/hugetlb_shm_group.  It is possible for same or different
+>  applications to use any combination of mmaps and shm* calls, though the mount of
+>  filesystem will be required for using mmap calls without MAP_HUGETLB.
+>  
+> -When using munmap(2) to unmap hugetlb memory, the length specified must be
+> -hugepage aligned, otherwise it will fail with errno set to EINVAL.
+> +Syscalls that operate on memory backed by hugetlb pages only have their lengths
+> +aligned to the native page size of the processor; they will normally fail with
+> +errno set to EINVAL or exclude hugetlb pages that extend beyond the length if
+> +not hugepage aligned.  For example, munmap(2) will fail if memory is backed by
+> +a hugetlb page and the length is smaller than the hugepage size.
+>  
+>  
+>  Examples
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
