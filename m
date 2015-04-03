@@ -1,64 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A5E06B0032
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2015 02:33:08 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so99474579wid.0
-        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 23:33:08 -0700 (PDT)
-Received: from mail-wg0-x235.google.com (mail-wg0-x235.google.com. [2a00:1450:400c:c00::235])
-        by mx.google.com with ESMTPS id l3si12634517wjf.51.2015.04.02.23.33.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Apr 2015 23:33:07 -0700 (PDT)
-Received: by wgra20 with SMTP id a20so103633782wgr.3
-        for <linux-mm@kvack.org>; Thu, 02 Apr 2015 23:33:06 -0700 (PDT)
-Date: Fri, 3 Apr 2015 08:33:02 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v4 0/7] mtrr, mm, x86: Enhance MTRR checks for huge I/O
- mapping
-Message-ID: <20150403063302.GA29212@gmail.com>
-References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
- <20150324154324.f9ca557127f7bc7aed45a86b@linux-foundation.org>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 01DB86B0032
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2015 03:20:32 -0400 (EDT)
+Received: by pddn5 with SMTP id n5so113780475pdd.2
+        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 00:20:31 -0700 (PDT)
+Received: from us-alimail-mta1.hst.scl.en.alidc.net (mail113-251.mail.alibaba.com. [205.204.113.251])
+        by mx.google.com with ESMTP id m13si10728198pby.164.2015.04.03.00.20.28
+        for <linux-mm@kvack.org>;
+        Fri, 03 Apr 2015 00:20:30 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <057a01d06ddd$ff2550e0$fd6ff2a0$@alibaba-inc.com>
+In-Reply-To: <057a01d06ddd$ff2550e0$fd6ff2a0$@alibaba-inc.com>
+Subject: Re: [patch -mm] mm, doc: cleanup and clarify munmap behavior for hugetlb memory fix
+Date: Fri, 03 Apr 2015 15:18:50 +0800
+Message-ID: <057b01d06dde$71738db0$545aa910$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150324154324.f9ca557127f7bc7aed45a86b@linux-foundation.org>
+Content-Type: text/plain;
+	charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Toshi Kani <toshi.kani@hp.com>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-
-* Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Tue, 24 Mar 2015 16:08:34 -0600 Toshi Kani <toshi.kani@hp.com> wrote:
 > 
-> > This patchset enhances MTRR checks for the kernel huge I/O mapping,
-> > which was enabled by the patchset below:
-> >   https://lkml.org/lkml/2015/3/3/589
-> > 
-> > The following functional changes are made in patch 7/7.
-> >  - Allow pud_set_huge() and pmd_set_huge() to create a huge page
-> >    mapping to a range covered by a single MTRR entry of any memory
-> >    type.
-> >  - Log a pr_warn() message when a specified PMD map range spans more
-> >    than a single MTRR entry.  Drivers should make a mapping request
-> >    aligned to a single MTRR entry when the range is covered by MTRRs.
-> > 
+> Don't only specify munmap(2) behavior with respect the hugetlb memory, all
+> other syscalls get naturally aligned to the native page size of the
+> processor.  Rather, pick out munmap(2) as a specific example.
 > 
-> OK, I grabbed these after barely looking at them, to get them a bit of
-> runtime testing.
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+
+>  Documentation/vm/hugetlbpage.txt | 7 +++++--
+>  1 file changed, 5 insertions(+), 2 deletions(-)
 > 
-> I'll await guidance from the x86 maintainers regarding next steps?
-
-Could you please send the current version of them over to us if your 
-testing didn't find any problems?
-
-I'd like to take a final look and have them cook in the x86 tree as 
-well for a while and want to preserve your testing effort.
-
-Thanks!
-
-	Ingo
+> diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
+> index 1270fb1..030977f 100644
+> --- a/Documentation/vm/hugetlbpage.txt
+> +++ b/Documentation/vm/hugetlbpage.txt
+> @@ -313,8 +313,11 @@ into /proc/sys/vm/hugetlb_shm_group.  It is possible for same or different
+>  applications to use any combination of mmaps and shm* calls, though the mount of
+>  filesystem will be required for using mmap calls without MAP_HUGETLB.
+> 
+> -When using munmap(2) to unmap hugetlb memory, the length specified must be
+> -hugepage aligned, otherwise it will fail with errno set to EINVAL.
+> +Syscalls that operate on memory backed by hugetlb pages only have their lengths
+> +aligned to the native page size of the processor; they will normally fail with
+> +errno set to EINVAL or exclude hugetlb pages that extend beyond the length if
+> +not hugepage aligned.  For example, munmap(2) will fail if memory is backed by
+> +a hugetlb page and the length is smaller than the hugepage size.
+> 
+> 
+>  Examples
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
