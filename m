@@ -1,198 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 94FEE6B0032
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2015 03:57:41 -0400 (EDT)
-Received: by wixm2 with SMTP id m2so69250411wix.0
-        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 00:57:41 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id na9si2112419wic.65.2015.04.03.00.57.39
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 03 Apr 2015 00:57:39 -0700 (PDT)
-Message-ID: <551E47EF.5030800@suse.cz>
-Date: Fri, 03 Apr 2015 09:57:35 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id E2B506B0032
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2015 04:16:17 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so34939522pdb.0
+        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 01:16:17 -0700 (PDT)
+Received: from us-alimail-mta2.hst.scl.en.alidc.net (mail113-251.mail.alibaba.com. [205.204.113.251])
+        by mx.google.com with ESMTP id g12si11012617pat.50.2015.04.03.01.16.14
+        for <linux-mm@kvack.org>;
+        Fri, 03 Apr 2015 01:16:16 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <058201d06de5$9e15edc0$da41c940$@alibaba-inc.com>
+In-Reply-To: <058201d06de5$9e15edc0$da41c940$@alibaba-inc.com>
+Subject: Re: [patch] mm, memcg: sync allocation and memcg charge gfp flags for thp fix fix
+Date: Fri, 03 Apr 2015 16:14:39 +0800
+Message-ID: <058301d06de6$3b941310$b2bc3930$@alibaba-inc.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: vmscan: do not throttle based on pfmemalloc reserves
- if node has no reclaimable pages
-References: <20150327192850.GA18701@linux.vnet.ibm.com> <5515BAF7.6070604@intel.com> <20150327222350.GA22887@linux.vnet.ibm.com> <20150331094829.GE9589@dhcp22.suse.cz>
-In-Reply-To: <20150331094829.GE9589@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Type: text/plain;
+	charset="UTF-8"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, anton@sambar.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Dan Streetman <ddstreet@ieee.org>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 03/31/2015 11:48 AM, Michal Hocko wrote:
-> On Fri 27-03-15 15:23:50, Nishanth Aravamudan wrote:
->> On 27.03.2015 [13:17:59 -0700], Dave Hansen wrote:
->>> On 03/27/2015 12:28 PM, Nishanth Aravamudan wrote:
->>>> @@ -2585,7 +2585,7 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
->>>>
->>>>          for (i = 0; i <= ZONE_NORMAL; i++) {
->>>>                  zone = &pgdat->node_zones[i];
->>>> -               if (!populated_zone(zone))
->>>> +               if (!populated_zone(zone) || !zone_reclaimable(zone))
->>>>                          continue;
->>>>
->>>>                  pfmemalloc_reserve += min_wmark_pages(zone);
->>>
->>> Do you really want zone_reclaimable()?  Or do you want something more
->>> direct like "zone_reclaimable_pages(zone) == 0"?
->>
->> Yeah, I guess in my testing this worked out to be the same, since
->> zone_reclaimable_pages(zone) is 0 and so zone_reclaimable(zone) will
->> always be false. Thanks!
->>
->> Based upon 675becce15 ("mm: vmscan: do not throttle based on pfmemalloc
->> reserves if node has no ZONE_NORMAL") from Mel.
->>
->> We have a system with the following topology:
->>
->> # numactl -H
->> available: 3 nodes (0,2-3)
->> node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
->> 23 24 25 26 27 28 29 30 31
->> node 0 size: 28273 MB
->> node 0 free: 27323 MB
->> node 2 cpus:
->> node 2 size: 16384 MB
->> node 2 free: 0 MB
->> node 3 cpus: 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47
->> node 3 size: 30533 MB
->> node 3 free: 13273 MB
->> node distances:
->> node   0   2   3
->>    0:  10  20  20
->>    2:  20  10  20
->>    3:  20  20  10
->>
->> Node 2 has no free memory, because:
->> # cat /sys/devices/system/node/node2/hugepages/hugepages-16777216kB/nr_hugepages
->> 1
->>
->> This leads to the following zoneinfo:
->>
->> Node 2, zone      DMA
->>    pages free     0
->>          min      1840
->>          low      2300
->>          high     2760
->>          scanned  0
->>          spanned  262144
->>          present  262144
->>          managed  262144
->> ...
->>    all_unreclaimable: 1
->
-> Blee, this is a weird configuration.
->
->> If one then attempts to allocate some normal 16M hugepages via
->>
->> echo 37 > /proc/sys/vm/nr_hugepages
->>
->> The echo never returns and kswapd2 consumes CPU cycles.
->>
->> This is because throttle_direct_reclaim ends up calling
->> wait_event(pfmemalloc_wait, pfmemalloc_watermark_ok...).
->> pfmemalloc_watermark_ok() in turn checks all zones on the node if there
->> are any reserves, and if so, then indicates the watermarks are ok, by
->> seeing if there are sufficient free pages.
->>
->> 675becce15 added a condition already for memoryless nodes. In this case,
->> though, the node has memory, it is just all consumed (and not
->> reclaimable). Effectively, though, the result is the same on this call
->> to pfmemalloc_watermark_ok() and thus seems like a reasonable additional
->> condition.
->>
->> With this change, the afore-mentioned 16M hugepage allocation attempt
->> succeeds and correctly round-robins between Nodes 1 and 3.
->
-> I am just wondering whether this is the right/complete fix. Don't we
-> need a similar treatment at more places?
-> I would expect kswapd would be looping endlessly because the zone
-> wouldn't be balanced obviously. But I would be wrong... because
-> pgdat_balanced is doing this:
-> 		/*
-> 		 * A special case here:
-> 		 *
-> 		 * balance_pgdat() skips over all_unreclaimable after
-> 		 * DEF_PRIORITY. Effectively, it considers them balanced so
-> 		 * they must be considered balanced here as well!
-> 		 */
-> 		if (!zone_reclaimable(zone)) {
-> 			balanced_pages += zone->managed_pages;
-> 			continue;
-> 		}
->
-> and zone_reclaimable is false for you as you didn't have any
-> zone_reclaimable_pages(). But wakeup_kswapd doesn't do this check so it
-> would see !zone_balanced() AFAICS (build_zonelists doesn't ignore those
-> zones right?) and so the kswapd would be woken up easily. So it looks
-> like a mess.
+> 
+> "mm, memcg: sync allocation and memcg charge gfp flags for THP" in -mm
+> introduces a formal to pass the gfp mask for khugepaged's hugepage
+> allocation.  This is just too ugly to live.
+> 
+> alloc_hugepage_gfpmask() cannot differ between NUMA and UMA configs by
+> anything in GFP_RECLAIM_MASK, which is the only thing that matters for
+> memcg reclaim, so just determine the gfp flags once in
+> collapse_huge_page() and avoid the complexity.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
-Yeah, looks like a much cleaner/complete solution would be to remove 
-such zones from zonelists. But that means covering all situations when 
-these hugepages are allocated/removed and the approach then looks 
-similar to memory hotplug.
-Also I'm not sure if the ability to actually allocate the reserved 
-hugepage would be impossible due to not being reachable by a zonelist...
+>  -mm: intended to be folded into
+>       mm-memcg-sync-allocation-and-memcg-charge-gfp-flags-for-thp.patch
+> 
+>  mm/huge_memory.c | 21 ++++++++-------------
+>  1 file changed, 8 insertions(+), 13 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2373,16 +2373,12 @@ static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
+>  }
+> 
+>  static struct page *
+> -khugepaged_alloc_page(struct page **hpage, gfp_t *gfp, struct mm_struct *mm,
+> +khugepaged_alloc_page(struct page **hpage, gfp_t gfp, struct mm_struct *mm,
+>  		       struct vm_area_struct *vma, unsigned long address,
+>  		       int node)
+>  {
+>  	VM_BUG_ON_PAGE(*hpage, *hpage);
+> 
+> -	/* Only allocate from the target node */
+> -	*gfp = alloc_hugepage_gfpmask(khugepaged_defrag(), __GFP_OTHER_NODE) |
+> -	        __GFP_THISNODE;
+> -
+>  	/*
+>  	 * Before allocating the hugepage, release the mmap_sem read lock.
+>  	 * The allocation can take potentially a long time if it involves
+> @@ -2391,7 +2387,7 @@ khugepaged_alloc_page(struct page **hpage, gfp_t *gfp, struct mm_struct *mm,
+>  	 */
+>  	up_read(&mm->mmap_sem);
+> 
+> -	*hpage = alloc_pages_exact_node(node, *gfp, HPAGE_PMD_ORDER);
+> +	*hpage = alloc_pages_exact_node(node, gfp, HPAGE_PMD_ORDER);
+>  	if (unlikely(!*hpage)) {
+>  		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
+>  		*hpage = ERR_PTR(-ENOMEM);
+> @@ -2445,18 +2441,13 @@ static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
+>  }
+> 
+>  static struct page *
+> -khugepaged_alloc_page(struct page **hpage, gfp_t *gfp, struct mm_struct *mm,
+> +khugepaged_alloc_page(struct page **hpage, gfp_t gfp, struct mm_struct *mm,
+>  		       struct vm_area_struct *vma, unsigned long address,
+>  		       int node)
+>  {
+>  	up_read(&mm->mmap_sem);
+>  	VM_BUG_ON(!*hpage);
+> 
+> -	/*
+> -	 * khugepaged_alloc_hugepage is doing the preallocation, use the same
+> -	 * gfp flags here.
+> -	 */
+> -	*gfp = alloc_hugepage_gfpmask(khugepaged_defrag(), 0);
+>  	return  *hpage;
+>  }
+>  #endif
+> @@ -2495,8 +2486,12 @@ static void collapse_huge_page(struct mm_struct *mm,
+> 
+>  	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+> 
+> +	/* Only allocate from the target node */
+> +	gfp = alloc_hugepage_gfpmask(khugepaged_defrag(), __GFP_OTHER_NODE) |
+> +		__GFP_THISNODE;
+> +
+>  	/* release the mmap_sem read lock. */
+> -	new_page = khugepaged_alloc_page(hpage, &gfp, mm, vma, address, node);
+> +	new_page = khugepaged_alloc_page(hpage, gfp, mm, vma, address, node);
+>  	if (!new_page)
+>  		return;
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> 
 
-> There are possibly other places which rely on populated_zone or
-> for_each_populated_zone without checking reclaimability. Are those
-> working as expected?
-
-Yeah. At least the wakeup_kswapd case should be fixed IMHO. No point in 
-waking it up just to let it immediately go to sleep again.
-
-> That being said. I am not objecting to this patch. I am just trying to
-> wrap my head around possible issues from such a weird configuration and
-> all the consequences.
->
->> Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
->
-> The patch as is doesn't seem to be harmful.
->
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
->
->> ---
->> v1 -> v2:
->>    Check against zone_reclaimable_pages, rather zone_reclaimable, based
->>    upon feedback from Dave Hansen.
->
-> Dunno, but shouldn't we use the same thing here and in pgdat_balanced?
-> zone_reclaimable_pages seems to be used only from zone_reclaimable().
-
-pgdat_balanced() has a different goal than pfmemalloc_watermark_ok() and 
-needs to match what balance_pgdat() does, which includes considering 
-NR_PAGES_SCANNED through zone_reclaimable(). For the situation 
-considered in this patch, result of zone_reclaimable() will match the 
-test zone_reclaimable_pages(zone) == 0, so it is fine I think.
-
-What I find somewhat worrying though is that we could potentially break 
-the pfmemalloc_watermark_ok() test in situations where 
-zone_reclaimable_pages(zone) == 0 is a transient situation (and not a 
-permanently allocated hugepage). In that case, the throttling is 
-supposed to help system recover, and we might be breaking that ability 
-with this patch, no?
-
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index 5e8eadd71bac..c627fa4c991f 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -2646,7 +2646,8 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
->>
->>   	for (i = 0; i <= ZONE_NORMAL; i++) {
->>   		zone = &pgdat->node_zones[i];
->> -		if (!populated_zone(zone))
->> +		if (!populated_zone(zone) ||
->> +		    zone_reclaimable_pages(zone) == 0)
->>   			continue;
->>
->>   		pfmemalloc_reserve += min_wmark_pages(zone);
->>
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
