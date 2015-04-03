@@ -1,80 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F5086B0032
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2015 11:40:43 -0400 (EDT)
-Received: by obbgh1 with SMTP id gh1so168012269obb.1
-        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 08:40:42 -0700 (PDT)
-Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
-        by mx.google.com with ESMTPS id dc7si8213431oec.101.2015.04.03.08.40.41
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BCED6B0038
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2015 13:18:23 -0400 (EDT)
+Received: by lbbzk7 with SMTP id zk7so66292486lbb.0
+        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 10:18:22 -0700 (PDT)
+Received: from forward-corp1g.mail.yandex.net (forward-corp1g.mail.yandex.net. [2a02:6b8:0:1402::10])
+        by mx.google.com with ESMTPS id qn3si7155355lbc.42.2015.04.03.10.18.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Apr 2015 08:40:41 -0700 (PDT)
-Message-ID: <1428074540.31093.110.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v4 0/7] mtrr, mm, x86: Enhance MTRR checks for huge I/O
- mapping
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 03 Apr 2015 09:22:20 -0600
-In-Reply-To: <20150403063302.GA29212@gmail.com>
-References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
-	 <20150324154324.f9ca557127f7bc7aed45a86b@linux-foundation.org>
-	 <20150403063302.GA29212@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Fri, 03 Apr 2015 10:18:21 -0700 (PDT)
+Subject: [PATCH] mm/memory: print also a_ops->readpage in print_bad_pte
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Date: Fri, 03 Apr 2015 20:18:18 +0300
+Message-ID: <20150403171818.22742.92919.stgit@buzz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org
 
-On Fri, 2015-04-03 at 08:33 +0200, Ingo Molnar wrote:
-> * Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
-> > On Tue, 24 Mar 2015 16:08:34 -0600 Toshi Kani <toshi.kani@hp.com> wrote:
-> > 
-> > > This patchset enhances MTRR checks for the kernel huge I/O mapping,
-> > > which was enabled by the patchset below:
-> > >   https://lkml.org/lkml/2015/3/3/589
-> > > 
-> > > The following functional changes are made in patch 7/7.
-> > >  - Allow pud_set_huge() and pmd_set_huge() to create a huge page
-> > >    mapping to a range covered by a single MTRR entry of any memory
-> > >    type.
-> > >  - Log a pr_warn() message when a specified PMD map range spans more
-> > >    than a single MTRR entry.  Drivers should make a mapping request
-> > >    aligned to a single MTRR entry when the range is covered by MTRRs.
-> > > 
-> > 
-> > OK, I grabbed these after barely looking at them, to get them a bit of
-> > runtime testing.
-> > 
-> > I'll await guidance from the x86 maintainers regarding next steps?
-> 
-> Could you please send the current version of them over to us if your 
-> testing didn't find any problems?
-> 
-> I'd like to take a final look and have them cook in the x86 tree as 
-> well for a while and want to preserve your testing effort.
+A lot of filesystems use generic_file_mmap() and filemap_fault(),
+f_op->mmap and vm_ops->fault aren't enough to identify filesystem.
 
-This patchset is on top of the following patches in the -mm tree.
-(Patches apply from the bottom to the top.)
+This prints file name, vm_ops->fault, f_op->mmap and a_ops->readpage
+(which is almost always implemented and filesystem-specific).
 
-2. Build error fixes and cleanups
-http://ozlabs.org/~akpm/mmotm/broken-out/x86-mm-support-huge-kva-mappings-on-x86-fix.patch
-http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-vunmap-to-tear-down-huge-kva-mappings-fix.patch
-http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-ioremap-to-set-up-huge-i-o-mappings-fix.patch
-http://ozlabs.org/~akpm/mmotm/broken-out/lib-add-huge-i-o-map-capability-interfaces-fix.patch
+Example:
 
-1. Kernel huge I/O mapping support
-http://ozlabs.org/~akpm/mmotm/broken-out/x86-mm-support-huge-kva-mappings-on-x86.patch
-http://ozlabs.org/~akpm/mmotm/broken-out/x86-mm-support-huge-i-o-mapping-capability-i-f.patch
-http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-vunmap-to-tear-down-huge-kva-mappings.patch
-http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-ioremap-to-set-up-huge-i-o-mappings.patch
-http://ozlabs.org/~akpm/mmotm/broken-out/lib-add-huge-i-o-map-capability-interfaces.patch
-http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-__get_vm_area_node-to-use-fls_long.patch
+[   23.676410] BUG: Bad page map in process sh  pte:1b7e6025 pmd:19bbd067
+[   23.676887] page:ffffea00006df980 count:4 mapcount:1 mapping:ffff8800196426c0 index:0x97
+[   23.677481] flags: 0x10000000000000c(referenced|uptodate)
+[   23.677896] page dumped because: bad pte
+[   23.678205] addr:00007f52fcb17000 vm_flags:00000075 anon_vma:          (null) mapping:ffff8800196426c0 index:97
+[   23.678922] file:libc-2.19.so fault:filemap_fault mmap:generic_file_readonly_mmap readpage:v9fs_vfs_readpage
 
-Thanks,
--Toshi
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+---
+ mm/memory.c |   12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
+diff --git a/mm/memory.c b/mm/memory.c
+index 411144f977b1..ea868eea0c88 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -690,12 +690,12 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
+ 	/*
+ 	 * Choose text because data symbols depend on CONFIG_KALLSYMS_ALL=y
+ 	 */
+-	if (vma->vm_ops)
+-		printk(KERN_ALERT "vma->vm_ops->fault: %pSR\n",
+-		       vma->vm_ops->fault);
+-	if (vma->vm_file)
+-		printk(KERN_ALERT "vma->vm_file->f_op->mmap: %pSR\n",
+-		       vma->vm_file->f_op->mmap);
++	printk(KERN_ALERT
++		"file:%pD fault:%pf mmap:%pf readpage:%pf\n",
++		vma->vm_file,
++		vma->vm_ops ? vma->vm_ops->fault : NULL,
++		vma->vm_file ? vma->vm_file->f_op->mmap : NULL,
++		mapping ? mapping->a_ops->readpage : NULL);
+ 	dump_stack();
+ 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
