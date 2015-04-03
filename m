@@ -1,141 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id BD1696B0032
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2015 10:48:04 -0400 (EDT)
-Received: by pdbni2 with SMTP id ni2so123732652pdb.1
-        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 07:48:04 -0700 (PDT)
-Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
-        by mx.google.com with ESMTPS id uz3si12241957pbc.116.2015.04.03.07.48.01
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F5086B0032
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2015 11:40:43 -0400 (EDT)
+Received: by obbgh1 with SMTP id gh1so168012269obb.1
+        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 08:40:42 -0700 (PDT)
+Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
+        by mx.google.com with ESMTPS id dc7si8213431oec.101.2015.04.03.08.40.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 03 Apr 2015 07:48:03 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout1.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NM800M2ZJYQIO50@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 03 Apr 2015 15:52:02 +0100 (BST)
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [PATCH] mm, mempool: kasan: poison mempool elements
-Date: Fri, 03 Apr 2015 17:47:47 +0300
-Message-id: <1428072467-21668-1-git-send-email-a.ryabinin@samsung.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 03 Apr 2015 08:40:41 -0700 (PDT)
+Message-ID: <1428074540.31093.110.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v4 0/7] mtrr, mm, x86: Enhance MTRR checks for huge I/O
+ mapping
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Fri, 03 Apr 2015 09:22:20 -0600
+In-Reply-To: <20150403063302.GA29212@gmail.com>
+References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
+	 <20150324154324.f9ca557127f7bc7aed45a86b@linux-foundation.org>
+	 <20150403063302.GA29212@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, David Rientjes <rientjes@google.com>, Dave Kleikamp <shaggy@kernel.org>, Christoph Hellwig <hch@lst.de>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, Dmitry Chernenkov <drcheren@gmail.com>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
 
-Mempools keep allocated objects in reserved for situations
-when ordinary allocation may not be possible to satisfy.
-These objects shouldn't be accessed before they leave
-the pool.
-This patch poison elements when get into the pool
-and unpoison when they leave it. This will let KASan
-to detect use-after-free of mempool's elements.
+On Fri, 2015-04-03 at 08:33 +0200, Ingo Molnar wrote:
+> * Andrew Morton <akpm@linux-foundation.org> wrote:
+> 
+> > On Tue, 24 Mar 2015 16:08:34 -0600 Toshi Kani <toshi.kani@hp.com> wrote:
+> > 
+> > > This patchset enhances MTRR checks for the kernel huge I/O mapping,
+> > > which was enabled by the patchset below:
+> > >   https://lkml.org/lkml/2015/3/3/589
+> > > 
+> > > The following functional changes are made in patch 7/7.
+> > >  - Allow pud_set_huge() and pmd_set_huge() to create a huge page
+> > >    mapping to a range covered by a single MTRR entry of any memory
+> > >    type.
+> > >  - Log a pr_warn() message when a specified PMD map range spans more
+> > >    than a single MTRR entry.  Drivers should make a mapping request
+> > >    aligned to a single MTRR entry when the range is covered by MTRRs.
+> > > 
+> > 
+> > OK, I grabbed these after barely looking at them, to get them a bit of
+> > runtime testing.
+> > 
+> > I'll await guidance from the x86 maintainers regarding next steps?
+> 
+> Could you please send the current version of them over to us if your 
+> testing didn't find any problems?
+> 
+> I'd like to take a final look and have them cook in the x86 tree as 
+> well for a while and want to preserve your testing effort.
 
-Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
----
- include/linux/kasan.h |  2 ++
- mm/kasan/kasan.c      | 13 +++++++++++++
- mm/mempool.c          | 23 +++++++++++++++++++++++
- 3 files changed, 38 insertions(+)
+This patchset is on top of the following patches in the -mm tree.
+(Patches apply from the bottom to the top.)
 
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index 5bb0744..5486d77 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -44,6 +44,7 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object);
- 
- void kasan_kmalloc_large(const void *ptr, size_t size);
- void kasan_kfree_large(const void *ptr);
-+void kasan_kfree(void *ptr);
- void kasan_kmalloc(struct kmem_cache *s, const void *object, size_t size);
- void kasan_krealloc(const void *object, size_t new_size);
- 
-@@ -71,6 +72,7 @@ static inline void kasan_poison_object_data(struct kmem_cache *cache,
- 
- static inline void kasan_kmalloc_large(void *ptr, size_t size) {}
- static inline void kasan_kfree_large(const void *ptr) {}
-+static inline void kasan_kfree(void *ptr) {}
- static inline void kasan_kmalloc(struct kmem_cache *s, const void *object,
- 				size_t size) {}
- static inline void kasan_krealloc(const void *object, size_t new_size) {}
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 936d816..6c513a6 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -389,6 +389,19 @@ void kasan_krealloc(const void *object, size_t size)
- 		kasan_kmalloc(page->slab_cache, object, size);
- }
- 
-+void kasan_kfree(void *ptr)
-+{
-+	struct page *page;
-+
-+	page = virt_to_head_page(ptr);
-+
-+	if (unlikely(!PageSlab(page)))
-+		kasan_poison_shadow(ptr, PAGE_SIZE << compound_order(page),
-+				KASAN_FREE_PAGE);
-+	else
-+		kasan_slab_free(page->slab_cache, ptr);
-+}
-+
- void kasan_kfree_large(const void *ptr)
- {
- 	struct page *page = virt_to_page(ptr);
-diff --git a/mm/mempool.c b/mm/mempool.c
-index acd597f..f884e24 100644
---- a/mm/mempool.c
-+++ b/mm/mempool.c
-@@ -11,6 +11,7 @@
- 
- #include <linux/mm.h>
- #include <linux/slab.h>
-+#include <linux/kasan.h>
- #include <linux/kmemleak.h>
- #include <linux/export.h>
- #include <linux/mempool.h>
-@@ -100,10 +101,31 @@ static inline void poison_element(mempool_t *pool, void *element)
- }
- #endif /* CONFIG_DEBUG_SLAB || CONFIG_SLUB_DEBUG_ON */
- 
-+static void kasan_poison_element(mempool_t *pool, void *element)
-+{
-+	if (pool->alloc == mempool_alloc_slab)
-+		kasan_slab_free(pool->pool_data, element);
-+	if (pool->alloc == mempool_kmalloc)
-+		kasan_kfree(element);
-+	if (pool->alloc == mempool_alloc_pages)
-+		kasan_free_pages(element, (unsigned long)pool->pool_data);
-+}
-+
-+static void kasan_unpoison_element(mempool_t *pool, void *element)
-+{
-+	if (pool->alloc == mempool_alloc_slab)
-+		kasan_slab_alloc(pool->pool_data, element);
-+	if (pool->alloc == mempool_kmalloc)
-+		kasan_krealloc(element, (size_t)pool->pool_data);
-+	if (pool->alloc == mempool_alloc_pages)
-+		kasan_alloc_pages(element, (unsigned long)pool->pool_data);
-+}
-+
- static void add_element(mempool_t *pool, void *element)
- {
- 	BUG_ON(pool->curr_nr >= pool->min_nr);
- 	poison_element(pool, element);
-+	kasan_poison_element(pool, element);
- 	pool->elements[pool->curr_nr++] = element;
- }
- 
-@@ -113,6 +135,7 @@ static void *remove_element(mempool_t *pool)
- 
- 	BUG_ON(pool->curr_nr < 0);
- 	check_element(pool, element);
-+	kasan_unpoison_element(pool, element);
- 	return element;
- }
- 
--- 
-2.3.5
+2. Build error fixes and cleanups
+http://ozlabs.org/~akpm/mmotm/broken-out/x86-mm-support-huge-kva-mappings-on-x86-fix.patch
+http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-vunmap-to-tear-down-huge-kva-mappings-fix.patch
+http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-ioremap-to-set-up-huge-i-o-mappings-fix.patch
+http://ozlabs.org/~akpm/mmotm/broken-out/lib-add-huge-i-o-map-capability-interfaces-fix.patch
+
+1. Kernel huge I/O mapping support
+http://ozlabs.org/~akpm/mmotm/broken-out/x86-mm-support-huge-kva-mappings-on-x86.patch
+http://ozlabs.org/~akpm/mmotm/broken-out/x86-mm-support-huge-i-o-mapping-capability-i-f.patch
+http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-vunmap-to-tear-down-huge-kva-mappings.patch
+http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-ioremap-to-set-up-huge-i-o-mappings.patch
+http://ozlabs.org/~akpm/mmotm/broken-out/lib-add-huge-i-o-map-capability-interfaces.patch
+http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-__get_vm_area_node-to-use-fls_long.patch
+
+Thanks,
+-Toshi
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
