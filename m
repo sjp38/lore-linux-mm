@@ -1,57 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 75BF56B0038
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2015 18:07:23 -0400 (EDT)
-Received: by pddn5 with SMTP id n5so133709105pdd.2
-        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 15:07:23 -0700 (PDT)
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id A895E6B0038
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2015 18:10:02 -0400 (EDT)
+Received: by patj18 with SMTP id j18so128277689pat.2
+        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 15:10:02 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id tn1si13581399pab.216.2015.04.03.15.07.21
+        by mx.google.com with ESMTPS id h13si13651921pdf.62.2015.04.03.15.10.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Apr 2015 15:07:21 -0700 (PDT)
-Date: Fri, 3 Apr 2015 15:07:19 -0700
+        Fri, 03 Apr 2015 15:10:01 -0700 (PDT)
+Date: Fri, 3 Apr 2015 15:10:00 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm, mempool: kasan: poison mempool elements
-Message-Id: <20150403150719.b2197f71260fee25434e49fc@linux-foundation.org>
-In-Reply-To: <1428072467-21668-1-git-send-email-a.ryabinin@samsung.com>
-References: <1428072467-21668-1-git-send-email-a.ryabinin@samsung.com>
+Subject: Re: [PATCH] mm/memory: print also a_ops->readpage in print_bad_pte
+Message-Id: <20150403151000.b51caa3f692358610fc1ca5d@linux-foundation.org>
+In-Reply-To: <20150403171818.22742.92919.stgit@buzz>
+References: <20150403171818.22742.92919.stgit@buzz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: David Rientjes <rientjes@google.com>, Dave Kleikamp <shaggy@kernel.org>, Christoph Hellwig <hch@lst.de>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, Dmitry Chernenkov <drcheren@gmail.com>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-mm@kvack.org, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org
 
-On Fri, 03 Apr 2015 17:47:47 +0300 Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
+On Fri, 03 Apr 2015 20:18:18 +0300 Konstantin Khlebnikov <khlebnikov@yandex-team.ru> wrote:
 
-> Mempools keep allocated objects in reserved for situations
-> when ordinary allocation may not be possible to satisfy.
-> These objects shouldn't be accessed before they leave
-> the pool.
-> This patch poison elements when get into the pool
-> and unpoison when they leave it. This will let KASan
-> to detect use-after-free of mempool's elements.
+> A lot of filesystems use generic_file_mmap() and filemap_fault(),
+> f_op->mmap and vm_ops->fault aren't enough to identify filesystem.
 > 
-> ...
->
-> +static void kasan_poison_element(mempool_t *pool, void *element)
-> +{
-> +	if (pool->alloc == mempool_alloc_slab)
-> +		kasan_slab_free(pool->pool_data, element);
-> +	if (pool->alloc == mempool_kmalloc)
-> +		kasan_kfree(element);
-> +	if (pool->alloc == mempool_alloc_pages)
-> +		kasan_free_pages(element, (unsigned long)pool->pool_data);
-> +}
+> This prints file name, vm_ops->fault, f_op->mmap and a_ops->readpage
+> (which is almost always implemented and filesystem-specific).
+> 
+> Example:
+> 
+> [   23.676410] BUG: Bad page map in process sh  pte:1b7e6025 pmd:19bbd067
+> [   23.676887] page:ffffea00006df980 count:4 mapcount:1 mapping:ffff8800196426c0 index:0x97
+> [   23.677481] flags: 0x10000000000000c(referenced|uptodate)
+> [   23.677896] page dumped because: bad pte
+> [   23.678205] addr:00007f52fcb17000 vm_flags:00000075 anon_vma:          (null) mapping:ffff8800196426c0 index:97
+> [   23.678922] file:libc-2.19.so fault:filemap_fault mmap:generic_file_readonly_mmap readpage:v9fs_vfs_readpage
 
-We recently discovered that mempool pages (from alloc_pages, not slab)
-can be in highmem.  But kasan apepars to handle highmem pages (by
-baling out) so we should be OK with that.
+Is that why we print these out?  Just to identify the fs type?
 
-Can kasan be taught to use kmap_atomic() or is it more complicated than
-that?  It probably isn't worthwhile - highmem pages don'[t get used by the
-kernel much and most bugs will be found using 64-bit testing anyway.
+There's always vma->vm_file->f_inode->i_sb->s_magic ;)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
