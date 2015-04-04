@@ -1,63 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 656A36B0038
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2015 21:34:21 -0400 (EDT)
-Received: by igcau2 with SMTP id au2so72802798igc.1
-        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 18:34:21 -0700 (PDT)
-Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com. [2607:f8b0:4001:c05::229])
-        by mx.google.com with ESMTPS id n7si8855004icr.25.2015.04.03.18.34.20
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 271476B0038
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2015 22:06:35 -0400 (EDT)
+Received: by igblo3 with SMTP id lo3so16834391igb.1
+        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 19:06:34 -0700 (PDT)
+Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com. [2607:f8b0:4001:c03::233])
+        by mx.google.com with ESMTPS id qe2si3133237igb.46.2015.04.03.19.06.34
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Apr 2015 18:34:20 -0700 (PDT)
-Received: by igcau2 with SMTP id au2so110028563igc.0
-        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 18:34:20 -0700 (PDT)
-Date: Fri, 3 Apr 2015 18:34:18 -0700 (PDT)
+        Fri, 03 Apr 2015 19:06:34 -0700 (PDT)
+Received: by iebmp1 with SMTP id mp1so93927445ieb.0
+        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 19:06:34 -0700 (PDT)
+Date: Fri, 3 Apr 2015 19:06:32 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -v2] mm, memcg: sync allocation and memcg charge gfp
- flags for THP
-In-Reply-To: <20150318161407.GP17241@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1504031832490.18005@chino.kir.corp.google.com>
-References: <1426514892-7063-1-git-send-email-mhocko@suse.cz> <55098D0A.8090605@suse.cz> <20150318150257.GL17241@dhcp22.suse.cz> <55099C72.1080102@suse.cz> <20150318155905.GO17241@dhcp22.suse.cz> <5509A31C.3070108@suse.cz>
- <20150318161407.GP17241@dhcp22.suse.cz>
+Subject: Re: [PATCH] mm, mempool: kasan: poison mempool elements
+In-Reply-To: <1428072467-21668-1-git-send-email-a.ryabinin@samsung.com>
+Message-ID: <alpine.DEB.2.10.1504031906170.8970@chino.kir.corp.google.com>
+References: <1428072467-21668-1-git-send-email-a.ryabinin@samsung.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Kleikamp <shaggy@kernel.org>, Christoph Hellwig <hch@lst.de>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, Dmitry Chernenkov <drcheren@gmail.com>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>
 
-On Wed, 18 Mar 2015, Michal Hocko wrote:
+On Fri, 3 Apr 2015, Andrey Ryabinin wrote:
 
-> memcg currently uses hardcoded GFP_TRANSHUGE gfp flags for all THP
-> charges. THP allocations, however, might be using different flags
-> depending on /sys/kernel/mm/transparent_hugepage/{,khugepaged/}defrag
-> and the current allocation context.
+> Mempools keep allocated objects in reserved for situations
+> when ordinary allocation may not be possible to satisfy.
+> These objects shouldn't be accessed before they leave
+> the pool.
+> This patch poison elements when get into the pool
+> and unpoison when they leave it. This will let KASan
+> to detect use-after-free of mempool's elements.
 > 
-> The primary difference is that defrag configured to "madvise" value will
-> clear __GFP_WAIT flag from the core gfp mask to make the allocation
-> lighter for all mappings which are not backed by VM_HUGEPAGE vmas.
-> If memcg charge path ignores this fact we will get light allocation but
-> the a potential memcg reclaim would kill the whole point of the
-> configuration.
-> 
-> Fix the mismatch by providing the same gfp mask used for the
-> allocation to the charge functions. This is quite easy for all
-> paths except for hugepaged kernel thread with !CONFIG_NUMA which is
-> doing a pre-allocation long before the allocated page is used in
-> collapse_huge_page via khugepaged_alloc_page. To prevent from cluttering
-> the whole code path from khugepaged_do_scan we simply return the current
-> flags as per khugepaged_defrag() value which might have changed since
-> the preallocation. If somebody changed the value of the knob we would
-> charge differently but this shouldn't happen often and it is definitely
-> not critical because it would only lead to a reduced success rate of
-> one-off THP promotion.
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
 
-Acked-by: David Rientjes <rientjes@google.com>
-
-I'm slightly surprised that this issue never got reported before.
+Tested-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
