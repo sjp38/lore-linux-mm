@@ -1,59 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 158586B0038
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2015 21:32:55 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so86532580pde.3
-        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 18:32:54 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ze3si13987171pbc.209.2015.04.03.18.32.53
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 656A36B0038
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2015 21:34:21 -0400 (EDT)
+Received: by igcau2 with SMTP id au2so72802798igc.1
+        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 18:34:21 -0700 (PDT)
+Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com. [2607:f8b0:4001:c05::229])
+        by mx.google.com with ESMTPS id n7si8855004icr.25.2015.04.03.18.34.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Apr 2015 18:32:53 -0700 (PDT)
-Date: Fri, 3 Apr 2015 18:35:40 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/memory: print also a_ops->readpage in print_bad_pte
-Message-Id: <20150403183540.0ed5def0.akpm@linux-foundation.org>
-In-Reply-To: <CALYGNiNNz7HJHY4EU0+5V2+L0+Mz02SqRx7pyX0g_1rSk8L3Uw@mail.gmail.com>
-References: <20150403171818.22742.92919.stgit@buzz>
-	<20150403151000.b51caa3f692358610fc1ca5d@linux-foundation.org>
-	<CALYGNiNNz7HJHY4EU0+5V2+L0+Mz02SqRx7pyX0g_1rSk8L3Uw@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 03 Apr 2015 18:34:20 -0700 (PDT)
+Received: by igcau2 with SMTP id au2so110028563igc.0
+        for <linux-mm@kvack.org>; Fri, 03 Apr 2015 18:34:20 -0700 (PDT)
+Date: Fri, 3 Apr 2015 18:34:18 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH -v2] mm, memcg: sync allocation and memcg charge gfp
+ flags for THP
+In-Reply-To: <20150318161407.GP17241@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1504031832490.18005@chino.kir.corp.google.com>
+References: <1426514892-7063-1-git-send-email-mhocko@suse.cz> <55098D0A.8090605@suse.cz> <20150318150257.GL17241@dhcp22.suse.cz> <55099C72.1080102@suse.cz> <20150318155905.GO17241@dhcp22.suse.cz> <5509A31C.3070108@suse.cz>
+ <20150318161407.GP17241@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Sasha Levin <sasha.levin@oracle.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Sat, 4 Apr 2015 03:47:12 +0300 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+On Wed, 18 Mar 2015, Michal Hocko wrote:
 
-> On Sat, Apr 4, 2015 at 1:10 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > On Fri, 03 Apr 2015 20:18:18 +0300 Konstantin Khlebnikov <khlebnikov@yandex-team.ru> wrote:
-> >
-> >> A lot of filesystems use generic_file_mmap() and filemap_fault(),
-> >> f_op->mmap and vm_ops->fault aren't enough to identify filesystem.
-> >>
-> >> This prints file name, vm_ops->fault, f_op->mmap and a_ops->readpage
-> >> (which is almost always implemented and filesystem-specific).
-> >>
-> >> Example:
-> >>
-> >> [   23.676410] BUG: Bad page map in process sh  pte:1b7e6025 pmd:19bbd067
-> >> [   23.676887] page:ffffea00006df980 count:4 mapcount:1 mapping:ffff8800196426c0 index:0x97
-> >> [   23.677481] flags: 0x10000000000000c(referenced|uptodate)
-> >> [   23.677896] page dumped because: bad pte
-> >> [   23.678205] addr:00007f52fcb17000 vm_flags:00000075 anon_vma:          (null) mapping:ffff8800196426c0 index:97
-> >> [   23.678922] file:libc-2.19.so fault:filemap_fault mmap:generic_file_readonly_mmap readpage:v9fs_vfs_readpage
-> >
-> > Is that why we print these out?  Just to identify the fs type?
-> >
-> > There's always vma->vm_file->f_inode->i_sb->s_magic ;)
+> memcg currently uses hardcoded GFP_TRANSHUGE gfp flags for all THP
+> charges. THP allocations, however, might be using different flags
+> depending on /sys/kernel/mm/transparent_hugepage/{,khugepaged/}defrag
+> and the current allocation context.
 > 
-> Yes, but that also might be anon inode/file mapped by some driver, so
-> s_magic isn't enough.
+> The primary difference is that defrag configured to "madvise" value will
+> clear __GFP_WAIT flag from the core gfp mask to make the allocation
+> lighter for all mappings which are not backed by VM_HUGEPAGE vmas.
+> If memcg charge path ignores this fact we will get light allocation but
+> the a potential memcg reclaim would kill the whole point of the
+> configuration.
+> 
+> Fix the mismatch by providing the same gfp mask used for the
+> allocation to the charge functions. This is quite easy for all
+> paths except for hugepaged kernel thread with !CONFIG_NUMA which is
+> doing a pre-allocation long before the allocated page is used in
+> collapse_huge_page via khugepaged_alloc_page. To prevent from cluttering
+> the whole code path from khugepaged_do_scan we simply return the current
+> flags as per khugepaged_defrag() value which might have changed since
+> the preallocation. If somebody changed the value of the knob we would
+> charge differently but this shouldn't happen often and it is definitely
+> not critical because it would only lead to a reduced success rate of
+> one-off THP promotion.
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-Well, we could ensure that every file_system_type has a valid ->name.
-Do an audit, put a debug check in register_filesystem()?
+Acked-by: David Rientjes <rientjes@google.com>
+
+I'm slightly surprised that this issue never got reported before.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
