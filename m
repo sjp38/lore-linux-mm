@@ -1,73 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EB436B0038
-	for <linux-mm@kvack.org>; Sat,  4 Apr 2015 03:50:14 -0400 (EDT)
-Received: by wiun10 with SMTP id n10so13428672wiu.1
-        for <linux-mm@kvack.org>; Sat, 04 Apr 2015 00:50:13 -0700 (PDT)
-Received: from mail-wg0-x233.google.com (mail-wg0-x233.google.com. [2a00:1450:400c:c00::233])
-        by mx.google.com with ESMTPS id kq8si18286448wjb.112.2015.04.04.00.50.11
+Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C5CC6B0038
+	for <linux-mm@kvack.org>; Sat,  4 Apr 2015 05:35:06 -0400 (EDT)
+Received: by obvd1 with SMTP id d1so197220631obv.0
+        for <linux-mm@kvack.org>; Sat, 04 Apr 2015 02:35:06 -0700 (PDT)
+Received: from vena.lwn.net (tex.lwn.net. [70.33.254.29])
+        by mx.google.com with ESMTPS id b6si7518678oby.16.2015.04.04.02.35.05
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 04 Apr 2015 00:50:12 -0700 (PDT)
-Received: by wgdm6 with SMTP id m6so125894930wgd.2
-        for <linux-mm@kvack.org>; Sat, 04 Apr 2015 00:50:11 -0700 (PDT)
-Message-ID: <551F90EC.20600@gmail.com>
-Date: Sat, 04 Apr 2015 08:21:16 +0100
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 04 Apr 2015 02:35:05 -0700 (PDT)
+Date: Sat, 4 Apr 2015 11:34:56 +0200
+From: Jonathan Corbet <corbet@lwn.net>
+Subject: Re: [patch -mm] mm, doc: cleanup and clarify munmap behavior for
+ hugetlb memory fix
+Message-ID: <20150404113456.55468dc3@lwn.net>
+In-Reply-To: <alpine.DEB.2.10.1504021547330.15536@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1503261621570.20009@chino.kir.corp.google.com>
+	<alpine.LSU.2.11.1503291801400.1052@eggly.anvils>
+	<alpine.DEB.2.10.1504021536210.15536@chino.kir.corp.google.com>
+	<alpine.DEB.2.10.1504021547330.15536@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [patch] madvise.2: specify MADV_REMOVE returns EINVAL for hugetlbfs
-References: <alpine.DEB.2.10.1504021517540.9951@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1504021517540.9951@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: mtk.manpages@gmail.com, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Davide Libenzi <davidel@xmailserver.org>, Luiz Capitulino <lcapitulino@redhat.com>, Shuah Khan <shuahkh@osg.samsung.com>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, Eric B Munson <emunson@akamai.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-doc@vger.kernel.org
 
-On 04/02/2015 11:21 PM, David Rientjes wrote:
-> madvise(2) actually returns with error EINVAL for MADV_REMOVE when used 
-> for hugetlb vmas, not EOPNOTSUPP, and this has been the case since 
-> MADV_REMOVE was introduced in commit f6b3ec238d12 ("madvise(MADV_REMOVE): 
-> remove pages from tmpfs shm backing store").
+On Thu, 2 Apr 2015 15:50:15 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
 
-Thanks David. Applied. I'd already fixed the appropriate piece in
-the ERRORS list a while back, but missed that piece in the main text.
+> Don't only specify munmap(2) behavior with respect the hugetlb memory, all 
+> other syscalls get naturally aligned to the native page size of the 
+> processor.  Rather, pick out munmap(2) as a specific example.
 
-Cheers,
+So I was going to apply this to the docs tree, but it doesn't even come
+close.  What tree was this patch generated against?
 
-Michael
+Thanks,
 
-
-> Specify the exact behavior.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  man2/madvise.2 | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/man2/madvise.2 b/man2/madvise.2
-> index a3d93bb..00db39d 100644
-> --- a/man2/madvise.2
-> +++ b/man2/madvise.2
-> @@ -184,7 +184,9 @@ any filesystem which supports the
->  .BR FALLOC_FL_PUNCH_HOLE
->  mode also supports
->  .BR MADV_REMOVE .
-> -Other filesystems fail with the error
-> +Hugetlbfs will fail with the error
-> +.BR EINVAL
-> +and other filesystems fail with the error
->  .BR EOPNOTSUPP .
->  .TP
->  .BR MADV_DONTFORK " (since Linux 2.6.16)"
-> 
-
-
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+jon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
