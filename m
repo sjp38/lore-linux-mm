@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 5ACFA6B00C4
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 16:00:21 -0400 (EDT)
-Received: by qgfi89 with SMTP id i89so14950077qgf.1
-        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:00:21 -0700 (PDT)
-Received: from mail-qg0-x22f.google.com (mail-qg0-x22f.google.com. [2607:f8b0:400d:c04::22f])
-        by mx.google.com with ESMTPS id x202si5160025qkx.37.2015.04.06.12.59.54
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id F278E6B00CA
+	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 16:00:29 -0400 (EDT)
+Received: by qgeb100 with SMTP id b100so14899206qge.3
+        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:00:29 -0700 (PDT)
+Received: from mail-qk0-x232.google.com (mail-qk0-x232.google.com. [2607:f8b0:400d:c09::232])
+        by mx.google.com with ESMTPS id 145si5141206qhc.67.2015.04.06.13.00.27
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Apr 2015 12:59:54 -0700 (PDT)
-Received: by qgej70 with SMTP id j70so14934498qge.2
-        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 12:59:54 -0700 (PDT)
+        Mon, 06 Apr 2015 13:00:28 -0700 (PDT)
+Received: by qkgx75 with SMTP id x75so31097094qkg.1
+        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:00:27 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 37/49] writeback: make laptop_mode_timer_fn() handle multiple bdi_writeback's
-Date: Mon,  6 Apr 2015 15:58:26 -0400
-Message-Id: <1428350318-8215-38-git-send-email-tj@kernel.org>
+Subject: [PATCH 39/49] writeback: make bdi_start_background_writeback() take bdi_writeback instead of backing_dev_info
+Date: Mon,  6 Apr 2015 15:58:28 -0400
+Message-Id: <1428350318-8215-40-git-send-email-tj@kernel.org>
 In-Reply-To: <1428350318-8215-1-git-send-email-tj@kernel.org>
 References: <1428350318-8215-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,49 +22,90 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
 Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, Tejun Heo <tj@kernel.org>
 
-For cgroup writeback support, all bdi-wide operations should be
-distributed to all its wb's (bdi_writeback's).
+bdi_start_background_writeback() currently takes @bdi and kicks the
+root wb (bdi_writeback).  In preparation for cgroup writeback support,
+make it take wb instead.
 
-This patch updates laptop_mode_timer_fn() so that it invokes
-wb_start_writeback() on all wb's rather than just the root one.  As
-the intent is writing out all dirty data, there's no reason to split
-the number of pages to write.
+This patch doesn't make any functional difference.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 Cc: Jens Axboe <axboe@kernel.dk>
 Cc: Jan Kara <jack@suse.cz>
 ---
- mm/page-writeback.c | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ fs/fs-writeback.c           | 12 ++++++------
+ include/linux/backing-dev.h |  2 +-
+ mm/page-writeback.c         |  4 ++--
+ 3 files changed, 9 insertions(+), 9 deletions(-)
 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 3b6d79a..5458762 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1723,14 +1723,20 @@ void laptop_mode_timer_fn(unsigned long data)
- 	struct request_queue *q = (struct request_queue *)data;
- 	int nr_pages = global_page_state(NR_FILE_DIRTY) +
- 		global_page_state(NR_UNSTABLE_NFS);
-+	struct bdi_writeback *wb;
-+	struct wb_iter iter;
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index ddb3178..643deab 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -216,23 +216,23 @@ void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
+ }
  
+ /**
+- * bdi_start_background_writeback - start background writeback
+- * @bdi: the backing device to write from
++ * wb_start_background_writeback - start background writeback
++ * @wb: bdi_writback to write from
+  *
+  * Description:
+  *   This makes sure WB_SYNC_NONE background writeback happens. When
+- *   this function returns, it is only guaranteed that for given BDI
++ *   this function returns, it is only guaranteed that for given wb
+  *   some IO is happening if we are over background dirty threshold.
+  *   Caller need not hold sb s_umount semaphore.
+  */
+-void bdi_start_background_writeback(struct backing_dev_info *bdi)
++void wb_start_background_writeback(struct bdi_writeback *wb)
+ {
  	/*
- 	 * We want to write everything out, not just down to the dirty
- 	 * threshold
+ 	 * We just wake up the flusher thread. It will perform background
+ 	 * writeback as soon as there is no other work to do.
  	 */
--	if (bdi_has_dirty_io(&q->backing_dev_info))
--		wb_start_writeback(&q->backing_dev_info.wb, nr_pages, true,
--				   WB_REASON_LAPTOP_TIMER);
-+	if (!bdi_has_dirty_io(&q->backing_dev_info))
-+		return;
-+
-+	bdi_for_each_wb(wb, &q->backing_dev_info, &iter, 0)
-+		if (wb_has_dirty_io(wb))
-+			wb_start_writeback(wb, nr_pages, true,
-+					   WB_REASON_LAPTOP_TIMER);
+-	trace_writeback_wake_background(bdi);
+-	wb_wakeup(&bdi->wb);
++	trace_writeback_wake_background(wb->bdi);
++	wb_wakeup(wb);
  }
  
  /*
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index f04956c..9cc11e5 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -27,7 +27,7 @@ void bdi_unregister(struct backing_dev_info *bdi);
+ int __must_check bdi_setup_and_register(struct backing_dev_info *, char *);
+ void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
+ 			bool range_cyclic, enum wb_reason reason);
+-void bdi_start_background_writeback(struct backing_dev_info *bdi);
++void wb_start_background_writeback(struct bdi_writeback *wb);
+ void wb_workfn(struct work_struct *work);
+ void wb_wakeup_delayed(struct bdi_writeback *wb);
+ 
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 3a19641..1767658 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1456,7 +1456,7 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 		}
+ 
+ 		if (unlikely(!writeback_in_progress(wb)))
+-			bdi_start_background_writeback(bdi);
++			wb_start_background_writeback(wb);
+ 
+ 		if (!strictlimit)
+ 			wb_dirty_limits(wb, dirty_thresh, background_thresh,
+@@ -1588,7 +1588,7 @@ pause:
+ 		return;
+ 
+ 	if (nr_reclaimable > background_thresh)
+-		bdi_start_background_writeback(bdi);
++		wb_start_background_writeback(wb);
+ }
+ 
+ static DEFINE_PER_CPU(int, bdp_ratelimits);
 -- 
 2.1.0
 
