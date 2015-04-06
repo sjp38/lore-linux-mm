@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CCFA6B00D2
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 16:00:39 -0400 (EDT)
-Received: by qgej70 with SMTP id j70so14947073qge.2
-        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:00:38 -0700 (PDT)
-Received: from mail-qc0-x236.google.com (mail-qc0-x236.google.com. [2607:f8b0:400d:c01::236])
-        by mx.google.com with ESMTPS id q67si5154150qgd.39.2015.04.06.13.00.35
+Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D8756B00D5
+	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 16:00:41 -0400 (EDT)
+Received: by qcyk17 with SMTP id k17so15136449qcy.1
+        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:00:41 -0700 (PDT)
+Received: from mail-qk0-x229.google.com (mail-qk0-x229.google.com. [2607:f8b0:400d:c09::229])
+        by mx.google.com with ESMTPS id d7si5123223qhc.123.2015.04.06.13.00.36
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Apr 2015 13:00:35 -0700 (PDT)
-Received: by qcgx3 with SMTP id x3so15075616qcg.3
-        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:00:35 -0700 (PDT)
+        Mon, 06 Apr 2015 13:00:37 -0700 (PDT)
+Received: by qkhg7 with SMTP id g7so31035039qkh.2
+        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:00:36 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 43/49] writeback: implement wb_wait_for_single_work()
-Date: Mon,  6 Apr 2015 15:58:32 -0400
-Message-Id: <1428350318-8215-44-git-send-email-tj@kernel.org>
+Subject: [PATCH 44/49] writeback: restructure try_writeback_inodes_sb[_nr]()
+Date: Mon,  6 Apr 2015 15:58:33 -0400
+Message-Id: <1428350318-8215-45-git-send-email-tj@kernel.org>
 In-Reply-To: <1428350318-8215-1-git-send-email-tj@kernel.org>
 References: <1428350318-8215-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,115 +22,142 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
 Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, Tejun Heo <tj@kernel.org>
 
-For cgroup writeback, multiple wb_writeback_work items may need to be
-issuedto accomplish a single task.  The previous patch updated the
-waiting mechanism such that wb_wait_for_completion() can wait for
-multiple work items.
+try_writeback_inodes_sb_nr() wraps writeback_inodes_sb_nr() so that it
+handles s_umount locking and skips if writeback is already in
+progress.  The in progress test is performed on the root wb
+(bdi_writeback) which isn't sufficient for cgroup writeback support.
+The test must be done per-wb.
 
-Issuing mulitple work items involves memory allocation which may fail.
-As most writeback operations can't fail or blocked on memory
-allocation, in such cases, we'll fall back to sequential issuing of an
-on-stack work item, which would need to be waited upon sequentially.
+To prepare for the change, this patch factors out
+__writeback_inodes_sb_nr() from writeback_inodes_sb_nr() and adds
+@skip_if_busy and moves the in progress test right before queueing the
+wb_writeback_work.  try_writeback_inodes_sb_nr() now just grabs
+s_umount and invokes __writeback_inodes_sb_nr() with asserted
+@skip_if_busy.  This way, later addition of multiple wb handling can
+skip only the wb's which already have writeback in progress.
 
-This patch implements wb_wait_for_single_work() which waits for a
-single work item independently from wb_completion waiting so that such
-fallback mechanism can be used without getting tangled with the usual
-issuing / completion operation.
+This swaps the order between in progress test and s_umount test which
+can flip the return value when writeback is in progress and s_umount
+is being held by someone else but this shouldn't cause any meaningful
+difference.  It's a fringe condition and the return value is an
+unsynchronized hint anyway.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 Cc: Jens Axboe <axboe@kernel.dk>
 Cc: Jan Kara <jack@suse.cz>
 ---
- fs/fs-writeback.c | 47 +++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 45 insertions(+), 2 deletions(-)
+ fs/fs-writeback.c         | 52 ++++++++++++++++++++++++++---------------------
+ include/linux/writeback.h |  6 +++---
+ 2 files changed, 32 insertions(+), 26 deletions(-)
 
 diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index faa9272..2a3cd9c 100644
+index 2a3cd9c..f138680 100644
 --- a/fs/fs-writeback.c
 +++ b/fs/fs-writeback.c
-@@ -52,6 +52,8 @@ struct wb_writeback_work {
- 	unsigned int for_background:1;
- 	unsigned int for_sync:1;	/* sync(2) WB_SYNC_ALL writeback */
- 	unsigned int auto_free:1;	/* free on completion */
-+	unsigned int single_wait:1;
-+	unsigned int single_done:1;
- 	enum wb_reason reason;		/* why was writeback initiated? */
+@@ -1500,19 +1500,8 @@ static void wait_sb_inodes(struct super_block *sb)
+ 	iput(old_inode);
+ }
  
- 	struct list_head list;		/* pending work list */
-@@ -165,8 +167,11 @@ static void wb_queue_work(struct bdi_writeback *wb,
- 	trace_writeback_queue(wb->bdi, work);
- 
- 	spin_lock_bh(&wb->work_lock);
--	if (!test_bit(WB_registered, &wb->state))
-+	if (!test_bit(WB_registered, &wb->state)) {
-+		if (work->single_wait)
-+			work->single_done = 1;
- 		goto out_unlock;
-+	}
- 	if (work->done)
- 		atomic_inc(&work->done->cnt);
- 	list_add_tail(&work->list, &wb->work_list);
-@@ -221,6 +226,32 @@ int inode_congested(struct inode *inode, int cong_bits)
- EXPORT_SYMBOL_GPL(inode_congested);
- 
- /**
-+ * wb_wait_for_single_work - wait for completion of a single bdi_writeback_work
-+ * @bdi: bdi the work item was issued to
-+ * @work: work item to wait for
-+ *
-+ * Wait for the completion of @work which was issued to one of @bdi's
-+ * bdi_writeback's.  The caller must have set @work->single_wait before
-+ * issuing it.  This wait operates independently fo
-+ * wb_wait_for_completion() and also disables automatic freeing of @work.
-+ */
-+static void wb_wait_for_single_work(struct backing_dev_info *bdi,
-+				    struct wb_writeback_work *work)
-+{
-+	if (WARN_ON_ONCE(!work->single_wait))
+-/**
+- * writeback_inodes_sb_nr -	writeback dirty inodes from given super_block
+- * @sb: the superblock
+- * @nr: the number of pages to write
+- * @reason: reason why some writeback work initiated
+- *
+- * Start writeback on some inodes on this super_block. No guarantees are made
+- * on how many (if any) will be written, and this function does not wait
+- * for IO completion of submitted IO.
+- */
+-void writeback_inodes_sb_nr(struct super_block *sb,
+-			    unsigned long nr,
+-			    enum wb_reason reason)
++static void __writeback_inodes_sb_nr(struct super_block *sb, unsigned long nr,
++				     enum wb_reason reason, bool skip_if_busy)
+ {
+ 	DEFINE_WB_COMPLETION_ONSTACK(done);
+ 	struct wb_writeback_work work = {
+@@ -1528,9 +1517,30 @@ void writeback_inodes_sb_nr(struct super_block *sb,
+ 	if (!bdi_has_dirty_io(bdi) || bdi == &noop_backing_dev_info)
+ 		return;
+ 	WARN_ON(!rwsem_is_locked(&sb->s_umount));
++
++	if (skip_if_busy && writeback_in_progress(&bdi->wb))
 +		return;
 +
-+	wait_event(bdi->wb_waitq, work->single_done);
-+
-+	/*
-+	 * Paired with smp_wmb() in wb_do_writeback() and ensures that all
-+	 * modifications to @work prior to assertion of ->single_done is
-+	 * visible to the caller once this function returns.
-+	 */
-+	smp_rmb();
-+}
+ 	wb_queue_work(&bdi->wb, &work);
+ 	wb_wait_for_completion(bdi, &done);
+ }
 +
 +/**
-  * wb_split_bdi_pages - split nr_pages to write according to bandwidth
-  * @wb: target bdi_writeback to split @nr_pages to
-  * @nr_pages: number of pages to write for the whole bdi
-@@ -1159,14 +1190,26 @@ static long wb_do_writeback(struct bdi_writeback *wb)
- 	set_bit(WB_writeback_running, &wb->state);
- 	while ((work = get_next_work_item(wb)) != NULL) {
- 		struct wb_completion *done = work->done;
-+		bool need_wake_up = false;
++ * writeback_inodes_sb_nr -	writeback dirty inodes from given super_block
++ * @sb: the superblock
++ * @nr: the number of pages to write
++ * @reason: reason why some writeback work initiated
++ *
++ * Start writeback on some inodes on this super_block. No guarantees are made
++ * on how many (if any) will be written, and this function does not wait
++ * for IO completion of submitted IO.
++ */
++void writeback_inodes_sb_nr(struct super_block *sb,
++			    unsigned long nr,
++			    enum wb_reason reason)
++{
++	__writeback_inodes_sb_nr(sb, nr, reason, false);
++}
+ EXPORT_SYMBOL(writeback_inodes_sb_nr);
  
- 		trace_writeback_exec(wb->bdi, work);
+ /**
+@@ -1557,19 +1567,15 @@ EXPORT_SYMBOL(writeback_inodes_sb);
+  * Invoke writeback_inodes_sb_nr if no writeback is currently underway.
+  * Returns 1 if writeback was started, 0 if not.
+  */
+-int try_to_writeback_inodes_sb_nr(struct super_block *sb,
+-				  unsigned long nr,
+-				  enum wb_reason reason)
++bool try_to_writeback_inodes_sb_nr(struct super_block *sb, unsigned long nr,
++				   enum wb_reason reason)
+ {
+-	if (writeback_in_progress(&sb->s_bdi->wb))
+-		return 1;
+-
+ 	if (!down_read_trylock(&sb->s_umount))
+-		return 0;
++		return false;
  
- 		wrote += wb_writeback(wb, work);
+-	writeback_inodes_sb_nr(sb, nr, reason);
++	__writeback_inodes_sb_nr(sb, nr, reason, true);
+ 	up_read(&sb->s_umount);
+-	return 1;
++	return true;
+ }
+ EXPORT_SYMBOL(try_to_writeback_inodes_sb_nr);
  
--		if (work->auto_free)
-+		if (work->single_wait) {
-+			WARN_ON_ONCE(work->auto_free);
-+			/* paired w/ rmb in wb_wait_for_single_work() */
-+			smp_wmb();
-+			work->single_done = 1;
-+			need_wake_up = true;
-+		} else if (work->auto_free) {
- 			kfree(work);
-+		}
-+
- 		if (done && atomic_dec_and_test(&done->cnt))
-+			need_wake_up = true;
-+
-+		if (need_wake_up)
- 			wake_up_all(&wb->bdi->wb_waitq);
- 	}
- 
+@@ -1581,7 +1587,7 @@ EXPORT_SYMBOL(try_to_writeback_inodes_sb_nr);
+  * Implement by try_to_writeback_inodes_sb_nr()
+  * Returns 1 if writeback was started, 0 if not.
+  */
+-int try_to_writeback_inodes_sb(struct super_block *sb, enum wb_reason reason)
++bool try_to_writeback_inodes_sb(struct super_block *sb, enum wb_reason reason)
+ {
+ 	return try_to_writeback_inodes_sb_nr(sb, get_nr_dirty_pages(), reason);
+ }
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index 8e4485f..75349bb 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -93,9 +93,9 @@ struct bdi_writeback;
+ void writeback_inodes_sb(struct super_block *, enum wb_reason reason);
+ void writeback_inodes_sb_nr(struct super_block *, unsigned long nr,
+ 							enum wb_reason reason);
+-int try_to_writeback_inodes_sb(struct super_block *, enum wb_reason reason);
+-int try_to_writeback_inodes_sb_nr(struct super_block *, unsigned long nr,
+-				  enum wb_reason reason);
++bool try_to_writeback_inodes_sb(struct super_block *, enum wb_reason reason);
++bool try_to_writeback_inodes_sb_nr(struct super_block *, unsigned long nr,
++				   enum wb_reason reason);
+ void sync_inodes_sb(struct super_block *);
+ void wakeup_flusher_threads(long nr_pages, enum wb_reason reason);
+ void inode_wait_for_writeback(struct inode *inode);
 -- 
 2.1.0
 
