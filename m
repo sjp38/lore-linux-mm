@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CC226B00B9
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 16:04:41 -0400 (EDT)
-Received: by qcrf4 with SMTP id f4so15186512qcr.0
-        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:04:41 -0700 (PDT)
-Received: from mail-qg0-x230.google.com (mail-qg0-x230.google.com. [2607:f8b0:400d:c04::230])
-        by mx.google.com with ESMTPS id 6si5161554qhv.48.2015.04.06.13.04.39
+Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 59A356B00CF
+	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 16:04:42 -0400 (EDT)
+Received: by qkgx75 with SMTP id x75so31170136qkg.1
+        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:04:42 -0700 (PDT)
+Received: from mail-qk0-x22f.google.com (mail-qk0-x22f.google.com. [2607:f8b0:400d:c09::22f])
+        by mx.google.com with ESMTPS id 3si5175631qgb.16.2015.04.06.13.04.41
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Apr 2015 13:04:39 -0700 (PDT)
-Received: by qgej70 with SMTP id j70so15011616qge.2
-        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:04:39 -0700 (PDT)
+        Mon, 06 Apr 2015 13:04:41 -0700 (PDT)
+Received: by qkx62 with SMTP id 62so31169858qkx.0
+        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:04:41 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 01/19] memcg: make mem_cgroup_read_{stat|event}() iterate possible cpus instead of online
-Date: Mon,  6 Apr 2015 16:04:16 -0400
-Message-Id: <1428350674-8303-2-git-send-email-tj@kernel.org>
+Subject: [PATCH 02/19] writeback: clean up wb_dirty_limit()
+Date: Mon,  6 Apr 2015 16:04:17 -0400
+Message-Id: <1428350674-8303-3-git-send-email-tj@kernel.org>
 In-Reply-To: <1428350674-8303-1-git-send-email-tj@kernel.org>
 References: <1428350674-8303-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,137 +22,171 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
 Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, Tejun Heo <tj@kernel.org>
 
-cpu_possible_mask represents the CPUs which are actually possible
-during that boot instance.  For systems which don't support CPU
-hotplug, this will match cpu_online_mask exactly in most cases.  Even
-for systems which support CPU hotplug, the number of possible CPU
-slots is highly unlikely to diverge greatly from the number of online
-CPUs.  The only cases where the difference between possible and online
-caused problems were when the boot code failed to initialize the
-possible mask and left it fully set at NR_CPUS - 1.
+The function name wb_dirty_limit(), its argument @dirty and the local
+variable @wb_dirty are mortally confusing given that the function
+calculates per-wb threshold value not dirty pages, especially given
+that @dirty and @wb_dirty are used elsewhere for dirty pages.
 
-As such, most per-cpu constructs allocate for all possible CPUs and
-often iterate over the possibles, which also has the benefit of
-avoiding the blocking CPU hotplug synchronization.
-
-memcg open codes per-cpu stat counting for mem_cgroup_read_stat() and
-mem_cgroup_read_events(), which iterates over online CPUs and handles
-CPU hotplug operations explicitly.  This complexity doesn't actually
-buy anything.  Switch to iterating over the possibles and drop the
-explicit CPU hotplug handling.
-
-Eventually, we want to convert memcg to use percpu_counter instead of
-its own custom implementation which also benefits from quick access
-w/o summing for cases where larger error margin is acceptable.
-
-This will allow mem_cgroup_read_stat() to be called from non-sleepable
-contexts which will be used by cgroup writeback.
+Let's rename the function to wb_calc_thresh() and wb_dirty to
+wb_thresh.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Jens Axboe <axboe@kernel.dk>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Greg Thelen <gthelen@google.com>
 ---
- mm/memcontrol.c | 51 ++-------------------------------------------------
- 1 file changed, 2 insertions(+), 49 deletions(-)
+ fs/fs-writeback.c         |  2 +-
+ include/linux/writeback.h |  2 +-
+ mm/backing-dev.c          |  6 +++---
+ mm/page-writeback.c       | 30 +++++++++++++++---------------
+ 4 files changed, 20 insertions(+), 20 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a6fa6fe..ab483e9 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -323,11 +323,6 @@ struct mem_cgroup {
- 	 * percpu counter.
- 	 */
- 	struct mem_cgroup_stat_cpu __percpu *stat;
--	/*
--	 * used when a cpu is offlined or other synchronizations
--	 * See mem_cgroup_read_stat().
--	 */
--	struct mem_cgroup_stat_cpu nocpu_base;
- 	spinlock_t pcp_counter_lock;
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 2b9c82b..2b6df69 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -1062,7 +1062,7 @@ static bool over_bground_thresh(struct bdi_writeback *wb)
+ 	    global_page_state(NR_UNSTABLE_NFS) > background_thresh)
+ 		return true;
  
- #if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
-@@ -808,15 +803,8 @@ static long mem_cgroup_read_stat(struct mem_cgroup *memcg,
- 	long val = 0;
- 	int cpu;
+-	if (wb_stat(wb, WB_RECLAIMABLE) > wb_dirty_limit(wb, background_thresh))
++	if (wb_stat(wb, WB_RECLAIMABLE) > wb_calc_thresh(wb, background_thresh))
+ 		return true;
  
--	get_online_cpus();
--	for_each_online_cpu(cpu)
-+	for_each_possible_cpu(cpu)
- 		val += per_cpu(memcg->stat->count[idx], cpu);
--#ifdef CONFIG_HOTPLUG_CPU
--	spin_lock(&memcg->pcp_counter_lock);
--	val += memcg->nocpu_base.count[idx];
--	spin_unlock(&memcg->pcp_counter_lock);
--#endif
--	put_online_cpus();
- 	return val;
+ 	return false;
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index 75349bb..6f6b8c8 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -152,7 +152,7 @@ int dirty_writeback_centisecs_handler(struct ctl_table *, int,
+ 				      void __user *, size_t *, loff_t *);
+ 
+ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
+-unsigned long wb_dirty_limit(struct bdi_writeback *wb, unsigned long dirty);
++unsigned long wb_calc_thresh(struct bdi_writeback *wb, unsigned long thresh);
+ 
+ void __wb_update_bandwidth(struct bdi_writeback *wb,
+ 			   unsigned long thresh,
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index ad5608d..9c8b7b5 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -49,7 +49,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+ 	struct bdi_writeback *wb = &bdi->wb;
+ 	unsigned long background_thresh;
+ 	unsigned long dirty_thresh;
+-	unsigned long bdi_thresh;
++	unsigned long wb_thresh;
+ 	unsigned long nr_dirty, nr_io, nr_more_io, nr_dirty_time;
+ 	struct inode *inode;
+ 
+@@ -67,7 +67,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+ 	spin_unlock(&wb->list_lock);
+ 
+ 	global_dirty_limits(&background_thresh, &dirty_thresh);
+-	bdi_thresh = wb_dirty_limit(wb, dirty_thresh);
++	wb_thresh = wb_calc_thresh(wb, dirty_thresh);
+ 
+ #define K(x) ((x) << (PAGE_SHIFT - 10))
+ 	seq_printf(m,
+@@ -87,7 +87,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+ 		   "state:              %10lx\n",
+ 		   (unsigned long) K(wb_stat(wb, WB_WRITEBACK)),
+ 		   (unsigned long) K(wb_stat(wb, WB_RECLAIMABLE)),
+-		   K(bdi_thresh),
++		   K(wb_thresh),
+ 		   K(dirty_thresh),
+ 		   K(background_thresh),
+ 		   (unsigned long) K(wb_stat(wb, WB_DIRTIED)),
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 1767658..3401634 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -556,7 +556,7 @@ static unsigned long hard_dirty_limit(unsigned long thresh)
  }
  
-@@ -826,15 +814,8 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
- 	unsigned long val = 0;
- 	int cpu;
- 
--	get_online_cpus();
--	for_each_online_cpu(cpu)
-+	for_each_possible_cpu(cpu)
- 		val += per_cpu(memcg->stat->events[idx], cpu);
--#ifdef CONFIG_HOTPLUG_CPU
--	spin_lock(&memcg->pcp_counter_lock);
--	val += memcg->nocpu_base.events[idx];
--	spin_unlock(&memcg->pcp_counter_lock);
--#endif
--	put_online_cpus();
- 	return val;
- }
- 
-@@ -2182,37 +2163,12 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
- 	mutex_unlock(&percpu_charge_mutex);
- }
- 
--/*
-- * This function drains percpu counter value from DEAD cpu and
-- * move it to local cpu. Note that this function can be preempted.
-- */
--static void mem_cgroup_drain_pcp_counter(struct mem_cgroup *memcg, int cpu)
--{
--	int i;
--
--	spin_lock(&memcg->pcp_counter_lock);
--	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
--		long x = per_cpu(memcg->stat->count[i], cpu);
--
--		per_cpu(memcg->stat->count[i], cpu) = 0;
--		memcg->nocpu_base.count[i] += x;
--	}
--	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++) {
--		unsigned long x = per_cpu(memcg->stat->events[i], cpu);
--
--		per_cpu(memcg->stat->events[i], cpu) = 0;
--		memcg->nocpu_base.events[i] += x;
--	}
--	spin_unlock(&memcg->pcp_counter_lock);
--}
--
- static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
- 					unsigned long action,
- 					void *hcpu)
+ /**
+- * wb_dirty_limit - @wb's share of dirty throttling threshold
++ * wb_calc_thresh - @wb's share of dirty throttling threshold
+  * @wb: bdi_writeback to query
+  * @dirty: global dirty limit in pages
+  *
+@@ -577,28 +577,28 @@ static unsigned long hard_dirty_limit(unsigned long thresh)
+  * The wb's share of dirty limit will be adapting to its throughput and
+  * bounded by the bdi->min_ratio and/or bdi->max_ratio parameters, if set.
+  */
+-unsigned long wb_dirty_limit(struct bdi_writeback *wb, unsigned long dirty)
++unsigned long wb_calc_thresh(struct bdi_writeback *wb, unsigned long thresh)
  {
- 	int cpu = (unsigned long)hcpu;
- 	struct memcg_stock_pcp *stock;
--	struct mem_cgroup *iter;
+-	u64 wb_dirty;
++	u64 wb_thresh;
+ 	long numerator, denominator;
+ 	unsigned long wb_min_ratio, wb_max_ratio;
  
- 	if (action == CPU_ONLINE)
- 		return NOTIFY_OK;
-@@ -2220,9 +2176,6 @@ static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
- 	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN)
- 		return NOTIFY_OK;
+ 	/*
+-	 * Calculate this BDI's share of the dirty ratio.
++	 * Calculate this BDI's share of the thresh ratio.
+ 	 */
+ 	wb_writeout_fraction(wb, &numerator, &denominator);
  
--	for_each_mem_cgroup(iter)
--		mem_cgroup_drain_pcp_counter(iter, cpu);
--
- 	stock = &per_cpu(memcg_stock, cpu);
- 	drain_stock(stock);
- 	return NOTIFY_OK;
+-	wb_dirty = (dirty * (100 - bdi_min_ratio)) / 100;
+-	wb_dirty *= numerator;
+-	do_div(wb_dirty, denominator);
++	wb_thresh = (thresh * (100 - bdi_min_ratio)) / 100;
++	wb_thresh *= numerator;
++	do_div(wb_thresh, denominator);
+ 
+ 	wb_min_max_ratio(wb, &wb_min_ratio, &wb_max_ratio);
+ 
+-	wb_dirty += (dirty * wb_min_ratio) / 100;
+-	if (wb_dirty > (dirty * wb_max_ratio) / 100)
+-		wb_dirty = dirty * wb_max_ratio / 100;
++	wb_thresh += (thresh * wb_min_ratio) / 100;
++	if (wb_thresh > (thresh * wb_max_ratio) / 100)
++		wb_thresh = thresh * wb_max_ratio / 100;
+ 
+-	return wb_dirty;
++	return wb_thresh;
+ }
+ 
+ /*
+@@ -750,7 +750,7 @@ static unsigned long wb_position_ratio(struct bdi_writeback *wb,
+ 	 * total amount of RAM is 16GB, bdi->max_ratio is equal to 1%, global
+ 	 * limits are set by default to 10% and 20% (background and throttle).
+ 	 * Then wb_thresh is 1% of 20% of 16GB. This amounts to ~8K pages.
+-	 * wb_dirty_limit(wb, bg_thresh) is about ~4K pages. wb_setpoint is
++	 * wb_calc_thresh(wb, bg_thresh) is about ~4K pages. wb_setpoint is
+ 	 * about ~6K pages (as the average of background and throttle wb
+ 	 * limits). The 3rd order polynomial will provide positive feedback if
+ 	 * wb_dirty is under wb_setpoint and vice versa.
+@@ -1115,7 +1115,7 @@ static void wb_update_dirty_ratelimit(struct bdi_writeback *wb,
+ 	 *
+ 	 * We rampup dirty_ratelimit forcibly if wb_dirty is low because
+ 	 * it's possible that wb_thresh is close to zero due to inactivity
+-	 * of backing device (see the implementation of wb_dirty_limit()).
++	 * of backing device (see the implementation of wb_calc_thresh()).
+ 	 */
+ 	if (unlikely(wb->bdi->capabilities & BDI_CAP_STRICTLIMIT)) {
+ 		dirty = wb_dirty;
+@@ -1123,7 +1123,7 @@ static void wb_update_dirty_ratelimit(struct bdi_writeback *wb,
+ 			setpoint = wb_dirty + 1;
+ 		else
+ 			setpoint = (wb_thresh +
+-				    wb_dirty_limit(wb, bg_thresh)) / 2;
++				    wb_calc_thresh(wb, bg_thresh)) / 2;
+ 	}
+ 
+ 	if (dirty < setpoint) {
+@@ -1352,7 +1352,7 @@ static inline void wb_dirty_limits(struct bdi_writeback *wb,
+ 	 *   wb_position_ratio() will let the dirtier task progress
+ 	 *   at some rate <= (write_bw / 2) for bringing down wb_dirty.
+ 	 */
+-	*wb_thresh = wb_dirty_limit(wb, dirty_thresh);
++	*wb_thresh = wb_calc_thresh(wb, dirty_thresh);
+ 
+ 	if (wb_bg_thresh)
+ 		*wb_bg_thresh = dirty_thresh ? div_u64((u64)*wb_thresh *
 -- 
 2.1.0
 
