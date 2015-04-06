@@ -1,83 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id CD7556B0080
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 01:37:53 -0400 (EDT)
-Received: by pabsx10 with SMTP id sx10so34227519pab.3
-        for <linux-mm@kvack.org>; Sun, 05 Apr 2015 22:37:53 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id nc10si5020152pbc.89.2015.04.05.22.37.52
+Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CBE66B006E
+	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 02:21:38 -0400 (EDT)
+Received: by ierf6 with SMTP id f6so14944445ier.2
+        for <linux-mm@kvack.org>; Sun, 05 Apr 2015 23:21:38 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id e15si2850586icn.44.2015.04.05.23.21.37
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 Apr 2015 22:37:53 -0700 (PDT)
-Received: by patj18 with SMTP id j18so34245167pat.2
-        for <linux-mm@kvack.org>; Sun, 05 Apr 2015 22:37:52 -0700 (PDT)
-From: Namhyung Kim <namhyung@kernel.org>
-Subject: [PATCH 9/9] tools lib traceevent: Honor operator priority
-Date: Mon,  6 Apr 2015 14:36:16 +0900
-Message-Id: <1428298576-9785-10-git-send-email-namhyung@kernel.org>
-In-Reply-To: <1428298576-9785-1-git-send-email-namhyung@kernel.org>
-References: <1428298576-9785-1-git-send-email-namhyung@kernel.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 05 Apr 2015 23:21:37 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: kernel BUG at include/linux/page-flags.h:333! from
+ migrate_page_copy(), ... 317! from set_page_dirty()
+Date: Mon, 6 Apr 2015 06:20:17 +0000
+Message-ID: <20150406062017.GB11515@hori1.linux.bs1.fc.nec.co.jp>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <FAC86DC8449A7A439C26275C24F8AD56@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Currently it ignores operator priority and just sets processed args as a
-right operand.  But it could result in priority inversion in case that
-the right operand is also a operator arg and its priority is lower.
+Hi,
 
-For example, following print format is from new kmem events.
+When doing hugepage migration test on mmotm-2015-04-01-14-54, I found 2 cas=
+es
+of the VM_BUG_ONs detected by page flag sanitization for compound pages.
 
-  "page=%p", REC->pfn != -1UL ? (((struct page *)(0xffffea0000000000UL)) + (REC->pfn)) : ((void *)0)
+1)
 
-But this was treated as below:
+[ 3071.845424] page:ffffea0018f08000 count:1 mapcount:0 mapping:ffff88065dc=
+c1a51 index:0x3
+[ 3071.854375] flags: 0x5ffc0000004009(locked|uptodate|head)
+[ 3071.860532] page dumped because: VM_BUG_ON_PAGE(PageCompound(page))
+[ 3071.867560] ------------[ cut here ]------------
+[ 3071.872715] kernel BUG at include/linux/page-flags.h:333!
+[ 3071.878742] invalid opcode: 0000 [#1] SMP
+[ 3071.883336] Modules linked in: xt_CHECKSUM iptable_mangle ipt_MASQUERADE=
+ nf_nat_masquerade_ipv4 iptable_nat nf_nat_ipv4 nf_nat nf_conntrack_ipv4 nf=
+_defrag_ipv4 xt_conntrack nf_conntrack bridge stp llc x86_pkg_temp_thermal =
+coretemp kvm_intel kvm crct10dif_pclmul crc32_pclmul crc32c_intel iTCO_wdt =
+i2c_i801 ghash_clmulni_intel iTCO_vendor_support sb_edac edac_core lpc_ich =
+mfd_core pcspkr ipmi_ssif tpm_tis ipmi_si tpm wmi ipmi_msghandler acpi_powe=
+r_meter mei_me ioatdma mei shpchp dca nfsd auth_rpcgss nfs_acl lockd grace =
+sunrpc uas usb_storage mgag200 bnx2x i2c_algo_bit drm_kms_helper e1000e ttm=
+ mdio libcrc32c drm ptp megaraid_sas pps_core
+[ 3071.946801] CPU: 0 PID: 2796 Comm: test_mbind_fuzz Not tainted 3.19.0 #1
+[ 3071.954282] Hardware name: NEC Express5800/B120e [N8400-221Y]/G7LYN, BIO=
+S 4.6.2106 11/08/2013
+[ 3071.963802] task: ffff88065d068a50 ti: ffff8806621b4000 task.ti: ffff880=
+6621b4000
+[ 3071.972157] RIP: 0010:[<ffffffff8120882a>]  [<ffffffff8120882a>] migrate=
+_page_copy+0x58a/0x7f0
+[ 3071.981781] RSP: 0018:ffff8806621b7c98  EFLAGS: 00010296
+[ 3071.987711] RAX: 0000000000000037 RBX: ffffea0018f08000 RCX: 00000000000=
+00037
+[ 3071.995680] RDX: 0000000000000000 RSI: 0000000000000000 RDI: ffff880667c=
+0e838
+[ 3072.003646] RBP: ffff8806621b7ce8 R08: 0000000000000096 R09: 00000000000=
+00534
+[ 3072.011615] R10: 0000000000000000 R11: 0000000000000534 R12: ffffea00190=
+10000
+[ 3072.019583] R13: 0000000000000200 R14: 0000000018f10000 R15: ffff8800000=
+00000
+[ 3072.027551] FS:  00007f674471d740(0000) GS:ffff880667c00000(0000) knlGS:=
+0000000000000000
+[ 3072.036586] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 3072.043001] CR2: 00007fffccc549f8 CR3: 0000000662c05000 CR4: 00000000001=
+407f0
+[ 3072.050968] Stack:
+[ 3072.053224]  0000000000000000 800000063c2000e7 ffff880600000040 00000200=
+00e00000
+[ 3072.061525]  ffffea0001dfddf0 ffffea0018f08000 ffffea0019010000 00000000=
+00000001
+[ 3072.069826]  0000000000000000 00000000fffffff5 ffff8806621b7d18 ffffffff=
+81208acd
+[ 3072.078124] Call Trace:
+[ 3072.080858]  [<ffffffff81208acd>] migrate_page+0x3d/0x60
+[ 3072.086790]  [<ffffffff81208dbd>] move_to_new_page+0x2cd/0x340
+[ 3072.093304]  [<ffffffff811e03e6>] ? try_to_unmap+0x66/0x130
+[ 3072.099527]  [<ffffffff811ddde0>] ? invalid_migration_vma+0x30/0x30
+[ 3072.106527]  [<ffffffff81209817>] migrate_pages+0x8a7/0x9f0
+[ 3072.112752]  [<ffffffff811f7640>] ? alloc_pages_vma+0x220/0x220
+[ 3072.119364]  [<ffffffff811f7e14>] do_mbind+0x504/0x5d0
+[ 3072.125101]  [<ffffffff811f8138>] SyS_mbind+0xa8/0xb0
+[ 3072.130743]  [<ffffffff8177d769>] system_call_fastpath+0x12/0x17
+[ 3072.137448] Code: 0f 0b 0f 1f 80 00 00 00 00 48 8b 43 30 48 8b 13 80 e6 =
+80 48 0f 44 c3 e9 36 fc ff ff 48 c7 c6 48 71 a3 81 48 89 df e8 f6 4c fc ff =
+<0f> 0b 48 c7 c6 48 71 a3 81 4c 89 e7 e8 e5 4c fc ff 0f 0b 48 c7
+[ 3072.159196] RIP  [<ffffffff8120882a>] migrate_page_copy+0x58a/0x7f0
+[ 3072.166217]  RSP <ffff8806621b7c98>
+[ 3073.015139] ---[ end trace f52f8daca3fe12f2 ]---
 
-  REC->pfn != ((null - 1UL) ? ((struct page *)0xffffea0000000000UL + REC->pfn) : (void *) 0)
+migrate_page_copy() always calls ClearPageSwapCache(), but recently calling
+it for compound pages is banned by Kirill's page flag sanitization patch.
+I think that the sanitization made this bug visible, and we need fix the il=
+l
+usage of ClearPageSwapCache.
+I think thp migration should also hit this BUG_ON.
 
-In this case, the right arg was '?' operator which has lower priority.
-But it just sets the whole arg so making the output confusing - page was
-always 0 or 1 since that's the result of logical operation.
+I'm thinking of one simplest fix like this:
 
-With this patch, it can handle it properly like following:
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 25fd7f6291de..5fa399d20435 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -537,7 +537,8 @@ void migrate_page_copy(struct page *newpage, struct pag=
+e *page)
+ 	 * Please do not reorder this without considering how mm/ksm.c's
+ 	 * get_ksm_page() depends upon ksm_migrate_page() and PageSwapCache().
+ 	 */
+-	ClearPageSwapCache(page);
++	if (PageSwapCache(page))
++		ClearPageSwapCache(page);
+ 	ClearPagePrivate(page);
+ 	set_page_private(page, 0);
 
-  ((REC->pfn != (null - 1UL)) ? ((struct page *)0xffffea0000000000UL + REC->pfn) : (void *) 0)
+but, this looks a dirty workaround.
+Creating a migrate_copy_page() variant for compound page is better?
+Or any better idea?
 
-Cc: Steven Rostedt <rostedt@goodmis.org>
-Signed-off-by: Namhyung Kim <namhyung@kernel.org>
----
- tools/lib/traceevent/event-parse.c | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
 
-diff --git a/tools/lib/traceevent/event-parse.c b/tools/lib/traceevent/event-parse.c
-index 6d31b6419d37..604bea5c3fb0 100644
---- a/tools/lib/traceevent/event-parse.c
-+++ b/tools/lib/traceevent/event-parse.c
-@@ -1939,7 +1939,22 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
- 			goto out_warn_free;
- 
- 		type = process_arg_token(event, right, tok, type);
--		arg->op.right = right;
-+
-+		if (right->type == PRINT_OP &&
-+		    get_op_prio(arg->op.op) < get_op_prio(right->op.op)) {
-+			struct print_arg tmp;
-+
-+			/* swap ops according to the priority */
-+			arg->op.right = right->op.left;
-+
-+			tmp = *arg;
-+			*arg = *right;
-+			*right = tmp;
-+
-+			arg->op.left = right;
-+		} else {
-+			arg->op.right = right;
-+		}
- 
- 	} else if (strcmp(token, "[") == 0) {
- 
--- 
-2.3.2
+2)
+
+# This is triggered easily by libhugetlbfs functional test.
+
+[ 2662.212167] page:ffffea0002b38000 count:2 mapcount:1 mapping:ffff8800db8=
+ec380 index:0x0
+[ 2662.213480] flags: 0xbffc0000004008(uptodate|head)
+[ 2662.214252] page dumped because: VM_BUG_ON_PAGE(PageCompound(page))
+[ 2662.215448] ------------[ cut here ]------------
+[ 2662.216135] kernel BUG at /src/linux-dev/include/linux/page-flags.h:317!
+[ 2662.216427] invalid opcode: 0000 [#1] SMP
+[ 2662.216427] Modules linked in: fuse btrfs xor raid6_pq ufs hfsplus hfs m=
+inix vfat msdos fat jfs xfs libcrc32c reiserfs cfg80211 rfkill ppdev crc32c=
+_intel virtio_console pcspkr virtio_balloon serio_raw pa
+rport_pc parport pvpanic i2c_piix4 virtio_blk virtio_net ata_generic pata_a=
+cpi virtio_pci virtio_ring virtio floppy
+[ 2662.216427] CPU: 1 PID: 12413 Comm: test_mbind_fuzz Not tainted 3.19.0-m=
+motm-2015-04-01-14-54-150406-1312-00001-gfe6d51b5f154 #36
+[ 2662.216427] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+[ 2662.216427] task: ffff88007b39f170 ti: ffff88007b4a4000 task.ti: ffff880=
+07b4a4000
+[ 2662.216427] RIP: 0010:[<ffffffff811837ff>]  [<ffffffff811837ff>] set_pag=
+e_dirty+0x8f/0xc0
+[ 2662.216427] RSP: 0000:ffff88007b4a7a08  EFLAGS: 00010292
+[ 2662.216427] RAX: 0000000000000037 RBX: ffffea0002b38000 RCX: 00000000000=
+00037
+[ 2662.216427] RDX: 0000000000000000 RSI: 0000000000000000 RDI: ffff88011fc=
+0e838
+[ 2662.216427] RBP: ffff88007b4a7a18 R08: 0000000000000092 R09: 00000000000=
+0020c
+[ 2662.216427] R10: 0000000000000000 R11: 000000000000020c R12: ffff8800da5=
+99f80
+[ 2662.216427] R13: ffffffff81fbc6c0 R14: ffff8800da065000 R15: ffffea00036=
+81970
+[ 2662.216427] FS:  0000000000000000(0000) GS:ffff88011fc00000(0000) knlGS:=
+0000000000000000
+[ 2662.216427] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 2662.216427] CR2: 00007fffe8a99ff8 CR3: 00000000db1be000 CR4: 00000000000=
+006e0
+[ 2662.216427] Stack:
+[ 2662.216427]  ffffffff81fbc6c0 0000700000200000 ffff88007b4a7aa8 ffffffff=
+811cdb39
+[ 2662.216427]  80000000ace000e7 ffffea0002b38000 ffff88007c74f730 ffff8800=
+7b4a7c40
+[ 2662.216427]  0000000000000000 ffff8800da599fe4 0000700000000000 00000000=
+00200000
+[ 2662.216427] Call Trace:
+[ 2662.216427]  [<ffffffff811cdb39>] __unmap_hugepage_range+0x329/0x340
+[ 2662.216427]  [<ffffffff811cdb66>] __unmap_hugepage_range_final+0x16/0x30
+[ 2662.216427]  [<ffffffff811acace>] unmap_single_vma+0x51e/0x910
+[ 2662.216427]  [<ffffffff811ad7c4>] unmap_vmas+0x54/0xb0
+[ 2662.216427]  [<ffffffff811b735c>] exit_mmap+0xac/0x180
+[ 2662.216427]  [<ffffffff81074d33>] mmput+0x63/0xf0
+[ 2662.216427]  [<ffffffff8107a41d>] do_exit+0x2ad/0xac0
+[ 2662.216427]  [<ffffffff8107acc7>] do_group_exit+0x47/0xc0
+[ 2662.216427]  [<ffffffff81086c04>] get_signal+0x2a4/0x6b0
+[ 2662.216427]  [<ffffffff810145b7>] do_signal+0x37/0x800
+[ 2662.216427]  [<ffffffff81202365>] ? __sb_end_write+0x35/0x70
+[ 2662.216427]  [<ffffffff811ffc22>] ? vfs_write+0x1b2/0x1f0
+[ 2662.216427]  [<ffffffff81014de9>] do_notify_resume+0x69/0xb0
+[ 2662.216427]  [<ffffffff816dd4e2>] retint_signal+0x48/0x86
+[ 2662.216427] Code: df 48 8b 03 f6 c4 80 75 3f f0 0f ba 2b 04 72 24 b8 01 =
+00 00 00 eb c9 0f 1f 44 00 00 48 c7 c6 e0 d2 a0 81 48 89 df e8 71 59 02 00 =
+<0f> 0b 0f 1f 80 00 00 00 00 31 c0 eb a8 48 8b 43 30 48=20
+8b 13 80
+[ 2662.216427] RIP  [<ffffffff811837ff>] set_page_dirty+0x8f/0xc0
+[ 2662.216427]  RSP <ffff88007b4a7a08>
+
+set_page_dirty() calls ClearPageReclaim(), which is also banned to call on
+compound pages (but it is called now.)
+thp is not affected by this because page_mapping() is NULL for thp (maybe
+this will not be true when thp supports page cache?).
+As a short term fix, hugetlb had better have its own set_page_dirty?
+
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
