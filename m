@@ -1,44 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id AA7966B0038
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 15:34:55 -0400 (EDT)
-Received: by pabsx10 with SMTP id sx10so53448869pab.3
-        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 12:34:55 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v11si7942639pdi.29.2015.04.06.12.34.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Apr 2015 12:34:54 -0700 (PDT)
-Date: Mon, 6 Apr 2015 12:34:52 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC v7 1/2] mm: prototype: rid swapoff of quadratic complexity
-Message-Id: <20150406123452.70ed80c810f1b7e9529b2055@linux-foundation.org>
-In-Reply-To: <5522D582.8070408@redhat.com>
-References: <20150319105515.GA8140@kelleynnn-virtual-machine>
-	<5522D582.8070408@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D89426B0038
+	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 15:40:04 -0400 (EDT)
+Received: by ierf6 with SMTP id f6so29342466ier.2
+        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 12:40:04 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTP id b3si4517938igx.41.2015.04.06.12.40.04
+        for <linux-mm@kvack.org>;
+        Mon, 06 Apr 2015 12:40:04 -0700 (PDT)
+Date: Mon, 6 Apr 2015 21:39:32 +0200
+From: Sebastian Reichel <sre@kernel.org>
+Subject: Re: [PATCH 16/25] include/linux: Use bool function return values of
+ true/false not 1/0
+Message-ID: <20150406193931.GA987@earth>
+References: <cover.1427759009.git.joe@perches.com>
+ <5edb9453646625a405ef0a642bec0819c0e6c2eb.1427759009.git.joe@perches.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha512;
+	protocol="application/pgp-signature"; boundary="fUYQa+Pmc3FrFX/N"
+Content-Disposition: inline
+In-Reply-To: <5edb9453646625a405ef0a642bec0819c0e6c2eb.1427759009.git.joe@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Kelley Nielsen <kelleynnn@gmail.com>, linux-mm@kvack.org, riel@surriel.com, opw-kernel@googlegroups.com, hughd@google.com, jamieliu@google.com, sjenning@linux.vnet.ibm.com, sarah.a.sharp@intel.com
+To: Joe Perches <joe@perches.com>
+Cc: linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, Jason Wessel <jason.wessel@windriver.com>, Samuel Ortiz <sameo@linux.intel.com>, Lee Jones <lee.jones@linaro.org>, Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Michael Buesch <m@bues.ch>, linux-ide@vger.kernel.org, kgdb-bugreport@lists.sourceforge.net, linux-mm@kvack.org, linux-pm@vger.kernel.org, netdev@vger.kernel.org
 
-On Mon, 06 Apr 2015 14:50:42 -0400 Rik van Riel <riel@redhat.com> wrote:
 
-> > * Handle count of unused pages for frontswap.
-> >
-> > Signed-off-by: Kelley Nielsen <kelleynnn@gmail.com>
-> 
-> Looks good to me.
+--fUYQa+Pmc3FrFX/N
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-yup.  These patches are in Hugh's in-tray ;) While that's happening, I
-guess we can get them into -next for testing.
+Hi,
 
-Kelley, could you please address Rik's questions, gather up the acks,
-refresh and resend?  Shortly after the 4.1 release would be a good time.
+On Mon, Mar 30, 2015 at 04:46:14PM -0700, Joe Perches wrote:
+> Use the normal return values for bool functions
 
-Thanks.
+Acked-By: Sebastian Reichel <sre@kernel.org>
+
+-- Sebastian
+
+--fUYQa+Pmc3FrFX/N
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBCgAGBQJVIuDwAAoJENju1/PIO/qaqk4P/1T77yAjH3OWYaxSSH8mrwQs
+dYFbDr7X97o2lePKrZe/1fFTpO24u+tOp6v27f7NkRDiw+A7k1ZkHLbGKsCZ4CFc
+9vbR4vE1sPPlbLZTgkHzvGYlTAjdMEa5elbDMRthh+vvqI7Q/yIX+H5Ln+Txtk7u
+MPpv6JqW9efxZgxOUnSaFa8Xlj2VbAKqzQsMYICTRjYezmPV5gdd165KMCV41PqC
+vdiF6HxjaB+lyW7vhWzCA660MJGpqOelRk1vYjR2uoNFbVQnEv1Z0NGBrr1xEtW2
+CWdeee+kj3JtAFFTMNgZZpGzbdZ0Ka4tg8Yk2Sxo3tsOO+l7D0s+S6qlIaCqOmd9
+hse/43XhxQbxl5fW9Oriu76sDYYxccdk7syqGf/2rsakVk3StJprfLrhyOnYkx8C
+UCVeWH/JNiH4ngov8Iz4hIUMpXrmo9gUSYK3Z7qX5Xg6F9hTLIxZnJAh3ShNyOYr
+lSf3K/SsHigNYtm5+YwFzaYqIaSnBfdeiMuStK6sT5+cDDUAeQ2ilt9/tCZbPfvC
+DemPzS371iq80QPzDDmva74L3TKYUJOodOY/rBCDJYtMwLdH3UotDHPjKFBQ3nnS
+h64nLHgmHR0CRQtqp/Sz+ePY8Cjs69OLxhHi6RQyijZjKc2Uarxkfcs6DcMdn1WL
+TbT3PZSZMM547HAFeN4v
+=yK9g
+-----END PGP SIGNATURE-----
+
+--fUYQa+Pmc3FrFX/N--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
