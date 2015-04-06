@@ -1,167 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 382426B0102
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 16:05:26 -0400 (EDT)
-Received: by qcyk17 with SMTP id k17so15217138qcy.1
-        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:05:26 -0700 (PDT)
-Received: from mail-qg0-x236.google.com (mail-qg0-x236.google.com. [2607:f8b0:400d:c04::236])
-        by mx.google.com with ESMTPS id e130si3193930qhc.7.2015.04.06.13.05.11
+Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 800486B00C8
+	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 16:06:20 -0400 (EDT)
+Received: by qkx62 with SMTP id 62so31198599qkx.0
+        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:06:20 -0700 (PDT)
+Received: from mail-qk0-x236.google.com (mail-qk0-x236.google.com. [2607:f8b0:400d:c09::236])
+        by mx.google.com with ESMTPS id f10si5131380qkf.112.2015.04.06.12.59.56
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Apr 2015 13:05:11 -0700 (PDT)
-Received: by qgfi89 with SMTP id i89so15029437qgf.1
-        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:05:11 -0700 (PDT)
+        Mon, 06 Apr 2015 12:59:56 -0700 (PDT)
+Received: by qku63 with SMTP id 63so30982894qku.3
+        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 12:59:56 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 19/19] mm: vmscan: disable memcg direct reclaim stalling if cgroup writeback support is in use
-Date: Mon,  6 Apr 2015 16:04:34 -0400
-Message-Id: <1428350674-8303-20-git-send-email-tj@kernel.org>
-In-Reply-To: <1428350674-8303-1-git-send-email-tj@kernel.org>
-References: <1428350674-8303-1-git-send-email-tj@kernel.org>
+Subject: [PATCH 38/49] writeback: make writeback_in_progress() take bdi_writeback instead of backing_dev_info
+Date: Mon,  6 Apr 2015 15:58:27 -0400
+Message-Id: <1428350318-8215-39-git-send-email-tj@kernel.org>
+In-Reply-To: <1428350318-8215-1-git-send-email-tj@kernel.org>
+References: <1428350318-8215-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
-Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>
+Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, Tejun Heo <tj@kernel.org>
 
-Because writeback wasn't cgroup aware before, the usual dirty
-throttling mechanism in balance_dirty_pages() didn't work for
-processes under memcg limit.  The writeback path didn't know how much
-memory is available or how fast the dirty pages are being written out
-for a given memcg and balance_dirty_pages() didn't have any measure of
-IO back pressure for the memcg.
+writeback_in_progress() currently takes @bdi and returns whether
+writeback is in progress on its root wb (bdi_writeback).  In
+preparation for cgroup writeback support, make it take wb instead.
+While at it, make it an inline function.
 
-To work around the issue, memcg implemented an ad-hoc dirty throttling
-mechanism in the direct reclaim path by stalling on pages under
-writeback which are encountered during direct reclaim scan.  This is
-rather ugly and crude - none of the configurability, fairness, or
-bandwidth-proportional distribution of the normal path.
-
-The previous patches implemented proper memcg aware dirty throttling
-when cgroup writeback is in use making the ad-hoc mechanism
-unnecessary.  This patch disables direct reclaim stalling for such
-case.
-
-Note: I disabled the parts which seemed obvious and it behaves fine
-      while testing but my understanding of this code path is
-      rudimentary and it's quite possible that I got something wrong.
-      Please let me know if I got some wrong or more global_reclaim()
-      sites should be updated.
-
-v2: The original patch removed the direct stalling mechanism which
-    breaks legacy hierarchies.  Conditionalize instead of removing.
+This patch doesn't make any functional difference.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 Cc: Jens Axboe <axboe@kernel.dk>
 Cc: Jan Kara <jack@suse.cz>
-Cc: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Greg Thelen <gthelen@google.com>
-Cc: Vladimir Davydov <vdavydov@parallels.com>
 ---
- mm/vmscan.c | 51 +++++++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 41 insertions(+), 10 deletions(-)
+ fs/fs-writeback.c           | 15 +--------------
+ include/linux/backing-dev.h | 12 +++++++++++-
+ mm/page-writeback.c         |  4 ++--
+ 3 files changed, 14 insertions(+), 17 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index f463398..8cb16eb 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -154,11 +154,42 @@ static bool global_reclaim(struct scan_control *sc)
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index de309fa..ddb3178 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -53,19 +53,6 @@ struct wb_writeback_work {
+ 	struct completion *done;	/* set if the caller waits */
+ };
+ 
+-/**
+- * writeback_in_progress - determine whether there is writeback in progress
+- * @bdi: the device's backing_dev_info structure.
+- *
+- * Determine whether there is writeback waiting to be handled against a
+- * backing device.
+- */
+-int writeback_in_progress(struct backing_dev_info *bdi)
+-{
+-	return test_bit(WB_writeback_running, &bdi->wb.state);
+-}
+-EXPORT_SYMBOL(writeback_in_progress);
+-
+ static inline struct inode *wb_inode(struct list_head *head)
  {
- 	return !sc->target_mem_cgroup;
- }
-+
+ 	return list_entry(head, struct inode, i_wb_list);
+@@ -1455,7 +1442,7 @@ int try_to_writeback_inodes_sb_nr(struct super_block *sb,
+ 				  unsigned long nr,
+ 				  enum wb_reason reason)
+ {
+-	if (writeback_in_progress(sb->s_bdi))
++	if (writeback_in_progress(&sb->s_bdi->wb))
+ 		return 1;
+ 
+ 	if (!down_read_trylock(&sb->s_umount))
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 0ff40c2..f04956c 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -156,7 +156,17 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
+ 
+ extern struct backing_dev_info noop_backing_dev_info;
+ 
+-int writeback_in_progress(struct backing_dev_info *bdi);
 +/**
-+ * sane_reclaim - is the usual dirty throttling mechanism operational?
-+ * @sc: scan_control in question
++ * writeback_in_progress - determine whether there is writeback in progress
++ * @wb: bdi_writeback of interest
 + *
-+ * The normal page dirty throttling mechanism in balance_dirty_pages() is
-+ * completely broken with the legacy memcg and direct stalling in
-+ * shrink_page_list() is used for throttling instead, which lacks all the
-+ * niceties such as fairness, adaptive pausing, bandwidth proportional
-+ * allocation and configurability.
-+ *
-+ * This function tests whether the vmscan currently in progress can assume
-+ * that the normal dirty throttling mechanism is operational.
++ * Determine whether there is writeback waiting to be handled against a
++ * bdi_writeback.
 + */
-+static bool sane_reclaim(struct scan_control *sc)
++static inline bool writeback_in_progress(struct bdi_writeback *wb)
 +{
-+	struct mem_cgroup *memcg = sc->target_mem_cgroup;
-+
-+	if (!memcg)
-+		return true;
-+#ifdef CONFIG_CGROUP_WRITEBACK
-+	if (cgroup_on_dfl(mem_cgroup_css(memcg)->cgroup))
-+		return true;
-+#endif
-+	return false;
++	return test_bit(WB_writeback_running, &wb->state);
 +}
- #else
- static bool global_reclaim(struct scan_control *sc)
+ 
+ static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
  {
- 	return true;
- }
-+
-+static bool sane_reclaim(struct scan_control *sc)
-+{
-+	return true;
-+}
- #endif
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 5458762..3a19641 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1455,7 +1455,7 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 			break;
+ 		}
  
- static unsigned long zone_reclaimable_pages(struct zone *zone)
-@@ -941,10 +972,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 *    note that the LRU is being scanned too quickly and the
- 		 *    caller can stall after page list has been processed.
- 		 *
--		 * 2) Global reclaim encounters a page, memcg encounters a
--		 *    page that is not marked for immediate reclaim or
--		 *    the caller does not have __GFP_IO. In this case mark
--		 *    the page for immediate reclaim and continue scanning.
-+		 * 2) Global or new memcg reclaim encounters a page that is
-+		 *    not marked for immediate reclaim or the caller does not
-+		 *    have __GFP_IO. In this case mark the page for immediate
-+		 *    reclaim and continue scanning.
- 		 *
- 		 *    __GFP_IO is checked  because a loop driver thread might
- 		 *    enter reclaim, and deadlock if it waits on a page for
-@@ -958,7 +989,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 *    grab_cache_page_write_begin(,,AOP_FLAG_NOFS), so testing
- 		 *    may_enter_fs here is liable to OOM on them.
- 		 *
--		 * 3) memcg encounters a page that is not already marked
-+		 * 3) Legacy memcg encounters a page that is not already marked
- 		 *    PageReclaim. memcg does not have any dirty pages
- 		 *    throttling so we could easily OOM just because too many
- 		 *    pages are in writeback and there is nothing else to
-@@ -973,7 +1004,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 				goto keep_locked;
+-		if (unlikely(!writeback_in_progress(bdi)))
++		if (unlikely(!writeback_in_progress(wb)))
+ 			bdi_start_background_writeback(bdi);
  
- 			/* Case 2 above */
--			} else if (global_reclaim(sc) ||
-+			} else if (sane_reclaim(sc) ||
- 			    !PageReclaim(page) || !(sc->gfp_mask & __GFP_IO)) {
- 				/*
- 				 * This is slightly racy - end_page_writeback()
-@@ -1422,7 +1453,7 @@ static int too_many_isolated(struct zone *zone, int file,
- 	if (current_is_kswapd())
- 		return 0;
+ 		if (!strictlimit)
+@@ -1573,7 +1573,7 @@ pause:
+ 	if (!dirty_exceeded && wb->dirty_exceeded)
+ 		wb->dirty_exceeded = 0;
  
--	if (!global_reclaim(sc))
-+	if (!sane_reclaim(sc))
- 		return 0;
- 
- 	if (file) {
-@@ -1614,10 +1645,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 		set_bit(ZONE_WRITEBACK, &zone->flags);
+-	if (writeback_in_progress(bdi))
++	if (writeback_in_progress(wb))
+ 		return;
  
  	/*
--	 * memcg will stall in page writeback so only consider forcibly
--	 * stalling for global reclaim
-+	 * Legacy memcg will stall in page writeback so avoid forcibly
-+	 * stalling here.
- 	 */
--	if (global_reclaim(sc)) {
-+	if (sane_reclaim(sc)) {
- 		/*
- 		 * Tag a zone as congested if all the dirty pages scanned were
- 		 * backed by a congested BDI and wait_iff_congested will stall.
 -- 
 2.1.0
 
