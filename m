@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 56BAD6B0071
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 01:37:32 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so34216903pde.3
-        for <linux-mm@kvack.org>; Sun, 05 Apr 2015 22:37:32 -0700 (PDT)
-Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com. [2607:f8b0:400e:c02::236])
-        by mx.google.com with ESMTPS id fa7si4991795pab.218.2015.04.05.22.37.30
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 05E906B0072
+	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 01:37:36 -0400 (EDT)
+Received: by pddn5 with SMTP id n5so34212174pdd.2
+        for <linux-mm@kvack.org>; Sun, 05 Apr 2015 22:37:35 -0700 (PDT)
+Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com. [2607:f8b0:400e:c02::22d])
+        by mx.google.com with ESMTPS id v11si5049097pdi.29.2015.04.05.22.37.34
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 Apr 2015 22:37:31 -0700 (PDT)
-Received: by pddn5 with SMTP id n5so34210545pdd.2
-        for <linux-mm@kvack.org>; Sun, 05 Apr 2015 22:37:30 -0700 (PDT)
+        Sun, 05 Apr 2015 22:37:34 -0700 (PDT)
+Received: by pdea3 with SMTP id a3so34217678pde.3
+        for <linux-mm@kvack.org>; Sun, 05 Apr 2015 22:37:34 -0700 (PDT)
 From: Namhyung Kim <namhyung@kernel.org>
-Subject: [PATCH 4/9] perf kmem: Implement stat --page --caller
-Date: Mon,  6 Apr 2015 14:36:11 +0900
-Message-Id: <1428298576-9785-5-git-send-email-namhyung@kernel.org>
+Subject: [PATCH 5/9] perf kmem: Support sort keys on page analysis
+Date: Mon,  6 Apr 2015 14:36:12 +0900
+Message-Id: <1428298576-9785-6-git-send-email-namhyung@kernel.org>
 In-Reply-To: <1428298576-9785-1-git-send-email-namhyung@kernel.org>
 References: <1428298576-9785-1-git-send-email-namhyung@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,502 +22,715 @@ List-ID: <linux-mm.kvack.org>
 To: Arnaldo Carvalho de Melo <acme@kernel.org>
 Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org
 
-It perf kmem support caller statistics for page.  Unlike slab case,
-the tracepoints in page allocator don't provide callsite info.  So
-it records with callchain and extracts callsite info.
+Add new sort keys for page: page, order, migtype, gfp - existing
+'bytes', 'hit' and 'callsite' sort keys also work for page.  Note that
+-s/--sort option should be preceded by either of --slab or --page
+option to determine where the sort keys applies.
 
-Note that the callchain contains several memory allocation functions
-which has no meaning for users.  So skip those functions to get proper
-callsites.  I used following regex pattern to skip the allocator
-functions:
+Now it properly groups and sorts allocation stats - so same
+page/caller with different order/migtype/gfp will be printed on a
+different line.
 
-  ^_?_?(alloc|get_free|get_zeroed)_pages?
+  # perf kmem stat --page --caller -l 10 -s order,hit
 
-This gave me a following list of functions:
-
-  # perf kmem record --page sleep 3
-  # perf kmem stat --page -v
-  ...
-  alloc func: __get_free_pages
-  alloc func: get_zeroed_page
-  alloc func: alloc_pages_exact
-  alloc func: __alloc_pages_direct_compact
-  alloc func: __alloc_pages_nodemask
-  alloc func: alloc_page_interleave
-  alloc func: alloc_pages_current
-  alloc func: alloc_pages_vma
-  alloc func: alloc_page_buffers
-  alloc func: alloc_pages_exact_nid
-  ...
-
-The output looks mostly same as --alloc (I also added callsite column
-to that) but groups entries by callsite.  Currently, the order,
-migrate type and GFP flag info is for the last allocation and not
-guaranteed to be same for all allocations from the callsite.
-
-  ---------------------------------------------------------------------------------------------
-   Total_alloc (KB) | Hits      | Order | Mig.type | GFP flags | Callsite
-  ---------------------------------------------------------------------------------------------
-              1,064 |       266 |     0 | UNMOVABL |  000000d0 | __pollwait
+  --------------------------------------------------------------------------------------------
+   Total alloc (KB) |  Hits     | Order | Mig.type | GFP flags | Callsite
+  --------------------------------------------------------------------------------------------
+                 64 |         4 |     2 |  RECLAIM |  00285250 | new_slab
+             50,144 |    12,536 |     0 |  MOVABLE |  0102005a | __page_cache_alloc
                  52 |        13 |     0 | UNMOVABL |  002084d0 | pte_alloc_one
-                 44 |        11 |     0 |  MOVABLE |  000280da | handle_mm_fault
-                 20 |         5 |     0 |  MOVABLE |  000200da | do_cow_fault
+                 40 |        10 |     0 |  MOVABLE |  000280da | handle_mm_fault
+                 28 |         7 |     0 | UNMOVABL |  000000d0 | __pollwait
                  20 |         5 |     0 |  MOVABLE |  000200da | do_wp_page
-                 16 |         4 |     0 | UNMOVABL |  000084d0 | __pmd_alloc
+                 20 |         5 |     0 |  MOVABLE |  000200da | do_cow_fault
                  16 |         4 |     0 | UNMOVABL |  00000200 | __tlb_remove_page
-                 12 |         3 |     0 | UNMOVABL |  000084d0 | __pud_alloc
-                  8 |         2 |     0 | UNMOVABL |  00000010 | bio_copy_user_iov
-                  4 |         1 |     0 | UNMOVABL |  000200d2 | pipe_write
-                  4 |         1 |     0 |  MOVABLE |  000280da | do_wp_page
-                  4 |         1 |     0 | UNMOVABL |  002084d0 | pgd_alloc
-  ---------------------------------------------------------------------------------------------
+                 16 |         4 |     0 | UNMOVABL |  000084d0 | __pmd_alloc
+                  8 |         2 |     0 | UNMOVABL |  000084d0 | __pud_alloc
+   ...              | ...       | ...   | ...      | ...       | ...
+  --------------------------------------------------------------------------------------------
 
 Signed-off-by: Namhyung Kim <namhyung@kernel.org>
 ---
- tools/perf/builtin-kmem.c | 279 +++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 263 insertions(+), 16 deletions(-)
+ tools/perf/Documentation/perf-kmem.txt |   6 +-
+ tools/perf/builtin-kmem.c              | 398 ++++++++++++++++++++++++++-------
+ 2 files changed, 317 insertions(+), 87 deletions(-)
 
+diff --git a/tools/perf/Documentation/perf-kmem.txt b/tools/perf/Documentation/perf-kmem.txt
+index 23219c65c16f..69e181272c51 100644
+--- a/tools/perf/Documentation/perf-kmem.txt
++++ b/tools/perf/Documentation/perf-kmem.txt
+@@ -37,7 +37,11 @@ OPTIONS
+ 
+ -s <key[,key2...]>::
+ --sort=<key[,key2...]>::
+-	Sort the output (default: frag,hit,bytes)
++	Sort the output (default: 'frag,hit,bytes' for slab and 'bytes,hit'
++	for page).  Available sort keys are 'ptr, callsite, bytes, hit,
++	pingpong, frag' for slab and 'page, callsite, bytes, hit, order,
++	migtype, gfp' for page.  This option should be preceded by one of the
++	mode selection options - i.e. --slab, --page, --alloc and/or --caller.
+ 
+ -l <num>::
+ --line=<num>::
 diff --git a/tools/perf/builtin-kmem.c b/tools/perf/builtin-kmem.c
-index 63ea01349b6e..5b3ed17c293a 100644
+index 5b3ed17c293a..719aaf782116 100644
 --- a/tools/perf/builtin-kmem.c
 +++ b/tools/perf/builtin-kmem.c
-@@ -10,6 +10,7 @@
- #include "util/header.h"
- #include "util/session.h"
- #include "util/tool.h"
-+#include "util/callchain.h"
+@@ -30,7 +30,7 @@ static int	kmem_page;
+ static long	kmem_page_size;
  
- #include "util/parse-options.h"
- #include "util/trace-event.h"
-@@ -21,6 +22,7 @@
- #include <linux/rbtree.h>
- #include <linux/string.h>
- #include <locale.h>
-+#include <regex.h>
+ struct alloc_stat;
+-typedef int (*sort_fn_t)(struct alloc_stat *, struct alloc_stat *);
++typedef int (*sort_fn_t)(void *, void *);
  
- static int	kmem_slab;
- static int	kmem_page;
-@@ -241,6 +243,7 @@ static unsigned long nr_page_fails;
- static unsigned long nr_page_nomatch;
+ static int			alloc_flag;
+ static int			caller_flag;
+@@ -181,8 +181,8 @@ static int perf_evsel__process_alloc_node_event(struct perf_evsel *evsel,
+ 	return ret;
+ }
  
- static bool use_pfn;
-+static struct perf_session *kmem_session;
+-static int ptr_cmp(struct alloc_stat *, struct alloc_stat *);
+-static int callsite_cmp(struct alloc_stat *, struct alloc_stat *);
++static int ptr_cmp(void *, void *);
++static int slab_callsite_cmp(void *, void *);
  
- #define MAX_MIGRATE_TYPES  6
- #define MAX_PAGE_ORDER     11
-@@ -250,6 +253,7 @@ static int order_stats[MAX_PAGE_ORDER][MAX_MIGRATE_TYPES];
- struct page_stat {
- 	struct rb_node 	node;
- 	u64 		page;
-+	u64 		callsite;
- 	int 		order;
- 	unsigned 	gfp_flags;
- 	unsigned 	migrate_type;
-@@ -262,8 +266,138 @@ struct page_stat {
- static struct rb_root page_tree;
- static struct rb_root page_alloc_tree;
- static struct rb_root page_alloc_sorted;
-+static struct rb_root page_caller_tree;
-+static struct rb_root page_caller_sorted;
+ static struct alloc_stat *search_alloc_stat(unsigned long ptr,
+ 					    unsigned long call_site,
+@@ -223,7 +223,8 @@ static int perf_evsel__process_free_event(struct perf_evsel *evsel,
+ 		s_alloc->pingpong++;
  
--static struct page_stat *search_page(unsigned long page, bool create)
-+struct alloc_func {
-+	u64 start;
-+	u64 end;
-+	char *name;
-+};
+ 		s_caller = search_alloc_stat(0, s_alloc->call_site,
+-					     &root_caller_stat, callsite_cmp);
++					     &root_caller_stat,
++					     slab_callsite_cmp);
+ 		if (!s_caller)
+ 			return -1;
+ 		s_caller->pingpong++;
+@@ -397,6 +398,7 @@ static u64 find_callsite(struct perf_evsel *evsel, struct perf_sample *sample)
+ 	return sample->ip;
+ }
+ 
 +
-+static int nr_alloc_funcs;
-+static struct alloc_func *alloc_func_list;
-+
-+static int funcmp(const void *a, const void *b)
-+{
-+	const struct alloc_func *fa = a;
-+	const struct alloc_func *fb = b;
-+
-+	if (fa->start > fb->start)
-+		return 1;
-+	else
-+		return -1;
-+}
-+
-+static int callcmp(const void *a, const void *b)
-+{
-+	const struct alloc_func *fa = a;
-+	const struct alloc_func *fb = b;
-+
-+	if (fb->start <= fa->start && fa->end < fb->end)
-+		return 0;
-+
-+	if (fa->start > fb->start)
-+		return 1;
-+	else
-+		return -1;
-+}
-+
-+static int build_alloc_func_list(void)
-+{
-+	int ret;
-+	struct map *kernel_map;
-+	struct symbol *sym;
-+	struct rb_node *node;
-+	struct alloc_func *func;
-+	struct machine *machine = &kmem_session->machines.host;
-+
-+	regex_t alloc_func_regex;
-+	const char pattern[] = "^_?_?(alloc|get_free|get_zeroed)_pages?";
-+
-+	ret = regcomp(&alloc_func_regex, pattern, REG_EXTENDED);
-+	if (ret) {
-+		char err[BUFSIZ];
-+
-+		regerror(ret, &alloc_func_regex, err, sizeof(err));
-+		pr_err("Invalid regex: %s\n%s", pattern, err);
-+		return -EINVAL;
-+	}
-+
-+	kernel_map = machine->vmlinux_maps[MAP__FUNCTION];
-+	map__load(kernel_map, NULL);
-+
-+	map__for_each_symbol(kernel_map, sym, node) {
-+		if (regexec(&alloc_func_regex, sym->name, 0, NULL, 0))
-+			continue;
-+
-+		func = realloc(alloc_func_list,
-+			       (nr_alloc_funcs + 1) * sizeof(*func));
-+		if (func == NULL)
-+			return -ENOMEM;
-+
-+		pr_debug("alloc func: %s\n", sym->name);
-+		func[nr_alloc_funcs].start = sym->start;
-+		func[nr_alloc_funcs].end   = sym->end;
-+		func[nr_alloc_funcs].name  = sym->name;
-+
-+		alloc_func_list = func;
-+		nr_alloc_funcs++;
-+	}
-+
-+	qsort(alloc_func_list, nr_alloc_funcs, sizeof(*func), funcmp);
-+
-+	regfree(&alloc_func_regex);
-+	return 0;
-+}
-+
-+/*
-+ * Find first non-memory allocation function from callchain.
-+ * The allocation functions are in the 'alloc_func_list'.
-+ */
-+static u64 find_callsite(struct perf_evsel *evsel, struct perf_sample *sample)
-+{
-+	struct addr_location al;
-+	struct machine *machine = &kmem_session->machines.host;
-+	struct callchain_cursor_node *node;
-+
-+	if (alloc_func_list == NULL)
-+		build_alloc_func_list();
-+
-+	al.thread = machine__findnew_thread(machine, sample->pid, sample->tid);
-+	sample__resolve_callchain(sample, NULL, evsel, &al, 16);
-+
-+	callchain_cursor_commit(&callchain_cursor);
-+	while (true) {
-+		struct alloc_func key, *caller;
-+		u64 addr;
-+
-+		node = callchain_cursor_current(&callchain_cursor);
-+		if (node == NULL)
-+			break;
-+
-+		key.start = key.end = node->ip;
-+		caller = bsearch(&key, alloc_func_list, nr_alloc_funcs,
-+				 sizeof(key), callcmp);
-+		if (!caller) {
-+			/* found */
-+			if (node->map)
-+				addr = map__unmap_ip(node->map, node->ip);
-+			else
-+				addr = node->ip;
-+
-+			return addr;
-+		} else
-+			pr_debug3("skipping alloc function: %s\n", caller->name);
-+
-+		callchain_cursor_advance(&callchain_cursor);
-+	}
-+
-+	pr_debug2("unknown callsite: %"PRIx64 "\n", sample->ip);
-+	return sample->ip;
-+}
-+
-+static struct page_stat *search_page(u64 page, bool create)
+ static struct page_stat *search_page(u64 page, bool create)
  {
  	struct rb_node **node = &page_tree.rb_node;
- 	struct rb_node *parent = NULL;
-@@ -357,6 +491,41 @@ static struct page_stat *search_page_alloc_stat(struct page_stat *stat, bool cre
+@@ -432,40 +434,35 @@ static struct page_stat *search_page(u64 page, bool create)
  	return data;
  }
  
-+static struct page_stat *search_page_caller_stat(u64 callsite, bool create)
-+{
-+	struct rb_node **node = &page_caller_tree.rb_node;
-+	struct rb_node *parent = NULL;
-+	struct page_stat *data;
+-static int page_stat_cmp(struct page_stat *a, struct page_stat *b)
+-{
+-	if (a->page > b->page)
+-		return -1;
+-	if (a->page < b->page)
+-		return 1;
+-	if (a->order > b->order)
+-		return -1;
+-	if (a->order < b->order)
+-		return 1;
+-	if (a->migrate_type > b->migrate_type)
+-		return -1;
+-	if (a->migrate_type < b->migrate_type)
+-		return 1;
+-	if (a->gfp_flags > b->gfp_flags)
+-		return -1;
+-	if (a->gfp_flags < b->gfp_flags)
+-		return 1;
+-	return 0;
+-}
++struct sort_dimension {
++	const char		name[20];
++	sort_fn_t		cmp;
++	struct list_head	list;
++};
+ 
+-static struct page_stat *search_page_alloc_stat(struct page_stat *stat, bool create)
++static LIST_HEAD(page_alloc_sort_input);
++static LIST_HEAD(page_caller_sort_input);
 +
-+	while (*node) {
-+		s64 cmp;
-+
-+		parent = *node;
-+		data = rb_entry(*node, struct page_stat, node);
-+
-+		cmp = data->callsite - callsite;
-+		if (cmp < 0)
-+			node = &parent->rb_left;
-+		else if (cmp > 0)
-+			node = &parent->rb_right;
-+		else
-+			return data;
-+	}
-+
-+	if (!create)
-+		return NULL;
-+
-+	data = zalloc(sizeof(*data));
-+	if (data != NULL) {
-+		data->callsite = callsite;
-+
-+		rb_link_node(&data->node, parent, node);
-+		rb_insert_color(&data->node, &page_caller_tree);
-+	}
-+
-+	return data;
-+}
-+
- static bool valid_page(u64 pfn_or_page)
++static struct page_stat *search_page_alloc_stat(struct page_stat *this,
++						bool create)
  {
- 	if (use_pfn && pfn_or_page == -1UL)
-@@ -375,6 +544,7 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
- 	unsigned int migrate_type = perf_evsel__intval(evsel, sample,
- 						       "migratetype");
- 	u64 bytes = kmem_page_size << order;
-+	u64 callsite;
- 	struct page_stat *stat;
- 	struct page_stat this = {
- 		.order = order,
-@@ -397,6 +567,8 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
- 		return 0;
- 	}
+ 	struct rb_node **node = &page_alloc_tree.rb_node;
+ 	struct rb_node *parent = NULL;
+ 	struct page_stat *data;
++	struct sort_dimension *sort;
  
-+	callsite = find_callsite(evsel, sample);
+ 	while (*node) {
+-		s64 cmp;
++		int cmp = 0;
+ 
+ 		parent = *node;
+ 		data = rb_entry(*node, struct page_stat, node);
+ 
+-		cmp = page_stat_cmp(data, stat);
++		list_for_each_entry(sort, &page_alloc_sort_input, list) {
++			cmp = sort->cmp(this, data);
++			if (cmp)
++				break;
++		}
 +
- 	/*
- 	 * This is to find the current page (with correct gfp flags and
- 	 * migrate type) at free event.
-@@ -408,6 +580,7 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
- 	stat->order = order;
- 	stat->gfp_flags = gfp_flags;
- 	stat->migrate_type = migrate_type;
-+	stat->callsite = callsite;
+ 		if (cmp < 0)
+ 			node = &parent->rb_left;
+ 		else if (cmp > 0)
+@@ -479,10 +476,10 @@ static struct page_stat *search_page_alloc_stat(struct page_stat *stat, bool cre
  
- 	this.page = page;
- 	stat = search_page_alloc_stat(&this, true);
-@@ -416,6 +589,18 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
+ 	data = zalloc(sizeof(*data));
+ 	if (data != NULL) {
+-		data->page = stat->page;
+-		data->order = stat->order;
+-		data->gfp_flags = stat->gfp_flags;
+-		data->migrate_type = stat->migrate_type;
++		data->page = this->page;
++		data->order = this->order;
++		data->migrate_type = this->migrate_type;
++		data->gfp_flags = this->gfp_flags;
  
+ 		rb_link_node(&data->node, parent, node);
+ 		rb_insert_color(&data->node, &page_alloc_tree);
+@@ -491,19 +488,26 @@ static struct page_stat *search_page_alloc_stat(struct page_stat *stat, bool cre
+ 	return data;
+ }
+ 
+-static struct page_stat *search_page_caller_stat(u64 callsite, bool create)
++static struct page_stat *search_page_caller_stat(struct page_stat *this,
++						 bool create)
+ {
+ 	struct rb_node **node = &page_caller_tree.rb_node;
+ 	struct rb_node *parent = NULL;
+ 	struct page_stat *data;
++	struct sort_dimension *sort;
+ 
+ 	while (*node) {
+-		s64 cmp;
++		int cmp = 0;
+ 
+ 		parent = *node;
+ 		data = rb_entry(*node, struct page_stat, node);
+ 
+-		cmp = data->callsite - callsite;
++		list_for_each_entry(sort, &page_caller_sort_input, list) {
++			cmp = sort->cmp(this, data);
++			if (cmp)
++				break;
++		}
++
+ 		if (cmp < 0)
+ 			node = &parent->rb_left;
+ 		else if (cmp > 0)
+@@ -517,7 +521,10 @@ static struct page_stat *search_page_caller_stat(u64 callsite, bool create)
+ 
+ 	data = zalloc(sizeof(*data));
+ 	if (data != NULL) {
+-		data->callsite = callsite;
++		data->callsite = this->callsite;
++		data->order = this->order;
++		data->migrate_type = this->migrate_type;
++		data->gfp_flags = this->gfp_flags;
+ 
+ 		rb_link_node(&data->node, parent, node);
+ 		rb_insert_color(&data->node, &page_caller_tree);
+@@ -591,14 +598,11 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
+ 	stat->alloc_bytes += bytes;
+ 	stat->callsite = callsite;
+ 
+-	stat = search_page_caller_stat(callsite, true);
++	this.callsite = callsite;
++	stat = search_page_caller_stat(&this, true);
+ 	if (stat == NULL)
+ 		return -ENOMEM;
+ 
+-	stat->order = order;
+-	stat->gfp_flags = gfp_flags;
+-	stat->migrate_type = migrate_type;
+-
  	stat->nr_alloc++;
  	stat->alloc_bytes += bytes;
-+	stat->callsite = callsite;
-+
-+	stat = search_page_caller_stat(callsite, true);
-+	if (stat == NULL)
-+		return -ENOMEM;
-+
-+	stat->order = order;
-+	stat->gfp_flags = gfp_flags;
-+	stat->migrate_type = migrate_type;
-+
-+	stat->nr_alloc++;
-+	stat->alloc_bytes += bytes;
  
- 	order_stats[order][migrate_type]++;
- 
-@@ -455,6 +640,7 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
- 	this.page = page;
- 	this.gfp_flags = stat->gfp_flags;
- 	this.migrate_type = stat->migrate_type;
-+	this.callsite = stat->callsite;
- 
- 	rb_erase(&stat->node, &page_tree);
- 	free(stat);
-@@ -466,6 +652,13 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
+@@ -652,7 +656,7 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
  	stat->nr_free++;
  	stat->free_bytes += bytes;
  
-+	stat = search_page_caller_stat(this.callsite, false);
-+	if (stat == NULL)
-+		return -ENOENT;
-+
-+	stat->nr_free++;
-+	stat->free_bytes += bytes;
-+
- 	return 0;
+-	stat = search_page_caller_stat(this.callsite, false);
++	stat = search_page_caller_stat(&this, false);
+ 	if (stat == NULL)
+ 		return -ENOENT;
+ 
+@@ -938,14 +942,10 @@ static void print_result(struct perf_session *session)
+ 		print_page_result(session);
  }
  
-@@ -576,41 +769,89 @@ static const char * const migrate_type_str[] = {
- 	"UNKNOWN",
+-struct sort_dimension {
+-	const char		name[20];
+-	sort_fn_t		cmp;
+-	struct list_head	list;
+-};
+-
+-static LIST_HEAD(caller_sort);
+-static LIST_HEAD(alloc_sort);
++static LIST_HEAD(slab_caller_sort);
++static LIST_HEAD(slab_alloc_sort);
++static LIST_HEAD(page_caller_sort);
++static LIST_HEAD(page_alloc_sort);
+ 
+ static void sort_slab_insert(struct rb_root *root, struct alloc_stat *data,
+ 			     struct list_head *sort_list)
+@@ -994,10 +994,12 @@ static void __sort_slab_result(struct rb_root *root, struct rb_root *root_sorted
+ 	}
+ }
+ 
+-static void sort_page_insert(struct rb_root *root, struct page_stat *data)
++static void sort_page_insert(struct rb_root *root, struct page_stat *data,
++			     struct list_head *sort_list)
+ {
+ 	struct rb_node **new = &root->rb_node;
+ 	struct rb_node *parent = NULL;
++	struct sort_dimension *sort;
+ 
+ 	while (*new) {
+ 		struct page_stat *this;
+@@ -1006,8 +1008,11 @@ static void sort_page_insert(struct rb_root *root, struct page_stat *data)
+ 		this = rb_entry(*new, struct page_stat, node);
+ 		parent = *new;
+ 
+-		/* TODO: support more sort key */
+-		cmp = data->alloc_bytes - this->alloc_bytes;
++		list_for_each_entry(sort, sort_list, list) {
++			cmp = sort->cmp(data, this);
++			if (cmp)
++				break;
++		}
+ 
+ 		if (cmp > 0)
+ 			new = &parent->rb_left;
+@@ -1019,7 +1024,8 @@ static void sort_page_insert(struct rb_root *root, struct page_stat *data)
+ 	rb_insert_color(&data->node, root);
+ }
+ 
+-static void __sort_page_result(struct rb_root *root, struct rb_root *root_sorted)
++static void __sort_page_result(struct rb_root *root, struct rb_root *root_sorted,
++			       struct list_head *sort_list)
+ {
+ 	struct rb_node *node;
+ 	struct page_stat *data;
+@@ -1031,7 +1037,7 @@ static void __sort_page_result(struct rb_root *root, struct rb_root *root_sorted
+ 
+ 		rb_erase(node, root);
+ 		data = rb_entry(node, struct page_stat, node);
+-		sort_page_insert(root_sorted, data);
++		sort_page_insert(root_sorted, data, sort_list);
+ 	}
+ }
+ 
+@@ -1039,13 +1045,15 @@ static void sort_result(void)
+ {
+ 	if (kmem_slab) {
+ 		__sort_slab_result(&root_alloc_stat, &root_alloc_sorted,
+-				   &alloc_sort);
++				   &slab_alloc_sort);
+ 		__sort_slab_result(&root_caller_stat, &root_caller_sorted,
+-				   &caller_sort);
++				   &slab_caller_sort);
+ 	}
+ 	if (kmem_page) {
+-		__sort_page_result(&page_alloc_tree, &page_alloc_sorted);
+-		__sort_page_result(&page_caller_tree, &page_caller_sorted);
++		__sort_page_result(&page_alloc_tree, &page_alloc_sorted,
++				   &page_alloc_sort);
++		__sort_page_result(&page_caller_tree, &page_caller_sorted,
++				   &page_caller_sort);
+ 	}
+ }
+ 
+@@ -1094,8 +1102,12 @@ out:
+ 	return err;
+ }
+ 
+-static int ptr_cmp(struct alloc_stat *l, struct alloc_stat *r)
++/* slab sort keys */
++static int ptr_cmp(void *a, void *b)
+ {
++	struct alloc_stat *l = a;
++	struct alloc_stat *r = b;
++
+ 	if (l->ptr < r->ptr)
+ 		return -1;
+ 	else if (l->ptr > r->ptr)
+@@ -1108,8 +1120,11 @@ static struct sort_dimension ptr_sort_dimension = {
+ 	.cmp	= ptr_cmp,
  };
  
--static void __print_page_result(struct rb_root *root,
--				struct perf_session *session __maybe_unused,
--				int n_lines)
-+static void __print_page_alloc_result(struct perf_session *session, int n_lines)
+-static int callsite_cmp(struct alloc_stat *l, struct alloc_stat *r)
++static int slab_callsite_cmp(void *a, void *b)
  {
--	struct rb_node *next = rb_first(root);
-+	struct rb_node *next = rb_first(&page_alloc_sorted);
-+	struct machine *machine = &session->machines.host;
- 	const char *format;
- 
--	printf("\n%.80s\n", graph_dotted_line);
--	printf(" %-16s | Total alloc (KB) | Hits      | Order | Mig.type | GFP flags\n",
-+	printf("\n%.105s\n", graph_dotted_line);
-+	printf(" %-16s | Total alloc (KB) | Hits      | Order | Mig.type | GFP flags | Callsite\n",
- 	       use_pfn ? "PFN" : "Page");
--	printf("%.80s\n", graph_dotted_line);
-+	printf("%.105s\n", graph_dotted_line);
- 
- 	if (use_pfn)
--		format = " %16llu | %'16llu | %'9d | %5d | %8s |  %08lx\n";
-+		format = " %16llu | %'16llu | %'9d | %5d | %8s |  %08lx | %s\n";
- 	else
--		format = " %016llx | %'16llu | %'9d | %5d | %8s |  %08lx\n";
-+		format = " %016llx | %'16llu | %'9d | %5d | %8s |  %08lx | %s\n";
- 
- 	while (next && n_lines--) {
- 		struct page_stat *data;
-+		struct symbol *sym;
-+		struct map *map;
-+		char buf[32];
-+		char *caller = buf;
- 
- 		data = rb_entry(next, struct page_stat, node);
-+		sym = machine__find_kernel_function(machine, data->callsite,
-+						    &map, NULL);
-+		if (sym && sym->name)
-+			caller = sym->name;
-+		else
-+			scnprintf(buf, sizeof(buf), "%"PRIx64, data->callsite);
- 
- 		printf(format, (unsigned long long)data->page,
- 		       (unsigned long long)data->alloc_bytes / 1024,
- 		       data->nr_alloc, data->order,
- 		       migrate_type_str[data->migrate_type],
--		       (unsigned long)data->gfp_flags);
-+		       (unsigned long)data->gfp_flags, caller);
++	struct alloc_stat *l = a;
++	struct alloc_stat *r = b;
 +
-+		next = rb_next(next);
-+	}
+ 	if (l->call_site < r->call_site)
+ 		return -1;
+ 	else if (l->call_site > r->call_site)
+@@ -1119,11 +1134,14 @@ static int callsite_cmp(struct alloc_stat *l, struct alloc_stat *r)
+ 
+ static struct sort_dimension callsite_sort_dimension = {
+ 	.name	= "callsite",
+-	.cmp	= callsite_cmp,
++	.cmp	= slab_callsite_cmp,
+ };
+ 
+-static int hit_cmp(struct alloc_stat *l, struct alloc_stat *r)
++static int hit_cmp(void *a, void *b)
+ {
++	struct alloc_stat *l = a;
++	struct alloc_stat *r = b;
 +
-+	if (n_lines == -1)
-+		printf(" ...              | ...              | ...       | ...   | ...      | ...       | ...\n");
+ 	if (l->hit < r->hit)
+ 		return -1;
+ 	else if (l->hit > r->hit)
+@@ -1136,8 +1154,11 @@ static struct sort_dimension hit_sort_dimension = {
+ 	.cmp	= hit_cmp,
+ };
+ 
+-static int bytes_cmp(struct alloc_stat *l, struct alloc_stat *r)
++static int bytes_cmp(void *a, void *b)
+ {
++	struct alloc_stat *l = a;
++	struct alloc_stat *r = b;
 +
-+	printf("%.105s\n", graph_dotted_line);
+ 	if (l->bytes_alloc < r->bytes_alloc)
+ 		return -1;
+ 	else if (l->bytes_alloc > r->bytes_alloc)
+@@ -1150,9 +1171,11 @@ static struct sort_dimension bytes_sort_dimension = {
+ 	.cmp	= bytes_cmp,
+ };
+ 
+-static int frag_cmp(struct alloc_stat *l, struct alloc_stat *r)
++static int frag_cmp(void *a, void *b)
+ {
+ 	double x, y;
++	struct alloc_stat *l = a;
++	struct alloc_stat *r = b;
+ 
+ 	x = fragmentation(l->bytes_req, l->bytes_alloc);
+ 	y = fragmentation(r->bytes_req, r->bytes_alloc);
+@@ -1169,8 +1192,11 @@ static struct sort_dimension frag_sort_dimension = {
+ 	.cmp	= frag_cmp,
+ };
+ 
+-static int pingpong_cmp(struct alloc_stat *l, struct alloc_stat *r)
++static int pingpong_cmp(void *a, void *b)
+ {
++	struct alloc_stat *l = a;
++	struct alloc_stat *r = b;
++
+ 	if (l->pingpong < r->pingpong)
+ 		return -1;
+ 	else if (l->pingpong > r->pingpong)
+@@ -1183,7 +1209,135 @@ static struct sort_dimension pingpong_sort_dimension = {
+ 	.cmp	= pingpong_cmp,
+ };
+ 
+-static struct sort_dimension *avail_sorts[] = {
++/* page sort keys */
++static int page_cmp(void *a, void *b)
++{
++	struct page_stat *l = a;
++	struct page_stat *r = b;
++
++	if (l->page < r->page)
++		return -1;
++	else if (l->page > r->page)
++		return 1;
++	return 0;
 +}
 +
-+static void __print_page_caller_result(struct perf_session *session, int n_lines)
++static struct sort_dimension page_sort_dimension = {
++	.name	= "page",
++	.cmp	= page_cmp,
++};
++
++static int page_callsite_cmp(void *a, void *b)
 +{
-+	struct rb_node *next = rb_first(&page_caller_sorted);
-+	struct machine *machine = &session->machines.host;
++	struct page_stat *l = a;
++	struct page_stat *r = b;
 +
-+	printf("\n%.105s\n", graph_dotted_line);
-+	printf(" Total alloc (KB) | Hits      | Order | Mig.type | GFP flags | Callsite\n");
-+	printf("%.105s\n", graph_dotted_line);
++	if (l->callsite < r->callsite)
++		return -1;
++	else if (l->callsite > r->callsite)
++		return 1;
++	return 0;
++}
 +
-+	while (next && n_lines--) {
-+		struct page_stat *data;
-+		struct symbol *sym;
-+		struct map *map;
-+		char buf[32];
-+		char *caller = buf;
++static struct sort_dimension page_callsite_sort_dimension = {
++	.name	= "callsite",
++	.cmp	= page_callsite_cmp,
++};
 +
-+		data = rb_entry(next, struct page_stat, node);
-+		sym = machine__find_kernel_function(machine, data->callsite,
-+						    &map, NULL);
-+		if (sym && sym->name)
-+			caller = sym->name;
-+		else
-+			scnprintf(buf, sizeof(buf), "%"PRIx64, data->callsite);
++static int page_hit_cmp(void *a, void *b)
++{
++	struct page_stat *l = a;
++	struct page_stat *r = b;
 +
-+		printf(" %'16llu | %'9d | %5d | %8s |  %08lx | %s\n",
-+		       (unsigned long long)data->alloc_bytes / 1024,
-+		       data->nr_alloc, data->order,
-+		       migrate_type_str[data->migrate_type],
-+		       (unsigned long)data->gfp_flags, caller);
++	if (l->nr_alloc < r->nr_alloc)
++		return -1;
++	else if (l->nr_alloc > r->nr_alloc)
++		return 1;
++	return 0;
++}
++
++static struct sort_dimension page_hit_sort_dimension = {
++	.name	= "hit",
++	.cmp	= page_hit_cmp,
++};
++
++static int page_bytes_cmp(void *a, void *b)
++{
++	struct page_stat *l = a;
++	struct page_stat *r = b;
++
++	if (l->alloc_bytes < r->alloc_bytes)
++		return -1;
++	else if (l->alloc_bytes > r->alloc_bytes)
++		return 1;
++	return 0;
++}
++
++static struct sort_dimension page_bytes_sort_dimension = {
++	.name	= "bytes",
++	.cmp	= page_bytes_cmp,
++};
++
++static int page_order_cmp(void *a, void *b)
++{
++	struct page_stat *l = a;
++	struct page_stat *r = b;
++
++	if (l->order < r->order)
++		return -1;
++	else if (l->order > r->order)
++		return 1;
++	return 0;
++}
++
++static struct sort_dimension page_order_sort_dimension = {
++	.name	= "order",
++	.cmp	= page_order_cmp,
++};
++
++static int migrate_type_cmp(void *a, void *b)
++{
++	struct page_stat *l = a;
++	struct page_stat *r = b;
++
++	/* for internal use to find free'd page */
++	if (l->migrate_type == -1U)
++		return 0;
++
++	if (l->migrate_type < r->migrate_type)
++		return -1;
++	else if (l->migrate_type > r->migrate_type)
++		return 1;
++	return 0;
++}
++
++static struct sort_dimension migrate_type_sort_dimension = {
++	.name	= "migtype",
++	.cmp	= migrate_type_cmp,
++};
++
++static int gfp_flags_cmp(void *a, void *b)
++{
++	struct page_stat *l = a;
++	struct page_stat *r = b;
++
++	/* for internal use to find free'd page */
++	if (l->gfp_flags == -1U)
++		return 0;
++
++	if (l->gfp_flags < r->gfp_flags)
++		return -1;
++	else if (l->gfp_flags > r->gfp_flags)
++		return 1;
++	return 0;
++}
++
++static struct sort_dimension gfp_flags_sort_dimension = {
++	.name	= "gfp",
++	.cmp	= gfp_flags_cmp,
++};
++
++static struct sort_dimension *slab_sorts[] = {
+ 	&ptr_sort_dimension,
+ 	&callsite_sort_dimension,
+ 	&hit_sort_dimension,
+@@ -1192,16 +1346,44 @@ static struct sort_dimension *avail_sorts[] = {
+ 	&pingpong_sort_dimension,
+ };
  
- 		next = rb_next(next);
- 	}
+-#define NUM_AVAIL_SORTS	((int)ARRAY_SIZE(avail_sorts))
++static struct sort_dimension *page_sorts[] = {
++	&page_sort_dimension,
++	&page_callsite_sort_dimension,
++	&page_hit_sort_dimension,
++	&page_bytes_sort_dimension,
++	&page_order_sort_dimension,
++	&migrate_type_sort_dimension,
++	&gfp_flags_sort_dimension,
++};
++
++static int slab_sort_dimension__add(const char *tok, struct list_head *list)
++{
++	struct sort_dimension *sort;
++	int i;
++
++	for (i = 0; i < (int)ARRAY_SIZE(slab_sorts); i++) {
++		if (!strcmp(slab_sorts[i]->name, tok)) {
++			sort = memdup(slab_sorts[i], sizeof(*slab_sorts[i]));
++			if (!sort) {
++				pr_err("%s: memdup failed\n", __func__);
++				return -1;
++			}
++			list_add_tail(&sort->list, list);
++			return 0;
++		}
++	}
++
++	return -1;
++}
  
- 	if (n_lines == -1)
--		printf(" ...              | ...              | ...       | ...   | ...      | ...     \n");
-+		printf(" ...              | ...       | ...   | ...      | ...       | ...\n");
- 
--	printf("%.80s\n", graph_dotted_line);
-+	printf("%.105s\n", graph_dotted_line);
- }
- 
- static void print_slab_summary(void)
-@@ -682,8 +923,10 @@ static void print_slab_result(struct perf_session *session)
- 
- static void print_page_result(struct perf_session *session)
+-static int sort_dimension__add(const char *tok, struct list_head *list)
++static int page_sort_dimension__add(const char *tok, struct list_head *list)
  {
-+	if (caller_flag)
-+		__print_page_caller_result(session, caller_lines);
- 	if (alloc_flag)
--		__print_page_result(&page_alloc_sorted, session, alloc_lines);
-+		__print_page_alloc_result(session, alloc_lines);
- 	print_page_summary();
+ 	struct sort_dimension *sort;
+ 	int i;
+ 
+-	for (i = 0; i < NUM_AVAIL_SORTS; i++) {
+-		if (!strcmp(avail_sorts[i]->name, tok)) {
+-			sort = memdup(avail_sorts[i], sizeof(*avail_sorts[i]));
++	for (i = 0; i < (int)ARRAY_SIZE(page_sorts); i++) {
++		if (!strcmp(page_sorts[i]->name, tok)) {
++			sort = memdup(page_sorts[i], sizeof(*page_sorts[i]));
+ 			if (!sort) {
+ 				pr_err("%s: memdup failed\n", __func__);
+ 				return -1;
+@@ -1214,7 +1396,7 @@ static int sort_dimension__add(const char *tok, struct list_head *list)
+ 	return -1;
  }
  
-@@ -802,6 +1045,7 @@ static void sort_result(void)
- 	}
- 	if (kmem_page) {
- 		__sort_page_result(&page_alloc_tree, &page_alloc_sorted);
-+		__sort_page_result(&page_caller_tree, &page_caller_sorted);
- 	}
- }
- 
-@@ -1084,7 +1328,7 @@ static int __cmd_record(int argc, const char **argv)
- 	if (kmem_slab)
- 		rec_argc += ARRAY_SIZE(slab_events);
- 	if (kmem_page)
--		rec_argc += ARRAY_SIZE(page_events);
-+		rec_argc += ARRAY_SIZE(page_events) + 1; /* for -g */
- 
- 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
- 
-@@ -1099,6 +1343,8 @@ static int __cmd_record(int argc, const char **argv)
- 			rec_argv[i] = strdup(slab_events[j]);
- 	}
- 	if (kmem_page) {
-+		rec_argv[i++] = strdup("-g");
+-static int setup_sorting(struct list_head *sort_list, const char *arg)
++static int setup_slab_sorting(struct list_head *sort_list, const char *arg)
+ {
+ 	char *tok;
+ 	char *str = strdup(arg);
+@@ -1229,8 +1411,34 @@ static int setup_sorting(struct list_head *sort_list, const char *arg)
+ 		tok = strsep(&pos, ",");
+ 		if (!tok)
+ 			break;
+-		if (sort_dimension__add(tok, sort_list) < 0) {
+-			error("Unknown --sort key: '%s'", tok);
++		if (slab_sort_dimension__add(tok, sort_list) < 0) {
++			error("Unknown slab --sort key: '%s'", tok);
++			free(str);
++			return -1;
++		}
++	}
 +
- 		for (j = 0; j < ARRAY_SIZE(page_events); j++, i++)
- 			rec_argv[i] = strdup(page_events[j]);
- 	}
-@@ -1159,7 +1405,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
- 
- 	file.path = input_name;
- 
--	session = perf_session__new(&file, false, &perf_kmem);
-+	kmem_session = session = perf_session__new(&file, false, &perf_kmem);
- 	if (session == NULL)
++	free(str);
++	return 0;
++}
++
++static int setup_page_sorting(struct list_head *sort_list, const char *arg)
++{
++	char *tok;
++	char *str = strdup(arg);
++	char *pos = str;
++
++	if (!str) {
++		pr_err("%s: strdup failed\n", __func__);
++		return -1;
++	}
++
++	while (true) {
++		tok = strsep(&pos, ",");
++		if (!tok)
++			break;
++		if (page_sort_dimension__add(tok, sort_list) < 0) {
++			error("Unknown page --sort key: '%s'", tok);
+ 			free(str);
+ 			return -1;
+ 		}
+@@ -1246,10 +1454,17 @@ static int parse_sort_opt(const struct option *opt __maybe_unused,
+ 	if (!arg)
  		return -1;
  
-@@ -1172,6 +1418,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
- 		}
+-	if (caller_flag > alloc_flag)
+-		return setup_sorting(&caller_sort, arg);
+-	else
+-		return setup_sorting(&alloc_sort, arg);
++	if (kmem_page > kmem_slab) {
++		if (caller_flag > alloc_flag)
++			return setup_page_sorting(&page_caller_sort, arg);
++		else
++			return setup_page_sorting(&page_alloc_sort, arg);
++	} else {
++		if (caller_flag > alloc_flag)
++			return setup_slab_sorting(&slab_caller_sort, arg);
++		else
++			return setup_slab_sorting(&slab_alloc_sort, arg);
++	}
  
- 		kmem_page_size = pevent_get_page_size(evsel->tp_format->pevent);
-+		symbol_conf.use_callchain = true;
- 	}
+ 	return 0;
+ }
+@@ -1357,10 +1572,11 @@ static int __cmd_record(int argc, const char **argv)
  
- 	symbol__init(&session->header.env);
+ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
+ {
+-	const char * const default_sort_order = "frag,hit,bytes";
+ 	struct perf_data_file file = {
+ 		.mode = PERF_DATA_MODE_READ,
+ 	};
++	const char * const default_slab_sort = "frag,hit,bytes";
++	const char * const default_page_sort = "bytes,hit";
+ 	const struct option kmem_options[] = {
+ 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
+ 	OPT_INCR('v', "verbose", &verbose,
+@@ -1370,8 +1586,8 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
+ 	OPT_CALLBACK_NOOPT(0, "alloc", NULL, NULL,
+ 			   "show per-allocation statistics", parse_alloc_opt),
+ 	OPT_CALLBACK('s', "sort", NULL, "key[,key2...]",
+-		     "sort by keys: ptr, call_site, bytes, hit, pingpong, frag",
+-		     parse_sort_opt),
++		     "sort by keys: ptr, callsite, bytes, hit, pingpong, frag, "
++		     "page, order, migtype, gfp", parse_sort_opt),
+ 	OPT_CALLBACK('l', "line", NULL, "num", "show n lines", parse_line_opt),
+ 	OPT_BOOLEAN(0, "raw-ip", &raw_ip, "show raw ip instead of symbol"),
+ 	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
+@@ -1429,11 +1645,21 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
+ 		if (cpu__setup_cpunode_map())
+ 			goto out_delete;
+ 
+-		if (list_empty(&caller_sort))
+-			setup_sorting(&caller_sort, default_sort_order);
+-		if (list_empty(&alloc_sort))
+-			setup_sorting(&alloc_sort, default_sort_order);
+-
++		if (list_empty(&slab_caller_sort))
++			setup_slab_sorting(&slab_caller_sort, default_slab_sort);
++		if (list_empty(&slab_alloc_sort))
++			setup_slab_sorting(&slab_alloc_sort, default_slab_sort);
++		if (list_empty(&page_caller_sort))
++			setup_page_sorting(&page_caller_sort, default_page_sort);
++		if (list_empty(&page_alloc_sort))
++			setup_page_sorting(&page_alloc_sort, default_page_sort);
++
++		if (kmem_page) {
++			setup_page_sorting(&page_alloc_sort_input,
++					   "page,order,migtype,gfp");
++			setup_page_sorting(&page_caller_sort_input,
++					   "callsite,order,migtype,gfp");
++		}
+ 		ret = __cmd_kmem(session);
+ 	} else
+ 		usage_with_options(kmem_usage, kmem_options);
 -- 
 2.3.2
 
