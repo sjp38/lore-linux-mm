@@ -1,64 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 238836B006C
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 08:04:18 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so28638923wid.0
-        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 05:04:17 -0700 (PDT)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id na9si7460965wic.65.2015.04.06.05.04.16
+Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D40B6B0038
+	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 10:45:09 -0400 (EDT)
+Received: by iedfl3 with SMTP id fl3so25769236ied.1
+        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 07:45:08 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0054.hostedemail.com. [216.40.44.54])
+        by mx.google.com with ESMTP id i17si2623994ich.22.2015.04.06.07.45.07
         for <linux-mm@kvack.org>;
-        Mon, 06 Apr 2015 05:04:16 -0700 (PDT)
-Date: Mon, 6 Apr 2015 15:04:09 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 2/2 mmotm] mm/page-writeback: check-before-clear
- PageReclaim
-Message-ID: <20150406120409.GB8375@node.dhcp.inet.fi>
-References: <20150406062017.GB11515@hori1.linux.bs1.fc.nec.co.jp>
- <20150406072551.GA7539@node.dhcp.inet.fi>
- <20150406074636.GB22950@hori1.linux.bs1.fc.nec.co.jp>
- <20150406081325.GB7373@hori1.linux.bs1.fc.nec.co.jp>
+        Mon, 06 Apr 2015 07:45:07 -0700 (PDT)
+Date: Mon, 6 Apr 2015 10:45:04 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH 9/9] tools lib traceevent: Honor operator priority
+Message-ID: <20150406104504.41e398d3@gandalf.local.home>
+In-Reply-To: <1428298576-9785-10-git-send-email-namhyung@kernel.org>
+References: <1428298576-9785-1-git-send-email-namhyung@kernel.org>
+	<1428298576-9785-10-git-send-email-namhyung@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150406081325.GB7373@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Namhyung Kim <namhyung@kernel.org>
+Cc: Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org
 
-On Mon, Apr 06, 2015 at 08:13:25AM +0000, Naoya Horiguchi wrote:
-> With page flag sanitization patchset, an invalid usage of ClearPageReclaim()
-> is detected in set_page_dirty().
-> This can be called from __unmap_hugepage_range(), so let's check PageReclaim
-> flag before trying to clear it to avoid the misuse.
+On Mon,  6 Apr 2015 14:36:16 +0900
+Namhyung Kim <namhyung@kernel.org> wrote:
+
+> Currently it ignores operator priority and just sets processed args as a
+> right operand.  But it could result in priority inversion in case that
+> the right operand is also a operator arg and its priority is lower.
 > 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> For example, following print format is from new kmem events.
+> 
+>   "page=%p", REC->pfn != -1UL ? (((struct page *)(0xffffea0000000000UL)) + (REC->pfn)) : ((void *)0)
+> 
+> But this was treated as below:
+> 
+>   REC->pfn != ((null - 1UL) ? ((struct page *)0xffffea0000000000UL + REC->pfn) : (void *) 0)
+> 
+> In this case, the right arg was '?' operator which has lower priority.
+> But it just sets the whole arg so making the output confusing - page was
+> always 0 or 1 since that's the result of logical operation.
+> 
+> With this patch, it can handle it properly like following:
+> 
+>   ((REC->pfn != (null - 1UL)) ? ((struct page *)0xffffea0000000000UL + REC->pfn) : (void *) 0)
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Nice catch. One nit.
 
+> 
+> Cc: Steven Rostedt <rostedt@goodmis.org>
+> Signed-off-by: Namhyung Kim <namhyung@kernel.org>
 > ---
->  mm/page-writeback.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+>  tools/lib/traceevent/event-parse.c | 17 ++++++++++++++++-
+>  1 file changed, 16 insertions(+), 1 deletion(-)
 > 
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 22f3714d35e6..38aa0d8f19d3 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -2225,7 +2225,8 @@ int set_page_dirty(struct page *page)
->  		 * it will confuse readahead and make it restart the size rampup
->  		 * process. But it's a trivial problem.
->  		 */
-> -		ClearPageReclaim(page);
-> +		if (PageReclaim(page))
-> +			ClearPageReclaim(page);
->  #ifdef CONFIG_BLOCK
->  		if (!spd)
->  			spd = __set_page_dirty_buffers;
-> -- 
-> 2.1.0
+> diff --git a/tools/lib/traceevent/event-parse.c b/tools/lib/traceevent/event-parse.c
+> index 6d31b6419d37..604bea5c3fb0 100644
+> --- a/tools/lib/traceevent/event-parse.c
+> +++ b/tools/lib/traceevent/event-parse.c
+> @@ -1939,7 +1939,22 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
+>  			goto out_warn_free;
+>  
+>  		type = process_arg_token(event, right, tok, type);
+> -		arg->op.right = right;
+> +
+> +		if (right->type == PRINT_OP &&
+> +		    get_op_prio(arg->op.op) < get_op_prio(right->op.op)) {
+> +			struct print_arg tmp;
+> +
+> +			/* swap ops according to the priority */
 
--- 
- Kirill A. Shutemov
+This isn't really a swap. Better term to use is "rotate".
+
+But other than that,
+
+Acked-by: Steven Rostedt <rostedt@goodmis.org>
+
+-- Steve
+
+> +			arg->op.right = right->op.left;
+> +
+> +			tmp = *arg;
+> +			*arg = *right;
+> +			*right = tmp;
+> +
+> +			arg->op.left = right;
+> +		} else {
+> +			arg->op.right = right;
+> +		}
+>  
+>  	} else if (strcmp(token, "[") == 0) {
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
