@@ -1,118 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com [209.85.220.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C2186B0071
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 16:04:39 -0400 (EDT)
-Received: by qkhg7 with SMTP id g7so31105227qkh.2
-        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:04:39 -0700 (PDT)
-Received: from mail-qk0-x22f.google.com (mail-qk0-x22f.google.com. [2607:f8b0:400d:c09::22f])
-        by mx.google.com with ESMTPS id f6si5138553qga.113.2015.04.06.13.04.37
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CC226B00B9
+	for <linux-mm@kvack.org>; Mon,  6 Apr 2015 16:04:41 -0400 (EDT)
+Received: by qcrf4 with SMTP id f4so15186512qcr.0
+        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:04:41 -0700 (PDT)
+Received: from mail-qg0-x230.google.com (mail-qg0-x230.google.com. [2607:f8b0:400d:c04::230])
+        by mx.google.com with ESMTPS id 6si5161554qhv.48.2015.04.06.13.04.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Apr 2015 13:04:38 -0700 (PDT)
-Received: by qkx62 with SMTP id 62so31168871qkx.0
-        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:04:37 -0700 (PDT)
+        Mon, 06 Apr 2015 13:04:39 -0700 (PDT)
+Received: by qgej70 with SMTP id j70so15011616qge.2
+        for <linux-mm@kvack.org>; Mon, 06 Apr 2015 13:04:39 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCHSET 2/3 v2 block/for-4.1/core] writeback: cgroup writeback backpressure propagation
-Date: Mon,  6 Apr 2015 16:04:15 -0400
-Message-Id: <1428350674-8303-1-git-send-email-tj@kernel.org>
+Subject: [PATCH 01/19] memcg: make mem_cgroup_read_{stat|event}() iterate possible cpus instead of online
+Date: Mon,  6 Apr 2015 16:04:16 -0400
+Message-Id: <1428350674-8303-2-git-send-email-tj@kernel.org>
+In-Reply-To: <1428350674-8303-1-git-send-email-tj@kernel.org>
+References: <1428350674-8303-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
-Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com
+Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, Tejun Heo <tj@kernel.org>
 
-Hello,
+cpu_possible_mask represents the CPUs which are actually possible
+during that boot instance.  For systems which don't support CPU
+hotplug, this will match cpu_online_mask exactly in most cases.  Even
+for systems which support CPU hotplug, the number of possible CPU
+slots is highly unlikely to diverge greatly from the number of online
+CPUs.  The only cases where the difference between possible and online
+caused problems were when the boot code failed to initialize the
+possible mask and left it fully set at NR_CPUS - 1.
 
-Changes from the last take[L] are
+As such, most per-cpu constructs allocate for all possible CPUs and
+often iterate over the possibles, which also has the benefit of
+avoiding the blocking CPU hotplug synchronization.
 
-* 0002-writeback-clean-up-wb_dirty_limit.patch added.
+memcg open codes per-cpu stat counting for mem_cgroup_read_stat() and
+mem_cgroup_read_events(), which iterates over online CPUs and handles
+CPU hotplug operations explicitly.  This complexity doesn't actually
+buy anything.  Switch to iterating over the possibles and drop the
+explicit CPU hotplug handling.
 
-* 0008-writeback-make-__wb_calc_thresh-take-dirty_throttle_.patch was
-  scaling the wrong parameter leading to weird throttling behavior.
-  Fixed.
+Eventually, we want to convert memcg to use percpu_counter instead of
+its own custom implementation which also benefits from quick access
+w/o summing for cases where larger error margin is acceptable.
 
-* 0019-mm-vmscan-disable-memcg-direct-reclaim-stalling-if-c.patch
-  updated so that vmscan behavior when !CONFIG_CGROUP_WRITEBACK isn't
-  affected.
+This will allow mem_cgroup_read_stat() to be called from non-sleepable
+contexts which will be used by cgroup writeback.
 
-While the previous patchset[2] implemented cgroup writeback support,
-the IO back pressure propagation mechanism implemented in
-balance_dirty_pages() and its subroutines isn't yet aware of cgroup
-writeback.
+Signed-off-by: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+---
+ mm/memcontrol.c | 51 ++-------------------------------------------------
+ 1 file changed, 2 insertions(+), 49 deletions(-)
 
-Processes belonging to a memcg may have access to only subset of total
-memory available in the system and not factoring this into dirty
-throttling rendered it completely ineffective for processes under
-memcg limits and memcg ended up building a separate ad-hoc degenerate
-mechanism directly into vmscan code to limit page dirtying.
-
-This patchset refactors the dirty throttling logic implemented in
-balance_dirty_pages() and its subroutines os that it can handle both
-global and memcg memory domains.  Dirty throttling mechanism is
-applied against both the global and memcg constraints and the more
-restricted of the two is used for actual throttling.
-
-This makes the dirty throttling mechanism operational for memcg
-domains including writeback-bandwidth-proportional dirty page
-distribution inside them.
-
-This patchset contains the following 19 patches.
-
- 0001-memcg-make-mem_cgroup_read_-stat-event-iterate-possi.patch
- 0002-writeback-clean-up-wb_dirty_limit.patch
- 0003-writeback-reorganize-__-wb_update_bandwidth.patch
- 0004-writeback-implement-wb_domain.patch
- 0005-writeback-move-global_dirty_limit-into-wb_domain.patch
- 0006-writeback-consolidate-dirty-throttle-parameters-into.patch
- 0007-writeback-add-dirty_throttle_control-wb_bg_thresh.patch
- 0008-writeback-make-__wb_calc_thresh-take-dirty_throttle_.patch
- 0009-writeback-add-dirty_throttle_control-pos_ratio.patch
- 0010-writeback-add-dirty_throttle_control-wb_completions.patch
- 0011-writeback-add-dirty_throttle_control-dom.patch
- 0012-writeback-make-__wb_writeout_inc-and-hard_dirty_limi.patch
- 0013-writeback-separate-out-domain_dirty_limits.patch
- 0014-writeback-move-over_bground_thresh-to-mm-page-writeb.patch
- 0015-writeback-update-wb_over_bg_thresh-to-use-wb_domain-.patch
- 0016-writeback-implement-memcg-wb_domain.patch
- 0017-writeback-reset-wb_domain-dirty_limit-_tstmp-when-me.patch
- 0018-writeback-implement-memcg-writeback-domain-based-thr.patch
- 0019-mm-vmscan-disable-memcg-direct-reclaim-stalling-if-c.patch
-
-0001-0003 are prep patches.
-
-0004-0015 refactors dirty throttling logic so that it operates on
-wb_domain.
-
-0016-0019 implement memcg wb_domain.
-
-This patchset is on top of
-
-  block/for-4.1/core bfd343aa1718 ("blk-mq: don't wait in blk_mq_queue_enter() if __GFP_WAIT isn't set")
-+ [1] [PATCH] writeback: fix possible underflow in write bandwidth calculation
-+ [2] [PATCHSET 1/3 v3 block/for-4.1/core] writeback: cgroup writeback support
-
-and available in the following git branch.
-
- git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git review-cgroup-writeback-backpressure-20150322
-
-diffstat follows.  Thanks.
-
- fs/fs-writeback.c                |   32 -
- include/linux/backing-dev-defs.h |    1 
- include/linux/memcontrol.h       |   21 +
- include/linux/writeback.h        |   82 +++-
- include/trace/events/writeback.h |    7 
- mm/backing-dev.c                 |    9 
- mm/memcontrol.c                  |  145 +++++--
- mm/page-writeback.c              |  722 +++++++++++++++++++++++++--------------
- mm/vmscan.c                      |  109 +----
- 9 files changed, 716 insertions(+), 412 deletions(-)
-
---
-tejun
-
-[L] http://lkml.kernel.org/g/
-[1] http://lkml.kernel.org/g/20150323041848.GA8991@htj.duckdns.org
-[2] http://lkml.kernel.org/g/
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index a6fa6fe..ab483e9 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -323,11 +323,6 @@ struct mem_cgroup {
+ 	 * percpu counter.
+ 	 */
+ 	struct mem_cgroup_stat_cpu __percpu *stat;
+-	/*
+-	 * used when a cpu is offlined or other synchronizations
+-	 * See mem_cgroup_read_stat().
+-	 */
+-	struct mem_cgroup_stat_cpu nocpu_base;
+ 	spinlock_t pcp_counter_lock;
+ 
+ #if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
+@@ -808,15 +803,8 @@ static long mem_cgroup_read_stat(struct mem_cgroup *memcg,
+ 	long val = 0;
+ 	int cpu;
+ 
+-	get_online_cpus();
+-	for_each_online_cpu(cpu)
++	for_each_possible_cpu(cpu)
+ 		val += per_cpu(memcg->stat->count[idx], cpu);
+-#ifdef CONFIG_HOTPLUG_CPU
+-	spin_lock(&memcg->pcp_counter_lock);
+-	val += memcg->nocpu_base.count[idx];
+-	spin_unlock(&memcg->pcp_counter_lock);
+-#endif
+-	put_online_cpus();
+ 	return val;
+ }
+ 
+@@ -826,15 +814,8 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
+ 	unsigned long val = 0;
+ 	int cpu;
+ 
+-	get_online_cpus();
+-	for_each_online_cpu(cpu)
++	for_each_possible_cpu(cpu)
+ 		val += per_cpu(memcg->stat->events[idx], cpu);
+-#ifdef CONFIG_HOTPLUG_CPU
+-	spin_lock(&memcg->pcp_counter_lock);
+-	val += memcg->nocpu_base.events[idx];
+-	spin_unlock(&memcg->pcp_counter_lock);
+-#endif
+-	put_online_cpus();
+ 	return val;
+ }
+ 
+@@ -2182,37 +2163,12 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
+ 	mutex_unlock(&percpu_charge_mutex);
+ }
+ 
+-/*
+- * This function drains percpu counter value from DEAD cpu and
+- * move it to local cpu. Note that this function can be preempted.
+- */
+-static void mem_cgroup_drain_pcp_counter(struct mem_cgroup *memcg, int cpu)
+-{
+-	int i;
+-
+-	spin_lock(&memcg->pcp_counter_lock);
+-	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+-		long x = per_cpu(memcg->stat->count[i], cpu);
+-
+-		per_cpu(memcg->stat->count[i], cpu) = 0;
+-		memcg->nocpu_base.count[i] += x;
+-	}
+-	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++) {
+-		unsigned long x = per_cpu(memcg->stat->events[i], cpu);
+-
+-		per_cpu(memcg->stat->events[i], cpu) = 0;
+-		memcg->nocpu_base.events[i] += x;
+-	}
+-	spin_unlock(&memcg->pcp_counter_lock);
+-}
+-
+ static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
+ 					unsigned long action,
+ 					void *hcpu)
+ {
+ 	int cpu = (unsigned long)hcpu;
+ 	struct memcg_stock_pcp *stock;
+-	struct mem_cgroup *iter;
+ 
+ 	if (action == CPU_ONLINE)
+ 		return NOTIFY_OK;
+@@ -2220,9 +2176,6 @@ static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
+ 	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN)
+ 		return NOTIFY_OK;
+ 
+-	for_each_mem_cgroup(iter)
+-		mem_cgroup_drain_pcp_counter(iter, cpu);
+-
+ 	stock = &per_cpu(memcg_stock, cpu);
+ 	drain_stock(stock);
+ 	return NOTIFY_OK;
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
