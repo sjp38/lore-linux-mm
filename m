@@ -1,46 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 845956B006E
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 04:51:45 -0400 (EDT)
-Received: by widjs5 with SMTP id js5so5674320wid.1
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:51:45 -0700 (PDT)
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com. [74.125.82.42])
-        by mx.google.com with ESMTPS id ey9si11703731wid.37.2015.04.07.01.51.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Apr 2015 01:51:44 -0700 (PDT)
-Received: by wgbdm7 with SMTP id dm7so48667811wgb.1
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:51:43 -0700 (PDT)
-Message-ID: <55239A9C.5060303@plexistor.com>
-Date: Tue, 07 Apr 2015 11:51:40 +0300
-From: Boaz Harrosh <boaz@plexistor.com>
-MIME-Version: 1.0
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F54B6B0038
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 05:06:16 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so9358022wid.0
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 02:06:16 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id vp5si11649346wjc.127.2015.04.07.02.06.14
+        for <linux-mm@kvack.org>;
+        Tue, 07 Apr 2015 02:06:14 -0700 (PDT)
+Date: Tue, 7 Apr 2015 12:03:35 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: [PATCH 1/3] mm(v4.1): New pfn_mkwrite same as page_mkwrite for
  VM_PFNMAP
-References: <55239645.9000507@plexistor.com> <552397E6.5030506@plexistor.com>
+Message-ID: <20150407090335.GA12664@node.dhcp.inet.fi>
+References: <55239645.9000507@plexistor.com>
+ <552397E6.5030506@plexistor.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <552397E6.5030506@plexistor.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>, Christoph Hellwig <hch@infradead.org>
-Cc: Stable Tree <stable@vger.kernel.org>
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>, Christoph Hellwig <hch@infradead.org>, Stable Tree <stable@vger.kernel.org>
 
-On 04/07/2015 11:40 AM, Boaz Harrosh wrote:
+On Tue, Apr 07, 2015 at 11:40:06AM +0300, Boaz Harrosh wrote:
 > 
-
-Crap this is the wrong version I have a [v3] with some more
-of Kirill's comments fixes.
-
-Will resend
-
-Sorry for the noise
-Boaz
-
 > [v2]
 > Based on linux-next/akpm [3dc4623]. For v4.1 merge window
 > Incorporated comments from Andrew And Kirill
-> 
+
+Not really. You've ignored most of them. See below.
+
 > [v1]
 > This will allow FS that uses VM_PFNMAP | VM_MIXEDMAP (no page structs)
 > to get notified when access is a write to a read-only PFN.
@@ -88,6 +79,9 @@ Boaz
 > ---
 >  include/linux/mm.h |  3 +++
 >  mm/memory.c        | 35 +++++++++++++++++++++++++++++++----
+
+Please, document it in Documentation/filesystems/Locking.
+
 >  2 files changed, 34 insertions(+), 4 deletions(-)
 > 
 > diff --git a/include/linux/mm.h b/include/linux/mm.h
@@ -116,8 +110,14 @@ Boaz
 > +{
 > +	struct vm_fault vmf = {
 > +		.page = 0,
+
+.page = NULL,
+
 > +		.pgoff = (((address & PAGE_MASK) - vma->vm_start)
 > +					>> PAGE_SHIFT) + vma->vm_pgoff,
+
+.pgoff = linear_page_index(vma, address),
+
 > +		.virtual_address = (void __user *)(address & PAGE_MASK),
 > +		.flags = FAULT_FLAG_WRITE | FAULT_FLAG_MKWRITE,
 > +	};
@@ -139,6 +139,10 @@ Boaz
 >  		if ((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
 > -				     (VM_WRITE|VM_SHARED))
 > +				     (VM_WRITE|VM_SHARED)) {
+
+Let's move this case in separate function -- wp_pfn_shared(). As we do for
+wp_page_shared().
+
 > +			if (vma->vm_ops && vma->vm_ops->pfn_mkwrite) {
 > +				int ret;
 > +
@@ -161,7 +165,8 @@ Boaz
 >  		pte_unmap_unlock(page_table, ptl);
 >  		return wp_page_copy(mm, vma, address, page_table, pmd,
 >  				    orig_pte, old_page);
-> 
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
