@@ -1,21 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id EC8276B006E
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 04:33:15 -0400 (EDT)
-Received: by wgyo15 with SMTP id o15so37253058wgy.2
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:33:15 -0700 (PDT)
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com. [74.125.82.44])
-        by mx.google.com with ESMTPS id ey12si11599327wid.87.2015.04.07.01.33.13
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id AC7536B006E
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 04:40:10 -0400 (EDT)
+Received: by widjs5 with SMTP id js5so5464074wid.1
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:40:10 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
+        by mx.google.com with ESMTPS id c17si11677956wib.12.2015.04.07.01.40.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Apr 2015 01:33:14 -0700 (PDT)
-Received: by wgin8 with SMTP id n8so48191705wgi.0
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:33:12 -0700 (PDT)
-Message-ID: <55239645.9000507@plexistor.com>
-Date: Tue, 07 Apr 2015 11:33:09 +0300
+        Tue, 07 Apr 2015 01:40:09 -0700 (PDT)
+Received: by widjs5 with SMTP id js5so5463575wid.1
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:40:08 -0700 (PDT)
+Message-ID: <552397E6.5030506@plexistor.com>
+Date: Tue, 07 Apr 2015 11:40:06 +0300
 From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Subject: [PATCH 0/3 v5] dax: some dax fixes and cleanups
+Subject: [PATCH 1/3] mm(v4.1): New pfn_mkwrite same as page_mkwrite for VM_PFNMAP
+References: <55239645.9000507@plexistor.com>
+In-Reply-To: <55239645.9000507@plexistor.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -23,82 +25,133 @@ List-ID: <linux-mm.kvack.org>
 To: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>, Christoph Hellwig <hch@infradead.org>
 Cc: Stable Tree <stable@vger.kernel.org>
 
-Hi Andrew
-
-I finally had the time to beat up these fixes based on linux-next/akpm
-and it looks OK.
-I'm sending the two fix patches with @stable + a patch-1 for the 4.0
-Kernel. The 4.1-rc Kernel will need a different patch.
-
-It is your call if you want these in stable. It is a breakage in the dax
-code that went into 4.0. But I guess it will not have that many users right
-at the get go. So feel free to remove the CC:@stable. (Also the old XIP that
-this DAX changed had all the same problems)
-
-[v5]
-* A new patch-1 Based on linux-next/akpm branch because mm/memory.c
-  completely changed there.
-  Also a 4.0 version of the same patch-1 if needed for stable@
-
-List of patches:
- [PATCH 1/3] mm(v4.1): New pfn_mkwrite same as page_mkwrite for VM_PFNMAP
- [PATCH 2/3] dax: use pfn_mkwrite to update c/mtime + freeze
- [PATCH 3/3] dax: Unify ext2/4_{dax,}_file_operations
-
-	All these patches are based on linux-next/akpm. I'm not sure how
-	it will interact with ext4-next though.
-
- [PATCH 1/3 @stable] mm(v4.0): New pfn_mkwrite same as page_mkwrite for VM_PFNMAP
-
-	This patch is for 4.0 based tree if we decide to send
-	[PATCH 2/3] to stable.
-
-
-[v4] dax: some dax fixes and cleanups
-* First patch fixed according to Andrew's comments. Thanks Andrew.
-  1st and 2nd patch can go into current Kernel as they fix something
-  that was merged this release.
-* Added a new patch to fix up splice in the dax case, and cleanup.
-  This one can wait for 4.1 (Also the first two not that anyone uses dax
-  in production.)
-* DAX freeze is not fixed yet. As we have more problems then I originally
-  hoped for, as pointed out by Dave.
-  (Just as a referance I'm sending a NO-GOOD additional patch to show what
-   is not good enough to do. Was the RFC of [v3])
-* Not re-posting the xfstest Dave please pick this up (It already found bugs
-  in none dax FSs)
-
-[v3] dax: Fix mmap-write not updating c/mtime
-* I'm re-posting the two DAX patches that fix the mmap-write after read
-  problem with DAX. (No changes since [v2])
-* I'm also posting a 3rd RFC patch to address what Jan said about fs_freeze
-  and making mapping read-only. 
-  Jan Please review and see if this is what you meant.
 
 [v2]
-Jan Kara has pointed out that if we add the
-sb_start/end_pagefault pair in the new pfn_mkwrite we
-are then fixing another bug where: A user could start
-writing to the page while filesystem is frozen.
+Based on linux-next/akpm [3dc4623]. For v4.1 merge window
+Incorporated comments from Andrew And Kirill
 
 [v1]
-The main problem is that current mm/memory.c will no call us with page_mkwrite
-if we do not have an actual page mapping, which is what DAX uses.
-The solution presented here introduces a new pfn_mkwrite to solve this problem.
-Please see patch-2 for details.
+This will allow FS that uses VM_PFNMAP | VM_MIXEDMAP (no page structs)
+to get notified when access is a write to a read-only PFN.
 
-I've been running with this patch for 4 month both HW and VMs with no apparent
-danger, but see patch-1 I played it safe.
+This can happen if we mmap() a file then first mmap-read from it
+to page-in a read-only PFN, than we mmap-write to the same page.
 
-I am also posting an xfstest 080 that demonstrate this problem, I believe
-that also some git operations (can't remember which) suffer from this problem.
-Actually Eryu Guan found that this test fails on some other FS as well.
+We need this functionality to fix a DAX bug, where in the scenario
+above we fail to set ctime/mtime though we modified the file.
+An xfstest is attached to this patchset that shows the failure
+and the fix. (A DAX patch will follow)
 
-Matthew hi
-I would love to have your ACK on these patches?
+This functionality is extra important for us, because upon
+dirtying of a pmem page we also want to RDMA the page to a
+remote cluster node.
 
-Thanks
-Boaz
+We define a new pfn_mkwrite and do not reuse page_mkwrite because
+  1 - The name ;-)
+  2 - But mainly because it would take a very long and tedious
+      audit of all page_mkwrite functions of VM_MIXEDMAP/VM_PFNMAP
+      users. To make sure they do not now CRASH. For example current
+      DAX code (which this is for) would crash.
+      If we would want to reuse page_mkwrite, We will need to first
+      patch all users, so to not-crash-on-no-page. Then enable this
+      patch. But even if I did that I would not sleep so well at night.
+      Adding a new vector is the safest thing to do, and is not that
+      expensive. an extra pointer at a static function vector per driver.
+      Also the new vector is better for performance, because else we
+      Will call all current Kernel vectors, so to:
+	check-ha-no-page-do-nothing and return.
+
+No need to call it from do_shared_fault because do_wp_page is called to
+change pte permissions anyway.
+
+CC: Matthew Wilcox <matthew.r.wilcox@intel.com>
+CC: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+CC: Jan Kara <jack@suse.cz>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: Hugh Dickins <hughd@google.com>
+CC: Mel Gorman <mgorman@suse.de>
+CC: linux-mm@kvack.org
+
+Signed-off-by: Yigal Korman <yigal@plexistor.com>
+Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
+---
+ include/linux/mm.h |  3 +++
+ mm/memory.c        | 35 +++++++++++++++++++++++++++++++----
+ 2 files changed, 34 insertions(+), 4 deletions(-)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index d584b95..70c47f2 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -251,6 +251,9 @@ struct vm_operations_struct {
+ 	 * writable, if an error is returned it will cause a SIGBUS */
+ 	int (*page_mkwrite)(struct vm_area_struct *vma, struct vm_fault *vmf);
+ 
++	/* same as page_mkwrite when using VM_PFNMAP|VM_MIXEDMAP */
++	int (*pfn_mkwrite)(struct vm_area_struct *vma, struct vm_fault *vmf);
++
+ 	/* called by access_process_vm when get_user_pages() fails, typically
+ 	 * for use by special VMAs that can switch between memory and hardware
+ 	 */
+diff --git a/mm/memory.c b/mm/memory.c
+index 59f6268..6e8f3f6 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1982,6 +1982,19 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
+ 	return ret;
+ }
+ 
++static int do_pfn_mkwrite(struct vm_area_struct *vma, unsigned long address)
++{
++	struct vm_fault vmf = {
++		.page = 0,
++		.pgoff = (((address & PAGE_MASK) - vma->vm_start)
++					>> PAGE_SHIFT) + vma->vm_pgoff,
++		.virtual_address = (void __user *)(address & PAGE_MASK),
++		.flags = FAULT_FLAG_WRITE | FAULT_FLAG_MKWRITE,
++	};
++
++	return vma->vm_ops->pfn_mkwrite(vma, &vmf);
++}
++
+ /*
+  * Handle write page faults for pages that can be reused in the current vma
+  *
+@@ -2259,14 +2272,28 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		 * VM_PFNMAP VMA.
+ 		 *
+ 		 * We should not cow pages in a shared writeable mapping.
+-		 * Just mark the pages writable as we can't do any dirty
+-		 * accounting on raw pfn maps.
++		 * Just mark the pages writable and/or call ops->pfn_mkwrite.
+ 		 */
+ 		if ((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
+-				     (VM_WRITE|VM_SHARED))
++				     (VM_WRITE|VM_SHARED)) {
++			if (vma->vm_ops && vma->vm_ops->pfn_mkwrite) {
++				int ret;
++
++				pte_unmap_unlock(page_table, ptl);
++				ret = do_pfn_mkwrite(vma, address);
++				if (ret & VM_FAULT_ERROR)
++					return ret;
++				page_table = pte_offset_map_lock(mm, pmd,
++								 address, &ptl);
++				/* Did pfn_mkwrite already fixed up the pte */
++				if (!pte_same(*page_table, orig_pte)) {
++					pte_unmap_unlock(page_table, ptl);
++					return ret;
++				}
++			}
+ 			return wp_page_reuse(mm, vma, address, page_table, ptl,
+ 					     orig_pte, old_page, 0, 0);
+-
++		}
+ 		pte_unmap_unlock(page_table, ptl);
+ 		return wp_page_copy(mm, vma, address, page_table, pmd,
+ 				    orig_pte, old_page);
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
