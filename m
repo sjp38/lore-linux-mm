@@ -1,116 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BBBC6B0038
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 12:41:11 -0400 (EDT)
-Received: by iggg4 with SMTP id g4so17386942igg.0
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 09:41:11 -0700 (PDT)
+Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 75F236B006C
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 12:41:26 -0400 (EDT)
+Received: by iedfl3 with SMTP id fl3so58796330ied.1
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 09:41:26 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id mv8si7033058igb.62.2015.04.07.09.41.10
+        by mx.google.com with ESMTP id h38si7007974ioi.92.2015.04.07.09.41.25
         for <linux-mm@kvack.org>;
-        Tue, 07 Apr 2015 09:41:10 -0700 (PDT)
+        Tue, 07 Apr 2015 09:41:25 -0700 (PDT)
 From: Arnaldo Carvalho de Melo <acme@kernel.org>
-Subject: [GIT PULL 00/16] perf/core improvements and fixes
-Date: Tue,  7 Apr 2015 13:40:46 -0300
-Message-Id: <1428424862-30032-1-git-send-email-acme@kernel.org>
+Subject: [PATCH 04/16] tools lib traceevent: Honor operator priority
+Date: Tue,  7 Apr 2015 13:40:50 -0300
+Message-Id: <1428424862-30032-5-git-send-email-acme@kernel.org>
+In-Reply-To: <1428424862-30032-1-git-send-email-acme@kernel.org>
+References: <1428424862-30032-1-git-send-email-acme@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@kernel.org>
-Cc: linux-kernel@vger.kernel.org, Arnaldo Carvalho de Melo <acme@kernel.org>, Adrian Hunter <adrian.hunter@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bp@suse.de>, David Ahern <dsahern@gmail.com>, Don Zickus <dzickus@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, He Kuang <hekuang@huawei.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Olsa <jolsa@redhat.com>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Namhyung Kim <namhyung@kernel.org>, Paul Mackerras <paulus@samba.org>, Peter Zijlstra <peterz@infradead.org>, pi3orama@163.com, Stephane Eranian <eranian@google.com>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Wang Nan <wangnan0@huawei.com>, Yunlong Song <yunlong.song@huawei.com>, Zefan Li <lizefan@huawei.com>, Arnaldo Carvalho de Melo <acme@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Namhyung Kim <namhyung@kernel.org>, David Ahern <dsahern@gmail.com>, Jiri Olsa <jolsa@redhat.com>, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Arnaldo Carvalho de Melo <acme@redhat.com>
 
-Hi Ingo,
+From: Namhyung Kim <namhyung@kernel.org>
 
-	Please consider pulling,
+Currently it ignores operator priority and just sets processed args as a
+right operand.  But it could result in priority inversion in case that
+the right operand is also a operator arg and its priority is lower.
 
-- Arnaldo
+For example, following print format is from new kmem events.
 
-The following changes since commit 6645f3187f5beb64f7a40515cfa18f3889264ece:
+  "page=%p", REC->pfn != -1UL ? (((struct page *)(0xffffea0000000000UL)) + (REC->pfn)) : ((void *)0)
 
-  Merge tag 'perf-core-for-mingo' of git://git.kernel.org/pub/scm/linux/kernel/git/acme/linux into perf/core (2015-04-03 07:00:02 +0200)
+But this was treated as below:
 
-are available in the git repository at:
+  REC->pfn != ((null - 1UL) ? ((struct page *)0xffffea0000000000UL + REC->pfn) : (void *) 0)
 
+In this case, the right arg was '?' operator which has lower priority.
+But it just sets the whole arg so making the output confusing - page was
+always 0 or 1 since that's the result of logical operation.
 
-  git://git.kernel.org/pub/scm/linux/kernel/git/acme/linux.git tags/perf-core-for-mingo
+With this patch, it can handle it properly like following:
 
-for you to fetch changes up to d083e5ff09eccc0afd44e02ec85f10c06271e93b:
+  ((REC->pfn != (null - 1UL)) ? ((struct page *)0xffffea0000000000UL + REC->pfn) : (void *) 0)
 
-  perf tools: Merge all perf_event_attr print functions (2015-04-07 13:25:05 -0300)
-
-----------------------------------------------------------------
-perf/core improvements and fixes:
-
-- Teach about perf_event_attr.clockid to 'perf record' (Peter Zijlstra)
-
-- perf sched replay improvements for high CPU core count machines (Yunlong Song)
-
-- Consider PERF_RECORD_ events with cpumode == 0 in 'perf top', removing one
-  cause of long term memory usage buildup, i.e. not processing PERF_RECORD_EXIT
-  events (Arnaldo Carvalho de Melo)
-
-- Respect -i option 'in perf kmem' (Jiri Olsa)
-
-Infrastructure:
-
-- Honor operator priority in libtraceevent (Namhyung Kim)
-
-- Merge all perf_event_attr print functions (Peter Zijlstra)
-
-- Check kmaps access to make code more robust (Wang Nan)
-
-- Fix inverted logic in perf_mmap__empty() (He Kuang)
-
+Signed-off-by: Namhyung Kim <namhyung@kernel.org>
+Acked-by: Steven Rostedt <rostedt@goodmis.org>
+Cc: David Ahern <dsahern@gmail.com>
+Cc: Jiri Olsa <jolsa@redhat.com>
+Cc: Joonsoo Kim <js1304@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/1428298576-9785-10-git-send-email-namhyung@kernel.org
+[ Replaced 'swap' with 'rotate' in a comment as requested by Steve and agreed by Namhyung ]
 Signed-off-by: Arnaldo Carvalho de Melo <acme@redhat.com>
+---
+ tools/lib/traceevent/event-parse.c | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
 
-----------------------------------------------------------------
-Arnaldo Carvalho de Melo (1):
-      perf top: Consider PERF_RECORD_ events with cpumode == 0
-
-He Kuang (1):
-      perf evlist: Fix inverted logic in perf_mmap__empty
-
-Jiri Olsa (1):
-      perf kmem: Respect -i option
-
-Namhyung Kim (1):
-      tools lib traceevent: Honor operator priority
-
-Peter Zijlstra (2):
-      perf record: Add clockid parameter
-      perf tools: Merge all perf_event_attr print functions
-
-Wang Nan (1):
-      perf kmaps: Check kmaps to make code more robust
-
-Yunlong Song (9):
-      perf sched replay: Use struct task_desc instead of struct task_task for correct meaning
-      perf sched replay: Increase the MAX_PID value to fix assertion failure problem
-      perf sched replay: Alloc the memory of pid_to_task dynamically to adapt to the unexpected change of pid_max
-      perf sched replay: Realloc the memory of pid_to_task stepwise to adapt to the different pid_max configurations
-      perf sched replay: Fix the segmentation fault problem caused by pr_err in threads
-      perf sched replay: Handle the dead halt of sem_wait when create_tasks() fails for any task
-      perf sched replay: Fix the EMFILE error caused by the limitation of the maximum open files
-      perf sched replay: Support using -f to override perf.data file ownership
-      perf sched replay: Use replay_repeat to calculate the runavg of cpu usage instead of the default value 10
-
- tools/lib/traceevent/event-parse.c       |  17 +-
- tools/perf/Documentation/perf-record.txt |   7 +
- tools/perf/builtin-kmem.c                |   3 +-
- tools/perf/builtin-record.c              |  80 ++++++++
- tools/perf/builtin-sched.c               |  67 +++++--
- tools/perf/builtin-top.c                 |   8 +-
- tools/perf/perf.h                        |   2 +
- tools/perf/util/evlist.c                 |   2 +-
- tools/perf/util/evsel.c                  | 325 ++++++++++++++++---------------
- tools/perf/util/evsel.h                  |   6 +
- tools/perf/util/header.c                 |  28 +--
- tools/perf/util/machine.c                |   5 +-
- tools/perf/util/map.c                    |  20 ++
- tools/perf/util/map.h                    |   6 +-
- tools/perf/util/probe-event.c            |   2 +
- tools/perf/util/session.c                |   3 +
- tools/perf/util/symbol-elf.c             |  16 +-
- tools/perf/util/symbol.c                 |  34 +++-
- 18 files changed, 422 insertions(+), 209 deletions(-)
+diff --git a/tools/lib/traceevent/event-parse.c b/tools/lib/traceevent/event-parse.c
+index 6d31b6419d37..12a7e2a40c89 100644
+--- a/tools/lib/traceevent/event-parse.c
++++ b/tools/lib/traceevent/event-parse.c
+@@ -1939,7 +1939,22 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
+ 			goto out_warn_free;
+ 
+ 		type = process_arg_token(event, right, tok, type);
+-		arg->op.right = right;
++
++		if (right->type == PRINT_OP &&
++		    get_op_prio(arg->op.op) < get_op_prio(right->op.op)) {
++			struct print_arg tmp;
++
++			/* rotate ops according to the priority */
++			arg->op.right = right->op.left;
++
++			tmp = *arg;
++			*arg = *right;
++			*right = tmp;
++
++			arg->op.left = right;
++		} else {
++			arg->op.right = right;
++		}
+ 
+ 	} else if (strcmp(token, "[") == 0) {
+ 
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
