@@ -1,113 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 62AE86B0038
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 03:58:38 -0400 (EDT)
-Received: by paboj16 with SMTP id oj16so70767567pab.0
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 00:58:38 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id fe5si10200064pdb.39.2015.04.07.00.58.36
-        for <linux-mm@kvack.org>;
-        Tue, 07 Apr 2015 00:58:37 -0700 (PDT)
-Date: Tue, 7 Apr 2015 16:52:26 +0900
-From: Namhyung Kim <namhyung@kernel.org>
-Subject: Re: [PATCH 9/9] tools lib traceevent: Honor operator priority
-Message-ID: <20150407075226.GE23913@sejong>
-References: <1428298576-9785-1-git-send-email-namhyung@kernel.org>
- <1428298576-9785-10-git-send-email-namhyung@kernel.org>
- <20150406104504.41e398d3@gandalf.local.home>
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id EC8276B006E
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 04:33:15 -0400 (EDT)
+Received: by wgyo15 with SMTP id o15so37253058wgy.2
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:33:15 -0700 (PDT)
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com. [74.125.82.44])
+        by mx.google.com with ESMTPS id ey12si11599327wid.87.2015.04.07.01.33.13
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Apr 2015 01:33:14 -0700 (PDT)
+Received: by wgin8 with SMTP id n8so48191705wgi.0
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:33:12 -0700 (PDT)
+Message-ID: <55239645.9000507@plexistor.com>
+Date: Tue, 07 Apr 2015 11:33:09 +0300
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
+Subject: [PATCH 0/3 v5] dax: some dax fixes and cleanups
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20150406104504.41e398d3@gandalf.local.home>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>, Christoph Hellwig <hch@infradead.org>
+Cc: Stable Tree <stable@vger.kernel.org>
 
-Hi Steve,
+Hi Andrew
 
-On Mon, Apr 06, 2015 at 10:45:04AM -0400, Steven Rostedt wrote:
-> On Mon,  6 Apr 2015 14:36:16 +0900
-> Namhyung Kim <namhyung@kernel.org> wrote:
-> 
-> > Currently it ignores operator priority and just sets processed args as a
-> > right operand.  But it could result in priority inversion in case that
-> > the right operand is also a operator arg and its priority is lower.
-> > 
-> > For example, following print format is from new kmem events.
-> > 
-> >   "page=%p", REC->pfn != -1UL ? (((struct page *)(0xffffea0000000000UL)) + (REC->pfn)) : ((void *)0)
-> > 
-> > But this was treated as below:
-> > 
-> >   REC->pfn != ((null - 1UL) ? ((struct page *)0xffffea0000000000UL + REC->pfn) : (void *) 0)
-> > 
-> > In this case, the right arg was '?' operator which has lower priority.
-> > But it just sets the whole arg so making the output confusing - page was
-> > always 0 or 1 since that's the result of logical operation.
-> > 
-> > With this patch, it can handle it properly like following:
-> > 
-> >   ((REC->pfn != (null - 1UL)) ? ((struct page *)0xffffea0000000000UL + REC->pfn) : (void *) 0)
-> 
-> Nice catch. One nit.
-> 
-> > 
-> > Cc: Steven Rostedt <rostedt@goodmis.org>
-> > Signed-off-by: Namhyung Kim <namhyung@kernel.org>
-> > ---
-> >  tools/lib/traceevent/event-parse.c | 17 ++++++++++++++++-
-> >  1 file changed, 16 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/tools/lib/traceevent/event-parse.c b/tools/lib/traceevent/event-parse.c
-> > index 6d31b6419d37..604bea5c3fb0 100644
-> > --- a/tools/lib/traceevent/event-parse.c
-> > +++ b/tools/lib/traceevent/event-parse.c
-> > @@ -1939,7 +1939,22 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
-> >  			goto out_warn_free;
-> >  
-> >  		type = process_arg_token(event, right, tok, type);
-> > -		arg->op.right = right;
-> > +
-> > +		if (right->type == PRINT_OP &&
-> > +		    get_op_prio(arg->op.op) < get_op_prio(right->op.op)) {
-> > +			struct print_arg tmp;
-> > +
-> > +			/* swap ops according to the priority */
-> 
-> This isn't really a swap. Better term to use is "rotate".
+I finally had the time to beat up these fixes based on linux-next/akpm
+and it looks OK.
+I'm sending the two fix patches with @stable + a patch-1 for the 4.0
+Kernel. The 4.1-rc Kernel will need a different patch.
 
-You're right!
+It is your call if you want these in stable. It is a breakage in the dax
+code that went into 4.0. But I guess it will not have that many users right
+at the get go. So feel free to remove the CC:@stable. (Also the old XIP that
+this DAX changed had all the same problems)
 
-> 
-> But other than that,
-> 
-> Acked-by: Steven Rostedt <rostedt@goodmis.org>
+[v5]
+* A new patch-1 Based on linux-next/akpm branch because mm/memory.c
+  completely changed there.
+  Also a 4.0 version of the same patch-1 if needed for stable@
 
-Thanks for the review
-Namhyung
+List of patches:
+ [PATCH 1/3] mm(v4.1): New pfn_mkwrite same as page_mkwrite for VM_PFNMAP
+ [PATCH 2/3] dax: use pfn_mkwrite to update c/mtime + freeze
+ [PATCH 3/3] dax: Unify ext2/4_{dax,}_file_operations
+
+	All these patches are based on linux-next/akpm. I'm not sure how
+	it will interact with ext4-next though.
+
+ [PATCH 1/3 @stable] mm(v4.0): New pfn_mkwrite same as page_mkwrite for VM_PFNMAP
+
+	This patch is for 4.0 based tree if we decide to send
+	[PATCH 2/3] to stable.
 
 
-> 
-> > +			arg->op.right = right->op.left;
-> > +
-> > +			tmp = *arg;
-> > +			*arg = *right;
-> > +			*right = tmp;
-> > +
-> > +			arg->op.left = right;
-> > +		} else {
-> > +			arg->op.right = right;
-> > +		}
-> >  
-> >  	} else if (strcmp(token, "[") == 0) {
-> >  
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+[v4] dax: some dax fixes and cleanups
+* First patch fixed according to Andrew's comments. Thanks Andrew.
+  1st and 2nd patch can go into current Kernel as they fix something
+  that was merged this release.
+* Added a new patch to fix up splice in the dax case, and cleanup.
+  This one can wait for 4.1 (Also the first two not that anyone uses dax
+  in production.)
+* DAX freeze is not fixed yet. As we have more problems then I originally
+  hoped for, as pointed out by Dave.
+  (Just as a referance I'm sending a NO-GOOD additional patch to show what
+   is not good enough to do. Was the RFC of [v3])
+* Not re-posting the xfstest Dave please pick this up (It already found bugs
+  in none dax FSs)
+
+[v3] dax: Fix mmap-write not updating c/mtime
+* I'm re-posting the two DAX patches that fix the mmap-write after read
+  problem with DAX. (No changes since [v2])
+* I'm also posting a 3rd RFC patch to address what Jan said about fs_freeze
+  and making mapping read-only. 
+  Jan Please review and see if this is what you meant.
+
+[v2]
+Jan Kara has pointed out that if we add the
+sb_start/end_pagefault pair in the new pfn_mkwrite we
+are then fixing another bug where: A user could start
+writing to the page while filesystem is frozen.
+
+[v1]
+The main problem is that current mm/memory.c will no call us with page_mkwrite
+if we do not have an actual page mapping, which is what DAX uses.
+The solution presented here introduces a new pfn_mkwrite to solve this problem.
+Please see patch-2 for details.
+
+I've been running with this patch for 4 month both HW and VMs with no apparent
+danger, but see patch-1 I played it safe.
+
+I am also posting an xfstest 080 that demonstrate this problem, I believe
+that also some git operations (can't remember which) suffer from this problem.
+Actually Eryu Guan found that this test fails on some other FS as well.
+
+Matthew hi
+I would love to have your ACK on these patches?
+
+Thanks
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
