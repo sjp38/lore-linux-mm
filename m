@@ -1,95 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FA9B6B0073
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 10:13:22 -0400 (EDT)
-Received: by wgyo15 with SMTP id o15so46645213wgy.2
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 07:13:22 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id hn4si12947850wjc.167.2015.04.07.07.13.20
-        for <linux-mm@kvack.org>;
-        Tue, 07 Apr 2015 07:13:20 -0700 (PDT)
-Date: Tue, 7 Apr 2015 17:12:45 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 1/3 v7] mm(v4.1): New pfn_mkwrite same as page_mkwrite
- for VM_PFNMAP
-Message-ID: <20150407141245.GC14252@node.dhcp.inet.fi>
-References: <55239645.9000507@plexistor.com>
- <552397E6.5030506@plexistor.com>
- <5523E453.8080101@plexistor.com>
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 229696B0038
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 10:18:36 -0400 (EDT)
+Received: by wgin8 with SMTP id n8so57733926wgi.0
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 07:18:35 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id k7si13124282wib.9.2015.04.07.07.18.33
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Apr 2015 07:18:34 -0700 (PDT)
+Date: Tue, 7 Apr 2015 10:18:22 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 00/12] mm: page_alloc: improve OOM mechanism and policy
+Message-ID: <20150407141822.GA3262@cmpxchg.org>
+References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
+ <20150326195822.GB28129@dastard>
+ <20150327150509.GA21119@cmpxchg.org>
+ <20150330003240.GB28621@dastard>
+ <20150401151920.GB23824@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5523E453.8080101@plexistor.com>
+In-Reply-To: <20150401151920.GB23824@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>
-Cc: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>, Christoph Hellwig <hch@infradead.org>, Stable Tree <stable@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Theodore Ts'o <tytso@mit.edu>
 
-On Tue, Apr 07, 2015 at 05:06:11PM +0300, Boaz Harrosh wrote:
+On Wed, Apr 01, 2015 at 05:19:20PM +0200, Michal Hocko wrote:
+> On Mon 30-03-15 11:32:40, Dave Chinner wrote:
+> > On Fri, Mar 27, 2015 at 11:05:09AM -0400, Johannes Weiner wrote:
+> [...]
+> > > GFP_NOFS sites are currently one of the sites that can deadlock inside
+> > > the allocator, even though many of them seem to have fallback code.
+> > > My reasoning here is that if you *have* an exit strategy for failing
+> > > allocations that is smarter than hanging, we should probably use that.
+> > 
+> > We already do that for allocations where we can handle failure in
+> > GFP_NOFS conditions. It is, however, somewhat useless if we can't
+> > tell the allocator to try really hard if we've already had a failure
+> > and we are already in memory reclaim conditions (e.g. a shrinker
+> > trying to clean dirty objects so they can be reclaimed).
+> > 
+> > From that perspective, I think that this patch set aims force us
+> > away from handling fallbacks ourselves because a) it makes GFP_NOFS
+> > more likely to fail, and b) provides no mechanism to "try harder"
+> > when we really need the allocation to succeed.
 > 
-> [v5]
-> Changed comments about pte_same check after the call to
-> pfn_mkwrite and the return value.
-> 
-> [v4]
-> Kirill's comments about splitting out a new wp_pfn_shared().
-> Add Documentation/filesystems/Locking text about pfn_mkwrite.
-> 
-> [v3]
-> Kirill's comments about use of linear_page_index()
-> 
-> [v2]
-> Based on linux-next/akpm [3dc4623]. For v4.1 merge window
-> Incorporated comments from Andrew And Kirill
-> 
-> [v1]
-> This will allow FS that uses VM_PFNMAP | VM_MIXEDMAP (no page structs)
-> to get notified when access is a write to a read-only PFN.
-> 
-> This can happen if we mmap() a file then first mmap-read from it
-> to page-in a read-only PFN, than we mmap-write to the same page.
-> 
-> We need this functionality to fix a DAX bug, where in the scenario
-> above we fail to set ctime/mtime though we modified the file.
-> An xfstest is attached to this patchset that shows the failure
-> and the fix. (A DAX patch will follow)
-> 
-> This functionality is extra important for us, because upon
-> dirtying of a pmem page we also want to RDMA the page to a
-> remote cluster node.
-> 
-> We define a new pfn_mkwrite and do not reuse page_mkwrite because
->   1 - The name ;-)
->   2 - But mainly because it would take a very long and tedious
->       audit of all page_mkwrite functions of VM_MIXEDMAP/VM_PFNMAP
->       users. To make sure they do not now CRASH. For example current
->       DAX code (which this is for) would crash.
->       If we would want to reuse page_mkwrite, We will need to first
->       patch all users, so to not-crash-on-no-page. Then enable this
->       patch. But even if I did that I would not sleep so well at night.
->       Adding a new vector is the safest thing to do, and is not that
->       expensive. an extra pointer at a static function vector per driver.
->       Also the new vector is better for performance, because else we
->       Will call all current Kernel vectors, so to:
-> 	check-ha-no-page-do-nothing and return.
-> 
-> No need to call it from do_shared_fault because do_wp_page is called to
-> change pte permissions anyway.
-> 
-> CC: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> CC: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> CC: Jan Kara <jack@suse.cz>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: Hugh Dickins <hughd@google.com>
-> CC: Mel Gorman <mgorman@suse.de>
-> CC: linux-mm@kvack.org
-> 
-> Signed-off-by: Yigal Korman <yigal@plexistor.com>
-> Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
+> You can ask for this "try harder" by __GFP_HIGH flag. Would that help
+> in your fallback case?
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
--- 
- Kirill A. Shutemov
+I would think __GFP_REPEAT would be more suitable here.  From the doc:
+
+ * __GFP_REPEAT: Try hard to allocate the memory, but the allocation attempt
+ * _might_ fail.  This depends upon the particular VM implementation.
+
+so we can make the semantics of GFP_NOFS | __GFP_REPEAT such that they
+are allowed to use the OOM killer and dip into the OOM reserves.
+
+My question here would be: are there any NOFS allocations that *don't*
+want this behavior?  Does it even make sense to require this separate
+annotation or should we just make it the default?
+
+The argument here was always that NOFS allocations are very limited in
+their reclaim powers and will trigger OOM prematurely.  However, the
+way we limit dirty memory these days forces most cache to be clean at
+all times, and direct reclaim in general hasn't been allowed to issue
+page writeback for quite some time.  So these days, NOFS reclaim isn't
+really weaker than regular direct reclaim.  The only exception is that
+it might block writeback, so we'd go OOM if the only reclaimables left
+were dirty pages against that filesystem.  That should be acceptable.
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 47981c5e54c3..fe3cb2b0b85b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2367,16 +2367,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 		/* The OOM killer does not needlessly kill tasks for lowmem */
+ 		if (ac->high_zoneidx < ZONE_NORMAL)
+ 			goto out;
+-		/* The OOM killer does not compensate for IO-less reclaim */
+-		if (!(gfp_mask & __GFP_FS)) {
+-			/*
+-			 * XXX: Page reclaim didn't yield anything,
+-			 * and the OOM killer can't be invoked, but
+-			 * keep looping as per tradition.
+-			 */
+-			*did_some_progress = 1;
+-			goto out;
+-		}
+ 		if (pm_suspended_storage())
+ 			goto out;
+ 		/* The OOM killer may not free memory on a specific node */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
