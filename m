@@ -1,47 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 73C326B006E
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 16:27:24 -0400 (EDT)
-Received: by pddn5 with SMTP id n5so90234238pdd.2
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 13:27:24 -0700 (PDT)
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id E556D6B006E
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 16:38:21 -0400 (EDT)
+Received: by paboj16 with SMTP id oj16so90459644pab.0
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 13:38:21 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id dr4si13021031pdb.162.2015.04.07.13.27.23
+        by mx.google.com with ESMTPS id l5si13041659pbq.79.2015.04.07.13.38.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Apr 2015 13:27:23 -0700 (PDT)
-Date: Tue, 7 Apr 2015 13:27:21 -0700
+        Tue, 07 Apr 2015 13:38:21 -0700 (PDT)
+Date: Tue, 7 Apr 2015 13:38:19 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/5] mm: Refactor remap_pfn_range()
-Message-Id: <20150407132721.7dbeee3218b8f185794b4f37@linux-foundation.org>
-In-Reply-To: <1428424299-13721-3-git-send-email-chris@chris-wilson.co.uk>
-References: <1428424299-13721-1-git-send-email-chris@chris-wilson.co.uk>
-	<1428424299-13721-3-git-send-email-chris@chris-wilson.co.uk>
+Subject: Re: [PATCH -mm] slab: use cgroup ino for naming per memcg caches
+Message-Id: <20150407133819.993be7a53a3aa16311aba1f5@linux-foundation.org>
+In-Reply-To: <1428414798-12932-1-git-send-email-vdavydov@parallels.com>
+References: <1428414798-12932-1-git-send-email-vdavydov@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, intel-gfx@lists.freedesktop.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Cyrill Gorcunov <gorcunov@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue,  7 Apr 2015 17:31:36 +0100 Chris Wilson <chris@chris-wilson.co.uk> wrote:
+On Tue, 7 Apr 2015 16:53:18 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
 
-> In preparation for exporting very similar functionality through another
-> interface, gut the current remap_pfn_range(). The motivating factor here
-> is to reuse the PGB/PUD/PMD/PTE walker, but allow back progation of
-> errors rather than BUG_ON.
+> The name of a per memcg kmem cache consists of three parts: the global
+> kmem cache name, the cgroup name, and the css id. The latter is used to
+> guarantee cache name uniqueness.
+> 
+> Since css ids are opaque to the userspace, in general it is impossible
+> to find a cache's owner cgroup given its name: there might be several
+> same-named cgroups with different parents so that their caches' names
+> will only differ by css id. Looking up the owner cgroup by a cache name,
+> however, could be useful for debugging. For instance, the cache name is
+> dumped to dmesg on a slab allocation failure. Another example is
+> /sys/kernel/slab, which exports some extra info/tunables for SLUB caches
 
-I'm not on intel-gfx and for some reason these patches didn't show up on
-linux-mm.  I wanted to comment on "mutex: Export an interface to wrap a
-mutex lock" but
-http://lists.freedesktop.org/archives/intel-gfx/2015-April/064063.html
-doesn't tell me which mailing lists were cc'ed and I can't find that
-patch on linux-kernel.
+/proc/sys/kernel/slab?
 
-Can you please do something to make this easier for us??
+> referring to them by name.
+> 
+> This patch substitutes the css id with cgroup inode number, which, just
+> like css id, is reserved until css free, so that the cache names are
+> still guaranteed to be unique, but, in contrast to css id, it can be
+> easily obtained from userspace.
+> 
+> ...
+>
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -478,7 +478,7 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
+>  			     struct kmem_cache *root_cache)
+>  {
+>  	static char memcg_name_buf[NAME_MAX + 1]; /* protected by slab_mutex */
+> -	struct cgroup_subsys_state *css = mem_cgroup_css(memcg);
+> +	struct cgroup *cgroup;
+>  	struct memcg_cache_array *arr;
+>  	struct kmem_cache *s = NULL;
+>  	char *cache_name;
+> @@ -508,9 +508,10 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
+>  	if (arr->entries[idx])
+>  		goto out_unlock;
+>  
+> -	cgroup_name(css->cgroup, memcg_name_buf, sizeof(memcg_name_buf));
+> -	cache_name = kasprintf(GFP_KERNEL, "%s(%d:%s)", root_cache->name,
+> -			       css->id, memcg_name_buf);
+> +	cgroup = mem_cgroup_css(memcg)->cgroup;
+> +	cgroup_name(cgroup, memcg_name_buf, sizeof(memcg_name_buf));
+> +	cache_name = kasprintf(GFP_KERNEL, "%s(%lu:%s)", root_cache->name,
+> +			(unsigned long)cgroup_ino(cgroup), memcg_name_buf);
+>  	if (!cache_name)
+>  		goto out_unlock;
 
-And please fully document all the mutex interfaces which you just
-added.
+Is this interface documented anywhere?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
