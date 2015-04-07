@@ -1,100 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 23F566B0038
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 09:48:33 -0400 (EDT)
-Received: by wgsk9 with SMTP id k9so34146081wgs.3
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 06:48:32 -0700 (PDT)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id u6si5410499wja.137.2015.04.07.06.48.31
-        for <linux-mm@kvack.org>;
-        Tue, 07 Apr 2015 06:48:31 -0700 (PDT)
-Date: Tue, 7 Apr 2015 16:47:59 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 1/3 v6] mm(v4.1): New pfn_mkwrite same as page_mkwrite
- for VM_PFNMAP
-Message-ID: <20150407134759.GB14252@node.dhcp.inet.fi>
-References: <55239645.9000507@plexistor.com>
- <552397E6.5030506@plexistor.com>
- <5523D43C.1060708@plexistor.com>
- <20150407131700.GA13946@node.dhcp.inet.fi>
- <20150407132601.GA14252@node.dhcp.inet.fi>
- <5523DD83.4050609@plexistor.com>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D7EE16B006E
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 09:53:30 -0400 (EDT)
+Received: by paboj16 with SMTP id oj16so79720402pab.0
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 06:53:30 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id yv1si11527224pac.33.2015.04.07.06.53.29
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Apr 2015 06:53:30 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm] slab: use cgroup ino for naming per memcg caches
+Date: Tue, 7 Apr 2015 16:53:18 +0300
+Message-ID: <1428414798-12932-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5523DD83.4050609@plexistor.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>
-Cc: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>, Christoph Hellwig <hch@infradead.org>, Stable Tree <stable@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Apr 07, 2015 at 04:37:07PM +0300, Boaz Harrosh wrote:
-> On 04/07/2015 04:26 PM, Kirill A. Shutemov wrote:
-> > On Tue, Apr 07, 2015 at 04:17:00PM +0300, Kirill A. Shutemov wrote:
-> >> On Tue, Apr 07, 2015 at 03:57:32PM +0300, Boaz Harrosh wrote:
-> >>> +/*
-> >>> + * Handle write page faults for VM_MIXEDMAP or VM_PFNMAP for a VM_SHARED
-> >>> + * mapping
-> >>> + */
-> >>> +static int wp_pfn_shared(struct mm_struct *mm,
-> >>> +			struct vm_area_struct *vma, unsigned long address,
-> >>> +			pte_t *page_table, spinlock_t *ptl, pte_t orig_pte,
-> >>> +			pmd_t *pmd)
-> >>> +{
-> >>> +	if (vma->vm_ops && vma->vm_ops->pfn_mkwrite) {
-> >>> +		struct vm_fault vmf = {
-> >>> +			.page = NULL,
-> >>> +			.pgoff = linear_page_index(vma, address),
-> >>> +			.virtual_address = (void __user *)(address & PAGE_MASK),
-> >>> +			.flags = FAULT_FLAG_WRITE | FAULT_FLAG_MKWRITE,
-> >>> +		};
-> >>> +		int ret;
-> >>> +
-> >>> +		pte_unmap_unlock(page_table, ptl);
-> >>> +		ret = vma->vm_ops->pfn_mkwrite(vma, &vmf);
-> >>> +		if (ret & VM_FAULT_ERROR)
-> >>> +			return ret;
-> >>> +		page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
-> >>> +		/* Did pfn_mkwrite already fixed up the pte */
-> > 
-> > Oh. I guess you've missunderstood why we need pte_same() check below.
-> > It's not about ->pfn_mkwrite() changing the pte (generatlly, it should
-> > not). It's requited to address race with parallel page fault to the pte.
-> > 
-> >>> +		if (!pte_same(*page_table, orig_pte)) {
-> >>> +			pte_unmap_unlock(page_table, ptl);
-> >>> +			return ret;
-> >>
-> >> This should be "return 0;", shouldn't it?
-> >>
-> >> VM_FAULT_NOPAGE would imply you've installed new pte, but you did not.
-> 
-> Changing this to "return 0" would be very scary for me. Because I'm running
-> with this code for 1/2 a year now. And it is stable. You see since the original
-> code it was always doing just that pte_unmap_unlock && return ret. (See the patch
-> based on 4.0)
-> 
-> I did not understand if you want that I keep it "return ret".
+The name of a per memcg kmem cache consists of three parts: the global
+kmem cache name, the cgroup name, and the css id. The latter is used to
+guarantee cache name uniqueness.
 
-I think "return 0;" is right way to go. It matches wp_page_shared()
-behaviour.
+Since css ids are opaque to the userspace, in general it is impossible
+to find a cache's owner cgroup given its name: there might be several
+same-named cgroups with different parents so that their caches' names
+will only differ by css id. Looking up the owner cgroup by a cache name,
+however, could be useful for debugging. For instance, the cache name is
+dumped to dmesg on a slab allocation failure. Another example is
+/sys/kernel/slab, which exports some extra info/tunables for SLUB caches
+referring to them by name.
 
-> I gather that you would like the comment changed, about the changed pte.
-> Both here and at Documentation/.../locking.
-> 
-> I'll send a new patch just tell me if you want the reurn thing
-> 
-> Thank you
-> Boaz
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+This patch substitutes the css id with cgroup inode number, which, just
+like css id, is reserved until css free, so that the cache names are
+still guaranteed to be unique, but, in contrast to css id, it can be
+easily obtained from userspace.
 
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ mm/slab_common.c |    9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 999bb3424d44..e97bf3e04ed7 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -478,7 +478,7 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 			     struct kmem_cache *root_cache)
+ {
+ 	static char memcg_name_buf[NAME_MAX + 1]; /* protected by slab_mutex */
+-	struct cgroup_subsys_state *css = mem_cgroup_css(memcg);
++	struct cgroup *cgroup;
+ 	struct memcg_cache_array *arr;
+ 	struct kmem_cache *s = NULL;
+ 	char *cache_name;
+@@ -508,9 +508,10 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 	if (arr->entries[idx])
+ 		goto out_unlock;
+ 
+-	cgroup_name(css->cgroup, memcg_name_buf, sizeof(memcg_name_buf));
+-	cache_name = kasprintf(GFP_KERNEL, "%s(%d:%s)", root_cache->name,
+-			       css->id, memcg_name_buf);
++	cgroup = mem_cgroup_css(memcg)->cgroup;
++	cgroup_name(cgroup, memcg_name_buf, sizeof(memcg_name_buf));
++	cache_name = kasprintf(GFP_KERNEL, "%s(%lu:%s)", root_cache->name,
++			(unsigned long)cgroup_ino(cgroup), memcg_name_buf);
+ 	if (!cache_name)
+ 		goto out_unlock;
+ 
 -- 
- Kirill A. Shutemov
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
