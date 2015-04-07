@@ -1,79 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id E556D6B006E
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 16:38:21 -0400 (EDT)
-Received: by paboj16 with SMTP id oj16so90459644pab.0
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 13:38:21 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id l5si13041659pbq.79.2015.04.07.13.38.20
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Apr 2015 13:38:21 -0700 (PDT)
-Date: Tue, 7 Apr 2015 13:38:19 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm] slab: use cgroup ino for naming per memcg caches
-Message-Id: <20150407133819.993be7a53a3aa16311aba1f5@linux-foundation.org>
-In-Reply-To: <1428414798-12932-1-git-send-email-vdavydov@parallels.com>
-References: <1428414798-12932-1-git-send-email-vdavydov@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-vn0-f51.google.com (mail-vn0-f51.google.com [209.85.216.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 31E0F6B006E
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 17:05:39 -0400 (EDT)
+Received: by vnbg62 with SMTP id g62so10767374vnb.6
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 14:05:38 -0700 (PDT)
+Received: from relay.fireflyinternet.com (hostedrelay.fireflyinternet.com. [109.228.30.76])
+        by mx.google.com with ESMTP id wc6si13669910wjc.103.2015.04.07.09.31.45
+        for <linux-mm@kvack.org>;
+        Tue, 07 Apr 2015 09:31:45 -0700 (PDT)
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: [PATCH 3/5] io-mapping: Always create a struct to hold metadata about the io-mapping
+Date: Tue,  7 Apr 2015 17:31:37 +0100
+Message-Id: <1428424299-13721-4-git-send-email-chris@chris-wilson.co.uk>
+In-Reply-To: <1428424299-13721-1-git-send-email-chris@chris-wilson.co.uk>
+References: <1428424299-13721-1-git-send-email-chris@chris-wilson.co.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Cc: intel-gfx@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>, linux-mm@kvack.org
 
-On Tue, 7 Apr 2015 16:53:18 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
+Currently, we only allocate a structure to hold metadata if we need to
+allocate an ioremap for every access, such as on x86-32. However, it
+would be useful to store basic information about the io-mapping, such as
+its page protection, on all platforms.
 
-> The name of a per memcg kmem cache consists of three parts: the global
-> kmem cache name, the cgroup name, and the css id. The latter is used to
-> guarantee cache name uniqueness.
-> 
-> Since css ids are opaque to the userspace, in general it is impossible
-> to find a cache's owner cgroup given its name: there might be several
-> same-named cgroups with different parents so that their caches' names
-> will only differ by css id. Looking up the owner cgroup by a cache name,
-> however, could be useful for debugging. For instance, the cache name is
-> dumped to dmesg on a slab allocation failure. Another example is
-> /sys/kernel/slab, which exports some extra info/tunables for SLUB caches
+Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: linux-mm@kvack.org
+---
+ include/linux/io-mapping.h | 52 ++++++++++++++++++++++++++++------------------
+ 1 file changed, 32 insertions(+), 20 deletions(-)
 
-/proc/sys/kernel/slab?
-
-> referring to them by name.
-> 
-> This patch substitutes the css id with cgroup inode number, which, just
-> like css id, is reserved until css free, so that the cache names are
-> still guaranteed to be unique, but, in contrast to css id, it can be
-> easily obtained from userspace.
-> 
-> ...
->
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -478,7 +478,7 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
->  			     struct kmem_cache *root_cache)
->  {
->  	static char memcg_name_buf[NAME_MAX + 1]; /* protected by slab_mutex */
-> -	struct cgroup_subsys_state *css = mem_cgroup_css(memcg);
-> +	struct cgroup *cgroup;
->  	struct memcg_cache_array *arr;
->  	struct kmem_cache *s = NULL;
->  	char *cache_name;
-> @@ -508,9 +508,10 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
->  	if (arr->entries[idx])
->  		goto out_unlock;
->  
-> -	cgroup_name(css->cgroup, memcg_name_buf, sizeof(memcg_name_buf));
-> -	cache_name = kasprintf(GFP_KERNEL, "%s(%d:%s)", root_cache->name,
-> -			       css->id, memcg_name_buf);
-> +	cgroup = mem_cgroup_css(memcg)->cgroup;
-> +	cgroup_name(cgroup, memcg_name_buf, sizeof(memcg_name_buf));
-> +	cache_name = kasprintf(GFP_KERNEL, "%s(%lu:%s)", root_cache->name,
-> +			(unsigned long)cgroup_ino(cgroup), memcg_name_buf);
->  	if (!cache_name)
->  		goto out_unlock;
-
-Is this interface documented anywhere?
+diff --git a/include/linux/io-mapping.h b/include/linux/io-mapping.h
+index 657fab4efab3..e053011f50bb 100644
+--- a/include/linux/io-mapping.h
++++ b/include/linux/io-mapping.h
+@@ -31,16 +31,17 @@
+  * See Documentation/io-mapping.txt
+  */
+ 
+-#ifdef CONFIG_HAVE_ATOMIC_IOMAP
+-
+-#include <asm/iomap.h>
+-
+ struct io_mapping {
+ 	resource_size_t base;
+ 	unsigned long size;
+ 	pgprot_t prot;
++	void __iomem *iomem;
+ };
+ 
++
++#ifdef CONFIG_HAVE_ATOMIC_IOMAP
++
++#include <asm/iomap.h>
+ /*
+  * For small address space machines, mapping large objects
+  * into the kernel virtual space isn't practical. Where
+@@ -119,48 +120,59 @@ io_mapping_unmap(void __iomem *vaddr)
+ #else
+ 
+ #include <linux/uaccess.h>
+-
+-/* this struct isn't actually defined anywhere */
+-struct io_mapping;
++#include <asm/pgtable_types.h>
+ 
+ /* Create the io_mapping object*/
+ static inline struct io_mapping *
+ io_mapping_create_wc(resource_size_t base, unsigned long size)
+ {
+-	return (struct io_mapping __force *) ioremap_wc(base, size);
++	struct io_mapping *iomap;
++
++	iomap = kmalloc(sizeof(*iomap), GFP_KERNEL);
++	if (!iomap)
++		return NULL;
++
++	iomap->base = base;
++	iomap->size = size;
++	iomap->iomem = ioremap_wc(base, size);
++	iomap->prot = pgprot_writecombine(PAGE_KERNEL_IO);
++
++	return iomap;
+ }
+ 
+ static inline void
+ io_mapping_free(struct io_mapping *mapping)
+ {
+-	iounmap((void __force __iomem *) mapping);
++	iounmap(mapping->iomem);
++	kfree(mapping);
+ }
+ 
+-/* Atomic map/unmap */
++/* Non-atomic map/unmap */
+ static inline void __iomem *
+-io_mapping_map_atomic_wc(struct io_mapping *mapping,
+-			 unsigned long offset)
++io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
+ {
+-	pagefault_disable();
+-	return ((char __force __iomem *) mapping) + offset;
++	return mapping->iomem + offset;
+ }
+ 
+ static inline void
+-io_mapping_unmap_atomic(void __iomem *vaddr)
++io_mapping_unmap(void __iomem *vaddr)
+ {
+-	pagefault_enable();
+ }
+ 
+-/* Non-atomic map/unmap */
++/* Atomic map/unmap */
+ static inline void __iomem *
+-io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
++io_mapping_map_atomic_wc(struct io_mapping *mapping,
++			 unsigned long offset)
+ {
+-	return ((char __force __iomem *) mapping) + offset;
++	pagefault_disable();
++	return io_mapping_map_wc(mapping, offset);
+ }
+ 
+ static inline void
+-io_mapping_unmap(void __iomem *vaddr)
++io_mapping_unmap_atomic(void __iomem *vaddr)
+ {
++	io_mapping_unmap(vaddr);
++	pagefault_enable();
+ }
+ 
+ #endif /* HAVE_ATOMIC_IOMAP */
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
