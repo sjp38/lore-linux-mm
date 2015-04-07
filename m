@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id AC7536B006E
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 04:40:10 -0400 (EDT)
-Received: by widjs5 with SMTP id js5so5464074wid.1
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:40:10 -0700 (PDT)
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
-        by mx.google.com with ESMTPS id c17si11677956wib.12.2015.04.07.01.40.08
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 755B16B006E
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 04:43:55 -0400 (EDT)
+Received: by widjs5 with SMTP id js5so5530319wid.1
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:43:55 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com. [209.85.212.181])
+        by mx.google.com with ESMTPS id pd5si11578994wjb.93.2015.04.07.01.43.53
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Apr 2015 01:40:09 -0700 (PDT)
-Received: by widjs5 with SMTP id js5so5463575wid.1
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:40:08 -0700 (PDT)
-Message-ID: <552397E6.5030506@plexistor.com>
-Date: Tue, 07 Apr 2015 11:40:06 +0300
+        Tue, 07 Apr 2015 01:43:54 -0700 (PDT)
+Received: by wizk4 with SMTP id k4so8666042wiz.1
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:43:53 -0700 (PDT)
+Message-ID: <552398C6.1010304@plexistor.com>
+Date: Tue, 07 Apr 2015 11:43:50 +0300
 From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Subject: [PATCH 1/3] mm(v4.1): New pfn_mkwrite same as page_mkwrite for VM_PFNMAP
+Subject: [PATCH 2/3] dax: use pfn_mkwrite to update c/mtime + freeze protection
 References: <55239645.9000507@plexistor.com>
 In-Reply-To: <55239645.9000507@plexistor.com>
 Content-Type: text/plain; charset=utf-8
@@ -25,133 +25,101 @@ List-ID: <linux-mm.kvack.org>
 To: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>, Christoph Hellwig <hch@infradead.org>
 Cc: Stable Tree <stable@vger.kernel.org>
 
-
-[v2]
-Based on linux-next/akpm [3dc4623]. For v4.1 merge window
-Incorporated comments from Andrew And Kirill
+From: Yigal Korman <yigal@plexistor.com>
 
 [v1]
-This will allow FS that uses VM_PFNMAP | VM_MIXEDMAP (no page structs)
-to get notified when access is a write to a read-only PFN.
+Without this patch, c/mtime is not updated correctly when mmap'ed page is
+first read from and then written to.
 
-This can happen if we mmap() a file then first mmap-read from it
-to page-in a read-only PFN, than we mmap-write to the same page.
+A new xfstest is submitted for testing this (generic/080)
 
-We need this functionality to fix a DAX bug, where in the scenario
-above we fail to set ctime/mtime though we modified the file.
-An xfstest is attached to this patchset that shows the failure
-and the fix. (A DAX patch will follow)
+[v2]
+Jan Kara has pointed out that if we add the
+sb_start/end_pagefault pair in the new pfn_mkwrite we
+are then fixing another bug where: A user could start
+writing to the page while filesystem is frozen.
 
-This functionality is extra important for us, because upon
-dirtying of a pmem page we also want to RDMA the page to a
-remote cluster node.
-
-We define a new pfn_mkwrite and do not reuse page_mkwrite because
-  1 - The name ;-)
-  2 - But mainly because it would take a very long and tedious
-      audit of all page_mkwrite functions of VM_MIXEDMAP/VM_PFNMAP
-      users. To make sure they do not now CRASH. For example current
-      DAX code (which this is for) would crash.
-      If we would want to reuse page_mkwrite, We will need to first
-      patch all users, so to not-crash-on-no-page. Then enable this
-      patch. But even if I did that I would not sleep so well at night.
-      Adding a new vector is the safest thing to do, and is not that
-      expensive. an extra pointer at a static function vector per driver.
-      Also the new vector is better for performance, because else we
-      Will call all current Kernel vectors, so to:
-	check-ha-no-page-do-nothing and return.
-
-No need to call it from do_shared_fault because do_wp_page is called to
-change pte permissions anyway.
-
-CC: Matthew Wilcox <matthew.r.wilcox@intel.com>
-CC: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 CC: Jan Kara <jack@suse.cz>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: Hugh Dickins <hughd@google.com>
-CC: Mel Gorman <mgorman@suse.de>
-CC: linux-mm@kvack.org
+CC: Matthew Wilcox <matthew.r.wilcox@intel.com>
+CC: Dave Chinner <david@fromorbit.com>
+CC: Stable Tree <stable@vger.kernel.org>
 
 Signed-off-by: Yigal Korman <yigal@plexistor.com>
 Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
 ---
- include/linux/mm.h |  3 +++
- mm/memory.c        | 35 +++++++++++++++++++++++++++++++----
- 2 files changed, 34 insertions(+), 4 deletions(-)
+ fs/dax.c           | 17 +++++++++++++++++
+ fs/ext2/file.c     |  1 +
+ fs/ext4/file.c     |  1 +
+ include/linux/fs.h |  1 +
+ 4 files changed, 20 insertions(+)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index d584b95..70c47f2 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -251,6 +251,9 @@ struct vm_operations_struct {
- 	 * writable, if an error is returned it will cause a SIGBUS */
- 	int (*page_mkwrite)(struct vm_area_struct *vma, struct vm_fault *vmf);
+diff --git a/fs/dax.c b/fs/dax.c
+index ed1619e..d0bd1f4 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -464,6 +464,23 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ EXPORT_SYMBOL_GPL(dax_fault);
  
-+	/* same as page_mkwrite when using VM_PFNMAP|VM_MIXEDMAP */
-+	int (*pfn_mkwrite)(struct vm_area_struct *vma, struct vm_fault *vmf);
-+
- 	/* called by access_process_vm when get_user_pages() fails, typically
- 	 * for use by special VMAs that can switch between memory and hardware
- 	 */
-diff --git a/mm/memory.c b/mm/memory.c
-index 59f6268..6e8f3f6 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1982,6 +1982,19 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
- 	return ret;
- }
- 
-+static int do_pfn_mkwrite(struct vm_area_struct *vma, unsigned long address)
+ /**
++ * dax_pfn_mkwrite - handle first write to DAX page
++ * @vma: The virtual memory area where the fault occurred
++ * @vmf: The description of the fault
++ *
++ */
++int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 +{
-+	struct vm_fault vmf = {
-+		.page = 0,
-+		.pgoff = (((address & PAGE_MASK) - vma->vm_start)
-+					>> PAGE_SHIFT) + vma->vm_pgoff,
-+		.virtual_address = (void __user *)(address & PAGE_MASK),
-+		.flags = FAULT_FLAG_WRITE | FAULT_FLAG_MKWRITE,
-+	};
++	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
 +
-+	return vma->vm_ops->pfn_mkwrite(vma, &vmf);
++	sb_start_pagefault(sb);
++	file_update_time(vma->vm_file);
++	sb_end_pagefault(sb);
++	return VM_FAULT_NOPAGE;
 +}
++EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
 +
- /*
-  * Handle write page faults for pages that can be reused in the current vma
-  *
-@@ -2259,14 +2272,28 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		 * VM_PFNMAP VMA.
- 		 *
- 		 * We should not cow pages in a shared writeable mapping.
--		 * Just mark the pages writable as we can't do any dirty
--		 * accounting on raw pfn maps.
-+		 * Just mark the pages writable and/or call ops->pfn_mkwrite.
- 		 */
- 		if ((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
--				     (VM_WRITE|VM_SHARED))
-+				     (VM_WRITE|VM_SHARED)) {
-+			if (vma->vm_ops && vma->vm_ops->pfn_mkwrite) {
-+				int ret;
-+
-+				pte_unmap_unlock(page_table, ptl);
-+				ret = do_pfn_mkwrite(vma, address);
-+				if (ret & VM_FAULT_ERROR)
-+					return ret;
-+				page_table = pte_offset_map_lock(mm, pmd,
-+								 address, &ptl);
-+				/* Did pfn_mkwrite already fixed up the pte */
-+				if (!pte_same(*page_table, orig_pte)) {
-+					pte_unmap_unlock(page_table, ptl);
-+					return ret;
-+				}
-+			}
- 			return wp_page_reuse(mm, vma, address, page_table, ptl,
- 					     orig_pte, old_page, 0, 0);
--
-+		}
- 		pte_unmap_unlock(page_table, ptl);
- 		return wp_page_copy(mm, vma, address, page_table, pmd,
- 				    orig_pte, old_page);
++/**
+  * dax_zero_page_range - zero a range within a page of a DAX file
+  * @inode: The file being truncated
+  * @from: The file offset that is being truncated to
+diff --git a/fs/ext2/file.c b/fs/ext2/file.c
+index e317017..866a3ce 100644
+--- a/fs/ext2/file.c
++++ b/fs/ext2/file.c
+@@ -39,6 +39,7 @@ static int ext2_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ static const struct vm_operations_struct ext2_dax_vm_ops = {
+ 	.fault		= ext2_dax_fault,
+ 	.page_mkwrite	= ext2_dax_mkwrite,
++	.pfn_mkwrite	= dax_pfn_mkwrite,
+ };
+ 
+ static int ext2_file_mmap(struct file *file, struct vm_area_struct *vma)
+diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+index 598abbb..aa78c70 100644
+--- a/fs/ext4/file.c
++++ b/fs/ext4/file.c
+@@ -206,6 +206,7 @@ static int ext4_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ static const struct vm_operations_struct ext4_dax_vm_ops = {
+ 	.fault		= ext4_dax_fault,
+ 	.page_mkwrite	= ext4_dax_mkwrite,
++	.pfn_mkwrite	= dax_pfn_mkwrite,
+ };
+ #else
+ #define ext4_dax_vm_ops	ext4_file_vm_ops
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 368e349..394035f 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2628,6 +2628,7 @@ int dax_clear_blocks(struct inode *, sector_t block, long size);
+ int dax_zero_page_range(struct inode *, loff_t from, unsigned len, get_block_t);
+ int dax_truncate_page(struct inode *, loff_t from, get_block_t);
+ int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
++int dax_pfn_mkwrite(struct vm_area_struct *, struct vm_fault *);
+ #define dax_mkwrite(vma, vmf, gb)	dax_fault(vma, vmf, gb)
+ 
+ #ifdef CONFIG_BLOCK
 -- 
 1.9.3
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
