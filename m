@@ -1,249 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D3076B006E
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 04:45:14 -0400 (EDT)
-Received: by wgin8 with SMTP id n8so48488446wgi.0
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:45:13 -0700 (PDT)
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
-        by mx.google.com with ESMTPS id eh5si8931029wic.102.2015.04.07.01.45.12
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 845956B006E
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 04:51:45 -0400 (EDT)
+Received: by widjs5 with SMTP id js5so5674320wid.1
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:51:45 -0700 (PDT)
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com. [74.125.82.42])
+        by mx.google.com with ESMTPS id ey9si11703731wid.37.2015.04.07.01.51.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Apr 2015 01:45:13 -0700 (PDT)
-Received: by widjs5 with SMTP id js5so5553290wid.1
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:45:12 -0700 (PDT)
-Message-ID: <55239915.7030003@plexistor.com>
-Date: Tue, 07 Apr 2015 11:45:09 +0300
+        Tue, 07 Apr 2015 01:51:44 -0700 (PDT)
+Received: by wgbdm7 with SMTP id dm7so48667811wgb.1
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 01:51:43 -0700 (PDT)
+Message-ID: <55239A9C.5060303@plexistor.com>
+Date: Tue, 07 Apr 2015 11:51:40 +0300
 From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Subject: [PATCH 3/3] dax: Unify ext2/4_{dax,}_file_operations
-References: <55239645.9000507@plexistor.com>
-In-Reply-To: <55239645.9000507@plexistor.com>
+Subject: Re: [PATCH 1/3] mm(v4.1): New pfn_mkwrite same as page_mkwrite for
+ VM_PFNMAP
+References: <55239645.9000507@plexistor.com> <552397E6.5030506@plexistor.com>
+In-Reply-To: <552397E6.5030506@plexistor.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>, Christoph Hellwig <hch@infradead.org>
+To: Boaz Harrosh <boaz@plexistor.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>, Christoph Hellwig <hch@infradead.org>
 Cc: Stable Tree <stable@vger.kernel.org>
 
+On 04/07/2015 11:40 AM, Boaz Harrosh wrote:
+> 
 
-The original dax patchset split the ext2/4_file_operations
-because of the two NULL splice_read/splice_write in the dax
-case.
+Crap this is the wrong version I have a [v3] with some more
+of Kirill's comments fixes.
 
-At vfs if splice_read/splice_write are NULL would then call
-default_splice_read/write.
+Will resend
 
-What we do here is make generic_file_splice_read aware of
-IS_DAX() so the original ext2/4_file_operations can be used
-as is.
+Sorry for the noise
+Boaz
 
-For write it appears that iter_file_splice_write is just fine.
-It uses the regular f_op->write(file,..) or new_sync_write(file, ...).
-
-CC: Dave Chinner <dchinner@redhat.com>
-CC: Matthew Wilcox <willy@linux.intel.com>
-Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
----
- fs/ext2/ext2.h  |  1 -
- fs/ext2/file.c  | 18 ------------------
- fs/ext2/inode.c |  5 +----
- fs/ext2/namei.c | 10 ++--------
- fs/ext4/ext4.h  |  1 -
- fs/ext4/file.c  | 20 --------------------
- fs/ext4/inode.c |  5 +----
- fs/ext4/namei.c | 10 ++--------
- fs/splice.c     |  3 +++
- 9 files changed, 9 insertions(+), 64 deletions(-)
-
-diff --git a/fs/ext2/ext2.h b/fs/ext2/ext2.h
-index 678f9ab..8d15feb 100644
---- a/fs/ext2/ext2.h
-+++ b/fs/ext2/ext2.h
-@@ -793,7 +793,6 @@ extern int ext2_fsync(struct file *file, loff_t start, loff_t end,
- 		      int datasync);
- extern const struct inode_operations ext2_file_inode_operations;
- extern const struct file_operations ext2_file_operations;
--extern const struct file_operations ext2_dax_file_operations;
- 
- /* inode.c */
- extern const struct address_space_operations ext2_aops;
-diff --git a/fs/ext2/file.c b/fs/ext2/file.c
-index 866a3ce..19cac93 100644
---- a/fs/ext2/file.c
-+++ b/fs/ext2/file.c
-@@ -109,24 +109,6 @@ const struct file_operations ext2_file_operations = {
- 	.splice_write	= iter_file_splice_write,
- };
- 
--#ifdef CONFIG_FS_DAX
--const struct file_operations ext2_dax_file_operations = {
--	.llseek		= generic_file_llseek,
--	.read		= new_sync_read,
--	.write		= new_sync_write,
--	.read_iter	= generic_file_read_iter,
--	.write_iter	= generic_file_write_iter,
--	.unlocked_ioctl = ext2_ioctl,
--#ifdef CONFIG_COMPAT
--	.compat_ioctl	= ext2_compat_ioctl,
--#endif
--	.mmap		= ext2_file_mmap,
--	.open		= dquot_file_open,
--	.release	= ext2_release_file,
--	.fsync		= ext2_fsync,
--};
--#endif
--
- const struct inode_operations ext2_file_inode_operations = {
- #ifdef CONFIG_EXT2_FS_XATTR
- 	.setxattr	= generic_setxattr,
-diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index df9d6af..b29eb67 100644
---- a/fs/ext2/inode.c
-+++ b/fs/ext2/inode.c
-@@ -1388,10 +1388,7 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
- 
- 	if (S_ISREG(inode->i_mode)) {
- 		inode->i_op = &ext2_file_inode_operations;
--		if (test_opt(inode->i_sb, DAX)) {
--			inode->i_mapping->a_ops = &ext2_aops;
--			inode->i_fop = &ext2_dax_file_operations;
--		} else if (test_opt(inode->i_sb, NOBH)) {
-+		if (test_opt(inode->i_sb, NOBH)) {
- 			inode->i_mapping->a_ops = &ext2_nobh_aops;
- 			inode->i_fop = &ext2_file_operations;
- 		} else {
-diff --git a/fs/ext2/namei.c b/fs/ext2/namei.c
-index 148f6e3..ce42293 100644
---- a/fs/ext2/namei.c
-+++ b/fs/ext2/namei.c
-@@ -104,10 +104,7 @@ static int ext2_create (struct inode * dir, struct dentry * dentry, umode_t mode
- 		return PTR_ERR(inode);
- 
- 	inode->i_op = &ext2_file_inode_operations;
--	if (test_opt(inode->i_sb, DAX)) {
--		inode->i_mapping->a_ops = &ext2_aops;
--		inode->i_fop = &ext2_dax_file_operations;
--	} else if (test_opt(inode->i_sb, NOBH)) {
-+	if (test_opt(inode->i_sb, NOBH)) {
- 		inode->i_mapping->a_ops = &ext2_nobh_aops;
- 		inode->i_fop = &ext2_file_operations;
- 	} else {
-@@ -125,10 +122,7 @@ static int ext2_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
- 		return PTR_ERR(inode);
- 
- 	inode->i_op = &ext2_file_inode_operations;
--	if (test_opt(inode->i_sb, DAX)) {
--		inode->i_mapping->a_ops = &ext2_aops;
--		inode->i_fop = &ext2_dax_file_operations;
--	} else if (test_opt(inode->i_sb, NOBH)) {
-+	if (test_opt(inode->i_sb, NOBH)) {
- 		inode->i_mapping->a_ops = &ext2_nobh_aops;
- 		inode->i_fop = &ext2_file_operations;
- 	} else {
-diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
-index f63c3d5..8a3981e 100644
---- a/fs/ext4/ext4.h
-+++ b/fs/ext4/ext4.h
-@@ -2593,7 +2593,6 @@ extern const struct file_operations ext4_dir_operations;
- /* file.c */
- extern const struct inode_operations ext4_file_inode_operations;
- extern const struct file_operations ext4_file_operations;
--extern const struct file_operations ext4_dax_file_operations;
- extern loff_t ext4_llseek(struct file *file, loff_t offset, int origin);
- 
- /* inline.c */
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index aa78c70..e6d4280 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -625,26 +625,6 @@ const struct file_operations ext4_file_operations = {
- 	.fallocate	= ext4_fallocate,
- };
- 
--#ifdef CONFIG_FS_DAX
--const struct file_operations ext4_dax_file_operations = {
--	.llseek		= ext4_llseek,
--	.read		= new_sync_read,
--	.write		= new_sync_write,
--	.read_iter	= generic_file_read_iter,
--	.write_iter	= ext4_file_write_iter,
--	.unlocked_ioctl = ext4_ioctl,
--#ifdef CONFIG_COMPAT
--	.compat_ioctl	= ext4_compat_ioctl,
--#endif
--	.mmap		= ext4_file_mmap,
--	.open		= ext4_file_open,
--	.release	= ext4_release_file,
--	.fsync		= ext4_sync_file,
--	/* Splice not yet supported with DAX */
--	.fallocate	= ext4_fallocate,
--};
--#endif
--
- const struct inode_operations ext4_file_inode_operations = {
- 	.setattr	= ext4_setattr,
- 	.getattr	= ext4_getattr,
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index a3f4513..035b7a0 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -4090,10 +4090,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
- 
- 	if (S_ISREG(inode->i_mode)) {
- 		inode->i_op = &ext4_file_inode_operations;
--		if (test_opt(inode->i_sb, DAX))
--			inode->i_fop = &ext4_dax_file_operations;
--		else
--			inode->i_fop = &ext4_file_operations;
-+		inode->i_fop = &ext4_file_operations;
- 		ext4_set_aops(inode);
- 	} else if (S_ISDIR(inode->i_mode)) {
- 		inode->i_op = &ext4_dir_inode_operations;
-diff --git a/fs/ext4/namei.c b/fs/ext4/namei.c
-index 28fe71a..2291923 100644
---- a/fs/ext4/namei.c
-+++ b/fs/ext4/namei.c
-@@ -2235,10 +2235,7 @@ retry:
- 	err = PTR_ERR(inode);
- 	if (!IS_ERR(inode)) {
- 		inode->i_op = &ext4_file_inode_operations;
--		if (test_opt(inode->i_sb, DAX))
--			inode->i_fop = &ext4_dax_file_operations;
--		else
--			inode->i_fop = &ext4_file_operations;
-+		inode->i_fop = &ext4_file_operations;
- 		ext4_set_aops(inode);
- 		err = ext4_add_nondir(handle, dentry, inode);
- 		if (!err && IS_DIRSYNC(dir))
-@@ -2302,10 +2299,7 @@ retry:
- 	err = PTR_ERR(inode);
- 	if (!IS_ERR(inode)) {
- 		inode->i_op = &ext4_file_inode_operations;
--		if (test_opt(inode->i_sb, DAX))
--			inode->i_fop = &ext4_dax_file_operations;
--		else
--			inode->i_fop = &ext4_file_operations;
-+		inode->i_fop = &ext4_file_operations;
- 		ext4_set_aops(inode);
- 		d_tmpfile(dentry, inode);
- 		err = ext4_orphan_add(handle, inode);
-diff --git a/fs/splice.c b/fs/splice.c
-index 41cbb16..476024b 100644
---- a/fs/splice.c
-+++ b/fs/splice.c
-@@ -523,6 +523,9 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
- 	loff_t isize, left;
- 	int ret;
- 
-+	if (IS_DAX(in->f_mapping->host))
-+		return default_file_splice_read(in, ppos, pipe, len, flags);
-+
- 	isize = i_size_read(in->f_mapping->host);
- 	if (unlikely(*ppos >= isize))
- 		return 0;
--- 
-1.9.3
-
+> [v2]
+> Based on linux-next/akpm [3dc4623]. For v4.1 merge window
+> Incorporated comments from Andrew And Kirill
+> 
+> [v1]
+> This will allow FS that uses VM_PFNMAP | VM_MIXEDMAP (no page structs)
+> to get notified when access is a write to a read-only PFN.
+> 
+> This can happen if we mmap() a file then first mmap-read from it
+> to page-in a read-only PFN, than we mmap-write to the same page.
+> 
+> We need this functionality to fix a DAX bug, where in the scenario
+> above we fail to set ctime/mtime though we modified the file.
+> An xfstest is attached to this patchset that shows the failure
+> and the fix. (A DAX patch will follow)
+> 
+> This functionality is extra important for us, because upon
+> dirtying of a pmem page we also want to RDMA the page to a
+> remote cluster node.
+> 
+> We define a new pfn_mkwrite and do not reuse page_mkwrite because
+>   1 - The name ;-)
+>   2 - But mainly because it would take a very long and tedious
+>       audit of all page_mkwrite functions of VM_MIXEDMAP/VM_PFNMAP
+>       users. To make sure they do not now CRASH. For example current
+>       DAX code (which this is for) would crash.
+>       If we would want to reuse page_mkwrite, We will need to first
+>       patch all users, so to not-crash-on-no-page. Then enable this
+>       patch. But even if I did that I would not sleep so well at night.
+>       Adding a new vector is the safest thing to do, and is not that
+>       expensive. an extra pointer at a static function vector per driver.
+>       Also the new vector is better for performance, because else we
+>       Will call all current Kernel vectors, so to:
+> 	check-ha-no-page-do-nothing and return.
+> 
+> No need to call it from do_shared_fault because do_wp_page is called to
+> change pte permissions anyway.
+> 
+> CC: Matthew Wilcox <matthew.r.wilcox@intel.com>
+> CC: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> CC: Jan Kara <jack@suse.cz>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: Hugh Dickins <hughd@google.com>
+> CC: Mel Gorman <mgorman@suse.de>
+> CC: linux-mm@kvack.org
+> 
+> Signed-off-by: Yigal Korman <yigal@plexistor.com>
+> Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
+> ---
+>  include/linux/mm.h |  3 +++
+>  mm/memory.c        | 35 +++++++++++++++++++++++++++++++----
+>  2 files changed, 34 insertions(+), 4 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index d584b95..70c47f2 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -251,6 +251,9 @@ struct vm_operations_struct {
+>  	 * writable, if an error is returned it will cause a SIGBUS */
+>  	int (*page_mkwrite)(struct vm_area_struct *vma, struct vm_fault *vmf);
+>  
+> +	/* same as page_mkwrite when using VM_PFNMAP|VM_MIXEDMAP */
+> +	int (*pfn_mkwrite)(struct vm_area_struct *vma, struct vm_fault *vmf);
+> +
+>  	/* called by access_process_vm when get_user_pages() fails, typically
+>  	 * for use by special VMAs that can switch between memory and hardware
+>  	 */
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 59f6268..6e8f3f6 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1982,6 +1982,19 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
+>  	return ret;
+>  }
+>  
+> +static int do_pfn_mkwrite(struct vm_area_struct *vma, unsigned long address)
+> +{
+> +	struct vm_fault vmf = {
+> +		.page = 0,
+> +		.pgoff = (((address & PAGE_MASK) - vma->vm_start)
+> +					>> PAGE_SHIFT) + vma->vm_pgoff,
+> +		.virtual_address = (void __user *)(address & PAGE_MASK),
+> +		.flags = FAULT_FLAG_WRITE | FAULT_FLAG_MKWRITE,
+> +	};
+> +
+> +	return vma->vm_ops->pfn_mkwrite(vma, &vmf);
+> +}
+> +
+>  /*
+>   * Handle write page faults for pages that can be reused in the current vma
+>   *
+> @@ -2259,14 +2272,28 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		 * VM_PFNMAP VMA.
+>  		 *
+>  		 * We should not cow pages in a shared writeable mapping.
+> -		 * Just mark the pages writable as we can't do any dirty
+> -		 * accounting on raw pfn maps.
+> +		 * Just mark the pages writable and/or call ops->pfn_mkwrite.
+>  		 */
+>  		if ((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
+> -				     (VM_WRITE|VM_SHARED))
+> +				     (VM_WRITE|VM_SHARED)) {
+> +			if (vma->vm_ops && vma->vm_ops->pfn_mkwrite) {
+> +				int ret;
+> +
+> +				pte_unmap_unlock(page_table, ptl);
+> +				ret = do_pfn_mkwrite(vma, address);
+> +				if (ret & VM_FAULT_ERROR)
+> +					return ret;
+> +				page_table = pte_offset_map_lock(mm, pmd,
+> +								 address, &ptl);
+> +				/* Did pfn_mkwrite already fixed up the pte */
+> +				if (!pte_same(*page_table, orig_pte)) {
+> +					pte_unmap_unlock(page_table, ptl);
+> +					return ret;
+> +				}
+> +			}
+>  			return wp_page_reuse(mm, vma, address, page_table, ptl,
+>  					     orig_pte, old_page, 0, 0);
+> -
+> +		}
+>  		pte_unmap_unlock(page_table, ptl);
+>  		return wp_page_copy(mm, vma, address, page_table, pmd,
+>  				    orig_pte, old_page);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
