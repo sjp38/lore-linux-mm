@@ -1,45 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 921366B0073
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 10:09:20 -0400 (EDT)
-Received: by wiaa2 with SMTP id a2so20343930wia.0
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 07:09:20 -0700 (PDT)
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com. [74.125.82.42])
-        by mx.google.com with ESMTPS id jh6si13021369wid.94.2015.04.07.07.09.18
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 073346B0073
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 10:11:45 -0400 (EDT)
+Received: by patj18 with SMTP id j18so80089300pat.2
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 07:11:44 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id s14si11602849pdj.57.2015.04.07.07.11.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Apr 2015 07:09:19 -0700 (PDT)
-Received: by wgbdm7 with SMTP id dm7so57447307wgb.1
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 07:09:18 -0700 (PDT)
-Message-ID: <5523E50C.4060706@plexistor.com>
-Date: Tue, 07 Apr 2015 17:09:16 +0300
-From: Boaz Harrosh <boaz@plexistor.com>
+        Tue, 07 Apr 2015 07:11:44 -0700 (PDT)
+Received: by paboj16 with SMTP id oj16so80216822pab.0
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 07:11:44 -0700 (PDT)
+Date: Tue, 7 Apr 2015 23:10:42 +0900
+From: Namhyung Kim <namhyung@kernel.org>
+Subject: Re: [PATCH 9/9] tools lib traceevent: Honor operator priority
+Message-ID: <20150407141042.GF15878@danjae.kornet>
+References: <1428298576-9785-1-git-send-email-namhyung@kernel.org>
+ <1428298576-9785-10-git-send-email-namhyung@kernel.org>
+ <20150406104504.41e398d3@gandalf.local.home>
+ <20150407075226.GE23913@sejong>
+ <20150407130208.GH11983@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3 v6] mm(v4.1): New pfn_mkwrite same as page_mkwrite
- for VM_PFNMAP
-References: <55239645.9000507@plexistor.com> <552397E6.5030506@plexistor.com> <5523D43C.1060708@plexistor.com> <20150407131700.GA13946@node.dhcp.inet.fi> <20150407132601.GA14252@node.dhcp.inet.fi> <5523DD83.4050609@plexistor.com> <20150407134759.GB14252@node.dhcp.inet.fi>
-In-Reply-To: <20150407134759.GB14252@node.dhcp.inet.fi>
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <20150407130208.GH11983@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>, Christoph Hellwig <hch@infradead.org>, Stable Tree <stable@vger.kernel.org>
+To: Arnaldo Carvalho de Melo <acme@kernel.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org
 
-On 04/07/2015 04:47 PM, Kirill A. Shutemov wrote:
-<>
->> I did not understand if you want that I keep it "return ret".
+On Tue, Apr 07, 2015 at 10:02:08AM -0300, Arnaldo Carvalho de Melo wrote:
+> Em Tue, Apr 07, 2015 at 04:52:26PM +0900, Namhyung Kim escreveu:
+> > On Mon, Apr 06, 2015 at 10:45:04AM -0400, Steven Rostedt wrote:
+> > > >  		type = process_arg_token(event, right, tok, type);
+> > > > -		arg->op.right = right;
+> > > > +
+> > > > +		if (right->type == PRINT_OP &&
+> > > > +		    get_op_prio(arg->op.op) < get_op_prio(right->op.op)) {
+> > > > +			struct print_arg tmp;
+> > > > +
+> > > > +			/* swap ops according to the priority */
 > 
-> I think "return 0;" is right way to go. It matches wp_page_shared()
-> behaviour.
+> > > This isn't really a swap. Better term to use is "rotate".
 > 
+> > You're right!
+> 
+> > > But other than that,
+> 
+> > > Acked-by: Steven Rostedt <rostedt@goodmis.org>
+> > 
+> > Thanks for the review
+> 
+> Ok, so just doing that s/swap/rotate/g, sticking Rostedt's ack and
+> applying, ok?
 
-Ok I sent a v7 with "return 0;" as is in wp_page_shared(). I guess
-it is better. It survived of course an xfstests quick but I'll let
-it smoke for the night as well.
+Sure thing!
 
-Thanks for all your help
-Boaz
+Thanks for your work,
+Namhyung
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
