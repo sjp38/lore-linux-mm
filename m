@@ -1,128 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BE076B0072
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 17:05:49 -0400 (EDT)
-Received: by yhla23 with SMTP id a23so2787328yhl.1
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 14:05:49 -0700 (PDT)
-Received: from relay.fireflyinternet.com (hostedrelay.fireflyinternet.com. [109.228.30.76])
-        by mx.google.com with ESMTP id pd7si13721155wic.106.2015.04.07.09.31.44
-        for <linux-mm@kvack.org>;
-        Tue, 07 Apr 2015 09:31:44 -0700 (PDT)
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: [PATCH 4/5] mm: Export remap_io_mapping()
-Date: Tue,  7 Apr 2015 17:31:38 +0100
-Message-Id: <1428424299-13721-5-git-send-email-chris@chris-wilson.co.uk>
-In-Reply-To: <1428424299-13721-1-git-send-email-chris@chris-wilson.co.uk>
-References: <1428424299-13721-1-git-send-email-chris@chris-wilson.co.uk>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id DCE636B006E
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 18:41:37 -0400 (EDT)
+Received: by pddn5 with SMTP id n5so93420164pdd.2
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 15:41:37 -0700 (PDT)
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com. [209.85.192.178])
+        by mx.google.com with ESMTPS id ck1si13529373pdb.247.2015.04.07.15.41.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Apr 2015 15:41:36 -0700 (PDT)
+Received: by pdea3 with SMTP id a3so93441748pde.3
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 15:41:35 -0700 (PDT)
+From: Kevin Hilman <khilman@kernel.org>
+Subject: Re: [PATCH] mm/migrate: Mark unmap_and_move() "noinline" to avoid ICE in gcc 4.7.3
+References: <20150324004537.GA24816@verge.net.au>
+	<CAKv+Gu-0jPk=KQ4gY32ELc+BVbe=1QdcrwQ+Pb=RkdwO9K3Vkw@mail.gmail.com>
+	<20150324161358.GA694@kahuna> <20150326003939.GA25368@verge.net.au>
+	<20150326133631.GB2805@arm.com>
+	<CANMBJr68dsbYvvHUzy6U4m4fEM6nq8dVHBH4kLQ=0c4QNOhLPQ@mail.gmail.com>
+	<20150327002554.GA5527@verge.net.au> <20150327100612.GB1562@arm.com>
+	<7hbnj99epe.fsf@deeprootsystems.com>
+	<CAKv+Gu_ZHZFm-1eXn+r7fkEHOxqSmj+Q+Mmy7k6LK531vSfAjQ@mail.gmail.com>
+	<7h8uec95t2.fsf@deeprootsystems.com>
+	<alpine.DEB.2.10.1504011130030.14762@ayla.of.borg>
+	<551BBEC5.7070801@arm.com>
+	<20150401124007.20c440cc43a482f698f461b8@linux-foundation.org>
+	<7hwq1v4iq4.fsf@deeprootsystems.com>
+	<CAMAWPa_YEJDQc=_60_sPqzwLYN8Yefzcko_rydxrt8oOCq20gw@mail.gmail.com>
+	<20150407131740.ac8a856537fecb1b5d142f5f@linux-foundation.org>
+Date: Tue, 07 Apr 2015 15:41:32 -0700
+In-Reply-To: <20150407131740.ac8a856537fecb1b5d142f5f@linux-foundation.org>
+	(Andrew Morton's message of "Tue, 7 Apr 2015 13:17:40 -0700")
+Message-ID: <7hpp7fo92b.fsf@deeprootsystems.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Cc: intel-gfx@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Cyrill Gorcunov <gorcunov@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Marc Zyngier <marc.zyngier@arm.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <Will.Deacon@arm.com>, Simon Horman <horms@verge.net.au>, Tyler Baker <tyler.baker@linaro.org>, Nishanth Menon <nm@ti.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Magnus Damm <magnus.damm@gmail.com>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux Kernel Development <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-This is similar to remap_pfn_range(), and uses the recently refactor
-code to do the page table walking. The key difference is that is back
-propagates its error as this is required for use from within a pagefault
-handler. The other difference, is that it combine the page protection
-from io-mapping, which is known from when the io-mapping is created,
-with the per-vma page protection flags. This avoids having to walk the
-entire system description to rediscover the special page protection
-established for the io-mapping.
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org
----
- include/linux/mm.h |  4 ++++
- mm/memory.c        | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+)
+> On Tue, 7 Apr 2015 10:57:52 -0700 Kevin Hilman <khilman@kernel.org> wrote:
+>
+>> > The diff below[2] on top of yours compiles fine here and at least covers
+>> > the compilers I *know* to trigger the ICE.
+>> 
+>> I see my fix in your mmots since last Thurs (4/2), but it's not in
+>> mmotm (last updated today) so today's linux-next still has the ICE for
+>> anything other than gcc-4.7.3.   Just checking to see when you plan to
+>> update mmotm.
+>
+> It should all be there today?
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 47a93928b90f..3dfecd58adb0 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2083,6 +2083,10 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
- struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
- int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
- 			unsigned long pfn, unsigned long size, pgprot_t);
-+struct io_mapping;
-+int remap_io_mapping(struct vm_area_struct *,
-+		     unsigned long addr, unsigned long pfn, unsigned long size,
-+		     struct io_mapping *iomap);
- int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
- int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 			unsigned long pfn);
-diff --git a/mm/memory.c b/mm/memory.c
-index acb06f40d614..83bc5df3fafc 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -61,6 +61,7 @@
- #include <linux/string.h>
- #include <linux/dma-debug.h>
- #include <linux/debugfs.h>
-+#include <linux/io-mapping.h>
- 
- #include <asm/io.h>
- #include <asm/pgalloc.h>
-@@ -1762,6 +1763,51 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
- EXPORT_SYMBOL(remap_pfn_range);
- 
- /**
-+ * remap_io_mapping - remap an IO mapping to userspace
-+ * @vma: user vma to map to
-+ * @addr: target user address to start at
-+ * @pfn: physical address of kernel memory
-+ * @size: size of map area
-+ * @iomap: the source io_mapping
-+ *
-+ *  Note: this is only safe if the mm semaphore is held when called.
-+ */
-+int remap_io_mapping(struct vm_area_struct *vma,
-+		     unsigned long addr, unsigned long pfn, unsigned long size,
-+		     struct io_mapping *iomap)
-+{
-+	unsigned long end = addr + PAGE_ALIGN(size);
-+	struct remap_pfn r;
-+	pgd_t *pgd;
-+	int err;
-+
-+	if (WARN_ON(addr >= end))
-+		return -EINVAL;
-+
-+#define MUST_SET (VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP)
-+	BUG_ON(is_cow_mapping(vma->vm_flags));
-+	BUG_ON((vma->vm_flags & MUST_SET) != MUST_SET);
-+#undef MUST_SET
-+
-+	r.mm = vma->vm_mm;
-+	r.addr = addr;
-+	r.pfn = pfn;
-+	r.prot = __pgprot((pgprot_val(iomap->prot) & _PAGE_CACHE_MASK) |
-+			  (pgprot_val(vma->vm_page_prot) & ~_PAGE_CACHE_MASK));
-+
-+	pgd = pgd_offset(r.mm, addr);
-+	do {
-+		err = remap_pud_range(&r, pgd++, pgd_addr_end(r.addr, end));
-+	} while (err == 0 && r.addr < end);
-+
-+	if (err)
-+		zap_page_range_single(vma, addr, r.addr - addr, NULL);
-+
-+	return err;
-+}
-+EXPORT_SYMBOL(remap_io_mapping);
-+
-+/**
-  * vm_iomap_memory - remap memory to userspace
-  * @vma: user vma to map to
-  * @start: start of area
--- 
-2.1.4
+Nope.  
+
+In mmotm, only the original patch plus your first fix is there:
+
+$ curl -sO http://www.ozlabs.org/~akpm/mmotm/broken-out.tar.gz
+$ tar -tavf broken-out.tar.gz |grep gcc-473
+-rw-r----- akpm/eng       1838 2015-04-01 14:41 broken-out/mm-migrate-mark-unmap_and_move-noinline-to-avoid-ice-in-gcc-473.patch
+-rw-r----- akpm/eng       1309 2015-04-01 14:41 broken-out/mm-migrate-mark-unmap_and_move-noinline-to-avoid-ice-in-gcc-473-fix.patch
+
+but in mmots, the additional ptch from me, plus another comment fixup
+from you are also there:
+
+$ curl -sO http://www.ozlabs.org/~akpm/mmots/broken-out.tar.gz
+$ tar -tavf broken-out.tar.gz |grep gcc-473
+-rw-r----- akpm/eng       1882 2015-04-06 16:24 broken-out/mm-migrate-mark-unmap_and_move-noinline-to-avoid-ice-in-gcc-473.patch
+-rw-r----- akpm/eng       1271 2015-04-06 16:24 broken-out/mm-migrate-mark-unmap_and_move-noinline-to-avoid-ice-in-gcc-473-fix.patch
+-rw-r----- akpm/eng       1382 2015-04-06 16:24 broken-out/mm-migrate-mark-unmap_and_move-noinline-to-avoid-ice-in-gcc-473-fix-fix.patch
+-rw-r----- akpm/eng        968 2015-04-06 16:24 broken-out/mm-migrate-mark-unmap_and_move-noinline-to-avoid-ice-in-gcc-473-fix-fix-fix.patch
+
+
+Kevin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
