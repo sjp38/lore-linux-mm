@@ -1,134 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B7816B0038
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 12:28:52 -0400 (EDT)
-Received: by wiaa2 with SMTP id a2so25722013wia.0
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 09:28:52 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hd7si13675576wjc.67.2015.04.07.09.28.50
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 07 Apr 2015 09:28:51 -0700 (PDT)
-Date: Tue, 7 Apr 2015 18:28:46 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/3] dax: use pfn_mkwrite to update c/mtime + freeze
- protection
-Message-ID: <20150407162846.GI14897@quack.suse.cz>
-References: <55239645.9000507@plexistor.com>
- <552398C6.1010304@plexistor.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <552398C6.1010304@plexistor.com>
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BBBC6B0038
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 12:41:11 -0400 (EDT)
+Received: by iggg4 with SMTP id g4so17386942igg.0
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 09:41:11 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTP id mv8si7033058igb.62.2015.04.07.09.41.10
+        for <linux-mm@kvack.org>;
+        Tue, 07 Apr 2015 09:41:10 -0700 (PDT)
+From: Arnaldo Carvalho de Melo <acme@kernel.org>
+Subject: [GIT PULL 00/16] perf/core improvements and fixes
+Date: Tue,  7 Apr 2015 13:40:46 -0300
+Message-Id: <1428424862-30032-1-git-send-email-acme@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>
-Cc: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>, Christoph Hellwig <hch@infradead.org>, Stable Tree <stable@vger.kernel.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, Arnaldo Carvalho de Melo <acme@kernel.org>, Adrian Hunter <adrian.hunter@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bp@suse.de>, David Ahern <dsahern@gmail.com>, Don Zickus <dzickus@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, He Kuang <hekuang@huawei.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Olsa <jolsa@redhat.com>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Namhyung Kim <namhyung@kernel.org>, Paul Mackerras <paulus@samba.org>, Peter Zijlstra <peterz@infradead.org>, pi3orama@163.com, Stephane Eranian <eranian@google.com>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Wang Nan <wangnan0@huawei.com>, Yunlong Song <yunlong.song@huawei.com>, Zefan Li <lizefan@huawei.com>, Arnaldo Carvalho de Melo <acme@redhat.com>
 
-On Tue 07-04-15 11:43:50, Boaz Harrosh wrote:
-> From: Yigal Korman <yigal@plexistor.com>
-> 
-> [v1]
-> Without this patch, c/mtime is not updated correctly when mmap'ed page is
-> first read from and then written to.
-> 
-> A new xfstest is submitted for testing this (generic/080)
-> 
-> [v2]
-> Jan Kara has pointed out that if we add the
-> sb_start/end_pagefault pair in the new pfn_mkwrite we
-> are then fixing another bug where: A user could start
-> writing to the page while filesystem is frozen.
-  The patch looks good to me. You can add:
-Reviewed-by: Jan Kara <jack@suse.cz>
+Hi Ingo,
 
-								Honza
+	Please consider pulling,
 
-> CC: Jan Kara <jack@suse.cz>
-> CC: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> CC: Dave Chinner <david@fromorbit.com>
-> CC: Stable Tree <stable@vger.kernel.org>
-> 
-> Signed-off-by: Yigal Korman <yigal@plexistor.com>
-> Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
-> ---
->  fs/dax.c           | 17 +++++++++++++++++
->  fs/ext2/file.c     |  1 +
->  fs/ext4/file.c     |  1 +
->  include/linux/fs.h |  1 +
->  4 files changed, 20 insertions(+)
-> 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index ed1619e..d0bd1f4 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -464,6 +464,23 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
->  EXPORT_SYMBOL_GPL(dax_fault);
->  
->  /**
-> + * dax_pfn_mkwrite - handle first write to DAX page
-> + * @vma: The virtual memory area where the fault occurred
-> + * @vmf: The description of the fault
-> + *
-> + */
-> +int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-> +{
-> +	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
-> +
-> +	sb_start_pagefault(sb);
-> +	file_update_time(vma->vm_file);
-> +	sb_end_pagefault(sb);
-> +	return VM_FAULT_NOPAGE;
-> +}
-> +EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
-> +
-> +/**
->   * dax_zero_page_range - zero a range within a page of a DAX file
->   * @inode: The file being truncated
->   * @from: The file offset that is being truncated to
-> diff --git a/fs/ext2/file.c b/fs/ext2/file.c
-> index e317017..866a3ce 100644
-> --- a/fs/ext2/file.c
-> +++ b/fs/ext2/file.c
-> @@ -39,6 +39,7 @@ static int ext2_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
->  static const struct vm_operations_struct ext2_dax_vm_ops = {
->  	.fault		= ext2_dax_fault,
->  	.page_mkwrite	= ext2_dax_mkwrite,
-> +	.pfn_mkwrite	= dax_pfn_mkwrite,
->  };
->  
->  static int ext2_file_mmap(struct file *file, struct vm_area_struct *vma)
-> diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-> index 598abbb..aa78c70 100644
-> --- a/fs/ext4/file.c
-> +++ b/fs/ext4/file.c
-> @@ -206,6 +206,7 @@ static int ext4_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
->  static const struct vm_operations_struct ext4_dax_vm_ops = {
->  	.fault		= ext4_dax_fault,
->  	.page_mkwrite	= ext4_dax_mkwrite,
-> +	.pfn_mkwrite	= dax_pfn_mkwrite,
->  };
->  #else
->  #define ext4_dax_vm_ops	ext4_file_vm_ops
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 368e349..394035f 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -2628,6 +2628,7 @@ int dax_clear_blocks(struct inode *, sector_t block, long size);
->  int dax_zero_page_range(struct inode *, loff_t from, unsigned len, get_block_t);
->  int dax_truncate_page(struct inode *, loff_t from, get_block_t);
->  int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
-> +int dax_pfn_mkwrite(struct vm_area_struct *, struct vm_fault *);
->  #define dax_mkwrite(vma, vmf, gb)	dax_fault(vma, vmf, gb)
->  
->  #ifdef CONFIG_BLOCK
-> -- 
-> 1.9.3
-> 
-> 
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+- Arnaldo
+
+The following changes since commit 6645f3187f5beb64f7a40515cfa18f3889264ece:
+
+  Merge tag 'perf-core-for-mingo' of git://git.kernel.org/pub/scm/linux/kernel/git/acme/linux into perf/core (2015-04-03 07:00:02 +0200)
+
+are available in the git repository at:
+
+
+  git://git.kernel.org/pub/scm/linux/kernel/git/acme/linux.git tags/perf-core-for-mingo
+
+for you to fetch changes up to d083e5ff09eccc0afd44e02ec85f10c06271e93b:
+
+  perf tools: Merge all perf_event_attr print functions (2015-04-07 13:25:05 -0300)
+
+----------------------------------------------------------------
+perf/core improvements and fixes:
+
+- Teach about perf_event_attr.clockid to 'perf record' (Peter Zijlstra)
+
+- perf sched replay improvements for high CPU core count machines (Yunlong Song)
+
+- Consider PERF_RECORD_ events with cpumode == 0 in 'perf top', removing one
+  cause of long term memory usage buildup, i.e. not processing PERF_RECORD_EXIT
+  events (Arnaldo Carvalho de Melo)
+
+- Respect -i option 'in perf kmem' (Jiri Olsa)
+
+Infrastructure:
+
+- Honor operator priority in libtraceevent (Namhyung Kim)
+
+- Merge all perf_event_attr print functions (Peter Zijlstra)
+
+- Check kmaps access to make code more robust (Wang Nan)
+
+- Fix inverted logic in perf_mmap__empty() (He Kuang)
+
+Signed-off-by: Arnaldo Carvalho de Melo <acme@redhat.com>
+
+----------------------------------------------------------------
+Arnaldo Carvalho de Melo (1):
+      perf top: Consider PERF_RECORD_ events with cpumode == 0
+
+He Kuang (1):
+      perf evlist: Fix inverted logic in perf_mmap__empty
+
+Jiri Olsa (1):
+      perf kmem: Respect -i option
+
+Namhyung Kim (1):
+      tools lib traceevent: Honor operator priority
+
+Peter Zijlstra (2):
+      perf record: Add clockid parameter
+      perf tools: Merge all perf_event_attr print functions
+
+Wang Nan (1):
+      perf kmaps: Check kmaps to make code more robust
+
+Yunlong Song (9):
+      perf sched replay: Use struct task_desc instead of struct task_task for correct meaning
+      perf sched replay: Increase the MAX_PID value to fix assertion failure problem
+      perf sched replay: Alloc the memory of pid_to_task dynamically to adapt to the unexpected change of pid_max
+      perf sched replay: Realloc the memory of pid_to_task stepwise to adapt to the different pid_max configurations
+      perf sched replay: Fix the segmentation fault problem caused by pr_err in threads
+      perf sched replay: Handle the dead halt of sem_wait when create_tasks() fails for any task
+      perf sched replay: Fix the EMFILE error caused by the limitation of the maximum open files
+      perf sched replay: Support using -f to override perf.data file ownership
+      perf sched replay: Use replay_repeat to calculate the runavg of cpu usage instead of the default value 10
+
+ tools/lib/traceevent/event-parse.c       |  17 +-
+ tools/perf/Documentation/perf-record.txt |   7 +
+ tools/perf/builtin-kmem.c                |   3 +-
+ tools/perf/builtin-record.c              |  80 ++++++++
+ tools/perf/builtin-sched.c               |  67 +++++--
+ tools/perf/builtin-top.c                 |   8 +-
+ tools/perf/perf.h                        |   2 +
+ tools/perf/util/evlist.c                 |   2 +-
+ tools/perf/util/evsel.c                  | 325 ++++++++++++++++---------------
+ tools/perf/util/evsel.h                  |   6 +
+ tools/perf/util/header.c                 |  28 +--
+ tools/perf/util/machine.c                |   5 +-
+ tools/perf/util/map.c                    |  20 ++
+ tools/perf/util/map.h                    |   6 +-
+ tools/perf/util/probe-event.c            |   2 +
+ tools/perf/util/session.c                |   3 +
+ tools/perf/util/symbol-elf.c             |  16 +-
+ tools/perf/util/symbol.c                 |  34 +++-
+ 18 files changed, 422 insertions(+), 209 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
