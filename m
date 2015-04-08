@@ -1,70 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 739366B006E
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 20:16:02 -0400 (EDT)
-Received: by patj18 with SMTP id j18so95465283pat.2
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 17:16:02 -0700 (PDT)
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com. [209.85.220.45])
-        by mx.google.com with ESMTPS id os1si13858758pac.67.2015.04.07.17.16.01
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BF4A6B006E
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 20:49:04 -0400 (EDT)
+Received: by patj18 with SMTP id j18so96251545pat.2
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 17:49:03 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id zp6si1433694pbc.127.2015.04.07.17.49.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Apr 2015 17:16:01 -0700 (PDT)
-Received: by pacyx8 with SMTP id yx8so95112155pac.1
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 17:16:01 -0700 (PDT)
-From: Kevin Hilman <khilman@kernel.org>
-Subject: Re: [PATCH] mm/migrate: Mark unmap_and_move() "noinline" to avoid ICE in gcc 4.7.3
-References: <20150324004537.GA24816@verge.net.au>
-	<CAKv+Gu-0jPk=KQ4gY32ELc+BVbe=1QdcrwQ+Pb=RkdwO9K3Vkw@mail.gmail.com>
-	<20150324161358.GA694@kahuna> <20150326003939.GA25368@verge.net.au>
-	<20150326133631.GB2805@arm.com>
-	<CANMBJr68dsbYvvHUzy6U4m4fEM6nq8dVHBH4kLQ=0c4QNOhLPQ@mail.gmail.com>
-	<20150327002554.GA5527@verge.net.au> <20150327100612.GB1562@arm.com>
-	<7hbnj99epe.fsf@deeprootsystems.com>
-	<CAKv+Gu_ZHZFm-1eXn+r7fkEHOxqSmj+Q+Mmy7k6LK531vSfAjQ@mail.gmail.com>
-	<7h8uec95t2.fsf@deeprootsystems.com>
-	<alpine.DEB.2.10.1504011130030.14762@ayla.of.borg>
-	<551BBEC5.7070801@arm.com>
-	<20150401124007.20c440cc43a482f698f461b8@linux-foundation.org>
-	<7hwq1v4iq4.fsf@deeprootsystems.com>
-	<CAMAWPa_YEJDQc=_60_sPqzwLYN8Yefzcko_rydxrt8oOCq20gw@mail.gmail.com>
-	<20150407131740.ac8a856537fecb1b5d142f5f@linux-foundation.org>
-	<7hpp7fo92b.fsf@deeprootsystems.com>
-	<20150407155310.a3e9dfb6d929a968c4bfc286@linux-foundation.org>
-	<7hiod7o6xb.fsf@deeprootsystems.com>
-	<20150407163614.1f0ec880cecd681dcd271295@linux-foundation.org>
-Date: Tue, 07 Apr 2015 17:15:58 -0700
-In-Reply-To: <20150407163614.1f0ec880cecd681dcd271295@linux-foundation.org>
-	(Andrew Morton's message of "Tue, 7 Apr 2015 16:36:14 -0700")
-Message-ID: <7hsicbmq4h.fsf@deeprootsystems.com>
+        Tue, 07 Apr 2015 17:49:03 -0700 (PDT)
+Received: by pacyx8 with SMTP id yx8so95896946pac.1
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 17:49:02 -0700 (PDT)
+Received: from frank-02.cumulusnetworks.com ([216.129.126.126])
+        by mx.google.com with ESMTPSA id oh2sm5203113pbb.45.2015.04.07.17.49.00
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Apr 2015 17:49:00 -0700 (PDT)
+From: smtpauth@cumulusnetworks.com
+Received: from jenkins-01.cumulusnetworks.com (localhost [IPv6:::1])
+	by frank-02.cumulusnetworks.com (Postfix) with ESMTP id 50E7A156002E
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 17:48:59 -0700 (PDT)
+Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Subject: Please resolve File Modified on merge for
+ patches/kernel/kernel-nowarn-sysctl.patch
+Message-Id: <20150408004859.50E7A156002E@frank-02.cumulusnetworks.com>
+Date: Tue,  7 Apr 2015 17:48:59 -0700 (PDT)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Marc Zyngier <marc.zyngier@arm.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <Will.Deacon@arm.com>, Simon Horman <horms@verge.net.au>, Tyler Baker <tyler.baker@linaro.org>, Nishanth Menon <nm@ti.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Magnus Damm <magnus.damm@gmail.com>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux Kernel Development <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org, shm@cumulusnetworks.com, curt@cumulusnetworks.com, nolan@cumulusnetworks.com, sfeldma@cumulusnetworks.com
 
-Andrew Morton <akpm@linux-foundation.org> writes:
+This is automated email to inform you about source code difference
+between releases CumulusLinux-2.5_br and CumulusLinux-2.6_br .
 
-> On Tue, 07 Apr 2015 16:27:44 -0700 Kevin Hilman <khilman@kernel.org> wrote:
->
->> >> > It should all be there today?
->> >> 
->> >> Nope.  
->> >
->> > huh, I swear I did an mmotm yesterday.
->> 
->> Well, based on the timestamp of the mmotm dir on ozlabs, it appears you
->> did.  That's why I was confused why the gcc-473 patches from mmots aren't
->> there.
->
-> Things look a bit better now.
+Please continue this email thread to decide how to proceed with these changes.
+If multiple committers are identified for this file, please elect or self-elect an owner of the merge action. 
+Execute and commit the merge and reply on this email modifying the subject with <CLOSING> prefix.
 
-Yup, I can confirm all 4 patches are there now.  Things should be in
-good shape for the next -next.
+When a moderator receives this closing email, the corresponding status entry for this file will be deleted as completed.
+If no closing email is sent, the reminder email will be triggered again for duration of a week from the original request.
+After one week of inactivity the moderator declares that merge for this file is not needed and no further actions required to sync these branches.
 
-Thanks,
+Please execute following steps to replicate the git merge environment
 
-Kevin
+git clone ssh://<your name>@dev.cumulusnetworks.com/home/trac/cumulus.git --branch CumulusLinux-2.5_br
+git checkout CumulusLinux-2.6_br
+git merge CumulusLinux-2.5_br
+git status
+
+*
+*
+*
+
+4c4
+< index 313381c..de7701d 100644
+---
+> index ab98dc6..f206e4b 100644
+7c7
+< @@ -3493,7 +3493,7 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
+---
+> @@ -3496,7 +3496,7 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
