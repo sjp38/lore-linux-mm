@@ -1,89 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id F3B836B006C
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 10:24:05 -0400 (EDT)
-Received: by igblo3 with SMTP id lo3so40611130igb.1
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 07:24:05 -0700 (PDT)
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C1506B006E
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 10:24:09 -0400 (EDT)
+Received: by iebmp1 with SMTP id mp1so75190220ieb.0
+        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 07:24:09 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id k191si9720742iok.7.2015.04.08.07.24.05
+        by mx.google.com with ESMTP id m3si9737958ige.4.2015.04.08.07.24.08
         for <linux-mm@kvack.org>;
-        Wed, 08 Apr 2015 07:24:05 -0700 (PDT)
+        Wed, 08 Apr 2015 07:24:08 -0700 (PDT)
 From: Arnaldo Carvalho de Melo <acme@kernel.org>
-Subject: [PATCH 03/19] tools lib traceevent: Honor operator priority
-Date: Wed,  8 Apr 2015 11:23:23 -0300
-Message-Id: <1428503019-23820-4-git-send-email-acme@kernel.org>
+Subject: [PATCH 04/19] perf kmem: Respect -i option
+Date: Wed,  8 Apr 2015 11:23:24 -0300
+Message-Id: <1428503019-23820-5-git-send-email-acme@kernel.org>
 In-Reply-To: <1428503019-23820-1-git-send-email-acme@kernel.org>
 References: <1428503019-23820-1-git-send-email-acme@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@kernel.org>
-Cc: linux-kernel@vger.kernel.org, Namhyung Kim <namhyung@kernel.org>, David Ahern <dsahern@gmail.com>, Jiri Olsa <jolsa@redhat.com>, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Arnaldo Carvalho de Melo <acme@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Jiri Olsa <jolsa@kernel.org>, David Ahern <dsahern@gmail.com>, Jiri Olsa <jolsa@redhat.com>, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Namhyung Kim <namhyung@kernel.org>, Arnaldo Carvalho de Melo <acme@redhat.com>
 
-From: Namhyung Kim <namhyung@kernel.org>
+From: Jiri Olsa <jolsa@kernel.org>
 
-Currently it ignores operator priority and just sets processed args as a
-right operand.  But it could result in priority inversion in case that
-the right operand is also a operator arg and its priority is lower.
+Currently the perf kmem does not respect -i option.
 
-For example, following print format is from new kmem events.
+Initializing the file.path properly after options get parsed.
 
-  "page=%p", REC->pfn != -1UL ? (((struct page *)(0xffffea0000000000UL)) + (REC->pfn)) : ((void *)0)
-
-But this was treated as below:
-
-  REC->pfn != ((null - 1UL) ? ((struct page *)0xffffea0000000000UL + REC->pfn) : (void *) 0)
-
-In this case, the right arg was '?' operator which has lower priority.
-But it just sets the whole arg so making the output confusing - page was
-always 0 or 1 since that's the result of logical operation.
-
-With this patch, it can handle it properly like following:
-
-  ((REC->pfn != (null - 1UL)) ? ((struct page *)0xffffea0000000000UL + REC->pfn) : (void *) 0)
-
-Signed-off-by: Namhyung Kim <namhyung@kernel.org>
-Acked-by: Steven Rostedt <rostedt@goodmis.org>
+Signed-off-by: Jiri Olsa <jolsa@kernel.org>
 Cc: David Ahern <dsahern@gmail.com>
 Cc: Jiri Olsa <jolsa@redhat.com>
 Cc: Joonsoo Kim <js1304@gmail.com>
 Cc: Minchan Kim <minchan@kernel.org>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/1428298576-9785-10-git-send-email-namhyung@kernel.org
-[ Replaced 'swap' with 'rotate' in a comment as requested by Steve and agreed by Namhyung ]
+Link: http://lkml.kernel.org/r/1428298576-9785-2-git-send-email-namhyung@kernel.org
+Signed-off-by: Namhyung Kim <namhyung@kernel.org>
 Signed-off-by: Arnaldo Carvalho de Melo <acme@redhat.com>
 ---
- tools/lib/traceevent/event-parse.c | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ tools/perf/builtin-kmem.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/tools/lib/traceevent/event-parse.c b/tools/lib/traceevent/event-parse.c
-index 6d31b6419d37..12a7e2a40c89 100644
---- a/tools/lib/traceevent/event-parse.c
-+++ b/tools/lib/traceevent/event-parse.c
-@@ -1939,7 +1939,22 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
- 			goto out_warn_free;
+diff --git a/tools/perf/builtin-kmem.c b/tools/perf/builtin-kmem.c
+index ac303ef9f2f0..4ebf65c79434 100644
+--- a/tools/perf/builtin-kmem.c
++++ b/tools/perf/builtin-kmem.c
+@@ -663,7 +663,6 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
+ {
+ 	const char * const default_sort_order = "frag,hit,bytes";
+ 	struct perf_data_file file = {
+-		.path = input_name,
+ 		.mode = PERF_DATA_MODE_READ,
+ 	};
+ 	const struct option kmem_options[] = {
+@@ -701,6 +700,8 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
+ 		return __cmd_record(argc, argv);
+ 	}
  
- 		type = process_arg_token(event, right, tok, type);
--		arg->op.right = right;
++	file.path = input_name;
 +
-+		if (right->type == PRINT_OP &&
-+		    get_op_prio(arg->op.op) < get_op_prio(right->op.op)) {
-+			struct print_arg tmp;
-+
-+			/* rotate ops according to the priority */
-+			arg->op.right = right->op.left;
-+
-+			tmp = *arg;
-+			*arg = *right;
-+			*right = tmp;
-+
-+			arg->op.left = right;
-+		} else {
-+			arg->op.right = right;
-+		}
- 
- 	} else if (strcmp(token, "[") == 0) {
- 
+ 	session = perf_session__new(&file, false, &perf_kmem);
+ 	if (session == NULL)
+ 		return -1;
 -- 
 1.9.3
 
