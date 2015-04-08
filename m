@@ -1,39 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D85F6B006E
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 14:24:29 -0400 (EDT)
-Received: by iggg4 with SMTP id g4so47288217igg.0
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 11:24:28 -0700 (PDT)
-Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
-        by mx.google.com with ESMTPS id dz5si189135icb.102.2015.04.08.11.24.28
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 37C756B0032
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 15:29:15 -0400 (EDT)
+Received: by wiaa2 with SMTP id a2so71387735wia.0
+        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 12:29:14 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e2si20268187wij.118.2015.04.08.12.29.12
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 08 Apr 2015 11:24:28 -0700 (PDT)
-Date: Wed, 8 Apr 2015 13:24:26 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH -mm] slab: use cgroup ino for naming per memcg caches
-In-Reply-To: <20150408181911.GA18199@esperanza>
-Message-ID: <alpine.DEB.2.11.1504081323390.20694@gentwo.org>
-References: <1428414798-12932-1-git-send-email-vdavydov@parallels.com> <20150407133819.993be7a53a3aa16311aba1f5@linux-foundation.org> <20150408095404.GC10286@esperanza> <alpine.DEB.2.11.1504080845200.13120@gentwo.org> <20150408181911.GA18199@esperanza>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 08 Apr 2015 12:29:13 -0700 (PDT)
+Message-ID: <1428521343.11099.4.camel@stgolabs.net>
+Subject: Re: HugePages_Rsvd leak
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Wed, 08 Apr 2015 12:29:03 -0700
+In-Reply-To: <20150408161539.GA29546@sbohrermbp13-local.rgmadvisors.com>
+References: <20150408161539.GA29546@sbohrermbp13-local.rgmadvisors.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Shawn Bohrer <shawn.bohrer@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 8 Apr 2015, Vladimir Davydov wrote:
+On Wed, 2015-04-08 at 11:15 -0500, Shawn Bohrer wrote:
+> AnonHugePages:    241664 kB
+> HugePages_Total:     512
+> HugePages_Free:      512
+> HugePages_Rsvd:      384
+> HugePages_Surp:        0
+> Hugepagesize:       2048 kB
+> 
+> So here I have 384 pages reserved and I can't find anything that is
+> using them. 
 
-> Yeah, I think cache merging is a good argument for grouping memcg caches
-> under /sys/kernel/slab/<slab-name>/cgroup/. We cannot maintain symlinks
-> for merged memcg caches, because when a memcg cache is created we do not
-> have names of caches the new cache is merged with. If memcg caches were
-> listed under /sys/kernel/slab/ along with global ones, absence of the
-> symlinks would lead to confusion.
-
-The point of the unique name creation is to not have to use the name given
-by the user for the slab. You can generate a unique identifier and use
-that as a target for the symlink.
-
+The output clearly shows all available hugepages are free, Why are you
+assuming that reserved implies allocated/in use? This is not true,
+please read one of the millions of docs out there -- you can start with:
+https://www.kernel.org/doc/Documentation/vm/hugetlbpage.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
