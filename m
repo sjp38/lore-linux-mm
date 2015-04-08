@@ -1,75 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 79AF46B0032
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 14:13:32 -0400 (EDT)
-Received: by qgfi89 with SMTP id i89so32569833qgf.1
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 11:13:32 -0700 (PDT)
-Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
-        by mx.google.com with ESMTPS id g80si11665353qge.102.2015.04.08.11.13.30
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 276D06B006E
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 14:19:22 -0400 (EDT)
+Received: by pabsx10 with SMTP id sx10so122329956pab.3
+        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 11:19:21 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id gh3si17398640pbd.145.2015.04.08.11.19.21
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 08 Apr 2015 11:13:30 -0700 (PDT)
-Date: Wed, 8 Apr 2015 13:13:29 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: slub bulk alloc: Extract objects from the per cpu slab
-Message-ID: <alpine.DEB.2.11.1504081311070.20469@gentwo.org>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Apr 2015 11:19:21 -0700 (PDT)
+Date: Wed, 8 Apr 2015 21:19:11 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm] slab: use cgroup ino for naming per memcg caches
+Message-ID: <20150408181911.GA18199@esperanza>
+References: <1428414798-12932-1-git-send-email-vdavydov@parallels.com>
+ <20150407133819.993be7a53a3aa16311aba1f5@linux-foundation.org>
+ <20150408095404.GC10286@esperanza>
+ <alpine.DEB.2.11.1504080845200.13120@gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.11.1504080845200.13120@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: brouer@redhat.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-First piece: accelleration of retrieval of per cpu objects
+On Wed, Apr 08, 2015 at 08:46:22AM -0500, Christoph Lameter wrote:
+> On Wed, 8 Apr 2015, Vladimir Davydov wrote:
+> 
+> > has its own copy of kmem cache. What if we decide to share the same kmem
+> > cache among all memory cgroups one day? Of course, this will hardly ever
+> > happen, but it is an alternative approach to implementing the same
+> 
+> /sys/kernel/slab already supports the use of symlinks. And both SLAB and
+> SLUB do slab merging which means effectively an aliasing of multiple slab
+> caches to the same name.
 
+Yeah, I think cache merging is a good argument for grouping memcg caches
+under /sys/kernel/slab/<slab-name>/cgroup/. We cannot maintain symlinks
+for merged memcg caches, because when a memcg cache is created we do not
+have names of caches the new cache is merged with. If memcg caches were
+listed under /sys/kernel/slab/ along with global ones, absence of the
+symlinks would lead to confusion.
 
-If we are allocating lots of objects then it is advantageous to
-disable interrupts and avoid the this_cpu_cmpxchg() operation to
-get these objects faster. Note that we cannot do the fast operation
-if debugging is enabled. Note also that the requirement of having
-interrupts disabled avoids having to do processor flag operations.
-
-Allocate as many objects as possible in the fast way and then fall
-back to the generic implementation for the rest of the objects.
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c
-+++ linux/mm/slub.c
-@@ -2761,7 +2761,32 @@ EXPORT_SYMBOL(kmem_cache_free_bulk);
- bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
- 								void **p)
- {
--	return kmem_cache_alloc_bulk(s, flags, size, p);
-+	if (!kmem_cache_debug(s)) {
-+		struct kmem_cache_cpu *c;
-+
-+		/* Drain objects in the per cpu slab */
-+		local_irq_disable();
-+		c = this_cpu_ptr(s->cpu_slab);
-+
-+		while (size) {
-+			void *object = c->freelist;
-+
-+			if (!object)
-+				break;
-+
-+			c->freelist = get_freepointer(s, object);
-+			*p++ = object;
-+			size--;
-+
-+			if (unlikely(flags & __GFP_ZERO))
-+				memset(object, 0, s->object_size);
-+		}
-+		c->tid = next_tid(c->tid);
-+
-+		local_irq_enable();
-+	}
-+
-+	return __kmem_cache_alloc_bulk(s, flags, size, p);
- }
- EXPORT_SYMBOL(kmem_cache_alloc_bulk);
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
