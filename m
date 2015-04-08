@@ -1,75 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 411226B0032
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 10:05:06 -0400 (EDT)
-Received: by pdbnk13 with SMTP id nk13so116677694pdb.0
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 07:05:06 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id j2si16754722pdp.128.2015.04.08.07.05.04
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Apr 2015 07:05:05 -0700 (PDT)
-Date: Wed, 8 Apr 2015 17:04:46 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: [next:master 9613/10050] mm/cma_debug.c:45 cma_used_get() warn:
- should 'used << cma->order_per_bit' be a 64 bit type?
-Message-ID: <20150408140446.GR16501@mwanda>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id A7B536B0032
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 10:23:49 -0400 (EDT)
+Received: by iebmp1 with SMTP id mp1so75180718ieb.0
+        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 07:23:49 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTP id e136si9698347ioe.66.2015.04.08.07.23.48
+        for <linux-mm@kvack.org>;
+        Wed, 08 Apr 2015 07:23:49 -0700 (PDT)
+From: Arnaldo Carvalho de Melo <acme@kernel.org>
+Subject: [GIT PULL 00/19] perf/core improvements and fixes
+Date: Wed,  8 Apr 2015 11:23:20 -0300
+Message-Id: <1428503019-23820-1-git-send-email-acme@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild@01.org, Stefan Strogin <stefan.strogin@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Dan Carpenter <dan.carpenter@oracle.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, Arnaldo Carvalho de Melo <acme@kernel.org>, Adrian Hunter <adrian.hunter@intel.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bp@alien8.de>, David Ahern <dsahern@gmail.com>, Frederic Weisbecker <fweisbec@gmail.com>, He Kuang <hekuang@huawei.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Olsa <jolsa@redhat.com>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>, Kaixu Xia <kaixu.xia@linaro.org>, Kan Liang <kan.liang@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Markus T Metzger <markus.t.metzger@intel.com>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Mathieu Poirier <mathieu.poirier@linaro.org>, Mike Galbraith <efault@gmx.de>, Minchan Kim <minchan@kernel.org>, Namhyung Kim <namhyung@kernel.org>, Paul Mackerras <paulus@samba.org>, Peter Zijlstra <peterz@infradead.org>, pi3orama@163.com, Robert Richter <rric@kernel.org>, Stephane Eranian <eranian@google.com>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Wang Nan <wangnan0@huawei.com>, William Cohen <wcohen@redhat.com>, Yunlong Song <yunlong.song@huawei.com>, Zefan Li <lizefan@huawei.com>, Arnaldo Carvalho de Melo <acme@redhat.com>
 
-tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-head:   a897436e0e233e84b664bb7f33c4e0d4d3e3bdad
-commit: 8b0c0ea86849b55091281d146d62bbd9cda87556 [9613/10050] mm-cma-add-functions-to-get-region-pages-counters-fix-2
+Hi Ingo,
 
-mm/cma_debug.c:45 cma_used_get() warn: should 'used << cma->order_per_bit' be a 64 bit type?
-mm/cma_debug.c:67 cma_maxchunk_get() warn: should 'maxchunk << cma->order_per_bit' be a 64 bit type?
+        Please consider pulling, it is the pull req from yesterday, minus a patch
+that introduced a problem, plus a fex fixes.
 
-git remote add next git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
-git remote update next
-git checkout 8b0c0ea86849b55091281d146d62bbd9cda87556
-vim +45 mm/cma_debug.c
+        I am investigating a problem I noticed for another patch that is upstream
+and after that will get back to the removed patch from yesterday's batch,
 
-8b0c0ea8 Stefan Strogin 2015-04-08  39  	unsigned long used;
-c8e6dfcb Dmitry Safonov 2015-04-08  40  
-8b0c0ea8 Stefan Strogin 2015-04-08  41  	mutex_lock(&cma->lock);
-8b0c0ea8 Stefan Strogin 2015-04-08  42  	/* pages counter is smaller than sizeof(int) */
-8b0c0ea8 Stefan Strogin 2015-04-08  43  	used = bitmap_weight(cma->bitmap, (int)cma->count);
-8b0c0ea8 Stefan Strogin 2015-04-08  44  	mutex_unlock(&cma->lock);
-8b0c0ea8 Stefan Strogin 2015-04-08 @45  	*val = used << cma->order_per_bit;
-c8e6dfcb Dmitry Safonov 2015-04-08  46  
-c8e6dfcb Dmitry Safonov 2015-04-08  47  	return 0;
-c8e6dfcb Dmitry Safonov 2015-04-08  48  }
-c8e6dfcb Dmitry Safonov 2015-04-08  49  
-c8e6dfcb Dmitry Safonov 2015-04-08  50  DEFINE_SIMPLE_ATTRIBUTE(cma_used_fops, cma_used_get, NULL, "%llu\n");
-c8e6dfcb Dmitry Safonov 2015-04-08  51  
-c8e6dfcb Dmitry Safonov 2015-04-08  52  static int cma_maxchunk_get(void *data, u64 *val)
-c8e6dfcb Dmitry Safonov 2015-04-08  53  {
-c8e6dfcb Dmitry Safonov 2015-04-08  54  	struct cma *cma = data;
-8b0c0ea8 Stefan Strogin 2015-04-08  55  	unsigned long maxchunk = 0;
-8b0c0ea8 Stefan Strogin 2015-04-08  56  	unsigned long start, end = 0;
-c8e6dfcb Dmitry Safonov 2015-04-08  57  
-8b0c0ea8 Stefan Strogin 2015-04-08  58  	mutex_lock(&cma->lock);
-8b0c0ea8 Stefan Strogin 2015-04-08  59  	for (;;) {
-8b0c0ea8 Stefan Strogin 2015-04-08  60  		start = find_next_zero_bit(cma->bitmap, cma->count, end);
-8b0c0ea8 Stefan Strogin 2015-04-08  61  		if (start >= cma->count)
-8b0c0ea8 Stefan Strogin 2015-04-08  62  			break;
-8b0c0ea8 Stefan Strogin 2015-04-08  63  		end = find_next_bit(cma->bitmap, cma->count, start);
-8b0c0ea8 Stefan Strogin 2015-04-08  64  		maxchunk = max(end - start, maxchunk);
-8b0c0ea8 Stefan Strogin 2015-04-08  65  	}
-8b0c0ea8 Stefan Strogin 2015-04-08  66  	mutex_unlock(&cma->lock);
-8b0c0ea8 Stefan Strogin 2015-04-08 @67  	*val = maxchunk << cma->order_per_bit;
-c8e6dfcb Dmitry Safonov 2015-04-08  68  
-c8e6dfcb Dmitry Safonov 2015-04-08  69  	return 0;
-c8e6dfcb Dmitry Safonov 2015-04-08  70  }
+- Arnaldo
 
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+The following changes since commit 6645f3187f5beb64f7a40515cfa18f3889264ece:
+
+  Merge tag 'perf-core-for-mingo' of git://git.kernel.org/pub/scm/linux/kernel/git/acme/linux into perf/core (2015-04-03 07:00:02 +0200)
+
+are available in the git repository at:
+
+
+  git://git.kernel.org/pub/scm/linux/kernel/git/acme/linux.git tags/perf-core-for-mingo
+
+for you to fetch changes up to a1e12da4796a4ddd0e911687a290eb396d1c64bf:
+
+  perf tools: Add 'I' event modifier for exclude_idle bit (2015-04-08 11:00:16 -0300)
+
+----------------------------------------------------------------
+perf/core improvements and fixes:
+
+- Teach about perf_event_attr.clockid to 'perf record' (Peter Zijlstra)
+
+- perf sched replay improvements for high CPU core count machines (Yunlong Song)
+
+- Consider PERF_RECORD_ events with cpumode == 0 in 'perf top', removing one
+  cause of long term memory usage buildup, i.e. not processing PERF_RECORD_EXIT
+  events (Arnaldo Carvalho de Melo)
+
+- Add 'I' event modifier for perf_event_attr.exclude_idle bit (Jiri Olsa)
+
+- Respect -i option 'in perf kmem' (Jiri Olsa)
+
+Infrastructure:
+
+- Honor operator priority in libtraceevent (Namhyung Kim)
+
+- Merge all perf_event_attr print functions (Peter Zijlstra)
+
+- Check kmaps access to make code more robust (Wang Nan)
+
+- Fix inverted logic in perf_mmap__empty() (He Kuang)
+
+- Fix ARM 32 'perf probe' building error (Wang Nan)
+
+- Fix perf_event_attr tests (Jiri Olsa)
+
+Signed-off-by: Arnaldo Carvalho de Melo <acme@redhat.com>
+
+----------------------------------------------------------------
+He Kuang (1):
+      perf evlist: Fix inverted logic in perf_mmap__empty
+
+Jiri Olsa (3):
+      perf kmem: Respect -i option
+      perf tests: Fix attr tests
+      perf tools: Add 'I' event modifier for exclude_idle bit
+
+Namhyung Kim (1):
+      tools lib traceevent: Honor operator priority
+
+Peter Zijlstra (2):
+      perf record: Add clockid parameter
+      perf tools: Merge all perf_event_attr print functions
+
+Wang Nan (3):
+      perf kmaps: Check kmaps to make code more robust
+      perf probe: Fix ARM 32 building error
+      perf report: Don't call map__kmap if map is NULL.
+
+Yunlong Song (9):
+      perf sched replay: Use struct task_desc instead of struct task_task for correct meaning
+      perf sched replay: Increase the MAX_PID value to fix assertion failure problem
+      perf sched replay: Alloc the memory of pid_to_task dynamically to adapt to the unexpected change of pid_max
+      perf sched replay: Realloc the memory of pid_to_task stepwise to adapt to the different pid_max configurations
+      perf sched replay: Fix the segmentation fault problem caused by pr_err in threads
+      perf sched replay: Handle the dead halt of sem_wait when create_tasks() fails for any task
+      perf sched replay: Fix the EMFILE error caused by the limitation of the maximum open files
+      perf sched replay: Support using -f to override perf.data file ownership
+      perf sched replay: Use replay_repeat to calculate the runavg of cpu usage instead of the default value 10
+
+ tools/lib/traceevent/event-parse.c       |  17 +-
+ tools/perf/Documentation/perf-list.txt   |   1 +
+ tools/perf/Documentation/perf-record.txt |   7 +
+ tools/perf/builtin-kmem.c                |   3 +-
+ tools/perf/builtin-record.c              |  87 +++++++++
+ tools/perf/builtin-report.c              |   2 +-
+ tools/perf/builtin-sched.c               |  67 +++++--
+ tools/perf/perf.h                        |   2 +
+ tools/perf/tests/attr/base-record        |   2 +-
+ tools/perf/tests/attr/base-stat          |   2 +-
+ tools/perf/tests/parse-events.c          |  40 ++++
+ tools/perf/util/evlist.c                 |   2 +-
+ tools/perf/util/evsel.c                  | 325 ++++++++++++++++---------------
+ tools/perf/util/evsel.h                  |   6 +
+ tools/perf/util/header.c                 |  28 +--
+ tools/perf/util/machine.c                |   5 +-
+ tools/perf/util/map.c                    |  20 ++
+ tools/perf/util/map.h                    |   6 +-
+ tools/perf/util/parse-events.c           |   8 +-
+ tools/perf/util/parse-events.l           |   2 +-
+ tools/perf/util/probe-event.c            |   5 +-
+ tools/perf/util/session.c                |   3 +
+ tools/perf/util/symbol-elf.c             |  16 +-
+ tools/perf/util/symbol.c                 |  34 +++-
+ 24 files changed, 477 insertions(+), 213 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
