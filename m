@@ -1,207 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 361486B006E
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 21:46:36 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so97801684pde.3
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 18:46:35 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id fo5si14143700pdb.93.2015.04.07.18.46.34
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 32C026B006E
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2015 21:48:20 -0400 (EDT)
+Received: by qkgx75 with SMTP id x75so67843574qkg.1
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2015 18:48:20 -0700 (PDT)
+Received: from BLU004-OMC1S2.hotmail.com (blu004-omc1s2.hotmail.com. [65.55.116.13])
+        by mx.google.com with ESMTPS id h13si9403625qhc.98.2015.04.07.18.48.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 07 Apr 2015 18:46:34 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [RFC PATCH v3 2/2] tracing: add trace event for memory-failure
-Date: Wed, 8 Apr 2015 01:35:23 +0000
-Message-ID: <20150408013522.GA24617@hori1.linux.bs1.fc.nec.co.jp>
-References: <1428404731-21565-1-git-send-email-xiexiuqi@huawei.com>
- <1428404731-21565-3-git-send-email-xiexiuqi@huawei.com>
-In-Reply-To: <1428404731-21565-3-git-send-email-xiexiuqi@huawei.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <77495AA0FBC5FA47A2F0AAC3989C5CF7@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 07 Apr 2015 18:48:19 -0700 (PDT)
+Message-ID: <BLU436-SMTP2455A39CB8EF56CED4137DDBAFC0@phx.gbl>
+From: Neil Zhang <neilzhang1123@hotmail.com>
+Subject: [PATCH] mm: show free pages per each migrate type
+Date: Wed, 8 Apr 2015 09:48:06 +0800
 MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xie XiuQi <xiexiuqi@huawei.com>
-Cc: "rostedt@goodmis.org" <rostedt@goodmis.org>, "mingo@redhat.com" <mingo@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "koct9i@gmail.com" <koct9i@gmail.com>, "hpa@linux.intel.com" <hpa@linux.intel.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "luto@amacapital.net" <luto@amacapital.net>, "nasa4836@gmail.com" <nasa4836@gmail.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "bhelgaas@google.com" <bhelgaas@google.com>, "bp@suse.de" <bp@suse.de>, "tony.luck@intel.com" <tony.luck@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, Neil Zhang <neilzhang1123@hotmail.com>
 
-On Tue, Apr 07, 2015 at 07:05:31PM +0800, Xie XiuQi wrote:
-> RAS user space tools like rasdaemon which base on trace event, could
-> receive mce error event, but no memory recovery result event. So, I
-> want to add this event to make this scenario complete.
->=20
-> This patch add a event at ras group for memory-failure.
->=20
-> The output like below:
-> #  tracer: nop
-> #
-> #  entries-in-buffer/entries-written: 2/2   #P:24
-> #
-> #                               _-----=3D> irqs-off
-> #                              / _----=3D> need-resched
-> #                             | / _---=3D> hardirq/softirq
-> #                             || / _--=3D> preempt-depth
-> #                             ||| /     delay
-> #            TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION
-> #               | |       |   ||||       |         |
->        mce-inject-13150 [001] ....   277.019359: memory_failure_event: pf=
-n 0x19869: recovery action for free buddy page: Delayed
->=20
->=20
-> Cc: Tony Luck <tony.luck@intel.com>
-> Cc: Steven Rostedt <rostedt@goodmis.org>
-> Signed-off-by: Xie XiuQi <xiexiuqi@huawei.com>
-> ---
->  include/ras/ras_event.h | 83 +++++++++++++++++++++++++++++++++++++++++++=
-++++++
->  kernel/trace/trace.c    |  2 +-
->  mm/memory-failure.c     |  2 ++
->  3 files changed, 86 insertions(+), 1 deletion(-)
->=20
-> diff --git a/include/ras/ras_event.h b/include/ras/ras_event.h
-> index 79abb9c..52c75f2 100644
-> --- a/include/ras/ras_event.h
-> +++ b/include/ras/ras_event.h
-> @@ -11,6 +11,7 @@
->  #include <linux/pci.h>
->  #include <linux/aer.h>
->  #include <linux/cper.h>
-> +#include <linux/mm.h>
-> =20
->  /*
->   * MCE Extended Error Log trace event
-> @@ -232,6 +233,88 @@ TRACE_EVENT(aer_event,
->  		__print_flags(__entry->status, "|", aer_uncorrectable_errors))
->  );
-> =20
-> +/*
-> + * memory-failure recovery action result event
-> + *
-> + * unsigned long pfn -	Page Number of the corrupted page
+show detailed free pages per each migrate type in show_free_areas.
 
-Hi XiuQi,
+Signed-off-by: Neil Zhang <neilzhang1123@hotmail.com>
+---
+ mm/internal.h   |    2 ++
+ mm/page_alloc.c |   55 ++++++++++++++++++++++++++-----------------------------
+ mm/vmstat.c     |   13 -------------
+ 3 files changed, 28 insertions(+), 42 deletions(-)
 
-I think "Page Frame Number" is better.
-
-And embracing these definition code with #ifdef CONFIG_MEMORY_FAILURE might
-be helpful if it reduces binary size for !CONFIG_MEMORY_FAILURE build?
-
-Thanks,
-Naoya Horiguchi
-
-> + * int type	-	Page types of the corrupted page
-> + * int result	-	Result of recovery action
-> + */
-> +
-> +#define MF_ACTION_RESULT	\
-> +	EM ( MF_IGNORED, "Ignord" )	\
-> +	EM ( MF_FAILED,  "Failed" )	\
-> +	EM ( MF_DELAYED, "Delayed" )	\
-> +	EMe ( MF_RECOVERED, "Recovered" )
-> +
-> +#define MF_PAGE_TYPE		\
-> +	EM ( MF_KERNEL, "reserved kernel page" )			\
-> +	EM ( MF_KERNEL_HIGH_ORDER, "high-order kernel page" )		\
-> +	EM ( MF_SLAB, "kernel slab page" )				\
-> +	EM ( MF_DIFFERENT_COMPOUND, "different compound page after locking" ) \
-> +	EM ( MF_POISONED_HUGE, "huge page already hardware poisoned" )	\
-> +	EM ( MF_HUGE, "huge page" )					\
-> +	EM ( MF_FREE_HUGE, "free huge page" )				\
-> +	EM ( MF_UNMAP_FAILED, "unmapping failed page" )			\
-> +	EM ( MF_DIRTY_SWAPCACHE, "dirty swapcache page" )		\
-> +	EM ( MF_CLEAN_SWAPCACHE, "clean swapcache page" )		\
-> +	EM ( MF_DIRTY_MLOCKED_LRU, "dirty mlocked LRU page" )		\
-> +	EM ( MF_CLEAN_MLOCKED_LRU, "clean mlocked LRU page" )		\
-> +	EM ( MF_DIRTY_UNEVICTABLE_LRU, "dirty unevictable LRU page" )	\
-> +	EM ( MF_CLEAN_UNEVICTABLE_LRU, "clean unevictable LRU page" )	\
-> +	EM ( MF_DIRTY_LRU, "dirty LRU page" )				\
-> +	EM ( MF_CLEAN_LRU, "clean LRU page" )				\
-> +	EM ( MF_TRUNCATED_LRU, "already truncated LRU page" )		\
-> +	EM ( MF_BUDDY, "free buddy page" )				\
-> +	EM ( MF_BUDDY_2ND, "free buddy page (2nd try)" )		\
-> +	EMe ( MF_UNKNOWN, "unknown page" )
-> +
-> +/*
-> + * First define the enums in MM_ACTION_RESULT to be exported to userspac=
-e
-> + * via TRACE_DEFINE_ENUM().
-> + */
-> +#undef EM
-> +#undef EMe
-> +#define EM(a,b) TRACE_DEFINE_ENUM(a);
-> +#define EMe(a,b)	TRACE_DEFINE_ENUM(a);
-> +
-> +MF_ACTION_RESULT
-> +MF_PAGE_TYPE
-> +
-> +/*
-> + * Now redefine the EM() and EMe() macros to map the enums to the string=
-s
-> + * that will be printed in the output.
-> + */
-> +#undef EM
-> +#undef EMe
-> +#define EM(a,b)		{ a, b },
-> +#define EMe(a,b)	{ a, b }
-> +
-> +TRACE_EVENT(memory_failure_event,
-> +	TP_PROTO(unsigned long pfn,
-> +		 int type,
-> +		 int result),
-> +
-> +	TP_ARGS(pfn, type, result),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(unsigned long, pfn)
-> +		__field(int, type)
-> +		__field(int, result)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->pfn	=3D pfn;
-> +		__entry->type	=3D type;
-> +		__entry->result	=3D result;
-> +	),
-> +
-> +	TP_printk("pfn %#lx: recovery action for %s: %s",
-> +		__entry->pfn,
-> +		__print_symbolic(__entry->type, MF_PAGE_TYPE),
-> +		__print_symbolic(__entry->result, MF_ACTION_RESULT)
-> +	)
-> +);
->  #endif /* _TRACE_HW_EVENT_MC_H */
-> =20
->  /* This part must be outside protection */
-> diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-> index 25334e7..f5e8856 100644
-> --- a/kernel/trace/trace.c
-> +++ b/kernel/trace/trace.c
-> @@ -6776,7 +6776,7 @@ static struct notifier_block trace_module_nb =3D {
->  };
->  #endif
-> =20
-> -static __init int tracer_init_debugfs(void)
-> +static __init int tracer_init_tracefs(void)
->  {
->  	struct dentry *d_tracer;
-> =20
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 34e9c65..d118af8 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -850,6 +850,8 @@ static struct page_state {
->   */
->  static void action_result(unsigned long pfn, int type, int result)
->  {
-> +	trace_memory_failure_event(pfn, type, result);
-> +
->  	pr_err("MCE %#lx: recovery action for %s: %s\n",
->  		pfn, action_page_type[type], action_name[result]);
->  }
-> --=20
-> 1.8.3.1
-> =
+diff --git a/mm/internal.h b/mm/internal.h
+index a96da5b..5cb3079 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -14,6 +14,8 @@
+ #include <linux/fs.h>
+ #include <linux/mm.h>
+ 
++extern char * const migratetype_names[MIGRATE_TYPES];
++
+ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+ 		unsigned long floor, unsigned long ceiling);
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 40e2942..2d70892 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3170,32 +3170,18 @@ out:
+ 
+ #define K(x) ((x) << (PAGE_SHIFT-10))
+ 
+-static void show_migration_types(unsigned char type)
+-{
+-	static const char types[MIGRATE_TYPES] = {
+-		[MIGRATE_UNMOVABLE]	= 'U',
+-		[MIGRATE_RECLAIMABLE]	= 'E',
+-		[MIGRATE_MOVABLE]	= 'M',
+-		[MIGRATE_RESERVE]	= 'R',
++char * const migratetype_names[MIGRATE_TYPES] = {
++	"Unmovable",
++	"Reclaimable",
++	"Movable",
++	"Reserve",
+ #ifdef CONFIG_CMA
+-		[MIGRATE_CMA]		= 'C',
++	"CMA",
+ #endif
+ #ifdef CONFIG_MEMORY_ISOLATION
+-		[MIGRATE_ISOLATE]	= 'I',
++	"Isolate",
+ #endif
+-	};
+-	char tmp[MIGRATE_TYPES + 1];
+-	char *p = tmp;
+-	int i;
+-
+-	for (i = 0; i < MIGRATE_TYPES; i++) {
+-		if (type & (1 << i))
+-			*p++ = types[i];
+-	}
+-
+-	*p = '\0';
+-	printk("(%s) ", tmp);
+-}
++};
+ 
+ /*
+  * Show free area list (used inside shift_scroll-lock stuff)
+@@ -3327,7 +3313,7 @@ void show_free_areas(unsigned int filter)
+ 
+ 	for_each_populated_zone(zone) {
+ 		unsigned long nr[MAX_ORDER], flags, order, total = 0;
+-		unsigned char types[MAX_ORDER];
++		unsigned long nr_free[MAX_ORDER][MIGRATE_TYPES], mtype;
+ 
+ 		if (skip_free_areas_node(filter, zone_to_nid(zone)))
+ 			continue;
+@@ -3337,24 +3323,35 @@ void show_free_areas(unsigned int filter)
+ 		spin_lock_irqsave(&zone->lock, flags);
+ 		for (order = 0; order < MAX_ORDER; order++) {
+ 			struct free_area *area = &zone->free_area[order];
++			struct list_head *curr;
+ 			int type;
+ 
+ 			nr[order] = area->nr_free;
+ 			total += nr[order] << order;
+ 
+-			types[order] = 0;
+ 			for (type = 0; type < MIGRATE_TYPES; type++) {
++				nr_free[order][type] = 0;
+ 				if (!list_empty(&area->free_list[type]))
+-					types[order] |= 1 << type;
++					list_for_each(curr, &area->free_list[type])
++						nr_free[order][type]++;
+ 			}
+ 		}
+ 		spin_unlock_irqrestore(&zone->lock, flags);
+-		for (order = 0; order < MAX_ORDER; order++) {
++		for (order = 0; order < MAX_ORDER; order++)
+ 			printk("%lu*%lukB ", nr[order], K(1UL) << order);
+-			if (nr[order])
+-				show_migration_types(types[order]);
+-		}
+ 		printk("= %lukB\n", K(total));
++
++		printk("%12s: ", "orders");
++		for (order = 0; order < MAX_ORDER; order++)
++			printk("%6lu ", order);
++		printk("\n");
++
++		for (mtype = 0; mtype < MIGRATE_TYPES; mtype++) {
++			printk("%12s: ", migratetype_names[mtype]);
++			for (order = 0; order < MAX_ORDER; order++)
++				printk("%6lu ", nr_free[order][mtype]);
++			printk("\n");
++		}
+ 	}
+ 
+ 	hugetlb_show_meminfo();
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 4f5cd97..699eeb3 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -897,19 +897,6 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
+ #endif
+ 
+ #ifdef CONFIG_PROC_FS
+-static char * const migratetype_names[MIGRATE_TYPES] = {
+-	"Unmovable",
+-	"Reclaimable",
+-	"Movable",
+-	"Reserve",
+-#ifdef CONFIG_CMA
+-	"CMA",
+-#endif
+-#ifdef CONFIG_MEMORY_ISOLATION
+-	"Isolate",
+-#endif
+-};
+-
+ static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
+ 						struct zone *zone)
+ {
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
