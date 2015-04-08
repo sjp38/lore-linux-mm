@@ -1,75 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id CE3CC6B0032
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 15:45:45 -0400 (EDT)
-Received: by pacyx8 with SMTP id yx8so124125175pac.1
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 12:45:45 -0700 (PDT)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id h8si18028523pde.174.2015.04.08.12.45.44
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A08B76B0032
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 16:19:30 -0400 (EDT)
+Received: by obbgh1 with SMTP id gh1so147671772obb.1
+        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 13:19:30 -0700 (PDT)
+Received: from mail-ob0-x22f.google.com (mail-ob0-x22f.google.com. [2607:f8b0:4003:c01::22f])
+        by mx.google.com with ESMTPS id y4si11766582oej.86.2015.04.08.13.19.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 08 Apr 2015 12:45:44 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NMI003QR72QUP70@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 08 Apr 2015 20:49:38 +0100 (BST)
-From: Dmitry Safonov <d.safonov@partner.samsung.com>
-Subject: [PATCH] mm-cma-add-functions-to-get-region-pages-counters-fix-3
-Date: Wed, 08 Apr 2015 22:45:36 +0300
-Message-id: <1428522336-9020-1-git-send-email-d.safonov@partner.samsung.com>
-In-reply-to: <20150408140446.GR16501@mwanda>
-References: <20150408140446.GR16501@mwanda>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Apr 2015 13:19:29 -0700 (PDT)
+Received: by oblw8 with SMTP id w8so106399303obl.0
+        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 13:19:29 -0700 (PDT)
+Date: Wed, 8 Apr 2015 15:19:26 -0500
+From: Shawn Bohrer <shawn.bohrer@gmail.com>
+Subject: Re: HugePages_Rsvd leak
+Message-ID: <20150408201926.GB29546@sbohrermbp13-local.rgmadvisors.com>
+References: <20150408161539.GA29546@sbohrermbp13-local.rgmadvisors.com>
+ <1428521343.11099.4.camel@stgolabs.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1428521343.11099.4.camel@stgolabs.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dan.carpenter@oracle.com
-Cc: kbuild@01.org, stefan.strogin@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, Dmitry Safonov <d.safonov@partner.samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, Aleksei Mateosian <a.mateosian@samsung.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Hocko <mhocko@suse.cz>
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Fix for the next compiler warnings:
-mm/cma_debug.c:45 cma_used_get() warn: should 'used << cma->order_per_bit' be a 64 bit type?
-mm/cma_debug.c:67 cma_maxchunk_get() warn: should 'maxchunk << cma->order_per_bit' be a 64 bit type?
-
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Nazarewicz <mina86@mina86.com>
-Cc: Stefan Strogin <stefan.strogin@gmail.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Pintu Kumar <pintu.k@samsung.com>
-Cc: Weijie Yang <weijie.yang@samsung.com>
-Cc: Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
-Cc: Vyacheslav Tyrtov <v.tyrtov@samsung.com>
-Cc: Aleksei Mateosian <a.mateosian@samsung.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Signed-off-by: Dmitry Safonov <d.safonov@partner.samsung.com>
----
- mm/cma_debug.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/cma_debug.c b/mm/cma_debug.c
-index 835e761..9459842 100644
---- a/mm/cma_debug.c
-+++ b/mm/cma_debug.c
-@@ -42,7 +42,7 @@ static int cma_used_get(void *data, u64 *val)
- 	/* pages counter is smaller than sizeof(int) */
- 	used = bitmap_weight(cma->bitmap, (int)cma->count);
- 	mutex_unlock(&cma->lock);
--	*val = used << cma->order_per_bit;
-+	*val = (u64)used << cma->order_per_bit;
+On Wed, Apr 08, 2015 at 12:29:03PM -0700, Davidlohr Bueso wrote:
+> On Wed, 2015-04-08 at 11:15 -0500, Shawn Bohrer wrote:
+> > AnonHugePages:    241664 kB
+> > HugePages_Total:     512
+> > HugePages_Free:      512
+> > HugePages_Rsvd:      384
+> > HugePages_Surp:        0
+> > Hugepagesize:       2048 kB
+> > 
+> > So here I have 384 pages reserved and I can't find anything that is
+> > using them. 
+> 
+> The output clearly shows all available hugepages are free, Why are you
+> assuming that reserved implies allocated/in use? This is not true,
+> please read one of the millions of docs out there -- you can start with:
+> https://www.kernel.org/doc/Documentation/vm/hugetlbpage.txt
  
- 	return 0;
- }
-@@ -64,7 +64,7 @@ static int cma_maxchunk_get(void *data, u64 *val)
- 		maxchunk = max(end - start, maxchunk);
- 	}
- 	mutex_unlock(&cma->lock);
--	*val = maxchunk << cma->order_per_bit;
-+	*val = (u64)maxchunk << cma->order_per_bit;
- 
- 	return 0;
- }
--- 
-2.3.5
+As that fine document states:
+
+HugePages_Rsvd  is short for "reserved," and is the number of huge pages for
+                which a commitment to allocate from the pool has been made,
+                but no allocation has yet been made.  Reserved huge pages
+                guarantee that an application will be able to allocate a
+                huge page from the pool of huge pages at fault time.
+
+Thus in my example above while I have 512 pages free 384 are reserved
+and therefore if a new application comes along it can only reserve/use
+the remaining 128 pages.
+
+For example:
+
+[scratch]$ grep Huge /proc/meminfo 
+AnonHugePages:         0 kB
+HugePages_Total:       1
+HugePages_Free:        1
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+
+[scratch]$ cat map_hugetlb.c
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/mman.h>
+
+#define LENGTH (2UL*1024*1024)
+#define PROTECTION (PROT_READ | PROT_WRITE)
+#define ADDR (void *)(0x0UL)
+#define FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB)
+
+int main(void)
+{
+        void *addr;
+        addr = mmap(ADDR, LENGTH, PROTECTION, FLAGS, 0, 0);
+        if (addr == MAP_FAILED) {
+                perror("mmap");
+                exit(1);
+        }
+
+        getchar();
+
+        munmap(addr, LENGTH);
+        return 0;
+}
+
+[scratch]$ make map_hugetlb
+cc     map_hugetlb.c   -o map_hugetlb
+
+[scratch]$ ./map_hugetlb &
+[1] 7359
+[1]+  Stopped                 ./map_hugetlb
+
+[scratch]$ grep Huge /proc/meminfo 
+AnonHugePages:         0 kB
+HugePages_Total:       1
+HugePages_Free:        1
+HugePages_Rsvd:        1
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+
+[scratch]$ ./map_hugetlb
+mmap: Cannot allocate memory
+
+
+As you can see I still have 1 huge page free but that one huge page is
+reserved by PID 7358.  If I then try to run a new map_hugetlb process
+the mmap fails because even though I have 1 page free it is reserved.
+
+Furthermore we can find that 7358 has that page in the following ways:
+
+[scratch]$ sudo grep "KernelPageSize:.*2048" /proc/*/smaps
+/proc/7359/smaps:KernelPageSize:     2048 kB
+[scratch]$ sudo grep "VmFlags:.*ht" /proc/*/smaps
+/proc/7359/smaps:VmFlags: rd wr mr mw me de ht sd
+[scratch]$ sudo grep -w huge /proc/*/numa_maps
+/proc/7359/numa_maps:7f3233000000 default file=/anon_hugepage\040(deleted) huge
+
+Which leads back to my original question.  I have machines that have a
+non-zero HugePages_Rsvd count but I cannot find any processes that
+seem to have those pages reserved using the three methods shown above.
+Is there some other way to identify which process has those pages
+reserved?  Or is there possibly a leak which is failing to decrement
+the reserve count?
+
+Thanks,
+Shawn
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
