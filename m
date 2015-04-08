@@ -1,116 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id EBBCD6B0088
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 19:13:11 -0400 (EDT)
-Received: by wgbdm7 with SMTP id dm7so103508177wgb.1
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 16:13:11 -0700 (PDT)
-Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
-        by mx.google.com with ESMTPS id k3si21051567wjx.90.2015.04.08.16.13.10
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id A10B66B008A
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 19:50:37 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so132005182pde.3
+        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 16:50:37 -0700 (PDT)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id bn3si711794pdb.161.2015.04.08.16.50.36
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Apr 2015 16:13:10 -0700 (PDT)
-Received: by widdi4 with SMTP id di4so72540494wid.0
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 16:13:10 -0700 (PDT)
+        Wed, 08 Apr 2015 16:50:36 -0700 (PDT)
+Received: by pabtp1 with SMTP id tp1so24570262pab.2
+        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 16:50:36 -0700 (PDT)
+Date: Thu, 9 Apr 2015 08:50:25 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 4/4] mm: make every pte dirty on do_swap_page
+Message-ID: <20150408235012.GA13690@blaptop>
+References: <1426036838-18154-1-git-send-email-minchan@kernel.org>
+ <1426036838-18154-4-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <55255F84.6060608@yandex-team.ru>
-References: <20150408165920.25007.6869.stgit@buzz> <55255F84.6060608@yandex-team.ru>
-From: Julian Calaby <julian.calaby@gmail.com>
-Date: Thu, 9 Apr 2015 09:12:49 +1000
-Message-ID: <CAGRGNgUseiLaKz+iPoe7U73HEu22durZjxROu-NE0EZcThhysA@mail.gmail.com>
-Subject: Re: [PATCH] of: return NUMA_NO_NODE from fallback of_node_to_nid()
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1426036838-18154-4-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: Grant Likely <grant.likely@linaro.org>, devicetree <devicetree@vger.kernel.org>, Rob Herring <robh+dt@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, sparclinux <sparclinux@vger.kernel.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Yalin.Wang@sonymobile.com, Hugh Dickins <hughd@google.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Pavel Emelyanov <xemul@parallels.com>
 
-Hi Konstantin,
+Bump.
 
-On Thu, Apr 9, 2015 at 3:04 AM, Konstantin Khlebnikov
-<khlebnikov@yandex-team.ru> wrote:
-> On 08.04.2015 19:59, Konstantin Khlebnikov wrote:
->>
->> Node 0 might be offline as well as any other numa node,
->> in this case kernel cannot handle memory allocation and crashes.
->
->
-> Example:
->
-> [    0.027133] ------------[ cut here ]------------
-> [    0.027938] kernel BUG at include/linux/gfp.h:322!
-> [    0.028000] invalid opcode: 0000 [#1] SMP
-> [    0.028000] Modules linked in:
-> [    0.028000] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.0.0-rc7 #12
-> [    0.028000] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
-> rel-1.7.5.1-0-g8936dbb-20141113_115728-nilsson.home.kraxel.org 04/01/2014
-> [    0.028000] task: ffff88007d3f8000 ti: ffff88007d3dc000 task.ti:
-> ffff88007d3dc000
-> [    0.028000] RIP: 0010:[<ffffffff8118574c>]  [<ffffffff8118574c>]
-> new_slab+0x30c/0x3c0
-> [    0.028000] RSP: 0000:ffff88007d3dfc28  EFLAGS: 00010246
-> [    0.028000] RAX: 0000000000000000 RBX: ffff88007d001800 RCX:
-> 0000000000000001
-> [    0.028000] RDX: 0000000000000000 RSI: 0000000000000000 RDI:
-> 00000000002012d0
-> [    0.028000] RBP: ffff88007d3dfc58 R08: 0000000000000000 R09:
-> 0000000000000000
-> [    0.028000] R10: 0000000000000001 R11: ffff88007d02fe40 R12:
-> 00000000000000d0
-> [    0.028000] R13: 00000000000000c0 R14: 0000000000000015 R15:
-> 0000000000000000
-> [    0.028000] FS:  0000000000000000(0000) GS:ffff88007fc00000(0000)
-> knlGS:0000000000000000
-> [    0.028000] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> [    0.028000] CR2: 00000000ffffffff CR3: 0000000001e0e000 CR4:
-> 00000000000006f0
-> [    0.028000] DR0: 0000000000000000 DR1: 0000000000000000 DR2:
-> 0000000000000000
-> [    0.028000] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7:
-> 0000000000000400
-> [    0.028000] Stack:
-> [    0.028000]  0000000000000000 ffff88007fc175d0 ffffea0001f40bc0
-> 00000000000000c0
-> [    0.028000]  ffff88007d001800 00000000000080d0 ffff88007d3dfd48
-> ffffffff8192da27
-> [    0.028000]  000000000000000d ffffffff81e27038 0000000000000000
-> 0000000000000000
-> [    0.028000] Call Trace:
-> [    0.028000]  [<ffffffff8192da27>] __slab_alloc+0x3df/0x55d
-> [    0.028000]  [<ffffffff8109a92b>] ? __lock_acquire+0xc1b/0x1f40
-> [    0.028000]  [<ffffffff810b1f2c>] ? __irq_domain_add+0x3c/0xe0
-> [    0.028000]  [<ffffffff810998f5>] ? trace_hardirqs_on_caller+0x105/0x1d0
-> [    0.028000]  [<ffffffff813631ab>] ? trace_hardirqs_on_thunk+0x3a/0x3f
-> [    0.028000]  [<ffffffff811890ab>] __kmalloc_node+0xab/0x210
-> [    0.028000]  [<ffffffff810394df>] ? ioapic_read_entry+0x1f/0x50
-> [    0.028000]  [<ffffffff810b1f2c>] ? __irq_domain_add+0x3c/0xe0
-> [    0.028000]  [<ffffffff810b1f2c>] __irq_domain_add+0x3c/0xe0
-> [    0.028000]  [<ffffffff81039e0e>] mp_irqdomain_create+0x9e/0x120
-> [    0.028000]  [<ffffffff81f22d49>] setup_IO_APIC+0x6b/0x798
-> [    0.028000]  [<ffffffff810398a5>] ? clear_IO_APIC+0x45/0x70
-> [    0.028000]  [<ffffffff81f21f01>] apic_bsp_setup+0x87/0x96
-> [    0.028000]  [<ffffffff81f1fdb4>] native_smp_prepare_cpus+0x237/0x275
-> [    0.028000]  [<ffffffff81f131b7>] kernel_init_freeable+0x120/0x265
-> [    0.028000]  [<ffffffff819271f9>] ? kernel_init+0x9/0xf0
-> [    0.028000]  [<ffffffff819271f0>] ? rest_init+0x130/0x130
-> [    0.028000]  [<ffffffff819271f9>] kernel_init+0x9/0xf0
-> [    0.028000]  [<ffffffff8193b958>] ret_from_fork+0x58/0x90
-> [    0.028000]  [<ffffffff819271f0>] ? rest_init+0x130/0x130
-> [    0.028000] Code: 6b b6 ff ff 49 89 c5 e9 ce fd ff ff 31 c0 90 e9 74 ff
-> ff ff 49 c7 04 04 00 00 00 00 e9 05 ff ff ff 4c 89 e7 ff d0 e9 d9 fe ff ff
-> <0f> 0b 4c 8b 73 38 44 89 e7 81 cf 00 00 20 00 4c 89 f6 48 c1 ee
-> [    0.028000] RIP  [<ffffffff8118574c>] new_slab+0x30c/0x3c0
-> [    0.028000]  RSP <ffff88007d3dfc28>
-> [    0.028039] ---[ end trace f03690e70d7e4be6 ]---
-
-Shouldn't this be in the commit message?
-
-Thanks,
+On Wed, Mar 11, 2015 at 10:20:38AM +0900, Minchan Kim wrote:
+> Bascially, MADV_FREE relys on the pte dirty to decide whether
+> it allows VM to discard the page. However, if there is swap-in,
+> pte pointed out the page has no pte_dirty. So, MADV_FREE checks
+> PageDirty and PageSwapCache for those pages to not discard it
+> because swapped-in page could live on swap cache or PageDirty
+> when it is removed from swapcache.
+> 
+> The problem in here is that anonymous pages can have PageDirty if
+> it is removed from swapcache so that VM cannot parse those pages
+> as freeable even if we did madvise_free. Look at below example.
+> 
+> ptr = malloc();
+> memset(ptr);
+> ..
+> heavy memory pressure -> swap-out all of pages
+> ..
+> out of memory pressure so there are lots of free pages
+> ..
+> var = *ptr; -> swap-in page/remove the page from swapcache. so pte_clean
+>                but SetPageDirty
+> 
+> madvise_free(ptr);
+> ..
+> ..
+> heavy memory pressure -> VM cannot discard the page by PageDirty.
+> 
+> PageDirty for anonymous page aims for avoiding duplicating
+> swapping out. In other words, if a page have swapped-in but
+> live swapcache(ie, !PageDirty), we could save swapout if the page
+> is selected as victim by VM in future because swap device have
+> kept previous swapped-out contents of the page.
+> 
+> So, rather than relying on the PG_dirty for working madvise_free,
+> pte_dirty is more straightforward. Inherently, swapped-out page was
+> pte_dirty so this patch restores the dirtiness when swap-in fault
+> happens so madvise_free doesn't rely on the PageDirty any more.
+> 
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Cyrill Gorcunov <gorcunov@gmail.com>
+> Cc: Pavel Emelyanov <xemul@parallels.com>
+> Reported-by: Yalin Wang <yalin.wang@sonymobile.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/madvise.c | 1 -
+>  mm/memory.c  | 9 +++++++--
+>  mm/rmap.c    | 2 +-
+>  mm/vmscan.c  | 3 +--
+>  4 files changed, 9 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 22e8f0c..a045798 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -325,7 +325,6 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+>  				continue;
+>  			}
+>  
+> -			ClearPageDirty(page);
+>  			unlock_page(page);
+>  		}
+>  
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 0f96a4a..40428a5 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2521,9 +2521,14 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  
+>  	inc_mm_counter_fast(mm, MM_ANONPAGES);
+>  	dec_mm_counter_fast(mm, MM_SWAPENTS);
+> -	pte = mk_pte(page, vma->vm_page_prot);
+> +
+> +	/*
+> +	 * Every page swapped-out was pte_dirty so we make pte dirty again.
+> +	 * MADV_FREE relies on it.
+> +	 */
+> +	pte = pte_mkdirty(mk_pte(page, vma->vm_page_prot));
+>  	if ((flags & FAULT_FLAG_WRITE) && reuse_swap_page(page)) {
+> -		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
+> +		pte = maybe_mkwrite(pte, vma);
+>  		flags &= ~FAULT_FLAG_WRITE;
+>  		ret |= VM_FAULT_WRITE;
+>  		exclusive = 1;
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 47b3ba8..34c1d66 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1268,7 +1268,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>  
+>  		if (flags & TTU_FREE) {
+>  			VM_BUG_ON_PAGE(PageSwapCache(page), page);
+> -			if (!dirty && !PageDirty(page)) {
+> +			if (!dirty) {
+>  				/* It's a freeable page by MADV_FREE */
+>  				dec_mm_counter(mm, MM_ANONPAGES);
+>  				goto discard;
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 260c413..3357ffa 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -805,8 +805,7 @@ static enum page_references page_check_references(struct page *page,
+>  		return PAGEREF_KEEP;
+>  	}
+>  
+> -	if (PageAnon(page) && !pte_dirty && !PageSwapCache(page) &&
+> -			!PageDirty(page))
+> +	if (PageAnon(page) && !pte_dirty && !PageSwapCache(page))
+>  		*freeable = true;
+>  
+>  	/* Reclaim if clean, defer dirty pages to writeback */
+> -- 
+> 1.9.3
+> 
 
 -- 
-Julian Calaby
-
-Email: julian.calaby@gmail.com
-Profile: http://www.google.com/profiles/julian.calaby/
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
