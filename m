@@ -1,137 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A08B76B0032
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 16:19:30 -0400 (EDT)
-Received: by obbgh1 with SMTP id gh1so147671772obb.1
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 13:19:30 -0700 (PDT)
-Received: from mail-ob0-x22f.google.com (mail-ob0-x22f.google.com. [2607:f8b0:4003:c01::22f])
-        by mx.google.com with ESMTPS id y4si11766582oej.86.2015.04.08.13.19.29
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C0776B006E
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 16:26:45 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so69862497pdb.1
+        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 13:26:45 -0700 (PDT)
+Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
+        by mx.google.com with ESMTPS id o6si18180030pap.60.2015.04.08.13.26.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Apr 2015 13:19:29 -0700 (PDT)
-Received: by oblw8 with SMTP id w8so106399303obl.0
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 13:19:29 -0700 (PDT)
-Date: Wed, 8 Apr 2015 15:19:26 -0500
-From: Shawn Bohrer <shawn.bohrer@gmail.com>
-Subject: Re: HugePages_Rsvd leak
-Message-ID: <20150408201926.GB29546@sbohrermbp13-local.rgmadvisors.com>
-References: <20150408161539.GA29546@sbohrermbp13-local.rgmadvisors.com>
- <1428521343.11099.4.camel@stgolabs.net>
+        Wed, 08 Apr 2015 13:26:43 -0700 (PDT)
+Received: from compute4.internal (compute4.nyi.internal [10.202.2.44])
+	by mailout.nyi.internal (Postfix) with ESMTP id 07979208A9
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 16:26:37 -0400 (EDT)
+Date: Wed, 8 Apr 2015 22:26:38 +0200
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH 1/3 @stable] mm(v4.0): New pfn_mkwrite same as
+ page_mkwrite for VM_PFNMAP
+Message-ID: <20150408202638.GB10865@kroah.com>
+References: <55239645.9000507@plexistor.com>
+ <55254FC4.3050206@plexistor.com>
+ <552550A5.6040503@plexistor.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1428521343.11099.4.camel@stgolabs.net>
+In-Reply-To: <552550A5.6040503@plexistor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: Stable Tree <stable@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Eryu Guan <eguan@redhat.com>, Christoph Hellwig <hch@infradead.org>
 
-On Wed, Apr 08, 2015 at 12:29:03PM -0700, Davidlohr Bueso wrote:
-> On Wed, 2015-04-08 at 11:15 -0500, Shawn Bohrer wrote:
-> > AnonHugePages:    241664 kB
-> > HugePages_Total:     512
-> > HugePages_Free:      512
-> > HugePages_Rsvd:      384
-> > HugePages_Surp:        0
-> > Hugepagesize:       2048 kB
+On Wed, Apr 08, 2015 at 07:00:37PM +0300, Boaz Harrosh wrote:
+> On 04/08/2015 06:56 PM, Boaz Harrosh wrote:
+> > From: Yigal Korman <yigal@plexistor.com>
 > > 
-> > So here I have 384 pages reserved and I can't find anything that is
-> > using them. 
+> > [For Stable 4.0.X]
+> > The parallel patch at 4.1-rc1 to this patch is:
+> >   Subject: mm: new pfn_mkwrite same as page_mkwrite for VM_PFNMAP
+> > 
+> > We need this patch for the 4.0.X stable tree if the patch
+> >   Subject: dax: use pfn_mkwrite to update c/mtime + freeze protection
+> > 
+> > Was decided to be pulled into stable since it is a dependency
+> > of this patch. The file mm/memory.c was heavily changed in 4.1
+> > hence this here.
+> > 
 > 
-> The output clearly shows all available hugepages are free, Why are you
-> assuming that reserved implies allocated/in use? This is not true,
-> please read one of the millions of docs out there -- you can start with:
-> https://www.kernel.org/doc/Documentation/vm/hugetlbpage.txt
- 
-As that fine document states:
+> I forgot to send this patch for the stables tree, 4.0 only.
+> 
+> Again this one is only needed if we are truing to pull
+>    Subject: dax: use pfn_mkwrite to update c/mtime + freeze protection
+> 
+> Which has the Stable@ tag. The problem it fixes is minor and might
+> be skipped if causes problems.
 
-HugePages_Rsvd  is short for "reserved," and is the number of huge pages for
-                which a commitment to allocate from the pool has been made,
-                but no allocation has yet been made.  Reserved huge pages
-                guarantee that an application will be able to allocate a
-                huge page from the pool of huge pages at fault time.
+I can't take patches in the stable tree that are not in Linus's tree
+also.  Why can't I just take a corrisponding patch that is already in
+Linus's tree, why do we need something "special" here?
 
-Thus in my example above while I have 512 pages free 384 are reserved
-and therefore if a new application comes along it can only reserve/use
-the remaining 128 pages.
+thanks,
 
-For example:
-
-[scratch]$ grep Huge /proc/meminfo 
-AnonHugePages:         0 kB
-HugePages_Total:       1
-HugePages_Free:        1
-HugePages_Rsvd:        0
-HugePages_Surp:        0
-Hugepagesize:       2048 kB
-
-[scratch]$ cat map_hugetlb.c
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/mman.h>
-
-#define LENGTH (2UL*1024*1024)
-#define PROTECTION (PROT_READ | PROT_WRITE)
-#define ADDR (void *)(0x0UL)
-#define FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB)
-
-int main(void)
-{
-        void *addr;
-        addr = mmap(ADDR, LENGTH, PROTECTION, FLAGS, 0, 0);
-        if (addr == MAP_FAILED) {
-                perror("mmap");
-                exit(1);
-        }
-
-        getchar();
-
-        munmap(addr, LENGTH);
-        return 0;
-}
-
-[scratch]$ make map_hugetlb
-cc     map_hugetlb.c   -o map_hugetlb
-
-[scratch]$ ./map_hugetlb &
-[1] 7359
-[1]+  Stopped                 ./map_hugetlb
-
-[scratch]$ grep Huge /proc/meminfo 
-AnonHugePages:         0 kB
-HugePages_Total:       1
-HugePages_Free:        1
-HugePages_Rsvd:        1
-HugePages_Surp:        0
-Hugepagesize:       2048 kB
-
-[scratch]$ ./map_hugetlb
-mmap: Cannot allocate memory
-
-
-As you can see I still have 1 huge page free but that one huge page is
-reserved by PID 7358.  If I then try to run a new map_hugetlb process
-the mmap fails because even though I have 1 page free it is reserved.
-
-Furthermore we can find that 7358 has that page in the following ways:
-
-[scratch]$ sudo grep "KernelPageSize:.*2048" /proc/*/smaps
-/proc/7359/smaps:KernelPageSize:     2048 kB
-[scratch]$ sudo grep "VmFlags:.*ht" /proc/*/smaps
-/proc/7359/smaps:VmFlags: rd wr mr mw me de ht sd
-[scratch]$ sudo grep -w huge /proc/*/numa_maps
-/proc/7359/numa_maps:7f3233000000 default file=/anon_hugepage\040(deleted) huge
-
-Which leads back to my original question.  I have machines that have a
-non-zero HugePages_Rsvd count but I cannot find any processes that
-seem to have those pages reserved using the three methods shown above.
-Is there some other way to identify which process has those pages
-reserved?  Or is there possibly a leak which is failing to decrement
-the reserve count?
-
-Thanks,
-Shawn
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
