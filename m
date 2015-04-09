@@ -1,43 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D5CCD6B0032
-	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 04:36:31 -0400 (EDT)
-Received: by wgso17 with SMTP id o17so543451wgs.1
-        for <linux-mm@kvack.org>; Thu, 09 Apr 2015 01:36:31 -0700 (PDT)
-Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
-        by mx.google.com with ESMTPS id dq10si23023572wib.80.2015.04.09.01.36.30
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A1AF6B0032
+	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 05:47:26 -0400 (EDT)
+Received: by wgyo15 with SMTP id o15so103483351wgy.2
+        for <linux-mm@kvack.org>; Thu, 09 Apr 2015 02:47:25 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.24])
+        by mx.google.com with ESMTPS id wr1si23249588wjb.25.2015.04.09.02.47.24
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 09 Apr 2015 01:36:30 -0700 (PDT)
-Message-ID: <55263A07.6040508@nod.at>
-Date: Thu, 09 Apr 2015 10:36:23 +0200
-From: Richard Weinberger <richard@nod.at>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Apr 2015 02:47:24 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] mempool: add missing include
+Date: Thu, 09 Apr 2015 11:46:55 +0200
+Message-ID: <3302342.cNyRUGN06P@wuerfel>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 00/11] an introduction of library operating system
- for Linux (LibOS)
-References: <1427202642-1716-1-git-send-email-tazaki@sfc.wide.ad.jp>	<551164ED.5000907@nod.at>	<m2twxacw13.wl@sfc.wide.ad.jp>	<55117565.6080002@nod.at>	<m2sicuctb2.wl@sfc.wide.ad.jp>	<55118277.5070909@nod.at>	<m2bnjhcevt.wl@sfc.wide.ad.jp>	<55133BAF.30301@nod.at>	<m2h9t7bubh.wl@wide.ad.jp>	<5514560A.7040707@nod.at>	<m28uejaqyn.wl@wide.ad.jp>	<55152137.20405@nod.at>	<m2sicnalnh.wl@sfc.wide.ad.jp>	<5518F030.4040003@nod.at> <m2y4md7gmb.wl@wide.ad.jp>
-In-Reply-To: <m2y4md7gmb.wl@wide.ad.jp>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hajime Tazaki <tazaki@wide.ad.jp>
-Cc: linux-arch@vger.kernel.org, arnd@arndb.de, corbet@lwn.net, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, jdike@addtoit.com, rusty@rustcorp.com.au, mathieu.lacage@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-Am 31.03.2015 um 09:47 schrieb Hajime Tazaki:
-> right now arch/lib/Makefile isn't fully on the Kbuild
-> system: build file dependency is not tracked at all.
-> 
-> while I should learn more about Kbuild, I'd be happy if you
-> would suggest how the Makefile should be.
+This is a fix^3 for the mempool poisoning patch, which introduces
+a compile-time error on some ARM randconfig builds:
 
-You definitely have to use Kbuild.
-Please bite the bullet and dig into it. Maybe we
-need also new functions in Kbuild to support a library mode.
-Who knows? ;)
+mm/mempool.c: In function 'check_element':
+mm/mempool.c:65:16: error: implicit declaration of function 'kmap_atomic' [-Werror=implicit-function-declaration]
+   void *addr = kmap_atomic((struct page *)element);
 
-Thanks,
-//richard
+The problem is clearly the missing declaration, and including
+linux/highmem.h fixes it.
+
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Fixes: a3db5a8463b0db ("mm, mempool: poison elements backed by page allocator fix fix")
+
+diff --git a/mm/mempool.c b/mm/mempool.c
+index 05ad55e61264..5e7c4a871391 100644
+--- a/mm/mempool.c
++++ b/mm/mempool.c
+@@ -12,6 +12,7 @@
+ #include <linux/mm.h>
+ #include <linux/slab.h>
+ #include <linux/kasan.h>
++#include <linux/highmem.h>
+ #include <linux/kmemleak.h>
+ #include <linux/export.h>
+ #include <linux/mempool.h>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
