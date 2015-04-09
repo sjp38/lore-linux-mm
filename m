@@ -1,150 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id A10B66B008A
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 19:50:37 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so132005182pde.3
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 16:50:37 -0700 (PDT)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id bn3si711794pdb.161.2015.04.08.16.50.36
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Apr 2015 16:50:36 -0700 (PDT)
-Received: by pabtp1 with SMTP id tp1so24570262pab.2
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 16:50:36 -0700 (PDT)
-Date: Thu, 9 Apr 2015 08:50:25 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 4/4] mm: make every pte dirty on do_swap_page
-Message-ID: <20150408235012.GA13690@blaptop>
-References: <1426036838-18154-1-git-send-email-minchan@kernel.org>
- <1426036838-18154-4-git-send-email-minchan@kernel.org>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E9B9F6B0071
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2015 20:54:41 -0400 (EDT)
+Received: by pddn5 with SMTP id n5so133556618pdd.2
+        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 17:54:41 -0700 (PDT)
+Date: Thu, 9 Apr 2015 10:54:23 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 2/2][v2] blk-plug: don't flush nested plug lists
+Message-ID: <20150409005423.GD13731@dastard>
+References: <1428347694-17704-1-git-send-email-jmoyer@redhat.com>
+ <1428347694-17704-2-git-send-email-jmoyer@redhat.com>
+ <x49wq1nrcoe.fsf_-_@segfault.boston.devel.redhat.com>
+ <20150408230203.GG15810@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1426036838-18154-4-git-send-email-minchan@kernel.org>
+In-Reply-To: <20150408230203.GG15810@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Yalin.Wang@sonymobile.com, Hugh Dickins <hughd@google.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Pavel Emelyanov <xemul@parallels.com>
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: linux-kernel@vger.kernel.org, dm-devel@redhat.com, xen-devel@lists.xenproject.org, linux-raid@vger.kernel.org, linux-scsi@vger.kernel.org, target-devel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
 
-Bump.
+[ Sending again with a trimmed CC list to just the lists. Jeff - cc
+lists that large get blocked by mailing lists... ]
 
-On Wed, Mar 11, 2015 at 10:20:38AM +0900, Minchan Kim wrote:
-> Bascially, MADV_FREE relys on the pte dirty to decide whether
-> it allows VM to discard the page. However, if there is swap-in,
-> pte pointed out the page has no pte_dirty. So, MADV_FREE checks
-> PageDirty and PageSwapCache for those pages to not discard it
-> because swapped-in page could live on swap cache or PageDirty
-> when it is removed from swapcache.
-> 
-> The problem in here is that anonymous pages can have PageDirty if
-> it is removed from swapcache so that VM cannot parse those pages
-> as freeable even if we did madvise_free. Look at below example.
-> 
-> ptr = malloc();
-> memset(ptr);
-> ..
-> heavy memory pressure -> swap-out all of pages
-> ..
-> out of memory pressure so there are lots of free pages
-> ..
-> var = *ptr; -> swap-in page/remove the page from swapcache. so pte_clean
->                but SetPageDirty
-> 
-> madvise_free(ptr);
-> ..
-> ..
-> heavy memory pressure -> VM cannot discard the page by PageDirty.
-> 
-> PageDirty for anonymous page aims for avoiding duplicating
-> swapping out. In other words, if a page have swapped-in but
-> live swapcache(ie, !PageDirty), we could save swapout if the page
-> is selected as victim by VM in future because swap device have
-> kept previous swapped-out contents of the page.
-> 
-> So, rather than relying on the PG_dirty for working madvise_free,
-> pte_dirty is more straightforward. Inherently, swapped-out page was
-> pte_dirty so this patch restores the dirtiness when swap-in fault
-> happens so madvise_free doesn't rely on the PageDirty any more.
-> 
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Cyrill Gorcunov <gorcunov@gmail.com>
-> Cc: Pavel Emelyanov <xemul@parallels.com>
-> Reported-by: Yalin Wang <yalin.wang@sonymobile.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/madvise.c | 1 -
->  mm/memory.c  | 9 +++++++--
->  mm/rmap.c    | 2 +-
->  mm/vmscan.c  | 3 +--
->  4 files changed, 9 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/madvise.c b/mm/madvise.c
-> index 22e8f0c..a045798 100644
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -325,7 +325,6 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
->  				continue;
->  			}
->  
-> -			ClearPageDirty(page);
->  			unlock_page(page);
->  		}
->  
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 0f96a4a..40428a5 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2521,9 +2521,14 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  
->  	inc_mm_counter_fast(mm, MM_ANONPAGES);
->  	dec_mm_counter_fast(mm, MM_SWAPENTS);
-> -	pte = mk_pte(page, vma->vm_page_prot);
-> +
-> +	/*
-> +	 * Every page swapped-out was pte_dirty so we make pte dirty again.
-> +	 * MADV_FREE relies on it.
-> +	 */
-> +	pte = pte_mkdirty(mk_pte(page, vma->vm_page_prot));
->  	if ((flags & FAULT_FLAG_WRITE) && reuse_swap_page(page)) {
-> -		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
-> +		pte = maybe_mkwrite(pte, vma);
->  		flags &= ~FAULT_FLAG_WRITE;
->  		ret |= VM_FAULT_WRITE;
->  		exclusive = 1;
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 47b3ba8..34c1d66 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1268,7 +1268,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  
->  		if (flags & TTU_FREE) {
->  			VM_BUG_ON_PAGE(PageSwapCache(page), page);
-> -			if (!dirty && !PageDirty(page)) {
-> +			if (!dirty) {
->  				/* It's a freeable page by MADV_FREE */
->  				dec_mm_counter(mm, MM_ANONPAGES);
->  				goto discard;
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 260c413..3357ffa 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -805,8 +805,7 @@ static enum page_references page_check_references(struct page *page,
->  		return PAGEREF_KEEP;
->  	}
->  
-> -	if (PageAnon(page) && !pte_dirty && !PageSwapCache(page) &&
-> -			!PageDirty(page))
-> +	if (PageAnon(page) && !pte_dirty && !PageSwapCache(page))
->  		*freeable = true;
->  
->  	/* Reclaim if clean, defer dirty pages to writeback */
-> -- 
-> 1.9.3
-> 
+On Tue, Apr 07, 2015 at 02:55:13PM -0400, Jeff Moyer wrote:
+> The way the on-stack plugging currently works, each nesting level
+> flushes its own list of I/Os.  This can be less than optimal (read
+> awful) for certain workloads.  For example, consider an application
+> that issues asynchronous O_DIRECT I/Os.  It can send down a bunch of
+> I/Os together in a single io_submit call, only to have each of them
+> dispatched individually down in the bowels of the dirct I/O code.
+> The reason is that there are blk_plug-s instantiated both at the upper
+> call site in do_io_submit and down in do_direct_IO.  The latter will
+> submit as little as 1 I/O at a time (if you have a small enough I/O
+> size) instead of performing the batching that the plugging
+> infrastructure is supposed to provide.
 
+I'm wondering what impact this will have on filesystem metadata IO
+that needs to be issued immediately. e.g. we are doing writeback, so
+there is a high level plug in place and we need to page in btree
+blocks to do extent allocation. We do readahead at this point,
+but it looks like this change will prevent the readahead from being
+issued by the unplug in xfs_buf_iosubmit().
+
+So while I can see how this can make your single microbenchmark
+better (because it's only doing concurrent direct IO to the block
+device and hence there are no dependencies between individual IOs),
+I have significant reservations that it's actually a win for
+filesystem-based workloads where we need direct control of flushing
+to minimise IO latency due to IO dependencies...
+
+Patches like this one:
+
+https://lkml.org/lkml/2015/3/20/442
+
+show similar real-world workload improvements to your patchset by
+being smarter about using high level plugging to enable cross-file
+merging of IO, but it still relies on the lower layers of plugging
+to resolve latency bubbles caused by IO dependencies in the
+filesystems.
+
+> NOTE TO SUBSYSTEM MAINTAINERS: Before this patch, blk_finish_plug
+> would always flush the plug list.  After this patch, this is only the
+> case for the outer-most plug.  If you require the plug list to be
+> flushed, you should be calling blk_flush_plug(current).  Btrfs and dm
+> maintainers should take a close look at this patch and ensure they get
+> the right behavior in the end.
+
+IOWs, you are saying we need to change all our current unplugs to
+blk_flush_plug(current) to *try* to maintain the same behaviour as
+we currently have? I say *try*, because no instead of just flushing
+the readahead IO on the plug, we'll also flush all the queued data
+writeback IO onthe high level plug. We don't actually want to do
+that; we only want to submit the readahead and not the bulk IO that
+will delay the latency sensitive dependent IOs....
+
+If that is the case, shouldn't you actually be trying to fix the
+specific plugging problem you've identified (i.e. do_direct_IO() is
+flushing far too frequently) rather than making a sweeping
+generalisation that the IO stack plugging infrastructure
+needs fundamental change?
+
+Cheers,
+
+Dave.
 -- 
-Kind regards,
-Minchan Kim
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
