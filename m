@@ -1,86 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 125FB6B0032
-	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 02:56:03 -0400 (EDT)
-Received: by wgyo15 with SMTP id o15so99334669wgy.2
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 23:56:02 -0700 (PDT)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EFDF6B0032
+	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 02:56:04 -0400 (EDT)
+Received: by widjs5 with SMTP id js5so48249146wid.1
+        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 23:56:03 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n4si22623451wik.103.2015.04.08.23.56.00
+        by mx.google.com with ESMTPS id hz2si22627524wjb.15.2015.04.08.23.56.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Wed, 08 Apr 2015 23:56:01 -0700 (PDT)
 From: Juergen Gross <jgross@suse.com>
-Subject: [Patch V2 00/15] xen: support pv-domains larger than 512GB
-Date: Thu,  9 Apr 2015 08:55:27 +0200
-Message-Id: <1428562542-28488-1-git-send-email-jgross@suse.com>
+Subject: [Patch V2 03/15] xen: don't build mfn tree if tools don't need it
+Date: Thu,  9 Apr 2015 08:55:30 +0200
+Message-Id: <1428562542-28488-4-git-send-email-jgross@suse.com>
+In-Reply-To: <1428562542-28488-1-git-send-email-jgross@suse.com>
+References: <1428562542-28488-1-git-send-email-jgross@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com, linux-mm@kvack.org
 Cc: Juergen Gross <jgross@suse.com>
 
-Support 64 bit pv-domains with more than 512GB of memory.
+In case the Xen tools indicate they don't need the p2m 3 level tree
+as they support the virtual mapped linear p2m list, just omit building
+the tree.
 
-Tested with 64 bit dom0 on machines with 8GB and 1TB and 32 bit dom0 on a
-8GB machine. Conflicts between E820 map and different hypervisor populated
-memory areas have been tested via a fake E820 map reserved area on the
-8GB machine.
+Signed-off-by: Juergen Gross <jgross@suse.com>
+---
+ arch/x86/xen/p2m.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
 
-Changes in V2:
-- some clarifications and better explanations in commit messages 
-- add header changes of include/xen/interface/xen.h (patch 01)
-- add wmb() when incrementing p2m_generation (patch 02)
-- add new patch 03 (don't build mfn tree if tools don't need it)
-- add new patch 06 (split counting of extra memory pages from remapping)
-- add new patch 07 (check memory area against e820 map)
-- replace early_iounmap() with early_memunmap() (patch 07->patch 08)
-- rework patch 09 (check for kernel memory conflicting with memory layout)
-- rework patch 10 (check pre-allocated page tables for conflict with memory map)
-- combine old patches 08 and 11 into patch 11
-- add new patch 12 (provide early_memremap_ro to establish read-only mapping)
-- rework old patch 12 (if p2m list located in to be remapped region delay
-  remapping) to copy p2m list in case of a conflict (now patch 13)
-- correct Kconfig dependency (patch 13->14)
-- don't limit dom0 to 512GB (patch 13->14)
-- modify parameter parsing to work in very early boot (patch 13->14)
-- add new patch 15 to do some cleanup
-- remove old patch 05 (simplify xen_set_identity_and_remap() by using global
-  variables)
-- remove old patch 08 (detect pre-allocated memory interfering with e820 map)
-
-Juergen Gross (15):
-  xen: sync with xen headers
-  xen: save linear p2m list address in shared info structure
-  xen: don't build mfn tree if tools don't need it
-  xen: eliminate scalability issues from initial mapping setup
-  xen: move static e820 map to global scope
-  xen: split counting of extra memory pages from remapping
-  xen: check memory area against e820 map
-  xen: find unused contiguous memory area
-  xen: check for kernel memory conflicting with memory layout
-  xen: check pre-allocated page tables for conflict with memory map
-  xen: check for initrd conflicting with e820 map
-  mm: provide early_memremap_ro to establish read-only mapping
-  xen: move p2m list if conflicting with e820 map
-  xen: allow more than 512 GB of RAM for 64 bit pv-domains
-  xen: remove no longer needed p2m.h
-
- Documentation/kernel-parameters.txt  |   7 +
- arch/x86/include/asm/xen/interface.h |  96 +++++++-
- arch/x86/include/asm/xen/page.h      |   8 +-
- arch/x86/xen/Kconfig                 |  20 +-
- arch/x86/xen/mmu.c                   | 367 +++++++++++++++++++++++++++++--
- arch/x86/xen/p2m.c                   |  43 +++-
- arch/x86/xen/p2m.h                   |  15 --
- arch/x86/xen/setup.c                 | 414 ++++++++++++++++++++++++++---------
- arch/x86/xen/xen-head.S              |   2 +
- arch/x86/xen/xen-ops.h               |   6 +
- include/asm-generic/early_ioremap.h  |   2 +
- include/asm-generic/fixmap.h         |   3 +
- include/xen/interface/xen.h          |  10 +-
- mm/early_ioremap.c                   |  11 +
- 14 files changed, 822 insertions(+), 182 deletions(-)
- delete mode 100644 arch/x86/xen/p2m.h
-
+diff --git a/arch/x86/xen/p2m.c b/arch/x86/xen/p2m.c
+index 703f803..6f80cd3 100644
+--- a/arch/x86/xen/p2m.c
++++ b/arch/x86/xen/p2m.c
+@@ -198,7 +198,8 @@ void __ref xen_build_mfn_list_list(void)
+ 	unsigned int level, topidx, mididx;
+ 	unsigned long *mid_mfn_p;
+ 
+-	if (xen_feature(XENFEAT_auto_translated_physmap))
++	if (xen_feature(XENFEAT_auto_translated_physmap) ||
++	    xen_start_info->flags & SIF_VIRT_P2M_4TOOLS)
+ 		return;
+ 
+ 	/* Pre-initialize p2m_top_mfn to be completely missing */
+@@ -259,8 +260,11 @@ void xen_setup_mfn_list_list(void)
+ 
+ 	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
+ 
+-	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
+-		virt_to_mfn(p2m_top_mfn);
++	if (xen_start_info->flags & SIF_VIRT_P2M_4TOOLS)
++		HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list = ~0UL;
++	else
++		HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
++			virt_to_mfn(p2m_top_mfn);
+ 	HYPERVISOR_shared_info->arch.max_pfn = xen_max_p2m_pfn;
+ 	HYPERVISOR_shared_info->arch.p2m_generation = 0;
+ 	HYPERVISOR_shared_info->arch.p2m_vaddr = (unsigned long)xen_p2m_addr;
 -- 
 2.1.4
 
