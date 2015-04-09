@@ -1,49 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E1B56B0038
-	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 15:41:50 -0400 (EDT)
-Received: by iebmp1 with SMTP id mp1so871435ieb.0
-        for <linux-mm@kvack.org>; Thu, 09 Apr 2015 12:41:50 -0700 (PDT)
-Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com. [2607:f8b0:4001:c05::235])
-        by mx.google.com with ESMTPS id 84si3400443ioi.91.2015.04.09.12.41.49
+Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 953C76B0038
+	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 15:46:11 -0400 (EDT)
+Received: by iejt8 with SMTP id t8so879848iej.2
+        for <linux-mm@kvack.org>; Thu, 09 Apr 2015 12:46:11 -0700 (PDT)
+Received: from mail-ie0-x232.google.com (mail-ie0-x232.google.com. [2607:f8b0:4001:c03::232])
+        by mx.google.com with ESMTPS id 186si3410534ioe.57.2015.04.09.12.46.11
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Apr 2015 12:41:49 -0700 (PDT)
-Received: by igblo3 with SMTP id lo3so850258igb.0
-        for <linux-mm@kvack.org>; Thu, 09 Apr 2015 12:41:49 -0700 (PDT)
-Date: Thu, 9 Apr 2015 12:41:47 -0700 (PDT)
+        Thu, 09 Apr 2015 12:46:11 -0700 (PDT)
+Received: by iebmp1 with SMTP id mp1so971648ieb.0
+        for <linux-mm@kvack.org>; Thu, 09 Apr 2015 12:46:11 -0700 (PDT)
+Date: Thu, 9 Apr 2015 12:46:09 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/hugetlb: use pmd_page() in follow_huge_pmd()
-In-Reply-To: <1428595895-24140-1-git-send-email-gerald.schaefer@de.ibm.com>
-Message-ID: <alpine.DEB.2.10.1504091235500.11370@chino.kir.corp.google.com>
-References: <1428595895-24140-1-git-send-email-gerald.schaefer@de.ibm.com>
+Subject: Re: [patch -mm] mm, doc: cleanup and clarify munmap behavior for
+ hugetlb memory fix
+In-Reply-To: <20150404113456.55468dc3@lwn.net>
+Message-ID: <alpine.DEB.2.10.1504091244501.11370@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1503261621570.20009@chino.kir.corp.google.com> <alpine.LSU.2.11.1503291801400.1052@eggly.anvils> <alpine.DEB.2.10.1504021536210.15536@chino.kir.corp.google.com> <alpine.DEB.2.10.1504021547330.15536@chino.kir.corp.google.com>
+ <20150404113456.55468dc3@lwn.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Davide Libenzi <davidel@xmailserver.org>, Luiz Capitulino <lcapitulino@redhat.com>, Shuah Khan <shuahkh@osg.samsung.com>, Andrea Arcangeli <aarcange@redhat.com>, Joern Engel <joern@logfs.org>, Jianguo Wu <wujianguo@huawei.com>, Eric B Munson <emunson@akamai.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-doc@vger.kernel.org
 
-On Thu, 9 Apr 2015, Gerald Schaefer wrote:
+On Sat, 4 Apr 2015, Jonathan Corbet wrote:
 
-> commit 61f77eda "mm/hugetlb: reduce arch dependent code around follow_huge_*"
-> broke follow_huge_pmd() on s390, where pmd and pte layout differ and using
-> pte_page() on a huge pmd will return wrong results. Using pmd_page() instead
-> fixes this.
+> On Thu, 2 Apr 2015 15:50:15 -0700 (PDT)
+> David Rientjes <rientjes@google.com> wrote:
 > 
-> All architectures that were touched by commit 61f77eda have pmd_page()
-> defined, so this should not break anything on other architectures.
+> > Don't only specify munmap(2) behavior with respect the hugetlb memory, all 
+> > other syscalls get naturally aligned to the native page size of the 
+> > processor.  Rather, pick out munmap(2) as a specific example.
 > 
-> Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> Cc: stable@vger.kernel.org # v3.12
+> So I was going to apply this to the docs tree, but it doesn't even come
+> close.  What tree was this patch generated against?
+> 
 
-Acked-by: David Rientjes <rientjes@google.com>
-
-I'm not sure where the stable cc came from, though: commit 61f77eda makes 
-s390 use a generic version of follow_huge_pmd() and that generic version 
-is buggy for s930 because of commit e66f17ff7177 ("mm/hugetlb: take page 
-table lock in follow_huge_pmd()").  Both of those are 4.0 material, 
-though, so why is this needed for stable 3.12?
+Sorry, it's not intended to go through the docs tree, it's a patch to fix 
+mm-doc-cleanup-and-clarify-munmap-behavior-for-hugetlb-memory.patch in 
+-mm.  It's been merged into that tree, but I would still appreciate your 
+ack!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
