@@ -1,92 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E88D6B0032
-	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 04:00:57 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so144587182pde.3
-        for <linux-mm@kvack.org>; Thu, 09 Apr 2015 01:00:57 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id t5si20360286pda.72.2015.04.09.01.00.56
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E0CB6B0032
+	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 04:18:33 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so87894341pdb.1
+        for <linux-mm@kvack.org>; Thu, 09 Apr 2015 01:18:32 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id sz9si14402452pac.80.2015.04.09.01.18.31
         for <linux-mm@kvack.org>;
-        Thu, 09 Apr 2015 01:00:56 -0700 (PDT)
-Message-ID: <1428566436.2910.25.camel@jlahtine-mobl1>
-Subject: Re: [PATCH 5/5] drm/i915: Use remap_io_mapping() to prefault all
- PTE in a single pass
+        Thu, 09 Apr 2015 01:18:32 -0700 (PDT)
+Message-ID: <1428567498.2910.32.camel@jlahtine-mobl1>
+Subject: Re: [PATCH 4/5] mm: Export remap_io_mapping()
 From: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Date: Thu, 09 Apr 2015 11:00:36 +0300
-In-Reply-To: <1428424299-13721-6-git-send-email-chris@chris-wilson.co.uk>
+Date: Thu, 09 Apr 2015 11:18:18 +0300
+In-Reply-To: <1428424299-13721-5-git-send-email-chris@chris-wilson.co.uk>
 References: <1428424299-13721-1-git-send-email-chris@chris-wilson.co.uk>
-	 <1428424299-13721-6-git-send-email-chris@chris-wilson.co.uk>
+	 <1428424299-13721-5-git-send-email-chris@chris-wilson.co.uk>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org
+Cc: intel-gfx@lists.freedesktop.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Cyrill Gorcunov <gorcunov@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
 
 On ti, 2015-04-07 at 17:31 +0100, Chris Wilson wrote:
-> On an Ivybridge i7-3720qm with 1600MHz DDR3, with 32 fences,
-> Upload rate for 2 linear surfaces:  8134MiB/s -> 8154MiB/s
-> Upload rate for 2 tiled surfaces:   8625MiB/s -> 8632MiB/s
-> Upload rate for 4 linear surfaces:  8127MiB/s -> 8134MiB/s
-> Upload rate for 4 tiled surfaces:   8602MiB/s -> 8629MiB/s
-> Upload rate for 8 linear surfaces:  8124MiB/s -> 8137MiB/s
-> Upload rate for 8 tiled surfaces:   8603MiB/s -> 8624MiB/s
-> Upload rate for 16 linear surfaces: 8123MiB/s -> 8128MiB/s
-> Upload rate for 16 tiled surfaces:  8606MiB/s -> 8618MiB/s
-> Upload rate for 32 linear surfaces: 8121MiB/s -> 8128MiB/s
-> Upload rate for 32 tiled surfaces:  8605MiB/s -> 8614MiB/s
-> Upload rate for 64 linear surfaces: 8121MiB/s -> 8127MiB/s
-> Upload rate for 64 tiled surfaces:  3017MiB/s -> 5202MiB/s
+> This is similar to remap_pfn_range(), and uses the recently refactor
+> code to do the page table walking. The key difference is that is back
+> propagates its error as this is required for use from within a pagefault
+> handler. The other difference, is that it combine the page protection
+> from io-mapping, which is known from when the io-mapping is created,
+> with the per-vma page protection flags. This avoids having to walk the
+> entire system description to rediscover the special page protection
+> established for the io-mapping.
 > 
 > Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-> Testcase: igt/gem_fence_upload/performance
-> Testcase: igt/gem_mmap_gtt
-> Reviewed-by: Brad Volkin <bradley.d.volkin@intel.com>
-
-Reviewed-by: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Cyrill Gorcunov <gorcunov@gmail.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
 > Cc: linux-mm@kvack.org
 > ---
->  drivers/gpu/drm/i915/i915_gem.c | 23 ++++++-----------------
->  1 file changed, 6 insertions(+), 17 deletions(-)
+>  include/linux/mm.h |  4 ++++
+>  mm/memory.c        | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 50 insertions(+)
 > 
-> diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
-> index 7ab8e0039790..90d772f72276 100644
-> --- a/drivers/gpu/drm/i915/i915_gem.c
-> +++ b/drivers/gpu/drm/i915/i915_gem.c
-> @@ -1667,25 +1667,14 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
->  	pfn = dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset(obj);
->  	pfn >>= PAGE_SHIFT;
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 47a93928b90f..3dfecd58adb0 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2083,6 +2083,10 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
+>  struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
+>  int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
+>  			unsigned long pfn, unsigned long size, pgprot_t);
+> +struct io_mapping;
+
+This is unconditional code, so just move the struct forward declaration
+to the top of the file after "struct writeback_control" and others.
+
+> +int remap_io_mapping(struct vm_area_struct *,
+> +		     unsigned long addr, unsigned long pfn, unsigned long size,
+> +		     struct io_mapping *iomap);
+>  int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
+>  int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+>  			unsigned long pfn);
+> diff --git a/mm/memory.c b/mm/memory.c
+> index acb06f40d614..83bc5df3fafc 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -61,6 +61,7 @@
+>  #include <linux/string.h>
+>  #include <linux/dma-debug.h>
+>  #include <linux/debugfs.h>
+> +#include <linux/io-mapping.h>
 >  
-> -	if (!obj->fault_mappable) {
-> -		unsigned long size = min_t(unsigned long,
-> -					   vma->vm_end - vma->vm_start,
-> -					   obj->base.size);
-> -		int i;
-> +	ret = remap_io_mapping(vma,
-> +			       vma->vm_start, pfn, vma->vm_end - vma->vm_start,
-> +			       dev_priv->gtt.mappable);
-> +	if (ret)
-> +		goto unpin;
+>  #include <asm/io.h>
+>  #include <asm/pgalloc.h>
+> @@ -1762,6 +1763,51 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
+>  EXPORT_SYMBOL(remap_pfn_range);
 >  
-> -		for (i = 0; i < size >> PAGE_SHIFT; i++) {
-> -			ret = vm_insert_pfn(vma,
-> -					    (unsigned long)vma->vm_start + i * PAGE_SIZE,
-> -					    pfn + i);
-> -			if (ret)
-> -				break;
-> -		}
-> +	obj->fault_mappable = true;
->  
-> -		obj->fault_mappable = true;
-> -	} else
-> -		ret = vm_insert_pfn(vma,
-> -				    (unsigned long)vmf->virtual_address,
-> -				    pfn + page_offset);
->  unpin:
->  	i915_gem_object_ggtt_unpin(obj);
->  unlock:
+>  /**
+> + * remap_io_mapping - remap an IO mapping to userspace
+> + * @vma: user vma to map to
+> + * @addr: target user address to start at
+> + * @pfn: physical address of kernel memory
+> + * @size: size of map area
+> + * @iomap: the source io_mapping
+> + *
+> + *  Note: this is only safe if the mm semaphore is held when called.
+> + */
+> +int remap_io_mapping(struct vm_area_struct *vma,
+> +		     unsigned long addr, unsigned long pfn, unsigned long size,
+> +		     struct io_mapping *iomap)
+> +{
+> +	unsigned long end = addr + PAGE_ALIGN(size);
+> +	struct remap_pfn r;
+> +	pgd_t *pgd;
+> +	int err;
+> +
+> +	if (WARN_ON(addr >= end))
+> +		return -EINVAL;
+> +
+> +#define MUST_SET (VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP)
+> +	BUG_ON(is_cow_mapping(vma->vm_flags));
+> +	BUG_ON((vma->vm_flags & MUST_SET) != MUST_SET);
+> +#undef MUST_SET
+> +
+
+I think that is bit general for define name, maybe something along
+REMAP_IO_NEEDED_FLAGS outside of the function... and then it doesn't
+have to be #undeffed. And if it is kept inside function then at least _
+prefix it. But I don't see why not make it available outside too.
+
+Otherwise looking good.
+
+Regards, Joonas
+
+> +	r.mm = vma->vm_mm;
+> +	r.addr = addr;
+> +	r.pfn = pfn;
+> +	r.prot = __pgprot((pgprot_val(iomap->prot) & _PAGE_CACHE_MASK) |
+> +			  (pgprot_val(vma->vm_page_prot) & ~_PAGE_CACHE_MASK));
+> +
+> +	pgd = pgd_offset(r.mm, addr);
+> +	do {
+> +		err = remap_pud_range(&r, pgd++, pgd_addr_end(r.addr, end));
+> +	} while (err == 0 && r.addr < end);
+> +
+> +	if (err)
+> +		zap_page_range_single(vma, addr, r.addr - addr, NULL);
+> +
+> +	return err;
+> +}
+> +EXPORT_SYMBOL(remap_io_mapping);
+> +
+> +/**
+>   * vm_iomap_memory - remap memory to userspace
+>   * @vma: user vma to map to
+>   * @start: start of area
 
 
 --
