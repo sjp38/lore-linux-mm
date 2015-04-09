@@ -1,38 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id A00636B0038
-	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 16:18:08 -0400 (EDT)
-Received: by wiun10 with SMTP id n10so2161399wiu.1
-        for <linux-mm@kvack.org>; Thu, 09 Apr 2015 13:18:08 -0700 (PDT)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.24])
-        by mx.google.com with ESMTPS id da9si17909429wib.71.2015.04.09.13.18.06
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 154536B0038
+	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 16:19:18 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so164409801pdb.0
+        for <linux-mm@kvack.org>; Thu, 09 Apr 2015 13:19:17 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id pe2si22961308pdb.154.2015.04.09.13.19.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Apr 2015 13:18:07 -0700 (PDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH 2/2] arm64: add KASan support
-Date: Thu, 09 Apr 2015 22:17:28 +0200
-Message-ID: <3164609.kEhR8riVSV@wuerfel>
-In-Reply-To: <1427208544-8232-3-git-send-email-a.ryabinin@samsung.com>
-References: <1427208544-8232-1-git-send-email-a.ryabinin@samsung.com> <1427208544-8232-3-git-send-email-a.ryabinin@samsung.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+        Thu, 09 Apr 2015 13:19:17 -0700 (PDT)
+Date: Thu, 9 Apr 2015 13:19:16 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: slub bulk alloc: Extract objects from the per cpu slab
+Message-Id: <20150409131916.51a533219dbff7a6f2294034@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.11.1504090859560.19278@gentwo.org>
+References: <alpine.DEB.2.11.1504081311070.20469@gentwo.org>
+	<20150408155304.4480f11f16b60f09879c350d@linux-foundation.org>
+	<alpine.DEB.2.11.1504090859560.19278@gentwo.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: brouer@redhat.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 
-On Tuesday 24 March 2015 17:49:04 Andrey Ryabinin wrote:
->  arch/arm64/mm/kasan_init.c           | 211 +++++++++++++++++++++++++++++++++++
+On Thu, 9 Apr 2015 09:03:24 -0500 (CDT) Christoph Lameter <cl@linux.com> wrote:
+
+> On Wed, 8 Apr 2015, Andrew Morton wrote:
 > 
+> > On Wed, 8 Apr 2015 13:13:29 -0500 (CDT) Christoph Lameter <cl@linux.com> wrote:
+> >
+> > > First piece: accelleration of retrieval of per cpu objects
+> > >
+> > >
+> > > If we are allocating lots of objects then it is advantageous to
+> > > disable interrupts and avoid the this_cpu_cmpxchg() operation to
+> > > get these objects faster. Note that we cannot do the fast operation
+> > > if debugging is enabled.
+> >
+> > Why can't we do it if debugging is enabled?
+> 
+> We would have to add extra code to do all the debugging checks. And it
+> would not be fast anyways.
 
-Just one very high-level question: as this code is clearly derived from
-the x86 version and nontrivial, could we move most of it out of
-arch/{x86,arm64} into mm/kasan/init.c and have the rest in some header
-file?
+I updated the changelog to reflect this.
 
-	Arnd
+> > > Allocate as many objects as possible in the fast way and then fall
+> > > back to the generic implementation for the rest of the objects.
+> >
+> > Seems sane.  What's the expected success rate of the initial bulk
+> > allocation attempt?
+> 
+> This is going to increase as we add more capabilities. I have a second
+> patch here that extends the fast allocation to the per cpu partial pages.
+
+Yes, but what is the expected success rate of the initial bulk
+allocation attempt?  If it's 1% then perhaps there's no point in doing
+it.
+
+> > > +		c->tid = next_tid(c->tid);
+> > > +
+> > > +		local_irq_enable();
+> > > +	}
+> > > +
+> > > +	return __kmem_cache_alloc_bulk(s, flags, size, p);
+> >
+> > This kmem_cache_cpu.tid logic is a bit opaque.  The low-level
+> > operations seem reasonably well documented but I couldn't find anywhere
+> > which tells me how it all actually works - what is "disambiguation
+> > during cmpxchg" and how do we achieve it?
+> 
+> This is used to force a retry in slab_alloc_node() if preemption occurs
+> there. We are modifying the per cpu state thus a retry must be forced.
+
+No, I'm not referring to this patch.  I'm referring to the overall
+design concept behind kmem_cache_cpu.tid.  This patch made me go and
+look, and it's a bit of a head-scratcher.  It's unobvious and doesn't
+appear to be documented in any central place.  Perhaps it's in a
+changelog, but who has time for that?
+
+A comment somewhere which describes the concept is needed.
+
+> > I'm in two minds about putting
+> > slab-infrastructure-for-bulk-object-allocation-and-freeing-v3.patch and
+> > slub-bulk-alloc-extract-objects-from-the-per-cpu-slab.patch into 4.1.
+> > They're standalone (ie: no in-kernel callers!) hence harmless, and
+> > merging them will make Jesper's life a bit easier.  But otoh they are
+> > unproven and have no in-kernel callers, so formally they shouldn't be
+> > merged yet.  I suppose we can throw them away again if things don't
+> > work out.
+> 
+> Can we keep them in -next and I will add patches as we go forward? There
+> was already a lot of discussion before and I would like to go
+> incrementally adding methods to do bulk extraction from the various
+> control structures that we have holding objects.
+
+Keeping them in -next is not a problem - I was wondering about when to
+start moving the code into mainline.  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
