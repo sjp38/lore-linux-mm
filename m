@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 0198C6B007D
-	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 02:56:31 -0400 (EDT)
-Received: by wiax7 with SMTP id x7so48351644wia.0
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 23:56:30 -0700 (PDT)
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 818786B0080
+	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 02:56:34 -0400 (EDT)
+Received: by wgbdm7 with SMTP id dm7so110254476wgb.1
+        for <linux-mm@kvack.org>; Wed, 08 Apr 2015 23:56:34 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p1si22536020wjp.207.2015.04.08.23.56.02
+        by mx.google.com with ESMTPS id ur1si4846005wjc.192.2015.04.08.23.56.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 08 Apr 2015 23:56:02 -0700 (PDT)
+        Wed, 08 Apr 2015 23:56:03 -0700 (PDT)
 From: Juergen Gross <jgross@suse.com>
-Subject: [Patch V2 11/15] xen: check for initrd conflicting with e820 map
-Date: Thu,  9 Apr 2015 08:55:38 +0200
-Message-Id: <1428562542-28488-12-git-send-email-jgross@suse.com>
+Subject: [Patch V2 15/15] xen: remove no longer needed p2m.h
+Date: Thu,  9 Apr 2015 08:55:42 +0200
+Message-Id: <1428562542-28488-16-git-send-email-jgross@suse.com>
 In-Reply-To: <1428562542-28488-1-git-send-email-jgross@suse.com>
 References: <1428562542-28488-1-git-send-email-jgross@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,84 +20,104 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com, linux-mm@kvack.org
 Cc: Juergen Gross <jgross@suse.com>
 
-Check whether the initrd is placed at a location which is conflicting
-with the target E820 map. If this is the case relocate it to a new
-area unused up to now and compliant to the E820 map.
+Cleanup by removing arch/x86/xen/p2m.h as it isn't needed any more.
+
+Most definitions in this file are used in p2m.c only. Move those into
+p2m.c.
+
+set_phys_range_identity() is already declared in
+arch/x86/include/asm/xen/page.h, add __init annotation there.
+
+MAX_REMAP_RANGES isn't used at all, just delete it.
+
+The only define left is P2M_PER_PAGE which is moved to page.h as well.
 
 Signed-off-by: Juergen Gross <jgross@suse.com>
 ---
- arch/x86/xen/setup.c | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 51 insertions(+)
+ arch/x86/include/asm/xen/page.h |  6 ++++--
+ arch/x86/xen/p2m.c              |  6 +++++-
+ arch/x86/xen/p2m.h              | 15 ---------------
+ arch/x86/xen/setup.c            |  1 -
+ 4 files changed, 9 insertions(+), 19 deletions(-)
+ delete mode 100644 arch/x86/xen/p2m.h
 
+diff --git a/arch/x86/include/asm/xen/page.h b/arch/x86/include/asm/xen/page.h
+index 18a11f2..b858592 100644
+--- a/arch/x86/include/asm/xen/page.h
++++ b/arch/x86/include/asm/xen/page.h
+@@ -35,6 +35,8 @@ typedef struct xpaddr {
+ #define FOREIGN_FRAME(m)	((m) | FOREIGN_FRAME_BIT)
+ #define IDENTITY_FRAME(m)	((m) | IDENTITY_FRAME_BIT)
+ 
++#define P2M_PER_PAGE		(PAGE_SIZE / sizeof(unsigned long))
++
+ extern unsigned long *machine_to_phys_mapping;
+ extern unsigned long  machine_to_phys_nr;
+ extern unsigned long *xen_p2m_addr;
+@@ -44,8 +46,8 @@ extern unsigned long  xen_max_p2m_pfn;
+ extern unsigned long get_phys_to_machine(unsigned long pfn);
+ extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+ extern bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+-extern unsigned long set_phys_range_identity(unsigned long pfn_s,
+-					     unsigned long pfn_e);
++extern unsigned long __init set_phys_range_identity(unsigned long pfn_s,
++						    unsigned long pfn_e);
+ 
+ extern int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
+ 				   struct gnttab_map_grant_ref *kmap_ops,
+diff --git a/arch/x86/xen/p2m.c b/arch/x86/xen/p2m.c
+index 365a64a..1f63ad2 100644
+--- a/arch/x86/xen/p2m.c
++++ b/arch/x86/xen/p2m.c
+@@ -78,10 +78,14 @@
+ #include <xen/balloon.h>
+ #include <xen/grant_table.h>
+ 
+-#include "p2m.h"
+ #include "multicalls.h"
+ #include "xen-ops.h"
+ 
++#define P2M_MID_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long *))
++#define P2M_TOP_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long **))
++
++#define MAX_P2M_PFN	(P2M_TOP_PER_PAGE * P2M_MID_PER_PAGE * P2M_PER_PAGE)
++
+ #define PMDS_PER_MID_PAGE	(P2M_MID_PER_PAGE / PTRS_PER_PTE)
+ 
+ unsigned long *xen_p2m_addr __read_mostly;
+diff --git a/arch/x86/xen/p2m.h b/arch/x86/xen/p2m.h
+deleted file mode 100644
+index ad8aee2..0000000
+--- a/arch/x86/xen/p2m.h
++++ /dev/null
+@@ -1,15 +0,0 @@
+-#ifndef _XEN_P2M_H
+-#define _XEN_P2M_H
+-
+-#define P2M_PER_PAGE        (PAGE_SIZE / sizeof(unsigned long))
+-#define P2M_MID_PER_PAGE    (PAGE_SIZE / sizeof(unsigned long *))
+-#define P2M_TOP_PER_PAGE    (PAGE_SIZE / sizeof(unsigned long **))
+-
+-#define MAX_P2M_PFN         (P2M_TOP_PER_PAGE * P2M_MID_PER_PAGE * P2M_PER_PAGE)
+-
+-#define MAX_REMAP_RANGES    10
+-
+-extern unsigned long __init set_phys_range_identity(unsigned long pfn_s,
+-                                      unsigned long pfn_e);
+-
+-#endif  /* _XEN_P2M_H */
 diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
-index 5d0f4e2..6985730 100644
+index 13394b1..5561608 100644
 --- a/arch/x86/xen/setup.c
 +++ b/arch/x86/xen/setup.c
-@@ -632,6 +632,36 @@ phys_addr_t __init xen_find_free_area(phys_addr_t size)
- }
+@@ -30,7 +30,6 @@
+ #include <xen/hvc-console.h>
+ #include "xen-ops.h"
+ #include "vdso.h"
+-#include "p2m.h"
+ #include "mmu.h"
  
- /*
-+ * Like memcpy, but with physical addresses for dest and src.
-+ */
-+static void __init xen_phys_memcpy(phys_addr_t dest, phys_addr_t src,
-+				   phys_addr_t n)
-+{
-+	phys_addr_t dest_off, src_off, dest_len, src_len, len;
-+	void *from, *to;
-+
-+	while (n) {
-+		dest_off = dest & ~PAGE_MASK;
-+		src_off = src & ~PAGE_MASK;
-+		dest_len = n;
-+		if (dest_len > (NR_FIX_BTMAPS << PAGE_SHIFT) - dest_off)
-+			dest_len = (NR_FIX_BTMAPS << PAGE_SHIFT) - dest_off;
-+		src_len = n;
-+		if (src_len > (NR_FIX_BTMAPS << PAGE_SHIFT) - src_off)
-+			src_len = (NR_FIX_BTMAPS << PAGE_SHIFT) - src_off;
-+		len = min(dest_len, src_len);
-+		to = early_memremap(dest - dest_off, dest_len + dest_off);
-+		from = early_memremap(src - src_off, src_len + src_off);
-+		memcpy(to, from, len);
-+		early_memunmap(to, dest_len + dest_off);
-+		early_memunmap(from, src_len + src_off);
-+		n -= len;
-+		dest += len;
-+		src += len;
-+	}
-+}
-+
-+/*
-  * Reserve Xen mfn_list.
-  * See comment above "struct start_info" in <xen/interface/xen.h>
-  * We tried to make the the memblock_reserve more selective so
-@@ -808,6 +838,27 @@ char * __init xen_memory_setup(void)
- 	 */
- 	xen_pt_check_e820();
- 
-+	/* Check for a conflict of the initrd with the target E820 map. */
-+	if (xen_chk_e820_reserved(boot_params.hdr.ramdisk_image,
-+				  boot_params.hdr.ramdisk_size)) {
-+		phys_addr_t new_area, start, size;
-+
-+		new_area = xen_find_free_area(boot_params.hdr.ramdisk_size);
-+		if (!new_area) {
-+			xen_raw_console_write("Can't find new memory area for initrd needed due to E820 map conflict\n");
-+			BUG();
-+		}
-+
-+		start = boot_params.hdr.ramdisk_image;
-+		size = boot_params.hdr.ramdisk_size;
-+		xen_phys_memcpy(new_area, start, size);
-+		pr_info("initrd moved from [mem %#010llx-%#010llx] to [mem %#010llx-%#010llx]\n",
-+			start, start + size, new_area, new_area + size);
-+		memblock_free(start, size);
-+		boot_params.hdr.ramdisk_image = new_area;
-+		boot_params.ext_ramdisk_image = new_area >> 32;
-+	}
-+
- 	xen_reserve_xen_mfnlist();
- 
- 	/*
+ #define GB(x) ((uint64_t)(x) * 1024 * 1024 * 1024)
 -- 
 2.1.4
 
