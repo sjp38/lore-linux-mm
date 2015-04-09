@@ -1,82 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id CEAA56B0032
-	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 09:09:05 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so91572199wid.0
-        for <linux-mm@kvack.org>; Thu, 09 Apr 2015 06:09:05 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gj3si24030851wjd.98.2015.04.09.06.09.03
+Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com [209.85.220.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B95F6B0032
+	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 10:03:27 -0400 (EDT)
+Received: by qku63 with SMTP id 63so125326850qku.3
+        for <linux-mm@kvack.org>; Thu, 09 Apr 2015 07:03:26 -0700 (PDT)
+Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
+        by mx.google.com with ESMTPS id 15si14428941qga.22.2015.04.09.07.03.25
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 09 Apr 2015 06:09:04 -0700 (PDT)
-Message-ID: <552679EE.1020704@suse.com>
-Date: Thu, 09 Apr 2015 15:09:02 +0200
-From: Juergen Gross <jgross@suse.com>
-MIME-Version: 1.0
-Subject: Re: [Xen-devel] [Patch V2 10/15] xen: check pre-allocated page tables
- for conflict with memory map
-References: <1428562542-28488-1-git-send-email-jgross@suse.com> <1428562542-28488-11-git-send-email-jgross@suse.com> <552674C8.7010104@cantab.net>
-In-Reply-To: <552674C8.7010104@cantab.net>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Thu, 09 Apr 2015 07:03:25 -0700 (PDT)
+Date: Thu, 9 Apr 2015 09:03:24 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: slub bulk alloc: Extract objects from the per cpu slab
+In-Reply-To: <20150408155304.4480f11f16b60f09879c350d@linux-foundation.org>
+Message-ID: <alpine.DEB.2.11.1504090859560.19278@gentwo.org>
+References: <alpine.DEB.2.11.1504081311070.20469@gentwo.org> <20150408155304.4480f11f16b60f09879c350d@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Vrabel <dvrabel@cantab.net>, linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: brouer@redhat.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 
-On 04/09/2015 02:47 PM, David Vrabel wrote:
-> On 09/04/2015 07:55, Juergen Gross wrote:
->> Check whether the page tables built by the domain builder are at
->> memory addresses which are in conflict with the target memory map.
->> If this is the case just panic instead of running into problems
->> later.
->>
->> Signed-off-by: Juergen Gross <jgross@suse.com>
->> ---
->>   arch/x86/xen/mmu.c     | 19 ++++++++++++++++---
->>   arch/x86/xen/setup.c   |  6 ++++++
->>   arch/x86/xen/xen-ops.h |  1 +
->>   3 files changed, 23 insertions(+), 3 deletions(-)
->>
->> diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
->> index 1ca5197..41aeb1c 100644
->> --- a/arch/x86/xen/mmu.c
->> +++ b/arch/x86/xen/mmu.c
->> @@ -116,6 +116,7 @@ static pud_t level3_user_vsyscall[PTRS_PER_PUD] __page_aligned_bss;
->>   DEFINE_PER_CPU(unsigned long, xen_cr3);	 /* cr3 stored as physaddr */
->>   DEFINE_PER_CPU(unsigned long, xen_current_cr3);	 /* actual vcpu cr3 */
->>
->> +static phys_addr_t xen_pt_base, xen_pt_size;
+On Wed, 8 Apr 2015, Andrew Morton wrote:
+
+> On Wed, 8 Apr 2015 13:13:29 -0500 (CDT) Christoph Lameter <cl@linux.com> wrote:
 >
-> These be __init, but the use of globals in this way is confusing.
-
-How else would you want to do it?
-
+> > First piece: accelleration of retrieval of per cpu objects
+> >
+> >
+> > If we are allocating lots of objects then it is advantageous to
+> > disable interrupts and avoid the this_cpu_cmpxchg() operation to
+> > get these objects faster. Note that we cannot do the fast operation
+> > if debugging is enabled.
 >
->>
->>   /*
->>    * Just beyond the highest usermode address.  STACK_TOP_MAX has a
->> @@ -1998,7 +1999,9 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
->>   		check_pt_base(&pt_base, &pt_end, addr[i]);
->>
->>   	/* Our (by three pages) smaller Xen pagetable that we are using */
->> -	memblock_reserve(PFN_PHYS(pt_base), (pt_end - pt_base) * PAGE_SIZE);
->> +	xen_pt_base = PFN_PHYS(pt_base);
->> +	xen_pt_size = (pt_end - pt_base) * PAGE_SIZE;
->> +	memblock_reserve(xen_pt_base, xen_pt_size);
+> Why can't we do it if debugging is enabled?
+
+We would have to add extra code to do all the debugging checks. And it
+would not be fast anyways.
+
+> > Allocate as many objects as possible in the fast way and then fall
+> > back to the generic implementation for the rest of the objects.
 >
-> Why not provide a xen_memblock_check_and_reserve() call that has the
-> xen_is_e820_reserved() check and the memblock_reserve() call?  This may
-> also be useful for patch #9 as well.
+> Seems sane.  What's the expected success rate of the initial bulk
+> allocation attempt?
 
-Uuh, not really. memblock_reserve() for those areas is called much
-earlier than the e820 map is constructed.
+This is going to increase as we add more capabilities. I have a second
+patch here that extends the fast allocation to the per cpu partial pages.
 
-Thinking more about it, I even have to modify patch 11 and 13:
-relocation must be done _after_ doing the memblock_reserve() of all
-pre-populated areas to avoid relocating to such an area.
+> > +		c->tid = next_tid(c->tid);
+> > +
+> > +		local_irq_enable();
+> > +	}
+> > +
+> > +	return __kmem_cache_alloc_bulk(s, flags, size, p);
+>
+> This kmem_cache_cpu.tid logic is a bit opaque.  The low-level
+> operations seem reasonably well documented but I couldn't find anywhere
+> which tells me how it all actually works - what is "disambiguation
+> during cmpxchg" and how do we achieve it?
 
+This is used to force a retry in slab_alloc_node() if preemption occurs
+there. We are modifying the per cpu state thus a retry must be forced.
 
-Juergen
+> I'm in two minds about putting
+> slab-infrastructure-for-bulk-object-allocation-and-freeing-v3.patch and
+> slub-bulk-alloc-extract-objects-from-the-per-cpu-slab.patch into 4.1.
+> They're standalone (ie: no in-kernel callers!) hence harmless, and
+> merging them will make Jesper's life a bit easier.  But otoh they are
+> unproven and have no in-kernel callers, so formally they shouldn't be
+> merged yet.  I suppose we can throw them away again if things don't
+> work out.
+
+Can we keep them in -next and I will add patches as we go forward? There
+was already a lot of discussion before and I would like to go
+incrementally adding methods to do bulk extraction from the various
+control structures that we have holding objects.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
