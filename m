@@ -1,64 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id EF2C66B0038
-	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 20:14:48 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so110627266wiz.1
-        for <linux-mm@kvack.org>; Thu, 09 Apr 2015 17:14:48 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id wk3si437104wjb.136.2015.04.09.17.14.46
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id B0B796B0038
+	for <linux-mm@kvack.org>; Thu,  9 Apr 2015 20:18:08 -0400 (EDT)
+Received: by pabsx10 with SMTP id sx10so3842483pab.3
+        for <linux-mm@kvack.org>; Thu, 09 Apr 2015 17:18:08 -0700 (PDT)
+Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
+        by mx.google.com with ESMTPS id zp6si403572pbc.127.2015.04.09.17.18.07
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Apr 2015 17:14:47 -0700 (PDT)
-Message-ID: <552715E4.2080100@redhat.com>
-Date: Thu, 09 Apr 2015 20:14:28 -0400
-From: Rik van Riel <riel@redhat.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 09 Apr 2015 17:18:07 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp ([10.7.69.202])
+	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t3A0I029001825
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Fri, 10 Apr 2015 09:18:04 +0900 (JST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm/hugetlb: use pmd_page() in follow_huge_pmd()
+Date: Fri, 10 Apr 2015 00:08:42 +0000
+Message-ID: <20150410000814.GA3623@hori1.linux.bs1.fc.nec.co.jp>
+References: <1428595895-24140-1-git-send-email-gerald.schaefer@de.ibm.com>
+In-Reply-To: <1428595895-24140-1-git-send-email-gerald.schaefer@de.ibm.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <B19D6B38F80488449F97BB2E5B08B896@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] mm: make every pte dirty on do_swap_page
-References: <1426036838-18154-1-git-send-email-minchan@kernel.org>	<1426036838-18154-4-git-send-email-minchan@kernel.org>	<20150408235012.GA13690@blaptop> <20150409135939.bbc9025d925de9d0fdd12797@linux-foundation.org>
-In-Reply-To: <20150409135939.bbc9025d925de9d0fdd12797@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>, Yalin.Wang@sonymobile.com, Hugh Dickins <hughd@google.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Pavel Emelyanov <xemul@parallels.com>
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On 04/09/2015 04:59 PM, Andrew Morton wrote:
-> On Thu, 9 Apr 2015 08:50:25 +0900 Minchan Kim <minchan@kernel.org> wrote:
-> 
->> Bump.
-> 
-> I'm getting the feeling that MADV_FREE is out of control.
-> 
-> Below is the overall rollup of
-> 
-> mm-support-madvisemadv_free.patch
-> mm-support-madvisemadv_free-fix.patch
-> mm-support-madvisemadv_free-fix-2.patch
-> mm-dont-split-thp-page-when-syscall-is-called.patch
-> mm-dont-split-thp-page-when-syscall-is-called-fix.patch
-> mm-dont-split-thp-page-when-syscall-is-called-fix-2.patch
-> mm-free-swp_entry-in-madvise_free.patch
-> mm-move-lazy-free-pages-to-inactive-list.patch
-> mm-move-lazy-free-pages-to-inactive-list-fix.patch
-> mm-move-lazy-free-pages-to-inactive-list-fix-fix.patch
-> mm-move-lazy-free-pages-to-inactive-list-fix-fix-fix.patch
-> mm-make-every-pte-dirty-on-do_swap_page.patch
-> 
-> 
-> It's pretty large and has its sticky little paws in all sorts of places.
-> 
-> 
-> The feature would need to be pretty darn useful to justify a mainline
-> merge.  Has any such usefulness been demonstrated?
+On Thu, Apr 09, 2015 at 06:11:35PM +0200, Gerald Schaefer wrote:
+> commit 61f77eda "mm/hugetlb: reduce arch dependent code around follow_hug=
+e_*"
+> broke follow_huge_pmd() on s390, where pmd and pte layout differ and usin=
+g
+> pte_page() on a huge pmd will return wrong results. Using pmd_page() inst=
+ead
+> fixes this.
+>=20
+> All architectures that were touched by commit 61f77eda have pmd_page()
+> defined, so this should not break anything on other architectures.
+>=20
+> Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
-The performance increase of MADV_FREE over MADV_DONTNEED is
-quite significant. I suspect this is especially important for
-mobile devices, which are more memory starved than desktop
-systems and servers.
+Thank you for the report. This looks good to me.
 
--- 
-All rights reversed
+Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+
+> Cc: stable@vger.kernel.org # v3.12
+> ---
+>  mm/hugetlb.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
+>=20
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index e8c92ae..271e443 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -3865,8 +3865,7 @@ retry:
+>  	if (!pmd_huge(*pmd))
+>  		goto out;
+>  	if (pmd_present(*pmd)) {
+> -		page =3D pte_page(*(pte_t *)pmd) +
+> -			((address & ~PMD_MASK) >> PAGE_SHIFT);
+> +		page =3D pmd_page(*pmd) + ((address & ~PMD_MASK) >> PAGE_SHIFT);
+>  		if (flags & FOLL_GET)
+>  			get_page(page);
+>  	} else {
+> --=20
+> 2.1.4
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
