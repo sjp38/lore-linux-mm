@@ -1,61 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id DF42C6B0038
-	for <linux-mm@kvack.org>; Fri, 10 Apr 2015 09:38:02 -0400 (EDT)
-Received: by pacyx8 with SMTP id yx8so22079525pac.1
-        for <linux-mm@kvack.org>; Fri, 10 Apr 2015 06:38:02 -0700 (PDT)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id rv7si2987460pbb.128.2015.04.10.06.38.01
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A6F666B0038
+	for <linux-mm@kvack.org>; Fri, 10 Apr 2015 13:56:18 -0400 (EDT)
+Received: by pabsx10 with SMTP id sx10so28296538pab.3
+        for <linux-mm@kvack.org>; Fri, 10 Apr 2015 10:56:18 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id i10si3928464pat.132.2015.04.10.10.56.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 10 Apr 2015 06:38:02 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NML00HUFFDTLZ90@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 10 Apr 2015 14:41:53 +0100 (BST)
-Message-id: <5527D22E.9090000@samsung.com>
-Date: Fri, 10 Apr 2015 16:37:50 +0300
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH 2/2] arm64: add KASan support
-References: <1427208544-8232-1-git-send-email-a.ryabinin@samsung.com>
- <3164609.kEhR8riVSV@wuerfel> <5527AA94.5080803@samsung.com>
- <8790947.ikOtIjWHkt@wuerfel>
-In-reply-to: <8790947.ikOtIjWHkt@wuerfel>
-Content-type: text/plain; charset=windows-1252
-Content-transfer-encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Apr 2015 10:56:17 -0700 (PDT)
+Received: by paboj16 with SMTP id oj16so28441517pab.0
+        for <linux-mm@kvack.org>; Fri, 10 Apr 2015 10:56:17 -0700 (PDT)
+Date: Fri, 10 Apr 2015 10:56:07 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [Question] ksm: rmap_item pointing to some stale vmas
+In-Reply-To: <55268741.8010301@codeaurora.org>
+Message-ID: <alpine.LSU.2.11.1504101047200.28925@eggly.anvils>
+References: <55268741.8010301@codeaurora.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: linux-arm-kernel@lists.infradead.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Susheel Khiani <skhiani@codeaurora.org>
+Cc: akpm@linux-foundation.org, peterz@infradead.org, neilb@suse.de, dhowells@redhat.com, hughd@google.com, paulmcquad@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 04/10/2015 04:02 PM, Arnd Bergmann wrote:
-> On Friday 10 April 2015 13:48:52 Andrey Ryabinin wrote:
->> On 04/09/2015 11:17 PM, Arnd Bergmann wrote:
->>> On Tuesday 24 March 2015 17:49:04 Andrey Ryabinin wrote:
->>>>  arch/arm64/mm/kasan_init.c           | 211 +++++++++++++++++++++++++++++++++++
->>>>
->>>
->>> Just one very high-level question: as this code is clearly derived from
->>> the x86 version and nontrivial, could we move most of it out of
->>> arch/{x86,arm64} into mm/kasan/init.c and have the rest in some header
->>> file?
->>>
->>
->> I think most of this could be moved out from arch code, but not everything.
->> E.g. kasan_init() function is too arch-specific.
-> 
-> Right, makes sense. So presumably, populate_zero_shadow could become a global
-> function by another name, and possibly also handle registering the die
-> handler, so you can call it from an architecture specific kasan_init() 
-> function, right?
-> 
+On Thu, 9 Apr 2015, Susheel Khiani wrote:
 
-Yep, you are right.
-
-> 	Arnd
+> Hi,
 > 
+> We are seeing an issue during try_to_unmap_ksm where in call to
+> try_to_unmap_one is failing.
+> 
+> try_to_unmap_ksm in this particular case is trying to go through vmas
+> associated with each rmap_item->anon_vma. What we see is this that the
+> corresponding page is not mapped to any of the vmas associated with 2
+> rmap_item.
+> 
+> The associated rmap_item in this case looks like pointing to some valid vma
+> but the said page is not found to be mapped under it. try_to_unmap_one thus
+> fails to find valid ptes for these vmas.
+> 
+> At the same time we can see that the page actually is mapped in 2 separate
+> and different vmas which are not part of rmap_item associated with page.
+> 
+> So whether rmap_item is pointing to some stale vmas and now the mapping has
+> changed? Or there is something else going on here.
+> p
+> Any pointer would be appreciated.
+
+I expected to be able to argue this away, but no: I think you've found
+a bug, and I think I get it too.  I have no idea what's wrong at this
+point, will set aside some time to investigate, and report back.
+
+Which kernel are you using?  try_to_unmap_ksm says v3.13 or earlier.
+Probably doesn't affect the bug, but may affect the patch you'll need.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
