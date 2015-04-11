@@ -1,62 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 534786B0038
-	for <linux-mm@kvack.org>; Fri, 10 Apr 2015 22:19:08 -0400 (EDT)
-Received: by ignm3 with SMTP id m3so24517137ign.0
-        for <linux-mm@kvack.org>; Fri, 10 Apr 2015 19:19:08 -0700 (PDT)
-Received: from resqmta-po-04v.sys.comcast.net (resqmta-po-04v.sys.comcast.net. [2001:558:fe16:19:96:114:154:163])
-        by mx.google.com with ESMTPS id da20si3560820icb.39.2015.04.10.19.19.07
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EA616B0038
+	for <linux-mm@kvack.org>; Fri, 10 Apr 2015 22:50:13 -0400 (EDT)
+Received: by iget9 with SMTP id t9so24731966ige.1
+        for <linux-mm@kvack.org>; Fri, 10 Apr 2015 19:50:13 -0700 (PDT)
+Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com. [2607:f8b0:4001:c05::229])
+        by mx.google.com with ESMTPS id j4si1321078igx.32.2015.04.10.19.50.12
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 10 Apr 2015 19:19:07 -0700 (PDT)
-Date: Fri, 10 Apr 2015 21:19:06 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: slub bulk alloc: Extract objects from the per cpu slab
-In-Reply-To: <20150409131916.51a533219dbff7a6f2294034@linux-foundation.org>
-Message-ID: <alpine.DEB.2.11.1504102115320.1179@gentwo.org>
-References: <alpine.DEB.2.11.1504081311070.20469@gentwo.org> <20150408155304.4480f11f16b60f09879c350d@linux-foundation.org> <alpine.DEB.2.11.1504090859560.19278@gentwo.org> <20150409131916.51a533219dbff7a6f2294034@linux-foundation.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Apr 2015 19:50:12 -0700 (PDT)
+Received: by igbqf9 with SMTP id qf9so11637053igb.1
+        for <linux-mm@kvack.org>; Fri, 10 Apr 2015 19:50:12 -0700 (PDT)
+Date: Fri, 10 Apr 2015 19:50:07 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2] mm: show free pages per each migrate type
+In-Reply-To: <BLU436-SMTP78227860F3E4FAF236A85CBAFB0@phx.gbl>
+Message-ID: <alpine.DEB.2.10.1504101944440.9879@chino.kir.corp.google.com>
+References: <BLU436-SMTP78227860F3E4FAF236A85CBAFB0@phx.gbl>
+MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: brouer@redhat.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: Neil Zhang <neilzhang1123@hotmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-On Thu, 9 Apr 2015, Andrew Morton wrote:
+On Thu, 9 Apr 2015, Neil Zhang wrote:
 
-> > This is going to increase as we add more capabilities. I have a second
-> > patch here that extends the fast allocation to the per cpu partial pages.
->
-> Yes, but what is the expected success rate of the initial bulk
-> allocation attempt?  If it's 1% then perhaps there's no point in doing
-> it.
+> show detailed free pages per each migrate type in show_free_areas.
+> 
+> After apply this patch, the log printed out will be changed from
+> 
+> [   558.212844@0] Normal: 218*4kB (UEMC) 207*8kB (UEMC) 126*16kB (UEMC) 21*32kB (UC) 5*64kB (C) 3*128kB (C) 1*256kB (C) 1*512kB (C) 0*1024kB 0*2048kB 1*4096kB (R) = 10784kB
+> [   558.227840@0] HighMem: 3*4kB (UMR) 3*8kB (UMR) 2*16kB (UM) 3*32kB (UMR) 0*64kB 1*128kB (M) 1*256kB (R) 0*512kB 0*1024kB 0*2048kB 0*4096kB = 548kB
+> 
+> to
+> 
+> [   806.506450@1] Normal: 8969*4kB 4370*8kB 2*16kB 3*32kB 2*64kB 3*128kB 3*256kB 1*512kB 0*1024kB 1*2048kB 0*4096kB = 74804kB
+> [   806.517456@1]       orders:      0      1      2      3      4      5      6      7      8      9     10
+> [   806.527077@1]    Unmovable:   8287   4370      0      0      0      0      0      0      0      0      0
+> [   806.536699@1]  Reclaimable:    681      0      0      0      0      0      0      0      0      0      0
+> [   806.546321@1]      Movable:      1      0      0      0      0      0      0      0      0      0      0
+> [   806.555942@1]      Reserve:      0      0      2      3      2      3      3      1      0      1      0
+> [   806.565564@1]          CMA:      0      0      0      0      0      0      0      0      0      0      0
+> [   806.575187@1]      Isolate:      0      0      0      0      0      0      0      0      0      0      0
+> [   806.584810@1] HighMem: 80*4kB 15*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 440kB
+> [   806.595383@1]       orders:      0      1      2      3      4      5      6      7      8      9     10
+> [   806.605004@1]    Unmovable:     12      0      0      0      0      0      0      0      0      0      0
+> [   806.614626@1]  Reclaimable:      0      0      0      0      0      0      0      0      0      0      0
+> [   806.624248@1]      Movable:     11     15      0      0      0      0      0      0      0      0      0
+> [   806.633869@1]      Reserve:     57      0      0      0      0      0      0      0      0      0      0
+> [   806.643491@1]          CMA:      0      0      0      0      0      0      0      0      0      0      0
+> [   806.653113@1]      Isolate:      0      0      0      0      0      0      0      0      0      0      0
+> 
+> Signed-off-by: Neil Zhang <neilzhang1123@hotmail.com>
 
-After we have extracted object from all structures aorund we can also go
-directly to the page allocator if we wanted and bypass lots of the
-processing for metadata. So we will ultimately end up with 100% success
-rate.
+Sorry, this is just way too verbose.  This output is emitted to the kernel 
+log on oom kill and since we lack a notification mechanism on system oom, 
+the _only_ way for userspace to detect oom kills that have occurred is by 
+scraping the kernel log.  This is exactly what we do, and we have missed 
+oom kill events because they scroll from the ring buffer due to excessive 
+output such as this, which is why output was limited with the 
+show_free_areas() filter in the first place.  Just because oom kill output 
+is much less than it has been in the past, for precisely this reason, 
+doesn't mean we can make it excessive again.
 
-> > > This kmem_cache_cpu.tid logic is a bit opaque.  The low-level
-> > > operations seem reasonably well documented but I couldn't find anywhere
-> > > which tells me how it all actually works - what is "disambiguation
-> > > during cmpxchg" and how do we achieve it?
-> >
-> > This is used to force a retry in slab_alloc_node() if preemption occurs
-> > there. We are modifying the per cpu state thus a retry must be forced.
->
-> No, I'm not referring to this patch.  I'm referring to the overall
-> design concept behind kmem_cache_cpu.tid.  This patch made me go and
-> look, and it's a bit of a head-scratcher.  It's unobvious and doesn't
-> appear to be documented in any central place.  Perhaps it's in a
-> changelog, but who has time for that?
-
-The tid logic is documented somewhat in mm/slub.c. Line 1749 and
-following.
-
-> Keeping them in -next is not a problem - I was wondering about when to
-> start moving the code into mainline.
-
-When Mr. Brouer has confirmed that the stuff actually does some good for
-his issue.
+So nack on this patch, and if we really need to have this information (I 
+don't know your motivation for adding it since you list none in your 
+changelog), then we need to consider an oom verbosity sysctl or, better, 
+an actual system oom notification to userspace based on eventfd() without 
+requiring memcg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
