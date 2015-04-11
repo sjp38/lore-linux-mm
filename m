@@ -1,52 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id F1B8A6B006E
-	for <linux-mm@kvack.org>; Fri, 10 Apr 2015 17:50:18 -0400 (EDT)
-Received: by qkgx75 with SMTP id x75so47372821qkg.1
-        for <linux-mm@kvack.org>; Fri, 10 Apr 2015 14:50:18 -0700 (PDT)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [PATCH 2/2][v2] blk-plug: don't flush nested plug lists
-References: <1428347694-17704-1-git-send-email-jmoyer@redhat.com>
-	<1428347694-17704-2-git-send-email-jmoyer@redhat.com>
-	<x49wq1nrcoe.fsf_-_@segfault.boston.devel.redhat.com>
-	<20150408230203.GG15810@dastard>
-Date: Fri, 10 Apr 2015 17:50:06 -0400
-In-Reply-To: <20150408230203.GG15810@dastard> (Dave Chinner's message of "Thu,
-	9 Apr 2015 09:02:03 +1000")
-Message-ID: <x498udzlkkx.fsf@segfault.boston.devel.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 534786B0038
+	for <linux-mm@kvack.org>; Fri, 10 Apr 2015 22:19:08 -0400 (EDT)
+Received: by ignm3 with SMTP id m3so24517137ign.0
+        for <linux-mm@kvack.org>; Fri, 10 Apr 2015 19:19:08 -0700 (PDT)
+Received: from resqmta-po-04v.sys.comcast.net (resqmta-po-04v.sys.comcast.net. [2001:558:fe16:19:96:114:154:163])
+        by mx.google.com with ESMTPS id da20si3560820icb.39.2015.04.10.19.19.07
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 10 Apr 2015 19:19:07 -0700 (PDT)
+Date: Fri, 10 Apr 2015 21:19:06 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: slub bulk alloc: Extract objects from the per cpu slab
+In-Reply-To: <20150409131916.51a533219dbff7a6f2294034@linux-foundation.org>
+Message-ID: <alpine.DEB.2.11.1504102115320.1179@gentwo.org>
+References: <alpine.DEB.2.11.1504081311070.20469@gentwo.org> <20150408155304.4480f11f16b60f09879c350d@linux-foundation.org> <alpine.DEB.2.11.1504090859560.19278@gentwo.org> <20150409131916.51a533219dbff7a6f2294034@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jens Axboe <axboe@kernel.dk>, Ming Lei <tom.leiming@gmail.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Roger Pau Monn?? <roger.pau@citrix.com>, Alasdair Kergon <agk@redhat.com>, Mike Snitzer <snitzer@redhat.com>, Neil Brown <neilb@suse.de>, "Nicholas A. Bellinger" <nab@linux-iscsi.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.cz>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jaegeuk Kim <jaegeuk@kernel.org>, Changman Lee <cm224.lee@samsung.com>, Steven Whitehouse <swhiteho@redhat.com>, Mikulas Patocka <mikulas@artax.karlin.mff.cuni.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, xfs@oss.sgi.com, Christoph Hellwig <hch@lst.de>, Weston Andros Adamson <dros@primarydata.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Sagi Grimberg <sagig@mellanox.com>, Tejun Heo <tj@kernel.org>, Fabian Frederick <fabf@skynet.be>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Ming Lei <ming.lei@canonical.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Wang Sheng-Hui <shhuiw@gmail.com>, Michal Hocko <mhocko@suse.cz>, Joe Perches <joe@perches.com>, Miklos Szeredi <mszeredi@suse.cz>, Namjae Jeon <namjae.jeon@samsung.com>, Mark Rustad <mark.d.rustad@intel.com>, Jianyu Zhan <nasa4836@gmail.com>, Fengguang Wu <fengguang.wu@intel.com>, Vladimir Davydov <vdavydov@parallels.com>, Vlastimil Babka <vbabka@suse.cz>, Suleiman Souhlal <suleiman@google.com>, linux-kernel@vger.kernel.org, dm-devel@redhat.com, xen-devel@lists.xenproject.org, linux-raid@vger.kernel.org, linux-scsi@vger.kernel.org, target-devel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: brouer@redhat.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 
-Dave Chinner <david@fromorbit.com> writes:
+On Thu, 9 Apr 2015, Andrew Morton wrote:
 
-> On Tue, Apr 07, 2015 at 02:55:13PM -0400, Jeff Moyer wrote:
->> The way the on-stack plugging currently works, each nesting level
->> flushes its own list of I/Os.  This can be less than optimal (read
->> awful) for certain workloads.  For example, consider an application
->> that issues asynchronous O_DIRECT I/Os.  It can send down a bunch of
->> I/Os together in a single io_submit call, only to have each of them
->> dispatched individually down in the bowels of the dirct I/O code.
->> The reason is that there are blk_plug-s instantiated both at the upper
->> call site in do_io_submit and down in do_direct_IO.  The latter will
->> submit as little as 1 I/O at a time (if you have a small enough I/O
->> size) instead of performing the batching that the plugging
->> infrastructure is supposed to provide.
+> > This is going to increase as we add more capabilities. I have a second
+> > patch here that extends the fast allocation to the per cpu partial pages.
 >
-> I'm wondering what impact this will have on filesystem metadata IO
-> that needs to be issued immediately. e.g. we are doing writeback, so
-> there is a high level plug in place and we need to page in btree
-> blocks to do extent allocation. We do readahead at this point,
-> but it looks like this change will prevent the readahead from being
-> issued by the unplug in xfs_buf_iosubmit().
+> Yes, but what is the expected success rate of the initial bulk
+> allocation attempt?  If it's 1% then perhaps there's no point in doing
+> it.
 
-I'm not ignoring you, Dave, I'm just doing some more investigation and
-testing.  It's taking longer than I had hoped.
+After we have extracted object from all structures aorund we can also go
+directly to the page allocator if we wanted and bypass lots of the
+processing for metadata. So we will ultimately end up with 100% success
+rate.
 
--Jeff
+> > > This kmem_cache_cpu.tid logic is a bit opaque.  The low-level
+> > > operations seem reasonably well documented but I couldn't find anywhere
+> > > which tells me how it all actually works - what is "disambiguation
+> > > during cmpxchg" and how do we achieve it?
+> >
+> > This is used to force a retry in slab_alloc_node() if preemption occurs
+> > there. We are modifying the per cpu state thus a retry must be forced.
+>
+> No, I'm not referring to this patch.  I'm referring to the overall
+> design concept behind kmem_cache_cpu.tid.  This patch made me go and
+> look, and it's a bit of a head-scratcher.  It's unobvious and doesn't
+> appear to be documented in any central place.  Perhaps it's in a
+> changelog, but who has time for that?
+
+The tid logic is documented somewhat in mm/slub.c. Line 1749 and
+following.
+
+> Keeping them in -next is not a problem - I was wondering about when to
+> start moving the code into mainline.
+
+When Mr. Brouer has confirmed that the stuff actually does some good for
+his issue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
