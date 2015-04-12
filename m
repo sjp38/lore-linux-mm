@@ -1,201 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E86D6B0038
-	for <linux-mm@kvack.org>; Sun, 12 Apr 2015 03:02:43 -0400 (EDT)
-Received: by pabsx10 with SMTP id sx10so67741931pab.3
-        for <linux-mm@kvack.org>; Sun, 12 Apr 2015 00:02:43 -0700 (PDT)
-Received: from COL004-OMC2S5.hotmail.com (col004-omc2s5.hotmail.com. [65.55.34.79])
-        by mx.google.com with ESMTPS id nr10si10162365pdb.201.2015.04.12.00.02.41
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DC3E6B0038
+	for <linux-mm@kvack.org>; Sun, 12 Apr 2015 03:08:16 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so71117245pdb.0
+        for <linux-mm@kvack.org>; Sun, 12 Apr 2015 00:08:16 -0700 (PDT)
+Received: from COL004-OMC2S7.hotmail.com (col004-omc2s7.hotmail.com. [65.55.34.81])
+        by mx.google.com with ESMTPS id v1si10198214pdg.139.2015.04.12.00.08.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 12 Apr 2015 00:02:42 -0700 (PDT)
-Message-ID: <COL130-W69215CA3E7621131A4756BBAF80@phx.gbl>
-Content-Type: multipart/alternative;
-	boundary="_6b5e6c46-9b15-4e6d-bc1f-744094835c4b_"
+        Sun, 12 Apr 2015 00:08:15 -0700 (PDT)
+Message-ID: <COL130-W77A7613DB3EA1820D92CBABAF80@phx.gbl>
 From: ZhangNeil <neilzhang1123@hotmail.com>
 Subject: RE: [PATCH v2] mm: show free pages per each migrate type
-Date: Sun, 12 Apr 2015 07:02:41 +0000
+Date: Sun, 12 Apr 2015 07:08:15 +0000
 In-Reply-To: <alpine.DEB.2.10.1504101944440.9879@chino.kir.corp.google.com>
 References: 
  <BLU436-SMTP78227860F3E4FAF236A85CBAFB0@phx.gbl>,<alpine.DEB.2.10.1504101944440.9879@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
---_6b5e6c46-9b15-4e6d-bc1f-744094835c4b_
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
-
-DQoNCj4gRGF0ZTogRnJpLCAxMCBBcHIgMjAxNSAxOTo1MDowNyAtMDcwMA0KPiBGcm9tOiByaWVu
-dGplc0Bnb29nbGUuY29tDQo+IFRvOiBuZWlsemhhbmcxMTIzQGhvdG1haWwuY29tDQo+IENDOiBs
-aW51eC1tbUBrdmFjay5vcmc7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IGFrcG1AbGlu
-dXgtZm91bmRhdGlvbi5vcmcNCj4gU3ViamVjdDogUmU6IFtQQVRDSCB2Ml0gbW06IHNob3cgZnJl
-ZSBwYWdlcyBwZXIgZWFjaCBtaWdyYXRlIHR5cGUNCj4gDQo+IE9uIFRodSwgOSBBcHIgMjAxNSwg
-TmVpbCBaaGFuZyB3cm90ZToNCj4gDQo+ID4gc2hvdyBkZXRhaWxlZCBmcmVlIHBhZ2VzIHBlciBl
-YWNoIG1pZ3JhdGUgdHlwZSBpbiBzaG93X2ZyZWVfYXJlYXMuDQo+ID4gDQo+ID4gQWZ0ZXIgYXBw
-bHkgdGhpcyBwYXRjaCwgdGhlIGxvZyBwcmludGVkIG91dCB3aWxsIGJlIGNoYW5nZWQgZnJvbQ0K
-PiA+IA0KPiA+IFsgICA1NTguMjEyODQ0QDBdIE5vcm1hbDogMjE4KjRrQiAoVUVNQykgMjA3Kjhr
-QiAoVUVNQykgMTI2KjE2a0IgKFVFTUMpIDIxKjMya0IgKFVDKSA1KjY0a0IgKEMpIDMqMTI4a0Ig
-KEMpIDEqMjU2a0IgKEMpIDEqNTEya0IgKEMpIDAqMTAyNGtCIDAqMjA0OGtCIDEqNDA5NmtCIChS
-KSA9IDEwNzg0a0INCj4gPiBbICAgNTU4LjIyNzg0MEAwXSBIaWdoTWVtOiAzKjRrQiAoVU1SKSAz
-KjhrQiAoVU1SKSAyKjE2a0IgKFVNKSAzKjMya0IgKFVNUikgMCo2NGtCIDEqMTI4a0IgKE0pIDEq
-MjU2a0IgKFIpIDAqNTEya0IgMCoxMDI0a0IgMCoyMDQ4a0IgMCo0MDk2a0IgPSA1NDhrQg0KPiA+
-IA0KPiA+IHRvDQo+ID4gDQo+ID4gWyAgIDgwNi41MDY0NTBAMV0gTm9ybWFsOiA4OTY5KjRrQiA0
-MzcwKjhrQiAyKjE2a0IgMyozMmtCIDIqNjRrQiAzKjEyOGtCIDMqMjU2a0IgMSo1MTJrQiAwKjEw
-MjRrQiAxKjIwNDhrQiAwKjQwOTZrQiA9IDc0ODA0a0INCj4gPiBbICAgODA2LjUxNzQ1NkAxXSAg
-ICAgICBvcmRlcnM6ICAgICAgMCAgICAgIDEgICAgICAyICAgICAgMyAgICAgIDQgICAgICA1ICAg
-ICAgNiAgICAgIDcgICAgICA4ICAgICAgOSAgICAgMTANCj4gPiBbICAgODA2LjUyNzA3N0AxXSAg
-ICBVbm1vdmFibGU6ICAgODI4NyAgIDQzNzAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAg
-ICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDANCj4gPiBbICAgODA2LjUzNjY5OUAxXSAg
-UmVjbGFpbWFibGU6ICAgIDY4MSAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAg
-ICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDANCj4gPiBbICAgODA2LjU0NjMyMUAxXSAg
-ICAgIE1vdmFibGU6ICAgICAgMSAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAg
-ICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDANCj4gPiBbICAgODA2LjU1NTk0MkAxXSAg
-ICAgIFJlc2VydmU6ICAgICAgMCAgICAgIDAgICAgICAyICAgICAgMyAgICAgIDIgICAgICAzICAg
-ICAgMyAgICAgIDEgICAgICAwICAgICAgMSAgICAgIDANCj4gPiBbICAgODA2LjU2NTU2NEAxXSAg
-ICAgICAgICBDTUE6ICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAg
-ICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDANCj4gPiBbICAgODA2LjU3NTE4N0AxXSAg
-ICAgIElzb2xhdGU6ICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAg
-ICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDANCj4gPiBbICAgODA2LjU4NDgxMEAxXSBI
-aWdoTWVtOiA4MCo0a0IgMTUqOGtCIDAqMTZrQiAwKjMya0IgMCo2NGtCIDAqMTI4a0IgMCoyNTZr
-QiAwKjUxMmtCIDAqMTAyNGtCIDAqMjA0OGtCIDAqNDA5NmtCID0gNDQwa0INCj4gPiBbICAgODA2
-LjU5NTM4M0AxXSAgICAgICBvcmRlcnM6ICAgICAgMCAgICAgIDEgICAgICAyICAgICAgMyAgICAg
-IDQgICAgICA1ICAgICAgNiAgICAgIDcgICAgICA4ICAgICAgOSAgICAgMTANCj4gPiBbICAgODA2
-LjYwNTAwNEAxXSAgICBVbm1vdmFibGU6ICAgICAxMiAgICAgIDAgICAgICAwICAgICAgMCAgICAg
-IDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDANCj4gPiBbICAgODA2
-LjYxNDYyNkAxXSAgUmVjbGFpbWFibGU6ICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAg
-IDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDANCj4gPiBbICAgODA2
-LjYyNDI0OEAxXSAgICAgIE1vdmFibGU6ICAgICAxMSAgICAgMTUgICAgICAwICAgICAgMCAgICAg
-IDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDANCj4gPiBbICAgODA2
-LjYzMzg2OUAxXSAgICAgIFJlc2VydmU6ICAgICA1NyAgICAgIDAgICAgICAwICAgICAgMCAgICAg
-IDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDANCj4gPiBbICAgODA2
-LjY0MzQ5MUAxXSAgICAgICAgICBDTUE6ICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAg
-IDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDANCj4gPiBbICAgODA2
-LjY1MzExM0AxXSAgICAgIElzb2xhdGU6ICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAg
-IDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDANCj4gPiANCj4gPiBT
-aWduZWQtb2ZmLWJ5OiBOZWlsIFpoYW5nIDxuZWlsemhhbmcxMTIzQGhvdG1haWwuY29tPg0KPiAN
-Cj4gU29ycnksIHRoaXMgaXMganVzdCB3YXkgdG9vIHZlcmJvc2UuICBUaGlzIG91dHB1dCBpcyBl
-bWl0dGVkIHRvIHRoZSBrZXJuZWwgDQo+IGxvZyBvbiBvb20ga2lsbCBhbmQgc2luY2Ugd2UgbGFj
-ayBhIG5vdGlmaWNhdGlvbiBtZWNoYW5pc20gb24gc3lzdGVtIG9vbSwgDQo+IHRoZSBfb25seV8g
-d2F5IGZvciB1c2Vyc3BhY2UgdG8gZGV0ZWN0IG9vbSBraWxscyB0aGF0IGhhdmUgb2NjdXJyZWQg
-aXMgYnkgDQo+IHNjcmFwaW5nIHRoZSBrZXJuZWwgbG9nLiAgVGhpcyBpcyBleGFjdGx5IHdoYXQg
-d2UgZG8sIGFuZCB3ZSBoYXZlIG1pc3NlZCANCj4gb29tIGtpbGwgZXZlbnRzIGJlY2F1c2UgdGhl
-eSBzY3JvbGwgZnJvbSB0aGUgcmluZyBidWZmZXIgZHVlIHRvIGV4Y2Vzc2l2ZSANCj4gb3V0cHV0
-IHN1Y2ggYXMgdGhpcywgd2hpY2ggaXMgd2h5IG91dHB1dCB3YXMgbGltaXRlZCB3aXRoIHRoZSAN
-Cj4gc2hvd19mcmVlX2FyZWFzKCkgZmlsdGVyIGluIHRoZSBmaXJzdCBwbGFjZS4gIEp1c3QgYmVj
-YXVzZSBvb20ga2lsbCBvdXRwdXQgDQo+IGlzIG11Y2ggbGVzcyB0aGFuIGl0IGhhcyBiZWVuIGlu
-IHRoZSBwYXN0LCBmb3IgcHJlY2lzZWx5IHRoaXMgcmVhc29uLCANCj4gZG9lc24ndCBtZWFuIHdl
-IGNhbiBtYWtlIGl0IGV4Y2Vzc2l2ZSBhZ2Fpbi4NCj4gDQpKdXN0IGxpa2UgeW91IHNhaWQsIE9P
-TSBraWxsIGlzIG11Y2ggbGVzcyB0aGFuIGJlZm9yZSwgYnV0IHdlIHN0aWxsIG5lZWQgdG8gYW5h
-bHl6ZSBpdCB3aGVuIGl0IGhhcHBlbnMgb24gYSBtb2JpbGUgZGV2aWNlLiBJdCBjYW4gZ2l2ZSBt
-b3JlIGRldGFpbGVkIGluZm8gZm9yIHVzIHdoZW4gZGVidWdnaW5nLiBCZXNpZGVzIE9PTSBraWxs
-LCB3ZSBhbHNvIGNhbiBjaGVjayB0aGUgbWVtb3J5IHVzYWdlcyBpbiBydW50aW1lIGJ5IGVjaG8g
-J20nIHRvIHN5c1JxLkl0IGNhbiBoZWxwIHVzIHRvICBmaW5kIG91dCBjb2RlIGRlZmVjdCBzb21l
-dGltZXMsIGZvciBleGFtcGxlLCB3ZSBldmVuIGZvdW5kIHRoYXQgdGhlIE5SX0ZSRUVfQ01BbWVt
-b3J5IHdhcyBub3QgYWxpZ24gd2l0aCB0aGUgdG90YWwgQ01BIHBhZ2VzIGluIHRoZSBmcmVlIGxp
-c3Qgc2hvd2VkIGJ5IHRoaXMgcGF0Y2guDQo+IFNvIG5hY2sgb24gdGhpcyBwYXRjaCwgYW5kIGlm
-IHdlIHJlYWxseSBuZWVkIHRvIGhhdmUgdGhpcyBpbmZvcm1hdGlvbiAoSSANCj4gZG9uJ3Qga25v
-dyB5b3VyIG1vdGl2YXRpb24gZm9yIGFkZGluZyBpdCBzaW5jZSB5b3UgbGlzdCBub25lIGluIHlv
-dXIgDQo+IGNoYW5nZWxvZyksIHRoZW4gd2UgbmVlZCB0byBjb25zaWRlciBhbiBvb20gdmVyYm9z
-aXR5IHN5c2N0bCBvciwgYmV0dGVyLCANCj4gYW4gYWN0dWFsIHN5c3RlbSBvb20gbm90aWZpY2F0
-aW9uIHRvIHVzZXJzcGFjZSBiYXNlZCBvbiBldmVudGZkKCkgd2l0aG91dCANCj4gcmVxdWlyaW5n
-IG1lbWNnLg0KIAkJIAkgICAJCSAg
-
---_6b5e6c46-9b15-4e6d-bc1f-744094835c4b_
-Content-Type: text/html; charset="gb2312"
-Content-Transfer-Encoding: base64
-
-PGh0bWw+DQo8aGVhZD4NCjxzdHlsZT48IS0tDQouaG1tZXNzYWdlIFANCnsNCm1hcmdpbjowcHg7
-DQpwYWRkaW5nOjBweA0KfQ0KYm9keS5obW1lc3NhZ2UNCnsNCmZvbnQtc2l6ZTogMTJwdDsNCmZv
-bnQtZmFtaWx5Os6iyO3RxbraDQp9DQotLT48L3N0eWxlPjwvaGVhZD4NCjxib2R5IGNsYXNzPSdo
-bW1lc3NhZ2UnPjxkaXYgZGlyPSdsdHInPjxicj48YnI+PGRpdj4mZ3Q7IERhdGU6IEZyaSwgMTAg
-QXByIDIwMTUgMTk6NTA6MDcgLTA3MDA8YnI+Jmd0OyBGcm9tOiByaWVudGplc0Bnb29nbGUuY29t
-PGJyPiZndDsgVG86IG5laWx6aGFuZzExMjNAaG90bWFpbC5jb208YnI+Jmd0OyBDQzogbGludXgt
-bW1Aa3ZhY2sub3JnOyBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnOyBha3BtQGxpbnV4LWZv
-dW5kYXRpb24ub3JnPGJyPiZndDsgU3ViamVjdDogUmU6IFtQQVRDSCB2Ml0gbW06IHNob3cgZnJl
-ZSBwYWdlcyBwZXIgZWFjaCBtaWdyYXRlIHR5cGU8YnI+Jmd0OyA8YnI+Jmd0OyBPbiBUaHUsIDkg
-QXByIDIwMTUsIE5laWwgWmhhbmcgd3JvdGU6PGJyPiZndDsgPGJyPiZndDsgJmd0OyBzaG93IGRl
-dGFpbGVkIGZyZWUgcGFnZXMgcGVyIGVhY2ggbWlncmF0ZSB0eXBlIGluIHNob3dfZnJlZV9hcmVh
-cy48YnI+Jmd0OyAmZ3Q7IDxicj4mZ3Q7ICZndDsgQWZ0ZXIgYXBwbHkgdGhpcyBwYXRjaCwgdGhl
-IGxvZyBwcmludGVkIG91dCB3aWxsIGJlIGNoYW5nZWQgZnJvbTxicj4mZ3Q7ICZndDsgPGJyPiZn
-dDsgJmd0OyBbICAgNTU4LjIxMjg0NEAwXSBOb3JtYWw6IDIxOCo0a0IgKFVFTUMpIDIwNyo4a0Ig
-KFVFTUMpIDEyNioxNmtCIChVRU1DKSAyMSozMmtCIChVQykgNSo2NGtCIChDKSAzKjEyOGtCIChD
-KSAxKjI1NmtCIChDKSAxKjUxMmtCIChDKSAwKjEwMjRrQiAwKjIwNDhrQiAxKjQwOTZrQiAoUikg
-PSAxMDc4NGtCPGJyPiZndDsgJmd0OyBbICAgNTU4LjIyNzg0MEAwXSBIaWdoTWVtOiAzKjRrQiAo
-VU1SKSAzKjhrQiAoVU1SKSAyKjE2a0IgKFVNKSAzKjMya0IgKFVNUikgMCo2NGtCIDEqMTI4a0Ig
-KE0pIDEqMjU2a0IgKFIpIDAqNTEya0IgMCoxMDI0a0IgMCoyMDQ4a0IgMCo0MDk2a0IgPSA1NDhr
-Qjxicj4mZ3Q7ICZndDsgPGJyPiZndDsgJmd0OyB0bzxicj4mZ3Q7ICZndDsgPGJyPiZndDsgJmd0
-OyBbICAgODA2LjUwNjQ1MEAxXSBOb3JtYWw6IDg5NjkqNGtCIDQzNzAqOGtCIDIqMTZrQiAzKjMy
-a0IgMio2NGtCIDMqMTI4a0IgMyoyNTZrQiAxKjUxMmtCIDAqMTAyNGtCIDEqMjA0OGtCIDAqNDA5
-NmtCID0gNzQ4MDRrQjxicj4mZ3Q7ICZndDsgWyAgIDgwNi41MTc0NTZAMV0gICAgICAgb3JkZXJz
-OiAgICAgIDAgICAgICAxICAgICAgMiAgICAgIDMgICAgICA0ICAgICAgNSAgICAgIDYgICAgICA3
-ICAgICAgOCAgICAgIDkgICAgIDEwPGJyPiZndDsgJmd0OyBbICAgODA2LjUyNzA3N0AxXSAgICBV
-bm1vdmFibGU6ICAgODI4NyAgIDQzNzAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAg
-MCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDA8YnI+Jmd0OyAmZ3Q7IFsgICA4MDYuNTM2Njk5
-QDFdICBSZWNsYWltYWJsZTogICAgNjgxICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAg
-IDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMDxicj4mZ3Q7ICZndDsgWyAgIDgw
-Ni41NDYzMjFAMV0gICAgICBNb3ZhYmxlOiAgICAgIDEgICAgICAwICAgICAgMCAgICAgIDAgICAg
-ICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwPGJyPiZndDsgJmd0
-OyBbICAgODA2LjU1NTk0MkAxXSAgICAgIFJlc2VydmU6ICAgICAgMCAgICAgIDAgICAgICAyICAg
-ICAgMyAgICAgIDIgICAgICAzICAgICAgMyAgICAgIDEgICAgICAwICAgICAgMSAgICAgIDA8YnI+
-Jmd0OyAmZ3Q7IFsgICA4MDYuNTY1NTY0QDFdICAgICAgICAgIENNQTogICAgICAwICAgICAgMCAg
-ICAgIDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAg
-ICAgMDxicj4mZ3Q7ICZndDsgWyAgIDgwNi41NzUxODdAMV0gICAgICBJc29sYXRlOiAgICAgIDAg
-ICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAg
-ICAgIDAgICAgICAwPGJyPiZndDsgJmd0OyBbICAgODA2LjU4NDgxMEAxXSBIaWdoTWVtOiA4MCo0
-a0IgMTUqOGtCIDAqMTZrQiAwKjMya0IgMCo2NGtCIDAqMTI4a0IgMCoyNTZrQiAwKjUxMmtCIDAq
-MTAyNGtCIDAqMjA0OGtCIDAqNDA5NmtCID0gNDQwa0I8YnI+Jmd0OyAmZ3Q7IFsgICA4MDYuNTk1
-MzgzQDFdICAgICAgIG9yZGVyczogICAgICAwICAgICAgMSAgICAgIDIgICAgICAzICAgICAgNCAg
-ICAgIDUgICAgICA2ICAgICAgNyAgICAgIDggICAgICA5ICAgICAxMDxicj4mZ3Q7ICZndDsgWyAg
-IDgwNi42MDUwMDRAMV0gICAgVW5tb3ZhYmxlOiAgICAgMTIgICAgICAwICAgICAgMCAgICAgIDAg
-ICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwPGJyPiZndDsg
-Jmd0OyBbICAgODA2LjYxNDYyNkAxXSAgUmVjbGFpbWFibGU6ICAgICAgMCAgICAgIDAgICAgICAw
-ICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDA8
-YnI+Jmd0OyAmZ3Q7IFsgICA4MDYuNjI0MjQ4QDFdICAgICAgTW92YWJsZTogICAgIDExICAgICAx
-NSAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAw
-ICAgICAgMDxicj4mZ3Q7ICZndDsgWyAgIDgwNi42MzM4NjlAMV0gICAgICBSZXNlcnZlOiAgICAg
-NTcgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAg
-MCAgICAgIDAgICAgICAwPGJyPiZndDsgJmd0OyBbICAgODA2LjY0MzQ5MUAxXSAgICAgICAgICBD
-TUE6ICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAg
-IDAgICAgICAwICAgICAgMCAgICAgIDA8YnI+Jmd0OyAmZ3Q7IFsgICA4MDYuNjUzMTEzQDFdICAg
-ICAgSXNvbGF0ZTogICAgICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMCAgICAgIDAgICAg
-ICAwICAgICAgMCAgICAgIDAgICAgICAwICAgICAgMDxicj4mZ3Q7ICZndDsgPGJyPiZndDsgJmd0
-OyBTaWduZWQtb2ZmLWJ5OiBOZWlsIFpoYW5nICZsdDtuZWlsemhhbmcxMTIzQGhvdG1haWwuY29t
-Jmd0Ozxicj4mZ3Q7IDxicj4mZ3Q7IFNvcnJ5LCB0aGlzIGlzIGp1c3Qgd2F5IHRvbyB2ZXJib3Nl
-LiAgVGhpcyBvdXRwdXQgaXMgZW1pdHRlZCB0byB0aGUga2VybmVsIDxicj4mZ3Q7IGxvZyBvbiBv
-b20ga2lsbCBhbmQgc2luY2Ugd2UgbGFjayBhIG5vdGlmaWNhdGlvbiBtZWNoYW5pc20gb24gc3lz
-dGVtIG9vbSwgPGJyPiZndDsgdGhlIF9vbmx5XyB3YXkgZm9yIHVzZXJzcGFjZSB0byBkZXRlY3Qg
-b29tIGtpbGxzIHRoYXQgaGF2ZSBvY2N1cnJlZCBpcyBieSA8YnI+Jmd0OyBzY3JhcGluZyB0aGUg
-a2VybmVsIGxvZy4gIFRoaXMgaXMgZXhhY3RseSB3aGF0IHdlIGRvLCBhbmQgd2UgaGF2ZSBtaXNz
-ZWQgPGJyPiZndDsgb29tIGtpbGwgZXZlbnRzIGJlY2F1c2UgdGhleSBzY3JvbGwgZnJvbSB0aGUg
-cmluZyBidWZmZXIgZHVlIHRvIGV4Y2Vzc2l2ZSA8YnI+Jmd0OyBvdXRwdXQgc3VjaCBhcyB0aGlz
-LCB3aGljaCBpcyB3aHkgb3V0cHV0IHdhcyBsaW1pdGVkIHdpdGggdGhlIDxicj4mZ3Q7IHNob3df
-ZnJlZV9hcmVhcygpIGZpbHRlciBpbiB0aGUgZmlyc3QgcGxhY2UuICBKdXN0IGJlY2F1c2Ugb29t
-IGtpbGwgb3V0cHV0IDxicj4mZ3Q7IGlzIG11Y2ggbGVzcyB0aGFuIGl0IGhhcyBiZWVuIGluIHRo
-ZSBwYXN0LCBmb3IgcHJlY2lzZWx5IHRoaXMgcmVhc29uLCA8YnI+Jmd0OyBkb2Vzbid0IG1lYW4g
-d2UgY2FuIG1ha2UgaXQgZXhjZXNzaXZlIGFnYWluLjxicj4mZ3Q7Jm5ic3A7PC9kaXY+PGRpdj48
-YnI+PC9kaXY+PGRpdj5KdXN0IGxpa2UgeW91IHNhaWQsIE9PTSBraWxsIGlzIG11Y2ggbGVzcyB0
-aGFuIGJlZm9yZSwgYnV0IHdlIHN0aWxsIG5lZWQgdG8gYW5hbHl6ZSBpdCB3aGVuJm5ic3A7PC9k
-aXY+PGRpdj5pdCBoYXBwZW5zIG9uIGEgbW9iaWxlIGRldmljZS4gSXQgY2FuIGdpdmUgbW9yZSBk
-ZXRhaWxlZCBpbmZvIGZvciB1cyB3aGVuIGRlYnVnZ2luZy48L2Rpdj48ZGl2PiZuYnNwOzwvZGl2
-PjxkaXY+QmVzaWRlcyBPT00ga2lsbCwgdzxzcGFuIHN0eWxlPSJmb250LXNpemU6IDEycHQ7Ij5l
-IGFsc28gY2FuIGNoZWNrIHRoZSBtZW1vcnkgdXNhZ2VzIGluIHJ1bnRpbWUgYnkgZWNobyAnbScg
-dG8gc3lzUnEuPC9zcGFuPjwvZGl2PjxkaXY+SXQgY2FuIGhlbHAgdXMgdG8gJm5ic3A7ZmluZCBv
-dXQgY29kZSBkZWZlY3Qgc29tZXRpbWVzLCBmb3IgZXhhbXBsZSwgd2UgZXZlbiBmb3VuZCB0aGF0
-IHRoZSBOUl9GUkVFX0NNQTwvZGl2PjxkaXY+bWVtb3J5IHdhcyBub3QgYWxpZ24gd2l0aCB0aGUg
-dG90YWwgQ01BIHBhZ2VzIGluIHRoZSBmcmVlIGxpc3Qgc2hvd2VkIGJ5IHRoaXMgcGF0Y2guPC9k
-aXY+PGRpdj48YnI+Jmd0OyBTbyBuYWNrIG9uIHRoaXMgcGF0Y2gsIGFuZCBpZiB3ZSByZWFsbHkg
-bmVlZCB0byBoYXZlIHRoaXMgaW5mb3JtYXRpb24gKEkgPGJyPiZndDsgZG9uJ3Qga25vdyB5b3Vy
-IG1vdGl2YXRpb24gZm9yIGFkZGluZyBpdCBzaW5jZSB5b3UgbGlzdCBub25lIGluIHlvdXIgPGJy
-PiZndDsgY2hhbmdlbG9nKSwgdGhlbiB3ZSBuZWVkIHRvIGNvbnNpZGVyIGFuIG9vbSB2ZXJib3Np
-dHkgc3lzY3RsIG9yLCBiZXR0ZXIsIDxicj4mZ3Q7IGFuIGFjdHVhbCBzeXN0ZW0gb29tIG5vdGlm
-aWNhdGlvbiB0byB1c2Vyc3BhY2UgYmFzZWQgb24gZXZlbnRmZCgpIHdpdGhvdXQgPGJyPiZndDsg
-cmVxdWlyaW5nIG1lbWNnLjxicj48L2Rpdj4gCQkgCSAgIAkJICA8L2Rpdj48L2JvZHk+DQo8L2h0
-bWw+
-
---_6b5e6c46-9b15-4e6d-bc1f-744094835c4b_--
+=0A=
+----------------------------------------=0A=
+> Date: Fri=2C 10 Apr 2015 19:50:07 -0700=0A=
+> From: rientjes@google.com=0A=
+> To: neilzhang1123@hotmail.com=0A=
+> CC: linux-mm@kvack.org=3B linux-kernel@vger.kernel.org=3B akpm@linux-foun=
+dation.org=0A=
+> Subject: Re: [PATCH v2] mm: show free pages per each migrate type=0A=
+>=0A=
+> On Thu=2C 9 Apr 2015=2C Neil Zhang wrote:=0A=
+>=0A=
+>> show detailed free pages per each migrate type in show_free_areas.=0A=
+>>=0A=
+>> After apply this patch=2C the log printed out will be changed from=0A=
+>>=0A=
+>> [ 558.212844@0] Normal: 218*4kB (UEMC) 207*8kB (UEMC) 126*16kB (UEMC) 21=
+*32kB (UC) 5*64kB (C) 3*128kB (C) 1*256kB (C) 1*512kB (C) 0*1024kB 0*2048kB=
+ 1*4096kB (R) =3D 10784kB=0A=
+>> [ 558.227840@0] HighMem: 3*4kB (UMR) 3*8kB (UMR) 2*16kB (UM) 3*32kB (UMR=
+) 0*64kB 1*128kB (M) 1*256kB (R) 0*512kB 0*1024kB 0*2048kB 0*4096kB =3D 548=
+kB=0A=
+>>=0A=
+>> to=0A=
+>>=0A=
+>> [ 806.506450@1] Normal: 8969*4kB 4370*8kB 2*16kB 3*32kB 2*64kB 3*128kB 3=
+*256kB 1*512kB 0*1024kB 1*2048kB 0*4096kB =3D 74804kB=0A=
+>> [ 806.517456@1] orders: 0 1 2 3 4 5 6 7 8 9 10=0A=
+>> [ 806.527077@1] Unmovable: 8287 4370 0 0 0 0 0 0 0 0 0=0A=
+>> [ 806.536699@1] Reclaimable: 681 0 0 0 0 0 0 0 0 0 0=0A=
+>> [ 806.546321@1] Movable: 1 0 0 0 0 0 0 0 0 0 0=0A=
+>> [ 806.555942@1] Reserve: 0 0 2 3 2 3 3 1 0 1 0=0A=
+>> [ 806.565564@1] CMA: 0 0 0 0 0 0 0 0 0 0 0=0A=
+>> [ 806.575187@1] Isolate: 0 0 0 0 0 0 0 0 0 0 0=0A=
+>> [ 806.584810@1] HighMem: 80*4kB 15*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*25=
+6kB 0*512kB 0*1024kB 0*2048kB 0*4096kB =3D 440kB=0A=
+>> [ 806.595383@1] orders: 0 1 2 3 4 5 6 7 8 9 10=0A=
+>> [ 806.605004@1] Unmovable: 12 0 0 0 0 0 0 0 0 0 0=0A=
+>> [ 806.614626@1] Reclaimable: 0 0 0 0 0 0 0 0 0 0 0=0A=
+>> [ 806.624248@1] Movable: 11 15 0 0 0 0 0 0 0 0 0=0A=
+>> [ 806.633869@1] Reserve: 57 0 0 0 0 0 0 0 0 0 0=0A=
+>> [ 806.643491@1] CMA: 0 0 0 0 0 0 0 0 0 0 0=0A=
+>> [ 806.653113@1] Isolate: 0 0 0 0 0 0 0 0 0 0 0=0A=
+>>=0A=
+>> Signed-off-by: Neil Zhang <neilzhang1123@hotmail.com>=0A=
+>=0A=
+> Sorry=2C this is just way too verbose. This output is emitted to the kern=
+el=0A=
+> log on oom kill and since we lack a notification mechanism on system oom=
+=2C=0A=
+> the _only_ way for userspace to detect oom kills that have occurred is by=
+=0A=
+> scraping the kernel log. This is exactly what we do=2C and we have missed=
+=0A=
+> oom kill events because they scroll from the ring buffer due to excessive=
+=0A=
+> output such as this=2C which is why output was limited with the=0A=
+> show_free_areas() filter in the first place. Just because oom kill output=
+=0A=
+> is much less than it has been in the past=2C for precisely this reason=2C=
+=0A=
+> doesn't mean we can make it excessive again.=0A=
+>=0A=
+=0A=
+Just like you said=2C OOM kill is much less than before=2C but we still nee=
+d to analyze it when=A0=0A=
+it happens on a mobile device. It can give more detailed info for us when d=
+ebugging.=0A=
+=A0=0A=
+Besides OOM kill=2C we also can check the memory usages in runtime by echo =
+'m' to sysRq.=0A=
+It can help us to =A0find out code defect sometimes=2C for example=2C we ev=
+en found that the NR_FREE_CMA=0A=
+memory was not align with the total CMA pages in the free list showed by th=
+is patch.=0A=
+=0A=
+> So nack on this patch=2C and if we really need to have this information (=
+I=0A=
+> don't know your motivation for adding it since you list none in your=0A=
+> changelog)=2C then we need to consider an oom verbosity sysctl or=2C bett=
+er=2C=0A=
+> an actual system oom notification to userspace based on eventfd() without=
+=0A=
+> requiring memcg.=0A=
+=0A=
+Best Regards=2C=0A=
+Neil Zhang 		 	   		  =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
