@@ -1,77 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id DABF96B006C
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 06:17:12 -0400 (EDT)
-Received: by wiun10 with SMTP id n10so60670963wiu.1
-        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 03:17:12 -0700 (PDT)
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 7405D6B006E
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 06:17:15 -0400 (EDT)
+Received: by wgin8 with SMTP id n8so75264870wgi.0
+        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 03:17:15 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s5si16817128wjo.138.2015.04.13.03.17.10
+        by mx.google.com with ESMTPS id t4si13238403wix.72.2015.04.13.03.17.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 13 Apr 2015 03:17:10 -0700 (PDT)
+        Mon, 13 Apr 2015 03:17:12 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [RFC PATCH 0/14] Parallel memory initialisation
-Date: Mon, 13 Apr 2015 11:16:52 +0100
-Message-Id: <1428920226-18147-1-git-send-email-mgorman@suse.de>
+Subject: [PATCH 02/14] mm: meminit: Move page initialization into a separate function.
+Date: Mon, 13 Apr 2015 11:16:54 +0100
+Message-Id: <1428920226-18147-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1428920226-18147-1-git-send-email-mgorman@suse.de>
+References: <1428920226-18147-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Robin Holt <holt@sgi.com>, Nathan Zimmer <nzimmer@sgi.com>, Daniel Rahn <drahn@suse.com>, Davidlohr Bueso <dbueso@suse.com>, Dave Hansen <dave.hansen@intel.com>, Tom Vaden <tom.vaden@hp.com>, Scott Norton <scott.norton@hp.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Memory initialisation had been identified as one of the reasons why large
-machines take a long time to boot. Patches were posted a long time ago
-that attempted to move deferred initialisation into the page allocator
-paths. This was rejected on the grounds it should not be necessary to hurt
-the fast paths to parallelise initialisation. This series reuses much of
-the work from that time but defers the initialisation of memory to kswapd
-so that one thread per node initialises memory local to that node. The
-issue is that on the machines I tested with, memory initialisation was not
-a major contributor to boot times. I'm posting the RFC to both review the
-series and see if it actually helps users of very large machines.
+From: Robin Holt <holt@sgi.com>
 
-After applying the series and setting the appropriate Kconfig variable I
-see this in the boot log on a 64G machine
+Currently, memmap_init_zone() has all the smarts for initializing a single
+page. A subset of this is required for parallel page initialisation and so
+this patch breaks up the monolithic function in preparation.
 
-[    7.383764] kswapd 0 initialised deferred memory in 188ms
-[    7.404253] kswapd 1 initialised deferred memory in 208ms
-[    7.411044] kswapd 3 initialised deferred memory in 216ms
-[    7.411551] kswapd 2 initialised deferred memory in 216ms
+Signed-off-by: Robin Holt <holt@sgi.com>
+Signed-off-by: Nathan Zimmer <nzimmer@sgi.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/page_alloc.c | 79 +++++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 46 insertions(+), 33 deletions(-)
 
-On a 1TB machine, I see
-
-[   11.913324] kswapd 0 initialised deferred memory in 1168ms
-[   12.220011] kswapd 2 initialised deferred memory in 1476ms
-[   12.245369] kswapd 3 initialised deferred memory in 1500ms
-[   12.271680] kswapd 1 initialised deferred memory in 1528ms
-
-Once booted the machine appears to work as normal. Boot times were measured
-from the time shutdown was called until ssh was available again.  In the
-64G case, the boot time savings are negligible. On the 1TB machine, the
-savings were 10 seconds (about 8% improvement on kernel times but 1-2%
-overall as POST takes so long).
-
-It would be nice if the people that have access to really large machines
-would test this series and report back if the complexity is justified.
-
-Patches are against 4.0-rc7.
-
- Documentation/kernel-parameters.txt |   8 +
- arch/ia64/mm/numa.c                 |  19 +-
- arch/x86/Kconfig                    |   2 +
- include/linux/memblock.h            |  18 ++
- include/linux/mm.h                  |   8 +-
- include/linux/mmzone.h              |  37 +++-
- init/main.c                         |   1 +
- mm/Kconfig                          |  29 +++
- mm/bootmem.c                        |   6 +-
- mm/internal.h                       |  23 ++-
- mm/memblock.c                       |  34 ++-
- mm/mm_init.c                        |   9 +-
- mm/nobootmem.c                      |   7 +-
- mm/page_alloc.c                     | 398 +++++++++++++++++++++++++++++++-----
- mm/vmscan.c                         |   6 +-
- 15 files changed, 507 insertions(+), 98 deletions(-)
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 40e29429e7b0..fd7a6d09062d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -778,6 +778,51 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
+ 	return 0;
+ }
+ 
++static void __meminit __init_single_page(struct page *page, unsigned long pfn,
++				unsigned long zone, int nid)
++{
++	struct zone *z = &NODE_DATA(nid)->node_zones[zone];
++
++	set_page_links(page, zone, nid, pfn);
++	mminit_verify_page_links(page, zone, nid, pfn);
++	init_page_count(page);
++	page_mapcount_reset(page);
++	page_cpupid_reset_last(page);
++	SetPageReserved(page);
++
++	/*
++	 * Mark the block movable so that blocks are reserved for
++	 * movable at startup. This will force kernel allocations
++	 * to reserve their blocks rather than leaking throughout
++	 * the address space during boot when many long-lived
++	 * kernel allocations are made. Later some blocks near
++	 * the start are marked MIGRATE_RESERVE by
++	 * setup_zone_migrate_reserve()
++	 *
++	 * bitmap is created for zone's valid pfn range. but memmap
++	 * can be created for invalid pages (for alignment)
++	 * check here not to call set_pageblock_migratetype() against
++	 * pfn out of zone.
++	 */
++	if ((z->zone_start_pfn <= pfn)
++	    && (pfn < zone_end_pfn(z))
++	    && !(pfn & (pageblock_nr_pages - 1)))
++		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
++
++	INIT_LIST_HEAD(&page->lru);
++#ifdef WANT_PAGE_VIRTUAL
++	/* The shift won't overflow because ZONE_NORMAL is below 4G. */
++	if (!is_highmem_idx(zone))
++		set_page_address(page, __va(pfn << PAGE_SHIFT));
++#endif
++}
++
++static void __meminit __init_single_pfn(unsigned long pfn, unsigned long zone,
++					int nid)
++{
++	return __init_single_page(pfn_to_page(pfn), pfn, zone, nid);
++}
++
+ static bool free_pages_prepare(struct page *page, unsigned int order)
+ {
+ 	bool compound = PageCompound(page);
+@@ -4124,7 +4169,6 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 		unsigned long start_pfn, enum memmap_context context)
+ {
+-	struct page *page;
+ 	unsigned long end_pfn = start_pfn + size;
+ 	unsigned long pfn;
+ 	struct zone *z;
+@@ -4145,38 +4189,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 			if (!early_pfn_in_nid(pfn, nid))
+ 				continue;
+ 		}
+-		page = pfn_to_page(pfn);
+-		set_page_links(page, zone, nid, pfn);
+-		mminit_verify_page_links(page, zone, nid, pfn);
+-		init_page_count(page);
+-		page_mapcount_reset(page);
+-		page_cpupid_reset_last(page);
+-		SetPageReserved(page);
+-		/*
+-		 * Mark the block movable so that blocks are reserved for
+-		 * movable at startup. This will force kernel allocations
+-		 * to reserve their blocks rather than leaking throughout
+-		 * the address space during boot when many long-lived
+-		 * kernel allocations are made. Later some blocks near
+-		 * the start are marked MIGRATE_RESERVE by
+-		 * setup_zone_migrate_reserve()
+-		 *
+-		 * bitmap is created for zone's valid pfn range. but memmap
+-		 * can be created for invalid pages (for alignment)
+-		 * check here not to call set_pageblock_migratetype() against
+-		 * pfn out of zone.
+-		 */
+-		if ((z->zone_start_pfn <= pfn)
+-		    && (pfn < zone_end_pfn(z))
+-		    && !(pfn & (pageblock_nr_pages - 1)))
+-			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+-
+-		INIT_LIST_HEAD(&page->lru);
+-#ifdef WANT_PAGE_VIRTUAL
+-		/* The shift won't overflow because ZONE_NORMAL is below 4G. */
+-		if (!is_highmem_idx(zone))
+-			set_page_address(page, __va(pfn << PAGE_SHIFT));
+-#endif
++		__init_single_pfn(pfn, zone, nid);
+ 	}
+ }
+ 
 -- 
 2.1.2
 
