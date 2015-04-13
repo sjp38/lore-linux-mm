@@ -1,63 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id EB21F6B0038
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 09:21:06 -0400 (EDT)
-Received: by iejt8 with SMTP id t8so63941530iej.2
-        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 06:21:06 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id m20si3943037ics.103.2015.04.13.06.21.05
-        for <linux-mm@kvack.org>;
-        Mon, 13 Apr 2015 06:21:06 -0700 (PDT)
-Date: Mon, 13 Apr 2015 10:21:00 -0300
-From: Arnaldo Carvalho de Melo <acme@kernel.org>
-Subject: Re: [PATCH 3/9] perf kmem: Analyze page allocator events also
-Message-ID: <20150413132100.GC3200@kernel.org>
-References: <1428298576-9785-1-git-send-email-namhyung@kernel.org>
- <1428298576-9785-4-git-send-email-namhyung@kernel.org>
- <20150410210629.GF4521@kernel.org>
- <20150410211049.GA17496@kernel.org>
- <20150413065924.GH23913@sejong>
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id AD7126B006C
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 09:21:24 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so51363519wid.0
+        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 06:21:24 -0700 (PDT)
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com. [195.75.94.106])
+        by mx.google.com with ESMTPS id p3si13974186wia.63.2015.04.13.06.21.22
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 13 Apr 2015 06:21:23 -0700 (PDT)
+Received: from /spool/local
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Mon, 13 Apr 2015 14:21:21 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 969E2219004D
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 14:21:03 +0100 (BST)
+Received: from d06av07.portsmouth.uk.ibm.com (d06av07.portsmouth.uk.ibm.com [9.149.37.248])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3DDLI1Y9241054
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 13:21:18 GMT
+Received: from d06av07.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av07.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3DDLHbe018143
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 09:21:17 -0400
+Message-ID: <552BC2CA.80309@linux.vnet.ibm.com>
+Date: Mon, 13 Apr 2015 15:21:14 +0200
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150413065924.GH23913@sejong>
+Subject: Re: [RESEND PATCH v3 1/2] mm: Introducing arch_remap hook
+References: <cover.1428916945.git.ldufour@linux.vnet.ibm.com> <9d827fc618a718830b2c47aa87e8be546914c897.1428916945.git.ldufour@linux.vnet.ibm.com> <20150413115811.GA12354@node.dhcp.inet.fi> <552BB972.3010704@linux.vnet.ibm.com> <20150413131357.GC12354@node.dhcp.inet.fi>
+In-Reply-To: <20150413131357.GC12354@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Namhyung Kim <namhyung@kernel.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Pavel Emelyanov <xemul@parallels.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@kernel.org>, linuxppc-dev@lists.ozlabs.org, cov@codeaurora.org, criu@openvz.org
 
-Em Mon, Apr 13, 2015 at 03:59:24PM +0900, Namhyung Kim escreveu:
-> On Fri, Apr 10, 2015 at 06:10:49PM -0300, Arnaldo Carvalho de Melo wrote:
-> > Em Fri, Apr 10, 2015 at 06:06:29PM -0300, Arnaldo Carvalho de Melo escreveu:
-> > > Em Mon, Apr 06, 2015 at 02:36:10PM +0900, Namhyung Kim escreveu:
-> > > > If none of these --slab nor --page is specified, --slab is implied.
+On 13/04/2015 15:13, Kirill A. Shutemov wrote:
+> On Mon, Apr 13, 2015 at 02:41:22PM +0200, Laurent Dufour wrote:
+>> On 13/04/2015 13:58, Kirill A. Shutemov wrote:
+>>> On Mon, Apr 13, 2015 at 11:56:27AM +0200, Laurent Dufour wrote:
+>>>> Some architecture would like to be triggered when a memory area is moved
+>>>> through the mremap system call.
+>>>>
+>>>> This patch is introducing a new arch_remap mm hook which is placed in the
+>>>> path of mremap, and is called before the old area is unmapped (and the
+>>>> arch_unmap hook is called).
+>>>>
+>>>> The architectures which need to call this hook should define
+>>>> __HAVE_ARCH_REMAP in their asm/mmu_context.h and provide the arch_remap
+>>>> service with the following prototype:
+>>>> void arch_remap(struct mm_struct *mm,
+>>>>                 unsigned long old_start, unsigned long old_end,
+>>>>                 unsigned long new_start, unsigned long new_end);
+>>>>
+>>>> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+>>>> Reviewed-by: Ingo Molnar <mingo@kernel.org>
+>>>> ---
+>>>>  mm/mremap.c | 19 +++++++++++++------
+>>>>  1 file changed, 13 insertions(+), 6 deletions(-)
+>>>>
+>>>> diff --git a/mm/mremap.c b/mm/mremap.c
+>>>> index 2dc44b1cb1df..009db5565893 100644
+>>>> --- a/mm/mremap.c
+>>>> +++ b/mm/mremap.c
+>>>> @@ -25,6 +25,7 @@
+>>>>  
+>>>>  #include <asm/cacheflush.h>
+>>>>  #include <asm/tlbflush.h>
+>>>> +#include <asm/mmu_context.h>
+>>>>  
+>>>>  #include "internal.h"
+>>>>  
+>>>> @@ -286,13 +287,19 @@ static unsigned long move_vma(struct vm_area_struct *vma,
+>>>>  		old_len = new_len;
+>>>>  		old_addr = new_addr;
+>>>>  		new_addr = -ENOMEM;
+>>>> -	} else if (vma->vm_file && vma->vm_file->f_op->mremap) {
+>>>> -		err = vma->vm_file->f_op->mremap(vma->vm_file, new_vma);
+>>>> -		if (err < 0) {
+>>>> -			move_page_tables(new_vma, new_addr, vma, old_addr,
+>>>> -					 moved_len, true);
+>>>> -			return err;
+>>>> +	} else {
+>>>> +		if (vma->vm_file && vma->vm_file->f_op->mremap) {
+>>>> +			err = vma->vm_file->f_op->mremap(vma->vm_file, new_vma);
+>>>> +			if (err < 0) {
+>>>> +				move_page_tables(new_vma, new_addr, vma,
+>>>> +						  old_addr, moved_len, true);
+>>>> +				return err;
+>>>> +			}
+>>>>  		}
+>>>> +#ifdef __HAVE_ARCH_REMAP
+>>>
+>>> It would be cleaner to provide dummy arch_remap() for !__HAVE_ARCH_REMAP
+>>> in some generic header.
+>>
+>> The idea was to not impact all the architectures as arch_unmap(),
+>> arch_dup_mmap() or arch_exit_mmap() implies.
+>>
+>> I look at the headers where such a dummy arch_remap could be put but I
+>> can't figure out one which will not impact all the architecture.
+>> What about defining a dummy service earlier in mm/remap.c in the case
+>> __HAVE_ARCH_REMAP is not defined ?
+>> Something like :
+>> #ifndef __HAVE_ARCH_REMAP
+>> static inline void void arch_remap(struct mm_struct *mm,
+>>                                    unsigned long old_start,
+>>                                    unsigned long old_end,
+>>                                    unsigned long new_start,
+>>                                    unsigned long new_end)
+>> {
+>> }
+>> #endif
+> 
+> Or just #define arch_remap(...) do { } while (0)
+> 
 
-> > > >   # perf kmem stat --page --alloc --line 10
+I guessed you wanted the arch_remap() prototype to be exposed somewhere
+in the code.
 
-> > > Hi, applied the first patch, the kernel one, reboot with that kernel:
+To be honest, I can't find the benefit of defining a dummy arch_remap()
+in mm/remap.c if __HAVE_ARCH_REMAP is not defined instead of calling it
+in move_vma if __HAVE_ARCH_REMAP is defined.
+Is it really what you want ?
 
-> > <SNIP>
-
-> > > [root@ssdandy ~]#
-
-> > > What am I missing?
-
-> > Argh, I was expecting to read just what is in that cset and be able to
-> > reproduce the results, had to go back to the [PATCH 0/0] cover letter to
-> > figure out that I need to run:
-
-> > perf kmem record --page sleep 5
-
-> Right.  Maybe I need to change to print warning if no events found
-> with option.
-
-Ok!
-
-> Hmm.. looks like you ran some old version.  Please check v6! :)
-
-Thanks, will do,
-
-- Arnaldo
+Thanks,
+Laurent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
