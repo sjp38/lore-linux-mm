@@ -1,45 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 29FA06B006C
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 09:41:01 -0400 (EDT)
-Received: by igbqf9 with SMTP id qf9so43876314igb.1
-        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 06:41:01 -0700 (PDT)
+Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F7C16B0038
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 09:41:46 -0400 (EDT)
+Received: by iedfl3 with SMTP id fl3so73670374ied.1
+        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 06:41:46 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id q9si4559448iga.19.2015.04.13.06.41.00
+        by mx.google.com with ESMTP id g82si1092253ioe.83.2015.04.13.06.41.45
         for <linux-mm@kvack.org>;
-        Mon, 13 Apr 2015 06:41:00 -0700 (PDT)
-Date: Mon, 13 Apr 2015 10:40:56 -0300
+        Mon, 13 Apr 2015 06:41:45 -0700 (PDT)
+Date: Mon, 13 Apr 2015 10:41:41 -0300
 From: Arnaldo Carvalho de Melo <acme@kernel.org>
-Subject: Re: [PATCH 3/9] perf kmem: Analyze page allocator events also
-Message-ID: <20150413134056.GE3200@kernel.org>
+Subject: Re: [PATCH 9/9] tools lib traceevent: Honor operator priority
+Message-ID: <20150413134141.GF3200@kernel.org>
 References: <1428298576-9785-1-git-send-email-namhyung@kernel.org>
- <1428298576-9785-4-git-send-email-namhyung@kernel.org>
+ <1428298576-9785-10-git-send-email-namhyung@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1428298576-9785-4-git-send-email-namhyung@kernel.org>
+In-Reply-To: <1428298576-9785-10-git-send-email-namhyung@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Namhyung Kim <namhyung@kernel.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org
+Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>
 
-Em Mon, Apr 06, 2015 at 02:36:10PM +0900, Namhyung Kim escreveu:
-> The perf kmem command records and analyze kernel memory allocation
-> only for SLAB objects.  This patch implement a simple page allocator
-> analyzer using kmem:mm_page_alloc and kmem:mm_page_free events.
+Em Mon, Apr 06, 2015 at 02:36:16PM +0900, Namhyung Kim escreveu:
+> Currently it ignores operator priority and just sets processed args as a
+> right operand.  But it could result in priority inversion in case that
+> the right operand is also a operator arg and its priority is lower.
 > 
-> It adds two new options of --slab and --page.  The --slab option is
-> for analyzing SLAB allocator and that's what perf kmem currently does.
+> For example, following print format is from new kmem events.
 > 
-> The new --page option enables page allocator events and analyze kernel
-> memory usage in page unit.  Currently, 'stat --alloc' subcommand is
-> implemented only.
+>   "page=%p", REC->pfn != -1UL ? (((struct page *)(0xffffea0000000000UL)) + (REC->pfn)) : ((void *)0)
 > 
-> If none of these --slab nor --page is specified, --slab is implied.
+> But this was treated as below:
 > 
->   # perf kmem stat --page --alloc --line 10
+>   REC->pfn != ((null - 1UL) ? ((struct page *)0xffffea0000000000UL + REC->pfn) : (void *) 0)
+> 
+> In this case, the right arg was '?' operator which has lower priority.
+> But it just sets the whole arg so making the output confusing - page was
+> always 0 or 1 since that's the result of logical operation.
+> 
+> With this patch, it can handle it properly like following:
+> 
+>   ((REC->pfn != (null - 1UL)) ? ((struct page *)0xffffea0000000000UL + REC->pfn) : (void *) 0)
 
-Applied this and the kernel part, tested, thanks,
+And this one already went upstream.
 
 - Arnaldo
 
