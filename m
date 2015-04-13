@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 7405D6B006E
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 06:17:15 -0400 (EDT)
-Received: by wgin8 with SMTP id n8so75264870wgi.0
-        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 03:17:15 -0700 (PDT)
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 59B146B0070
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 06:17:18 -0400 (EDT)
+Received: by widjs5 with SMTP id js5so60823245wid.1
+        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 03:17:18 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t4si13238403wix.72.2015.04.13.03.17.11
+        by mx.google.com with ESMTPS id s5si16817332wjo.138.2015.04.13.03.17.13
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 13 Apr 2015 03:17:12 -0700 (PDT)
+        Mon, 13 Apr 2015 03:17:13 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 02/14] mm: meminit: Move page initialization into a separate function.
-Date: Mon, 13 Apr 2015 11:16:54 +0100
-Message-Id: <1428920226-18147-3-git-send-email-mgorman@suse.de>
+Subject: [PATCH 03/14] mm: meminit: Only set page reserved in the memblock region
+Date: Mon, 13 Apr 2015 11:16:55 +0100
+Message-Id: <1428920226-18147-4-git-send-email-mgorman@suse.de>
 In-Reply-To: <1428920226-18147-1-git-send-email-mgorman@suse.de>
 References: <1428920226-18147-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,123 +20,76 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Robin Holt <holt@sgi.com>, Nathan Zimmer <nzimmer@sgi.com>, Daniel Rahn <drahn@suse.com>, Davidlohr Bueso <dbueso@suse.com>, Dave Hansen <dave.hansen@intel.com>, Tom Vaden <tom.vaden@hp.com>, Scott Norton <scott.norton@hp.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Robin Holt <holt@sgi.com>
+From: Nathan Zimmer <nzimmer@sgi.com>
 
-Currently, memmap_init_zone() has all the smarts for initializing a single
-page. A subset of this is required for parallel page initialisation and so
-this patch breaks up the monolithic function in preparation.
+Currently we when we initialze each page struct is set as reserved upon
+initialization.  This changes to starting with the reserved bit clear and
+then only setting the bit in the reserved region.
 
 Signed-off-by: Robin Holt <holt@sgi.com>
 Signed-off-by: Nathan Zimmer <nzimmer@sgi.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/page_alloc.c | 79 +++++++++++++++++++++++++++++++++------------------------
- 1 file changed, 46 insertions(+), 33 deletions(-)
+ include/linux/mm.h |  2 ++
+ mm/nobootmem.c     |  3 +++
+ mm/page_alloc.c    | 11 ++++++++++-
+ 3 files changed, 15 insertions(+), 1 deletion(-)
 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 47a93928b90f..b6f82a31028a 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1711,6 +1711,8 @@ extern void free_highmem_page(struct page *page);
+ extern void adjust_managed_page_count(struct page *page, long count);
+ extern void mem_init_print_info(const char *str);
+ 
++extern void reserve_bootmem_region(unsigned long start, unsigned long end);
++
+ /* Free the reserved page into the buddy system, so it gets managed. */
+ static inline void __free_reserved_page(struct page *page)
+ {
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index 90b50468333e..396f9e450dc1 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -121,6 +121,9 @@ static unsigned long __init free_low_memory_core_early(void)
+ 
+ 	memblock_clear_hotplug(0, -1);
+ 
++	for_each_reserved_mem_region(i, &start, &end)
++		reserve_bootmem_region(start, end);
++
+ 	for_each_free_mem_range(i, NUMA_NO_NODE, &start, &end, NULL)
+ 		count += __free_memory_core(start, end);
+ 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 40e29429e7b0..fd7a6d09062d 100644
+index fd7a6d09062d..2abb3b861e70 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -778,6 +778,51 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
- 	return 0;
+@@ -788,7 +788,6 @@ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+ 	init_page_count(page);
+ 	page_mapcount_reset(page);
+ 	page_cpupid_reset_last(page);
+-	SetPageReserved(page);
+ 
+ 	/*
+ 	 * Mark the block movable so that blocks are reserved for
+@@ -823,6 +822,16 @@ static void __meminit __init_single_pfn(unsigned long pfn, unsigned long zone,
+ 	return __init_single_page(pfn_to_page(pfn), pfn, zone, nid);
  }
  
-+static void __meminit __init_single_page(struct page *page, unsigned long pfn,
-+				unsigned long zone, int nid)
++void reserve_bootmem_region(unsigned long start, unsigned long end)
 +{
-+	struct zone *z = &NODE_DATA(nid)->node_zones[zone];
++	unsigned long start_pfn = PFN_DOWN(start);
++	unsigned long end_pfn = PFN_UP(end);
 +
-+	set_page_links(page, zone, nid, pfn);
-+	mminit_verify_page_links(page, zone, nid, pfn);
-+	init_page_count(page);
-+	page_mapcount_reset(page);
-+	page_cpupid_reset_last(page);
-+	SetPageReserved(page);
-+
-+	/*
-+	 * Mark the block movable so that blocks are reserved for
-+	 * movable at startup. This will force kernel allocations
-+	 * to reserve their blocks rather than leaking throughout
-+	 * the address space during boot when many long-lived
-+	 * kernel allocations are made. Later some blocks near
-+	 * the start are marked MIGRATE_RESERVE by
-+	 * setup_zone_migrate_reserve()
-+	 *
-+	 * bitmap is created for zone's valid pfn range. but memmap
-+	 * can be created for invalid pages (for alignment)
-+	 * check here not to call set_pageblock_migratetype() against
-+	 * pfn out of zone.
-+	 */
-+	if ((z->zone_start_pfn <= pfn)
-+	    && (pfn < zone_end_pfn(z))
-+	    && !(pfn & (pageblock_nr_pages - 1)))
-+		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
-+
-+	INIT_LIST_HEAD(&page->lru);
-+#ifdef WANT_PAGE_VIRTUAL
-+	/* The shift won't overflow because ZONE_NORMAL is below 4G. */
-+	if (!is_highmem_idx(zone))
-+		set_page_address(page, __va(pfn << PAGE_SHIFT));
-+#endif
-+}
-+
-+static void __meminit __init_single_pfn(unsigned long pfn, unsigned long zone,
-+					int nid)
-+{
-+	return __init_single_page(pfn_to_page(pfn), pfn, zone, nid);
++	for (; start_pfn < end_pfn; start_pfn++)
++		if (pfn_valid(start_pfn))
++			SetPageReserved(pfn_to_page(start_pfn));
 +}
 +
  static bool free_pages_prepare(struct page *page, unsigned int order)
  {
  	bool compound = PageCompound(page);
-@@ -4124,7 +4169,6 @@ static void setup_zone_migrate_reserve(struct zone *zone)
- void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		unsigned long start_pfn, enum memmap_context context)
- {
--	struct page *page;
- 	unsigned long end_pfn = start_pfn + size;
- 	unsigned long pfn;
- 	struct zone *z;
-@@ -4145,38 +4189,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 			if (!early_pfn_in_nid(pfn, nid))
- 				continue;
- 		}
--		page = pfn_to_page(pfn);
--		set_page_links(page, zone, nid, pfn);
--		mminit_verify_page_links(page, zone, nid, pfn);
--		init_page_count(page);
--		page_mapcount_reset(page);
--		page_cpupid_reset_last(page);
--		SetPageReserved(page);
--		/*
--		 * Mark the block movable so that blocks are reserved for
--		 * movable at startup. This will force kernel allocations
--		 * to reserve their blocks rather than leaking throughout
--		 * the address space during boot when many long-lived
--		 * kernel allocations are made. Later some blocks near
--		 * the start are marked MIGRATE_RESERVE by
--		 * setup_zone_migrate_reserve()
--		 *
--		 * bitmap is created for zone's valid pfn range. but memmap
--		 * can be created for invalid pages (for alignment)
--		 * check here not to call set_pageblock_migratetype() against
--		 * pfn out of zone.
--		 */
--		if ((z->zone_start_pfn <= pfn)
--		    && (pfn < zone_end_pfn(z))
--		    && !(pfn & (pageblock_nr_pages - 1)))
--			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
--
--		INIT_LIST_HEAD(&page->lru);
--#ifdef WANT_PAGE_VIRTUAL
--		/* The shift won't overflow because ZONE_NORMAL is below 4G. */
--		if (!is_highmem_idx(zone))
--			set_page_address(page, __va(pfn << PAGE_SHIFT));
--#endif
-+		__init_single_pfn(pfn, zone, nid);
- 	}
- }
- 
 -- 
 2.1.2
 
