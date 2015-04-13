@@ -1,71 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CA946B006E
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 08:57:00 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so50468985wid.0
-        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 05:57:00 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id s2si13914051wiy.25.2015.04.13.05.56.57
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 65EF06B0071
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 09:14:15 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so51100810wid.0
+        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 06:14:15 -0700 (PDT)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id 8si17590178wjx.16.2015.04.13.06.14.13
         for <linux-mm@kvack.org>;
-        Mon, 13 Apr 2015 05:56:58 -0700 (PDT)
-Date: Mon, 13 Apr 2015 15:56:54 +0300
+        Mon, 13 Apr 2015 06:14:13 -0700 (PDT)
+Date: Mon, 13 Apr 2015 16:13:57 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: mlock() on DAX returns -ENOMEM
-Message-ID: <20150413125654.GB12354@node.dhcp.inet.fi>
-References: <CACTTzNY+u+4rU89o9vXk2HkjdnoRW+H8VcvCdr_H04MUEBCqNg@mail.gmail.com>
+Subject: Re: [RESEND PATCH v3 1/2] mm: Introducing arch_remap hook
+Message-ID: <20150413131357.GC12354@node.dhcp.inet.fi>
+References: <cover.1428916945.git.ldufour@linux.vnet.ibm.com>
+ <9d827fc618a718830b2c47aa87e8be546914c897.1428916945.git.ldufour@linux.vnet.ibm.com>
+ <20150413115811.GA12354@node.dhcp.inet.fi>
+ <552BB972.3010704@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CACTTzNY+u+4rU89o9vXk2HkjdnoRW+H8VcvCdr_H04MUEBCqNg@mail.gmail.com>
+In-Reply-To: <552BB972.3010704@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yigal Korman <yigal@plexistor.com>, Matthew Wilcox <willy@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Pavel Emelyanov <xemul@parallels.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@kernel.org>, linuxppc-dev@lists.ozlabs.org, cov@codeaurora.org, criu@openvz.org
 
-On Sun, Apr 12, 2015 at 03:56:33PM +0300, Yigal Korman wrote:
-> Hi,
-> I've tried to mlock() a range of an ext4-dax file and got "-ENOMEM" in return.
-
-Is it comes from mlock_fixup() or -EFAULT from GUP translated to -ENOMEM
-by __mlock_posix_error_return()?
-
-> Looking at the code, it seems that this is related to the fact that
-> DAX uses VM_MIXEDMAP and mlock assumes/requires regular page cache.
-> To me it seems that DAX should simply return success in mlock() as all
-> data is always in memory and no swapping is possible.
-> Is this a bug or intentional? Is there a fix planned?
-
-I think it's a bug.
-
-But first we need to define what mlock() means for DAX mappings.
-
-For writable MAP_PRIVATE: we should be able to trigger COW for the range
-and mlock resulting pages. It means we should fix kernel to handle
-GUP(FOLL_TOUCH | FOLL_POPULATE | FOLL_WRITE | FOLL_FORCE) successfully on
-such VMAs.
-
-For MAP_SHARED and non-writable MAP_PRIVATE we should be able to populate
-the mapping with PTEs. Not sure if we need to set VM_LOCKED for such VMAs.
-We probably should, as we want to re-instantiate PTEs on mremap() and such.
-It means we need to get working at least GUP(FOLL_POPULATE | FOLL_FORCE).
-
-In general we need to adjust GUP to avoid going to struct page unless
-FOLL_* speficly imply struct page, such as FOLL_GET or FOLL_TOUCH.
-
-Not sure if we need to differentiate DAX mappings from other VM_MIXEDMAP.
-
-Any comments?
- 
-> Also, the same code path that is used in mlock is also used for
-> MAP_POPULATE (pre-fault pages in mmap) so this flag doesn't work as
-> well (doesn't fail but simply doesn't pre-fault anything).
+On Mon, Apr 13, 2015 at 02:41:22PM +0200, Laurent Dufour wrote:
+> On 13/04/2015 13:58, Kirill A. Shutemov wrote:
+> > On Mon, Apr 13, 2015 at 11:56:27AM +0200, Laurent Dufour wrote:
+> >> Some architecture would like to be triggered when a memory area is moved
+> >> through the mremap system call.
+> >>
+> >> This patch is introducing a new arch_remap mm hook which is placed in the
+> >> path of mremap, and is called before the old area is unmapped (and the
+> >> arch_unmap hook is called).
+> >>
+> >> The architectures which need to call this hook should define
+> >> __HAVE_ARCH_REMAP in their asm/mmu_context.h and provide the arch_remap
+> >> service with the following prototype:
+> >> void arch_remap(struct mm_struct *mm,
+> >>                 unsigned long old_start, unsigned long old_end,
+> >>                 unsigned long new_start, unsigned long new_end);
+> >>
+> >> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> >> Reviewed-by: Ingo Molnar <mingo@kernel.org>
+> >> ---
+> >>  mm/mremap.c | 19 +++++++++++++------
+> >>  1 file changed, 13 insertions(+), 6 deletions(-)
+> >>
+> >> diff --git a/mm/mremap.c b/mm/mremap.c
+> >> index 2dc44b1cb1df..009db5565893 100644
+> >> --- a/mm/mremap.c
+> >> +++ b/mm/mremap.c
+> >> @@ -25,6 +25,7 @@
+> >>  
+> >>  #include <asm/cacheflush.h>
+> >>  #include <asm/tlbflush.h>
+> >> +#include <asm/mmu_context.h>
+> >>  
+> >>  #include "internal.h"
+> >>  
+> >> @@ -286,13 +287,19 @@ static unsigned long move_vma(struct vm_area_struct *vma,
+> >>  		old_len = new_len;
+> >>  		old_addr = new_addr;
+> >>  		new_addr = -ENOMEM;
+> >> -	} else if (vma->vm_file && vma->vm_file->f_op->mremap) {
+> >> -		err = vma->vm_file->f_op->mremap(vma->vm_file, new_vma);
+> >> -		if (err < 0) {
+> >> -			move_page_tables(new_vma, new_addr, vma, old_addr,
+> >> -					 moved_len, true);
+> >> -			return err;
+> >> +	} else {
+> >> +		if (vma->vm_file && vma->vm_file->f_op->mremap) {
+> >> +			err = vma->vm_file->f_op->mremap(vma->vm_file, new_vma);
+> >> +			if (err < 0) {
+> >> +				move_page_tables(new_vma, new_addr, vma,
+> >> +						  old_addr, moved_len, true);
+> >> +				return err;
+> >> +			}
+> >>  		}
+> >> +#ifdef __HAVE_ARCH_REMAP
+> > 
+> > It would be cleaner to provide dummy arch_remap() for !__HAVE_ARCH_REMAP
+> > in some generic header.
 > 
-> Thanks,
-> Yigal
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> The idea was to not impact all the architectures as arch_unmap(),
+> arch_dup_mmap() or arch_exit_mmap() implies.
+> 
+> I look at the headers where such a dummy arch_remap could be put but I
+> can't figure out one which will not impact all the architecture.
+> What about defining a dummy service earlier in mm/remap.c in the case
+> __HAVE_ARCH_REMAP is not defined ?
+> Something like :
+> #ifndef __HAVE_ARCH_REMAP
+> static inline void void arch_remap(struct mm_struct *mm,
+>                                    unsigned long old_start,
+>                                    unsigned long old_end,
+>                                    unsigned long new_start,
+>                                    unsigned long new_end)
+> {
+> }
+> #endif
+
+Or just #define arch_remap(...) do { } while (0)
 
 -- 
  Kirill A. Shutemov
