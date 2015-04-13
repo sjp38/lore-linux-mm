@@ -1,120 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BED46B006C
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id DABF96B006C
 	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 06:17:12 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so65994584wid.0
-        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 03:17:11 -0700 (PDT)
+Received: by wiun10 with SMTP id n10so60670963wiu.1
+        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 03:17:12 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bk2si16795308wjb.205.2015.04.13.03.17.10
+        by mx.google.com with ESMTPS id s5si16817128wjo.138.2015.04.13.03.17.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 13 Apr 2015 03:17:11 -0700 (PDT)
+        Mon, 13 Apr 2015 03:17:10 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 01/14] memblock: Introduce a for_each_reserved_mem_region iterator.
-Date: Mon, 13 Apr 2015 11:16:53 +0100
-Message-Id: <1428920226-18147-2-git-send-email-mgorman@suse.de>
-In-Reply-To: <1428920226-18147-1-git-send-email-mgorman@suse.de>
-References: <1428920226-18147-1-git-send-email-mgorman@suse.de>
+Subject: [RFC PATCH 0/14] Parallel memory initialisation
+Date: Mon, 13 Apr 2015 11:16:52 +0100
+Message-Id: <1428920226-18147-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Robin Holt <holt@sgi.com>, Nathan Zimmer <nzimmer@sgi.com>, Daniel Rahn <drahn@suse.com>, Davidlohr Bueso <dbueso@suse.com>, Dave Hansen <dave.hansen@intel.com>, Tom Vaden <tom.vaden@hp.com>, Scott Norton <scott.norton@hp.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Robin Holt <holt@sgi.com>
+Memory initialisation had been identified as one of the reasons why large
+machines take a long time to boot. Patches were posted a long time ago
+that attempted to move deferred initialisation into the page allocator
+paths. This was rejected on the grounds it should not be necessary to hurt
+the fast paths to parallelise initialisation. This series reuses much of
+the work from that time but defers the initialisation of memory to kswapd
+so that one thread per node initialises memory local to that node. The
+issue is that on the machines I tested with, memory initialisation was not
+a major contributor to boot times. I'm posting the RFC to both review the
+series and see if it actually helps users of very large machines.
 
-As part of initializing struct page's in 2MiB chunks, we noticed that
-at the end of free_all_bootmem(), there was nothing which had forced
-the reserved/allocated 4KiB pages to be initialized.
+After applying the series and setting the appropriate Kconfig variable I
+see this in the boot log on a 64G machine
 
-This helper function will be used for that expansion.
+[    7.383764] kswapd 0 initialised deferred memory in 188ms
+[    7.404253] kswapd 1 initialised deferred memory in 208ms
+[    7.411044] kswapd 3 initialised deferred memory in 216ms
+[    7.411551] kswapd 2 initialised deferred memory in 216ms
 
-Signed-off-by: Robin Holt <holt@sgi.com>
-Signed-off-by: Nate Zimmer <nzimmer@sgi.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/linux/memblock.h | 18 ++++++++++++++++++
- mm/memblock.c            | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+)
+On a 1TB machine, I see
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index e8cc45307f8f..3075e7673c54 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -93,6 +93,9 @@ void __next_mem_range_rev(u64 *idx, int nid, struct memblock_type *type_a,
- 			  struct memblock_type *type_b, phys_addr_t *out_start,
- 			  phys_addr_t *out_end, int *out_nid);
- 
-+void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
-+			       phys_addr_t *out_end);
-+
- /**
-  * for_each_mem_range - iterate through memblock areas from type_a and not
-  * included in type_b. Or just type_a if type_b is NULL.
-@@ -132,6 +135,21 @@ void __next_mem_range_rev(u64 *idx, int nid, struct memblock_type *type_a,
- 	     __next_mem_range_rev(&i, nid, type_a, type_b,		\
- 				  p_start, p_end, p_nid))
- 
-+/**
-+ * for_each_reserved_mem_region - iterate over all reserved memblock areas
-+ * @i: u64 used as loop variable
-+ * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
-+ * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-+ *
-+ * Walks over reserved areas of memblock. Available as soon as memblock
-+ * is initialized.
-+ */
-+#define for_each_reserved_mem_region(i, p_start, p_end)			\
-+	for (i = 0UL,							\
-+	     __next_reserved_mem_region(&i, p_start, p_end);		\
-+	     i != (u64)ULLONG_MAX;					\
-+	     __next_reserved_mem_region(&i, p_start, p_end))
-+
- #ifdef CONFIG_MOVABLE_NODE
- static inline bool memblock_is_hotpluggable(struct memblock_region *m)
- {
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 252b77bdf65e..e0cc2d174f74 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -765,6 +765,38 @@ int __init_memblock memblock_clear_hotplug(phys_addr_t base, phys_addr_t size)
- }
- 
- /**
-+ * __next_reserved_mem_region - next function for for_each_reserved_region()
-+ * @idx: pointer to u64 loop variable
-+ * @out_start: ptr to phys_addr_t for start address of the region, can be %NULL
-+ * @out_end: ptr to phys_addr_t for end address of the region, can be %NULL
-+ *
-+ * Iterate over all reserved memory regions.
-+ */
-+void __init_memblock __next_reserved_mem_region(u64 *idx,
-+					   phys_addr_t *out_start,
-+					   phys_addr_t *out_end)
-+{
-+	struct memblock_type *rsv = &memblock.reserved;
-+
-+	if (*idx >= 0 && *idx < rsv->cnt) {
-+		struct memblock_region *r = &rsv->regions[*idx];
-+		phys_addr_t base = r->base;
-+		phys_addr_t size = r->size;
-+
-+		if (out_start)
-+			*out_start = base;
-+		if (out_end)
-+			*out_end = base + size - 1;
-+
-+		*idx += 1;
-+		return;
-+	}
-+
-+	/* signal end of iteration */
-+	*idx = ULLONG_MAX;
-+}
-+
-+/**
-  * __next__mem_range - next function for for_each_free_mem_range() etc.
-  * @idx: pointer to u64 loop variable
-  * @nid: node selector, %NUMA_NO_NODE for all nodes
+[   11.913324] kswapd 0 initialised deferred memory in 1168ms
+[   12.220011] kswapd 2 initialised deferred memory in 1476ms
+[   12.245369] kswapd 3 initialised deferred memory in 1500ms
+[   12.271680] kswapd 1 initialised deferred memory in 1528ms
+
+Once booted the machine appears to work as normal. Boot times were measured
+from the time shutdown was called until ssh was available again.  In the
+64G case, the boot time savings are negligible. On the 1TB machine, the
+savings were 10 seconds (about 8% improvement on kernel times but 1-2%
+overall as POST takes so long).
+
+It would be nice if the people that have access to really large machines
+would test this series and report back if the complexity is justified.
+
+Patches are against 4.0-rc7.
+
+ Documentation/kernel-parameters.txt |   8 +
+ arch/ia64/mm/numa.c                 |  19 +-
+ arch/x86/Kconfig                    |   2 +
+ include/linux/memblock.h            |  18 ++
+ include/linux/mm.h                  |   8 +-
+ include/linux/mmzone.h              |  37 +++-
+ init/main.c                         |   1 +
+ mm/Kconfig                          |  29 +++
+ mm/bootmem.c                        |   6 +-
+ mm/internal.h                       |  23 ++-
+ mm/memblock.c                       |  34 ++-
+ mm/mm_init.c                        |   9 +-
+ mm/nobootmem.c                      |   7 +-
+ mm/page_alloc.c                     | 398 +++++++++++++++++++++++++++++++-----
+ mm/vmscan.c                         |   6 +-
+ 15 files changed, 507 insertions(+), 98 deletions(-)
+
 -- 
 2.1.2
 
