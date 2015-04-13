@@ -1,147 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 267626B0032
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 03:02:26 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so60164863wid.0
-        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 00:02:25 -0700 (PDT)
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com. [209.85.212.173])
-        by mx.google.com with ESMTPS id e7si1387827wib.9.2015.04.13.00.02.23
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Apr 2015 00:02:23 -0700 (PDT)
-Received: by widdi4 with SMTP id di4so60163666wid.0
-        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 00:02:23 -0700 (PDT)
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 53A976B0032
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 03:05:10 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so97705294pdb.0
+        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 00:05:10 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id f7si14547454pdk.95.2015.04.13.00.05.07
+        for <linux-mm@kvack.org>;
+        Mon, 13 Apr 2015 00:05:09 -0700 (PDT)
+Date: Mon, 13 Apr 2015 15:59:24 +0900
+From: Namhyung Kim <namhyung@kernel.org>
+Subject: Re: [PATCH 3/9] perf kmem: Analyze page allocator events also
+Message-ID: <20150413065924.GH23913@sejong>
+References: <1428298576-9785-1-git-send-email-namhyung@kernel.org>
+ <1428298576-9785-4-git-send-email-namhyung@kernel.org>
+ <20150410210629.GF4521@kernel.org>
+ <20150410211049.GA17496@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20150307001816.GA2850@udknight>
-References: <20150307001816.GA2850@udknight>
-From: Leon Romanovsky <leon@leon.nu>
-Date: Mon, 13 Apr 2015 10:02:02 +0300
-Message-ID: <CALq1K=KGviHKBAUFMj_QLa4eCRtmQo5NSXbJ+s5sp0tDpvs36Q@mail.gmail.com>
-Subject: Re: [PATCH RESEND] block:bounce: fix call inc_|dec_zone_page_state on
- different pages confuse value of NR_BOUNCE
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20150410211049.GA17496@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang YanQing <udknight@gmail.com>, axboe@kernel.dk, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Arnaldo Carvalho de Melo <acme@kernel.org>
+Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org
 
-On Sat, Mar 7, 2015 at 2:18 AM, Wang YanQing <udknight@gmail.com> wrote:
->
-> Commit d2c5e30c9a1420902262aa923794d2ae4e0bc391
-> ("[PATCH] zoned vm counters: conversion of nr_bounce to per zone counter"=
-)
-> convert statistic of nr_bounce to per zone and one global value in vm_sta=
-t,
-> but it call call inc_|dec_zone_page_state on different pages, then differ=
-ent
-Minor typo "call call" =3D> "call"
+Hi Arnaldo,
 
-> zones, and cause we get confusion value of NR_BOUNCE.
-I suggest to rephrase the "and cause we get confusion value" to be
-"and cause us to get unexpected value".
+On Fri, Apr 10, 2015 at 06:10:49PM -0300, Arnaldo Carvalho de Melo wrote:
+> Em Fri, Apr 10, 2015 at 06:06:29PM -0300, Arnaldo Carvalho de Melo escreveu:
+> > Em Mon, Apr 06, 2015 at 02:36:10PM +0900, Namhyung Kim escreveu:
+> > > The perf kmem command records and analyze kernel memory allocation
+> > > only for SLAB objects.  This patch implement a simple page allocator
+> > > analyzer using kmem:mm_page_alloc and kmem:mm_page_free events.
+> > > 
+> > > It adds two new options of --slab and --page.  The --slab option is
+> > > for analyzing SLAB allocator and that's what perf kmem currently does.
+> > > 
+> > > The new --page option enables page allocator events and analyze kernel
+> > > memory usage in page unit.  Currently, 'stat --alloc' subcommand is
+> > > implemented only.
+> > > 
+> > > If none of these --slab nor --page is specified, --slab is implied.
+> > > 
+> > >   # perf kmem stat --page --alloc --line 10
+> > 
+> > Hi, applied the first patch, the kernel one, reboot with that kernel:
+> 
+> <SNIP>
+> 
+> > [root@ssdandy ~]#
+> > 
+> > What am I missing?
+> 
+> Argh, I was expecting to read just what is in that cset and be able to
+> reproduce the results, had to go back to the [PATCH 0/0] cover letter to
+> figure out that I need to run:
+> 
+> perf kmem record --page sleep 5
 
->
-> Below is the result on my machine:
-> Mar  2 09:26:08 udknight kernel: [144766.778265] Mem-Info:
-> Mar  2 09:26:08 udknight kernel: [144766.778266] DMA per-cpu:
-> Mar  2 09:26:08 udknight kernel: [144766.778268] CPU    0: hi:    0, btch=
-:   1 usd:   0
-> Mar  2 09:26:08 udknight kernel: [144766.778269] CPU    1: hi:    0, btch=
-:   1 usd:   0
-> Mar  2 09:26:08 udknight kernel: [144766.778270] Normal per-cpu:
-> Mar  2 09:26:08 udknight kernel: [144766.778271] CPU    0: hi:  186, btch=
-:  31 usd:   0
-> Mar  2 09:26:08 udknight kernel: [144766.778273] CPU    1: hi:  186, btch=
-:  31 usd:   0
-> Mar  2 09:26:08 udknight kernel: [144766.778274] HighMem per-cpu:
-> Mar  2 09:26:08 udknight kernel: [144766.778275] CPU    0: hi:  186, btch=
-:  31 usd:   0
-> Mar  2 09:26:08 udknight kernel: [144766.778276] CPU    1: hi:  186, btch=
-:  31 usd:   0
-> Mar  2 09:26:08 udknight kernel: [144766.778279] active_anon:46926 inacti=
-ve_anon:287406 isolated_anon:0
-> Mar  2 09:26:08 udknight kernel: [144766.778279]  active_file:105085 inac=
-tive_file:139432 isolated_file:0
-> Mar  2 09:26:08 udknight kernel: [144766.778279]  unevictable:653 dirty:0=
- writeback:0 unstable:0
-> Mar  2 09:26:08 udknight kernel: [144766.778279]  free:178957 slab_reclai=
-mable:6419 slab_unreclaimable:9966
-> Mar  2 09:26:08 udknight kernel: [144766.778279]  mapped:4426 shmem:30527=
-7 pagetables:784 bounce:0
-> Mar  2 09:26:08 udknight kernel: [144766.778279]  free_cma:0
-> Mar  2 09:26:08 udknight kernel: [144766.778286] DMA free:3324kB min:68kB=
- low:84kB high:100kB active_anon:0kB inactive_anon:0kB active_file:0kB inac=
-tive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present=
-:15976kB managed:15900kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shm=
-em:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetab=
-les:0kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanne=
-d:0 all_unreclaimable? yes
-> Mar  2 09:26:08 udknight kernel: [144766.778287] lowmem_reserve[]: 0 822 =
-3754 3754
-> Mar  2 09:26:08 udknight kernel: [144766.778293] Normal free:26828kB min:=
-3632kB low:4540kB high:5448kB active_anon:4872kB inactive_anon:68kB active_=
-file:1796kB inactive_file:1796kB unevictable:0kB isolated(anon):0kB isolate=
-d(file):0kB present:892920kB managed:842560kB mlocked:0kB dirty:0kB writeba=
-ck:0kB mapped:0kB shmem:4144kB slab_reclaimable:25676kB slab_unreclaimable:=
-39864kB kernel_stack:1944kB pagetables:3136kB unstable:0kB bounce:0kB free_=
-cma:0kB writeback_tmp:0kB pages_scanned:2412612 all_unreclaimable? yes
-> Mar  2 09:26:08 udknight kernel: [144766.778294] lowmem_reserve[]: 0 0 23=
-451 23451
-> Mar  2 09:26:08 udknight kernel: [144766.778299] HighMem free:685676kB mi=
-n:512kB low:3748kB high:6984kB active_anon:182832kB inactive_anon:1149556kB=
- active_file:418544kB inactive_file:555932kB unevictable:2612kB isolated(an=
-on):0kB isolated(file):0kB present:3001732kB managed:3001732kB mlocked:0kB =
-dirty:0kB writeback:0kB mapped:17704kB shmem:1216964kB slab_reclaimable:0kB=
- slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce=
-:75771152kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimabl=
-e? no
-> Mar  2 09:26:08 udknight kernel: [144766.778300] lowmem_reserve[]: 0 0 0 =
-0
->
-> You can see bounce:75771152kB for HighMem, but bounce:0 for lowmem and gl=
-obal.
->
-> This patch fix it.
->
-> Signed-off-by: Wang YanQing <udknight@gmail.com>
-> ---
->  I find previous email can't be "git am" properly,
->  so resend it.
->
->  Thanks.
->
->  block/bounce.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/block/bounce.c b/block/bounce.c
-> index ab21ba2..ed9dd80 100644
-> --- a/block/bounce.c
-> +++ b/block/bounce.c
-> @@ -221,8 +221,8 @@ bounce:
->                 if (page_to_pfn(page) <=3D queue_bounce_pfn(q) && !force)
->                         continue;
->
-> -               inc_zone_page_state(to->bv_page, NR_BOUNCE);
->                 to->bv_page =3D mempool_alloc(pool, q->bounce_gfp);
-> +               inc_zone_page_state(to->bv_page, NR_BOUNCE);
->
->                 if (rw =3D=3D WRITE) {
->                         char *vto, *vfrom;
+Right.  Maybe I need to change to print warning if no events found
+with option.
+
+
+> 
+> With that I get:
+> 
+> [root@ssdandy ~]# perf kmem stat --page --alloc --line 20
+> 
+> --------------------------------------------------------------------------------
+>  PFN              | Total alloc (KB) | Hits      | Order | Mig.type | GFP flags
+> --------------------------------------------------------------------------------
+>           3487838 |               12 |         3 |     0 | UNMOVABL |  00020010
+>           3493414 |                8 |         2 |     0 | UNMOVABL |  000284d0
+>           3487761 |                4 |         1 |     0 | UNMOVABL |  000202d0
+>           3487764 |                4 |         1 |     0 | UNMOVABL |  000202d0
+>           3487982 |                4 |         1 |     0 | UNMOVABL |  000202d0
+>           3487991 |                4 |         1 |     0 | UNMOVABL |  000284d0
+>           3488046 |                4 |         1 |     0 | UNMOVABL |  002284d0
+>           3488057 |                4 |         1 |     0 | UNMOVABL |  000200d0
+>           3488191 |                4 |         1 |     0 | UNMOVABL |  002284d0
+>           3488203 |                4 |         1 |     0 | UNMOVABL |  000202d0
+>           3488206 |                4 |         1 |     0 | UNMOVABL |  000202d0
+>           3488210 |                4 |         1 |     0 | UNMOVABL |  000202d0
+>           3488211 |                4 |         1 |     0 | UNMOVABL |  000202d0
+>           3488213 |                4 |         1 |     0 | UNMOVABL |  000202d0
+>           3488215 |                4 |         1 |     0 | UNMOVABL |  000202d0
+>           3488298 |                4 |         1 |     0 | UNMOVABL |  000202d0
+>           3488325 |                4 |         1 |     0 | UNMOVABL |  000202d0
+>           3488326 |                4 |         1 |     0 | UNMOVABL |  000202d0
+>           3488327 |                4 |         1 |     0 | UNMOVABL |  000202d0
+>           3488329 |                4 |         1 |     0 | UNMOVABL |  000202d0
+>  ...              | ...              | ...       | ...   | ...      | ...     
+> --------------------------------------------------------------------------------
+
+Hmm.. looks like you ran some old version.  Please check v6! :)
+
+Thanks,
+Namhyung
+
+
+> 
+> SUMMARY (page allocator)
+> ========================
+> Total allocation requests     :              166   [              664 KB ]
+> Total free requests           :              239   [              956 KB ]
+> 
+> Total alloc+freed requests    :               49   [              196 KB ]
+> Total alloc-only requests     :              117   [              468 KB ]
+> Total free-only requests      :              190   [              760 KB ]
+> 
+> Total allocation failures     :                0   [                0 KB ]
+> 
+> Order     Unmovable   Reclaimable       Movable      Reserved  CMA/Isolated
+> -----  ------------  ------------  ------------  ------------  ------------
+>     0           143             .            23             .             .
+>     1             .             .             .             .             .
+>     2             .             .             .             .             .
+>     3             .             .             .             .             .
+>     4             .             .             .             .             .
+>     5             .             .             .             .             .
+>     6             .             .             .             .             .
+>     7             .             .             .             .             .
+>     8             .             .             .             .             .
+>     9             .             .             .             .             .
+>    10             .             .             .             .             .
+> [root@ssdandy ~]#
+> 
+> - Arnaldo
 > --
-> 2.2.2.dirty
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
-
-
-
-
---=20
-Leon Romanovsky | Independent Linux Consultant
-        www.leon.nu | leon@leon.nu
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
