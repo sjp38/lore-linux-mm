@@ -1,108 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id F3BEC6B006E
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 05:56:43 -0400 (EDT)
-Received: by wgso17 with SMTP id o17so74917060wgs.1
-        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 02:56:43 -0700 (PDT)
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com. [195.75.94.111])
-        by mx.google.com with ESMTPS id eb1si13177541wib.34.2015.04.13.02.56.42
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BED46B006C
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 06:17:12 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so65994584wid.0
+        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 03:17:11 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bk2si16795308wjb.205.2015.04.13.03.17.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 13 Apr 2015 02:56:42 -0700 (PDT)
-Received: from /spool/local
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Mon, 13 Apr 2015 10:56:41 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 3B4E21B0804B
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 10:57:12 +0100 (BST)
-Received: from d06av12.portsmouth.uk.ibm.com (d06av12.portsmouth.uk.ibm.com [9.149.37.247])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3D9uc0k8847680
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 09:56:38 GMT
-Received: from d06av12.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av12.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3D9uZkq005183
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 03:56:38 -0600
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [RESEND PATCH v3 2/2] powerpc/mm: Tracking vDSO remap
-Date: Mon, 13 Apr 2015 11:56:28 +0200
-Message-Id: <61ceefa2992db9e77640b0d9ac29a128af91241f.1428916945.git.ldufour@linux.vnet.ibm.com>
-In-Reply-To: <cover.1428916945.git.ldufour@linux.vnet.ibm.com>
-References: <cover.1428916945.git.ldufour@linux.vnet.ibm.com>
-In-Reply-To: <cover.1428916945.git.ldufour@linux.vnet.ibm.com>
-References: <cover.1428916945.git.ldufour@linux.vnet.ibm.com>
+        Mon, 13 Apr 2015 03:17:11 -0700 (PDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 01/14] memblock: Introduce a for_each_reserved_mem_region iterator.
+Date: Mon, 13 Apr 2015 11:16:53 +0100
+Message-Id: <1428920226-18147-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1428920226-18147-1-git-send-email-mgorman@suse.de>
+References: <1428920226-18147-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Pavel Emelyanov <xemul@parallels.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@kernel.org>, linuxppc-dev@lists.ozlabs.org
-Cc: cov@codeaurora.org, criu@openvz.org
+To: Linux-MM <linux-mm@kvack.org>
+Cc: Robin Holt <holt@sgi.com>, Nathan Zimmer <nzimmer@sgi.com>, Daniel Rahn <drahn@suse.com>, Davidlohr Bueso <dbueso@suse.com>, Dave Hansen <dave.hansen@intel.com>, Tom Vaden <tom.vaden@hp.com>, Scott Norton <scott.norton@hp.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Some processes (CRIU) are moving the vDSO area using the mremap system
-call. As a consequence the kernel reference to the vDSO base address is
-no more valid and the signal return frame built once the vDSO has been
-moved is not pointing to the new sigreturn address.
+From: Robin Holt <holt@sgi.com>
 
-This patch handles vDSO remapping and unmapping.
+As part of initializing struct page's in 2MiB chunks, we noticed that
+at the end of free_all_bootmem(), there was nothing which had forced
+the reserved/allocated 4KiB pages to be initialized.
 
-Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Reviewed-by: Ingo Molnar <mingo@kernel.org>
+This helper function will be used for that expansion.
+
+Signed-off-by: Robin Holt <holt@sgi.com>
+Signed-off-by: Nate Zimmer <nzimmer@sgi.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- arch/powerpc/include/asm/mmu_context.h | 36 +++++++++++++++++++++++++++++++++-
- 1 file changed, 35 insertions(+), 1 deletion(-)
+ include/linux/memblock.h | 18 ++++++++++++++++++
+ mm/memblock.c            | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+)
 
-diff --git a/arch/powerpc/include/asm/mmu_context.h b/arch/powerpc/include/asm/mmu_context.h
-index 73382eba02dc..7d315c1898d4 100644
---- a/arch/powerpc/include/asm/mmu_context.h
-+++ b/arch/powerpc/include/asm/mmu_context.h
-@@ -8,7 +8,6 @@
- #include <linux/spinlock.h>
- #include <asm/mmu.h>	
- #include <asm/cputable.h>
--#include <asm-generic/mm_hooks.h>
- #include <asm/cputhreads.h>
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index e8cc45307f8f..3075e7673c54 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -93,6 +93,9 @@ void __next_mem_range_rev(u64 *idx, int nid, struct memblock_type *type_a,
+ 			  struct memblock_type *type_b, phys_addr_t *out_start,
+ 			  phys_addr_t *out_end, int *out_nid);
  
- /*
-@@ -109,5 +108,40 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
- #endif
++void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
++			       phys_addr_t *out_end);
++
+ /**
+  * for_each_mem_range - iterate through memblock areas from type_a and not
+  * included in type_b. Or just type_a if type_b is NULL.
+@@ -132,6 +135,21 @@ void __next_mem_range_rev(u64 *idx, int nid, struct memblock_type *type_a,
+ 	     __next_mem_range_rev(&i, nid, type_a, type_b,		\
+ 				  p_start, p_end, p_nid))
+ 
++/**
++ * for_each_reserved_mem_region - iterate over all reserved memblock areas
++ * @i: u64 used as loop variable
++ * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
++ * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
++ *
++ * Walks over reserved areas of memblock. Available as soon as memblock
++ * is initialized.
++ */
++#define for_each_reserved_mem_region(i, p_start, p_end)			\
++	for (i = 0UL,							\
++	     __next_reserved_mem_region(&i, p_start, p_end);		\
++	     i != (u64)ULLONG_MAX;					\
++	     __next_reserved_mem_region(&i, p_start, p_end))
++
+ #ifdef CONFIG_MOVABLE_NODE
+ static inline bool memblock_is_hotpluggable(struct memblock_region *m)
+ {
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 252b77bdf65e..e0cc2d174f74 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -765,6 +765,38 @@ int __init_memblock memblock_clear_hotplug(phys_addr_t base, phys_addr_t size)
  }
  
-+static inline void arch_dup_mmap(struct mm_struct *oldmm,
-+				 struct mm_struct *mm)
+ /**
++ * __next_reserved_mem_region - next function for for_each_reserved_region()
++ * @idx: pointer to u64 loop variable
++ * @out_start: ptr to phys_addr_t for start address of the region, can be %NULL
++ * @out_end: ptr to phys_addr_t for end address of the region, can be %NULL
++ *
++ * Iterate over all reserved memory regions.
++ */
++void __init_memblock __next_reserved_mem_region(u64 *idx,
++					   phys_addr_t *out_start,
++					   phys_addr_t *out_end)
 +{
++	struct memblock_type *rsv = &memblock.reserved;
++
++	if (*idx >= 0 && *idx < rsv->cnt) {
++		struct memblock_region *r = &rsv->regions[*idx];
++		phys_addr_t base = r->base;
++		phys_addr_t size = r->size;
++
++		if (out_start)
++			*out_start = base;
++		if (out_end)
++			*out_end = base + size - 1;
++
++		*idx += 1;
++		return;
++	}
++
++	/* signal end of iteration */
++	*idx = ULLONG_MAX;
 +}
 +
-+static inline void arch_exit_mmap(struct mm_struct *mm)
-+{
-+}
-+
-+static inline void arch_unmap(struct mm_struct *mm,
-+			struct vm_area_struct *vma,
-+			unsigned long start, unsigned long end)
-+{
-+	if (start <= mm->context.vdso_base && mm->context.vdso_base < end)
-+		mm->context.vdso_base = 0;
-+}
-+
-+static inline void arch_bprm_mm_init(struct mm_struct *mm,
-+				     struct vm_area_struct *vma)
-+{
-+}
-+
-+#define __HAVE_ARCH_REMAP
-+static inline void arch_remap(struct mm_struct *mm,
-+			      unsigned long old_start, unsigned long old_end,
-+			      unsigned long new_start, unsigned long new_end)
-+{
-+	/*
-+	 * mremap() doesn't allow moving multiple vmas so we can limit the
-+	 * check to old_start == vdso_base.
-+	 */
-+	if (old_start == mm->context.vdso_base)
-+		mm->context.vdso_base = new_start;
-+}
-+
- #endif /* __KERNEL__ */
- #endif /* __ASM_POWERPC_MMU_CONTEXT_H */
++/**
+  * __next__mem_range - next function for for_each_free_mem_range() etc.
+  * @idx: pointer to u64 loop variable
+  * @nid: node selector, %NUMA_NO_NODE for all nodes
 -- 
-1.9.1
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
