@@ -1,85 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 522FA6B006C
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 08:49:27 -0400 (EDT)
-Received: by wgin8 with SMTP id n8so79398149wgi.0
-        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 05:49:26 -0700 (PDT)
-Received: from mail-wg0-x234.google.com (mail-wg0-x234.google.com. [2a00:1450:400c:c00::234])
-        by mx.google.com with ESMTPS id i7si4772550wib.26.2015.04.13.05.49.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Apr 2015 05:49:26 -0700 (PDT)
-Received: by wgyo15 with SMTP id o15so79596379wgy.2
-        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 05:49:25 -0700 (PDT)
-Date: Mon, 13 Apr 2015 14:49:24 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 00/12] mm: page_alloc: improve OOM mechanism and policy
-Message-ID: <20150413124924.GB21790@dhcp22.suse.cz>
-References: <20150326195822.GB28129@dastard>
- <20150327150509.GA21119@cmpxchg.org>
- <20150330003240.GB28621@dastard>
- <20150401151920.GB23824@dhcp22.suse.cz>
- <20150407141822.GA3262@cmpxchg.org>
- <201504111629.FIB81218.QStJFFVFOLOMHO@I-love.SAKURA.ne.jp>
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CA946B006E
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 08:57:00 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so50468985wid.0
+        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 05:57:00 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
+        by mx.google.com with ESMTP id s2si13914051wiy.25.2015.04.13.05.56.57
+        for <linux-mm@kvack.org>;
+        Mon, 13 Apr 2015 05:56:58 -0700 (PDT)
+Date: Mon, 13 Apr 2015 15:56:54 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: mlock() on DAX returns -ENOMEM
+Message-ID: <20150413125654.GB12354@node.dhcp.inet.fi>
+References: <CACTTzNY+u+4rU89o9vXk2HkjdnoRW+H8VcvCdr_H04MUEBCqNg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201504111629.FIB81218.QStJFFVFOLOMHO@I-love.SAKURA.ne.jp>
+In-Reply-To: <CACTTzNY+u+4rU89o9vXk2HkjdnoRW+H8VcvCdr_H04MUEBCqNg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: hannes@cmpxchg.org, david@fromorbit.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, ying.huang@intel.com, aarcange@redhat.com, tytso@mit.edu
+To: Yigal Korman <yigal@plexistor.com>, Matthew Wilcox <willy@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat 11-04-15 16:29:26, Tetsuo Handa wrote:
-> Johannes Weiner wrote:
-> > The argument here was always that NOFS allocations are very limited in
-> > their reclaim powers and will trigger OOM prematurely.  However, the
-> > way we limit dirty memory these days forces most cache to be clean at
-> > all times, and direct reclaim in general hasn't been allowed to issue
-> > page writeback for quite some time.  So these days, NOFS reclaim isn't
-> > really weaker than regular direct reclaim.  The only exception is that
-> > it might block writeback, so we'd go OOM if the only reclaimables left
-> > were dirty pages against that filesystem.  That should be acceptable.
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 47981c5e54c3..fe3cb2b0b85b 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -2367,16 +2367,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order, int alloc_flags,
-> >  		/* The OOM killer does not needlessly kill tasks for lowmem */
-> >  		if (ac->high_zoneidx < ZONE_NORMAL)
-> >  			goto out;
-> > -		/* The OOM killer does not compensate for IO-less reclaim */
-> > -		if (!(gfp_mask & __GFP_FS)) {
-> > -			/*
-> > -			 * XXX: Page reclaim didn't yield anything,
-> > -			 * and the OOM killer can't be invoked, but
-> > -			 * keep looping as per tradition.
-> > -			 */
-> > -			*did_some_progress = 1;
-> > -			goto out;
-> > -		}
-> >  		if (pm_suspended_storage())
-> >  			goto out;
-> >  		/* The OOM killer may not free memory on a specific node */
-> > 
-> 
-> I think this change will allow calling out_of_memory() which results in
-> "oom_kill_process() is trivially called via pagefault_out_of_memory()"
-> problem described in https://lkml.org/lkml/2015/3/18/219 .
-> 
-> I myself think that we should trigger OOM killer for !__GFP_FS allocation
-> in order to make forward progress in case the OOM victim is blocked.
-> So, my question about this change is whether we can accept involving OOM
-> killer from page fault, no matter how trivially OOM killer will kill some
-> process?
+On Sun, Apr 12, 2015 at 03:56:33PM +0300, Yigal Korman wrote:
+> Hi,
+> I've tried to mlock() a range of an ext4-dax file and got "-ENOMEM" in return.
 
-We trigger OOM killer from the page fault path for ages. In fact the memcg
-will trigger memcg OOM killer _only_ from the page fault path because
-this context is safe as we do not sit on any locks at the time.
+Is it comes from mlock_fixup() or -EFAULT from GUP translated to -ENOMEM
+by __mlock_posix_error_return()?
+
+> Looking at the code, it seems that this is related to the fact that
+> DAX uses VM_MIXEDMAP and mlock assumes/requires regular page cache.
+> To me it seems that DAX should simply return success in mlock() as all
+> data is always in memory and no swapping is possible.
+> Is this a bug or intentional? Is there a fix planned?
+
+I think it's a bug.
+
+But first we need to define what mlock() means for DAX mappings.
+
+For writable MAP_PRIVATE: we should be able to trigger COW for the range
+and mlock resulting pages. It means we should fix kernel to handle
+GUP(FOLL_TOUCH | FOLL_POPULATE | FOLL_WRITE | FOLL_FORCE) successfully on
+such VMAs.
+
+For MAP_SHARED and non-writable MAP_PRIVATE we should be able to populate
+the mapping with PTEs. Not sure if we need to set VM_LOCKED for such VMAs.
+We probably should, as we want to re-instantiate PTEs on mremap() and such.
+It means we need to get working at least GUP(FOLL_POPULATE | FOLL_FORCE).
+
+In general we need to adjust GUP to avoid going to struct page unless
+FOLL_* speficly imply struct page, such as FOLL_GET or FOLL_TOUCH.
+
+Not sure if we need to differentiate DAX mappings from other VM_MIXEDMAP.
+
+Any comments?
+ 
+> Also, the same code path that is used in mlock is also used for
+> MAP_POPULATE (pre-fault pages in mmap) so this flag doesn't work as
+> well (doesn't fail but simply doesn't pre-fault anything).
+> 
+> Thanks,
+> Yigal
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
