@@ -1,98 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 741D16B0038
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 19:19:39 -0400 (EDT)
-Received: by iebrs15 with SMTP id rs15so1878512ieb.3
-        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 16:19:39 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id l1si206406ict.78.2015.04.13.16.19.38
-        for <linux-mm@kvack.org>;
-        Mon, 13 Apr 2015 16:19:38 -0700 (PDT)
-Date: Mon, 13 Apr 2015 20:19:34 -0300
-From: Arnaldo Carvalho de Melo <acme@kernel.org>
-Subject: Re: [GIT PULL 0/5] perf/core improvements and fixes
-Message-ID: <20150413231934.GC16027@kernel.org>
-References: <1428963302-31538-1-git-send-email-acme@kernel.org>
- <552C4423.6020001@hitachi.com>
- <20150413230923.GA16027@kernel.org>
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E904F6B0038
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 19:42:58 -0400 (EDT)
+Received: by iejt8 with SMTP id t8so2237981iej.2
+        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 16:42:58 -0700 (PDT)
+Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com. [2607:f8b0:4001:c05::234])
+        by mx.google.com with ESMTPS id k9si8737578igx.24.2015.04.13.16.42.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Apr 2015 16:42:58 -0700 (PDT)
+Received: by igblo3 with SMTP id lo3so60469844igb.1
+        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 16:42:58 -0700 (PDT)
+Date: Mon, 13 Apr 2015 16:42:56 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: RE: [PATCH v2] mm: show free pages per each migrate type
+In-Reply-To: <COL130-W77A7613DB3EA1820D92CBABAF80@phx.gbl>
+Message-ID: <alpine.DEB.2.10.1504131639290.20336@chino.kir.corp.google.com>
+References: <BLU436-SMTP78227860F3E4FAF236A85CBAFB0@phx.gbl>,<alpine.DEB.2.10.1504101944440.9879@chino.kir.corp.google.com> <COL130-W77A7613DB3EA1820D92CBABAF80@phx.gbl>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150413230923.GA16027@kernel.org>
+Content-Type: MULTIPART/MIXED; BOUNDARY="531381512-857007855-1428968577=:20336"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Ingo Molnar <mingo@kernel.org>
-Cc: linux-kernel@vger.kernel.org, David Ahern <dsahern@gmail.com>, He Kuang <hekuang@huawei.com>, Jiri Olsa <jolsa@redhat.com>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Namhyung Kim <namhyung@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Steven Rostedt <rostedt@goodmis.org>, Wang Nan <wangnan0@huawei.com>
+To: ZhangNeil <neilzhang1123@hotmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Em Mon, Apr 13, 2015 at 08:09:23PM -0300, Arnaldo Carvalho de Melo escreveu:
-> Em Tue, Apr 14, 2015 at 07:33:07AM +0900, Masami Hiramatsu escreveu:
-> > Hi, Arnaldo,
-> > 
-> > >       perf probe: Make --source avaiable when probe with lazy_line
-> > 
-> > No, could you pull Naohiro's patch?
-> > I'd like to move get_real_path to probe_finder.c
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
+
+--531381512-857007855-1428968577=:20336
+Content-Type: TEXT/PLAIN; charset=iso-8859-1
+Content-Transfer-Encoding: 8BIT
+
+On Sun, 12 Apr 2015, ZhangNeil wrote:
+
+> > Sorry, this is just way too verbose. This output is emitted to the kernel
+> > log on oom kill and since we lack a notification mechanism on system oom,
+> > the _only_ way for userspace to detect oom kills that have occurred is by
+> > scraping the kernel log. This is exactly what we do, and we have missed
+> > oom kill events because they scroll from the ring buffer due to excessive
+> > output such as this, which is why output was limited with the
+> > show_free_areas() filter in the first place. Just because oom kill output
+> > is much less than it has been in the past, for precisely this reason,
+> > doesn't mean we can make it excessive again.
+> >
 > 
-> OOps, yeah, you asked for that... Ingo, please ignore this pull request
-> for now, thanks,
+> Just like you said, OOM kill is much less than before, but we still need to analyze it when 
+> it happens on a mobile device. It can give more detailed info for us when debugging.
+>  
 
-Ok, I did that and created a perf-core-for-mingo-2, Masami, please check
-that all is right, ok?
+There is a very large amount of data that would be true for, and we simply 
+can't make oom killing more verbose in the kernel log because it is the 
+_only_ mechanism we have to determine that the kernel killed a user 
+process and what that process was.  You could make the same argument for 
+dumping all of /proc/slabinfo, which people have proposed before and it's 
+been nacked, to discover slab leaks.  We simply can't make it more 
+verbose, it's that easy.
 
-- Arnaldo
+> Besides OOM kill, we also can check the memory usages in runtime by echo 'm' to sysRq.
+> It can help us to  find out code defect sometimes, for example, we even found that the NR_FREE_CMA
+> memory was not align with the total CMA pages in the free list showed by this patch.
+> 
 
-The following changes since commit 066450be419fa48007a9f29e19828f2a86198754:
-
-  perf/x86/intel/pt: Clean up the control flow in pt_pmu_hw_init() (2015-04-12 11:21:15 +0200)
-
-are available in the git repository at:
-
-  git://git.kernel.org/pub/scm/linux/kernel/git/acme/linux.git tags/perf-core-for-mingo-2
-
-for you to fetch changes up to f19e80c640d58ddfd70f2454ee597f81ba966690:
-
-  perf probe: Fix segfault when probe with lazy_line to file (2015-04-13 20:12:21 -0300)
-
-----------------------------------------------------------------
-perf/core improvements and fixes:
-
-New features:
-
-- Analyze page allocator events also in 'perf kmem' (Namhyung Kim)
-
-User visible fixes:
-
-- Fix retprobe 'perf probe' handling when failing to find needed debuginfo (He Kuang)
-
-- lazy_line probe fixes in 'perf probe' (Naohiro Aota, He Kuang)
-
-Infrastructure:
-
-- Record pfn instead of pointer to struct page in tracepoints (Namhyung Kim)
-
-Signed-off-by: Arnaldo Carvalho de Melo <acme@redhat.com>
-
-----------------------------------------------------------------
-He Kuang (2):
-      perf probe: Set retprobe flag when probe in address-based alternative mode
-      perf probe: Fix segfault when probe with lazy_line to file
-
-Namhyung Kim (2):
-      tracing, mm: Record pfn instead of pointer to struct page
-      perf kmem: Analyze page allocator events also
-
-Naohiro Aota (1):
-      perf probe: Find compilation directory path for lazy matching
-
- include/trace/events/filemap.h         |   8 +-
- include/trace/events/kmem.h            |  42 +--
- include/trace/events/vmscan.h          |   8 +-
- tools/perf/Documentation/perf-kmem.txt |   8 +-
- tools/perf/builtin-kmem.c              | 500 +++++++++++++++++++++++++++++++--
- tools/perf/util/probe-event.c          |  60 +---
- tools/perf/util/probe-finder.c         |  73 ++++-
- tools/perf/util/probe-finder.h         |   4 +
- 8 files changed, 596 insertions(+), 107 deletions(-)
+Sysrq is an entirely different usecase and the natural response would be 
+to export this information for sysrq but not oom kill, but in this case 
+there is no compelling reason to dump it in the ring buffer in the first 
+place: it should be in procfs where it can easily be read and parsed.
+--531381512-857007855-1428968577=:20336--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
