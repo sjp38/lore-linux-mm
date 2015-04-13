@@ -1,69 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 17B696B0032
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 11:27:43 -0400 (EDT)
-Received: by wiun10 with SMTP id n10so71314519wiu.1
-        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 08:27:42 -0700 (PDT)
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com. [195.75.94.106])
-        by mx.google.com with ESMTPS id ek6si14529277wib.51.2015.04.13.08.27.40
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 271E86B0032
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 12:49:54 -0400 (EDT)
+Received: by wiax7 with SMTP id x7so69324968wia.0
+        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 09:49:53 -0700 (PDT)
+Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
+        by mx.google.com with ESMTPS id uc1si18505030wjc.27.2015.04.13.09.49.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 13 Apr 2015 08:27:41 -0700 (PDT)
-Received: from /spool/local
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Mon, 13 Apr 2015 16:27:39 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 62F5C2190066
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 16:27:22 +0100 (BST)
-Received: from d06av12.portsmouth.uk.ibm.com (d06av12.portsmouth.uk.ibm.com [9.149.37.247])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3DFRaaf35389554
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 15:27:36 GMT
-Received: from d06av12.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av12.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3DFRYic000856
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 09:27:36 -0600
-Message-ID: <552BE064.4000903@linux.vnet.ibm.com>
-Date: Mon, 13 Apr 2015 17:27:32 +0200
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Apr 2015 09:49:52 -0700 (PDT)
+Received: by wiun10 with SMTP id n10so74186736wiu.1
+        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 09:49:52 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RESEND PATCH v3 1/2] mm: Introducing arch_remap hook
-References: <cover.1428916945.git.ldufour@linux.vnet.ibm.com> <9d827fc618a718830b2c47aa87e8be546914c897.1428916945.git.ldufour@linux.vnet.ibm.com> <20150413115811.GA12354@node.dhcp.inet.fi> <552BB972.3010704@linux.vnet.ibm.com> <20150413131357.GC12354@node.dhcp.inet.fi> <552BC2CA.80309@linux.vnet.ibm.com> <552BC619.9080603@parallels.com> <20150413140219.GA14480@node.dhcp.inet.fi> <552BCE87.8040103@linux.vnet.ibm.com> <20150413142655.GA14646@node.dhcp.inet.fi> <552BD37A.8070505@parallels.com>
-In-Reply-To: <552BD37A.8070505@parallels.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <552BC6E8.1040400@yandex-team.ru>
+References: <20150408165920.25007.6869.stgit@buzz> <CAL_JsqKQPtNPfTAiqsKnFuU6e-qozzPgujM=8MHseG75R9cbSA@mail.gmail.com>
+ <552BC6E8.1040400@yandex-team.ru>
+From: Rob Herring <robherring2@gmail.com>
+Date: Mon, 13 Apr 2015 11:49:31 -0500
+Message-ID: <CAL_Jsq+vaufZJAchHC1OaV9g18zFfkXyRZ9j5wm0VWosh9i4kQ@mail.gmail.com>
+Subject: Re: [PATCH] of: return NUMA_NO_NODE from fallback of_node_to_nid()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@kernel.org>, linuxppc-dev@lists.ozlabs.org, cov@codeaurora.org, criu@openvz.org
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: Grant Likely <grant.likely@linaro.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, Rob Herring <robh+dt@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, sparclinux@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On 13/04/2015 16:32, Pavel Emelyanov wrote:
->>>> I initially thought it would be enough to put it into
->>>> <asm-generic/mmu_context.h>, expecting it works as
->>>> <asm-generic/pgtable.h>. But that's not the case.
->>>>
->>>> It probably worth at some point rework all <asm/mmu_context.h> to include
->>>> <asm-generic/mmu_context.h> at the end as we do for <asm/pgtable.h>.
->>>> But that's outside the scope of the patchset, I guess.
->>>>
->>>> I don't see any better candidate for such dummy header. :-/
->>>
->>> Clearly, I'm not confortable with a rewrite of <asm/mmu_context.h> :(
->>>
->>> So what about this patch, is this v3 acceptable ?
+On Mon, Apr 13, 2015 at 8:38 AM, Konstantin Khlebnikov
+<khlebnikov@yandex-team.ru> wrote:
+> On 13.04.2015 16:22, Rob Herring wrote:
 >>
->> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> 
-> Other than the #ifdef thing, the same:
-> 
-> Acked-by: Pavel Emelyanov <xemul@parallels.com>
-> 
+>> On Wed, Apr 8, 2015 at 11:59 AM, Konstantin Khlebnikov
+>> <khlebnikov@yandex-team.ru> wrote:
+>>>
+>>> Node 0 might be offline as well as any other numa node,
+>>> in this case kernel cannot handle memory allocation and crashes.
+>>>
+>>> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+>>> Fixes: 0c3f061c195c ("of: implement of_node_to_nid as a weak function")
+>>> ---
+>>>   drivers/of/base.c  |    2 +-
+>>>   include/linux/of.h |    5 ++++-
+>>>   2 files changed, 5 insertions(+), 2 deletions(-)
+>>>
+>>> diff --git a/drivers/of/base.c b/drivers/of/base.c
+>>> index 8f165b112e03..51f4bd16e613 100644
+>>> --- a/drivers/of/base.c
+>>> +++ b/drivers/of/base.c
+>>> @@ -89,7 +89,7 @@ EXPORT_SYMBOL(of_n_size_cells);
+>>>   #ifdef CONFIG_NUMA
+>>>   int __weak of_node_to_nid(struct device_node *np)
+>>>   {
+>>> -       return numa_node_id();
+>>> +       return NUMA_NO_NODE;
+>>
+>>
+>> This is going to break any NUMA machine that enables OF and expects
+>> the weak function to work.
+>
+>
+> Why? NUMA_NO_NODE == -1 -- this's standard "no-affinity" signal.
+> As I see powerpc/sparc versions of of_node_to_nid returns -1 if they
+> cannot find out which node should be used.
 
-Thanks Kirill and Pavel.
+Ah, I was thinking those platforms were relying on the default
+implementation. I guess any real NUMA support is going to need to
+override this function. The arm64 patch series does that as well. We
+need to be sure this change is correct for metag which appears to be
+the only other OF enabled platform with NUMA support.
 
-Should I send a new version fixing the spaces around the plus sign ?
+In that case, then there is little reason to keep the inline and we
+can just always enable the weak function (with your change). It is
+slightly less optimal, but the few callers hardly appear to be hot
+paths.
 
-Cheers,
-Laurent.
+Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
