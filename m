@@ -1,45 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 512BE6B0032
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 14:21:52 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so83888268wid.0
-        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 11:21:51 -0700 (PDT)
-Received: from lb3-smtp-cloud3.xs4all.net (lb3-smtp-cloud3.xs4all.net. [194.109.24.30])
-        by mx.google.com with ESMTPS id w7si15258555wix.97.2015.04.13.11.21.50
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E4FC6B0032
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 16:59:54 -0400 (EDT)
+Received: by pabsx10 with SMTP id sx10so114100195pab.3
+        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 13:59:54 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id cb9si17451441pdb.197.2015.04.13.13.59.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 13 Apr 2015 11:21:50 -0700 (PDT)
-Message-ID: <1428949307.3868.1.camel@x220>
-Subject: Re: [PATCH 10/14] x86: mm: Enable deferred memory initialisation on
- x86-64
-From: Paul Bolle <pebolle@tiscali.nl>
-Date: Mon, 13 Apr 2015 20:21:47 +0200
-In-Reply-To: <1428920226-18147-11-git-send-email-mgorman@suse.de>
-References: <1428920226-18147-1-git-send-email-mgorman@suse.de>
-	 <1428920226-18147-11-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Apr 2015 13:59:53 -0700 (PDT)
+Date: Mon, 13 Apr 2015 13:59:51 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RESEND PATCH v3 1/2] mm: Introducing arch_remap hook
+Message-Id: <20150413135951.b3d9f431892dbfa7156cc1b0@linux-foundation.org>
+In-Reply-To: <20150413140219.GA14480@node.dhcp.inet.fi>
+References: <cover.1428916945.git.ldufour@linux.vnet.ibm.com>
+	<9d827fc618a718830b2c47aa87e8be546914c897.1428916945.git.ldufour@linux.vnet.ibm.com>
+	<20150413115811.GA12354@node.dhcp.inet.fi>
+	<552BB972.3010704@linux.vnet.ibm.com>
+	<20150413131357.GC12354@node.dhcp.inet.fi>
+	<552BC2CA.80309@linux.vnet.ibm.com>
+	<552BC619.9080603@parallels.com>
+	<20150413140219.GA14480@node.dhcp.inet.fi>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Robin Holt <holt@sgi.com>, Nathan Zimmer <nzimmer@sgi.com>, Daniel Rahn <drahn@suse.com>, Davidlohr Bueso <dbueso@suse.com>, Dave Hansen <dave.hansen@intel.com>, Tom Vaden <tom.vaden@hp.com>, Scott Norton <scott.norton@hp.com>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Pavel Emelyanov <xemul@parallels.com>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@kernel.org>, linuxppc-dev@lists.ozlabs.org, cov@codeaurora.org, criu@openvz.org
 
-On Mon, 2015-04-13 at 11:17 +0100, Mel Gorman wrote:
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
+On Mon, 13 Apr 2015 17:02:19 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-> +# For architectures that was to support deferred memory initialisation
+> > Kirill, if I'm right with it, can you suggest the header where to put
+> > the "generic" mremap hook's (empty) body?
+> 
+> I initially thought it would be enough to put it into
+> <asm-generic/mmu_context.h>, expecting it works as
+> <asm-generic/pgtable.h>. But that's not the case.
+> 
+> It probably worth at some point rework all <asm/mmu_context.h> to include
+> <asm-generic/mmu_context.h> at the end as we do for <asm/pgtable.h>.
+> But that's outside the scope of the patchset, I guess.
+> 
+> I don't see any better candidate for such dummy header. :-/
 
-s/was/want/?
+Do away with __HAVE_ARCH_REMAP and do it like this:
 
-> +config ARCH_SUPPORTS_DEFERRED_MEM_INIT
-> +	bool
+arch/x/include/asm/y.h:
 
-Thanks,
+	extern void arch_remap(...);
+	#define arch_remap arch_remap
 
+include/linux/z.h:
 
-Paul Bolle
+	#include <asm/y.h>
+
+	#ifndef arch_remap
+	static inline void arch_remap(...) { }
+	#define arch_remap arch_remap
+	#endif
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
