@@ -1,66 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E4FC6B0032
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 16:59:54 -0400 (EDT)
-Received: by pabsx10 with SMTP id sx10so114100195pab.3
-        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 13:59:54 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id cb9si17451441pdb.197.2015.04.13.13.59.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Apr 2015 13:59:53 -0700 (PDT)
-Date: Mon, 13 Apr 2015 13:59:51 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RESEND PATCH v3 1/2] mm: Introducing arch_remap hook
-Message-Id: <20150413135951.b3d9f431892dbfa7156cc1b0@linux-foundation.org>
-In-Reply-To: <20150413140219.GA14480@node.dhcp.inet.fi>
-References: <cover.1428916945.git.ldufour@linux.vnet.ibm.com>
-	<9d827fc618a718830b2c47aa87e8be546914c897.1428916945.git.ldufour@linux.vnet.ibm.com>
-	<20150413115811.GA12354@node.dhcp.inet.fi>
-	<552BB972.3010704@linux.vnet.ibm.com>
-	<20150413131357.GC12354@node.dhcp.inet.fi>
-	<552BC2CA.80309@linux.vnet.ibm.com>
-	<552BC619.9080603@parallels.com>
-	<20150413140219.GA14480@node.dhcp.inet.fi>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id E90606B0038
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2015 18:15:18 -0400 (EDT)
+Received: by igblo3 with SMTP id lo3so59036964igb.1
+        for <linux-mm@kvack.org>; Mon, 13 Apr 2015 15:15:18 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTP id cv17si89073icb.61.2015.04.13.15.15.18
+        for <linux-mm@kvack.org>;
+        Mon, 13 Apr 2015 15:15:18 -0700 (PDT)
+From: Arnaldo Carvalho de Melo <acme@kernel.org>
+Subject: [GIT PULL 0/5] perf/core improvements and fixes
+Date: Mon, 13 Apr 2015 19:14:57 -0300
+Message-Id: <1428963302-31538-1-git-send-email-acme@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Pavel Emelyanov <xemul@parallels.com>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@kernel.org>, linuxppc-dev@lists.ozlabs.org, cov@codeaurora.org, criu@openvz.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, Arnaldo Carvalho de Melo <acme@kernel.org>, David Ahern <dsahern@gmail.com>, He Kuang <hekuang@huawei.com>, Jiri Olsa <jolsa@redhat.com>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Minchan Kim <minchan@kernel.org>, Namhyung Kim <namhyung@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Steven Rostedt <rostedt@goodmis.org>, Wang Nan <wangnan0@huawei.com>, Arnaldo Carvalho de Melo <acme@redhat.com>
 
-On Mon, 13 Apr 2015 17:02:19 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+Hi Ingo,
 
-> > Kirill, if I'm right with it, can you suggest the header where to put
-> > the "generic" mremap hook's (empty) body?
-> 
-> I initially thought it would be enough to put it into
-> <asm-generic/mmu_context.h>, expecting it works as
-> <asm-generic/pgtable.h>. But that's not the case.
-> 
-> It probably worth at some point rework all <asm/mmu_context.h> to include
-> <asm-generic/mmu_context.h> at the end as we do for <asm/pgtable.h>.
-> But that's outside the scope of the patchset, I guess.
-> 
-> I don't see any better candidate for such dummy header. :-/
+	Please consider pulling,
 
-Do away with __HAVE_ARCH_REMAP and do it like this:
+Best regards,
 
-arch/x/include/asm/y.h:
+- Arnaldo
 
-	extern void arch_remap(...);
-	#define arch_remap arch_remap
+The following changes since commit 066450be419fa48007a9f29e19828f2a86198754:
 
-include/linux/z.h:
+  perf/x86/intel/pt: Clean up the control flow in pt_pmu_hw_init() (2015-04-12 11:21:15 +0200)
 
-	#include <asm/y.h>
+are available in the git repository at:
 
-	#ifndef arch_remap
-	static inline void arch_remap(...) { }
-	#define arch_remap arch_remap
-	#endif
+  git://git.kernel.org/pub/scm/linux/kernel/git/acme/linux.git tags/perf-core-for-mingo
 
+for you to fetch changes up to be8d5b1c6b468d10bd2928bbd1a5ca3fd2980402:
+
+  perf probe: Fix segfault when probe with lazy_line to file (2015-04-13 17:59:41 -0300)
+
+----------------------------------------------------------------
+perf/core improvements and fixes:
+
+New features:
+
+- Analyze page allocator events also in 'perf kmem' (Namhyung Kim)
+
+User visible fixes:
+
+- Fix retprobe 'perf probe' handling when failing to find needed debuginfo (He Kuang)
+
+- lazy_line probe fixes in 'perf probe' (He Kuang)
+
+Infrastructure:
+
+- Record pfn instead of pointer to struct page in tracepoints (Namhyung Kim)
+
+Signed-off-by: Arnaldo Carvalho de Melo <acme@redhat.com>
+
+----------------------------------------------------------------
+He Kuang (3):
+      perf probe: Set retprobe flag when probe in address-based alternative mode
+      perf probe: Make --source avaiable when probe with lazy_line
+      perf probe: Fix segfault when probe with lazy_line to file
+
+Namhyung Kim (2):
+      tracing, mm: Record pfn instead of pointer to struct page
+      perf kmem: Analyze page allocator events also
+
+ include/trace/events/filemap.h         |   8 +-
+ include/trace/events/kmem.h            |  42 +--
+ include/trace/events/vmscan.h          |   8 +-
+ tools/perf/Documentation/perf-kmem.txt |   8 +-
+ tools/perf/builtin-kmem.c              | 500 +++++++++++++++++++++++++++++++--
+ tools/perf/util/probe-event.c          |   3 +-
+ tools/perf/util/probe-event.h          |   2 +
+ tools/perf/util/probe-finder.c         |  20 +-
+ 8 files changed, 540 insertions(+), 51 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
