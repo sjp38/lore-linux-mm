@@ -1,102 +1,236 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 72FF86B006E
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2015 03:21:01 -0400 (EDT)
-Received: by wiax7 with SMTP id x7so81507218wia.0
-        for <linux-mm@kvack.org>; Tue, 14 Apr 2015 00:21:00 -0700 (PDT)
-Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com. [2a00:1450:400c:c05::234])
-        by mx.google.com with ESMTPS id df3si2122703wib.53.2015.04.14.00.20.59
+Received: from mail-vn0-f47.google.com (mail-vn0-f47.google.com [209.85.216.47])
+	by kanga.kvack.org (Postfix) with ESMTP id BE03D6B0032
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2015 03:39:23 -0400 (EDT)
+Received: by vnbg190 with SMTP id g190so448282vnb.8
+        for <linux-mm@kvack.org>; Tue, 14 Apr 2015 00:39:23 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id f2si112205obw.49.2015.04.14.00.39.21
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Apr 2015 00:21:00 -0700 (PDT)
-Received: by wiun10 with SMTP id n10so10664424wiu.1
-        for <linux-mm@kvack.org>; Tue, 14 Apr 2015 00:20:59 -0700 (PDT)
-Date: Tue, 14 Apr 2015 09:20:58 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 00/12] mm: page_alloc: improve OOM mechanism and policy
-Message-ID: <20150414072058.GA17160@dhcp22.suse.cz>
-References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
- <20150326195822.GB28129@dastard>
- <20150327150509.GA21119@cmpxchg.org>
- <20150330003240.GB28621@dastard>
- <20150401151920.GB23824@dhcp22.suse.cz>
- <20150407141822.GA3262@cmpxchg.org>
- <20150413124614.GA21790@dhcp22.suse.cz>
- <20150414001118.GS15810@dastard>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 14 Apr 2015 00:39:23 -0700 (PDT)
+Message-ID: <552CC328.9050402@huawei.com>
+Date: Tue, 14 Apr 2015 15:35:04 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150414001118.GS15810@dastard>
+Subject: [PATCH] mm/hugetlb: reduce arch dependent code about huge_pmd_unshare
+References: <1428996566-86763-1-git-send-email-zhenzhang.zhang@huawei.com>
+In-Reply-To: <1428996566-86763-1-git-send-email-zhenzhang.zhang@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Theodore Ts'o <tytso@mit.edu>
+To: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux@arm.linux.org.uk, catalin.marinas@arm.com, tony.luck@intel.com, james.hogan@imgtec.com, ralf@linux-mips.org, benh@kernel.crashing.org, schwidefsky@de.ibm.com, cmetcalf@ezchip.com, David Rientjes <rientjes@google.com>, James.Yang@freescale.com, aneesh.kumar@linux.vnet.ibm.com
 
-On Tue 14-04-15 10:11:18, Dave Chinner wrote:
-> On Mon, Apr 13, 2015 at 02:46:14PM +0200, Michal Hocko wrote:
-> > [Sorry for a late reply]
-> > 
-> > On Tue 07-04-15 10:18:22, Johannes Weiner wrote:
-> > > On Wed, Apr 01, 2015 at 05:19:20PM +0200, Michal Hocko wrote:
-> > > My question here would be: are there any NOFS allocations that *don't*
-> > > want this behavior?  Does it even make sense to require this separate
-> > > annotation or should we just make it the default?
-> > > 
-> > > The argument here was always that NOFS allocations are very limited in
-> > > their reclaim powers and will trigger OOM prematurely.  However, the
-> > > way we limit dirty memory these days forces most cache to be clean at
-> > > all times, and direct reclaim in general hasn't been allowed to issue
-> > > page writeback for quite some time.  So these days, NOFS reclaim isn't
-> > > really weaker than regular direct reclaim. 
-> > 
-> > What about [di]cache and some others fs specific shrinkers (and heavy
-> > metadata loads)?
-> 
-> We don't do direct reclaim for fs shrinkers in GFP_NOFS context,
-> either.
+Currently we have many duplicates in definitions of huge_pmd_unshare.
+In all architectures this function just returns 0 when
+CONFIG_ARCH_WANT_HUGE_PMD_SHARE is N.
 
-Yeah but we invoke fs shrinkers for the _regular_ direct reclaim (with
-__GFP_FS), which was the point I've tried to make here.
+This patch put the default implementation in mm/hugetlb.c and lets
+these architecture use the common code.
 
-> *HOWEVER*
-> 
-> The shrinker reclaim we can not execute is deferred to the next
-> context that can do the reclaim, which is usually kswapd. So the
-> reclaim gets done according to the GFP_NOFS memory pressure that is
-> occurring, it is just done in a different context...
+Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+---
+ arch/arm/mm/hugetlbpage.c     | 5 -----
+ arch/arm64/mm/hugetlbpage.c   | 7 -------
+ arch/ia64/mm/hugetlbpage.c    | 5 -----
+ arch/metag/mm/hugetlbpage.c   | 5 -----
+ arch/mips/mm/hugetlbpage.c    | 5 -----
+ arch/powerpc/mm/hugetlbpage.c | 5 -----
+ arch/s390/mm/hugetlbpage.c    | 5 -----
+ arch/sh/mm/hugetlbpage.c      | 5 -----
+ arch/sparc/mm/hugetlbpage.c   | 5 -----
+ arch/tile/mm/hugetlbpage.c    | 5 -----
+ mm/hugetlb.c                  | 5 +++++
+ 11 files changed, 5 insertions(+), 52 deletions(-)
 
-Right, deferring to kswapd is the reason why I think the direct reclaim
-shouldn't invoke OOM killer in this context because that would be
-premature - as kswapd still can make some progress. Sorry for not being
-more clear.
+diff --git a/arch/arm/mm/hugetlbpage.c b/arch/arm/mm/hugetlbpage.c
+index c724124..fcafb52 100644
+--- a/arch/arm/mm/hugetlbpage.c
++++ b/arch/arm/mm/hugetlbpage.c
+@@ -41,11 +41,6 @@ int pud_huge(pud_t pud)
+ 	return 0;
+ }
 
-> > > The only exception is that
-> > > it might block writeback, so we'd go OOM if the only reclaimables left
-> > > were dirty pages against that filesystem.  That should be acceptable.
-> > 
-> > OOM killer is hardly acceptable by most users I've heard from. OOM
-> > killer is the _last_ resort and if the allocation is restricted then
-> > we shouldn't use the big hammer. The allocator might use __GFP_HIGH to
-> > get access to memory reserves if it can fail or __GFP_NOFAIL if it
-> > cannot. With your patches the NOFAIL case would get an access to memory
-> > reserves as well. So I do not really see a reason to change GFP_NOFS vs.
-> > OOM killer semantic.
-> 
-> So, really, what we want is something like:
-> 
-> #define __GFP_USE_LOWMEM_RESERVE	__GFP_HIGH
-> 
-> So that it documents the code that is using it effectively and we
-> can find them easily with cscope/grep?
+-int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+-{
+-	return 0;
+-}
+-
+ int pmd_huge(pmd_t pmd)
+ {
+ 	return pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT);
+diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
+index 2de9d2e..cccc4af 100644
+--- a/arch/arm64/mm/hugetlbpage.c
++++ b/arch/arm64/mm/hugetlbpage.c
+@@ -31,13 +31,6 @@
+ #include <asm/tlbflush.h>
+ #include <asm/pgalloc.h>
 
-I wouldn't be opposed. To be honest I was never fond of __GFP_HIGH. The
-naming is counterintuitive. So I would rather go with renaminag it. We do
-not have that many users in the tree.
-git grep "GFP_HIGH\>" | wc -l
-40
+-#ifndef CONFIG_ARCH_WANT_HUGE_PMD_SHARE
+-int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+-{
+-	return 0;
+-}
+-#endif
+-
+ int pmd_huge(pmd_t pmd)
+ {
+ 	return !(pmd_val(pmd) & PMD_TABLE_BIT);
+diff --git a/arch/ia64/mm/hugetlbpage.c b/arch/ia64/mm/hugetlbpage.c
+index 52b7604..f50d4b3 100644
+--- a/arch/ia64/mm/hugetlbpage.c
++++ b/arch/ia64/mm/hugetlbpage.c
+@@ -65,11 +65,6 @@ huge_pte_offset (struct mm_struct *mm, unsigned long addr)
+ 	return pte;
+ }
+
+-int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+-{
+-	return 0;
+-}
+-
+ #define mk_pte_huge(entry) { pte_val(entry) |= _PAGE_P; }
+
+ /*
+diff --git a/arch/metag/mm/hugetlbpage.c b/arch/metag/mm/hugetlbpage.c
+index 7ca80ac..53f0f6c 100644
+--- a/arch/metag/mm/hugetlbpage.c
++++ b/arch/metag/mm/hugetlbpage.c
+@@ -89,11 +89,6 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+ 	return pte;
+ }
+
+-int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+-{
+-	return 0;
+-}
+-
+ int pmd_huge(pmd_t pmd)
+ {
+ 	return pmd_page_shift(pmd) > PAGE_SHIFT;
+diff --git a/arch/mips/mm/hugetlbpage.c b/arch/mips/mm/hugetlbpage.c
+index 06e0f42..74aa6f6 100644
+--- a/arch/mips/mm/hugetlbpage.c
++++ b/arch/mips/mm/hugetlbpage.c
+@@ -51,11 +51,6 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+ 	return (pte_t *) pmd;
+ }
+
+-int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+-{
+-	return 0;
+-}
+-
+ /*
+  * This function checks for proper alignment of input addr and len parameters.
+  */
+diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
+index 7e408bf..dde6ff5 100644
+--- a/arch/powerpc/mm/hugetlbpage.c
++++ b/arch/powerpc/mm/hugetlbpage.c
+@@ -439,11 +439,6 @@ int alloc_bootmem_huge_page(struct hstate *hstate)
+ }
+ #endif
+
+-int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+-{
+-	return 0;
+-}
+-
+ #ifdef CONFIG_PPC_FSL_BOOK3E
+ #define HUGEPD_FREELIST_SIZE \
+ 	((PAGE_SIZE - sizeof(struct hugepd_freelist)) / sizeof(pte_t))
+diff --git a/arch/s390/mm/hugetlbpage.c b/arch/s390/mm/hugetlbpage.c
+index 210ffed..fa6e1bc 100644
+--- a/arch/s390/mm/hugetlbpage.c
++++ b/arch/s390/mm/hugetlbpage.c
+@@ -187,11 +187,6 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+ 	return (pte_t *) pmdp;
+ }
+
+-int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+-{
+-	return 0;
+-}
+-
+ int pmd_huge(pmd_t pmd)
+ {
+ 	if (!MACHINE_HAS_HPAGE)
+diff --git a/arch/sh/mm/hugetlbpage.c b/arch/sh/mm/hugetlbpage.c
+index 534bc97..6385f60 100644
+--- a/arch/sh/mm/hugetlbpage.c
++++ b/arch/sh/mm/hugetlbpage.c
+@@ -62,11 +62,6 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+ 	return pte;
+ }
+
+-int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+-{
+-	return 0;
+-}
+-
+ int pmd_huge(pmd_t pmd)
+ {
+ 	return 0;
+diff --git a/arch/sparc/mm/hugetlbpage.c b/arch/sparc/mm/hugetlbpage.c
+index 4242eab..131eaf4 100644
+--- a/arch/sparc/mm/hugetlbpage.c
++++ b/arch/sparc/mm/hugetlbpage.c
+@@ -172,11 +172,6 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+ 	return pte;
+ }
+
+-int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+-{
+-	return 0;
+-}
+-
+ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+ 		     pte_t *ptep, pte_t entry)
+ {
+diff --git a/arch/tile/mm/hugetlbpage.c b/arch/tile/mm/hugetlbpage.c
+index 8416240..c034dc3 100644
+--- a/arch/tile/mm/hugetlbpage.c
++++ b/arch/tile/mm/hugetlbpage.c
+@@ -160,11 +160,6 @@ int pud_huge(pud_t pud)
+ 	return !!(pud_val(pud) & _PAGE_HUGE_PAGE);
+ }
+
+-int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+-{
+-	return 0;
+-}
+-
+ #ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
+ 		unsigned long addr, unsigned long len,
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index c41b2a0..df677142 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -3659,6 +3659,11 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+ {
+ 	return NULL;
+ }
++
++int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
++{
++	return 0;
++}
+ #define want_pmd_share()	(0)
+ #endif /* CONFIG_ARCH_WANT_HUGE_PMD_SHARE */
+
 -- 
-Michal Hocko
-SUSE Labs
+1.9.1
+
+
+.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
