@@ -1,132 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id B620A6B0032
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2015 08:17:18 -0400 (EDT)
-Received: by iejt8 with SMTP id t8so12857736iej.2
-        for <linux-mm@kvack.org>; Tue, 14 Apr 2015 05:17:18 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id q3si1712216igr.38.2015.04.14.05.17.18
-        for <linux-mm@kvack.org>;
-        Tue, 14 Apr 2015 05:17:18 -0700 (PDT)
-Date: Tue, 14 Apr 2015 09:17:13 -0300
-From: Arnaldo Carvalho de Melo <acme@kernel.org>
-Subject: Re: Re: [GIT PULL 0/5] perf/core improvements and fixes
-Message-ID: <20150414121713.GF16027@kernel.org>
-References: <1428963302-31538-1-git-send-email-acme@kernel.org>
- <552C4423.6020001@hitachi.com>
- <20150413230923.GA16027@kernel.org>
- <20150413231934.GC16027@kernel.org>
- <552CBBFD.2050604@hitachi.com>
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 870F66B0032
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2015 10:23:12 -0400 (EDT)
+Received: by lbcga7 with SMTP id ga7so9819009lbc.1
+        for <linux-mm@kvack.org>; Tue, 14 Apr 2015 07:23:11 -0700 (PDT)
+Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com. [2a00:1450:400c:c05::22c])
+        by mx.google.com with ESMTPS id e8si20435347wib.65.2015.04.14.07.23.09
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Apr 2015 07:23:09 -0700 (PDT)
+Received: by widdi4 with SMTP id di4so115635481wid.0
+        for <linux-mm@kvack.org>; Tue, 14 Apr 2015 07:23:09 -0700 (PDT)
+Date: Tue, 14 Apr 2015 16:23:07 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 00/12] mm: page_alloc: improve OOM mechanism and policy
+Message-ID: <20150414142307.GI17160@dhcp22.suse.cz>
+References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
+ <20150326195822.GB28129@dastard>
+ <20150327150509.GA21119@cmpxchg.org>
+ <20150330003240.GB28621@dastard>
+ <20150401151920.GB23824@dhcp22.suse.cz>
+ <20150407141822.GA3262@cmpxchg.org>
+ <20150413124614.GA21790@dhcp22.suse.cz>
+ <20150414103625.GA26264@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <552CBBFD.2050604@hitachi.com>
+In-Reply-To: <20150414103625.GA26264@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
-Cc: Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, David Ahern <dsahern@gmail.com>, He Kuang <hekuang@huawei.com>, Jiri Olsa <jolsa@redhat.com>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Namhyung Kim <namhyung@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Steven Rostedt <rostedt@goodmis.org>, Wang Nan <wangnan0@huawei.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Theodore Ts'o <tytso@mit.edu>
 
-Em Tue, Apr 14, 2015 at 04:04:29PM +0900, Masami Hiramatsu escreveu:
-> (2015/04/14 8:19), Arnaldo Carvalho de Melo wrote:
-> > Em Mon, Apr 13, 2015 at 08:09:23PM -0300, Arnaldo Carvalho de Melo escreveu:
-> >> Em Tue, Apr 14, 2015 at 07:33:07AM +0900, Masami Hiramatsu escreveu:
-> >>> Hi, Arnaldo,
-> >>>
-> >>>>       perf probe: Make --source avaiable when probe with lazy_line
-> >>>
-> >>> No, could you pull Naohiro's patch?
-> >>> I'd like to move get_real_path to probe_finder.c
-> >>
-> >> OOps, yeah, you asked for that... Ingo, please ignore this pull request
-> >> for now, thanks,
-> > 
-> > Ok, I did that and created a perf-core-for-mingo-2, Masami, please check
-> > that all is right, ok?
+On Tue 14-04-15 06:36:25, Johannes Weiner wrote:
+> On Mon, Apr 13, 2015 at 02:46:14PM +0200, Michal Hocko wrote:
+[...]
+> > AFAIU, David wasn't asking for the OOM killer as much as he was
+> > interested in getting access to a small amount of reserves in order to
+> > make a progress. __GFP_HIGH is there for this purpose.
 > 
-> OK, I've built and tested it :)
+> That's not just any reserve pool available to the generic caller, it's
+> the reserve pool for interrupts, which can not wait and replenish it.
+> It relies on kswapd to run soon after the interrupt, or right away on
+> SMP.  But locks held in the filesystem can hold up kswapd (the reason
+> we even still perform direct reclaim) so NOFS allocs shouldn't use it.
 > 
-> Acked-by: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
-> Tested-by: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+> [hannes@dexter linux]$ git grep '__GFP_HIGH\b' | wc -l
+> 39
+> [hannes@dexter linux]$ git grep GFP_ATOMIC | wc -l
+> 4324
+> 
+> Interrupts have *no other option*. 
 
-Thanks, and sorry for the slip up in getting the right patch as we
-agreed in that discussion,
+Atomic context in general can ALLOC_HARDER so it has an access to
+additional reserves wrt. __GFP_HIGH|__GFP_WAIT.
 
-Regards,
+> It's misguided to deplete their
+> reserves, cause loss of network packets, loss of input events, from
+> allocations that can actually perform reclaim and have perfectly
+> acceptable fallback strategies in the caller.
 
-- Arnaldo
+OK, I thought that it was clear that the proposed __GFP_HIGH is a
+fallback strategy for those paths which cannot do much better. Not a
+random solution for "this shouldn't fail to eagerly".
+
+> Generally, for any reserve system there must be a way to replenish it.
+> For interrupts it's kswapd, for the OOM reserves I proposed it's the
+> OOM victim exiting soon after the allocation, if not right away.
+
+And my understanding was that the fallback mode would be used in the
+context which would lead to release of the fs pressure thus releasing a
+memory as well.
+
+> __GFP_NOFAIL is the odd one out here because accessing the system's
+> emergency reserves without any prospect of near-future replenishing is
+> just slightly better than deadlocking right away.  Which is why this
+> reserve access can not be separated out: if you can do *anything*
+> better than hanging, do it.  If not, use __GFP_NOFAIL.
+
+Agreed.
  
-> Thank you!
+> > > My question here would be: are there any NOFS allocations that *don't*
+> > > want this behavior?  Does it even make sense to require this separate
+> > > annotation or should we just make it the default?
+> > > 
+> > > The argument here was always that NOFS allocations are very limited in
+> > > their reclaim powers and will trigger OOM prematurely.  However, the
+> > > way we limit dirty memory these days forces most cache to be clean at
+> > > all times, and direct reclaim in general hasn't been allowed to issue
+> > > page writeback for quite some time.  So these days, NOFS reclaim isn't
+> > > really weaker than regular direct reclaim. 
+> > 
+> > What about [di]cache and some others fs specific shrinkers (and heavy
+> > metadata loads)?
 > 
+> My bad, I forgot about those.  But it doesn't really change the basic
+> question of whether we want to change the GFP_NOFS default or merely
+> annotate individual sites that want to try harder.
+
+My understanding was the later one. If you look at page cache allocations
+which use mapping_gfp_mask (e.g. xfs is using GFP_NOFS for that context
+all the time) then those do not really have to try harder.
+
+> > > The only exception is that
+> > > it might block writeback, so we'd go OOM if the only reclaimables left
+> > > were dirty pages against that filesystem.  That should be acceptable.
 > > 
-> > - Arnaldo
-> > 
-> > The following changes since commit 066450be419fa48007a9f29e19828f2a86198754:
-> > 
-> >   perf/x86/intel/pt: Clean up the control flow in pt_pmu_hw_init() (2015-04-12 11:21:15 +0200)
-> > 
-> > are available in the git repository at:
-> > 
-> >   git://git.kernel.org/pub/scm/linux/kernel/git/acme/linux.git tags/perf-core-for-mingo-2
-> > 
-> > for you to fetch changes up to f19e80c640d58ddfd70f2454ee597f81ba966690:
-> > 
-> >   perf probe: Fix segfault when probe with lazy_line to file (2015-04-13 20:12:21 -0300)
-> > 
-> > ----------------------------------------------------------------
-> > perf/core improvements and fixes:
-> > 
-> > New features:
-> > 
-> > - Analyze page allocator events also in 'perf kmem' (Namhyung Kim)
-> > 
-> > User visible fixes:
-> > 
-> > - Fix retprobe 'perf probe' handling when failing to find needed debuginfo (He Kuang)
-> > 
-> > - lazy_line probe fixes in 'perf probe' (Naohiro Aota, He Kuang)
-> > 
-> > Infrastructure:
-> > 
-> > - Record pfn instead of pointer to struct page in tracepoints (Namhyung Kim)
-> > 
-> > Signed-off-by: Arnaldo Carvalho de Melo <acme@redhat.com>
-> > 
-> > ----------------------------------------------------------------
-> > He Kuang (2):
-> >       perf probe: Set retprobe flag when probe in address-based alternative mode
-> >       perf probe: Fix segfault when probe with lazy_line to file
-> > 
-> > Namhyung Kim (2):
-> >       tracing, mm: Record pfn instead of pointer to struct page
-> >       perf kmem: Analyze page allocator events also
-> > 
-> > Naohiro Aota (1):
-> >       perf probe: Find compilation directory path for lazy matching
-> > 
-> >  include/trace/events/filemap.h         |   8 +-
-> >  include/trace/events/kmem.h            |  42 +--
-> >  include/trace/events/vmscan.h          |   8 +-
-> >  tools/perf/Documentation/perf-kmem.txt |   8 +-
-> >  tools/perf/builtin-kmem.c              | 500 +++++++++++++++++++++++++++++++--
-> >  tools/perf/util/probe-event.c          |  60 +---
-> >  tools/perf/util/probe-finder.c         |  73 ++++-
-> >  tools/perf/util/probe-finder.h         |   4 +
-> >  8 files changed, 596 insertions(+), 107 deletions(-)
-> > --
-> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> > Please read the FAQ at  http://www.tux.org/lkml/
-> > 
+> > OOM killer is hardly acceptable by most users I've heard from. OOM
+> > killer is the _last_ resort and if the allocation is restricted then
+> > we shouldn't use the big hammer.
 > 
-> 
-> -- 
-> Masami HIRAMATSU
-> Linux Technology Research Center, System Productivity Research Dept.
-> Center for Technology Innovation - Systems Engineering
-> Hitachi, Ltd., Research & Development Group
-> E-mail: masami.hiramatsu.pt@hitachi.com
-> 
+> We *are* talking about the last resort for these allocations!  There
+> is nothing else we can do to avoid allocation failure at this point.
+> Absent a reservation system, we have the choice between failing after
+> reclaim - which Dave said was too fragile for XFS - or OOM killing.
+
+As per other emails in this thread (e.g.
+http://marc.info/?l=linux-mm&m=142897087230385&w=2), I understood that
+the access to a small portion of emergency pool would be sufficient to
+release the pressure and that sounds preferable to me over a destructive
+reclaim attempts.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
