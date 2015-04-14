@@ -1,72 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vn0-f49.google.com (mail-vn0-f49.google.com [209.85.216.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 53C7A6B0032
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2015 14:36:58 -0400 (EDT)
-Received: by vnbf1 with SMTP id f1so6744488vnb.5
-        for <linux-mm@kvack.org>; Tue, 14 Apr 2015 11:36:58 -0700 (PDT)
-Received: from mail-vn0-x235.google.com (mail-vn0-x235.google.com. [2607:f8b0:400c:c0f::235])
-        by mx.google.com with ESMTPS id ka8si2135327vdb.72.2015.04.14.11.36.57
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D4E176B0038
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2015 15:38:56 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so23194923pde.3
+        for <linux-mm@kvack.org>; Tue, 14 Apr 2015 12:38:56 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id gq8si3194393pbc.83.2015.04.14.12.38.55
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Apr 2015 11:36:57 -0700 (PDT)
-Received: by vnbf62 with SMTP id f62so6665709vnb.13
-        for <linux-mm@kvack.org>; Tue, 14 Apr 2015 11:36:57 -0700 (PDT)
-MIME-Version: 1.0
-Date: Tue, 14 Apr 2015 11:36:57 -0700
-Message-ID: <CAA25o9SF=1G6PCBpdUJx9=DQrqhVm=XUY+4jB=M_Qbz-z-3Xfg@mail.gmail.com>
-Subject: advice on bad_page instance
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=UTF-8
+        Tue, 14 Apr 2015 12:38:55 -0700 (PDT)
+Date: Tue, 14 Apr 2015 12:38:53 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RESEND PATCH v3 1/2] mm: Introducing arch_remap hook
+Message-Id: <20150414123853.a3e61b7fa95b6c634e0fcce0@linux-foundation.org>
+In-Reply-To: <552CDD35.2030901@linux.vnet.ibm.com>
+References: <cover.1428916945.git.ldufour@linux.vnet.ibm.com>
+	<9d827fc618a718830b2c47aa87e8be546914c897.1428916945.git.ldufour@linux.vnet.ibm.com>
+	<20150413115811.GA12354@node.dhcp.inet.fi>
+	<552BB972.3010704@linux.vnet.ibm.com>
+	<20150413131357.GC12354@node.dhcp.inet.fi>
+	<552BC2CA.80309@linux.vnet.ibm.com>
+	<552BC619.9080603@parallels.com>
+	<20150413140219.GA14480@node.dhcp.inet.fi>
+	<20150413135951.b3d9f431892dbfa7156cc1b0@linux-foundation.org>
+	<552CDD35.2030901@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Memory Management List <linux-mm@kvack.org>
-Cc: Minchan Kim <minchan@kernel.org>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Pavel Emelyanov <xemul@parallels.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, cov@codeaurora.org, criu@openvz.org
 
-We are seeing several instances of these things (often with different
-but plausible values in the struct page) in kernel 3.8.11, followed by
-a panic() in release_pages a few seconds later.
+On Tue, 14 Apr 2015 11:26:13 +0200 Laurent Dufour <ldufour@linux.vnet.ibm.com> wrote:
 
-I realize it's an old kernel and probably of little interest here, but
-I would be most grateful for any pointers on how to proceed.  In
-particular, I suspect that many such bugs may have been fixed by now,
-but I am not sure how to find the right fix (which I would backport).
+> > Do away with __HAVE_ARCH_REMAP and do it like this:
+> > 
+> > arch/x/include/asm/y.h:
+> > 
+> > 	extern void arch_remap(...);
+> > 	#define arch_remap arch_remap
+> > 
+> > include/linux/z.h:
+> > 
+> > 	#include <asm/y.h>
+> > 
+> > 	#ifndef arch_remap
+> > 	static inline void arch_remap(...) { }
+> > 	#define arch_remap arch_remap
+> > 	#endif
+> 
+> Hi Andrew,
+> 
+> I like your idea, but I can't find any good candidate for <asm/y.h> and
+> <linux/z.h>.
+> 
+> I tried with <linux/mm.h> and <asm/mmu_context.h> but
+> <asm/mmu_context.h> is already including <linux/mm.h>.
+> 
+> Do you have any suggestion ?
+> 
+> Another option could be to do it like the actual arch_unmap() in
+> <asm-generic/mm_hooks.h> but this is the opposite of your idea, and Ingo
+> was not comfortable with this idea due to the impact of the other
+> architectures.
 
-Also, this happens under heavy swap, and we're using zram.  I wonder
-if there may be a race condition related to zram which may have been
-fixed since then, and which may result in these symptoms.
+I don't see any appropriate header files for this.  mman.h is kinda
+close.
 
-Many thanks for any pointer!
+So we create new header files, that's not a problem.  I'm torn between
 
-Luigi
+a) include/linux/mm-arch-hooks.h (and 31
+   arch/X/include/asm/mm-arch-hooks.h).  Mandate: mm stuff which can be
+   overridded by arch
 
-<1>[ 5392.106074] BUG: Bad page state in process CompositorTileW  pfn:57a7e
-<1>[ 5392.106109] page:ffffea00015e9f80 count:0 mapcount:0 mapping:
-      (null) index:0x2
-<1>[ 5392.106122] page flags: 0x4000000000000004(referenced)
-<5>[ 5392.106139] Modules linked in: i2c_dev uinput
-snd_hda_codec_realtek memconsole snd_hda_codec_hdmi uvcvideo
-videobuf2_vmalloc videobuf2_memops videobuf2_core videodev
-snd_hda_intel snd_hda_codec snd_hwdep snd_pcm snd_page_alloc snd_timer
-zram(C) lzo_compress zsmalloc(C) fuse nf_conntrack_ipv6 nf_defrag_ipv6
-ip6table_filter ip6_tables ath9k_btcoex ath9k_common_btcoex
-ath9k_hw_btcoex ath mac80211 cfg80211 option usb_wwan cdc_ether usbnet
-ath3k btusb bluetooth joydev ppp_async ppp_generic slhc tun
-<5>[ 5392.106333] Pid: 27363, comm: CompositorTileW Tainted: G    B
-C   3.8.11 #1
-<5>[ 5392.106344] Call Trace:
-<5>[ 5392.106357]  [<ffffffff978ba5bb>] bad_page+0xcf/0xe3
-<5>[ 5392.106370]  [<ffffffff978bb181>] get_page_from_freelist+0x21a/0x46c
-<5>[ 5392.106383]  [<ffffffff978beb74>] ? release_pages+0x19b/0x1be
-<5>[ 5392.106394]  [<ffffffff978bb5da>] __alloc_pages_nodemask+0x207/0x685
-<5>[ 5392.106407]  [<ffffffff97cb8caf>] ? _cond_resched+0xe/0x1e
-<5>[ 5392.106421]  [<ffffffff978d215a>] handle_pte_fault+0x305/0x500
-<5>[ 5392.106433]  [<ffffffff978d4f5e>] ? __vma_link_file+0x65/0x67
-<5>[ 5392.106445]  [<ffffffff978d30d0>] handle_mm_fault+0x97/0xbb
-<5>[ 5392.106459]  [<ffffffff97828616>] __do_page_fault+0x1d4/0x38c
-<5>[ 5392.106470]  [<ffffffff978d7803>] ? do_mmap_pgoff+0x284/0x2c0
-<5>[ 5392.106482]  [<ffffffff978ca82c>] ? vm_mmap_pgoff+0x7d/0x8e
-<5>[ 5392.106495]  [<ffffffff97828800>] do_page_fault+0xe/0x10
-<5>[ 5392.106506]  [<ffffffff97cb9d32>] page_fault+0x22/0x30
+versus
+
+b) include/linux/mremap.h (+31), with a narrower mandate.
+
+
+This comes up fairly regularly so I suspect a) is better.  We'll add
+things to it over time, and various bits of existing ad-hackery can be
+moved over as cleanups.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
