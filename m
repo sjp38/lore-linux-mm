@@ -1,120 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 770C36B006E
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2015 16:00:08 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so127929977wiz.1
-        for <linux-mm@kvack.org>; Tue, 14 Apr 2015 13:00:08 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jj4si22071640wid.55.2015.04.14.13.00.06
+Received: from mail-vn0-f49.google.com (mail-vn0-f49.google.com [209.85.216.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D4BD6B006C
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2015 16:56:41 -0400 (EDT)
+Received: by vnbf62 with SMTP id f62so8175463vnb.3
+        for <linux-mm@kvack.org>; Tue, 14 Apr 2015 13:56:41 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id v19si1191231ykb.37.2015.04.14.13.56.40
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 14 Apr 2015 13:00:06 -0700 (PDT)
-Message-ID: <552D71C6.1020503@suse.cz>
-Date: Tue, 14 Apr 2015 22:00:06 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: mm/compaction.c:250:13: warning: 'suitable_migration_target'
- defined but not used
-References: <201504141443.QeT7AHmI%fengguang.wu@intel.com> <20150414125449.f97ea3286a90a55531d25924@linux-foundation.org>
-In-Reply-To: <20150414125449.f97ea3286a90a55531d25924@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 14 Apr 2015 13:56:40 -0700 (PDT)
+From: Sasha Levin <sasha.levin@oracle.com>
+Subject: [RFC 00/11] mm: debug: formatting memory management structs
+Date: Tue, 14 Apr 2015 16:56:22 -0400
+Message-Id: <1429044993-1677-1-git-send-email-sasha.levin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, Fabian Frederick <fabf@skynet.be>
+To: linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, kirill@shutemov.name, linux-mm@kvack.org
 
-On 14.4.2015 21:54, Andrew Morton wrote:
-> On Tue, 14 Apr 2015 14:53:45 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
-> 
->> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
->> head:   b79013b2449c23f1f505bdf39c5a6c330338b244
->> commit: f8224aa5a0a4627926019bba7511926393fbee3b mm, compaction: do not recheck suitable_migration_target under lock
->> date:   6 months ago
->> config: x86_64-randconfig-ib0-04141359 (attached as .config)
->> reproduce:
->>   git checkout f8224aa5a0a4627926019bba7511926393fbee3b
->>   # save the attached .config to linux build tree
->>   make ARCH=x86_64 
->>
->> All warnings:
->>
->>>> mm/compaction.c:250:13: warning: 'suitable_migration_target' defined but not used [-Wunused-function]
->>     static bool suitable_migration_target(struct page *page)
->>                 ^
-> 
-> Easy enough - it only has one callsite.
+This patch series adds knowledge about various memory management structures
+to the standard print functions.
 
-This sounded familiar, and sure enough I found patch from January
-https://lkml.org/lkml/2015/1/13/589
+In essence, it allows us to easily print those structures:
 
-That was v2 after I suggested a subjectively better placement of the function
-when v1 placed it as your patch IIRC. But whatever.
+	printk("%pZp %pZm %pZv", page, mm, vma);
 
-> 
-> --- a/mm/compaction.c~mm-compactionc-fix-suitable_migration_target-unused-warning
-> +++ a/mm/compaction.c
-> @@ -391,28 +391,6 @@ static inline bool compact_should_abort(
->  	return false;
->  }
->  
-> -/* Returns true if the page is within a block suitable for migration to */
-> -static bool suitable_migration_target(struct page *page)
-> -{
-> -	/* If the page is a large free page, then disallow migration */
-> -	if (PageBuddy(page)) {
-> -		/*
-> -		 * We are checking page_order without zone->lock taken. But
-> -		 * the only small danger is that we skip a potentially suitable
-> -		 * pageblock, so it's not worth to check order for valid range.
-> -		 */
-> -		if (page_order_unsafe(page) >= pageblock_order)
-> -			return false;
-> -	}
-> -
-> -	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
-> -	if (migrate_async_suitable(get_pageblock_migratetype(page)))
-> -		return true;
-> -
-> -	/* Otherwise skip the block */
-> -	return false;
-> -}
-> -
->  /*
->   * Isolate free pages onto a private freelist. If @strict is true, will abort
->   * returning 0 on any invalid PFNs or non-free pages inside of the pageblock
-> @@ -896,6 +874,29 @@ isolate_migratepages_range(struct compac
->  
->  #endif /* CONFIG_COMPACTION || CONFIG_CMA */
->  #ifdef CONFIG_COMPACTION
-> +
-> +/* Returns true if the page is within a block suitable for migration to */
-> +static bool suitable_migration_target(struct page *page)
-> +{
-> +	/* If the page is a large free page, then disallow migration */
-> +	if (PageBuddy(page)) {
-> +		/*
-> +		 * We are checking page_order without zone->lock taken. But
-> +		 * the only small danger is that we skip a potentially suitable
-> +		 * pageblock, so it's not worth to check order for valid range.
-> +		 */
-> +		if (page_order_unsafe(page) >= pageblock_order)
-> +			return false;
-> +	}
-> +
-> +	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
-> +	if (migrate_async_suitable(get_pageblock_migratetype(page)))
-> +		return true;
-> +
-> +	/* Otherwise skip the block */
-> +	return false;
-> +}
-> +
->  /*
->   * Based on information in the current compact_control, find blocks
->   * suitable for isolating free pages from and then isolate them.
-> _
-> 
+This allows us to customize output when hitting bugs even further, thus
+we introduce VM_BUG() which allows printing anything when hitting a bug
+rather than just a single piece of information.
+
+This also means we can get rid of VM_BUG_ON_* since they're now nothing
+more than a format string.
+
+Sasha Levin (11):
+  mm: debug: format flags in a buffer
+  mm: debug: deal with a new family of MM pointers
+  mm: debug: dump VMA into a string rather than directly on screen
+  mm: debug: dump struct MM into a string rather than directly on
+    screen
+  mm: debug: dump page into a string rather than directly on screen
+  mm: debug: clean unused code
+  mm: debug: VM_BUG()
+  mm: debug: kill VM_BUG_ON_PAGE
+  mm: debug: kill VM_BUG_ON_VMA
+  mm: debug: kill VM_BUG_ON_MM
+  mm: debug: use VM_BUG() to help with debug output
+
+ arch/arm/mm/mmap.c               |    2 +-
+ arch/frv/mm/elf-fdpic.c          |    4 +-
+ arch/mips/mm/gup.c               |    4 +-
+ arch/parisc/kernel/sys_parisc.c  |    2 +-
+ arch/powerpc/mm/hugetlbpage.c    |    2 +-
+ arch/powerpc/mm/pgtable_64.c     |    4 +-
+ arch/s390/mm/gup.c               |    2 +-
+ arch/s390/mm/mmap.c              |    2 +-
+ arch/s390/mm/pgtable.c           |    6 +--
+ arch/sh/mm/mmap.c                |    2 +-
+ arch/sparc/kernel/sys_sparc_64.c |    4 +-
+ arch/sparc/mm/gup.c              |    2 +-
+ arch/sparc/mm/hugetlbpage.c      |    4 +-
+ arch/tile/mm/hugetlbpage.c       |    2 +-
+ arch/x86/kernel/sys_x86_64.c     |    2 +-
+ arch/x86/mm/gup.c                |    8 ++--
+ arch/x86/mm/hugetlbpage.c        |    2 +-
+ arch/x86/mm/pgtable.c            |    6 +--
+ include/linux/huge_mm.h          |    2 +-
+ include/linux/hugetlb.h          |    2 +-
+ include/linux/hugetlb_cgroup.h   |    4 +-
+ include/linux/mm.h               |   22 ++++-----
+ include/linux/mmdebug.h          |   40 ++++++----------
+ include/linux/page-flags.h       |   26 +++++-----
+ include/linux/pagemap.h          |   11 +++--
+ include/linux/rmap.h             |    2 +-
+ kernel/fork.c                    |    2 +-
+ lib/vsprintf.c                   |   22 +++++++++
+ mm/balloon_compaction.c          |    4 +-
+ mm/cleancache.c                  |    6 +--
+ mm/compaction.c                  |    2 +-
+ mm/debug.c                       |   98 ++++++++++++++++++++------------------
+ mm/filemap.c                     |   18 +++----
+ mm/gup.c                         |   12 ++---
+ mm/huge_memory.c                 |   50 +++++++++----------
+ mm/hugetlb.c                     |   28 +++++------
+ mm/hugetlb_cgroup.c              |    2 +-
+ mm/internal.h                    |    8 ++--
+ mm/interval_tree.c               |    2 +-
+ mm/kasan/report.c                |    2 +-
+ mm/ksm.c                         |   13 ++---
+ mm/memcontrol.c                  |   48 +++++++++----------
+ mm/memory.c                      |   10 ++--
+ mm/memory_hotplug.c              |    2 +-
+ mm/migrate.c                     |    6 +--
+ mm/mlock.c                       |    4 +-
+ mm/mmap.c                        |   15 +++---
+ mm/mremap.c                      |    4 +-
+ mm/page_alloc.c                  |   28 +++++------
+ mm/page_io.c                     |    4 +-
+ mm/pagewalk.c                    |    2 +-
+ mm/pgtable-generic.c             |    8 ++--
+ mm/rmap.c                        |   20 ++++----
+ mm/shmem.c                       |   10 ++--
+ mm/slub.c                        |    4 +-
+ mm/swap.c                        |   39 +++++++--------
+ mm/swap_state.c                  |   16 +++----
+ mm/swapfile.c                    |    8 ++--
+ mm/vmscan.c                      |   24 +++++-----
+ 59 files changed, 355 insertions(+), 335 deletions(-)
+
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
