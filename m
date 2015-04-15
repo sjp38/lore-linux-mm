@@ -1,109 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id B7CCB6B006E
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 09:38:34 -0400 (EDT)
-Received: by wgyo15 with SMTP id o15so47305304wgy.2
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 06:38:34 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h8si8217489wjs.46.2015.04.15.06.38.32
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DF086B0038
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 10:17:07 -0400 (EDT)
+Received: by wgso17 with SMTP id o17so48660640wgs.1
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 07:17:06 -0700 (PDT)
+Received: from e06smtp16.uk.ibm.com (e06smtp16.uk.ibm.com. [195.75.94.112])
+        by mx.google.com with ESMTPS id dr2si10230561wid.108.2015.04.15.07.17.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 15 Apr 2015 06:38:32 -0700 (PDT)
-Date: Wed, 15 Apr 2015 14:38:26 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 0/14] Parallel memory initialisation
-Message-ID: <20150415133826.GF14842@suse.de>
-References: <1428920226-18147-1-git-send-email-mgorman@suse.de>
- <552E6486.6070705@hp.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <552E6486.6070705@hp.com>
+        Wed, 15 Apr 2015 07:17:05 -0700 (PDT)
+Received: from /spool/local
+	by e06smtp16.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Wed, 15 Apr 2015 15:17:04 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 1C108219005E
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 15:16:47 +0100 (BST)
+Received: from d06av11.portsmouth.uk.ibm.com (d06av11.portsmouth.uk.ibm.com [9.149.37.252])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3FEH1pf10748366
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 14:17:01 GMT
+Received: from d06av11.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3FEH0Pg017945
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 08:17:01 -0600
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Subject: [PATCH v5 0/3] Tracking user space vDSO remaping
+Date: Wed, 15 Apr 2015 16:16:55 +0200
+Message-Id: <cover.1429104776.git.ldufour@linux.vnet.ibm.com>
+In-Reply-To: <20150414123853.a3e61b7fa95b6c634e0fcce0@linux-foundation.org>
+References: <20150414123853.a3e61b7fa95b6c634e0fcce0@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <waiman.long@hp.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Robin Holt <holt@sgi.com>, Nathan Zimmer <nzimmer@sgi.com>, Daniel Rahn <drahn@suse.com>, Davidlohr Bueso <dbueso@suse.com>, Dave Hansen <dave.hansen@intel.com>, Tom Vaden <tom.vaden@hp.com>, Scott Norton <scott.norton@hp.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Pavel Emelyanov <xemul@parallels.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@kernel.org>, linuxppc-dev@lists.ozlabs.org
+Cc: cov@codeaurora.org, criu@openvz.org
 
-On Wed, Apr 15, 2015 at 09:15:50AM -0400, Waiman Long wrote:
-> > <SNIP>
-> >Patches are against 4.0-rc7.
-> >
-> >  Documentation/kernel-parameters.txt |   8 +
-> >  arch/ia64/mm/numa.c                 |  19 +-
-> >  arch/x86/Kconfig                    |   2 +
-> >  include/linux/memblock.h            |  18 ++
-> >  include/linux/mm.h                  |   8 +-
-> >  include/linux/mmzone.h              |  37 +++-
-> >  init/main.c                         |   1 +
-> >  mm/Kconfig                          |  29 +++
-> >  mm/bootmem.c                        |   6 +-
-> >  mm/internal.h                       |  23 ++-
-> >  mm/memblock.c                       |  34 ++-
-> >  mm/mm_init.c                        |   9 +-
-> >  mm/nobootmem.c                      |   7 +-
-> >  mm/page_alloc.c                     | 398 +++++++++++++++++++++++++++++++-----
-> >  mm/vmscan.c                         |   6 +-
-> >  15 files changed, 507 insertions(+), 98 deletions(-)
-> >
-> 
-> I had included your patch with the 4.0 kernel and booted up a
-> 16-socket 12-TB machine. I measured the elapsed time from the elilo
-> prompt to the availability of ssh login. Without the patch, the
-> bootup time was 404s. It was reduced to 298s with the patch. So
-> there was about 100s reduction in bootup time (1/4 of the total).
-> 
+CRIU is recreating the process memory layout by remapping the checkpointee
+memory area on top of the current process (criu). This includes remapping
+the vDSO to the place it has at checkpoint time.
 
-Cool, thanks for testing. Would you be able to state if this is really
-important or not? Does booting 100s second faster on a 12TB machine really
-matter? I can then add that justification to the changelog to avoid a
-conversation with Andrew that goes something like
+However some architectures like powerpc are keeping a reference to the vDSO
+base address to build the signal return stack frame by calling the vDSO
+sigreturn service. So once the vDSO has been moved, this reference is no
+more valid and the signal frame built later are not usable.
 
-Andrew: Why are we doing this?
-Mel:    Because we can and apparently people might want it.
-Andrew: What's the maintenance cost of this?
-Mel:    Magic beans
+This patch serie is introducing a new mm hook framework, and a new
+arch_remap hook which is called when mremap is done and the mm lock still
+hold. The next patch is adding the vDSO remap and unmap tracking to the
+powerpc architecture.
 
-I prefer talking to Andrew when it's harder to predict what he'll say.
+Changes in v5:
+- Jumping over v4 which was too complex (PowerPC part) for the need.
+- Introducing new mm hook framework as suggested by Andrew Morton.
 
-> However, there were 2 bootup problems in the dmesg log that needed
-> to be addressed.
-> 1. There were 2 vmalloc allocation failures:
-> [    2.284686] vmalloc: allocation failure, allocated 16578404352 of
-> 17179873280 bytes
-> [   10.399938] vmalloc: allocation failure, allocated 7970922496 of
-> 8589938688 bytes
-> 
-> 2. There were 2 soft lockup warnings:
-> [   57.319453] NMI watchdog: BUG: soft lockup - CPU#1 stuck for 23s!
-> [swapper/0:1]
-> [   85.409263] NMI watchdog: BUG: soft lockup - CPU#1 stuck for 22s!
-> [swapper/0:1]
-> 
-> Once those problems are fixed, the patch should be in a pretty good
-> shape. I have attached the dmesg log for your reference.
-> 
+Changes in v4:
+- Reviewing the PowerPC part of the patch to handle partial unmap and remap
+  of the vDSO.
 
-The obvious conclusion is that initialising 1G per node is not enough for
-really large machines. Can you try this on top? It's untested but should
-work. The low value was chosen because it happened to work and I wanted
-to get test coverage on common hardware but broke is broke.
+Changes in v3:
+- Fixed grammatical error in a comment of the second patch. 
+  Thanks again, Ingo.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f2c96d02662f..6b3bec304e35 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -276,9 +276,9 @@ static inline bool update_defer_init(pg_data_t *pgdat,
- 	if (pgdat->first_deferred_pfn != ULONG_MAX)
- 		return false;
- 
--	/* Initialise at least 1G per zone */
-+	/* Initialise at least 32G per node */
- 	(*nr_initialised)++;
--	if (*nr_initialised > (1UL << (30 - PAGE_SHIFT)) &&
-+	if (*nr_initialised > (32UL << (30 - PAGE_SHIFT)) &&
- 	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
- 		pgdat->first_deferred_pfn = pfn;
- 		return false;
+Changes in v2:
+--------------
+- Following the Ingo Molnar's advice, enabling the call to arch_remap through
+  the __HAVE_ARCH_REMAP macro. This reduces considerably the first patch.
+
+Laurent Dufour (3):
+  mm: New mm hook framework
+  mm: New arch_remap hook
+  powerpc/mm: Tracking vDSO remap
+
+ arch/alpha/include/asm/mm-arch-hooks.h      | 15 +++++++++++++++
+ arch/arc/include/asm/mm-arch-hooks.h        | 15 +++++++++++++++
+ arch/arm/include/asm/mm-arch-hooks.h        | 15 +++++++++++++++
+ arch/arm64/include/asm/mm-arch-hooks.h      | 15 +++++++++++++++
+ arch/avr32/include/asm/mm-arch-hooks.h      | 15 +++++++++++++++
+ arch/blackfin/include/asm/mm-arch-hooks.h   | 15 +++++++++++++++
+ arch/c6x/include/asm/mm-arch-hooks.h        | 15 +++++++++++++++
+ arch/cris/include/asm/mm-arch-hooks.h       | 15 +++++++++++++++
+ arch/frv/include/asm/mm-arch-hooks.h        | 15 +++++++++++++++
+ arch/hexagon/include/asm/mm-arch-hooks.h    | 15 +++++++++++++++
+ arch/ia64/include/asm/mm-arch-hooks.h       | 15 +++++++++++++++
+ arch/m32r/include/asm/mm-arch-hooks.h       | 15 +++++++++++++++
+ arch/m68k/include/asm/mm-arch-hooks.h       | 15 +++++++++++++++
+ arch/metag/include/asm/mm-arch-hooks.h      | 15 +++++++++++++++
+ arch/microblaze/include/asm/mm-arch-hooks.h | 15 +++++++++++++++
+ arch/mips/include/asm/mm-arch-hooks.h       | 15 +++++++++++++++
+ arch/mn10300/include/asm/mm-arch-hooks.h    | 15 +++++++++++++++
+ arch/nios2/include/asm/mm-arch-hooks.h      | 15 +++++++++++++++
+ arch/openrisc/include/asm/mm-arch-hooks.h   | 15 +++++++++++++++
+ arch/parisc/include/asm/mm-arch-hooks.h     | 15 +++++++++++++++
+ arch/powerpc/include/asm/mm-arch-hooks.h    | 28 ++++++++++++++++++++++++++++
+ arch/powerpc/include/asm/mmu_context.h      | 23 ++++++++++++++++++++++-
+ arch/s390/include/asm/mm-arch-hooks.h       | 15 +++++++++++++++
+ arch/score/include/asm/mm-arch-hooks.h      | 15 +++++++++++++++
+ arch/sh/include/asm/mm-arch-hooks.h         | 15 +++++++++++++++
+ arch/sparc/include/asm/mm-arch-hooks.h      | 15 +++++++++++++++
+ arch/tile/include/asm/mm-arch-hooks.h       | 15 +++++++++++++++
+ arch/um/include/asm/mm-arch-hooks.h         | 15 +++++++++++++++
+ arch/unicore32/include/asm/mm-arch-hooks.h  | 15 +++++++++++++++
+ arch/x86/include/asm/mm-arch-hooks.h        | 15 +++++++++++++++
+ arch/xtensa/include/asm/mm-arch-hooks.h     | 15 +++++++++++++++
+ include/linux/mm-arch-hooks.h               | 25 +++++++++++++++++++++++++
+ mm/mremap.c                                 | 17 +++++++++++------
+ 33 files changed, 521 insertions(+), 7 deletions(-)
+ create mode 100644 arch/alpha/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/arc/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/arm/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/arm64/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/avr32/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/blackfin/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/c6x/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/cris/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/frv/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/hexagon/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/ia64/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/m32r/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/m68k/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/metag/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/microblaze/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/mips/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/mn10300/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/nios2/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/openrisc/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/parisc/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/powerpc/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/s390/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/score/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/sh/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/sparc/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/tile/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/um/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/unicore32/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/x86/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/xtensa/include/asm/mm-arch-hooks.h
+ create mode 100644 include/linux/mm-arch-hooks.h
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
