@@ -1,95 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id D65766B0072
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 03:16:50 -0400 (EDT)
-Received: by pacyx8 with SMTP id yx8so40706113pac.1
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 00:16:50 -0700 (PDT)
-Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com. [2607:f8b0:400e:c02::22e])
-        by mx.google.com with ESMTPS id rq7si5549816pab.225.2015.04.15.00.16.49
+Received: from mail-vn0-f46.google.com (mail-vn0-f46.google.com [209.85.216.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BE886B0038
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 03:27:43 -0400 (EDT)
+Received: by vnbf190 with SMTP id f190so11951403vnb.1
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 00:27:42 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id y186si2304533oia.39.2015.04.15.00.27.41
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Apr 2015 00:16:49 -0700 (PDT)
-Received: by pdea3 with SMTP id a3so41888842pde.3
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 00:16:49 -0700 (PDT)
-Date: Wed, 15 Apr 2015 16:16:42 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: advice on bad_page instance
-Message-ID: <20150415071642.GB22700@blaptop>
-References: <CAA25o9SF=1G6PCBpdUJx9=DQrqhVm=XUY+4jB=M_Qbz-z-3Xfg@mail.gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 15 Apr 2015 00:27:42 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH] mm/memory-failure: call shake_page() when error hits thp
+ tail page
+Date: Wed, 15 Apr 2015 07:25:46 +0000
+Message-ID: <1429082714-26115-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA25o9SF=1G6PCBpdUJx9=DQrqhVm=XUY+4jB=M_Qbz-z-3Xfg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dean Nelson <dnelson@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Jin Dongming <jin.dongming@np.css.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hello Luigi,
+Currently memory_failure() calls shake_page() to sweep pages out from pcpli=
+sts
+only when the victim page is 4kB LRU page or thp head page. But we should d=
+o
+this for a thp tail page too.
+Consider that a memory error hits a thp tail page whose head page is on a
+pcplist when memory_failure() runs. Then, the current kernel skips shake_pa=
+ges()
+part, so hwpoison_user_mappings() returns without calling split_huge_page()=
+ nor
+try_to_unmap() because PageLRU of the thp head is still cleared due to the =
+skip
+of shake_page().
+As a result, me_huge_page() runs for the thp, which is a broken behavior.
 
-On Tue, Apr 14, 2015 at 11:36:57AM -0700, Luigi Semenzato wrote:
-> We are seeing several instances of these things (often with different
-> but plausible values in the struct page) in kernel 3.8.11, followed by
-> a panic() in release_pages a few seconds later.
-> 
-> I realize it's an old kernel and probably of little interest here, but
-> I would be most grateful for any pointers on how to proceed.  In
-> particular, I suspect that many such bugs may have been fixed by now,
-> but I am not sure how to find the right fix (which I would backport).
-> 
-> Also, this happens under heavy swap, and we're using zram.  I wonder
-> if there may be a race condition related to zram which may have been
-> fixed since then, and which may result in these symptoms.
+This patch fixes this problem by calling shake_page() for thp tail case.
 
-I didn't see such bug until now. Sorry. However, I might miss something
-because zram has changed a lot since then.
-What I recommend is just to use recent zram/zsmalloc.
-I think it's not hard to backport it because they are almost isolated
-from other parts in kernel.
-If you don't see any problem any more with recent zram, yay, your
-system doesn't have any problem. But if you see the problem still,
-it means you should suspect another stuffs as culprits as well as
-zram.
+Fixes: 385de35722c9 ("thp: allow a hwpoisoned head page to be put back to L=
+RU")
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: stable@vger.kernel.org  # v3.4+
+---
+ mm/memory-failure.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-Thanks.
-
-> 
-> Many thanks for any pointer!
-> 
-> Luigi
-> 
-> <1>[ 5392.106074] BUG: Bad page state in process CompositorTileW  pfn:57a7e
-> <1>[ 5392.106109] page:ffffea00015e9f80 count:0 mapcount:0 mapping:
->       (null) index:0x2
-> <1>[ 5392.106122] page flags: 0x4000000000000004(referenced)
-> <5>[ 5392.106139] Modules linked in: i2c_dev uinput
-> snd_hda_codec_realtek memconsole snd_hda_codec_hdmi uvcvideo
-> videobuf2_vmalloc videobuf2_memops videobuf2_core videodev
-> snd_hda_intel snd_hda_codec snd_hwdep snd_pcm snd_page_alloc snd_timer
-> zram(C) lzo_compress zsmalloc(C) fuse nf_conntrack_ipv6 nf_defrag_ipv6
-> ip6table_filter ip6_tables ath9k_btcoex ath9k_common_btcoex
-> ath9k_hw_btcoex ath mac80211 cfg80211 option usb_wwan cdc_ether usbnet
-> ath3k btusb bluetooth joydev ppp_async ppp_generic slhc tun
-> <5>[ 5392.106333] Pid: 27363, comm: CompositorTileW Tainted: G    B
-> C   3.8.11 #1
-> <5>[ 5392.106344] Call Trace:
-> <5>[ 5392.106357]  [<ffffffff978ba5bb>] bad_page+0xcf/0xe3
-> <5>[ 5392.106370]  [<ffffffff978bb181>] get_page_from_freelist+0x21a/0x46c
-> <5>[ 5392.106383]  [<ffffffff978beb74>] ? release_pages+0x19b/0x1be
-> <5>[ 5392.106394]  [<ffffffff978bb5da>] __alloc_pages_nodemask+0x207/0x685
-> <5>[ 5392.106407]  [<ffffffff97cb8caf>] ? _cond_resched+0xe/0x1e
-> <5>[ 5392.106421]  [<ffffffff978d215a>] handle_pte_fault+0x305/0x500
-> <5>[ 5392.106433]  [<ffffffff978d4f5e>] ? __vma_link_file+0x65/0x67
-> <5>[ 5392.106445]  [<ffffffff978d30d0>] handle_mm_fault+0x97/0xbb
-> <5>[ 5392.106459]  [<ffffffff97828616>] __do_page_fault+0x1d4/0x38c
-> <5>[ 5392.106470]  [<ffffffff978d7803>] ? do_mmap_pgoff+0x284/0x2c0
-> <5>[ 5392.106482]  [<ffffffff978ca82c>] ? vm_mmap_pgoff+0x7d/0x8e
-> <5>[ 5392.106495]  [<ffffffff97828800>] do_page_fault+0xe/0x10
-> <5>[ 5392.106506]  [<ffffffff97cb9d32>] page_fault+0x22/0x30
-
--- 
-Kind regards,
-Minchan Kim
+diff --git v4.0.orig/mm/memory-failure.c v4.0/mm/memory-failure.c
+index d487f8dc6d39..2cc1d578144b 100644
+--- v4.0.orig/mm/memory-failure.c
++++ v4.0/mm/memory-failure.c
+@@ -1141,10 +1141,10 @@ int memory_failure(unsigned long pfn, int trapno, i=
+nt flags)
+ 	 * The check (unnecessarily) ignores LRU pages being isolated and
+ 	 * walked by the page reclaim code, however that's not a big loss.
+ 	 */
+-	if (!PageHuge(p) && !PageTransTail(p)) {
+-		if (!PageLRU(p))
+-			shake_page(p, 0);
+-		if (!PageLRU(p)) {
++	if (!PageHuge(p)) {
++		if (!PageLRU(hpage))
++			shake_page(hpage, 0);
++		if (!PageLRU(hpage)) {
+ 			/*
+ 			 * shake_page could have turned it free.
+ 			 */
+--=20
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
