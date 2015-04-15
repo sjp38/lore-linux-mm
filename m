@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id C41A76B0070
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 06:43:08 -0400 (EDT)
-Received: by wiax7 with SMTP id x7so108895122wia.0
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 03:43:08 -0700 (PDT)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 062966B0071
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 06:43:11 -0400 (EDT)
+Received: by wizk4 with SMTP id k4so149197028wiz.1
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 03:43:10 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id he1si9308147wib.34.2015.04.15.03.43.03
+        by mx.google.com with ESMTPS id kn9si7415089wjb.61.2015.04.15.03.43.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 15 Apr 2015 03:43:04 -0700 (PDT)
+        Wed, 15 Apr 2015 03:43:06 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 3/4] mm: Gather more PFNs before sending a TLB to flush unmapped pages
-Date: Wed, 15 Apr 2015 11:42:55 +0100
-Message-Id: <1429094576-5877-4-git-send-email-mgorman@suse.de>
+Subject: [PATCH 4/4] mm: migrate: Batch TLB flushing when unmapping pages for migration
+Date: Wed, 15 Apr 2015 11:42:56 +0100
+Message-Id: <1429094576-5877-5-git-send-email-mgorman@suse.de>
 In-Reply-To: <1429094576-5877-1-git-send-email-mgorman@suse.de>
 References: <1429094576-5877-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,41 +20,121 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-The patch "mm: Send a single IPI to TLB flush multiple pages when unmapping"
-would batch 32 pages before sending an IPI. This patch increases the size of
-the data structure to hold a pages worth of PFNs before sending an IPI. This
-is a trade-off between memory usage and reducing IPIS sent. In the ideal
-case where multiple processes are reading large mapped files, this patch
-reduces interrupts/second from roughly 180K per second to 60K per second.
+Page reclaim batches multiple TLB flushes into one IPI and this patch teaches
+page migration to also batch any necessary flushes. MMtests has a THP scale
+microbenchmark that deliberately fragments memory and then allocates THPs
+to stress compaction. It's not a page reclaim benchmark and recent kernels
+avoid excessive compaction but this patch reduced system CPU usage
+
+               4.0.0       4.0.0
+            baseline batchmigrate-v1
+User          970.70     1012.24
+System       2067.48     1840.00
+Elapsed      1520.63     1529.66
+
+Note that this particular workload was not TLB flush intensive with peaks
+in interrupts during the compaction phase. The 4.0 kernel peaked at 345K
+interrupts/second, the kernel that batches reclaim TLB entries peaked at
+13K interrupts/second and this patch peaked at 10K interrupts/second.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/sched.h | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ mm/internal.h | 5 +++++
+ mm/migrate.c  | 8 +++++++-
+ mm/vmscan.c   | 6 +-----
+ 3 files changed, 13 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 9d51841806f4..abff66ecc302 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1275,11 +1275,16 @@ enum perf_event_task_context {
- 	perf_nr_task_contexts,
- };
+diff --git a/mm/internal.h b/mm/internal.h
+index fe69dd159e34..cb70555a7291 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -436,10 +436,15 @@ struct unmap_batch;
  
--/* Matches SWAP_CLUSTER_MAX but refined to limit header dependencies */
--#define BATCH_TLBFLUSH_SIZE 32UL
-+/*
-+ * Use a page to store as many PFNs as possible for batch unmapping. Adjusting
-+ * this trades memory usage for number of IPIs sent
-+ */
-+#define BATCH_TLBFLUSH_SIZE \
-+	((PAGE_SIZE - sizeof(struct cpumask) - sizeof(unsigned long)) / sizeof(unsigned long))
+ #ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
+ void try_to_unmap_flush(void);
++void alloc_ubc(void);
+ #else
+ static inline void try_to_unmap_flush(void)
+ {
+ }
  
- /* Track pages that require TLB flushes */
- struct unmap_batch {
-+	/* Update BATCH_TLBFLUSH_SIZE when adjusting this structure */
- 	struct cpumask cpumask;
- 	unsigned long nr_pages;
- 	unsigned long pfns[BATCH_TLBFLUSH_SIZE];
++static inline void alloc_ubc(void)
++{
++}
++
+ #endif /* CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH */
+ #endif	/* __MM_INTERNAL_H */
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 85e042686031..973d8befe528 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -789,6 +789,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 		if (current->flags & PF_MEMALLOC)
+ 			goto out;
+ 
++		try_to_unmap_flush();
+ 		lock_page(page);
+ 	}
+ 
+@@ -805,6 +806,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 		}
+ 		if (!force)
+ 			goto out_unlock;
++		try_to_unmap_flush();
+ 		wait_on_page_writeback(page);
+ 	}
+ 	/*
+@@ -879,7 +881,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 	/* Establish migration ptes or remove ptes */
+ 	if (page_mapped(page)) {
+ 		try_to_unmap(page,
+-			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
++			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS|TTU_BATCH_FLUSH);
+ 		page_was_mapped = 1;
+ 	}
+ 
+@@ -1098,6 +1100,8 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+ 	if (!swapwrite)
+ 		current->flags |= PF_SWAPWRITE;
+ 
++	alloc_ubc();
++
+ 	for(pass = 0; pass < 10 && retry; pass++) {
+ 		retry = 0;
+ 
+@@ -1144,6 +1148,8 @@ out:
+ 	if (!swapwrite)
+ 		current->flags &= ~PF_SWAPWRITE;
+ 
++	try_to_unmap_flush();
++
+ 	return rc;
+ }
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 68bcc0b73a76..d659e3655575 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2767,7 +2767,7 @@ out:
+ }
+ 
+ #ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
+-static inline void alloc_ubc(void)
++void alloc_ubc(void)
+ {
+ 	if (current->ubc)
+ 		return;
+@@ -2784,10 +2784,6 @@ static inline void alloc_ubc(void)
+ 	cpumask_clear(&current->ubc->cpumask);
+ 	current->ubc->nr_pages = 0;
+ }
+-#else
+-static inline void alloc_ubc(void)
+-{
+-}
+ #endif /* CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH */
+ 
+ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 -- 
 2.1.2
 
