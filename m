@@ -1,57 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B7086B0038
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 07:42:37 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so151090050wiz.1
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 04:42:36 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id z9si9529554wiw.87.2015.04.15.04.42.35
+Received: from mail-vn0-f43.google.com (mail-vn0-f43.google.com [209.85.216.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B47D6B0038
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 07:47:31 -0400 (EDT)
+Received: by vnbg1 with SMTP id g1so13950439vnb.2
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 04:47:31 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id qm3si2730008oeb.47.2015.04.15.04.47.29
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Apr 2015 04:42:35 -0700 (PDT)
-Date: Wed, 15 Apr 2015 13:42:20 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 3/4] mm: Gather more PFNs before sending a TLB to flush
- unmapped pages
-Message-ID: <20150415114220.GG17717@twins.programming.kicks-ass.net>
-References: <1429094576-5877-1-git-send-email-mgorman@suse.de>
- <1429094576-5877-4-git-send-email-mgorman@suse.de>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 15 Apr 2015 04:47:30 -0700 (PDT)
+From: Wang Kai <morgan.wang@huawei.com>
+Subject: [PATCH] kmemleak: record accurate early log buffer count and report when exceeded
+Date: Wed, 15 Apr 2015 19:44:52 +0800
+Message-ID: <1429098292-76415-1-git-send-email-morgan.wang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1429094576-5877-4-git-send-email-mgorman@suse.de>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: catalin.marinas@arm.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.or
 
-On Wed, Apr 15, 2015 at 11:42:55AM +0100, Mel Gorman wrote:
-> +/*
-> + * Use a page to store as many PFNs as possible for batch unmapping. Adjusting
-> + * this trades memory usage for number of IPIs sent
-> + */
-> +#define BATCH_TLBFLUSH_SIZE \
-> +	((PAGE_SIZE - sizeof(struct cpumask) - sizeof(unsigned long)) / sizeof(unsigned long))
->  
->  /* Track pages that require TLB flushes */
->  struct unmap_batch {
-> +	/* Update BATCH_TLBFLUSH_SIZE when adjusting this structure */
->  	struct cpumask cpumask;
->  	unsigned long nr_pages;
->  	unsigned long pfns[BATCH_TLBFLUSH_SIZE];
+In log_early function, crt_early_log should also count once when
+'crt_early_log >= ARRAY_SIZE(early_log)'. Otherwise the reported
+count from kmemleak_init is one less than 'actual number'.
 
-The alternative is something like:
+Then, in kmemleak_init, if early_log buffer size equal actual
+number, kmemleak will init sucessful, so change warning condition
+to 'crt_early_log > ARRAY_SIZE(early_log)'.
 
-struct unmap_batch {
-	struct cpumask cpumask;
-	unsigned long nr_pages;
-	unsigned long pfnsp[0];
-};
+Signed-off-by: Wang Kai <morgan.wang@huawei.com>
+---
+ mm/kmemleak.c |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-#define BATCH_TLBFLUSH_SIZE ((PAGE_SIZE - sizeof(struct unmap_batch)) / sizeof(unsigned long))
-
-and unconditionally allocate 1 page. This saves you from having to worry
-about the layout of struct unmap_batch.
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 5405aff..49956cf 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -814,6 +814,8 @@ static void __init log_early(int op_type, const void *ptr, size_t size,
+ 	}
+ 
+ 	if (crt_early_log >= ARRAY_SIZE(early_log)) {
++		/* kmemleak will stop recording, just count the requests */
++		crt_early_log++;
+ 		kmemleak_disable();
+ 		return;
+ 	}
+@@ -1829,7 +1831,8 @@ void __init kmemleak_init(void)
+ 	object_cache = KMEM_CACHE(kmemleak_object, SLAB_NOLEAKTRACE);
+ 	scan_area_cache = KMEM_CACHE(kmemleak_scan_area, SLAB_NOLEAKTRACE);
+ 
+-	if (crt_early_log >= ARRAY_SIZE(early_log))
++	/* Don't warning when crt_early_log == ARRAY_SIZE(early_log) */
++	if (crt_early_log > ARRAY_SIZE(early_log))
+ 		pr_warning("Early log buffer exceeded (%d), please increase "
+ 			   "DEBUG_KMEMLEAK_EARLY_LOG_SIZE\n", crt_early_log);
+ 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
