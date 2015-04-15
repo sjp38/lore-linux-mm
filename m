@@ -1,42 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id C01AA6B0038
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 04:45:41 -0400 (EDT)
-Received: by wiax7 with SMTP id x7so106652593wia.0
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 01:45:41 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id uw5si6874105wjc.49.2015.04.15.01.45.39
-        for <linux-mm@kvack.org>;
-        Wed, 15 Apr 2015 01:45:40 -0700 (PDT)
-Date: Wed, 15 Apr 2015 11:45:36 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC 00/11] mm: debug: formatting memory management structs
-Message-ID: <20150415084536.GA27510@node.dhcp.inet.fi>
-References: <1429044993-1677-1-git-send-email-sasha.levin@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1429044993-1677-1-git-send-email-sasha.levin@oracle.com>
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 267336B0038
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 06:43:02 -0400 (EDT)
+Received: by wgin8 with SMTP id n8so42056663wgi.0
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 03:43:01 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ib9si7346220wjb.198.2015.04.15.03.42.59
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 15 Apr 2015 03:43:00 -0700 (PDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 1/4] x86, mm: Trace when an IPI is about to be sent
+Date: Wed, 15 Apr 2015 11:42:53 +0100
+Message-Id: <1429094576-5877-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1429094576-5877-1-git-send-email-mgorman@suse.de>
+References: <1429094576-5877-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Linux-MM <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Tue, Apr 14, 2015 at 04:56:22PM -0400, Sasha Levin wrote:
-> This patch series adds knowledge about various memory management structures
-> to the standard print functions.
-> 
-> In essence, it allows us to easily print those structures:
-> 
-> 	printk("%pZp %pZm %pZv", page, mm, vma);
+It is easy to trace when an IPI is received to flush a TLB but harder to
+detect what event sent it. This patch makes it easy to identify the source
+of IPIs being transmitted for TLB flushes on x86.
 
-Notably, you don't have \n in your format line. And it brings question how
-well dump_page() and friends fit printk-like interface. dump_page()
-produces multi-line print out.
-Is it something printk() users would expect?
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ arch/x86/mm/tlb.c          | 1 +
+ include/linux/mm_types.h   | 1 +
+ include/trace/events/tlb.h | 3 ++-
+ 3 files changed, 4 insertions(+), 1 deletion(-)
 
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index 3250f2371aea..2da824c1c140 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -140,6 +140,7 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
+ 	info.flush_end = end;
+ 
+ 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH);
++	trace_tlb_flush(TLB_REMOTE_SEND_IPI, end - start);
+ 	if (is_uv_system()) {
+ 		unsigned int cpu;
+ 
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 199a03aab8dc..856038aa166e 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -532,6 +532,7 @@ enum tlb_flush_reason {
+ 	TLB_REMOTE_SHOOTDOWN,
+ 	TLB_LOCAL_SHOOTDOWN,
+ 	TLB_LOCAL_MM_SHOOTDOWN,
++	TLB_REMOTE_SEND_IPI,
+ 	NR_TLB_FLUSH_REASONS,
+ };
+ 
+diff --git a/include/trace/events/tlb.h b/include/trace/events/tlb.h
+index 0e7635765153..0fc101472988 100644
+--- a/include/trace/events/tlb.h
++++ b/include/trace/events/tlb.h
+@@ -11,7 +11,8 @@
+ 	{ TLB_FLUSH_ON_TASK_SWITCH,	"flush on task switch" },	\
+ 	{ TLB_REMOTE_SHOOTDOWN,		"remote shootdown" },		\
+ 	{ TLB_LOCAL_SHOOTDOWN,		"local shootdown" },		\
+-	{ TLB_LOCAL_MM_SHOOTDOWN,	"local mm shootdown" }
++	{ TLB_LOCAL_MM_SHOOTDOWN,	"local mm shootdown" },		\
++	{ TLB_REMOTE_SEND_IPI,		"remote ipi send" }
+ 
+ TRACE_EVENT_CONDITION(tlb_flush,
+ 
 -- 
- Kirill A. Shutemov
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
