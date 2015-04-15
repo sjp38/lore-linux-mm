@@ -1,37 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 8931E6B0038
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 17:32:48 -0400 (EDT)
-Received: by pdbqd1 with SMTP id qd1so66421378pdb.2
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 14:32:48 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id ps1si8800711pbb.236.2015.04.15.14.32.47
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F4376B0038
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 17:37:27 -0400 (EDT)
+Received: by iecrt8 with SMTP id rt8so25617867iec.0
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 14:37:27 -0700 (PDT)
+Received: from relay.sgi.com (relay2.sgi.com. [192.48.180.65])
+        by mx.google.com with ESMTP id so2si5880630icb.67.2015.04.15.14.37.26
         for <linux-mm@kvack.org>;
-        Wed, 15 Apr 2015 14:32:47 -0700 (PDT)
-Message-ID: <552ED8FF.8000109@intel.com>
-Date: Wed, 15 Apr 2015 14:32:47 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+        Wed, 15 Apr 2015 14:37:26 -0700 (PDT)
+Message-ID: <552EDA10.60604@sgi.com>
+Date: Wed, 15 Apr 2015 16:37:20 -0500
+From: nzimmer <nzimmer@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] mm: Send a single IPI to TLB flush multiple pages
- when unmapping
-References: <1429094576-5877-1-git-send-email-mgorman@suse.de> <1429094576-5877-3-git-send-email-mgorman@suse.de> <552ED214.3050105@redhat.com> <alpine.LSU.2.11.1504151410150.13745@eggly.anvils> <20150415212855.GI14842@suse.de>
-In-Reply-To: <20150415212855.GI14842@suse.de>
-Content-Type: text/plain; charset=iso-8859-15
+Subject: Re: [RFC PATCH 0/14] Parallel memory initialisation
+References: <1428920226-18147-1-git-send-email-mgorman@suse.de> <552E6486.6070705@hp.com> <20150415133826.GF14842@suse.de> <552E7AC5.3020703@hp.com> <20150415154415.GH14842@suse.de>
+In-Reply-To: <20150415154415.GH14842@suse.de>
+Content-Type: text/plain; charset="iso-8859-15"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
-Cc: Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>, Waiman Long <waiman.long@hp.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Robin Holt <holt@sgi.com>, Daniel Rahn <drahn@suse.com>, Davidlohr Bueso <dbueso@suse.com>, Dave Hansen <dave.hansen@intel.com>, Tom Vaden <tom.vaden@hp.com>, Scott Norton <scott.norton@hp.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 04/15/2015 02:28 PM, Mel Gorman wrote:
-> This is what I'm expecting i.e. clean->dirty transition is write-through
-> to the PTE which is now unmapped and it traps. I'm assuming there is an
-> architectural guarantee that it happens but could not find an explicit
-> statement in the docs. I'm hoping Dave or Andi can check with the relevant
-> people on my behalf.
 
-The docs do look a bit ambiguous to me.  I'm working on getting some
-clarified language in there.
+On 04/15/2015 10:44 AM, Mel Gorman wrote:
+> On Wed, Apr 15, 2015 at 10:50:45AM -0400, Waiman Long wrote:
+>> On 04/15/2015 09:38 AM, Mel Gorman wrote:
+>>> On Wed, Apr 15, 2015 at 09:15:50AM -0400, Waiman Long wrote:
+>>>>> <SNIP>
+>>>>> Patches are against 4.0-rc7.
+>>>>>
+>>>>>   Documentation/kernel-parameters.txt |   8 +
+>>>>>   arch/ia64/mm/numa.c                 |  19 +-
+>>>>>   arch/x86/Kconfig                    |   2 +
+>>>>>   include/linux/memblock.h            |  18 ++
+>>>>>   include/linux/mm.h                  |   8 +-
+>>>>>   include/linux/mmzone.h              |  37 +++-
+>>>>>   init/main.c                         |   1 +
+>>>>>   mm/Kconfig                          |  29 +++
+>>>>>   mm/bootmem.c                        |   6 +-
+>>>>>   mm/internal.h                       |  23 ++-
+>>>>>   mm/memblock.c                       |  34 ++-
+>>>>>   mm/mm_init.c                        |   9 +-
+>>>>>   mm/nobootmem.c                      |   7 +-
+>>>>>   mm/page_alloc.c                     | 398 +++++++++++++++++++++++++++++++-----
+>>>>>   mm/vmscan.c                         |   6 +-
+>>>>>   15 files changed, 507 insertions(+), 98 deletions(-)
+>>>>>
+>>>> I had included your patch with the 4.0 kernel and booted up a
+>>>> 16-socket 12-TB machine. I measured the elapsed time from the elilo
+>>>> prompt to the availability of ssh login. Without the patch, the
+>>>> bootup time was 404s. It was reduced to 298s with the patch. So
+>>>> there was about 100s reduction in bootup time (1/4 of the total).
+>>>>
+>>> Cool, thanks for testing. Would you be able to state if this is really
+>>> important or not? Does booting 100s second faster on a 12TB machine really
+>>> matter? I can then add that justification to the changelog to avoid a
+>>> conversation with Andrew that goes something like
+>>>
+>>> Andrew: Why are we doing this?
+>>> Mel:    Because we can and apparently people might want it.
+>>> Andrew: What's the maintenance cost of this?
+>>> Mel:    Magic beans
+>>>
+>>> I prefer talking to Andrew when it's harder to predict what he'll say.
+>> Booting 100s faster is certainly something that is nice to have.
+>> Right now, more time is spent in the firmware POST portion of the
+>> bootup process than in the OS boot.
+> I'm not surprised. On two different 1TB machines, I've seen a post time
+> of 2 minutes and one of 35. No idea what it's doing for 35 minutes....
+> plotting world domination probably.
+>
+>> So I would say this patch isn't
+>> really critical right now as machines with that much memory are
+>> relatively rare. However, if we look forward to the near future,
+>> some new memory technology like persistent memory is coming and
+>> machines with large amount of memory (whether persistent or not)
+>> will become more common. This patch will certainly be useful if we
+>> look forward into the future.
+>>
+> Whether persistent memory needs struct pages or not is up in the air and
+> I'm not getting stuck in that can of worms. 100 seconds off kernel init
+> time is a starting point. I can try pushing it on on that basis but I
+> really would like to see SGI and Intel people also chime in on how it
+> affects their really large machines.
+>
+I will get some numbers from this patch set but I haven't had the 
+opportunity yet.  I will grab them this weekend for sure if I can't get 
+machine time sooner.
+
+
+>>>> However, there were 2 bootup problems in the dmesg log that needed
+>>>> to be addressed.
+>>>> 1. There were 2 vmalloc allocation failures:
+>>>> [    2.284686] vmalloc: allocation failure, allocated 16578404352 of
+>>>> 17179873280 bytes
+>>>> [   10.399938] vmalloc: allocation failure, allocated 7970922496 of
+>>>> 8589938688 bytes
+>>>>
+>>>> 2. There were 2 soft lockup warnings:
+>>>> [   57.319453] NMI watchdog: BUG: soft lockup - CPU#1 stuck for 23s!
+>>>> [swapper/0:1]
+>>>> [   85.409263] NMI watchdog: BUG: soft lockup - CPU#1 stuck for 22s!
+>>>> [swapper/0:1]
+>>>>
+>>>> Once those problems are fixed, the patch should be in a pretty good
+>>>> shape. I have attached the dmesg log for your reference.
+>>>>
+>>> The obvious conclusion is that initialising 1G per node is not enough for
+>>> really large machines. Can you try this on top? It's untested but should
+>>> work. The low value was chosen because it happened to work and I wanted
+>>> to get test coverage on common hardware but broke is broke.
+>>>
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index f2c96d02662f..6b3bec304e35 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -276,9 +276,9 @@ static inline bool update_defer_init(pg_data_t *pgdat,
+>>>   	if (pgdat->first_deferred_pfn != ULONG_MAX)
+>>>   		return false;
+>>>
+>>> -	/* Initialise at least 1G per zone */
+>>> +	/* Initialise at least 32G per node */
+>>>   	(*nr_initialised)++;
+>>> -	if (*nr_initialised>  (1UL<<  (30 - PAGE_SHIFT))&&
+>>> +	if (*nr_initialised>  (32UL<<  (30 - PAGE_SHIFT))&&
+>>>   	(pfn&  (PAGES_PER_SECTION - 1)) == 0) {
+>>>   		pgdat->first_deferred_pfn = pfn;
+>>>   		return false;
+>> I will try this out when I can get hold of the 12-TB machine again.
+>>
+> Thanks.
+>
+>> The vmalloc allocation failures were for the following hash tables:
+>> - Dentry cache hash table entries
+>> - Inode-cache hash table entries
+>>
+>> Those hash tables scale linearly with the amount of memory available
+>> in the system. So instead of hardcoding a certain value, why don't
+>> we make it a certain % of the total memory but bottomed out to 1G at
+>> the low end?
+>>
+> Because then it becomes what percentage is the right percentage and what
+> happens if it's a percentage of total memory but the NUMA nodes are not
+> all the same size?. I want to start simple until there is more data on
+> what these really large machines look like and if it ever fails in the
+> field, there is the command-line switch until a patch is available.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
