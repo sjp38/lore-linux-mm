@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C2166B0038
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 04:05:29 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so43376476pde.3
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 01:05:29 -0700 (PDT)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id u13si5783557pdl.192.2015.04.15.01.05.28
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id A35FC6B0038
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 04:21:59 -0400 (EDT)
+Received: by paboj16 with SMTP id oj16so42742574pab.0
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 01:21:59 -0700 (PDT)
+Received: from mail-pd0-x233.google.com (mail-pd0-x233.google.com. [2607:f8b0:400e:c02::233])
+        by mx.google.com with ESMTPS id ae4si5890249pbc.57.2015.04.15.01.21.58
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Apr 2015 01:05:28 -0700 (PDT)
-Received: by pabtp1 with SMTP id tp1so42137704pab.2
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 01:05:27 -0700 (PDT)
-Date: Wed, 15 Apr 2015 17:05:42 +0900
+        Wed, 15 Apr 2015 01:21:58 -0700 (PDT)
+Received: by pdbnk13 with SMTP id nk13so43951026pdb.0
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 01:21:58 -0700 (PDT)
+Date: Wed, 15 Apr 2015 17:22:11 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 Subject: Re: advice on bad_page instance
-Message-ID: <20150415080541.GB464@swordfish>
+Message-ID: <20150415082211.GC464@swordfish>
 References: <CAA25o9SF=1G6PCBpdUJx9=DQrqhVm=XUY+4jB=M_Qbz-z-3Xfg@mail.gmail.com>
  <20150415071642.GB22700@blaptop>
 MIME-Version: 1.0
@@ -46,14 +46,16 @@ On (04/15/15 16:16), Minchan Kim wrote:
 > What I recommend is just to use recent zram/zsmalloc.
 > I think it's not hard to backport it because they are almost isolated
 > from other parts in kernel.
+> If you don't see any problem any more with recent zram, yay, your
+> system doesn't have any problem. But if you see the problem still,
+> it means you should suspect another stuffs as culprits as well as
+> zram.
+> 
+> Thanks.
+> 
 
-Hello,
-
-do you see anything suspicious in the logs?
-like "Buffer I/O error on device zramX, logical block XXXXX", etc.
-
-
-zram has evolved significantly since its staging age.
+assuming that you use zram0, does 'mkswap -c /dev/zram0' show any bad
+pages right after the swap creation/activation?
 
 	-ss
 
