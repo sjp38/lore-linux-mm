@@ -1,69 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vn0-f54.google.com (mail-vn0-f54.google.com [209.85.216.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B7786B006E
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 12:44:08 -0400 (EDT)
-Received: by vnbf62 with SMTP id f62so17240427vnb.3
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 09:44:08 -0700 (PDT)
-Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
-        by mx.google.com with ESMTPS id kp7si3306175oeb.81.2015.04.15.09.44.07
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 24A836B0038
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 14:04:46 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so60687352pdb.1
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 11:04:45 -0700 (PDT)
+Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
+        by mx.google.com with ESMTPS id e4si8096106pdp.245.2015.04.15.11.04.44
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Apr 2015 09:44:07 -0700 (PDT)
-From: "Norton, Scott J" <scott.norton@hp.com>
-Subject: RE: [RFC PATCH 0/14] Parallel memory initialisation
-Date: Wed, 15 Apr 2015 16:42:37 +0000
-Message-ID: <E2BC6EB51A09EC46A4906DEA4A9496EE1529F1CD@G9W0719.americas.hpqcorp.net>
-References: <1428920226-18147-1-git-send-email-mgorman@suse.de>
- <552E6486.6070705@hp.com>
- <20150415142731.GI17717@twins.programming.kicks-ass.net>
- <20150415143420.GG14842@suse.de>
- <20150415144818.GX5029@twins.programming.kicks-ass.net> <552E8F72.408@hp.com>
-In-Reply-To: <552E8F72.408@hp.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 15 Apr 2015 11:04:45 -0700 (PDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout4.w1.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0NMV00G9B12CB450@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 15 Apr 2015 19:08:36 +0100 (BST)
+Message-id: <552EA835.5070704@samsung.com>
+Date: Wed, 15 Apr 2015 21:04:37 +0300
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH 2/2] arm64: add KASan support
+References: <1427208544-8232-1-git-send-email-a.ryabinin@samsung.com>
+ <1427208544-8232-3-git-send-email-a.ryabinin@samsung.com>
+ <20150401122843.GA28616@e104818-lin.cambridge.arm.com>
+ <551E993E.5060801@samsung.com> <552DCED9.40207@codeaurora.org>
+In-reply-to: <552DCED9.40207@codeaurora.org>
+Content-type: text/plain; charset=windows-1252
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Long, Wai Man" <waiman.long@hp.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Daniel Rahn <drahn@suse.com>, Davidlohr Bueso <dbueso@suse.com>, Dave Hansen <dave.hansen@intel.com>, "Vaden, Tom (HP
- Server OS Architecture)" <tom.vaden@hp.com>, LKML <linux-kernel@vger.kernel.org>
+To: David Keitel <dkeitel@codeaurora.org>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-
-On 04/15/2015 10:48 AM, Peter Zijlstra wrote:
-> On Wed, Apr 15, 2015 at 03:34:20PM +0100, Mel Gorman wrote:
->> On Wed, Apr 15, 2015 at 04:27:31PM +0200, Peter Zijlstra wrote:
->>> On Wed, Apr 15, 2015 at 09:15:50AM -0400, Waiman Long wrote:
->>>> I had included your patch with the 4.0 kernel and booted up a=20
->>>> 16-socket 12-TB machine. I measured the elapsed time from the elilo=20
->>>> prompt to the availability of ssh login. Without the patch, the=20
->>>> bootup time was 404s. It was reduced to 298s with the patch. So=20
->>>> there was about 100s reduction in bootup time (1/4 of the total).
->>> But you cheat! :-)
+On 04/15/2015 05:37 AM, David Keitel wrote:
+>>>> +	pgd = __pgd(__pa(kasan_zero_pmd) | PAGE_KERNEL);
+>>>> +#else
+>>>> +	pgd = __pgd(__pa(kasan_zero_pte) | PAGE_KERNEL);
+>>>> +#endif
+>>>> +
+>>>> +	for (i = pgd_index(start); start < end; i++) {
+>>>> +		set_pgd(&pgdp[i], pgd);
+>>>> +		start += PGDIR_SIZE;
+>>>> +	}
+>>>> +}
 >>>
->>> How long between power on and the elilo prompt? Do the 100 seconds=20
->>> matter on that time scale?
->>>
->> Calling it cheating is a *bit* harsh as the POST times vary=20
->> considerably between manufacturers. While I'm interested in Waiman's=20
->> answer, I'm told that those that really care about minimising reboot=20
->> times will use kexec to avoid POST.  The 100 seconds is 100 seconds,=20
->> whether that is 25% in all cases is a different matter.
->>
-> Sure POST times vary, but its consistently stupid long :-) I'm forever=20
-> thinking my EX machine died because its not coming back from a power=20
-> cycle, and mine isn't really _that_ large.
+>>> Same problem as above with PAGE_KERNEL. You should just use
+>>> pgd_populate().
+> 
+> Any suggestion what the correct flag setting would be here for a 4K mapping?
+> 
+> I tried fixing this by changing this to pud and setting the PMD_TYPE_TABLE flag for kasan_zero_pmd. However the MMU doesn't like it and I get a first level address translation fault.
+> 
+> If you have any updated patches to share I'd be glad to try them out.
+> 
 
-Yes, 100 seconds really does matter and is a big deal. When a business has =
-one of=20
-these large machines go down their business is stopped (unless they have a
-fast failover solution in place). Every minute and second the machine is do=
-wn=20
-is crucial to these businesses.  The fact that POST times can be so long ma=
-ke it
-even more important that we make the kernel boot as fast as possible.
+Sorry, I didn't have much time on work on this yet.
 
-Scott
+I've pushed the most fresh thing that I have in git:
+	git://github.com/aryabinin/linux.git kasan/arm64v1
+
+It's the same patches with two simple but important fixes on top of it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
