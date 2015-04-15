@@ -1,132 +1,232 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CFF66B0038
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 02:49:57 -0400 (EDT)
-Received: by paboj16 with SMTP id oj16so40026415pab.0
-        for <linux-mm@kvack.org>; Tue, 14 Apr 2015 23:49:57 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id ss1si5451142pab.220.2015.04.14.23.49.56
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F62A6B0038
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 03:16:00 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so41871753pdb.1
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 00:15:59 -0700 (PDT)
+Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
+        by mx.google.com with ESMTPS id jm12si5534634pbd.250.2015.04.15.00.15.58
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Apr 2015 23:49:56 -0700 (PDT)
-Received: by pabsx10 with SMTP id sx10so39834748pab.3
-        for <linux-mm@kvack.org>; Tue, 14 Apr 2015 23:49:56 -0700 (PDT)
-Date: Wed, 15 Apr 2015 15:49:45 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 4/4] mm: make every pte dirty on do_swap_page
-Message-ID: <20150415064945.GA22700@blaptop>
-References: <1426036838-18154-1-git-send-email-minchan@kernel.org>
- <1426036838-18154-4-git-send-email-minchan@kernel.org>
- <alpine.LSU.2.11.1504111433230.3227@eggly.anvils>
- <20150412144823.GA414@blaptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150412144823.GA414@blaptop>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 15 Apr 2015 00:15:58 -0700 (PDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout4.w1.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0NMU00L7Y712FO30@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 15 Apr 2015 08:19:50 +0100 (BST)
+From: Beata Michalska <b.michalska@samsung.com>
+Subject: [RFC 0/4] Generic file system events interface
+Date: Wed, 15 Apr 2015 09:15:43 +0200
+Message-id: <1429082147-4151-1-git-send-email-b.michalska@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mm-commits@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Yalin Wang <Yalin.Wang@sonymobile.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Pavel Emelyanov <xemul@parallels.com>
-
-On Sun, Apr 12, 2015 at 11:48:23PM +0900, Minchan Kim wrote:
-> Hello Hugh,
-> 
-> On Sat, Apr 11, 2015 at 02:40:46PM -0700, Hugh Dickins wrote:
-> > On Wed, 11 Mar 2015, Minchan Kim wrote:
-> > 
-> > > Bascially, MADV_FREE relys on the pte dirty to decide whether
-> > > it allows VM to discard the page. However, if there is swap-in,
-> > > pte pointed out the page has no pte_dirty. So, MADV_FREE checks
-> > > PageDirty and PageSwapCache for those pages to not discard it
-> > > because swapped-in page could live on swap cache or PageDirty
-> > > when it is removed from swapcache.
-> > > 
-> > > The problem in here is that anonymous pages can have PageDirty if
-> > > it is removed from swapcache so that VM cannot parse those pages
-> > > as freeable even if we did madvise_free. Look at below example.
-> > > 
-> > > ptr = malloc();
-> > > memset(ptr);
-> > > ..
-> > > heavy memory pressure -> swap-out all of pages
-> > > ..
-> > > out of memory pressure so there are lots of free pages
-> > > ..
-> > > var = *ptr; -> swap-in page/remove the page from swapcache. so pte_clean
-> > >                but SetPageDirty
-> > > 
-> > > madvise_free(ptr);
-> > > ..
-> > > ..
-> > > heavy memory pressure -> VM cannot discard the page by PageDirty.
-> > > 
-> > > PageDirty for anonymous page aims for avoiding duplicating
-> > > swapping out. In other words, if a page have swapped-in but
-> > > live swapcache(ie, !PageDirty), we could save swapout if the page
-> > > is selected as victim by VM in future because swap device have
-> > > kept previous swapped-out contents of the page.
-> > > 
-> > > So, rather than relying on the PG_dirty for working madvise_free,
-> > > pte_dirty is more straightforward. Inherently, swapped-out page was
-> > > pte_dirty so this patch restores the dirtiness when swap-in fault
-> > > happens so madvise_free doesn't rely on the PageDirty any more.
-> > > 
-> > > Cc: Hugh Dickins <hughd@google.com>
-> > > Cc: Cyrill Gorcunov <gorcunov@gmail.com>
-> > > Cc: Pavel Emelyanov <xemul@parallels.com>
-> > > Reported-by: Yalin Wang <yalin.wang@sonymobile.com>
-> > > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > 
-> > Sorry, but NAK to this patch,
-> > mm-make-every-pte-dirty-on-do_swap_page.patch in akpm's mm tree
-> > (I hope it hasn't reached linux-next yet).
-> > 
-> > You may well be right that pte_dirty<->PageDirty can be handled
-> > differently, in a way more favourable to MADV_FREE.  And this patch
-> > may be a step in the right direction, but I've barely given it thought.
-> > 
-> > As it stands, it segfaults more than any patch I've seen in years:
-> > I just tried applying it to 4.0-rc7-mm1, and running kernel builds
-> > in low memory with swap.  Even if I leave KSM out, and memcg out, and
-> > swapoff out, and THP out, and tmpfs out, it still SIGSEGVs very soon.
-> > 
-> > I have a choice: spend a few hours tracking down the errors, and
-> > post a fix patch on top of yours?  But even then I'd want to spend
-> > a lot longer thinking through every dirty/Dirty in the source before
-> > I'd feel comfortable to give an ack.
-> > 
-> > This is users' data, and we need to be very careful with it: errors
-> > in MADV_FREE are one thing, for now that's easy to avoid; but in this
-> > patch you're changing the rules for Anon PageDirty for everyone.
-> > 
-> > I think for now I'll have to leave it to you to do much more source
-> > diligence and testing, before coming back with a corrected patch for
-> > us then to review, slowly and carefully.
-> 
-> Sorry for my bad. I will keep your advise in mind.
-> I will investigate the problem as soon as I get back to work
-> after vacation.
-> 
-> Thanks for the the review.
-
-When I look at the code, migration doesn't restore dirty bit of pte
-in remove_migration_pte and relys on PG_dirty which was set by
-try_to_unmap_one. I think it was a reason you saw segfault.
-I will spend more time to investigate another code piece which might
-ignore dirty bit restore.
-
-Thanks.
+To: linux-kernel@vger.kernel.org
+Cc: tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
 
+Hi All,
 
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
+The following patchset is a result of previous discussions regarding
+file system threshold notifiactions. It introduces support for file
+system event notifications, sent through generic netlinik interface
+whenever an fs-related event occurs. Included are also some shmem
+and ext4 changes showing how the new interface might actually be used.
+
+The vary idea of using the generic netlink interface has been previoulsy
+suggested here:  https://lkml.org/lkml/2011/8/18/169
+
+The basic description of the new functionality can be found in
+the first patch from this set - both in the commit message and
+in the doc file.
+
+Some very basic tests have been performed though still this is
+a PoC version. Below though is a sample user space application
+which subscribes to the new multicast group and listens for
+potential fs-related events. The code has been based on libnl 3.4
+and its test application for the generic netlink.
+
+---
+
+Beata Michalska (4):
+  fs: Add generic file system event notifications
+  ext4: Add helper function to mark group as corrupted
+  ext4: Add support for generic FS events
+  shmem: Add support for generic FS events
+
+ Documentation/filesystems/events.txt |  254 +++++++++++
+ fs/Makefile                          |    1 +
+ fs/events/Makefile                   |    6 +
+ fs/events/fs_event.c                 |  775 ++++++++++++++++++++++++++++++++++
+ fs/events/fs_event.h                 |   27 ++
+ fs/events/fs_event_netlink.c         |   94 +++++
+ fs/ext4/balloc.c                     |   26 +-
+ fs/ext4/ext4.h                       |   10 +
+ fs/ext4/ialloc.c                     |    5 +-
+ fs/ext4/inode.c                      |    2 +-
+ fs/ext4/mballoc.c                    |   17 +-
+ fs/ext4/resize.c                     |    1 +
+ fs/ext4/super.c                      |   43 ++
+ fs/namespace.c                       |    1 +
+ include/linux/fs.h                   |    6 +-
+ include/linux/fs_event.h             |   69 +++
+ include/uapi/linux/fs_event.h        |   62 +++
+ include/uapi/linux/genetlink.h       |    1 +
+ mm/shmem.c                           |   39 +-
+ net/netlink/genetlink.c              |    7 +-
+ 20 files changed, 1412 insertions(+), 34 deletions(-)
+ create mode 100644 Documentation/filesystems/events.txt
+ create mode 100644 fs/events/Makefile
+ create mode 100644 fs/events/fs_event.c
+ create mode 100644 fs/events/fs_event.h
+ create mode 100644 fs/events/fs_event_netlink.c
+ create mode 100644 include/linux/fs_event.h
+ create mode 100644 include/uapi/linux/fs_event.h
+
+---
+Sample application:
+
+#include <netlink/cli/utils.h>
+#include <fs_event.h>
+
+#define ARRAY_SIZE(x) (sizeof(x)/sizeof((x)[0]))
+#define LOG(args...) fprintf(stderr, args)
+
+static int parse_info(struct nl_cache_ops *unused, struct genl_cmd *cmd,
+		struct genl_info *info, void *arg)
+{
+	LOG("New trace %d:\n",
+		info->attrs[FS_EVENT_ATR_FS_ID]
+		?  nla_get_u32(info->attrs[FS_EVENT_ATR_FS_ID])
+		: -1);
+	LOG("Mout point: %s\n", info->attrs[FS_EVENT_ATR_MOUNT]
+		? nla_get_string(info->attrs[FS_EVENT_ATR_MOUNT])
+		: "unknown");
+	return 0;
+}
+
+static int parse_thres(struct nl_cache_ops *unused, struct genl_cmd *cmd,
+		struct genl_info *info, void *arg)
+{
+
+	LOG("Threshold notification received for trace %d:\n",
+		info->attrs[FS_EVENT_ATR_FS_ID]
+		?  nla_get_u32(info->attrs[FS_EVENT_ATR_FS_ID])
+		: -1);
+
+	if (info->attrs[FS_EVENT_ATR_DEV_MAJOR])
+		LOG("Backing dev major: %u\n",
+			nla_get_u32(info->attrs[FS_EVENT_ATR_DEV_MAJOR]));
+	if (info->attrs[FS_EVENT_ATR_DEV_MINOR])
+		LOG("Backing dev minor: %u\n",
+			nla_get_u32(info->attrs[FS_EVENT_ATR_DEV_MINOR]));
+	LOG("Proc:              %u\n", info->attrs[FS_EVENT_ATR_CAUSED_ID] ?
+			nla_get_u32(info->attrs[FS_EVENT_ATR_CAUSED_ID]) : -1);
+	LOG("Threshold data:    %llu\n", info->attrs[FS_EVENT_ATR_DATA]
+		? nla_get_u64(info->attrs[FS_EVENT_ATR_DATA])
+		: 0);
+
+	return 0;
+}
+
+static int parse_warning(struct nl_cache_ops *unused, struct genl_cmd *cmd,
+			 struct genl_info *info, void *arg)
+{
+
+	LOG("Warning recieved for trace %d\n", info->attrs[FS_EVENT_ATR_FS_ID] ?
+		nla_get_u32(info->attrs[FS_EVENT_ATR_FS_ID]) : -1);
+	if (info->attrs[FS_EVENT_ATR_DEV_MAJOR])
+		LOG("Backing dev major: %u\n",
+			nla_get_u32(info->attrs[FS_EVENT_ATR_DEV_MAJOR]));
+	if (info->attrs[FS_EVENT_ATR_DEV_MINOR])
+		LOG("Backing dev minor: %u\n",
+			nla_get_u32(info->attrs[FS_EVENT_ATR_DEV_MINOR]));
+	LOG("Proc:              %u\n", info->attrs[FS_EVENT_ATR_CAUSED_ID] ?
+		nla_get_u32(info->attrs[FS_EVENT_ATR_CAUSED_ID]) : -1);
+	LOG("Warning:           %u\n", info->attrs[FS_EVENT_ATR_ID] ?
+		nla_get_u32(info->attrs[FS_EVENT_ATR_ID]) : -1);
+
+	return 0;
+}
+
+static struct genl_cmd cmd[] = {
+	{
+		.c_id = FS_EVENT_TYPE_NEW_TRACE,
+		.c_name = "info",
+		.c_maxattr = 2,
+		.c_msg_parser = parse_info,
+	}, {
+		.c_id = FS_EVENT_TYPE_THRESH,
+		.c_name = "thres",
+		.c_maxattr = 6,
+		.c_msg_parser = parse_thres,
+	}, {
+		.c_id = FS_EVENT_TYPE_WARN,
+		.c_name = "warn",
+		.c_maxattr = 5,
+		.c_msg_parser = parse_warning,
+	},
+};
+
+static struct genl_ops ops = {
+	.o_id = GENL_ID_FS_EVENT,
+	.o_name = "FS_EVENT",
+	.o_hdrsize = 0,
+	.o_cmds = cmd,
+	.o_ncmds = ARRAY_SIZE(cmd),
+};
+
+
+int events_cb(struct nl_msg *msg, void *arg)
+{
+	 return  genl_handle_msg(msg, arg);
+}
+
+int main(int argc, char **argv)
+{
+	struct nl_sock *sock;
+	int ret;
+
+	sock = nl_cli_alloc_socket();
+	nl_socket_set_local_port(sock, 0);
+	nl_socket_disable_seq_check(sock);
+
+	nl_socket_modify_cb(sock, NL_CB_VALID, NL_CB_CUSTOM, events_cb, NULL);
+
+	nl_cli_connect(sock, NETLINK_GENERIC);
+
+	if ((ret = nl_socket_add_membership(sock, GENL_ID_FS_EVENT))) {
+		LOG("Failed to add membership\n");
+		goto leave;
+	}
+
+	if((ret = genl_register_family(&ops))) {
+		LOG("Failed to register protocol family\n");
+		goto leave;
+	}
+
+	if ((ret = genl_ops_resolve(sock, &ops) < 0)) {
+		LOG("Unable to resolve the family name\n");
+		goto leave;
+	}
+
+	if (genl_ctrl_resolve(sock, "FS_EVENT") < 0) {
+		LOG("Failed to resolve  the family name\n");
+		goto leave;
+	}
+
+	while (1) {
+		if ((ret = nl_recvmsgs_default(sock)) < 0)
+			LOG("Unable to receive message: %s\n", nl_geterror(ret));
+	}
+
+leave:
+	nl_close(sock);
+	nl_socket_free(sock);
+	return 0;
+}
 
 -- 
-Kind regards,
-Minchan Kim
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
