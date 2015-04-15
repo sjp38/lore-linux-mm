@@ -1,79 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id C44896B0038
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 11:13:10 -0400 (EDT)
-Received: by pdbnk13 with SMTP id nk13so55768743pdb.0
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 08:13:10 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g12si7538590pat.3.2015.04.15.08.13.09
-        for <linux-mm@kvack.org>;
-        Wed, 15 Apr 2015 08:13:09 -0700 (PDT)
-Date: Wed, 15 Apr 2015 16:13:00 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] kmemleak: record accurate early log buffer count and
- report when exceeded
-Message-ID: <20150415151300.GF22741@localhost>
-References: <1429098563-76831-1-git-send-email-morgan.wang@huawei.com>
+Received: from mail-vn0-f45.google.com (mail-vn0-f45.google.com [209.85.216.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A1BA6B006E
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 11:43:55 -0400 (EDT)
+Received: by vnbg62 with SMTP id g62so16488814vnb.6
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 08:43:55 -0700 (PDT)
+Received: from mail-vn0-x230.google.com (mail-vn0-x230.google.com. [2607:f8b0:400c:c0f::230])
+        by mx.google.com with ESMTPS id 8si5662221vdz.65.2015.04.15.08.43.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Apr 2015 08:43:54 -0700 (PDT)
+Received: by vnbf190 with SMTP id f190so16608473vnb.1
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 08:43:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1429098563-76831-1-git-send-email-morgan.wang@huawei.com>
+In-Reply-To: <20150415082211.GC464@swordfish>
+References: <CAA25o9SF=1G6PCBpdUJx9=DQrqhVm=XUY+4jB=M_Qbz-z-3Xfg@mail.gmail.com>
+	<20150415071642.GB22700@blaptop>
+	<20150415082211.GC464@swordfish>
+Date: Wed, 15 Apr 2015 08:43:54 -0700
+Message-ID: <CAA25o9RFg1-8ZMR4g71n-OhBBTzt8Prm0rUB3LAXYBimxU1Ppw@mail.gmail.com>
+Subject: Re: advice on bad_page instance
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Kai <morgan.wang@huawei.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, sergey.senozhatsky@gmail.com
 
-(I see you corrected the LKML address; I replied to your early patch)
+Thank you for your replies!  Actually I don't see anything that makes
+me suspect zram as the culprit.  I mentioned it just in case you folks
+knew of any bug that would result in that behavior.
 
-On Wed, Apr 15, 2015 at 12:49:23PM +0100, Wang Kai wrote:
-> In log_early function, crt_early_log should also count once when
-> 'crt_early_log >= ARRAY_SIZE(early_log)'. Otherwise the reported
-> count from kmemleak_init is one less than 'actual number'.
-> 
-> Then, in kmemleak_init, if early_log buffer size equal actual
-> number, kmemleak will init sucessful, so change warning condition
-> to 'crt_early_log > ARRAY_SIZE(early_log)'.
-> 
-> Signed-off-by: Wang Kai <morgan.wang@huawei.com>
-> ---
->  mm/kmemleak.c |    5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-> index 5405aff..49956cf 100644
-> --- a/mm/kmemleak.c
-> +++ b/mm/kmemleak.c
-> @@ -814,6 +814,8 @@ static void __init log_early(int op_type, const void *ptr, size_t size,
->  	}
->  
->  	if (crt_early_log >= ARRAY_SIZE(early_log)) {
-> +		/* kmemleak will stop recording, just count the requests */
+Thank you for the suggestion to backport---I'll look into it.  Of
+course I would prefer to backport code that I actually know fixes this
+mm problem.
 
-You could say "just count the last request" since kmemleak_disable()
-would set kmemleak_error to 1 and you never get to this block again.
 
-> +		crt_early_log++;
->  		kmemleak_disable();
->  		return;
->  	}
-> @@ -1829,7 +1831,8 @@ void __init kmemleak_init(void)
->  	object_cache = KMEM_CACHE(kmemleak_object, SLAB_NOLEAKTRACE);
->  	scan_area_cache = KMEM_CACHE(kmemleak_scan_area, SLAB_NOLEAKTRACE);
->  
-> -	if (crt_early_log >= ARRAY_SIZE(early_log))
-> +	/* Don't warning when crt_early_log == ARRAY_SIZE(early_log) */
-
-s/warning/warn/
-
-But I don't think this comment is needed, just add it to the commit log.
-
-> +	if (crt_early_log > ARRAY_SIZE(early_log))
->  		pr_warning("Early log buffer exceeded (%d), please increase "
->  			   "DEBUG_KMEMLEAK_EARLY_LOG_SIZE\n", crt_early_log);
-
-Otherwise, my ack still stands:
-
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+On Wed, Apr 15, 2015 at 1:22 AM, Sergey Senozhatsky
+<sergey.senozhatsky.work@gmail.com> wrote:
+> On (04/15/15 16:16), Minchan Kim wrote:
+>> On Tue, Apr 14, 2015 at 11:36:57AM -0700, Luigi Semenzato wrote:
+>> > We are seeing several instances of these things (often with different
+>> > but plausible values in the struct page) in kernel 3.8.11, followed by
+>> > a panic() in release_pages a few seconds later.
+>> >
+>> > I realize it's an old kernel and probably of little interest here, but
+>> > I would be most grateful for any pointers on how to proceed.  In
+>> > particular, I suspect that many such bugs may have been fixed by now,
+>> > but I am not sure how to find the right fix (which I would backport).
+>> >
+>> > Also, this happens under heavy swap, and we're using zram.  I wonder
+>> > if there may be a race condition related to zram which may have been
+>> > fixed since then, and which may result in these symptoms.
+>>
+>> I didn't see such bug until now. Sorry. However, I might miss something
+>> because zram has changed a lot since then.
+>> What I recommend is just to use recent zram/zsmalloc.
+>> I think it's not hard to backport it because they are almost isolated
+>> from other parts in kernel.
+>> If you don't see any problem any more with recent zram, yay, your
+>> system doesn't have any problem. But if you see the problem still,
+>> it means you should suspect another stuffs as culprits as well as
+>> zram.
+>>
+>> Thanks.
+>>
+>
+> assuming that you use zram0, does 'mkswap -c /dev/zram0' show any bad
+> pages right after the swap creation/activation?
+>
+>         -ss
+>
+>> > <1>[ 5392.106074] BUG: Bad page state in process CompositorTileW  pfn:57a7e
+>> > <1>[ 5392.106109] page:ffffea00015e9f80 count:0 mapcount:0 mapping:
+>> >       (null) index:0x2
+>> > <1>[ 5392.106122] page flags: 0x4000000000000004(referenced)
+>> > <5>[ 5392.106139] Modules linked in: i2c_dev uinput
+>> > snd_hda_codec_realtek memconsole snd_hda_codec_hdmi uvcvideo
+>> > videobuf2_vmalloc videobuf2_memops videobuf2_core videodev
+>> > snd_hda_intel snd_hda_codec snd_hwdep snd_pcm snd_page_alloc snd_timer
+>> > zram(C) lzo_compress zsmalloc(C) fuse nf_conntrack_ipv6 nf_defrag_ipv6
+>> > ip6table_filter ip6_tables ath9k_btcoex ath9k_common_btcoex
+>> > ath9k_hw_btcoex ath mac80211 cfg80211 option usb_wwan cdc_ether usbnet
+>> > ath3k btusb bluetooth joydev ppp_async ppp_generic slhc tun
+>> > <5>[ 5392.106333] Pid: 27363, comm: CompositorTileW Tainted: G    B
+>> > C   3.8.11 #1
+>> > <5>[ 5392.106344] Call Trace:
+>> > <5>[ 5392.106357]  [<ffffffff978ba5bb>] bad_page+0xcf/0xe3
+>> > <5>[ 5392.106370]  [<ffffffff978bb181>] get_page_from_freelist+0x21a/0x46c
+>> > <5>[ 5392.106383]  [<ffffffff978beb74>] ? release_pages+0x19b/0x1be
+>> > <5>[ 5392.106394]  [<ffffffff978bb5da>] __alloc_pages_nodemask+0x207/0x685
+>> > <5>[ 5392.106407]  [<ffffffff97cb8caf>] ? _cond_resched+0xe/0x1e
+>> > <5>[ 5392.106421]  [<ffffffff978d215a>] handle_pte_fault+0x305/0x500
+>> > <5>[ 5392.106433]  [<ffffffff978d4f5e>] ? __vma_link_file+0x65/0x67
+>> > <5>[ 5392.106445]  [<ffffffff978d30d0>] handle_mm_fault+0x97/0xbb
+>> > <5>[ 5392.106459]  [<ffffffff97828616>] __do_page_fault+0x1d4/0x38c
+>> > <5>[ 5392.106470]  [<ffffffff978d7803>] ? do_mmap_pgoff+0x284/0x2c0
+>> > <5>[ 5392.106482]  [<ffffffff978ca82c>] ? vm_mmap_pgoff+0x7d/0x8e
+>> > <5>[ 5392.106495]  [<ffffffff97828800>] do_page_fault+0xe/0x10
+>> > <5>[ 5392.106506]  [<ffffffff97cb9d32>] page_fault+0x22/0x30
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
