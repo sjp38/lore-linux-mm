@@ -1,86 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com [209.85.220.172])
-	by kanga.kvack.org (Postfix) with ESMTP id ED4DD6B0038
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 17:03:52 -0400 (EDT)
-Received: by qku63 with SMTP id 63so104665032qku.3
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 14:03:52 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k134si5961615qhc.65.2015.04.15.14.03.20
+Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 0361E6B0038
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 17:06:12 -0400 (EDT)
+Received: by obbfy7 with SMTP id fy7so32056601obb.2
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 14:06:11 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id c2si3821400oih.6.2015.04.15.14.06.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Apr 2015 14:03:20 -0700 (PDT)
-Message-ID: <552ED214.3050105@redhat.com>
-Date: Wed, 15 Apr 2015 17:03:16 -0400
-From: Rik van Riel <riel@redhat.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 15 Apr 2015 14:06:11 -0700 (PDT)
+Message-ID: <552ED2B8.3060308@oracle.com>
+Date: Wed, 15 Apr 2015 14:06:00 -0700
+From: Mike Kravetz <mike.kravetz@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] mm: Send a single IPI to TLB flush multiple pages
- when unmapping
-References: <1429094576-5877-1-git-send-email-mgorman@suse.de> <1429094576-5877-3-git-send-email-mgorman@suse.de>
-In-Reply-To: <1429094576-5877-3-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Subject: hugetlbfs alignment requirements conflicting with documentation
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, Davide Libenzi <davidel@xmailserver.org>, Eric B Munson <emunson@akamai.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On 04/15/2015 06:42 AM, Mel Gorman wrote:
-> An IPI is sent to flush remote TLBs when a page is unmapped that was
-> recently accessed by other CPUs. There are many circumstances where this
-> happens but the obvious one is kswapd reclaiming pages belonging to a
-> running process as kswapd and the task are likely running on separate CPUs.
-> 
-> On small machines, this is not a significant problem but as machine
-> gets larger with more cores and more memory, the cost of these IPIs can
-> be high. This patch uses a structure similar in principle to a pagevec
-> to collect a list of PFNs and CPUs that require flushing. It then sends
-> one IPI to flush the list of PFNs. A new TLB flush helper is required for
-> this and one is added for x86. Other architectures will need to decide if
-> batching like this is both safe and worth the memory overhead. Specifically
-> the requirement is;
-> 
-> 	If a clean page is unmapped and not immediately flushed, the
-> 	architecture must guarantee that a write to that page from a CPU
-> 	with a cached TLB entry will trap a page fault.
-> 
-> This is essentially what the kernel already depends on but the window is
-> much larger with this patch applied and is worth highlighting.
+A couple of us started looking at adding fallocate() preallocation
+and punch hole support to hugetlbfs.  The offset and length arguments
+to fallocate are in bytes, and the man page is pretty explicit about
+what is expected if ranges do not start or end on page boundaries.
 
-This means we already have a (hard to hit?) data corruption
-issue in the kernel.  We can lose data if we unmap a writable
-but not dirty pte from a file page, and the task writes before
-we flush the TLB.
+Looking at fallocate led me to take a closer look at ftruncate for
+hugetlbfs as ideally we would reuse some of that code.  I noticed that
+ftruncate requires the length parameter to be huge page aligned.
+I am pretty sure this was done because hugetlbfs only deals in increments
+of huge pages.  inode size appears to never be set to anything that
+is not a multiple of huge page size.  However, the ftruncate man page
+does not place too many restrictions on the value of length.  And AFICT,
+there is no documentation about ftruncate returning EINVAL if length
+is not a multiple of huge page size.
 
-I can only see one way to completely close the window, and that
-is to make the pte(s) read-only, and flush the TLB before unmapping
-and then flushing the TLB again. Luckily this is only true for
-ptes that are both writeable and clean.
+So my question is, do we try to support hugetlbfs files that are not a
+multiple of huge page size in length?  Or, document that hugetlbfs is
+'special' when it comes to truncate?
 
-This would of course not be acceptable overhead when flushing things
-one page at a time, but if we are moving to batched TLB flushes
-anyway, there may be a way around this...
+This same question applies to fallocate as the man page also says that
+it is possible to set file size to an arbitrary (non huge page size
+aligned value).
 
-1) Check whether the to-be-unmapped pte is read-only, or the page is
-   already marked dirty, if either is true, we can go straight to (4).
-2) Mark a larger number of ptes read-only in one go (one page table
-   page worth of ptes perhaps?)
-3) Flush the TLBs for the task(s) with recently turned read-only ptes.
-4) Unmap PTEs like your patch series does.
-5) Flush the TLBs like your patch series does.
-
-This might require some protection in the page fault code, to ensure
-do_wp_page does not mark the pte read-write again in-between (2) and
-(4). Then again, do_wp_page does mark the page dirty so we may be ok.
-
-As an aside, it may be worth just doing a global tlb flush if the number
-of entries in a ubc exceeds a certain number.
-
-It may also be worth moving try_to_unmap_flush() from shrink_lruvec()
-to shrink_zone(), so it is called once per zone and not once per cgroup
-inside the zone. I guess we do need to call it before we call
-should_continue_reclaim(), though :)
-
-
+cc'ing some people from the recent hugetlb munmap alignment thread as
+I'm sure they will have an opinion here.
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
