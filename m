@@ -1,72 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 08A516B006E
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 08:24:55 -0400 (EDT)
-Received: by wiax7 with SMTP id x7so110829353wia.0
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 05:24:54 -0700 (PDT)
-Received: from casper.infradead.org ([2001:770:15f::2])
-        by mx.google.com with ESMTPS id ab3si25878527wid.70.2015.04.15.05.24.53
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id C42C86B0038
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 08:53:08 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so51661845pdb.1
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 05:53:08 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id zb14si6912366pac.209.2015.04.15.05.53.06
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Apr 2015 05:24:53 -0700 (PDT)
-Date: Wed, 15 Apr 2015 14:24:40 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 3/4] mm: Gather more PFNs before sending a TLB to flush
- unmapped pages
-Message-ID: <20150415122440.GV5029@twins.programming.kicks-ass.net>
-References: <1429094576-5877-1-git-send-email-mgorman@suse.de>
- <1429094576-5877-4-git-send-email-mgorman@suse.de>
- <20150415114220.GG17717@twins.programming.kicks-ass.net>
- <20150415121553.GD14842@suse.de>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 15 Apr 2015 05:53:07 -0700 (PDT)
+Message-ID: <552E5F2B.7070604@oracle.com>
+Date: Wed, 15 Apr 2015 08:52:59 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150415121553.GD14842@suse.de>
+Subject: Re: [RFC 00/11] mm: debug: formatting memory management structs
+References: <1429044993-1677-1-git-send-email-sasha.levin@oracle.com> <20150415084536.GA27510@node.dhcp.inet.fi>
+In-Reply-To: <20150415084536.GA27510@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org
 
-On Wed, Apr 15, 2015 at 01:15:53PM +0100, Mel Gorman wrote:
-> On Wed, Apr 15, 2015 at 01:42:20PM +0200, Peter Zijlstra wrote:
-> > On Wed, Apr 15, 2015 at 11:42:55AM +0100, Mel Gorman wrote:
-> > > +/*
-> > > + * Use a page to store as many PFNs as possible for batch unmapping. Adjusting
-> > > + * this trades memory usage for number of IPIs sent
-> > > + */
-> > > +#define BATCH_TLBFLUSH_SIZE \
-> > > +	((PAGE_SIZE - sizeof(struct cpumask) - sizeof(unsigned long)) / sizeof(unsigned long))
-> > >  
-> > >  /* Track pages that require TLB flushes */
-> > >  struct unmap_batch {
-> > > +	/* Update BATCH_TLBFLUSH_SIZE when adjusting this structure */
-> > >  	struct cpumask cpumask;
-> > >  	unsigned long nr_pages;
-> > >  	unsigned long pfns[BATCH_TLBFLUSH_SIZE];
-> > 
-> > The alternative is something like:
-> > 
-> > struct unmap_batch {
-> > 	struct cpumask cpumask;
-> > 	unsigned long nr_pages;
-> > 	unsigned long pfnsp[0];
-> > };
-> > 
-> > #define BATCH_TLBFLUSH_SIZE ((PAGE_SIZE - sizeof(struct unmap_batch)) / sizeof(unsigned long))
-> > 
-> > and unconditionally allocate 1 page. This saves you from having to worry
-> > about the layout of struct unmap_batch.
-> 
-> True but then I need to calculate the size of the real array so it's
-> similar in terms of readability. The plus would be that if the structure
-> changes then the size calculation is not changed but then the allocation
-> site and the size calculation must be kept in sync. I did not see a clear
-> win of one approach over the other so flipped a coin.
+On 04/15/2015 04:45 AM, Kirill A. Shutemov wrote:
+> On Tue, Apr 14, 2015 at 04:56:22PM -0400, Sasha Levin wrote:
+>> > This patch series adds knowledge about various memory management structures
+>> > to the standard print functions.
+>> > 
+>> > In essence, it allows us to easily print those structures:
+>> > 
+>> > 	printk("%pZp %pZm %pZv", page, mm, vma);
+> Notably, you don't have \n in your format line. And it brings question how
+> well dump_page() and friends fit printk-like interface. dump_page()
+> produces multi-line print out.
+> Is it something printk() users would expect?
 
-I'm not seeing your argument, in both your an mine variant the
-allocation is hard assumed to be 1 page, right? But even then, what's
-more likely to change, extra members in our struct or growing the
-allocation to two (or more) pages?
+Since were printing large amount of data out of multiple fields (rather than just
+one potentially long field like "path"), the way I see it we could print it in one
+line, and let it wrap.
+
+While this is what printk users would most likely expect in theory, in practice it
+might scroll off the screen, making us miss important output, it would also be awkward
+making that long line part of anything else; what else would you add there?
+
+While if we break it up into multiple lines, we keep it working the same way it worked
+so far. Also, using any of those new printk format specifiers wouldn't be too common, so
+we can hope that whoever uses them knows what he's doing and how the output will look
+like.
+
+Is there a usecase where we'd want to keep it as a single line?
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
