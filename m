@@ -1,103 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vn0-f45.google.com (mail-vn0-f45.google.com [209.85.216.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A1BA6B006E
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 11:43:55 -0400 (EDT)
-Received: by vnbg62 with SMTP id g62so16488814vnb.6
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 08:43:55 -0700 (PDT)
-Received: from mail-vn0-x230.google.com (mail-vn0-x230.google.com. [2607:f8b0:400c:c0f::230])
-        by mx.google.com with ESMTPS id 8si5662221vdz.65.2015.04.15.08.43.54
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id BC4036B0071
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 11:44:21 -0400 (EDT)
+Received: by wiun10 with SMTP id n10so65056937wiu.1
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 08:44:21 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ei3si8812503wjd.20.2015.04.15.08.44.19
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Apr 2015 08:43:54 -0700 (PDT)
-Received: by vnbf190 with SMTP id f190so16608473vnb.1
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 08:43:54 -0700 (PDT)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 15 Apr 2015 08:44:20 -0700 (PDT)
+Date: Wed, 15 Apr 2015 16:44:15 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH 0/14] Parallel memory initialisation
+Message-ID: <20150415154415.GH14842@suse.de>
+References: <1428920226-18147-1-git-send-email-mgorman@suse.de>
+ <552E6486.6070705@hp.com>
+ <20150415133826.GF14842@suse.de>
+ <552E7AC5.3020703@hp.com>
 MIME-Version: 1.0
-In-Reply-To: <20150415082211.GC464@swordfish>
-References: <CAA25o9SF=1G6PCBpdUJx9=DQrqhVm=XUY+4jB=M_Qbz-z-3Xfg@mail.gmail.com>
-	<20150415071642.GB22700@blaptop>
-	<20150415082211.GC464@swordfish>
-Date: Wed, 15 Apr 2015 08:43:54 -0700
-Message-ID: <CAA25o9RFg1-8ZMR4g71n-OhBBTzt8Prm0rUB3LAXYBimxU1Ppw@mail.gmail.com>
-Subject: Re: advice on bad_page instance
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <552E7AC5.3020703@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, sergey.senozhatsky@gmail.com
+To: Waiman Long <waiman.long@hp.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Robin Holt <holt@sgi.com>, Nathan Zimmer <nzimmer@sgi.com>, Daniel Rahn <drahn@suse.com>, Davidlohr Bueso <dbueso@suse.com>, Dave Hansen <dave.hansen@intel.com>, Tom Vaden <tom.vaden@hp.com>, Scott Norton <scott.norton@hp.com>, LKML <linux-kernel@vger.kernel.org>
 
-Thank you for your replies!  Actually I don't see anything that makes
-me suspect zram as the culprit.  I mentioned it just in case you folks
-knew of any bug that would result in that behavior.
+On Wed, Apr 15, 2015 at 10:50:45AM -0400, Waiman Long wrote:
+> On 04/15/2015 09:38 AM, Mel Gorman wrote:
+> >On Wed, Apr 15, 2015 at 09:15:50AM -0400, Waiman Long wrote:
+> >>><SNIP>
+> >>>Patches are against 4.0-rc7.
+> >>>
+> >>>  Documentation/kernel-parameters.txt |   8 +
+> >>>  arch/ia64/mm/numa.c                 |  19 +-
+> >>>  arch/x86/Kconfig                    |   2 +
+> >>>  include/linux/memblock.h            |  18 ++
+> >>>  include/linux/mm.h                  |   8 +-
+> >>>  include/linux/mmzone.h              |  37 +++-
+> >>>  init/main.c                         |   1 +
+> >>>  mm/Kconfig                          |  29 +++
+> >>>  mm/bootmem.c                        |   6 +-
+> >>>  mm/internal.h                       |  23 ++-
+> >>>  mm/memblock.c                       |  34 ++-
+> >>>  mm/mm_init.c                        |   9 +-
+> >>>  mm/nobootmem.c                      |   7 +-
+> >>>  mm/page_alloc.c                     | 398 +++++++++++++++++++++++++++++++-----
+> >>>  mm/vmscan.c                         |   6 +-
+> >>>  15 files changed, 507 insertions(+), 98 deletions(-)
+> >>>
+> >>I had included your patch with the 4.0 kernel and booted up a
+> >>16-socket 12-TB machine. I measured the elapsed time from the elilo
+> >>prompt to the availability of ssh login. Without the patch, the
+> >>bootup time was 404s. It was reduced to 298s with the patch. So
+> >>there was about 100s reduction in bootup time (1/4 of the total).
+> >>
+> >Cool, thanks for testing. Would you be able to state if this is really
+> >important or not? Does booting 100s second faster on a 12TB machine really
+> >matter? I can then add that justification to the changelog to avoid a
+> >conversation with Andrew that goes something like
+> >
+> >Andrew: Why are we doing this?
+> >Mel:    Because we can and apparently people might want it.
+> >Andrew: What's the maintenance cost of this?
+> >Mel:    Magic beans
+> >
+> >I prefer talking to Andrew when it's harder to predict what he'll say.
+> 
+> Booting 100s faster is certainly something that is nice to have.
+> Right now, more time is spent in the firmware POST portion of the
+> bootup process than in the OS boot.
 
-Thank you for the suggestion to backport---I'll look into it.  Of
-course I would prefer to backport code that I actually know fixes this
-mm problem.
+I'm not surprised. On two different 1TB machines, I've seen a post time
+of 2 minutes and one of 35. No idea what it's doing for 35 minutes....
+plotting world domination probably.
 
+> So I would say this patch isn't
+> really critical right now as machines with that much memory are
+> relatively rare. However, if we look forward to the near future,
+> some new memory technology like persistent memory is coming and
+> machines with large amount of memory (whether persistent or not)
+> will become more common. This patch will certainly be useful if we
+> look forward into the future.
+> 
 
-On Wed, Apr 15, 2015 at 1:22 AM, Sergey Senozhatsky
-<sergey.senozhatsky.work@gmail.com> wrote:
-> On (04/15/15 16:16), Minchan Kim wrote:
->> On Tue, Apr 14, 2015 at 11:36:57AM -0700, Luigi Semenzato wrote:
->> > We are seeing several instances of these things (often with different
->> > but plausible values in the struct page) in kernel 3.8.11, followed by
->> > a panic() in release_pages a few seconds later.
->> >
->> > I realize it's an old kernel and probably of little interest here, but
->> > I would be most grateful for any pointers on how to proceed.  In
->> > particular, I suspect that many such bugs may have been fixed by now,
->> > but I am not sure how to find the right fix (which I would backport).
->> >
->> > Also, this happens under heavy swap, and we're using zram.  I wonder
->> > if there may be a race condition related to zram which may have been
->> > fixed since then, and which may result in these symptoms.
->>
->> I didn't see such bug until now. Sorry. However, I might miss something
->> because zram has changed a lot since then.
->> What I recommend is just to use recent zram/zsmalloc.
->> I think it's not hard to backport it because they are almost isolated
->> from other parts in kernel.
->> If you don't see any problem any more with recent zram, yay, your
->> system doesn't have any problem. But if you see the problem still,
->> it means you should suspect another stuffs as culprits as well as
->> zram.
->>
->> Thanks.
->>
->
-> assuming that you use zram0, does 'mkswap -c /dev/zram0' show any bad
-> pages right after the swap creation/activation?
->
->         -ss
->
->> > <1>[ 5392.106074] BUG: Bad page state in process CompositorTileW  pfn:57a7e
->> > <1>[ 5392.106109] page:ffffea00015e9f80 count:0 mapcount:0 mapping:
->> >       (null) index:0x2
->> > <1>[ 5392.106122] page flags: 0x4000000000000004(referenced)
->> > <5>[ 5392.106139] Modules linked in: i2c_dev uinput
->> > snd_hda_codec_realtek memconsole snd_hda_codec_hdmi uvcvideo
->> > videobuf2_vmalloc videobuf2_memops videobuf2_core videodev
->> > snd_hda_intel snd_hda_codec snd_hwdep snd_pcm snd_page_alloc snd_timer
->> > zram(C) lzo_compress zsmalloc(C) fuse nf_conntrack_ipv6 nf_defrag_ipv6
->> > ip6table_filter ip6_tables ath9k_btcoex ath9k_common_btcoex
->> > ath9k_hw_btcoex ath mac80211 cfg80211 option usb_wwan cdc_ether usbnet
->> > ath3k btusb bluetooth joydev ppp_async ppp_generic slhc tun
->> > <5>[ 5392.106333] Pid: 27363, comm: CompositorTileW Tainted: G    B
->> > C   3.8.11 #1
->> > <5>[ 5392.106344] Call Trace:
->> > <5>[ 5392.106357]  [<ffffffff978ba5bb>] bad_page+0xcf/0xe3
->> > <5>[ 5392.106370]  [<ffffffff978bb181>] get_page_from_freelist+0x21a/0x46c
->> > <5>[ 5392.106383]  [<ffffffff978beb74>] ? release_pages+0x19b/0x1be
->> > <5>[ 5392.106394]  [<ffffffff978bb5da>] __alloc_pages_nodemask+0x207/0x685
->> > <5>[ 5392.106407]  [<ffffffff97cb8caf>] ? _cond_resched+0xe/0x1e
->> > <5>[ 5392.106421]  [<ffffffff978d215a>] handle_pte_fault+0x305/0x500
->> > <5>[ 5392.106433]  [<ffffffff978d4f5e>] ? __vma_link_file+0x65/0x67
->> > <5>[ 5392.106445]  [<ffffffff978d30d0>] handle_mm_fault+0x97/0xbb
->> > <5>[ 5392.106459]  [<ffffffff97828616>] __do_page_fault+0x1d4/0x38c
->> > <5>[ 5392.106470]  [<ffffffff978d7803>] ? do_mmap_pgoff+0x284/0x2c0
->> > <5>[ 5392.106482]  [<ffffffff978ca82c>] ? vm_mmap_pgoff+0x7d/0x8e
->> > <5>[ 5392.106495]  [<ffffffff97828800>] do_page_fault+0xe/0x10
->> > <5>[ 5392.106506]  [<ffffffff97cb9d32>] page_fault+0x22/0x30
+Whether persistent memory needs struct pages or not is up in the air and
+I'm not getting stuck in that can of worms. 100 seconds off kernel init
+time is a starting point. I can try pushing it on on that basis but I
+really would like to see SGI and Intel people also chime in on how it
+affects their really large machines.
+
+> >>However, there were 2 bootup problems in the dmesg log that needed
+> >>to be addressed.
+> >>1. There were 2 vmalloc allocation failures:
+> >>[    2.284686] vmalloc: allocation failure, allocated 16578404352 of
+> >>17179873280 bytes
+> >>[   10.399938] vmalloc: allocation failure, allocated 7970922496 of
+> >>8589938688 bytes
+> >>
+> >>2. There were 2 soft lockup warnings:
+> >>[   57.319453] NMI watchdog: BUG: soft lockup - CPU#1 stuck for 23s!
+> >>[swapper/0:1]
+> >>[   85.409263] NMI watchdog: BUG: soft lockup - CPU#1 stuck for 22s!
+> >>[swapper/0:1]
+> >>
+> >>Once those problems are fixed, the patch should be in a pretty good
+> >>shape. I have attached the dmesg log for your reference.
+> >>
+> >The obvious conclusion is that initialising 1G per node is not enough for
+> >really large machines. Can you try this on top? It's untested but should
+> >work. The low value was chosen because it happened to work and I wanted
+> >to get test coverage on common hardware but broke is broke.
+> >
+> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >index f2c96d02662f..6b3bec304e35 100644
+> >--- a/mm/page_alloc.c
+> >+++ b/mm/page_alloc.c
+> >@@ -276,9 +276,9 @@ static inline bool update_defer_init(pg_data_t *pgdat,
+> >  	if (pgdat->first_deferred_pfn != ULONG_MAX)
+> >  		return false;
+> >
+> >-	/* Initialise at least 1G per zone */
+> >+	/* Initialise at least 32G per node */
+> >  	(*nr_initialised)++;
+> >-	if (*nr_initialised>  (1UL<<  (30 - PAGE_SHIFT))&&
+> >+	if (*nr_initialised>  (32UL<<  (30 - PAGE_SHIFT))&&
+> >  	(pfn&  (PAGES_PER_SECTION - 1)) == 0) {
+> >  		pgdat->first_deferred_pfn = pfn;
+> >  		return false;
+> 
+> I will try this out when I can get hold of the 12-TB machine again.
+> 
+
+Thanks.
+
+> The vmalloc allocation failures were for the following hash tables:
+> - Dentry cache hash table entries
+> - Inode-cache hash table entries
+> 
+> Those hash tables scale linearly with the amount of memory available
+> in the system. So instead of hardcoding a certain value, why don't
+> we make it a certain % of the total memory but bottomed out to 1G at
+> the low end?
+> 
+
+Because then it becomes what percentage is the right percentage and what
+happens if it's a percentage of total memory but the NUMA nodes are not
+all the same size?. I want to start simple until there is more data on
+what these really large machines look like and if it ever fails in the
+field, there is the command-line switch until a patch is available.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
