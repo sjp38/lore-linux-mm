@@ -1,146 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id BCDF26B0071
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 03:16:08 -0400 (EDT)
-Received: by paboj16 with SMTP id oj16so40796339pab.0
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 00:16:08 -0700 (PDT)
-Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
-        by mx.google.com with ESMTPS id kz11si5607924pab.98.2015.04.15.00.16.01
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id D65766B0072
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 03:16:50 -0400 (EDT)
+Received: by pacyx8 with SMTP id yx8so40706113pac.1
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 00:16:50 -0700 (PDT)
+Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com. [2607:f8b0:400e:c02::22e])
+        by mx.google.com with ESMTPS id rq7si5549816pab.225.2015.04.15.00.16.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 15 Apr 2015 00:16:02 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout1.w1.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0NMU005R271D4W20@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 15 Apr 2015 08:20:01 +0100 (BST)
-From: Beata Michalska <b.michalska@samsung.com>
-Subject: [RFC 4/4] shmem: Add support for generic FS events
-Date: Wed, 15 Apr 2015 09:15:47 +0200
-Message-id: <1429082147-4151-5-git-send-email-b.michalska@samsung.com>
-In-reply-to: <1429082147-4151-1-git-send-email-b.michalska@samsung.com>
-References: <1429082147-4151-1-git-send-email-b.michalska@samsung.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Apr 2015 00:16:49 -0700 (PDT)
+Received: by pdea3 with SMTP id a3so41888842pde.3
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 00:16:49 -0700 (PDT)
+Date: Wed, 15 Apr 2015 16:16:42 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: advice on bad_page instance
+Message-ID: <20150415071642.GB22700@blaptop>
+References: <CAA25o9SF=1G6PCBpdUJx9=DQrqhVm=XUY+4jB=M_Qbz-z-3Xfg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAA25o9SF=1G6PCBpdUJx9=DQrqhVm=XUY+4jB=M_Qbz-z-3Xfg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
+To: Luigi Semenzato <semenzato@google.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 
-Add support for the generic FS events interface
-covering threshold notifiactions and the ENOSPC
-warning.
+Hello Luigi,
 
-Signed-off-by: Beata Michalska <b.michalska@samsung.com>
----
- mm/shmem.c |   39 ++++++++++++++++++++++++++++++++++++---
- 1 file changed, 36 insertions(+), 3 deletions(-)
+On Tue, Apr 14, 2015 at 11:36:57AM -0700, Luigi Semenzato wrote:
+> We are seeing several instances of these things (often with different
+> but plausible values in the struct page) in kernel 3.8.11, followed by
+> a panic() in release_pages a few seconds later.
+> 
+> I realize it's an old kernel and probably of little interest here, but
+> I would be most grateful for any pointers on how to proceed.  In
+> particular, I suspect that many such bugs may have been fixed by now,
+> but I am not sure how to find the right fix (which I would backport).
+> 
+> Also, this happens under heavy swap, and we're using zram.  I wonder
+> if there may be a race condition related to zram which may have been
+> fixed since then, and which may result in these symptoms.
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index cf2d0ca..bb261ac 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -201,6 +201,7 @@ static int shmem_reserve_inode(struct super_block *sb)
- 		spin_lock(&sbinfo->stat_lock);
- 		if (!sbinfo->free_inodes) {
- 			spin_unlock(&sbinfo->stat_lock);
-+			fs_event_notify(sb, FS_EVENT_WARN, FS_WARN_ENOSPC);
- 			return -ENOSPC;
- 		}
- 		sbinfo->free_inodes--;
-@@ -239,8 +240,10 @@ static void shmem_recalc_inode(struct inode *inode)
- 	freed = info->alloced - info->swapped - inode->i_mapping->nrpages;
- 	if (freed > 0) {
- 		struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
--		if (sbinfo->max_blocks)
-+		if (sbinfo->max_blocks) {
- 			percpu_counter_add(&sbinfo->used_blocks, -freed);
-+			fs_event_free_space(inode->i_sb, freed);
-+		}
- 		info->alloced -= freed;
- 		inode->i_blocks -= freed * BLOCKS_PER_PAGE;
- 		shmem_unacct_blocks(info->flags, freed);
-@@ -1164,6 +1167,7 @@ repeat:
- 				goto unacct;
- 			}
- 			percpu_counter_inc(&sbinfo->used_blocks);
-+			fs_event_alloc_space(inode->i_sb, 1);
- 		}
- 
- 		page = shmem_alloc_page(gfp, info, index);
-@@ -1245,8 +1249,10 @@ trunc:
- 	spin_unlock(&info->lock);
- decused:
- 	sbinfo = SHMEM_SB(inode->i_sb);
--	if (sbinfo->max_blocks)
-+	if (sbinfo->max_blocks) {
- 		percpu_counter_add(&sbinfo->used_blocks, -1);
-+		fs_event_free_space(inode->i_sb, 1);
-+	}
- unacct:
- 	shmem_unacct_blocks(info->flags, 1);
- failed:
-@@ -1258,12 +1264,17 @@ unlock:
- 		unlock_page(page);
- 		page_cache_release(page);
- 	}
--	if (error == -ENOSPC && !once++) {
-+	if (error == -ENOSPC) {
-+		if (!once++) {
- 		info = SHMEM_I(inode);
- 		spin_lock(&info->lock);
- 		shmem_recalc_inode(inode);
- 		spin_unlock(&info->lock);
- 		goto repeat;
-+		} else {
-+			fs_event_notify(inode->i_sb, FS_EVENT_WARN,
-+					FS_WARN_ENOSPC);
-+		}
- 	}
- 	if (error == -EEXIST)	/* from above or from radix_tree_insert */
- 		goto repeat;
-@@ -2729,12 +2740,33 @@ static int shmem_encode_fh(struct inode *inode, __u32 *fh, int *len,
- 	return 1;
- }
- 
-+static int shmem_trace_query(struct super_block *sb,
-+				struct fs_trace_sdata *data)
-+{
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
-+
-+	if (!sb || !data)
-+		return -EINVAL;
-+
-+	data->events_cap_mask = FS_EVENT_WARN;
-+	if (sbinfo->max_blocks) {
-+		data->available_blks = sbinfo->max_blocks -
-+			percpu_counter_sum(&sbinfo->used_blocks);
-+		data->events_cap_mask |= FS_EVENT_THRESH;
-+	}
-+	return 0;
-+}
-+
- static const struct export_operations shmem_export_ops = {
- 	.get_parent     = shmem_get_parent,
- 	.encode_fh      = shmem_encode_fh,
- 	.fh_to_dentry	= shmem_fh_to_dentry,
- };
- 
-+static const struct fs_trace_operations shmem_trace_ops = {
-+	.fs_trace_query	= shmem_trace_query,
-+};
-+
- static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
- 			       bool remount)
- {
-@@ -3020,6 +3052,7 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
- 		sb->s_flags |= MS_NOUSER;
- 	}
- 	sb->s_export_op = &shmem_export_ops;
-+	sb->s_trace_ops = &shmem_trace_ops;
- 	sb->s_flags |= MS_NOSEC;
- #else
- 	sb->s_flags |= MS_NOUSER;
+I didn't see such bug until now. Sorry. However, I might miss something
+because zram has changed a lot since then.
+What I recommend is just to use recent zram/zsmalloc.
+I think it's not hard to backport it because they are almost isolated
+from other parts in kernel.
+If you don't see any problem any more with recent zram, yay, your
+system doesn't have any problem. But if you see the problem still,
+it means you should suspect another stuffs as culprits as well as
+zram.
+
+Thanks.
+
+> 
+> Many thanks for any pointer!
+> 
+> Luigi
+> 
+> <1>[ 5392.106074] BUG: Bad page state in process CompositorTileW  pfn:57a7e
+> <1>[ 5392.106109] page:ffffea00015e9f80 count:0 mapcount:0 mapping:
+>       (null) index:0x2
+> <1>[ 5392.106122] page flags: 0x4000000000000004(referenced)
+> <5>[ 5392.106139] Modules linked in: i2c_dev uinput
+> snd_hda_codec_realtek memconsole snd_hda_codec_hdmi uvcvideo
+> videobuf2_vmalloc videobuf2_memops videobuf2_core videodev
+> snd_hda_intel snd_hda_codec snd_hwdep snd_pcm snd_page_alloc snd_timer
+> zram(C) lzo_compress zsmalloc(C) fuse nf_conntrack_ipv6 nf_defrag_ipv6
+> ip6table_filter ip6_tables ath9k_btcoex ath9k_common_btcoex
+> ath9k_hw_btcoex ath mac80211 cfg80211 option usb_wwan cdc_ether usbnet
+> ath3k btusb bluetooth joydev ppp_async ppp_generic slhc tun
+> <5>[ 5392.106333] Pid: 27363, comm: CompositorTileW Tainted: G    B
+> C   3.8.11 #1
+> <5>[ 5392.106344] Call Trace:
+> <5>[ 5392.106357]  [<ffffffff978ba5bb>] bad_page+0xcf/0xe3
+> <5>[ 5392.106370]  [<ffffffff978bb181>] get_page_from_freelist+0x21a/0x46c
+> <5>[ 5392.106383]  [<ffffffff978beb74>] ? release_pages+0x19b/0x1be
+> <5>[ 5392.106394]  [<ffffffff978bb5da>] __alloc_pages_nodemask+0x207/0x685
+> <5>[ 5392.106407]  [<ffffffff97cb8caf>] ? _cond_resched+0xe/0x1e
+> <5>[ 5392.106421]  [<ffffffff978d215a>] handle_pte_fault+0x305/0x500
+> <5>[ 5392.106433]  [<ffffffff978d4f5e>] ? __vma_link_file+0x65/0x67
+> <5>[ 5392.106445]  [<ffffffff978d30d0>] handle_mm_fault+0x97/0xbb
+> <5>[ 5392.106459]  [<ffffffff97828616>] __do_page_fault+0x1d4/0x38c
+> <5>[ 5392.106470]  [<ffffffff978d7803>] ? do_mmap_pgoff+0x284/0x2c0
+> <5>[ 5392.106482]  [<ffffffff978ca82c>] ? vm_mmap_pgoff+0x7d/0x8e
+> <5>[ 5392.106495]  [<ffffffff97828800>] do_page_fault+0xe/0x10
+> <5>[ 5392.106506]  [<ffffffff97cb9d32>] page_fault+0x22/0x30
+
 -- 
-1.7.9.5
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
