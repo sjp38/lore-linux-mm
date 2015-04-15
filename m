@@ -1,152 +1,241 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F4376B0038
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 17:37:27 -0400 (EDT)
-Received: by iecrt8 with SMTP id rt8so25617867iec.0
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 14:37:27 -0700 (PDT)
-Received: from relay.sgi.com (relay2.sgi.com. [192.48.180.65])
-        by mx.google.com with ESMTP id so2si5880630icb.67.2015.04.15.14.37.26
-        for <linux-mm@kvack.org>;
-        Wed, 15 Apr 2015 14:37:26 -0700 (PDT)
-Message-ID: <552EDA10.60604@sgi.com>
-Date: Wed, 15 Apr 2015 16:37:20 -0500
-From: nzimmer <nzimmer@sgi.com>
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D8F46B0038
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2015 17:45:10 -0400 (EDT)
+Received: by wgso17 with SMTP id o17so61288517wgs.1
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2015 14:45:09 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r6si10474114wjx.75.2015.04.15.14.45.08
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 15 Apr 2015 14:45:08 -0700 (PDT)
+Date: Wed, 15 Apr 2015 22:44:47 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 4/4] mm: migrate: Batch TLB flushing when unmapping pages
+ for migration
+Message-ID: <20150415214447.GJ14842@suse.de>
+References: <1429094576-5877-1-git-send-email-mgorman@suse.de>
+ <1429094576-5877-5-git-send-email-mgorman@suse.de>
+ <alpine.LSU.2.11.1504151302490.13387@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/14] Parallel memory initialisation
-References: <1428920226-18147-1-git-send-email-mgorman@suse.de> <552E6486.6070705@hp.com> <20150415133826.GF14842@suse.de> <552E7AC5.3020703@hp.com> <20150415154415.GH14842@suse.de>
-In-Reply-To: <20150415154415.GH14842@suse.de>
-Content-Type: text/plain; charset="iso-8859-15"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1504151302490.13387@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Waiman Long <waiman.long@hp.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Robin Holt <holt@sgi.com>, Daniel Rahn <drahn@suse.com>, Davidlohr Bueso <dbueso@suse.com>, Dave Hansen <dave.hansen@intel.com>, Tom Vaden <tom.vaden@hp.com>, Scott Norton <scott.norton@hp.com>, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
+On Wed, Apr 15, 2015 at 02:06:19PM -0700, Hugh Dickins wrote:
+> On Wed, 15 Apr 2015, Mel Gorman wrote:
+> 
+> > Page reclaim batches multiple TLB flushes into one IPI and this patch teaches
+> > page migration to also batch any necessary flushes. MMtests has a THP scale
+> > microbenchmark that deliberately fragments memory and then allocates THPs
+> > to stress compaction. It's not a page reclaim benchmark and recent kernels
+> > avoid excessive compaction but this patch reduced system CPU usage
+> > 
+> >                4.0.0       4.0.0
+> >             baseline batchmigrate-v1
+> > User          970.70     1012.24
+> > System       2067.48     1840.00
+> > Elapsed      1520.63     1529.66
+> > 
+> > Note that this particular workload was not TLB flush intensive with peaks
+> > in interrupts during the compaction phase. The 4.0 kernel peaked at 345K
+> > interrupts/second, the kernel that batches reclaim TLB entries peaked at
+> > 13K interrupts/second and this patch peaked at 10K interrupts/second.
+> > 
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > ---
+> >  mm/internal.h | 5 +++++
+> >  mm/migrate.c  | 8 +++++++-
+> >  mm/vmscan.c   | 6 +-----
+> >  3 files changed, 13 insertions(+), 6 deletions(-)
+> > 
+> > diff --git a/mm/internal.h b/mm/internal.h
+> > index fe69dd159e34..cb70555a7291 100644
+> > --- a/mm/internal.h
+> > +++ b/mm/internal.h
+> > @@ -436,10 +436,15 @@ struct unmap_batch;
+> >  
+> >  #ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
+> >  void try_to_unmap_flush(void);
+> > +void alloc_ubc(void);
+> >  #else
+> >  static inline void try_to_unmap_flush(void)
+> >  {
+> >  }
+> >  
+> > +static inline void alloc_ubc(void)
+> > +{
+> > +}
+> > +
+> >  #endif /* CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH */
+> >  #endif	/* __MM_INTERNAL_H */
+> > diff --git a/mm/migrate.c b/mm/migrate.c
+> > index 85e042686031..973d8befe528 100644
+> > --- a/mm/migrate.c
+> > +++ b/mm/migrate.c
+> > @@ -789,6 +789,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+> >  		if (current->flags & PF_MEMALLOC)
+> >  			goto out;
+> >  
+> > +		try_to_unmap_flush();
+> 
+> I have a vested interest in minimizing page migration overhead,
+> enthusiastic for more batching if it can be done, so took a quick
+> look at this patch (the earliers not so much); but am mystified by
+> your placement of the try_to_unmap_flush()s.
+> 
 
-On 04/15/2015 10:44 AM, Mel Gorman wrote:
-> On Wed, Apr 15, 2015 at 10:50:45AM -0400, Waiman Long wrote:
->> On 04/15/2015 09:38 AM, Mel Gorman wrote:
->>> On Wed, Apr 15, 2015 at 09:15:50AM -0400, Waiman Long wrote:
->>>>> <SNIP>
->>>>> Patches are against 4.0-rc7.
->>>>>
->>>>>   Documentation/kernel-parameters.txt |   8 +
->>>>>   arch/ia64/mm/numa.c                 |  19 +-
->>>>>   arch/x86/Kconfig                    |   2 +
->>>>>   include/linux/memblock.h            |  18 ++
->>>>>   include/linux/mm.h                  |   8 +-
->>>>>   include/linux/mmzone.h              |  37 +++-
->>>>>   init/main.c                         |   1 +
->>>>>   mm/Kconfig                          |  29 +++
->>>>>   mm/bootmem.c                        |   6 +-
->>>>>   mm/internal.h                       |  23 ++-
->>>>>   mm/memblock.c                       |  34 ++-
->>>>>   mm/mm_init.c                        |   9 +-
->>>>>   mm/nobootmem.c                      |   7 +-
->>>>>   mm/page_alloc.c                     | 398 +++++++++++++++++++++++++++++++-----
->>>>>   mm/vmscan.c                         |   6 +-
->>>>>   15 files changed, 507 insertions(+), 98 deletions(-)
->>>>>
->>>> I had included your patch with the 4.0 kernel and booted up a
->>>> 16-socket 12-TB machine. I measured the elapsed time from the elilo
->>>> prompt to the availability of ssh login. Without the patch, the
->>>> bootup time was 404s. It was reduced to 298s with the patch. So
->>>> there was about 100s reduction in bootup time (1/4 of the total).
->>>>
->>> Cool, thanks for testing. Would you be able to state if this is really
->>> important or not? Does booting 100s second faster on a 12TB machine really
->>> matter? I can then add that justification to the changelog to avoid a
->>> conversation with Andrew that goes something like
->>>
->>> Andrew: Why are we doing this?
->>> Mel:    Because we can and apparently people might want it.
->>> Andrew: What's the maintenance cost of this?
->>> Mel:    Magic beans
->>>
->>> I prefer talking to Andrew when it's harder to predict what he'll say.
->> Booting 100s faster is certainly something that is nice to have.
->> Right now, more time is spent in the firmware POST portion of the
->> bootup process than in the OS boot.
-> I'm not surprised. On two different 1TB machines, I've seen a post time
-> of 2 minutes and one of 35. No idea what it's doing for 35 minutes....
-> plotting world domination probably.
->
->> So I would say this patch isn't
->> really critical right now as machines with that much memory are
->> relatively rare. However, if we look forward to the near future,
->> some new memory technology like persistent memory is coming and
->> machines with large amount of memory (whether persistent or not)
->> will become more common. This patch will certainly be useful if we
->> look forward into the future.
->>
-> Whether persistent memory needs struct pages or not is up in the air and
-> I'm not getting stuck in that can of worms. 100 seconds off kernel init
-> time is a starting point. I can try pushing it on on that basis but I
-> really would like to see SGI and Intel people also chime in on how it
-> affects their really large machines.
->
-I will get some numbers from this patch set but I haven't had the 
-opportunity yet.  I will grab them this weekend for sure if I can't get 
-machine time sooner.
+The placement is to flush the TLB before sleeping for a long time.  If the
+whole approach is safe then it's not necessary but I saw little reason to
+leave it as-is. It should be perfectly safe to not flush before locking
+the page (which might sleep) or waiting on writeback (also might sleep).
+I'll drop these if they're confusing and similarly I can drop the flush
+before entering writeback in mm/vmscan.c
 
+> Why would one be needed here, yet not before the trylock_page() above?
+> Oh, when might sleep?  Though I still don't grasp why that's necessary,
+> and try_to_unmap() below may itself sleep.
+> 
 
->>>> However, there were 2 bootup problems in the dmesg log that needed
->>>> to be addressed.
->>>> 1. There were 2 vmalloc allocation failures:
->>>> [    2.284686] vmalloc: allocation failure, allocated 16578404352 of
->>>> 17179873280 bytes
->>>> [   10.399938] vmalloc: allocation failure, allocated 7970922496 of
->>>> 8589938688 bytes
->>>>
->>>> 2. There were 2 soft lockup warnings:
->>>> [   57.319453] NMI watchdog: BUG: soft lockup - CPU#1 stuck for 23s!
->>>> [swapper/0:1]
->>>> [   85.409263] NMI watchdog: BUG: soft lockup - CPU#1 stuck for 22s!
->>>> [swapper/0:1]
->>>>
->>>> Once those problems are fixed, the patch should be in a pretty good
->>>> shape. I have attached the dmesg log for your reference.
->>>>
->>> The obvious conclusion is that initialising 1G per node is not enough for
->>> really large machines. Can you try this on top? It's untested but should
->>> work. The low value was chosen because it happened to work and I wanted
->>> to get test coverage on common hardware but broke is broke.
->>>
->>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>> index f2c96d02662f..6b3bec304e35 100644
->>> --- a/mm/page_alloc.c
->>> +++ b/mm/page_alloc.c
->>> @@ -276,9 +276,9 @@ static inline bool update_defer_init(pg_data_t *pgdat,
->>>   	if (pgdat->first_deferred_pfn != ULONG_MAX)
->>>   		return false;
->>>
->>> -	/* Initialise at least 1G per zone */
->>> +	/* Initialise at least 32G per node */
->>>   	(*nr_initialised)++;
->>> -	if (*nr_initialised>  (1UL<<  (30 - PAGE_SHIFT))&&
->>> +	if (*nr_initialised>  (32UL<<  (30 - PAGE_SHIFT))&&
->>>   	(pfn&  (PAGES_PER_SECTION - 1)) == 0) {
->>>   		pgdat->first_deferred_pfn = pfn;
->>>   		return false;
->> I will try this out when I can get hold of the 12-TB machine again.
->>
-> Thanks.
->
->> The vmalloc allocation failures were for the following hash tables:
->> - Dentry cache hash table entries
->> - Inode-cache hash table entries
->>
->> Those hash tables scale linearly with the amount of memory available
->> in the system. So instead of hardcoding a certain value, why don't
->> we make it a certain % of the total memory but bottomed out to 1G at
->> the low end?
->>
-> Because then it becomes what percentage is the right percentage and what
-> happens if it's a percentage of total memory but the NUMA nodes are not
-> all the same size?. I want to start simple until there is more data on
-> what these really large machines look like and if it ever fails in the
-> field, there is the command-line switch until a patch is available.
->
+It's not necessary, I just was matching the expectation that when we unmap
+we should flush "soon".
+
+> >  		lock_page(page);
+> >  	}
+> >  
+> > @@ -805,6 +806,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+> >  		}
+> >  		if (!force)
+> >  			goto out_unlock;
+> > +		try_to_unmap_flush();
+> >  		wait_on_page_writeback(page);
+> >  	}
+> >  	/*
+> > @@ -879,7 +881,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+> >  	/* Establish migration ptes or remove ptes */
+> >  	if (page_mapped(page)) {
+> >  		try_to_unmap(page,
+> > -			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+> > +			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS|TTU_BATCH_FLUSH);
+> 
+> But isn't this the only place for the try_to_unmap_flush(), unless you
+> make much more change to the way page migration works?  Would batch
+> together the TLB flushes from multiple mappings of the same page,
+> though that's not a very ambitious goal.
+> 
+
+Hmm, I don't quite get this. When the page is unmapped, the masks for the
+CPU will be or'd together so the PFN will be flushed from the TLB of any
+CPU that was accessing it.
+
+> Delayed much later than this point, and user modifications to the old
+> page could continue while we're copying it into the new page and after,
+> so the new page receives only some undefined part of the modifications.
+> 
+
+For patch 2 or 4 to be safe, there must be an architectural guarantee
+that clean->dirty transitions after an unmap triggers a fault. I accept
+that in this series that previously dirty PTE can indeed leak through
+causing corruption and I've noted it in the leader. It's already in V2
+which currently is being tested.
+
+> Or perhaps this is the last minute point you were making about
+> page lock in the 0/4, though page lock not so relevant here. 
+> 
+
+Yes for the writes leaking through after the unmap if it was previously
+dirty. The flush before lock page is not related.
+
+> Or your paragraph in the 0/4 "If a clean page is unmapped and not
+> immediately flushed..." but I don't see where that is being enforced.
+> 
+
+I'm assuming hardware but I need the architecture guys to confirm that.
+
+> I can imagine more optimization possible on !pte_write pages than
+> on pte_write pages, but don't see any sign of that.
+> 
+
+It's in rmap.c near the should_defer_flush part. I think that's what you're
+looking for or I'm misunderstanding the question.
+
+> Or am I just skimming this series too carelessly, and making a fool of
+> myself by missing the important bits?  Sorry if I'm wasting your time.
+> 
+
+Not at all. The more eyes on this the better.
+
+> >  		page_was_mapped = 1;
+> >  	}
+> >  
+> > @@ -1098,6 +1100,8 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+> >  	if (!swapwrite)
+> >  		current->flags |= PF_SWAPWRITE;
+> >  
+> > +	alloc_ubc();
+> > +
+> >  	for(pass = 0; pass < 10 && retry; pass++) {
+> >  		retry = 0;
+> >  
+> > @@ -1144,6 +1148,8 @@ out:
+> >  	if (!swapwrite)
+> >  		current->flags &= ~PF_SWAPWRITE;
+> >  
+> > +	try_to_unmap_flush();
+> > +
+> >  	return rc;
+> >  }
+> >  
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 68bcc0b73a76..d659e3655575 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2767,7 +2767,7 @@ out:
+> >  }
+> >  
+> >  #ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
+> > -static inline void alloc_ubc(void)
+> > +void alloc_ubc(void)
+> 
+> Looking at this patch first, I wondered what on earth a ubc is.
+> The letters "tlb" in the name might help people to locate its
+> place in the world better.
+> 
+
+I can do that. It'll be struct tlb_unmap_batch and tlb_ubc;
+
+> And then curious that it works with pfns rather than page pointers,
+
+Because the TLB flush is about the physical address, not the page pointer. I
+felt that the PFN was both a more natural interface and this avoids a
+page_to_pfn lookup in the per-cpu TLB flush handler.
+
+> as its natural cousin mmu_gather does (oops, no "tlb" there either,
+> though that's compensated by naming its pointer "tlb" everywhere).
+> 
+> pfns: are you thinking ahead to struct page-less persistent memory
+> considerations?
+
+Nothing so fancy, I wanted to avoid the page_to_pfn lookup. On VMEMMAP,
+that is a negligible cost but even so.
+
+> Though would they ever arrive here?  I'd have
+> thought it better to carry on with struct pages at least for now -
+> or are they becoming unfashionable?  (I think some tracing struct
+> page pointers were converted to pfns recently.)  But no big deal.
+> 
+
+FWIW, I did not consider the current debate on whether persistent memory
+would use struct pages or not. I simply see zero advantage to using the
+struct page unnecessarily.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
