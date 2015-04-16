@@ -1,131 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C2D36B006E
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2015 08:06:45 -0400 (EDT)
-Received: by qcrf4 with SMTP id f4so4651003qcr.0
-        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 05:06:44 -0700 (PDT)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id E4ADE6B0038
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2015 09:50:00 -0400 (EDT)
+Received: by wizk4 with SMTP id k4so195688623wiz.1
+        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 06:50:00 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s70si8025399qge.37.2015.04.16.05.06.43
+        by mx.google.com with ESMTPS id az10si14054464wjb.39.2015.04.16.06.49.56
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Apr 2015 05:06:43 -0700 (PDT)
-Date: Thu, 16 Apr 2015 14:06:38 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: slub: bulk allocation from per cpu partial pages
-Message-ID: <20150416140638.684838a2@redhat.com>
-In-Reply-To: <alpine.DEB.2.11.1504091215330.18198@gentwo.org>
-References: <alpine.DEB.2.11.1504081311070.20469@gentwo.org>
-	<20150408155304.4480f11f16b60f09879c350d@linux-foundation.org>
-	<alpine.DEB.2.11.1504090859560.19278@gentwo.org>
-	<alpine.DEB.2.11.1504091215330.18198@gentwo.org>
+        Thu, 16 Apr 2015 06:49:57 -0700 (PDT)
+Message-ID: <552FBDEC.7070108@redhat.com>
+Date: Thu, 16 Apr 2015 08:49:32 -0500
+From: Dean Nelson <dnelson@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: Re: [PATCH] mm/memory-failure: call shake_page() when error hits
+ thp tail page
+References: <1429082714-26115-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1429082714-26115-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, brouer@redhat.com
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Jin Dongming <jin.dongming@np.css.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Thu, 9 Apr 2015 12:16:23 -0500 (CDT)
-Christoph Lameter <cl@linux.com> wrote:
-
-> Next step: cover all of the per cpu objects available.
+On 04/15/2015 02:25 AM, Naoya Horiguchi wrote:
+> Currently memory_failure() calls shake_page() to sweep pages out from pcplists
+> only when the victim page is 4kB LRU page or thp head page. But we should do
+> this for a thp tail page too.
+> Consider that a memory error hits a thp tail page whose head page is on a
+> pcplist when memory_failure() runs. Then, the current kernel skips shake_pages()
+> part, so hwpoison_user_mappings() returns without calling split_huge_page() nor
+> try_to_unmap() because PageLRU of the thp head is still cleared due to the skip
+> of shake_page().
+> As a result, me_huge_page() runs for the thp, which is a broken behavior.
 > 
+> This patch fixes this problem by calling shake_page() for thp tail case.
 > 
-> Expand the bulk allocation support to drain the per cpu partial
-> pages while interrupts are off.
+> Fixes: 385de35722c9 ("thp: allow a hwpoisoned head page to be put back to LRU")
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Started my micro benchmarking.
+This looks correct to me. Thanks!
 
-On CPU E5-2630 @ 2.30GHz, the cost of kmem_cache_alloc +
-kmem_cache_free, is a tight loop (most optimal fast-path), cost 22ns.
-With elem size 256 bytes, where slab chooses to make 32 obj-per-slab.
-
-With this patch, testing different bulk sizes, the cost of alloc+free
-per element is improved for small sizes of bulk (which I guess this the
-is expected outcome).
-
-Have something to compare against, I also ran the bulk sizes through
-the fallback versions __kmem_cache_alloc_bulk() and
-__kmem_cache_free_bulk(), e.g. the none optimized versions.
-
- size    --  optimized -- fallback
- bulk  8 --  15ns      --  22ns
- bulk 16 --  15ns      --  22ns
- bulk 30 --  44ns      --  48ns
- bulk 32 --  47ns      --  50ns
- bulk 64 --  52ns      --  54ns
-
-For smaller bulk sizes 8 and 16, this is actually a significant
-improvement, especially considering the free side is not optimized.
-
-Thus, the 7ns improvement must come from the alloc side only.
+Acked-by: Dean Nelson <dnelson@redhat.com>
 
 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+> Cc: stable@vger.kernel.org  # v3.4+
+> ---
+>   mm/memory-failure.c | 8 ++++----
+>   1 file changed, 4 insertions(+), 4 deletions(-)
 > 
-> Index: linux/mm/slub.c
-> ===================================================================
-> --- linux.orig/mm/slub.c
-> +++ linux/mm/slub.c
-> @@ -2771,15 +2771,45 @@ bool kmem_cache_alloc_bulk(struct kmem_c
->  		while (size) {
->  			void *object = c->freelist;
-> 
-> -			if (!object)
-> -				break;
-> +			if (unlikely(!object)) {
-> +				/*
-> +				 * Check if there remotely freed objects
-> +				 * availalbe in the page.
-> +				 */
-> +				object = get_freelist(s, c->page);
-> +
-> +				if (!object) {
-> +					/*
-> +					 * All objects in use lets check if
-> +					 * we have other per cpu partial
-> +					 * pages that have available
-> +					 * objects.
-> +					 */
-> +					c->page = c->partial;
-> +					if (!c->page) {
-> +						/* No per cpu objects left */
-> +						c->freelist = NULL;
-> +						break;
-> +					}
-> +
-> +					/* Next per cpu partial page */
-> +					c->partial = c->page->next;
-> +					c->freelist = get_freelist(s,
-> +							c->page);
-> +					continue;
-> +				}
-> +
-> +			}
-> +
-> 
-> -			c->freelist = get_freepointer(s, object);
->  			*p++ = object;
->  			size--;
-> 
->  			if (unlikely(flags & __GFP_ZERO))
->  				memset(object, 0, s->object_size);
-> +
-> +			c->freelist = get_freepointer(s, object);
-> +
->  		}
->  		c->tid = next_tid(c->tid);
-> 
+> diff --git v4.0.orig/mm/memory-failure.c v4.0/mm/memory-failure.c
+> index d487f8dc6d39..2cc1d578144b 100644
+> --- v4.0.orig/mm/memory-failure.c
+> +++ v4.0/mm/memory-failure.c
+> @@ -1141,10 +1141,10 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+>   	 * The check (unnecessarily) ignores LRU pages being isolated and
+>   	 * walked by the page reclaim code, however that's not a big loss.
+>   	 */
+> -	if (!PageHuge(p) && !PageTransTail(p)) {
+> -		if (!PageLRU(p))
+> -			shake_page(p, 0);
+> -		if (!PageLRU(p)) {
+> +	if (!PageHuge(p)) {
+> +		if (!PageLRU(hpage))
+> +			shake_page(hpage, 0);
+> +		if (!PageLRU(hpage)) {
+>   			/*
+>   			 * shake_page could have turned it free.
+>   			 */
+>
 
 
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
