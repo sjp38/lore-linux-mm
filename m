@@ -1,84 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D8516B0038
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2015 17:56:34 -0400 (EDT)
-Received: by wiax7 with SMTP id x7so21187575wia.0
-        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 14:56:33 -0700 (PDT)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.15.18])
-        by mx.google.com with ESMTPS id rx3si16061232wjb.64.2015.04.16.14.56.32
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 9754B6B0038
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2015 19:03:17 -0400 (EDT)
+Received: by obbfy7 with SMTP id fy7so53335048obb.2
+        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 16:03:17 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id r9si1198972obu.43.2015.04.16.16.03.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Apr 2015 14:56:32 -0700 (PDT)
-Message-ID: <55302FFB.4010108@gmx.de>
-Date: Thu, 16 Apr 2015 23:56:11 +0200
-From: Heinrich Schuchardt <xypron.glpk@gmx.de>
-MIME-Version: 1.0
-Subject: Re: [RFC 1/4] fs: Add generic file system event notifications
-References: <1429082147-4151-1-git-send-email-b.michalska@samsung.com> <1429082147-4151-2-git-send-email-b.michalska@samsung.com>
-In-Reply-To: <1429082147-4151-2-git-send-email-b.michalska@samsung.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+        Thu, 16 Apr 2015 16:03:16 -0700 (PDT)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [RFC PATCH 0/4] hugetlbfs: add fallocate support
+Date: Thu, 16 Apr 2015 16:02:54 -0700
+Message-Id: <1429225378-22965-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Beata Michalska <b.michalska@samsung.com>, linux-kernel@vger.kernel.org
-Cc: tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org, Jan Kara <jack@suse.cz>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On 15.04.2015 09:15, Beata Michalska wrote:
-> Introduce configurable generic interface for file
-> system-wide event notifications to provide file
-> systems with a common way of reporting any potential
-> issues as they emerge.
-> 
-> The notifications are to be issued through generic
-> netlink interface, by a dedicated, for file system
-> events, multicast group. The file systems might as
-> well use this group to send their own custom messages.
-> 
-> The events have been split into four base categories:
-> information, warnings, errors and threshold notifications,
-> with some very basic event types like running out of space
-> or file system being remounted as read-only.
-> 
-> Threshold notifications have been included to allow
-> triggering an event whenever the amount of free space
-> drops below a certain level - or levels to be more precise
-> as two of them are being supported: the lower and the upper
-> range. The notifications work both ways: once the threshold
-> level has been reached, an event shall be generated whenever
-> the number of available blocks goes up again re-activating
-> the threshold.
-> 
-> The interface has been exposed through a vfs. Once mounted,
-> it serves as an entry point for the set-up where one can
-> register for particular file system events.
+hugetlbfs is used today by applications that want a high degree of
+control over huge page usage.  Often, large hugetlbfs files are used
+to map a large number huge pages into the application processes.
+The applications know when page ranges within these large files will
+no longer be used, and ideally would like to release them back to
+the subpool or global pools for other uses.  The fallocate() system
+call provides an interface for preallocation and hole punching within
+files.  This patch set adds fallocate functionality to hugetlbfs.
 
-Having a framework for notification for file systems is a great idea.
-Your solution covers an important part of the possible application scope.
+Mike Kravetz (4):
+  hugetlbfs: truncate_hugepages() takes a range of pages
+  hugetlbfs: New huge_add_to_page_cache helper routine
+  hugetlbfs: add hugetlbfs_fallocate()
+  mm: madvise allow remove operation for hugetlbfs
 
-Before moving forward I suggest we should analyze if this scope should
-be enlarged.
+ fs/hugetlbfs/inode.c    | 164 ++++++++++++++++++++++++++++++++++++++++++++++--
+ include/linux/hugetlb.h |   5 ++
+ mm/hugetlb.c            |  29 ++++++---
+ mm/madvise.c            |   2 +-
+ 4 files changed, 185 insertions(+), 15 deletions(-)
 
-Many filesystems are remote (e.g. CIFS/Samba) or distributed over many
-network nodes (e.g. Lustre). How should file system notification work here?
-
-How will fuse file systems be served?
-
-The current point of reference is a single mount point.
-Every time I insert an USB stick several file system may be automounted.
-I would like to receive events for these automounted file systems.
-
-A similar case arises when starting new virtual machines. How will I
-receive events on the host system for the file systems of the virtual
-machines?
-
-In your implementation events are received via Netlink.
-Using Netlink for marking mounts for notification would create a much
-more homogenous interface. So why should we use a virtual file system here?
-
-Best regards
-
-Heinrich Schuchardt
-
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
