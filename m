@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 501F26B006E
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2015 14:57:24 -0400 (EDT)
-Received: by pabtp1 with SMTP id tp1so98919363pab.2
-        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 11:57:24 -0700 (PDT)
-Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
-        by mx.google.com with ESMTPS id nw9si13310679pdb.195.2015.04.16.11.57.23
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id B4C4A6B0038
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2015 15:21:34 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so102150246pdb.0
+        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 12:21:34 -0700 (PDT)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id nr10si13384852pdb.201.2015.04.16.12.21.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Apr 2015 11:57:23 -0700 (PDT)
-Received: by pdbnk13 with SMTP id nk13so101493143pdb.0
-        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 11:57:23 -0700 (PDT)
-Date: Thu, 16 Apr 2015 11:57:15 -0700 (PDT)
+        Thu, 16 Apr 2015 12:21:33 -0700 (PDT)
+Received: by paboj16 with SMTP id oj16so99697404pab.0
+        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 12:21:33 -0700 (PDT)
+Date: Thu, 16 Apr 2015 12:21:31 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 4/4] mm: migrate: Batch TLB flushing when unmapping pages
- for migration
-In-Reply-To: <1429179766-26711-5-git-send-email-mgorman@suse.de>
-Message-ID: <alpine.LSU.2.11.1504161148270.17733@eggly.anvils>
-References: <1429179766-26711-1-git-send-email-mgorman@suse.de> <1429179766-26711-5-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 2/4] mm: Send a single IPI to TLB flush multiple pages
+ when unmapping
+In-Reply-To: <1429179766-26711-3-git-send-email-mgorman@suse.de>
+Message-ID: <alpine.LSU.2.11.1504161157390.17733@eggly.anvils>
+References: <1429179766-26711-1-git-send-email-mgorman@suse.de> <1429179766-26711-3-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,111 +26,36 @@ To: Mel Gorman <mgorman@suse.de>
 Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
 On Thu, 16 Apr 2015, Mel Gorman wrote:
+>  
+>  	/* Move the dirty bit to the physical page now the pte is gone. */
+> -	if (pte_dirty(pteval))
+> +	if (pte_dirty(pteval)) {
+> +		/*
+> +		 * If the PTE was dirty then the TLB must be flushed before
+> +		 * the page is unlocked as IO can start in parallel. Without
+> +		 * the flush, writes could still happen and data would be
+> +		 * potentially lost.
+> +		 */
+> +		if (deferred)
+> +			flush_tlb_page(vma, address);
 
-> Page reclaim batches multiple TLB flushes into one IPI and this patch teaches
-> page migration to also batch any necessary flushes. MMtests has a THP scale
-> microbenchmark that deliberately fragments memory and then allocates THPs
-> to stress compaction. It's not a page reclaim benchmark and recent kernels
-> avoid excessive compaction but this patch reduced system CPU usage
-> 
->                4.0.0       4.0.0
->             baseline batchmigrate-v1
-> User          970.70     1012.24
-> System       2067.48     1840.00
-> Elapsed      1520.63     1529.66
-> 
-> Note that this particular workload was not TLB flush intensive with peaks
-> in interrupts during the compaction phase. The 4.0 kernel peaked at 345K
-> interrupts/second, the kernel that batches reclaim TLB entries peaked at
-> 13K interrupts/second and this patch peaked at 10K interrupts/second.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  mm/internal.h | 5 +++++
->  mm/migrate.c  | 6 +++++-
->  mm/vmscan.c   | 2 +-
->  3 files changed, 11 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/internal.h b/mm/internal.h
-> index 35aba439c275..c2481574b41a 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -436,10 +436,15 @@ struct tlbflush_unmap_batch;
->  
->  #ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
->  void try_to_unmap_flush(void);
-> +void alloc_tlb_ubc(void);
->  #else
->  static inline void try_to_unmap_flush(void)
->  {
->  }
->  
-> +static inline void alloc_tlb_ubc(void)
-> +{
-> +}
-> +
->  #endif /* CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH */
->  #endif	/* __MM_INTERNAL_H */
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 85e042686031..fda7b320ac00 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -879,7 +879,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
->  	/* Establish migration ptes or remove ptes */
->  	if (page_mapped(page)) {
->  		try_to_unmap(page,
-> -			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
-> +			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS|TTU_BATCH_FLUSH);
->  		page_was_mapped = 1;
->  	}
->  
-> @@ -1098,6 +1098,8 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
->  	if (!swapwrite)
->  		current->flags |= PF_SWAPWRITE;
->  
-> +	alloc_tlb_ubc();
-> +
->  	for(pass = 0; pass < 10 && retry; pass++) {
->  		retry = 0;
->  
-> @@ -1144,6 +1146,8 @@ out:
->  	if (!swapwrite)
->  		current->flags &= ~PF_SWAPWRITE;
->  
-> +	try_to_unmap_flush();
+Okay, yes, that should deal with it; and you're probably right that the
+safe pte_dirty !pte_write case is too uncommon to be worth another test.
 
-This is the right place to aim to flush, but I think you have to make
-more changes before it is safe to do so here.
+But it would be better to batch even in the pte_dirty case: noting that
+it has occurred in the tlb_ubc, then if so, doing try_to_unmap_flush()
+before leaving try_to_unmap().
 
-The putback_lru_page(page) in unmap_and_move() is commented "A page
-that has been migrated has all references removed and will be freed".
-
-If you leave TLB flushing until after the page has been freed, then
-there's a risk that userspace will see, not the data it expects at
-whatever virtual address, but data placed in there by the next user
-of this freed page.
-
-So you'll need to do a little restructuring first.
+Particularly as you have already set_tlb_ubc_flush_pending() above,
+so shrink_lruvec() may then follow with an unnecessary flush; though
+I guess a little rearrangement here could stop that.
 
 > +
->  	return rc;
->  }
+>  		set_page_dirty(page);
+> +	}
 >  
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index a8dde281652a..361bf59e0594 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2771,7 +2771,7 @@ out:
->   * failure is harmless as the reclaimer will send IPIs where necessary.
->   * If the allocation size changes then update BATCH_TLBFLUSH_SIZE.
->   */
-> -static inline void alloc_tlb_ubc(void)
-> +void alloc_tlb_ubc(void)
->  {
->  	if (current->tlb_ubc)
->  		return;
-> -- 
-> 2.1.2
+>  	/* Update high watermark before we lower rss */
+>  	update_hiwater_rss(mm);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
