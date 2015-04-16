@@ -1,69 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id A19656B0038
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2015 15:35:00 -0400 (EDT)
-Received: by wgyo15 with SMTP id o15so92028102wgy.2
-        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 12:35:00 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q9si17487770wiy.19.2015.04.16.12.34.58
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id C61566B0038
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2015 16:10:33 -0400 (EDT)
+Received: by pabtp1 with SMTP id tp1so100819814pab.2
+        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 13:10:33 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id ek10si13523750pdb.228.2015.04.16.13.10.32
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 16 Apr 2015 12:34:59 -0700 (PDT)
-Date: Thu, 16 Apr 2015 20:34:54 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 4/4] mm: migrate: Batch TLB flushing when unmapping pages
- for migration
-Message-ID: <20150416193454.GT14842@suse.de>
-References: <1429179766-26711-1-git-send-email-mgorman@suse.de>
- <1429179766-26711-5-git-send-email-mgorman@suse.de>
- <alpine.LSU.2.11.1504161148270.17733@eggly.anvils>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Apr 2015 13:10:32 -0700 (PDT)
+Received: by pacyx8 with SMTP id yx8so100793660pac.1
+        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 13:10:32 -0700 (PDT)
+Date: Thu, 16 Apr 2015 13:10:23 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [RFC 1/4] fs: Add generic file system event notifications
+In-Reply-To: <552F75D6.4030902@samsung.com>
+Message-ID: <alpine.LSU.2.11.1504161229450.17935@eggly.anvils>
+References: <1429082147-4151-1-git-send-email-b.michalska@samsung.com> <1429082147-4151-2-git-send-email-b.michalska@samsung.com> <552F308F.1050505@redhat.com> <552F75D6.4030902@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1504161148270.17733@eggly.anvils>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: Beata Michalska <b.michalska@samsung.com>
+Cc: Eric Sandeen <sandeen@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, linux-kernel@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
-On Thu, Apr 16, 2015 at 11:57:15AM -0700, Hugh Dickins wrote:
-> > @@ -1098,6 +1098,8 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
-> >  	if (!swapwrite)
-> >  		current->flags |= PF_SWAPWRITE;
-> >  
-> > +	alloc_tlb_ubc();
-> > +
-> >  	for(pass = 0; pass < 10 && retry; pass++) {
-> >  		retry = 0;
-> >  
-> > @@ -1144,6 +1146,8 @@ out:
-> >  	if (!swapwrite)
-> >  		current->flags &= ~PF_SWAPWRITE;
-> >  
-> > +	try_to_unmap_flush();
-> 
-> This is the right place to aim to flush, but I think you have to make
-> more changes before it is safe to do so here.
-> 
-> The putback_lru_page(page) in unmap_and_move() is commented "A page
-> that has been migrated has all references removed and will be freed".
-> 
-> If you leave TLB flushing until after the page has been freed, then
-> there's a risk that userspace will see, not the data it expects at
-> whatever virtual address, but data placed in there by the next user
-> of this freed page.
-> 
-> So you'll need to do a little restructuring first.
-> 
+On Thu, 16 Apr 2015, Beata Michalska wrote:
+> On 04/16/2015 05:46 AM, Eric Sandeen wrote:
+> > On 4/15/15 2:15 AM, Beata Michalska wrote:
+> >> Introduce configurable generic interface for file
+> >> system-wide event notifications to provide file
+> >> systems with a common way of reporting any potential
+> >> issues as they emerge.
+> >>
+> >> The notifications are to be issued through generic
+> >> netlink interface, by a dedicated, for file system
+> >> events, multicast group. The file systems might as
+> >> well use this group to send their own custom messages.
+> > 
+> > ...
+> > 
+> >> + 4.3 Threshold notifications:
+> >> +
+> >> + #include <linux/fs_event.h>
+> >> + void fs_event_alloc_space(struct super_block *sb, u64 ncount);
+> >> + void fs_event_free_space(struct super_block *sb, u64 ncount);
+> >> +
+> >> + Each filesystme supporting the treshold notifiactions should call
+> >> + fs_event_alloc_space/fs_event_free_space repsectively whenever the
+> >> + ammount of availbale blocks changes.
+> >> + - sb:     the filesystem's super block
+> >> + - ncount: number of blocks being acquired/released
+> > 
+> > so:
+> > 
+> >> +void fs_event_alloc_space(struct super_block *sb, u64 ncount)
+> >> +{
+> >> +	struct fs_trace_entry *en;
+> >> +	s64 count;
+> >> +
+> >> +	spin_lock(&fs_trace_lock);
+> > 
+> > Every allocation/free for every supported filesystem system-wide will be
+> > serialized on this global spinlock?  That sounds like a non-starter...
+> > 
+> > -Eric
+> > 
+> I guess there is a plenty room for improvements as this is an early version.
+> I do agree that this might be a performance bottleneck event though I've tried
+> to keep this to minimum - it's being taken only for hashtable look-up. But still...
+> I was considering placing the trace object within the super_block to skip
+> this look-up part but I'd like to gather more comments, especially on the concept
+> itself.
 
-Well spotted. I believe you are correct and it almost certainly applies to
-patch 2 as well for similar reasons. It also impacts the maximum reasonable
-batch size that can be managed while maintaing safety. I'll do the necessary
-shuffling tomorrow or Monday.
+Sorry, I have no opinion on the netlink fs notifications concept
+itself, not my area of expertise at all.
 
--- 
-Mel Gorman
-SUSE Labs
+No doubt you Cc'ed me for tmpfs: I am very glad you're now trying the
+generic filesystem route, and yes, I'd be happy to have the support
+in tmpfs, thank you - if it is generally agreed to be suitable for
+filesystems; but wouldn't want this as a special for tmpfs.
+
+However, I must echo Eric's point: please take a look at 7e496299d4d2
+"tmpfs: make tmpfs scalable with percpu_counter for used blocks":
+Tim would be unhappy if you added overhead back into that path.
+
+(And please Cc linux-fsdevel@vger.kernel.org next time you post these.)
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
