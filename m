@@ -1,103 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 439BC6B0038
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2015 04:46:34 -0400 (EDT)
-Received: by wgso17 with SMTP id o17so73058467wgs.1
-        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 01:46:33 -0700 (PDT)
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A03B6B0038
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2015 05:19:30 -0400 (EDT)
+Received: by wgin8 with SMTP id n8so73714177wgi.0
+        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 02:19:29 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w9si14659847wif.30.2015.04.16.01.46.32
+        by mx.google.com with ESMTPS id y5si14741456wix.98.2015.04.16.02.19.27
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 16 Apr 2015 01:46:32 -0700 (PDT)
-Date: Thu, 16 Apr 2015 09:46:09 +0100
+        Thu, 16 Apr 2015 02:19:28 -0700 (PDT)
+Date: Thu, 16 Apr 2015 10:19:22 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 0/14] Parallel memory initialisation
-Message-ID: <20150416084609.GM14842@suse.de>
-References: <1428920226-18147-1-git-send-email-mgorman@suse.de>
- <20150416002501.e9615db6.akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/4] mm: Send a single IPI to TLB flush multiple pages
+ when unmapping
+Message-ID: <20150416091922.GN14842@suse.de>
+References: <1429094576-5877-1-git-send-email-mgorman@suse.de>
+ <1429094576-5877-3-git-send-email-mgorman@suse.de>
+ <552ED214.3050105@redhat.com>
+ <alpine.LSU.2.11.1504151410150.13745@eggly.anvils>
+ <20150415212855.GI14842@suse.de>
+ <20150416063826.GA7721@blaptop>
+ <20150416080722.GL14842@suse.de>
+ <20150416082955.GA10867@blaptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20150416002501.e9615db6.akpm@linux-foundation.org>
+In-Reply-To: <20150416082955.GA10867@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Daniel Rahn <drahn@suse.com>, Davidlohr Bueso <dbueso@suse.com>, Dave Hansen <dave.hansen@intel.com>, Tom Vaden <tom.vaden@hp.com>, Scott Norton <scott.norton@hp.com>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Apr 16, 2015 at 12:25:01AM -0700, Andrew Morton wrote:
-> On Mon, 13 Apr 2015 11:16:52 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > Memory initialisation
-> 
-> I wish we didn't call this "memory initialization".  Because memory
-> initialization is memset(), and that isn't what we're doing here.
-> 
-> Installation?  Bringup?
-> 
-
-It's about linking the struct pages to their physical page frame so
-"Parallel struct page initialisation"?
-
-> > had been identified as one of the reasons why large
-> > machines take a long time to boot. Patches were posted a long time ago
-> > that attempted to move deferred initialisation into the page allocator
-> > paths. This was rejected on the grounds it should not be necessary to hurt
-> > the fast paths to parallelise initialisation. This series reuses much of
-> > the work from that time but defers the initialisation of memory to kswapd
-> > so that one thread per node initialises memory local to that node. The
-> > issue is that on the machines I tested with, memory initialisation was not
-> > a major contributor to boot times. I'm posting the RFC to both review the
-> > series and see if it actually helps users of very large machines.
+On Thu, Apr 16, 2015 at 05:29:55PM +0900, Minchan Kim wrote:
+> On Thu, Apr 16, 2015 at 09:07:22AM +0100, Mel Gorman wrote:
+> > On Thu, Apr 16, 2015 at 03:38:26PM +0900, Minchan Kim wrote:
+> > > Hello Mel,
+> > > 
+> > > On Wed, Apr 15, 2015 at 10:28:55PM +0100, Mel Gorman wrote:
+> > > > On Wed, Apr 15, 2015 at 02:16:49PM -0700, Hugh Dickins wrote:
+> > > > > On Wed, 15 Apr 2015, Rik van Riel wrote:
+> > > > > > On 04/15/2015 06:42 AM, Mel Gorman wrote:
+> > > > > > > An IPI is sent to flush remote TLBs when a page is unmapped that was
+> > > > > > > recently accessed by other CPUs. There are many circumstances where this
+> > > > > > > happens but the obvious one is kswapd reclaiming pages belonging to a
+> > > > > > > running process as kswapd and the task are likely running on separate CPUs.
+> > > > > > > 
+> > > > > > > On small machines, this is not a significant problem but as machine
+> > > > > > > gets larger with more cores and more memory, the cost of these IPIs can
+> > > > > > > be high. This patch uses a structure similar in principle to a pagevec
+> > > > > > > to collect a list of PFNs and CPUs that require flushing. It then sends
+> > > > > > > one IPI to flush the list of PFNs. A new TLB flush helper is required for
+> > > > > > > this and one is added for x86. Other architectures will need to decide if
+> > > > > > > batching like this is both safe and worth the memory overhead. Specifically
+> > > > > > > the requirement is;
+> > > > > > > 
+> > > > > > > 	If a clean page is unmapped and not immediately flushed, the
+> > > > > > > 	architecture must guarantee that a write to that page from a CPU
+> > > > > > > 	with a cached TLB entry will trap a page fault.
+> > > > > > > 
+> > > > > > > This is essentially what the kernel already depends on but the window is
+> > > > > > > much larger with this patch applied and is worth highlighting.
+> > > > > > 
+> > > > > > This means we already have a (hard to hit?) data corruption
+> > > > > > issue in the kernel.  We can lose data if we unmap a writable
+> > > > > > but not dirty pte from a file page, and the task writes before
+> > > > > > we flush the TLB.
+> > > > > 
+> > > > > I don't think so.  IIRC, when the CPU needs to set the dirty bit,
+> > > > > it doesn't just do that in its TLB entry, but has to fetch and update
+> > > > > the actual pte entry - and at that point discovers it's no longer
+> > > > > valid so traps, as Mel says.
+> > > > > 
+> > > > 
+> > > > This is what I'm expecting i.e. clean->dirty transition is write-through
+> > > > to the PTE which is now unmapped and it traps. I'm assuming there is an
+> > > > architectural guarantee that it happens but could not find an explicit
+> > > > statement in the docs. I'm hoping Dave or Andi can check with the relevant
+> > > > people on my behalf.
+> > > 
+> > > A dumb question. It's not related to your patch but MADV_FREE.
+> > > 
+> > > clean->dirty transition is *atomic* as well as write-through?
 > > 
-> > ...
-> >
-> >  15 files changed, 507 insertions(+), 98 deletions(-)
+> > This is the TLB cache clean->dirty transition so it's not 100% clear what you
+> > are asking. It both needs to be write-through and the TLB updates must happen
+> > before the actual data write to cache or memory and it must be ordered.
 > 
-> Sadface at how large and complex this is. 
+> Sorry for not clear. I will try again.
+> 
+> In try_to_unmap_one,
+> 
+> 
+>         pteval = ptep_clear_flush(vma, address, pte);
+>         {
+>                 pte = ptep_get_and_clear(mm, address, ptep);
+>                         <-------------- A application write on other CPU.
+>                 flush_tlb_page(vma, address);
+>         } 
+>  
+>         /* Move the dirty bit to the physical page now the pte is gone. */
+>         dirty = pte_dirty(pteval);
+>         if (dirty)
+>                 set_page_dirty(page);
+>         ...
+> 
+> 
+> In above, ptep_clear_flush just does xchg operation to make pte zero
+> in ptep_get_and_clear and return old pte_val but didn't flush TLB yet.
 
-The vast bulk of the complexity is in one patch "mm: meminit: Initialise
-remaining memory in parallel with kswapd" which is
+Correct.
 
- mm/internal.h   |   6 +++++
- mm/mm_init.c    |   1 +
- mm/page_alloc.c | 116 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
- mm/vmscan.c     |   6 +++--
- 4 files changed, 123 insertions(+), 6 deletions(-)
+> Let's assume old pte_val doesn't have dirty bit(ie, it was clean).
+> If application on other CPU does write the memory at the same time,
+> what happens?
 
-Most of that is a fairly straight-forward walk through zones and pfns with
-bounds checking. A lot of the rest of the complexity is helpers which are
-very similar to existing helpers (but not suitable for sharing code) and
-optimisations. The optimisations in later patches cut the parallel struct
-page initialisation time by 80%.
+The comments describe the architectural guarantee I'm looking for. Dave
+says he's asking the relevant people within Intel. I revised the comment
+in the unreleased V2 so it reads
 
-> I'd hoped the way we were
-> going to do this was by bringing up a bit of memory to get booted up,
-> then later on we just fake a bunch of memory hot-add operations.  So
-> the new code would be pretty small and quite high-level.
+                /*
+                 * We clear the PTE but do not flush so potentially a remote
+                 * CPU could still be writing to the page. If the entry was
+                 * previously clean then the architecture must guarantee that
+                 * a clear->dirty transition on a cached TLB entry is written
+                 * through and traps if the PTE is unmapped. If the entry is
+                 * already dirty then it's handled below by the
+                 * pte_dirty check.
+                 */
 
-That ends up being very complex but of a very different shape. We would
-still have to prevent the sections being initialised similar to what this
-series does already except the zone boundaries are lower. It's not as
-simple as faking mem= because we want local memory on each node during
-initialisation.
+> I mean (pte cleaning/return old) and (dirty bit setting by CPU itself)
+> should be exclusive so application on another CPU should encounter
+> page fault or we should see the dirty bit.
+> Is it guaranteed?
+> 
 
-Later after device_init when sysfs is setup we would then have to walk all
-possible sections to discover pluggable memory and hot-add them. However,
-when doing it, we would want to first discover what node that section is
-local to and ideally skip over the ones that are not local to the thread
-doing the work. This means all threads have to scan all sections instead
-of this approach which can walk within its own PFN. It then adds pages
-one at a time which is slow although obviously that part could be addressed.
-
-This would be harder to co-ordinate as kswapd is up and running before
-the memory hot-add structures are finalised so it would need either a
-semaphore or different threads to do the initialisation. The user-visible
-impact is then that early in boot, the total amount of memory appears to
-be rapidly increasing instead of this approach where the amount of free
-memory is increasing.
-
-Conceptually it's straight forward but the details end up being a lot
-more complex than this approach.
+This is the key question. I think "yes it must be" but Dave is going to
+get the definite answer in the x86 case. Each architecture will need to
+examine the issue separately.
 
 -- 
 Mel Gorman
