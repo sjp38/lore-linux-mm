@@ -1,191 +1,285 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D34C6B0038
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2015 03:51:24 -0400 (EDT)
-Received: by labbd9 with SMTP id bd9so50555782lab.2
-        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 00:51:23 -0700 (PDT)
-Received: from numascale.com (numascale.com. [213.162.240.84])
-        by mx.google.com with ESMTPS id r2si5814196lar.102.2015.04.16.00.51.20
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id BED986B0038
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2015 04:02:46 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so83331799pdb.0
+        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 01:02:46 -0700 (PDT)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id pc5si10999524pac.85.2015.04.16.01.02.44
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Apr 2015 00:51:21 -0700 (PDT)
-Date: Thu, 16 Apr 2015 15:51:05 +0800
-From: Daniel J Blueman <daniel@numascale.com>
-Subject: Re: [RFC PATCH 0/14] Parallel memory initialisation
-Message-Id: <1429170665.19274.0@cpanel21.proisp.no>
-MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="=-8GnILWyjjcoTFyBHINwl"
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 16 Apr 2015 01:02:45 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0NMW0041Y3V23710@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 16 Apr 2015 09:06:38 +0100 (BST)
+Message-id: <552F6C9A.9050707@samsung.com>
+Date: Thu, 16 Apr 2015 10:02:34 +0200
+From: Beata Michalska <b.michalska@samsung.com>
+MIME-version: 1.0
+Subject: Re: [RFC 3/4] ext4: Add support for generic FS events
+References: <1429082147-4151-1-git-send-email-b.michalska@samsung.com>
+ <1429082147-4151-4-git-send-email-b.michalska@samsung.com>
+ <20150415191838.GB11592@birch.djwong.org>
+In-reply-to: <20150415191838.GB11592@birch.djwong.org>
+Content-type: text/plain; charset=ISO-8859-1
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Steffen Persvold <sp@numascale.com>, Linux-MM <linux-mm@kvack.org>, Robin Holt <holt@sgi.com>, Nathan Zimmer <nzimmer@sgi.com>, Daniel Rahn <drahn@suse.com>, Davidlohr Bueso <dbueso@suse.com>, Dave Hansen <dave.hansen@intel.com>, Tom Vaden <tom.vaden@hp.com>, Scott Norton <scott.norton@hp.com>, LKML <linux-kernel@vger.kernel.org>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: linux-kernel@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
---=-8GnILWyjjcoTFyBHINwl
-Content-Type: text/plain; charset=utf-8; format=flowed
+On 04/15/2015 09:18 PM, Darrick J. Wong wrote:
+> On Wed, Apr 15, 2015 at 09:15:46AM +0200, Beata Michalska wrote:
+>> Add support for generic FS events including threshold
+>> notifications, ENOSPC and remount as read-only warnings,
+>> along with generic internal warnings/errors.
+>>
+>> Signed-off-by: Beata Michalska <b.michalska@samsung.com>
+>> ---
+>>  fs/ext4/balloc.c  |   11 +++++++++--
+>>  fs/ext4/ext4.h    |    1 +
+>>  fs/ext4/inode.c   |    2 +-
+>>  fs/ext4/mballoc.c |    6 +++++-
+>>  fs/ext4/resize.c  |    1 +
+>>  fs/ext4/super.c   |   43 +++++++++++++++++++++++++++++++++++++++++++
+>>  6 files changed, 60 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/fs/ext4/balloc.c b/fs/ext4/balloc.c
+>> index e95b27a..49d2ace 100644
+>> --- a/fs/ext4/balloc.c
+>> +++ b/fs/ext4/balloc.c
+>> @@ -569,6 +569,7 @@ int ext4_claim_free_clusters(struct ext4_sb_info *sbi,
+>>  {
+>>  	if (ext4_has_free_clusters(sbi, nclusters, flags)) {
+>>  		percpu_counter_add(&sbi->s_dirtyclusters_counter, nclusters);
+>> +		fs_event_alloc_space(sbi->s_sb, EXT4_C2B(sbi, nclusters));
+>>  		return 0;
+>>  	} else
+>>  		return -ENOSPC;
+>> @@ -590,9 +591,10 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
+>>  {
+>>  	if (!ext4_has_free_clusters(EXT4_SB(sb), 1, 0) ||
+>>  	    (*retries)++ > 3 ||
+>> -	    !EXT4_SB(sb)->s_journal)
+>> +	    !EXT4_SB(sb)->s_journal) {
+>> +		fs_event_notify(sb, FS_EVENT_WARN, FS_WARN_ENOSPC);
+>>  		return 0;
+>> -
+>> +	}
+>>  	jbd_debug(1, "%s: retrying operation after ENOSPC\n", sb->s_id);
+>>  
+>>  	return jbd2_journal_force_commit_nested(EXT4_SB(sb)->s_journal);
+>> @@ -637,6 +639,11 @@ ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
+>>  		dquot_alloc_block_nofail(inode,
+>>  				EXT4_C2B(EXT4_SB(inode->i_sb), ar.len));
+>>  	}
+>> +
+>> +	if (*errp == -ENOSPC)
+>> +		fs_event_notify(inode->i_sb, FS_EVENT_WARN,
+>> +				FS_WANR_ENOSPC_META);
+>> +
+>>  	return ret;
+>>  }
+>>  
+>> diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
+>> index 163afe2..7d75ff9 100644
+>> --- a/fs/ext4/ext4.h
+>> +++ b/fs/ext4/ext4.h
+>> @@ -2542,6 +2542,7 @@ void ext4_mark_group_corrupted(struct ext4_sb_info *sbi,
+>>  	if (!EXT4_MB_GRP_BBITMAP_CORRUPT(grp))
+>>  		percpu_counter_sub(&sbi->s_freeclusters_counter, grp->bb_free);
+>>  	set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT, &grp->bb_state);
+>> +	fs_event_alloc_space(sbi->s_sb, EXT4_C2B(sbi, grp->bb_free));
+> 
+> While we're adding fs netlink notifications, could we add a message that means
+> "This FS is corrupt, go run fsck"?  A monitoring app could possibly figure
+> this out by a sudden drop in free space accompanied by EIO errors hitting
+> userland apps, but we might as well be explicit about the flaming death. :)
+> 
+> --D
+> 
 
-On Monday, April 13, 2015 at 6:20:05 PM UTC+8, Mel Gorman wrote:
- > Memory initialisation had been identified as one of the reasons why 
-large
- > machines take a long time to boot. Patches were posted a long time 
-ago
- > that attempted to move deferred initialisation into the page 
-allocator
- > paths. This was rejected on the grounds it should not be necessary 
-to hurt
- > the fast paths to parallelise initialisation. This series reuses 
-much of
- > the work from that time but defers the initialisation of memory to 
-kswapd
- > so that one thread per node initialises memory local to that node. 
-The
- > issue is that on the machines I tested with, memory initialisation 
-was not
- > a major contributor to boot times. I'm posting the RFC to both 
-review the
- > series and see if it actually helps users of very large machines.
- >
- > After applying the series and setting the appropriate Kconfig 
-variable I
- > see this in the boot log on a 64G machine
- >
- > [    7.383764] kswapd 0 initialised deferred memory in 188ms
- > [    7.404253] kswapd 1 initialised deferred memory in 208ms
- > [    7.411044] kswapd 3 initialised deferred memory in 216ms
- > [    7.411551] kswapd 2 initialised deferred memory in 216ms
- >
- > On a 1TB machine, I see
- >
- > [   11.913324] kswapd 0 initialised deferred memory in 1168ms
- > [   12.220011] kswapd 2 initialised deferred memory in 1476ms
- > [   12.245369] kswapd 3 initialised deferred memory in 1500ms
- > [   12.271680] kswapd 1 initialised deferred memory in 1528ms
- >
- > Once booted the machine appears to work as normal. Boot times were 
-measured
- > from the time shutdown was called until ssh was available again.  In 
-the
- > 64G case, the boot time savings are negligible. On the 1TB machine, 
-the
- > savings were 10 seconds (about 8% improvement on kernel times but 
-1-2%
- > overall as POST takes so long).
- >
- > It would be nice if the people that have access to really large 
-machines
- > would test this series and report back if the complexity is 
-justified.
+The notifications sent through this interface can be extended to whatever is needed.
+The are very few basic event codes - among them are FS_ERR_UNKNOWN and FS_ERR_ITERNAL.
+So one can assume that whenever one of those is being triggered - smth wrong is going on.
+So at this point running fsck would be a good idea. If this is not enough, new event
+codes might be introduced. Note that it is also possible for the file systems
+to send their own messages placing within the payload whatever they like.
+This is an early version, so it can definitely be adjusted.
 
-Nice work!
+BR
+Beata
 
-On an older Numascale system with 1TB memory and 256 cores/32 NUMA 
-nodes, platform init takes 52s (cold boot), firmware takes 84s 
-(includes one warm reboot), stock linux 4.0 then takes 732s to boot [1] 
-(due to the 700ns roundtrip, RMW cache-coherent cycles due to the 
-temporal writes for pagetable init and per-core store queue limits), so 
-there is huge potential.
-
-Alas I ran into crashing during list manipulation [2] which list 
-debugging detects [3]; I had started adding some debug [4], but need to 
-look a bit deeper into it. I annotated the time of the output from cold 
-power on.
-
-Thanks,
-  Daniel
-
-[1] https://resources.numascale.com/telemetry/defermem/console-stock.txt
-[2] 
-https://resources.numascale.com/telemetry/defermem/console-patched.txt
-[3] 
-https://resources.numascale.com/telemetry/defermem/console-patched-debug.txt
-
--- [4]
-
-static void free_pcppages_bulk(struct zone *zone, int count,
-					struct per_cpu_pages *pcp)
-...
-		pr_err("migrate_type=%d\n", migratetype);
-
-		/* This is the only non-empty list. Free them all. */
-		if (batch_free == MIGRATE_PCPTYPES)
-			batch_free = to_free;
-
-		do {
-			int mt;	/* migratetype of the to-be-freed page */
-
-			pr_err("list_empty=%d\n", list_empty(list));
-
---=-8GnILWyjjcoTFyBHINwl
-Content-Type: text/html; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-
-<div>On Monday, April 13, 2015 at 6:20:05 PM UTC+8, Mel Gorman wrote:</div>=
-<div>&gt; Memory initialisation had been identified as one of the reasons w=
-hy large</div><div>&gt; machines take a long time to boot. Patches were pos=
-ted a long time ago</div><div>&gt; that attempted to move deferred initiali=
-sation into the page allocator</div><div>&gt; paths. This was rejected on t=
-he grounds it should not be necessary to hurt</div><div>&gt; the fast paths=
- to parallelise initialisation. This series reuses much of</div><div>&gt; t=
-he work from that time but defers the initialisation of memory to kswapd</d=
-iv><div>&gt; so that one thread per node initialises memory local to that n=
-ode. The</div><div>&gt; issue is that on the machines I tested with, memory=
- initialisation was not</div><div>&gt; a major contributor to boot times. I=
-'m posting the RFC to both review the</div><div>&gt; series and see if it a=
-ctually helps users of very large machines.</div><div>&gt;&nbsp;</div><div>=
-&gt; After applying the series and setting the appropriate Kconfig variable=
- I</div><div>&gt; see this in the boot log on a 64G machine</div><div>&gt;&=
-nbsp;</div><div>&gt; [ &nbsp; &nbsp;7.383764] kswapd 0 initialised deferred=
- memory in 188ms</div><div>&gt; [ &nbsp; &nbsp;7.404253] kswapd 1 initialis=
-ed deferred memory in 208ms</div><div>&gt; [ &nbsp; &nbsp;7.411044] kswapd =
-3 initialised deferred memory in 216ms</div><div>&gt; [ &nbsp; &nbsp;7.4115=
-51] kswapd 2 initialised deferred memory in 216ms</div><div>&gt;&nbsp;</div=
-><div>&gt; On a 1TB machine, I see</div><div>&gt;&nbsp;</div><div>&gt; [ &n=
-bsp; 11.913324] kswapd 0 initialised deferred memory in 1168ms</div><div>&g=
-t; [ &nbsp; 12.220011] kswapd 2 initialised deferred memory in 1476ms</div>=
-<div>&gt; [ &nbsp; 12.245369] kswapd 3 initialised deferred memory in 1500m=
-s</div><div>&gt; [ &nbsp; 12.271680] kswapd 1 initialised deferred memory i=
-n 1528ms</div><div>&gt;&nbsp;</div><div>&gt; Once booted the machine appear=
-s to work as normal. Boot times were measured</div><div>&gt; from the time =
-shutdown was called until ssh was available again. &nbsp;In the</div><div>&=
-gt; 64G case, the boot time savings are negligible. On the 1TB machine, the=
-</div><div>&gt; savings were 10 seconds (about 8% improvement on kernel tim=
-es but 1-2%</div><div>&gt; overall as POST takes so long).</div><div>&gt;&n=
-bsp;</div><div>&gt; It would be nice if the people that have access to real=
-ly large machines</div><div>&gt; would test this series and report back if =
-the complexity is justified.</div><div><br></div><div>Nice work!</div><div>=
-<br></div><div>On an older Numascale system with 1TB memory and 256 cores/3=
-2 NUMA nodes, platform init takes 52s (cold boot), firmware takes 84s (incl=
-udes one warm reboot), stock linux 4.0 then takes 732s to boot [1] (due to =
-the 700ns roundtrip, RMW cache-coherent cycles due to the temporal writes f=
-or pagetable init and per-core store queue limits), so there is huge potent=
-ial.</div><div><br></div><div>Alas I ran into crashing during list manipula=
-tion [2] which list debugging detects [3]; I had started adding some debug =
-[4], but need to look a bit deeper into it. I annotated the time of the out=
-put from cold power on.</div><div><br></div><div>Thanks,</div><div>&nbsp; D=
-aniel</div><div><br></div><div>[1] <a href=3D"https://resources.numascale.c=
-om/telemetry/defermem/console-stock.txt">https://resources.numascale.com/te=
-lemetry/defermem/console-stock.txt</a></div><div>[2] <a href=3D"https://res=
-ources.numascale.com/telemetry/defermem/console-patched.txt">https://resour=
-ces.numascale.com/telemetry/defermem/console-patched.txt</a></div><div><div=
->[3] <a href=3D"https://resources.numascale.com/telemetry/defermem/console-=
-patched-debug.txt">https://resources.numascale.com/telemetry/defermem/conso=
-le-patched-debug.txt</a></div></div><div><br></div><div>-- [4]</div><div><b=
-r></div><div><div>static void free_pcppages_bulk(struct zone *zone, int cou=
-nt,</div><div><span class=3D"Apple-tab-span" style=3D"white-space:pre">				=
-	</span>struct per_cpu_pages *pcp)</div><div>...</div><div><span class=3D"A=
-pple-tab-span" style=3D"white-space: pre;">		</span>pr_err("migrate_type=3D=
-%d\n", migratetype);</div><div><br></div><div><span class=3D"Apple-tab-span=
-" style=3D"white-space:pre">		</span>/* This is the only non-empty list. Fr=
-ee them all. */</div><div><span class=3D"Apple-tab-span" style=3D"white-spa=
-ce:pre">		</span>if (batch_free =3D=3D MIGRATE_PCPTYPES)</div><div><span cl=
-ass=3D"Apple-tab-span" style=3D"white-space:pre">			</span>batch_free =3D t=
-o_free;</div><div><br></div><div><span class=3D"Apple-tab-span" style=3D"wh=
-ite-space:pre">		</span>do {</div><div><span class=3D"Apple-tab-span" style=
-=3D"white-space:pre">			</span>int mt;<span class=3D"Apple-tab-span" style=
-=3D"white-space:pre">	</span>/* migratetype of the to-be-freed page */</div=
-><div><br></div><div><span class=3D"Apple-tab-span" style=3D"white-space:pr=
-e">			</span>pr_err("list_empty=3D%d\n", list_empty(list));</div></div>=
-
---=-8GnILWyjjcoTFyBHINwl--
+>>  }
+>>  
+>>  /*
+>> diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+>> index 5cb9a21..2a7af0f 100644
+>> --- a/fs/ext4/inode.c
+>> +++ b/fs/ext4/inode.c
+>> @@ -1238,7 +1238,7 @@ static void ext4_da_release_space(struct inode *inode, int to_free)
+>>  	percpu_counter_sub(&sbi->s_dirtyclusters_counter, to_free);
+>>  
+>>  	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
+>> -
+>> +	fs_event_free_space(sbi->s_sb, to_free);
+>>  	dquot_release_reservation_block(inode, EXT4_C2B(sbi, to_free));
+>>  }
+>>  
+>> diff --git a/fs/ext4/mballoc.c b/fs/ext4/mballoc.c
+>> index 24a4b6d..e6cbbd6 100644
+>> --- a/fs/ext4/mballoc.c
+>> +++ b/fs/ext4/mballoc.c
+>> @@ -4511,6 +4511,9 @@ out:
+>>  		kmem_cache_free(ext4_ac_cachep, ac);
+>>  	if (inquota && ar->len < inquota)
+>>  		dquot_free_block(ar->inode, EXT4_C2B(sbi, inquota - ar->len));
+>> +	if (reserv_clstrs && ar->len < reserv_clstrs)
+>> +		 fs_event_free_space(sbi->s_sb,
+>> +		 	EXT4_C2B(sbi, reserv_clstrs - ar->len));
+>>  	if (!ar->len) {
+>>  		if ((ar->flags & EXT4_MB_DELALLOC_RESERVED) == 0)
+>>  			/* release all the reserved blocks if non delalloc */
+>> @@ -4848,7 +4851,7 @@ do_more:
+>>  	if (!(flags & EXT4_FREE_BLOCKS_NO_QUOT_UPDATE))
+>>  		dquot_free_block(inode, EXT4_C2B(sbi, count_clusters));
+>>  	percpu_counter_add(&sbi->s_freeclusters_counter, count_clusters);
+>> -
+>> +	fs_event_free_space(sb, EXT4_C2B(sbi, count_clusters));
+>>  	ext4_mb_unload_buddy(&e4b);
+>>  
+>>  	/* We dirtied the bitmap block */
+>> @@ -4982,6 +4985,7 @@ int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
+>>  	ext4_unlock_group(sb, block_group);
+>>  	percpu_counter_add(&sbi->s_freeclusters_counter,
+>>  			   EXT4_NUM_B2C(sbi, blocks_freed));
+>> +	fs_event_free_space(sb, blocks_freed);
+>>  
+>>  	if (sbi->s_log_groups_per_flex) {
+>>  		ext4_group_t flex_group = ext4_flex_group(sbi, block_group);
+>> diff --git a/fs/ext4/resize.c b/fs/ext4/resize.c
+>> index 8a8ec62..dbf08d6 100644
+>> --- a/fs/ext4/resize.c
+>> +++ b/fs/ext4/resize.c
+>> @@ -1378,6 +1378,7 @@ static void ext4_update_super(struct super_block *sb,
+>>  			   EXT4_NUM_B2C(sbi, free_blocks));
+>>  	percpu_counter_add(&sbi->s_freeinodes_counter,
+>>  			   EXT4_INODES_PER_GROUP(sb) * flex_gd->count);
+>> +	fs_event_free_space(sb, free_blocks - reserved_blocks);
+>>  
+>>  	ext4_debug("free blocks count %llu",
+>>  		   percpu_counter_read(&sbi->s_freeclusters_counter));
+>> diff --git a/fs/ext4/super.c b/fs/ext4/super.c
+>> index e061e66..52091da 100644
+>> --- a/fs/ext4/super.c
+>> +++ b/fs/ext4/super.c
+>> @@ -398,6 +398,7 @@ static void ext4_handle_error(struct super_block *sb)
+>>  	if (test_opt(sb, ERRORS_PANIC))
+>>  		panic("EXT4-fs (device %s): panic forced after error\n",
+>>  			sb->s_id);
+>> +	fs_event_notify(sb, FS_EVENT_ERR, FS_ERR_UNKNOWN);
+>>  }
+>>  
+>>  #define ext4_error_ratelimit(sb)					\
+>> @@ -585,6 +586,8 @@ void __ext4_abort(struct super_block *sb, const char *function,
+>>  		if (EXT4_SB(sb)->s_journal)
+>>  			jbd2_journal_abort(EXT4_SB(sb)->s_journal, -EIO);
+>>  		save_error_info(sb, function, line);
+>> +		fs_event_notify(sb, FS_EVENT_ERR, FS_ERR_RO_REMOUT);
+>> +
+>>  	}
+>>  	if (test_opt(sb, ERRORS_PANIC))
+>>  		panic("EXT4-fs panic from previous error\n");
+>> @@ -612,6 +615,8 @@ void __ext4_warning(struct super_block *sb, const char *function,
+>>  	struct va_format vaf;
+>>  	va_list args;
+>>  
+>> +	fs_event_notify(sb, FS_EVENT_WARN, FS_WARN_UNKNOWN);
+>> +
+>>  	if (!___ratelimit(&(EXT4_SB(sb)->s_warning_ratelimit_state),
+>>  			  "EXT4-fs warning"))
+>>  		return;
+>> @@ -1083,6 +1088,13 @@ static const struct quotactl_ops ext4_qctl_operations = {
+>>  };
+>>  #endif
+>>  
+>> +static int ext4_trace_query(struct super_block *sb,
+>> +			    struct fs_trace_sdata *data);
+>> +
+>> +static const struct fs_trace_operations ext4_trace_ops = {
+>> +	.fs_trace_query	= ext4_trace_query,
+>> +};
+>> +
+>>  static const struct super_operations ext4_sops = {
+>>  	.alloc_inode	= ext4_alloc_inode,
+>>  	.destroy_inode	= ext4_destroy_inode,
+>> @@ -3398,11 +3410,20 @@ static int ext4_reserve_clusters(struct ext4_sb_info *sbi, ext4_fsblk_t count)
+>>  {
+>>  	ext4_fsblk_t clusters = ext4_blocks_count(sbi->s_es) >>
+>>  				sbi->s_cluster_bits;
+>> +	ext4_fsblk_t current_resv;
+>>  
+>>  	if (count >= clusters)
+>>  		return -EINVAL;
+>>  
+>> +	current_resv = atomic64_read(&sbi->s_resv_clusters);
+>>  	atomic64_set(&sbi->s_resv_clusters, count);
+>> +
+>> +	if (count > current_resv)
+>> +		fs_event_alloc_space(sbi->s_sb,
+>> +			EXT4_C2B(sbi, count - current_resv));
+>> +	else
+>> +		fs_event_free_space(sbi->s_sb,
+>> +			EXT4_C2B(sbi, current_resv - count));
+>>  	return 0;
+>>  }
+>>  
+>> @@ -3966,6 +3987,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
+>>  		sb->s_qcop = &ext4_qctl_operations;
+>>  	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP;
+>>  #endif
+>> +	sb->s_trace_ops = &ext4_trace_ops;
+>> +
+>>  	memcpy(sb->s_uuid, es->s_uuid, sizeof(es->s_uuid));
+>>  
+>>  	INIT_LIST_HEAD(&sbi->s_orphan); /* unlinked but open files */
+>> @@ -5438,6 +5461,26 @@ out:
+>>  
+>>  #endif
+>>  
+>> +static int ext4_trace_query(struct super_block *sb, struct fs_trace_sdata *data)
+>> +{
+>> +	struct ext4_sb_info *sbi = EXT4_SB(sb);
+>> +	struct ext4_super_block *es = sbi->s_es;
+>> +	ext4_fsblk_t rsv_blocks;
+>> +
+>> +	data->available_blks =
+>> +		percpu_counter_sum_positive(&sbi->s_freeclusters_counter) -
+>> +		percpu_counter_sum_positive(&sbi->s_dirtyclusters_counter);
+>> +	data->available_blks = EXT4_C2B(sbi, data->available_blks);
+>> +	rsv_blocks = ext4_r_blocks_count(es) +
+>> +		     EXT4_C2B(sbi, atomic64_read(&sbi->s_resv_clusters));
+>> +	if (data->available_blks < rsv_blocks)
+>> +		data->available_blks = 0;
+>> +	else
+>> +		data->available_blks -= rsv_blocks;
+>> +	data->events_cap_mask = FS_EVENTS_ALL;
+>> +	return 0;
+>> +}
+>> +
+>>  static struct dentry *ext4_mount(struct file_system_type *fs_type, int flags,
+>>  		       const char *dev_name, void *data)
+>>  {
+>> -- 
+>> 1.7.9.5
+>>
+>> --
+>> To unsubscribe from this list: send the line "unsubscribe linux-ext4" in
+>> the body of a message to majordomo@vger.kernel.org
+>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
