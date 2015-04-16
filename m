@@ -1,157 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 075026B0038
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2015 04:30:06 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so84026195pdb.1
-        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 01:30:05 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id t4si11059001pdp.226.2015.04.16.01.30.04
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 854996B0038
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2015 04:42:04 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so84417170pdb.0
+        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 01:42:04 -0700 (PDT)
+Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
+        by mx.google.com with ESMTPS id r11si11099412pdj.220.2015.04.16.01.42.03
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Apr 2015 01:30:05 -0700 (PDT)
-Received: by pacyx8 with SMTP id yx8so81754457pac.1
-        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 01:30:04 -0700 (PDT)
-Date: Thu, 16 Apr 2015 17:29:55 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 2/4] mm: Send a single IPI to TLB flush multiple pages
- when unmapping
-Message-ID: <20150416082955.GA10867@blaptop>
-References: <1429094576-5877-1-git-send-email-mgorman@suse.de>
- <1429094576-5877-3-git-send-email-mgorman@suse.de>
- <552ED214.3050105@redhat.com>
- <alpine.LSU.2.11.1504151410150.13745@eggly.anvils>
- <20150415212855.GI14842@suse.de>
- <20150416063826.GA7721@blaptop>
- <20150416080722.GL14842@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150416080722.GL14842@suse.de>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 16 Apr 2015 01:42:03 -0700 (PDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout4.w1.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0NMW00HAZ5OJKM30@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 16 Apr 2015 09:45:55 +0100 (BST)
+Message-id: <552F75D6.4030902@samsung.com>
+Date: Thu, 16 Apr 2015 10:41:58 +0200
+From: Beata Michalska <b.michalska@samsung.com>
+MIME-version: 1.0
+Subject: Re: [RFC 1/4] fs: Add generic file system event notifications
+References: <1429082147-4151-1-git-send-email-b.michalska@samsung.com>
+ <1429082147-4151-2-git-send-email-b.michalska@samsung.com>
+ <552F308F.1050505@redhat.com>
+In-reply-to: <552F308F.1050505@redhat.com>
+Content-type: text/plain; charset=windows-1252
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: Eric Sandeen <sandeen@redhat.com>
+Cc: linux-kernel@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
-On Thu, Apr 16, 2015 at 09:07:22AM +0100, Mel Gorman wrote:
-> On Thu, Apr 16, 2015 at 03:38:26PM +0900, Minchan Kim wrote:
-> > Hello Mel,
-> > 
-> > On Wed, Apr 15, 2015 at 10:28:55PM +0100, Mel Gorman wrote:
-> > > On Wed, Apr 15, 2015 at 02:16:49PM -0700, Hugh Dickins wrote:
-> > > > On Wed, 15 Apr 2015, Rik van Riel wrote:
-> > > > > On 04/15/2015 06:42 AM, Mel Gorman wrote:
-> > > > > > An IPI is sent to flush remote TLBs when a page is unmapped that was
-> > > > > > recently accessed by other CPUs. There are many circumstances where this
-> > > > > > happens but the obvious one is kswapd reclaiming pages belonging to a
-> > > > > > running process as kswapd and the task are likely running on separate CPUs.
-> > > > > > 
-> > > > > > On small machines, this is not a significant problem but as machine
-> > > > > > gets larger with more cores and more memory, the cost of these IPIs can
-> > > > > > be high. This patch uses a structure similar in principle to a pagevec
-> > > > > > to collect a list of PFNs and CPUs that require flushing. It then sends
-> > > > > > one IPI to flush the list of PFNs. A new TLB flush helper is required for
-> > > > > > this and one is added for x86. Other architectures will need to decide if
-> > > > > > batching like this is both safe and worth the memory overhead. Specifically
-> > > > > > the requirement is;
-> > > > > > 
-> > > > > > 	If a clean page is unmapped and not immediately flushed, the
-> > > > > > 	architecture must guarantee that a write to that page from a CPU
-> > > > > > 	with a cached TLB entry will trap a page fault.
-> > > > > > 
-> > > > > > This is essentially what the kernel already depends on but the window is
-> > > > > > much larger with this patch applied and is worth highlighting.
-> > > > > 
-> > > > > This means we already have a (hard to hit?) data corruption
-> > > > > issue in the kernel.  We can lose data if we unmap a writable
-> > > > > but not dirty pte from a file page, and the task writes before
-> > > > > we flush the TLB.
-> > > > 
-> > > > I don't think so.  IIRC, when the CPU needs to set the dirty bit,
-> > > > it doesn't just do that in its TLB entry, but has to fetch and update
-> > > > the actual pte entry - and at that point discovers it's no longer
-> > > > valid so traps, as Mel says.
-> > > > 
-> > > 
-> > > This is what I'm expecting i.e. clean->dirty transition is write-through
-> > > to the PTE which is now unmapped and it traps. I'm assuming there is an
-> > > architectural guarantee that it happens but could not find an explicit
-> > > statement in the docs. I'm hoping Dave or Andi can check with the relevant
-> > > people on my behalf.
-> > 
-> > A dumb question. It's not related to your patch but MADV_FREE.
-> > 
-> > clean->dirty transition is *atomic* as well as write-through?
+On 04/16/2015 05:46 AM, Eric Sandeen wrote:
+> On 4/15/15 2:15 AM, Beata Michalska wrote:
+>> Introduce configurable generic interface for file
+>> system-wide event notifications to provide file
+>> systems with a common way of reporting any potential
+>> issues as they emerge.
+>>
+>> The notifications are to be issued through generic
+>> netlink interface, by a dedicated, for file system
+>> events, multicast group. The file systems might as
+>> well use this group to send their own custom messages.
 > 
-> This is the TLB cache clean->dirty transition so it's not 100% clear what you
-> are asking. It both needs to be write-through and the TLB updates must happen
-> before the actual data write to cache or memory and it must be ordered.
-
-Sorry for not clear. I will try again.
-
-In try_to_unmap_one,
-
-
-        pteval = ptep_clear_flush(vma, address, pte);
-        {
-                pte = ptep_get_and_clear(mm, address, ptep);
-                        <-------------- A application write on other CPU.
-                flush_tlb_page(vma, address);
-        } 
- 
-        /* Move the dirty bit to the physical page now the pte is gone. */
-        dirty = pte_dirty(pteval);
-        if (dirty)
-                set_page_dirty(page);
-        ...
-
-
-In above, ptep_clear_flush just does xchg operation to make pte zero
-in ptep_get_and_clear and return old pte_val but didn't flush TLB yet.
-Let's assume old pte_val doesn't have dirty bit(ie, it was clean).
-If application on other CPU does write the memory at the same time,
-what happens?
-I mean (pte cleaning/return old) and (dirty bit setting by CPU itself)
-should be exclusive so application on another CPU should encounter
-page fault or we should see the dirty bit.
-Is it guaranteed?
-
+> ...
 > 
-> > I'm really confusing.
-> > It seems most arches use xchg for ptep_get_and_clear so it's
-> > atomic but some of arches without defining __HAVE_ARCH_PTEP_GET_AND_CLEAR
-> > will use non-atomic version in include/asm-generic/pgtable.h.
-> > 
-> >         #ifndef __HAVE_ARCH_PTEP_GET_AND_CLEAR
-> >         static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
-> >                                                unsigned long address,
-> >                                                pte_t *ptep)
-> >         {
-> >                 pte_t pte = *ptep;
-> >                 pte_clear(mm, address, ptep);
-> >                 return pte;
-> >         }
-> >         #endif
-> > 
+>> + 4.3 Threshold notifications:
+>> +
+>> + #include <linux/fs_event.h>
+>> + void fs_event_alloc_space(struct super_block *sb, u64 ncount);
+>> + void fs_event_free_space(struct super_block *sb, u64 ncount);
+>> +
+>> + Each filesystme supporting the treshold notifiactions should call
+>> + fs_event_alloc_space/fs_event_free_space repsectively whenever the
+>> + ammount of availbale blocks changes.
+>> + - sb:     the filesystem's super block
+>> + - ncount: number of blocks being acquired/released
 > 
-> And if they are using this, they need to be ok that it's not atomic but
-> it's not clear what you are asking.
+> so:
 > 
-> > I hope they have own lock or something to protect a race between software
-> > and hardware(ie, CPU set dirty bit by itself).
-> > 
+>> +void fs_event_alloc_space(struct super_block *sb, u64 ncount)
+>> +{
+>> +	struct fs_trace_entry *en;
+>> +	s64 count;
+>> +
+>> +	spin_lock(&fs_trace_lock);
 > 
-> Or they're UP.
+> Every allocation/free for every supported filesystem system-wide will be
+> serialized on this global spinlock?  That sounds like a non-starter...
+> 
+> -Eric
+> 
+I guess there is a plenty room for improvements as this is an early version.
+I do agree that this might be a performance bottleneck event though I've tried
+to keep this to minimum - it's being taken only for hashtable look-up. But still...
+I was considering placing the trace object within the super_block to skip
+this look-up part but I'd like to gather more comments, especially on the concept
+itself.
 
-Yeb.
+BR
+Beata
 
-> 
-> -- 
-> Mel Gorman
-> SUSE Labs
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
