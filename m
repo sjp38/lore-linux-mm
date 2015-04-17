@@ -1,76 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D3496B0032
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 13:11:52 -0400 (EDT)
-Received: by oiko83 with SMTP id o83so80507641oik.1
-        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 10:11:52 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id sw6si8371841obc.36.2015.04.17.10.11.51
+Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
+	by kanga.kvack.org (Postfix) with ESMTP id AB1BF6B0032
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 13:14:24 -0400 (EDT)
+Received: by obbeb7 with SMTP id eb7so75802278obb.3
+        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 10:14:24 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id e7si8381716obf.19.2015.04.17.10.14.23
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Apr 2015 10:11:51 -0700 (PDT)
-Message-ID: <55313ECD.3050604@oracle.com>
-Date: Fri, 17 Apr 2015 10:11:41 -0700
+        Fri, 17 Apr 2015 10:14:24 -0700 (PDT)
+Message-ID: <55313F6A.4010506@oracle.com>
+Date: Fri, 17 Apr 2015 10:14:18 -0700
 From: Mike Kravetz <mike.kravetz@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 4/4] mm: madvise allow remove operation for hugetlbfs
-References: <00e601d078da$9e762190$db6264b0$@alibaba-inc.com> <00ef01d078dd$96bfc480$c43f4d80$@alibaba-inc.com>
-In-Reply-To: <00ef01d078dd$96bfc480$c43f4d80$@alibaba-inc.com>
+Subject: Re: [RFC PATCH 3/4] hugetlbfs: add hugetlbfs_fallocate()
+References: <00fc01d078e3$63428ec0$29c7ac40$@alibaba-inc.com> <010201d078e4$97cf82a0$c76e87e0$@alibaba-inc.com>
+In-Reply-To: <010201d078e4$97cf82a0$c76e87e0$@alibaba-inc.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Dave Hansen' <dave.hansen@linux.intel.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 04/17/2015 12:10 AM, Hillf Danton wrote:
->>
->> Now that we have hole punching support for hugetlbfs, we can
->> also support the MADV_REMOVE interface to it.
->>
->> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
->> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
->> ---
->>   mm/madvise.c | 2 +-
->>   1 file changed, 1 insertion(+), 1 deletion(-)
->>
->> diff --git a/mm/madvise.c b/mm/madvise.c
->> index d551475..c4a1027 100644
->> --- a/mm/madvise.c
->> +++ b/mm/madvise.c
->> @@ -299,7 +299,7 @@ static long madvise_remove(struct vm_area_struct *vma,
->>
->>   	*prev = NULL;	/* tell sys_madvise we drop mmap_sem */
->>
->> -	if (vma->vm_flags & (VM_LOCKED | VM_HUGETLB))
->> +	if (vma->vm_flags & VM_LOCKED)
->>   		return -EINVAL;
->>
->>   	f = vma->vm_file;
->> --
->> 2.1.0
+On 04/17/2015 01:00 AM, Hillf Danton wrote:
+>> +		clear_huge_page(page, addr, pages_per_huge_page(h));
+>> +		__SetPageUptodate(page);
+>> +		error = huge_add_to_page_cache(page, mapping, index);
+>> +		if (error) {
+>> +			put_page(page);
+>> +			/* Keep going if we see an -EEXIST */
+>> +			if (error != -EEXIST)
+>> +				goto out;  /* FIXME, need to free? */
+>> +		}
+>> +
+>> +		/*
+>> +		 * page_put due to reference from alloc_huge_page()
+>> +		 * unlock_page because locked by add_to_page_cache()
+>> +		 */
+>> +		put_page(page);
 >
-> After the above change offset is computed,
->
-> 	offset = (loff_t)(start - vma->vm_start)
-> 		+ ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
->
-> and I wonder if it is correct for huge page mapping.
+> Still needed if EEXIST?
 
-I think it will be correct.
+Nope.  Good catch.
 
-The above will be a (base) page size aligned offset into the file.
-This offset will be huge page aligned in the fallocate hole punch
-code.
-
-	/*
-	 * For hole punch round up the beginning offset of the hole and
-	 * round down the end.
-	 */
-	hole_start = (offset + hpage_size - 1) & ~huge_page_mask(h);
-	hole_end = (offset + len - (hpage_size - 1)) * ~huge_page_mask(h);
-
-Was the alignment your concern, or something else?
+I'll fix this in the next version.
 -- 
 Mike Kravetz
 
