@@ -1,34 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FCF36B0038
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 08:17:46 -0400 (EDT)
-Received: by iedfl3 with SMTP id fl3so79669892ied.1
-        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 05:17:45 -0700 (PDT)
-Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
-        by mx.google.com with ESMTPS id j5si1459642igh.50.2015.04.17.05.17.45
+Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C72C6B006E
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 08:20:07 -0400 (EDT)
+Received: by layy10 with SMTP id y10so78759368lay.0
+        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 05:20:06 -0700 (PDT)
+Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com. [2a00:1450:400c:c05::229])
+        by mx.google.com with ESMTPS id r1si2764615wic.9.2015.04.17.05.20.04
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 17 Apr 2015 05:17:45 -0700 (PDT)
-Date: Fri, 17 Apr 2015 07:17:42 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH v2 02/11] slab: add private memory allocator header
- for arch/lib
-In-Reply-To: <1429263374-57517-3-git-send-email-tazaki@sfc.wide.ad.jp>
-Message-ID: <alpine.DEB.2.11.1504170716380.20800@gentwo.org>
-References: <1427202642-1716-1-git-send-email-tazaki@sfc.wide.ad.jp> <1429263374-57517-1-git-send-email-tazaki@sfc.wide.ad.jp> <1429263374-57517-3-git-send-email-tazaki@sfc.wide.ad.jp>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Apr 2015 05:20:05 -0700 (PDT)
+Received: by widdi4 with SMTP id di4so19653904wid.0
+        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 05:20:04 -0700 (PDT)
+MIME-Version: 1.0
+Date: Fri, 17 Apr 2015 20:20:04 +0800
+Message-ID: <CADUS3okX90JX3KfCf8zHvxY12b=QiU25jQBioh8LrEDVF56A-A@mail.gmail.com>
+Subject: about bootmem allocation/freeing flow
+From: yoma sophian <sophian.yoma@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hajime Tazaki <tazaki@sfc.wide.ad.jp>
-Cc: linux-arch@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Jekka Enberg <penberg@kernel.org>, Javid Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jndrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Rusty Russell <rusty@rustcorp.com.au>, Ryo Nakamura <upa@haeena.net>, Christoph Paasch <christoph.paasch@gmail.com>, Mathieu Lacage <mathieu.lacage@gmail.com>, libos-nuse@googlegroups.com
+To: linux-mm@kvack.org
 
-On Fri, 17 Apr 2015, Hajime Tazaki wrote:
+hi all:
+I have several questions about free_all_bootmem_core:
 
-> add header includion for CONFIG_LIB to wrap kmalloc and co. This will
-> bring malloc(3) based allocator used by arch/lib.
+1.
+In __free_pages_bootmem, we set set_page_count(p, 0) while looping nr_pages,
+why we need to set_page_refcounted(page) before calling __free_pages?
 
-Maybe add another allocator insteadl? SLLB which implements memory
-management using malloc()?
+2.
+how about the pages that allocated by calling alloc_bootmem_xxxx?
+in  free_all_bootmem, we just free the pages that used to record
+bootmem stage present pages like below.
+if so, isn't possible the pages got by calling alloc_bootmem_xxxx will
+be over-written by later page allocation ?
+    page = virt_to_page(bdata->node_bootmem_map);
+    pages = bdata->node_low_pfn - bdata->node_min_pfn;
+    pages = bootmem_bootmap_pages(pages);
+    count += pages;
+    while (pages--)
+        __free_pages_bootmem(page++, 0);
+
+appreciate your kind help in advance,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
