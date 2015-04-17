@@ -1,134 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1641E6B0070
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 08:20:49 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so126590804pdb.1
-        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 05:20:48 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id ko11si16488883pbd.90.2015.04.17.05.20.47
-        for <linux-mm@kvack.org>;
-        Fri, 17 Apr 2015 05:20:48 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] mm: fix mprotect() behaviour on VM_LOCKED VMAs
-Date: Fri, 17 Apr 2015 15:20:08 +0300
-Message-Id: <1429273208-168364-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 201BA6B0032
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 08:44:49 -0400 (EDT)
+Received: by wgso17 with SMTP id o17so112241785wgs.1
+        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 05:44:48 -0700 (PDT)
+Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
+        by mx.google.com with ESMTPS id f18si18785953wjz.182.2015.04.17.05.44.44
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 17 Apr 2015 05:44:47 -0700 (PDT)
+Message-ID: <55310033.1060108@nod.at>
+Date: Fri, 17 Apr 2015 14:44:35 +0200
+From: Richard Weinberger <richard@nod.at>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH v2 02/11] slab: add private memory allocator header
+ for arch/lib
+References: <1427202642-1716-1-git-send-email-tazaki@sfc.wide.ad.jp> <1429263374-57517-1-git-send-email-tazaki@sfc.wide.ad.jp> <1429263374-57517-3-git-send-email-tazaki@sfc.wide.ad.jp> <alpine.DEB.2.11.1504170716380.20800@gentwo.org>
+In-Reply-To: <alpine.DEB.2.11.1504170716380.20800@gentwo.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Christoph Lameter <cl@linux.com>, Hajime Tazaki <tazaki@sfc.wide.ad.jp>
+Cc: linux-arch@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Jekka Enberg <penberg@kernel.org>, Javid Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jndrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, Jeff Dike <jdike@addtoit.com>, Rusty Russell <rusty@rustcorp.com.au>, Ryo Nakamura <upa@haeena.net>, Christoph Paasch <christoph.paasch@gmail.com>, Mathieu Lacage <mathieu.lacage@gmail.com>, libos-nuse@googlegroups.com
 
-On mlock(2) we trigger COW on private writable VMA to avoid faults in
-future.
+Am 17.04.2015 um 14:17 schrieb Christoph Lameter:
+> On Fri, 17 Apr 2015, Hajime Tazaki wrote:
+> 
+>> add header includion for CONFIG_LIB to wrap kmalloc and co. This will
+>> bring malloc(3) based allocator used by arch/lib.
+> 
+> Maybe add another allocator insteadl? SLLB which implements memory
+> management using malloc()?
 
-mm/gup.c:
- 840 long populate_vma_page_range(struct vm_area_struct *vma,
- 841                 unsigned long start, unsigned long end, int *nonblocking)
- 842 {
- ...
- 855          * We want to touch writable mappings with a write fault in order
- 856          * to break COW, except for shared mappings because these don't COW
- 857          * and we would not want to dirty them for nothing.
- 858          */
- 859         if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
- 860                 gup_flags |= FOLL_WRITE;
+Yeah, that's a good idea.
 
-But we miss this case when we make VM_LOCKED VMA writeable via
-mprotect(2). The test case:
+Hajime, another question, do you really want a malloc/free backend?
+I'm not a mm expert, but does malloc() behave exactly as the kernel
+counter parts?
 
-	#define _GNU_SOURCE
-	#include <fcntl.h>
-	#include <stdio.h>
-	#include <stdlib.h>
-	#include <unistd.h>
-	#include <sys/mman.h>
-	#include <sys/resource.h>
-	#include <sys/stat.h>
-	#include <sys/time.h>
-	#include <sys/types.h>
+In UML we allocate a big file on the host side, mmap() it and give this mapping
+to the kernel as physical memory such that any kernel allocator can work with it.
 
-	#define PAGE_SIZE 4096
-
-	int main(int argc, char **argv)
-	{
-		struct rusage usage;
-		long before;
-		char *p;
-		int fd;
-
-		/* Create a file and populate first page of page cache */
-		fd = open("/tmp", O_TMPFILE | O_RDWR, S_IRUSR | S_IWUSR);
-		write(fd, "1", 1);
-
-		/* Create a *read-only* *private* mapping of the file */
-		p = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_PRIVATE, fd, 0);
-
-		/*
-		 * Since the mapping is read-only, mlock() will populate the mapping
-		 * with PTEs pointing to page cache without triggering COW.
-		 */
-		mlock(p, PAGE_SIZE);
-
-		/*
-		 * Mapping became read-write, but it's still populated with PTEs
-		 * pointing to page cache.
-		 */
-		mprotect(p, PAGE_SIZE, PROT_READ | PROT_WRITE);
-
-		getrusage(RUSAGE_SELF, &usage);
-		before = usage.ru_minflt;
-
-		/* Trigger COW: fault in mlock()ed VMA. */
-		*p = 1;
-
-		getrusage(RUSAGE_SELF, &usage);
-		printf("faults: %ld\n", usage.ru_minflt - before);
-
-		return 0;
-	}
-
-	$ ./test
-	faults: 1
-
-Let's fix it by triggering populating of VMA in mprotect_fixup() on this
-condition. We don't care about population error as we don't in other
-similar cases i.e. mremap.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- mm/mprotect.c | 11 +++++++++++
- 1 file changed, 11 insertions(+)
-
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 88584838e704..911fb9070b2b 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -29,6 +29,8 @@
- #include <asm/cacheflush.h>
- #include <asm/tlbflush.h>
- 
-+#include "internal.h"
-+
- /*
-  * For a prot_numa update we only hold mmap_sem for read so there is a
-  * potential race with faulting where a pmd was temporarily none. This
-@@ -322,6 +324,15 @@ success:
- 	change_protection(vma, start, end, vma->vm_page_prot,
- 			  dirty_accountable, 0);
- 
-+	/*
-+	 * Private VM_LOCKED VMA become writable: trigger COW to avoid major
-+	 * fault on access.
-+	 */
-+	if ((oldflags & (VM_WRITE | VM_SHARED | VM_LOCKED)) == VM_LOCKED &&
-+			(newflags & VM_WRITE)) {
-+		populate_vma_page_range(vma, start, end, NULL);
-+	}
-+
- 	vm_stat_account(mm, oldflags, vma->vm_file, -nrpages);
- 	vm_stat_account(mm, newflags, vma->vm_file, nrpages);
- 	perf_event_mmap(vma);
--- 
-2.1.4
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
