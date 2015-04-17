@@ -1,62 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EBE96B006C
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2015 22:09:47 -0400 (EDT)
-Received: by oblw8 with SMTP id w8so58099626obl.0
-        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 19:09:47 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id g2si6772052oic.49.2015.04.16.19.09.46
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 861AC6B0038
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 00:19:20 -0400 (EDT)
+Received: by qgej70 with SMTP id j70so16286309qge.2
+        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 21:19:20 -0700 (PDT)
+Received: from mail-qc0-x22e.google.com (mail-qc0-x22e.google.com. [2607:f8b0:400d:c01::22e])
+        by mx.google.com with ESMTPS id hi9si10576367qcb.46.2015.04.16.21.19.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 16 Apr 2015 19:09:46 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 2/2] mm/hwpoison-inject: check PageLRU of hpage
-Date: Fri, 17 Apr 2015 02:08:52 +0000
-Message-ID: <1429236509-8796-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1429236509-8796-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1429236509-8796-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Apr 2015 21:19:19 -0700 (PDT)
+Received: by qcrf4 with SMTP id f4so18129355qcr.0
+        for <linux-mm@kvack.org>; Thu, 16 Apr 2015 21:19:18 -0700 (PDT)
+Date: Fri, 17 Apr 2015 00:18:43 -0400
+From: Michael Tirado <mtirado418@gmail.com>
+Subject: Re: [PATCH] mm/shmem.c: Add new seal to memfd:
+ F_SEAL_WRITE_NONCREATOR
+Message-ID: <20150417001843.2b88d733@yak.slack>
+In-Reply-To: <CALYGNiPM0KgRvu2EP+h0UT8ZzSeBpNOwR04-BX2vPFnn2xLN_w@mail.gmail.com>
+References: <20150416032316.00b79732@yak.slack>
+	<CALYGNiPM0KgRvu2EP+h0UT8ZzSeBpNOwR04-BX2vPFnn2xLN_w@mail.gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dean Nelson <dnelson@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: linux-mm@kvack.org
 
-Hwpoison injector checks PageLRU of the raw target page to find out whether
-the page is an appropriate target, but current code now filters out thp tai=
-l
-pages, which prevents us from testing for such cases via this interface.
-So let's check hpage instead of p.
+On Thu, 16 Apr 2015 11:14:11 +0300
+Konstantin Khlebnikov <koct9i@gmail.com> wrote:
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- mm/hwpoison-inject.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+> Keeping pointer to priviledged task is a bad idea.
+> There is no easy way to drop it when task exits and this doesn't work
+> for threads.
+> I think it's better to keep pointer to priveledged struct file and
+> drop it in method
+> f_op->release() when task closes fd or exits. Server task could obtain second
+> non-priveledged fd and struct file for that inode via
+> open(/proc/../fd/), dup3(),
+> openat() or something else and send it to read-only users.
 
-diff --git v4.0.orig/mm/hwpoison-inject.c v4.0/mm/hwpoison-inject.c
-index 2b3f933e3282..4ca5fe0042e1 100644
---- v4.0.orig/mm/hwpoison-inject.c
-+++ v4.0/mm/hwpoison-inject.c
-@@ -34,12 +34,12 @@ static int hwpoison_inject(void *data, u64 val)
- 	if (!hwpoison_filter_enable)
- 		goto inject;
-=20
--	if (!PageLRU(p) && !PageHuge(p))
--		shake_page(p, 0);
-+	if (!PageLRU(hpage) && !PageHuge(p))
-+		shake_page(hpage, 0);
- 	/*
- 	 * This implies unable to support non-LRU pages.
- 	 */
--	if (!PageLRU(p) && !PageHuge(p))
-+	if (!PageLRU(hpage) && !PageHuge(p))
- 		goto put_out;
-=20
- 	/*
---=20
-2.1.0
+Thank you, I was hoping someone would suggest a different authentication 
+method, I will look into this idea.  What is the thread concern?  I have 
+not run in to any problems yet while testing, but have been more focused 
+on getting my user space memfd transport daemon up and running before I put 
+it through the torture test.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
