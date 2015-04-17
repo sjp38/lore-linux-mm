@@ -1,52 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com [209.85.220.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E557900018
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 06:48:46 -0400 (EDT)
-Received: by qkgx75 with SMTP id x75so140703266qkg.1
-        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 03:48:46 -0700 (PDT)
-Received: from mail-qc0-x22e.google.com (mail-qc0-x22e.google.com. [2607:f8b0:400d:c01::22e])
-        by mx.google.com with ESMTPS id 40si11241837qkv.70.2015.04.17.03.48.44
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 28933900018
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 06:52:23 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so124621996pdb.0
+        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 03:52:22 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id dk4si16136532pbb.219.2015.04.17.03.52.20
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Apr 2015 03:48:45 -0700 (PDT)
-Received: by qcrf4 with SMTP id f4so21379941qcr.0
-        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 03:48:44 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 17 Apr 2015 03:52:22 -0700 (PDT)
+Message-ID: <5530E57C.9080303@huawei.com>
+Date: Fri, 17 Apr 2015 18:50:36 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20150417002847.1f5febf7@yak.slack>
-References: <20150416032316.00b79732@yak.slack>
-	<CALYGNiPM0KgRvu2EP+h0UT8ZzSeBpNOwR04-BX2vPFnn2xLN_w@mail.gmail.com>
-	<CANq1E4SbenR0-N4oLBMUe_2iiduU1TReA1RRTMA9_+h_mGwNOw@mail.gmail.com>
-	<20150417002847.1f5febf7@yak.slack>
-Date: Fri, 17 Apr 2015 12:48:44 +0200
-Message-ID: <CANq1E4RebX=feEtgpHa4v_C_PkKwDmDWG+jm98kUUj5yYV4ipg@mail.gmail.com>
-Subject: Re: [PATCH] mm/shmem.c: Add new seal to memfd: F_SEAL_WRITE_NONCREATOR
-From: David Herrmann <dh.herrmann@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH 2/2 V2] memory-hotplug: remove reset_node_managed_pages()
+ and reset_node_managed_pages() in hotadd_new_pgdat()
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Tirado <mtirado418@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Xiexiuqi <xiexiuqi@huawei.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi
+After hotadd_new_pgdat()->free_area_init_node(), pgdat's spanned/present are 0,
+and zone's spanned/present/managed are 0, so remove reset_node_managed_pages()
+and reset_node_managed_pages().
 
-On Fri, Apr 17, 2015 at 6:28 AM, Michael Tirado <mtirado418@gmail.com> wrote:
-> On Thu, 16 Apr 2015 14:01:07 +0200
-> David Herrmann <dh.herrmann@gmail.com> wrote:
->> The same functionality of F_SEAL_WRITE_NONCREATOR can be achieved by
->> opening /proc/self/fd/<num> with O_RDONLY. Just pass that read-only FD
->> to your peers but retain the writable one. But note that you must
->> verify your peers do not have the same uid as you do, otherwise they
->> can just gain a writable descriptor by opening /proc/self/fd/<num>
->> themselves.
->
-> My peers may be any uid,
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ mm/memory_hotplug.c |   25 -------------------------
+ 1 files changed, 0 insertions(+), 25 deletions(-)
 
-Where's the problem? Just pass the read-only file-descriptor to your
-peers and make sure the access-mode of the memfd is 0600. No other
-user will be able to gain a writable file-descriptor, but you.
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 457bde5..82c67ee 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1064,16 +1064,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ }
+ #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+ 
+-static void reset_node_present_pages(pg_data_t *pgdat)
+-{
+-	struct zone *z;
+-
+-	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+-		z->present_pages = 0;
+-
+-	pgdat->node_present_pages = 0;
+-}
+-
+ /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
+ {
+@@ -1108,21 +1098,6 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
+ 	build_all_zonelists(pgdat, NULL);
+ 	mutex_unlock(&zonelists_mutex);
+ 
+-	/*
+-	 * zone->managed_pages is set to an approximate value in
+-	 * free_area_init_core(), which will cause
+-	 * /sys/device/system/node/nodeX/meminfo has wrong data.
+-	 * So reset it to 0 before any memory is onlined.
+-	 */
+-	reset_node_managed_pages(pgdat);
+-
+-	/*
+-	 * When memory is hot-added, all the memory is in offline state. So
+-	 * clear all zones' present_pages because they will be updated in
+-	 * online_pages() and offline_pages().
+-	 */
+-	reset_node_present_pages(pgdat);
+-
+ 	return pgdat;
+ }
+ 
+-- 
+1.7.1 
 
-Thanks
-David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
