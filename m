@@ -1,115 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EC946B006C
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 05:11:05 -0400 (EDT)
-Received: by pdbqd1 with SMTP id qd1so122269687pdb.2
-        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 02:11:04 -0700 (PDT)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id vi11si15911881pab.48.2015.04.17.02.11.03
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 571436B0038
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 05:27:45 -0400 (EDT)
+Received: by obbfy7 with SMTP id fy7so64770526obb.2
+        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 02:27:45 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id jf2si7490083oeb.35.2015.04.17.02.27.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 17 Apr 2015 02:11:04 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout3.w1.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0NMY005WS1RJGJ70@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 17 Apr 2015 10:16:31 +0100 (BST)
-Message-id: <5530CE22.8080903@samsung.com>
-Date: Fri, 17 Apr 2015 11:10:58 +0200
-From: Beata Michalska <b.michalska@samsung.com>
-MIME-version: 1.0
-Subject: Re: [RFC 1/4] fs: Add generic file system event notifications
-References: <1429082147-4151-1-git-send-email-b.michalska@samsung.com>
- <1429082147-4151-2-git-send-email-b.michalska@samsung.com>
- <552F308F.1050505@redhat.com> <552F75D6.4030902@samsung.com>
- <alpine.LSU.2.11.1504161229450.17935@eggly.anvils>
-In-reply-to: <alpine.LSU.2.11.1504161229450.17935@eggly.anvils>
-Content-type: text/plain; charset=ISO-8859-1
-Content-transfer-encoding: 7bit
+        Fri, 17 Apr 2015 02:27:44 -0700 (PDT)
+Message-ID: <5530CEBB.9030209@huawei.com>
+Date: Fri, 17 Apr 2015 17:13:31 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/2] memory-hotplug: fix BUG_ON in move_freepages()
+References: <5530B2E9.3010102@huawei.com>
+In-Reply-To: <5530B2E9.3010102@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Eric Sandeen <sandeen@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, linux-kernel@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org, Linux Filesystem Mailing List <linux-fsdevel@vger.kernel.org>, linux-api@vger.kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Xiexiuqi <xiexiuqi@huawei.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi,
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
 
-On 04/16/2015 10:10 PM, Hugh Dickins wrote:
-> On Thu, 16 Apr 2015, Beata Michalska wrote:
->> On 04/16/2015 05:46 AM, Eric Sandeen wrote:
->>> On 4/15/15 2:15 AM, Beata Michalska wrote:
->>>> Introduce configurable generic interface for file
->>>> system-wide event notifications to provide file
->>>> systems with a common way of reporting any potential
->>>> issues as they emerge.
->>>>
->>>> The notifications are to be issued through generic
->>>> netlink interface, by a dedicated, for file system
->>>> events, multicast group. The file systems might as
->>>> well use this group to send their own custom messages.
->>>
->>> ...
->>>
->>>> + 4.3 Threshold notifications:
->>>> +
->>>> + #include <linux/fs_event.h>
->>>> + void fs_event_alloc_space(struct super_block *sb, u64 ncount);
->>>> + void fs_event_free_space(struct super_block *sb, u64 ncount);
->>>> +
->>>> + Each filesystme supporting the treshold notifiactions should call
->>>> + fs_event_alloc_space/fs_event_free_space repsectively whenever the
->>>> + ammount of availbale blocks changes.
->>>> + - sb:     the filesystem's super block
->>>> + - ncount: number of blocks being acquired/released
->>>
->>> so:
->>>
->>>> +void fs_event_alloc_space(struct super_block *sb, u64 ncount)
->>>> +{
->>>> +	struct fs_trace_entry *en;
->>>> +	s64 count;
->>>> +
->>>> +	spin_lock(&fs_trace_lock);
->>>
->>> Every allocation/free for every supported filesystem system-wide will be
->>> serialized on this global spinlock?  That sounds like a non-starter...
->>>
->>> -Eric
->>>
->> I guess there is a plenty room for improvements as this is an early version.
->> I do agree that this might be a performance bottleneck event though I've tried
->> to keep this to minimum - it's being taken only for hashtable look-up. But still...
->> I was considering placing the trace object within the super_block to skip
->> this look-up part but I'd like to gather more comments, especially on the concept
->> itself.
+> ---
+>  mm/page_alloc.c |   14 ++++++++++++++
+>  1 files changed, 14 insertions(+), 0 deletions(-)
 > 
-> Sorry, I have no opinion on the netlink fs notifications concept
-> itself, not my area of expertise at all.
-> 
-> No doubt you Cc'ed me for tmpfs: I am very glad you're now trying the
-> generic filesystem route, and yes, I'd be happy to have the support
-> in tmpfs, thank you - if it is generally agreed to be suitable for
-> filesystems; but wouldn't want this as a special for tmpfs.
-> 
-> However, I must echo Eric's point: please take a look at 7e496299d4d2
-> "tmpfs: make tmpfs scalable with percpu_counter for used blocks":
-> Tim would be unhappy if you added overhead back into that path.
-> 
-> (And please Cc linux-fsdevel@vger.kernel.org next time you post these.)
-> 
-> Hugh
-> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index ebffa0e..1a5743e 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4667,6 +4667,10 @@ static unsigned long __meminit zone_spanned_pages_in_node(int nid,
+>  {
+>  	unsigned long zone_start_pfn, zone_end_pfn;
+>  
+> +	/* When hotadd a new node, init node's zones as empty zones */
+> +	if (!node_online(nid))
+> +		return 0;
+> +
+>  	/* Get the start and end of the zone */
+>  	zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
+>  	zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
+> @@ -4698,6 +4702,10 @@ unsigned long __meminit __absent_pages_in_range(int nid,
+>  	unsigned long start_pfn, end_pfn;
 
-Well, the concept of using netlink interface here is just a part of the overall
-idea - so any comments are really welcomed here. The more of them the better solution
-can be worked out, as I believe.
+I made a mistake here, should change zone_absent_pages_in_node(), sorry!
+I'll send V2
 
-As for the possible overhead: this is the last thing I would want, so I'll
-definitely do may best to not to introduce any. I will definitely rework this.
+>  	int i;
+>  
+> +	/* When hotadd a new node, init node's zones as empty zones */
+> +	if (!node_online(nid))
+> +		return 0;
+> +
+>  	for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, NULL) {
+>  		start_pfn = clamp(start_pfn, range_start_pfn, range_end_pfn);
+>  		end_pfn = clamp(end_pfn, range_start_pfn, range_end_pfn);
+> @@ -4746,6 +4754,9 @@ static inline unsigned long __meminit zone_spanned_pages_in_node(int nid,
+>  					unsigned long node_end_pfn,
+>  					unsigned long *zones_size)
+>  {
+> +	if (!node_online(nid))
+> +		return 0;
+> +
+>  	return zones_size[zone_type];
+>  }
+>  
+> @@ -4755,6 +4766,9 @@ static inline unsigned long __meminit zone_absent_pages_in_node(int nid,
+>  						unsigned long node_end_pfn,
+>  						unsigned long *zholes_size)
+>  {
+> +	if (!node_online(nid))
+> +		return 0;
+> +
+>  	if (!zholes_size)
+>  		return 0;
+>  
 
-Thanks for Your comments,
-
-BR
-Beata
 
 
 --
