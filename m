@@ -1,103 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BD1A6B0038
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 07:58:44 -0400 (EDT)
-Received: by wgyo15 with SMTP id o15so110957971wgy.2
-        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 04:58:43 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u7si18609944wjz.206.2015.04.17.04.58.42
+Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FCF36B0038
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 08:17:46 -0400 (EDT)
+Received: by iedfl3 with SMTP id fl3so79669892ied.1
+        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 05:17:45 -0700 (PDT)
+Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
+        by mx.google.com with ESMTPS id j5si1459642igh.50.2015.04.17.05.17.45
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 17 Apr 2015 04:58:42 -0700 (PDT)
-Date: Fri, 17 Apr 2015 13:58:39 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [RFC 1/4] fs: Add generic file system event notifications
-Message-ID: <20150417115839.GE3116@quack.suse.cz>
-References: <1429082147-4151-1-git-send-email-b.michalska@samsung.com>
- <1429082147-4151-2-git-send-email-b.michalska@samsung.com>
- <55302FFB.4010108@gmx.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55302FFB.4010108@gmx.de>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 17 Apr 2015 05:17:45 -0700 (PDT)
+Date: Fri, 17 Apr 2015 07:17:42 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC PATCH v2 02/11] slab: add private memory allocator header
+ for arch/lib
+In-Reply-To: <1429263374-57517-3-git-send-email-tazaki@sfc.wide.ad.jp>
+Message-ID: <alpine.DEB.2.11.1504170716380.20800@gentwo.org>
+References: <1427202642-1716-1-git-send-email-tazaki@sfc.wide.ad.jp> <1429263374-57517-1-git-send-email-tazaki@sfc.wide.ad.jp> <1429263374-57517-3-git-send-email-tazaki@sfc.wide.ad.jp>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heinrich Schuchardt <xypron.glpk@gmx.de>
-Cc: Beata Michalska <b.michalska@samsung.com>, linux-kernel@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org, Jan Kara <jack@suse.cz>
+To: Hajime Tazaki <tazaki@sfc.wide.ad.jp>
+Cc: linux-arch@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Jekka Enberg <penberg@kernel.org>, Javid Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jndrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Rusty Russell <rusty@rustcorp.com.au>, Ryo Nakamura <upa@haeena.net>, Christoph Paasch <christoph.paasch@gmail.com>, Mathieu Lacage <mathieu.lacage@gmail.com>, libos-nuse@googlegroups.com
 
-On Thu 16-04-15 23:56:11, Heinrich Schuchardt wrote:
-> On 15.04.2015 09:15, Beata Michalska wrote:
-> > Introduce configurable generic interface for file
-> > system-wide event notifications to provide file
-> > systems with a common way of reporting any potential
-> > issues as they emerge.
-> > 
-> > The notifications are to be issued through generic
-> > netlink interface, by a dedicated, for file system
-> > events, multicast group. The file systems might as
-> > well use this group to send their own custom messages.
-> > 
-> > The events have been split into four base categories:
-> > information, warnings, errors and threshold notifications,
-> > with some very basic event types like running out of space
-> > or file system being remounted as read-only.
-> > 
-> > Threshold notifications have been included to allow
-> > triggering an event whenever the amount of free space
-> > drops below a certain level - or levels to be more precise
-> > as two of them are being supported: the lower and the upper
-> > range. The notifications work both ways: once the threshold
-> > level has been reached, an event shall be generated whenever
-> > the number of available blocks goes up again re-activating
-> > the threshold.
-> > 
-> > The interface has been exposed through a vfs. Once mounted,
-> > it serves as an entry point for the set-up where one can
-> > register for particular file system events.
-> 
-> Having a framework for notification for file systems is a great idea.
-> Your solution covers an important part of the possible application scope.
-> 
-> Before moving forward I suggest we should analyze if this scope should
-> be enlarged.
-> 
-> Many filesystems are remote (e.g. CIFS/Samba) or distributed over many
-> network nodes (e.g. Lustre). How should file system notification work here?
-  IMO server <-> client notification is fully within the responsibility of
-a particular protocol. The client can then translate the notification via
-this interface just fine. So IMHO there's nothing to do in this regard.
+On Fri, 17 Apr 2015, Hajime Tazaki wrote:
 
-> How will fuse file systems be served?
-  I similar answer as previously. It's resposibility of each filesystem to
-provide the notification. You would need some way for userspace to notify
-the FUSE in kernel which can then relay the information via this interface.
-So doable but I don't think we have to do it now...
+> add header includion for CONFIG_LIB to wrap kmalloc and co. This will
+> bring malloc(3) based allocator used by arch/lib.
 
-> The current point of reference is a single mount point.
-> Every time I insert an USB stick several file system may be automounted.
-> I would like to receive events for these automounted file systems.
-  So you'll receive udev / DBus events for the mounts, you can catch these
-in a userspace daemon and add appropriate rules to receive events (you
-could even make it part of the mounting procedure of your desktop). I don't
-think we should magically insert new rules for mounted filesystems since
-that's a decision that belongs to userspace.
-
-> A similar case arises when starting new virtual machines. How will I
-> receive events on the host system for the file systems of the virtual
-> machines?
-  IMHO that belongs in userspace and is out of scope for this proposal.
-
-> In your implementation events are received via Netlink.
-> Using Netlink for marking mounts for notification would create a much
-> more homogenous interface. So why should we use a virtual file system here?
-  Hum, that's an interesting idea. Yes, e.g. networking uses netlink to
-configure e.g. routing in kernel and in case of this interface, it really
-might make the interface nicer.
-
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Maybe add another allocator insteadl? SLLB which implements memory
+management using malloc()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
