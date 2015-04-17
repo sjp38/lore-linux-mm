@@ -1,256 +1,247 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BA15E6B0038
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 04:02:16 -0400 (EDT)
-Received: by pabtp1 with SMTP id tp1so117657757pab.2
-        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 01:02:16 -0700 (PDT)
-Received: from out21.biz.mail.alibaba.com (out114-136.biz.mail.alibaba.com. [205.204.114.136])
-        by mx.google.com with ESMTP id h13si15706694pdl.3.2015.04.17.01.02.12
-        for <linux-mm@kvack.org>;
-        Fri, 17 Apr 2015 01:02:15 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <00fc01d078e3$63428ec0$29c7ac40$@alibaba-inc.com>
-In-Reply-To: <00fc01d078e3$63428ec0$29c7ac40$@alibaba-inc.com>
-Subject: Re: [RFC PATCH 3/4] hugetlbfs: add hugetlbfs_fallocate()
-Date: Fri, 17 Apr 2015 16:00:38 +0800
-Message-ID: <010201d078e4$97cf82a0$c76e87e0$@alibaba-inc.com>
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 447436B0038
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 04:17:34 -0400 (EDT)
+Received: by wiax7 with SMTP id x7so28490439wia.0
+        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 01:17:33 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fu19si17930627wjc.14.2015.04.17.01.17.31
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 17 Apr 2015 01:17:32 -0700 (PDT)
+Date: Fri, 17 Apr 2015 10:17:27 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC 0/4] Generic file system events interface
+Message-ID: <20150417081727.GB3116@quack.suse.cz>
+References: <1429082147-4151-1-git-send-email-b.michalska@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1429082147-4151-1-git-send-email-b.michalska@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Beata Michalska <b.michalska@samsung.com>
+Cc: linux-kernel@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
+  Hello,
+
+On Wed 15-04-15 09:15:43, Beata Michalska wrote:
+> The following patchset is a result of previous discussions regarding
+> file system threshold notifiactions. It introduces support for file
+> system event notifications, sent through generic netlinik interface
+> whenever an fs-related event occurs. Included are also some shmem
+> and ext4 changes showing how the new interface might actually be used.
 > 
-> This is based on the shmem version, but it has diverged quite
-> a bit.  We have no swap to worry about, nor the new file sealing.
+> The vary idea of using the generic netlink interface has been previoulsy
+> suggested here:  https://lkml.org/lkml/2011/8/18/169
 > 
-> What this allows us to do is move physical memory in and out of
-> a hugetlbfs file without having it mapped.  This also gives us
-> the ability to support MADV_REMOVE since it is currently
-> implemented using fallocate().  MADV_REMOVE lets us remove data
-> from the middle of a hugetlbfs file, which wasn't possible before.
+> The basic description of the new functionality can be found in
+> the first patch from this set - both in the commit message and
+> in the doc file.
 > 
-> hugetlbfs fallocate only operates on whole huge pages.
+> Some very basic tests have been performed though still this is
+> a PoC version. Below though is a sample user space application
+> which subscribes to the new multicast group and listens for
+> potential fs-related events. The code has been based on libnl 3.4
+> and its test application for the generic netlink.
+  Thanks for the patches! As a general note for the next posting, please CC
+also linux-fsdevel@vger.kernel.org (since this has implications for other
+filesystems as well, specifically I know about XFS guys thinking about some
+notification system as well) and linux-api@vger.kernel.org (since this is a
+new kernel interface to userspace).
+
+								Honza
 > 
-> Based-on code-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 > ---
->  fs/hugetlbfs/inode.c    | 139 ++++++++++++++++++++++++++++++++++++++++++++++++
->  include/linux/hugetlb.h |   3 ++
->  mm/hugetlb.c            |   2 +-
->  3 files changed, 143 insertions(+), 1 deletion(-)
 > 
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index d5b67fd..6d48c8f 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -12,6 +12,7 @@
->  #include <linux/thread_info.h>
->  #include <asm/current.h>
->  #include <linux/sched.h>		/* remove ASAP */
-> +#include <linux/falloc.h>
->  #include <linux/fs.h>
->  #include <linux/mount.h>
->  #include <linux/file.h>
-> @@ -377,6 +378,143 @@ static void truncate_hugepages(struct inode *inode, loff_t lstart, loff_t lend)
->  	hugetlb_unreserve_pages(inode, start, freed);
->  }
+> Beata Michalska (4):
+>   fs: Add generic file system event notifications
+>   ext4: Add helper function to mark group as corrupted
+>   ext4: Add support for generic FS events
+>   shmem: Add support for generic FS events
 > 
-> +static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
-> +{
-> +	struct hstate *h = hstate_inode(inode);
-> +	unsigned long hpage_size = huge_page_size(h);
-> +	loff_t hole_start, hole_end;
-> +
-> +	/*
-> +	 * For hole punch round up the beginning offset of the hole and
-> +	 * round down the end.
-> +	 */
-> +	hole_start = (offset + hpage_size - 1) & ~huge_page_mask(h);
-> +	hole_end = (offset + len - (hpage_size - 1)) * ~huge_page_mask(h);
-> +
-> +	if ((u64)hole_end > (u64)hole_start) {
-> +		struct address_space *mapping = &inode->i_data;
-> +
-> +		mutex_lock(&inode->i_mutex);
-> +		unmap_mapping_range(mapping, hole_start, hole_end, 0);
-> +		truncate_hugepages(inode, hole_start, hole_end);
-> +		mutex_unlock(&inode->i_mutex);
-> +	}
-> +
-> +	return 0;
-> +}
-> +
-> +static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
-> +				loff_t len)
-> +{
-> +	struct inode *inode = file_inode(file);
-> +	struct address_space *mapping = inode->i_mapping;
-> +	struct hstate *h = hstate_inode(inode);
-> +	struct vm_area_struct pseudo_vma;
-> +	unsigned long hpage_size = huge_page_size(h);
-> +	unsigned long hpage_shift = huge_page_shift(h);
-> +	pgoff_t start, index, end;
-> +	unsigned long addr;
-> +	int error;
-> +
-> +	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
-> +		return -EOPNOTSUPP;
-> +
-> +	if (mode & FALLOC_FL_PUNCH_HOLE)
-> +		return hugetlbfs_punch_hole(inode, offset, len);
-> +
-> +	/*
-> +	 * Default preallocate case.
-> +	 * For this range, start is rounded down and end is rounded up.
-> +	 */
-> +	start = offset >> hpage_shift;
-> +	end = (offset + len + hpage_size - 1) >> hpage_shift;
-> +
-> +	mutex_lock(&inode->i_mutex);
-> +
-> +	/* We need to check rlimit even when FALLOC_FL_KEEP_SIZE */
-> +	error = inode_newsize_ok(inode, offset + len);
-> +	if (error)
-> +		goto out;
-> +
-> +	/*
-> +	 * Initialize a pseudo vma that just contains the policy used
-> +	 * when allocating the huge pages.  The actual policy field
-> +	 * (vm_policy) is determined based on the index in the loop below.
-> +	 */
-> +	memset(&pseudo_vma, 0, sizeof(struct vm_area_struct));
-> +	pseudo_vma.vm_start = 0;
-> +	pseudo_vma.vm_flags |= (VM_HUGETLB | VM_MAYSHARE);
-> +	pseudo_vma.vm_file = file;
-> +
-> +	/* addr is the offset within the file (zero based) */
-> +	addr = start * hpage_size;
-> +	for (index = start; index < end; index++) {
-> +		/*
-> +		 * This is supposed to be the vaddr where the page is being
-> +		 * faulted in, but we have no vaddr here.
-> +		 */
-> +		struct page *page;
-> +		int avoid_reserve = 1;
-> +
-> +		cond_resched();
-> +
-> +		/*
-> +		 * fallocate(2) manpage permits EINTR; we may have been
-> +		 * interrupted because we are using up too much memory.
-> +		 */
-> +		if (signal_pending(current)) {
-> +			error = -EINTR;
-> +			break;
-> +		}
-> +		page = find_get_page(mapping, index);
-> +		if (page) {
-> +			put_page(page);
-> +			continue;
-> +		}
-> +
-> +		/* Get policy based on index */
-> +		pseudo_vma.vm_policy =
-> +			mpol_shared_policy_lookup(&HUGETLBFS_I(inode)->policy,
-> +							index);
-> +
-> +		page = alloc_huge_page(&pseudo_vma, addr, avoid_reserve);
-> +		mpol_cond_put(pseudo_vma.vm_policy);
-> +		if (IS_ERR(page)) {
-> +			error = PTR_ERR(page);
-> +			goto out;
-> +		}
-> +		clear_huge_page(page, addr, pages_per_huge_page(h));
-> +		__SetPageUptodate(page);
-> +		error = huge_add_to_page_cache(page, mapping, index);
-> +		if (error) {
-> +			put_page(page);
-> +			/* Keep going if we see an -EEXIST */
-> +			if (error != -EEXIST)
-> +				goto out;  /* FIXME, need to free? */
-> +		}
-> +
-> +		/*
-> +		 * page_put due to reference from alloc_huge_page()
-> +		 * unlock_page because locked by add_to_page_cache()
-> +		 */
-> +		put_page(page);
-
-Still needed if EEXIST?
-
-> +		unlock_page(page);
-> +
-> +		/* Increment addr for next huge page */
-> +		addr += hpage_size;
-> +	}
-> +
-> +	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)
-> +		i_size_write(inode, offset + len);
-> +	inode->i_ctime = CURRENT_TIME;
-> +	spin_lock(&inode->i_lock);
-> +	inode->i_private = NULL;
-> +	spin_unlock(&inode->i_lock);
-> +out:
-> +	mutex_unlock(&inode->i_mutex);
-> +	return error;
-> +}
-> +
->  static void hugetlbfs_evict_inode(struct inode *inode)
->  {
->  	struct resv_map *resv_map;
-> @@ -743,6 +881,7 @@ const struct file_operations hugetlbfs_file_operations = {
->  	.fsync			= noop_fsync,
->  	.get_unmapped_area	= hugetlb_get_unmapped_area,
->  	.llseek		= default_llseek,
-> +	.fallocate		= hugetlbfs_fallocate,
->  };
+>  Documentation/filesystems/events.txt |  254 +++++++++++
+>  fs/Makefile                          |    1 +
+>  fs/events/Makefile                   |    6 +
+>  fs/events/fs_event.c                 |  775 ++++++++++++++++++++++++++++++++++
+>  fs/events/fs_event.h                 |   27 ++
+>  fs/events/fs_event_netlink.c         |   94 +++++
+>  fs/ext4/balloc.c                     |   26 +-
+>  fs/ext4/ext4.h                       |   10 +
+>  fs/ext4/ialloc.c                     |    5 +-
+>  fs/ext4/inode.c                      |    2 +-
+>  fs/ext4/mballoc.c                    |   17 +-
+>  fs/ext4/resize.c                     |    1 +
+>  fs/ext4/super.c                      |   43 ++
+>  fs/namespace.c                       |    1 +
+>  include/linux/fs.h                   |    6 +-
+>  include/linux/fs_event.h             |   69 +++
+>  include/uapi/linux/fs_event.h        |   62 +++
+>  include/uapi/linux/genetlink.h       |    1 +
+>  mm/shmem.c                           |   39 +-
+>  net/netlink/genetlink.c              |    7 +-
+>  20 files changed, 1412 insertions(+), 34 deletions(-)
+>  create mode 100644 Documentation/filesystems/events.txt
+>  create mode 100644 fs/events/Makefile
+>  create mode 100644 fs/events/fs_event.c
+>  create mode 100644 fs/events/fs_event.h
+>  create mode 100644 fs/events/fs_event_netlink.c
+>  create mode 100644 include/linux/fs_event.h
+>  create mode 100644 include/uapi/linux/fs_event.h
 > 
->  static const struct inode_operations hugetlbfs_dir_inode_operations = {
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 6425945..d96b88e 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -322,6 +322,8 @@ struct huge_bootmem_page {
->  #endif
->  };
+> ---
+> Sample application:
 > 
-> +struct page *alloc_huge_page(struct vm_area_struct *vma,
-> +				unsigned long addr, int avoid_reserve);
->  struct page *alloc_huge_page_node(struct hstate *h, int nid);
->  struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
->  				unsigned long addr, int avoid_reserve);
-> @@ -476,6 +478,7 @@ static inline bool hugepages_supported(void)
+> #include <netlink/cli/utils.h>
+> #include <fs_event.h>
 > 
->  #else	/* CONFIG_HUGETLB_PAGE */
->  struct hstate {};
-> +#define alloc_huge_page(v, a, r) NULL
->  #define alloc_huge_page_node(h, nid) NULL
->  #define alloc_huge_page_noerr(v, a, r) NULL
->  #define alloc_bootmem_huge_page(h) NULL
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 7cda328..e130c6d 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1363,7 +1363,7 @@ static void vma_commit_reservation(struct hstate *h,
->  	region_add(resv, idx, idx + 1);
->  }
+> #define ARRAY_SIZE(x) (sizeof(x)/sizeof((x)[0]))
+> #define LOG(args...) fprintf(stderr, args)
 > 
-> -static struct page *alloc_huge_page(struct vm_area_struct *vma,
-> +struct page *alloc_huge_page(struct vm_area_struct *vma,
->  				    unsigned long addr, int avoid_reserve)
->  {
->  	struct hugepage_subpool *spool = subpool_vma(vma);
+> static int parse_info(struct nl_cache_ops *unused, struct genl_cmd *cmd,
+> 		struct genl_info *info, void *arg)
+> {
+> 	LOG("New trace %d:\n",
+> 		info->attrs[FS_EVENT_ATR_FS_ID]
+> 		?  nla_get_u32(info->attrs[FS_EVENT_ATR_FS_ID])
+> 		: -1);
+> 	LOG("Mout point: %s\n", info->attrs[FS_EVENT_ATR_MOUNT]
+> 		? nla_get_string(info->attrs[FS_EVENT_ATR_MOUNT])
+> 		: "unknown");
+> 	return 0;
+> }
+> 
+> static int parse_thres(struct nl_cache_ops *unused, struct genl_cmd *cmd,
+> 		struct genl_info *info, void *arg)
+> {
+> 
+> 	LOG("Threshold notification received for trace %d:\n",
+> 		info->attrs[FS_EVENT_ATR_FS_ID]
+> 		?  nla_get_u32(info->attrs[FS_EVENT_ATR_FS_ID])
+> 		: -1);
+> 
+> 	if (info->attrs[FS_EVENT_ATR_DEV_MAJOR])
+> 		LOG("Backing dev major: %u\n",
+> 			nla_get_u32(info->attrs[FS_EVENT_ATR_DEV_MAJOR]));
+> 	if (info->attrs[FS_EVENT_ATR_DEV_MINOR])
+> 		LOG("Backing dev minor: %u\n",
+> 			nla_get_u32(info->attrs[FS_EVENT_ATR_DEV_MINOR]));
+> 	LOG("Proc:              %u\n", info->attrs[FS_EVENT_ATR_CAUSED_ID] ?
+> 			nla_get_u32(info->attrs[FS_EVENT_ATR_CAUSED_ID]) : -1);
+> 	LOG("Threshold data:    %llu\n", info->attrs[FS_EVENT_ATR_DATA]
+> 		? nla_get_u64(info->attrs[FS_EVENT_ATR_DATA])
+> 		: 0);
+> 
+> 	return 0;
+> }
+> 
+> static int parse_warning(struct nl_cache_ops *unused, struct genl_cmd *cmd,
+> 			 struct genl_info *info, void *arg)
+> {
+> 
+> 	LOG("Warning recieved for trace %d\n", info->attrs[FS_EVENT_ATR_FS_ID] ?
+> 		nla_get_u32(info->attrs[FS_EVENT_ATR_FS_ID]) : -1);
+> 	if (info->attrs[FS_EVENT_ATR_DEV_MAJOR])
+> 		LOG("Backing dev major: %u\n",
+> 			nla_get_u32(info->attrs[FS_EVENT_ATR_DEV_MAJOR]));
+> 	if (info->attrs[FS_EVENT_ATR_DEV_MINOR])
+> 		LOG("Backing dev minor: %u\n",
+> 			nla_get_u32(info->attrs[FS_EVENT_ATR_DEV_MINOR]));
+> 	LOG("Proc:              %u\n", info->attrs[FS_EVENT_ATR_CAUSED_ID] ?
+> 		nla_get_u32(info->attrs[FS_EVENT_ATR_CAUSED_ID]) : -1);
+> 	LOG("Warning:           %u\n", info->attrs[FS_EVENT_ATR_ID] ?
+> 		nla_get_u32(info->attrs[FS_EVENT_ATR_ID]) : -1);
+> 
+> 	return 0;
+> }
+> 
+> static struct genl_cmd cmd[] = {
+> 	{
+> 		.c_id = FS_EVENT_TYPE_NEW_TRACE,
+> 		.c_name = "info",
+> 		.c_maxattr = 2,
+> 		.c_msg_parser = parse_info,
+> 	}, {
+> 		.c_id = FS_EVENT_TYPE_THRESH,
+> 		.c_name = "thres",
+> 		.c_maxattr = 6,
+> 		.c_msg_parser = parse_thres,
+> 	}, {
+> 		.c_id = FS_EVENT_TYPE_WARN,
+> 		.c_name = "warn",
+> 		.c_maxattr = 5,
+> 		.c_msg_parser = parse_warning,
+> 	},
+> };
+> 
+> static struct genl_ops ops = {
+> 	.o_id = GENL_ID_FS_EVENT,
+> 	.o_name = "FS_EVENT",
+> 	.o_hdrsize = 0,
+> 	.o_cmds = cmd,
+> 	.o_ncmds = ARRAY_SIZE(cmd),
+> };
+> 
+> 
+> int events_cb(struct nl_msg *msg, void *arg)
+> {
+> 	 return  genl_handle_msg(msg, arg);
+> }
+> 
+> int main(int argc, char **argv)
+> {
+> 	struct nl_sock *sock;
+> 	int ret;
+> 
+> 	sock = nl_cli_alloc_socket();
+> 	nl_socket_set_local_port(sock, 0);
+> 	nl_socket_disable_seq_check(sock);
+> 
+> 	nl_socket_modify_cb(sock, NL_CB_VALID, NL_CB_CUSTOM, events_cb, NULL);
+> 
+> 	nl_cli_connect(sock, NETLINK_GENERIC);
+> 
+> 	if ((ret = nl_socket_add_membership(sock, GENL_ID_FS_EVENT))) {
+> 		LOG("Failed to add membership\n");
+> 		goto leave;
+> 	}
+> 
+> 	if((ret = genl_register_family(&ops))) {
+> 		LOG("Failed to register protocol family\n");
+> 		goto leave;
+> 	}
+> 
+> 	if ((ret = genl_ops_resolve(sock, &ops) < 0)) {
+> 		LOG("Unable to resolve the family name\n");
+> 		goto leave;
+> 	}
+> 
+> 	if (genl_ctrl_resolve(sock, "FS_EVENT") < 0) {
+> 		LOG("Failed to resolve  the family name\n");
+> 		goto leave;
+> 	}
+> 
+> 	while (1) {
+> 		if ((ret = nl_recvmsgs_default(sock)) < 0)
+> 			LOG("Unable to receive message: %s\n", nl_geterror(ret));
+> 	}
+> 
+> leave:
+> 	nl_close(sock);
+> 	nl_socket_free(sock);
+> 	return 0;
+> }
+> 
+> -- 
+> 1.7.9.5
+> 
 > --
-> 2.1.0
-> 
-> 
-
+> To unsubscribe from this list: send the line "unsubscribe linux-ext4" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
