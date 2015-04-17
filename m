@@ -1,191 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 362236B0038
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 07:31:15 -0400 (EDT)
-Received: by labbd9 with SMTP id bd9so77887918lab.2
-        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 04:31:14 -0700 (PDT)
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BD1A6B0038
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 07:58:44 -0400 (EDT)
+Received: by wgyo15 with SMTP id o15so110957971wgy.2
+        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 04:58:43 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s5si2536528wix.78.2015.04.17.04.31.12
+        by mx.google.com with ESMTPS id u7si18609944wjz.206.2015.04.17.04.58.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 17 Apr 2015 04:31:12 -0700 (PDT)
-Date: Fri, 17 Apr 2015 13:31:10 +0200
+        Fri, 17 Apr 2015 04:58:42 -0700 (PDT)
+Date: Fri, 17 Apr 2015 13:58:39 +0200
 From: Jan Kara <jack@suse.cz>
 Subject: Re: [RFC 1/4] fs: Add generic file system event notifications
-Message-ID: <20150417113110.GD3116@quack.suse.cz>
+Message-ID: <20150417115839.GE3116@quack.suse.cz>
 References: <1429082147-4151-1-git-send-email-b.michalska@samsung.com>
  <1429082147-4151-2-git-send-email-b.michalska@samsung.com>
+ <55302FFB.4010108@gmx.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1429082147-4151-2-git-send-email-b.michalska@samsung.com>
+In-Reply-To: <55302FFB.4010108@gmx.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Beata Michalska <b.michalska@samsung.com>
-Cc: linux-kernel@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
+To: Heinrich Schuchardt <xypron.glpk@gmx.de>
+Cc: Beata Michalska <b.michalska@samsung.com>, linux-kernel@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org, Jan Kara <jack@suse.cz>
 
-On Wed 15-04-15 09:15:44, Beata Michalska wrote:
-> Introduce configurable generic interface for file
-> system-wide event notifications to provide file
-> systems with a common way of reporting any potential
-> issues as they emerge.
+On Thu 16-04-15 23:56:11, Heinrich Schuchardt wrote:
+> On 15.04.2015 09:15, Beata Michalska wrote:
+> > Introduce configurable generic interface for file
+> > system-wide event notifications to provide file
+> > systems with a common way of reporting any potential
+> > issues as they emerge.
+> > 
+> > The notifications are to be issued through generic
+> > netlink interface, by a dedicated, for file system
+> > events, multicast group. The file systems might as
+> > well use this group to send their own custom messages.
+> > 
+> > The events have been split into four base categories:
+> > information, warnings, errors and threshold notifications,
+> > with some very basic event types like running out of space
+> > or file system being remounted as read-only.
+> > 
+> > Threshold notifications have been included to allow
+> > triggering an event whenever the amount of free space
+> > drops below a certain level - or levels to be more precise
+> > as two of them are being supported: the lower and the upper
+> > range. The notifications work both ways: once the threshold
+> > level has been reached, an event shall be generated whenever
+> > the number of available blocks goes up again re-activating
+> > the threshold.
+> > 
+> > The interface has been exposed through a vfs. Once mounted,
+> > it serves as an entry point for the set-up where one can
+> > register for particular file system events.
 > 
-> The notifications are to be issued through generic
-> netlink interface, by a dedicated, for file system
-> events, multicast group. The file systems might as
-> well use this group to send their own custom messages.
+> Having a framework for notification for file systems is a great idea.
+> Your solution covers an important part of the possible application scope.
 > 
-> The events have been split into four base categories:
-> information, warnings, errors and threshold notifications,
-> with some very basic event types like running out of space
-> or file system being remounted as read-only.
+> Before moving forward I suggest we should analyze if this scope should
+> be enlarged.
 > 
-> Threshold notifications have been included to allow
-> triggering an event whenever the amount of free space
-> drops below a certain level - or levels to be more precise
-> as two of them are being supported: the lower and the upper
-> range. The notifications work both ways: once the threshold
-> level has been reached, an event shall be generated whenever
-> the number of available blocks goes up again re-activating
-> the threshold.
-> 
-> The interface has been exposed through a vfs. Once mounted,
-> it serves as an entry point for the set-up where one can
-> register for particular file system events.
-> 
-> Signed-off-by: Beata Michalska <b.michalska@samsung.com>
-  Thanks for the patches! Some comments are below.
+> Many filesystems are remote (e.g. CIFS/Samba) or distributed over many
+> network nodes (e.g. Lustre). How should file system notification work here?
+  IMO server <-> client notification is fully within the responsibility of
+a particular protocol. The client can then translate the notification via
+this interface just fine. So IMHO there's nothing to do in this regard.
 
-> ---
->  Documentation/filesystems/events.txt |  254 +++++++++++
->  fs/Makefile                          |    1 +
->  fs/events/Makefile                   |    6 +
->  fs/events/fs_event.c                 |  775 ++++++++++++++++++++++++++++++++++
->  fs/events/fs_event.h                 |   27 ++
->  fs/events/fs_event_netlink.c         |   94 +++++
->  fs/namespace.c                       |    1 +
->  include/linux/fs.h                   |    6 +-
->  include/linux/fs_event.h             |   69 +++
->  include/uapi/linux/fs_event.h        |   62 +++
->  include/uapi/linux/genetlink.h       |    1 +
->  net/netlink/genetlink.c              |    7 +-
->  12 files changed, 1301 insertions(+), 2 deletions(-)
->  create mode 100644 Documentation/filesystems/events.txt
->  create mode 100644 fs/events/Makefile
->  create mode 100644 fs/events/fs_event.c
->  create mode 100644 fs/events/fs_event.h
->  create mode 100644 fs/events/fs_event_netlink.c
->  create mode 100644 include/linux/fs_event.h
->  create mode 100644 include/uapi/linux/fs_event.h
-> 
-> diff --git a/Documentation/filesystems/events.txt b/Documentation/filesystems/events.txt
-> new file mode 100644
-> index 0000000..c85dd88
-> --- /dev/null
-> +++ b/Documentation/filesystems/events.txt
-> @@ -0,0 +1,254 @@
-> +
-> +	Generic file system event notification interface
-> +
-> +Document created 09 April 2015 by Beata Michalska <b.michalska@samsung.com>
-> +
-> +1. The reason behind:
-> +=====================
-> +
-> +There are many corner cases when things might get messy with the filesystems.
-> +And it is not always obvious what and when went wrong. Sometimes you might
-> +get some subtle hints that there is something going on - but by the time
-> +you realise it, it might be too late as you are already out-of-space
-> +or the filesystem has been remounted as read-only (i.e.). The generic
-> +interface for the filesystem events fills the gap by providing a rather
-> +easy way of real-time notifications triggered whenever something intreseting
-> +happens, allowing filesystems to report events in a common way, as they occur.
-> +
-> +2. How does it work:
-> +====================
-> +
-> +The interface itself has been exposed as fstrace-type Virtual File System,
-> +primarily to ease the process of setting up the configuration for the file
-> +system notifications. So for starters it needs to get mounted (obviously):
-> +
-> +	mount -t fstrace none /sys/fs/events
-> +
-> +This will unveil the single fstrace filesystem entry - the 'config' file,
-> +through which the notification are being set-up.
-> +
-> +Activating notifications for particular filesystem is as straightforward
-> +as writing into the 'config' file. Note that by default all events despite
-> +the actual filesystem type are being disregarded.
-  Is there a reason to have a special filesystem for this? Do you expect
-extending it by (many) more files? Why not just creating a file in sysfs or
-something like that?
+> How will fuse file systems be served?
+  I similar answer as previously. It's resposibility of each filesystem to
+provide the notification. You would need some way for userspace to notify
+the FUSE in kernel which can then relay the information via this interface.
+So doable but I don't think we have to do it now...
 
-> +Synopsis of config:
-> +------------------
-> +
-> +	MOUNT EVENT_TYPE [L1] [L2]
-> +
-> + MOUNT      : the filesystem's mount point
-  I'm not quite decided but is mountpoint really the right thing to pass
-via the interface? They aren't unique (filesystem can be mounted in
-multiple places) and more importantly can change over time. So won't it be
-better to pass major:minor over the interface? These are stable, unique to
-the filesystem, and userspace can easily get them by calling stat(2) on the
-desired path (or directly from /proc/self/mountinfo). That could be also
-used as an fs identifier instead of assigned ID (and thus we won't need
-those events about creation of new trace which look somewhat strange to
-me).
+> The current point of reference is a single mount point.
+> Every time I insert an USB stick several file system may be automounted.
+> I would like to receive events for these automounted file systems.
+  So you'll receive udev / DBus events for the mounts, you can catch these
+in a userspace daemon and add appropriate rules to receive events (you
+could even make it part of the mounting procedure of your desktop). I don't
+think we should magically insert new rules for mounted filesystems since
+that's a decision that belongs to userspace.
 
-OTOH using major:minor may have issues in container world where processes
-could watch events from filesystems inaccessible to the container if they
-guess the device number. So maybe we could use 'path' when creating new
-trace but I'd still like to use the device number internally and for all
-outgoing communication because of above mentioned problems with
-mountpoints.
+> A similar case arises when starting new virtual machines. How will I
+> receive events on the host system for the file systems of the virtual
+> machines?
+  IMHO that belongs in userspace and is out of scope for this proposal.
 
-> + EVENT_TYPE : type of events to be enabled: info,warn,err,thr;
-> +              at least one type needs to be specified;
-> +              note the comma delimiter and lack of spaces between
-> +	      those options
-> + L1         : the threshold limit - lower range
-> + L2         : the threshold limit - upper range
-> + 	      case enabling threshold notifications the lower level is
-> +	      mandatory, whereas the upper one remains optional;
-> +	      note though, that as those refer to the number of available
-> +	      blocks, the lower level needs to be higher than the upper one
-> +
-> +Sample request could look like the follwoing:
-> +
-> + echo /sample/mount/point warn,err,thr 710000 500000 > /sys/fs/events/config
-> +
-> +Multiple request might be specified provided they are separated with semicolon.
-  Is this necessary? It somewhat complicates syntax and parsing in kernel
-and I don't see a need for that. I'd prefer to keep the interface as simple
-as possible.
-
-Also I think that we should make it clear that each event type has
-different set of arguments. For threshold events they'll be L1 & L2, for
-other events there may be no arguments, for other events maybe something
-else...
-
-...
-> +static const match_table_t fs_etypes = {
-> +	{ FS_EVENT_INFO,    "info"  },
-> +	{ FS_EVENT_WARN,    "warn"  },
-> +	{ FS_EVENT_THRESH,  "thr"   },
-> +	{ FS_EVENT_ERR,     "err"   },
-> +	{ 0, NULL },
-> +};
-  Why are there these generic message types? Threshold messages make good
-sense to me. But not so much the rest. If they don't have a clear meaning,
-it will be a mess. So I also agree with a message like - "filesystem has
-trouble, you should probably unmount and run fsck" - that's fine. But
-generic "info" or "warning" doesn't really carry any meaning on its own and
-thus seems pretty useless to me. To explain a bit more, AFAIU this
-shouldn't be a generic logging interface where something like severity
-makes sense but rather a relatively specific interface notifying about
-events in filesystem userspace should know about so I expect relatively low
-number of types of events, not tens or even hundreds...
+> In your implementation events are received via Netlink.
+> Using Netlink for marking mounts for notification would create a much
+> more homogenous interface. So why should we use a virtual file system here?
+  Hum, that's an interesting idea. Yes, e.g. networking uses netlink to
+configure e.g. routing in kernel and in case of this interface, it really
+might make the interface nicer.
 
 								Honza
 -- 
