@@ -1,48 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 9797D6B0032
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 14:39:59 -0400 (EDT)
-Received: by iedfl3 with SMTP id fl3so88984712ied.1
-        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 11:39:59 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id dz5si10880022icb.102.2015.04.17.11.39.58
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AE3E6B0032
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 14:59:43 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so32546541wid.0
+        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 11:59:42 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dg10si20202944wjb.152.2015.04.17.11.59.40
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Apr 2015 11:39:59 -0700 (PDT)
-Message-ID: <5531537C.1000107@codeaurora.org>
-Date: Fri, 17 Apr 2015 11:39:56 -0700
-From: David Keitel <dkeitel@codeaurora.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 17 Apr 2015 11:59:41 -0700 (PDT)
+Date: Fri, 17 Apr 2015 20:59:39 +0200 (CEST)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: [PATCH] thp: cleanup how khugepaged enters freezer
+Message-ID: <alpine.LNX.2.00.1504172055570.3695@pobox.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] arm64: add KASan support
-References: <1427208544-8232-1-git-send-email-a.ryabinin@samsung.com> <1427208544-8232-3-git-send-email-a.ryabinin@samsung.com> <20150401122843.GA28616@e104818-lin.cambridge.arm.com> <551E993E.5060801@samsung.com> <552DCED9.40207@codeaurora.org> <552EA835.5070704@samsung.com>
-In-Reply-To: <552EA835.5070704@samsung.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 04/15/2015 11:04 AM, Andrey Ryabinin wrote:
-> I've pushed the most fresh thing that I have in git:
-> 	git://github.com/aryabinin/linux.git kasan/arm64v1
-> 
-> It's the same patches with two simple but important fixes on top of it.
+khugepaged_do_scan() checks in every iteration whether freezing(current) 
+is true, and in such case breaks out of the loop, which causes 
+try_to_freeze() to be called immediately afterwards in 
+khugepaged_wait_work().
 
-Thanks, the two commits do fix compilation issues that I've had worked around to get to my mapping question.
+If nothing else, this causes unnecessary freezing(current) test, and also 
+makes the way khugepaged enters freezer a bit less obvious than necessary.
 
-I've addressed the mapping problem using __create_page_tables in arch/arm64/head.S as an example.
+Let's just try to freeze directly, instead of splitting it into two 
+(directly adjacent) phases.
 
-The next roadblock I hit was running into kasan_report_error calls in cgroups_early_init. After a short investigation it does seem to be a false positive due the the kasan_zero_page size and tracking bytes being reused for different memory regions.
+Signed-off-by: Jiri Kosina <jkosina@suse.cz>
+---
 
-I worked around that by enabling kasan error reporting only after the kasan_init is run. This let me get to the shell with some real KAsan reports along the way. There were some other fixes and hacks to get there. I'll backtrack to evaluate which ones warrant an RFC.
+Stumbled upon this when debugging something completely unrelated.
 
- - David
+ mm/huge_memory.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 078832c..b3d8cd8 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2799,7 +2799,7 @@ static void khugepaged_do_scan(void)
+ 
+ 		cond_resched();
+ 
+-		if (unlikely(kthread_should_stop() || freezing(current)))
++		if (unlikely(kthread_should_stop() || try_to_freeze()))
+ 			break;
+ 
+ 		spin_lock(&khugepaged_mm_lock);
+@@ -2820,8 +2820,6 @@ static void khugepaged_do_scan(void)
+ 
+ static void khugepaged_wait_work(void)
+ {
+-	try_to_freeze();
+-
+ 	if (khugepaged_has_work()) {
+ 		if (!khugepaged_scan_sleep_millisecs)
+ 			return;
 
 -- 
-Qualcomm Innovation Center, Inc.
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
-a Linux Foundation Collaborative Project
+Jiri Kosina
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
