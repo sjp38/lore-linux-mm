@@ -1,64 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id A33F96B0038
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 03:12:06 -0400 (EDT)
-Received: by pabtp1 with SMTP id tp1so116419215pab.2
-        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 00:12:06 -0700 (PDT)
-Received: from out21.biz.mail.alibaba.com (out114-136.biz.mail.alibaba.com. [205.204.114.136])
-        by mx.google.com with ESMTP id ku2si15418238pbc.235.2015.04.17.00.12.04
-        for <linux-mm@kvack.org>;
-        Fri, 17 Apr 2015 00:12:05 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <00e601d078da$9e762190$db6264b0$@alibaba-inc.com>
-In-Reply-To: <00e601d078da$9e762190$db6264b0$@alibaba-inc.com>
-Subject: Re: [RFC PATCH 4/4] mm: madvise allow remove operation for hugetlbfs
-Date: Fri, 17 Apr 2015 15:10:29 +0800
-Message-ID: <00ef01d078dd$96bfc480$c43f4d80$@alibaba-inc.com>
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 66C2C6B0038
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 03:19:37 -0400 (EDT)
+Received: by obbfy7 with SMTP id fy7so62814444obb.2
+        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 00:19:37 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id p11si7278313oib.86.2015.04.17.00.19.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 17 Apr 2015 00:19:36 -0700 (PDT)
+Message-ID: <5530B2ED.8050002@huawei.com>
+Date: Fri, 17 Apr 2015 15:14:53 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="UTF-8"
+Subject: [PATCH 2/2] memory-hotplug: remove reset_node_managed_pages() and
+ reset_node_managed_pages() in hotadd_new_pgdat()
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Mike Kravetz' <mike.kravetz@oracle.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Xiexiuqi <xiexiuqi@huawei.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> 
-> Now that we have hole punching support for hugetlbfs, we can
-> also support the MADV_REMOVE interface to it.
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> ---
->  mm/madvise.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/madvise.c b/mm/madvise.c
-> index d551475..c4a1027 100644
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -299,7 +299,7 @@ static long madvise_remove(struct vm_area_struct *vma,
-> 
->  	*prev = NULL;	/* tell sys_madvise we drop mmap_sem */
-> 
-> -	if (vma->vm_flags & (VM_LOCKED | VM_HUGETLB))
-> +	if (vma->vm_flags & VM_LOCKED)
->  		return -EINVAL;
-> 
->  	f = vma->vm_file;
-> --
-> 2.1.0
+After hotadd_new_pgdat()->free_area_init_node(), pgdat's spanned/present are 0,
+and zone's spanned/present/managed are 0, so remove reset_node_managed_pages()
+and reset_node_managed_pages().
 
-After the above change offset is computed,
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ mm/memory_hotplug.c |   25 -------------------------
+ 1 files changed, 0 insertions(+), 25 deletions(-)
 
-	offset = (loff_t)(start - vma->vm_start)
-		+ ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 457bde5..82c67ee 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1064,16 +1064,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ }
+ #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+ 
+-static void reset_node_present_pages(pg_data_t *pgdat)
+-{
+-	struct zone *z;
+-
+-	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+-		z->present_pages = 0;
+-
+-	pgdat->node_present_pages = 0;
+-}
+-
+ /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
+ {
+@@ -1108,21 +1098,6 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
+ 	build_all_zonelists(pgdat, NULL);
+ 	mutex_unlock(&zonelists_mutex);
+ 
+-	/*
+-	 * zone->managed_pages is set to an approximate value in
+-	 * free_area_init_core(), which will cause
+-	 * /sys/device/system/node/nodeX/meminfo has wrong data.
+-	 * So reset it to 0 before any memory is onlined.
+-	 */
+-	reset_node_managed_pages(pgdat);
+-
+-	/*
+-	 * When memory is hot-added, all the memory is in offline state. So
+-	 * clear all zones' present_pages because they will be updated in
+-	 * online_pages() and offline_pages().
+-	 */
+-	reset_node_present_pages(pgdat);
+-
+ 	return pgdat;
+ }
+ 
+-- 
+1.7.1
 
-and I wonder if it is correct for huge page mapping.
 
-Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
