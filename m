@@ -1,191 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D642900018
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 06:55:34 -0400 (EDT)
-Received: by ykfa3 with SMTP id a3so8498031ykf.0
-        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 03:55:34 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id d75si5985337yke.8.2015.04.17.03.55.32
+Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 362236B0038
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 07:31:15 -0400 (EDT)
+Received: by labbd9 with SMTP id bd9so77887918lab.2
+        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 04:31:14 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s5si2536528wix.78.2015.04.17.04.31.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 17 Apr 2015 03:55:33 -0700 (PDT)
-Message-ID: <5530E578.9070505@huawei.com>
-Date: Fri, 17 Apr 2015 18:50:32 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 17 Apr 2015 04:31:12 -0700 (PDT)
+Date: Fri, 17 Apr 2015 13:31:10 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC 1/4] fs: Add generic file system event notifications
+Message-ID: <20150417113110.GD3116@quack.suse.cz>
+References: <1429082147-4151-1-git-send-email-b.michalska@samsung.com>
+ <1429082147-4151-2-git-send-email-b.michalska@samsung.com>
 MIME-Version: 1.0
-Subject: [PATCH 1/2 V2] memory-hotplug: fix BUG_ON in move_freepages()
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1429082147-4151-2-git-send-email-b.michalska@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Xiexiuqi <xiexiuqi@huawei.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Beata Michalska <b.michalska@samsung.com>
+Cc: linux-kernel@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
-Hot remove nodeXX, then hot add nodeXX. If BIOS report cpu first, it will call
-hotadd_new_pgdat(nid, 0), this will set pgdat->node_start_pfn to 0. As nodeXX
-exists at boot time, so pgdat->node_spanned_pages is the same as original. Then
-free_area_init_core()->memmap_init() will pass a wrong start and a nonzero size.
+On Wed 15-04-15 09:15:44, Beata Michalska wrote:
+> Introduce configurable generic interface for file
+> system-wide event notifications to provide file
+> systems with a common way of reporting any potential
+> issues as they emerge.
+> 
+> The notifications are to be issued through generic
+> netlink interface, by a dedicated, for file system
+> events, multicast group. The file systems might as
+> well use this group to send their own custom messages.
+> 
+> The events have been split into four base categories:
+> information, warnings, errors and threshold notifications,
+> with some very basic event types like running out of space
+> or file system being remounted as read-only.
+> 
+> Threshold notifications have been included to allow
+> triggering an event whenever the amount of free space
+> drops below a certain level - or levels to be more precise
+> as two of them are being supported: the lower and the upper
+> range. The notifications work both ways: once the threshold
+> level has been reached, an event shall be generated whenever
+> the number of available blocks goes up again re-activating
+> the threshold.
+> 
+> The interface has been exposed through a vfs. Once mounted,
+> it serves as an entry point for the set-up where one can
+> register for particular file system events.
+> 
+> Signed-off-by: Beata Michalska <b.michalska@samsung.com>
+  Thanks for the patches! Some comments are below.
 
-free_area_init_core()
-	memmap_init()
-		memmap_init_zone()
-			early_pfn_in_nid()
-			set_page_links()
+> ---
+>  Documentation/filesystems/events.txt |  254 +++++++++++
+>  fs/Makefile                          |    1 +
+>  fs/events/Makefile                   |    6 +
+>  fs/events/fs_event.c                 |  775 ++++++++++++++++++++++++++++++++++
+>  fs/events/fs_event.h                 |   27 ++
+>  fs/events/fs_event_netlink.c         |   94 +++++
+>  fs/namespace.c                       |    1 +
+>  include/linux/fs.h                   |    6 +-
+>  include/linux/fs_event.h             |   69 +++
+>  include/uapi/linux/fs_event.h        |   62 +++
+>  include/uapi/linux/genetlink.h       |    1 +
+>  net/netlink/genetlink.c              |    7 +-
+>  12 files changed, 1301 insertions(+), 2 deletions(-)
+>  create mode 100644 Documentation/filesystems/events.txt
+>  create mode 100644 fs/events/Makefile
+>  create mode 100644 fs/events/fs_event.c
+>  create mode 100644 fs/events/fs_event.h
+>  create mode 100644 fs/events/fs_event_netlink.c
+>  create mode 100644 include/linux/fs_event.h
+>  create mode 100644 include/uapi/linux/fs_event.h
+> 
+> diff --git a/Documentation/filesystems/events.txt b/Documentation/filesystems/events.txt
+> new file mode 100644
+> index 0000000..c85dd88
+> --- /dev/null
+> +++ b/Documentation/filesystems/events.txt
+> @@ -0,0 +1,254 @@
+> +
+> +	Generic file system event notification interface
+> +
+> +Document created 09 April 2015 by Beata Michalska <b.michalska@samsung.com>
+> +
+> +1. The reason behind:
+> +=====================
+> +
+> +There are many corner cases when things might get messy with the filesystems.
+> +And it is not always obvious what and when went wrong. Sometimes you might
+> +get some subtle hints that there is something going on - but by the time
+> +you realise it, it might be too late as you are already out-of-space
+> +or the filesystem has been remounted as read-only (i.e.). The generic
+> +interface for the filesystem events fills the gap by providing a rather
+> +easy way of real-time notifications triggered whenever something intreseting
+> +happens, allowing filesystems to report events in a common way, as they occur.
+> +
+> +2. How does it work:
+> +====================
+> +
+> +The interface itself has been exposed as fstrace-type Virtual File System,
+> +primarily to ease the process of setting up the configuration for the file
+> +system notifications. So for starters it needs to get mounted (obviously):
+> +
+> +	mount -t fstrace none /sys/fs/events
+> +
+> +This will unveil the single fstrace filesystem entry - the 'config' file,
+> +through which the notification are being set-up.
+> +
+> +Activating notifications for particular filesystem is as straightforward
+> +as writing into the 'config' file. Note that by default all events despite
+> +the actual filesystem type are being disregarded.
+  Is there a reason to have a special filesystem for this? Do you expect
+extending it by (many) more files? Why not just creating a file in sysfs or
+something like that?
 
-"if (!early_pfn_in_nid(pfn, nid))" will skip the pfn(memory in section), but it
-will not skip the pfn(hole in section), this will cover and relink the page to
-zone/nid, so page_zone() from memory and hole in the same section are different.
-The following call trace shows the bug.
+> +Synopsis of config:
+> +------------------
+> +
+> +	MOUNT EVENT_TYPE [L1] [L2]
+> +
+> + MOUNT      : the filesystem's mount point
+  I'm not quite decided but is mountpoint really the right thing to pass
+via the interface? They aren't unique (filesystem can be mounted in
+multiple places) and more importantly can change over time. So won't it be
+better to pass major:minor over the interface? These are stable, unique to
+the filesystem, and userspace can easily get them by calling stat(2) on the
+desired path (or directly from /proc/self/mountinfo). That could be also
+used as an fs identifier instead of assigned ID (and thus we won't need
+those events about creation of new trace which look somewhat strange to
+me).
 
-This patch will set the node size to 0 when hotadd a new node(original or new).
-init_currently_empty_zone() and memmap_init() will be called in add_zone(), so
-need not to change it.
+OTOH using major:minor may have issues in container world where processes
+could watch events from filesystems inaccessible to the container if they
+guess the device number. So maybe we could use 'path' when creating new
+trace but I'd still like to use the device number internally and for all
+outgoing communication because of above mentioned problems with
+mountpoints.
 
-[90476.077469] kernel BUG at mm/page_alloc.c:1042!  // move_freepages() -> BUG_ON(page_zone(start_page) != page_zone(end_page));
-[90476.077469] invalid opcode: 0000 [#1] SMP 
-[90476.077469] Modules linked in: iptable_nat nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack fuse btrfs zlib_deflate raid6_pq xor msdos ext4 mbcache jbd2 binfmt_misc bridge stp llc ip6table_filter ip6_tables iptable_filter ip_tables ebtable_nat ebtables cfg80211 rfkill sg iTCO_wdt iTCO_vendor_support intel_powerclamp coretemp intel_rapl kvm_intel kvm crct10dif_pclmul crc32_pclmul crc32c_intel ghash_clmulni_intel aesni_intel lrw gf128mul glue_helper ablk_helper cryptd pcspkr igb vfat i2c_algo_bit dca fat sb_edac edac_core i2c_i801 lpc_ich i2c_core mfd_core shpchp acpi_pad ipmi_si ipmi_msghandler uinput nfsd auth_rpcgss nfs_acl lockd sunrpc xfs libcrc32c sd_mod crc_t10dif crct10dif_common ahci libahci megaraid_sas tg3 ptp libata pps_core dm_mirror dm_region_hash dm_log dm_mod [last unloaded: rasf]
-[90476.157382] CPU: 2 PID: 322803 Comm: updatedb Tainted: GF       W  O--------------   3.10.0-229.1.2.5.hulk.rc14.x86_64 #1
-[90476.157382] Hardware name: HUAWEI TECHNOLOGIES CO.,LTD. Huawei N1/Huawei N1, BIOS V100R001 04/13/2015
-[90476.157382] task: ffff88006a6d5b00 ti: ffff880068eb8000 task.ti: ffff880068eb8000
-[90476.157382] RIP: 0010:[<ffffffff81159f7f>]  [<ffffffff81159f7f>] move_freepages+0x12f/0x140
-[90476.157382] RSP: 0018:ffff880068ebb640  EFLAGS: 00010002
-[90476.157382] RAX: ffff880002316cc0 RBX: ffffea0001bd0000 RCX: 0000000000000001
-[90476.157382] RDX: ffff880002476e40 RSI: 0000000000000000 RDI: ffff880002316cc0
-[90476.157382] RBP: ffff880068ebb690 R08: 0000000000100000 R09: ffffea0001bd7fc0
-[90476.157382] R10: 000000000006f5ff R11: 0000000000000000 R12: 0000000000000001
-[90476.157382] R13: 0000000000000003 R14: ffff880002316eb8 R15: ffffea0001bd7fc0
-[90476.157382] FS:  00007f4d3ab95740(0000) GS:ffff880033a00000(0000) knlGS:0000000000000000
-[90476.157382] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[90476.157382] CR2: 00007f4d3ae1a808 CR3: 000000018907a000 CR4: 00000000001407e0
-[90476.157382] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[90476.157382] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-[90476.157382] Stack:
-[90476.157382]  ffff880068ebb698 ffff880002316cc0 ffffa800b5378098 ffff880068ebb698
-[90476.157382]  ffffffff810b11dc ffff880002316cc0 0000000000000001 0000000000000003
-[90476.157382]  ffff880002316eb8 ffffea0001bd6420 ffff880068ebb6a0 ffffffff8115a003
-[90476.157382] Call Trace:
-[90476.157382]  [<ffffffff810b11dc>] ? update_curr+0xcc/0x150
-[90476.157382]  [<ffffffff8115a003>] move_freepages_block+0x73/0x80
-[90476.157382]  [<ffffffff8115b9ba>] __rmqueue+0x26a/0x460
-[90476.157382]  [<ffffffff8101ba53>] ? native_sched_clock+0x13/0x80
-[90476.157382]  [<ffffffff8115e172>] get_page_from_freelist+0x7f2/0xd30
-[90476.157382]  [<ffffffff81012639>] ? __switch_to+0x179/0x4a0
-[90476.157382]  [<ffffffffa01fc0d7>] ? xfs_iext_bno_to_ext+0xa7/0x1a0 [xfs]
-[90476.157382]  [<ffffffff8115e871>] __alloc_pages_nodemask+0x1c1/0xc90
-[90476.157382]  [<ffffffffa01ab24c>] ? _xfs_buf_ioapply+0x31c/0x420 [xfs]
-[90476.157382]  [<ffffffff8109cb0d>] ? down_trylock+0x2d/0x40
-[90476.157382]  [<ffffffffa01abfff>] ? xfs_buf_trylock+0x1f/0x80 [xfs]
-[90476.157382]  [<ffffffff8119d229>] alloc_pages_current+0xa9/0x170
-[90476.157382]  [<ffffffff811a7225>] new_slab+0x275/0x300
-[90476.157382]  [<ffffffff815faaa2>] __slab_alloc+0x315/0x48f
-[90476.157382]  [<ffffffffa01c59d7>] ? kmem_zone_alloc+0x77/0x100 [xfs]
-[90476.157382]  [<ffffffffa01d21fc>] ? xfs_bmap_search_extents+0x5c/0xc0 [xfs]
-[90476.157382]  [<ffffffff811a9863>] kmem_cache_alloc+0x193/0x1d0
-[90476.157382]  [<ffffffffa01c59d7>] ? kmem_zone_alloc+0x77/0x100 [xfs]
-[90476.157382]  [<ffffffffa01c59d7>] kmem_zone_alloc+0x77/0x100 [xfs]
-[90476.157382]  [<ffffffffa01b46b5>] xfs_inode_alloc+0x25/0x250 [xfs]
-[90476.157382]  [<ffffffffa01b5279>] xfs_iget+0x219/0x680 [xfs]
-[90476.157382]  [<ffffffffa01f83a6>] xfs_lookup+0xf6/0x120 [xfs]
-[90476.157382]  [<ffffffffa01bae1b>] xfs_vn_lookup+0x7b/0xd0 [xfs]
-[90476.157382]  [<ffffffff811ce40d>] lookup_real+0x1d/0x50
-[90476.157382]  [<ffffffff811ced42>] __lookup_hash+0x42/0x60
-[90476.157382]  [<ffffffff815fae0c>] lookup_slow+0x42/0xa7
-[90476.157382]  [<ffffffff811d28cb>] path_lookupat+0x76b/0x7a0
-[90476.157382]  [<ffffffff811d3815>] ? do_last+0x635/0x1260
-[90476.157382]  [<ffffffff811a9705>] ? kmem_cache_alloc+0x35/0x1d0
-[90476.157382]  [<ffffffff811d498f>] ? getname_flags+0x4f/0x190
-[90476.157382]  [<ffffffff811d292b>] filename_lookup+0x2b/0xc0
-[90476.157382]  [<ffffffff811d5807>] user_path_at_empty+0x67/0xc0
-[90476.157382]  [<ffffffff810efaa2>] ? from_kgid_munged+0x12/0x20
-[90476.157382]  [<ffffffff811c991f>] ? cp_new_stat+0x14f/0x180
-[90476.157382]  [<ffffffff811d5871>] user_path_at+0x11/0x20
-[90476.157382]  [<ffffffff811c9413>] vfs_fstatat+0x63/0xc0
-[90476.157382]  [<ffffffff811c99e1>] SYSC_newlstat+0x31/0x60
-[90476.157382]  [<ffffffff810f9b16>] ? __audit_syscall_exit+0x1f6/0x2a0
-[90476.157382]  [<ffffffff811c9c5e>] SyS_newlstat+0xe/0x10
-[90476.157382]  [<ffffffff8160ca69>] system_call_fastpath+0x16/0x1b
-[90476.157382] Code: d0 8b 45 c4 48 c1 e2 06 48 01 d3 01 c8 49 39 df 0f 83 7b ff ff ff 66 0f 1f 44 00 00 48 83 c4 28 5b 41 5c 41 5d 41 5e 41 5f 5d c3 <0f> 0b 66 66 66 66 66 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 44 00 
-[90476.157382] RIP  [<ffffffff81159f7f>] move_freepages+0x12f/0x140
-[90476.157382]  RSP <ffff880068ebb640>
-[90476.157382] ---[ end trace 58557f791c6d66d4 ]---
-[90476.157382] Kernel panic - not syncing: Fatal exception
+> + EVENT_TYPE : type of events to be enabled: info,warn,err,thr;
+> +              at least one type needs to be specified;
+> +              note the comma delimiter and lack of spaces between
+> +	      those options
+> + L1         : the threshold limit - lower range
+> + L2         : the threshold limit - upper range
+> + 	      case enabling threshold notifications the lower level is
+> +	      mandatory, whereas the upper one remains optional;
+> +	      note though, that as those refer to the number of available
+> +	      blocks, the lower level needs to be higher than the upper one
+> +
+> +Sample request could look like the follwoing:
+> +
+> + echo /sample/mount/point warn,err,thr 710000 500000 > /sys/fs/events/config
+> +
+> +Multiple request might be specified provided they are separated with semicolon.
+  Is this necessary? It somewhat complicates syntax and parsing in kernel
+and I don't see a need for that. I'd prefer to keep the interface as simple
+as possible.
 
-log and analyse:
+Also I think that we should make it clear that each event type has
+different set of arguments. For threshold events they'll be L1 & L2, for
+other events there may be no arguments, for other events maybe something
+else...
+
 ...
-[    0.000000] Initmem setup node 0 [mem 0x00000000-0x2000ffffffff]
-[    0.000000]   NODE_DATA [mem 0x02312400-0x023393ff]	// node0
-...
-[    0.000000] Initmem setup node 9 [mem 0x30000000000-0x3ffffffffff]
-[    0.000000]   NODE_DATA [mem 0x02471400-0x024983ff]	// node9
-...
-[    0.000000]   node   0: [mem 0x5b880000-0x5baf2fff]
-[    0.000000]   node   0: [mem 0x61382000-0x6148ffff]
-[    0.000000]   node   0: [mem 0x61a90000-0x6f39bfff]  // 1562.56 - 1779.61
-[    0.000000]   node   0: [mem 0x6f51c000-0x6f7c9fff]  // 1781.11 - 1783.79 
-[    0.000000]   node   0: [mem 0x6fb1c000-0x6fb1cfff]
-[    0.000000]   node   0: [mem 0x6fba3000-0x6fffffff]
-...
+> +static const match_table_t fs_etypes = {
+> +	{ FS_EVENT_INFO,    "info"  },
+> +	{ FS_EVENT_WARN,    "warn"  },
+> +	{ FS_EVENT_THRESH,  "thr"   },
+> +	{ FS_EVENT_ERR,     "err"   },
+> +	{ 0, NULL },
+> +};
+  Why are there these generic message types? Threshold messages make good
+sense to me. But not so much the rest. If they don't have a clear meaning,
+it will be a mess. So I also agree with a message like - "filesystem has
+trouble, you should probably unmount and run fsck" - that's fine. But
+generic "info" or "warning" doesn't really carry any meaning on its own and
+thus seems pretty useless to me. To explain a bit more, AFAIU this
+shouldn't be a generic logging interface where something like severity
+makes sense but rather a relatively specific interface notifying about
+events in filesystem userspace should know about so I expect relatively low
+number of types of events, not tens or even hundreds...
 
-start_page = ffffea0001bd0000 -> pfn=0x6F400 -> 1780M, in node0, right!
-end_page   = ffffea0001bd7fc0 -> pfn=0x6F5FF -> 1782M-4kb, in node0, right!
-page_zone(start_page) = ffff880002476e40, in node9, wrong!
-page_zone(end_page)   = ffff880002316cc0, in node0, right!
-
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
----
- mm/page_alloc.c |   14 ++++++++++++++
- 1 files changed, 14 insertions(+), 0 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ebffa0e..f74398c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4667,6 +4667,10 @@ static unsigned long __meminit zone_spanned_pages_in_node(int nid,
- {
- 	unsigned long zone_start_pfn, zone_end_pfn;
- 
-+	/* When hotadd a new node, init node's zones as empty zones */
-+	if (!node_online(nid))
-+		return 0;
-+
- 	/* Get the start and end of the zone */
- 	zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
- 	zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
-@@ -4730,6 +4734,10 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
- 	unsigned long zone_high = arch_zone_highest_possible_pfn[zone_type];
- 	unsigned long zone_start_pfn, zone_end_pfn;
- 
-+	/* When hotadd a new node, init node's zones as empty zones */
-+	if (!node_online(nid))
-+		return 0;
-+
- 	zone_start_pfn = clamp(node_start_pfn, zone_low, zone_high);
- 	zone_end_pfn = clamp(node_end_pfn, zone_low, zone_high);
- 
-@@ -4746,6 +4754,9 @@ static inline unsigned long __meminit zone_spanned_pages_in_node(int nid,
- 					unsigned long node_end_pfn,
- 					unsigned long *zones_size)
- {
-+	if (!node_online(nid))
-+		return 0;
-+
- 	return zones_size[zone_type];
- }
- 
-@@ -4755,6 +4766,9 @@ static inline unsigned long __meminit zone_absent_pages_in_node(int nid,
- 						unsigned long node_end_pfn,
- 						unsigned long *zholes_size)
- {
-+	if (!node_online(nid))
-+		return 0;
-+
- 	if (!zholes_size)
- 		return 0;
- 
+								Honza
 -- 
-1.7.1
-
-
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
