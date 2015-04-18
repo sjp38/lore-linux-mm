@@ -1,84 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 1383B6B0032
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2015 12:17:05 -0400 (EDT)
-Received: by paboj16 with SMTP id oj16so158406713pab.0
-        for <linux-mm@kvack.org>; Sat, 18 Apr 2015 09:17:04 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id p9si21182926pdi.204.2015.04.18.09.17.03
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id D94786B0032
+	for <linux-mm@kvack.org>; Sat, 18 Apr 2015 17:27:49 -0400 (EDT)
+Received: by igbyr2 with SMTP id yr2so35206225igb.0
+        for <linux-mm@kvack.org>; Sat, 18 Apr 2015 14:27:49 -0700 (PDT)
+Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com. [2607:f8b0:4001:c03::234])
+        by mx.google.com with ESMTPS id f19si13365855icl.8.2015.04.18.14.27.49
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 18 Apr 2015 09:17:03 -0700 (PDT)
-Message-ID: <55328375.20407@oracle.com>
-Date: Sat, 18 Apr 2015 09:16:53 -0700
-From: Mike Kravetz <mike.kravetz@oracle.com>
+        Sat, 18 Apr 2015 14:27:49 -0700 (PDT)
+Received: by iebrs15 with SMTP id rs15so94004057ieb.3
+        for <linux-mm@kvack.org>; Sat, 18 Apr 2015 14:27:49 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 4/4] mm: madvise allow remove operation for hugetlbfs
-References: <00e601d078da$9e762190$db6264b0$@alibaba-inc.com> <00ef01d078dd$96bfc480$c43f4d80$@alibaba-inc.com> <55313ECD.3050604@oracle.com>
-In-Reply-To: <55313ECD.3050604@oracle.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20150418205656.GA7972@pd.tnic>
+References: <20150418205656.GA7972@pd.tnic>
+Date: Sat, 18 Apr 2015 17:27:49 -0400
+Message-ID: <CA+55aFxfGOw7VNqpDN2hm+P8w-9F2pVZf+VN9rZnDqGXe2VQTg@mail.gmail.com>
+Subject: Re: kernel BUG at mm/swap.c:134! - page dumped because:
+ VM_BUG_ON_PAGE(page_mapcount(page) != 0)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Dave Hansen' <dave.hansen@linux.intel.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
+To: Borislav Petkov <bp@alien8.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, x86-ml <x86@kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On 04/17/2015 10:11 AM, Mike Kravetz wrote:
-> On 04/17/2015 12:10 AM, Hillf Danton wrote:
->>>
->>> Now that we have hole punching support for hugetlbfs, we can
->>> also support the MADV_REMOVE interface to it.
->>>
->>> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
->>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
->>> ---
->>>   mm/madvise.c | 2 +-
->>>   1 file changed, 1 insertion(+), 1 deletion(-)
->>>
->>> diff --git a/mm/madvise.c b/mm/madvise.c
->>> index d551475..c4a1027 100644
->>> --- a/mm/madvise.c
->>> +++ b/mm/madvise.c
->>> @@ -299,7 +299,7 @@ static long madvise_remove(struct vm_area_struct
->>> *vma,
->>>
->>>       *prev = NULL;    /* tell sys_madvise we drop mmap_sem */
->>>
->>> -    if (vma->vm_flags & (VM_LOCKED | VM_HUGETLB))
->>> +    if (vma->vm_flags & VM_LOCKED)
->>>           return -EINVAL;
->>>
->>>       f = vma->vm_file;
->>> --
->>> 2.1.0
->>
->> After the above change offset is computed,
->>
->>     offset = (loff_t)(start - vma->vm_start)
->>         + ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
->>
->> and I wonder if it is correct for huge page mapping.
+On Sat, Apr 18, 2015 at 4:56 PM, Borislav Petkov <bp@alien8.de> wrote:
 >
-> I think it will be correct.
+> so I'm running some intermediate state of linus/master + tip/master from
+> Thursday and probably I shouldn't be even taking such splat seriously
+> and wait until 4.1-rc1 has been done but let me report it just in case
+> so that it is out there, in case someone else sees it too.
 >
-> The above will be a (base) page size aligned offset into the file.
-> This offset will be huge page aligned in the fallocate hole punch
-> code.
->
->      /*
->       * For hole punch round up the beginning offset of the hole and
->       * round down the end.
->       */
->      hole_start = (offset + hpage_size - 1) & ~huge_page_mask(h);
->      hole_end = (offset + len - (hpage_size - 1)) * ~huge_page_mask(h);
->
-> Was the alignment your concern, or something else?
+> I don't have a reproducer yet except the fact that it happened twice
+> already, the second time while watching the new Star Wars teaser on
+> youtube (current->comm is "AudioThread" probably from chrome, as shown
+> in the splat below).
 
-Well, that alignment code in fallocate hole punch obviously wrong. :(
-Sorry about that.  I'll send out an updated RFC with working hole punch.
+Hmm. The only recent commit in this area seems to be 822fc61367f0
+("mm: don't call __page_cache_release for hugetlb") although I don't
+see why it would cause anything like that. But it changes code that
+has been stable for many years, which makes me wonder how valid it is
+(__put_compound_page() has been unchanged since 2011, and now suddenly
+it grew that "!PageHuge()" test).
 
--- 
-Mike Kravetz
+So quite frankly, I'd almost suggest changing that
+
+        if (!PageHuge(page))
+                __page_cache_release(page);
+
+back to the old unconditional __page_cache_release(page), and maybe add a single
+
+        WARN_ON_ONCE(PageHuge(page));
+
+just to see if that condition actually happens. The new comment says
+it shouldn't happen and that the change shouldn't matter, but...
+
+Of course, your recent BUG_ON may well be entirely unrelated to this
+change in mm/swap.c, but it *is* in kind of the same area, and the
+timing would match too...
+
+             Linus
+
+---
+[115258.861335] page:ffffea0010a15040 count:0 mapcount:1 mapping:
+    (null) index:0x0
+[115258.869511] flags: 0x8000000000008014(referenced|dirty|tail)
+[115258.874159] page dumped because: VM_BUG_ON_PAGE(page_mapcount(page) != 0)
+[115258.874179] kernel BUG at mm/swap.c:134!
+[115258.874262] RIP: put_compound_page+0x3b9/0x480
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
