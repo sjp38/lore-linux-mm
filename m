@@ -1,111 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-	by kanga.kvack.org (Postfix) with ESMTP id ECC076B0032
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2015 18:45:43 -0400 (EDT)
-Received: by qgeb100 with SMTP id b100so28738274qge.3
-        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 15:45:43 -0700 (PDT)
-Received: from mail-qk0-x234.google.com (mail-qk0-x234.google.com. [2607:f8b0:400d:c09::234])
-        by mx.google.com with ESMTPS id k3si13075731qch.17.2015.04.17.15.45.41
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F13B6B0032
+	for <linux-mm@kvack.org>; Sat, 18 Apr 2015 05:25:00 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so152926913pde.3
+        for <linux-mm@kvack.org>; Sat, 18 Apr 2015 02:25:00 -0700 (PDT)
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com. [209.85.192.174])
+        by mx.google.com with ESMTPS id rs11si20029643pab.141.2015.04.18.02.24.59
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Apr 2015 15:45:42 -0700 (PDT)
-Received: by qkx62 with SMTP id 62so159023128qkx.0
-        for <linux-mm@kvack.org>; Fri, 17 Apr 2015 15:45:41 -0700 (PDT)
-Date: Fri, 17 Apr 2015 18:45:12 -0400
-From: Michael Tirado <mtirado418@gmail.com>
-Subject: Re: [PATCH] mm/shmem.c: Add new seal to memfd:
- F_SEAL_WRITE_NONCREATOR
-Message-ID: <20150417184512.67015809@yak.slack>
-In-Reply-To: <CANq1E4RebX=feEtgpHa4v_C_PkKwDmDWG+jm98kUUj5yYV4ipg@mail.gmail.com>
-References: <20150416032316.00b79732@yak.slack>
-	<CALYGNiPM0KgRvu2EP+h0UT8ZzSeBpNOwR04-BX2vPFnn2xLN_w@mail.gmail.com>
-	<CANq1E4SbenR0-N4oLBMUe_2iiduU1TReA1RRTMA9_+h_mGwNOw@mail.gmail.com>
-	<20150417002847.1f5febf7@yak.slack>
-	<CANq1E4RebX=feEtgpHa4v_C_PkKwDmDWG+jm98kUUj5yYV4ipg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Sat, 18 Apr 2015 02:24:59 -0700 (PDT)
+Received: by pdbnk13 with SMTP id nk13so152913557pdb.0
+        for <linux-mm@kvack.org>; Sat, 18 Apr 2015 02:24:59 -0700 (PDT)
+From: Gavin Guo <gavin.guo@canonical.com>
+Subject: [PATCH] mm/slab_common: Support the slub_debug boot option on specific object size
+Date: Sat, 18 Apr 2015 17:24:51 +0800
+Message-Id: <1429349091-11785-1-git-send-email-gavin.guo@canonical.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Herrmann <dh.herrmann@gmail.com>
-Cc: linux-mm@kvack.org
+To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 17 Apr 2015 12:48:44 +0200
-David Herrmann <dh.herrmann@gmail.com> wrote:
+The slub_debug=PU,kmalloc-xx cannot work because in the
+create_kmalloc_caches() the s->name is created after the
+create_kmalloc_cache() is called. The name is NULL in the
+create_kmalloc_cache() so the kmem_cache_flags() would not set the
+slub_debug flags to the s->flags. The fix here set up a temporary
+kmalloc_names string array for the initialization purpose. After the
+kmalloc_caches are already it can be used to create s->name in the
+kasprintf.
 
-> Where's the problem? Just pass the read-only file-descriptor to your
-> peers and make sure the access-mode of the memfd is 0600. No other
-> user will be able to gain a writable file-descriptor, but you.
+Signed-off-by: Gavin Guo <gavin.guo@canonical.com>
+---
+ mm/slab_common.c | 29 ++++++++++++++++++++++++++---
+ 1 file changed, 26 insertions(+), 3 deletions(-)
 
-I see what you mean now, This does make sense. I started writing a test
-and it seems like the write on a duplicated O_RDONLY fd  does not fail
-properly,  and is causing a general protection error.  Here is the output
-and test code:
-
-
-memfd: a dup test
-expected EPERM on write(), but got 4: Operation not permitted
-back in main thread
-[    8.563759] traps: memfd_test[548] general protection ip:b75b638c sp:bffdbbe0 error:0 in libc-2.20.so[b7589000+1ae000]
-bash-4.3# 
-
-note that the return value 4 indicates successful write.
-
-
-
-static void test_dup()
-{
-	pid_t pid;
-	int status;
-	int fd_seal;
-	int fd_rdonly = 99;
-
-	fd_seal = mfd_assert_new("kern_memfd_seal_write",
-					MFD_DEF_SIZE,
-					MFD_CLOEXEC | MFD_ALLOW_SEALING);
-
-	fd_rdonly = dup3(fd_seal, fd_rdonly, O_RDONLY);
-	mfd_assert_add_seals(fd_seal, F_SEAL_SEAL);
-	if (fd_rdonly != 99) {
-		printf("dup3 error: %m\n");
-		abort();
-	}
-
-	pid = fork();
-	if (pid == 0)
-	{
-		int fd_peer = 97;
-		
-		/*mfd_fail_write(fd_seal);*/
-		/* this does not fail properly? */
-		mfd_fail_write(fd_rdonly);
-		
-		/* this will fail with, invalid argument */
-		/*fd_peer = dup3(fd_rdonly, fd_peer, O_RDWR);
-		if (fd_peer == -1) {
-			printf("dup3 error: %m\n");
-			abort();
-		}
-		mfd_fail_write(fd_peer);*/
-		printf("exiting normally\n");
-		exit(0);
-	}
-
-	usleep(100000);
-	printf("back in main thread\n");
-	mfd_assert_write(fd_seal);
-	/*mfd_fail_write(fd_rdonly);*/
-	usleep(1000000);
-	
-	/* this seems to trigger general protection crash */
-	pid = waitpid(pid, &status, 0);
-	if (!WIFEXITED(status))
-		abort();
-}
-
-
-I don't have time right now to dig deep into this, but will look into it more
-in the next few days,  and report back.
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 999bb34..c7d7d54 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -793,6 +793,26 @@ void __init create_kmalloc_caches(unsigned long flags)
+ 	int i;
+ 
+ 	/*
++	 * The kmalloc_names is for temporary usage to make
++	 * slub_debug=,kmalloc-xx option work in the boot time. The
++	 * kmalloc_index() support to 2^26=64MB. So, the final entry of the
++	 * table is kmalloc-67108864.
++	 */
++	static char __initdata kmalloc_names[][17] = {
++		"0",			"kmalloc-96",		"kmalloc-192",
++		"kmalloc-8",		"kmalloc-16",		"kmalloc-32",
++		"kmalloc-64",		"kmalloc-128",		"kmalloc-256",
++		"kmalloc-512",		"kmalloc-1024",		"kmalloc-2048",
++		"kmalloc-4196",		"kmalloc-8192",		"kmalloc-16384",
++		"kmalloc-32768",	"kmalloc-65536",
++		"kmalloc-131072",	"kmalloc-262144",
++		"kmalloc-524288",	"kmalloc-1048576",
++		"kmalloc-2097152",	"kmalloc-4194304",
++		"kmalloc-8388608",	"kmalloc-16777216",
++		"kmalloc-33554432",	"kmalloc-67108864"
++	};
++
++	/*
+ 	 * Patch up the size_index table if we have strange large alignment
+ 	 * requirements for the kmalloc array. This is only the case for
+ 	 * MIPS it seems. The standard arches will not generate any code here.
+@@ -835,7 +855,8 @@ void __init create_kmalloc_caches(unsigned long flags)
+ 	}
+ 	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
+ 		if (!kmalloc_caches[i]) {
+-			kmalloc_caches[i] = create_kmalloc_cache(NULL,
++			kmalloc_caches[i] = create_kmalloc_cache(
++							kmalloc_names[i],
+ 							1 << i, flags);
+ 		}
+ 
+@@ -845,10 +866,12 @@ void __init create_kmalloc_caches(unsigned long flags)
+ 		 * earlier power of two caches
+ 		 */
+ 		if (KMALLOC_MIN_SIZE <= 32 && !kmalloc_caches[1] && i == 6)
+-			kmalloc_caches[1] = create_kmalloc_cache(NULL, 96, flags);
++			kmalloc_caches[1] = create_kmalloc_cache(
++						kmalloc_names[1], 96, flags);
+ 
+ 		if (KMALLOC_MIN_SIZE <= 64 && !kmalloc_caches[2] && i == 7)
+-			kmalloc_caches[2] = create_kmalloc_cache(NULL, 192, flags);
++			kmalloc_caches[2] = create_kmalloc_cache(
++						 kmalloc_names[2], 192, flags);
+ 	}
+ 
+ 	/* Kmalloc array is now usable */
+-- 
+2.0.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
