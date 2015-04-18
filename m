@@ -1,51 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 80FF66B0032
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2015 18:08:06 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so54255194wid.0
-        for <linux-mm@kvack.org>; Sat, 18 Apr 2015 15:08:06 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id o3si9111908wic.109.2015.04.18.15.08.04
-        for <linux-mm@kvack.org>;
-        Sat, 18 Apr 2015 15:08:05 -0700 (PDT)
-Date: Sun, 19 Apr 2015 00:08:03 +0200
-From: Borislav Petkov <bp@alien8.de>
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id CD3416B0032
+	for <linux-mm@kvack.org>; Sat, 18 Apr 2015 18:12:59 -0400 (EDT)
+Received: by iebrs15 with SMTP id rs15so94304366ieb.3
+        for <linux-mm@kvack.org>; Sat, 18 Apr 2015 15:12:59 -0700 (PDT)
+Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com. [2607:f8b0:4001:c05::236])
+        by mx.google.com with ESMTPS id x10si4733874igl.26.2015.04.18.15.12.59
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 18 Apr 2015 15:12:59 -0700 (PDT)
+Received: by igbpi8 with SMTP id pi8so45011042igb.0
+        for <linux-mm@kvack.org>; Sat, 18 Apr 2015 15:12:59 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CA+55aFxMx8xmWq7Dszu9h9dZQPGn7hj5GRBrJzh1hsQV600z9w@mail.gmail.com>
+References: <20150418205656.GA7972@pd.tnic>
+	<CA+55aFxfGOw7VNqpDN2hm+P8w-9F2pVZf+VN9rZnDqGXe2VQTg@mail.gmail.com>
+	<20150418215656.GA13928@node.dhcp.inet.fi>
+	<CA+55aFxMx8xmWq7Dszu9h9dZQPGn7hj5GRBrJzh1hsQV600z9w@mail.gmail.com>
+Date: Sat, 18 Apr 2015 18:12:56 -0400
+Message-ID: <CA+55aFxLjBFUPYFJDGo236Ubdxy9s32gZ9VU43PA3RCkxJxdbw@mail.gmail.com>
 Subject: Re: kernel BUG at mm/swap.c:134! - page dumped because:
  VM_BUG_ON_PAGE(page_mapcount(page) != 0)
-Message-ID: <20150418220803.GB7972@pd.tnic>
-References: <20150418205656.GA7972@pd.tnic>
- <CA+55aFxfGOw7VNqpDN2hm+P8w-9F2pVZf+VN9rZnDqGXe2VQTg@mail.gmail.com>
- <20150418215656.GA13928@node.dhcp.inet.fi>
- <CA+55aFxMx8xmWq7Dszu9h9dZQPGn7hj5GRBrJzh1hsQV600z9w@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <CA+55aFxMx8xmWq7Dszu9h9dZQPGn7hj5GRBrJzh1hsQV600z9w@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, x86-ml <x86@kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Borislav Petkov <bp@alien8.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, x86-ml <x86@kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 
-On Sat, Apr 18, 2015 at 05:59:53PM -0400, Linus Torvalds wrote:
+On Sat, Apr 18, 2015 at 5:59 PM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
 > On Sat, Apr 18, 2015 at 5:56 PM, Kirill A. Shutemov
 > <kirill@shutemov.name> wrote:
-> >
-> > Andrea has already seen the bug and pointed to 8d63d99a5dfb as possible
-> > cause. I don't see why the commit could broke anything, but it worth
-> > trying to revert and test.
-> 
+>>
+>> Andrea has already seen the bug and pointed to 8d63d99a5dfb as possible
+>> cause. I don't see why the commit could broke anything, but it worth
+>> trying to revert and test.
+>
 > Ahh, yes, that does look like a more likely culprit.
 
-Reverted and building... will report in the next days.
+That said, I do think we should likely also do that
 
-Thanks guys.
+        WARN_ON_ONCE(PageHuge(page));
 
--- 
-Regards/Gruss,
-    Boris.
+in __put_compound_page() rather than just silently saying "no refcount
+changes for this magical case that shouldn't even happen".  If it
+shouldn't happen, then we should warn about it, not try to ":handle"
+some case that shouldn't happen and shouldn't matter.
 
-ECO tip #101: Trim your mails when you reply.
---
+Let's not play games in this area. This code has been stable for many
+years, why are we suddenly doing random things here? There's something
+to be said for "if it ain't broke..", and there's *definitely* a lot
+to be said for "let's not complicate this even more".
+
+             Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
