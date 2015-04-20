@@ -1,81 +1,93 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 274086B0038
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 20:29:36 -0400 (EDT)
-Received: by pdbnk13 with SMTP id nk13so76656942pdb.0
-        for <linux-mm@kvack.org>; Thu, 30 Apr 2015 17:29:35 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id ca15si5717069pdb.31.2015.04.30.17.29.34
-        for <linux-mm@kvack.org>;
-        Thu, 30 Apr 2015 17:29:35 -0700 (PDT)
-Date: Fri, 1 May 2015 08:29:32 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [mm/meminit] PANIC: early exception 06 rip 10:ffffffff811bfa9a
- error 0 cr2 ffff88000fbff000
-Message-ID: <20150501002932.GA13087@wfg-t540p.sh.intel.com>
-References: <20150429132817.GA10479@wfg-t540p.sh.intel.com>
- <20150429134131.GR2449@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150429134131.GR2449@suse.de>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: LKP <lkp@01.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+From: Juergen Gross <jgross@suse.com>
+Subject: [Patch V3 00/15] xen: support pv-domains larger than
+	512GB
+Date: Mon, 20 Apr 2015 07:23:25 +0200
+Message-ID: <1429507420-18201-1-git-send-email-jgross@suse.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <xen-devel-bounces@lists.xen.org>
+List-Unsubscribe: <http://lists.xen.org/cgi-bin/mailman/options/xen-devel>,
+	<mailto:xen-devel-request@lists.xen.org?subject=unsubscribe>
+List-Post: <mailto:xen-devel@lists.xen.org>
+List-Help: <mailto:xen-devel-request@lists.xen.org?subject=help>
+List-Subscribe: <http://lists.xen.org/cgi-bin/mailman/listinfo/xen-devel>,
+	<mailto:xen-devel-request@lists.xen.org?subject=subscribe>
+Sender: xen-devel-bounces@lists.xen.org
+Errors-To: xen-devel-bounces@lists.xen.org
+To: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.comlinux-mm, @kvack.org
+Cc: Juergen Gross <jgross@suse.com>
+List-Id: linux-mm.kvack.org
 
-Hi Mel,
+Support 64 bit pv-domains with more than 512GB of memory.
 
-On Wed, Apr 29, 2015 at 02:41:31PM +0100, Mel Gorman wrote:
-> On Wed, Apr 29, 2015 at 09:28:17PM +0800, Fengguang Wu wrote:
-> > Greetings,
-> > 
-> > 0day kernel testing robot got the below dmesg and the first bad commit is
-> > 
-> > git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma mm-deferred-meminit-v6r1
-> > 
-> > commit 285c36ab5b3e59865a0f4d79f4c1758455e684f7
-> > Author:     Mel Gorman <mgorman@suse.de>
-> > AuthorDate: Mon Sep 29 14:54:01 2014 +0100
-> > Commit:     Mel Gorman <mgorman@suse.de>
-> > CommitDate: Wed Apr 22 19:48:15 2015 +0100
-> > 
-> >     mm: meminit: Reduce number of times pageblocks are set during struct page init
-> >     
-> >     During parallel sturct page initialisation, ranges are checked for every
-> >     PFN unnecessarily which increases boot times. This patch alters when the
-> >     ranges are checked.
-> >     
-> >     Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > 
-> 
-> The series is old but I think it's still relevant. Can you try this
-> please?
+Tested with 64 bit dom0 on machines with 8GB and 1TB and 32 bit dom0 on a
+8GB machine. Conflicts between E820 map and different hypervisor populated
+memory areas have been tested via a fake E820 map reserved area on the
+8GB machine.
 
-Yes it fixed the problem.
+Changes in V3:
+- rename xen_chk_e820_reserved() to xen_is_e820_reserved() as requested by
+  David Vrabel
+- add __initdata tag to global variables in patch 10
+- move initrd conflict checking after reserving p2m memory (patch 11)
 
-Tested-by: Fengguang Wu <fengguang.wu@intel.com>
+Changes in V2:
+- some clarifications and better explanations in commit messages 
+- add header changes of include/xen/interface/xen.h (patch 01)
+- add wmb() when incrementing p2m_generation (patch 02)
+- add new patch 03 (don't build mfn tree if tools don't need it)
+- add new patch 06 (split counting of extra memory pages from remapping)
+- add new patch 07 (check memory area against e820 map)
+- replace early_iounmap() with early_memunmap() (patch 07->patch 08)
+- rework patch 09 (check for kernel memory conflicting with memory layout)
+- rework patch 10 (check pre-allocated page tables for conflict with memory map)
+- combine old patches 08 and 11 into patch 11
+- add new patch 12 (provide early_memremap_ro to establish read-only mapping)
+- rework old patch 12 (if p2m list located in to be remapped region delay
+  remapping) to copy p2m list in case of a conflict (now patch 13)
+- correct Kconfig dependency (patch 13->14)
+- don't limit dom0 to 512GB (patch 13->14)
+- modify parameter parsing to work in very early boot (patch 13->14)
+- add new patch 15 to do some cleanup
+- remove old patch 05 (simplify xen_set_identity_and_remap() by using global
+  variables)
+- remove old patch 08 (detect pre-allocated memory interfering with e820 map)
 
-Thanks,
-Fengguang
 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 9c8f2a72263d..19543f708642 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4489,8 +4489,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->  		if (!(pfn & (pageblock_nr_pages - 1))) {
->  			struct page *page = pfn_to_page(pfn);
->  
-> -			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
->  			__init_single_page(page, pfn, zone, nid);
-> +			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
->  		} else {
->  			__init_single_pfn(pfn, zone, nid);
->  		}
+Juergen Gross (15):
+  xen: sync with xen headers
+  xen: save linear p2m list address in shared info structure
+  xen: don't build mfn tree if tools don't need it
+  xen: eliminate scalability issues from initial mapping setup
+  xen: move static e820 map to global scope
+  xen: split counting of extra memory pages from remapping
+  xen: check memory area against e820 map
+  xen: find unused contiguous memory area
+  xen: check for kernel memory conflicting with memory layout
+  xen: check pre-allocated page tables for conflict with memory map
+  xen: check for initrd conflicting with e820 map
+  mm: provide early_memremap_ro to establish read-only mapping
+  xen: move p2m list if conflicting with e820 map
+  xen: allow more than 512 GB of RAM for 64 bit pv-domains
+  xen: remove no longer needed p2m.h
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+ Documentation/kernel-parameters.txt  |   7 +
+ arch/x86/include/asm/xen/interface.h |  96 +++++++-
+ arch/x86/include/asm/xen/page.h      |   8 +-
+ arch/x86/xen/Kconfig                 |  20 +-
+ arch/x86/xen/mmu.c                   | 367 +++++++++++++++++++++++++++++--
+ arch/x86/xen/p2m.c                   |  43 +++-
+ arch/x86/xen/p2m.h                   |  15 --
+ arch/x86/xen/setup.c                 | 414 ++++++++++++++++++++++++++---------
+ arch/x86/xen/xen-head.S              |   2 +
+ arch/x86/xen/xen-ops.h               |   6 +
+ include/asm-generic/early_ioremap.h  |   2 +
+ include/asm-generic/fixmap.h         |   3 +
+ include/xen/interface/xen.h          |  10 +-
+ mm/early_ioremap.c                   |  11 +
+ 14 files changed, 822 insertions(+), 182 deletions(-)
+ delete mode 100644 arch/x86/xen/p2m.h
+
+-- 
+2.1.4
