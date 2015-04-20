@@ -1,8 +1,8 @@
 From: Juergen Gross <jgross@suse.com>
-Subject: [Patch V3 09/15] xen: check for kernel memory
-	conflicting with memory layout
-Date: Mon, 20 Apr 2015 07:23:34 +0200
-Message-ID: <1429507420-18201-10-git-send-email-jgross@suse.com>
+Subject: [Patch V3 03/15] xen: don't build mfn tree if tools
+	don't need it
+Date: Mon, 20 Apr 2015 07:23:28 +0200
+Message-ID: <1429507420-18201-4-git-send-email-jgross@suse.com>
 References: <1429507420-18201-1-git-send-email-jgross@suse.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
@@ -21,46 +21,43 @@ To: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, konrad.wilk@ora
 Cc: Juergen Gross <jgross@suse.com>
 List-Id: linux-mm.kvack.org
 
-Checks whether the pre-allocated memory of the loaded kernel is in
-conflict with the target memory map. If this is the case, just panic
-instead of run into problems later, as there is nothing we can do
-to repair this situation.
+In case the Xen tools indicate they don't need the p2m 3 level tree
+as they support the virtual mapped linear p2m list, just omit building
+the tree.
 
 Signed-off-by: Juergen Gross <jgross@suse.com>
 Reviewed-by: David Vrabel <david.vrabel@citrix.com>
 ---
- arch/x86/xen/setup.c | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ arch/x86/xen/p2m.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
-index 973d294..9bd3f35 100644
---- a/arch/x86/xen/setup.c
-+++ b/arch/x86/xen/setup.c
-@@ -27,6 +27,7 @@
- #include <xen/interface/memory.h>
- #include <xen/interface/physdev.h>
- #include <xen/features.h>
-+#include <xen/hvc-console.h>
- #include "xen-ops.h"
- #include "vdso.h"
- #include "p2m.h"
-@@ -790,6 +791,17 @@ char * __init xen_memory_setup(void)
+diff --git a/arch/x86/xen/p2m.c b/arch/x86/xen/p2m.c
+index 703f803..6f80cd3 100644
+--- a/arch/x86/xen/p2m.c
++++ b/arch/x86/xen/p2m.c
+@@ -198,7 +198,8 @@ void __ref xen_build_mfn_list_list(void)
+ 	unsigned int level, topidx, mididx;
+ 	unsigned long *mid_mfn_p;
  
- 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+-	if (xen_feature(XENFEAT_auto_translated_physmap))
++	if (xen_feature(XENFEAT_auto_translated_physmap) ||
++	    xen_start_info->flags & SIF_VIRT_P2M_4TOOLS)
+ 		return;
  
-+	/*
-+	 * Check whether the kernel itself conflicts with the target E820 map.
-+	 * Failing now is better than running into weird problems later due
-+	 * to relocating (and even reusing) pages with kernel text or data.
-+	 */
-+	if (xen_is_e820_reserved(__pa_symbol(_text),
-+			__pa_symbol(__bss_stop) - __pa_symbol(_text))) {
-+		xen_raw_console_write("Xen hypervisor allocated kernel memory conflicts with E820 map\n");
-+		BUG();
-+	}
-+
- 	xen_reserve_xen_mfnlist();
+ 	/* Pre-initialize p2m_top_mfn to be completely missing */
+@@ -259,8 +260,11 @@ void xen_setup_mfn_list_list(void)
  
- 	/*
+ 	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
+ 
+-	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
+-		virt_to_mfn(p2m_top_mfn);
++	if (xen_start_info->flags & SIF_VIRT_P2M_4TOOLS)
++		HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list = ~0UL;
++	else
++		HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
++			virt_to_mfn(p2m_top_mfn);
+ 	HYPERVISOR_shared_info->arch.max_pfn = xen_max_p2m_pfn;
+ 	HYPERVISOR_shared_info->arch.p2m_generation = 0;
+ 	HYPERVISOR_shared_info->arch.p2m_vaddr = (unsigned long)xen_p2m_addr;
 -- 
 2.1.4
