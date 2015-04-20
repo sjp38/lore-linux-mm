@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D8B76B0032
-	for <linux-mm@kvack.org>; Sun, 19 Apr 2015 22:27:51 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so192622031pdb.1
-        for <linux-mm@kvack.org>; Sun, 19 Apr 2015 19:27:51 -0700 (PDT)
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 747B66B0038
+	for <linux-mm@kvack.org>; Sun, 19 Apr 2015 22:28:15 -0400 (EDT)
+Received: by pdbqd1 with SMTP id qd1so192938481pdb.2
+        for <linux-mm@kvack.org>; Sun, 19 Apr 2015 19:28:15 -0700 (PDT)
 Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id p5si26196792par.19.2015.04.19.19.27.49
+        by mx.google.com with ESMTP id u9si26142494pdp.186.2015.04.19.19.28.13
         for <linux-mm@kvack.org>;
-        Sun, 19 Apr 2015 19:27:50 -0700 (PDT)
-Message-ID: <55345FAB.7000607@cn.fujitsu.com>
-Date: Mon, 20 Apr 2015 10:08:43 +0800
+        Sun, 19 Apr 2015 19:28:13 -0700 (PDT)
+Message-ID: <55345FC4.4070404@cn.fujitsu.com>
+Date: Mon, 20 Apr 2015 10:09:08 +0800
 From: Gu Zheng <guz.fnst@cn.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 1/2 V2] memory-hotplug: fix BUG_ON in move_freepages()
@@ -37,8 +37,8 @@ On 04/20/2015 10:11 AM, Yasuaki Ishimatsu wrote:
 
 Seems also a misread to me.
 I clear it (my worry) here:
-If we set the node size to 0 here, it may hidden more things than we experted,
-and all the init chunks around with the size (spanned/present/managed...) will
+If we set the node size to 0 here, it may hidden more things than we experted.
+All the init chunks around with the size (spanned/present/managed...) will
 be non-sense, and the user/caller will not get a summary of the hot added node
 because of the changes here.
 I am not sure the worry is necessary, please correct me if I missing something.
