@@ -1,8 +1,7 @@
 From: Juergen Gross <jgross@suse.com>
-Subject: [Patch V3 04/15] xen: eliminate scalability issues from
-	initial mapping setup
-Date: Mon, 20 Apr 2015 07:23:29 +0200
-Message-ID: <1429507420-18201-5-git-send-email-jgross@suse.com>
+Subject: [Patch V3 01/15] xen: sync with xen headers
+Date: Mon, 20 Apr 2015 07:23:26 +0200
+Message-ID: <1429507420-18201-2-git-send-email-jgross@suse.com>
 References: <1429507420-18201-1-git-send-email-jgross@suse.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
@@ -21,313 +20,179 @@ To: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, konrad.wilk@ora
 Cc: Juergen Gross <jgross@suse.com>
 List-Id: linux-mm.kvack.org
 
-Direct Xen to place the initial P->M table outside of the initial
-mapping, as otherwise the 1G (implementation) / 2G (theoretical)
-restriction on the size of the initial mapping limits the amount
-of memory a domain can be handed initially.
-
-As the initial P->M table is copied rather early during boot to
-domain private memory and it's initial virtual mapping is dropped,
-the easiest way to avoid virtual address conflicts with other
-addresses in the kernel is to use a user address area for the
-virtual address of the initial P->M table. This allows us to just
-throw away the page tables of the initial mapping after the copy
-without having to care about address invalidation.
-
-It should be noted that this patch won't enable a pv-domain to USE
-more than 512 GB of RAM. It just enables it to be started with a
-P->M table covering more memory. This is especially important for
-being able to boot a Dom0 on a system with more than 512 GB memory.
+Use the newest headers from the xen tree to get some new structure
+layouts.
 
 Signed-off-by: Juergen Gross <jgross@suse.com>
-Based-on-patch-by: Jan Beulich <jbeulich@suse.com>
+Reviewed-by: David Vrabel <david.vrabel@citrix.com>
 ---
- arch/x86/xen/mmu.c      | 126 ++++++++++++++++++++++++++++++++++++++++++++----
- arch/x86/xen/setup.c    |  67 ++++++++++++++-----------
- arch/x86/xen/xen-head.S |   2 +
- 3 files changed, 156 insertions(+), 39 deletions(-)
+ arch/x86/include/asm/xen/interface.h | 96 ++++++++++++++++++++++++++++++++----
+ include/xen/interface/xen.h          | 10 ++--
+ 2 files changed, 93 insertions(+), 13 deletions(-)
 
-diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
-index dd151b2..c04e14e 100644
---- a/arch/x86/xen/mmu.c
-+++ b/arch/x86/xen/mmu.c
-@@ -1114,6 +1114,77 @@ static void __init xen_cleanhighmap(unsigned long vaddr,
- 	xen_mc_flush();
- }
+diff --git a/arch/x86/include/asm/xen/interface.h b/arch/x86/include/asm/xen/interface.h
+index 3400dba..3b88eea 100644
+--- a/arch/x86/include/asm/xen/interface.h
++++ b/arch/x86/include/asm/xen/interface.h
+@@ -3,12 +3,38 @@
+  *
+  * Guest OS interface to x86 Xen.
+  *
+- * Copyright (c) 2004, K A Fraser
++ * Permission is hereby granted, free of charge, to any person obtaining a copy
++ * of this software and associated documentation files (the "Software"), to
++ * deal in the Software without restriction, including without limitation the
++ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
++ * sell copies of the Software, and to permit persons to whom the Software is
++ * furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ *
++ * Copyright (c) 2004-2006, K A Fraser
+  */
+ 
+ #ifndef _ASM_X86_XEN_INTERFACE_H
+ #define _ASM_X86_XEN_INTERFACE_H
  
 +/*
-+ * Make a page range writeable and free it.
++ * XEN_GUEST_HANDLE represents a guest pointer, when passed as a field
++ * in a struct in memory.
++ * XEN_GUEST_HANDLE_PARAM represent a guest pointer, when passed as an
++ * hypercall argument.
++ * XEN_GUEST_HANDLE_PARAM and XEN_GUEST_HANDLE are the same on X86 but
++ * they might not be on other architectures.
 + */
-+static void __init xen_free_ro_pages(unsigned long paddr, unsigned long size)
-+{
-+	void *vaddr = __va(paddr);
-+	void *vaddr_end = vaddr + size;
-+
-+	for (; vaddr < vaddr_end; vaddr += PAGE_SIZE)
-+		make_lowmem_page_readwrite(vaddr);
-+
-+	memblock_free(paddr, size);
-+}
-+
-+static void __init xen_cleanmfnmap_free_pgtbl(void *pgtbl)
-+{
-+	unsigned long pa = __pa(pgtbl) & PHYSICAL_PAGE_MASK;
-+
-+	ClearPagePinned(virt_to_page(__va(pa)));
-+	xen_free_ro_pages(pa, PAGE_SIZE);
-+}
-+
-+/*
-+ * Since it is well isolated we can (and since it is perhaps large we should)
-+ * also free the page tables mapping the initial P->M table.
-+ */
-+static void __init xen_cleanmfnmap(unsigned long vaddr)
-+{
-+	unsigned long va = vaddr & PMD_MASK;
-+	unsigned long pa;
-+	pgd_t *pgd = pgd_offset_k(va);
-+	pud_t *pud_page = pud_offset(pgd, 0);
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	pte_t *pte;
-+	unsigned int i;
-+
-+	set_pgd(pgd, __pgd(0));
-+	do {
-+		pud = pud_page + pud_index(va);
-+		if (pud_none(*pud)) {
-+			va += PUD_SIZE;
-+		} else if (pud_large(*pud)) {
-+			pa = pud_val(*pud) & PHYSICAL_PAGE_MASK;
-+			xen_free_ro_pages(pa, PUD_SIZE);
-+			va += PUD_SIZE;
-+		} else {
-+			pmd = pmd_offset(pud, va);
-+			if (pmd_large(*pmd)) {
-+				pa = pmd_val(*pmd) & PHYSICAL_PAGE_MASK;
-+				xen_free_ro_pages(pa, PMD_SIZE);
-+			} else if (!pmd_none(*pmd)) {
-+				pte = pte_offset_kernel(pmd, va);
-+				for (i = 0; i < PTRS_PER_PTE; ++i) {
-+					if (pte_none(pte[i]))
-+						break;
-+					pa = pte_pfn(pte[i]) << PAGE_SHIFT;
-+					xen_free_ro_pages(pa, PAGE_SIZE);
-+				}
-+				xen_cleanmfnmap_free_pgtbl(pte);
-+			}
-+			va += PMD_SIZE;
-+			if (pmd_index(va))
-+				continue;
-+			xen_cleanmfnmap_free_pgtbl(pmd);
-+		}
-+
-+	} while (pud_index(va) || pmd_index(va));
-+	xen_cleanmfnmap_free_pgtbl(pud_page);
-+}
-+
- static void __init xen_pagetable_p2m_free(void)
- {
- 	unsigned long size;
-@@ -1128,18 +1199,25 @@ static void __init xen_pagetable_p2m_free(void)
- 	/* using __ka address and sticking INVALID_P2M_ENTRY! */
- 	memset((void *)xen_start_info->mfn_list, 0xff, size);
+ #ifdef __XEN__
+ #define __DEFINE_GUEST_HANDLE(name, type) \
+     typedef struct { type *p; } __guest_handle_ ## name
+@@ -88,13 +114,16 @@ DEFINE_GUEST_HANDLE(xen_ulong_t);
+  * start of the GDT because some stupid OSes export hard-coded selector values
+  * in their ABI. These hard-coded values are always near the start of the GDT,
+  * so Xen places itself out of the way, at the far end of the GDT.
++ *
++ * NB The LDT is set using the MMUEXT_SET_LDT op of HYPERVISOR_mmuext_op
+  */
+ #define FIRST_RESERVED_GDT_PAGE  14
+ #define FIRST_RESERVED_GDT_BYTE  (FIRST_RESERVED_GDT_PAGE * 4096)
+ #define FIRST_RESERVED_GDT_ENTRY (FIRST_RESERVED_GDT_BYTE / 8)
  
--	/* We should be in __ka space. */
--	BUG_ON(xen_start_info->mfn_list < __START_KERNEL_map);
- 	addr = xen_start_info->mfn_list;
--	/* We roundup to the PMD, which means that if anybody at this stage is
--	 * using the __ka address of xen_start_info or xen_start_info->shared_info
--	 * they are in going to crash. Fortunatly we have already revectored
--	 * in xen_setup_kernel_pagetable and in xen_setup_shared_info. */
+ /*
+- * Send an array of these to HYPERVISOR_set_trap_table()
++ * Send an array of these to HYPERVISOR_set_trap_table().
++ * Terminate the array with a sentinel entry, with traps[].address==0.
+  * The privilege level specifies which modes may enter a trap via a software
+  * interrupt. On x86/64, since rings 1 and 2 are unavailable, we allocate
+  * privilege levels as follows:
+@@ -118,10 +147,41 @@ struct trap_info {
+ DEFINE_GUEST_HANDLE_STRUCT(trap_info);
+ 
+ struct arch_shared_info {
+-    unsigned long max_pfn;                  /* max pfn that appears in table */
+-    /* Frame containing list of mfns containing list of mfns containing p2m. */
+-    unsigned long pfn_to_mfn_frame_list_list;
+-    unsigned long nmi_reason;
 +	/*
-+	 * We could be in __ka space.
-+	 * We roundup to the PMD, which means that if anybody at this stage is
-+	 * using the __ka address of xen_start_info or
-+	 * xen_start_info->shared_info they are in going to crash. Fortunatly
-+	 * we have already revectored in xen_setup_kernel_pagetable and in
-+	 * xen_setup_shared_info.
++	 * Number of valid entries in the p2m table(s) anchored at
++	 * pfn_to_mfn_frame_list_list and/or p2m_vaddr.
 +	 */
- 	size = roundup(size, PMD_SIZE);
--	xen_cleanhighmap(addr, addr + size);
- 
--	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
--	memblock_free(__pa(xen_start_info->mfn_list), size);
-+	if (addr >= __START_KERNEL_map) {
-+		xen_cleanhighmap(addr, addr + size);
-+		size = PAGE_ALIGN(xen_start_info->nr_pages *
-+				  sizeof(unsigned long));
-+		memblock_free(__pa(addr), size);
-+	} else {
-+		xen_cleanmfnmap(addr);
-+	}
- 
- 	/* At this stage, cleanup_highmap has already cleaned __ka space
- 	 * from _brk_limit way up to the max_pfn_mapped (which is the end of
-@@ -1461,6 +1539,24 @@ static pte_t __init mask_rw_pte(pte_t *ptep, pte_t pte)
- #else /* CONFIG_X86_64 */
- static pte_t __init mask_rw_pte(pte_t *ptep, pte_t pte)
- {
-+	unsigned long pfn;
-+
-+	if (xen_feature(XENFEAT_writable_page_tables) ||
-+	    xen_feature(XENFEAT_auto_translated_physmap) ||
-+	    xen_start_info->mfn_list >= __START_KERNEL_map)
-+		return pte;
-+
++	unsigned long max_pfn;
 +	/*
-+	 * Pages belonging to the initial p2m list mapped outside the default
-+	 * address range must be mapped read-only. This region contains the
-+	 * page tables for mapping the p2m list, too, and page tables MUST be
-+	 * mapped read-only.
++	 * Frame containing list of mfns containing list of mfns containing p2m.
++	 * A value of 0 indicates it has not yet been set up, ~0 indicates it
++	 * has been set to invalid e.g. due to the p2m being too large for the
++	 * 3-level p2m tree. In this case the linear mapper p2m list anchored
++	 * at p2m_vaddr is to be used.
 +	 */
-+	pfn = pte_pfn(pte);
-+	if (pfn >= xen_start_info->first_p2m_pfn &&
-+	    pfn < xen_start_info->first_p2m_pfn + xen_start_info->nr_p2m_frames)
-+		pte = __pte_ma(pte_val_ma(pte) & ~_PAGE_RW);
-+
- 	return pte;
- }
- #endif /* CONFIG_X86_64 */
-@@ -1815,7 +1911,10 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
- 	 * mappings. Considering that on Xen after the kernel mappings we
- 	 * have the mappings of some pages that don't exist in pfn space, we
- 	 * set max_pfn_mapped to the last real pfn mapped. */
--	max_pfn_mapped = PFN_DOWN(__pa(xen_start_info->mfn_list));
-+	if (xen_start_info->mfn_list < __START_KERNEL_map)
-+		max_pfn_mapped = xen_start_info->first_p2m_pfn;
-+	else
-+		max_pfn_mapped = PFN_DOWN(__pa(xen_start_info->mfn_list));
++	xen_pfn_t pfn_to_mfn_frame_list_list;
++	unsigned long nmi_reason;
++	/*
++	 * Following three fields are valid if p2m_cr3 contains a value
++	 * different from 0.
++	 * p2m_cr3 is the root of the address space where p2m_vaddr is valid.
++	 * p2m_cr3 is in the same format as a cr3 value in the vcpu register
++	 * state and holds the folded machine frame number (via xen_pfn_to_cr3)
++	 * of a L3 or L4 page table.
++	 * p2m_vaddr holds the virtual address of the linear p2m list. All
++	 * entries in the range [0...max_pfn[ are accessible via this pointer.
++	 * p2m_generation will be incremented by the guest before and after each
++	 * change of the mappings of the p2m list. p2m_generation starts at 0
++	 * and a value with the least significant bit set indicates that a
++	 * mapping update is in progress. This allows guest external software
++	 * (e.g. in Dom0) to verify that read mappings are consistent and
++	 * whether they have changed since the last check.
++	 * Modifying a p2m element in the linear p2m list is allowed via an
++	 * atomic write only.
++	 */
++	unsigned long p2m_cr3;		/* cr3 value of the p2m address space */
++	unsigned long p2m_vaddr;	/* virtual address of the p2m list */
++	unsigned long p2m_generation;	/* generation count of p2m mapping */
+ };
+ #endif	/* !__ASSEMBLY__ */
  
- 	pt_base = PFN_DOWN(__pa(xen_start_info->pt_base));
- 	pt_end = pt_base + xen_start_info->nr_pt_frames;
-@@ -1855,6 +1954,11 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
- 	/* Graft it onto L4[511][510] */
- 	copy_page(level2_kernel_pgt, l2);
+@@ -137,13 +197,31 @@ struct arch_shared_info {
+ /*
+  * The following is all CPU context. Note that the fpu_ctxt block is filled
+  * in by FXSAVE if the CPU has feature FXSR; otherwise FSAVE is used.
++ *
++ * Also note that when calling DOMCTL_setvcpucontext and VCPU_initialise
++ * for HVM and PVH guests, not all information in this structure is updated:
++ *
++ * - For HVM guests, the structures read include: fpu_ctxt (if
++ * VGCT_I387_VALID is set), flags, user_regs, debugreg[*]
++ *
++ * - PVH guests are the same as HVM guests, but additionally use ctrlreg[3] to
++ * set cr3. All other fields not used should be set to 0.
+  */
+ struct vcpu_guest_context {
+     /* FPU registers come first so they can be aligned for FXSAVE/FXRSTOR. */
+     struct { char x[512]; } fpu_ctxt;       /* User-level FPU registers     */
+-#define VGCF_I387_VALID (1<<0)
+-#define VGCF_HVM_GUEST  (1<<1)
+-#define VGCF_IN_KERNEL  (1<<2)
++#define VGCF_I387_VALID                (1<<0)
++#define VGCF_IN_KERNEL                 (1<<2)
++#define _VGCF_i387_valid               0
++#define VGCF_i387_valid                (1<<_VGCF_i387_valid)
++#define _VGCF_in_kernel                2
++#define VGCF_in_kernel                 (1<<_VGCF_in_kernel)
++#define _VGCF_failsafe_disables_events 3
++#define VGCF_failsafe_disables_events  (1<<_VGCF_failsafe_disables_events)
++#define _VGCF_syscall_disables_events  4
++#define VGCF_syscall_disables_events   (1<<_VGCF_syscall_disables_events)
++#define _VGCF_online                   5
++#define VGCF_online                    (1<<_VGCF_online)
+     unsigned long flags;                    /* VGCF_* flags                 */
+     struct cpu_user_regs user_regs;         /* User-level CPU registers     */
+     struct trap_info trap_ctxt[256];        /* Virtual IDT                  */
+diff --git a/include/xen/interface/xen.h b/include/xen/interface/xen.h
+index a483789..da16a73 100644
+--- a/include/xen/interface/xen.h
++++ b/include/xen/interface/xen.h
+@@ -641,10 +641,12 @@ struct start_info {
+ };
  
-+	/* Copy the initial P->M table mappings if necessary. */
-+	i = pgd_index(xen_start_info->mfn_list);
-+	if (i && i < pgd_index(__START_KERNEL_map))
-+		init_level4_pgt[i] = ((pgd_t *)xen_start_info->pt_base)[i];
-+
- 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
- 		/* Make pagetable pieces RO */
- 		set_page_prot(init_level4_pgt, PAGE_KERNEL_RO);
-@@ -1895,6 +1999,8 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
+ /* These flags are passed in the 'flags' field of start_info_t. */
+-#define SIF_PRIVILEGED    (1<<0)  /* Is the domain privileged? */
+-#define SIF_INITDOMAIN    (1<<1)  /* Is this the initial control domain? */
+-#define SIF_MULTIBOOT_MOD (1<<2)  /* Is mod_start a multiboot module? */
+-#define SIF_MOD_START_PFN (1<<3)  /* Is mod_start a PFN? */
++#define SIF_PRIVILEGED      (1<<0)  /* Is the domain privileged? */
++#define SIF_INITDOMAIN      (1<<1)  /* Is this the initial control domain? */
++#define SIF_MULTIBOOT_MOD   (1<<2)  /* Is mod_start a multiboot module? */
++#define SIF_MOD_START_PFN   (1<<3)  /* Is mod_start a PFN? */
++#define SIF_VIRT_P2M_4TOOLS (1<<4)  /* Do Xen tools understand a virt. mapped */
++				    /* P->M making the 3 level tree obsolete? */
+ #define SIF_PM_MASK       (0xFF<<8) /* reserve 1 byte for xen-pm options */
  
- 	/* Our (by three pages) smaller Xen pagetable that we are using */
- 	memblock_reserve(PFN_PHYS(pt_base), (pt_end - pt_base) * PAGE_SIZE);
-+	/* protect xen_start_info */
-+	memblock_reserve(__pa(xen_start_info), PAGE_SIZE);
- 	/* Revector the xen_start_info */
- 	xen_start_info = (struct start_info *)__va(__pa(xen_start_info));
- }
-diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
-index 55f388e..adad417 100644
---- a/arch/x86/xen/setup.c
-+++ b/arch/x86/xen/setup.c
-@@ -560,6 +560,41 @@ static void __init xen_ignore_unusable(struct e820entry *list, size_t map_size)
- 	}
- }
- 
-+/*
-+ * Reserve Xen mfn_list.
-+ * See comment above "struct start_info" in <xen/interface/xen.h>
-+ * We tried to make the the memblock_reserve more selective so
-+ * that it would be clear what region is reserved. Sadly we ran
-+ * in the problem wherein on a 64-bit hypervisor with a 32-bit
-+ * initial domain, the pt_base has the cr3 value which is not
-+ * neccessarily where the pagetable starts! As Jan put it: "
-+ * Actually, the adjustment turns out to be correct: The page
-+ * tables for a 32-on-64 dom0 get allocated in the order "first L1",
-+ * "first L2", "first L3", so the offset to the page table base is
-+ * indeed 2. When reading xen/include/public/xen.h's comment
-+ * very strictly, this is not a violation (since there nothing is said
-+ * that the first thing in the page table space is pointed to by
-+ * pt_base; I admit that this seems to be implied though, namely
-+ * do I think that it is implied that the page table space is the
-+ * range [pt_base, pt_base + nt_pt_frames), whereas that
-+ * range here indeed is [pt_base - 2, pt_base - 2 + nt_pt_frames),
-+ * which - without a priori knowledge - the kernel would have
-+ * difficulty to figure out)." - so lets just fall back to the
-+ * easy way and reserve the whole region.
-+ */
-+static void __init xen_reserve_xen_mfnlist(void)
-+{
-+	if (xen_start_info->mfn_list >= __START_KERNEL_map) {
-+		memblock_reserve(__pa(xen_start_info->mfn_list),
-+				 xen_start_info->pt_base -
-+				 xen_start_info->mfn_list);
-+		return;
-+	}
-+
-+	memblock_reserve(PFN_PHYS(xen_start_info->first_p2m_pfn),
-+			 PFN_PHYS(xen_start_info->nr_p2m_frames));
-+}
-+
- /**
-  * machine_specific_memory_setup - Hook for machine specific memory setup.
-  **/
-@@ -684,35 +719,10 @@ char * __init xen_memory_setup(void)
- 	e820_add_region(ISA_START_ADDRESS, ISA_END_ADDRESS - ISA_START_ADDRESS,
- 			E820_RESERVED);
- 
--	/*
--	 * Reserve Xen bits:
--	 *  - mfn_list
--	 *  - xen_start_info
--	 * See comment above "struct start_info" in <xen/interface/xen.h>
--	 * We tried to make the the memblock_reserve more selective so
--	 * that it would be clear what region is reserved. Sadly we ran
--	 * in the problem wherein on a 64-bit hypervisor with a 32-bit
--	 * initial domain, the pt_base has the cr3 value which is not
--	 * neccessarily where the pagetable starts! As Jan put it: "
--	 * Actually, the adjustment turns out to be correct: The page
--	 * tables for a 32-on-64 dom0 get allocated in the order "first L1",
--	 * "first L2", "first L3", so the offset to the page table base is
--	 * indeed 2. When reading xen/include/public/xen.h's comment
--	 * very strictly, this is not a violation (since there nothing is said
--	 * that the first thing in the page table space is pointed to by
--	 * pt_base; I admit that this seems to be implied though, namely
--	 * do I think that it is implied that the page table space is the
--	 * range [pt_base, pt_base + nt_pt_frames), whereas that
--	 * range here indeed is [pt_base - 2, pt_base - 2 + nt_pt_frames),
--	 * which - without a priori knowledge - the kernel would have
--	 * difficulty to figure out)." - so lets just fall back to the
--	 * easy way and reserve the whole region.
--	 */
--	memblock_reserve(__pa(xen_start_info->mfn_list),
--			 xen_start_info->pt_base - xen_start_info->mfn_list);
--
- 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
- 
-+	xen_reserve_xen_mfnlist();
-+
- 	return "Xen";
- }
- 
-@@ -739,8 +749,7 @@ char * __init xen_auto_xlated_memory_setup(void)
- 	for (i = 0; i < memmap.nr_entries; i++)
- 		e820_add_region(map[i].addr, map[i].size, map[i].type);
- 
--	memblock_reserve(__pa(xen_start_info->mfn_list),
--			 xen_start_info->pt_base - xen_start_info->mfn_list);
-+	xen_reserve_xen_mfnlist();
- 
- 	return "Xen";
- }
-diff --git a/arch/x86/xen/xen-head.S b/arch/x86/xen/xen-head.S
-index 8afdfcc..b65f59a 100644
---- a/arch/x86/xen/xen-head.S
-+++ b/arch/x86/xen/xen-head.S
-@@ -104,6 +104,8 @@ ENTRY(hypercall_page)
- 	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,      _ASM_PTR __PAGE_OFFSET)
- #else
- 	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,      _ASM_PTR __START_KERNEL_map)
-+	/* Map the p2m table to a 512GB-aligned user address. */
-+	ELFNOTE(Xen, XEN_ELFNOTE_INIT_P2M,       .quad PGDIR_SIZE)
- #endif
- 	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          _ASM_PTR startup_xen)
- 	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, _ASM_PTR hypercall_page)
+ /*
 -- 
 2.1.4
