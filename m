@@ -1,79 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f52.google.com (mail-yh0-f52.google.com [209.85.213.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 407D96B0032
-	for <linux-mm@kvack.org>; Sun, 19 Apr 2015 22:23:05 -0400 (EDT)
-Received: by yhcb70 with SMTP id b70so15700674yhc.0
-        for <linux-mm@kvack.org>; Sun, 19 Apr 2015 19:23:05 -0700 (PDT)
-Received: from mail-yh0-x229.google.com (mail-yh0-x229.google.com. [2607:f8b0:4002:c01::229])
-        by mx.google.com with ESMTPS id z66si9729293ykc.133.2015.04.19.19.23.04
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 Apr 2015 19:23:04 -0700 (PDT)
-Received: by yhrr66 with SMTP id r66so2798321yhr.3
-        for <linux-mm@kvack.org>; Sun, 19 Apr 2015 19:23:04 -0700 (PDT)
-Message-ID: <55346307.c32fec0a.3a9a.ffffce16@mx.google.com>
-Date: Sun, 19 Apr 2015 19:23:03 -0700 (PDT)
-From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D8B76B0032
+	for <linux-mm@kvack.org>; Sun, 19 Apr 2015 22:27:51 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so192622031pdb.1
+        for <linux-mm@kvack.org>; Sun, 19 Apr 2015 19:27:51 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id p5si26196792par.19.2015.04.19.19.27.49
+        for <linux-mm@kvack.org>;
+        Sun, 19 Apr 2015 19:27:50 -0700 (PDT)
+Message-ID: <55345FAB.7000607@cn.fujitsu.com>
+Date: Mon, 20 Apr 2015 10:08:43 +0800
+From: Gu Zheng <guz.fnst@cn.fujitsu.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH 1/2 V2] memory-hotplug: fix BUG_ON in move_freepages()
-In-Reply-To: <55345756.40902@huawei.com>
-References: <5530E578.9070505@huawei.com>
-	<5531679d.4642ec0a.1beb.3569@mx.google.com>
-	<55345756.40902@huawei.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <5530E578.9070505@huawei.com> <5531679d.4642ec0a.1beb.3569@mx.google.com> <55345756.40902@huawei.com> <5534603a.36208c0a.4784.6286@mx.google.com>
+In-Reply-To: <5534603a.36208c0a.4784.6286@mx.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Xiexiuqi <xiexiuqi@huawei.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Xiexiuqi <xiexiuqi@huawei.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
+Hi Ishimatsu, Xishi,
 
-On Mon, 20 Apr 2015 09:33:10 +0800
-Xishi Qiu <qiuxishi@huawei.com> wrote:
+On 04/20/2015 10:11 AM, Yasuaki Ishimatsu wrote:
 
-> On 2015/4/18 4:05, Yasuaki Ishimatsu wrote:
 > 
-> > 
-> > Your patches will fix your issue.
-> > But, if BIOS reports memory first at node hot add, pgdat can
-> > not be initialized.
-> > 
-> > Memory hot add flows are as follows:
-> > 
-> > add_memory
-> >   ...
-> >   -> hotadd_new_pgdat()
-> >   ...
-> >   -> node_set_online(nid)
-> > 
-> > When calling hotadd_new_pgdat() for a hot added node, the node is
-> > offline because node_set_online() is not called yet. So if applying
-> > your patches, the pgdat is not initialized in this case.
-> > 
-> > Thanks,
-> > Yasuaki Ishimatsu
-> > 
+>> When hot adding memory and creating new node, the node is offline.
+>> And after calling node_set_online(), the node becomes online.
+>>
+>> Oh, sorry. I misread your ptaches.
+>>
 > 
-> Hi Yasuaki,
-> 
+> Please ignore it...
 
-> I'm not quite understand, when BIOS reports memory first, why pgdat
-> can not be initialized?
-> When hotadd a new node, hotadd_new_pgdat() will be called too, and
-> when hotadd memory to a existent node, it's no need to call hotadd_new_pgdat(),
-> right?
+Seems also a misread to me.
+I clear it (my worry) here:
+If we set the node size to 0 here, it may hidden more things than we experted,
+and all the init chunks around with the size (spanned/present/managed...) will
+be non-sense, and the user/caller will not get a summary of the hot added node
+because of the changes here.
+I am not sure the worry is necessary, please correct me if I missing something.
 
-Your patch sikps initialization of pgdat, when node is offline.
-But when hot adding new node and calling hotadd_new_pgdat(), the node
-is offline yet. So pgdat is not initialized. 
-
-Thanks,
-Yasuaki Ishimatsu
+Regards,
+Gu
 
 > 
 > Thanks,
-> Xishi Qiu
+> Yasuaki Ishimatsu
 > 
+> On 
+> Yasuaki Ishimatsu <yasu.isimatu@gmail.com> wrote:
+> 
+>>
+>> When hot adding memory and creating new node, the node is offline.
+>> And after calling node_set_online(), the node becomes online.
+>>
+>> Oh, sorry. I misread your ptaches.
+>>
+>> Thanks,
+>> Yasuaki Ishimatsu
+>>
+>> On Mon, 20 Apr 2015 09:33:10 +0800
+>> Xishi Qiu <qiuxishi@huawei.com> wrote:
+>>
+>>> On 2015/4/18 4:05, Yasuaki Ishimatsu wrote:
+>>>
+>>>>
+>>>> Your patches will fix your issue.
+>>>> But, if BIOS reports memory first at node hot add, pgdat can
+>>>> not be initialized.
+>>>>
+>>>> Memory hot add flows are as follows:
+>>>>
+>>>> add_memory
+>>>>   ...
+>>>>   -> hotadd_new_pgdat()
+>>>>   ...
+>>>>   -> node_set_online(nid)
+>>>>
+>>>> When calling hotadd_new_pgdat() for a hot added node, the node is
+>>>> offline because node_set_online() is not called yet. So if applying
+>>>> your patches, the pgdat is not initialized in this case.
+>>>>
+>>>> Thanks,
+>>>> Yasuaki Ishimatsu
+>>>>
+>>>
+>>> Hi Yasuaki,
+>>>
+>>> I'm not quite understand, when BIOS reports memory first, why pgdat
+>>> can not be initialized?
+>>> When hotadd a new node, hotadd_new_pgdat() will be called too, and
+>>> when hotadd memory to a existent node, it's no need to call hotadd_new_pgdat(),
+>>> right?
+>>>
+>>> Thanks,
+>>> Xishi Qiu
+>>>
+> .
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
