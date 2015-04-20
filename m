@@ -1,8 +1,8 @@
 From: Juergen Gross <jgross@suse.com>
-Subject: [Patch V3 12/15] mm: provide early_memremap_ro to
-	establish read-only mapping
-Date: Mon, 20 Apr 2015 07:23:37 +0200
-Message-ID: <1429507420-18201-13-git-send-email-jgross@suse.com>
+Subject: [Patch V3 02/15] xen: save linear p2m list address in
+	shared info structure
+Date: Mon, 20 Apr 2015 07:23:27 +0200
+Message-ID: <1429507420-18201-3-git-send-email-jgross@suse.com>
 References: <1429507420-18201-1-git-send-email-jgross@suse.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
@@ -21,76 +21,72 @@ To: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, konrad.wilk@ora
 Cc: Juergen Gross <jgross@suse.com>
 List-Id: linux-mm.kvack.org
 
-During early boot as Xen pv domain the kernel needs to map some page
-tables supplied by the hypervisor read only. This is needed to be
-able to relocate some data structures conflicting with the physical
-memory map especially on systems with huge RAM (above 512GB).
-
-Provide the function early_memremap_ro() to provide this read only
-mapping.
+The virtual address of the linear p2m list should be stored in the
+shared info structure read by the Xen tools to be able to support
+64 bit pv-domains larger than 512 GB. Additionally the linear p2m
+list interface includes a generation count which is changed prior
+to and after each mapping change of the p2m list. Reading the
+generation count the Xen tools can detect changes of the mappings
+and re-read the p2m list eventually.
 
 Signed-off-by: Juergen Gross <jgross@suse.com>
+Reviewed-by: David Vrabel <david.vrabel@citrix.com>
 ---
- include/asm-generic/early_ioremap.h |  2 ++
- include/asm-generic/fixmap.h        |  3 +++
- mm/early_ioremap.c                  | 11 +++++++++++
- 3 files changed, 16 insertions(+)
+ arch/x86/xen/p2m.c | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
 
-diff --git a/include/asm-generic/early_ioremap.h b/include/asm-generic/early_ioremap.h
-index a5de55c..316bd04 100644
---- a/include/asm-generic/early_ioremap.h
-+++ b/include/asm-generic/early_ioremap.h
-@@ -11,6 +11,8 @@ extern void __iomem *early_ioremap(resource_size_t phys_addr,
- 				   unsigned long size);
- extern void *early_memremap(resource_size_t phys_addr,
- 			    unsigned long size);
-+extern void *early_memremap_ro(resource_size_t phys_addr,
-+			       unsigned long size);
- extern void early_iounmap(void __iomem *addr, unsigned long size);
- extern void early_memunmap(void *addr, unsigned long size);
- 
-diff --git a/include/asm-generic/fixmap.h b/include/asm-generic/fixmap.h
-index f23174f..d8cc637 100644
---- a/include/asm-generic/fixmap.h
-+++ b/include/asm-generic/fixmap.h
-@@ -46,6 +46,9 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
- #ifndef FIXMAP_PAGE_NORMAL
- #define FIXMAP_PAGE_NORMAL PAGE_KERNEL
- #endif
-+#ifndef FIXMAP_PAGE_RO
-+#define FIXMAP_PAGE_RO PAGE_KERNEL_RO
-+#endif
- #ifndef FIXMAP_PAGE_NOCACHE
- #define FIXMAP_PAGE_NOCACHE PAGE_KERNEL_NOCACHE
- #endif
-diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
-index e10ccd2..e4ffaac 100644
---- a/mm/early_ioremap.c
-+++ b/mm/early_ioremap.c
-@@ -217,6 +217,12 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
- 	return (__force void *)__early_ioremap(phys_addr, size,
- 					       FIXMAP_PAGE_NORMAL);
+diff --git a/arch/x86/xen/p2m.c b/arch/x86/xen/p2m.c
+index b47124d..703f803 100644
+--- a/arch/x86/xen/p2m.c
++++ b/arch/x86/xen/p2m.c
+@@ -262,6 +262,10 @@ void xen_setup_mfn_list_list(void)
+ 	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
+ 		virt_to_mfn(p2m_top_mfn);
+ 	HYPERVISOR_shared_info->arch.max_pfn = xen_max_p2m_pfn;
++	HYPERVISOR_shared_info->arch.p2m_generation = 0;
++	HYPERVISOR_shared_info->arch.p2m_vaddr = (unsigned long)xen_p2m_addr;
++	HYPERVISOR_shared_info->arch.p2m_cr3 =
++		xen_pfn_to_cr3(virt_to_mfn(swapper_pg_dir));
  }
-+void __init *
-+early_memremap_ro(resource_size_t phys_addr, unsigned long size)
-+{
-+	return (__force void *)__early_ioremap(phys_addr, size,
-+					       FIXMAP_PAGE_RO);
-+}
- #else /* CONFIG_MMU */
  
- void __init __iomem *
-@@ -231,6 +237,11 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
- {
- 	return (void *)phys_addr;
- }
-+void __init *
-+early_memremap_ro(resource_size_t phys_addr, unsigned long size)
-+{
-+	return (void *)phys_addr;
-+}
+ /* Set up p2m_top to point to the domain-builder provided p2m pages */
+@@ -477,8 +481,12 @@ static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
  
- void __init early_iounmap(void __iomem *addr, unsigned long size)
- {
+ 		ptechk = lookup_address(vaddr, &level);
+ 		if (ptechk == pte_pg) {
++			HYPERVISOR_shared_info->arch.p2m_generation++;
++			wmb(); /* Tools are synchronizing via p2m_generation. */
+ 			set_pmd(pmdp,
+ 				__pmd(__pa(pte_newpg[i]) | _KERNPG_TABLE));
++			wmb(); /* Tools are synchronizing via p2m_generation. */
++			HYPERVISOR_shared_info->arch.p2m_generation++;
+ 			pte_newpg[i] = NULL;
+ 		}
+ 
+@@ -576,8 +584,12 @@ static bool alloc_p2m(unsigned long pfn)
+ 		spin_lock_irqsave(&p2m_update_lock, flags);
+ 
+ 		if (pte_pfn(*ptep) == p2m_pfn) {
++			HYPERVISOR_shared_info->arch.p2m_generation++;
++			wmb(); /* Tools are synchronizing via p2m_generation. */
+ 			set_pte(ptep,
+ 				pfn_pte(PFN_DOWN(__pa(p2m)), PAGE_KERNEL));
++			wmb(); /* Tools are synchronizing via p2m_generation. */
++			HYPERVISOR_shared_info->arch.p2m_generation++;
+ 			if (mid_mfn)
+ 				mid_mfn[mididx] = virt_to_mfn(p2m);
+ 			p2m = NULL;
+@@ -629,6 +641,11 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
+ 		return true;
+ 	}
+ 
++	/*
++	 * The interface requires atomic updates on p2m elements.
++	 * xen_safe_write_ulong() is using __put_user which does an atomic
++	 * store via asm().
++	 */
+ 	if (likely(!xen_safe_write_ulong(xen_p2m_addr + pfn, mfn)))
+ 		return true;
+ 
 -- 
 2.1.4
