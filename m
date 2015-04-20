@@ -1,137 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 286FD6B0032
-	for <linux-mm@kvack.org>; Sun, 19 Apr 2015 23:55:31 -0400 (EDT)
-Received: by wgsk9 with SMTP id k9so164825225wgs.3
-        for <linux-mm@kvack.org>; Sun, 19 Apr 2015 20:55:30 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id dm9si5553567wjb.138.2015.04.19.20.55.28
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id AADF16B0032
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2015 02:48:54 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so198593977pde.3
+        for <linux-mm@kvack.org>; Sun, 19 Apr 2015 23:48:54 -0700 (PDT)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id y1si12950256pdg.253.2015.04.19.23.48.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 19 Apr 2015 20:55:29 -0700 (PDT)
-Message-ID: <55347592.4050400@huawei.com>
-Date: Mon, 20 Apr 2015 11:42:10 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/2 V2] memory-hotplug: fix BUG_ON in move_freepages()
-References: <5530E578.9070505@huawei.com> <5531679d.4642ec0a.1beb.3569@mx.google.com> <55345979.2020502@cn.fujitsu.com> <55346859.30605@huawei.com> <553472b0.4ad2ec0a.3abe.ffffd0f6@mx.google.com>
-In-Reply-To: <553472b0.4ad2ec0a.3abe.ffffd0f6@mx.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+        Sun, 19 Apr 2015 23:48:53 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0NN300GXZEXDUA30@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 20 Apr 2015 07:48:49 +0100 (BST)
+Message-id: <5534A14E.5010507@samsung.com>
+Date: Mon, 20 Apr 2015 09:48:46 +0300
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH 2/2] arm64: add KASan support
+References: <1427208544-8232-1-git-send-email-a.ryabinin@samsung.com>
+ <1427208544-8232-3-git-send-email-a.ryabinin@samsung.com>
+ <20150401122843.GA28616@e104818-lin.cambridge.arm.com>
+ <551E993E.5060801@samsung.com> <552DCED9.40207@codeaurora.org>
+ <552EA835.5070704@samsung.com> <5531537C.1000107@codeaurora.org>
+In-reply-to: <5531537C.1000107@codeaurora.org>
+Content-type: text/plain; charset=windows-1252
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
-Cc: Gu Zheng <guz.fnst@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Xiexiuqi <xiexiuqi@huawei.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Keitel <dkeitel@codeaurora.org>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-On 2015/4/20 11:29, Yasuaki Ishimatsu wrote:
-
-> 
-> On Mon, 20 Apr 2015 10:45:45 +0800
-> Xishi Qiu <qiuxishi@huawei.com> wrote:
-> 
->> On 2015/4/20 9:42, Gu Zheng wrote:
+On 04/17/2015 09:39 PM, David Keitel wrote:
+> On 04/15/2015 11:04 AM, Andrey Ryabinin wrote:
+>> I've pushed the most fresh thing that I have in git:
+>> 	git://github.com/aryabinin/linux.git kasan/arm64v1
 >>
->>> Hi Xishi,
->>> On 04/18/2015 04:05 AM, Yasuaki Ishimatsu wrote:
->>>
->>>>
->>>> Your patches will fix your issue.
->>>> But, if BIOS reports memory first at node hot add, pgdat can
->>>> not be initialized.
->>>>
->>>> Memory hot add flows are as follows:
->>>>
->>>> add_memory
->>>>   ...
->>>>   -> hotadd_new_pgdat()
->>>>   ...
->>>>   -> node_set_online(nid)
->>>>
->>>> When calling hotadd_new_pgdat() for a hot added node, the node is
->>>> offline because node_set_online() is not called yet. So if applying
->>>> your patches, the pgdat is not initialized in this case.
->>>
->>> Ishimtasu's worry is reasonable. And I am afraid the fix here is a bit
->>> over-kill. 
->>>
->>>>
->>>> Thanks,
->>>> Yasuaki Ishimatsu
->>>>
->>>> On Fri, 17 Apr 2015 18:50:32 +0800
->>>> Xishi Qiu <qiuxishi@huawei.com> wrote:
->>>>
->>>>> Hot remove nodeXX, then hot add nodeXX. If BIOS report cpu first, it will call
->>>>> hotadd_new_pgdat(nid, 0), this will set pgdat->node_start_pfn to 0. As nodeXX
->>>>> exists at boot time, so pgdat->node_spanned_pages is the same as original. Then
->>>>> free_area_init_core()->memmap_init() will pass a wrong start and a nonzero size.
->>>
->>> As your analysis said the root cause here is passing a *0* as the node_start_pfn,
->>> then the chaos occurred when init the zones. And this only happens to the re-hotadd
->>> node, so how about using the saved *node_start_pfn* (via get_pfn_range_for_nid(nid, &start_pfn, &end_pfn))
->>> instead if we find "pgdat->node_start_pfn == 0 && !node_online(XXX)"?
->>>
->>> Thanks,
->>> Gu
->>>
->>
->> Hi Gu,
->>
->> I first considered this method, but if the hot added node's start and size are different
->> from before, it makes the chaos.
->>
+>> It's the same patches with two simple but important fixes on top of it.
 > 
->> e.g.
->> nodeXX (8-16G)
->> remove nodeXX 
->> BIOS report cpu first and online it
->> hotadd nodeXX
->> use the original value, so pgdat->node_start_pfn is set to 8G, and size is 8G
->> BIOS report mem(10-12G)
->> call add_memory()->__add_zone()->grow_zone_span()/grow_pgdat_span()
->> the start is still 8G, not 10G, this is chaos!
+> Thanks, the two commits do fix compilation issues that I've had worked around to get to my mapping question.
 > 
-> If you set CONFIG_HAVE_MEMBLOCK_NODE_MAP, kernel shows the following
-> pr_info()'s message.
+> I've addressed the mapping problem using __create_page_tables in arch/arm64/head.S as an example.
 > 
-> void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
->                 unsigned long node_start_pfn, unsigned long *zholes_size)
-> {
-> ...
-> #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->         get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
->         pr_info("Initmem setup node %d [mem %#018Lx-%#018Lx]\n", nid,
->                 (u64)start_pfn << PAGE_SHIFT, ((u64)end_pfn << PAGE_SHIFT) - 1);
-> #endif
-> }
+> The next roadblock I hit was running into kasan_report_error calls in cgroups_early_init. After a short investigation it does seem to be a false positive due the the kasan_zero_page size and tracking bytes being reused for different memory regions.
 > 
-> Is the memory range of the message "8G - 16G"?
-> If so, the reason is that memblk is not deleted at memory hot remove.
-> 
-> Thanks,
-> Yasuaki Ishimatsu
-> 
+> I worked around that by enabling kasan error reporting only after the kasan_init is run. This let me get to the shell with some real KAsan reports along the way.
 
-Hi Yasuaki,
+Reporting already disabled before kasan_init() and the last thing that kasan_init() is enable error reports.
+So, how did you managed to get kasan's report before kasan_init()?
 
-By reading the code, I find memblk is not deleted at memory hot remove.
-I am not sure whether we should remove it. If remove it, we should also reset
-"arch_zone_lowest_possible_pfn", right? It seems a little complicated.
-
-Thanks,
-Xishi Qiu
-
+> There were some other fixes and hacks to get there. I'll backtrack to evaluate which ones warrant an RFC.
 > 
+>  - David
 > 
->>
->> Thanks,
->> Xishi Qiu
->>
-> 
-> .
-> 
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
