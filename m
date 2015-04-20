@@ -1,8 +1,7 @@
 From: Juergen Gross <jgross@suse.com>
-Subject: [Patch V3 02/15] xen: save linear p2m list address in
-	shared info structure
-Date: Mon, 20 Apr 2015 07:23:27 +0200
-Message-ID: <1429507420-18201-3-git-send-email-jgross@suse.com>
+Subject: [Patch V3 08/15] xen: find unused contiguous memory area
+Date: Mon, 20 Apr 2015 07:23:33 +0200
+Message-ID: <1429507420-18201-9-git-send-email-jgross@suse.com>
 References: <1429507420-18201-1-git-send-email-jgross@suse.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
@@ -21,72 +20,77 @@ To: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, konrad.wilk@ora
 Cc: Juergen Gross <jgross@suse.com>
 List-Id: linux-mm.kvack.org
 
-The virtual address of the linear p2m list should be stored in the
-shared info structure read by the Xen tools to be able to support
-64 bit pv-domains larger than 512 GB. Additionally the linear p2m
-list interface includes a generation count which is changed prior
-to and after each mapping change of the p2m list. Reading the
-generation count the Xen tools can detect changes of the mappings
-and re-read the p2m list eventually.
+For being able to relocate pre-allocated data areas like initrd or
+p2m list it is mandatory to find a contiguous memory area which is
+not yet in use and doesn't conflict with the memory map we want to
+be in effect.
+
+In case such an area is found reserve it at once as this will be
+required to be done in any case.
 
 Signed-off-by: Juergen Gross <jgross@suse.com>
 Reviewed-by: David Vrabel <david.vrabel@citrix.com>
 ---
- arch/x86/xen/p2m.c | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ arch/x86/xen/setup.c   | 34 ++++++++++++++++++++++++++++++++++
+ arch/x86/xen/xen-ops.h |  1 +
+ 2 files changed, 35 insertions(+)
 
-diff --git a/arch/x86/xen/p2m.c b/arch/x86/xen/p2m.c
-index b47124d..703f803 100644
---- a/arch/x86/xen/p2m.c
-+++ b/arch/x86/xen/p2m.c
-@@ -262,6 +262,10 @@ void xen_setup_mfn_list_list(void)
- 	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
- 		virt_to_mfn(p2m_top_mfn);
- 	HYPERVISOR_shared_info->arch.max_pfn = xen_max_p2m_pfn;
-+	HYPERVISOR_shared_info->arch.p2m_generation = 0;
-+	HYPERVISOR_shared_info->arch.p2m_vaddr = (unsigned long)xen_p2m_addr;
-+	HYPERVISOR_shared_info->arch.p2m_cr3 =
-+		xen_pfn_to_cr3(virt_to_mfn(swapper_pg_dir));
+diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
+index 99ef82c..973d294 100644
+--- a/arch/x86/xen/setup.c
++++ b/arch/x86/xen/setup.c
+@@ -597,6 +597,40 @@ bool __init xen_is_e820_reserved(phys_addr_t start, phys_addr_t size)
  }
  
- /* Set up p2m_top to point to the domain-builder provided p2m pages */
-@@ -477,8 +481,12 @@ static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
- 
- 		ptechk = lookup_address(vaddr, &level);
- 		if (ptechk == pte_pg) {
-+			HYPERVISOR_shared_info->arch.p2m_generation++;
-+			wmb(); /* Tools are synchronizing via p2m_generation. */
- 			set_pmd(pmdp,
- 				__pmd(__pa(pte_newpg[i]) | _KERNPG_TABLE));
-+			wmb(); /* Tools are synchronizing via p2m_generation. */
-+			HYPERVISOR_shared_info->arch.p2m_generation++;
- 			pte_newpg[i] = NULL;
- 		}
- 
-@@ -576,8 +584,12 @@ static bool alloc_p2m(unsigned long pfn)
- 		spin_lock_irqsave(&p2m_update_lock, flags);
- 
- 		if (pte_pfn(*ptep) == p2m_pfn) {
-+			HYPERVISOR_shared_info->arch.p2m_generation++;
-+			wmb(); /* Tools are synchronizing via p2m_generation. */
- 			set_pte(ptep,
- 				pfn_pte(PFN_DOWN(__pa(p2m)), PAGE_KERNEL));
-+			wmb(); /* Tools are synchronizing via p2m_generation. */
-+			HYPERVISOR_shared_info->arch.p2m_generation++;
- 			if (mid_mfn)
- 				mid_mfn[mididx] = virt_to_mfn(p2m);
- 			p2m = NULL;
-@@ -629,6 +641,11 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
- 		return true;
- 	}
- 
-+	/*
-+	 * The interface requires atomic updates on p2m elements.
-+	 * xen_safe_write_ulong() is using __put_user which does an atomic
-+	 * store via asm().
-+	 */
- 	if (likely(!xen_safe_write_ulong(xen_p2m_addr + pfn, mfn)))
- 		return true;
- 
+ /*
++ * Find a free area in physical memory not yet reserved and compliant with
++ * E820 map.
++ * Used to relocate pre-allocated areas like initrd or p2m list which are in
++ * conflict with the to be used E820 map.
++ * In case no area is found, return 0. Otherwise return the physical address
++ * of the area which is already reserved for convenience.
++ */
++phys_addr_t __init xen_find_free_area(phys_addr_t size)
++{
++	unsigned mapcnt;
++	phys_addr_t addr, start;
++	struct e820entry *entry = xen_e820_map;
++
++	for (mapcnt = 0; mapcnt < xen_e820_map_entries; mapcnt++, entry++) {
++		if (entry->type != E820_RAM || entry->size < size)
++			continue;
++		start = entry->addr;
++		for (addr = start; addr < start + size; addr += PAGE_SIZE) {
++			if (!memblock_is_reserved(addr))
++				continue;
++			start = addr + PAGE_SIZE;
++			if (start + size > entry->addr + entry->size)
++				break;
++		}
++		if (addr >= start + size) {
++			memblock_reserve(start, size);
++			return start;
++		}
++	}
++
++	return 0;
++}
++
++/*
+  * Reserve Xen mfn_list.
+  * See comment above "struct start_info" in <xen/interface/xen.h>
+  * We tried to make the the memblock_reserve more selective so
+diff --git a/arch/x86/xen/xen-ops.h b/arch/x86/xen/xen-ops.h
+index c1385b8..3f1669c 100644
+--- a/arch/x86/xen/xen-ops.h
++++ b/arch/x86/xen/xen-ops.h
+@@ -43,6 +43,7 @@ bool __init xen_is_e820_reserved(phys_addr_t start, phys_addr_t size);
+ unsigned long __ref xen_chk_extra_mem(unsigned long pfn);
+ void __init xen_inv_extra_mem(void);
+ void __init xen_remap_memory(void);
++phys_addr_t __init xen_find_free_area(phys_addr_t size);
+ char * __init xen_memory_setup(void);
+ char * xen_auto_xlated_memory_setup(void);
+ void __init xen_arch_setup(void);
 -- 
 2.1.4
