@@ -1,82 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 655076B0032
-	for <linux-mm@kvack.org>; Sun, 19 Apr 2015 20:03:19 -0400 (EDT)
-Received: by iedfl3 with SMTP id fl3so119454550ied.1
-        for <linux-mm@kvack.org>; Sun, 19 Apr 2015 17:03:19 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id n14si7098139igx.1.2015.04.19.17.03.18
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 207736B0032
+	for <linux-mm@kvack.org>; Sun, 19 Apr 2015 21:56:19 -0400 (EDT)
+Received: by qcbii10 with SMTP id ii10so51353328qcb.2
+        for <linux-mm@kvack.org>; Sun, 19 Apr 2015 18:56:18 -0700 (PDT)
+Received: from mail-qc0-x232.google.com (mail-qc0-x232.google.com. [2607:f8b0:400d:c01::232])
+        by mx.google.com with ESMTPS id 145si18294972qhu.43.2015.04.19.18.56.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 19 Apr 2015 17:03:18 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: kernel BUG at mm/swap.c:134! - page dumped because:
- VM_BUG_ON_PAGE(page_mapcount(page) != 0)
-Date: Mon, 20 Apr 2015 00:02:00 +0000
-Message-ID: <20150420000200.GC10725@hori1.linux.bs1.fc.nec.co.jp>
-References: <20150418205656.GA7972@pd.tnic>
- <CA+55aFxfGOw7VNqpDN2hm+P8w-9F2pVZf+VN9rZnDqGXe2VQTg@mail.gmail.com>
- <20150418215656.GA13928@node.dhcp.inet.fi>
- <CA+55aFxMx8xmWq7Dszu9h9dZQPGn7hj5GRBrJzh1hsQV600z9w@mail.gmail.com>
- <CA+55aFxLjBFUPYFJDGo236Ubdxy9s32gZ9VU43PA3RCkxJxdbw@mail.gmail.com>
-In-Reply-To: <CA+55aFxLjBFUPYFJDGo236Ubdxy9s32gZ9VU43PA3RCkxJxdbw@mail.gmail.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <D1019B867B3BB644B01964329077308B@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 19 Apr 2015 18:56:18 -0700 (PDT)
+Received: by qcyk17 with SMTP id k17so51341493qcy.1
+        for <linux-mm@kvack.org>; Sun, 19 Apr 2015 18:56:18 -0700 (PDT)
+Message-ID: <55345cc1.0fc98c0a.1318.54fb@mx.google.com>
+Date: Sun, 19 Apr 2015 18:56:17 -0700 (PDT)
+From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+Subject: Re: [PATCH 1/2 V2] memory-hotplug: fix BUG_ON in move_freepages()
+In-Reply-To: <55345756.40902@huawei.com>
+References: <5530E578.9070505@huawei.com>
+	<5531679d.4642ec0a.1beb.3569@mx.google.com>
+	<55345756.40902@huawei.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Borislav Petkov <bp@alien8.de>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, x86-ml <x86@kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Xiexiuqi <xiexiuqi@huawei.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Sat, Apr 18, 2015 at 06:12:56PM -0400, Linus Torvalds wrote:
-> On Sat, Apr 18, 2015 at 5:59 PM, Linus Torvalds
-> <torvalds@linux-foundation.org> wrote:
-> > On Sat, Apr 18, 2015 at 5:56 PM, Kirill A. Shutemov
-> > <kirill@shutemov.name> wrote:
-> >>
-> >> Andrea has already seen the bug and pointed to 8d63d99a5dfb as possibl=
-e
-> >> cause. I don't see why the commit could broke anything, but it worth
-> >> trying to revert and test.
-> >
-> > Ahh, yes, that does look like a more likely culprit.
->=20
-> That said, I do think we should likely also do that
->=20
->         WARN_ON_ONCE(PageHuge(page));
->=20
-> in __put_compound_page() rather than just silently saying "no refcount
-> changes for this magical case that shouldn't even happen".  If it
-> shouldn't happen, then we should warn about it, not try to ":handle"
-> some case that shouldn't happen and shouldn't matter.
 
-__put_compound_page() can be called for PageHuge, so I don't think that add=
-ing
-WARN_ON_ONCE(PageHuge) is good (, which makes every hugetlb user see the wa=
-rning
-once in every boot.)
+When hot adding memory and creating new node, the node is offline.
+And after calling node_set_online(), the node becomes online.
 
-What I thought when I suggested this code was that __page_cache_release() s=
-eems
-not to be intended for hugetlb, but I'm not sure.
-__put_compound_page() does work without this !PageHuge check which is only =
-for
-potential change in __put_compound_page().
-So if everyone thinks that __put_compound_page() is stable and will never c=
-hange
-in the future, this !PageHuge check is totally unnecessary.
-
-> Let's not play games in this area. This code has been stable for many
-> years, why are we suddenly doing random things here? There's something
-> to be said for "if it ain't broke..", and there's *definitely* a lot
-> to be said for "let's not complicate this even more".
-
-OK, so could you please try simply reverting 822fc61367f0 ?
+Oh, sorry. I misread your ptaches.
 
 Thanks,
-Naoya Horiguchi
+Yasuaki Ishimatsu
+
+On Mon, 20 Apr 2015 09:33:10 +0800
+Xishi Qiu <qiuxishi@huawei.com> wrote:
+
+> On 2015/4/18 4:05, Yasuaki Ishimatsu wrote:
+> 
+> > 
+> > Your patches will fix your issue.
+> > But, if BIOS reports memory first at node hot add, pgdat can
+> > not be initialized.
+> > 
+> > Memory hot add flows are as follows:
+> > 
+> > add_memory
+> >   ...
+> >   -> hotadd_new_pgdat()
+> >   ...
+> >   -> node_set_online(nid)
+> > 
+> > When calling hotadd_new_pgdat() for a hot added node, the node is
+> > offline because node_set_online() is not called yet. So if applying
+> > your patches, the pgdat is not initialized in this case.
+> > 
+> > Thanks,
+> > Yasuaki Ishimatsu
+> > 
+> 
+> Hi Yasuaki,
+> 
+> I'm not quite understand, when BIOS reports memory first, why pgdat
+> can not be initialized?
+> When hotadd a new node, hotadd_new_pgdat() will be called too, and
+> when hotadd memory to a existent node, it's no need to call hotadd_new_pgdat(),
+> right?
+> 
+> Thanks,
+> Xishi Qiu
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
