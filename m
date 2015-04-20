@@ -1,7 +1,7 @@
 From: Juergen Gross <jgross@suse.com>
-Subject: [Patch V3 08/15] xen: find unused contiguous memory area
-Date: Mon, 20 Apr 2015 07:23:33 +0200
-Message-ID: <1429507420-18201-9-git-send-email-jgross@suse.com>
+Subject: [Patch V3 15/15] xen: remove no longer needed p2m.h
+Date: Mon, 20 Apr 2015 07:23:40 +0200
+Message-ID: <1429507420-18201-16-git-send-email-jgross@suse.com>
 References: <1429507420-18201-1-git-send-email-jgross@suse.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
@@ -20,77 +20,103 @@ To: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, konrad.wilk@ora
 Cc: Juergen Gross <jgross@suse.com>
 List-Id: linux-mm.kvack.org
 
-For being able to relocate pre-allocated data areas like initrd or
-p2m list it is mandatory to find a contiguous memory area which is
-not yet in use and doesn't conflict with the memory map we want to
-be in effect.
+Cleanup by removing arch/x86/xen/p2m.h as it isn't needed any more.
 
-In case such an area is found reserve it at once as this will be
-required to be done in any case.
+Most definitions in this file are used in p2m.c only. Move those into
+p2m.c.
+
+set_phys_range_identity() is already declared in
+arch/x86/include/asm/xen/page.h, add __init annotation there.
+
+MAX_REMAP_RANGES isn't used at all, just delete it.
+
+The only define left is P2M_PER_PAGE which is moved to page.h as well.
 
 Signed-off-by: Juergen Gross <jgross@suse.com>
-Reviewed-by: David Vrabel <david.vrabel@citrix.com>
 ---
- arch/x86/xen/setup.c   | 34 ++++++++++++++++++++++++++++++++++
- arch/x86/xen/xen-ops.h |  1 +
- 2 files changed, 35 insertions(+)
+ arch/x86/include/asm/xen/page.h |  6 ++++--
+ arch/x86/xen/p2m.c              |  6 +++++-
+ arch/x86/xen/p2m.h              | 15 ---------------
+ arch/x86/xen/setup.c            |  1 -
+ 4 files changed, 9 insertions(+), 19 deletions(-)
+ delete mode 100644 arch/x86/xen/p2m.h
 
+diff --git a/arch/x86/include/asm/xen/page.h b/arch/x86/include/asm/xen/page.h
+index 18a11f2..b858592 100644
+--- a/arch/x86/include/asm/xen/page.h
++++ b/arch/x86/include/asm/xen/page.h
+@@ -35,6 +35,8 @@ typedef struct xpaddr {
+ #define FOREIGN_FRAME(m)	((m) | FOREIGN_FRAME_BIT)
+ #define IDENTITY_FRAME(m)	((m) | IDENTITY_FRAME_BIT)
+ 
++#define P2M_PER_PAGE		(PAGE_SIZE / sizeof(unsigned long))
++
+ extern unsigned long *machine_to_phys_mapping;
+ extern unsigned long  machine_to_phys_nr;
+ extern unsigned long *xen_p2m_addr;
+@@ -44,8 +46,8 @@ extern unsigned long  xen_max_p2m_pfn;
+ extern unsigned long get_phys_to_machine(unsigned long pfn);
+ extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+ extern bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+-extern unsigned long set_phys_range_identity(unsigned long pfn_s,
+-					     unsigned long pfn_e);
++extern unsigned long __init set_phys_range_identity(unsigned long pfn_s,
++						    unsigned long pfn_e);
+ 
+ extern int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
+ 				   struct gnttab_map_grant_ref *kmap_ops,
+diff --git a/arch/x86/xen/p2m.c b/arch/x86/xen/p2m.c
+index 365a64a..1f63ad2 100644
+--- a/arch/x86/xen/p2m.c
++++ b/arch/x86/xen/p2m.c
+@@ -78,10 +78,14 @@
+ #include <xen/balloon.h>
+ #include <xen/grant_table.h>
+ 
+-#include "p2m.h"
+ #include "multicalls.h"
+ #include "xen-ops.h"
+ 
++#define P2M_MID_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long *))
++#define P2M_TOP_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long **))
++
++#define MAX_P2M_PFN	(P2M_TOP_PER_PAGE * P2M_MID_PER_PAGE * P2M_PER_PAGE)
++
+ #define PMDS_PER_MID_PAGE	(P2M_MID_PER_PAGE / PTRS_PER_PTE)
+ 
+ unsigned long *xen_p2m_addr __read_mostly;
+diff --git a/arch/x86/xen/p2m.h b/arch/x86/xen/p2m.h
+deleted file mode 100644
+index ad8aee2..0000000
+--- a/arch/x86/xen/p2m.h
++++ /dev/null
+@@ -1,15 +0,0 @@
+-#ifndef _XEN_P2M_H
+-#define _XEN_P2M_H
+-
+-#define P2M_PER_PAGE        (PAGE_SIZE / sizeof(unsigned long))
+-#define P2M_MID_PER_PAGE    (PAGE_SIZE / sizeof(unsigned long *))
+-#define P2M_TOP_PER_PAGE    (PAGE_SIZE / sizeof(unsigned long **))
+-
+-#define MAX_P2M_PFN         (P2M_TOP_PER_PAGE * P2M_MID_PER_PAGE * P2M_PER_PAGE)
+-
+-#define MAX_REMAP_RANGES    10
+-
+-extern unsigned long __init set_phys_range_identity(unsigned long pfn_s,
+-                                      unsigned long pfn_e);
+-
+-#endif  /* _XEN_P2M_H */
 diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
-index 99ef82c..973d294 100644
+index f960021..a1a77ea 100644
 --- a/arch/x86/xen/setup.c
 +++ b/arch/x86/xen/setup.c
-@@ -597,6 +597,40 @@ bool __init xen_is_e820_reserved(phys_addr_t start, phys_addr_t size)
- }
+@@ -30,7 +30,6 @@
+ #include <xen/hvc-console.h>
+ #include "xen-ops.h"
+ #include "vdso.h"
+-#include "p2m.h"
+ #include "mmu.h"
  
- /*
-+ * Find a free area in physical memory not yet reserved and compliant with
-+ * E820 map.
-+ * Used to relocate pre-allocated areas like initrd or p2m list which are in
-+ * conflict with the to be used E820 map.
-+ * In case no area is found, return 0. Otherwise return the physical address
-+ * of the area which is already reserved for convenience.
-+ */
-+phys_addr_t __init xen_find_free_area(phys_addr_t size)
-+{
-+	unsigned mapcnt;
-+	phys_addr_t addr, start;
-+	struct e820entry *entry = xen_e820_map;
-+
-+	for (mapcnt = 0; mapcnt < xen_e820_map_entries; mapcnt++, entry++) {
-+		if (entry->type != E820_RAM || entry->size < size)
-+			continue;
-+		start = entry->addr;
-+		for (addr = start; addr < start + size; addr += PAGE_SIZE) {
-+			if (!memblock_is_reserved(addr))
-+				continue;
-+			start = addr + PAGE_SIZE;
-+			if (start + size > entry->addr + entry->size)
-+				break;
-+		}
-+		if (addr >= start + size) {
-+			memblock_reserve(start, size);
-+			return start;
-+		}
-+	}
-+
-+	return 0;
-+}
-+
-+/*
-  * Reserve Xen mfn_list.
-  * See comment above "struct start_info" in <xen/interface/xen.h>
-  * We tried to make the the memblock_reserve more selective so
-diff --git a/arch/x86/xen/xen-ops.h b/arch/x86/xen/xen-ops.h
-index c1385b8..3f1669c 100644
---- a/arch/x86/xen/xen-ops.h
-+++ b/arch/x86/xen/xen-ops.h
-@@ -43,6 +43,7 @@ bool __init xen_is_e820_reserved(phys_addr_t start, phys_addr_t size);
- unsigned long __ref xen_chk_extra_mem(unsigned long pfn);
- void __init xen_inv_extra_mem(void);
- void __init xen_remap_memory(void);
-+phys_addr_t __init xen_find_free_area(phys_addr_t size);
- char * __init xen_memory_setup(void);
- char * xen_auto_xlated_memory_setup(void);
- void __init xen_arch_setup(void);
+ #define GB(x) ((uint64_t)(x) * 1024 * 1024 * 1024)
 -- 
 2.1.4
