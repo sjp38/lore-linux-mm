@@ -1,52 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 552BC6B0032
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2015 14:09:56 -0400 (EDT)
-Received: by paboj16 with SMTP id oj16so214122774pab.0
-        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 11:09:56 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id td4si29167695pbc.224.2015.04.20.11.09.55
-        for <linux-mm@kvack.org>;
-        Mon, 20 Apr 2015 11:09:55 -0700 (PDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH] mm, hwpoison: Remove obsolete "Notebook" todo list
-Date: Mon, 20 Apr 2015 11:09:43 -0700
-Message-Id: <1429553383-11466-1-git-send-email-andi@firstfloor.org>
+Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DB4C6B0032
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2015 14:17:13 -0400 (EDT)
+Received: by qcbii10 with SMTP id ii10so63150774qcb.2
+        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 11:17:12 -0700 (PDT)
+Received: from mail-qg0-x22a.google.com (mail-qg0-x22a.google.com. [2607:f8b0:400d:c04::22a])
+        by mx.google.com with ESMTPS id 199si20279613qhe.36.2015.04.20.11.17.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 20 Apr 2015 11:17:12 -0700 (PDT)
+Received: by qgej70 with SMTP id j70so56819241qge.2
+        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 11:17:12 -0700 (PDT)
+Date: Mon, 20 Apr 2015 14:17:07 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 15/49] writeback: move backing_dev_info->wb_lock and
+ ->worklist into bdi_writeback
+Message-ID: <20150420181707.GD4206@htj.duckdns.org>
+References: <1428350318-8215-1-git-send-email-tj@kernel.org>
+ <1428350318-8215-16-git-send-email-tj@kernel.org>
+ <20150420153224.GD17020@quack.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150420153224.GD17020@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>
+To: Jan Kara <jack@suse.cz>
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com
 
-From: Andi Kleen <ak@linux.intel.com>
+Hello, Jan.
 
-All the items mentioned here have been either addressed, or were
-not really needed. So just remove the comment.
+On Mon, Apr 20, 2015 at 05:32:24PM +0200, Jan Kara wrote:
+> > @@ -454,9 +451,9 @@ EXPORT_SYMBOL(bdi_init);
+> >  
+> >  void bdi_destroy(struct backing_dev_info *bdi)
+> >  {
+> > -	bdi_wb_shutdown(bdi);
+> > -
+> > -	WARN_ON(!list_empty(&bdi->work_list));
+> > +	/* make sure nobody finds us on the bdi_list anymore */
+> > +	bdi_remove_from_list(bdi);
+> > +	wb_shutdown(&bdi->wb);
+> >  
+> >  	if (bdi->dev) {
+> >  		bdi_debug_unregister(bdi);
+>   But if someone ends up calling bdi_destroy() on unregistered bdi,
+> bdi_remove_from_list() will be corrupting memory, won't it? And if I
 
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
----
- mm/memory-failure.c | 7 -------
- 1 file changed, 7 deletions(-)
+bdi_init() does INIT_LIST_HEAD() on it, so it should be fine, no?
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index d487f8d..25c2054 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -28,13 +28,6 @@
-  * are rare we hope to get away with this. This avoids impacting the core 
-  * VM.
-  */
--
--/*
-- * Notebook:
-- * - hugetlb needs more code
-- * - kcore/oldmem/vmcore/mem/kmem check for hwpoison pages
-- * - pass bad pages to kdump next kernel
-- */
- #include <linux/kernel.h>
- #include <linux/mm.h>
- #include <linux/page-flags.h>
+> remember right there were some corner cases where this really happened.
+> Previously we were careful and checked WB_registered. I guess we could
+> check for !list_empty(&bdi->bdi_list) and also reinit bdi_list in
+> bdi_remove_from_list() after synchronize_rcu_expedited().
+
+But we can't call bdi_destroy() more than once no matter what.  We'd
+be doing double frees.
+
+Thanks.
+
 -- 
-1.9.3
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
