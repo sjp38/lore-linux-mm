@@ -1,91 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id F32706B0032
-	for <linux-mm@kvack.org>; Sun, 19 Apr 2015 23:11:12 -0400 (EDT)
-Received: by lbcga7 with SMTP id ga7so120523719lbc.1
-        for <linux-mm@kvack.org>; Sun, 19 Apr 2015 20:11:11 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id pz9si14019637lbb.92.2015.04.19.20.11.08
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id B8ED26B0032
+	for <linux-mm@kvack.org>; Sun, 19 Apr 2015 23:15:20 -0400 (EDT)
+Received: by lbbqq2 with SMTP id qq2so120308670lbb.3
+        for <linux-mm@kvack.org>; Sun, 19 Apr 2015 20:15:19 -0700 (PDT)
+Received: from numascale.com (numascale.com. [213.162.240.84])
+        by mx.google.com with ESMTPS id xd3si14003871lbb.166.2015.04.19.20.15.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 19 Apr 2015 20:11:10 -0700 (PDT)
-Message-ID: <55346859.30605@huawei.com>
-Date: Mon, 20 Apr 2015 10:45:45 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 19 Apr 2015 20:15:18 -0700 (PDT)
+Date: Mon, 20 Apr 2015 11:15:02 +0800
+From: Daniel J Blueman <daniel@numascale.com>
+Subject: Re: [RFC PATCH 0/14] Parallel memory initialisation
+Message-Id: <1429499702.19274.3@cpanel21.proisp.no>
+In-Reply-To: <1429170665.19274.0@cpanel21.proisp.no>
+References: <1429170665.19274.0@cpanel21.proisp.no>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2 V2] memory-hotplug: fix BUG_ON in move_freepages()
-References: <5530E578.9070505@huawei.com> <5531679d.4642ec0a.1beb.3569@mx.google.com> <55345979.2020502@cn.fujitsu.com>
-In-Reply-To: <55345979.2020502@cn.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/alternative; boundary="=-DejikgOscgqmSaaDBNGh"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gu Zheng <guz.fnst@cn.fujitsu.com>
-Cc: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Xiexiuqi <xiexiuqi@huawei.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, yasu.ishimatsu@gmail.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Steffen Persvold <sp@numascale.com>, Linux-MM <linux-mm@kvack.org>, Robin Holt <holt@sgi.com>, Nathan Zimmer <nzimmer@sgi.com>, Daniel Rahn <drahn@suse.com>, Davidlohr Bueso <dbueso@suse.com>, Dave Hansen <dave.hansen@intel.com>, Tom Vaden <tom.vaden@hp.com>, Scott Norton <scott.norton@hp.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 2015/4/20 9:42, Gu Zheng wrote:
+--=-DejikgOscgqmSaaDBNGh
+Content-Type: text/plain; charset=utf-8; format=flowed
 
-> Hi Xishi,
-> On 04/18/2015 04:05 AM, Yasuaki Ishimatsu wrote:
+On Thu, Apr 16, 2015 at 3:51 PM, Daniel J Blueman 
+<daniel@numascale.com> wrote:
+> On Monday, April 13, 2015 at 6:20:05 PM UTC+8, Mel Gorman wrote:
+> > Memory initialisation had been identified as one of the reasons why 
+> large
+> > machines take a long time to boot. Patches were posted a long time 
+> ago
+> > that attempted to move deferred initialisation into the page 
+> allocator
+> > paths. This was rejected on the grounds it should not be necessary 
+> to hurt
+> > the fast paths to parallelise initialisation. This series reuses 
+> much of
+> > the work from that time but defers the initialisation of memory to 
+> kswapd
+> > so that one thread per node initialises memory local to that node. 
+> The
+> > issue is that on the machines I tested with, memory initialisation 
+> was not
+> > a major contributor to boot times. I'm posting the RFC to both 
+> review the
+> > series and see if it actually helps users of very large machines.
+> >
+> > After applying the series and setting the appropriate Kconfig 
+> variable I
+> > see this in the boot log on a 64G machine
+> >
+> > [    7.383764] kswapd 0 initialised deferred memory in 188ms
+> > [    7.404253] kswapd 1 initialised deferred memory in 208ms
+> > [    7.411044] kswapd 3 initialised deferred memory in 216ms
+> > [    7.411551] kswapd 2 initialised deferred memory in 216ms
+> >
+> > On a 1TB machine, I see
+> >
+> > [   11.913324] kswapd 0 initialised deferred memory in 1168ms
+> > [   12.220011] kswapd 2 initialised deferred memory in 1476ms
+> > [   12.245369] kswapd 3 initialised deferred memory in 1500ms
+> > [   12.271680] kswapd 1 initialised deferred memory in 1528ms
+> >
+> > Once booted the machine appears to work as normal. Boot times were 
+> measured
+> > from the time shutdown was called until ssh was available again.  
+> In the
+> > 64G case, the boot time savings are negligible. On the 1TB machine, 
+> the
+> > savings were 10 seconds (about 8% improvement on kernel times but 
+> 1-2%
+> > overall as POST takes so long).
+> >
+> > It would be nice if the people that have access to really large 
+> machines
+> > would test this series and report back if the complexity is 
+> justified.
 > 
->>
->> Your patches will fix your issue.
->> But, if BIOS reports memory first at node hot add, pgdat can
->> not be initialized.
->>
->> Memory hot add flows are as follows:
->>
->> add_memory
->>   ...
->>   -> hotadd_new_pgdat()
->>   ...
->>   -> node_set_online(nid)
->>
->> When calling hotadd_new_pgdat() for a hot added node, the node is
->> offline because node_set_online() is not called yet. So if applying
->> your patches, the pgdat is not initialized in this case.
+> Nice work!
 > 
-> Ishimtasu's worry is reasonable. And I am afraid the fix here is a bit
-> over-kill. 
-> 
->>
->> Thanks,
->> Yasuaki Ishimatsu
->>
->> On Fri, 17 Apr 2015 18:50:32 +0800
->> Xishi Qiu <qiuxishi@huawei.com> wrote:
->>
->>> Hot remove nodeXX, then hot add nodeXX. If BIOS report cpu first, it will call
->>> hotadd_new_pgdat(nid, 0), this will set pgdat->node_start_pfn to 0. As nodeXX
->>> exists at boot time, so pgdat->node_spanned_pages is the same as original. Then
->>> free_area_init_core()->memmap_init() will pass a wrong start and a nonzero size.
-> 
-> As your analysis said the root cause here is passing a *0* as the node_start_pfn,
-> then the chaos occurred when init the zones. And this only happens to the re-hotadd
-> node, so how about using the saved *node_start_pfn* (via get_pfn_range_for_nid(nid, &start_pfn, &end_pfn))
-> instead if we find "pgdat->node_start_pfn == 0 && !node_online(XXX)"?
-> 
-> Thanks,
-> Gu
-> 
+> On an older Numascale system with 1TB memory and 256 cores/32 NUMA 
+> nodes, platform init takes 52s (cold boot), firmware takes 84s 
+> (includes one warm reboot), stock linux 4.0 then takes 732s to boot 
+> [1] (due to the 700ns roundtrip, RMW cache-coherent cycles due to the 
+> temporal writes for pagetable init and per-core store queue limits), 
+> so there is huge potential.
 
-Hi Gu,
+Same 1TB setup (256 cores, 32 NUMA nodes):
+unpatched 4.0: 789s [1]
+2GB per node up-front: 426s [2]
+4GB node 0 up-front, 0GB later nodes: 461s [3]
+4GB node 0 up-front, 0.5GB later nodes: 404s [4]
 
-I first considered this method, but if the hot added node's start and size are different
-from before, it makes the chaos.
+Compelling results at only 1TB! In the last case, we see PMD setup take 
+42% (168s) of the time, along with topology_init taking 39% (157s). I 
+should be able to get data on a 7TB system this week.
 
-e.g.
-nodeXX (8-16G)
-remove nodeXX 
-BIOS report cpu first and online it
-hotadd nodeXX
-use the original value, so pgdat->node_start_pfn is set to 8G, and size is 8G
-BIOS report mem(10-12G)
-call add_memory()->__add_zone()->grow_zone_span()/grow_pgdat_span()
-the start is still 8G, not 10G, this is chaos!
+[1] 
+https://resources.numascale.com/telemetry/defermem/h8qgl-defer-stock.txt
+[2] 
+https://resources.numascale.com/telemetry/defermem/h8qgl-defer-2g.txt
+[3] 
+https://resources.numascale.com/telemetry/defermem/h8qgl-defer-4+0.txt
+[4] 
+https://resources.numascale.com/telemetry/defermem/h8qgl-defer-4+half.txt
 
-Thanks,
-Xishi Qiu
+--=-DejikgOscgqmSaaDBNGh
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+On Thu, Apr 16, 2015 at 3:51 PM, Daniel J Blueman &lt;daniel@numascale.com&=
+gt; wrote:<br>
+<blockquote type=3D"cite"><div>On Monday, April 13, 2015 at 6:20:05 PM UTC+=
+8, Mel Gorman wrote:</div><div>&gt; Memory initialisation had been identifi=
+ed as one of the reasons why large</div><div>&gt; machines take a long time=
+ to boot. Patches were posted a long time ago</div><div>&gt; that attempted=
+ to move deferred initialisation into the page allocator</div><div>&gt; pat=
+hs. This was rejected on the grounds it should not be necessary to hurt</di=
+v><div>&gt; the fast paths to parallelise initialisation. This series reuse=
+s much of</div><div>&gt; the work from that time but defers the initialisat=
+ion of memory to kswapd</div><div>&gt; so that one thread per node initiali=
+ses memory local to that node. The</div><div>&gt; issue is that on the mach=
+ines I tested with, memory initialisation was not</div><div>&gt; a major co=
+ntributor to boot times. I'm posting the RFC to both review the</div><div>&=
+gt; series and see if it actually helps users of very large machines.</div>=
+<div>&gt;&nbsp;</div><div>&gt; After applying the series and setting the ap=
+propriate Kconfig variable I</div><div>&gt; see this in the boot log on a 6=
+4G machine</div><div>&gt;&nbsp;</div><div>&gt; [ &nbsp; &nbsp;7.383764] ksw=
+apd 0 initialised deferred memory in 188ms</div><div>&gt; [ &nbsp; &nbsp;7.=
+404253] kswapd 1 initialised deferred memory in 208ms</div><div>&gt; [ &nbs=
+p; &nbsp;7.411044] kswapd 3 initialised deferred memory in 216ms</div><div>=
+&gt; [ &nbsp; &nbsp;7.411551] kswapd 2 initialised deferred memory in 216ms=
+</div><div>&gt;&nbsp;</div><div>&gt; On a 1TB machine, I see</div><div>&gt;=
+&nbsp;</div><div>&gt; [ &nbsp; 11.913324] kswapd 0 initialised deferred mem=
+ory in 1168ms</div><div>&gt; [ &nbsp; 12.220011] kswapd 2 initialised defer=
+red memory in 1476ms</div><div>&gt; [ &nbsp; 12.245369] kswapd 3 initialise=
+d deferred memory in 1500ms</div><div>&gt; [ &nbsp; 12.271680] kswapd 1 ini=
+tialised deferred memory in 1528ms</div><div>&gt;&nbsp;</div><div>&gt; Once=
+ booted the machine appears to work as normal. Boot times were measured</di=
+v><div>&gt; from the time shutdown was called until ssh was available again=
+. &nbsp;In the</div><div>&gt; 64G case, the boot time savings are negligibl=
+e. On the 1TB machine, the</div><div>&gt; savings were 10 seconds (about 8%=
+ improvement on kernel times but 1-2%</div><div>&gt; overall as POST takes =
+so long).</div><div>&gt;&nbsp;</div><div>&gt; It would be nice if the peopl=
+e that have access to really large machines</div><div>&gt; would test this =
+series and report back if the complexity is justified.</div><div><br></div>=
+<div>Nice work!</div><div><br></div><div>On an older Numascale system with =
+1TB memory and 256 cores/32 NUMA nodes, platform init takes 52s (cold boot)=
+, firmware takes 84s (includes one warm reboot), stock linux 4.0 then takes=
+ 732s to boot [1] (due to the 700ns roundtrip, RMW cache-coherent cycles du=
+e to the temporal writes for pagetable init and per-core store queue limits=
+), so there is huge potential.</div></blockquote><br><div>Same 1TB setup (2=
+56 cores, 32 NUMA nodes):</div><div>unpatched 4.0: 789s [1]</div><div>2GB p=
+er node up-front: 426s [2]</div><div>4GB node 0 up-front, 0GB later nodes: =
+461s [3]</div><div>4GB node 0 up-front, 0.5GB later nodes: 404s [4]</div><d=
+iv><br></div><div>Compelling results at only 1TB! In the last case, we see =
+PMD setup take 42% (168s) of the time, along with topology_init taking 39% =
+(157s). I should be able to get data on a 7TB system this week.</div><div><=
+br></div><div>[1] h<a href=3D"https://resources.numascale.com/telemetry/def=
+ermem/console-stock.txt" style=3D"color: rgb(0, 136, 204);">ttps://resource=
+s.numascale.com/telemetry/defermem/h8qgl-defer-stock.txt</a></div><div>[2] =
+h<a href=3D"https://resources.numascale.com/telemetry/defermem/console-stoc=
+k.txt" style=3D"color: rgb(0, 136, 204);">ttps://resources.numascale.com/te=
+lemetry/defermem/h8qgl-defer-2g.txt</a></div><div>[3] h<a href=3D"https://r=
+esources.numascale.com/telemetry/defermem/console-stock.txt" style=3D"color=
+: rgb(0, 136, 204);">ttps://resources.numascale.com/telemetry/defermem/h8qg=
+l-defer-4+0.txt</a></div><div>[4] h<a href=3D"https://resources.numascale.c=
+om/telemetry/defermem/console-stock.txt" style=3D"color: rgb(0, 136, 204);"=
+>ttps://resources.numascale.com/telemetry/defermem/h8qgl-defer-</a>4+half.t=
+xt</div>=
+
+--=-DejikgOscgqmSaaDBNGh--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
