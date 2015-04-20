@@ -1,7 +1,7 @@
 From: Juergen Gross <jgross@suse.com>
-Subject: [Patch V3 01/15] xen: sync with xen headers
-Date: Mon, 20 Apr 2015 07:23:26 +0200
-Message-ID: <1429507420-18201-2-git-send-email-jgross@suse.com>
+Subject: [Patch V3 07/15] xen: check memory area against e820 map
+Date: Mon, 20 Apr 2015 07:23:32 +0200
+Message-ID: <1429507420-18201-8-git-send-email-jgross@suse.com>
 References: <1429507420-18201-1-git-send-email-jgross@suse.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
@@ -20,179 +20,62 @@ To: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, konrad.wilk@ora
 Cc: Juergen Gross <jgross@suse.com>
 List-Id: linux-mm.kvack.org
 
-Use the newest headers from the xen tree to get some new structure
-layouts.
+Provide a service routine to check a physical memory area against the
+E820 map. The routine will return false if the complete area is RAM
+according to the E820 map and true otherwise.
 
 Signed-off-by: Juergen Gross <jgross@suse.com>
 Reviewed-by: David Vrabel <david.vrabel@citrix.com>
 ---
- arch/x86/include/asm/xen/interface.h | 96 ++++++++++++++++++++++++++++++++----
- include/xen/interface/xen.h          | 10 ++--
- 2 files changed, 93 insertions(+), 13 deletions(-)
+ arch/x86/xen/setup.c   | 23 +++++++++++++++++++++++
+ arch/x86/xen/xen-ops.h |  1 +
+ 2 files changed, 24 insertions(+)
 
-diff --git a/arch/x86/include/asm/xen/interface.h b/arch/x86/include/asm/xen/interface.h
-index 3400dba..3b88eea 100644
---- a/arch/x86/include/asm/xen/interface.h
-+++ b/arch/x86/include/asm/xen/interface.h
-@@ -3,12 +3,38 @@
-  *
-  * Guest OS interface to x86 Xen.
-  *
-- * Copyright (c) 2004, K A Fraser
-+ * Permission is hereby granted, free of charge, to any person obtaining a copy
-+ * of this software and associated documentation files (the "Software"), to
-+ * deal in the Software without restriction, including without limitation the
-+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-+ * sell copies of the Software, and to permit persons to whom the Software is
-+ * furnished to do so, subject to the following conditions:
-+ *
-+ * The above copyright notice and this permission notice shall be included in
-+ * all copies or substantial portions of the Software.
-+ *
-+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-+ * DEALINGS IN THE SOFTWARE.
-+ *
-+ * Copyright (c) 2004-2006, K A Fraser
-  */
+diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
+index 87251b4..99ef82c 100644
+--- a/arch/x86/xen/setup.c
++++ b/arch/x86/xen/setup.c
+@@ -573,6 +573,29 @@ static unsigned long __init xen_count_remap_pages(unsigned long max_pfn)
+ 	return extra;
+ }
  
- #ifndef _ASM_X86_XEN_INTERFACE_H
- #define _ASM_X86_XEN_INTERFACE_H
- 
-+/*
-+ * XEN_GUEST_HANDLE represents a guest pointer, when passed as a field
-+ * in a struct in memory.
-+ * XEN_GUEST_HANDLE_PARAM represent a guest pointer, when passed as an
-+ * hypercall argument.
-+ * XEN_GUEST_HANDLE_PARAM and XEN_GUEST_HANDLE are the same on X86 but
-+ * they might not be on other architectures.
-+ */
- #ifdef __XEN__
- #define __DEFINE_GUEST_HANDLE(name, type) \
-     typedef struct { type *p; } __guest_handle_ ## name
-@@ -88,13 +114,16 @@ DEFINE_GUEST_HANDLE(xen_ulong_t);
-  * start of the GDT because some stupid OSes export hard-coded selector values
-  * in their ABI. These hard-coded values are always near the start of the GDT,
-  * so Xen places itself out of the way, at the far end of the GDT.
-+ *
-+ * NB The LDT is set using the MMUEXT_SET_LDT op of HYPERVISOR_mmuext_op
-  */
- #define FIRST_RESERVED_GDT_PAGE  14
- #define FIRST_RESERVED_GDT_BYTE  (FIRST_RESERVED_GDT_PAGE * 4096)
- #define FIRST_RESERVED_GDT_ENTRY (FIRST_RESERVED_GDT_BYTE / 8)
- 
++bool __init xen_is_e820_reserved(phys_addr_t start, phys_addr_t size)
++{
++	struct e820entry *entry;
++	unsigned mapcnt;
++	phys_addr_t end;
++
++	if (!size)
++		return false;
++
++	end = start + size;
++	entry = xen_e820_map;
++
++	for (mapcnt = 0; mapcnt < xen_e820_map_entries; mapcnt++) {
++		if (entry->type == E820_RAM && entry->addr <= start &&
++		    (entry->addr + entry->size) >= end)
++			return false;
++
++		entry++;
++	}
++
++	return true;
++}
++
  /*
-- * Send an array of these to HYPERVISOR_set_trap_table()
-+ * Send an array of these to HYPERVISOR_set_trap_table().
-+ * Terminate the array with a sentinel entry, with traps[].address==0.
-  * The privilege level specifies which modes may enter a trap via a software
-  * interrupt. On x86/64, since rings 1 and 2 are unavailable, we allocate
-  * privilege levels as follows:
-@@ -118,10 +147,41 @@ struct trap_info {
- DEFINE_GUEST_HANDLE_STRUCT(trap_info);
+  * Reserve Xen mfn_list.
+  * See comment above "struct start_info" in <xen/interface/xen.h>
+diff --git a/arch/x86/xen/xen-ops.h b/arch/x86/xen/xen-ops.h
+index 9e195c6..c1385b8 100644
+--- a/arch/x86/xen/xen-ops.h
++++ b/arch/x86/xen/xen-ops.h
+@@ -39,6 +39,7 @@ void xen_reserve_top(void);
+ void xen_mm_pin_all(void);
+ void xen_mm_unpin_all(void);
  
- struct arch_shared_info {
--    unsigned long max_pfn;                  /* max pfn that appears in table */
--    /* Frame containing list of mfns containing list of mfns containing p2m. */
--    unsigned long pfn_to_mfn_frame_list_list;
--    unsigned long nmi_reason;
-+	/*
-+	 * Number of valid entries in the p2m table(s) anchored at
-+	 * pfn_to_mfn_frame_list_list and/or p2m_vaddr.
-+	 */
-+	unsigned long max_pfn;
-+	/*
-+	 * Frame containing list of mfns containing list of mfns containing p2m.
-+	 * A value of 0 indicates it has not yet been set up, ~0 indicates it
-+	 * has been set to invalid e.g. due to the p2m being too large for the
-+	 * 3-level p2m tree. In this case the linear mapper p2m list anchored
-+	 * at p2m_vaddr is to be used.
-+	 */
-+	xen_pfn_t pfn_to_mfn_frame_list_list;
-+	unsigned long nmi_reason;
-+	/*
-+	 * Following three fields are valid if p2m_cr3 contains a value
-+	 * different from 0.
-+	 * p2m_cr3 is the root of the address space where p2m_vaddr is valid.
-+	 * p2m_cr3 is in the same format as a cr3 value in the vcpu register
-+	 * state and holds the folded machine frame number (via xen_pfn_to_cr3)
-+	 * of a L3 or L4 page table.
-+	 * p2m_vaddr holds the virtual address of the linear p2m list. All
-+	 * entries in the range [0...max_pfn[ are accessible via this pointer.
-+	 * p2m_generation will be incremented by the guest before and after each
-+	 * change of the mappings of the p2m list. p2m_generation starts at 0
-+	 * and a value with the least significant bit set indicates that a
-+	 * mapping update is in progress. This allows guest external software
-+	 * (e.g. in Dom0) to verify that read mappings are consistent and
-+	 * whether they have changed since the last check.
-+	 * Modifying a p2m element in the linear p2m list is allowed via an
-+	 * atomic write only.
-+	 */
-+	unsigned long p2m_cr3;		/* cr3 value of the p2m address space */
-+	unsigned long p2m_vaddr;	/* virtual address of the p2m list */
-+	unsigned long p2m_generation;	/* generation count of p2m mapping */
- };
- #endif	/* !__ASSEMBLY__ */
- 
-@@ -137,13 +197,31 @@ struct arch_shared_info {
- /*
-  * The following is all CPU context. Note that the fpu_ctxt block is filled
-  * in by FXSAVE if the CPU has feature FXSR; otherwise FSAVE is used.
-+ *
-+ * Also note that when calling DOMCTL_setvcpucontext and VCPU_initialise
-+ * for HVM and PVH guests, not all information in this structure is updated:
-+ *
-+ * - For HVM guests, the structures read include: fpu_ctxt (if
-+ * VGCT_I387_VALID is set), flags, user_regs, debugreg[*]
-+ *
-+ * - PVH guests are the same as HVM guests, but additionally use ctrlreg[3] to
-+ * set cr3. All other fields not used should be set to 0.
-  */
- struct vcpu_guest_context {
-     /* FPU registers come first so they can be aligned for FXSAVE/FXRSTOR. */
-     struct { char x[512]; } fpu_ctxt;       /* User-level FPU registers     */
--#define VGCF_I387_VALID (1<<0)
--#define VGCF_HVM_GUEST  (1<<1)
--#define VGCF_IN_KERNEL  (1<<2)
-+#define VGCF_I387_VALID                (1<<0)
-+#define VGCF_IN_KERNEL                 (1<<2)
-+#define _VGCF_i387_valid               0
-+#define VGCF_i387_valid                (1<<_VGCF_i387_valid)
-+#define _VGCF_in_kernel                2
-+#define VGCF_in_kernel                 (1<<_VGCF_in_kernel)
-+#define _VGCF_failsafe_disables_events 3
-+#define VGCF_failsafe_disables_events  (1<<_VGCF_failsafe_disables_events)
-+#define _VGCF_syscall_disables_events  4
-+#define VGCF_syscall_disables_events   (1<<_VGCF_syscall_disables_events)
-+#define _VGCF_online                   5
-+#define VGCF_online                    (1<<_VGCF_online)
-     unsigned long flags;                    /* VGCF_* flags                 */
-     struct cpu_user_regs user_regs;         /* User-level CPU registers     */
-     struct trap_info trap_ctxt[256];        /* Virtual IDT                  */
-diff --git a/include/xen/interface/xen.h b/include/xen/interface/xen.h
-index a483789..da16a73 100644
---- a/include/xen/interface/xen.h
-+++ b/include/xen/interface/xen.h
-@@ -641,10 +641,12 @@ struct start_info {
- };
- 
- /* These flags are passed in the 'flags' field of start_info_t. */
--#define SIF_PRIVILEGED    (1<<0)  /* Is the domain privileged? */
--#define SIF_INITDOMAIN    (1<<1)  /* Is this the initial control domain? */
--#define SIF_MULTIBOOT_MOD (1<<2)  /* Is mod_start a multiboot module? */
--#define SIF_MOD_START_PFN (1<<3)  /* Is mod_start a PFN? */
-+#define SIF_PRIVILEGED      (1<<0)  /* Is the domain privileged? */
-+#define SIF_INITDOMAIN      (1<<1)  /* Is this the initial control domain? */
-+#define SIF_MULTIBOOT_MOD   (1<<2)  /* Is mod_start a multiboot module? */
-+#define SIF_MOD_START_PFN   (1<<3)  /* Is mod_start a PFN? */
-+#define SIF_VIRT_P2M_4TOOLS (1<<4)  /* Do Xen tools understand a virt. mapped */
-+				    /* P->M making the 3 level tree obsolete? */
- #define SIF_PM_MASK       (0xFF<<8) /* reserve 1 byte for xen-pm options */
- 
- /*
++bool __init xen_is_e820_reserved(phys_addr_t start, phys_addr_t size);
+ unsigned long __ref xen_chk_extra_mem(unsigned long pfn);
+ void __init xen_inv_extra_mem(void);
+ void __init xen_remap_memory(void);
 -- 
 2.1.4
