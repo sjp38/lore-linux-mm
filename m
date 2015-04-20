@@ -1,157 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f41.google.com (mail-yh0-f41.google.com [209.85.213.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 05BD86B0038
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2015 14:23:50 -0400 (EDT)
-Received: by yhla23 with SMTP id a23so18442813yhl.1
-        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 11:23:49 -0700 (PDT)
-Received: from mail-yh0-x22e.google.com (mail-yh0-x22e.google.com. [2607:f8b0:4002:c01::22e])
-        by mx.google.com with ESMTPS id a142si10760227yka.128.2015.04.20.11.23.49
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Apr 2015 11:23:49 -0700 (PDT)
-Received: by yhrr66 with SMTP id r66so5523407yhr.3
-        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 11:23:49 -0700 (PDT)
-Message-ID: <55354434.2902ec0a.14ab.fffffff6@mx.google.com>
-Date: Mon, 20 Apr 2015 11:23:48 -0700 (PDT)
-From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
-Subject: Re: [PATCH 1/2 V2] memory-hotplug: fix BUG_ON in move_freepages()
-In-Reply-To: <55347592.4050400@huawei.com>
-References: <5530E578.9070505@huawei.com>
-	<5531679d.4642ec0a.1beb.3569@mx.google.com>
-	<55345979.2020502@cn.fujitsu.com>
-	<55346859.30605@huawei.com>
-	<553472b0.4ad2ec0a.3abe.ffffd0f6@mx.google.com>
-	<55347592.4050400@huawei.com>
-Mime-Version: 1.0
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D70B6B0032
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2015 15:53:52 -0400 (EDT)
+Received: by igbpi8 with SMTP id pi8so72714517igb.0
+        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 12:53:52 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0169.hostedemail.com. [216.40.44.169])
+        by mx.google.com with ESMTP id ga12si8934382igd.34.2015.04.20.12.53.51
+        for <linux-mm@kvack.org>;
+        Mon, 20 Apr 2015 12:53:51 -0700 (PDT)
+Date: Mon, 20 Apr 2015 15:53:48 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v4 3/3] tracing: add trace event for memory-failure
+Message-ID: <20150420155348.71ab777c@gandalf.local.home>
+In-Reply-To: <1429519480-11687-4-git-send-email-xiexiuqi@huawei.com>
+References: <1429519480-11687-1-git-send-email-xiexiuqi@huawei.com>
+	<1429519480-11687-4-git-send-email-xiexiuqi@huawei.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Gu Zheng <guz.fnst@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Xiexiuqi <xiexiuqi@huawei.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Xie XiuQi <xiexiuqi@huawei.com>
+Cc: n-horiguchi@ah.jp.nec.com, mingo@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, koct9i@gmail.com, hpa@linux.intel.com, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, luto@amacapital.net, nasa4836@gmail.com, gong.chen@linux.intel.com, bhelgaas@google.com, bp@suse.de, tony.luck@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jingle.chen@huawei.com
 
+On Mon, 20 Apr 2015 16:44:40 +0800
+Xie XiuQi <xiexiuqi@huawei.com> wrote:
 
-On Mon, 20 Apr 2015 11:42:10 +0800
-Xishi Qiu <qiuxishi@huawei.com> wrote:
+> RAS user space tools like rasdaemon which base on trace event, could
+> receive mce error event, but no memory recovery result event. So, I
+> want to add this event to make this scenario complete.
+> 
+> This patch add a event at ras group for memory-failure.
+> 
+> The output like below:
+> #  tracer: nop
+> #
+> #  entries-in-buffer/entries-written: 2/2   #P:24
+> #
+> #                               _-----=> irqs-off
+> #                              / _----=> need-resched
+> #                             | / _---=> hardirq/softirq
+> #                             || / _--=> preempt-depth
+> #                             ||| /     delay
+> #            TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION
+> #               | |       |   ||||       |         |
+>        mce-inject-13150 [001] ....   277.019359: memory_failure_event: pfn 0x19869: recovery action for free buddy page: Delayed
+> 
+> Cc: Tony Luck <tony.luck@intel.com>
+> Cc: Steven Rostedt <rostedt@goodmis.org>
+> Signed-off-by: Xie XiuQi <xiexiuqi@huawei.com>
 
-> On 2015/4/20 11:29, Yasuaki Ishimatsu wrote:
-> 
-> > 
-> > On Mon, 20 Apr 2015 10:45:45 +0800
-> > Xishi Qiu <qiuxishi@huawei.com> wrote:
-> > 
-> >> On 2015/4/20 9:42, Gu Zheng wrote:
-> >>
-> >>> Hi Xishi,
-> >>> On 04/18/2015 04:05 AM, Yasuaki Ishimatsu wrote:
-> >>>
-> >>>>
-> >>>> Your patches will fix your issue.
-> >>>> But, if BIOS reports memory first at node hot add, pgdat can
-> >>>> not be initialized.
-> >>>>
-> >>>> Memory hot add flows are as follows:
-> >>>>
-> >>>> add_memory
-> >>>>   ...
-> >>>>   -> hotadd_new_pgdat()
-> >>>>   ...
-> >>>>   -> node_set_online(nid)
-> >>>>
-> >>>> When calling hotadd_new_pgdat() for a hot added node, the node is
-> >>>> offline because node_set_online() is not called yet. So if applying
-> >>>> your patches, the pgdat is not initialized in this case.
-> >>>
-> >>> Ishimtasu's worry is reasonable. And I am afraid the fix here is a bit
-> >>> over-kill. 
-> >>>
-> >>>>
-> >>>> Thanks,
-> >>>> Yasuaki Ishimatsu
-> >>>>
-> >>>> On Fri, 17 Apr 2015 18:50:32 +0800
-> >>>> Xishi Qiu <qiuxishi@huawei.com> wrote:
-> >>>>
-> >>>>> Hot remove nodeXX, then hot add nodeXX. If BIOS report cpu first, it will call
-> >>>>> hotadd_new_pgdat(nid, 0), this will set pgdat->node_start_pfn to 0. As nodeXX
-> >>>>> exists at boot time, so pgdat->node_spanned_pages is the same as original. Then
-> >>>>> free_area_init_core()->memmap_init() will pass a wrong start and a nonzero size.
-> >>>
-> >>> As your analysis said the root cause here is passing a *0* as the node_start_pfn,
-> >>> then the chaos occurred when init the zones. And this only happens to the re-hotadd
-> >>> node, so how about using the saved *node_start_pfn* (via get_pfn_range_for_nid(nid, &start_pfn, &end_pfn))
-> >>> instead if we find "pgdat->node_start_pfn == 0 && !node_online(XXX)"?
-> >>>
-> >>> Thanks,
-> >>> Gu
-> >>>
-> >>
-> >> Hi Gu,
-> >>
-> >> I first considered this method, but if the hot added node's start and size are different
-> >> from before, it makes the chaos.
-> >>
-> > 
-> >> e.g.
-> >> nodeXX (8-16G)
-> >> remove nodeXX 
-> >> BIOS report cpu first and online it
-> >> hotadd nodeXX
-> >> use the original value, so pgdat->node_start_pfn is set to 8G, and size is 8G
-> >> BIOS report mem(10-12G)
-> >> call add_memory()->__add_zone()->grow_zone_span()/grow_pgdat_span()
-> >> the start is still 8G, not 10G, this is chaos!
-> > 
-> > If you set CONFIG_HAVE_MEMBLOCK_NODE_MAP, kernel shows the following
-> > pr_info()'s message.
-> > 
-> > void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
-> >                 unsigned long node_start_pfn, unsigned long *zholes_size)
-> > {
-> > ...
-> > #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-> >         get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
-> >         pr_info("Initmem setup node %d [mem %#018Lx-%#018Lx]\n", nid,
-> >                 (u64)start_pfn << PAGE_SHIFT, ((u64)end_pfn << PAGE_SHIFT) - 1);
-> > #endif
-> > }
-> > 
-> > Is the memory range of the message "8G - 16G"?
-> > If so, the reason is that memblk is not deleted at memory hot remove.
-> > 
-> > Thanks,
-> > Yasuaki Ishimatsu
-> > 
-> 
-> Hi Yasuaki,
-> 
+Looks good to me.
 
-> By reading the code, I find memblk is not deleted at memory hot remove.
-> I am not sure whether we should remove it. If remove it, we should also reset
-> "arch_zone_lowest_possible_pfn", right? It seems a little complicated.
+Acked-by: Steven Rostedt <rostedt@goodmis.org>
 
-I think memblk should be added/removed by hot adding/removing memory.
-But, arch_zone_lowest_possible_pfn should not be changed.
-
-Thanks,
-Yasuaki Ishimatsu
-
-> 
-> Thanks,
-> Xishi Qiu
-> 
-> > 
-> > 
-> >>
-> >> Thanks,
-> >> Xishi Qiu
-> >>
-> > 
-> > .
-> > 
-> 
-> 
-> 
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
