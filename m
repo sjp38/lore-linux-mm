@@ -1,63 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 4242F6B0032
-	for <linux-mm@kvack.org>; Sun, 19 Apr 2015 23:01:11 -0400 (EDT)
-Received: by obbeb7 with SMTP id eb7so108699699obb.3
-        for <linux-mm@kvack.org>; Sun, 19 Apr 2015 20:01:11 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id yb7si12555820obc.40.2015.04.19.20.01.09
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id F32706B0032
+	for <linux-mm@kvack.org>; Sun, 19 Apr 2015 23:11:12 -0400 (EDT)
+Received: by lbcga7 with SMTP id ga7so120523719lbc.1
+        for <linux-mm@kvack.org>; Sun, 19 Apr 2015 20:11:11 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id pz9si14019637lbb.92.2015.04.19.20.11.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 19 Apr 2015 20:01:10 -0700 (PDT)
-Message-ID: <55346B99.2060602@huawei.com>
-Date: Mon, 20 Apr 2015 10:59:37 +0800
+        Sun, 19 Apr 2015 20:11:10 -0700 (PDT)
+Message-ID: <55346859.30605@huawei.com>
+Date: Mon, 20 Apr 2015 10:45:45 +0800
 From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 1/2 V2] memory-hotplug: fix BUG_ON in move_freepages()
-References: <5530E578.9070505@huawei.com> <5531679d.4642ec0a.1beb.3569@mx.google.com> <55345756.40902@huawei.com> <5534603a.36208c0a.4784.6286@mx.google.com> <55345FC4.4070404@cn.fujitsu.com>
-In-Reply-To: <55345FC4.4070404@cn.fujitsu.com>
+References: <5530E578.9070505@huawei.com> <5531679d.4642ec0a.1beb.3569@mx.google.com> <55345979.2020502@cn.fujitsu.com>
+In-Reply-To: <55345979.2020502@cn.fujitsu.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Gu Zheng <guz.fnst@cn.fujitsu.com>
-Cc: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Xiexiuqi <xiexiuqi@huawei.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Xiexiuqi <xiexiuqi@huawei.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, yasu.ishimatsu@gmail.com
 
-On 2015/4/20 10:09, Gu Zheng wrote:
+On 2015/4/20 9:42, Gu Zheng wrote:
 
-> Hi Ishimatsu, Xishi,
-> 
-> On 04/20/2015 10:11 AM, Yasuaki Ishimatsu wrote:
+> Hi Xishi,
+> On 04/18/2015 04:05 AM, Yasuaki Ishimatsu wrote:
 > 
 >>
->>> When hot adding memory and creating new node, the node is offline.
->>> And after calling node_set_online(), the node becomes online.
->>>
->>> Oh, sorry. I misread your ptaches.
->>>
+>> Your patches will fix your issue.
+>> But, if BIOS reports memory first at node hot add, pgdat can
+>> not be initialized.
 >>
->> Please ignore it...
+>> Memory hot add flows are as follows:
+>>
+>> add_memory
+>>   ...
+>>   -> hotadd_new_pgdat()
+>>   ...
+>>   -> node_set_online(nid)
+>>
+>> When calling hotadd_new_pgdat() for a hot added node, the node is
+>> offline because node_set_online() is not called yet. So if applying
+>> your patches, the pgdat is not initialized in this case.
 > 
-> Seems also a misread to me.
-> I clear it (my worry) here:
-> If we set the node size to 0 here, it may hidden more things than we experted.
-> All the init chunks around with the size (spanned/present/managed...) will
-> be non-sense, and the user/caller will not get a summary of the hot added node
-> because of the changes here.
-> I am not sure the worry is necessary, please correct me if I missing something.
+> Ishimtasu's worry is reasonable. And I am afraid the fix here is a bit
+> over-kill. 
 > 
-> Regards,
+>>
+>> Thanks,
+>> Yasuaki Ishimatsu
+>>
+>> On Fri, 17 Apr 2015 18:50:32 +0800
+>> Xishi Qiu <qiuxishi@huawei.com> wrote:
+>>
+>>> Hot remove nodeXX, then hot add nodeXX. If BIOS report cpu first, it will call
+>>> hotadd_new_pgdat(nid, 0), this will set pgdat->node_start_pfn to 0. As nodeXX
+>>> exists at boot time, so pgdat->node_spanned_pages is the same as original. Then
+>>> free_area_init_core()->memmap_init() will pass a wrong start and a nonzero size.
+> 
+> As your analysis said the root cause here is passing a *0* as the node_start_pfn,
+> then the chaos occurred when init the zones. And this only happens to the re-hotadd
+> node, so how about using the saved *node_start_pfn* (via get_pfn_range_for_nid(nid, &start_pfn, &end_pfn))
+> instead if we find "pgdat->node_start_pfn == 0 && !node_online(XXX)"?
+> 
+> Thanks,
 > Gu
 > 
 
 Hi Gu,
 
-My patch is just set size to 0 when hotadd a node(old or new). I know your worry,
-but I think it is not necessary.
+I first considered this method, but if the hot added node's start and size are different
+from before, it makes the chaos.
 
-When we calculate the size, it uses "arch_zone_lowest_possible_pfn[]" and "memblock",
-and they are both from boot time. If we hotadd a new node, the calculated size is
-0 too. When add momery, __add_zone() will grow the size and start.
+e.g.
+nodeXX (8-16G)
+remove nodeXX 
+BIOS report cpu first and online it
+hotadd nodeXX
+use the original value, so pgdat->node_start_pfn is set to 8G, and size is 8G
+BIOS report mem(10-12G)
+call add_memory()->__add_zone()->grow_zone_span()/grow_pgdat_span()
+the start is still 8G, not 10G, this is chaos!
 
 Thanks,
 Xishi Qiu
