@@ -1,12 +1,14 @@
 From: Juergen Gross <jgross@suse.com>
-Subject: [Patch V3 00/15] xen: support pv-domains larger than
-	512GB
-Date: Mon, 20 Apr 2015 07:23:25 +0200
-Message-ID: <1429507420-18201-1-git-send-email-jgross@suse.com>
+Subject: [Patch V3 10/15] xen: check pre-allocated page tables
+	for conflict with memory map
+Date: Mon, 20 Apr 2015 07:23:35 +0200
+Message-ID: <1429507420-18201-11-git-send-email-jgross@suse.com>
+References: <1429507420-18201-1-git-send-email-jgross@suse.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: 7bit
 Return-path: <xen-devel-bounces@lists.xen.org>
+In-Reply-To: <1429507420-18201-1-git-send-email-jgross@suse.com>
 List-Unsubscribe: <http://lists.xen.org/cgi-bin/mailman/options/xen-devel>,
 	<mailto:xen-devel-request@lists.xen.org?subject=unsubscribe>
 List-Post: <mailto:xen-devel@lists.xen.org>
@@ -19,75 +21,93 @@ To: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, konrad.wilk@ora
 Cc: Juergen Gross <jgross@suse.com>
 List-Id: linux-mm.kvack.org
 
-Support 64 bit pv-domains with more than 512GB of memory.
+Check whether the page tables built by the domain builder are at
+memory addresses which are in conflict with the target memory map.
+If this is the case just panic instead of running into problems
+later.
 
-Tested with 64 bit dom0 on machines with 8GB and 1TB and 32 bit dom0 on a
-8GB machine. Conflicts between E820 map and different hypervisor populated
-memory areas have been tested via a fake E820 map reserved area on the
-8GB machine.
+Signed-off-by: Juergen Gross <jgross@suse.com>
+---
+ arch/x86/xen/mmu.c     | 19 ++++++++++++++++---
+ arch/x86/xen/setup.c   |  6 ++++++
+ arch/x86/xen/xen-ops.h |  1 +
+ 3 files changed, 23 insertions(+), 3 deletions(-)
 
-Changes in V3:
-- rename xen_chk_e820_reserved() to xen_is_e820_reserved() as requested by
-  David Vrabel
-- add __initdata tag to global variables in patch 10
-- move initrd conflict checking after reserving p2m memory (patch 11)
-
-Changes in V2:
-- some clarifications and better explanations in commit messages 
-- add header changes of include/xen/interface/xen.h (patch 01)
-- add wmb() when incrementing p2m_generation (patch 02)
-- add new patch 03 (don't build mfn tree if tools don't need it)
-- add new patch 06 (split counting of extra memory pages from remapping)
-- add new patch 07 (check memory area against e820 map)
-- replace early_iounmap() with early_memunmap() (patch 07->patch 08)
-- rework patch 09 (check for kernel memory conflicting with memory layout)
-- rework patch 10 (check pre-allocated page tables for conflict with memory map)
-- combine old patches 08 and 11 into patch 11
-- add new patch 12 (provide early_memremap_ro to establish read-only mapping)
-- rework old patch 12 (if p2m list located in to be remapped region delay
-  remapping) to copy p2m list in case of a conflict (now patch 13)
-- correct Kconfig dependency (patch 13->14)
-- don't limit dom0 to 512GB (patch 13->14)
-- modify parameter parsing to work in very early boot (patch 13->14)
-- add new patch 15 to do some cleanup
-- remove old patch 05 (simplify xen_set_identity_and_remap() by using global
-  variables)
-- remove old patch 08 (detect pre-allocated memory interfering with e820 map)
-
-
-Juergen Gross (15):
-  xen: sync with xen headers
-  xen: save linear p2m list address in shared info structure
-  xen: don't build mfn tree if tools don't need it
-  xen: eliminate scalability issues from initial mapping setup
-  xen: move static e820 map to global scope
-  xen: split counting of extra memory pages from remapping
-  xen: check memory area against e820 map
-  xen: find unused contiguous memory area
-  xen: check for kernel memory conflicting with memory layout
-  xen: check pre-allocated page tables for conflict with memory map
-  xen: check for initrd conflicting with e820 map
-  mm: provide early_memremap_ro to establish read-only mapping
-  xen: move p2m list if conflicting with e820 map
-  xen: allow more than 512 GB of RAM for 64 bit pv-domains
-  xen: remove no longer needed p2m.h
-
- Documentation/kernel-parameters.txt  |   7 +
- arch/x86/include/asm/xen/interface.h |  96 +++++++-
- arch/x86/include/asm/xen/page.h      |   8 +-
- arch/x86/xen/Kconfig                 |  20 +-
- arch/x86/xen/mmu.c                   | 367 +++++++++++++++++++++++++++++--
- arch/x86/xen/p2m.c                   |  43 +++-
- arch/x86/xen/p2m.h                   |  15 --
- arch/x86/xen/setup.c                 | 414 ++++++++++++++++++++++++++---------
- arch/x86/xen/xen-head.S              |   2 +
- arch/x86/xen/xen-ops.h               |   6 +
- include/asm-generic/early_ioremap.h  |   2 +
- include/asm-generic/fixmap.h         |   3 +
- include/xen/interface/xen.h          |  10 +-
- mm/early_ioremap.c                   |  11 +
- 14 files changed, 822 insertions(+), 182 deletions(-)
- delete mode 100644 arch/x86/xen/p2m.h
-
+diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
+index c04e14e..1982617 100644
+--- a/arch/x86/xen/mmu.c
++++ b/arch/x86/xen/mmu.c
+@@ -116,6 +116,7 @@ static pud_t level3_user_vsyscall[PTRS_PER_PUD] __page_aligned_bss;
+ DEFINE_PER_CPU(unsigned long, xen_cr3);	 /* cr3 stored as physaddr */
+ DEFINE_PER_CPU(unsigned long, xen_current_cr3);	 /* actual vcpu cr3 */
+ 
++static phys_addr_t xen_pt_base, xen_pt_size __initdata;
+ 
+ /*
+  * Just beyond the highest usermode address.  STACK_TOP_MAX has a
+@@ -1998,7 +1999,9 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
+ 		check_pt_base(&pt_base, &pt_end, addr[i]);
+ 
+ 	/* Our (by three pages) smaller Xen pagetable that we are using */
+-	memblock_reserve(PFN_PHYS(pt_base), (pt_end - pt_base) * PAGE_SIZE);
++	xen_pt_base = PFN_PHYS(pt_base);
++	xen_pt_size = (pt_end - pt_base) * PAGE_SIZE;
++	memblock_reserve(xen_pt_base, xen_pt_size);
+ 	/* protect xen_start_info */
+ 	memblock_reserve(__pa(xen_start_info), PAGE_SIZE);
+ 	/* Revector the xen_start_info */
+@@ -2074,11 +2077,21 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
+ 			  PFN_DOWN(__pa(initial_page_table)));
+ 	xen_write_cr3(__pa(initial_page_table));
+ 
+-	memblock_reserve(__pa(xen_start_info->pt_base),
+-			 xen_start_info->nr_pt_frames * PAGE_SIZE);
++	xen_pt_base = __pa(xen_start_info->pt_base);
++	xen_pt_size = xen_start_info->nr_pt_frames * PAGE_SIZE;
++
++	memblock_reserve(xen_pt_base, xen_pt_size);
+ }
+ #endif	/* CONFIG_X86_64 */
+ 
++void __init xen_pt_check_e820(void)
++{
++	if (xen_is_e820_reserved(xen_pt_base, xen_pt_size)) {
++		xen_raw_console_write("Xen hypervisor allocated page table memory conflicts with E820 map\n");
++		BUG();
++	}
++}
++
+ static unsigned char dummy_mapping[PAGE_SIZE] __page_aligned_bss;
+ 
+ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
+diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
+index 9bd3f35..3fca9c1 100644
+--- a/arch/x86/xen/setup.c
++++ b/arch/x86/xen/setup.c
+@@ -802,6 +802,12 @@ char * __init xen_memory_setup(void)
+ 		BUG();
+ 	}
+ 
++	/*
++	 * Check for a conflict of the hypervisor supplied page tables with
++	 * the target E820 map.
++	 */
++	xen_pt_check_e820();
++
+ 	xen_reserve_xen_mfnlist();
+ 
+ 	/*
+diff --git a/arch/x86/xen/xen-ops.h b/arch/x86/xen/xen-ops.h
+index 3f1669c..553abd8 100644
+--- a/arch/x86/xen/xen-ops.h
++++ b/arch/x86/xen/xen-ops.h
+@@ -35,6 +35,7 @@ void xen_build_mfn_list_list(void);
+ void xen_setup_machphys_mapping(void);
+ void xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn);
+ void xen_reserve_top(void);
++void __init xen_pt_check_e820(void);
+ 
+ void xen_mm_pin_all(void);
+ void xen_mm_unpin_all(void);
 -- 
 2.1.4
