@@ -1,68 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DD466B0038
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 00:21:28 -0400 (EDT)
-Received: by igbhj9 with SMTP id hj9so6207993igb.1
-        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 21:21:27 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id a1si614529ioj.29.2015.04.20.21.21.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 20 Apr 2015 21:21:25 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm, hwpoison: Remove obsolete "Notebook" todo list
-Date: Tue, 21 Apr 2015 04:20:53 +0000
-Message-ID: <20150421042053.GF21832@hori1.linux.bs1.fc.nec.co.jp>
-References: <1429553383-11466-1-git-send-email-andi@firstfloor.org>
-In-Reply-To: <1429553383-11466-1-git-send-email-andi@firstfloor.org>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <653DB8B181AFF340943DF418B8CDD7F2@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F1D76B0032
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 01:00:19 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so230269144pde.3
+        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 22:00:19 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id ym5si1122867pbb.247.2015.04.20.22.00.17
+        for <linux-mm@kvack.org>;
+        Mon, 20 Apr 2015 22:00:18 -0700 (PDT)
+From: Namhyung Kim <namhyung@kernel.org>
+Subject: [PATCHSET 0/6] perf kmem: Implement page allocation analysis (v8)
+Date: Tue, 21 Apr 2015 13:55:01 +0900
+Message-Id: <1429592107-1807-1-git-send-email-namhyung@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <ak@linux.intel.com>
+To: Arnaldo Carvalho de Melo <acme@kernel.org>
+Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org
 
-On Mon, Apr 20, 2015 at 11:09:43AM -0700, Andi Kleen wrote:
-> From: Andi Kleen <ak@linux.intel.com>
->=20
-> All the items mentioned here have been either addressed, or were
-> not really needed. So just remove the comment.
->=20
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+Hello,
 
-Thanks!
+Currently perf kmem command only analyzes SLAB memory allocation.  And
+I'd like to introduce page allocation analysis also.  Users can use
+ --slab and/or --page option to select it.  If none of these options
+ are used, it does slab allocation analysis for backward compatibility.
 
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+ * changes in v8)
+   - rename 'stat' to 'pstat' due to build error
+   - add Acked-by from Pekka
 
-> ---
->  mm/memory-failure.c | 7 -------
->  1 file changed, 7 deletions(-)
->=20
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index d487f8d..25c2054 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -28,13 +28,6 @@
->   * are rare we hope to get away with this. This avoids impacting the cor=
-e=20
->   * VM.
->   */
-> -
-> -/*
-> - * Notebook:
-> - * - hugetlb needs more code
-> - * - kcore/oldmem/vmcore/mem/kmem check for hwpoison pages
-> - * - pass bad pages to kdump next kernel
-> - */
->  #include <linux/kernel.h>
->  #include <linux/mm.h>
->  #include <linux/page-flags.h>
-> --=20
-> 1.9.3
-> =
+ * changes in v7)
+   - drop already merged patches
+   - check return value of map__load()  (Arnaldo)
+   - rename to page_stat__findnew_*() functions  (Arnaldo)
+   - show warning when try to run stat before record
+   
+ * changes in v6)
+   - add -i option fix  (Jiri)
+   - libtraceevent operator priority fix
+
+* changes in v5)
+   - print migration type and gfp flags in more compact form  (Arnaldo)
+   - add kmem.default config option
+
+ * changes in v4)
+   - use pfn instead of struct page * in tracepoints  (Joonsoo, Ingo)
+   - print gfp flags in human readable string  (Joonsoo, Minchan)
+
+* changes in v3)
+  - add live page statistics
+
+ * changes in v2)
+   - Use thousand grouping for big numbers - i.e. 12345 -> 12,345  (Ingo)
+   - Improve output stat readability  (Ingo)
+   - Remove alloc size column as it can be calculated from hits and order
+
+In this patchset, I used two kmem events: kmem:mm_page_alloc and
+kmem_page_free for analysis as they can track almost all of memory
+allocation/free path AFAIK.  However, unlike slab tracepoint events,
+those page allocation events don't provide callsite info directly.  So
+I recorded callchains and extracted callsites like below:
+
+Normal page allocation callchains look like this:
+
+  360a7e __alloc_pages_nodemask
+  3a711c alloc_pages_current
+  357bc7 __page_cache_alloc   <-- callsite
+  357cf6 pagecache_get_page
+   48b0a prepare_pages
+   494d3 __btrfs_buffered_write
+   49cdf btrfs_file_write_iter
+  3ceb6e new_sync_write
+  3cf447 vfs_write
+  3cff99 sys_write
+  7556e9 system_call
+    f880 __write_nocancel
+   33eb9 cmd_record
+   4b38e cmd_kmem
+   7aa23 run_builtin
+   27a9a main
+   20800 __libc_start_main
+
+But first two are internal page allocation functions so it should be
+skipped.  To determine such allocation functions, I used following regex:
+
+  ^_?_?(alloc|get_free|get_zeroed)_pages?
+
+This gave me a following list of functions (you can see this with -v):
+
+  alloc func: __get_free_pages
+  alloc func: get_zeroed_page
+  alloc func: alloc_pages_exact
+  alloc func: __alloc_pages_direct_compact
+  alloc func: __alloc_pages_nodemask
+  alloc func: alloc_page_interleave
+  alloc func: alloc_pages_current
+  alloc func: alloc_pages_vma
+  alloc func: alloc_page_buffers
+  alloc func: alloc_pages_exact_nid
+
+After skipping those function, it got '__page_cache_alloc'.
+
+Other information such as allocation order, migration type and gfp
+flags are provided by tracepoint events.
+
+Basically the output will be sorted by total allocation bytes, but you
+can change it by using -s/--sort option.  The following sort keys are
+added to support page analysis: page, order, migtype, gfp.  Existing
+'callsite', 'bytes' and 'hit' sort keys also can be used.
+
+An example follows:
+
+  # perf kmem record --page sleep 5
+  [ perf record: Woken up 2 times to write data ]
+  [ perf record: Captured and wrote 1.065 MB perf.data (2949 samples) ]
+
+  # perf kmem stat --page --caller -s order,hit -l 10
+  #
+  # GFP flags
+  # ---------
+  # 00000010:         NI: GFP_NOIO
+  # 000000d0:          K: GFP_KERNEL
+  # 00000200:        NWR: GFP_NOWARN
+  # 000052d0: K|NWR|NR|C: GFP_KERNEL|GFP_NOWARN|GFP_NORETRY|GFP_COMP
+  # 000084d0:      K|R|Z: GFP_KERNEL|GFP_REPEAT|GFP_ZERO
+  # 000200d0:          U: GFP_USER
+  # 000200d2:         HU: GFP_HIGHUSER
+  # 000200da:        HUM: GFP_HIGHUSER_MOVABLE
+  # 000280da:      HUM|Z: GFP_HIGHUSER_MOVABLE|GFP_ZERO
+  # 002084d0:   K|R|Z|NT: GFP_KERNEL|GFP_REPEAT|GFP_ZERO|GFP_NOTRACK
+  # 0102005a:    NF|HW|M: GFP_NOFS|GFP_HARDWALL|GFP_MOVABLE
+
+  ---------------------------------------------------------------------------------------------------------
+   Total alloc (KB) | Hits      | Order | Mig.type | GFP flags  | Callsite
+  ---------------------------------------------------------------------------------------------------------
+                 16 |         1 |     2 | UNMOVABL | K|NWR|NR|C | alloc_skb_with_frags
+                 24 |         3 |     1 | UNMOVABL | K|NWR|NR|C | alloc_skb_with_frags
+              3,876 |       969 |     0 |  MOVABLE | HUM        | shmem_alloc_page
+                972 |       243 |     0 | UNMOVABL | K          | __pollwait
+                624 |       156 |     0 |  MOVABLE | NF|HW|M    | __page_cache_alloc
+                304 |        76 |     0 | UNMOVABL | U          | dma_generic_alloc_coherent
+                108 |        27 |     0 |  MOVABLE | HUM|Z      | handle_mm_fault
+                 56 |        14 |     0 | UNMOVABL | K|R|Z|NT   | pte_alloc_one
+                 24 |         6 |     0 |  MOVABLE | HUM        | do_wp_page
+                 16 |         4 |     0 | UNMOVABL | NWR        | __tlb_remove_page
+   ...              | ...       | ...   | ...      | ...        | ...
+  ---------------------------------------------------------------------------------------------------------
+
+  SUMMARY (page allocator)
+  ========================
+  Total allocation requests     :            1,518   [            6,096 KB ]
+  Total free requests           :            1,431   [            5,748 KB ]
+
+  Total alloc+freed requests    :            1,330   [            5,344 KB ]
+  Total alloc-only requests     :              188   [              752 KB ]
+  Total free-only requests      :              101   [              404 KB ]
+
+  Total allocation failures     :                0   [                0 KB ]
+
+  Order     Unmovable   Reclaimable       Movable      Reserved  CMA/Isolated
+  -----  ------------  ------------  ------------  ------------  ------------
+      0           351             .         1,163             .             .
+      1             3             .             .             .             .
+      2             1             .             .             .             .
+      3             .             .             .             .             .
+      4             .             .             .             .             .
+      5             .             .             .             .             .
+      6             .             .             .             .             .
+      7             .             .             .             .             .
+      8             .             .             .             .             .
+      9             .             .             .             .             .
+     10             .             .             .             .             .
+
+I have some idea how to improve it.  But I'd also like to hear other
+idea, suggestion, feedback and so on.
+
+This is available at perf/kmem-page-v8 branch on my tree:
+
+  git://git.kernel.org/pub/scm/linux/kernel/git/namhyung/linux-perf.git
+
+Thanks,
+Namhyung
+
+
+Namhyung Kim (6):
+  perf kmem: Implement stat --page --caller
+  perf kmem: Support sort keys on page analysis
+  perf kmem: Add --live option for current allocation stat
+  perf kmem: Print gfp flags in human readable string
+  perf kmem: Add kmem.default config option
+  perf kmem: Show warning when trying to run stat without record
+
+ tools/perf/Documentation/perf-kmem.txt |  11 +-
+ tools/perf/builtin-kmem.c              | 995 +++++++++++++++++++++++++++++----
+ 2 files changed, 898 insertions(+), 108 deletions(-)
+
+-- 
+2.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
