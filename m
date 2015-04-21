@@ -1,59 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 2531B900015
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 10:42:09 -0400 (EDT)
-Received: by qcyk17 with SMTP id k17so77098879qcy.1
-        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 07:42:08 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d7si1990317qka.121.2015.04.21.07.42.07
+Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com [209.85.220.181])
+	by kanga.kvack.org (Postfix) with ESMTP id DA788900015
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 11:02:36 -0400 (EDT)
+Received: by qku63 with SMTP id 63so212141992qku.3
+        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 08:02:36 -0700 (PDT)
+Received: from mail-qk0-x22b.google.com (mail-qk0-x22b.google.com. [2607:f8b0:400d:c09::22b])
+        by mx.google.com with ESMTPS id x1si2070234qcd.44.2015.04.21.08.02.35
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Apr 2015 07:42:08 -0700 (PDT)
-Date: Tue, 21 Apr 2015 16:41:55 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: mempolicy ref-counting question
-Message-ID: <20150421144155.GA1116@redhat.com>
-References: <87pp6y31bj.fsf@rasmusvillemoes.dk>
+        Tue, 21 Apr 2015 08:02:35 -0700 (PDT)
+Received: by qkx62 with SMTP id 62so208685045qkx.0
+        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 08:02:35 -0700 (PDT)
+Date: Tue, 21 Apr 2015 11:02:29 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 12/49] writeback: move backing_dev_info->bdi_stat[] into
+ bdi_writeback
+Message-ID: <20150421150229.GA9455@htj.duckdns.org>
+References: <1428350318-8215-1-git-send-email-tj@kernel.org>
+ <1428350318-8215-13-git-send-email-tj@kernel.org>
+ <20150420150231.GA17020@quack.suse.cz>
+ <20150420175626.GB4206@htj.duckdns.org>
+ <20150421085119.GA24278@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87pp6y31bj.fsf@rasmusvillemoes.dk>
+In-Reply-To: <20150421085119.GA24278@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Jan Kara <jack@suse.cz>
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, Miklos Szeredi <miklos@szeredi.hu>, Trond Myklebust <trond.myklebust@primarydata.com>
 
-I can't answer, so let me add cc's. I never understood mempolicy.c and
-I forgot everything I learned when I added vma_dup_policy ;) and that
-patch didn't change this logic as you can see.
+On Tue, Apr 21, 2015 at 10:51:19AM +0200, Jan Kara wrote:
+>   I can easily understand what "initializing writeback structure" means but
+> "exiting writeback structure" doesn't really make sense to me. OTOH
+> "destroying writeback structure" does make sense to me. That's the only
+> reason.
 
-All I can say is that it _seems_ to me you are right, split_vma() could
-use mpol_get()...
+We have enough cases where "exit" is used that way starting with
+module_exit() and all the accompanying __exit annotations and there
+are quite a few others.  I think it's enough to establish "exit" as
+the counterpart of "init" but I do agree that it felt a bit alien to
+me at the beginning too.
 
-At least mbind_range() lools suboptimal. split_vma() creates a copy, and
-right after that vma_replace_policy() does another mpol_dup().
+In general, I've been sticking with create/destroy if the object
+itself is being created or destroyed and init/exit if the object
+itself stays put across init/exit which is the case here.  This isn't
+quite universal but I think there exists enough of a pattern to make
+it worthwhile to stick to it.  As such, I'd like to stick to the
+current names if it isn't a big deal.
 
-On 04/21, Rasmus Villemoes wrote:
->
-> I'm trying to understand why "git grep mpol_get" doesn't give more hits
-> than it does. Two of the users (kernel/sched/debug.c and
-> fs/proc/task_mmu.c) seem to only hold the extra reference while writing
-> to a seq_file. That leaves just three actual users.
->
-> In particular, I'm wondering why __split_vma (and copy_vma) use
-> vma_dup_policy instead of simply getting an extra reference on the
-> old. I see there's some cpuset_being_rebound dance in mpol_dup, but I
-> don't understand why that's needed: In __split_vma, we're holding
-> mmap_sem, so either update_tasks_nodemask has already visited this mm
-> via mpol_rebind_mm (which also takes the mmap_sem), so the old vma is
-> already rebound, or the mpol_rebind_mm call will come later and rebind
-> the mempolicy of both the old and new vma - why would it matter that the
-> new vma's policy is rebound immediately?
->
-> I'd appreciate it if someone could enlighten me (I'm probably
-> missing something obvious).
->
-> Rasmus
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
