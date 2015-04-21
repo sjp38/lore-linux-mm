@@ -1,82 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 37687900015
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 06:20:14 -0400 (EDT)
-Received: by pdbnk13 with SMTP id nk13so237581702pdb.0
-        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 03:20:14 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id gk1si2277417pbd.93.2015.04.21.03.20.12
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 65E8C900015
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 06:41:26 -0400 (EDT)
+Received: by wicmx19 with SMTP id mx19so60647274wic.1
+        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 03:41:25 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a2si2463534wjs.97.2015.04.21.03.41.24
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 21 Apr 2015 03:20:13 -0700 (PDT)
-Message-ID: <55362349.3090406@huawei.com>
-Date: Tue, 21 Apr 2015 18:15:37 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: [PATCH 2/2 V3] memory-hotplug: remove reset_node_managed_pages()
- and reset_node_managed_pages() in hotadd_new_pgdat()
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 21 Apr 2015 03:41:24 -0700 (PDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 1/6] x86, mm: Trace when an IPI is about to be sent
+Date: Tue, 21 Apr 2015 11:41:15 +0100
+Message-Id: <1429612880-21415-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1429612880-21415-1-git-send-email-mgorman@suse.de>
+References: <1429612880-21415-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Xiexiuqi <xiexiuqi@huawei.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Linux-MM <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-After hotadd_new_pgdat()->free_area_init_node(), pgdat's spanned/present are 0,
-and zone's spanned/present/managed are 0, so remove reset_node_managed_pages()
-and reset_node_managed_pages().
+It is easy to trace when an IPI is received to flush a TLB but harder to
+detect what event sent it. This patch makes it easy to identify the source
+of IPIs being transmitted for TLB flushes on x86.
 
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Dave Hansen <dave.hansen@intel.com>
 ---
- mm/memory_hotplug.c |   25 -------------------------
- 1 files changed, 0 insertions(+), 25 deletions(-)
+ arch/x86/mm/tlb.c          | 1 +
+ include/linux/mm_types.h   | 1 +
+ include/trace/events/tlb.h | 3 ++-
+ 3 files changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 49d7c07..ac6462f 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1064,16 +1064,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- }
- #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index 3250f2371aea..2da824c1c140 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -140,6 +140,7 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
+ 	info.flush_end = end;
  
--static void reset_node_present_pages(pg_data_t *pgdat)
--{
--	struct zone *z;
--
--	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
--		z->present_pages = 0;
--
--	pgdat->node_present_pages = 0;
--}
--
- /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
- static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
- {
-@@ -1108,21 +1098,6 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
- 	build_all_zonelists(pgdat, NULL);
- 	mutex_unlock(&zonelists_mutex);
+ 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH);
++	trace_tlb_flush(TLB_REMOTE_SEND_IPI, end - start);
+ 	if (is_uv_system()) {
+ 		unsigned int cpu;
  
--	/*
--	 * zone->managed_pages is set to an approximate value in
--	 * free_area_init_core(), which will cause
--	 * /sys/device/system/node/nodeX/meminfo has wrong data.
--	 * So reset it to 0 before any memory is onlined.
--	 */
--	reset_node_managed_pages(pgdat);
--
--	/*
--	 * When memory is hot-added, all the memory is in offline state. So
--	 * clear all zones' present_pages because they will be updated in
--	 * online_pages() and offline_pages().
--	 */
--	reset_node_present_pages(pgdat);
--
- 	return pgdat;
- }
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 199a03aab8dc..856038aa166e 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -532,6 +532,7 @@ enum tlb_flush_reason {
+ 	TLB_REMOTE_SHOOTDOWN,
+ 	TLB_LOCAL_SHOOTDOWN,
+ 	TLB_LOCAL_MM_SHOOTDOWN,
++	TLB_REMOTE_SEND_IPI,
+ 	NR_TLB_FLUSH_REASONS,
+ };
+ 
+diff --git a/include/trace/events/tlb.h b/include/trace/events/tlb.h
+index 0e7635765153..0fc101472988 100644
+--- a/include/trace/events/tlb.h
++++ b/include/trace/events/tlb.h
+@@ -11,7 +11,8 @@
+ 	{ TLB_FLUSH_ON_TASK_SWITCH,	"flush on task switch" },	\
+ 	{ TLB_REMOTE_SHOOTDOWN,		"remote shootdown" },		\
+ 	{ TLB_LOCAL_SHOOTDOWN,		"local shootdown" },		\
+-	{ TLB_LOCAL_MM_SHOOTDOWN,	"local mm shootdown" }
++	{ TLB_LOCAL_MM_SHOOTDOWN,	"local mm shootdown" },		\
++	{ TLB_REMOTE_SEND_IPI,		"remote ipi send" }
+ 
+ TRACE_EVENT_CONDITION(tlb_flush,
  
 -- 
-1.7.1
-
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
