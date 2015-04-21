@@ -1,107 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id C62B1900015
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 06:41:39 -0400 (EDT)
-Received: by wiun10 with SMTP id n10so16414032wiu.1
-        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 03:41:39 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id er10si2502035wjd.9.2015.04.21.03.41.28
+Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 7039D900015
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 08:02:30 -0400 (EDT)
+Received: by qcyk17 with SMTP id k17so74555641qcy.1
+        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 05:02:30 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 7si1577319qhv.107.2015.04.21.05.02.28
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Apr 2015 03:41:29 -0700 (PDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 6/6] mm: Gather more PFNs before sending a TLB to flush unmapped pages
-Date: Tue, 21 Apr 2015 11:41:20 +0100
-Message-Id: <1429612880-21415-7-git-send-email-mgorman@suse.de>
-In-Reply-To: <1429612880-21415-1-git-send-email-mgorman@suse.de>
-References: <1429612880-21415-1-git-send-email-mgorman@suse.de>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Apr 2015 05:02:29 -0700 (PDT)
+Date: Tue, 21 Apr 2015 14:02:22 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 0/3] UserfaultFD: Extension for non cooperative uffd usage
+Message-ID: <20150421120222.GC4481@redhat.com>
+References: <5509D342.7000403@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5509D342.7000403@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Dave Hansen <dave.hansen@intel.com>
 
-The patch "mm: Send a single IPI to TLB flush multiple pages when unmapping"
-would batch 32 pages before sending an IPI. This patch increases the size of
-the data structure to hold a pages worth of PFNs before sending an IPI. This
-is a trade-off between memory usage and reducing IPIS sent. In the ideal
-case where multiple processes are reading large mapped files, this patch
-reduces interrupts/second from roughly 180K per second to 60K per second.
+Hi Pavel,
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-Reviewed-by: Rik van Riel <riel@redhat.com>
----
- include/linux/sched.h | 9 +++++----
- kernel/fork.c         | 6 ++++--
- mm/vmscan.c           | 5 +++--
- 3 files changed, 12 insertions(+), 8 deletions(-)
+On Wed, Mar 18, 2015 at 10:34:26PM +0300, Pavel Emelyanov wrote:
+> Hi,
+> 
+> On the recent LSF Andrea presented his userfault-fd patches and
+> I had shown some issues that appear in usage scenarios when the
+> monitor task and mm task do not cooperate to each other on VM
+> changes (and fork()-s).
+> 
+> Here's the implementation of the extended uffd API that would help 
+> us to address those issues.
+> 
+> As proof of concept I've implemented only fix for fork() case, but
+> I also plan to add the mremap() and exit() notifications, both are
+> also required for such non-cooperative usage.
+> 
+> More details about the extension itself is in patch #2 and the fork()
+> notification description is in patch #3.
+> 
+> Comments and suggestion are warmly welcome :)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 5c09db02fe78..3e4d3f545005 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1275,16 +1275,17 @@ enum perf_event_task_context {
- 	perf_nr_task_contexts,
- };
- 
--/* Matches SWAP_CLUSTER_MAX but refined to limit header dependencies */
--#define BATCH_TLBFLUSH_SIZE 32UL
--
- /* Track pages that require TLB flushes */
- struct tlbflush_unmap_batch {
- 	struct cpumask cpumask;
- 	unsigned long nr_pages;
--	unsigned long pfns[BATCH_TLBFLUSH_SIZE];
-+	unsigned long pfns[0];
- };
- 
-+/* alloc_tlb_ubc() always allocates a page */
-+#define BATCH_TLBFLUSH_SIZE \
-+	((PAGE_SIZE - sizeof(struct tlbflush_unmap_batch)) / sizeof(unsigned long))
-+
- struct task_struct {
- 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
- 	void *stack;
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 86c872fec9fb..f260663f209a 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -247,8 +247,10 @@ void __put_task_struct(struct task_struct *tsk)
- 	put_signal_struct(tsk->signal);
- 
- #ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
--	kfree(tsk->tlb_ubc);
--	tsk->tlb_ubc = NULL;
-+	if (tsk->tlb_ubc) {
-+		free_page((unsigned long)tsk->tlb_ubc);
-+		tsk->tlb_ubc = NULL;
-+	}
- #endif
- 
- 	if (!profile_handoff_task(tsk))
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e39e7c4bf548..080ba929049c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2775,14 +2775,15 @@ out:
- /*
-  * Allocate the control structure for batch TLB flushing. An allocation
-  * failure is harmless as the reclaimer will send IPIs where necessary.
-+ * If the allocation size changes then update BATCH_TLBFLUSH_SIZE.
-  */
- void alloc_tlb_ubc(void)
- {
- 	if (current->tlb_ubc)
- 		return;
- 
--	current->tlb_ubc = kmalloc(sizeof(struct tlbflush_unmap_batch),
--						GFP_ATOMIC | __GFP_NOWARN);
-+	current->tlb_ubc = (struct tlbflush_unmap_batch *)
-+				__get_free_page(GFP_KERNEL | __GFP_NOWARN);
- 	if (!current->tlb_ubc)
- 		return;
- 
--- 
-2.1.2
+This looks feasible.
+
+> Andrea, what's the best way to go on with the patches -- would you
+> prefer to include them in your git tree or should I instead continue
+> with them on my own, re-sending them when required? Either way would
+> be OK for me.
+
+Ok so various improvements happened in userfaultfd patchset over the
+last month so your incremental patchset likely requires a rebase
+sorry. When you posted it I was in the middle of the updates. Now
+things are working stable and I have no pending updates, so it would
+be a good time for a rebase.
+
+I can merge it if you like, it's your call if you prefer to maintain
+it incrementally or if I should merge it, but I wouldn't push it to
+Andrew for upstream integration in the first batch, as this
+complicates things further and it's not fully complete yet (at least
+the version posted only handled fork). I think it can be merged
+incrementally in a second stage.
+
+The major updates of the userfaultfd patchset over the last month were:
+
+1) Various mixed fixes thanks to the feedback from Dave Hansen and
+   David Gilbert.
+
+   The most notable one is the use of mm_users instead of mm_count to
+   pin the mm to avoid crashes that assumed the vma still existed (in
+   the userfaultfd_release method and in the various ioctl). exit_mmap
+   doesn't even set mm->mmap to NULL, so unless I introduce a
+   userfaultfd_exit to call in mmput, I have to pin the mm_users to be
+   safe. This is mainly an issue for the non-cooperative usage you're
+   implementing. Can you catch the exit somehow so you can close the
+   fd? The memory won't be released until you do. Is this ok with you?
+   I suppose you had to close the fd somehow anyway.
+
+2) userfaults are waken immediately even if they're not been "read"
+   yet, this can lead to POLLIN false positives (so I only allow poll
+   if the fd is open in nonblocking mode to be sure it won't hang). Is
+   it too paranoid to return POLLERR if the fd is not open in
+   nonblocking mode?
+
+	http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=f222d9de0a5302dc8ac62d6fab53a84251098751
+
+3) optimize read to return entries in O(1) and poll which was already
+   O(1) becomes lockless. This required to split the waitqueue in two,
+   one for pending faults and one for non pending faults, and the
+   faults are refiled across the two waitqueues when they're
+   read. Both waitqueues are protected by a single lock to be simpler
+   and faster at runtime (the fault_pending_wqh one).
+
+	http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=9aa033ed43a1134c2223dac8c5d9e02e0100fca1
+
+4) Allocate the ctx with kmem_cache_alloc. This is going to collide a
+   bit with your cleanup patch sorry.
+
+	http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=f5a8db16d2876eed8906a4d36f1d0e06ca5490f6
+
+5) Originally qemu had two bitflags for each page and kept 3 states
+   (of the 4 possible with two bits) for each page in order to deal
+   with the races that can happen if one thread is reading the
+   userfaults and another thread is calling the UFFDIO_COPY ioctl in
+   the background. This patch solves all races in the kernel so the
+   two bits per page can be dropped from qemu codebase. I started
+   documenting the races that can materialize by using 2 threads
+   (instead of running the workload single threaded with a single poll
+   event loop), and how userland had to solve them until I decided it
+   was simpler to fix the race in the kernel by running an ad-hoc
+   pagetable walk inside the wait_event()-kind-of-section. This
+   simplified qemu significantly and it doesn't make the kernel much
+   more complicated.
+
+   I tried this before in much older versions but I use gup_fast for
+   it and it didn't work well with gup_fast for various reasons.
+
+   http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=41efeae4e93f0296436f2a9fc6b28b6b0158512a
+
+   After this patch the only reason to call UFFDIO_WAKE is to handle
+   the userfaults in batches in combination with the DONT_WAKE flag of
+   UFFDIO_COPY.
+
+6) I removed the read recursion from mcopy_atomic. This avoids to
+   depend on the write-starvation behavior of rwsem to be safe. After
+   this change the rwsem is free to stop any further down_read if
+   there's a down_write waiting on the lock.
+
+   	  http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=b1e3a08acc9e3f6c2614e89fc3b8e338daa58e18
+
+About other troubles for the non cooperative usage: MADV_DONTNEED
+likely needs to be trapped too or how do you know that you shall map a
+zero page instead of the old data at the faulting address?
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
