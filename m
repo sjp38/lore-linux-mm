@@ -1,46 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 787546B0032
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2015 18:03:01 -0400 (EDT)
-Received: by layy10 with SMTP id y10so137553140lay.0
-        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 15:03:00 -0700 (PDT)
-Received: from mail-la0-x231.google.com (mail-la0-x231.google.com. [2a00:1450:4010:c03::231])
-        by mx.google.com with ESMTPS id a1si15903826lae.45.2015.04.20.15.02.59
+Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A37BD6B0032
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2015 22:27:12 -0400 (EDT)
+Received: by lbbzk7 with SMTP id zk7so145045794lbb.0
+        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 19:27:12 -0700 (PDT)
+Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com. [209.85.217.180])
+        by mx.google.com with ESMTPS id ap7si306927lac.21.2015.04.20.19.27.10
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Apr 2015 15:02:59 -0700 (PDT)
-Received: by laat2 with SMTP id t2so137569632laa.1
-        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 15:02:58 -0700 (PDT)
-From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Subject: mempolicy ref-counting question
-Date: Tue, 21 Apr 2015 00:02:56 +0200
-Message-ID: <87pp6y31bj.fsf@rasmusvillemoes.dk>
+        Mon, 20 Apr 2015 19:27:10 -0700 (PDT)
+Received: by lbcga7 with SMTP id ga7so145143892lbc.1
+        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 19:27:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <alpine.DEB.2.11.1504201040010.2264@gentwo.org>
+References: <1429349091-11785-1-git-send-email-gavin.guo@canonical.com>
+	<alpine.DEB.2.11.1504201040010.2264@gentwo.org>
+Date: Tue, 21 Apr 2015 10:27:09 +0800
+Message-ID: <CA+eFSM3yfHQ58ruSP3sFq8EyJQsxdSoX3gB9CU38SAkh2+t19w@mail.gmail.com>
+Subject: Re: [PATCH] mm/slab_common: Support the slub_debug boot option on
+ specific object size
+From: Gavin Guo <gavin.guo@canonical.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
 
-I'm trying to understand why "git grep mpol_get" doesn't give more hits
-than it does. Two of the users (kernel/sched/debug.c and
-fs/proc/task_mmu.c) seem to only hold the extra reference while writing
-to a seq_file. That leaves just three actual users.
+Hi Christoph,
 
-In particular, I'm wondering why __split_vma (and copy_vma) use
-vma_dup_policy instead of simply getting an extra reference on the
-old. I see there's some cpuset_being_rebound dance in mpol_dup, but I
-don't understand why that's needed: In __split_vma, we're holding
-mmap_sem, so either update_tasks_nodemask has already visited this mm
-via mpol_rebind_mm (which also takes the mmap_sem), so the old vma is
-already rebound, or the mpol_rebind_mm call will come later and rebind
-the mempolicy of both the old and new vma - why would it matter that the
-new vma's policy is rebound immediately?
+On Mon, Apr 20, 2015 at 11:40 PM, Christoph Lameter <cl@linux.com> wrote:
+> On Sat, 18 Apr 2015, Gavin Guo wrote:
+>
+>> The slub_debug=PU,kmalloc-xx cannot work because in the
+>> create_kmalloc_caches() the s->name is created after the
+>> create_kmalloc_cache() is called. The name is NULL in the
+>> create_kmalloc_cache() so the kmem_cache_flags() would not set the
+>> slub_debug flags to the s->flags. The fix here set up a temporary
+>> kmalloc_names string array for the initialization purpose. After the
+>> kmalloc_caches are already it can be used to create s->name in the
+>> kasprintf.
+>
+> Ok if you do that then the dynamic creation of the kmalloc hostname can
+> also be removed. This patch should do that as well.
 
-I'd appreciate it if someone could enlighten me (I'm probably
-missing something obvious).
+Thanks for your reply. I put the kmalloc_names in the __initdata
+section. And it will be cleaned. Do you think the kmalloc_names should
+be put in the global data section to avoid the dynamic creation of the
+kmalloc hostname again?
 
-Rasmus
+Gavin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
