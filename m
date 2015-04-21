@@ -1,70 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 65752900015
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 04:52:20 -0400 (EDT)
-Received: by obbeb7 with SMTP id eb7so139791991obb.3
-        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 01:52:20 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id t5si896207oie.31.2015.04.21.01.52.18
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 06106900015
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 04:59:49 -0400 (EDT)
+Received: by wgsk9 with SMTP id k9so205593331wgs.3
+        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 01:59:48 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fh9si971043wib.20.2015.04.21.01.59.47
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 21 Apr 2015 01:52:19 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm/memory-failure: call shake_page() when error hits
- thp tail page
-Date: Tue, 21 Apr 2015 08:47:05 +0000
-Message-ID: <20150421084705.GG21832@hori1.linux.bs1.fc.nec.co.jp>
-References: <1429082714-26115-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20150420143014.bd6c683d159758db1815799f@linux-foundation.org>
-In-Reply-To: <20150420143014.bd6c683d159758db1815799f@linux-foundation.org>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <79ADE403FA3D7841BA90AA54D7EF0BAD@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 21 Apr 2015 01:59:47 -0700 (PDT)
+Date: Tue, 21 Apr 2015 10:59:42 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 15/49] writeback: move backing_dev_info->wb_lock and
+ ->worklist into bdi_writeback
+Message-ID: <20150421085942.GB24278@quack.suse.cz>
+References: <1428350318-8215-1-git-send-email-tj@kernel.org>
+ <1428350318-8215-16-git-send-email-tj@kernel.org>
+ <20150420153224.GD17020@quack.suse.cz>
+ <20150420181707.GD4206@htj.duckdns.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150420181707.GD4206@htj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dean Nelson <dnelson@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Jin Dongming <jin.dongming@np.css.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Jan Kara <jack@suse.cz>, axboe@kernel.dk, linux-kernel@vger.kernel.org, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com
 
-On Mon, Apr 20, 2015 at 02:30:14PM -0700, Andrew Morton wrote:
-> On Wed, 15 Apr 2015 07:25:46 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec=
-.com> wrote:
->=20
-> > Currently memory_failure() calls shake_page() to sweep pages out from p=
-cplists
-> > only when the victim page is 4kB LRU page or thp head page. But we shou=
-ld do
-> > this for a thp tail page too.
-> > Consider that a memory error hits a thp tail page whose head page is on=
- a
-> > pcplist when memory_failure() runs. Then, the current kernel skips shak=
-e_pages()
-> > part, so hwpoison_user_mappings() returns without calling split_huge_pa=
-ge() nor
-> > try_to_unmap() because PageLRU of the thp head is still cleared due to =
-the skip
-> > of shake_page().
-> > As a result, me_huge_page() runs for the thp, which is a broken behavio=
-r.
-> >=20
-> > This patch fixes this problem by calling shake_page() for thp tail case=
-.
-> >=20
-> > Fixes: 385de35722c9 ("thp: allow a hwpoisoned head page to be put back =
-to LRU")
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > Cc: stable@vger.kernel.org  # v3.4+
->=20
-> What are the userspace-visible effects of the bug?  This info is needed
-> for backporting into -stable and other kernels, please.
+On Mon 20-04-15 14:17:07, Tejun Heo wrote:
+> Hello, Jan.
+> 
+> On Mon, Apr 20, 2015 at 05:32:24PM +0200, Jan Kara wrote:
+> > > @@ -454,9 +451,9 @@ EXPORT_SYMBOL(bdi_init);
+> > >  
+> > >  void bdi_destroy(struct backing_dev_info *bdi)
+> > >  {
+> > > -	bdi_wb_shutdown(bdi);
+> > > -
+> > > -	WARN_ON(!list_empty(&bdi->work_list));
+> > > +	/* make sure nobody finds us on the bdi_list anymore */
+> > > +	bdi_remove_from_list(bdi);
+> > > +	wb_shutdown(&bdi->wb);
+> > >  
+> > >  	if (bdi->dev) {
+> > >  		bdi_debug_unregister(bdi);
+> >   But if someone ends up calling bdi_destroy() on unregistered bdi,
+> > bdi_remove_from_list() will be corrupting memory, won't it? And if I
+> 
+> bdi_init() does INIT_LIST_HEAD() on it, so it should be fine, no?
+  Yeah, checking the code again, we are fine.
 
-One effect is memory leak of the thp. And another is to fail to isolate
-the memory error, so later access to the error address causes another MCE,
-which kills the processes which used the thp.
+> > remember right there were some corner cases where this really happened.
+> > Previously we were careful and checked WB_registered. I guess we could
+> > check for !list_empty(&bdi->bdi_list) and also reinit bdi_list in
+> > bdi_remove_from_list() after synchronize_rcu_expedited().
+> 
+> But we can't call bdi_destroy() more than once no matter what.  We'd
+> be doing double frees.
+  Sorry, I was thinking about calling bdi_unregister() more than once but
+as the call is moved into bdi_destroy() that is really called only once.
 
-Thanks,
-Naoya Horiguchi=
+You can add:
+Reviewed-by: Jan Kara <jack@suse.cz>
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
