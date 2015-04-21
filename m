@@ -1,54 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A37BD6B0032
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2015 22:27:12 -0400 (EDT)
-Received: by lbbzk7 with SMTP id zk7so145045794lbb.0
-        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 19:27:12 -0700 (PDT)
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com. [209.85.217.180])
-        by mx.google.com with ESMTPS id ap7si306927lac.21.2015.04.20.19.27.10
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Apr 2015 19:27:10 -0700 (PDT)
-Received: by lbcga7 with SMTP id ga7so145143892lbc.1
-        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 19:27:10 -0700 (PDT)
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 204F76B0032
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2015 22:51:31 -0400 (EDT)
+Received: by pdbqd1 with SMTP id qd1so227464653pdb.2
+        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 19:51:30 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTP id di10si748730pdb.34.2015.04.20.19.46.31
+        for <linux-mm@kvack.org>;
+        Mon, 20 Apr 2015 19:51:30 -0700 (PDT)
+Message-ID: <5535A879.8050302@huawei.com>
+Date: Tue, 21 Apr 2015 09:31:37 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.11.1504201040010.2264@gentwo.org>
-References: <1429349091-11785-1-git-send-email-gavin.guo@canonical.com>
-	<alpine.DEB.2.11.1504201040010.2264@gentwo.org>
-Date: Tue, 21 Apr 2015 10:27:09 +0800
-Message-ID: <CA+eFSM3yfHQ58ruSP3sFq8EyJQsxdSoX3gB9CU38SAkh2+t19w@mail.gmail.com>
-Subject: Re: [PATCH] mm/slab_common: Support the slub_debug boot option on
- specific object size
-From: Gavin Guo <gavin.guo@canonical.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 1/2 V2] memory-hotplug: fix BUG_ON in move_freepages()
+References: <5530E578.9070505@huawei.com> <5531679d.4642ec0a.1beb.3569@mx.google.com> <55345979.2020502@cn.fujitsu.com> <55346859.30605@huawei.com> <553472b0.4ad2ec0a.3abe.ffffd0f6@mx.google.com> <55347592.4050400@huawei.com> <55354434.2902ec0a.14ab.fffffff6@mx.google.com>
+In-Reply-To: <55354434.2902ec0a.14ab.fffffff6@mx.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
+To: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+Cc: Gu Zheng <guz.fnst@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Xiexiuqi <xiexiuqi@huawei.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Christoph,
+On 2015/4/21 2:23, Yasuaki Ishimatsu wrote:
 
-On Mon, Apr 20, 2015 at 11:40 PM, Christoph Lameter <cl@linux.com> wrote:
-> On Sat, 18 Apr 2015, Gavin Guo wrote:
->
->> The slub_debug=PU,kmalloc-xx cannot work because in the
->> create_kmalloc_caches() the s->name is created after the
->> create_kmalloc_cache() is called. The name is NULL in the
->> create_kmalloc_cache() so the kmem_cache_flags() would not set the
->> slub_debug flags to the s->flags. The fix here set up a temporary
->> kmalloc_names string array for the initialization purpose. After the
->> kmalloc_caches are already it can be used to create s->name in the
->> kasprintf.
->
-> Ok if you do that then the dynamic creation of the kmalloc hostname can
-> also be removed. This patch should do that as well.
+> 
+> On Mon, 20 Apr 2015 11:42:10 +0800
+> Xishi Qiu <qiuxishi@huawei.com> wrote:
+> 
+>> On 2015/4/20 11:29, Yasuaki Ishimatsu wrote:
+>>
+>>>
+>>> On Mon, 20 Apr 2015 10:45:45 +0800
+>>> Xishi Qiu <qiuxishi@huawei.com> wrote:
+>>>
+>>>> On 2015/4/20 9:42, Gu Zheng wrote:
+>>>>
+>>>>> Hi Xishi,
+>>>>> On 04/18/2015 04:05 AM, Yasuaki Ishimatsu wrote:
+>>>>>
+>>>>>>
+>>>>>> Your patches will fix your issue.
+>>>>>> But, if BIOS reports memory first at node hot add, pgdat can
+>>>>>> not be initialized.
+>>>>>>
+>>>>>> Memory hot add flows are as follows:
+>>>>>>
+>>>>>> add_memory
+>>>>>>   ...
+>>>>>>   -> hotadd_new_pgdat()
+>>>>>>   ...
+>>>>>>   -> node_set_online(nid)
+>>>>>>
+>>>>>> When calling hotadd_new_pgdat() for a hot added node, the node is
+>>>>>> offline because node_set_online() is not called yet. So if applying
+>>>>>> your patches, the pgdat is not initialized in this case.
+>>>>>
+>>>>> Ishimtasu's worry is reasonable. And I am afraid the fix here is a bit
+>>>>> over-kill. 
+>>>>>
+>>>>>>
+>>>>>> Thanks,
+>>>>>> Yasuaki Ishimatsu
+>>>>>>
+>>>>>> On Fri, 17 Apr 2015 18:50:32 +0800
+>>>>>> Xishi Qiu <qiuxishi@huawei.com> wrote:
+>>>>>>
+>>>>>>> Hot remove nodeXX, then hot add nodeXX. If BIOS report cpu first, it will call
+>>>>>>> hotadd_new_pgdat(nid, 0), this will set pgdat->node_start_pfn to 0. As nodeXX
+>>>>>>> exists at boot time, so pgdat->node_spanned_pages is the same as original. Then
+>>>>>>> free_area_init_core()->memmap_init() will pass a wrong start and a nonzero size.
+>>>>>
+>>>>> As your analysis said the root cause here is passing a *0* as the node_start_pfn,
+>>>>> then the chaos occurred when init the zones. And this only happens to the re-hotadd
+>>>>> node, so how about using the saved *node_start_pfn* (via get_pfn_range_for_nid(nid, &start_pfn, &end_pfn))
+>>>>> instead if we find "pgdat->node_start_pfn == 0 && !node_online(XXX)"?
+>>>>>
+>>>>> Thanks,
+>>>>> Gu
+>>>>>
+>>>>
+>>>> Hi Gu,
+>>>>
+>>>> I first considered this method, but if the hot added node's start and size are different
+>>>> from before, it makes the chaos.
+>>>>
+>>>
+>>>> e.g.
+>>>> nodeXX (8-16G)
+>>>> remove nodeXX 
+>>>> BIOS report cpu first and online it
+>>>> hotadd nodeXX
+>>>> use the original value, so pgdat->node_start_pfn is set to 8G, and size is 8G
+>>>> BIOS report mem(10-12G)
+>>>> call add_memory()->__add_zone()->grow_zone_span()/grow_pgdat_span()
+>>>> the start is still 8G, not 10G, this is chaos!
+>>>
+>>> If you set CONFIG_HAVE_MEMBLOCK_NODE_MAP, kernel shows the following
+>>> pr_info()'s message.
+>>>
+>>> void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+>>>                 unsigned long node_start_pfn, unsigned long *zholes_size)
+>>> {
+>>> ...
+>>> #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+>>>         get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
+>>>         pr_info("Initmem setup node %d [mem %#018Lx-%#018Lx]\n", nid,
+>>>                 (u64)start_pfn << PAGE_SHIFT, ((u64)end_pfn << PAGE_SHIFT) - 1);
+>>> #endif
+>>> }
+>>>
+>>> Is the memory range of the message "8G - 16G"?
+>>> If so, the reason is that memblk is not deleted at memory hot remove.
+>>>
+>>> Thanks,
+>>> Yasuaki Ishimatsu
+>>>
+>>
+>> Hi Yasuaki,
+>>
+> 
+>> By reading the code, I find memblk is not deleted at memory hot remove.
+>> I am not sure whether we should remove it. If remove it, we should also reset
+>> "arch_zone_lowest_possible_pfn", right? It seems a little complicated.
+> 
+> I think memblk should be added/removed by hot adding/removing memory.
+> But, arch_zone_lowest_possible_pfn should not be changed.
+> 
 
-Thanks for your reply. I put the kmalloc_names in the __initdata
-section. And it will be cleaned. Do you think the kmalloc_names should
-be put in the global data section to avoid the dynamic creation of the
-kmalloc hostname again?
+Ok, thanks for your suggestion.
 
-Gavin
+> Thanks,
+> Yasuaki Ishimatsu
+> 
+>>
+>> Thanks,
+>> Xishi Qiu
+>>
+>>>
+>>>
+>>>>
+>>>> Thanks,
+>>>> Xishi Qiu
+>>>>
+>>>
+>>> .
+>>>
+>>
+>>
+>>
+> 
+> .
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
