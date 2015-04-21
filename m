@@ -1,73 +1,478 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 40B75900015
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 06:41:27 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so133912401wiz.1
-        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 03:41:26 -0700 (PDT)
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 04598900015
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 06:41:30 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so133711741wid.0
+        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 03:41:29 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id qs6si2475523wjc.68.2015.04.21.03.41.24
+        by mx.google.com with ESMTPS id qr7si3022373wic.24.2015.04.21.03.41.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Apr 2015 03:41:24 -0700 (PDT)
+        Tue, 21 Apr 2015 03:41:25 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [RFC PATCH 0/6] TLB flush multiple pages with a single IPI v3
-Date: Tue, 21 Apr 2015 11:41:14 +0100
-Message-Id: <1429612880-21415-1-git-send-email-mgorman@suse.de>
+Subject: [PATCH 2/6] mm: Send a single IPI to TLB flush multiple pages when unmapping
+Date: Tue, 21 Apr 2015 11:41:16 +0100
+Message-Id: <1429612880-21415-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1429612880-21415-1-git-send-email-mgorman@suse.de>
+References: <1429612880-21415-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Changelog since V2
-o Ensure TLBs are flushed before pages are freed		(mel)
+An IPI is sent to flush remote TLBs when a page is unmapped that was
+recently accessed by other CPUs. There are many circumstances where this
+happens but the obvious one is kswapd reclaiming pages belonging to a
+running process as kswapd and the task are likely running on separate CPUs.
 
-Changelog since V1
-o Structure and variable renaming				(hughd)
-o Defer flushes even if the unmapping process is sleeping	(huged)
-o Alternative sizing of structure				(peterz)
-o Use GFP_KERNEL instead of GFP_ATOMIC, PF_MEMALLOC protects	(andi)
-o Immediately flush dirty PTEs to avoid corruption		(mel)
-o Further clarify docs on the required arch guarantees		(mel)
+On small machines, this is not a significant problem but as machine
+gets larger with more cores and more memory, the cost of these IPIs can
+be high. This patch uses a structure similar in principle to a pagevec
+to collect a list of PFNs and CPUs that require flushing. It then sends
+one IPI to flush the list of PFNs. A new TLB flush helper is required for
+this and one is added for x86. Other architectures will need to decide if
+batching like this is both safe and worth the memory overhead. Specifically
+the requirement is;
 
-When unmapping pages it is necessary to flush the TLB. If that page was
-accessed by another CPU then an IPI is used to flush the remote CPU. That
-is a lot of IPIs if kswapd is scanning and unmapping >100K pages per second.
+	If a clean page is unmapped and not immediately flushed, the
+	architecture must guarantee that a write to that page from a CPU
+	with a cached TLB entry will trap a page fault.
 
-There already is a window between when a page is unmapped and when it is
-TLB flushed. This series simply increases the window so multiple pages can
-be flushed using a single IPI.
+This is essentially what the kernel already depends on but the window is
+much larger with this patch applied and is worth highlighting.
 
-Patch 1 simply made the rest of the series easier to write as ftrace
-	could identify all the senders of TLB flush IPIS.
+The impact of this patch depends on the workload as measuring any benefit
+requires both mapped pages co-located on the LRU and memory pressure. The
+case with the biggest impact is multiple processes reading mapped pages
+taken from the vm-scalability test suite. The test case uses NR_CPU readers
+of mapped files that consume 10*RAM.
 
-Patch 2 collects a list of PFNs and sends one IPI to flush them all
+vmscale on a 4-node machine with 64G RAM and 48 CPUs
+                                                4.0.0                      4.0.0
+                                              vanilla              batchunmap-v3
+lru-file-mmap-read-elapsed           159.76 (  0.00%)           118.92 ( 25.56%)
 
-Patch 3 uses more memory so further defer when the IPI gets sent
+               4.0.0       4.0.0
+             vanilla batchunmap-v3
+User          567.53      609.20
+System       5949.65     4117.68
+Elapsed       161.08      120.21
 
-Patch 4 uses the same infrastructure as patch 2 to batch IPIs sent during
-	page migration.
+This is showing that the readers completed 25% with 30% less CPU time. From
+vmstats, it is known that the vanilla kernel was interrupted roughly 900K
+times per second during the steady phase of the test and the patched kernel
+was interrupts 180K times per second.
 
-The performance impact is documented in the changelogs but in the optimistic
-case on a 4-socket machine the full series reduces interrupts from 900K
-interrupts/second to 60K interrupts/second.
+The impact is much lower on a small machine
 
+vmscale on a 1-node machine with 8G RAM and 1 CPU
+                                                4.0.0                      4.0.0
+                                              vanilla              batchunmap-v2
+Ops lru-file-mmap-read-elapsed        22.50 (  0.00%)            19.82 ( 11.91%)
+
+               4.0.0       4.0.0
+             vanilla  batchunmap-v3
+User           33.64       32.14
+System         36.22       33.68
+Elapsed        24.11       21.47
+
+It's still a noticeable improvement with vmstat showing interrupts went
+from roughly 500K per second to 45K per second.
+
+The patch will have no impact on workloads with no memory pressure or
+have relatively few mapped pages.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+---
  arch/x86/Kconfig                |   1 +
  arch/x86/include/asm/tlbflush.h |   2 +
- arch/x86/mm/tlb.c               |   1 +
- include/linux/init_task.h       |   8 +++
- include/linux/mm_types.h        |   1 +
- include/linux/rmap.h            |  13 ++--
- include/linux/sched.h           |  15 ++++
- include/trace/events/tlb.h      |   3 +-
- init/Kconfig                    |   8 +++
- kernel/fork.c                   |   7 ++
- kernel/sched/core.c             |   3 +
- mm/internal.h                   |  16 +++++
- mm/migrate.c                    |  27 +++++--
- mm/rmap.c                       | 151 ++++++++++++++++++++++++++++++++++++----
- mm/vmscan.c                     |  35 +++++++++-
- 15 files changed, 267 insertions(+), 24 deletions(-)
+ include/linux/init_task.h       |   8 ++++
+ include/linux/rmap.h            |   3 ++
+ include/linux/sched.h           |  14 ++++++
+ init/Kconfig                    |   8 ++++
+ kernel/fork.c                   |   5 ++
+ kernel/sched/core.c             |   3 ++
+ mm/internal.h                   |  11 +++++
+ mm/rmap.c                       | 104 +++++++++++++++++++++++++++++++++++++++-
+ mm/vmscan.c                     |  31 +++++++++++-
+ 11 files changed, 187 insertions(+), 3 deletions(-)
 
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index b7d31ca55187..290844263218 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -30,6 +30,7 @@ config X86
+ 	select ARCH_MIGHT_HAVE_PC_SERIO
+ 	select HAVE_AOUT if X86_32
+ 	select HAVE_UNSTABLE_SCHED_CLOCK
++	select ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
+ 	select ARCH_SUPPORTS_NUMA_BALANCING if X86_64
+ 	select ARCH_SUPPORTS_INT128 if X86_64
+ 	select HAVE_IDE
+diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+index cd791948b286..96a27051a70a 100644
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -152,6 +152,8 @@ static inline void __flush_tlb_one(unsigned long addr)
+  * and page-granular flushes are available only on i486 and up.
+  */
+ 
++#define flush_local_tlb_addr(addr) __flush_tlb_one(addr)
++
+ #ifndef CONFIG_SMP
+ 
+ /* "_up" is for UniProcessor.
+diff --git a/include/linux/init_task.h b/include/linux/init_task.h
+index 696d22312b31..0771937b47e1 100644
+--- a/include/linux/init_task.h
++++ b/include/linux/init_task.h
+@@ -175,6 +175,13 @@ extern struct task_group root_task_group;
+ # define INIT_NUMA_BALANCING(tsk)
+ #endif
+ 
++#ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
++# define INIT_TLBFLUSH_UNMAP_BATCH_CONTROL(tsk)				\
++	.tlb_ubc = NULL,
++#else
++# define INIT_TLBFLUSH_UNMAP_BATCH_CONTROL(tsk)
++#endif
++
+ #ifdef CONFIG_KASAN
+ # define INIT_KASAN(tsk)						\
+ 	.kasan_depth = 1,
+@@ -257,6 +264,7 @@ extern struct task_group root_task_group;
+ 	INIT_RT_MUTEXES(tsk)						\
+ 	INIT_VTIME(tsk)							\
+ 	INIT_NUMA_BALANCING(tsk)					\
++	INIT_TLBFLUSH_UNMAP_BATCH_CONTROL(tsk)				\
+ 	INIT_KASAN(tsk)							\
+ }
+ 
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index c4c559a45dc8..8d23914b219e 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -89,6 +89,9 @@ enum ttu_flags {
+ 	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
+ 	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
+ 	TTU_IGNORE_HWPOISON = (1 << 10),/* corrupted page is recoverable */
++	TTU_BATCH_FLUSH = (1 << 11),	/* Batch TLB flushes where possible
++					 * and caller guarantees they will
++					 * do a final flush if necessary */
+ };
+ 
+ #ifdef CONFIG_MMU
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index a419b65770d6..5c09db02fe78 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1275,6 +1275,16 @@ enum perf_event_task_context {
+ 	perf_nr_task_contexts,
+ };
+ 
++/* Matches SWAP_CLUSTER_MAX but refined to limit header dependencies */
++#define BATCH_TLBFLUSH_SIZE 32UL
++
++/* Track pages that require TLB flushes */
++struct tlbflush_unmap_batch {
++	struct cpumask cpumask;
++	unsigned long nr_pages;
++	unsigned long pfns[BATCH_TLBFLUSH_SIZE];
++};
++
+ struct task_struct {
+ 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
+ 	void *stack;
+@@ -1634,6 +1644,10 @@ struct task_struct {
+ 	unsigned long numa_pages_migrated;
+ #endif /* CONFIG_NUMA_BALANCING */
+ 
++#ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
++	struct tlbflush_unmap_batch *tlb_ubc;
++#endif
++
+ 	struct rcu_head rcu;
+ 
+ 	/*
+diff --git a/init/Kconfig b/init/Kconfig
+index f5dbc6d4261b..f519fbb6ac35 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -889,6 +889,14 @@ config ARCH_SUPPORTS_NUMA_BALANCING
+ 	bool
+ 
+ #
++# For architectures that have a local TLB flush for a PFN without knowledge
++# of the VMA. The architecture must provide guarantees on what happens if
++# a clean TLB cache entry is written after the unmap. Details are in mm/rmap.c
++# near the check for should_defer_flush.
++config ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
++	bool
++
++#
+ # For architectures that know their GCC __int128 support is sound
+ #
+ config ARCH_SUPPORTS_INT128
+diff --git a/kernel/fork.c b/kernel/fork.c
+index cf65139615a0..86c872fec9fb 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -246,6 +246,11 @@ void __put_task_struct(struct task_struct *tsk)
+ 	delayacct_tsk_free(tsk);
+ 	put_signal_struct(tsk->signal);
+ 
++#ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
++	kfree(tsk->tlb_ubc);
++	tsk->tlb_ubc = NULL;
++#endif
++
+ 	if (!profile_handoff_task(tsk))
+ 		free_task(tsk);
+ }
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 62671f53202a..9836a28d001b 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1823,6 +1823,9 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
+ 
+ 	p->numa_group = NULL;
+ #endif /* CONFIG_NUMA_BALANCING */
++#ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
++	p->tlb_ubc = NULL;
++#endif /* CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH */
+ }
+ 
+ #ifdef CONFIG_NUMA_BALANCING
+diff --git a/mm/internal.h b/mm/internal.h
+index a96da5b0029d..35aba439c275 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -431,4 +431,15 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+ #define ALLOC_CMA		0x80 /* allow allocations from CMA areas */
+ #define ALLOC_FAIR		0x100 /* fair zone allocation */
+ 
++enum ttu_flags;
++struct tlbflush_unmap_batch;
++
++#ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
++void try_to_unmap_flush(void);
++#else
++static inline void try_to_unmap_flush(void)
++{
++}
++
++#endif /* CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH */
+ #endif	/* __MM_INTERNAL_H */
+diff --git a/mm/rmap.c b/mm/rmap.c
+index c161a14b6a8f..c5badb6c72c9 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -60,6 +60,8 @@
+ 
+ #include <asm/tlbflush.h>
+ 
++#include <trace/events/tlb.h>
++
+ #include "internal.h"
+ 
+ static struct kmem_cache *anon_vma_cachep;
+@@ -581,6 +583,79 @@ vma_address(struct page *page, struct vm_area_struct *vma)
+ 	return address;
+ }
+ 
++#ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
++static void percpu_flush_tlb_batch_pages(void *data)
++{
++	struct tlbflush_unmap_batch *tlb_ubc = data;
++	int i;
++
++	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
++	for (i = 0; i < tlb_ubc->nr_pages; i++)
++		flush_local_tlb_addr(tlb_ubc->pfns[i] << PAGE_SHIFT);
++}
++
++/*
++ * Flush any pending IPIs. It is important that if a PTE was dirty at the time
++ * it was unmapped at the flush occurs before any IO is initiated on the page
++ * or is about to be freed to prevent lost writes or leakage respectively
++ */
++void try_to_unmap_flush(void)
++{
++	struct tlbflush_unmap_batch *tlb_ubc = current->tlb_ubc;
++
++	if (!tlb_ubc || !tlb_ubc->nr_pages)
++		return;
++
++	trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, tlb_ubc->nr_pages);
++	smp_call_function_many(&tlb_ubc->cpumask, percpu_flush_tlb_batch_pages,
++		(void *)tlb_ubc, true);
++	cpumask_clear(&tlb_ubc->cpumask);
++	tlb_ubc->nr_pages = 0;
++}
++
++static void set_tlb_ubc_flush_pending(struct mm_struct *mm,
++		struct page *page)
++{
++	struct tlbflush_unmap_batch *tlb_ubc = current->tlb_ubc;
++
++	cpumask_or(&tlb_ubc->cpumask, &tlb_ubc->cpumask, mm_cpumask(mm));
++	tlb_ubc->pfns[tlb_ubc->nr_pages] = page_to_pfn(page);
++	tlb_ubc->nr_pages++;
++
++	if (tlb_ubc->nr_pages == BATCH_TLBFLUSH_SIZE)
++		try_to_unmap_flush();
++}
++
++/*
++ * Returns true if the TLB flush should be deferred to the end of a batch of
++ * unmap operations to reduce IPIs.
++ */
++static bool should_defer_flush(struct mm_struct *mm, enum ttu_flags flags)
++{
++	bool should_defer = false;
++
++	if (!current->tlb_ubc || !(flags & TTU_BATCH_FLUSH))
++		return false;
++
++	/* If remote CPUs need to be flushed then defer batch the flush */
++	if (cpumask_any_but(mm_cpumask(mm), get_cpu()) < nr_cpu_ids)
++		should_defer = true;
++	put_cpu();
++
++	return should_defer;
++}
++#else
++static void set_tlb_ubc_flush_pending(struct mm_struct *mm,
++		struct page *page)
++{
++}
++
++static bool should_defer_flush(struct mm_struct *mm, enum ttu_flags flags)
++{
++	return false;
++}
++#endif /* CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH */
++
+ /*
+  * At what user virtual address is page expected in vma?
+  * Caller should check the page is actually part of the vma.
+@@ -1186,6 +1261,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 	pte_t pteval;
+ 	spinlock_t *ptl;
+ 	int ret = SWAP_AGAIN;
++	bool deferred;
+ 	enum ttu_flags flags = (enum ttu_flags)arg;
+ 
+ 	pte = page_check_address(page, mm, address, &ptl, 0);
+@@ -1213,11 +1289,35 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 
+ 	/* Nuke the page table entry. */
+ 	flush_cache_page(vma, address, page_to_pfn(page));
+-	pteval = ptep_clear_flush(vma, address, pte);
++	deferred = should_defer_flush(mm, flags);
++	if (deferred) {
++		/*
++		 * We clear the PTE but do not flush so potentially a remote
++		 * CPU could still be writing to the page. If the entry was
++		 * previously clean then the architecture must guarantee that
++		 * a clear->dirty transition on a cached TLB entry is written
++		 * through and traps if the PTE is unmapped. If the entry is
++		 * writable then it's handled below.
++		 */
++		pteval = ptep_get_and_clear(mm, address, pte);
++		set_tlb_ubc_flush_pending(mm, page);
++	} else {
++		pteval = ptep_clear_flush(vma, address, pte);
++	}
+ 
+ 	/* Move the dirty bit to the physical page now the pte is gone. */
+-	if (pte_dirty(pteval))
++	if (pte_dirty(pteval)) {
++		/*
++		 * If the PTE was dirty then it's best to assume it's writable.
++		 * The TLB must be flushed before the page is unlocked as IO
++		 * can start in parallel. Without the flush, writes could
++		 * happen and data be potentially lost.
++		 */
++		if (deferred)
++			flush_tlb_page(vma, address);
++
+ 		set_page_dirty(page);
++	}
+ 
+ 	/* Update high watermark before we lower rss */
+ 	update_hiwater_rss(mm);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 5e8eadd71bac..12ec298087b6 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1024,7 +1024,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		 * processes. Try to unmap it here.
+ 		 */
+ 		if (page_mapped(page) && mapping) {
+-			switch (try_to_unmap(page, ttu_flags)) {
++			switch (try_to_unmap(page,
++					ttu_flags|TTU_BATCH_FLUSH)) {
+ 			case SWAP_FAIL:
+ 				goto activate_locked;
+ 			case SWAP_AGAIN:
+@@ -1175,6 +1176,7 @@ keep:
+ 	}
+ 
+ 	mem_cgroup_uncharge_list(&free_pages);
++	try_to_unmap_flush();
+ 	free_hot_cold_page_list(&free_pages, true);
+ 
+ 	list_splice(&ret_pages, page_list);
+@@ -2762,6 +2764,30 @@ out:
+ 	return false;
+ }
+ 
++#ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
++/*
++ * Allocate the control structure for batch TLB flushing. An allocation
++ * failure is harmless as the reclaimer will send IPIs where necessary.
++ */
++static inline void alloc_tlb_ubc(void)
++{
++	if (current->tlb_ubc)
++		return;
++
++	current->tlb_ubc = kmalloc(sizeof(struct tlbflush_unmap_batch),
++						GFP_ATOMIC | __GFP_NOWARN);
++	if (!current->tlb_ubc)
++		return;
++
++	cpumask_clear(&current->tlb_ubc->cpumask);
++	current->tlb_ubc->nr_pages = 0;
++}
++#else
++static inline void alloc_tlb_ubc(void)
++{
++}
++#endif /* CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH */
++
+ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 				gfp_t gfp_mask, nodemask_t *nodemask)
+ {
+@@ -2789,6 +2815,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 				sc.may_writepage,
+ 				gfp_mask);
+ 
++	alloc_tlb_ubc();
+ 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+ 
+ 	trace_mm_vmscan_direct_reclaim_end(nr_reclaimed);
+@@ -3364,6 +3391,8 @@ static int kswapd(void *p)
+ 
+ 	lockdep_set_current_reclaim_state(GFP_KERNEL);
+ 
++	alloc_tlb_ubc();
++
+ 	if (!cpumask_empty(cpumask))
+ 		set_cpus_allowed_ptr(tsk, cpumask);
+ 	current->reclaim_state = &reclaim_state;
 -- 
 2.1.2
 
