@@ -1,727 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id EA24C6B0073
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 01:00:32 -0400 (EDT)
-Received: by pdbqd1 with SMTP id qd1so230440015pdb.2
-        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 22:00:32 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id vk3si1157052pbc.139.2015.04.20.22.00.23
-        for <linux-mm@kvack.org>;
-        Mon, 20 Apr 2015 22:00:24 -0700 (PDT)
-From: Namhyung Kim <namhyung@kernel.org>
-Subject: [PATCH 2/6] perf kmem: Support sort keys on page analysis
-Date: Tue, 21 Apr 2015 13:55:03 +0900
-Message-Id: <1429592107-1807-3-git-send-email-namhyung@kernel.org>
-In-Reply-To: <1429592107-1807-1-git-send-email-namhyung@kernel.org>
-References: <1429592107-1807-1-git-send-email-namhyung@kernel.org>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id B6E076B0032
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 03:33:04 -0400 (EDT)
+Received: by pabsx10 with SMTP id sx10so233035836pab.3
+        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 00:33:04 -0700 (PDT)
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com. [202.81.31.148])
+        by mx.google.com with ESMTPS id nx16si1691241pdb.158.2015.04.21.00.33.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 21 Apr 2015 00:33:03 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 21 Apr 2015 17:32:57 +1000
+Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 9D21F2CE804E
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 17:32:55 +1000 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3L7WkF532309314
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 17:32:55 +1000
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3L7WKSU027761
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 17:32:20 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [patch v2 for-4.0] mm, thp: really limit transparent hugepage allocation to local node
+In-Reply-To: <54EE60FC.7000909@suse.cz>
+References: <alpine.DEB.2.10.1502241422370.11324@chino.kir.corp.google.com> <alpine.DEB.2.10.1502241522590.9480@chino.kir.corp.google.com> <54EDA96C.4000609@suse.cz> <alpine.DEB.2.10.1502251311360.18097@chino.kir.corp.google.com> <54EE60FC.7000909@suse.cz>
+Date: Tue, 21 Apr 2015 13:01:47 +0530
+Message-ID: <87k2x6q6n0.fsf@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Add new sort keys for page: page, order, migtype, gfp - existing
-'bytes', 'hit' and 'callsite' sort keys also work for page.  Note that
--s/--sort option should be preceded by either of --slab or --page
-option to determine where the sort keys applies.
+Vlastimil Babka <vbabka@suse.cz> writes:
 
-Now it properly groups and sorts allocation stats - so same
-page/caller with different order/migtype/gfp will be printed on a
-different line.
+> On 25.2.2015 22:24, David Rientjes wrote:
+>>
+>>> alloc_pages_preferred_node() variant, change the exact_node() variant to pass
+>>> __GFP_THISNODE, and audit and adjust all callers accordingly.
+>>>
+>> Sounds like that should be done as part of a cleanup after the 4.0 issues
+>> are addressed.  alloc_pages_exact_node() does seem to suggest that we want
+>> exactly that node, implying __GFP_THISNODE behavior already, so it would
+>> be good to avoid having this come up again in the future.
+>
+> Oh lovely, just found out that there's alloc_pages_node which should be the
+> preferred-only version, but in fact does not differ from 
+> alloc_pages_exact_node
+> in any relevant way. I agree we should do some larger cleanup for next 
+> version.
+>
+>>> Also, you pass __GFP_NOWARN but that should be covered by GFP_TRANSHUGE
+>>> already. Of course, nothing guarantees that hugepage == true implies that gfp
+>>> == GFP_TRANSHUGE... but current in-tree callers conform to that.
+>>>
+>> Ah, good point, and it includes __GFP_NORETRY as well which means that
+>> this patch is busted.  It won't try compaction or direct reclaim in the
+>> page allocator slowpath because of this:
+>>
+>> 	/*
+>> 	 * GFP_THISNODE (meaning __GFP_THISNODE, __GFP_NORETRY and
+>> 	 * __GFP_NOWARN set) should not cause reclaim since the subsystem
+>> 	 * (f.e. slab) using GFP_THISNODE may choose to trigger reclaim
+>> 	 * using a larger set of nodes after it has established that the
+>> 	 * allowed per node queues are empty and that nodes are
+>> 	 * over allocated.
+>> 	 */
+>> 	if (IS_ENABLED(CONFIG_NUMA) &&
+>> 	    (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
+>> 		goto nopage;
+>>
+>> Hmm.  It would be disappointing to have to pass the nodemask of the exact
+>> node that we want to allocate from into the page allocator to avoid using
+>> __GFP_THISNODE.
+>
+> Yeah.
+>
+>>
+>> There's a sneaky way around it by just removing __GFP_NORETRY from
+>> GFP_TRANSHUGE so the condition above fails and since the page allocator
+>> won't retry for such a high-order allocation, but that probably just
+>> papers over this stuff too much already.  I think what we want to do is
+>
+> Alternatively alloc_pages_exact_node() adds __GFP_THISNODE just to
+> node_zonelist() call and not to __alloc_pages() gfp_mask proper? Unless 
+> __GFP_THISNODE
+> was given *also* in the incoming gfp_mask, this should give us the right 
+> combination?
+> But it's also subtle....
+>
+>> cause the slab allocators to not use __GFP_WAIT if they want to avoid
+>> reclaim.
+>
+> Yes, the fewer subtle heuristics we have that include combinations of 
+> flags (*cough*
+> GFP_TRANSHUGE *cough*), the better.
+>
+>> This is probably going to be a much more invasive patch than originally
+>> thought.
+>
+> Right, we might be changing behavior not just for slab allocators, but 
+> also others using such
+> combination of flags.
 
-  # perf kmem stat --page --caller -l 10 -s order,hit
+Any update on this ? Did we reach a conclusion on how to go forward here
+?
 
-  --------------------------------------------------------------------------------------------
-   Total alloc (KB) |  Hits     | Order | Mig.type | GFP flags | Callsite
-  --------------------------------------------------------------------------------------------
-                 64 |         4 |     2 |  RECLAIM |  00285250 | new_slab
-             50,144 |    12,536 |     0 |  MOVABLE |  0102005a | __page_cache_alloc
-                 52 |        13 |     0 | UNMOVABL |  002084d0 | pte_alloc_one
-                 40 |        10 |     0 |  MOVABLE |  000280da | handle_mm_fault
-                 28 |         7 |     0 | UNMOVABL |  000000d0 | __pollwait
-                 20 |         5 |     0 |  MOVABLE |  000200da | do_wp_page
-                 20 |         5 |     0 |  MOVABLE |  000200da | do_cow_fault
-                 16 |         4 |     0 | UNMOVABL |  00000200 | __tlb_remove_page
-                 16 |         4 |     0 | UNMOVABL |  000084d0 | __pmd_alloc
-                  8 |         2 |     0 | UNMOVABL |  000084d0 | __pud_alloc
-   ...              | ...       | ...   | ...      | ...       | ...
-  --------------------------------------------------------------------------------------------
-
-Acked-by: Pekka Enberg <penberg@kernel.org>
-Signed-off-by: Namhyung Kim <namhyung@kernel.org>
----
- tools/perf/Documentation/perf-kmem.txt |   6 +-
- tools/perf/builtin-kmem.c              | 393 ++++++++++++++++++++++++++-------
- 2 files changed, 313 insertions(+), 86 deletions(-)
-
-diff --git a/tools/perf/Documentation/perf-kmem.txt b/tools/perf/Documentation/perf-kmem.txt
-index 23219c65c16f..69e181272c51 100644
---- a/tools/perf/Documentation/perf-kmem.txt
-+++ b/tools/perf/Documentation/perf-kmem.txt
-@@ -37,7 +37,11 @@ OPTIONS
- 
- -s <key[,key2...]>::
- --sort=<key[,key2...]>::
--	Sort the output (default: frag,hit,bytes)
-+	Sort the output (default: 'frag,hit,bytes' for slab and 'bytes,hit'
-+	for page).  Available sort keys are 'ptr, callsite, bytes, hit,
-+	pingpong, frag' for slab and 'page, callsite, bytes, hit, order,
-+	migtype, gfp' for page.  This option should be preceded by one of the
-+	mode selection options - i.e. --slab, --page, --alloc and/or --caller.
- 
- -l <num>::
- --line=<num>::
-diff --git a/tools/perf/builtin-kmem.c b/tools/perf/builtin-kmem.c
-index 3649eec6807f..0393a7f3fa35 100644
---- a/tools/perf/builtin-kmem.c
-+++ b/tools/perf/builtin-kmem.c
-@@ -30,7 +30,7 @@ static int	kmem_page;
- static long	kmem_page_size;
- 
- struct alloc_stat;
--typedef int (*sort_fn_t)(struct alloc_stat *, struct alloc_stat *);
-+typedef int (*sort_fn_t)(void *, void *);
- 
- static int			alloc_flag;
- static int			caller_flag;
-@@ -181,8 +181,8 @@ static int perf_evsel__process_alloc_node_event(struct perf_evsel *evsel,
- 	return ret;
- }
- 
--static int ptr_cmp(struct alloc_stat *, struct alloc_stat *);
--static int callsite_cmp(struct alloc_stat *, struct alloc_stat *);
-+static int ptr_cmp(void *, void *);
-+static int slab_callsite_cmp(void *, void *);
- 
- static struct alloc_stat *search_alloc_stat(unsigned long ptr,
- 					    unsigned long call_site,
-@@ -223,7 +223,8 @@ static int perf_evsel__process_free_event(struct perf_evsel *evsel,
- 		s_alloc->pingpong++;
- 
- 		s_caller = search_alloc_stat(0, s_alloc->call_site,
--					     &root_caller_stat, callsite_cmp);
-+					     &root_caller_stat,
-+					     slab_callsite_cmp);
- 		if (!s_caller)
- 			return -1;
- 		s_caller->pingpong++;
-@@ -448,26 +449,14 @@ static struct page_stat *page_stat__findnew_page(u64 page)
- 	return __page_stat__findnew_page(page, true);
- }
- 
--static int page_stat_cmp(struct page_stat *a, struct page_stat *b)
--{
--	if (a->page > b->page)
--		return -1;
--	if (a->page < b->page)
--		return 1;
--	if (a->order > b->order)
--		return -1;
--	if (a->order < b->order)
--		return 1;
--	if (a->migrate_type > b->migrate_type)
--		return -1;
--	if (a->migrate_type < b->migrate_type)
--		return 1;
--	if (a->gfp_flags > b->gfp_flags)
--		return -1;
--	if (a->gfp_flags < b->gfp_flags)
--		return 1;
--	return 0;
--}
-+struct sort_dimension {
-+	const char		name[20];
-+	sort_fn_t		cmp;
-+	struct list_head	list;
-+};
-+
-+static LIST_HEAD(page_alloc_sort_input);
-+static LIST_HEAD(page_caller_sort_input);
- 
- static struct page_stat *
- __page_stat__findnew_alloc(struct page_stat *pstat, bool create)
-@@ -475,14 +464,20 @@ __page_stat__findnew_alloc(struct page_stat *pstat, bool create)
- 	struct rb_node **node = &page_alloc_tree.rb_node;
- 	struct rb_node *parent = NULL;
- 	struct page_stat *data;
-+	struct sort_dimension *sort;
- 
- 	while (*node) {
--		s64 cmp;
-+		int cmp = 0;
- 
- 		parent = *node;
- 		data = rb_entry(*node, struct page_stat, node);
- 
--		cmp = page_stat_cmp(data, pstat);
-+		list_for_each_entry(sort, &page_alloc_sort_input, list) {
-+			cmp = sort->cmp(pstat, data);
-+			if (cmp)
-+				break;
-+		}
-+
- 		if (cmp < 0)
- 			node = &parent->rb_left;
- 		else if (cmp > 0)
-@@ -519,19 +514,25 @@ static struct page_stat *page_stat__findnew_alloc(struct page_stat *pstat)
- }
- 
- static struct page_stat *
--__page_stat__findnew_caller(u64 callsite, bool create)
-+__page_stat__findnew_caller(struct page_stat *pstat, bool create)
- {
- 	struct rb_node **node = &page_caller_tree.rb_node;
- 	struct rb_node *parent = NULL;
- 	struct page_stat *data;
-+	struct sort_dimension *sort;
- 
- 	while (*node) {
--		s64 cmp;
-+		int cmp = 0;
- 
- 		parent = *node;
- 		data = rb_entry(*node, struct page_stat, node);
- 
--		cmp = data->callsite - callsite;
-+		list_for_each_entry(sort, &page_caller_sort_input, list) {
-+			cmp = sort->cmp(pstat, data);
-+			if (cmp)
-+				break;
-+		}
-+
- 		if (cmp < 0)
- 			node = &parent->rb_left;
- 		else if (cmp > 0)
-@@ -545,7 +546,10 @@ __page_stat__findnew_caller(u64 callsite, bool create)
- 
- 	data = zalloc(sizeof(*data));
- 	if (data != NULL) {
--		data->callsite = callsite;
-+		data->callsite = pstat->callsite;
-+		data->order = pstat->order;
-+		data->gfp_flags = pstat->gfp_flags;
-+		data->migrate_type = pstat->migrate_type;
- 
- 		rb_link_node(&data->node, parent, node);
- 		rb_insert_color(&data->node, &page_caller_tree);
-@@ -554,14 +558,14 @@ __page_stat__findnew_caller(u64 callsite, bool create)
- 	return data;
- }
- 
--static struct page_stat *page_stat__find_caller(u64 callsite)
-+static struct page_stat *page_stat__find_caller(struct page_stat *pstat)
- {
--	return __page_stat__findnew_caller(callsite, false);
-+	return __page_stat__findnew_caller(pstat, false);
- }
- 
--static struct page_stat *page_stat__findnew_caller(u64 callsite)
-+static struct page_stat *page_stat__findnew_caller(struct page_stat *pstat)
- {
--	return __page_stat__findnew_caller(callsite, true);
-+	return __page_stat__findnew_caller(pstat, true);
- }
- 
- static bool valid_page(u64 pfn_or_page)
-@@ -629,14 +633,11 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
- 	pstat->alloc_bytes += bytes;
- 	pstat->callsite = callsite;
- 
--	pstat = page_stat__findnew_caller(callsite);
-+	this.callsite = callsite;
-+	pstat = page_stat__findnew_caller(&this);
- 	if (pstat == NULL)
- 		return -ENOMEM;
- 
--	pstat->order = order;
--	pstat->gfp_flags = gfp_flags;
--	pstat->migrate_type = migrate_type;
--
- 	pstat->nr_alloc++;
- 	pstat->alloc_bytes += bytes;
- 
-@@ -690,7 +691,7 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
- 	pstat->nr_free++;
- 	pstat->free_bytes += bytes;
- 
--	pstat = page_stat__find_caller(this.callsite);
-+	pstat = page_stat__find_caller(&this);
- 	if (pstat == NULL)
- 		return -ENOENT;
- 
-@@ -976,14 +977,10 @@ static void print_result(struct perf_session *session)
- 		print_page_result(session);
- }
- 
--struct sort_dimension {
--	const char		name[20];
--	sort_fn_t		cmp;
--	struct list_head	list;
--};
--
--static LIST_HEAD(caller_sort);
--static LIST_HEAD(alloc_sort);
-+static LIST_HEAD(slab_caller_sort);
-+static LIST_HEAD(slab_alloc_sort);
-+static LIST_HEAD(page_caller_sort);
-+static LIST_HEAD(page_alloc_sort);
- 
- static void sort_slab_insert(struct rb_root *root, struct alloc_stat *data,
- 			     struct list_head *sort_list)
-@@ -1032,10 +1029,12 @@ static void __sort_slab_result(struct rb_root *root, struct rb_root *root_sorted
- 	}
- }
- 
--static void sort_page_insert(struct rb_root *root, struct page_stat *data)
-+static void sort_page_insert(struct rb_root *root, struct page_stat *data,
-+			     struct list_head *sort_list)
- {
- 	struct rb_node **new = &root->rb_node;
- 	struct rb_node *parent = NULL;
-+	struct sort_dimension *sort;
- 
- 	while (*new) {
- 		struct page_stat *this;
-@@ -1044,8 +1043,11 @@ static void sort_page_insert(struct rb_root *root, struct page_stat *data)
- 		this = rb_entry(*new, struct page_stat, node);
- 		parent = *new;
- 
--		/* TODO: support more sort key */
--		cmp = data->alloc_bytes - this->alloc_bytes;
-+		list_for_each_entry(sort, sort_list, list) {
-+			cmp = sort->cmp(data, this);
-+			if (cmp)
-+				break;
-+		}
- 
- 		if (cmp > 0)
- 			new = &parent->rb_left;
-@@ -1057,7 +1059,8 @@ static void sort_page_insert(struct rb_root *root, struct page_stat *data)
- 	rb_insert_color(&data->node, root);
- }
- 
--static void __sort_page_result(struct rb_root *root, struct rb_root *root_sorted)
-+static void __sort_page_result(struct rb_root *root, struct rb_root *root_sorted,
-+			       struct list_head *sort_list)
- {
- 	struct rb_node *node;
- 	struct page_stat *data;
-@@ -1069,7 +1072,7 @@ static void __sort_page_result(struct rb_root *root, struct rb_root *root_sorted
- 
- 		rb_erase(node, root);
- 		data = rb_entry(node, struct page_stat, node);
--		sort_page_insert(root_sorted, data);
-+		sort_page_insert(root_sorted, data, sort_list);
- 	}
- }
- 
-@@ -1077,13 +1080,15 @@ static void sort_result(void)
- {
- 	if (kmem_slab) {
- 		__sort_slab_result(&root_alloc_stat, &root_alloc_sorted,
--				   &alloc_sort);
-+				   &slab_alloc_sort);
- 		__sort_slab_result(&root_caller_stat, &root_caller_sorted,
--				   &caller_sort);
-+				   &slab_caller_sort);
- 	}
- 	if (kmem_page) {
--		__sort_page_result(&page_alloc_tree, &page_alloc_sorted);
--		__sort_page_result(&page_caller_tree, &page_caller_sorted);
-+		__sort_page_result(&page_alloc_tree, &page_alloc_sorted,
-+				   &page_alloc_sort);
-+		__sort_page_result(&page_caller_tree, &page_caller_sorted,
-+				   &page_caller_sort);
- 	}
- }
- 
-@@ -1132,8 +1137,12 @@ static int __cmd_kmem(struct perf_session *session)
- 	return err;
- }
- 
--static int ptr_cmp(struct alloc_stat *l, struct alloc_stat *r)
-+/* slab sort keys */
-+static int ptr_cmp(void *a, void *b)
- {
-+	struct alloc_stat *l = a;
-+	struct alloc_stat *r = b;
-+
- 	if (l->ptr < r->ptr)
- 		return -1;
- 	else if (l->ptr > r->ptr)
-@@ -1146,8 +1155,11 @@ static struct sort_dimension ptr_sort_dimension = {
- 	.cmp	= ptr_cmp,
- };
- 
--static int callsite_cmp(struct alloc_stat *l, struct alloc_stat *r)
-+static int slab_callsite_cmp(void *a, void *b)
- {
-+	struct alloc_stat *l = a;
-+	struct alloc_stat *r = b;
-+
- 	if (l->call_site < r->call_site)
- 		return -1;
- 	else if (l->call_site > r->call_site)
-@@ -1157,11 +1169,14 @@ static int callsite_cmp(struct alloc_stat *l, struct alloc_stat *r)
- 
- static struct sort_dimension callsite_sort_dimension = {
- 	.name	= "callsite",
--	.cmp	= callsite_cmp,
-+	.cmp	= slab_callsite_cmp,
- };
- 
--static int hit_cmp(struct alloc_stat *l, struct alloc_stat *r)
-+static int hit_cmp(void *a, void *b)
- {
-+	struct alloc_stat *l = a;
-+	struct alloc_stat *r = b;
-+
- 	if (l->hit < r->hit)
- 		return -1;
- 	else if (l->hit > r->hit)
-@@ -1174,8 +1189,11 @@ static struct sort_dimension hit_sort_dimension = {
- 	.cmp	= hit_cmp,
- };
- 
--static int bytes_cmp(struct alloc_stat *l, struct alloc_stat *r)
-+static int bytes_cmp(void *a, void *b)
- {
-+	struct alloc_stat *l = a;
-+	struct alloc_stat *r = b;
-+
- 	if (l->bytes_alloc < r->bytes_alloc)
- 		return -1;
- 	else if (l->bytes_alloc > r->bytes_alloc)
-@@ -1188,9 +1206,11 @@ static struct sort_dimension bytes_sort_dimension = {
- 	.cmp	= bytes_cmp,
- };
- 
--static int frag_cmp(struct alloc_stat *l, struct alloc_stat *r)
-+static int frag_cmp(void *a, void *b)
- {
- 	double x, y;
-+	struct alloc_stat *l = a;
-+	struct alloc_stat *r = b;
- 
- 	x = fragmentation(l->bytes_req, l->bytes_alloc);
- 	y = fragmentation(r->bytes_req, r->bytes_alloc);
-@@ -1207,8 +1227,11 @@ static struct sort_dimension frag_sort_dimension = {
- 	.cmp	= frag_cmp,
- };
- 
--static int pingpong_cmp(struct alloc_stat *l, struct alloc_stat *r)
-+static int pingpong_cmp(void *a, void *b)
- {
-+	struct alloc_stat *l = a;
-+	struct alloc_stat *r = b;
-+
- 	if (l->pingpong < r->pingpong)
- 		return -1;
- 	else if (l->pingpong > r->pingpong)
-@@ -1221,7 +1244,135 @@ static struct sort_dimension pingpong_sort_dimension = {
- 	.cmp	= pingpong_cmp,
- };
- 
--static struct sort_dimension *avail_sorts[] = {
-+/* page sort keys */
-+static int page_cmp(void *a, void *b)
-+{
-+	struct page_stat *l = a;
-+	struct page_stat *r = b;
-+
-+	if (l->page < r->page)
-+		return -1;
-+	else if (l->page > r->page)
-+		return 1;
-+	return 0;
-+}
-+
-+static struct sort_dimension page_sort_dimension = {
-+	.name	= "page",
-+	.cmp	= page_cmp,
-+};
-+
-+static int page_callsite_cmp(void *a, void *b)
-+{
-+	struct page_stat *l = a;
-+	struct page_stat *r = b;
-+
-+	if (l->callsite < r->callsite)
-+		return -1;
-+	else if (l->callsite > r->callsite)
-+		return 1;
-+	return 0;
-+}
-+
-+static struct sort_dimension page_callsite_sort_dimension = {
-+	.name	= "callsite",
-+	.cmp	= page_callsite_cmp,
-+};
-+
-+static int page_hit_cmp(void *a, void *b)
-+{
-+	struct page_stat *l = a;
-+	struct page_stat *r = b;
-+
-+	if (l->nr_alloc < r->nr_alloc)
-+		return -1;
-+	else if (l->nr_alloc > r->nr_alloc)
-+		return 1;
-+	return 0;
-+}
-+
-+static struct sort_dimension page_hit_sort_dimension = {
-+	.name	= "hit",
-+	.cmp	= page_hit_cmp,
-+};
-+
-+static int page_bytes_cmp(void *a, void *b)
-+{
-+	struct page_stat *l = a;
-+	struct page_stat *r = b;
-+
-+	if (l->alloc_bytes < r->alloc_bytes)
-+		return -1;
-+	else if (l->alloc_bytes > r->alloc_bytes)
-+		return 1;
-+	return 0;
-+}
-+
-+static struct sort_dimension page_bytes_sort_dimension = {
-+	.name	= "bytes",
-+	.cmp	= page_bytes_cmp,
-+};
-+
-+static int page_order_cmp(void *a, void *b)
-+{
-+	struct page_stat *l = a;
-+	struct page_stat *r = b;
-+
-+	if (l->order < r->order)
-+		return -1;
-+	else if (l->order > r->order)
-+		return 1;
-+	return 0;
-+}
-+
-+static struct sort_dimension page_order_sort_dimension = {
-+	.name	= "order",
-+	.cmp	= page_order_cmp,
-+};
-+
-+static int migrate_type_cmp(void *a, void *b)
-+{
-+	struct page_stat *l = a;
-+	struct page_stat *r = b;
-+
-+	/* for internal use to find free'd page */
-+	if (l->migrate_type == -1U)
-+		return 0;
-+
-+	if (l->migrate_type < r->migrate_type)
-+		return -1;
-+	else if (l->migrate_type > r->migrate_type)
-+		return 1;
-+	return 0;
-+}
-+
-+static struct sort_dimension migrate_type_sort_dimension = {
-+	.name	= "migtype",
-+	.cmp	= migrate_type_cmp,
-+};
-+
-+static int gfp_flags_cmp(void *a, void *b)
-+{
-+	struct page_stat *l = a;
-+	struct page_stat *r = b;
-+
-+	/* for internal use to find free'd page */
-+	if (l->gfp_flags == -1U)
-+		return 0;
-+
-+	if (l->gfp_flags < r->gfp_flags)
-+		return -1;
-+	else if (l->gfp_flags > r->gfp_flags)
-+		return 1;
-+	return 0;
-+}
-+
-+static struct sort_dimension gfp_flags_sort_dimension = {
-+	.name	= "gfp",
-+	.cmp	= gfp_flags_cmp,
-+};
-+
-+static struct sort_dimension *slab_sorts[] = {
- 	&ptr_sort_dimension,
- 	&callsite_sort_dimension,
- 	&hit_sort_dimension,
-@@ -1230,16 +1381,24 @@ static struct sort_dimension *avail_sorts[] = {
- 	&pingpong_sort_dimension,
- };
- 
--#define NUM_AVAIL_SORTS	((int)ARRAY_SIZE(avail_sorts))
-+static struct sort_dimension *page_sorts[] = {
-+	&page_sort_dimension,
-+	&page_callsite_sort_dimension,
-+	&page_hit_sort_dimension,
-+	&page_bytes_sort_dimension,
-+	&page_order_sort_dimension,
-+	&migrate_type_sort_dimension,
-+	&gfp_flags_sort_dimension,
-+};
- 
--static int sort_dimension__add(const char *tok, struct list_head *list)
-+static int slab_sort_dimension__add(const char *tok, struct list_head *list)
- {
- 	struct sort_dimension *sort;
- 	int i;
- 
--	for (i = 0; i < NUM_AVAIL_SORTS; i++) {
--		if (!strcmp(avail_sorts[i]->name, tok)) {
--			sort = memdup(avail_sorts[i], sizeof(*avail_sorts[i]));
-+	for (i = 0; i < (int)ARRAY_SIZE(slab_sorts); i++) {
-+		if (!strcmp(slab_sorts[i]->name, tok)) {
-+			sort = memdup(slab_sorts[i], sizeof(*slab_sorts[i]));
- 			if (!sort) {
- 				pr_err("%s: memdup failed\n", __func__);
- 				return -1;
-@@ -1252,7 +1411,27 @@ static int sort_dimension__add(const char *tok, struct list_head *list)
- 	return -1;
- }
- 
--static int setup_sorting(struct list_head *sort_list, const char *arg)
-+static int page_sort_dimension__add(const char *tok, struct list_head *list)
-+{
-+	struct sort_dimension *sort;
-+	int i;
-+
-+	for (i = 0; i < (int)ARRAY_SIZE(page_sorts); i++) {
-+		if (!strcmp(page_sorts[i]->name, tok)) {
-+			sort = memdup(page_sorts[i], sizeof(*page_sorts[i]));
-+			if (!sort) {
-+				pr_err("%s: memdup failed\n", __func__);
-+				return -1;
-+			}
-+			list_add_tail(&sort->list, list);
-+			return 0;
-+		}
-+	}
-+
-+	return -1;
-+}
-+
-+static int setup_slab_sorting(struct list_head *sort_list, const char *arg)
- {
- 	char *tok;
- 	char *str = strdup(arg);
-@@ -1267,8 +1446,34 @@ static int setup_sorting(struct list_head *sort_list, const char *arg)
- 		tok = strsep(&pos, ",");
- 		if (!tok)
- 			break;
--		if (sort_dimension__add(tok, sort_list) < 0) {
--			error("Unknown --sort key: '%s'", tok);
-+		if (slab_sort_dimension__add(tok, sort_list) < 0) {
-+			error("Unknown slab --sort key: '%s'", tok);
-+			free(str);
-+			return -1;
-+		}
-+	}
-+
-+	free(str);
-+	return 0;
-+}
-+
-+static int setup_page_sorting(struct list_head *sort_list, const char *arg)
-+{
-+	char *tok;
-+	char *str = strdup(arg);
-+	char *pos = str;
-+
-+	if (!str) {
-+		pr_err("%s: strdup failed\n", __func__);
-+		return -1;
-+	}
-+
-+	while (true) {
-+		tok = strsep(&pos, ",");
-+		if (!tok)
-+			break;
-+		if (page_sort_dimension__add(tok, sort_list) < 0) {
-+			error("Unknown page --sort key: '%s'", tok);
- 			free(str);
- 			return -1;
- 		}
-@@ -1284,10 +1489,17 @@ static int parse_sort_opt(const struct option *opt __maybe_unused,
- 	if (!arg)
- 		return -1;
- 
--	if (caller_flag > alloc_flag)
--		return setup_sorting(&caller_sort, arg);
--	else
--		return setup_sorting(&alloc_sort, arg);
-+	if (kmem_page > kmem_slab) {
-+		if (caller_flag > alloc_flag)
-+			return setup_page_sorting(&page_caller_sort, arg);
-+		else
-+			return setup_page_sorting(&page_alloc_sort, arg);
-+	} else {
-+		if (caller_flag > alloc_flag)
-+			return setup_slab_sorting(&slab_caller_sort, arg);
-+		else
-+			return setup_slab_sorting(&slab_alloc_sort, arg);
-+	}
- 
- 	return 0;
- }
-@@ -1395,7 +1607,8 @@ static int __cmd_record(int argc, const char **argv)
- 
- int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
- {
--	const char * const default_sort_order = "frag,hit,bytes";
-+	const char * const default_slab_sort = "frag,hit,bytes";
-+	const char * const default_page_sort = "bytes,hit";
- 	struct perf_data_file file = {
- 		.mode = PERF_DATA_MODE_READ,
- 	};
-@@ -1408,8 +1621,8 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
- 	OPT_CALLBACK_NOOPT(0, "alloc", NULL, NULL,
- 			   "show per-allocation statistics", parse_alloc_opt),
- 	OPT_CALLBACK('s', "sort", NULL, "key[,key2...]",
--		     "sort by keys: ptr, call_site, bytes, hit, pingpong, frag",
--		     parse_sort_opt),
-+		     "sort by keys: ptr, callsite, bytes, hit, pingpong, frag, "
-+		     "page, order, migtype, gfp", parse_sort_opt),
- 	OPT_CALLBACK('l', "line", NULL, "num", "show n lines", parse_line_opt),
- 	OPT_BOOLEAN(0, "raw-ip", &raw_ip, "show raw ip instead of symbol"),
- 	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
-@@ -1467,11 +1680,21 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
- 		if (cpu__setup_cpunode_map())
- 			goto out_delete;
- 
--		if (list_empty(&caller_sort))
--			setup_sorting(&caller_sort, default_sort_order);
--		if (list_empty(&alloc_sort))
--			setup_sorting(&alloc_sort, default_sort_order);
--
-+		if (list_empty(&slab_caller_sort))
-+			setup_slab_sorting(&slab_caller_sort, default_slab_sort);
-+		if (list_empty(&slab_alloc_sort))
-+			setup_slab_sorting(&slab_alloc_sort, default_slab_sort);
-+		if (list_empty(&page_caller_sort))
-+			setup_page_sorting(&page_caller_sort, default_page_sort);
-+		if (list_empty(&page_alloc_sort))
-+			setup_page_sorting(&page_alloc_sort, default_page_sort);
-+
-+		if (kmem_page) {
-+			setup_page_sorting(&page_alloc_sort_input,
-+					   "page,order,migtype,gfp");
-+			setup_page_sorting(&page_caller_sort_input,
-+					   "callsite,order,migtype,gfp");
-+		}
- 		ret = __cmd_kmem(session);
- 	} else
- 		usage_with_options(kmem_usage, kmem_options);
--- 
-2.3.4
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
