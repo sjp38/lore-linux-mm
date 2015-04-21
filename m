@@ -1,88 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 020A16B0071
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 01:00:28 -0400 (EDT)
-Received: by paboj16 with SMTP id oj16so229509089pab.0
-        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 22:00:27 -0700 (PDT)
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D5996B0073
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 01:00:30 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so230171677pdb.0
+        for <linux-mm@kvack.org>; Mon, 20 Apr 2015 22:00:29 -0700 (PDT)
 Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id gv7si1139433pac.201.2015.04.20.22.00.19
+        by mx.google.com with ESMTP id r7si1189325pdl.75.2015.04.20.22.00.19
         for <linux-mm@kvack.org>;
         Mon, 20 Apr 2015 22:00:21 -0700 (PDT)
 From: Namhyung Kim <namhyung@kernel.org>
-Subject: [PATCH 6/6] perf kmem: Show warning when trying to run stat without record
-Date: Tue, 21 Apr 2015 13:55:07 +0900
-Message-Id: <1429592107-1807-7-git-send-email-namhyung@kernel.org>
+Subject: [PATCH 5/6] perf kmem: Add kmem.default config option
+Date: Tue, 21 Apr 2015 13:55:06 +0900
+Message-Id: <1429592107-1807-6-git-send-email-namhyung@kernel.org>
 In-Reply-To: <1429592107-1807-1-git-send-email-namhyung@kernel.org>
 References: <1429592107-1807-1-git-send-email-namhyung@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org
+Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Taeung Song <treeze.taeung@gmail.com>
 
-Sometimes one can mistakenly run perf kmem stat without perf kmem
-record before or different configuration like recoding --slab and stat
---page.  Show a warning message like below to inform user:
+Currently perf kmem command will select --slab if neither --slab nor
+--page is given for backward compatibility.  Add kmem.default config
+option to select the default value ('page' or 'slab').
 
-  # perf kmem stat --page --caller
-  Not found page events.  Have you run 'perf kmem record --page' before?
+  # cat ~/.perfconfig
+  [kmem]
+  	default = page
+
+  # perf kmem stat
+
+  SUMMARY (page allocator)
+  ========================
+  Total allocation requests     :            1,518   [            6,096 KB ]
+  Total free requests           :            1,431   [            5,748 KB ]
+
+  Total alloc+freed requests    :            1,330   [            5,344 KB ]
+  Total alloc-only requests     :              188   [              752 KB ]
+  Total free-only requests      :              101   [              404 KB ]
+
+  Total allocation failures     :                0   [                0 KB ]
+  ...
 
 Acked-by: Pekka Enberg <penberg@kernel.org>
+Cc: Taeung Song <treeze.taeung@gmail.com>
 Signed-off-by: Namhyung Kim <namhyung@kernel.org>
 ---
- tools/perf/builtin-kmem.c | 31 ++++++++++++++++++++++++++++---
- 1 file changed, 28 insertions(+), 3 deletions(-)
+ tools/perf/builtin-kmem.c | 32 +++++++++++++++++++++++++++++---
+ 1 file changed, 29 insertions(+), 3 deletions(-)
 
 diff --git a/tools/perf/builtin-kmem.c b/tools/perf/builtin-kmem.c
-index 828b7284e547..f29a766f18f8 100644
+index 1c668953c7ec..828b7284e547 100644
 --- a/tools/perf/builtin-kmem.c
 +++ b/tools/perf/builtin-kmem.c
-@@ -1882,6 +1882,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
- 	};
- 	struct perf_session *session;
- 	int ret = -1;
-+	const char errmsg[] = "Not found %s events.  Have you run 'perf kmem record --%s' before?\n";
+@@ -28,6 +28,10 @@ static int	kmem_slab;
+ static int	kmem_page;
  
- 	perf_config(kmem_config, NULL);
- 	argc = parse_options_subcommand(argc, argv, kmem_options,
-@@ -1908,11 +1909,35 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
- 	if (session == NULL)
+ static long	kmem_page_size;
++static enum {
++	KMEM_SLAB,
++	KMEM_PAGE,
++} kmem_default = KMEM_SLAB;  /* for backward compatibility */
+ 
+ struct alloc_stat;
+ typedef int (*sort_fn_t)(void *, void *);
+@@ -1710,7 +1714,8 @@ static int parse_sort_opt(const struct option *opt __maybe_unused,
+ 	if (!arg)
  		return -1;
  
-+	if (kmem_slab) {
-+		struct perf_evsel *evsel;
-+		bool found = false;
-+
-+		evlist__for_each(session->evlist, evsel) {
-+			if (!strcmp(perf_evsel__name(evsel), "kmem:kmalloc")) {
-+				found = true;
-+				break;
-+			}
-+		}
-+		if (!found) {
-+			pr_err(errmsg, "slab", "slab");
-+			return -1;
-+		}
+-	if (kmem_page > kmem_slab) {
++	if (kmem_page > kmem_slab ||
++	    (kmem_page == 0 && kmem_slab == 0 && kmem_default == KMEM_PAGE)) {
+ 		if (caller_flag > alloc_flag)
+ 			return setup_page_sorting(&page_caller_sort, arg);
+ 		else
+@@ -1826,6 +1831,22 @@ static int __cmd_record(int argc, const char **argv)
+ 	return cmd_record(i, rec_argv, NULL);
+ }
+ 
++static int kmem_config(const char *var, const char *value, void *cb)
++{
++	if (!strcmp(var, "kmem.default")) {
++		if (!strcmp(value, "slab"))
++			kmem_default = KMEM_SLAB;
++		else if (!strcmp(value, "page"))
++			kmem_default = KMEM_PAGE;
++		else
++			pr_err("invalid default value ('slab' or 'page' required): %s\n",
++			       value);
++		return 0;
 +	}
 +
- 	if (kmem_page) {
--		struct perf_evsel *evsel = perf_evlist__first(session->evlist);
-+		struct perf_evsel *evsel;
-+		bool found = false;
++	return perf_default_config(var, value, cb);
++}
++
+ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
+ {
+ 	const char * const default_slab_sort = "frag,hit,bytes";
+@@ -1862,14 +1883,19 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
+ 	struct perf_session *session;
+ 	int ret = -1;
  
--		if (evsel == NULL || evsel->tp_format == NULL) {
--			pr_err("invalid event found.. aborting\n");
-+		evlist__for_each(session->evlist, evsel) {
-+			if (!strcmp(perf_evsel__name(evsel),
-+				    "kmem:mm_page_alloc")) {
-+				found = true;
-+				break;
-+			}
-+		}
-+		if (!found) {
-+			pr_err(errmsg, "page", "page");
- 			return -1;
- 		}
++	perf_config(kmem_config, NULL);
+ 	argc = parse_options_subcommand(argc, argv, kmem_options,
+ 					kmem_subcommands, kmem_usage, 0);
  
+ 	if (!argc)
+ 		usage_with_options(kmem_usage, kmem_options);
+ 
+-	if (kmem_slab == 0 && kmem_page == 0)
+-		kmem_slab = 1;  /* for backward compatibility */
++	if (kmem_slab == 0 && kmem_page == 0) {
++		if (kmem_default == KMEM_SLAB)
++			kmem_slab = 1;
++		else
++			kmem_page = 1;
++	}
+ 
+ 	if (!strncmp(argv[0], "rec", 3)) {
+ 		symbol__init(NULL);
 -- 
 2.3.4
 
