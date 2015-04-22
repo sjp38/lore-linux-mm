@@ -1,88 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 301C3900015
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 19:49:34 -0400 (EDT)
-Received: by iedfl3 with SMTP id fl3so29157562ied.1
-        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 16:49:33 -0700 (PDT)
-Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
-        by mx.google.com with ESMTPS id an2si4265710igc.22.2015.04.21.16.49.33
+Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
+	by kanga.kvack.org (Postfix) with ESMTP id EAA90900015
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 20:05:43 -0400 (EDT)
+Received: by qcbii10 with SMTP id ii10so85091775qcb.2
+        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 17:05:43 -0700 (PDT)
+Received: from mail-qk0-x231.google.com (mail-qk0-x231.google.com. [2607:f8b0:400d:c09::231])
+        by mx.google.com with ESMTPS id dh6si3526821qcb.15.2015.04.21.17.05.42
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 21 Apr 2015 16:49:33 -0700 (PDT)
-Date: Tue, 21 Apr 2015 18:49:29 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Apr 2015 17:05:42 -0700 (PDT)
+Received: by qkx62 with SMTP id 62so217689942qkx.0
+        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 17:05:42 -0700 (PDT)
+Date: Tue, 21 Apr 2015 20:05:39 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
 Subject: Re: Interacting with coherent memory on external devices
-In-Reply-To: <20150421214445.GA29093@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.11.1504211839120.6294@gentwo.org>
+Message-ID: <20150422000538.GB6046@gmail.com>
 References: <20150421214445.GA29093@linux.vnet.ibm.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+ <alpine.DEB.2.11.1504211839120.6294@gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <alpine.DEB.2.11.1504211839120.6294@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: Christoph Lameter <cl@linux.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Tue, 21 Apr 2015, Paul E. McKenney wrote:
+On Tue, Apr 21, 2015 at 06:49:29PM -0500, Christoph Lameter wrote:
+> On Tue, 21 Apr 2015, Paul E. McKenney wrote:
+> 
+> > Thoughts?
+> 
+> Use DAX for memory instead of the other approaches? That way it is
+> explicitly clear what information is put on the CAPI device.
+> 
 
-> Thoughts?
+Memory on this device should not be considered as something special
+(even if it is). More below.
 
-Use DAX for memory instead of the other approaches? That way it is
-explicitly clear what information is put on the CAPI device.
+[...]
+> 
+> > 	3.	The device's memory is treated like normal system
+> > 		memory by the Linux kernel, for example, each page has a
+> > 		"struct page" associate with it.  (In contrast, the
+> > 		traditional approach has used special-purpose OS mechanisms
+> > 		to manage the device's memory, and this memory was treated
+> > 		as MMIO space by the kernel.)
+> 
+> Why do we need a struct page? If so then maybe equip DAX with a struct
+> page so that the contents of the device memory can be controlled via a
+> filesystem? (may be custom to the needs of the device).
 
-> 	Although such a device will provide CPU's with cache-coherent
+So big use case here, let say you have an application that rely on a
+scientific library that do matrix computation. Your application simply
+use malloc and give pointer to this scientific library. Now let say
+the good folks working on this scientific library wants to leverage
+the GPU, they could do it by allocating GPU memory through GPU specific
+API and copy data in and out. For matrix that can be easy enough, but
+still inefficient. What you really want is the GPU directly accessing
+this malloced chunk of memory, eventualy migrating it to device memory
+while performing the computation and migrating it back to system memory
+once done. Which means that you do not want some kind of filesystem or
+anything like that.
 
-Maybe call this coprocessor like IBM does? It is like a processor after
-all in terms of its participation in cache coherent?
+By allowing transparent migration you allow library to just start using
+the GPU without the application being non the wiser about that. More
+over when you start playing with data set that use more advance design
+pattern (list, tree, vector, a mix of all the above) you do not want
+to have to duplicate the list for the GPU address space and for the
+regular CPU address space (which you would need to do in case of a
+filesystem solution).
 
-> 	access to on-device memory, the resulting memory latency is
-> 	expected to be slower than the normal memory that is tightly
-> 	coupled to the CPUs.  Nevertheless, data that is only occasionally
-> 	accessed by CPUs should be stored in the device's memory.
-> 	On the other hand, data that is accessed rarely by the device but
-> 	frequently by the CPUs should be stored in normal system memory.
+So the corner stone of HMM and Paul requirement are the same, we want
+to be able to move normal anonymous memory as well as regular file
+backed page to device memory for some period of time while at the same
+time allowing the usual memory management to keep going as if nothing
+was different.
 
-I would expect many devices to not have *normal memory* at all (those
-that simply process some data or otherwise interface with external
-hardware like f.e. a NIC). Other devices like GPUs have local memory but
-what is in GPU memory is very specific and general OS structures should
-not be allocated there.
+Paul is working on a platform that is more advance that the one HMM try
+to address and i believe the x86 platform will not have functionality
+such a CAPI, at least it is not part of any roadmap i know about for
+x86.
 
-What I mostly would like to see is that these devices will have the
-ability to participate in the cpu cache coherency scheme. I.e. they
-will have l1/l2/l3 caches that will allow fast data exchange between the
-coprocessor and the regular processors in the system.
-
->
-> 		a.	It should be possible to migrate all data away
-> 			from the device's memory at any time.
-
-That would be device specific and only a special device driver for that
-device could save the state of the device (if that is necessary. It would
-not be for something like a NIC).
-
-> 		b.	Normal memory allocation should avoid using the
-> 			device's memory, as this would interfere
-> 			with the needed migration.  It may nevertheless
-> 			be desirable to use the device's memory
-> 			if system memory is exhausted, however, in some
-> 			cases, even this "emergency" use is best avoided.
-> 			In fact, a good solution will provide some means
-> 			for avoiding this for those cases where it is
-> 			necessary to evacuate memory when offlining the
-> 			device.
-
-Ok that seems to mean that none of the approaches suggested later would
-be useful.
-
-> 	3.	The device's memory is treated like normal system
-> 		memory by the Linux kernel, for example, each page has a
-> 		"struct page" associate with it.  (In contrast, the
-> 		traditional approach has used special-purpose OS mechanisms
-> 		to manage the device's memory, and this memory was treated
-> 		as MMIO space by the kernel.)
-
-Why do we need a struct page? If so then maybe equip DAX with a struct
-page so that the contents of the device memory can be controlled via a
-filesystem? (may be custom to the needs of the device).
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
