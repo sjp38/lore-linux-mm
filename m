@@ -1,65 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D8E71900015
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 20:58:03 -0400 (EDT)
-Received: by qgdy78 with SMTP id y78so76587661qgd.0
-        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 17:58:03 -0700 (PDT)
-Received: from e39.co.us.ibm.com (e39.co.us.ibm.com. [32.97.110.160])
-        by mx.google.com with ESMTPS id 70si3625934qgb.16.2015.04.21.17.58.02
+Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
+	by kanga.kvack.org (Postfix) with ESMTP id A336C900015
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 21:01:38 -0400 (EDT)
+Received: by qcyk17 with SMTP id k17so85634037qcy.1
+        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 18:01:38 -0700 (PDT)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id gn1si3628873qcb.26.2015.04.21.18.01.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 21 Apr 2015 17:58:02 -0700 (PDT)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Tue, 21 Apr 2015 18:58:01 -0600
-Received: from b03cxnp08028.gho.boulder.ibm.com (b03cxnp08028.gho.boulder.ibm.com [9.17.130.20])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 27EF419D803F
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 18:49:04 -0600 (MDT)
-Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by b03cxnp08028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3M0vfnw39649288
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 17:57:41 -0700
-Received: from d03av05.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3M0vxAF021715
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 18:57:59 -0600
-Date: Tue, 21 Apr 2015 17:57:57 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+        Tue, 21 Apr 2015 18:01:37 -0700 (PDT)
+Message-ID: <1429664486.27410.83.camel@kernel.crashing.org>
 Subject: Re: Interacting with coherent memory on external devices
-Message-ID: <20150422005757.GP5561@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Wed, 22 Apr 2015 11:01:26 +1000
+In-Reply-To: <alpine.DEB.2.11.1504211942040.6294@gentwo.org>
 References: <20150421214445.GA29093@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504211839120.6294@gentwo.org>
- <1429663372.27410.75.camel@kernel.crashing.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1429663372.27410.75.camel@kernel.crashing.org>
+	 <alpine.DEB.2.11.1504211839120.6294@gentwo.org>
+	 <20150422000538.GB6046@gmail.com>
+	 <alpine.DEB.2.11.1504211942040.6294@gentwo.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Jerome Glisse <j.glisse@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Wed, Apr 22, 2015 at 10:42:52AM +1000, Benjamin Herrenschmidt wrote:
-> On Tue, 2015-04-21 at 18:49 -0500, Christoph Lameter wrote:
-> > On Tue, 21 Apr 2015, Paul E. McKenney wrote:
-> > 
-> > > Thoughts?
-> > 
-> > Use DAX for memory instead of the other approaches? That way it is
-> > explicitly clear what information is put on the CAPI device.
+On Tue, 2015-04-21 at 19:50 -0500, Christoph Lameter wrote:
+
+> With a filesystem the migration can be controlled by the application. It
+> can copy stuff whenever it wants to.Having the OS do that behind my back
+> is not something that feels safe and secure.
+
+But this is not something the user wants. The filesystem model is
+completely the wrong model for us.
+
+This is fundamentally the same model as memory migrating between NUMA
+nodes except that one of these is a co-processor with its local memory.
+
+You want to malloc() some stuff or get a pointer provided by an app to
+your library and be able to farm that job out to the co-processor. No
+filesystem in the picture here.
+
+> > By allowing transparent migration you allow library to just start using
+> > the GPU without the application being non the wiser about that. More
+> > over when you start playing with data set that use more advance design
+> > pattern (list, tree, vector, a mix of all the above) you do not want
+> > to have to duplicate the list for the GPU address space and for the
+> > regular CPU address space (which you would need to do in case of a
+> > filesystem solution).
 > 
-> Care to elaborate on what DAX is ?
+> There is no need for duplication if both address spaces use the same
+> addresses. F.e. DAX would allow you to mmap arbitrary portions of memory
+> of the GPU into a process space. Since this is cache coherent both
+> processor cache and coprocessor cache would be able to hold cachelines
+> from the device or from main memory.
 
-I would like to know as well.  My first attempt to Google got me nothing
-but Star Trek.  Is DAX the persistent-memory topic covered here?
+But it won't give you transparent migration which is what this is *all*
+about.
 
-	https://lwn.net/Articles/591779/
-	https://lwn.net/Articles/610174/
+> > So the corner stone of HMM and Paul requirement are the same, we want
+> > to be able to move normal anonymous memory as well as regular file
+> > backed page to device memory for some period of time while at the same
+> > time allowing the usual memory management to keep going as if nothing
+> > was different.
+> 
+> This still sounds pretty wild and is doing major changes to core OS
+> mechanisms with little reason from that I can see. There are already
+> mechanisms in place that do what you want.
 
-Ben will correct me if I am wrong, but I do not believe that we are
-looking for persistent memory in this case.
+What "major" changes ? HMM has some changes yes, what we propose is
+about using existing mechanisms with possibly *few* changes, but we are
+trying to get that discussion going.
 
-							Thanx, Paul
+> > Paul is working on a platform that is more advance that the one HMM try
+> > to address and i believe the x86 platform will not have functionality
+> > such a CAPI, at least it is not part of any roadmap i know about for
+> > x86.
+> 
+> We will be one of the first users of Paul's Platform. Please do not do
+> crazy stuff but give us a sane solution where we can control the
+> hardware. No strange VM hooks that automatically move stuff back and forth
+> please. If you do this we will have to disable them anyways because they
+> would interfere with our needs to have the code not be disturbed by random
+> OS noise. We need detailed control as to when and how we move data.
+
+There is strictly nothing *sane* about requiring the workload to be put
+into files that have to be explicitly moved around. This is utterly
+backward. We aren't talking about CAPI based flash storage here, we are
+talking about a coprocessor that can be buried under library,
+accelerating existing APIs, which are going to take existing pointers
+themselves being mmap'ed file, anonymous memory, or whatever else the
+application choses to use.
+
+This is the model that GPU *users* have been pushing for over and over
+again, that some NIC vendors want as well (with HMM initially) etc... 
+
+Ben.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
