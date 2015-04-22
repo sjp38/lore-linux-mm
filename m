@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id CDBFE6B0070
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2015 13:08:04 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so186109012wiz.1
-        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 10:08:04 -0700 (PDT)
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F2496B0071
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2015 13:08:07 -0400 (EDT)
+Received: by wgyo15 with SMTP id o15so254011218wgy.2
+        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 10:08:07 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ey16si9988543wid.49.2015.04.22.10.08.01
+        by mx.google.com with ESMTPS id z1si9982302wix.56.2015.04.22.10.08.02
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 22 Apr 2015 10:08:01 -0700 (PDT)
+        Wed, 22 Apr 2015 10:08:02 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 03/13] mm: meminit: Only set page reserved in the memblock region
-Date: Wed, 22 Apr 2015 18:07:43 +0100
-Message-Id: <1429722473-28118-4-git-send-email-mgorman@suse.de>
+Subject: [PATCH 04/13] mm: page_alloc: Pass PFN to __free_pages_bootmem
+Date: Wed, 22 Apr 2015 18:07:44 +0100
+Message-Id: <1429722473-28118-5-git-send-email-mgorman@suse.de>
 In-Reply-To: <1429722473-28118-1-git-send-email-mgorman@suse.de>
 References: <1429722473-28118-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,76 +20,124 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Nathan Zimmer <nzimmer@sgi.com>
+__free_pages_bootmem prepares a page for release to the buddy allocator
+and assumes that the struct page is initialised. Parallel initialisation of
+struct pages defers initialisation and __free_pages_bootmem can be called
+for struct pages that cannot yet map struct page to PFN.  This patch passes
+PFN to __free_pages_bootmem with no other functional change.
 
-Currently we when we initialze each page struct is set as reserved upon
-initialization.  This changes to starting with the reserved bit clear and
-then only setting the bit in the reserved region.
-
-Signed-off-by: Robin Holt <holt@sgi.com>
-Signed-off-by: Nathan Zimmer <nzimmer@sgi.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/mm.h |  2 ++
- mm/nobootmem.c     |  3 +++
- mm/page_alloc.c    | 11 ++++++++++-
- 3 files changed, 15 insertions(+), 1 deletion(-)
+ mm/bootmem.c    | 8 ++++----
+ mm/internal.h   | 3 ++-
+ mm/memblock.c   | 2 +-
+ mm/nobootmem.c  | 4 ++--
+ mm/page_alloc.c | 3 ++-
+ 5 files changed, 11 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 47a93928b90f..b6f82a31028a 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1711,6 +1711,8 @@ extern void free_highmem_page(struct page *page);
- extern void adjust_managed_page_count(struct page *page, long count);
- extern void mem_init_print_info(const char *str);
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index 477be696511d..daf956bb4782 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -164,7 +164,7 @@ void __init free_bootmem_late(unsigned long physaddr, unsigned long size)
+ 	end = PFN_DOWN(physaddr + size);
  
-+extern void reserve_bootmem_region(unsigned long start, unsigned long end);
-+
- /* Free the reserved page into the buddy system, so it gets managed. */
- static inline void __free_reserved_page(struct page *page)
- {
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index 90b50468333e..396f9e450dc1 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -121,6 +121,9 @@ static unsigned long __init free_low_memory_core_early(void)
+ 	for (; cursor < end; cursor++) {
+-		__free_pages_bootmem(pfn_to_page(cursor), 0);
++		__free_pages_bootmem(pfn_to_page(cursor), cursor, 0);
+ 		totalram_pages++;
+ 	}
+ }
+@@ -210,7 +210,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+ 		if (IS_ALIGNED(start, BITS_PER_LONG) && vec == ~0UL) {
+ 			int order = ilog2(BITS_PER_LONG);
  
- 	memblock_clear_hotplug(0, -1);
+-			__free_pages_bootmem(pfn_to_page(start), order);
++			__free_pages_bootmem(pfn_to_page(start), start, order);
+ 			count += BITS_PER_LONG;
+ 			start += BITS_PER_LONG;
+ 		} else {
+@@ -220,7 +220,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+ 			while (vec && cur != start) {
+ 				if (vec & 1) {
+ 					page = pfn_to_page(cur);
+-					__free_pages_bootmem(page, 0);
++					__free_pages_bootmem(page, cur, 0);
+ 					count++;
+ 				}
+ 				vec >>= 1;
+@@ -234,7 +234,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+ 	pages = bootmem_bootmap_pages(pages);
+ 	count += pages;
+ 	while (pages--)
+-		__free_pages_bootmem(page++, 0);
++		__free_pages_bootmem(page++, cur++, 0);
  
-+	for_each_reserved_mem_region(i, &start, &end)
-+		reserve_bootmem_region(start, end);
-+
- 	for_each_free_mem_range(i, NUMA_NO_NODE, &start, &end, NULL)
- 		count += __free_memory_core(start, end);
+ 	bdebug("nid=%td released=%lx\n", bdata - bootmem_node_data, count);
  
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index fd7a6d09062d..2abb3b861e70 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -788,7 +788,6 @@ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
- 	init_page_count(page);
- 	page_mapcount_reset(page);
- 	page_cpupid_reset_last(page);
--	SetPageReserved(page);
- 
- 	/*
- 	 * Mark the block movable so that blocks are reserved for
-@@ -823,6 +822,16 @@ static void __meminit __init_single_pfn(unsigned long pfn, unsigned long zone,
- 	return __init_single_page(pfn_to_page(pfn), pfn, zone, nid);
+diff --git a/mm/internal.h b/mm/internal.h
+index a96da5b0029d..76b605139c7a 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -155,7 +155,8 @@ __find_buddy_index(unsigned long page_idx, unsigned int order)
  }
  
-+void reserve_bootmem_region(unsigned long start, unsigned long end)
-+{
-+	unsigned long start_pfn = PFN_DOWN(start);
-+	unsigned long end_pfn = PFN_UP(end);
-+
-+	for (; start_pfn < end_pfn; start_pfn++)
-+		if (pfn_valid(start_pfn))
-+			SetPageReserved(pfn_to_page(start_pfn));
-+}
-+
- static bool free_pages_prepare(struct page *page, unsigned int order)
+ extern int __isolate_free_page(struct page *page, unsigned int order);
+-extern void __free_pages_bootmem(struct page *page, unsigned int order);
++extern void __free_pages_bootmem(struct page *page, unsigned long pfn,
++					unsigned int order);
+ extern void prep_compound_page(struct page *page, unsigned long order);
+ #ifdef CONFIG_MEMORY_FAILURE
+ extern bool is_free_buddy_page(struct page *page);
+diff --git a/mm/memblock.c b/mm/memblock.c
+index e0cc2d174f74..f3e97d8eeb5c 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1334,7 +1334,7 @@ void __init __memblock_free_late(phys_addr_t base, phys_addr_t size)
+ 	end = PFN_DOWN(base + size);
+ 
+ 	for (; cursor < end; cursor++) {
+-		__free_pages_bootmem(pfn_to_page(cursor), 0);
++		__free_pages_bootmem(pfn_to_page(cursor), cursor, 0);
+ 		totalram_pages++;
+ 	}
+ }
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index 396f9e450dc1..bae652713ee5 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -77,7 +77,7 @@ void __init free_bootmem_late(unsigned long addr, unsigned long size)
+ 	end = PFN_DOWN(addr + size);
+ 
+ 	for (; cursor < end; cursor++) {
+-		__free_pages_bootmem(pfn_to_page(cursor), 0);
++		__free_pages_bootmem(pfn_to_page(cursor), cursor, 0);
+ 		totalram_pages++;
+ 	}
+ }
+@@ -92,7 +92,7 @@ static void __init __free_pages_memory(unsigned long start, unsigned long end)
+ 		while (start + (1UL << order) > end)
+ 			order--;
+ 
+-		__free_pages_bootmem(pfn_to_page(start), order);
++		__free_pages_bootmem(pfn_to_page(start), start, order);
+ 
+ 		start += (1UL << order);
+ 	}
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2abb3b861e70..0a0e0f280d87 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -886,7 +886,8 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 	local_irq_restore(flags);
+ }
+ 
+-void __init __free_pages_bootmem(struct page *page, unsigned int order)
++void __init __free_pages_bootmem(struct page *page, unsigned long pfn,
++							unsigned int order)
  {
- 	bool compound = PageCompound(page);
+ 	unsigned int nr_pages = 1 << order;
+ 	struct page *p = page;
 -- 
 2.1.2
 
