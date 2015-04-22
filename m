@@ -1,48 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id BDCC96B006C
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2015 15:26:56 -0400 (EDT)
-Received: by iedfl3 with SMTP id fl3so50977055ied.1
-        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 12:26:56 -0700 (PDT)
-Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com. [2607:f8b0:4001:c03::22b])
-        by mx.google.com with ESMTPS id so2si5278708icb.67.2015.04.22.12.26.56
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id BAA486B0032
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2015 17:00:41 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so284315658pdb.1
+        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 14:00:41 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id j2si9392679pdr.77.2015.04.22.14.00.40
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Apr 2015 12:26:56 -0700 (PDT)
-Received: by iejt8 with SMTP id t8so45390650iej.2
-        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 12:26:56 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150422183309.GA4351@node.dhcp.inet.fi>
-References: <20150418205656.GA7972@pd.tnic>
-	<CA+55aFxfGOw7VNqpDN2hm+P8w-9F2pVZf+VN9rZnDqGXe2VQTg@mail.gmail.com>
-	<20150418215656.GA13928@node.dhcp.inet.fi>
-	<CA+55aFxMx8xmWq7Dszu9h9dZQPGn7hj5GRBrJzh1hsQV600z9w@mail.gmail.com>
-	<20150418220803.GB7972@pd.tnic>
-	<20150422131219.GD6897@pd.tnic>
-	<20150422183309.GA4351@node.dhcp.inet.fi>
-Date: Wed, 22 Apr 2015 12:26:55 -0700
-Message-ID: <CA+55aFx5NXDUsyd2qjQ+Uu3mt9Fw4HrsonzREs9V0PhHwWmGPQ@mail.gmail.com>
-Subject: Re: kernel BUG at mm/swap.c:134! - page dumped because:
- VM_BUG_ON_PAGE(page_mapcount(page) != 0)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+        Wed, 22 Apr 2015 14:00:40 -0700 (PDT)
+Date: Wed, 22 Apr 2015 14:00:39 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm/slab_common: Support the slub_debug boot option
+ on specific object size
+Message-Id: <20150422140039.19812721dff3fec674dc5134@linux-foundation.org>
+In-Reply-To: <1429691618-13884-1-git-send-email-gavin.guo@canonical.com>
+References: <1429691618-13884-1-git-send-email-gavin.guo@canonical.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Borislav Petkov <bp@alien8.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, x86-ml <x86@kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Gavin Guo <gavin.guo@canonical.com>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Apr 22, 2015 at 11:33 AM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
->
-> Could you try patch below instead? This can give a clue what's going on.
+On Wed, 22 Apr 2015 16:33:38 +0800 Gavin Guo <gavin.guo@canonical.com> wrote:
 
-Just FYI, I've done the revert in my tree.
+> The slub_debug=PU,kmalloc-xx cannot work because in the
+> create_kmalloc_caches() the s->name is created after the
+> create_kmalloc_cache() is called. The name is NULL in the
+> create_kmalloc_cache() so the kmem_cache_flags() would not set the
+> slub_debug flags to the s->flags. The fix here set up a kmalloc_names
+> string array for the initialization purpose and delete the dynamic
+> name creation of kmalloc_caches.
+> 
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -793,6 +793,26 @@ void __init create_kmalloc_caches(unsigned long flags)
+>  	int i;
+>  
+>  	/*
+> +	 * The kmalloc_names is for temporary usage to make
+> +	 * slub_debug=,kmalloc-xx option work in the boot time. The
+> +	 * kmalloc_index() support to 2^26=64MB. So, the final entry of the
+> +	 * table is kmalloc-67108864.
+> +	 */
+> +	static const char *kmalloc_names[] = {
+> +		"0",			"kmalloc-96",		"kmalloc-192",
+> +		"kmalloc-8",		"kmalloc-16",		"kmalloc-32",
+> +		"kmalloc-64",		"kmalloc-128",		"kmalloc-256",
+> +		"kmalloc-512",		"kmalloc-1024",		"kmalloc-2048",
+> +		"kmalloc-4196",		"kmalloc-8192",		"kmalloc-16384",
+> +		"kmalloc-32768",	"kmalloc-65536",
+> +		"kmalloc-131072",	"kmalloc-262144",
+> +		"kmalloc-524288",	"kmalloc-1048576",
+> +		"kmalloc-2097152",	"kmalloc-4194304",
+> +		"kmalloc-8388608",	"kmalloc-16777216",
+> +		"kmalloc-33554432",	"kmalloc-67108864"
+> +	};
+> +
+> +	/*
+>  	 * Patch up the size_index table if we have strange large alignment
+>  	 * requirements for the kmalloc array. This is only the case for
+>  	 * MIPS it seems. The standard arches will not generate any code here.
+> @@ -835,7 +855,8 @@ void __init create_kmalloc_caches(unsigned long flags)
+>  	}
+>  	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
+>  		if (!kmalloc_caches[i]) {
+> -			kmalloc_caches[i] = create_kmalloc_cache(NULL,
+> +			kmalloc_caches[i] = create_kmalloc_cache(
+> +							kmalloc_names[i],
+>  							1 << i, flags);
+>  		}
 
-Trying to figure out what is going on despite that is obviously a good
-idea, but I'm hoping that my merge window is winding down, so I am
-trying to make sure it's all "good to go"..
+You could do something like
 
-           Linus
+		kmalloc_caches[i] = create_kmalloc_cache(
+					kmalloc_names[i],
+					kstrtoul(kmalloc_names[i] + 8),
+					flags);
+
+here, and remove those weird "96" and "192" cases.
+
+Or if that's considered too messy, make it
+
+	static const struct {
+		const char *name;
+		unsigned size;
+	} kmalloc_cache_info[] = {
+		{ NULL, 0 },
+		{ "kmalloc-96", 96 },
+		...
+	};
+
+but I'm thinking the kstrtoul() trick will be OK.
+
+> -	for (i = 0; i <= KMALLOC_SHIFT_HIGH; i++) {
+> -		struct kmem_cache *s = kmalloc_caches[i];
+> -		char *n;
+> -
+> -		if (s) {
+> -			n = kasprintf(GFP_NOWAIT, "kmalloc-%d", kmalloc_size(i));
+> -
+> -			BUG_ON(!n);
+> -			s->name = n;
+> -		}
+> -	}
+> -
+
+slab_kmem_cache_release() still does kfree_const(s->name).  It will
+crash?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
