@@ -1,283 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F9726B0032
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2015 15:01:18 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so282174568pde.3
-        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 12:01:17 -0700 (PDT)
-Received: from mail-pd0-x22f.google.com (mail-pd0-x22f.google.com. [2607:f8b0:400e:c02::22f])
-        by mx.google.com with ESMTPS id hj2si8962599pbc.103.2015.04.22.12.01.16
+Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B4886B006C
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2015 15:07:36 -0400 (EDT)
+Received: by qcyk17 with SMTP id k17so98879938qcy.1
+        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 12:07:36 -0700 (PDT)
+Received: from mail-qc0-x22a.google.com (mail-qc0-x22a.google.com. [2607:f8b0:400d:c01::22a])
+        by mx.google.com with ESMTPS id g88si5925780qgf.66.2015.04.22.12.07.35
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Apr 2015 12:01:17 -0700 (PDT)
-Received: by pdea3 with SMTP id a3so282174145pde.3
-        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 12:01:16 -0700 (PDT)
-Date: Wed, 22 Apr 2015 12:01:14 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [RFC v7 2/2] mm: swapoff prototype: frontswap handling added
-In-Reply-To: <20150319105545.GA8156@kelleynnn-virtual-machine>
-Message-ID: <alpine.LSU.2.11.1504221159230.1452@eggly.anvils>
-References: <20150319105545.GA8156@kelleynnn-virtual-machine>
+        Wed, 22 Apr 2015 12:07:35 -0700 (PDT)
+Received: by qcbii10 with SMTP id ii10so98872505qcb.2
+        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 12:07:35 -0700 (PDT)
+Date: Wed, 22 Apr 2015 15:07:31 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: Interacting with coherent memory on external devices
+Message-ID: <20150422190730.GC4062@gmail.com>
+References: <20150421214445.GA29093@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1504211839120.6294@gentwo.org>
+ <1429663372.27410.75.camel@kernel.crashing.org>
+ <20150422005757.GP5561@linux.vnet.ibm.com>
+ <1429664686.27410.84.camel@kernel.crashing.org>
+ <alpine.DEB.2.11.1504221020160.24979@gentwo.org>
+ <20150422163135.GA4062@gmail.com>
+ <alpine.DEB.2.11.1504221206080.25607@gentwo.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <alpine.DEB.2.11.1504221206080.25607@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kelley Nielsen <kelleynnn@gmail.com>
-Cc: linux-mm@kvack.org, riel@surriel.com, riel@redhat.com, opw-kernel@googlegroups.com, hughd@google.com, akpm@linux-foundation.org, jamieliu@google.com, sjenning@linux.vnet.ibm.com, sarah.a.sharp@intel.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, paulmck@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Thu, 19 Mar 2015, Kelley Nielsen wrote:
+On Wed, Apr 22, 2015 at 12:14:50PM -0500, Christoph Lameter wrote:
+> On Wed, 22 Apr 2015, Jerome Glisse wrote:
 > 
-> The prototype of the new swapoff (without the quadratic complexity)
-> presently ignores the frontswap case. Pass the count of
-> pages_to_unuse down the page table walks in try_to_unuse(),
-> and return from the walk when the desired number of pages
-> has been swapped back in.
+> > Glibc hooks will not work, this is about having same address space on
+> > CPU and GPU/accelerator while allowing backing memory to be regular
+> > system memory or device memory all this in a transparent manner to
+> > userspace program and library.
 > 
-> Signed-off-by: Kelley Nielsen <kelleynnn@gmail.com>
-> ---
-> Changes since v6:
+> If you control the address space used by malloc and provide your own
+> implementation then I do not see why this would not work.
+
+mmaped file, shared memory, anonymous memory allocated outside the control
+of the library that want to use the GPU. I keep repeating myself i dunno
+what words are wrong.
+
 > 
-> - In try_to_unuse(), copy pages_to_unuse to local fs_pages_to_unuse
->   and pass by reference (instead of value) down the page table walk
-> - create #define FRONTSWAP_PAGES_UNUSED to pass special code
->   back up the chain from unuse_pte_range()
-> - Test for this return code in try_to_unuse() and exit before
->   orphans cleanup and retries
-> - In unuse_pte_range, move decrement of frontswap pages count
->   next to call to delete_from_swap_cache(), so that it happens
->   on every unused swap slot instead of every pte unmap
-> - Remove unnecessary goto after call to unuse_mm() in try_to_unuse()
-> - Remove blank line in shmem.c/shmem_unuse_inode()
+> > You also have to think at things like mmaped file, let say you have a
+> > big file on disk and you want to crunch number from its data, you do
+> > not want to copy it, instead you want to to the usual mmap and just
+> > have device driver do migration to device memory (how device driver
+> > make the decision is a different problem and this can be entirely
+> > leave to the userspace application or their can be heuristic or both).
+> 
+> If the data is on disk then you cannot access it. If its in the page cache
+> or in the device then you can mmap it. Not sure how you could avoid a copy
+> unless the device can direct read from disk via another controller.
+> 
 
-Some of those seem just cleanups to fold into the previous patch.
+Page cache page are allocated by the kernel how do you propose we map
+them to the device transparently without touching a single line of
+kernel code ?
 
-I'd be okay if you just folded the two patches together, but if
-you prefer to handle the frontswap partial case in this separate
-patch, that's fine.
+Moreover yes there are disk where you can directly map each disk page to
+the device without ever allocating a page and copying the data (some ssd
+on pcie device allows that).
 
-> ---
->  mm/swapfile.c | 60 +++++++++++++++++++++++++++++++++++++++++------------------
->  1 file changed, 42 insertions(+), 18 deletions(-)
 
-This is incomplete: why no change to shmem_unuse_inode()?
-You're often unable to satisfy frontswap's demand without that.
+> > Glibc hooks do not work with share memory either and again this is
+> > a usecase we care about. You really have to think of let's have today
+> > applications start using those accelerators without the application
+> > even knowing about it.
+> 
+> Applications always have to be reworked. This does not look like a high
+> performance solution but some sort way of emulation for legacy code? HPC
+> codes are mostly written to the hardware and they will be modified as
+> needed to use maximum performance that the hardware will permit.
 
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 79c47b6..e4f5289 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -1144,9 +1144,11 @@ out_nolock:
->  	return ret;
->  }
->  
-> +#define FRONTSWAP_PAGES_UNUSED 2
+No, application do not need to be rewritten and that is the point i am
+trying to get accross and you keep denying. Many applications use library
+to perform scientific computation, this is very common, and you only need
+to port the library. In today world if you want to leverage the GPU you
+will have to perform copy of all data the application submit to the library.
+Only people writting the library would need to know about efficient algo
+for GPU and the application can be left alone ignoring all the gory
+details.
 
-Okay, that'll work.  But I wonder why you chose 2 rather than the
-more obvious 1 - coupled with the name, it makes it sound like a
-number of pages.
+Now with solution we are proposing there will be no copy, the malloced
+memory of the application will be accessible to the GPU transparently.
+This is not the case today. Today you need to use specialize allocator
+if you want to use same kind of address space. We want to move away from
+that model. What is it you do not understand here ?
 
-(Personally I'd have gone for a different approach, returning the
-negative error, or the number of pages still to be unused: that
-has the benefit that you get out of long scans sooner, even in
-the non-frontswap case: once si->inuse_pages falls to 0, there's
-no more work to be done.  Or perhaps you tried that way, but it
-doesn't work out - might need exporting info from swapfile.c to
-shmem.c.)
+> 
+> > So you would not know before hand what will end up being use by the
+> > GPU/accelerator and would need to be allocated from special memory.
+> > We do not want today model of using GPU, we want to provide tomorrow
+> > infrastructure for using GPU in a transparent way.
+> 
+> Urm... Then provide hardware that actually givse you a performance
+> benefit instead of proposing some weird software solution that
+> makes old software work? Transparency with the random varying latencies
+> that you propose will kill performance of MPI jobs as well as make the
+> system unusable for financial applications. This seems be wrong all
+> around.
 
->  static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
->  				unsigned long addr, unsigned long end,
-> -				unsigned int type)
-> +				unsigned int type,
-> +				unsigned long *fs_pages_to_unuse)
->  {
->  	struct page *page;
->  	swp_entry_t entry;
-> @@ -1169,6 +1171,8 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
->  			continue;
->  		if (found_type != type)
->  			continue;
-> +		if ((*fs_pages_to_unuse > 0) && (!frontswap_test(si, offset)))
-> +				continue;
+I have repeated numerous time what is propose here will not imped in any
+way your precious low latencies workload on contrary it will benefit you.
 
-There's a tab too many on the line above.
- 
->  		swap_map = &si->swap_map[offset];
->  		if (!swap_count(*swap_map))
-> @@ -1205,11 +1209,18 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
->  		if (PageSwapCache(page) && (swap_count(*swap_map) == 0)) {
->  			wait_on_page_writeback(page);
->  			delete_from_swap_cache(page);
-> +			if (*fs_pages_to_unuse > 0) {
-> +				(*fs_pages_to_unuse)--;
-> +				if (*fs_pages_to_unuse == 0)
-> +					ret = FRONTSWAP_PAGES_UNUSED;
-> +			}
->  		}
->  
->  		SetPageDirty(page);
->  		unlock_page(page);
->  		page_cache_release(page);
-> +		if (ret == FRONTSWAP_PAGES_UNUSED)
-> +			goto out;
->  try_next:
->  		pte = pte_offset_map(pmd, addr);
->  	} while (pte++, addr += PAGE_SIZE, addr != end);
-> @@ -1220,7 +1231,8 @@ out:
->  
->  static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
->  				unsigned long addr, unsigned long end,
-> -				unsigned int type)
-> +				unsigned int type,
-> +				unsigned long *fs_pages_to_unuse)
->  {
->  	pmd_t *pmd;
->  	unsigned long next;
-> @@ -1231,8 +1243,9 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
->  		next = pmd_addr_end(addr, end);
->  		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
->  			continue;
-> -		ret = unuse_pte_range(vma, pmd, addr, next, type);
-> -		if (ret < 0)
-> +		ret = unuse_pte_range(vma, pmd, addr, next, type,
-> +				fs_pages_to_unuse);
-> +		if (ret < 0 || ret == 2)
+Is it be easier to debug an application where you do not need different
+interpretation for pointer value depending if an object is allocated for
+GPU or if it is allocated for CPU ? Don't you think that avoinding
+different address space is not a benefit ?
 
-FRONTSWAP_PAGES_UNUSED there.
+That you will not benefit from automatic memory migration is a given, i
+repeatly acknownlegded that point but you just seems to ignore that. I
+also repeatedly said that what we propose will in noway forbid total
+control by application that want such control. So yes you will not
+benefit from numa migration but you are not alone and thousand of others
+application will benefit from it. Please stop seeing the world through
+the only use case you know and care about.
 
->  			return ret;
->  	} while (pmd++, addr = next, addr != end);
->  	return 0;
-> @@ -1240,7 +1253,8 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
->  
->  static inline int unuse_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
->  				unsigned long addr, unsigned long end,
-> -				unsigned int type)
-> +				unsigned int type,
-> +				unsigned long *fs_pages_to_unuse)
->  {
->  	pud_t *pud;
->  	unsigned long next;
-> @@ -1251,14 +1265,16 @@ static inline int unuse_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
->  		next = pud_addr_end(addr, end);
->  		if (pud_none_or_clear_bad(pud))
->  			continue;
-> -		ret = unuse_pmd_range(vma, pud, addr, next, type);
-> -		if (ret < 0)
-> +		ret = unuse_pmd_range(vma, pud, addr, next, type,
-> +				fs_pages_to_unuse);
-> +		if (ret < 0 || ret == 2)
 
-FRONTSWAP_PAGES_UNUSED there.
+> 
+> > I understand that the application you care about wants to be clever
+> > and can make better decission and we intend to support that, but this
+> > does not need to be at the expense of all the others applications.
+> > Like i said numerous time the decission to migrate memory is a device
+> > driver decission and how the device driver make that decission can
+> > be entirely control by userspace through proper device driver API.
+> 
+> What application would be using this? HPC probably not given the
+> sensitivity to random latencies. Hadoop style stuff?
 
->  			return ret;
->  	} while (pud++, addr = next, addr != end);
->  	return 0;
->  }
->  
-> -static int unuse_vma(struct vm_area_struct *vma, unsigned int type)
-> +static int unuse_vma(struct vm_area_struct *vma, unsigned int type,
-> +		unsigned long *fs_pages_to_unuse)
->  {
->  	pgd_t *pgd;
->  	unsigned long addr, end, next;
-> @@ -1272,14 +1288,16 @@ static int unuse_vma(struct vm_area_struct *vma, unsigned int type)
->  		next = pgd_addr_end(addr, end);
->  		if (pgd_none_or_clear_bad(pgd))
->  			continue;
-> -		ret = unuse_pud_range(vma, pgd, addr, next, type);
-> -		if (ret < 0)
-> +		ret = unuse_pud_range(vma, pgd, addr, next, type,
-> +				fs_pages_to_unuse);
-> +		if (ret < 0 || ret == 2)
+Again think any application that link against some library that can
+benefit from GPU like https://www.gnu.org/software/gsl/ and countless
+others. There is a whole word of application that do not run on HPC and
+that can benefit from that. Even a standard office suite or even your
+mail client to search string inside your mail database.
 
-FRONTSWAP_PAGES_UNUSED there.
+It is a matter of enabling those application to transparently use the
+GPU in a way that does not need each of their programmer to deal with
+separate address space or details of each GPU to know when to migrate
+or not memory. Like i said for those proper heuristic will give good
+results and again and again your application can stay in total control
+if it believes it will make better decission.
 
->  			return ret;
->  	} while (pgd++, addr = next, addr != end);
->  	return 0;
->  }
->  
-> -static int unuse_mm(struct mm_struct *mm, unsigned int type)
-> +static int unuse_mm(struct mm_struct *mm, unsigned int type,
-> +		unsigned long *fs_pages_to_unuse)
->  {
->  	struct vm_area_struct *vma;
->  	int ret = 0;
-> @@ -1287,7 +1305,7 @@ static int unuse_mm(struct mm_struct *mm, unsigned int type)
->  	down_read(&mm->mmap_sem);
->  	for (vma = mm->mmap; vma; vma = vma->vm_next) {
->  		if (vma->anon_vma) {
-> -			ret = unuse_vma(vma, type);
-> +			ret = unuse_vma(vma, type, fs_pages_to_unuse);
->  			if (ret)
->  				break;
->  		}
-> @@ -1342,7 +1360,6 @@ static unsigned int find_next_to_unuse(struct swap_info_struct *si,
->  	return i;
->  }
->  
-> -/* TODO: frontswap */
->  #define MAX_RETRIES 3
->  int try_to_unuse(unsigned int type, bool frontswap,
->  		 unsigned long pages_to_unuse)
-> @@ -1354,10 +1371,14 @@ int try_to_unuse(unsigned int type, bool frontswap,
->  	struct swap_info_struct *si = swap_info[type];
->  	struct page *page;
->  	swp_entry_t entry;
-> +	unsigned long fs_pages_to_unuse = 0;
->  	unsigned int i = 0;
->  	unsigned int oldi = 0;
->  	int retries = 0;
->  
-> +	if (frontswap)
-> +		fs_pages_to_unuse = pages_to_unuse;
-> +
+> 
+> > Bottom line is we want today anonymous, share or file mapped memory
+> > to stay the only kind of memory that exist and we want to choose the
+> > backing store of each of those kind for better placement depending
+> > on how memory is use (again which can be in the total control of
+> > the application). But we do not want to introduce a third kind of
+> > disjoint memory to userspace, this is today situation and we want
+> > to move forward to tomorrow solution.
+> 
+> Frankly, I do not see any benefit here, nor a use case and I wonder who
+> would adopt this. The future requires higher performance and not more band
+> aid.
 
-If you wish.  But I can't see why you don't just use pages_to_unuse
-throughout.  (That "bool frontswap" in the interface was always silly.)
+Well all i can tell you is that if you go to any conference where there are
+people doing GPGPU they will  almost all tells you they would love unified
+address space. Why in hell do you think the OpenCL 2.0 specification makes
+that a corner stone, with different level of support, the lowest level being
+what we have today using special allocator.
 
->  retry:
->  	retval = shmem_unuse(type);
->  	if (retval)
-> @@ -1381,9 +1402,7 @@ retry:
->  		mmput(prev_mm);
->  		prev_mm = mm;
->  
-> -		retval = unuse_mm(mm, type);
-> -		if (retval)
-> -			goto out_put;
-> +		retval = unuse_mm(mm, type, &fs_pages_to_unuse);
->  
->  		/*
->  		 * Make sure that we aren't completely killing
-> @@ -1396,8 +1415,13 @@ retry:
->  
->  out_put:
->  	mmput(prev_mm);
-> -	if (retval)
-> +	if (retval < 0)
-> +		goto out;
-> +	if (retval == FRONTSWAP_PAGES_UNUSED) {
-> +		retval = 0;
->  		goto out;
-> +	}
-> +
->  	while ((i = find_next_to_unuse(si, i, frontswap)) != 0) {
->  		/*
->  		 * under global memory pressure, swap entries
-> @@ -1410,7 +1434,7 @@ out_put:
->  		 */
->  		if (i < oldi) {
->  			retries++;
-> -			if (retries > MAX_RETRIES) {
-> +			if ((retries > MAX_RETRIES) || frontswap) {
+There is a whole industry out there spending billions of dollars on what
+you call a band aid. Don't you think they have a market for it ?
 
-I don't understand why you omit retrying in the frontswap case?
-
->  				retval = -EBUSY;
->  				goto out;
->  			}
-> -- 
-> 1.8.3.2
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
