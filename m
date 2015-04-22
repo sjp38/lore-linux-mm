@@ -1,84 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 44A6D6B0032
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2015 13:07:43 -0400 (EDT)
-Received: by qgeb100 with SMTP id b100so86638331qge.3
-        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 10:07:43 -0700 (PDT)
-Received: from mail-qk0-x233.google.com (mail-qk0-x233.google.com. [2607:f8b0:400d:c09::233])
-        by mx.google.com with ESMTPS id o7si5592551qko.101.2015.04.22.10.07.42
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id A4A586B0038
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2015 13:07:58 -0400 (EDT)
+Received: by wiun10 with SMTP id n10so64924282wiu.1
+        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 10:07:58 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id et2si9956710wib.90.2015.04.22.10.07.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Apr 2015 10:07:42 -0700 (PDT)
-Received: by qkx62 with SMTP id 62so231026286qkx.0
-        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 10:07:42 -0700 (PDT)
-Date: Wed, 22 Apr 2015 13:07:38 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: Interacting with coherent memory on external devices
-Message-ID: <20150422170737.GB4062@gmail.com>
-References: <20150421214445.GA29093@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504211839120.6294@gentwo.org>
- <20150422000538.GB6046@gmail.com>
- <alpine.DEB.2.11.1504211942040.6294@gentwo.org>
- <20150422131832.GU5561@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 22 Apr 2015 10:07:57 -0700 (PDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [RFC PATCH 0/14] Parallel struct page initialisation v5r4
+Date: Wed, 22 Apr 2015 18:07:40 +0100
+Message-Id: <1429722473-28118-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: Linux-MM <linux-mm@kvack.org>
+Cc: Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Wed, Apr 22, 2015 at 11:16:49AM -0500, Christoph Lameter wrote:
-> On Wed, 22 Apr 2015, Paul E. McKenney wrote:
-> 
-> > I completely agree that some critically important use cases, such as
-> > yours, will absolutely require that the application explicitly choose
-> > memory placement and have the memory stay there.
-> 
-> 
-> 
-> Most of what you are trying to do here is already there and has been done.
-> GPU memory is accessible. NICs work etc etc. All without CAPI. What
-> exactly are the benefits of CAPI? Is driver simplification? Reduction of
-> overhead? If so then the measures proposed are a bit radical and
-> may result in just the opposite.
-> 
+Changelog since v1
+o Always initialise low zones
+o Typo corrections
+o Rename parallel mem init to parallel struct page init
+o Rebase to 4.0
 
-No, what Paul is trying to do, and what i am trying to do with HMM, does
-not exist. This is share address space btw CPU and GPU/accelerator and
-leveraging GPU local memory transparently at the same time.
+Struct page initialisation had been identified as one of the reasons why
+large machines take a long time to boot. Patches were posted a long time ago
+to defer initialisation until they were first used.  This was rejected on
+the grounds it should not be necessary to hurt the fast paths. This series
+reuses much of the work from that time but defers the initialisation of
+memory to kswapd so that one thread per node initialises memory local to
+that node.
 
-Today world is GPU have different address space and complex data structure
-like list or tree need to be replicated accross different address space.
-You might not care for this but for lot of application this is a show
-stopper and the outcome is using GPU is too complex because of that.
+After applying the series and setting the appropriate Kconfig variable I
+see this in the boot log on a 64G machine
 
-Now if you have the exact same address space then structure you have on
-the CPU are exactly view in the same way on the GPU and you can start
-porting library to leverage GPU without having to change a single line of
-code inside many many many applications. It is also lot easier to debug
-things as you do not have to strungly with two distinct address space.
+[    7.383764] kswapd 0 initialised deferred memory in 188ms
+[    7.404253] kswapd 1 initialised deferred memory in 208ms
+[    7.411044] kswapd 3 initialised deferred memory in 216ms
+[    7.411551] kswapd 2 initialised deferred memory in 216ms
 
-Finaly, leveraging transparently the local GPU memory is the only way to
-reach the full potential of the GPU. GPU are all about bandwidth and GPU
-local memory have bandwidth far greater than any system memory i know
-about. Here again if you can transparently leverage this memory without
-the application ever needing to know about such subtlety.
+On a 1TB machine, I see
 
+[   11.913324] kswapd 0 initialised deferred memory in 1168ms
+[   12.220011] kswapd 2 initialised deferred memory in 1476ms
+[   12.245369] kswapd 3 initialised deferred memory in 1500ms
+[   12.271680] kswapd 1 initialised deferred memory in 1528ms
 
-But again let me stress that application that want to be in control will
-stay in control. If you want to make the decission yourself about where
-things should end up then nothing in all we are proposing will preclude
-you from doing that. Please just think about others people application,
-not just yours, they are a lot of others thing in the world and they do
-not want to be as close to the metal as you want to be. We just want to
-accomodate the largest number of use case.
+Once booted the machine appears to work as normal. Boot times were measured
+from the time shutdown was called until ssh was available again.  In the
+64G case, the boot time savings are negligible. On the 1TB machine, the
+savings were 16 seconds.
 
-Cheers,
-Jerome
+It would be nice if the people that have access to really large machines
+would test this series and report back if the complexity is justified.
+
+Patches are against 4.0.
+
+ Documentation/kernel-parameters.txt |   6 +
+ arch/ia64/mm/numa.c                 |  19 +-
+ arch/x86/Kconfig                    |   1 +
+ include/linux/memblock.h            |  18 ++
+ include/linux/mm.h                  |   8 +-
+ include/linux/mmzone.h              |  45 ++--
+ init/main.c                         |   1 +
+ mm/Kconfig                          |  28 +++
+ mm/bootmem.c                        |   8 +-
+ mm/internal.h                       |  23 +-
+ mm/memblock.c                       |  34 ++-
+ mm/mm_init.c                        |   9 +-
+ mm/nobootmem.c                      |   7 +-
+ mm/page_alloc.c                     | 408 +++++++++++++++++++++++++++++++-----
+ mm/vmscan.c                         |   6 +-
+ 15 files changed, 514 insertions(+), 107 deletions(-)
+
+-- 
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
