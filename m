@@ -1,35 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 580B36B0032
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2015 17:02:59 -0400 (EDT)
-Received: by pacyx8 with SMTP id yx8so283164628pac.1
-        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 14:02:59 -0700 (PDT)
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DC6F6B0032
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2015 19:45:03 -0400 (EDT)
+Received: by pdbqd1 with SMTP id qd1so1943922pdb.2
+        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 16:45:03 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id pr7si9347968pdb.236.2015.04.22.14.02.58
+        by mx.google.com with ESMTPS id vs8si9860800pab.72.2015.04.22.16.45.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Apr 2015 14:02:58 -0700 (PDT)
-Date: Wed, 22 Apr 2015 14:02:57 -0700
+        Wed, 22 Apr 2015 16:45:02 -0700 (PDT)
+Date: Wed, 22 Apr 2015 16:45:00 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm/slab_common: Support the slub_debug boot option
- on specific object size
-Message-Id: <20150422140257.eace5d4b83ae443099e6cf14@linux-foundation.org>
-In-Reply-To: <20150422140039.19812721dff3fec674dc5134@linux-foundation.org>
-References: <1429691618-13884-1-git-send-email-gavin.guo@canonical.com>
-	<20150422140039.19812721dff3fec674dc5134@linux-foundation.org>
+Subject: Re: [PATCH 10/13] x86: mm: Enable deferred struct page
+ initialisation on x86-64
+Message-Id: <20150422164500.121a355e6b578243cb3650e3@linux-foundation.org>
+In-Reply-To: <1429722473-28118-11-git-send-email-mgorman@suse.de>
+References: <1429722473-28118-1-git-send-email-mgorman@suse.de>
+	<1429722473-28118-11-git-send-email-mgorman@suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Guo <gavin.guo@canonical.com>, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 22 Apr 2015 14:00:39 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+On Wed, 22 Apr 2015 18:07:50 +0100 Mel Gorman <mgorman@suse.de> wrote:
 
-> slab_kmem_cache_release() still does kfree_const(s->name).  It will
-> crash?
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
+> @@ -32,6 +32,7 @@ config X86
+>  	select HAVE_UNSTABLE_SCHED_CLOCK
+>  	select ARCH_SUPPORTS_NUMA_BALANCING if X86_64
+>  	select ARCH_SUPPORTS_INT128 if X86_64
+> +	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT if X86_64 && NUMA
 
-er, ignore this bit..
+Put this in the "config X86_64" section and skip the "X86_64 &&"?
+
+Can we omit the whole defer_meminit= thing and permanently enable the
+feature?  That's simpler, provides better test coverage and is, we
+hope, faster.
+
+And can this be used on non-NUMA?  Presumably that won't speed things
+up any if we're bandwidth limited but again it's simpler and provides
+better coverage.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
