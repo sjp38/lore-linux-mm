@@ -1,90 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
-	by kanga.kvack.org (Postfix) with ESMTP id EAA90900015
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 20:05:43 -0400 (EDT)
-Received: by qcbii10 with SMTP id ii10so85091775qcb.2
-        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 17:05:43 -0700 (PDT)
-Received: from mail-qk0-x231.google.com (mail-qk0-x231.google.com. [2607:f8b0:400d:c09::231])
-        by mx.google.com with ESMTPS id dh6si3526821qcb.15.2015.04.21.17.05.42
+Received: from mail-vn0-f50.google.com (mail-vn0-f50.google.com [209.85.216.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 1078F900015
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2015 20:36:28 -0400 (EDT)
+Received: by vnbg1 with SMTP id g1so34281442vnb.2
+        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 17:36:27 -0700 (PDT)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id j6si3488008vdi.79.2015.04.21.17.36.25
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Apr 2015 17:05:42 -0700 (PDT)
-Received: by qkx62 with SMTP id 62so217689942qkx.0
-        for <linux-mm@kvack.org>; Tue, 21 Apr 2015 17:05:42 -0700 (PDT)
-Date: Tue, 21 Apr 2015 20:05:39 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 21 Apr 2015 17:36:25 -0700 (PDT)
+Message-ID: <1429662969.27410.68.camel@kernel.crashing.org>
 Subject: Re: Interacting with coherent memory on external devices
-Message-ID: <20150422000538.GB6046@gmail.com>
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Wed, 22 Apr 2015 10:36:09 +1000
+In-Reply-To: <20150421234606.GA6046@gmail.com>
 References: <20150421214445.GA29093@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504211839120.6294@gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.11.1504211839120.6294@gentwo.org>
+	 <20150421234606.GA6046@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Tue, Apr 21, 2015 at 06:49:29PM -0500, Christoph Lameter wrote:
-> On Tue, 21 Apr 2015, Paul E. McKenney wrote:
-> 
+On Tue, 2015-04-21 at 19:46 -0400, Jerome Glisse wrote:
+> On Tue, Apr 21, 2015 at 02:44:45PM -0700, Paul E. McKenney wrote:
+> > Hello!
+> > 
+> > We have some interest in hardware on devices that is cache-coherent
+> > with main memory, and in migrating memory between host memory and
+> > device memory.  We believe that we might not be the only ones looking
+> > ahead to hardware like this, so please see below for a draft of some
+> > approaches that we have been thinking of.
+> > 
 > > Thoughts?
 > 
-> Use DAX for memory instead of the other approaches? That way it is
-> explicitly clear what information is put on the CAPI device.
-> 
+> I have posted several time a patchset just for doing that, i am sure
+> Ben did see it. Search for HMM. I am about to repost it in next couple
+> weeks.
 
-Memory on this device should not be considered as something special
-(even if it is). More below.
+Actually no :-) This is not at all HMM realm.
 
-[...]
-> 
-> > 	3.	The device's memory is treated like normal system
-> > 		memory by the Linux kernel, for example, each page has a
-> > 		"struct page" associate with it.  (In contrast, the
-> > 		traditional approach has used special-purpose OS mechanisms
-> > 		to manage the device's memory, and this memory was treated
-> > 		as MMIO space by the kernel.)
-> 
-> Why do we need a struct page? If so then maybe equip DAX with a struct
-> page so that the contents of the device memory can be controlled via a
-> filesystem? (may be custom to the needs of the device).
+HMM deals with non-cachable (MMIO) device memory that isn't represented
+by struct page and separate MMUs that allow pages to be selectively
+unmapped from CPU vs. device.
 
-So big use case here, let say you have an application that rely on a
-scientific library that do matrix computation. Your application simply
-use malloc and give pointer to this scientific library. Now let say
-the good folks working on this scientific library wants to leverage
-the GPU, they could do it by allocating GPU memory through GPU specific
-API and copy data in and out. For matrix that can be easy enough, but
-still inefficient. What you really want is the GPU directly accessing
-this malloced chunk of memory, eventualy migrating it to device memory
-while performing the computation and migrating it back to system memory
-once done. Which means that you do not want some kind of filesystem or
-anything like that.
+This proposal is about a very different type of device where the device
+memory is fully cachable from a CPU standpoint, and thus can be
+represented by struct page, and the device has an MMU that is completely
+shared with the CPU, ie, the device operates within a given context of
+the system and if a page is marked read-only or inaccessible, this will
+be true on both the CPU and the device.
 
-By allowing transparent migration you allow library to just start using
-the GPU without the application being non the wiser about that. More
-over when you start playing with data set that use more advance design
-pattern (list, tree, vector, a mix of all the above) you do not want
-to have to duplicate the list for the GPU address space and for the
-regular CPU address space (which you would need to do in case of a
-filesystem solution).
-
-So the corner stone of HMM and Paul requirement are the same, we want
-to be able to move normal anonymous memory as well as regular file
-backed page to device memory for some period of time while at the same
-time allowing the usual memory management to keep going as if nothing
-was different.
-
-Paul is working on a platform that is more advance that the one HMM try
-to address and i believe the x86 platform will not have functionality
-such a CAPI, at least it is not part of any roadmap i know about for
-x86.
+Note: IBM is also interested in HMM for devices that don't qualify with
+the above such as some GPUs or NICs, but this is something *else*.
 
 Cheers,
-Jerome
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
