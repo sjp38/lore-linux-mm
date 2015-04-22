@@ -1,92 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 383F96B008C
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2015 13:14:53 -0400 (EDT)
-Received: by qgdy78 with SMTP id y78so86752819qgd.0
-        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 10:14:53 -0700 (PDT)
-Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
-        by mx.google.com with ESMTPS id u35si5582293qge.81.2015.04.22.10.14.51
+Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 1978A6B0032
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2015 14:18:01 -0400 (EDT)
+Received: by iedfl3 with SMTP id fl3so49331039ied.1
+        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 11:18:00 -0700 (PDT)
+Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
+        by mx.google.com with ESMTPS id w1si5156153icv.7.2015.04.22.11.18.00
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 22 Apr 2015 10:14:51 -0700 (PDT)
-Date: Wed, 22 Apr 2015 12:14:50 -0500 (CDT)
+        Wed, 22 Apr 2015 11:18:00 -0700 (PDT)
+Date: Wed, 22 Apr 2015 13:17:58 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
 Subject: Re: Interacting with coherent memory on external devices
-In-Reply-To: <20150422163135.GA4062@gmail.com>
-Message-ID: <alpine.DEB.2.11.1504221206080.25607@gentwo.org>
-References: <20150421214445.GA29093@linux.vnet.ibm.com> <alpine.DEB.2.11.1504211839120.6294@gentwo.org> <1429663372.27410.75.camel@kernel.crashing.org> <20150422005757.GP5561@linux.vnet.ibm.com> <1429664686.27410.84.camel@kernel.crashing.org>
- <alpine.DEB.2.11.1504221020160.24979@gentwo.org> <20150422163135.GA4062@gmail.com>
+In-Reply-To: <20150422170737.GB4062@gmail.com>
+Message-ID: <alpine.DEB.2.11.1504221306200.26217@gentwo.org>
+References: <20150421214445.GA29093@linux.vnet.ibm.com> <alpine.DEB.2.11.1504211839120.6294@gentwo.org> <20150422000538.GB6046@gmail.com> <alpine.DEB.2.11.1504211942040.6294@gentwo.org> <20150422131832.GU5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
+ <20150422170737.GB4062@gmail.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jerome Glisse <j.glisse@gmail.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, paulmck@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
 On Wed, 22 Apr 2015, Jerome Glisse wrote:
 
-> Glibc hooks will not work, this is about having same address space on
-> CPU and GPU/accelerator while allowing backing memory to be regular
-> system memory or device memory all this in a transparent manner to
-> userspace program and library.
+> Now if you have the exact same address space then structure you have on
+> the CPU are exactly view in the same way on the GPU and you can start
+> porting library to leverage GPU without having to change a single line of
+> code inside many many many applications. It is also lot easier to debug
+> things as you do not have to strungly with two distinct address space.
 
-If you control the address space used by malloc and provide your own
-implementation then I do not see why this would not work.
+Right. That already works. Note however that GPU programming is a bit
+different. Saying that the same code runs on the GPU is strong
+simplification. Any effective GPU code still requires a lot of knowlege to
+make it work in a high performant way.
 
-> You also have to think at things like mmaped file, let say you have a
-> big file on disk and you want to crunch number from its data, you do
-> not want to copy it, instead you want to to the usual mmap and just
-> have device driver do migration to device memory (how device driver
-> make the decision is a different problem and this can be entirely
-> leave to the userspace application or their can be heuristic or both).
+The two distinct address spaces can be controlled already via a number of
+mechanisms and there are ways from either side to access the other one.
+This includes mmapping areas from the other side.
 
-If the data is on disk then you cannot access it. If its in the page cache
-or in the device then you can mmap it. Not sure how you could avoid a copy
-unless the device can direct read from disk via another controller.
+If you really want this then you should even be able to write a shared
+library that does this.
 
-> Glibc hooks do not work with share memory either and again this is
-> a usecase we care about. You really have to think of let's have today
-> applications start using those accelerators without the application
-> even knowing about it.
+> Finaly, leveraging transparently the local GPU memory is the only way to
+> reach the full potential of the GPU. GPU are all about bandwidth and GPU
+> local memory have bandwidth far greater than any system memory i know
+> about. Here again if you can transparently leverage this memory without
+> the application ever needing to know about such subtlety.
 
-Applications always have to be reworked. This does not look like a high
-performance solution but some sort way of emulation for legacy code? HPC
-codes are mostly written to the hardware and they will be modified as
-needed to use maximum performance that the hardware will permit.
+Well if you do this transparently then the GPU may not have access to its
+data when it needs it. You are adding demand paging to the GPUs? The
+performance would suffer significantly. AFAICT GPUs are not designed to
+work like that and would not have optimal performance with such an
+approach.
 
-> So you would not know before hand what will end up being use by the
-> GPU/accelerator and would need to be allocated from special memory.
-> We do not want today model of using GPU, we want to provide tomorrow
-> infrastructure for using GPU in a transparent way.
+> But again let me stress that application that want to be in control will
+> stay in control. If you want to make the decission yourself about where
+> things should end up then nothing in all we are proposing will preclude
+> you from doing that. Please just think about others people application,
+> not just yours, they are a lot of others thing in the world and they do
+> not want to be as close to the metal as you want to be. We just want to
+> accomodate the largest number of use case.
 
-Urm... Then provide hardware that actually givse you a performance
-benefit instead of proposing some weird software solution that
-makes old software work? Transparency with the random varying latencies
-that you propose will kill performance of MPI jobs as well as make the
-system unusable for financial applications. This seems be wrong all
-around.
-
-> I understand that the application you care about wants to be clever
-> and can make better decission and we intend to support that, but this
-> does not need to be at the expense of all the others applications.
-> Like i said numerous time the decission to migrate memory is a device
-> driver decission and how the device driver make that decission can
-> be entirely control by userspace through proper device driver API.
-
-What application would be using this? HPC probably not given the
-sensitivity to random latencies. Hadoop style stuff?
-
-> Bottom line is we want today anonymous, share or file mapped memory
-> to stay the only kind of memory that exist and we want to choose the
-> backing store of each of those kind for better placement depending
-> on how memory is use (again which can be in the total control of
-> the application). But we do not want to introduce a third kind of
-> disjoint memory to userspace, this is today situation and we want
-> to move forward to tomorrow solution.
-
-Frankly, I do not see any benefit here, nor a use case and I wonder who
-would adopt this. The future requires higher performance and not more band
-aid.
-
+What I think you want to do is to automatize something that should not be
+automatized and cannot be automatized for performance reasons. Anyone
+wanting performance (and that is the prime reason to use a GPU) would
+switch this off because the latencies are otherwise not controllable and
+those may impact performance severely. There are typically multiple
+parallel strands of executing that must execute with similar performance
+in order to allow a data exchange at defined intervals. That is no longer
+possible if you add variances that come with the "transparency" here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
