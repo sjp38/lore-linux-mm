@@ -1,42 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 254D16B007B
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 18:11:21 -0400 (EDT)
-Received: by pdbqd1 with SMTP id qd1so29995829pdb.2
-        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 15:11:20 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id qc10si4800265pbc.75.2015.04.23.15.11.20
+Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A4536B0038
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 18:14:00 -0400 (EDT)
+Received: by oiko83 with SMTP id o83so26637196oik.1
+        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 15:14:00 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id u83si6863524oia.138.2015.04.23.15.13.59
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Apr 2015 15:11:20 -0700 (PDT)
-Date: Thu, 23 Apr 2015 15:11:18 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/hugetlb: reduce arch dependent code about
- huge_pmd_unshare
-Message-Id: <20150423151118.40c41fb1810f2aaa877163ae@linux-foundation.org>
-In-Reply-To: <552CC328.9050402@huawei.com>
-References: <1428996566-86763-1-git-send-email-zhenzhang.zhang@huawei.com>
-	<552CC328.9050402@huawei.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 23 Apr 2015 15:13:59 -0700 (PDT)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [RFC v2 PATCH 0/5] hugetlbfs: add fallocate support
+Date: Thu, 23 Apr 2015 15:13:12 -0700
+Message-Id: <1429827197-677-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Zhen <zhenzhang.zhang@huawei.com>
-Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux@arm.linux.org.uk, catalin.marinas@arm.com, tony.luck@intel.com, james.hogan@imgtec.com, ralf@linux-mips.org, benh@kernel.crashing.org, schwidefsky@de.ibm.com, cmetcalf@ezchip.com, David Rientjes <rientjes@google.com>, James.Yang@freescale.com, aneesh.kumar@linux.vnet.ibm.com
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Tue, 14 Apr 2015 15:35:04 +0800 Zhang Zhen <zhenzhang.zhang@huawei.com> wrote:
+hugetlbfs is used today by applications that want a high degree of
+control over huge page usage.  Often, large hugetlbfs files are used
+to map a large number huge pages into the application processes.
+The applications know when page ranges within these large files will
+no longer be used, and ideally would like to release them back to
+the subpool or global pools for other uses.  The fallocate() system
+call provides an interface for preallocation and hole punching within
+files.  This patch set adds fallocate functionality to hugetlbfs.
 
-> Currently we have many duplicates in definitions of huge_pmd_unshare.
-> In all architectures this function just returns 0 when
-> CONFIG_ARCH_WANT_HUGE_PMD_SHARE is N.
-> 
-> This patch put the default implementation in mm/hugetlb.c and lets
-> these architecture use the common code.
+RFC v2:
+  Addressed alignment and error handling issues noticed by Hillf Danton
+  New region_del() routine for region tracking/resv_map of ranges
+  Fixed several issues found during more extensive testing
+  Error handling in region_del() when kmalloc() fails stills needs
+        to be addressed
+  madvise remove support remains
 
-Memory fails me.  Why do some architectures (arm, arm64, x86_64) want
-huge_pmd_[un]share() while other architectures (ia64, tile, mips,
-powerpc, metag, sh, s390) do not?
+Mike Kravetz (5):
+  hugetlbfs: truncate_hugepages() takes a range of pages
+  hugetlbfs: remove region_truncte() as region_del() can be used
+  hugetlbfs: New huge_add_to_page_cache helper routine
+  hugetlbfs: add hugetlbfs_fallocate()
+  mm: madvise allow remove operation for hugetlbfs
+
+ fs/hugetlbfs/inode.c    | 169 ++++++++++++++++++++++++++++++++++++++++++++++--
+ include/linux/hugetlb.h |   8 ++-
+ mm/hugetlb.c            | 110 ++++++++++++++++++++++---------
+ mm/madvise.c            |   2 +-
+ 4 files changed, 248 insertions(+), 41 deletions(-)
+
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
