@@ -1,44 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id CF2E06B0038
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 18:26:22 -0400 (EDT)
-Received: by pdbqd1 with SMTP id qd1so30275108pdb.2
-        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 15:26:22 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id er5si14452435pbd.38.2015.04.23.15.26.20
-        for <linux-mm@kvack.org>;
-        Thu, 23 Apr 2015 15:26:22 -0700 (PDT)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [PATCH] mm/hugetlb: reduce arch dependent code about
- huge_pmd_unshare
-Date: Thu, 23 Apr 2015 22:26:18 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F32A6478B@ORSMSX114.amr.corp.intel.com>
-References: <1428996566-86763-1-git-send-email-zhenzhang.zhang@huawei.com>
-	<552CC328.9050402@huawei.com>
- <20150423151118.40c41fb1810f2aaa877163ae@linux-foundation.org>
-In-Reply-To: <20150423151118.40c41fb1810f2aaa877163ae@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail-qc0-f175.google.com (mail-qc0-f175.google.com [209.85.216.175])
+	by kanga.kvack.org (Postfix) with ESMTP id EADB46B0038
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 18:30:14 -0400 (EDT)
+Received: by qcbii10 with SMTP id ii10so17237940qcb.2
+        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 15:30:14 -0700 (PDT)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id q15si9521491qha.77.2015.04.23.15.30.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 23 Apr 2015 15:30:12 -0700 (PDT)
+Message-ID: <1429828197.4915.45.camel@kernel.crashing.org>
+Subject: Re: Interacting with coherent memory on external devices
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Fri, 24 Apr 2015 08:29:57 +1000
+In-Reply-To: <alpine.DEB.2.11.1504230907330.32297@gentwo.org>
+References: <20150421214445.GA29093@linux.vnet.ibm.com>
+	 <alpine.DEB.2.11.1504211839120.6294@gentwo.org>
+	 <20150422000538.GB6046@gmail.com>
+	 <alpine.DEB.2.11.1504211942040.6294@gentwo.org>
+	 <20150422131832.GU5561@linux.vnet.ibm.com>
+	 <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
+	 <20150422170737.GB4062@gmail.com>
+	 <alpine.DEB.2.11.1504221306200.26217@gentwo.org>
+	 <1429756592.4915.23.camel@kernel.crashing.org>
+	 <alpine.DEB.2.11.1504230907330.32297@gentwo.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Zhang Zhen <zhenzhang.zhang@huawei.com>
-Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "james.hogan@imgtec.com" <james.hogan@imgtec.com>, "ralf@linux-mips.org" <ralf@linux-mips.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "schwidefsky@de.ibm.com" <schwidefsky@de.ibm.com>, "cmetcalf@ezchip.com" <cmetcalf@ezchip.com>, David Rientjes <rientjes@google.com>, "James.Yang@freescale.com" <James.Yang@freescale.com>, "aneesh.kumar@linux.vnet.ibm.com" <aneesh.kumar@linux.vnet.ibm.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Jerome Glisse <j.glisse@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-> Memory fails me.  Why do some architectures (arm, arm64, x86_64) want
-> huge_pmd_[un]share() while other architectures (ia64, tile, mips,
-> powerpc, metag, sh, s390) do not?
+On Thu, 2015-04-23 at 09:10 -0500, Christoph Lameter wrote:
+> On Thu, 23 Apr 2015, Benjamin Herrenschmidt wrote:
+> 
+> > >  Anyone
+> > > wanting performance (and that is the prime reason to use a GPU) would
+> > > switch this off because the latencies are otherwise not controllable and
+> > > those may impact performance severely. There are typically multiple
+> > > parallel strands of executing that must execute with similar performance
+> > > in order to allow a data exchange at defined intervals. That is no longer
+> > > possible if you add variances that come with the "transparency" here.
+> >
+> > Stop trying to apply your unique usage model to the entire world :-)
+> 
+> Much of the HPC apps that the world is using is severely impacted by what
+> you are proposing. Its the industries usage model not mine. That is why I
+> was asking about the use case. Does not seem to fit the industry you are
+> targeting. This is also the basic design principle that got GPUs to work
+> as fast as they do today. Introducing random memory latencies there will
+> kill much of the benefit of GPUs there too.
 
-Potentially laziness/ignorance-of-feature?  It looks like this feature star=
-ted on x86_64 and then spread
-to arm*.
+How would it be impacted ? You can still do dedicated allocations etc...
+if you want to do so. I think Jerome gave a pretty good explanation of
+the need for the usage model we are proposing, it's also coming from the
+industry ...
 
-Huge pages are weird on ia64 in that they have to be in a specific range of=
- virtual addresses (region 4).
-But I don't see why that would prevent sharing pmd's.
+Ben.
 
--Tony
+
+> 
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
