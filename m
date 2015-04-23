@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 799586B0075
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 17:04:51 -0400 (EDT)
-Received: by pdbnk13 with SMTP id nk13so28668678pdb.0
-        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 14:04:51 -0700 (PDT)
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 14EDE6B007B
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 17:04:57 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so28607627pde.3
+        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 14:04:56 -0700 (PDT)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id fw5si14215569pac.95.2015.04.23.14.04.50
+        by mx.google.com with ESMTP id yy3si14146907pbb.193.2015.04.23.14.04.56
         for <linux-mm@kvack.org>;
-        Thu, 23 Apr 2015 14:04:50 -0700 (PDT)
+        Thu, 23 Apr 2015 14:04:56 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 04/28] mm, thp: adjust conditions when we can reuse the page on WP fault
-Date: Fri, 24 Apr 2015 00:03:39 +0300
-Message-Id: <1429823043-157133-5-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 11/28] mm: temporally mark THP broken
+Date: Fri, 24 Apr 2015 00:03:46 +0300
+Message-Id: <1429823043-157133-12-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,82 +19,35 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With new refcounting we will be able map the same compound page with
-PTEs and PMDs. It requires adjustment to conditions when we can reuse
-the page on write-protection fault.
+Up to this point we tried to keep patchset bisectable, but next patches
+are going to change how core of THP refcounting work.
 
-For PTE fault we can't reuse the page if it's part of huge page.
+It would be beneficial to split the change into several patches and make
+it more reviewable. Unfortunately, I don't see how we can achieve that
+while keeping THP working.
 
-For PMD we can only reuse the page if nobody else maps the huge page or
-it's part. We can do it by checking page_mapcount() on each sub-page,
-but it's expensive.
-
-The cheaper way is to check page_count() to be equal 1: every mapcount
-takes page reference, so this way we can guarantee, that the PMD is the
-only mapping.
-
-This approach can give false negative if somebody pinned the page, but
-that doesn't affect correctness.
+Let's hide THP under CONFIG_BROKEN for now and bring it back when new
+refcounting get established.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Tested-by: Sasha Levin <sasha.levin@oracle.com>
 ---
- include/linux/swap.h |  3 ++-
- mm/huge_memory.c     | 12 +++++++++++-
- mm/swapfile.c        |  3 +++
- 3 files changed, 16 insertions(+), 2 deletions(-)
+ mm/Kconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 0428e4c84e1d..17cdd6b9456b 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -524,7 +524,8 @@ static inline int page_swapcount(struct page *page)
- 	return 0;
- }
+diff --git a/mm/Kconfig b/mm/Kconfig
+index baeb0c4a686a..2c96d2484527 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -408,7 +408,7 @@ config NOMMU_INITIAL_TRIM_EXCESS
  
--#define reuse_swap_page(page)	(page_mapcount(page) == 1)
-+#define reuse_swap_page(page) \
-+	(!PageTransCompound(page) && page_mapcount(page) == 1)
- 
- static inline int try_to_free_swap(struct page *page)
- {
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 534f353e12bf..fd8af5b9917f 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1103,7 +1103,17 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 	page = pmd_page(orig_pmd);
- 	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
--	if (page_mapcount(page) == 1) {
-+	/*
-+	 * We can only reuse the page if nobody else maps the huge page or it's
-+	 * part. We can do it by checking page_mapcount() on each sub-page, but
-+	 * it's expensive.
-+	 * The cheaper way is to check page_count() to be equal 1: every
-+	 * mapcount takes page reference reference, so this way we can
-+	 * guarantee, that the PMD is the only mapping.
-+	 * This can give false negative if somebody pinned the page, but that's
-+	 * fine.
-+	 */
-+	if (page_mapcount(page) == 1 && page_count(page) == 1) {
- 		pmd_t entry;
- 		entry = pmd_mkyoung(orig_pmd);
- 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 6dd365d1c488..3cd5f188b996 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -887,6 +887,9 @@ int reuse_swap_page(struct page *page)
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	if (unlikely(PageKsm(page)))
- 		return 0;
-+	/* The page is part of THP and cannot be reused */
-+	if (PageTransCompound(page))
-+		return 0;
- 	count = page_mapcount(page);
- 	if (count <= 1 && PageSwapCache(page)) {
- 		count += page_swapcount(page);
+ config TRANSPARENT_HUGEPAGE
+ 	bool "Transparent Hugepage Support"
+-	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE
++	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE && BROKEN
+ 	select COMPACTION
+ 	help
+ 	  Transparent Hugepages allows the kernel to use huge pages and
 -- 
 2.1.4
 
