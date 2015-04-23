@@ -1,55 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F6FC6B0032
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 10:20:57 -0400 (EDT)
-Received: by iedfl3 with SMTP id fl3so69360206ied.1
-        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 07:20:57 -0700 (PDT)
-Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
-        by mx.google.com with ESMTPS id ww5si7137695icb.56.2015.04.23.07.20.56
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 43B776B0032
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 10:25:19 -0400 (EDT)
+Received: by qgfi89 with SMTP id i89so8773698qgf.1
+        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 07:25:19 -0700 (PDT)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id c41si8236777qge.65.2015.04.23.07.25.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 23 Apr 2015 07:20:56 -0700 (PDT)
-Date: Thu, 23 Apr 2015 09:20:55 -0500 (CDT)
+        Thu, 23 Apr 2015 07:25:18 -0700 (PDT)
+Date: Thu, 23 Apr 2015 09:25:16 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
 Subject: Re: Interacting with coherent memory on external devices
-In-Reply-To: <1429756070.4915.17.camel@kernel.crashing.org>
-Message-ID: <alpine.DEB.2.11.1504230914060.32297@gentwo.org>
-References: <20150421214445.GA29093@linux.vnet.ibm.com> <alpine.DEB.2.11.1504211839120.6294@gentwo.org> <1429663372.27410.75.camel@kernel.crashing.org> <20150422005757.GP5561@linux.vnet.ibm.com> <1429664686.27410.84.camel@kernel.crashing.org>
- <alpine.DEB.2.11.1504221020160.24979@gentwo.org> <1429756070.4915.17.camel@kernel.crashing.org>
+In-Reply-To: <1429756200.4915.19.camel@kernel.crashing.org>
+Message-ID: <alpine.DEB.2.11.1504230921020.32297@gentwo.org>
+References: <20150421214445.GA29093@linux.vnet.ibm.com> <alpine.DEB.2.11.1504211839120.6294@gentwo.org> <20150422000538.GB6046@gmail.com> <alpine.DEB.2.11.1504211942040.6294@gentwo.org> <20150422131832.GU5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
+ <1429756200.4915.19.camel@kernel.crashing.org>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: paulmck@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
 On Thu, 23 Apr 2015, Benjamin Herrenschmidt wrote:
 
-> > There are hooks in glibc where you can replace the memory
-> > management of the apps if you want that.
+> They are via MMIO space. The big differences here are that via CAPI the
+> memory can be fully cachable and thus have the same characteristics as
+> normal memory from the processor point of view, and the device shares
+> the MMU with the host.
 >
-> We don't control the app. Let's say we are doing a plugin for libfoo
-> which accelerates "foo" using GPUs.
+> Practically what that means is that the device memory *is* just some
+> normal system memory with a larger distance. The NUMA model is an
+> excellent representation of it.
 
-There are numerous examples of malloc implementation that can be used for
-apps without modifying the app.
+I sure wish you would be working on using these features to increase
+performance and the speed of communication to devices.
+
+Device memory is inherently different from main memory (otherwise the
+device would be using main memory) and thus not really NUMA. NUMA at least
+assumes that the basic characteristics of memory are the same while just
+the access speeds vary. GPU memory has very different performance
+characteristics and the various assumptions on memory that the kernel
+makes for the regular processors may not hold anymore.
+
+> For my use cases the advantage of CAPI lies in the reduction of latency
+> > for coprocessor communication. I hope that CAPI will allow fast cache to
+> > cache transactions between a coprocessor and the main one. This is
+> > improving the ability to exchange data rapidly between a application code
+> > and some piece of hardware (NIC, GPU, custom hardware etc etc)
+> >
+> > Fundamentally this is currently an design issue since CAPI is running on
+> > top of PCI-E and PCI-E transactions establish a minimum latency that
+> > cannot be avoided. So its hard to see how CAPI can improve the situation.
 >
-> Now some other app we have no control on uses libfoo. So pointers
-> already allocated/mapped, possibly a long time ago, will hit libfoo (or
-> the plugin) and we need GPUs to churn on the data.
+> It's on top of the lower layers of PCIe yes, I don't know the exact
+> latency numbers. It does enable the device to own cache lines though and
+> vice versa.
 
-IF the GPU would need to suspend one of its computation thread to wait on
-a mapping to be established on demand or so then it looks like the
-performance of the parallel threads on a GPU will be significantly
-compromised. You would want to do the transfer explicitly in some fashion
-that meshes with the concurrent calculation in the GPU. You do not want
-stalls while GPU number crunching is ongoing.
+Could you come up with a way to allow faster device communication through
+improving on the PCI-E cacheline handoff via CAPI? That would be something
+useful that I expected from it. If the processor can transfer some word
+faster into a CAPI device or get status faster then that is a valuable
+thing.
 
-> The point I'm making is you are arguing against a usage model which has
-> been repeatedly asked for by large amounts of customer (after all that's
-> also why HMM exists).
-
-I am still not clear what is the use case for this would be. Who is asking
-for this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
