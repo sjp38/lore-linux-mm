@@ -1,62 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id C8B426B006E
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 18:37:43 -0400 (EDT)
-Received: by qcbii10 with SMTP id ii10so17315582qcb.2
-        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 15:37:43 -0700 (PDT)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id r96si9544026qkr.92.2015.04.23.15.37.42
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EAA66B006E
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 18:42:00 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so30570013pdb.1
+        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 15:41:59 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ch6si14503113pdb.175.2015.04.23.15.41.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 23 Apr 2015 15:37:42 -0700 (PDT)
-Message-ID: <1429828650.4915.51.camel@kernel.crashing.org>
-Subject: Re: Interacting with coherent memory on external devices
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Fri, 24 Apr 2015 08:37:30 +1000
-In-Reply-To: <55390EE1.8020304@gmail.com>
-References: <20150421214445.GA29093@linux.vnet.ibm.com>
-	 <alpine.DEB.2.11.1504211839120.6294@gentwo.org>
-	 <20150422000538.GB6046@gmail.com>
-	 <alpine.DEB.2.11.1504211942040.6294@gentwo.org>
-	 <20150422131832.GU5561@linux.vnet.ibm.com>
-	 <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
-	 <1429756200.4915.19.camel@kernel.crashing.org>
-	 <alpine.DEB.2.11.1504230921020.32297@gentwo.org>
-	 <55390EE1.8020304@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Apr 2015 15:41:59 -0700 (PDT)
+Date: Thu, 23 Apr 2015 15:41:57 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/hugetlb: reduce arch dependent code about
+ huge_pmd_unshare
+Message-Id: <20150423154157.837a378188ef0a703813f206@linux-foundation.org>
+In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F32A6478B@ORSMSX114.amr.corp.intel.com>
+References: <1428996566-86763-1-git-send-email-zhenzhang.zhang@huawei.com>
+	<552CC328.9050402@huawei.com>
+	<20150423151118.40c41fb1810f2aaa877163ae@linux-foundation.org>
+	<3908561D78D1C84285E8C5FCA982C28F32A6478B@ORSMSX114.amr.corp.intel.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Austin S Hemmelgarn <ahferroin7@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: Zhang Zhen <zhenzhang.zhang@huawei.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "james.hogan@imgtec.com" <james.hogan@imgtec.com>, "ralf@linux-mips.org" <ralf@linux-mips.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "schwidefsky@de.ibm.com" <schwidefsky@de.ibm.com>, "cmetcalf@ezchip.com" <cmetcalf@ezchip.com>, David Rientjes <rientjes@google.com>, "James.Yang@freescale.com" <James.Yang@freescale.com>, "aneesh.kumar@linux.vnet.ibm.com" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Thu, 2015-04-23 at 11:25 -0400, Austin S Hemmelgarn wrote:
-> Looking at this whole conversation, all I see is two different views on 
-> how to present the asymmetric multiprocessing arrangements that have 
-> become commonplace in today's systems to userspace.  Your model favors 
-> performance, while CAPI favors simplicity for userspace.
+On Thu, 23 Apr 2015 22:26:18 +0000 "Luck, Tony" <tony.luck@intel.com> wrote:
 
-I would say it differently.... when you say "CAPI favors..." it's not CAPI,
-it's the usage model we are proposing as an option for CAPI and other
-similar technology (there's at least one other I can't quite talk about
-yet), but basically anything that has the characteristics defined in
-the document Paul posted. CAPI is just one such example.
+> > Memory fails me.  Why do some architectures (arm, arm64, x86_64) want
+> > huge_pmd_[un]share() while other architectures (ia64, tile, mips,
+> > powerpc, metag, sh, s390) do not?
+> 
+> Potentially laziness/ignorance-of-feature?  It looks like this feature started on x86_64 and then spread
+> to arm*.
 
-On another hand, CAPI can also perfectly be used as Christoph describes.
+Yes.  In 3212b535f200c85b5a6 Steve Capper (ARM person) hoisted the code
+out of x86 into generic, then made arm use it.
 
-The ability to transparently handle and migrate memory is not exclusive
-with the ability for an application to explicitly decide where to allocate
-its memory and explicitly move the data around. Both options will be provided.
-
-Before the thread degraded into a debate on usage model, this was an
-attempt at discussing the technical details of what would be the best
-approach to implement the "transparent" model in Linux. I'd like to go back
-to it if possible ...
-
-Cheers,
-Ben.
-
+We're not (I'm not) very good about letting arch people know about such
+things.  I wonder how to fix that; does linux-arch work?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
