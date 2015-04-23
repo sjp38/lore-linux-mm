@@ -1,78 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D9A26B0032
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2015 22:30:12 -0400 (EDT)
-Received: by qgdy78 with SMTP id y78so2402886qgd.0
-        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 19:30:11 -0700 (PDT)
+Received: from mail-vn0-f50.google.com (mail-vn0-f50.google.com [209.85.216.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 7362B6B0032
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2015 22:34:31 -0400 (EDT)
+Received: by vnbg1 with SMTP id g1so357984vnb.2
+        for <linux-mm@kvack.org>; Wed, 22 Apr 2015 19:34:31 -0700 (PDT)
 Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id 190si6915408qha.31.2015.04.22.19.30.10
+        by mx.google.com with ESMTPS id 5si6475519vdu.41.2015.04.22.19.34.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 22 Apr 2015 19:30:11 -0700 (PDT)
-Message-ID: <1429756200.4915.19.camel@kernel.crashing.org>
+        Wed, 22 Apr 2015 19:34:29 -0700 (PDT)
+Message-ID: <1429756456.4915.22.camel@kernel.crashing.org>
 Subject: Re: Interacting with coherent memory on external devices
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Thu, 23 Apr 2015 12:30:00 +1000
-In-Reply-To: <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
+Date: Thu, 23 Apr 2015 12:34:16 +1000
+In-Reply-To: <alpine.DEB.2.11.1504221206080.25607@gentwo.org>
 References: <20150421214445.GA29093@linux.vnet.ibm.com>
 	 <alpine.DEB.2.11.1504211839120.6294@gentwo.org>
-	 <20150422000538.GB6046@gmail.com>
-	 <alpine.DEB.2.11.1504211942040.6294@gentwo.org>
-	 <20150422131832.GU5561@linux.vnet.ibm.com>
-	 <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
+	 <1429663372.27410.75.camel@kernel.crashing.org>
+	 <20150422005757.GP5561@linux.vnet.ibm.com>
+	 <1429664686.27410.84.camel@kernel.crashing.org>
+	 <alpine.DEB.2.11.1504221020160.24979@gentwo.org>
+	 <20150422163135.GA4062@gmail.com>
+	 <alpine.DEB.2.11.1504221206080.25607@gentwo.org>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+Cc: Jerome Glisse <j.glisse@gmail.com>, paulmck@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Wed, 2015-04-22 at 11:16 -0500, Christoph Lameter wrote:
-> On Wed, 22 Apr 2015, Paul E. McKenney wrote:
+On Wed, 2015-04-22 at 12:14 -0500, Christoph Lameter wrote:
 > 
-> > I completely agree that some critically important use cases, such as
-> > yours, will absolutely require that the application explicitly choose
-> > memory placement and have the memory stay there.
+> > Bottom line is we want today anonymous, share or file mapped memory
+> > to stay the only kind of memory that exist and we want to choose the
+> > backing store of each of those kind for better placement depending
+> > on how memory is use (again which can be in the total control of
+> > the application). But we do not want to introduce a third kind of
+> > disjoint memory to userspace, this is today situation and we want
+> > to move forward to tomorrow solution.
 > 
-> 
-> 
-> Most of what you are trying to do here is already there and has been done.
-> GPU memory is accessible. NICs work etc etc. All without CAPI. What
-> exactly are the benefits of CAPI? Is driver simplification? Reduction of
-> overhead? If so then the measures proposed are a bit radical and
-> may result in just the opposite.
+> Frankly, I do not see any benefit here, nor a use case and I wonder who
+> would adopt this. The future requires higher performance and not more band
+> aid.
 
-They are via MMIO space. The big differences here are that via CAPI the
-memory can be fully cachable and thus have the same characteristics as
-normal memory from the processor point of view, and the device shares
-the MMU with the host.
+You may not but we have a large number of customers who do.
 
-Practically what that means is that the device memory *is* just some
-normal system memory with a larger distance. The NUMA model is an
-excellent representation of it.
+In fact I'm quite surprised, what we want to achieve is the most natural
+way from an application perspective.
 
-> For my use cases the advantage of CAPI lies in the reduction of latency
-> for coprocessor communication. I hope that CAPI will allow fast cache to
-> cache transactions between a coprocessor and the main one. This is
-> improving the ability to exchange data rapidly between a application code
-> and some piece of hardware (NIC, GPU, custom hardware etc etc)
-> 
-> Fundamentally this is currently an design issue since CAPI is running on
-> top of PCI-E and PCI-E transactions establish a minimum latency that
-> cannot be avoided. So its hard to see how CAPI can improve the situation.
+You have something in memory, whether you got it via malloc, mmap'ing a file,
+shmem with some other application, ... and you want to work on it with the
+co-processor that is residing in your address space. Even better, pass a pointer
+to it to some library you don't control which might itself want to use the
+coprocessor ....
 
-It's on top of the lower layers of PCIe yes, I don't know the exact
-latency numbers. It does enable the device to own cache lines though and
-vice versa.
+What you propose can simply not provide that natural usage model with any
+efficiency.
 
-> The new thing about CAPI are the cache to cache transactions and
-> participation in cache coherency at the cacheline level. That is a
-> different approach than the device memory oriented PCI transcactions.
-> Perhaps even CAPI over PCI-E can improve the situation there (maybe the
-> transactions are lower latency than going to device memory) and hopefully
-> CAPI will not forever be bound to PCI-E and thus at some point shake off
-> the shackles of a bus designed by a competitor.
+It might not be *your* model based on *your* application but that doesn't mean
+it's not there, and isn't relevant.
 
 Ben.
 
