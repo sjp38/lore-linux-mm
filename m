@@ -1,409 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B55BD6B0032
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 15:33:45 -0400 (EDT)
-Received: by igbpi8 with SMTP id pi8so16212851igb.0
-        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 12:33:45 -0700 (PDT)
-Received: from e35.co.us.ibm.com (e35.co.us.ibm.com. [32.97.110.153])
-        by mx.google.com with ESMTPS id m18si7600073ioe.9.2015.04.23.12.33.44
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id DBB836B0032
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 16:51:08 -0400 (EDT)
+Received: by pacwv17 with SMTP id wv17so5992956pac.0
+        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 13:51:08 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id pt7si14177770pdb.96.2015.04.23.13.51.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 23 Apr 2015 12:33:44 -0700 (PDT)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 23 Apr 2015 13:33:44 -0600
-Received: from b03cxnp08028.gho.boulder.ibm.com (b03cxnp08028.gho.boulder.ibm.com [9.17.130.20])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 909BA3E4004F
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 13:33:41 -0600 (MDT)
-Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by b03cxnp08028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3NJXM6939387144
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 12:33:22 -0700
-Received: from d03av05.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3NJXekh008146
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 13:33:41 -0600
-Date: Thu, 23 Apr 2015 12:33:39 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: Interacting with coherent memory on external devices
-Message-ID: <20150423193339.GR5561@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20150421214445.GA29093@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504211839120.6294@gentwo.org>
- <20150422000538.GB6046@gmail.com>
- <alpine.DEB.2.11.1504211942040.6294@gentwo.org>
- <20150422131832.GU5561@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
- <1429756200.4915.19.camel@kernel.crashing.org>
- <alpine.DEB.2.11.1504230921020.32297@gentwo.org>
- <55390EE1.8020304@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55390EE1.8020304@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Apr 2015 13:51:07 -0700 (PDT)
+Date: Thu, 23 Apr 2015 13:51:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3] mm/slab_common: Support the slub_debug boot option
+ on specific object size
+Message-Id: <20150423135106.1411031c362de2a5ef75fd50@linux-foundation.org>
+In-Reply-To: <1429795560-29131-1-git-send-email-gavin.guo@canonical.com>
+References: <1429795560-29131-1-git-send-email-gavin.guo@canonical.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Austin S Hemmelgarn <ahferroin7@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
-
-And another update, again diffs followed by the full document.  The
-diffs are against the version at https://lkml.org/lkml/2015/4/22/235.
-
-							Thanx, Paul
-
-------------------------------------------------------------------------
-
-diff --git a/DeviceMem.txt b/DeviceMem.txt
-index cdedf2ee96e9..15d0a8b5d360 100644
---- a/DeviceMem.txt
-+++ b/DeviceMem.txt
-@@ -51,6 +51,38 @@
- 
- USE CASES
- 
-+	o	Multiple transformations without requiring multiple
-+		memory transfers for throughput-oriented applications.
-+		For example, suppose the device supports both compression
-+		and encryption algorithms, but that significant CPU
-+		work is required to generate the data to be compressed
-+		and encrypted.	Suppose also that the application uses
-+		a library to do the compression and encryption, and
-+		that this application needs to run correctly, without
-+		rebuilding, on systems with the device and also on systems
-+		without the device.  In addition, the application operates
-+		on data mapped from files, data in normal data/bss memory,
-+		and data in heap memory from malloc().
-+
-+		In this case, it would be beneficial to have the memory
-+		automatically migrate to and from device memory.
-+		Note that the device-specific library functions could
-+		reasonably initiate the migration before starting their
-+		work, but could not know whether or not to migrate the
-+		data back upon completion.
-+
-+	o	A special-purpose globally hand-optimized application
-+		wishes to use the device, from Christoph Lameter.
-+
-+		In this case, the application will get the absolute
-+		best performance by manually controlling allocation
-+		and migration decisions.  This use case is probably
-+		not helped much by this proposal.
-+
-+		However, an application including a special-purpose
-+		hand-optimized core and less-intense ancillary processing
-+		could well benefit.
-+
- 	o	GPGPU matrix operations, from Jerome Glisse.
- 		https://lkml.org/lkml/2015/4/21/898
- 
-@@ -109,6 +141,11 @@ REQUIREMENTS
- 		tune allocation locality, migration, and so on, as
- 		required to match performance and functional requirements.
- 
-+	5.	It must be possible to configure a system containing
-+		a CCAD device so that it does no migration, as will be
-+		required for low-latency applications that are sensitive
-+		to OS jitter.
-+
- 
- POTENTIAL IDEAS
- 
-
-------------------------------------------------------------------------
-
-           COHERENT ON-DEVICE MEMORY: ACCESS AND MIGRATION
-                         Ben Herrenschmidt
-                   (As told to Paul E. McKenney)
-
-	Special-purpose hardware becoming more prevalent, and some of this
-	hardware allows for tight interaction with CPU-based processing.
-	For example, IBM's coherent accelerator processor interface
-	(CAPI) will allow this sort of device to be constructed,
-	and it is likely that GPGPUs will need similar capabilities.
-	(See http://www-304.ibm.com/webapp/set2/sas/f/capi/home.html for a
-	high-level description of CAPI.)  Let's call these cache-coherent
-	accelerator devices (CCAD for short, which should at least
-	motivate someone to come up with something better).
-
-	This document covers devices with the following properties:
-
-	1.	The device is cache-coherent, in other words, the device's
-		memory has all the characteristics of system memory from
-		the viewpoint of CPUs and other devices accessing it.
-
-	2.	The device provides local memory that it has high-bandwidth
-		low-latency access to, but the device can also access
-		normal system memory.
-
-	3.	The device shares system page tables, so that it can
-		transparently access userspace virtual memory, regardless
-		of whether this virtual memory maps to normal system
-		memory or to memory local to the device.
-
-	Although such a device will provide CPU's with cache-coherent
-	access to on-device memory, the resulting memory latency is
-	expected to be slower than the normal memory that is tightly
-	coupled to the CPUs.  Nevertheless, data that is only occasionally
-	accessed by CPUs should be stored in the device's memory.
-	On the other hand, data that is accessed rarely by the device but
-	frequently by the CPUs should be stored in normal system memory.
-
-	Of course, some workloads will have predictable access patterns
-	that allow data to be optimally placed up front.  However, other
-	workloads will have less-predictable access patterns, and these
-	workloads can benefit from automatic migration of data between
-	device memory and system memory as access patterns change.
-	Furthermore, some devices will provide special hardware that
-	collects access statistics that can be used to determine whether
-	or not a given page of memory should be migrated, and if so,
-	to where.
-
-	The purpose of this document is to explore how this access
-	and migration can be provided for within the Linux kernel.
-
-
-USE CASES
-
-	o	Multiple transformations without requiring multiple
-		memory transfers for throughput-oriented applications.
-		For example, suppose the device supports both compression
-		and encryption algorithms, but that significant CPU
-		work is required to generate the data to be compressed
-		and encrypted.	Suppose also that the application uses
-		a library to do the compression and encryption, and
-		that this application needs to run correctly, without
-		rebuilding, on systems with the device and also on systems
-		without the device.  In addition, the application operates
-		on data mapped from files, data in normal data/bss memory,
-		and data in heap memory from malloc().
-
-		In this case, it would be beneficial to have the memory
-		automatically migrate to and from device memory.
-		Note that the device-specific library functions could
-		reasonably initiate the migration before starting their
-		work, but could not know whether or not to migrate the
-		data back upon completion.
-
-	o	A special-purpose globally hand-optimized application
-		wishes to use the device, from Christoph Lameter.
-
-		In this case, the application will get the absolute
-		best performance by manually controlling allocation
-		and migration decisions.  This use case is probably
-		not helped much by this proposal.
-
-		However, an application including a special-purpose
-		hand-optimized core and less-intense ancillary processing
-		could well benefit.
-
-	o	GPGPU matrix operations, from Jerome Glisse.
-		https://lkml.org/lkml/2015/4/21/898
-
-		Suppose that you have an application that uses a
-		scientific library to do matrix computations, and that
-		this application simply calls malloc() and give the
-		resulting pointer to the library function.  If the GPGPU
-		has coherent access to system memory (and vice versa),
-		it would help performance and application compatibility
-		to be able to transparently migrate the malloc()ed
-		memory to and from the GPGPU's memory without requiring
-		changes to the application.
-
-	o	(More here for CAPI.)
-
-
-REQUIREMENTS
-
-	1.	It should be possible to remove a given CCAD device
-		from service, for example, to reset it, to download
-		updated firmware, or to change its functionality.
-		This results in the following additional requirements:
-
-		a.	It should be possible to migrate all data away
-			from the device's memory at any time.
-
-		b.	Normal memory allocation should avoid using the
-			device's memory, as this would interfere
-			with the needed migration.  It may nevertheless
-			be desirable to use the device's memory
-			if system memory is exhausted, however, in some
-			cases, even this "emergency" use is best avoided.
-			In fact, a good solution will provide some means
-			for avoiding this for those cases where it is
-			necessary to evacuate memory when offlining the
-			device.
-
-	2.	Memory can be either explicitly or implicitly allocated
-		from the CCAD device's memory.	(Both usermode and kernel
-		allocation required.)
-
-		Please note that implicit allocation will need to be
-		avoided in a number of use cases.  The reason for this
-		is that random kernel allocations might be pinned into
-		memory, which could conflict with requirement (1) above,
-		and might furthermore fragment the device's memory.
-
-	3.	The device's memory is treated like normal system
-		memory by the Linux kernel, for example, each page has a
-		"struct page" associate with it.  (In contrast, the
-		traditional approach has used special-purpose OS mechanisms
-		to manage the device's memory, and this memory was treated
-		as MMIO space by the kernel.)
-
-	4.	The system's normal tuning mechanism may be used to
-		tune allocation locality, migration, and so on, as
-		required to match performance and functional requirements.
-
-	5.	It must be possible to configure a system containing
-		a CCAD device so that it does no migration, as will be
-		required for low-latency applications that are sensitive
-		to OS jitter.
-
-
-POTENTIAL IDEAS
-
-	It is only reasonable to ask whether CCAD devices can simply
-	use the HMM patch that has recently been proposed to allow
-	migration between system and device memory via page faults.
-	Although this works well for devices whose local MMU can contain
-	mappings different from that of the system MMU, the HMM patch
-	is still working with MMIO space that gets special treatment.
-	The HMM patch does not (yet) provide the full transparency that
-	would allow the device memory to be treated in the same way as
-	system memory.	Something more is therefore required, for example,
-	one or more of the following:
-
-	1.	Model the CCAD device's memory as a memory-only NUMA node
-		with a very large distance metric.  This allows use of
-		the existing mechanisms for choosing where to satisfy
-		explicit allocations and where to target migrations.
-		
-	2.	Cover the memory with a CMA to prevent non-migratable
-		pinned data from being placed in the CCAD device's memory.
-		It would also permit the driver to perform dedicated
-		physically contiguous allocations as needed.
-
-	3.	Add a new ZONE_EXTERNAL zone for all CCAD-like devices.
-		Note that this would likely require support for
-		discontinuous zones in order to support large NUMA
-		systems, in which each node has a single block of the
-		overall physical address space.  In such systems, the
-		physical address ranges of normal system memory would
-		be interleaved with those of device memory.
-
-		This would also require some sort of
-		migration infrastructure to be added, as autonuma would
-		not apply.  However, this approach has the advantage
-		of preventing allocations in these regions, at least
-		unless those allocations have been explicitly flagged
-		to go there.
-
-	4.	Your idea here!
-
-
-The following sections cover AutoNUMA, use of memory zones, and DAX.
-
-
-AUTONUMA
-
-	The Linux kernel's autonuma facility supports migrating both
-	memory and processes to promote NUMA memory locality.  It was
-	accepted into 3.13 and is available in RHEL 7.0 and SLES 12.
-	It is enabled by the Kconfig variable CONFIG_NUMA_BALANCING.
-
-	This approach uses a kernel thread "knuma_scand" that periodically
-	marks pages inaccessible.  The page-fault handler notes any
-	mismatches between the NUMA node that the process is running on
-	and the NUMA node on which the page resides.
-
-	http://lwn.net/Articles/488709/
-	https://www.kernel.org/pub/linux/kernel/people/andrea/autonuma/autonuma_bench-20120530.pdf
-
-	It will be necessary to set up the CCAD device's memory as
-	a very distant NUMA node, and the architecture-specific
-	__numa_distance() function can be used for this purpose.
-	There is a RECLAIM_DISTANCE macro that can be set by the
-	architecture to prevent reclaiming from nodes that are too
-	far away.  Some experimentation would be required to determine
-	the combination of values for the various distance macros.
-
-	This approach needs some way to pull in data from the hardware
-	on access patterns.  Aneesh Kk Veetil is prototyping an approach
-	based on Power 8 hardware counters.  This data will need to be
-	plugged into the migration algorithm, which is currently based
-	on collecting information from page faults.
-
-	Finally, the contiguous memory allocator (CMA, see
-	http://lwn.net/Articles/486301/) is needed in order to prevent
-	the kernel from placing non-migratable allocations in the CCAD
-	device's memory.  This would need to be of type MIGRATE_CMA to
-	ensure that all memory taken from that range be migratable.
-
-	The result would be that the kernel would allocate only migratable
-	pages within the CCAD device's memory, and even then only if
-	memory was otherwise exhausted.  Normal CONFIG_NUMA_BALANCING
-	migration could be brought to bear, possibly enhanced with
-	information from hardware counters.  One remaining issue is that
-	there is no way to absolutely prevent random kernel subsystems
-	from allocating the CCAD device's memory, which could cause
-	failures should the device need to reset itself, in which case
-	the memory would be temporarily inaccessible -- which could be
-	a fatal surprise to that kernel subsystem.
-
-	Jerome Glisse suggests that usermode hints are quite important,
-	and perhaps should replace any AutoNUMA measurements.
-
-
-MEMORY ZONE
-
-	One way to avoid the problem of random kernel subsystems using
-	the CAPI device's memory is to create a new memory zone for
-	this purpose.  This would add something like ZONE_DEVMEM to the
-	current set that includes ZONE_DMA, ZONE_NORMAL, and ZONE_MOVABLE.
-	Currently, there are a maximum of four zones, so this limit must
-	either be increased or kernels built with ZONE_DEVMEM must avoid
-	having more than one of ZONE_DMA, ZONE_DMA32, and ZONE_HIGHMEM.
-
-	This approach requires that migration be implemented on the side,
-	as the CONFIG_NUMA_BALANCING will not help here (unless I am
-	missing something).  One advantage of this situation is that
-	hardware locality measurements could be incorporated from the
-	beginning.  Another advantage is that random kernel subsystems
-	and user programs would not get CAPI device memory unless they
-	explicitly requested it.
-
-	Code would be needed at boot time to place the CAPI device
-	memory into ZONE_DEVMEM, perhaps involving changes to
-	mem_init() and paging_init().
-
-	In addition, an appropriate GFP_DEVMEM would be needed, along
-	with code in various paths to handle it appropriately.
-
-	Also, because large NUMA systems will sometimes interleave the
-	addresses of blocks of physical memory and device memory,
-	support for discontiguous interleaved zones will be required.
-
-
-DAX
-
-	DAX is a mechanism for providing direct-memory access to
-	high-speed non-volatile (AKA "persistent") memory.  Good
-	introductions to DAX may be found in the following LWN
-	articles:
-
-		https://lwn.net/Articles/591779/
-		https://lwn.net/Articles/610174/
-
-	DAX provides filesystem-level access to persistent memory.
-	One important CCAD use case is allowing a legacy application
-	to pass memory from malloc() to a CCAD device, and having
-	the allocated memory migrate as needed.  DAX does not seem to
-	support this use case.
-
-
-ACKNOWLEDGMENTS
-
-	Updates to this document include feedback from Christoph Lameter
-	and Jerome Glisse.
+To: Gavin Guo <gavin.guo@canonical.com>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@rasmusvillemoes.dk
+
+On Thu, 23 Apr 2015 21:26:00 +0800 Gavin Guo <gavin.guo@canonical.com> wrote:
+
+> The slub_debug=PU,kmalloc-xx cannot work because in the
+> create_kmalloc_caches() the s->name is created after the
+> create_kmalloc_cache() is called. The name is NULL in the
+> create_kmalloc_cache() so the kmem_cache_flags() would not set the
+> slub_debug flags to the s->flags. The fix here set up a kmalloc_names
+> string array for the initialization purpose and delete the dynamic
+> name creation of kmalloc_caches.
+
+This code is still pretty horrid :(
+
+What's all that stuff fiddling around with size_index[], magic
+constants everywhere.  Surely there's some way of making this nice and
+clear: table-driven, robust to changes.
+
+> +/*
+> + * The KMALLOC_LOOP_LOW is the definition for the for loop index start number
+> + * to create the kmalloc_caches object in create_kmalloc_caches(). The first
+> + * and the second are 96 and 192. You can see that in the kmalloc_index(), if
+> + * the KMALLOC_MIN_SIZE <= 32, then return 1 (96). If KMALLOC_MIN_SIZE <= 64,
+> + * then return 2 (192). If the KMALLOC_MIN_SIZE is bigger than 64, we don't
+> + * need to initialize 96 and 192. Go directly to start the KMALLOC_SHIFT_LOW.
+> + */
+> +#if KMALLOC_MIN_SIZE <= 32
+> +#define KMALLOC_LOOP_LOW 1
+> +#elif KMALLOC_MIN_SIZE <= 64
+> +#define KMALLOC_LOOP_LOW 2
+> +#else
+> +#define KMALLOC_LOOP_LOW KMALLOC_SHIFT_LOW
+> +#endif
+> +
+>  #else
+>  #define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
+> +/*
+> + * The KMALLOC_MIN_SIZE of slub/slab/slob is 2^3/2^5/2^3. So, even slab is used.
+> + * The KMALLOC_MIN_SIZE <= 32. The kmalloc-96 and kmalloc-192 should also be
+> + * initialized.
+> + */
+> +#define KMALLOC_LOOP_LOW 1
+
+Hopefully we can remove the above.
+
+>  /*
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 999bb34..05c6439 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -784,6 +784,31 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
+>  }
+>  
+>  /*
+> + * The kmalloc_names is to make slub_debug=,kmalloc-xx option work in the boot
+> + * time. The kmalloc_index() support to 2^26=64MB. So, the final entry of the
+> + * table is kmalloc-67108864.
+> + */
+> +static struct {
+> +	const char *name;
+> +	unsigned long size;
+> +} const kmalloc_names[] __initconst = {
+
+OK.  This table is __initconst, so the kstrtoul() trick isn't needed.
+
+> +	{NULL,                      0},		{"kmalloc-96",             96},
+> +	{"kmalloc-192",           192},		{"kmalloc-8",               8},
+> +	{"kmalloc-16",             16},		{"kmalloc-32",             32},
+> +	{"kmalloc-64",             64},		{"kmalloc-128",           128},
+> +	{"kmalloc-256",           256},		{"kmalloc-512",           512},
+> +	{"kmalloc-1024",         1024},		{"kmalloc-2048",         2048},
+> +	{"kmalloc-4096",         4096},		{"kmalloc-8192",         8192},
+> +	{"kmalloc-16384",       16384},		{"kmalloc-32768",       32768},
+> +	{"kmalloc-65536",       65536},		{"kmalloc-131072",     131072},
+> +	{"kmalloc-262144",     262144},		{"kmalloc-524288",     524288},
+> +	{"kmalloc-1048576",   1048576},		{"kmalloc-2097152",   2097152},
+> +	{"kmalloc-4194304",   4194304},		{"kmalloc-8388608",   8388608},
+> +	{"kmalloc-16777216", 16777216},		{"kmalloc-33554432", 33554432},
+> +	{"kmalloc-67108864", 67108864}
+> +};
+> +
+>
+> ...
+>
+> +		if (i == 2)
+> +			i = (KMALLOC_SHIFT_LOW - 1);
+
+Can we get rid of this by using something like
+
+static struct {
+	const char *name;
+	unsigned long size;
+} const kmalloc_names[] __initconst = {
+//	{NULL,                      0},
+	{"kmalloc-96",             96},
+	{"kmalloc-192",           192},
+#if KMALLOC_MIN_SIZE <= 8
+	{"kmalloc-8",               8},
+#endif
+#if KMALLOC_MIN_SIZE <= 16
+	{"kmalloc-16",             16},
+#endif
+#if KMALLOC_MIN_SIZE <= 32
+	{"kmalloc-32",             32},
+#endif
+	{"kmalloc-64",             64},
+	{"kmalloc-128",           128},
+	{"kmalloc-256",           256},
+	{"kmalloc-512",           512},
+	{"kmalloc-1024",         1024},
+	{"kmalloc-2048",         2048},
+	{"kmalloc-4096",         4096},
+	{"kmalloc-8192",         8192},
+	...
+};
+
+(remove the zeroeth entry from kmalloc_names)
+
+(rename kmalloc_names to kmalloc_info or something: it now holds more
+than names)
+
+and make the initialization loop do
+
+	for (i = 0; i < ARRAY_SIZE(kmalloc_names); i++)
+		kmalloc_caches[i] = ...
+
+
+Why does the initialization code do the
+
+	if (!kmalloc_caches[i]) {
+
+test?  Can any of these really be initialized?  If so, why is it
+legitimate for create_kmalloc_caches() to go altering size_index[]
+after some caches have already been set up?
+
+
+If this is all done right, KMALLOC_LOOP_LOW, KMALLOC_SHIFT_LOW and
+KMALLOC_SHIFT_HIGH should just go away - we should be able to implement
+all the logic using only KMALLOC_MIN_SIZE and MAX_ORDER.
+
+
+Perhaps the manipulation of size_index[] should be done while we're
+initalizing the caches, perhaps driven by additional fields in
+kmalloc_info.
+
+
+Finally, why does create_kmalloc_caches() use GFP_NOWAIT?  We're in
+__init code!  Makes no sense.  Or if it *does* make sense, the reason
+should be clearly commented.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
