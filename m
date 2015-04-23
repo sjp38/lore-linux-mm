@@ -1,102 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D3266B0085
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 18:14:13 -0400 (EDT)
-Received: by pdbqd1 with SMTP id qd1so30050137pdb.2
-        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 15:14:13 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id dz4si10631680pab.215.2015.04.23.15.14.09
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Apr 2015 15:14:10 -0700 (PDT)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [RFC v2 PATCH 3/5] hugetlbfs: New huge_add_to_page_cache helper routine
-Date: Thu, 23 Apr 2015 15:13:15 -0700
-Message-Id: <1429827197-677-4-git-send-email-mike.kravetz@oracle.com>
-In-Reply-To: <1429827197-677-1-git-send-email-mike.kravetz@oracle.com>
-References: <1429827197-677-1-git-send-email-mike.kravetz@oracle.com>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id CF2E06B0038
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 18:26:22 -0400 (EDT)
+Received: by pdbqd1 with SMTP id qd1so30275108pdb.2
+        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 15:26:22 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id er5si14452435pbd.38.2015.04.23.15.26.20
+        for <linux-mm@kvack.org>;
+        Thu, 23 Apr 2015 15:26:22 -0700 (PDT)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [PATCH] mm/hugetlb: reduce arch dependent code about
+ huge_pmd_unshare
+Date: Thu, 23 Apr 2015 22:26:18 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F32A6478B@ORSMSX114.amr.corp.intel.com>
+References: <1428996566-86763-1-git-send-email-zhenzhang.zhang@huawei.com>
+	<552CC328.9050402@huawei.com>
+ <20150423151118.40c41fb1810f2aaa877163ae@linux-foundation.org>
+In-Reply-To: <20150423151118.40c41fb1810f2aaa877163ae@linux-foundation.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Zhang Zhen <zhenzhang.zhang@huawei.com>
+Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "james.hogan@imgtec.com" <james.hogan@imgtec.com>, "ralf@linux-mips.org" <ralf@linux-mips.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "schwidefsky@de.ibm.com" <schwidefsky@de.ibm.com>, "cmetcalf@ezchip.com" <cmetcalf@ezchip.com>, David Rientjes <rientjes@google.com>, "James.Yang@freescale.com" <James.Yang@freescale.com>, "aneesh.kumar@linux.vnet.ibm.com" <aneesh.kumar@linux.vnet.ibm.com>
 
-Currently, there is  only a single place where hugetlbfs pages are
-added to the page cache.  The new fallocate code be adding a second
-one, so break the functionality out into its own helper.
+> Memory fails me.  Why do some architectures (arm, arm64, x86_64) want
+> huge_pmd_[un]share() while other architectures (ia64, tile, mips,
+> powerpc, metag, sh, s390) do not?
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- include/linux/hugetlb.h |  2 ++
- mm/hugetlb.c            | 27 ++++++++++++++++++---------
- 2 files changed, 20 insertions(+), 9 deletions(-)
+Potentially laziness/ignorance-of-feature?  It looks like this feature star=
+ted on x86_64 and then spread
+to arm*.
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index de39705..a8d9238 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -326,6 +326,8 @@ struct huge_bootmem_page {
- struct page *alloc_huge_page_node(struct hstate *h, int nid);
- struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
- 				unsigned long addr, int avoid_reserve);
-+int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
-+			pgoff_t idx);
- 
- /* arch callback */
- int __init alloc_bootmem_huge_page(struct hstate *h);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 60a4f21..23e2c6d 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2995,6 +2995,23 @@ static bool hugetlbfs_pagecache_present(struct hstate *h,
- 	return page != NULL;
- }
- 
-+int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
-+			   pgoff_t idx)
-+{
-+	struct inode *inode = mapping->host;
-+	struct hstate *h = hstate_inode(inode);
-+	int err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
-+
-+	if (err)
-+		return err;
-+	ClearPagePrivate(page);
-+
-+	spin_lock(&inode->i_lock);
-+	inode->i_blocks += blocks_per_huge_page(h);
-+	spin_unlock(&inode->i_lock);
-+	return 0;
-+}
-+
- static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			   struct address_space *mapping, pgoff_t idx,
- 			   unsigned long address, pte_t *ptep, unsigned int flags)
-@@ -3041,21 +3058,13 @@ retry:
- 		__SetPageUptodate(page);
- 
- 		if (vma->vm_flags & VM_MAYSHARE) {
--			int err;
--			struct inode *inode = mapping->host;
--
--			err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
-+			int err = huge_add_to_page_cache(page, mapping, idx);
- 			if (err) {
- 				put_page(page);
- 				if (err == -EEXIST)
- 					goto retry;
- 				goto out;
- 			}
--			ClearPagePrivate(page);
--
--			spin_lock(&inode->i_lock);
--			inode->i_blocks += blocks_per_huge_page(h);
--			spin_unlock(&inode->i_lock);
- 		} else {
- 			lock_page(page);
- 			if (unlikely(anon_vma_prepare(vma))) {
--- 
-2.1.0
+Huge pages are weird on ia64 in that they have to be in a specific range of=
+ virtual addresses (region 4).
+But I don't see why that would prevent sharing pmd's.
+
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
