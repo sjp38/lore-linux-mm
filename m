@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F11036B0071
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 17:04:32 -0400 (EDT)
-Received: by pacyx8 with SMTP id yx8so28277143pac.1
-        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 14:04:32 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id yf4si2239911pbc.185.2015.04.23.14.04.31
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 213126B0072
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 17:04:40 -0400 (EDT)
+Received: by pacyx8 with SMTP id yx8so28279804pac.1
+        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 14:04:39 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id m2si5970396pdi.226.2015.04.23.14.04.39
         for <linux-mm@kvack.org>;
-        Thu, 23 Apr 2015 14:04:32 -0700 (PDT)
+        Thu, 23 Apr 2015 14:04:39 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 06/28] mm: handle PTE-mapped tail pages in gerneric fast gup implementaiton
-Date: Fri, 24 Apr 2015 00:03:41 +0300
-Message-Id: <1429823043-157133-7-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 24/28] thp, mm: split_huge_page(): caller need to lock page
+Date: Fri, 24 Apr 2015 00:03:59 +0300
+Message-Id: <1429823043-157133-25-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,55 +19,71 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With new refcounting we are going to see THP tail pages mapped with PTE.
-Generic fast GUP rely on page_cache_get_speculative() to obtain
-reference on page. page_cache_get_speculative() always fails on tail
-pages, because ->_count on tail pages is always zero.
+We're going to use migration entries instead of compound_lock() to
+stabilize page refcounts. Setup and remove migration entries require
+page to be locked.
 
-Let's handle tail pages in gup_pte_range().
-
-New split_huge_page() will rely on migration entries to freeze page's
-counts. Recheck PTE value after page_cache_get_speculative() on head
-page should be enough to serialize against split.
+Some of split_huge_page() callers already have the page locked. Let's
+require everybody to lock the page before calling split_huge_page().
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Tested-by: Sasha Levin <sasha.levin@oracle.com>
 ---
- mm/gup.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ mm/memory-failure.c | 12 +++++++++---
+ mm/migrate.c        |  8 ++++++--
+ 2 files changed, 15 insertions(+), 5 deletions(-)
 
-diff --git a/mm/gup.c b/mm/gup.c
-index ebdb39b3e820..eaeeae15006b 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -1051,7 +1051,7 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
- 		 * for an example see gup_get_pte in arch/x86/mm/gup.c
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 441eff52d099..d9b06727e480 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -996,7 +996,10 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+ 		 * enough * to be safe.
  		 */
- 		pte_t pte = READ_ONCE(*ptep);
--		struct page *page;
-+		struct page *head, *page;
- 
- 		/*
- 		 * Similar to the PMD case below, NUMA hinting must take slow
-@@ -1063,15 +1063,17 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
- 
- 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
- 		page = pte_page(pte);
-+		head = compound_head(page);
- 
--		if (!page_cache_get_speculative(page))
-+		if (!page_cache_get_speculative(head))
- 			goto pte_unmap;
- 
- 		if (unlikely(pte_val(pte) != pte_val(*ptep))) {
--			put_page(page);
-+			put_page(head);
- 			goto pte_unmap;
+ 		if (!PageHuge(hpage) && PageAnon(hpage)) {
+-			if (unlikely(split_huge_page(hpage))) {
++			lock_page(hpage);
++			ret = split_huge_page(hpage);
++			unlock_page(hpage);
++			if (unlikely(ret)) {
+ 				/*
+ 				 * FIXME: if splitting THP is failed, it is
+ 				 * better to stop the following operation rather
+@@ -1750,10 +1753,13 @@ int soft_offline_page(struct page *page, int flags)
+ 		return -EBUSY;
+ 	}
+ 	if (!PageHuge(page) && PageTransHuge(hpage)) {
+-		if (PageAnon(hpage) && unlikely(split_huge_page(hpage))) {
++		lock_page(page);
++		ret = split_huge_page(hpage);
++		unlock_page(page);
++		if (unlikely(ret)) {
+ 			pr_info("soft offline: %#lx: failed to split THP\n",
+ 				pfn);
+-			return -EBUSY;
++			return ret;
  		}
+ 	}
  
-+		VM_BUG_ON_PAGE(compound_head(page) != head, page);
- 		pages[*nr] = page;
- 		(*nr)++;
+diff --git a/mm/migrate.c b/mm/migrate.c
+index b51e88c9dba2..03b9c4ba56dc 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -932,9 +932,13 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+ 		goto out;
+ 	}
+ 
+-	if (unlikely(PageTransHuge(page)))
+-		if (unlikely(split_huge_page(page)))
++	if (unlikely(PageTransHuge(page))) {
++		lock_page(page);
++		rc = split_huge_page(page);
++		unlock_page(page);
++		if (rc)
+ 			goto out;
++	}
+ 
+ 	rc = __unmap_and_move(page, newpage, force, mode);
  
 -- 
 2.1.4
