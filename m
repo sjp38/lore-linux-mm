@@ -1,122 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id AD3576B0032
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 11:42:41 -0400 (EDT)
-Received: by qcrf4 with SMTP id f4so11282667qcr.0
-        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 08:42:41 -0700 (PDT)
-Received: from mail-qg0-x235.google.com (mail-qg0-x235.google.com. [2607:f8b0:400d:c04::235])
-        by mx.google.com with ESMTPS id fb7si8497140qcb.28.2015.04.23.08.42.40
+Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BA986B0032
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 11:54:17 -0400 (EDT)
+Received: by layy10 with SMTP id y10so15979187lay.0
+        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 08:54:17 -0700 (PDT)
+Received: from numascale.com (numascale.com. [213.162.240.84])
+        by mx.google.com with ESMTPS id q3si6220861lah.142.2015.04.23.08.54.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Apr 2015 08:42:41 -0700 (PDT)
-Received: by qgej70 with SMTP id j70so9973257qge.2
-        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 08:42:40 -0700 (PDT)
-Date: Thu, 23 Apr 2015 11:42:30 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: Interacting with coherent memory on external devices
-Message-ID: <20150423154229.GA2399@gmail.com>
-References: <20150421214445.GA29093@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504211839120.6294@gentwo.org>
- <20150422000538.GB6046@gmail.com>
- <alpine.DEB.2.11.1504211942040.6294@gentwo.org>
- <20150422131832.GU5561@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
- <20150422170737.GB4062@gmail.com>
- <alpine.DEB.2.11.1504221306200.26217@gentwo.org>
- <1429756592.4915.23.camel@kernel.crashing.org>
- <alpine.DEB.2.11.1504230907330.32297@gentwo.org>
+        Thu, 23 Apr 2015 08:54:15 -0700 (PDT)
+Date: Thu, 23 Apr 2015 23:53:57 +0800
+From: Daniel J Blueman <daniel@numascale.com>
+Subject: Re: [PATCH 0/13] Parallel struct page initialisation v3
+Message-Id: <1429804437.24139.3@cpanel21.proisp.no>
+In-Reply-To: <1429785196-7668-1-git-send-email-mgorman@suse.de>
+References: <1429785196-7668-1-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.11.1504230907330.32297@gentwo.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, 'Steffen Persvold' <sp@numascale.com>
 
-On Thu, Apr 23, 2015 at 09:10:13AM -0500, Christoph Lameter wrote:
-> On Thu, 23 Apr 2015, Benjamin Herrenschmidt wrote:
+On Thu, Apr 23, 2015 at 6:33 PM, Mel Gorman <mgorman@suse.de> wrote:
+> The big change here is an adjustment to the topology_init path that 
+> caused
+> soft lockups on Waiman and Daniel Blue had reported it was an 
+> expensive
+> function.
 > 
-> > >  Anyone
-> > > wanting performance (and that is the prime reason to use a GPU) would
-> > > switch this off because the latencies are otherwise not controllable and
-> > > those may impact performance severely. There are typically multiple
-> > > parallel strands of executing that must execute with similar performance
-> > > in order to allow a data exchange at defined intervals. That is no longer
-> > > possible if you add variances that come with the "transparency" here.
-> >
-> > Stop trying to apply your unique usage model to the entire world :-)
+> Changelog since v2
+> o Reduce overhead of topology_init
+> o Remove boot-time kernel parameter to enable/disable
+> o Enable on UMA
 > 
-> Much of the HPC apps that the world is using is severely impacted by what
-> you are proposing. Its the industries usage model not mine. That is why I
-> was asking about the use case. Does not seem to fit the industry you are
-> targeting. This is also the basic design principle that got GPUs to work
-> as fast as they do today. Introducing random memory latencies there will
-> kill much of the benefit of GPUs there too.
+> Changelog since v1
+> o Always initialise low zones
+> o Typo corrections
+> o Rename parallel mem init to parallel struct page init
+> o Rebase to 4.0
+[]
 
-We obviously have different experience and i fear yours is restricted to
-a specific uncommon application. You care about latency all my previous
-experience (i developped application for HPC platform in the past) is
-that latency is not the issue, throughput is. For instance i developed
-on HPC where the data was coming from magnetic tape, latency here was
-several minutes before the data starts streaming (yes a robot arm had
-to pick the tape and load it into one of the available readers). All
-people i interacted with accross various fields (physics, biology, data
-mining) where not worried a bit about latency. They could not care more
-about latency actually. What they care about was overall throughput and
-ease of use.
+Splendid work! On this 256c setup, topology_init now takes 185ms.
 
-You need to stop thinking HPC == low latency. Low latency is only useful
-in time critical application such as the high frequency trading you seem
-to care about. For people working on physics, biology, data mining, CAD,
-... they do care more about throughput than latency. I strongly believe
-here that this cover a far greater number of users of HPC than yours
-(maybe not in term of money power ... alas).
+This brings the kernel boot time down to 324s [1]. It turns out that 
+one memset is responsible for most of the time setting up the the PUDs 
+and PMDs; adapting memset to using non-temporal writes [3] avoids 
+generating RMW cycles, bringing boot time down to 186s [2].
 
-On GPU front i have a lot of experience, more than 15 years working on
-open source driver for them. I would like to think that i have a clue or
-two on how they work. So when i say latency is not the primary concern
-in most cases, i do mean it. GPU is about having many threads in flight
-and hidding memory latency through this many threads. If you have
-1000 "core" on a GPU and you have 5000 threads in flight then you have
-big chance that no matter of memory latency for each clock cycle you
-will still have 1000 threads ready to compute something.
+If this is a possibility, I can split this patch and map other arch's 
+memset_nocache to memset, or change the callsite as preferred; comments 
+welcome.
 
-I am not saying latency never matter, it is all about the kind of app
-that is running and how much data it needs to consume and how much
-thread the hw can keep in flight at the same time.
+Thanks,
+  Daniel
 
-So yes, autonuma solution are worth investigating, as a matter of fact
-even today driver actually use heuristic (taking into account hint
-provided by userspace) to decide what to put into video memory or not.
+[1] https://resources.numascale.com/telemetry/defermem/h8qgl-defer2.txt
+[2] 
+https://resources.numascale.com/telemetry/defermem/h8qgl-defer2-nontemporal.txt
 
-For many applications the driver stack will be able to provide good
-hint on what to migrate or not, but you still need to think multiple
-process and so you need to share resources. This is the role of the
-kernel to share resources among process, it always have been.
+-- [3]
 
+ From f822139736cab8434302693c635fa146b465273c Mon Sep 17 00:00:00 2001
+ From: Daniel J Blueman <daniel@numascale.com>
+Date: Thu, 23 Apr 2015 23:26:27 +0800
+Subject: [RFC] Speedup PMD setup
 
-Now for your use case, you know before hand how many process there
-gonna be and you can partition the resources accordingly and you make
-better taylored decission on where things should reside. But again
-this is not the common case. All HPC i know can not predict the number
-of process nor partition resource for them. Program that run on those
-system are updated frequently and you need to share resources with
-others. For all those people and for people just working on a work
-station the solution of autonuma is most likely the best. It might
-not lead to 100% saturation of GPU but it will be good enough to
-make a difference.
+Using non-temporal writes prevents read-modify-write cycles,
+which are much slower over large topologies.
 
-The numa code we have today for CPU case exist because it does make
-a difference but you keep trying to restrict GPU user to a workload
-that is specific. Go talk to people doing physic, biology, data
-mining, CAD most of them do not care about latency. They have not
-hard deadline to meet with their computation. They just want things
-to compute as fast as possible and programming to be as easy as it
-can get.
+Adapt the existing memset() function into a _nocache variant and use
+when setting up PMDs during early boot to reduce boot time.
 
-Jerome
+Signed-off-by: Daniel J Blueman <daniel@numascale.com>
+---
+ arch/x86/include/asm/string_64.h |  3 ++
+ arch/x86/lib/memset_64.S         | 90 
+++++++++++++++++++++++++++++++++++++++++
+ mm/memblock.c                    |  2 +-
+ 3 files changed, 94 insertions(+), 1 deletion(-)
+
+diff --git a/arch/x86/include/asm/string_64.h 
+b/arch/x86/include/asm/string_64.h
+index e466119..1ef28d0 100644
+--- a/arch/x86/include/asm/string_64.h
++++ b/arch/x86/include/asm/string_64.h
+@@ -55,6 +55,8 @@ extern void *memcpy(void *to, const void *from, 
+size_t len);
+ #define __HAVE_ARCH_MEMSET
+ void *memset(void *s, int c, size_t n);
+ void *__memset(void *s, int c, size_t n);
++void *memset_nocache(void *s, int c, size_t n);
++void *__memset_nocache(void *s, int c, size_t n);
+
+ #define __HAVE_ARCH_MEMMOVE
+ void *memmove(void *dest, const void *src, size_t count);
+@@ -77,6 +79,7 @@ int strcmp(const char *cs, const char *ct);
+ #define memcpy(dst, src, len) __memcpy(dst, src, len)
+ #define memmove(dst, src, len) __memmove(dst, src, len)
+ #define memset(s, c, n) __memset(s, c, n)
++#define memset_nocache(s, c, n) __memset_nocache(s, c, n)
+ #endif
+
+ #endif /* __KERNEL__ */
+diff --git a/arch/x86/lib/memset_64.S b/arch/x86/lib/memset_64.S
+index 6f44935..fb46f78 100644
+--- a/arch/x86/lib/memset_64.S
++++ b/arch/x86/lib/memset_64.S
+@@ -137,6 +137,96 @@ ENTRY(__memset)
+ ENDPROC(memset)
+ ENDPROC(__memset)
+
++/*
++ * bzero_nocache - set a memory block to zero. This function uses
++ * non-temporal writes in the fastpath
++ *
++ * rdi   destination
++ * rsi   value (char)
++ * rdx   count (bytes)
++ *
++ * rax   original destination
++ */
++
++ENTRY(memset_nocache)
++ENTRY(__memset_nocache)
++	CFI_STARTPROC
++	movq %rdi,%r10
++
++	/* expand byte value */
++	movzbl %sil,%ecx
++	movabs $0x0101010101010101,%rax
++	imulq  %rcx,%rax
++
++	/* align dst */
++	movl  %edi,%r9d
++	andl  $7,%r9d
++	jnz  bad_alignment
++	CFI_REMEMBER_STATE
++after_bad_alignment:
++
++	movq  %rdx,%rcx
++	shrq  $6,%rcx
++	jz	 handle_tail
++
++	.p2align 4
++loop_64:
++	decq  %rcx
++	movnti	%rax,(%rdi)
++	movnti	%rax,8(%rdi)
++	movnti	%rax,16(%rdi)
++	movnti	%rax,24(%rdi)
++	movnti	%rax,32(%rdi)
++	movnti	%rax,40(%rdi)
++	movnti	%rax,48(%rdi)
++	movnti	%rax,56(%rdi)
++	leaq  64(%rdi),%rdi
++	jnz    loop_64
++
++	/* Handle tail in loops; the loops should be faster than hard
++	   to predict jump tables */
++	.p2align 4
++handle_tail:
++	movl	%edx,%ecx
++	andl    $63&(~7),%ecx
++	jz 		handle_7
++	shrl	$3,%ecx
++	.p2align 4
++loop_8:
++	decl   %ecx
++	movnti %rax,(%rdi)
++	leaq  8(%rdi),%rdi
++	jnz    loop_8
++
++handle_7:
++	andl	$7,%edx
++	jz      ende
++	.p2align 4
++loop_1:
++	decl    %edx
++	movb	%al,(%rdi)
++	leaq	1(%rdi),%rdi
++	jnz     loop_1
++
++ende:
++	movq	%r10,%rax
++	ret
++
++	CFI_RESTORE_STATE
++bad_alignment:
++	cmpq $7,%rdx
++	jbe	handle_7
++	movnti %rax,(%rdi)	/* unaligned store */
++	movq $8,%r8
++	subq %r9,%r8
++	addq %r8,%rdi
++	subq %r8,%rdx
++	jmp after_bad_alignment
++final:
++	CFI_ENDPROC
++ENDPROC(memset_nocache)
++ENDPROC(__memset_nocache)
++
+ 	/* Some CPUs support enhanced REP MOVSB/STOSB feature.
+ 	 * It is recommended to use this when possible.
+ 	 *
+diff --git a/mm/memblock.c b/mm/memblock.c
+index f3e97d8..df434d2 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1212,7 +1212,7 @@ again:
+ done:
+ 	memblock_reserve(alloc, size);
+ 	ptr = phys_to_virt(alloc);
+-	memset(ptr, 0, size);
++	memset_nocache(ptr, 0, size);
+
+ 	/*
+ 	 * The min_count is set to 0 so that bootmem allocated blocks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
