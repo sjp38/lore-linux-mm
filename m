@@ -1,65 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C6F86B0032
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 11:46:28 -0400 (EDT)
-Received: by iecrt8 with SMTP id rt8so86444981iec.0
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:46:28 -0700 (PDT)
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com. [209.85.213.177])
-        by mx.google.com with ESMTPS id l74si9750568iol.61.2015.04.24.08.46.27
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id C4AA26B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 11:49:31 -0400 (EDT)
+Received: by igblo3 with SMTP id lo3so17840830igb.0
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:49:31 -0700 (PDT)
+Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
+        by mx.google.com with ESMTPS id p8si2296684ige.41.2015.04.24.08.49.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Apr 2015 08:46:27 -0700 (PDT)
-Received: by igbhj9 with SMTP id hj9so18120951igb.1
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:46:27 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150423154157.837a378188ef0a703813f206@linux-foundation.org>
-References: <1428996566-86763-1-git-send-email-zhenzhang.zhang@huawei.com>
-	<552CC328.9050402@huawei.com>
-	<20150423151118.40c41fb1810f2aaa877163ae@linux-foundation.org>
-	<3908561D78D1C84285E8C5FCA982C28F32A6478B@ORSMSX114.amr.corp.intel.com>
-	<20150423154157.837a378188ef0a703813f206@linux-foundation.org>
-Date: Fri, 24 Apr 2015 16:46:27 +0100
-Message-ID: <CAPvkgC2dMzp26-XcYMNVufMiuoAmuKw-hr4kYH27_nARz3gbQg@mail.gmail.com>
-Subject: Re: [PATCH] mm/hugetlb: reduce arch dependent code about huge_pmd_unshare
-From: Steve Capper <steve.capper@linaro.org>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 24 Apr 2015 08:49:31 -0700 (PDT)
+Date: Fri, 24 Apr 2015 10:49:28 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Interacting with coherent memory on external devices
+In-Reply-To: <20150424145459.GY5561@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.11.1504241048490.9889@gentwo.org>
+References: <1429663372.27410.75.camel@kernel.crashing.org> <20150422005757.GP5561@linux.vnet.ibm.com> <1429664686.27410.84.camel@kernel.crashing.org> <alpine.DEB.2.11.1504221020160.24979@gentwo.org> <20150422163135.GA4062@gmail.com>
+ <alpine.DEB.2.11.1504221206080.25607@gentwo.org> <1429756456.4915.22.camel@kernel.crashing.org> <alpine.DEB.2.11.1504230925250.32297@gentwo.org> <20150423185240.GO5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504240929340.7582@gentwo.org>
+ <20150424145459.GY5561@linux.vnet.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Luck, Tony" <tony.luck@intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "james.hogan@imgtec.com" <james.hogan@imgtec.com>, "ralf@linux-mips.org" <ralf@linux-mips.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "schwidefsky@de.ibm.com" <schwidefsky@de.ibm.com>, "cmetcalf@ezchip.com" <cmetcalf@ezchip.com>, David Rientjes <rientjes@google.com>, "James.Yang@freescale.com" <James.Yang@freescale.com>, "aneesh.kumar@linux.vnet.ibm.com" <aneesh.kumar@linux.vnet.ibm.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-Hi,
+On Fri, 24 Apr 2015, Paul E. McKenney wrote:
 
-On 23 April 2015 at 23:41, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Thu, 23 Apr 2015 22:26:18 +0000 "Luck, Tony" <tony.luck@intel.com> wrote:
+> can deliver, but where the cost of full-fledge hand tuning cannot be
+> justified.
 >
->> > Memory fails me.  Why do some architectures (arm, arm64, x86_64) want
->> > huge_pmd_[un]share() while other architectures (ia64, tile, mips,
->> > powerpc, metag, sh, s390) do not?
->>
->> Potentially laziness/ignorance-of-feature?  It looks like this feature started on x86_64 and then spread
->> to arm*.
->
-> Yes.  In 3212b535f200c85b5a6 Steve Capper (ARM person) hoisted the code
-> out of x86 into generic, then made arm use it.
+> You seem to believe that this latter category is the empty set, which
+> I must confess does greatly surprise me.
 
-I tested the pmd sharing code that x86 had and it worked well on ARM
-too so I bundled it in when I generalised some of the huge page code.
-I didn't know enough about the other architectures to enable it for
-them, so played things safe by leaving it disabled for them.
-Looking at this patch, I could have done that more cleanly though.
-
->
-> We're not (I'm not) very good about letting arch people know about such
-> things.  I wonder how to fix that; does linux-arch work?
->
-
-linux-arch is working for me, maybe a good idea to CC in some arch
-maintainers too.
-
-Cheers,
--- 
-Steve
+If there are already compromises are being made then why would you want to
+modify the kernel for this? Some user space coding and device drivers
+should be sufficient.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
