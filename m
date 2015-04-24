@@ -1,81 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B09006B0032
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 17:42:53 -0400 (EDT)
-Received: by wgyo15 with SMTP id o15so63334834wgy.2
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 14:42:53 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id fh5si928399wic.14.2015.04.24.14.42.48
-        for <linux-mm@kvack.org>;
-        Fri, 24 Apr 2015 14:42:49 -0700 (PDT)
-Date: Sat, 25 Apr 2015 00:42:25 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: kernel BUG at mm/swap.c:134! - page dumped because:
- VM_BUG_ON_PAGE(page_mapcount(page) != 0)
-Message-ID: <20150424214225.GA18804@node.dhcp.inet.fi>
-References: <20150418205656.GA7972@pd.tnic>
- <CA+55aFxfGOw7VNqpDN2hm+P8w-9F2pVZf+VN9rZnDqGXe2VQTg@mail.gmail.com>
- <20150418215656.GA13928@node.dhcp.inet.fi>
- <CA+55aFxMx8xmWq7Dszu9h9dZQPGn7hj5GRBrJzh1hsQV600z9w@mail.gmail.com>
- <20150418220803.GB7972@pd.tnic>
- <20150422131219.GD6897@pd.tnic>
- <20150422183309.GA4351@node.dhcp.inet.fi>
- <CA+55aFx5NXDUsyd2qjQ+Uu3mt9Fw4HrsonzREs9V0PhHwWmGPQ@mail.gmail.com>
- <20150423162311.GB19709@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150423162311.GB19709@redhat.com>
+Received: from mail-vn0-f48.google.com (mail-vn0-f48.google.com [209.85.216.48])
+	by kanga.kvack.org (Postfix) with ESMTP id DF2156B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 19:46:09 -0400 (EDT)
+Received: by vnbf1 with SMTP id f1so5445405vnb.5
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 16:46:09 -0700 (PDT)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id sd6si15048598vdc.17.2015.04.24.16.46.08
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 24 Apr 2015 16:46:08 -0700 (PDT)
+Message-ID: <1429919153.16571.15.camel@kernel.crashing.org>
+Subject: Re: Interacting with coherent memory on external devices
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Sat, 25 Apr 2015 09:45:53 +1000
+In-Reply-To: <alpine.DEB.2.11.1504241148420.10475@gentwo.org>
+References: <1429664686.27410.84.camel@kernel.crashing.org>
+	 <alpine.DEB.2.11.1504221020160.24979@gentwo.org>
+	 <20150422163135.GA4062@gmail.com>
+	 <alpine.DEB.2.11.1504221206080.25607@gentwo.org>
+	 <1429756456.4915.22.camel@kernel.crashing.org>
+	 <alpine.DEB.2.11.1504230925250.32297@gentwo.org>
+	 <20150423161105.GB2399@gmail.com>
+	 <alpine.DEB.2.11.1504240912560.7582@gentwo.org>
+	 <20150424150829.GA3840@gmail.com>
+	 <alpine.DEB.2.11.1504241052240.9889@gentwo.org>
+	 <20150424164325.GD3840@gmail.com>
+	 <alpine.DEB.2.11.1504241148420.10475@gentwo.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Borislav Petkov <bp@alien8.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, x86-ml <x86@kernel.org>, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Jerome Glisse <j.glisse@gmail.com>, paulmck@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Thu, Apr 23, 2015 at 06:23:11PM +0200, Andrea Arcangeli wrote:
-> On Wed, Apr 22, 2015 at 12:26:55PM -0700, Linus Torvalds wrote:
-> > On Wed, Apr 22, 2015 at 11:33 AM, Kirill A. Shutemov
-> > <kirill@shutemov.name> wrote:
-> > >
-> > > Could you try patch below instead? This can give a clue what's going on.
-> > 
-> > Just FYI, I've done the revert in my tree.
-> > 
-> > Trying to figure out what is going on despite that is obviously a good
-> > idea, but I'm hoping that my merge window is winding down, so I am
-> > trying to make sure it's all "good to go"..
+On Fri, 2015-04-24 at 11:58 -0500, Christoph Lameter wrote:
+> On Fri, 24 Apr 2015, Jerome Glisse wrote:
 > 
-> Sounds safer to defer it, agreed.
+> > > What exactly is the more advanced version's benefit? What are the features
+> > > that the other platforms do not provide?
+> >
+> > Transparent access to device memory from the CPU, you can map any of the GPU
+> > memory inside the CPU and have the whole cache coherency including proper
+> > atomic memory operation. CAPI is not some mumbo jumbo marketing name there
+> > is real hardware behind it.
 > 
-> Unfortunately I also can only reproduce it only on a workstation where
-> it wasn't very handy to debug it as it'd disrupt my workflow and it
-> isn't equipped with reliable logging either (and the KMS mode didn't
-> switch to console to show me the oops either). It just got it logged
-> once in syslog before freezing.
-> 
-> The problem has to be that there's some get_page/put_page activity
-> before and after a PageAnon transition and it looks like a tail page
-> got mapped by hand in userland by some driver using 4k ptes which
-> isn't normal
+> Got the hardware here but I am getting pretty sobered given what I heard
+> here. The IBM mumbo jumpo marketing comes down to "not much" now.
 
-Compound pages mapped with PTEs predates THP. See f3d48f0373c1.
+Ugh ... first nothing we propose precludes using it with explicit memory
+management the way you want. So I don't know why you have a problem
+here. We are trying to cover a *different* usage model than yours
+obviously. But they aren't exclusive.
 
-> but apparently safe before the patch was applied. Before
-> the patch, the tail page accounting would be symmetric regardless of
-> the PageAnon transition.
-> 
-> page:ffffea0010226040 count:0 mapcount:1 mapping:          (null) index:0x0
-> flags: 0x8000000000008010(dirty|tail)
-> page dumped because: VM_BUG_ON_PAGE(page_mapcount(page) != 0)
-> ------------[ cut here ]------------
-> kernel BUG at mm/swap.c:134!
+Secondly, none of what we are discussing here is supported by *existing*
+hardware, so whatever you have is not concerned. There is no CAPI based
+coprocessor today that provides cachable memory to the system (though
+CAPI as a technology supports it), and no GPU doing that either *yet*.
+Today CAPI adapters can own host cache lines but don't expose large
+swath of cachable local memory.
 
-I looked into code a bit more. And the VM_BUG_ON_PAGE() is bogus. See
-explanation in commit message below.
+Finally, this discussion is not even specifically about CAPI or its
+performances. It's about the *general* case of a coherent coprocessor
+sharing the MMU. Whether it's using CAPI or whatever other technology
+that allows that sort of thing that we may or may not be able to mention
+at this point.
 
-Tail page refcounting is mess. Please consider reviewing my patchset which
-drops it [1]. ;)
+CAPI is just an example because architecturally it allows that too.
 
-Linus, how should we proceed with reverted patch? Should I re-submit it to
-Andrew? Or you'll re-revert it?
+Ben.
 
-[1] lkml.kernel.org/g/1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
