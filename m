@@ -1,44 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 57CA46B0074
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:47:08 -0400 (EDT)
-Received: by wgen6 with SMTP id n6so47710911wge.3
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 04:47:07 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 8si19071380wjx.16.2015.04.24.04.47.05
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 29B806B0078
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:51:23 -0400 (EDT)
+Received: by wgso17 with SMTP id o17so49628111wgs.1
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 05:51:22 -0700 (PDT)
+Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com. [2a00:1450:400c:c05::22c])
+        by mx.google.com with ESMTPS id p14si3965676wiv.47.2015.04.24.05.51.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 24 Apr 2015 04:47:06 -0700 (PDT)
-Message-ID: <553A2D38.2050202@suse.cz>
-Date: Fri, 24 Apr 2015 13:47:04 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Apr 2015 05:51:21 -0700 (PDT)
+Received: by widdi4 with SMTP id di4so20779485wid.0
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 05:51:21 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [patch] mm: vmscan: invoke slab shrinkers from shrink_zone()
-References: <1416939830-20289-1-git-send-email-hannes@cmpxchg.org> <20141128160637.GH6948@esperanza> <20150416035736.GA1203@js1304-P5Q-DELUXE> <20150416143413.GA9228@cmpxchg.org> <20150417050653.GA25530@js1304-P5Q-DELUXE>
-In-Reply-To: <20150417050653.GA25530@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CADUS3okX90JX3KfCf8zHvxY12b=QiU25jQBioh8LrEDVF56A-A@mail.gmail.com>
+References: <CADUS3okX90JX3KfCf8zHvxY12b=QiU25jQBioh8LrEDVF56A-A@mail.gmail.com>
+Date: Fri, 24 Apr 2015 20:51:20 +0800
+Message-ID: <CADUS3okBFnTP2EhFHUPo1s_dHNhsP5EEgGygzrfm5xSnSQ9nDA@mail.gmail.com>
+Subject: Re: about bootmem allocation/freeing flow
+From: yoma sophian <sophian.yoma@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 
-On 04/17/2015 07:06 AM, Joonsoo Kim wrote:
-> On Thu, Apr 16, 2015 at 10:34:13AM -0400, Johannes Weiner wrote:
->> Hi Joonsoo,
->>
->> On Thu, Apr 16, 2015 at 12:57:36PM +0900, Joonsoo Kim wrote:
->>> Hello, Johannes.
->>>
->>> Ccing Vlastimil, because this patch causes some regression on
->>> stress-highalloc test in mmtests and he is a expert on compaction
->>> and would have interest on it. :)
+2015-04-17 20:20 GMT+08:00 yoma sophian <sophian.yoma@gmail.com>:
+> hi all:
+> I have several questions about free_all_bootmem_core:
+>
+> 1.
+> In __free_pages_bootmem, we set set_page_count(p, 0) while looping nr_pages,
+> why we need to set_page_refcounted(page) before calling __free_pages?
+below is excerpted from mm/page_alloc.c  and mm/internal.h
+the reason why we use set_page_refcounted(page) is because
+set_page_refcounted(page) will calling VM_BUG_ON
+to checking page property?
 
-Thanks. It's not the first case when stress-highalloc indicated a 
-regression due to changes in reclaim, and some (not really related) 
-change to compaction code undid the apparent regression. But one has to 
-keep in mind that the benchmark is far from perfect. Thanks for the 
-investigation though.
+static inline void set_page_refcounted(struct page *page)
+{
+        VM_BUG_ON(PageTail(page));
+        VM_BUG_ON(atomic_read(&page->_count));
+        set_page_count(page, 1);
+}
+
+void __meminit __free_pages_bootmem(struct page *page, unsigned int order)
+{
+        unsigned int nr_pages = 1 << order;
+        unsigned int loop;
+
+        prefetchw(page);
+        for (loop = 0; loop < nr_pages; loop++) {
+                struct page *p = &page[loop];
+
+                if (loop + 1 < nr_pages)
+                        prefetchw(p + 1);
+                __ClearPageReserved(p);
+                set_page_count(p, 0);
+        }
+
+        page_zone(page)->managed_pages += 1 << order;
+        set_page_refcounted(page);
+        __free_pages(page, order);
+}
+
+appreciate your kind help,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
