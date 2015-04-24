@@ -1,54 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 1677D6B0032
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 14:56:49 -0400 (EDT)
-Received: by qcpm10 with SMTP id m10so30724130qcp.3
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 11:56:48 -0700 (PDT)
-Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
-        by mx.google.com with ESMTPS id c41si12167236qge.65.2015.04.24.11.56.46
+Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FEFF6B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 15:04:32 -0400 (EDT)
+Received: by yhda23 with SMTP id a23so8728755yhd.2
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 12:04:32 -0700 (PDT)
+Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
+        by mx.google.com with ESMTPS id f34si7007167yhq.51.2015.04.24.12.04.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Apr 2015 11:56:47 -0700 (PDT)
-Date: Fri, 24 Apr 2015 13:56:45 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Interacting with coherent memory on external devices
-In-Reply-To: <20150424171957.GE3840@gmail.com>
-Message-ID: <alpine.DEB.2.11.1504241353280.11285@gentwo.org>
-References: <20150422163135.GA4062@gmail.com> <alpine.DEB.2.11.1504221206080.25607@gentwo.org> <1429756456.4915.22.camel@kernel.crashing.org> <alpine.DEB.2.11.1504230925250.32297@gentwo.org> <20150423161105.GB2399@gmail.com> <alpine.DEB.2.11.1504240912560.7582@gentwo.org>
- <20150424150829.GA3840@gmail.com> <alpine.DEB.2.11.1504241052240.9889@gentwo.org> <20150424164325.GD3840@gmail.com> <alpine.DEB.2.11.1504241148420.10475@gentwo.org> <20150424171957.GE3840@gmail.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Apr 2015 12:04:31 -0700 (PDT)
+Message-ID: <553A93BB.1010404@hp.com>
+Date: Fri, 24 Apr 2015 15:04:27 -0400
+From: Waiman Long <waiman.long@hp.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 10/13] x86: mm: Enable deferred struct page initialisation
+ on x86-64
+References: <1429722473-28118-1-git-send-email-mgorman@suse.de> <1429722473-28118-11-git-send-email-mgorman@suse.de> <20150422164500.121a355e6b578243cb3650e3@linux-foundation.org> <20150423092327.GJ14842@suse.de> <553A54C5.3060106@hp.com> <20150424152007.GD2449@suse.de>
+In-Reply-To: <20150424152007.GD2449@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, paulmck@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 24 Apr 2015, Jerome Glisse wrote:
+On 04/24/2015 11:20 AM, Mel Gorman wrote:
+> On Fri, Apr 24, 2015 at 10:35:49AM -0400, Waiman Long wrote:
+>> On 04/23/2015 05:23 AM, Mel Gorman wrote:
+>>> On Wed, Apr 22, 2015 at 04:45:00PM -0700, Andrew Morton wrote:
+>>>> On Wed, 22 Apr 2015 18:07:50 +0100 Mel Gorman<mgorman@suse.de>   wrote:
+>>>>
+>>>>> --- a/arch/x86/Kconfig
+>>>>> +++ b/arch/x86/Kconfig
+>>>>> @@ -32,6 +32,7 @@ config X86
+>>>>>   	select HAVE_UNSTABLE_SCHED_CLOCK
+>>>>>   	select ARCH_SUPPORTS_NUMA_BALANCING if X86_64
+>>>>>   	select ARCH_SUPPORTS_INT128 if X86_64
+>>>>> +	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT if X86_64&&   NUMA
+>>>> Put this in the "config X86_64" section and skip the "X86_64&&"?
+>>>>
+>>> Done.
+>>>
+>>>> Can we omit the whole defer_meminit= thing and permanently enable the
+>>>> feature?  That's simpler, provides better test coverage and is, we
+>>>> hope, faster.
+>>>>
+>>> Yes. The intent was to have a workaround if there were any failures like
+>>> Waiman's vmalloc failures in an earlier version but they are bugs that
+>>> should be fixed.
+>>>
+>>>> And can this be used on non-NUMA?  Presumably that won't speed things
+>>>> up any if we're bandwidth limited but again it's simpler and provides
+>>>> better coverage.
+>>> Nothing prevents it. There is less opportunity for parallelism but
+>>> improving coverage is desirable.
+>>>
+>> Memory access latency can be more than double for local vs. remote
+>> node memory. Bandwidth can also be much lower depending on what kind
+>> of interconnect is between the 2 nodes. So it is better to do it in
+>> a NUMA-aware way.
+> I do not believe that is what he was asking. He was asking if we could
+> defer memory initialisation even when there is only one node. It does not
+> gain much in terms of boot times but it improves testing coverage.
 
-> > Right this is how things work and you could improve on that. Stay with the
-> > scheme. Why would that not work if you map things the same way in both
-> > environments if both accellerator and host processor can acceess each
-> > others memory?
+Thanks for the clarification.
+
+>> Within a NUMA node, however, we can split the
+>> memory initialization to 2 or more local CPUs if the memory size is
+>> big enough.
+>>
+> I considered it but discarded the idea. It'd be more complex to setup and
+> the two CPUs could simply end up contending on the same memory bus as
+> well as contending on zone->lock.
 >
-> Again and again share address space, having a pointer means the same thing
-> for the GPU than it means for the CPU ie having a random pointer point to
-> the same memory whether it is accessed by the GPU or the CPU. While also
-> keeping the property of the backing memory. It can be share memory from
-> other process, a file mmaped from disk or simply anonymous memory and
-> thus we have no control whatsoever on how such memory is allocated.
 
-Still no answer as to why is that not possible with the current scheme?
-You keep on talking about pointers and I keep on responding that this is a
-matter of making the address space compatible on both sides.
+I don't think we need that now. However, we may have to consider this 
+when one day even a single node can have TBs of memory unless we move to 
+a page size larger than 4k.
 
-> Then you had transparent migration (transparent in the sense that we can
-> handle CPU page fault on migrated memory) and you will see that you need
-> to modify the kernel to become aware of this and provide a common code
-> to deal with all this.
-
-If the GPU works like a CPU (which I keep hearing) then you should also be
-able to run a linu8x kernel on it and make it a regular NUMA node. Hey why
-dont we make the host cpu a GPU (hello Xeon Phi).
-
+Cheers,
+Longman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
