@@ -1,65 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DA426B0038
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 11:09:40 -0400 (EDT)
-Received: by qkgx75 with SMTP id x75so31633431qkg.1
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:09:40 -0700 (PDT)
-Received: from mail-qk0-x229.google.com (mail-qk0-x229.google.com. [2607:f8b0:400d:c09::229])
-        by mx.google.com with ESMTPS id f12si11616680qkh.128.2015.04.24.08.09.39
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C0266B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 11:16:57 -0400 (EDT)
+Received: by wgso17 with SMTP id o17so54261888wgs.1
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:16:57 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gk6si4750649wib.34.2015.04.24.08.16.55
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Apr 2015 08:09:39 -0700 (PDT)
-Received: by qkgx75 with SMTP id x75so31633170qkg.1
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:09:39 -0700 (PDT)
-Date: Fri, 24 Apr 2015 11:09:36 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: Interacting with coherent memory on external devices
-Message-ID: <20150424150935.GB3840@gmail.com>
-References: <20150422000538.GB6046@gmail.com>
- <alpine.DEB.2.11.1504211942040.6294@gentwo.org>
- <20150422131832.GU5561@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
- <1429756200.4915.19.camel@kernel.crashing.org>
- <alpine.DEB.2.11.1504230921020.32297@gentwo.org>
- <55390EE1.8020304@gmail.com>
- <20150423193339.GR5561@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504240909350.7582@gentwo.org>
- <20150424145738.GZ5561@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 24 Apr 2015 08:16:56 -0700 (PDT)
+Date: Fri, 24 Apr 2015 16:16:52 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH 0/6] TLB flush multiple pages with a single IPI v3
+Message-ID: <20150424151652.GC2449@suse.de>
+References: <1429612880-21415-1-git-send-email-mgorman@suse.de>
+ <553A573E.2000608@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20150424145738.GZ5561@linux.vnet.ibm.com>
+In-Reply-To: <553A573E.2000608@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Christoph Lameter <cl@linux.com>, Austin S Hemmelgarn <ahferroin7@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Apr 24, 2015 at 07:57:38AM -0700, Paul E. McKenney wrote:
-> On Fri, Apr 24, 2015 at 09:12:07AM -0500, Christoph Lameter wrote:
-> > On Thu, 23 Apr 2015, Paul E. McKenney wrote:
-> > 
-> > >
-> > > DAX
-> > >
-> > > 	DAX is a mechanism for providing direct-memory access to
-> > > 	high-speed non-volatile (AKA "persistent") memory.  Good
-> > > 	introductions to DAX may be found in the following LWN
-> > > 	articles:
-> > 
-> > DAX is a mechanism to access memory not managed by the kernel and is the
-> > successor to XIP. It just happens to be needed for persistent memory.
-> > Fundamentally any driver can provide an MMAPPed interface to allow access
-> > to a devices memory.
+On Fri, Apr 24, 2015 at 04:46:22PM +0200, Vlastimil Babka wrote:
+> On 04/21/2015 12:41 PM, Mel Gorman wrote:
+> >Changelog since V2
+> >o Ensure TLBs are flushed before pages are freed		(mel)
 > 
-> I will take another look, but others in this thread have called out
-> difficulties with DAX's filesystem nature.
+> I admit not reading all the patches thoroughly, but doesn't this
+> change of ordering mean that you no longer need the architectural
+> guarantee discussed in patch 2?
 
-Do not waste your time on that this is not what we want. Christoph here
-is more than stuborn and fails to see the world.
+No. If we unmap a page to write it to disk then we cannot allow a CPU to
+write to the physical page being written through a cached entry.
 
-Cheers,
-Jerome
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
