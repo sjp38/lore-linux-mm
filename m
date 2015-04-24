@@ -1,87 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 80A996B0032
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 10:46:26 -0400 (EDT)
-Received: by wiun10 with SMTP id n10so22956599wiu.1
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:46:26 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v5si4679818wjr.212.2015.04.24.07.46.24
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FBC96B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 10:55:06 -0400 (EDT)
+Received: by qgeb100 with SMTP id b100so23777339qge.3
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:55:06 -0700 (PDT)
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com. [32.97.110.158])
+        by mx.google.com with ESMTPS id j4si11610367qga.33.2015.04.24.07.55.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 24 Apr 2015 07:46:25 -0700 (PDT)
-Message-ID: <553A573E.2000608@suse.cz>
-Date: Fri, 24 Apr 2015 16:46:22 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        Fri, 24 Apr 2015 07:55:05 -0700 (PDT)
+Received: from /spool/local
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Fri, 24 Apr 2015 08:55:04 -0600
+Received: from b03cxnp08028.gho.boulder.ibm.com (b03cxnp08028.gho.boulder.ibm.com [9.17.130.20])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id ED13F1FF001F
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:46:11 -0600 (MDT)
+Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
+	by b03cxnp08028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3OEsg7v40960188
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:54:42 -0700
+Received: from d03av05.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av05.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3OEt0U8031376
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:55:00 -0600
+Date: Fri, 24 Apr 2015 07:54:59 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: Interacting with coherent memory on external devices
+Message-ID: <20150424145459.GY5561@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1429663372.27410.75.camel@kernel.crashing.org>
+ <20150422005757.GP5561@linux.vnet.ibm.com>
+ <1429664686.27410.84.camel@kernel.crashing.org>
+ <alpine.DEB.2.11.1504221020160.24979@gentwo.org>
+ <20150422163135.GA4062@gmail.com>
+ <alpine.DEB.2.11.1504221206080.25607@gentwo.org>
+ <1429756456.4915.22.camel@kernel.crashing.org>
+ <alpine.DEB.2.11.1504230925250.32297@gentwo.org>
+ <20150423185240.GO5561@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1504240929340.7582@gentwo.org>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/6] TLB flush multiple pages with a single IPI v3
-References: <1429612880-21415-1-git-send-email-mgorman@suse.de>
-In-Reply-To: <1429612880-21415-1-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.11.1504240929340.7582@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>
-Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On 04/21/2015 12:41 PM, Mel Gorman wrote:
-> Changelog since V2
-> o Ensure TLBs are flushed before pages are freed		(mel)
+On Fri, Apr 24, 2015 at 09:30:40AM -0500, Christoph Lameter wrote:
+> On Thu, 23 Apr 2015, Paul E. McKenney wrote:
+> 
+> > If by "entire industry" you mean everyone who might want to use hardware
+> > acceleration, for example, including mechanical computer-aided design,
+> > I am skeptical.
+> 
+> The industry designs GPUs with super fast special ram and accellerators
+> with special ram designed to do fast searches and you think you can demand page
+> that stuff in from the main processor?
 
-I admit not reading all the patches thoroughly, but doesn't this change 
-of ordering mean that you no longer need the architectural guarantee 
-discussed in patch 2? What's the harm if some other CPU (because the CPU 
-didn't receive an IPI yet) manages to write to a page that you have 
-unmapped in the page tables *but not yet freed*?
+The demand paging is indeed a drawback for the option of using autonuma
+to handle the migration.  And again, this is not intended to replace the
+careful hand-tuning that is required to get the last drop of performance
+out of the system.  It is instead intended to handle the cases where
+the application needs substantially more performance than the CPUs alone
+can deliver, but where the cost of full-fledge hand tuning cannot be
+justified.
 
-Vlastimil
+You seem to believe that this latter category is the empty set, which
+I must confess does greatly surprise me.
 
-> Changelog since V1
-> o Structure and variable renaming				(hughd)
-> o Defer flushes even if the unmapping process is sleeping	(huged)
-> o Alternative sizing of structure				(peterz)
-> o Use GFP_KERNEL instead of GFP_ATOMIC, PF_MEMALLOC protects	(andi)
-> o Immediately flush dirty PTEs to avoid corruption		(mel)
-> o Further clarify docs on the required arch guarantees		(mel)
->
-> When unmapping pages it is necessary to flush the TLB. If that page was
-> accessed by another CPU then an IPI is used to flush the remote CPU. That
-> is a lot of IPIs if kswapd is scanning and unmapping >100K pages per second.
->
-> There already is a window between when a page is unmapped and when it is
-> TLB flushed. This series simply increases the window so multiple pages can
-> be flushed using a single IPI.
->
-> Patch 1 simply made the rest of the series easier to write as ftrace
-> 	could identify all the senders of TLB flush IPIS.
->
-> Patch 2 collects a list of PFNs and sends one IPI to flush them all
->
-> Patch 3 uses more memory so further defer when the IPI gets sent
->
-> Patch 4 uses the same infrastructure as patch 2 to batch IPIs sent during
-> 	page migration.
->
-> The performance impact is documented in the changelogs but in the optimistic
-> case on a 4-socket machine the full series reduces interrupts from 900K
-> interrupts/second to 60K interrupts/second.
->
->   arch/x86/Kconfig                |   1 +
->   arch/x86/include/asm/tlbflush.h |   2 +
->   arch/x86/mm/tlb.c               |   1 +
->   include/linux/init_task.h       |   8 +++
->   include/linux/mm_types.h        |   1 +
->   include/linux/rmap.h            |  13 ++--
->   include/linux/sched.h           |  15 ++++
->   include/trace/events/tlb.h      |   3 +-
->   init/Kconfig                    |   8 +++
->   kernel/fork.c                   |   7 ++
->   kernel/sched/core.c             |   3 +
->   mm/internal.h                   |  16 +++++
->   mm/migrate.c                    |  27 +++++--
->   mm/rmap.c                       | 151 ++++++++++++++++++++++++++++++++++++----
->   mm/vmscan.c                     |  35 +++++++++-
->   15 files changed, 267 insertions(+), 24 deletions(-)
->
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
