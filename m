@@ -1,85 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
-	by kanga.kvack.org (Postfix) with ESMTP id B7E626B0032
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 10:14:05 -0400 (EDT)
-Received: by qcrf4 with SMTP id f4so26281824qcr.0
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:14:05 -0700 (PDT)
-Received: from e35.co.us.ibm.com (e35.co.us.ibm.com. [32.97.110.153])
-        by mx.google.com with ESMTPS id k81si11522635qkh.32.2015.04.24.07.14.04
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B57D6B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 10:29:14 -0400 (EDT)
+Received: by iedfl3 with SMTP id fl3so95394685ied.1
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:29:13 -0700 (PDT)
+Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
+        by mx.google.com with ESMTPS id ku4si2155135igb.21.2015.04.24.07.29.13
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 24 Apr 2015 07:14:04 -0700 (PDT)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Fri, 24 Apr 2015 08:14:03 -0600
-Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 81B5C19D8047
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:05:06 -0600 (MDT)
-Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by b03cxnp08026.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3OEDwE920906120
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:13:59 -0700
-Received: from d03av05.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3OEE1I8007883
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:14:01 -0600
-Date: Fri, 24 Apr 2015 07:13:59 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 24 Apr 2015 07:29:13 -0700 (PDT)
+Date: Fri, 24 Apr 2015 09:29:12 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: Interacting with coherent memory on external devices
-Message-ID: <20150424141359.GX5561@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20150422000538.GB6046@gmail.com>
- <alpine.DEB.2.11.1504211942040.6294@gentwo.org>
- <20150422131832.GU5561@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
- <20150422170737.GB4062@gmail.com>
- <alpine.DEB.2.11.1504221306200.26217@gentwo.org>
- <20150422185230.GD5561@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504230910190.32297@gentwo.org>
- <20150423192456.GQ5561@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504240859080.7582@gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1504240859080.7582@gentwo.org>
+In-Reply-To: <20150423161105.GB2399@gmail.com>
+Message-ID: <alpine.DEB.2.11.1504240912560.7582@gentwo.org>
+References: <20150421214445.GA29093@linux.vnet.ibm.com> <alpine.DEB.2.11.1504211839120.6294@gentwo.org> <1429663372.27410.75.camel@kernel.crashing.org> <20150422005757.GP5561@linux.vnet.ibm.com> <1429664686.27410.84.camel@kernel.crashing.org>
+ <alpine.DEB.2.11.1504221020160.24979@gentwo.org> <20150422163135.GA4062@gmail.com> <alpine.DEB.2.11.1504221206080.25607@gentwo.org> <1429756456.4915.22.camel@kernel.crashing.org> <alpine.DEB.2.11.1504230925250.32297@gentwo.org>
+ <20150423161105.GB2399@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, paulmck@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Fri, Apr 24, 2015 at 09:01:47AM -0500, Christoph Lameter wrote:
-> On Thu, 23 Apr 2015, Paul E. McKenney wrote:
-> 
-> > > As far as I know Jerome is talkeing about HPC loads and high performance
-> > > GPU processing. This is the same use case.
-> >
-> > The difference is sensitivity to latency.  You have latency-sensitive
-> > HPC workloads, and Jerome is talking about HPC workloads that need
-> > high throughput, but are insensitive to latency.
-> 
-> Those are correlated.
+On Thu, 23 Apr 2015, Jerome Glisse wrote:
 
-In some cases, yes.  But are you -really- claiming that -all- HPC
-workloads are highly sensitive to latency?  That would be quite a claim!
+> No this not have been solve properly. Today solution is doing an explicit
+> copy and again and again when complex data struct are involve (list, tree,
+> ...) this is extremly tedious and hard to debug. So today solution often
+> restrict themself to easy thing like matrix multiplication. But if you
+> provide a unified address space then you make things a lot easiers for a
+> lot more usecase. That's a fact, and again OpenCL 2.0 which is an industry
+> standard is a proof that unified address space is one of the most important
+> feature requested by user of GPGPU. You might not care but the rest of the
+> world does.
 
-> > > What you are proposing for High Performacne Computing is reducing the
-> > > performance these guys trying to get. You cannot sell someone a Volkswagen
-> > > if he needs the Ferrari.
-> >
-> > You do need the low-latency Ferrari.  But others are best served by a
-> > high-throughput freight train.
-> 
-> The problem is that they want to run 2000 trains at the same time
-> and they all must arrive at the destination before they can be send on
-> their next trip. 1999 trains will be sitting idle because they need
-> to wait of the one train that was delayed. This reduces the troughput.
-> People really would like all 2000 trains to arrive on schedule so that
-> they get more performance.
+You could use page tables on the kernel side to transfer data on demand
+from the GPU. And you can use a device driver to establish mappings to the
+GPUs memory.
 
-Yes, there is some portion of the market that needs both high throughput
-and highly predictable latencies.  You are claiming that the -entire- HPC
-market has this sort of requirement?  Again, this would be quite a claim!
+There is no copy needed with these approaches.
 
-							Thanx, Paul
+> > I think these two things need to be separated. The shift-the-memory-back-
+> > and-forth approach should be separate and if someone wants to use the
+> > thing then it should also work on other platforms like ARM and Intel.
+>
+> What IBM does with there platform is there choice, they can not force ARM
+> or Intel or AMD to do the same. Each of those might have different view
+> on what is their most important target. For instance i highly doubt ARM
+> cares about any of this.
+
+Well but the kernel code submitted should allow for easy use on other
+platform. I.e. Intel processors should be able to implement the
+"transparent" memory by establishing device mappings to PCI-E space
+and/or transferring data from the GPU and signaling the GPU to establish
+such a mapping.
+
+> Only time critical application care about latency, everyone else cares
+> about throughput, where the applications can runs for days, weeks, months
+> before producing any useable/meaningfull results. Many of which do not
+> care a tiny bit about latency because they can perform independant
+> computation.
+
+Computationally intensive high performance application care about
+random latency introduced to computational threads because that is
+delaying the data exchange and thus slows everything down. And that is the
+typical case of a GPUI.
+
+> Take a company rendering a movie for instance, they want to render the
+> millions of frame as fast as possible but each frame can be rendered
+> independently, they only share data is the input geometry, textures and
+> lighting but this are constant, the rendering of one frame does not
+> depend on the rendering of the previous (leaving post processing like
+> motion blur aside).
+
+The rendering would be done by the GPU and this will involve concurrency
+rapidly accessing data. Performance is certainly impacted if the GPU
+cannot use its own RAM designed for the proper feeding of its processing.
+And if you add a paging layer and swivel stuff below then this will be
+very bad.
+
+At minimum you need to shovel blocks of data into the GPU to allow it to
+operate undisturbed for a while on the data and do its job.
+
+> Same apply if you do some data mining. You want might want to find all
+> occurence of a specific sequence in a large data pool. You can slice
+> your data pool and have an independant job per slice and only aggregate
+> the result of each jobs at the end (or as they finish).
+
+This sounds more like a case for a general purpose processor. If it is a
+special device then it will typically also have special memory to allow
+fast searches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
