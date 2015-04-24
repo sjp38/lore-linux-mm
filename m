@@ -1,37 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id DD67A6B0038
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 10:30:43 -0400 (EDT)
-Received: by igbhj9 with SMTP id hj9so16131754igb.1
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:30:43 -0700 (PDT)
-Received: from resqmta-po-06v.sys.comcast.net (resqmta-po-06v.sys.comcast.net. [2001:558:fe16:19:96:114:154:165])
-        by mx.google.com with ESMTPS id ru4si2098521igb.43.2015.04.24.07.30.43
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 97CD86B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 10:35:57 -0400 (EDT)
+Received: by oblw8 with SMTP id w8so39136071obl.0
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:35:57 -0700 (PDT)
+Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
+        by mx.google.com with ESMTPS id h139si8409763oib.70.2015.04.24.07.35.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Apr 2015 07:30:43 -0700 (PDT)
-Date: Fri, 24 Apr 2015 09:30:40 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Interacting with coherent memory on external devices
-In-Reply-To: <20150423185240.GO5561@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.11.1504240929340.7582@gentwo.org>
-References: <20150421214445.GA29093@linux.vnet.ibm.com> <alpine.DEB.2.11.1504211839120.6294@gentwo.org> <1429663372.27410.75.camel@kernel.crashing.org> <20150422005757.GP5561@linux.vnet.ibm.com> <1429664686.27410.84.camel@kernel.crashing.org>
- <alpine.DEB.2.11.1504221020160.24979@gentwo.org> <20150422163135.GA4062@gmail.com> <alpine.DEB.2.11.1504221206080.25607@gentwo.org> <1429756456.4915.22.camel@kernel.crashing.org> <alpine.DEB.2.11.1504230925250.32297@gentwo.org>
- <20150423185240.GO5561@linux.vnet.ibm.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Apr 2015 07:35:56 -0700 (PDT)
+Message-ID: <553A54C5.3060106@hp.com>
+Date: Fri, 24 Apr 2015 10:35:49 -0400
+From: Waiman Long <waiman.long@hp.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 10/13] x86: mm: Enable deferred struct page initialisation
+ on x86-64
+References: <1429722473-28118-1-git-send-email-mgorman@suse.de> <1429722473-28118-11-git-send-email-mgorman@suse.de> <20150422164500.121a355e6b578243cb3650e3@linux-foundation.org> <20150423092327.GJ14842@suse.de>
+In-Reply-To: <20150423092327.GJ14842@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 23 Apr 2015, Paul E. McKenney wrote:
+On 04/23/2015 05:23 AM, Mel Gorman wrote:
+> On Wed, Apr 22, 2015 at 04:45:00PM -0700, Andrew Morton wrote:
+>> On Wed, 22 Apr 2015 18:07:50 +0100 Mel Gorman<mgorman@suse.de>  wrote:
+>>
+>>> --- a/arch/x86/Kconfig
+>>> +++ b/arch/x86/Kconfig
+>>> @@ -32,6 +32,7 @@ config X86
+>>>   	select HAVE_UNSTABLE_SCHED_CLOCK
+>>>   	select ARCH_SUPPORTS_NUMA_BALANCING if X86_64
+>>>   	select ARCH_SUPPORTS_INT128 if X86_64
+>>> +	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT if X86_64&&  NUMA
+>> Put this in the "config X86_64" section and skip the "X86_64&&"?
+>>
+> Done.
+>
+>> Can we omit the whole defer_meminit= thing and permanently enable the
+>> feature?  That's simpler, provides better test coverage and is, we
+>> hope, faster.
+>>
+> Yes. The intent was to have a workaround if there were any failures like
+> Waiman's vmalloc failures in an earlier version but they are bugs that
+> should be fixed.
+>
+>> And can this be used on non-NUMA?  Presumably that won't speed things
+>> up any if we're bandwidth limited but again it's simpler and provides
+>> better coverage.
+> Nothing prevents it. There is less opportunity for parallelism but
+> improving coverage is desirable.
+>
 
-> If by "entire industry" you mean everyone who might want to use hardware
-> acceleration, for example, including mechanical computer-aided design,
-> I am skeptical.
+Memory access latency can be more than double for local vs. remote node 
+memory. Bandwidth can also be much lower depending on what kind of 
+interconnect is between the 2 nodes. So it is better to do it in a 
+NUMA-aware way. Within a NUMA node, however, we can split the memory 
+initialization to 2 or more local CPUs if the memory size is big enough.
 
-The industry designs GPUs with super fast special ram and accellerators
-with special ram designed to do fast searches and you think you can demand page
-that stuff in from the main processor?
+Cheers,
+Longman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
