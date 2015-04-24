@@ -1,86 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com [209.85.220.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 727466B0032
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 09:52:40 -0400 (EDT)
-Received: by qkhg7 with SMTP id g7so29983724qkh.2
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 06:52:40 -0700 (PDT)
-Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
-        by mx.google.com with ESMTPS id d191si11433280qka.74.2015.04.24.06.52.39
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E94D6B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 10:01:50 -0400 (EDT)
+Received: by qgej70 with SMTP id j70so23003154qge.2
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:01:50 -0700 (PDT)
+Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
+        by mx.google.com with ESMTPS id w74si11488261qkw.3.2015.04.24.07.01.49
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Apr 2015 06:52:39 -0700 (PDT)
-Date: Fri, 24 Apr 2015 08:52:37 -0500 (CDT)
+        Fri, 24 Apr 2015 07:01:49 -0700 (PDT)
+Date: Fri, 24 Apr 2015 09:01:47 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3] mm/slab_common: Support the slub_debug boot option
- on specific object size
-In-Reply-To: <20150423135106.1411031c362de2a5ef75fd50@linux-foundation.org>
-Message-ID: <alpine.DEB.2.11.1504240847270.7582@gentwo.org>
-References: <1429795560-29131-1-git-send-email-gavin.guo@canonical.com> <20150423135106.1411031c362de2a5ef75fd50@linux-foundation.org>
+Subject: Re: Interacting with coherent memory on external devices
+In-Reply-To: <20150423192456.GQ5561@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.11.1504240859080.7582@gentwo.org>
+References: <20150421214445.GA29093@linux.vnet.ibm.com> <alpine.DEB.2.11.1504211839120.6294@gentwo.org> <20150422000538.GB6046@gmail.com> <alpine.DEB.2.11.1504211942040.6294@gentwo.org> <20150422131832.GU5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
+ <20150422170737.GB4062@gmail.com> <alpine.DEB.2.11.1504221306200.26217@gentwo.org> <20150422185230.GD5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504230910190.32297@gentwo.org> <20150423192456.GQ5561@linux.vnet.ibm.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Gavin Guo <gavin.guo@canonical.com>, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@rasmusvillemoes.dk
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Thu, 23 Apr 2015, Andrew Morton wrote:
-> >
-> > +		if (i == 2)
-> > +			i = (KMALLOC_SHIFT_LOW - 1);
+On Thu, 23 Apr 2015, Paul E. McKenney wrote:
+
+> > As far as I know Jerome is talkeing about HPC loads and high performance
+> > GPU processing. This is the same use case.
 >
-> Can we get rid of this by using something like
+> The difference is sensitivity to latency.  You have latency-sensitive
+> HPC workloads, and Jerome is talking about HPC workloads that need
+> high throughput, but are insensitive to latency.
 
-Nope index is a ilog2 value of the size. The table changes would not
-preserve the mapping of the index to the power of two sizes.
+Those are correlated.
 
-> static struct {
-> 	const char *name;
-> 	unsigned long size;
-> } const kmalloc_names[] __initconst = {
-> //	{NULL,                      0},
-> 	{"kmalloc-96",             96},
-> 	{"kmalloc-192",           192},
-> #if KMALLOC_MIN_SIZE <= 8
-> 	{"kmalloc-8",               8},
-> #endif
-> #if KMALLOC_MIN_SIZE <= 16
-> 	{"kmalloc-16",             16},
-> #endif
-> #if KMALLOC_MIN_SIZE <= 32
-> 	{"kmalloc-32",             32},
-> #endif
-> 	{"kmalloc-64",             64},
-> 	{"kmalloc-128",           128},
-> 	{"kmalloc-256",           256},
-> 	{"kmalloc-512",           512},
-> 	{"kmalloc-1024",         1024},
-> 	{"kmalloc-2048",         2048},
-> 	{"kmalloc-4096",         4096},
-> 	{"kmalloc-8192",         8192},
-> 	...
-> };
+> > What you are proposing for High Performacne Computing is reducing the
+> > performance these guys trying to get. You cannot sell someone a Volkswagen
+> > if he needs the Ferrari.
 >
+> You do need the low-latency Ferrari.  But others are best served by a
+> high-throughput freight train.
 
-> Why does the initialization code do the
->
-> 	if (!kmalloc_caches[i]) {
->
-> test?  Can any of these really be initialized?  If so, why is it
-> legitimate for create_kmalloc_caches() to go altering size_index[]
-> after some caches have already been set up?
-
-Because we know what sizes we need during bootstrap and the initial
-caches that are needed to create others are first populated. If they are
-already handled by the earliest bootstrap code then we should not
-repopulate them later.
-
-> Finally, why does create_kmalloc_caches() use GFP_NOWAIT?  We're in
-> __init code!  Makes no sense.  Or if it *does* make sense, the reason
-> should be clearly commented.
-
-Well I was told by Pekka to use it exactly because it was init code at
-some point. The slab system is not really that functional so I doubt
-it makes much of a difference.
-
+The problem is that they want to run 2000 trains at the same time
+and they all must arrive at the destination before they can be send on
+their next trip. 1999 trains will be sitting idle because they need
+to wait of the one train that was delayed. This reduces the troughput.
+People really would like all 2000 trains to arrive on schedule so that
+they get more performance.
 
 
 --
