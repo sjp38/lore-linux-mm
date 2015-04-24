@@ -1,22 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com [209.85.220.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 757CD6B0032
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 20:42:42 -0400 (EDT)
-Received: by qku63 with SMTP id 63so21571967qku.3
-        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 17:42:42 -0700 (PDT)
+Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D519A6B0038
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 20:42:46 -0400 (EDT)
+Received: by qcyk17 with SMTP id k17so18557227qcy.1
+        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 17:42:46 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q12si9841412qkh.83.2015.04.23.17.42.40
+        by mx.google.com with ESMTPS id 202si9826899qht.82.2015.04.23.17.42.45
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Apr 2015 17:42:41 -0700 (PDT)
-Message-ID: <55399166.8050709@redhat.com>
-Date: Thu, 23 Apr 2015 19:42:14 -0500
+        Thu, 23 Apr 2015 17:42:46 -0700 (PDT)
+Message-ID: <5539916E.80809@redhat.com>
+Date: Thu, 23 Apr 2015 19:42:22 -0500
 From: Dean Nelson <dnelson@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm/hwpoison-inject: fix refcounting in no-injection
- case
-References: <1429236509-8796-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1429236509-8796-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 2/2] mm/hwpoison-inject: check PageLRU of hpage
+References: <1429236509-8796-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1429236509-8796-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1429236509-8796-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 Content-Type: text/plain; charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -25,10 +24,10 @@ To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
 On 04/16/2015 09:08 PM, Naoya Horiguchi wrote:
-> Hwpoison injection via debugfs:hwpoison/corrupt-pfn takes a refcount of
-> the target page. But current code doesn't release it if the target page
-> is not supposed to be injected, which results in memory leak.
-> This patch simply adds the refcount releasing code.
+> Hwpoison injector checks PageLRU of the raw target page to find out whether
+> the page is an appropriate target, but current code now filters out thp tail
+> pages, which prevents us from testing for such cases via this interface.
+> So let's check hpage instead of p.
 > 
 > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
@@ -36,38 +35,29 @@ Acked-by: Dean Nelson <dnelson@redhat.com>
 
 
 > ---
->   mm/hwpoison-inject.c | 7 +++++--
->   1 file changed, 5 insertions(+), 2 deletions(-)
+>   mm/hwpoison-inject.c | 6 +++---
+>   1 file changed, 3 insertions(+), 3 deletions(-)
 > 
 > diff --git v4.0.orig/mm/hwpoison-inject.c v4.0/mm/hwpoison-inject.c
-> index 329caf56df22..2b3f933e3282 100644
+> index 2b3f933e3282..4ca5fe0042e1 100644
 > --- v4.0.orig/mm/hwpoison-inject.c
 > +++ v4.0/mm/hwpoison-inject.c
-> @@ -40,7 +40,7 @@ static int hwpoison_inject(void *data, u64 val)
+> @@ -34,12 +34,12 @@ static int hwpoison_inject(void *data, u64 val)
+>   	if (!hwpoison_filter_enable)
+>   		goto inject;
+>   
+> -	if (!PageLRU(p) && !PageHuge(p))
+> -		shake_page(p, 0);
+> +	if (!PageLRU(hpage) && !PageHuge(p))
+> +		shake_page(hpage, 0);
+>   	/*
 >   	 * This implies unable to support non-LRU pages.
 >   	 */
->   	if (!PageLRU(p) && !PageHuge(p))
-> -		return 0;
-> +		goto put_out;
+> -	if (!PageLRU(p) && !PageHuge(p))
+> +	if (!PageLRU(hpage) && !PageHuge(p))
+>   		goto put_out;
 >   
 >   	/*
->   	 * do a racy check with elevated page count, to make sure PG_hwpoison
-> @@ -52,11 +52,14 @@ static int hwpoison_inject(void *data, u64 val)
->   	err = hwpoison_filter(hpage);
->   	unlock_page(hpage);
->   	if (err)
-> -		return 0;
-> +		goto put_out;
->   
->   inject:
->   	pr_info("Injecting memory failure at pfn %#lx\n", pfn);
->   	return memory_failure(pfn, 18, MF_COUNT_INCREASED);
-> +put_out:
-> +	put_page(hpage);
-> +	return 0;
->   }
->   
->   static int hwpoison_unpoison(void *data, u64 val)
 > 
 
 --
