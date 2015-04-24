@@ -1,80 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id B6F526B0032
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 15:14:04 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so33104503wiz.1
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 12:14:04 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id fk5si394775wib.21.2015.04.24.12.14.02
+Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AA3D6B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 15:29:05 -0400 (EDT)
+Received: by qcpm10 with SMTP id m10so31198380qcp.3
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 12:29:04 -0700 (PDT)
+Received: from mail-qc0-x235.google.com (mail-qc0-x235.google.com. [2607:f8b0:400d:c01::235])
+        by mx.google.com with ESMTPS id m83si12236612qhb.96.2015.04.24.12.29.03
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Apr 2015 12:14:03 -0700 (PDT)
-Date: Fri, 24 Apr 2015 15:13:53 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 09/12] mm: page_alloc: private memory reserves for
- OOM-killing allocations
-Message-ID: <20150424191353.GA5293@cmpxchg.org>
-References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
- <1427264236-17249-10-git-send-email-hannes@cmpxchg.org>
- <20150414164939.GJ17160@dhcp22.suse.cz>
+        Fri, 24 Apr 2015 12:29:03 -0700 (PDT)
+Received: by qcbii10 with SMTP id ii10so31199828qcb.2
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 12:29:03 -0700 (PDT)
+Date: Fri, 24 Apr 2015 15:29:00 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: Interacting with coherent memory on external devices
+Message-ID: <20150424192859.GF3840@gmail.com>
+References: <1429756456.4915.22.camel@kernel.crashing.org>
+ <alpine.DEB.2.11.1504230925250.32297@gentwo.org>
+ <20150423161105.GB2399@gmail.com>
+ <alpine.DEB.2.11.1504240912560.7582@gentwo.org>
+ <20150424150829.GA3840@gmail.com>
+ <alpine.DEB.2.11.1504241052240.9889@gentwo.org>
+ <20150424164325.GD3840@gmail.com>
+ <alpine.DEB.2.11.1504241148420.10475@gentwo.org>
+ <20150424171957.GE3840@gmail.com>
+ <alpine.DEB.2.11.1504241353280.11285@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20150414164939.GJ17160@dhcp22.suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <alpine.DEB.2.11.1504241353280.11285@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>
+To: Christoph Lameter <cl@linux.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, paulmck@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Tue, Apr 14, 2015 at 06:49:40PM +0200, Michal Hocko wrote:
-> On Wed 25-03-15 02:17:13, Johannes Weiner wrote:
-> > @@ -5747,17 +5765,18 @@ static void __setup_per_zone_wmarks(void)
-> >  
-> >  			min_pages = zone->managed_pages / 1024;
-> >  			min_pages = clamp(min_pages, SWAP_CLUSTER_MAX, 128UL);
-> > -			zone->watermark[WMARK_MIN] = min_pages;
-> > +			zone->watermark[WMARK_OOM] = min_pages;
-> >  		} else {
-> >  			/*
-> >  			 * If it's a lowmem zone, reserve a number of pages
-> >  			 * proportionate to the zone's size.
-> >  			 */
-> > -			zone->watermark[WMARK_MIN] = tmp;
-> > +			zone->watermark[WMARK_OOM] = tmp;
-> >  		}
-> >  
-> > -		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + (tmp >> 2);
-> > -		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + (tmp >> 1);
-> > +		zone->watermark[WMARK_MIN]  = oom_wmark_pages(zone) + (tmp >> 3);
-> > +		zone->watermark[WMARK_LOW]  = oom_wmark_pages(zone) + (tmp >> 2);
-> > +		zone->watermark[WMARK_HIGH] = oom_wmark_pages(zone) + (tmp >> 1);
+On Fri, Apr 24, 2015 at 01:56:45PM -0500, Christoph Lameter wrote:
+> On Fri, 24 Apr 2015, Jerome Glisse wrote:
 > 
-> This will basically elevate the min watermark, right? And that might lead
-> to subtle performance differences even when OOM killer is not invoked
-> because the direct reclaim will start sooner.
+> > > Right this is how things work and you could improve on that. Stay with the
+> > > scheme. Why would that not work if you map things the same way in both
+> > > environments if both accellerator and host processor can acceess each
+> > > others memory?
+> >
+> > Again and again share address space, having a pointer means the same thing
+> > for the GPU than it means for the CPU ie having a random pointer point to
+> > the same memory whether it is accessed by the GPU or the CPU. While also
+> > keeping the property of the backing memory. It can be share memory from
+> > other process, a file mmaped from disk or simply anonymous memory and
+> > thus we have no control whatsoever on how such memory is allocated.
+> 
+> Still no answer as to why is that not possible with the current scheme?
+> You keep on talking about pointers and I keep on responding that this is a
+> matter of making the address space compatible on both sides.
 
-It will move the min watermark a bit closer to the kswapd watermarks,
-so I guess the risk of entering direct reclaim when kswapd won't wake
-up fast enough before concurrent allocator slowpaths deplete the zone
-from low to min is marginally increased.  That seems like a farfetched
-worry, especially given that waking up a sleeping kswapd is not a high
-frequency event in the first place.
+So if do that in a naive way, how can we migrate a chunk of memory to video
+memory while still handling properly the case where CPU try to access that
+same memory while it is migrated to the GPU memory.
 
-> Shouldn't we rather give WMARK_OOM half of WMARK_MIN instead?
+Without modifying a single line of mm code, the only way to do this is to
+either unmap from the cpu page table the range being migrated or to mprotect
+it in some way. In both case the cpu access will trigger some kind of fault.
 
-I guess conceptually that would work as well, since an OOM killing
-task is technically reclaiming memory and this reserve is meant to
-help reclaiming tasks make forward progress.
+This is not the behavior we want. What we want is same address space while
+being able to migrate system memory to device memory (who make that decision
+should not be part of that discussion) while still gracefully handling any
+CPU access.
 
-That being said, the separate OOM reserve was designed for when the
-allocation can actually fail: deplete our own little reserve before
-returning failure.  But it looks like neither the low-order nor the
-GFP_NOFS deadlock fixes got any traction, and so right now all OOM
-killing allocations still have the potential to deadlock.  Is there a
-reason we shouldn't just let them do an ALLOC_NO_WATERMARK allocation
-after the OOM victim exited (or timed out)?
+This means if CPU access it we want to migrate memory back to system memory.
+To achieve this there is no way around adding couple of if inside the mm
+page fault code path. Now do you want each driver to add its own if branch
+or do you want a common infrastructure to do just that ?
 
-Otherwise, I'll just do that in the next iteration.
+As i keep saying the solution you propose is what we have today, today we
+have fake share address space through the trick of remapping system memory
+at same address inside the GPU address space and also enforcing the use of
+a special memory allocator that goes behind the back of mm code.
+
+But this limit to only using system memory, you can not use video memory
+transparently through such scheme. Some trick use today is to copy memory
+to device memory and to not bother with CPU access pretend it can not happen
+and as such the GPU and CPU can diverge in what they see for same address.
+We want to avoid trick like this that just lead to some weird and unexpected
+behavior.
+
+As you pointed out, not using GPU memory is a waste and we want to be able
+to use it. Now Paul have more sofisticated hardware that offer oportunities
+to do thing in a more transparent and efficient way.
+
+> 
+> > Then you had transparent migration (transparent in the sense that we can
+> > handle CPU page fault on migrated memory) and you will see that you need
+> > to modify the kernel to become aware of this and provide a common code
+> > to deal with all this.
+> 
+> If the GPU works like a CPU (which I keep hearing) then you should also be
+> able to run a linu8x kernel on it and make it a regular NUMA node. Hey why
+> dont we make the host cpu a GPU (hello Xeon Phi).
+
+I am not saying it works like a CPU, i am saying it should face the same kind
+of pattern when it comes to page fault, ie page fault are not the end of the
+world for the GPU and you should not assume that all GPU threads will wait
+for a pagefault because this is not the common case on CPU. Yes we prefer when
+page fault never happen, so does the CPU.
+
+No, you can not run the linux kernel on the GPU unless you are willing to allow
+having the kernel runs on heterogneous architecture with different instruction
+set. Not even going into the problematic of ring level/system level. We might
+one day go down that road but i see no compeling point today.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
