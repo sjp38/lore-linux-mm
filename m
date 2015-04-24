@@ -1,52 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E94D6B0032
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 10:01:50 -0400 (EDT)
-Received: by qgej70 with SMTP id j70so23003154qge.2
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:01:50 -0700 (PDT)
-Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
-        by mx.google.com with ESMTPS id w74si11488261qkw.3.2015.04.24.07.01.49
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 58C496B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 10:04:14 -0400 (EDT)
+Received: by iecrt8 with SMTP id rt8so84084578iec.0
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:04:14 -0700 (PDT)
+Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
+        by mx.google.com with ESMTPS id 5si9790783icu.79.2015.04.24.07.04.13
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Apr 2015 07:01:49 -0700 (PDT)
-Date: Fri, 24 Apr 2015 09:01:47 -0500 (CDT)
+        Fri, 24 Apr 2015 07:04:13 -0700 (PDT)
+Date: Fri, 24 Apr 2015 09:04:13 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
 Subject: Re: Interacting with coherent memory on external devices
-In-Reply-To: <20150423192456.GQ5561@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.11.1504240859080.7582@gentwo.org>
+In-Reply-To: <20150423154229.GA2399@gmail.com>
+Message-ID: <alpine.DEB.2.11.1504240902230.7582@gentwo.org>
 References: <20150421214445.GA29093@linux.vnet.ibm.com> <alpine.DEB.2.11.1504211839120.6294@gentwo.org> <20150422000538.GB6046@gmail.com> <alpine.DEB.2.11.1504211942040.6294@gentwo.org> <20150422131832.GU5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
- <20150422170737.GB4062@gmail.com> <alpine.DEB.2.11.1504221306200.26217@gentwo.org> <20150422185230.GD5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504230910190.32297@gentwo.org> <20150423192456.GQ5561@linux.vnet.ibm.com>
+ <20150422170737.GB4062@gmail.com> <alpine.DEB.2.11.1504221306200.26217@gentwo.org> <1429756592.4915.23.camel@kernel.crashing.org> <alpine.DEB.2.11.1504230907330.32297@gentwo.org> <20150423154229.GA2399@gmail.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Thu, 23 Apr 2015, Paul E. McKenney wrote:
+On Thu, 23 Apr 2015, Jerome Glisse wrote:
 
-> > As far as I know Jerome is talkeing about HPC loads and high performance
-> > GPU processing. This is the same use case.
->
-> The difference is sensitivity to latency.  You have latency-sensitive
-> HPC workloads, and Jerome is talking about HPC workloads that need
-> high throughput, but are insensitive to latency.
+> The numa code we have today for CPU case exist because it does make
+> a difference but you keep trying to restrict GPU user to a workload
+> that is specific. Go talk to people doing physic, biology, data
+> mining, CAD most of them do not care about latency. They have not
+> hard deadline to meet with their computation. They just want things
+> to compute as fast as possible and programming to be as easy as it
+> can get.
 
-Those are correlated.
-
-> > What you are proposing for High Performacne Computing is reducing the
-> > performance these guys trying to get. You cannot sell someone a Volkswagen
-> > if he needs the Ferrari.
->
-> You do need the low-latency Ferrari.  But others are best served by a
-> high-throughput freight train.
-
-The problem is that they want to run 2000 trains at the same time
-and they all must arrive at the destination before they can be send on
-their next trip. 1999 trains will be sitting idle because they need
-to wait of the one train that was delayed. This reduces the troughput.
-People really would like all 2000 trains to arrive on schedule so that
-they get more performance.
-
+I started working on the latency issues a long time ago because
+performance of those labs was restricted by OS processing. A noted problem
+was SLABs scanning of its objects every 2 seconds which caused pretty
+significant performance regressions due to the delay of the computation in
+individual threads.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
