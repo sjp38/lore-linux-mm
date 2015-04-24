@@ -1,85 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E7E686B006C
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 11:20:12 -0400 (EDT)
-Received: by wgen6 with SMTP id n6so54208615wge.3
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:20:12 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id co6si4601164wib.43.2015.04.24.08.20.10
+Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C6F86B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 11:46:28 -0400 (EDT)
+Received: by iecrt8 with SMTP id rt8so86444981iec.0
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:46:28 -0700 (PDT)
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com. [209.85.213.177])
+        by mx.google.com with ESMTPS id l74si9750568iol.61.2015.04.24.08.46.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 24 Apr 2015 08:20:11 -0700 (PDT)
-Date: Fri, 24 Apr 2015 16:20:07 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 10/13] x86: mm: Enable deferred struct page
- initialisation on x86-64
-Message-ID: <20150424152007.GD2449@suse.de>
-References: <1429722473-28118-1-git-send-email-mgorman@suse.de>
- <1429722473-28118-11-git-send-email-mgorman@suse.de>
- <20150422164500.121a355e6b578243cb3650e3@linux-foundation.org>
- <20150423092327.GJ14842@suse.de>
- <553A54C5.3060106@hp.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Apr 2015 08:46:27 -0700 (PDT)
+Received: by igbhj9 with SMTP id hj9so18120951igb.1
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:46:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <553A54C5.3060106@hp.com>
+In-Reply-To: <20150423154157.837a378188ef0a703813f206@linux-foundation.org>
+References: <1428996566-86763-1-git-send-email-zhenzhang.zhang@huawei.com>
+	<552CC328.9050402@huawei.com>
+	<20150423151118.40c41fb1810f2aaa877163ae@linux-foundation.org>
+	<3908561D78D1C84285E8C5FCA982C28F32A6478B@ORSMSX114.amr.corp.intel.com>
+	<20150423154157.837a378188ef0a703813f206@linux-foundation.org>
+Date: Fri, 24 Apr 2015 16:46:27 +0100
+Message-ID: <CAPvkgC2dMzp26-XcYMNVufMiuoAmuKw-hr4kYH27_nARz3gbQg@mail.gmail.com>
+Subject: Re: [PATCH] mm/hugetlb: reduce arch dependent code about huge_pmd_unshare
+From: Steve Capper <steve.capper@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <waiman.long@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Luck, Tony" <tony.luck@intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "james.hogan@imgtec.com" <james.hogan@imgtec.com>, "ralf@linux-mips.org" <ralf@linux-mips.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "schwidefsky@de.ibm.com" <schwidefsky@de.ibm.com>, "cmetcalf@ezchip.com" <cmetcalf@ezchip.com>, David Rientjes <rientjes@google.com>, "James.Yang@freescale.com" <James.Yang@freescale.com>, "aneesh.kumar@linux.vnet.ibm.com" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Fri, Apr 24, 2015 at 10:35:49AM -0400, Waiman Long wrote:
-> On 04/23/2015 05:23 AM, Mel Gorman wrote:
-> >On Wed, Apr 22, 2015 at 04:45:00PM -0700, Andrew Morton wrote:
-> >>On Wed, 22 Apr 2015 18:07:50 +0100 Mel Gorman<mgorman@suse.de>  wrote:
-> >>
-> >>>--- a/arch/x86/Kconfig
-> >>>+++ b/arch/x86/Kconfig
-> >>>@@ -32,6 +32,7 @@ config X86
-> >>>  	select HAVE_UNSTABLE_SCHED_CLOCK
-> >>>  	select ARCH_SUPPORTS_NUMA_BALANCING if X86_64
-> >>>  	select ARCH_SUPPORTS_INT128 if X86_64
-> >>>+	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT if X86_64&&  NUMA
-> >>Put this in the "config X86_64" section and skip the "X86_64&&"?
-> >>
-> >Done.
-> >
-> >>Can we omit the whole defer_meminit= thing and permanently enable the
-> >>feature?  That's simpler, provides better test coverage and is, we
-> >>hope, faster.
-> >>
-> >Yes. The intent was to have a workaround if there were any failures like
-> >Waiman's vmalloc failures in an earlier version but they are bugs that
-> >should be fixed.
-> >
-> >>And can this be used on non-NUMA?  Presumably that won't speed things
-> >>up any if we're bandwidth limited but again it's simpler and provides
-> >>better coverage.
-> >Nothing prevents it. There is less opportunity for parallelism but
-> >improving coverage is desirable.
-> >
-> 
-> Memory access latency can be more than double for local vs. remote
-> node memory. Bandwidth can also be much lower depending on what kind
-> of interconnect is between the 2 nodes. So it is better to do it in
-> a NUMA-aware way.
+Hi,
 
-I do not believe that is what he was asking. He was asking if we could
-defer memory initialisation even when there is only one node. It does not
-gain much in terms of boot times but it improves testing coverage.
+On 23 April 2015 at 23:41, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Thu, 23 Apr 2015 22:26:18 +0000 "Luck, Tony" <tony.luck@intel.com> wrote:
+>
+>> > Memory fails me.  Why do some architectures (arm, arm64, x86_64) want
+>> > huge_pmd_[un]share() while other architectures (ia64, tile, mips,
+>> > powerpc, metag, sh, s390) do not?
+>>
+>> Potentially laziness/ignorance-of-feature?  It looks like this feature started on x86_64 and then spread
+>> to arm*.
+>
+> Yes.  In 3212b535f200c85b5a6 Steve Capper (ARM person) hoisted the code
+> out of x86 into generic, then made arm use it.
 
-> Within a NUMA node, however, we can split the
-> memory initialization to 2 or more local CPUs if the memory size is
-> big enough.
-> 
+I tested the pmd sharing code that x86 had and it worked well on ARM
+too so I bundled it in when I generalised some of the huge page code.
+I didn't know enough about the other architectures to enable it for
+them, so played things safe by leaving it disabled for them.
+Looking at this patch, I could have done that more cleanly though.
 
-I considered it but discarded the idea. It'd be more complex to setup and
-the two CPUs could simply end up contending on the same memory bus as
-well as contending on zone->lock.
+>
+> We're not (I'm not) very good about letting arch people know about such
+> things.  I wonder how to fix that; does linux-arch work?
+>
 
+linux-arch is working for me, maybe a good idea to CC in some arch
+maintainers too.
+
+Cheers,
 -- 
-Mel Gorman
-SUSE Labs
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
