@@ -1,72 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FBC96B0032
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 10:55:06 -0400 (EDT)
-Received: by qgeb100 with SMTP id b100so23777339qge.3
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:55:06 -0700 (PDT)
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B4D06B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 10:57:43 -0400 (EDT)
+Received: by qkgx75 with SMTP id x75so31382574qkg.1
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:57:43 -0700 (PDT)
 Received: from e37.co.us.ibm.com (e37.co.us.ibm.com. [32.97.110.158])
-        by mx.google.com with ESMTPS id j4si11610367qga.33.2015.04.24.07.55.05
+        by mx.google.com with ESMTPS id e93si11598510qkh.102.2015.04.24.07.57.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 24 Apr 2015 07:55:05 -0700 (PDT)
+        Fri, 24 Apr 2015 07:57:42 -0700 (PDT)
 Received: from /spool/local
 	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Fri, 24 Apr 2015 08:55:04 -0600
-Received: from b03cxnp08028.gho.boulder.ibm.com (b03cxnp08028.gho.boulder.ibm.com [9.17.130.20])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id ED13F1FF001F
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:46:11 -0600 (MDT)
+	Fri, 24 Apr 2015 08:57:42 -0600
+Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 9C65119D803E
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:48:44 -0600 (MDT)
 Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by b03cxnp08028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3OEsg7v40960188
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:54:42 -0700
+	by b03cxnp07028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3OEthPp34472120
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:55:43 -0700
 Received: from d03av05.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3OEt0U8031376
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:55:00 -0600
-Date: Fri, 24 Apr 2015 07:54:59 -0700
+	by d03av05.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3OEvd3m009948
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:57:39 -0600
+Date: Fri, 24 Apr 2015 07:57:38 -0700
 From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 Subject: Re: Interacting with coherent memory on external devices
-Message-ID: <20150424145459.GY5561@linux.vnet.ibm.com>
+Message-ID: <20150424145738.GZ5561@linux.vnet.ibm.com>
 Reply-To: paulmck@linux.vnet.ibm.com
-References: <1429663372.27410.75.camel@kernel.crashing.org>
- <20150422005757.GP5561@linux.vnet.ibm.com>
- <1429664686.27410.84.camel@kernel.crashing.org>
- <alpine.DEB.2.11.1504221020160.24979@gentwo.org>
- <20150422163135.GA4062@gmail.com>
- <alpine.DEB.2.11.1504221206080.25607@gentwo.org>
- <1429756456.4915.22.camel@kernel.crashing.org>
- <alpine.DEB.2.11.1504230925250.32297@gentwo.org>
- <20150423185240.GO5561@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504240929340.7582@gentwo.org>
+References: <alpine.DEB.2.11.1504211839120.6294@gentwo.org>
+ <20150422000538.GB6046@gmail.com>
+ <alpine.DEB.2.11.1504211942040.6294@gentwo.org>
+ <20150422131832.GU5561@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
+ <1429756200.4915.19.camel@kernel.crashing.org>
+ <alpine.DEB.2.11.1504230921020.32297@gentwo.org>
+ <55390EE1.8020304@gmail.com>
+ <20150423193339.GR5561@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1504240909350.7582@gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1504240929340.7582@gentwo.org>
+In-Reply-To: <alpine.DEB.2.11.1504240909350.7582@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+Cc: Austin S Hemmelgarn <ahferroin7@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Fri, Apr 24, 2015 at 09:30:40AM -0500, Christoph Lameter wrote:
+On Fri, Apr 24, 2015 at 09:12:07AM -0500, Christoph Lameter wrote:
 > On Thu, 23 Apr 2015, Paul E. McKenney wrote:
 > 
-> > If by "entire industry" you mean everyone who might want to use hardware
-> > acceleration, for example, including mechanical computer-aided design,
-> > I am skeptical.
+> >
+> > DAX
+> >
+> > 	DAX is a mechanism for providing direct-memory access to
+> > 	high-speed non-volatile (AKA "persistent") memory.  Good
+> > 	introductions to DAX may be found in the following LWN
+> > 	articles:
 > 
-> The industry designs GPUs with super fast special ram and accellerators
-> with special ram designed to do fast searches and you think you can demand page
-> that stuff in from the main processor?
+> DAX is a mechanism to access memory not managed by the kernel and is the
+> successor to XIP. It just happens to be needed for persistent memory.
+> Fundamentally any driver can provide an MMAPPed interface to allow access
+> to a devices memory.
 
-The demand paging is indeed a drawback for the option of using autonuma
-to handle the migration.  And again, this is not intended to replace the
-careful hand-tuning that is required to get the last drop of performance
-out of the system.  It is instead intended to handle the cases where
-the application needs substantially more performance than the CPUs alone
-can deliver, but where the cost of full-fledge hand tuning cannot be
-justified.
-
-You seem to believe that this latter category is the empty set, which
-I must confess does greatly surprise me.
+I will take another look, but others in this thread have called out
+difficulties with DAX's filesystem nature.
 
 							Thanx, Paul
 
