@@ -1,60 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id B169F6B0032
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 17:38:46 -0400 (EDT)
-Received: by iejt8 with SMTP id t8so93032858iej.2
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 14:38:46 -0700 (PDT)
-Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com. [2607:f8b0:4001:c05::232])
-        by mx.google.com with ESMTPS id r2si438560igp.24.2015.04.24.14.38.46
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Apr 2015 14:38:46 -0700 (PDT)
-Received: by igblo3 with SMTP id lo3so25305196igb.1
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 14:38:46 -0700 (PDT)
-Date: Fri, 24 Apr 2015 14:38:44 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/2] mm/page_alloc.c: add config option to sanitize freed
- pages
-In-Reply-To: <1429909549-11726-3-git-send-email-anisse@astier.eu>
-Message-ID: <alpine.DEB.2.10.1504241437070.2456@chino.kir.corp.google.com>
-References: <1429909549-11726-1-git-send-email-anisse@astier.eu> <1429909549-11726-3-git-send-email-anisse@astier.eu>
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id B09006B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 17:42:53 -0400 (EDT)
+Received: by wgyo15 with SMTP id o15so63334834wgy.2
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 14:42:53 -0700 (PDT)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
+        by mx.google.com with ESMTP id fh5si928399wic.14.2015.04.24.14.42.48
+        for <linux-mm@kvack.org>;
+        Fri, 24 Apr 2015 14:42:49 -0700 (PDT)
+Date: Sat, 25 Apr 2015 00:42:25 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: kernel BUG at mm/swap.c:134! - page dumped because:
+ VM_BUG_ON_PAGE(page_mapcount(page) != 0)
+Message-ID: <20150424214225.GA18804@node.dhcp.inet.fi>
+References: <20150418205656.GA7972@pd.tnic>
+ <CA+55aFxfGOw7VNqpDN2hm+P8w-9F2pVZf+VN9rZnDqGXe2VQTg@mail.gmail.com>
+ <20150418215656.GA13928@node.dhcp.inet.fi>
+ <CA+55aFxMx8xmWq7Dszu9h9dZQPGn7hj5GRBrJzh1hsQV600z9w@mail.gmail.com>
+ <20150418220803.GB7972@pd.tnic>
+ <20150422131219.GD6897@pd.tnic>
+ <20150422183309.GA4351@node.dhcp.inet.fi>
+ <CA+55aFx5NXDUsyd2qjQ+Uu3mt9Fw4HrsonzREs9V0PhHwWmGPQ@mail.gmail.com>
+ <20150423162311.GB19709@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150423162311.GB19709@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anisse Astier <anisse@astier.eu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Borislav Petkov <bp@alien8.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, x86-ml <x86@kernel.org>, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>
 
-On Fri, 24 Apr 2015, Anisse Astier wrote:
+On Thu, Apr 23, 2015 at 06:23:11PM +0200, Andrea Arcangeli wrote:
+> On Wed, Apr 22, 2015 at 12:26:55PM -0700, Linus Torvalds wrote:
+> > On Wed, Apr 22, 2015 at 11:33 AM, Kirill A. Shutemov
+> > <kirill@shutemov.name> wrote:
+> > >
+> > > Could you try patch below instead? This can give a clue what's going on.
+> > 
+> > Just FYI, I've done the revert in my tree.
+> > 
+> > Trying to figure out what is going on despite that is obviously a good
+> > idea, but I'm hoping that my merge window is winding down, so I am
+> > trying to make sure it's all "good to go"..
+> 
+> Sounds safer to defer it, agreed.
+> 
+> Unfortunately I also can only reproduce it only on a workstation where
+> it wasn't very handy to debug it as it'd disrupt my workflow and it
+> isn't equipped with reliable logging either (and the KMS mode didn't
+> switch to console to show me the oops either). It just got it logged
+> once in syslog before freezing.
+> 
+> The problem has to be that there's some get_page/put_page activity
+> before and after a PageAnon transition and it looks like a tail page
+> got mapped by hand in userland by some driver using 4k ptes which
+> isn't normal
 
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 390214d..cb2df5f 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -635,3 +635,15 @@ config MAX_STACK_SIZE_MB
->  	  changed to a smaller value in which case that is used.
->  
->  	  A sane initial value is 80 MB.
-> +
-> +config SANITIZE_FREED_PAGES
-> +	bool "Sanitize memory pages after free"
-> +	default n
-> +	help
-> +	  This option is used to make sure all pages freed are zeroed. This is
-> +	  quite low-level and doesn't handle your slab buffers.
-> +	  It has various applications, from preventing some info leaks to
-> +	  helping kernel same-page merging in virtualised environments.
-> +	  Depending on your workload, it will reduce performance of about 3%.
-> +
-> +	  If unsure, say N.
+Compound pages mapped with PTEs predates THP. See f3d48f0373c1.
 
-Objection to allowing this without first enabling some other DEBUG config 
-option, it should never be a standalone option, but also to pretending to 
-have any insight into what the performance degredation of it will be.  On 
-my systems, this would be _massive_.
+> but apparently safe before the patch was applied. Before
+> the patch, the tail page accounting would be symmetric regardless of
+> the PageAnon transition.
+> 
+> page:ffffea0010226040 count:0 mapcount:1 mapping:          (null) index:0x0
+> flags: 0x8000000000008010(dirty|tail)
+> page dumped because: VM_BUG_ON_PAGE(page_mapcount(page) != 0)
+> ------------[ cut here ]------------
+> kernel BUG at mm/swap.c:134!
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I looked into code a bit more. And the VM_BUG_ON_PAGE() is bogus. See
+explanation in commit message below.
+
+Tail page refcounting is mess. Please consider reviewing my patchset which
+drops it [1]. ;)
+
+Linus, how should we proceed with reverted patch? Should I re-submit it to
+Andrew? Or you'll re-revert it?
+
+[1] lkml.kernel.org/g/1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com
