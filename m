@@ -1,85 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FEFF6B0032
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 15:04:32 -0400 (EDT)
-Received: by yhda23 with SMTP id a23so8728755yhd.2
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 12:04:32 -0700 (PDT)
-Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
-        by mx.google.com with ESMTPS id f34si7007167yhq.51.2015.04.24.12.04.31
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B6F526B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 15:14:04 -0400 (EDT)
+Received: by wizk4 with SMTP id k4so33104503wiz.1
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 12:14:04 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id fk5si394775wib.21.2015.04.24.12.14.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Apr 2015 12:04:31 -0700 (PDT)
-Message-ID: <553A93BB.1010404@hp.com>
-Date: Fri, 24 Apr 2015 15:04:27 -0400
-From: Waiman Long <waiman.long@hp.com>
+        Fri, 24 Apr 2015 12:14:03 -0700 (PDT)
+Date: Fri, 24 Apr 2015 15:13:53 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 09/12] mm: page_alloc: private memory reserves for
+ OOM-killing allocations
+Message-ID: <20150424191353.GA5293@cmpxchg.org>
+References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org>
+ <1427264236-17249-10-git-send-email-hannes@cmpxchg.org>
+ <20150414164939.GJ17160@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 10/13] x86: mm: Enable deferred struct page initialisation
- on x86-64
-References: <1429722473-28118-1-git-send-email-mgorman@suse.de> <1429722473-28118-11-git-send-email-mgorman@suse.de> <20150422164500.121a355e6b578243cb3650e3@linux-foundation.org> <20150423092327.GJ14842@suse.de> <553A54C5.3060106@hp.com> <20150424152007.GD2449@suse.de>
-In-Reply-To: <20150424152007.GD2449@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150414164939.GJ17160@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>
 
-On 04/24/2015 11:20 AM, Mel Gorman wrote:
-> On Fri, Apr 24, 2015 at 10:35:49AM -0400, Waiman Long wrote:
->> On 04/23/2015 05:23 AM, Mel Gorman wrote:
->>> On Wed, Apr 22, 2015 at 04:45:00PM -0700, Andrew Morton wrote:
->>>> On Wed, 22 Apr 2015 18:07:50 +0100 Mel Gorman<mgorman@suse.de>   wrote:
->>>>
->>>>> --- a/arch/x86/Kconfig
->>>>> +++ b/arch/x86/Kconfig
->>>>> @@ -32,6 +32,7 @@ config X86
->>>>>   	select HAVE_UNSTABLE_SCHED_CLOCK
->>>>>   	select ARCH_SUPPORTS_NUMA_BALANCING if X86_64
->>>>>   	select ARCH_SUPPORTS_INT128 if X86_64
->>>>> +	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT if X86_64&&   NUMA
->>>> Put this in the "config X86_64" section and skip the "X86_64&&"?
->>>>
->>> Done.
->>>
->>>> Can we omit the whole defer_meminit= thing and permanently enable the
->>>> feature?  That's simpler, provides better test coverage and is, we
->>>> hope, faster.
->>>>
->>> Yes. The intent was to have a workaround if there were any failures like
->>> Waiman's vmalloc failures in an earlier version but they are bugs that
->>> should be fixed.
->>>
->>>> And can this be used on non-NUMA?  Presumably that won't speed things
->>>> up any if we're bandwidth limited but again it's simpler and provides
->>>> better coverage.
->>> Nothing prevents it. There is less opportunity for parallelism but
->>> improving coverage is desirable.
->>>
->> Memory access latency can be more than double for local vs. remote
->> node memory. Bandwidth can also be much lower depending on what kind
->> of interconnect is between the 2 nodes. So it is better to do it in
->> a NUMA-aware way.
-> I do not believe that is what he was asking. He was asking if we could
-> defer memory initialisation even when there is only one node. It does not
-> gain much in terms of boot times but it improves testing coverage.
+On Tue, Apr 14, 2015 at 06:49:40PM +0200, Michal Hocko wrote:
+> On Wed 25-03-15 02:17:13, Johannes Weiner wrote:
+> > @@ -5747,17 +5765,18 @@ static void __setup_per_zone_wmarks(void)
+> >  
+> >  			min_pages = zone->managed_pages / 1024;
+> >  			min_pages = clamp(min_pages, SWAP_CLUSTER_MAX, 128UL);
+> > -			zone->watermark[WMARK_MIN] = min_pages;
+> > +			zone->watermark[WMARK_OOM] = min_pages;
+> >  		} else {
+> >  			/*
+> >  			 * If it's a lowmem zone, reserve a number of pages
+> >  			 * proportionate to the zone's size.
+> >  			 */
+> > -			zone->watermark[WMARK_MIN] = tmp;
+> > +			zone->watermark[WMARK_OOM] = tmp;
+> >  		}
+> >  
+> > -		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + (tmp >> 2);
+> > -		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + (tmp >> 1);
+> > +		zone->watermark[WMARK_MIN]  = oom_wmark_pages(zone) + (tmp >> 3);
+> > +		zone->watermark[WMARK_LOW]  = oom_wmark_pages(zone) + (tmp >> 2);
+> > +		zone->watermark[WMARK_HIGH] = oom_wmark_pages(zone) + (tmp >> 1);
+> 
+> This will basically elevate the min watermark, right? And that might lead
+> to subtle performance differences even when OOM killer is not invoked
+> because the direct reclaim will start sooner.
 
-Thanks for the clarification.
+It will move the min watermark a bit closer to the kswapd watermarks,
+so I guess the risk of entering direct reclaim when kswapd won't wake
+up fast enough before concurrent allocator slowpaths deplete the zone
+from low to min is marginally increased.  That seems like a farfetched
+worry, especially given that waking up a sleeping kswapd is not a high
+frequency event in the first place.
 
->> Within a NUMA node, however, we can split the
->> memory initialization to 2 or more local CPUs if the memory size is
->> big enough.
->>
-> I considered it but discarded the idea. It'd be more complex to setup and
-> the two CPUs could simply end up contending on the same memory bus as
-> well as contending on zone->lock.
->
+> Shouldn't we rather give WMARK_OOM half of WMARK_MIN instead?
 
-I don't think we need that now. However, we may have to consider this 
-when one day even a single node can have TBs of memory unless we move to 
-a page size larger than 4k.
+I guess conceptually that would work as well, since an OOM killing
+task is technically reclaiming memory and this reserve is meant to
+help reclaiming tasks make forward progress.
 
-Cheers,
-Longman
+That being said, the separate OOM reserve was designed for when the
+allocation can actually fail: deplete our own little reserve before
+returning failure.  But it looks like neither the low-order nor the
+GFP_NOFS deadlock fixes got any traction, and so right now all OOM
+killing allocations still have the potential to deadlock.  Is there a
+reason we shouldn't just let them do an ALLOC_NO_WATERMARK allocation
+after the OOM victim exited (or timed out)?
+
+Otherwise, I'll just do that in the next iteration.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
