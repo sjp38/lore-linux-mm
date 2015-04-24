@@ -1,192 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D8BC6B0032
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 15:48:16 -0400 (EDT)
-Received: by obfe9 with SMTP id e9so45592463obf.1
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 12:48:16 -0700 (PDT)
-Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
-        by mx.google.com with ESMTPS id s204si8956448oia.32.2015.04.24.12.48.15
+Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id A84316B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 16:00:20 -0400 (EDT)
+Received: by iebrs15 with SMTP id rs15so91542196ieb.3
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 13:00:20 -0700 (PDT)
+Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
+        by mx.google.com with ESMTPS id so2si10476669icb.67.2015.04.24.13.00.19
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Apr 2015 12:48:15 -0700 (PDT)
-Message-ID: <553A9DFC.5040803@hp.com>
-Date: Fri, 24 Apr 2015 15:48:12 -0400
-From: Waiman Long <waiman.long@hp.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/13] Parallel struct page initialisation v3
-References: <1429785196-7668-1-git-send-email-mgorman@suse.de> <1429804437.24139.3@cpanel21.proisp.no>
-In-Reply-To: <1429804437.24139.3@cpanel21.proisp.no>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 24 Apr 2015 13:00:19 -0700 (PDT)
+Date: Fri, 24 Apr 2015 15:00:18 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Interacting with coherent memory on external devices
+In-Reply-To: <20150424192859.GF3840@gmail.com>
+Message-ID: <alpine.DEB.2.11.1504241446560.11700@gentwo.org>
+References: <1429756456.4915.22.camel@kernel.crashing.org> <alpine.DEB.2.11.1504230925250.32297@gentwo.org> <20150423161105.GB2399@gmail.com> <alpine.DEB.2.11.1504240912560.7582@gentwo.org> <20150424150829.GA3840@gmail.com> <alpine.DEB.2.11.1504241052240.9889@gentwo.org>
+ <20150424164325.GD3840@gmail.com> <alpine.DEB.2.11.1504241148420.10475@gentwo.org> <20150424171957.GE3840@gmail.com> <alpine.DEB.2.11.1504241353280.11285@gentwo.org> <20150424192859.GF3840@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel J Blueman <daniel@numascale.com>
-Cc: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, 'Steffen Persvold' <sp@numascale.com>
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, paulmck@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On 04/23/2015 11:53 AM, Daniel J Blueman wrote:
-> On Thu, Apr 23, 2015 at 6:33 PM, Mel Gorman <mgorman@suse.de> wrote:
->> The big change here is an adjustment to the topology_init path that 
->> caused
->> soft lockups on Waiman and Daniel Blue had reported it was an expensive
->> function.
->>
->> Changelog since v2
->> o Reduce overhead of topology_init
->> o Remove boot-time kernel parameter to enable/disable
->> o Enable on UMA
->>
->> Changelog since v1
->> o Always initialise low zones
->> o Typo corrections
->> o Rename parallel mem init to parallel struct page init
->> o Rebase to 4.0
-> []
->
-> Splendid work! On this 256c setup, topology_init now takes 185ms.
->
-> This brings the kernel boot time down to 324s [1]. It turns out that 
-> one memset is responsible for most of the time setting up the the PUDs 
-> and PMDs; adapting memset to using non-temporal writes [3] avoids 
-> generating RMW cycles, bringing boot time down to 186s [2].
->
-> If this is a possibility, I can split this patch and map other arch's 
-> memset_nocache to memset, or change the callsite as preferred; 
-> comments welcome.
->
-> Thanks,
->  Daniel
->
-> [1] https://resources.numascale.com/telemetry/defermem/h8qgl-defer2.txt
-> [2] 
-> https://resources.numascale.com/telemetry/defermem/h8qgl-defer2-nontemporal.txt
->
-> -- [3]
->
-> From f822139736cab8434302693c635fa146b465273c Mon Sep 17 00:00:00 2001
-> From: Daniel J Blueman <daniel@numascale.com>
-> Date: Thu, 23 Apr 2015 23:26:27 +0800
-> Subject: [RFC] Speedup PMD setup
->
-> Using non-temporal writes prevents read-modify-write cycles,
-> which are much slower over large topologies.
->
-> Adapt the existing memset() function into a _nocache variant and use
-> when setting up PMDs during early boot to reduce boot time.
->
-> Signed-off-by: Daniel J Blueman <daniel@numascale.com>
-> ---
-> arch/x86/include/asm/string_64.h |  3 ++
-> arch/x86/lib/memset_64.S         | 90 
-> ++++++++++++++++++++++++++++++++++++++++
-> mm/memblock.c                    |  2 +-
-> 3 files changed, 94 insertions(+), 1 deletion(-)
->
-> diff --git a/arch/x86/include/asm/string_64.h 
-> b/arch/x86/include/asm/string_64.h
-> index e466119..1ef28d0 100644
-> --- a/arch/x86/include/asm/string_64.h
-> +++ b/arch/x86/include/asm/string_64.h
-> @@ -55,6 +55,8 @@ extern void *memcpy(void *to, const void *from, 
-> size_t len);
-> #define __HAVE_ARCH_MEMSET
-> void *memset(void *s, int c, size_t n);
-> void *__memset(void *s, int c, size_t n);
-> +void *memset_nocache(void *s, int c, size_t n);
-> +void *__memset_nocache(void *s, int c, size_t n);
->
-> #define __HAVE_ARCH_MEMMOVE
-> void *memmove(void *dest, const void *src, size_t count);
-> @@ -77,6 +79,7 @@ int strcmp(const char *cs, const char *ct);
-> #define memcpy(dst, src, len) __memcpy(dst, src, len)
-> #define memmove(dst, src, len) __memmove(dst, src, len)
-> #define memset(s, c, n) __memset(s, c, n)
-> +#define memset_nocache(s, c, n) __memset_nocache(s, c, n)
-> #endif
->
-> #endif /* __KERNEL__ */
-> diff --git a/arch/x86/lib/memset_64.S b/arch/x86/lib/memset_64.S
-> index 6f44935..fb46f78 100644
-> --- a/arch/x86/lib/memset_64.S
-> +++ b/arch/x86/lib/memset_64.S
-> @@ -137,6 +137,96 @@ ENTRY(__memset)
-> ENDPROC(memset)
-> ENDPROC(__memset)
->
-> +/*
-> + * bzero_nocache - set a memory block to zero. This function uses
-> + * non-temporal writes in the fastpath
-> + *
-> + * rdi   destination
-> + * rsi   value (char)
-> + * rdx   count (bytes)
-> + *
-> + * rax   original destination
-> + */
-> +
-> +ENTRY(memset_nocache)
-> +ENTRY(__memset_nocache)
-> +    CFI_STARTPROC
-> +    movq %rdi,%r10
-> +
-> +    /* expand byte value */
-> +    movzbl %sil,%ecx
-> +    movabs $0x0101010101010101,%rax
-> +    imulq  %rcx,%rax
-> +
-> +    /* align dst */
-> +    movl  %edi,%r9d
-> +    andl  $7,%r9d
-> +    jnz  bad_alignment
-> +    CFI_REMEMBER_STATE
-> +after_bad_alignment:
-> +
-> +    movq  %rdx,%rcx
-> +    shrq  $6,%rcx
-> +    jz     handle_tail
-> +
-> +    .p2align 4
-> +loop_64:
-> +    decq  %rcx
-> +    movnti    %rax,(%rdi)
-> +    movnti    %rax,8(%rdi)
-> +    movnti    %rax,16(%rdi)
-> +    movnti    %rax,24(%rdi)
-> +    movnti    %rax,32(%rdi)
-> +    movnti    %rax,40(%rdi)
-> +    movnti    %rax,48(%rdi)
-> +    movnti    %rax,56(%rdi)
-> +    leaq  64(%rdi),%rdi
-> +    jnz    loop_64
-> +
-> +
+On Fri, 24 Apr 2015, Jerome Glisse wrote:
 
-Your version of memset_nocache differs from from memset only in the use 
-of movnti instruction. You may consider using compiler macros to make a 
-single copy of source code to generate 2 different versions of 
-executable codes. That will make the new code much easier to maintain.
+> > Still no answer as to why is that not possible with the current scheme?
+> > You keep on talking about pointers and I keep on responding that this is a
+> > matter of making the address space compatible on both sides.
+>
+> So if do that in a naive way, how can we migrate a chunk of memory to video
+> memory while still handling properly the case where CPU try to access that
+> same memory while it is migrated to the GPU memory.
 
-For example,
+Well that the same issue that the migration code is handling which I
+submitted a long time ago to the kernel.
 
-#include ...
+> Without modifying a single line of mm code, the only way to do this is to
+> either unmap from the cpu page table the range being migrated or to mprotect
+> it in some way. In both case the cpu access will trigger some kind of fault.
 
-#define MOVQ    movnti
-#define memset memset_nocache
-#define __mmset __memset_nocache
+Yes that is how Linux migration works. If you can fix that then how about
+improving page migration in Linux between NUMA nodes first?
 
-#include "memset_64.S"
+> This is not the behavior we want. What we want is same address space while
+> being able to migrate system memory to device memory (who make that decision
+> should not be part of that discussion) while still gracefully handling any
+> CPU access.
 
-Of course, you need to replace the target movq instructions in 
-memset_64.S to MOVQ, define
+Well then there could be a situation where you have concurrent write
+access. How do you reconcile that then? Somehow you need to stall one or
+the other until the transaction is complete.
 
-#ifndef MOVQ
-#define MOVQ movq
-#endif
+> This means if CPU access it we want to migrate memory back to system memory.
+> To achieve this there is no way around adding couple of if inside the mm
+> page fault code path. Now do you want each driver to add its own if branch
+> or do you want a common infrastructure to do just that ?
 
-You also need to use conditional compilation macro to disable the 
-alternate instruction stuff in memset_64.S.
+If you can improve the page migration in general then we certainly would
+love that. Having faultless migration is certain a good thing for a lot of
+functionality that depends on page migration.
 
-Cheers,
-Longman
+> As i keep saying the solution you propose is what we have today, today we
+> have fake share address space through the trick of remapping system memory
+> at same address inside the GPU address space and also enforcing the use of
+> a special memory allocator that goes behind the back of mm code.
+
+Hmmm... I'd like to know more details about that.
+
+> As you pointed out, not using GPU memory is a waste and we want to be able
+> to use it. Now Paul have more sofisticated hardware that offer oportunities
+> to do thing in a more transparent and efficient way.
+
+Does this also work between NUMA nodes in a Power8 system?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
