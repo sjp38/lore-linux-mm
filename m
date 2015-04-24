@@ -1,101 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 332AC6B0072
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:08:11 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so17639708wid.0
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 04:08:10 -0700 (PDT)
-Received: from lb1-smtp-cloud2.xs4all.net (lb1-smtp-cloud2.xs4all.net. [194.109.24.21])
-        by mx.google.com with ESMTPS id ei5si3536034wib.54.2015.04.24.04.08.09
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 57CA46B0074
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 07:47:08 -0400 (EDT)
+Received: by wgen6 with SMTP id n6so47710911wge.3
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 04:47:07 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 8si19071380wjx.16.2015.04.24.04.47.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Apr 2015 04:08:09 -0700 (PDT)
-Message-ID: <553A23F9.1080504@xs4all.nl>
-Date: Fri, 24 Apr 2015 13:07:37 +0200
-From: Hans Verkuil <hverkuil@xs4all.nl>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 24 Apr 2015 04:47:06 -0700 (PDT)
+Message-ID: <553A2D38.2050202@suse.cz>
+Date: Fri, 24 Apr 2015 13:47:04 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/9 v2] Helper to abstract vma handling in media layer
-References: <1426593399-6549-1-git-send-email-jack@suse.cz> <20150402150258.GA31277@quack.suse.cz> <551D5F7C.4080400@xs4all.nl> <553A2229.5040509@samsung.com>
-In-Reply-To: <553A2229.5040509@samsung.com>
-Content-Type: text/plain; charset=utf-8
+Subject: Re: [patch] mm: vmscan: invoke slab shrinkers from shrink_zone()
+References: <1416939830-20289-1-git-send-email-hannes@cmpxchg.org> <20141128160637.GH6948@esperanza> <20150416035736.GA1203@js1304-P5Q-DELUXE> <20150416143413.GA9228@cmpxchg.org> <20150417050653.GA25530@js1304-P5Q-DELUXE>
+In-Reply-To: <20150417050653.GA25530@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>, Jan Kara <jack@suse.cz>, linux-media@vger.kernel.org
-Cc: Hans Verkuil <hans.verkuil@cisco.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>, Pawel Osciak <pawel@osciak.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Marek,
-
-On 04/24/2015 12:59 PM, Marek Szyprowski wrote:
-> Dear All,
-> 
-> On 2015-04-02 17:25, Hans Verkuil wrote:
->> On 04/02/2015 05:02 PM, Jan Kara wrote:
->>>    Hello,
+On 04/17/2015 07:06 AM, Joonsoo Kim wrote:
+> On Thu, Apr 16, 2015 at 10:34:13AM -0400, Johannes Weiner wrote:
+>> Hi Joonsoo,
+>>
+>> On Thu, Apr 16, 2015 at 12:57:36PM +0900, Joonsoo Kim wrote:
+>>> Hello, Johannes.
 >>>
->>> On Tue 17-03-15 12:56:30, Jan Kara wrote:
->>>>    After a long pause I'm sending second version of my patch series to abstract
->>>> vma handling from the various media drivers. After this patch set drivers have
->>>> to know much less details about vmas, their types, and locking. My motivation
->>>> for the series is that I want to change get_user_pages() locking and I want to
->>>> handle subtle locking details in as few places as possible.
->>>>
->>>> The core of the series is the new helper get_vaddr_pfns() which is given a
->>>> virtual address and it fills in PFNs into provided array. If PFNs correspond to
->>>> normal pages it also grabs references to these pages. The difference from
->>>> get_user_pages() is that this function can also deal with pfnmap, mixed, and io
->>>> mappings which is what the media drivers need.
->>>>
->>>> I have tested the patches with vivid driver so at least vb2 code got some
->>>> exposure. Conversion of other drivers was just compile-tested so I'd like to
->>>> ask respective maintainers if they could have a look.  Also I'd like to ask mm
->>>> folks to check patch 2/9 implementing the helper. Thanks!
->>>    Ping? Any reactions?
->> For patch 1/9:
->>
->> Acked-by: Hans Verkuil <hans.verkuil@cisco.com>
->>
->> For the other patches I do not feel qualified to give Acks. I've Cc-ed Pawel and
->> Marek who have a better understanding of the mm internals than I do. Hopefully
->> they can review the code.
->>
->> It definitely looks like a good idea, and if nobody else will comment on the vb2
->> patches in the next 2 weeks, then I'll try to review it myself (for whatever that's
->> worth).
-> 
-> I'm really sorry that I didn't manage to find time to review this 
-> patchset. I really
-> like the idea of moving pfn lookup from videobuf2/driver to some common 
-> code in mm
-> and it is really great that someone managed to provide nice generic code 
-> for it.
-> 
-> I've applied the whole patchset onto v4.0 and tested it on Odroid U3 
-> (with some
-> additional patches). VideoBuf2-dc works still fine with USERPTR gathered 
-> from other's
-> device mmaped buffer. You can add my:
-> 
-> Acked-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> Tested-by: Marek Szyprowski <m.szyprowski@samsung.com>
+>>> Ccing Vlastimil, because this patch causes some regression on
+>>> stress-highalloc test in mmtests and he is a expert on compaction
+>>> and would have interest on it. :)
 
-Thanks!
-
-> 
-> for the patches 1-8. Patch 9/9 doesn't apply anymore, so I've skipped 
-> it. Patch 2
-> needs a small fixup - you need to add '#include <linux/vmalloc.h>', 
-> because otherwise
-> it doesn't compile. There have been also a minor conflict to be resolved 
-> in patch 7.
-
-I've just added patch 1/9 to my pull request for 4.2. But for patch 2/9 I need
-Acks from the mm maintainers. I think it makes sense if patches 2-8 all go
-in together via the linux-media tree. Jan, can you reach out to the right
-devs to get Acks?
-
-Regards,
-
-	Hans
+Thanks. It's not the first case when stress-highalloc indicated a 
+regression due to changes in reclaim, and some (not really related) 
+change to compaction code undid the apparent regression. But one has to 
+keep in mind that the benchmark is far from perfect. Thanks for the 
+investigation though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
