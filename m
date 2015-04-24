@@ -1,41 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 37A2C6B0032
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 11:52:05 -0400 (EDT)
-Received: by igbyr2 with SMTP id yr2so18351911igb.0
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:52:05 -0700 (PDT)
-Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
-        by mx.google.com with ESMTPS id o19si2343921igs.5.2015.04.24.08.52.04
+Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 8620A6B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 11:53:27 -0400 (EDT)
+Received: by qkhg7 with SMTP id g7so32426031qkh.2
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:53:27 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r64si9104938qha.27.2015.04.24.08.53.26
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Apr 2015 08:52:04 -0700 (PDT)
-Date: Fri, 24 Apr 2015 10:52:03 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Apr 2015 08:53:26 -0700 (PDT)
+Message-ID: <553A66EB.3050802@redhat.com>
+Date: Fri, 24 Apr 2015 11:53:15 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
 Subject: Re: Interacting with coherent memory on external devices
-In-Reply-To: <20150424145738.GZ5561@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.11.1504241051090.9889@gentwo.org>
-References: <alpine.DEB.2.11.1504211839120.6294@gentwo.org> <20150422000538.GB6046@gmail.com> <alpine.DEB.2.11.1504211942040.6294@gentwo.org> <20150422131832.GU5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
- <1429756200.4915.19.camel@kernel.crashing.org> <alpine.DEB.2.11.1504230921020.32297@gentwo.org> <55390EE1.8020304@gmail.com> <20150423193339.GR5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504240909350.7582@gentwo.org>
- <20150424145738.GZ5561@linux.vnet.ibm.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <20150421214445.GA29093@linux.vnet.ibm.com> <alpine.DEB.2.11.1504211839120.6294@gentwo.org> <20150422000538.GB6046@gmail.com> <alpine.DEB.2.11.1504211942040.6294@gentwo.org> <20150422131832.GU5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504221105130.24979@gentwo.org> <20150422170737.GB4062@gmail.com> <alpine.DEB.2.11.1504221306200.26217@gentwo.org> <20150422185230.GD5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504230910190.32297@gentwo.org> <20150423192456.GQ5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504240859080.7582@gentwo.org>
+In-Reply-To: <alpine.DEB.2.11.1504240859080.7582@gentwo.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Austin S Hemmelgarn <ahferroin7@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, airlied@redhat.com, benh@kernel.crashing.org, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Fri, 24 Apr 2015, Paul E. McKenney wrote:
+On 04/24/2015 10:01 AM, Christoph Lameter wrote:
+> On Thu, 23 Apr 2015, Paul E. McKenney wrote:
+> 
+>>> As far as I know Jerome is talkeing about HPC loads and high performance
+>>> GPU processing. This is the same use case.
+>>
+>> The difference is sensitivity to latency.  You have latency-sensitive
+>> HPC workloads, and Jerome is talking about HPC workloads that need
+>> high throughput, but are insensitive to latency.
+> 
+> Those are correlated.
+> 
+>>> What you are proposing for High Performacne Computing is reducing the
+>>> performance these guys trying to get. You cannot sell someone a Volkswagen
+>>> if he needs the Ferrari.
+>>
+>> You do need the low-latency Ferrari.  But others are best served by a
+>> high-throughput freight train.
+> 
+> The problem is that they want to run 2000 trains at the same time
+> and they all must arrive at the destination before they can be send on
+> their next trip. 1999 trains will be sitting idle because they need
+> to wait of the one train that was delayed. This reduces the troughput.
+> People really would like all 2000 trains to arrive on schedule so that
+> they get more performance.
 
-> > DAX is a mechanism to access memory not managed by the kernel and is the
-> > successor to XIP. It just happens to be needed for persistent memory.
-> > Fundamentally any driver can provide an MMAPPed interface to allow access
-> > to a devices memory.
->
-> I will take another look, but others in this thread have called out
-> difficulties with DAX's filesystem nature.
+So you run 4000 or even 6000 trains, and have some subset of them
+run at full steam, while others are waiting on memory accesses.
 
-Right so you do not need the filesystem structure. Just simply writing a
-device driver that mmaps data as needed from the coprocessor will also do
-the trick.
+In reality the overcommit factor is likely much smaller, because
+the GPU threads run and block on memory in smaller, more manageable
+numbers, say a few dozen at a time.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
