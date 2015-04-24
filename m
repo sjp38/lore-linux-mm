@@ -1,68 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 29B806B0078
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 08:51:23 -0400 (EDT)
-Received: by wgso17 with SMTP id o17so49628111wgs.1
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 05:51:22 -0700 (PDT)
-Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com. [2a00:1450:400c:c05::22c])
-        by mx.google.com with ESMTPS id p14si3965676wiv.47.2015.04.24.05.51.21
+Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com [209.85.220.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 727466B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 09:52:40 -0400 (EDT)
+Received: by qkhg7 with SMTP id g7so29983724qkh.2
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 06:52:40 -0700 (PDT)
+Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
+        by mx.google.com with ESMTPS id d191si11433280qka.74.2015.04.24.06.52.39
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Apr 2015 05:51:21 -0700 (PDT)
-Received: by widdi4 with SMTP id di4so20779485wid.0
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 05:51:21 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CADUS3okX90JX3KfCf8zHvxY12b=QiU25jQBioh8LrEDVF56A-A@mail.gmail.com>
-References: <CADUS3okX90JX3KfCf8zHvxY12b=QiU25jQBioh8LrEDVF56A-A@mail.gmail.com>
-Date: Fri, 24 Apr 2015 20:51:20 +0800
-Message-ID: <CADUS3okBFnTP2EhFHUPo1s_dHNhsP5EEgGygzrfm5xSnSQ9nDA@mail.gmail.com>
-Subject: Re: about bootmem allocation/freeing flow
-From: yoma sophian <sophian.yoma@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 24 Apr 2015 06:52:39 -0700 (PDT)
+Date: Fri, 24 Apr 2015 08:52:37 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v3] mm/slab_common: Support the slub_debug boot option
+ on specific object size
+In-Reply-To: <20150423135106.1411031c362de2a5ef75fd50@linux-foundation.org>
+Message-ID: <alpine.DEB.2.11.1504240847270.7582@gentwo.org>
+References: <1429795560-29131-1-git-send-email-gavin.guo@canonical.com> <20150423135106.1411031c362de2a5ef75fd50@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Gavin Guo <gavin.guo@canonical.com>, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@rasmusvillemoes.dk
 
-2015-04-17 20:20 GMT+08:00 yoma sophian <sophian.yoma@gmail.com>:
-> hi all:
-> I have several questions about free_all_bootmem_core:
+On Thu, 23 Apr 2015, Andrew Morton wrote:
+> >
+> > +		if (i == 2)
+> > +			i = (KMALLOC_SHIFT_LOW - 1);
 >
-> 1.
-> In __free_pages_bootmem, we set set_page_count(p, 0) while looping nr_pages,
-> why we need to set_page_refcounted(page) before calling __free_pages?
-below is excerpted from mm/page_alloc.c  and mm/internal.h
-the reason why we use set_page_refcounted(page) is because
-set_page_refcounted(page) will calling VM_BUG_ON
-to checking page property?
+> Can we get rid of this by using something like
 
-static inline void set_page_refcounted(struct page *page)
-{
-        VM_BUG_ON(PageTail(page));
-        VM_BUG_ON(atomic_read(&page->_count));
-        set_page_count(page, 1);
-}
+Nope index is a ilog2 value of the size. The table changes would not
+preserve the mapping of the index to the power of two sizes.
 
-void __meminit __free_pages_bootmem(struct page *page, unsigned int order)
-{
-        unsigned int nr_pages = 1 << order;
-        unsigned int loop;
+> static struct {
+> 	const char *name;
+> 	unsigned long size;
+> } const kmalloc_names[] __initconst = {
+> //	{NULL,                      0},
+> 	{"kmalloc-96",             96},
+> 	{"kmalloc-192",           192},
+> #if KMALLOC_MIN_SIZE <= 8
+> 	{"kmalloc-8",               8},
+> #endif
+> #if KMALLOC_MIN_SIZE <= 16
+> 	{"kmalloc-16",             16},
+> #endif
+> #if KMALLOC_MIN_SIZE <= 32
+> 	{"kmalloc-32",             32},
+> #endif
+> 	{"kmalloc-64",             64},
+> 	{"kmalloc-128",           128},
+> 	{"kmalloc-256",           256},
+> 	{"kmalloc-512",           512},
+> 	{"kmalloc-1024",         1024},
+> 	{"kmalloc-2048",         2048},
+> 	{"kmalloc-4096",         4096},
+> 	{"kmalloc-8192",         8192},
+> 	...
+> };
+>
 
-        prefetchw(page);
-        for (loop = 0; loop < nr_pages; loop++) {
-                struct page *p = &page[loop];
+> Why does the initialization code do the
+>
+> 	if (!kmalloc_caches[i]) {
+>
+> test?  Can any of these really be initialized?  If so, why is it
+> legitimate for create_kmalloc_caches() to go altering size_index[]
+> after some caches have already been set up?
 
-                if (loop + 1 < nr_pages)
-                        prefetchw(p + 1);
-                __ClearPageReserved(p);
-                set_page_count(p, 0);
-        }
+Because we know what sizes we need during bootstrap and the initial
+caches that are needed to create others are first populated. If they are
+already handled by the earliest bootstrap code then we should not
+repopulate them later.
 
-        page_zone(page)->managed_pages += 1 << order;
-        set_page_refcounted(page);
-        __free_pages(page, order);
-}
+> Finally, why does create_kmalloc_caches() use GFP_NOWAIT?  We're in
+> __init code!  Makes no sense.  Or if it *does* make sense, the reason
+> should be clearly commented.
 
-appreciate your kind help,
+Well I was told by Pekka to use it exactly because it was init code at
+some point. The slab system is not really that functional so I doubt
+it makes much of a difference.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
