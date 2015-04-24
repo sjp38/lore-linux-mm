@@ -1,56 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AB446B0032
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 12:06:48 -0400 (EDT)
-Received: by qgfi89 with SMTP id i89so24877731qgf.1
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 09:06:48 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b62si11781907qka.56.2015.04.24.09.06.47
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 62FBA6B0038
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 12:08:19 -0400 (EDT)
+Received: by wgyo15 with SMTP id o15so55649228wgy.2
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 09:08:19 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p8si20120971wjx.82.2015.04.24.09.08.17
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Apr 2015 09:06:47 -0700 (PDT)
-Message-ID: <553A6A0F.2010808@redhat.com>
-Date: Fri, 24 Apr 2015 12:06:39 -0400
-From: Rik van Riel <riel@redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 24 Apr 2015 09:08:17 -0700 (PDT)
+Date: Fri, 24 Apr 2015 18:08:11 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 0/9 v2] Helper to abstract vma handling in media layer
+Message-ID: <20150424160811.GB18074@quack.suse.cz>
+References: <1426593399-6549-1-git-send-email-jack@suse.cz>
+ <20150402150258.GA31277@quack.suse.cz>
+ <551D5F7C.4080400@xs4all.nl>
+ <553A2229.5040509@samsung.com>
+ <553A23F9.1080504@xs4all.nl>
 MIME-Version: 1.0
-Subject: Re: Interacting with coherent memory on external devices
-References: <1429663372.27410.75.camel@kernel.crashing.org> <20150422005757.GP5561@linux.vnet.ibm.com> <1429664686.27410.84.camel@kernel.crashing.org> <alpine.DEB.2.11.1504221020160.24979@gentwo.org> <20150422163135.GA4062@gmail.com> <alpine.DEB.2.11.1504221206080.25607@gentwo.org> <1429756456.4915.22.camel@kernel.crashing.org> <alpine.DEB.2.11.1504230925250.32297@gentwo.org> <20150423185240.GO5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504240929340.7582@gentwo.org> <20150424145459.GY5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504241048490.9889@gentwo.org>
-In-Reply-To: <alpine.DEB.2.11.1504241048490.9889@gentwo.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <553A23F9.1080504@xs4all.nl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: Hans Verkuil <hverkuil@xs4all.nl>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Jan Kara <jack@suse.cz>, linux-media@vger.kernel.org, Hans Verkuil <hans.verkuil@cisco.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>, Pawel Osciak <pawel@osciak.com>
 
-On 04/24/2015 11:49 AM, Christoph Lameter wrote:
-> On Fri, 24 Apr 2015, Paul E. McKenney wrote:
+On Fri 24-04-15 13:07:37, Hans Verkuil wrote:
+> Hi Marek,
 > 
->> can deliver, but where the cost of full-fledge hand tuning cannot be
->> justified.
->>
->> You seem to believe that this latter category is the empty set, which
->> I must confess does greatly surprise me.
+> On 04/24/2015 12:59 PM, Marek Szyprowski wrote:
+> > Dear All,
+> > 
+> > On 2015-04-02 17:25, Hans Verkuil wrote:
+> >> On 04/02/2015 05:02 PM, Jan Kara wrote:
+> >>>    Hello,
+> >>>
+> >>> On Tue 17-03-15 12:56:30, Jan Kara wrote:
+> >>>>    After a long pause I'm sending second version of my patch series to abstract
+> >>>> vma handling from the various media drivers. After this patch set drivers have
+> >>>> to know much less details about vmas, their types, and locking. My motivation
+> >>>> for the series is that I want to change get_user_pages() locking and I want to
+> >>>> handle subtle locking details in as few places as possible.
+> >>>>
+> >>>> The core of the series is the new helper get_vaddr_pfns() which is given a
+> >>>> virtual address and it fills in PFNs into provided array. If PFNs correspond to
+> >>>> normal pages it also grabs references to these pages. The difference from
+> >>>> get_user_pages() is that this function can also deal with pfnmap, mixed, and io
+> >>>> mappings which is what the media drivers need.
+> >>>>
+> >>>> I have tested the patches with vivid driver so at least vb2 code got some
+> >>>> exposure. Conversion of other drivers was just compile-tested so I'd like to
+> >>>> ask respective maintainers if they could have a look.  Also I'd like to ask mm
+> >>>> folks to check patch 2/9 implementing the helper. Thanks!
+> >>>    Ping? Any reactions?
+> >> For patch 1/9:
+> >>
+> >> Acked-by: Hans Verkuil <hans.verkuil@cisco.com>
+> >>
+> >> For the other patches I do not feel qualified to give Acks. I've Cc-ed Pawel and
+> >> Marek who have a better understanding of the mm internals than I do. Hopefully
+> >> they can review the code.
+> >>
+> >> It definitely looks like a good idea, and if nobody else will comment on the vb2
+> >> patches in the next 2 weeks, then I'll try to review it myself (for whatever that's
+> >> worth).
+> > 
+> > I'm really sorry that I didn't manage to find time to review this 
+> > patchset. I really
+> > like the idea of moving pfn lookup from videobuf2/driver to some common 
+> > code in mm
+> > and it is really great that someone managed to provide nice generic code 
+> > for it.
+> > 
+> > I've applied the whole patchset onto v4.0 and tested it on Odroid U3 
+> > (with some
+> > additional patches). VideoBuf2-dc works still fine with USERPTR gathered 
+> > from other's
+> > device mmaped buffer. You can add my:
+> > 
+> > Acked-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> > Tested-by: Marek Szyprowski <m.szyprowski@samsung.com>
 > 
-> If there are already compromises are being made then why would you want to
-> modify the kernel for this? Some user space coding and device drivers
-> should be sufficient.
+> Thanks!
+  Thank you both for having a look at the patches!
 
-You assume only one program at a time would get to use the GPU
-for accelerated computations, and the GPU would get dedicated
-to that program.
+> > for the patches 1-8. Patch 9/9 doesn't apply anymore, so I've skipped 
+> > it. Patch 2
+> > needs a small fixup - you need to add '#include <linux/vmalloc.h>', 
+> > because otherwise
+> > it doesn't compile. There have been also a minor conflict to be resolved 
+> > in patch 7.
+> 
+> I've just added patch 1/9 to my pull request for 4.2. But for patch 2/9 I need
+> Acks from the mm maintainers. I think it makes sense if patches 2-8 all go
+> in together via the linux-media tree. Jan, can you reach out to the right
+> devs to get Acks?
+  Sure, I'll ping some mm guys explicitely.
 
-That will not be the case when you have libraries using the GPU
-for computations. There could be dozens of programs in the system
-using that library, with no knowledge of how many GPU resources
-are used by the other programs.
-
-There is a very clear cut case for having the OS manage the
-GPU resources transparently, just like it does for all the
-other resources in the system.
-
+								Honza
 -- 
-All rights reversed
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
