@@ -1,73 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 791F46B006C
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2015 20:43:00 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so3618562wiz.1
-        for <linux-mm@kvack.org>; Thu, 23 Apr 2015 17:43:00 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a9si1521541wie.64.2015.04.23.17.42.58
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 92EEE6B0032
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 03:40:49 -0400 (EDT)
+Received: by wgyo15 with SMTP id o15so41631962wgy.2
+        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 00:40:49 -0700 (PDT)
+Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
+        by mx.google.com with ESMTPS id bl10si3602245wjb.10.2015.04.24.00.40.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Apr 2015 17:42:59 -0700 (PDT)
-Message-ID: <55399189.5030608@redhat.com>
-Date: Thu, 23 Apr 2015 19:42:49 -0500
-From: Dean Nelson <dnelson@redhat.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 24 Apr 2015 00:40:47 -0700 (PDT)
+Message-ID: <5539F370.9070704@nod.at>
+Date: Fri, 24 Apr 2015 09:40:32 +0200
+From: Richard Weinberger <richard@nod.at>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: soft-offline: fix num_poisoned_pages counting on
- concurrent events
-References: <1429589902-2765-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1429589902-2765-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Subject: Re: [RFC PATCH v3 00/10] an introduction of library operating system
+ for Linux (LibOS)
+References: <1429263374-57517-1-git-send-email-tazaki@sfc.wide.ad.jp> <1429450104-47619-1-git-send-email-tazaki@sfc.wide.ad.jp>
+In-Reply-To: <1429450104-47619-1-git-send-email-tazaki@sfc.wide.ad.jp>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Hajime Tazaki <tazaki@sfc.wide.ad.jp>, linux-arch@vger.kernel.org
+Cc: Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Christoph Lameter <cl@linux.com>, Jekka Enberg <penberg@kernel.org>, Javid Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jndrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, Jeff Dike <jdike@addtoit.com>, Rusty Russell <rusty@rustcorp.com.au>, Ryo Nakamura <upa@haeena.net>, Christoph Paasch <christoph.paasch@gmail.com>, Mathieu Lacage <mathieu.lacage@gmail.com>, libos-nuse@googlegroups.com
 
-On 04/20/2015 11:18 PM, Naoya Horiguchi wrote:
-> If multiple soft offline events hit one free page/hugepage concurrently,
-> soft_offline_page() can handle the free page/hugepage multiple times,
-> which makes num_poisoned_pages counter increased more than once.
-> This patch fixes this wrong counting by checking TestSetPageHWPoison for
-> normal papes and by checking the return value of dequeue_hwpoisoned_huge_page()
-> for hugepages.
+Hi!
+
+Am 19.04.2015 um 15:28 schrieb Hajime Tazaki:
+> changes from v2:
+> - Patch 02/11 ("slab: add private memory allocator header for arch/lib")
+> * add new allocator named SLIB (Library Allocator): Patch 04/11 is integrated
+>   to 02 (commented by Christoph Lameter)
+> - Overall
+> * rewrite commit log messages
 > 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> changes from v1:
+> - Patch 01/11 ("sysctl: make some functions unstatic to access by arch/lib"):
+> * add prefix ctl_table_ to newly publiced functions (commented by Joe Perches)
+> - Patch 08/11 ("lib: other kernel glue layer code"):
+> * significantly reduce glue codes (stubs) (commented by Richard Weinberger)
+> - Others
+> * adapt to linux-4.0.0
+> * detect make dependency by Kbuild .cmd files
 
-Acked-by: Dean Nelson <dnelson@redhat.com>
+I still fail to build it. :-(
 
+for-asm-upstream-v3 on top of Linus' tree gives:
 
-> Cc: stable@vger.kernel.org  # v3.14+
-> ---
-> # This problem might happen before 3.14, but it's rare and non-critical,
-> # so I want this patch to be backported to stable trees only if the patch
-> # cleanly applies (i.e. v3.14+).
-> ---
->   mm/memory-failure.c | 8 ++++----
->   1 file changed, 4 insertions(+), 4 deletions(-)
-> 
-> diff --git v4.0.orig/mm/memory-failure.c v4.0/mm/memory-failure.c
-> index 2cc1d578144b..72a5224c8084 100644
-> --- v4.0.orig/mm/memory-failure.c
-> +++ v4.0/mm/memory-failure.c
-> @@ -1721,12 +1721,12 @@ int soft_offline_page(struct page *page, int flags)
->   	} else if (ret == 0) { /* for free pages */
->   		if (PageHuge(page)) {
->   			set_page_hwpoison_huge_page(hpage);
-> -			dequeue_hwpoisoned_huge_page(hpage);
-> -			atomic_long_add(1 << compound_order(hpage),
-> +			if (!dequeue_hwpoisoned_huge_page(hpage))
-> +				atomic_long_add(1 << compound_order(hpage),
->   					&num_poisoned_pages);
->   		} else {
-> -			SetPageHWPoison(page);
-> -			atomic_long_inc(&num_poisoned_pages);
-> +			if (!TestSetPageHWPoison(page))
-> +				atomic_long_inc(&num_poisoned_pages);
->   		}
->   	}
->   	unset_migratetype_isolate(page, MIGRATE_MOVABLE);
-> 
+rw@sandpuppy:~/linux (libos $)> make library ARCH=lib
+  OBJS-MK   arch/lib/objs.mk
+arch/lib/Makefile.print:41: target 'lzo/' given more than once in the same rule.
+make[2]: Nothing to be done for '.config'.
+scripts/kconfig/conf  --silentoldconfig arch/lib/Kconfig
+  CHK     include/config/kernel.release
+  CHK     include/generated/utsrelease.h
+  CHK     include/generated/uapi/linux/version.h
+  CHK     include/generated/compile.h
+  GEN     arch/lib/timeconst.h
+  GEN     arch/lib/linker.lds
+  CC      arch/lib/lib.o
+  CC      arch/lib/lib-device.o
+  CC      arch/lib/lib-socket.o
+  CC      arch/lib/random.o
+  CC      arch/lib/softirq.o
+  CC      arch/lib/time.o
+  CC      arch/lib/timer.o
+  CC      arch/lib/hrtimer.o
+  CC      arch/lib/sched.o
+  CC      arch/lib/workqueue.o
+  CC      arch/lib/print.o
+  CC      arch/lib/tasklet.o
+  CC      arch/lib/tasklet-hrtimer.o
+  CC      arch/lib/glue.o
+  CC      arch/lib/fs.o
+  CC      arch/lib/sysctl.o
+  CC      arch/lib/proc.o
+  CC      arch/lib/sysfs.o
+  CC      arch/lib/capability.o
+arch/lib/capability.c:16:6: error: redefinition of a??capablea??
+ bool capable(int cap)
+      ^
+In file included from arch/lib/capability.c:9:0:
+./include/linux/capability.h:236:20: note: previous definition of a??capablea?? was here
+ static inline bool capable(int cap)
+                    ^
+arch/lib/capability.c:39:6: error: redefinition of a??ns_capablea??
+ bool ns_capable(struct user_namespace *ns, int cap)
+      ^
+In file included from arch/lib/capability.c:9:0:
+./include/linux/capability.h:240:20: note: previous definition of a??ns_capablea?? was here
+ static inline bool ns_capable(struct user_namespace *ns, int cap)
+                    ^
+arch/lib/Makefile:210: recipe for target 'arch/lib/capability.o' failed
+make: *** [arch/lib/capability.o] Error 1
+
+And on top of v4.0 it fails too:
+
+rw@sandpuppy:~/linux (libos-v4.0 $)> make library ARCH=lib
+  OBJS-MK   arch/lib/objs.mk
+arch/lib/Makefile.print:41: target 'lzo/' given more than once in the same rule.
+make[2]: Nothing to be done for '.config'.
+scripts/kconfig/conf --silentoldconfig arch/lib/Kconfig
+  CHK     include/config/kernel.release
+  CHK     include/generated/utsrelease.h
+  CHK     include/generated/uapi/linux/version.h
+  CHK     include/generated/compile.h
+  GEN     arch/lib/timeconst.h
+  GEN     arch/lib/linker.lds
+  CC      arch/lib/lib.o
+  CC      arch/lib/lib-device.o
+  CC      arch/lib/lib-socket.o
+arch/lib/lib-socket.c: In function a??lib_sock_sendmsga??:
+arch/lib/lib-socket.c:114:2: error: too few arguments to function a??sock_sendmsga??
+  retval = sock_sendmsg(kernel_socket, &msg_sys);
+  ^
+In file included from arch/lib/lib-socket.c:12:0:
+./include/linux/net.h:216:5: note: declared here
+ int sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len);
+     ^
+arch/lib/Makefile:210: recipe for target 'arch/lib/lib-socket.o' failed
+make: *** [arch/lib/lib-socket.o] Error 1
+
+You *really* need to shape up wrt the build process.
+
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
