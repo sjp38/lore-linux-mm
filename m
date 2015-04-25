@@ -1,228 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D265C6B0032
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2015 23:49:51 -0400 (EDT)
-Received: by oblw8 with SMTP id w8so51278122obl.0
-        for <linux-mm@kvack.org>; Fri, 24 Apr 2015 20:49:51 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id du5si9586920oeb.102.2015.04.24.20.49.48
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E48EE6B0032
+	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 07:20:45 -0400 (EDT)
+Received: by igbhj9 with SMTP id hj9so33026165igb.1
+        for <linux-mm@kvack.org>; Sat, 25 Apr 2015 04:20:45 -0700 (PDT)
+Received: from e33.co.us.ibm.com (e33.co.us.ibm.com. [32.97.110.151])
+        by mx.google.com with ESMTPS id b12si7544096icm.26.2015.04.25.04.20.45
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Apr 2015 20:49:50 -0700 (PDT)
-Message-ID: <553B0D57.2090108@huawei.com>
-Date: Sat, 25 Apr 2015 11:43:19 +0800
-From: Zhang Zhen <zhenzhang.zhang@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 25 Apr 2015 04:20:45 -0700 (PDT)
+Received: from /spool/local
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Sat, 25 Apr 2015 05:20:44 -0600
+Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id B94D33E4003B
+	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 05:20:40 -0600 (MDT)
+Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
+	by b03cxnp08025.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3PBKJiS34472172
+	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 04:20:19 -0700
+Received: from d03av05.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av05.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3PBKeBY018439
+	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 05:20:40 -0600
+Date: Sat, 25 Apr 2015 04:20:39 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: Interacting with coherent memory on external devices
+Message-ID: <20150425112039.GH5561@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <alpine.DEB.2.11.1504211942040.6294@gentwo.org>
+ <20150422131832.GU5561@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
+ <1429756200.4915.19.camel@kernel.crashing.org>
+ <alpine.DEB.2.11.1504230921020.32297@gentwo.org>
+ <55390EE1.8020304@gmail.com>
+ <20150423193339.GR5561@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1504240909350.7582@gentwo.org>
+ <20150424145738.GZ5561@linux.vnet.ibm.com>
+ <20150424150935.GB3840@gmail.com>
 MIME-Version: 1.0
-Subject: [PATCH] mm/hugetlb: reduce arch dependent code about hugetlb_prefault_arch_hook
-References: <1429933043-56833-1-git-send-email-zhenzhang.zhang@huawei.com>
-In-Reply-To: <1429933043-56833-1-git-send-email-zhenzhang.zhang@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150424150935.GB3840@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, nyc@holomorphy.com, anthony.iliopoulos@huawei.com, tony.luck@intel.com, Dave Hansen <dave.hansen@intel.com>, steve.capper@linaro.org
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Austin S Hemmelgarn <ahferroin7@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-Currently we have many duplicates in definitions of hugetlb_prefault_arch_hook.
-In all architectures this function is empty.
+On Fri, Apr 24, 2015 at 11:09:36AM -0400, Jerome Glisse wrote:
+> On Fri, Apr 24, 2015 at 07:57:38AM -0700, Paul E. McKenney wrote:
+> > On Fri, Apr 24, 2015 at 09:12:07AM -0500, Christoph Lameter wrote:
+> > > On Thu, 23 Apr 2015, Paul E. McKenney wrote:
+> > > 
+> > > >
+> > > > DAX
+> > > >
+> > > > 	DAX is a mechanism for providing direct-memory access to
+> > > > 	high-speed non-volatile (AKA "persistent") memory.  Good
+> > > > 	introductions to DAX may be found in the following LWN
+> > > > 	articles:
+> > > 
+> > > DAX is a mechanism to access memory not managed by the kernel and is the
+> > > successor to XIP. It just happens to be needed for persistent memory.
+> > > Fundamentally any driver can provide an MMAPPed interface to allow access
+> > > to a devices memory.
+> > 
+> > I will take another look, but others in this thread have called out
+> > difficulties with DAX's filesystem nature.
+> 
+> Do not waste your time on that this is not what we want. Christoph here
+> is more than stuborn and fails to see the world.
 
-Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
----
- arch/arm/include/asm/hugetlb.h     | 4 ----
- arch/arm64/include/asm/hugetlb.h   | 4 ----
- arch/ia64/include/asm/hugetlb.h    | 4 ----
- arch/metag/include/asm/hugetlb.h   | 4 ----
- arch/mips/include/asm/hugetlb.h    | 4 ----
- arch/powerpc/include/asm/hugetlb.h | 5 -----
- arch/s390/include/asm/hugetlb.h    | 1 -
- arch/sh/include/asm/hugetlb.h      | 3 ---
- arch/sparc/include/asm/hugetlb.h   | 4 ----
- arch/tile/include/asm/hugetlb.h    | 4 ----
- arch/x86/include/asm/hugetlb.h     | 3 ---
- fs/hugetlbfs/inode.c               | 1 -
- 12 files changed, 41 deletions(-)
+Well, we do need to make sure that we are correctly representing DAX's
+capabilities.  It is a hot topic, and others will probably also suggest
+that it be used.  That said, at the moment, I don't see how it would help,
+given the need to migrate memory.  Perhaps Boas Harrosh's patch set to
+allow struct pages to be associated might help?  But from what I can see,
+a fair amount of other functionality would still be required either way.
 
-diff --git a/arch/arm/include/asm/hugetlb.h b/arch/arm/include/asm/hugetlb.h
-index 1f1b1cd..31bb7dc 100644
---- a/arch/arm/include/asm/hugetlb.h
-+++ b/arch/arm/include/asm/hugetlb.h
-@@ -53,10 +53,6 @@ static inline int prepare_hugepage_range(struct file *file,
- 	return 0;
- }
+I am updating the DAX section a bit, but I don't claim that it is complete.
 
--static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm)
--{
--}
--
- static inline int huge_pte_none(pte_t pte)
- {
- 	return pte_none(pte);
-diff --git a/arch/arm64/include/asm/hugetlb.h b/arch/arm64/include/asm/hugetlb.h
-index 5b7ca8a..734c17e 100644
---- a/arch/arm64/include/asm/hugetlb.h
-+++ b/arch/arm64/include/asm/hugetlb.h
-@@ -86,10 +86,6 @@ static inline int prepare_hugepage_range(struct file *file,
- 	return 0;
- }
-
--static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm)
--{
--}
--
- static inline int huge_pte_none(pte_t pte)
- {
- 	return pte_none(pte);
-diff --git a/arch/ia64/include/asm/hugetlb.h b/arch/ia64/include/asm/hugetlb.h
-index aa91005..ff1377b 100644
---- a/arch/ia64/include/asm/hugetlb.h
-+++ b/arch/ia64/include/asm/hugetlb.h
-@@ -20,10 +20,6 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
- 		REGION_NUMBER((addr)+(len)-1) == RGN_HPAGE);
- }
-
--static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm)
--{
--}
--
- static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
- 				   pte_t *ptep, pte_t pte)
- {
-diff --git a/arch/metag/include/asm/hugetlb.h b/arch/metag/include/asm/hugetlb.h
-index 471f481..f730b39 100644
---- a/arch/metag/include/asm/hugetlb.h
-+++ b/arch/metag/include/asm/hugetlb.h
-@@ -14,10 +14,6 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
- int prepare_hugepage_range(struct file *file, unsigned long addr,
- 						unsigned long len);
-
--static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm)
--{
--}
--
- static inline void hugetlb_free_pgd_range(struct mmu_gather *tlb,
- 					  unsigned long addr, unsigned long end,
- 					  unsigned long floor,
-diff --git a/arch/mips/include/asm/hugetlb.h b/arch/mips/include/asm/hugetlb.h
-index fe0d15d..4a5bb54 100644
---- a/arch/mips/include/asm/hugetlb.h
-+++ b/arch/mips/include/asm/hugetlb.h
-@@ -38,10 +38,6 @@ static inline int prepare_hugepage_range(struct file *file,
- 	return 0;
- }
-
--static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm)
--{
--}
--
- static inline void hugetlb_free_pgd_range(struct mmu_gather *tlb,
- 					  unsigned long addr,
- 					  unsigned long end,
-diff --git a/arch/powerpc/include/asm/hugetlb.h b/arch/powerpc/include/asm/hugetlb.h
-index 1d53a65..4bbd3c8 100644
---- a/arch/powerpc/include/asm/hugetlb.h
-+++ b/arch/powerpc/include/asm/hugetlb.h
-@@ -112,11 +112,6 @@ static inline int prepare_hugepage_range(struct file *file,
- 	return 0;
- }
-
--static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm)
--{
--}
--
--
- static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
- 				   pte_t *ptep, pte_t pte)
- {
-diff --git a/arch/s390/include/asm/hugetlb.h b/arch/s390/include/asm/hugetlb.h
-index 11eae5f..dfb542a 100644
---- a/arch/s390/include/asm/hugetlb.h
-+++ b/arch/s390/include/asm/hugetlb.h
-@@ -35,7 +35,6 @@ static inline int prepare_hugepage_range(struct file *file,
- 	return 0;
- }
-
--#define hugetlb_prefault_arch_hook(mm)		do { } while (0)
- #define arch_clear_hugepage_flags(page)		do { } while (0)
-
- int arch_prepare_hugepage(struct page *page);
-diff --git a/arch/sh/include/asm/hugetlb.h b/arch/sh/include/asm/hugetlb.h
-index 699255d..b788a9b 100644
---- a/arch/sh/include/asm/hugetlb.h
-+++ b/arch/sh/include/asm/hugetlb.h
-@@ -26,9 +26,6 @@ static inline int prepare_hugepage_range(struct file *file,
- 	return 0;
- }
-
--static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm) {
--}
--
- static inline void hugetlb_free_pgd_range(struct mmu_gather *tlb,
- 					  unsigned long addr, unsigned long end,
- 					  unsigned long floor,
-diff --git a/arch/sparc/include/asm/hugetlb.h b/arch/sparc/include/asm/hugetlb.h
-index e4cab46..3130d76 100644
---- a/arch/sparc/include/asm/hugetlb.h
-+++ b/arch/sparc/include/asm/hugetlb.h
-@@ -11,10 +11,6 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
- pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
- 			      pte_t *ptep);
-
--static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm)
--{
--}
--
- static inline int is_hugepage_only_range(struct mm_struct *mm,
- 					 unsigned long addr,
- 					 unsigned long len) {
-diff --git a/arch/tile/include/asm/hugetlb.h b/arch/tile/include/asm/hugetlb.h
-index 3257733..1abd00c 100644
---- a/arch/tile/include/asm/hugetlb.h
-+++ b/arch/tile/include/asm/hugetlb.h
-@@ -40,10 +40,6 @@ static inline int prepare_hugepage_range(struct file *file,
- 	return 0;
- }
-
--static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm)
--{
--}
--
- static inline void hugetlb_free_pgd_range(struct mmu_gather *tlb,
- 					  unsigned long addr, unsigned long end,
- 					  unsigned long floor,
-diff --git a/arch/x86/include/asm/hugetlb.h b/arch/x86/include/asm/hugetlb.h
-index 68c0539..dab7a3a 100644
---- a/arch/x86/include/asm/hugetlb.h
-+++ b/arch/x86/include/asm/hugetlb.h
-@@ -26,9 +26,6 @@ static inline int prepare_hugepage_range(struct file *file,
- 	return 0;
- }
-
--static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm) {
--}
--
- static inline void hugetlb_free_pgd_range(struct mmu_gather *tlb,
- 					  unsigned long addr, unsigned long end,
- 					  unsigned long floor,
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 2640d88..f45ea95 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -130,7 +130,6 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
- 		goto out;
-
- 	ret = 0;
--	hugetlb_prefault_arch_hook(vma->vm_mm);
- 	if (vma->vm_flags & VM_WRITE && inode->i_size < len)
- 		inode->i_size = len;
- out:
--- 
-1.9.1
-
-
-.
-
-
-
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
