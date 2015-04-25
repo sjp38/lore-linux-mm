@@ -1,62 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A3F56B0032
-	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 13:29:06 -0400 (EDT)
-Received: by wgen6 with SMTP id n6so78680189wge.3
-        for <linux-mm@kvack.org>; Sat, 25 Apr 2015 10:29:05 -0700 (PDT)
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EF766B0032
+	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 13:45:47 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so50687711wid.0
+        for <linux-mm@kvack.org>; Sat, 25 Apr 2015 10:45:46 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cq9si25312031wjc.42.2015.04.25.10.29.04
+        by mx.google.com with ESMTPS id p8si25337679wjx.82.2015.04.25.10.45.44
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 25 Apr 2015 10:29:04 -0700 (PDT)
-Date: Sat, 25 Apr 2015 18:28:59 +0100
+        Sat, 25 Apr 2015 10:45:45 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 10/13] x86: mm: Enable deferred struct page
- initialisation on x86-64
-Message-ID: <20150425172859.GE2449@suse.de>
-References: <1429722473-28118-1-git-send-email-mgorman@suse.de>
- <1429722473-28118-11-git-send-email-mgorman@suse.de>
- <20150422164500.121a355e6b578243cb3650e3@linux-foundation.org>
- <20150423092327.GJ14842@suse.de>
- <553A54C5.3060106@hp.com>
- <20150424152007.GD2449@suse.de>
- <553A93BB.1010404@hp.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <553A93BB.1010404@hp.com>
+Subject: [PATCH 0/3] TLB flush multiple pages per IPI v4
+Date: Sat, 25 Apr 2015 18:45:39 +0100
+Message-Id: <1429983942-4308-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <waiman.long@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>
+To: Linux-MM <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Fri, Apr 24, 2015 at 03:04:27PM -0400, Waiman Long wrote:
-> >>Within a NUMA node, however, we can split the
-> >>memory initialization to 2 or more local CPUs if the memory size is
-> >>big enough.
-> >>
-> >I considered it but discarded the idea. It'd be more complex to setup and
-> >the two CPUs could simply end up contending on the same memory bus as
-> >well as contending on zone->lock.
-> >
-> 
-> I don't think we need that now. However, we may have to consider
-> this when one day even a single node can have TBs of memory unless
-> we move to a page size larger than 4k.
-> 
+The big change here is that I dropped the patch that batches TLB flushes
+from migration context. After V3, I realised that there are non-trivial
+corner cases there that deserve treatment in their own series. It did not
+help that I could not find a workload that was both migration and IPI
+intensive. The common case for IPIs during reclaim is kswapd unmapping
+pages which guarantees IPIs. In migration, at least some of the pages
+being migrated will belong to the process itself.
 
-We'll cross that bridge when we come to it. I suspect there is more room
-for improvement in the initialisation that would be worth trying before
-resorting to more threads. With more threads there is a risk that we hit
-memory bus contention and a high risk that it actually is worse due to
-contending on zone->lock when freeing the pages.
+The main issue is that migration cannot have any cached TLB entries after
+migration completes. Once the migration PTE is removed then writes can happen
+to that new page. The old TLB entry could see stale reads until it's flushed
+which is different to the reclaim case. This is difficult to get around. We
+cannot just unmap in advance because then there are no migration entries
+to restore and there would be minor faults post-migration. We can't batch
+restore the migration entries because the page lock must be held during
+migration or BUG_ONs get triggered. Batching TLB flushes safely requires
+a major rethink of how migration works so lets deal with reclaim first on
+its own, preferably in the context of a workload that is both migration
+and IPI intensive.
 
-In the meantime, do you mind updating the before/after figures for your
-test machine with this series please?
+The patch that increased the batching size was also removed because there
+is no advantage when TLBs are flushed before freeing the page. To increase
+batching we would have to alter how many pages are isolated from the LRU
+which would be a different patch series.
+
+Most reviewed-bys had to be dropped as the patches changed too much to
+preserve them.
+
+Changelog since V3
+o Drop batching of TLB flush from migration
+o Redo how larger batching is managed
+o Batch TLB flushes when writable entries exist
+
+When unmapping pages it is necessary to flush the TLB. If that page was
+accessed by another CPU then an IPI is used to flush the remote CPU. That
+is a lot of IPIs if kswapd is scanning and unmapping >100K pages per second.
+
+There already is a window between when a page is unmapped and when it is
+TLB flushed. This series simply increases the window so multiple pages can
+be flushed using a single IPI.
+
+Patch 1 simply made the rest of the series easier to write as ftrace
+	could identify all the senders of TLB flush IPIS.
+
+Patch 2 collects a list of PFNs and sends one IPI to flush them all
+
+Patch 3 tracks when there potentially are writable TLB entries that
+	need to be batched differently
+
+The performance impact is documented in the changelogs but in the optimistic
+case on a 4-socket machine the full series reduces interrupts from 900K
+interrupts/second to 60K interrupts/second.
+
+ arch/x86/Kconfig                |   1 +
+ arch/x86/include/asm/tlbflush.h |   2 +
+ arch/x86/mm/tlb.c               |   1 +
+ include/linux/init_task.h       |   8 +++
+ include/linux/mm_types.h        |   1 +
+ include/linux/rmap.h            |   3 +
+ include/linux/sched.h           |  15 +++++
+ include/trace/events/tlb.h      |   3 +-
+ init/Kconfig                    |   8 +++
+ kernel/fork.c                   |   5 ++
+ kernel/sched/core.c             |   3 +
+ mm/internal.h                   |  15 +++++
+ mm/rmap.c                       | 119 +++++++++++++++++++++++++++++++++++++++-
+ mm/vmscan.c                     |  45 ++++++++++++++-
+ 14 files changed, 224 insertions(+), 5 deletions(-)
 
 -- 
-Mel Gorman
-SUSE Labs
+2.3.5
+
+Mel Gorman (3):
+  x86, mm: Trace when an IPI is about to be sent
+  mm: Send one IPI per CPU to TLB flush multiple pages that were
+    recently unmapped
+  mm: Defer flush of writable TLB entries
+
+ arch/x86/Kconfig                |   1 +
+ arch/x86/include/asm/tlbflush.h |   2 +
+ arch/x86/mm/tlb.c               |   1 +
+ include/linux/init_task.h       |   8 +++
+ include/linux/mm_types.h        |   1 +
+ include/linux/rmap.h            |   3 +
+ include/linux/sched.h           |  15 +++++
+ include/trace/events/tlb.h      |   3 +-
+ init/Kconfig                    |   8 +++
+ kernel/fork.c                   |   5 ++
+ kernel/sched/core.c             |   3 +
+ mm/internal.h                   |  15 +++++
+ mm/rmap.c                       | 119 +++++++++++++++++++++++++++++++++++++++-
+ mm/vmscan.c                     |  30 +++++++++-
+ 14 files changed, 210 insertions(+), 4 deletions(-)
+
+-- 
+2.3.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
