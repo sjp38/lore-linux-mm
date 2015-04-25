@@ -1,154 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F5996B006E
-	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 13:45:53 -0400 (EDT)
-Received: by wgin8 with SMTP id n8so78910171wgi.0
-        for <linux-mm@kvack.org>; Sat, 25 Apr 2015 10:45:52 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ex20si15951372wjd.87.2015.04.25.10.45.46
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
+	by kanga.kvack.org (Postfix) with ESMTP id E67486B0032
+	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 17:51:44 -0400 (EDT)
+Received: by obbeb7 with SMTP id eb7so60280429obb.3
+        for <linux-mm@kvack.org>; Sat, 25 Apr 2015 14:51:44 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id uv7si10996034obc.93.2015.04.25.14.51.43
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 25 Apr 2015 10:45:47 -0700 (PDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 3/3] mm: Defer flush of writable TLB entries
-Date: Sat, 25 Apr 2015 18:45:42 +0100
-Message-Id: <1429983942-4308-4-git-send-email-mgorman@suse.de>
-In-Reply-To: <1429983942-4308-1-git-send-email-mgorman@suse.de>
-References: <1429983942-4308-1-git-send-email-mgorman@suse.de>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 25 Apr 2015 14:51:44 -0700 (PDT)
+Message-ID: <553C0C65.6010401@oracle.com>
+Date: Sat, 25 Apr 2015 17:51:33 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/2] mm: free large amount of 0-order pages in workqueue
+References: <1427839895-16434-1-git-send-email-sasha.levin@oracle.com>	<20150331153127.2eb8cc2f04c742dde7a8c96c@linux-foundation.org>	<551B222E.4000009@oracle.com> <20150331155455.dd725010cec78112cd549c5b@linux-foundation.org>
+In-Reply-To: <20150331155455.dd725010cec78112cd549c5b@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, mhocko@suse.cz, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, open@kvack.org, list@kvack.org, MEMORY MANAGEMENT <linux-mm@kvack.org>
 
-If a PTE is unmapped and it's dirty then it was writable recently. Due
-to deferred TLB flushing, it's best to assume a writable TLB cache entry
-exists. With that assumption, the TLB must be flushed before any IO can
-start or the page is freed to avoid lost writes or data corruption. This
-patch defers flushing of potentially writable TLBs as long as possible.
+On 03/31/2015 06:54 PM, Andrew Morton wrote:
+>> [ 2896.340953] trinity-c6      R  running task    27040  6561   9144 0x10000006
+>> > [ 2896.342673]  ffff8802e72576a8 ffff8802e7257758 ffffffffabfdd628 003c5e36ef1674fa
+>> > [ 2896.344267]  ffff8801533e1588 ffff8801533e1560 ffff8802d3963778 ffff8802ad220000
+>> > [ 2896.345824]  ffff8802d3963000 0000000000000000 ffff8802e7250000 ffffed005ce4a002
+>> > [ 2896.347286] Call Trace:
+>> > [ 2896.347784] ? trace_hardirqs_on_thunk (arch/x86/lib/thunk_64.S:42)
+>> > [ 2896.348977] preempt_schedule_common (./arch/x86/include/asm/preempt.h:77 (discriminator 1) kernel/sched/core.c:2867 (discriminator 1))
+>> > [ 2896.350279] preempt_schedule (kernel/sched/core.c:2893)
+>> > [ 2896.351349] ___preempt_schedule (arch/x86/lib/thunk_64.S:51)
+>> > [ 2896.353782] __debug_check_no_obj_freed (lib/debugobjects.c:713)
+>> > [ 2896.360001] debug_check_no_obj_freed (lib/debugobjects.c:727)
+>> > [ 2896.361574] free_pages_prepare (mm/page_alloc.c:823)
+>> > [ 2896.362657] free_hot_cold_page (mm/page_alloc.c:1550)
+>> > [ 2896.363735] free_hot_cold_page_list (mm/page_alloc.c:1596 (discriminator 3))
+>> > [ 2896.364846] release_pages (mm/swap.c:935)
+>> > [ 2896.367979] __pagevec_release (include/linux/pagevec.h:44 mm/swap.c:1013)
+>> > [ 2896.369149] shmem_undo_range (include/linux/pagevec.h:69 mm/shmem.c:446)
+>> > [ 2896.377070] shmem_truncate_range (mm/shmem.c:541)
+>> > [ 2896.378450] shmem_setattr (mm/shmem.c:577)
+>> > [ 2896.379556] notify_change (fs/attr.c:270)
+>> > [ 2896.382804] do_truncate (fs/open.c:62)
+>> > [ 2896.387739] do_sys_ftruncate.constprop.4 (fs/open.c:191)
+>> > [ 2896.389450] SyS_ftruncate (fs/open.c:199)
+>> > [ 2896.390879] tracesys_phase2 (arch/x86/kernel/entry_64.S:340)
+> OK, so shmem_undo_range() is full of cond_resched()s but it's holding
+> i_mutex for too long.  Hugh, fix your junk!
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/linux/sched.h |  1 +
- mm/internal.h         |  4 ++++
- mm/rmap.c             | 28 +++++++++++++++++++++-------
- mm/vmscan.c           |  7 ++++++-
- 4 files changed, 32 insertions(+), 8 deletions(-)
+Ping on this one? It's causing lockups on all kernels...
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 5c09db02fe78..ea7c466be0bf 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1282,6 +1282,7 @@ enum perf_event_task_context {
- struct tlbflush_unmap_batch {
- 	struct cpumask cpumask;
- 	unsigned long nr_pages;
-+	bool writable;
- 	unsigned long pfns[BATCH_TLBFLUSH_SIZE];
- };
- 
-diff --git a/mm/internal.h b/mm/internal.h
-index 35aba439c275..ae7822bd5659 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -436,10 +436,14 @@ struct tlbflush_unmap_batch;
- 
- #ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
- void try_to_unmap_flush(void);
-+void try_to_unmap_flush_dirty(void);
- #else
- static inline void try_to_unmap_flush(void)
- {
- }
-+static inline void try_to_unmap_flush_dirty(void)
-+{
-+}
- 
- #endif /* CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH */
- #endif	/* __MM_INTERNAL_H */
-diff --git a/mm/rmap.c b/mm/rmap.c
-index c06f2ce422e5..984d2c258c13 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -621,11 +621,21 @@ void try_to_unmap_flush(void)
- 	}
- 	cpumask_clear(&tlb_ubc->cpumask);
- 	tlb_ubc->nr_pages = 0;
-+	tlb_ubc->writable = false;
- 	preempt_enable();
- }
- 
-+/* Flush iff there are potentially writable TLB entries that can race with IO */
-+void try_to_unmap_flush_dirty(void)
-+{
-+	struct tlbflush_unmap_batch *tlb_ubc = current->tlb_ubc;
-+
-+	if (tlb_ubc && tlb_ubc->writable)
-+		try_to_unmap_flush();
-+}
-+
- static void set_tlb_ubc_flush_pending(struct mm_struct *mm,
--		struct page *page)
-+		struct page *page, bool writable)
- {
- 	struct tlbflush_unmap_batch *tlb_ubc = current->tlb_ubc;
- 
-@@ -633,6 +643,14 @@ static void set_tlb_ubc_flush_pending(struct mm_struct *mm,
- 	tlb_ubc->pfns[tlb_ubc->nr_pages] = page_to_pfn(page);
- 	tlb_ubc->nr_pages++;
- 
-+	/*
-+	 * If the PTE was dirty then it's best to assume it's writable. The
-+	 * caller must use try_to_unmap_flush_dirty() or try_to_unmap_flush()
-+	 * before the page any IO is initiated.
-+	 */
-+	if (writable)
-+		tlb_ubc->writable = true;
-+
- 	if (tlb_ubc->nr_pages == BATCH_TLBFLUSH_SIZE)
- 		try_to_unmap_flush();
- }
-@@ -657,7 +675,7 @@ static bool should_defer_flush(struct mm_struct *mm, enum ttu_flags flags)
- }
- #else
- static void set_tlb_ubc_flush_pending(struct mm_struct *mm,
--		struct page *page)
-+		struct page *page, bool writable)
- {
- }
- 
-@@ -1309,11 +1327,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 		 */
- 		pteval = ptep_get_and_clear(mm, address, pte);
- 
--		/* Potentially writable TLBs must be flushed before IO */
--		if (pte_dirty(pteval))
--			flush_tlb_page(vma, address);
--		else
--			set_tlb_ubc_flush_pending(mm, page);
-+		set_tlb_ubc_flush_pending(mm, page, pte_dirty(pteval));
- 	} else {
- 		pteval = ptep_clear_flush(vma, address, pte);
- 	}
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 5121742ccb87..0055224c52d4 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1065,7 +1065,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			if (!sc->may_writepage)
- 				goto keep_locked;
- 
--			/* Page is dirty, try to write it out here */
-+			/*
-+			 * Page is dirty. Flush the TLB if a writable entry
-+			 * potentially exists to avoid CPU writes after IO
-+			 * starts and then write it out here
-+			 */
-+			try_to_unmap_flush_dirty();
- 			switch (pageout(page, mapping, sc)) {
- 			case PAGE_KEEP:
- 				goto keep_locked;
--- 
-2.3.5
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
