@@ -1,76 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id E80CF6B0032
-	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 09:53:21 -0400 (EDT)
-Received: by wiax7 with SMTP id x7so53102252wia.0
-        for <linux-mm@kvack.org>; Sat, 25 Apr 2015 06:53:21 -0700 (PDT)
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
-        by mx.google.com with ESMTPS id d1si24558025wjy.134.2015.04.25.06.53.20
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A3F56B0032
+	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 13:29:06 -0400 (EDT)
+Received: by wgen6 with SMTP id n6so78680189wge.3
+        for <linux-mm@kvack.org>; Sat, 25 Apr 2015 10:29:05 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cq9si25312031wjc.42.2015.04.25.10.29.04
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 25 Apr 2015 06:53:20 -0700 (PDT)
-Received: by widdi4 with SMTP id di4so51934668wid.0
-        for <linux-mm@kvack.org>; Sat, 25 Apr 2015 06:53:20 -0700 (PDT)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 25 Apr 2015 10:29:04 -0700 (PDT)
+Date: Sat, 25 Apr 2015 18:28:59 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 10/13] x86: mm: Enable deferred struct page
+ initialisation on x86-64
+Message-ID: <20150425172859.GE2449@suse.de>
+References: <1429722473-28118-1-git-send-email-mgorman@suse.de>
+ <1429722473-28118-11-git-send-email-mgorman@suse.de>
+ <20150422164500.121a355e6b578243cb3650e3@linux-foundation.org>
+ <20150423092327.GJ14842@suse.de>
+ <553A54C5.3060106@hp.com>
+ <20150424152007.GD2449@suse.de>
+ <553A93BB.1010404@hp.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1504241437070.2456@chino.kir.corp.google.com>
-References: <1429909549-11726-1-git-send-email-anisse@astier.eu>
- <1429909549-11726-3-git-send-email-anisse@astier.eu> <alpine.DEB.2.10.1504241437070.2456@chino.kir.corp.google.com>
-From: Anisse Astier <anisse@astier.eu>
-Date: Sat, 25 Apr 2015 15:52:59 +0200
-Message-ID: <CALUN=q+-yUtZCyVbxcSLq2J_RyR4bOYrVbm2NfTX4FdVkEXtCg@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm/page_alloc.c: add config option to sanitize freed pages
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <553A93BB.1010404@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Waiman Long <waiman.long@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Apr 24, 2015 at 11:38 PM, David Rientjes <rientjes@google.com> wrote:
-> On Fri, 24 Apr 2015, Anisse Astier wrote:
->
->> diff --git a/mm/Kconfig b/mm/Kconfig
->> index 390214d..cb2df5f 100644
->> --- a/mm/Kconfig
->> +++ b/mm/Kconfig
->> @@ -635,3 +635,15 @@ config MAX_STACK_SIZE_MB
->>         changed to a smaller value in which case that is used.
->>
->>         A sane initial value is 80 MB.
->> +
->> +config SANITIZE_FREED_PAGES
->> +     bool "Sanitize memory pages after free"
->> +     default n
->> +     help
->> +       This option is used to make sure all pages freed are zeroed. This is
->> +       quite low-level and doesn't handle your slab buffers.
->> +       It has various applications, from preventing some info leaks to
->> +       helping kernel same-page merging in virtualised environments.
->> +       Depending on your workload, it will reduce performance of about 3%.
->> +
->> +       If unsure, say N.
->
-> Objection to allowing this without first enabling some other DEBUG config
-> option, it should never be a standalone option, but also to pretending to
+On Fri, Apr 24, 2015 at 03:04:27PM -0400, Waiman Long wrote:
+> >>Within a NUMA node, however, we can split the
+> >>memory initialization to 2 or more local CPUs if the memory size is
+> >>big enough.
+> >>
+> >I considered it but discarded the idea. It'd be more complex to setup and
+> >the two CPUs could simply end up contending on the same memory bus as
+> >well as contending on zone->lock.
+> >
+> 
+> I don't think we need that now. However, we may have to consider
+> this when one day even a single node can have TBs of memory unless
+> we move to a page size larger than 4k.
+> 
 
-I'm not sure I understand the rationale here. Is it to protect the
-innocent ? The performance warning and "N" recommendation ought to be
-enough.
-I'm not sure depending on DEBUG will help anyone; it will just hinder
-those who want to use this on a hardened system (where you might not
-want to have DEBUG enabled).
+We'll cross that bridge when we come to it. I suspect there is more room
+for improvement in the initialisation that would be worth trying before
+resorting to more threads. With more threads there is a risk that we hit
+memory bus contention and a high risk that it actually is worse due to
+contending on zone->lock when freeing the pages.
 
-> have any insight into what the performance degredation of it will be.  On
+In the meantime, do you mind updating the before/after figures for your
+test machine with this series please?
 
-I fully agree I shouldn't have let the 3% ballpark estimate slip, I'll
-remove it.
-
-> my systems, this would be _massive_.
-
-I'm interested in what you mean by "massive". Have you conducted
-experiments on the impact or is just your gut feeling ? Anyway, I'd be
-curious to see numbers showing what it looks like on big hardware.
-
-Anisse
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
