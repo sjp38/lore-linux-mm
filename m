@@ -1,83 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id E48EE6B0032
-	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 07:20:45 -0400 (EDT)
-Received: by igbhj9 with SMTP id hj9so33026165igb.1
-        for <linux-mm@kvack.org>; Sat, 25 Apr 2015 04:20:45 -0700 (PDT)
-Received: from e33.co.us.ibm.com (e33.co.us.ibm.com. [32.97.110.151])
-        by mx.google.com with ESMTPS id b12si7544096icm.26.2015.04.25.04.20.45
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id AE13C6B0032
+	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 07:46:38 -0400 (EDT)
+Received: by iejt8 with SMTP id t8so99987149iej.2
+        for <linux-mm@kvack.org>; Sat, 25 Apr 2015 04:46:38 -0700 (PDT)
+Received: from e32.co.us.ibm.com (e32.co.us.ibm.com. [32.97.110.150])
+        by mx.google.com with ESMTPS id iq3si1673897igb.15.2015.04.25.04.46.37
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 25 Apr 2015 04:20:45 -0700 (PDT)
+        Sat, 25 Apr 2015 04:46:38 -0700 (PDT)
 Received: from /spool/local
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Sat, 25 Apr 2015 05:20:44 -0600
-Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id B94D33E4003B
-	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 05:20:40 -0600 (MDT)
+	Sat, 25 Apr 2015 05:46:37 -0600
+Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 99C661FF001F
+	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 05:37:45 -0600 (MDT)
 Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by b03cxnp08025.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3PBKJiS34472172
-	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 04:20:19 -0700
+	by b03cxnp08026.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3PBkVNf46333996
+	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 04:46:31 -0700
 Received: from d03av05.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3PBKeBY018439
-	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 05:20:40 -0600
-Date: Sat, 25 Apr 2015 04:20:39 -0700
+	by d03av05.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3PBkYRt032761
+	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 05:46:34 -0600
+Date: Sat, 25 Apr 2015 04:46:33 -0700
 From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 Subject: Re: Interacting with coherent memory on external devices
-Message-ID: <20150425112039.GH5561@linux.vnet.ibm.com>
+Message-ID: <20150425114633.GI5561@linux.vnet.ibm.com>
 Reply-To: paulmck@linux.vnet.ibm.com
-References: <alpine.DEB.2.11.1504211942040.6294@gentwo.org>
- <20150422131832.GU5561@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504221105130.24979@gentwo.org>
- <1429756200.4915.19.camel@kernel.crashing.org>
- <alpine.DEB.2.11.1504230921020.32297@gentwo.org>
- <55390EE1.8020304@gmail.com>
- <20150423193339.GR5561@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504240909350.7582@gentwo.org>
- <20150424145738.GZ5561@linux.vnet.ibm.com>
- <20150424150935.GB3840@gmail.com>
+References: <20150423161105.GB2399@gmail.com>
+ <alpine.DEB.2.11.1504240912560.7582@gentwo.org>
+ <20150424150829.GA3840@gmail.com>
+ <alpine.DEB.2.11.1504241052240.9889@gentwo.org>
+ <20150424164325.GD3840@gmail.com>
+ <alpine.DEB.2.11.1504241148420.10475@gentwo.org>
+ <20150424171957.GE3840@gmail.com>
+ <alpine.DEB.2.11.1504241353280.11285@gentwo.org>
+ <20150424192859.GF3840@gmail.com>
+ <alpine.DEB.2.11.1504241446560.11700@gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150424150935.GB3840@gmail.com>
+In-Reply-To: <alpine.DEB.2.11.1504241446560.11700@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, Austin S Hemmelgarn <ahferroin7@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Jerome Glisse <j.glisse@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Fri, Apr 24, 2015 at 11:09:36AM -0400, Jerome Glisse wrote:
-> On Fri, Apr 24, 2015 at 07:57:38AM -0700, Paul E. McKenney wrote:
-> > On Fri, Apr 24, 2015 at 09:12:07AM -0500, Christoph Lameter wrote:
-> > > On Thu, 23 Apr 2015, Paul E. McKenney wrote:
-> > > 
-> > > >
-> > > > DAX
-> > > >
-> > > > 	DAX is a mechanism for providing direct-memory access to
-> > > > 	high-speed non-volatile (AKA "persistent") memory.  Good
-> > > > 	introductions to DAX may be found in the following LWN
-> > > > 	articles:
-> > > 
-> > > DAX is a mechanism to access memory not managed by the kernel and is the
-> > > successor to XIP. It just happens to be needed for persistent memory.
-> > > Fundamentally any driver can provide an MMAPPed interface to allow access
-> > > to a devices memory.
-> > 
-> > I will take another look, but others in this thread have called out
-> > difficulties with DAX's filesystem nature.
+On Fri, Apr 24, 2015 at 03:00:18PM -0500, Christoph Lameter wrote:
+> On Fri, 24 Apr 2015, Jerome Glisse wrote:
 > 
-> Do not waste your time on that this is not what we want. Christoph here
-> is more than stuborn and fails to see the world.
+> > > Still no answer as to why is that not possible with the current scheme?
+> > > You keep on talking about pointers and I keep on responding that this is a
+> > > matter of making the address space compatible on both sides.
+> >
+> > So if do that in a naive way, how can we migrate a chunk of memory to video
+> > memory while still handling properly the case where CPU try to access that
+> > same memory while it is migrated to the GPU memory.
+> 
+> Well that the same issue that the migration code is handling which I
+> submitted a long time ago to the kernel.
 
-Well, we do need to make sure that we are correctly representing DAX's
-capabilities.  It is a hot topic, and others will probably also suggest
-that it be used.  That said, at the moment, I don't see how it would help,
-given the need to migrate memory.  Perhaps Boas Harrosh's patch set to
-allow struct pages to be associated might help?  But from what I can see,
-a fair amount of other functionality would still be required either way.
+Would you have a URL or other pointer to this code?
 
-I am updating the DAX section a bit, but I don't claim that it is complete.
+> > Without modifying a single line of mm code, the only way to do this is to
+> > either unmap from the cpu page table the range being migrated or to mprotect
+> > it in some way. In both case the cpu access will trigger some kind of fault.
+> 
+> Yes that is how Linux migration works. If you can fix that then how about
+> improving page migration in Linux between NUMA nodes first?
+
+In principle, that also would be a good thing.  But why do that first?
+
+> > This is not the behavior we want. What we want is same address space while
+> > being able to migrate system memory to device memory (who make that decision
+> > should not be part of that discussion) while still gracefully handling any
+> > CPU access.
+> 
+> Well then there could be a situation where you have concurrent write
+> access. How do you reconcile that then? Somehow you need to stall one or
+> the other until the transaction is complete.
+
+Or have store buffers on one or both sides.
+
+> > This means if CPU access it we want to migrate memory back to system memory.
+> > To achieve this there is no way around adding couple of if inside the mm
+> > page fault code path. Now do you want each driver to add its own if branch
+> > or do you want a common infrastructure to do just that ?
+> 
+> If you can improve the page migration in general then we certainly would
+> love that. Having faultless migration is certain a good thing for a lot of
+> functionality that depends on page migration.
+
+We do have to start somewhere, though.  If we insist on perfection for
+all situations before we agree to make a change, we won't be making very
+many changes, now will we?
+
+> > As i keep saying the solution you propose is what we have today, today we
+> > have fake share address space through the trick of remapping system memory
+> > at same address inside the GPU address space and also enforcing the use of
+> > a special memory allocator that goes behind the back of mm code.
+> 
+> Hmmm... I'd like to know more details about that.
+
+As I understand it, the trick (if you can call it that) is having the
+device have the same memory-mapping capabilities as the CPUs.
+
+> > As you pointed out, not using GPU memory is a waste and we want to be able
+> > to use it. Now Paul have more sofisticated hardware that offer oportunities
+> > to do thing in a more transparent and efficient way.
+> 
+> Does this also work between NUMA nodes in a Power8 system?
+
+Heh!  At the rate we are going with this discussion, Power8 will be
+obsolete before we have this in.  ;-)
 
 							Thanx, Paul
 
