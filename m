@@ -1,61 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id E67486B0032
-	for <linux-mm@kvack.org>; Sat, 25 Apr 2015 17:51:44 -0400 (EDT)
-Received: by obbeb7 with SMTP id eb7so60280429obb.3
-        for <linux-mm@kvack.org>; Sat, 25 Apr 2015 14:51:44 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id uv7si10996034obc.93.2015.04.25.14.51.43
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id DA3B26B0032
+	for <linux-mm@kvack.org>; Sun, 26 Apr 2015 04:46:17 -0400 (EDT)
+Received: by pdbqd1 with SMTP id qd1so95191764pdb.2
+        for <linux-mm@kvack.org>; Sun, 26 Apr 2015 01:46:17 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id b15si24969884pbu.18.2015.04.26.01.46.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 25 Apr 2015 14:51:44 -0700 (PDT)
-Message-ID: <553C0C65.6010401@oracle.com>
-Date: Sat, 25 Apr 2015 17:51:33 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        Sun, 26 Apr 2015 01:46:16 -0700 (PDT)
+Received: by pabtp1 with SMTP id tp1so95501216pab.2
+        for <linux-mm@kvack.org>; Sun, 26 Apr 2015 01:46:16 -0700 (PDT)
+Date: Sun, 26 Apr 2015 16:43:31 +0800
+From: Wang YanQing <udknight@gmail.com>
+Subject: [PATCH v2]block:bounce: fix call inc_|dec_zone_page_state on
+ different pages confuse value of NR_BOUNCE
+Message-ID: <20150426084331.GA5680@udknight>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm: free large amount of 0-order pages in workqueue
-References: <1427839895-16434-1-git-send-email-sasha.levin@oracle.com>	<20150331153127.2eb8cc2f04c742dde7a8c96c@linux-foundation.org>	<551B222E.4000009@oracle.com> <20150331155455.dd725010cec78112cd549c5b@linux-foundation.org>
-In-Reply-To: <20150331155455.dd725010cec78112cd549c5b@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, mhocko@suse.cz, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, open@kvack.org, list@kvack.org, MEMORY MANAGEMENT <linux-mm@kvack.org>
+To: axboe@kernel.dk
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, leon@leon.nu
 
-On 03/31/2015 06:54 PM, Andrew Morton wrote:
->> [ 2896.340953] trinity-c6      R  running task    27040  6561   9144 0x10000006
->> > [ 2896.342673]  ffff8802e72576a8 ffff8802e7257758 ffffffffabfdd628 003c5e36ef1674fa
->> > [ 2896.344267]  ffff8801533e1588 ffff8801533e1560 ffff8802d3963778 ffff8802ad220000
->> > [ 2896.345824]  ffff8802d3963000 0000000000000000 ffff8802e7250000 ffffed005ce4a002
->> > [ 2896.347286] Call Trace:
->> > [ 2896.347784] ? trace_hardirqs_on_thunk (arch/x86/lib/thunk_64.S:42)
->> > [ 2896.348977] preempt_schedule_common (./arch/x86/include/asm/preempt.h:77 (discriminator 1) kernel/sched/core.c:2867 (discriminator 1))
->> > [ 2896.350279] preempt_schedule (kernel/sched/core.c:2893)
->> > [ 2896.351349] ___preempt_schedule (arch/x86/lib/thunk_64.S:51)
->> > [ 2896.353782] __debug_check_no_obj_freed (lib/debugobjects.c:713)
->> > [ 2896.360001] debug_check_no_obj_freed (lib/debugobjects.c:727)
->> > [ 2896.361574] free_pages_prepare (mm/page_alloc.c:823)
->> > [ 2896.362657] free_hot_cold_page (mm/page_alloc.c:1550)
->> > [ 2896.363735] free_hot_cold_page_list (mm/page_alloc.c:1596 (discriminator 3))
->> > [ 2896.364846] release_pages (mm/swap.c:935)
->> > [ 2896.367979] __pagevec_release (include/linux/pagevec.h:44 mm/swap.c:1013)
->> > [ 2896.369149] shmem_undo_range (include/linux/pagevec.h:69 mm/shmem.c:446)
->> > [ 2896.377070] shmem_truncate_range (mm/shmem.c:541)
->> > [ 2896.378450] shmem_setattr (mm/shmem.c:577)
->> > [ 2896.379556] notify_change (fs/attr.c:270)
->> > [ 2896.382804] do_truncate (fs/open.c:62)
->> > [ 2896.387739] do_sys_ftruncate.constprop.4 (fs/open.c:191)
->> > [ 2896.389450] SyS_ftruncate (fs/open.c:199)
->> > [ 2896.390879] tracesys_phase2 (arch/x86/kernel/entry_64.S:340)
-> OK, so shmem_undo_range() is full of cond_resched()s but it's holding
-> i_mutex for too long.  Hugh, fix your junk!
+Commit d2c5e30c9a1420902262aa923794d2ae4e0bc391
+("[PATCH] zoned vm counters: conversion of nr_bounce to per zone counter")
+convert statistic of nr_bounce to per zone and one global value in vm_stat,
+but it call inc_|dec_zone_page_state on different pages, then different
+zones, and cause us to get unexpected value of NR_BOUNCE.
 
-Ping on this one? It's causing lockups on all kernels...
+Below is the result on my machine:
+Mar  2 09:26:08 udknight kernel: [144766.778265] Mem-Info:
+Mar  2 09:26:08 udknight kernel: [144766.778266] DMA per-cpu:
+Mar  2 09:26:08 udknight kernel: [144766.778268] CPU    0: hi:    0, btch:   1 usd:   0
+Mar  2 09:26:08 udknight kernel: [144766.778269] CPU    1: hi:    0, btch:   1 usd:   0
+Mar  2 09:26:08 udknight kernel: [144766.778270] Normal per-cpu:
+Mar  2 09:26:08 udknight kernel: [144766.778271] CPU    0: hi:  186, btch:  31 usd:   0
+Mar  2 09:26:08 udknight kernel: [144766.778273] CPU    1: hi:  186, btch:  31 usd:   0
+Mar  2 09:26:08 udknight kernel: [144766.778274] HighMem per-cpu:
+Mar  2 09:26:08 udknight kernel: [144766.778275] CPU    0: hi:  186, btch:  31 usd:   0
+Mar  2 09:26:08 udknight kernel: [144766.778276] CPU    1: hi:  186, btch:  31 usd:   0
+Mar  2 09:26:08 udknight kernel: [144766.778279] active_anon:46926 inactive_anon:287406 isolated_anon:0
+Mar  2 09:26:08 udknight kernel: [144766.778279]  active_file:105085 inactive_file:139432 isolated_file:0
+Mar  2 09:26:08 udknight kernel: [144766.778279]  unevictable:653 dirty:0 writeback:0 unstable:0
+Mar  2 09:26:08 udknight kernel: [144766.778279]  free:178957 slab_reclaimable:6419 slab_unreclaimable:9966
+Mar  2 09:26:08 udknight kernel: [144766.778279]  mapped:4426 shmem:305277 pagetables:784 bounce:0
+Mar  2 09:26:08 udknight kernel: [144766.778279]  free_cma:0
+Mar  2 09:26:08 udknight kernel: [144766.778286] DMA free:3324kB min:68kB low:84kB high:100kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15976kB managed:15900kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
+Mar  2 09:26:08 udknight kernel: [144766.778287] lowmem_reserve[]: 0 822 3754 3754
+Mar  2 09:26:08 udknight kernel: [144766.778293] Normal free:26828kB min:3632kB low:4540kB high:5448kB active_anon:4872kB inactive_anon:68kB active_file:1796kB inactive_file:1796kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:892920kB managed:842560kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:4144kB slab_reclaimable:25676kB slab_unreclaimable:39864kB kernel_stack:1944kB pagetables:3136kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:2412612 all_unreclaimable? yes
+Mar  2 09:26:08 udknight kernel: [144766.778294] lowmem_reserve[]: 0 0 23451 23451
+Mar  2 09:26:08 udknight kernel: [144766.778299] HighMem free:685676kB min:512kB low:3748kB high:6984kB active_anon:182832kB inactive_anon:1149556kB active_file:418544kB inactive_file:555932kB unevictable:2612kB isolated(anon):0kB isolated(file):0kB present:3001732kB managed:3001732kB mlocked:0kB dirty:0kB writeback:0kB mapped:17704kB shmem:1216964kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:75771152kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+Mar  2 09:26:08 udknight kernel: [144766.778300] lowmem_reserve[]: 0 0 0 0
 
+You can see bounce:75771152kB for HighMem, but bounce:0 for lowmem and global.
 
-Thanks,
-Sasha
+This patch fix it.
+
+Signed-off-by: Wang YanQing <udknight@gmail.com>
+---
+ Changes
+ v1-v2: fix comment issue reported by Leon Romanovsky
+
+ block/bounce.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/block/bounce.c b/block/bounce.c
+index ab21ba2..ed9dd80 100644
+--- a/block/bounce.c
++++ b/block/bounce.c
+@@ -221,8 +221,8 @@ bounce:
+ 		if (page_to_pfn(page) <= queue_bounce_pfn(q) && !force)
+ 			continue;
+ 
+-		inc_zone_page_state(to->bv_page, NR_BOUNCE);
+ 		to->bv_page = mempool_alloc(pool, q->bounce_gfp);
++		inc_zone_page_state(to->bv_page, NR_BOUNCE);
+ 
+ 		if (rw == WRITE) {
+ 			char *vto, *vfrom;
+-- 
+1.8.5.6.2.g3d8a54e.dirty
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
