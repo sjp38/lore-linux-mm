@@ -1,116 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A4BA66B0038
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 04:29:28 -0400 (EDT)
-Received: by wicmx19 with SMTP id mx19so78322433wic.1
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 01:29:28 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id tb3si11542708wic.122.2015.04.27.01.29.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 27 Apr 2015 01:29:27 -0700 (PDT)
-Date: Mon, 27 Apr 2015 09:29:23 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 3/3] mm: support active anti-fragmentation algorithm
-Message-ID: <20150427082923.GG2449@suse.de>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id B6D916B0038
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 04:40:53 -0400 (EDT)
+Received: by pacwv17 with SMTP id wv17so100135714pac.0
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 01:40:53 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id b7si24917187pas.112.2015.04.27.01.40.51
+        for <linux-mm@kvack.org>;
+        Mon, 27 Apr 2015 01:40:52 -0700 (PDT)
+Date: Mon, 27 Apr 2015 17:42:57 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 1/3] mm/page_alloc: don't break highest order freepage if
+ steal
+Message-ID: <20150427084257.GA13790@js1304-P5Q-DELUXE>
 References: <1430119421-13536-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1430119421-13536-3-git-send-email-iamjoonsoo.kim@lge.com>
+ <20150427080850.GF2449@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1430119421-13536-3-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <20150427080850.GF2449@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Mel Gorman <mgorman@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 
-On Mon, Apr 27, 2015 at 04:23:41PM +0900, Joonsoo Kim wrote:
-> We already have antifragmentation policy in page allocator. It works well
-> when system memory is sufficient, but, it doesn't works well when system
-> memory isn't sufficient because memory is already highly fragmented and
-> fallback/steal mechanism cannot get whole pageblock. If there is severe
-> unmovable allocation requestor like zram, problem could get worse.
+On Mon, Apr 27, 2015 at 09:08:50AM +0100, Mel Gorman wrote:
+> On Mon, Apr 27, 2015 at 04:23:39PM +0900, Joonsoo Kim wrote:
+> > When we steal whole pageblock, we don't need to break highest order
+> > freepage. Perhaps, there is small order freepage so we can use it.
+> > 
 > 
-> CPU: 8
-> RAM: 512 MB with zram swap
-> WORKLOAD: kernel build with -j12
-> OPTION: page owner is enabled to measure fragmentation
-> After finishing the build, check fragmentation by 'cat /proc/pagetypeinfo'
-> 
-> * Before
-> Number of blocks type (movable)
-> DMA32: 207
-> 
-> Number of mixed blocks (movable)
-> DMA32: 111.2
-> 
-> Mixed blocks means that there is one or more allocated page for
-> unmovable/reclaimable allocation in movable pageblock. Results shows that
-> more than half of movable pageblock is tainted by other migratetype
-> allocation.
-> 
-> To mitigate this fragmentation, this patch implements active
-> anti-fragmentation algorithm. Idea is really simple. When some
-> unmovable/reclaimable steal happens from movable pageblock, we try to
-> migrate out other pages that can be migratable in this pageblock are and
-> use these generated freepage for further allocation request of
-> corresponding migratetype.
-> 
-> Once unmovable allocation taints movable pageblock, it cannot easily
-> recover. Instead of praying that it gets restored, making it unmovable
-> pageblock as much as possible and using it further unmovable request
-> would be more reasonable approach.
-> 
-> Below is result of this idea.
-> 
-> * After
-> Number of blocks type (movable)
-> DMA32: 208.2
-> 
-> Number of mixed blocks (movable)
-> DMA32: 55.8
-> 
-> Result shows that non-mixed block increase by 59% in this case.
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> The reason why the largest block is taken is to reduce the probability
+> there will be another fallback event in the near future. Early on, there
+> were a lot of tests conducted to measure the number of external fragmenting
+> events and take steps to reduce them. Stealing the largest highest order
+> freepage was one of those steps.
 
-I haven't read the patch in detail but there were a few reasons why
-active avoidance was not implemented originally.
+Hello, Mel.
 
-1. If pages in the target block were reclaimed then it potentially
-   increased stall latency in the future when they had to be refaulted
-   again. A prototype that used lumpy reclaim originally suffered extreme
-   stalls and was ultimately abandoned. The alternative at the time was
-   to increase min_free_kbytes by default as it had a similar effect with
-   much less disruption
+Purpose of this patch is not "stop steal highest order freepage".
+Currently, in case of that we steal all freepage including highest
+order freepage in certain pageblock, we break highest order freepage and
+return it even if we have low order freepage that we immediately steal.
 
-2. If the pages in the target block were migrated then there was
-   compaction overhead with no guarantee of success. Again, there were
-   concerns about stalls. This was not deferred to an external thread
-   because if the fragmenting process did not stall then it could simply
-   cause more fragmentation-related damage while the thread executes. It
-   becomes very unpredictable. While migration is in progress, processes
-   also potentially stall if they reference the targetted pages.
+For example,
 
-3. Further on 2, the migration itself potentially triggers more fallback
-   events while pages are isolated for the migration.
+Pageblock A has 5 freepage (4 * order 0, 1 * order 3) and
+we try to steal all freepage on pageblock A.
 
-4. Migrating pages to another node is a bad idea. It requires a NUMA
-   machine at the very least but more importantly it could violate memory
-   policies. If the page was mapped then the VMA could be checked but if the
-   pages were unmapped then the kernel potentially violates memory policies
+Withouth this patch, we move all freepage to requested migratetype
+buddy list and break order 3 freepage. Leftover is like as following.
 
-At the time it was implemented, fragmentation avoidance was primarily
-concerned about allocating hugetlbfs pages and later THP. Failing either
-was not a functional failure that users would care about but large stalls
-due to active fragmentation avoidance would disrupt workloads badly.
+(5 * order 0, 1 * order 1, 1* order 2)
 
-Just be sure to take the stalling and memory policy problems into
-account.
+With this patch, (3 * order 0, 1 * order 3) remains.
 
--- 
-Mel Gorman
-SUSE Labs
+I think that this is better than before because we still have high order
+page. Isn't it?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
