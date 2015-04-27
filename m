@@ -1,87 +1,282 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 326C76B006C
-	for <linux-mm@kvack.org>; Sun, 26 Apr 2015 22:51:42 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so113110963pde.3
-        for <linux-mm@kvack.org>; Sun, 26 Apr 2015 19:51:41 -0700 (PDT)
-Received: from mail-pd0-x22f.google.com (mail-pd0-x22f.google.com. [2607:f8b0:400e:c02::22f])
-        by mx.google.com with ESMTPS id wt10si27791117pab.236.2015.04.26.19.51.40
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EECA6B0038
+	for <linux-mm@kvack.org>; Sun, 26 Apr 2015 23:00:39 -0400 (EDT)
+Received: by pabtp1 with SMTP id tp1so114032469pab.2
+        for <linux-mm@kvack.org>; Sun, 26 Apr 2015 20:00:39 -0700 (PDT)
+Received: from mail.sfc.wide.ad.jp (shonan.sfc.wide.ad.jp. [203.178.142.130])
+        by mx.google.com with ESMTPS id oa4si10673216pbb.92.2015.04.26.20.00.37
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 26 Apr 2015 19:51:41 -0700 (PDT)
-Received: by pdbqd1 with SMTP id qd1so113141318pdb.2
-        for <linux-mm@kvack.org>; Sun, 26 Apr 2015 19:51:40 -0700 (PDT)
-Date: Mon, 27 Apr 2015 08:51:43 +0800
-From: Wang YanQing <udknight@gmail.com>
-Subject: [PATCH v2]block:bounce: fix call inc_|dec_zone_page_state on
- different pages confuse value of NR_BOUNCE
-Message-ID: <20150427005143.GA3036@udknight.ahead-top.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        Sun, 26 Apr 2015 20:00:37 -0700 (PDT)
+From: Hajime Tazaki <tazaki@sfc.wide.ad.jp>
+Subject: [PATCH v4 00/10] an introduction of Linux library operating system (LibOS)
+Date: Mon, 27 Apr 2015 12:00:08 +0900
+Message-Id: <1430103618-10832-1-git-send-email-tazaki@sfc.wide.ad.jp>
+In-Reply-To: <1429450104-47619-1-git-send-email-tazaki@sfc.wide.ad.jp>
+References: <1429450104-47619-1-git-send-email-tazaki@sfc.wide.ad.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: axboe@kernel.dk
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, leon@leon.nu
+To: linux-arch@vger.kernel.org
+Cc: Hajime Tazaki <tazaki@sfc.wide.ad.jp>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Christoph Lameter <cl@linux.com>, Jekka Enberg <penberg@kernel.org>, Javid Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jndrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Rusty Russell <rusty@rustcorp.com.au>, Ryo Nakamura <upa@haeena.net>, Christoph Paasch <christoph.paasch@gmail.com>, Mathieu Lacage <mathieu.lacage@gmail.com>, libos-nuse@googlegroups.com
 
-Commit d2c5e30c9a1420902262aa923794d2ae4e0bc391
-("[PATCH] zoned vm counters: conversion of nr_bounce to per zone counter")
-convert statistic of nr_bounce to per zone and one global value in vm_stat,
-but it call inc_|dec_zone_page_state on different pages, then different
-zones, and cause us to get unexpected value of NR_BOUNCE.
+This is the 4th version of Linux LibOS patchset which reflects a
+couple of comments received from people.
 
-Below is the result on my machine:
-Mar  2 09:26:08 udknight kernel: [144766.778265] Mem-Info:
-Mar  2 09:26:08 udknight kernel: [144766.778266] DMA per-cpu:
-Mar  2 09:26:08 udknight kernel: [144766.778268] CPU    0: hi:    0, btch:   1 usd:   0
-Mar  2 09:26:08 udknight kernel: [144766.778269] CPU    1: hi:    0, btch:   1 usd:   0
-Mar  2 09:26:08 udknight kernel: [144766.778270] Normal per-cpu:
-Mar  2 09:26:08 udknight kernel: [144766.778271] CPU    0: hi:  186, btch:  31 usd:   0
-Mar  2 09:26:08 udknight kernel: [144766.778273] CPU    1: hi:  186, btch:  31 usd:   0
-Mar  2 09:26:08 udknight kernel: [144766.778274] HighMem per-cpu:
-Mar  2 09:26:08 udknight kernel: [144766.778275] CPU    0: hi:  186, btch:  31 usd:   0
-Mar  2 09:26:08 udknight kernel: [144766.778276] CPU    1: hi:  186, btch:  31 usd:   0
-Mar  2 09:26:08 udknight kernel: [144766.778279] active_anon:46926 inactive_anon:287406 isolated_anon:0
-Mar  2 09:26:08 udknight kernel: [144766.778279]  active_file:105085 inactive_file:139432 isolated_file:0
-Mar  2 09:26:08 udknight kernel: [144766.778279]  unevictable:653 dirty:0 writeback:0 unstable:0
-Mar  2 09:26:08 udknight kernel: [144766.778279]  free:178957 slab_reclaimable:6419 slab_unreclaimable:9966
-Mar  2 09:26:08 udknight kernel: [144766.778279]  mapped:4426 shmem:305277 pagetables:784 bounce:0
-Mar  2 09:26:08 udknight kernel: [144766.778279]  free_cma:0
-Mar  2 09:26:08 udknight kernel: [144766.778286] DMA free:3324kB min:68kB low:84kB high:100kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15976kB managed:15900kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
-Mar  2 09:26:08 udknight kernel: [144766.778287] lowmem_reserve[]: 0 822 3754 3754
-Mar  2 09:26:08 udknight kernel: [144766.778293] Normal free:26828kB min:3632kB low:4540kB high:5448kB active_anon:4872kB inactive_anon:68kB active_file:1796kB inactive_file:1796kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:892920kB managed:842560kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:4144kB slab_reclaimable:25676kB slab_unreclaimable:39864kB kernel_stack:1944kB pagetables:3136kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:2412612 all_unreclaimable? yes
-Mar  2 09:26:08 udknight kernel: [144766.778294] lowmem_reserve[]: 0 0 23451 23451
-Mar  2 09:26:08 udknight kernel: [144766.778299] HighMem free:685676kB min:512kB low:3748kB high:6984kB active_anon:182832kB inactive_anon:1149556kB active_file:418544kB inactive_file:555932kB unevictable:2612kB isolated(anon):0kB isolated(file):0kB present:3001732kB managed:3001732kB mlocked:0kB dirty:0kB writeback:0kB mapped:17704kB shmem:1216964kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:75771152kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-Mar  2 09:26:08 udknight kernel: [144766.778300] lowmem_reserve[]: 0 0 0 0
+changes from v3:
+- Patch 09/10 ("lib: libos build scripts and documentation")
+1) Remove RFC (now it's a proposal)
+2) build environment cleanup (commented by Paul Bolle)
+- Overall
+3) change based tree from arnd/asm-generic to torvalds/linux.git
+   (commented by Richard Weinberger)
+4) rebased to Linux 4.1-rc1 (b787f68c36d49bb1d9236f403813641efa74a031)
+5) change the title of cover letter a bit
 
-You can see bounce:75771152kB for HighMem, but bounce:0 for lowmem and global.
+changes from v2:
+- Patch 02/11 ("slab: add private memory allocator header for arch/lib")
+1) add new allocator named SLIB (Library Allocator): Patch 04/11 is integrated
+   to 02 (commented by Christoph Lameter)
+- Overall
+2) rewrite commit log messages
 
-This patch fix it.
+changes from v1:
+- Patch 01/11 ("sysctl: make some functions unstatic to access by arch/lib"):
+1) add prefix ctl_table_ to newly publiced functions (commented by Joe Perches)
+- Patch 08/11 ("lib: other kernel glue layer code"):
+2) significantly reduce glue codes (stubs) (commented by Richard Weinberger)
+- Others
+3) adapt to linux-4.0.0
+4) detect make dependency by Kbuild .cmd files
 
-Signed-off-by: Wang YanQing <udknight@gmail.com>
----
- Changes
- v1-v2: fix comment issue reported by Leon Romanovsky
+patchset history
+-----------------
+[v3] : https://lkml.org/lkml/2015/4/19/63
+[v2] : https://lkml.org/lkml/2015/4/17/140
+[v1] : https://lkml.org/lkml/2015/3/24/254
 
- block/bounce.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+This is an introduction of Linux library operating system (LibOS).
 
-diff --git a/block/bounce.c b/block/bounce.c
-index ab21ba2..ed9dd80 100644
---- a/block/bounce.c
-+++ b/block/bounce.c
-@@ -221,8 +221,8 @@ bounce:
- 		if (page_to_pfn(page) <= queue_bounce_pfn(q) && !force)
- 			continue;
- 
--		inc_zone_page_state(to->bv_page, NR_BOUNCE);
- 		to->bv_page = mempool_alloc(pool, q->bounce_gfp);
-+		inc_zone_page_state(to->bv_page, NR_BOUNCE);
- 
- 		if (rw == WRITE) {
- 			char *vto, *vfrom;
+Our objective is to build the kernel network stack as a shared library
+that can be linked to by userspace programs to provide network stack
+personalization and testing facilities, and allow researchers to more
+easily simulate complex network topologies of linux routers/hosts.
+
+Although the architecture itself can virtualize various things, the
+current design only focuses on the network stack. You can benefit
+network stack feature such as TCP, UDP, SCTP, DCCP (IPv4 and IPv6),
+Mobie IPv6, Multipath TCP (IPv4/IPv6, out-of-tree at the present
+moment), and netlink with various userspace applications (quagga,
+iproute2, iperf, wget, and thttpd).
+
+== What is LibOS ? ==
+
+The library exposes an entry point as API, which is lib_init(), in
+order to connect userspace applications to the (userspace-version)
+kernel network stack. The clock source, virtual struct net_device, and
+scheduler are provided by caller while kernel resource like system
+calls is provided by callee.
+
+Once the LibOS is initialized via the API, userspace applications with
+POSIX socket can use the system calls defined in LibOS by replacing
+from the original socket-related symbols to the LibOS-specific
+one. Then application can benefit the network stack of LibOS without
+involving the host network stack.
+
+Currently, there are two users of LibOS: Network Stack in Userspace
+(NUSE) and ns-3 network simulatior with Direct Code Execution
+(DCE). These codes are managed at an external repository(*1).
+
+
+== How to use it ? ==
+
+to build the library,
+% make {defconfig,menuconfig} ARCH=lib
+
+then, build it.
+% make library ARCH=lib
+
+You will see liblinux-$(KERNELVERSION).so in the top directory.
+
+== More information ==
+
+The crucial difference between UML (user-mode linux) and this approach
+is that we allow multiple network stack instances to co-exist within a
+single process with dlmopen(3) like linking for easy debugging.
+
+
+These patches are also available on this branch:
+
+git://github.com/libos-nuse/net-next-nuse.git for-linus-upstream-libos-v4
+
+(based on the commit b787f68c36d49bb1d9236f403813641efa74a031 of torvalds/linux.git)
+
+
+For further information, here is a slideset presented at the last
+netdev0.1 conference.
+
+http://www.slideshare.net/hajimetazaki/library-operating-system-for-linux-netdev01
+
+I would appreciate any kind of your feedback regarding to upstream
+this feature.
+
+*1 https://github.com/libos-nuse/linux-libos-tools
+
+Hajime Tazaki (10):
+  sysctl: make some functions unstatic to access by arch/lib
+  slab: add SLIB (Library memory allocator) for  arch/lib
+  lib: public headers and API implementations for userspace programs
+  lib: time handling (kernel glue code)
+  lib: context and scheduling functions (kernel glue code) for libos
+  lib: sysctl handling (kernel glue code)
+  lib: other kernel glue layer code
+  lib: auxially files for auto-generated asm-generic files of libos
+  lib: libos build scripts and documentation
+  lib: tools used for test scripts
+
+ Documentation/virtual/libos-howto.txt | 144 ++++++++
+ MAINTAINERS                           |   9 +
+ arch/lib/.gitignore                   |   3 +
+ arch/lib/Kconfig                      | 124 +++++++
+ arch/lib/Makefile                     | 224 ++++++++++++
+ arch/lib/Makefile.print               |  45 +++
+ arch/lib/capability.c                 |  25 ++
+ arch/lib/defconfig                    | 653 ++++++++++++++++++++++++++++++++++
+ arch/lib/filemap.c                    |  32 ++
+ arch/lib/fs.c                         |  70 ++++
+ arch/lib/generate-linker-script.py    |  50 +++
+ arch/lib/glue.c                       | 289 +++++++++++++++
+ arch/lib/hrtimer.c                    | 122 +++++++
+ arch/lib/include/asm/Kbuild           |  57 +++
+ arch/lib/include/asm/atomic.h         |  50 +++
+ arch/lib/include/asm/barrier.h        |   8 +
+ arch/lib/include/asm/bitsperlong.h    |  16 +
+ arch/lib/include/asm/current.h        |   7 +
+ arch/lib/include/asm/elf.h            |  10 +
+ arch/lib/include/asm/hardirq.h        |   8 +
+ arch/lib/include/asm/page.h           |  14 +
+ arch/lib/include/asm/pgtable.h        |  30 ++
+ arch/lib/include/asm/processor.h      |  19 +
+ arch/lib/include/asm/ptrace.h         |   4 +
+ arch/lib/include/asm/segment.h        |   6 +
+ arch/lib/include/asm/sembuf.h         |   4 +
+ arch/lib/include/asm/shmbuf.h         |   4 +
+ arch/lib/include/asm/shmparam.h       |   4 +
+ arch/lib/include/asm/sigcontext.h     |   6 +
+ arch/lib/include/asm/stat.h           |   4 +
+ arch/lib/include/asm/statfs.h         |   4 +
+ arch/lib/include/asm/swab.h           |   7 +
+ arch/lib/include/asm/thread_info.h    |  36 ++
+ arch/lib/include/asm/uaccess.h        |  14 +
+ arch/lib/include/asm/unistd.h         |   4 +
+ arch/lib/include/sim-assert.h         |  23 ++
+ arch/lib/include/sim-init.h           | 134 +++++++
+ arch/lib/include/sim-printf.h         |  13 +
+ arch/lib/include/sim-types.h          |  53 +++
+ arch/lib/include/sim.h                |  51 +++
+ arch/lib/include/uapi/asm/byteorder.h |   6 +
+ arch/lib/lib-device.c                 | 187 ++++++++++
+ arch/lib/lib-socket.c                 | 410 +++++++++++++++++++++
+ arch/lib/lib.c                        | 294 +++++++++++++++
+ arch/lib/lib.h                        |  21 ++
+ arch/lib/modules.c                    |  36 ++
+ arch/lib/pid.c                        |  29 ++
+ arch/lib/print.c                      |  56 +++
+ arch/lib/proc.c                       |  34 ++
+ arch/lib/random.c                     |  53 +++
+ arch/lib/sched.c                      | 406 +++++++++++++++++++++
+ arch/lib/softirq.c                    | 108 ++++++
+ arch/lib/sysctl.c                     | 270 ++++++++++++++
+ arch/lib/sysfs.c                      |  83 +++++
+ arch/lib/tasklet-hrtimer.c            |  57 +++
+ arch/lib/tasklet.c                    |  76 ++++
+ arch/lib/time.c                       | 144 ++++++++
+ arch/lib/timer.c                      | 238 +++++++++++++
+ arch/lib/vmscan.c                     |  26 ++
+ arch/lib/workqueue.c                  | 242 +++++++++++++
+ fs/proc/proc_sysctl.c                 |  36 +-
+ include/linux/slab.h                  |   6 +-
+ include/linux/slib_def.h              |  21 ++
+ mm/Makefile                           |   1 +
+ mm/slab.h                             |   4 +
+ mm/slib.c                             | 205 +++++++++++
+ tools/testing/libos/.gitignore        |   6 +
+ tools/testing/libos/Makefile          |  38 ++
+ tools/testing/libos/README            |  15 +
+ tools/testing/libos/bisect.sh         |  10 +
+ tools/testing/libos/dce-test.sh       |  23 ++
+ tools/testing/libos/nuse-test.sh      |  57 +++
+ 72 files changed, 5560 insertions(+), 18 deletions(-)
+ create mode 100644 Documentation/virtual/libos-howto.txt
+ create mode 100644 arch/lib/.gitignore
+ create mode 100644 arch/lib/Kconfig
+ create mode 100644 arch/lib/Makefile
+ create mode 100644 arch/lib/Makefile.print
+ create mode 100644 arch/lib/capability.c
+ create mode 100644 arch/lib/defconfig
+ create mode 100644 arch/lib/filemap.c
+ create mode 100644 arch/lib/fs.c
+ create mode 100755 arch/lib/generate-linker-script.py
+ create mode 100644 arch/lib/glue.c
+ create mode 100644 arch/lib/hrtimer.c
+ create mode 100644 arch/lib/include/asm/Kbuild
+ create mode 100644 arch/lib/include/asm/atomic.h
+ create mode 100644 arch/lib/include/asm/barrier.h
+ create mode 100644 arch/lib/include/asm/bitsperlong.h
+ create mode 100644 arch/lib/include/asm/current.h
+ create mode 100644 arch/lib/include/asm/elf.h
+ create mode 100644 arch/lib/include/asm/hardirq.h
+ create mode 100644 arch/lib/include/asm/page.h
+ create mode 100644 arch/lib/include/asm/pgtable.h
+ create mode 100644 arch/lib/include/asm/processor.h
+ create mode 100644 arch/lib/include/asm/ptrace.h
+ create mode 100644 arch/lib/include/asm/segment.h
+ create mode 100644 arch/lib/include/asm/sembuf.h
+ create mode 100644 arch/lib/include/asm/shmbuf.h
+ create mode 100644 arch/lib/include/asm/shmparam.h
+ create mode 100644 arch/lib/include/asm/sigcontext.h
+ create mode 100644 arch/lib/include/asm/stat.h
+ create mode 100644 arch/lib/include/asm/statfs.h
+ create mode 100644 arch/lib/include/asm/swab.h
+ create mode 100644 arch/lib/include/asm/thread_info.h
+ create mode 100644 arch/lib/include/asm/uaccess.h
+ create mode 100644 arch/lib/include/asm/unistd.h
+ create mode 100644 arch/lib/include/sim-assert.h
+ create mode 100644 arch/lib/include/sim-init.h
+ create mode 100644 arch/lib/include/sim-printf.h
+ create mode 100644 arch/lib/include/sim-types.h
+ create mode 100644 arch/lib/include/sim.h
+ create mode 100644 arch/lib/include/uapi/asm/byteorder.h
+ create mode 100644 arch/lib/lib-device.c
+ create mode 100644 arch/lib/lib-socket.c
+ create mode 100644 arch/lib/lib.c
+ create mode 100644 arch/lib/lib.h
+ create mode 100644 arch/lib/modules.c
+ create mode 100644 arch/lib/pid.c
+ create mode 100644 arch/lib/print.c
+ create mode 100644 arch/lib/proc.c
+ create mode 100644 arch/lib/random.c
+ create mode 100644 arch/lib/sched.c
+ create mode 100644 arch/lib/softirq.c
+ create mode 100644 arch/lib/sysctl.c
+ create mode 100644 arch/lib/sysfs.c
+ create mode 100644 arch/lib/tasklet-hrtimer.c
+ create mode 100644 arch/lib/tasklet.c
+ create mode 100644 arch/lib/time.c
+ create mode 100644 arch/lib/timer.c
+ create mode 100644 arch/lib/vmscan.c
+ create mode 100644 arch/lib/workqueue.c
+ create mode 100644 include/linux/slib_def.h
+ create mode 100644 mm/slib.c
+ create mode 100644 tools/testing/libos/.gitignore
+ create mode 100644 tools/testing/libos/Makefile
+ create mode 100644 tools/testing/libos/README
+ create mode 100755 tools/testing/libos/bisect.sh
+ create mode 100755 tools/testing/libos/dce-test.sh
+ create mode 100755 tools/testing/libos/nuse-test.sh
+
 -- 
-1.8.5.6.2.g3d8a54e.dirty
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
