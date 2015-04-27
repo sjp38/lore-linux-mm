@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id C0EC76B0072
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 07:56:50 -0400 (EDT)
-Received: by pabtp1 with SMTP id tp1so126987645pab.2
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 04:56:50 -0700 (PDT)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id w10si29585643pas.114.2015.04.27.04.56.44
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id D47ED6B0073
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 07:56:52 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so126144352pdb.0
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 04:56:52 -0700 (PDT)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id z5si24336745pdk.254.2015.04.27.04.56.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Mon, 27 Apr 2015 04:56:45 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout4.w1.samsung.com
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout2.w1.samsung.com
  (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0NNG002YKRUF1J70@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 27 Apr 2015 12:56:39 +0100 (BST)
+ with ESMTP id <0NNG00B13RUG9580@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 27 Apr 2015 12:56:41 +0100 (BST)
 From: Beata Michalska <b.michalska@samsung.com>
-Subject: [RFC v2 2/4] ext4: Add helper function to mark group as corrupted
-Date: Mon, 27 Apr 2015 13:51:42 +0200
-Message-id: <1430135504-24334-3-git-send-email-b.michalska@samsung.com>
+Subject: [RFC v2 4/4] shmem: Add support for generic FS events
+Date: Mon, 27 Apr 2015 13:51:44 +0200
+Message-id: <1430135504-24334-5-git-send-email-b.michalska@samsung.com>
 In-reply-to: <1430135504-24334-1-git-send-email-b.michalska@samsung.com>
 References: <1430135504-24334-1-git-send-email-b.michalska@samsung.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,122 +25,114 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org
 Cc: jack@suse.cz, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
-Add ext4_mark_group_corrupted helper function to
-simplify the code and to keep the logic in one place.
+Add support for the generic FS events interface
+covering threshold notifiactions and the ENOSPC
+warning.
 
 Signed-off-by: Beata Michalska <b.michalska@samsung.com>
 ---
- fs/ext4/balloc.c  |   15 +++------------
- fs/ext4/ext4.h    |    9 +++++++++
- fs/ext4/ialloc.c  |    5 +----
- fs/ext4/mballoc.c |   11 ++---------
- 4 files changed, 15 insertions(+), 25 deletions(-)
+ mm/shmem.c |   33 ++++++++++++++++++++++++++++++---
+ 1 file changed, 30 insertions(+), 3 deletions(-)
 
-diff --git a/fs/ext4/balloc.c b/fs/ext4/balloc.c
-index 83a6f49..e95b27a 100644
---- a/fs/ext4/balloc.c
-+++ b/fs/ext4/balloc.c
-@@ -193,10 +193,7 @@ static int ext4_init_block_bitmap(struct super_block *sb,
- 	 * essentially implementing a per-group read-only flag. */
- 	if (!ext4_group_desc_csum_verify(sb, block_group, gdp)) {
- 		grp = ext4_get_group_info(sb, block_group);
--		if (!EXT4_MB_GRP_BBITMAP_CORRUPT(grp))
--			percpu_counter_sub(&sbi->s_freeclusters_counter,
--					   grp->bb_free);
--		set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT, &grp->bb_state);
-+		ext4_mark_group_corrupted(sbi, grp);
- 		if (!EXT4_MB_GRP_IBITMAP_CORRUPT(grp)) {
- 			int count;
- 			count = ext4_free_inodes_count(sb, gdp);
-@@ -379,20 +376,14 @@ static void ext4_validate_block_bitmap(struct super_block *sb,
- 		ext4_unlock_group(sb, block_group);
- 		ext4_error(sb, "bg %u: block %llu: invalid block bitmap",
- 			   block_group, blk);
--		if (!EXT4_MB_GRP_BBITMAP_CORRUPT(grp))
--			percpu_counter_sub(&sbi->s_freeclusters_counter,
--					   grp->bb_free);
--		set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT, &grp->bb_state);
-+		ext4_mark_group_corrupted(sbi, grp);
- 		return;
+diff --git a/mm/shmem.c b/mm/shmem.c
+index cf2d0ca..a044d12 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -201,6 +201,7 @@ static int shmem_reserve_inode(struct super_block *sb)
+ 		spin_lock(&sbinfo->stat_lock);
+ 		if (!sbinfo->free_inodes) {
+ 			spin_unlock(&sbinfo->stat_lock);
++			fs_event_notify(sb, FS_WARN_ENOSPC);
+ 			return -ENOSPC;
+ 		}
+ 		sbinfo->free_inodes--;
+@@ -239,8 +240,10 @@ static void shmem_recalc_inode(struct inode *inode)
+ 	freed = info->alloced - info->swapped - inode->i_mapping->nrpages;
+ 	if (freed > 0) {
+ 		struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+-		if (sbinfo->max_blocks)
++		if (sbinfo->max_blocks) {
+ 			percpu_counter_add(&sbinfo->used_blocks, -freed);
++			fs_event_free_space(inode->i_sb, freed);
++		}
+ 		info->alloced -= freed;
+ 		inode->i_blocks -= freed * BLOCKS_PER_PAGE;
+ 		shmem_unacct_blocks(info->flags, freed);
+@@ -1164,6 +1167,7 @@ repeat:
+ 				goto unacct;
+ 			}
+ 			percpu_counter_inc(&sbinfo->used_blocks);
++			fs_event_alloc_space(inode->i_sb, 1);
+ 		}
+ 
+ 		page = shmem_alloc_page(gfp, info, index);
+@@ -1245,8 +1249,10 @@ trunc:
+ 	spin_unlock(&info->lock);
+ decused:
+ 	sbinfo = SHMEM_SB(inode->i_sb);
+-	if (sbinfo->max_blocks)
++	if (sbinfo->max_blocks) {
+ 		percpu_counter_add(&sbinfo->used_blocks, -1);
++		fs_event_free_space(inode->i_sb, 1);
++	}
+ unacct:
+ 	shmem_unacct_blocks(info->flags, 1);
+ failed:
+@@ -1258,12 +1264,16 @@ unlock:
+ 		unlock_page(page);
+ 		page_cache_release(page);
  	}
- 	if (unlikely(!ext4_block_bitmap_csum_verify(sb, block_group,
- 			desc, bh))) {
- 		ext4_unlock_group(sb, block_group);
- 		ext4_error(sb, "bg %u: bad block bitmap checksum", block_group);
--		if (!EXT4_MB_GRP_BBITMAP_CORRUPT(grp))
--			percpu_counter_sub(&sbi->s_freeclusters_counter,
--					   grp->bb_free);
--		set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT, &grp->bb_state);
-+		ext4_mark_group_corrupted(sbi, grp);
- 		return;
+-	if (error == -ENOSPC && !once++) {
++	if (error == -ENOSPC) {
++		if (!once++) {
+ 		info = SHMEM_I(inode);
+ 		spin_lock(&info->lock);
+ 		shmem_recalc_inode(inode);
+ 		spin_unlock(&info->lock);
+ 		goto repeat;
++		} else {
++			fs_event_notify(inode->i_sb, FS_WARN_ENOSPC);
++		}
  	}
- 	set_buffer_verified(bh);
-diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
-index f63c3d5..163afe2 100644
---- a/fs/ext4/ext4.h
-+++ b/fs/ext4/ext4.h
-@@ -2535,6 +2535,15 @@ static inline spinlock_t *ext4_group_lock_ptr(struct super_block *sb,
- 	return bgl_lock_ptr(EXT4_SB(sb)->s_blockgroup_lock, group);
+ 	if (error == -EEXIST)	/* from above or from radix_tree_insert */
+ 		goto repeat;
+@@ -2729,12 +2739,26 @@ static int shmem_encode_fh(struct inode *inode, __u32 *fh, int *len,
+ 	return 1;
  }
  
-+static inline
-+void ext4_mark_group_corrupted(struct ext4_sb_info *sbi,
-+				struct ext4_group_info *grp)
++static void shmem_trace_query(struct super_block *sb, u64 *ncount)
 +{
-+	if (!EXT4_MB_GRP_BBITMAP_CORRUPT(grp))
-+		percpu_counter_sub(&sbi->s_freeclusters_counter, grp->bb_free);
-+	set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT, &grp->bb_state);
++	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
++
++	if (sbinfo->max_blocks)
++		*ncount = sbinfo->max_blocks -
++			percpu_counter_sum(&sbinfo->used_blocks);
++
 +}
 +
- /*
-  * Returns true if the filesystem is busy enough that attempts to
-  * access the block group locks has run into contention.
-diff --git a/fs/ext4/ialloc.c b/fs/ext4/ialloc.c
-index ac644c3..ebe0499 100644
---- a/fs/ext4/ialloc.c
-+++ b/fs/ext4/ialloc.c
-@@ -79,10 +79,7 @@ static unsigned ext4_init_inode_bitmap(struct super_block *sb,
- 	if (!ext4_group_desc_csum_verify(sb, block_group, gdp)) {
- 		ext4_error(sb, "Checksum bad for group %u", block_group);
- 		grp = ext4_get_group_info(sb, block_group);
--		if (!EXT4_MB_GRP_BBITMAP_CORRUPT(grp))
--			percpu_counter_sub(&sbi->s_freeclusters_counter,
--					   grp->bb_free);
--		set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT, &grp->bb_state);
-+		ext4_mark_group_corrupted(sbi, grp);
- 		if (!EXT4_MB_GRP_IBITMAP_CORRUPT(grp)) {
- 			int count;
- 			count = ext4_free_inodes_count(sb, gdp);
-diff --git a/fs/ext4/mballoc.c b/fs/ext4/mballoc.c
-index 8d1e602..24a4b6d 100644
---- a/fs/ext4/mballoc.c
-+++ b/fs/ext4/mballoc.c
-@@ -760,10 +760,7 @@ void ext4_mb_generate_buddy(struct super_block *sb,
- 		 * corrupt and update bb_free using bitmap value
- 		 */
- 		grp->bb_free = free;
--		if (!EXT4_MB_GRP_BBITMAP_CORRUPT(grp))
--			percpu_counter_sub(&sbi->s_freeclusters_counter,
--					   grp->bb_free);
--		set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT, &grp->bb_state);
-+		ext4_mark_group_corrupted(sbi, grp);
- 	}
- 	mb_set_largest_free_order(sb, grp);
+ static const struct export_operations shmem_export_ops = {
+ 	.get_parent     = shmem_get_parent,
+ 	.encode_fh      = shmem_encode_fh,
+ 	.fh_to_dentry	= shmem_fh_to_dentry,
+ };
  
-@@ -1448,12 +1445,8 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
- 				      "freeing already freed block "
- 				      "(bit %u); block bitmap corrupt.",
- 				      block);
--		if (!EXT4_MB_GRP_BBITMAP_CORRUPT(e4b->bd_info))
--			percpu_counter_sub(&sbi->s_freeclusters_counter,
--					   e4b->bd_info->bb_free);
- 		/* Mark the block group as corrupt. */
--		set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT,
--			&e4b->bd_info->bb_state);
-+		ext4_mark_group_corrupted(sbi, e4b->bd_info);
- 		mb_regenerate_buddy(e4b);
- 		goto done;
++static const struct fs_trace_operations shmem_trace_ops = {
++	.query	= shmem_trace_query,
++};
++
+ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
+ 			       bool remount)
+ {
+@@ -3020,6 +3044,9 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
+ 		sb->s_flags |= MS_NOUSER;
  	}
+ 	sb->s_export_op = &shmem_export_ops;
++	sb->s_etrace.ops = &shmem_trace_ops;
++	sb->s_etrace.events_cap_mask = FS_EVENTS_ALL;
++
+ 	sb->s_flags |= MS_NOSEC;
+ #else
+ 	sb->s_flags |= MS_NOUSER;
 -- 
 1.7.9.5
 
