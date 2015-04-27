@@ -1,152 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vn0-f53.google.com (mail-vn0-f53.google.com [209.85.216.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 77B316B0038
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 17:12:41 -0400 (EDT)
-Received: by vnbf1 with SMTP id f1so13795736vnb.0
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 14:12:41 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id fp2si31658692vdb.39.2015.04.27.14.12.40
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 811BF6B006E
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 17:27:54 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so115791592wid.0
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 14:27:54 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com. [209.85.212.176])
+        by mx.google.com with ESMTPS id pa2si35188660wjb.137.2015.04.27.14.27.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Apr 2015 14:12:40 -0700 (PDT)
-Date: Mon, 27 Apr 2015 23:12:37 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 2/3] uffd: Introduce the v2 API
-Message-ID: <20150427211236.GB24035@redhat.com>
-References: <5509D342.7000403@parallels.com>
- <5509D375.7000809@parallels.com>
- <20150421121817.GD4481@redhat.com>
- <55389133.8070701@parallels.com>
+        Mon, 27 Apr 2015 14:27:52 -0700 (PDT)
+Received: by wizk4 with SMTP id k4so115991058wiz.1
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 14:27:52 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55389133.8070701@parallels.com>
+In-Reply-To: <553E00A5.370.3E3700BE@pageexec.freemail.hu>
+References: <1429909549-11726-1-git-send-email-anisse@astier.eu>
+ <87tww2ejit.fsf@tassilo.jf.intel.com> <CALUN=qL6X=RXyTmxezFDzif+3PZCykpB0mT9hkbgAab4vV59sg@mail.gmail.com>
+ <553E00A5.370.3E3700BE@pageexec.freemail.hu>
+From: Anisse Astier <anisse@astier.eu>
+Date: Mon, 27 Apr 2015 23:27:31 +0200
+Message-ID: <CALUN=qLNX-ybF3_WWYMLjF2iqduEk4f5P0rs_9oE8-0rrSePyg@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm/page_alloc.c: add config option to sanitize freed pages
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>
+To: PaX Team <pageexec@freemail.hu>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Hello,
+On Mon, Apr 27, 2015 at 11:25 AM, PaX Team <pageexec@freemail.hu> wrote:
+>
+> the PaX SANITIZE feature does exactly this in mm/page_alloc.c:prep_new_page:
+>
+> #ifndef CONFIG_PAX_MEMORY_SANITIZE
+>         if (gfp_flags & __GFP_ZERO)
+>                 prep_zero_page(page, order, gfp_flags);
+> #endif
+>
 
-On Thu, Apr 23, 2015 at 09:29:07AM +0300, Pavel Emelyanov wrote:
-> So your proposal is to always report 16 bytes per PF from read() and
-> let userspace decide itself how to handle the result?
+Thanks, I'll do that in the next iteration.
 
-Reading 16bytes for each userfault (instead of 8) and sharing the same
-read(2) protocol (UFFD_API) for both the cooperative and
-non-cooperative usages, is something I just suggested for
-consideration after reading your patchset.
+>> you'd need to clear memory on boot for example.
+>
+> it happens automagically because on boot during the transition from the
+> boot allocator to the buddy one each page gets freed which will then go
+> through the page clearing path.
 
-The pros of using a single protocol for both is that it would reduce
-amount of code and there would be just one file operation for the
-.read method. The cons is that it will waste 8 bytes per userfault in
-terms of memory footprint. The other major cons is that it would force
-us to define the format of the non cooperative protocol now despite it's
-not fully finished yet.
+Interesting, I'll see how it works.
 
-I'm also ok with two protocols if nobody else objects, but if we use
-two protocols, we should at least use different file operation methods
-and use __always_inline with constants passed as parameter to optimize
-away the branches at build time. This way we get the reduced memory
-footprint in the read syscall without other runtime overhead
-associated with it.
+>
+> however there's a known problem/conflict with HIBERNATION (see
+> http://marc.info/?l=linux-pm&m=132871433416256&w=2) which i think would
+> have to be resolved before upstream acceptance.
 
-> >> +struct uffd_v2_msg {
-> >> +	__u64	type;
-> >> +	__u64	arg;
-> >> +};
-> >> +
-> >> +#define UFFD_PAGEFAULT	0x1
-> >> +
-> >> +#define UFFD_PAGEFAULT_BIT	(1 << (UFFD_PAGEFAULT - 1))
-> >> +#define __UFFD_API_V2_BITS	(UFFD_PAGEFAULT_BIT)
-> >> +
-> >> +/*
-> >> + * Lower PAGE_SHIFT bits are used to report those supported
-> >> + * by the pagefault message itself. Other bits are used to
-> >> + * report the message types v2 API supports
-> >> + */
-> >> +#define UFFD_API_V2_BITS	(__UFFD_API_V2_BITS << 12)
-> >> +
-> > 
-> > And why exactly is this 12 hardcoded?
-> 
-> Ah, it should have been the PAGE_SHIFT one, but I was unsure whether it
-> would be OK to have different shifts in different arches.
-> 
-> But taking into account your comment that bits field id bad for these
-> values, if we introduce the new .features one for api message, then this
-> 12 will just go away.
+I don't use hibernation, but I'll see if I can create a swap partition
+to test that.
 
-Ok.
+Regards,
 
-> > And which field should be masked
-> > with the bits? In the V1 protocol it was the "arg" (userfault address)
-> > not the "type". So this is a bit confusing and probably requires
-> > simplification.
-> 
-> I see. Actually I decided that since bits higher than 12th (for x86) is
-> always 0 in api message (no bits allowed there, since pfn sits in this
-> place), it would be OK to put non-PF bits there.
-
-That was ok yes.
-
-> Should I better introduce another .features field in uffd API message?
-
-What about renaming "uffdio_api.bits" to "uffdio_api.features"?
-
-And then we set uffdio_api.features to
-UFFD_FEATURE_WRITE|UFFD_FEATURE_WP|UFFD_FEATURE_FORK as needed.
-
-UFFD_FEATURE_WRITE would always be enabled, it's there only in case we
-want to disable it later (mostly if some arch has trouble with it,
-which is unlikely, but qemu doesn't need that bit of information at
-all for example so qemu would be fine if UFFD_FEATURE_WRITE
-disappears).
-
-UFFD_FEATURE_WP would signal also that the wrprotection feature (not
-implemented yet) is available (then later the register ioctl would
-also show the new wrprotection ioctl numbers available to mangle the
-wrprotection). The UFFD_FEATURE_WP feature in the cooperative usage
-(qemu live snapshotting) can use the UFFD_API first protocol too.
-
-UFFD_FEATURE_FORK would be returned if the UFFD_API_V2 was set in
-uffdio.api, and it would be part of the incremental non-cooperative
-patchset.
-
-We could also not define "UFFD_FEATURE_FORK" at all and imply that
-fork/mremap/MADV_DONTNEED are all available if UFFD_API_V2 uffdio_api
-ioctl succeeds... That's only doable if we keep two different read
-protocols though. UFFD_FEATURE_FORK (or UFFD_FEATURE_NON_COOPERATIVE)
-are really strictly needed only if we share the same read(2) protocol
-for both the cooperative and non-cooperative usages.
-
-The idea is that there's not huge benefit of only having the "fork"
-feature supported but missing "mremap" and "madv_dontneed".
-
-In fact if a new syscall that works like mremap is added later (call
-it mremap2), we would need to fail the UFFDIO_API_V2 and require a
-UFFDIO_API_V3 for such kernel that can return a new mremap2 type of
-event. Userland couldn't just assume it is ok to use postcopy live
-migration for containers, because
-UFFD_FEATURE_FORK|MREMAP|MADV_DONTNEED are present in the
-uffdio.features when it asked for API_V2. There shall be something
-that tells userland "hey there's a new mremap2 that the software
-inside the container can run on top of this kernel, so you are going
-to get a new mremap2 type of userfault event too".
-
-In any case, regardless of how we solve the above,
-"uffdio_api.features" sounds better than ".bits".
-
-If we retain two different UFFD_API, we'll be able to freeze the
-current one and decide later if
-UFFD_FEATURE_FORK|UFFD_FEATURE_MREMAP|UFFD_FEATURE_MADV_DONTNEED shall
-be added to the .features, or if to rely on UFFD_API_V2 succeeding to
-let userland know that the non-cooperative usage is fully supported by
-the kernel.
-
-Not having to freeze these details now is the main benefit of having
-two different UFFD_API after all...
+Anisse
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
