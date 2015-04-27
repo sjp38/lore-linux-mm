@@ -1,64 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id B6D916B0038
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 04:40:53 -0400 (EDT)
-Received: by pacwv17 with SMTP id wv17so100135714pac.0
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 01:40:53 -0700 (PDT)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id b7si24917187pas.112.2015.04.27.01.40.51
-        for <linux-mm@kvack.org>;
-        Mon, 27 Apr 2015 01:40:52 -0700 (PDT)
-Date: Mon, 27 Apr 2015 17:42:57 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 1/3] mm/page_alloc: don't break highest order freepage if
- steal
-Message-ID: <20150427084257.GA13790@js1304-P5Q-DELUXE>
-References: <1430119421-13536-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20150427080850.GF2449@suse.de>
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 249B26B0038
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 05:27:42 -0400 (EDT)
+Received: by lbcga7 with SMTP id ga7so77516653lbc.1
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 02:27:41 -0700 (PDT)
+Received: from r00tworld.com (r00tworld.com. [212.85.137.150])
+        by mx.google.com with ESMTPS id k5si14345046lag.163.2015.04.27.02.27.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 27 Apr 2015 02:27:40 -0700 (PDT)
+From: "PaX Team" <pageexec@freemail.hu>
+Date: Mon, 27 Apr 2015 11:25:57 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150427080850.GF2449@suse.de>
+Subject: Re: [PATCH 2/2] mm/page_alloc.c: add config option to sanitize freed pages
+Reply-to: pageexec@freemail.hu
+Message-ID: <553E00A5.370.3E3700BE@pageexec.freemail.hu>
+In-reply-to: <CALUN=qL6X=RXyTmxezFDzif+3PZCykpB0mT9hkbgAab4vV59sg@mail.gmail.com>
+References: <1429909549-11726-1-git-send-email-anisse@astier.eu>, <87tww2ejit.fsf@tassilo.jf.intel.com>, <CALUN=qL6X=RXyTmxezFDzif+3PZCykpB0mT9hkbgAab4vV59sg@mail.gmail.com>
+Content-type: text/plain; charset=US-ASCII
+Content-transfer-encoding: 7BIT
+Content-description: Mail message body
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
+To: Andi Kleen <andi@firstfloor.org>, Anisse Astier <anisse@astier.eu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Mon, Apr 27, 2015 at 09:08:50AM +0100, Mel Gorman wrote:
-> On Mon, Apr 27, 2015 at 04:23:39PM +0900, Joonsoo Kim wrote:
-> > When we steal whole pageblock, we don't need to break highest order
-> > freepage. Perhaps, there is small order freepage so we can use it.
-> > 
+On 27 Apr 2015 at 10:11, Anisse Astier wrote:
+
+> >> +#ifdef CONFIG_SANITIZE_FREED_PAGES
+> >> +     zero_pages(page, order);
+> >> +#endif
+> >
+> > And not removing the clear on __GFP_ZERO by remembering that?
+> >
+> > That means all clears would be done twice.
+> >
+> > That patch is far too simple. Clearing is commonly the most
+> > expensive kernel operation.
+> >
 > 
-> The reason why the largest block is taken is to reduce the probability
-> there will be another fallback event in the near future. Early on, there
-> were a lot of tests conducted to measure the number of external fragmenting
-> events and take steps to reduce them. Stealing the largest highest order
-> freepage was one of those steps.
+> I thought about this, but if you unconditionally remove the clear on
+> __GFP_ZERO, you wouldn't be guaranteed to have a zeroed page when
+> memory is first used (you would protect the kernel from its own info
+> leaks though);
 
-Hello, Mel.
+the PaX SANITIZE feature does exactly this in mm/page_alloc.c:prep_new_page:
 
-Purpose of this patch is not "stop steal highest order freepage".
-Currently, in case of that we steal all freepage including highest
-order freepage in certain pageblock, we break highest order freepage and
-return it even if we have low order freepage that we immediately steal.
+#ifndef CONFIG_PAX_MEMORY_SANITIZE
+	if (gfp_flags & __GFP_ZERO)
+		prep_zero_page(page, order, gfp_flags);
+#endif
 
-For example,
+> you'd need to clear memory on boot for example.
 
-Pageblock A has 5 freepage (4 * order 0, 1 * order 3) and
-we try to steal all freepage on pageblock A.
+it happens automagically because on boot during the transition from the
+boot allocator to the buddy one each page gets freed which will then go
+through the page clearing path.
 
-Withouth this patch, we move all freepage to requested migratetype
-buddy list and break order 3 freepage. Leftover is like as following.
+however there's a known problem/conflict with HIBERNATION (see
+http://marc.info/?l=linux-pm&m=132871433416256&w=2) which i think would
+have to be resolved before upstream acceptance.
 
-(5 * order 0, 1 * order 1, 1* order 2)
-
-With this patch, (3 * order 0, 1 * order 3) remains.
-
-I think that this is better than before because we still have high order
-page. Isn't it?
-
-Thanks.
+cheers,
+ PaX Team
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
