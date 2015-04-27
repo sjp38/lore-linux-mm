@@ -1,232 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E8356B007D
-	for <linux-mm@kvack.org>; Sun, 26 Apr 2015 23:01:22 -0400 (EDT)
-Received: by pabtp1 with SMTP id tp1so114050856pab.2
-        for <linux-mm@kvack.org>; Sun, 26 Apr 2015 20:01:22 -0700 (PDT)
-Received: from mail.sfc.wide.ad.jp (shonan.sfc.wide.ad.jp. [2001:200:0:8803::53])
-        by mx.google.com with ESMTPS id x14si27820704pas.213.2015.04.26.20.01.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 26 Apr 2015 20:01:21 -0700 (PDT)
-From: Hajime Tazaki <tazaki@sfc.wide.ad.jp>
-Subject: [PATCH v4 10/10] lib: tools used for test scripts
-Date: Mon, 27 Apr 2015 12:00:18 +0900
-Message-Id: <1430103618-10832-11-git-send-email-tazaki@sfc.wide.ad.jp>
-In-Reply-To: <1430103618-10832-1-git-send-email-tazaki@sfc.wide.ad.jp>
-References: <1429450104-47619-1-git-send-email-tazaki@sfc.wide.ad.jp>
- <1430103618-10832-1-git-send-email-tazaki@sfc.wide.ad.jp>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 81BA26B006E
+	for <linux-mm@kvack.org>; Sun, 26 Apr 2015 23:17:50 -0400 (EDT)
+Received: by pacyx8 with SMTP id yx8so114478802pac.1
+        for <linux-mm@kvack.org>; Sun, 26 Apr 2015 20:17:50 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id qv8si27848369pbb.3.2015.04.26.20.17.49
+        for <linux-mm@kvack.org>;
+        Sun, 26 Apr 2015 20:17:49 -0700 (PDT)
+Date: Mon, 27 Apr 2015 11:17:25 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: mm/memtest.c:84:33: sparse: cast from restricted __be64
+Message-ID: <201504271121.cJcpJ8K4%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arch@vger.kernel.org
-Cc: Hajime Tazaki <tazaki@sfc.wide.ad.jp>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Christoph Lameter <cl@linux.com>, Jekka Enberg <penberg@kernel.org>, Javid Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jndrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Rusty Russell <rusty@rustcorp.com.au>, Ryo Nakamura <upa@haeena.net>, Christoph Paasch <christoph.paasch@gmail.com>, Mathieu Lacage <mathieu.lacage@gmail.com>, libos-nuse@googlegroups.com
+To: Vladimir Murzin <vladimir.murzin@arm.com>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-These auxiliary files are used for testing and debugging of net/ code
-with libos. a simple test is implemented with make test ARCH=lib.
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+head:   b787f68c36d49bb1d9236f403813641efa74a031
+commit: 4a20799d11f64e6b8725cacc7619b1ae1dbf9acd mm: move memtest under mm
+date:   12 days ago
+reproduce:
+  # apt-get install sparse
+  git checkout 4a20799d11f64e6b8725cacc7619b1ae1dbf9acd
+  make ARCH=x86_64 allmodconfig
+  make C=1 CF=-D__CHECK_ENDIAN__
 
-Signed-off-by: Hajime Tazaki <tazaki@sfc.wide.ad.jp>
+
+sparse warnings: (new ones prefixed by >>)
+
+>> mm/memtest.c:84:33: sparse: cast from restricted __be64
+
+vim +84 mm/memtest.c
+
+7dad169e arch/x86/mm/memtest.c Andreas Herrmann  2009-02-25  68  	if (start_bad)
+7dad169e arch/x86/mm/memtest.c Andreas Herrmann  2009-02-25  69  		reserve_bad_mem(pattern, start_bad, last_bad + incr);
+1f067167 arch/x86/mm/memtest.c Yinghai Lu        2008-07-15  70  }
+1f067167 arch/x86/mm/memtest.c Yinghai Lu        2008-07-15  71  
+bfb4dc0d arch/x86/mm/memtest.c Andreas Herrmann  2009-02-25  72  static void __init do_one_pass(u64 pattern, u64 start, u64 end)
+bfb4dc0d arch/x86/mm/memtest.c Andreas Herrmann  2009-02-25  73  {
+8d89ac80 arch/x86/mm/memtest.c Tejun Heo         2011-07-12  74  	u64 i;
+8d89ac80 arch/x86/mm/memtest.c Tejun Heo         2011-07-12  75  	phys_addr_t this_start, this_end;
+bfb4dc0d arch/x86/mm/memtest.c Andreas Herrmann  2009-02-25  76  
+9a28f9dc arch/x86/mm/memtest.c Grygorii Strashko 2014-01-21  77  	for_each_free_mem_range(i, NUMA_NO_NODE, &this_start, &this_end, NULL) {
+8d89ac80 arch/x86/mm/memtest.c Tejun Heo         2011-07-12  78  		this_start = clamp_t(phys_addr_t, this_start, start, end);
+8d89ac80 arch/x86/mm/memtest.c Tejun Heo         2011-07-12  79  		this_end = clamp_t(phys_addr_t, this_end, start, end);
+8d89ac80 arch/x86/mm/memtest.c Tejun Heo         2011-07-12  80  		if (this_start < this_end) {
+bfb4dc0d arch/x86/mm/memtest.c Andreas Herrmann  2009-02-25  81  			printk(KERN_INFO "  %010llx - %010llx pattern %016llx\n",
+8d89ac80 arch/x86/mm/memtest.c Tejun Heo         2011-07-12  82  			       (unsigned long long)this_start,
+8d89ac80 arch/x86/mm/memtest.c Tejun Heo         2011-07-12  83  			       (unsigned long long)this_end,
+bfb4dc0d arch/x86/mm/memtest.c Andreas Herrmann  2009-02-25 @84  			       (unsigned long long)cpu_to_be64(pattern));
+8d89ac80 arch/x86/mm/memtest.c Tejun Heo         2011-07-12  85  			memtest(pattern, this_start, this_end - this_start);
+8d89ac80 arch/x86/mm/memtest.c Tejun Heo         2011-07-12  86  		}
+bfb4dc0d arch/x86/mm/memtest.c Andreas Herrmann  2009-02-25  87  	}
+bfb4dc0d arch/x86/mm/memtest.c Andreas Herrmann  2009-02-25  88  }
+bfb4dc0d arch/x86/mm/memtest.c Andreas Herrmann  2009-02-25  89  
+1f067167 arch/x86/mm/memtest.c Yinghai Lu        2008-07-15  90  /* default is disabled */
+1f067167 arch/x86/mm/memtest.c Yinghai Lu        2008-07-15  91  static int memtest_pattern __initdata;
+1f067167 arch/x86/mm/memtest.c Yinghai Lu        2008-07-15  92  
+
+:::::: The code at line 84 was first introduced by commit
+:::::: bfb4dc0da45f8fddc76eba7e62919420c7d6dae2 x86: memtest: wipe out test pattern from memory
+
+:::::: TO: Andreas Herrmann <andreas.herrmann3@amd.com>
+:::::: CC: Ingo Molnar <mingo@elte.hu>
+
 ---
- tools/testing/libos/.gitignore   |  6 +++++
- tools/testing/libos/Makefile     | 38 +++++++++++++++++++++++++++
- tools/testing/libos/README       | 15 +++++++++++
- tools/testing/libos/bisect.sh    | 10 +++++++
- tools/testing/libos/dce-test.sh  | 23 ++++++++++++++++
- tools/testing/libos/nuse-test.sh | 57 ++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 149 insertions(+)
- create mode 100644 tools/testing/libos/.gitignore
- create mode 100644 tools/testing/libos/Makefile
- create mode 100644 tools/testing/libos/README
- create mode 100755 tools/testing/libos/bisect.sh
- create mode 100755 tools/testing/libos/dce-test.sh
- create mode 100755 tools/testing/libos/nuse-test.sh
-
-diff --git a/tools/testing/libos/.gitignore b/tools/testing/libos/.gitignore
-new file mode 100644
-index 0000000..57a74a0
---- /dev/null
-+++ b/tools/testing/libos/.gitignore
-@@ -0,0 +1,6 @@
-+*.pcap
-+files-*
-+bake
-+buildtop
-+core
-+exitprocs
-diff --git a/tools/testing/libos/Makefile b/tools/testing/libos/Makefile
-new file mode 100644
-index 0000000..3da25429
---- /dev/null
-+++ b/tools/testing/libos/Makefile
-@@ -0,0 +1,38 @@
-+ADD_PARAM?=
-+
-+all: test
-+
-+bake:
-+	hg clone http://code.nsnam.org/bake
-+
-+check_pkgs:
-+	@./bake/bake.py check | grep Bazaar | grep OK || (echo "bzr is missing" && ./bake/bake.py check)
-+	@./bake/bake.py check | grep autoreconf | grep OK || (echo "autotools is missing" && ./bake/bake.py check && exit 1)
-+
-+testbin: bake check_pkgs
-+	@cp ../../../arch/lib/tools/bakeconf-linux.xml bake/bakeconf.xml
-+	@mkdir -p buildtop/build/bin_dce
-+	cd buildtop ; \
-+	../bake/bake.py configure -e dce-linux-inkernel $(BAKECONF_PARAMS)
-+	cd buildtop ; \
-+	../bake/bake.py show --enabledTree | grep -v  -E "pygoocanvas|graphviz|python-dev" | grep Missing && (echo "required packages are missing") || echo ""
-+	cd buildtop ; \
-+	../bake/bake.py download ; \
-+	../bake/bake.py update ; \
-+	../bake/bake.py build
-+
-+test:
-+	@./dce-test.sh ADD_PARAM=$(ADD_PARAM)
-+
-+test-valgrind:
-+	@./dce-test.sh -g ADD_PARAM=$(ADD_PARAM)
-+
-+test-fault-injection:
-+	@./dce-test.sh -f ADD_PARAM=$(ADD_PARAM)
-+
-+clean:
-+#	@rm -rf buildtop
-+	@rm -f *.pcap
-+	@rm -rf files-*
-+	@rm -f exitprocs
-+	@rm -f core
-diff --git a/tools/testing/libos/README b/tools/testing/libos/README
-new file mode 100644
-index 0000000..51ac5a5
---- /dev/null
-+++ b/tools/testing/libos/README
-@@ -0,0 +1,15 @@
-+
-+- bisect.sh
-+a sample script to bisect an issue of network stack code with the help
-+of LibOS (and ns-3 network simulator). This was used to detect the issue
-+for the following patch.
-+
-+http://patchwork.ozlabs.org/patch/436351/
-+
-+- dce-test.sh
-+a test script invoked by 'make test ARCH=lib'. The contents of test
-+scenario are implemented as test suites of ns-3 network simulator.
-+
-+- nuse-test.sh
-+a simple test script for Network Stack in Userspace (NUSE).
-+
-diff --git a/tools/testing/libos/bisect.sh b/tools/testing/libos/bisect.sh
-new file mode 100755
-index 0000000..9377ac3
---- /dev/null
-+++ b/tools/testing/libos/bisect.sh
-@@ -0,0 +1,10 @@
-+#!/bin/sh
-+
-+git merge origin/nuse --no-commit
-+make clean ARCH=lib
-+make library ARCH=lib OPT=no
-+make test ARCH=lib ADD_PARAM=" -s dce-umip"
-+RET=$?
-+git reset --hard
-+
-+exit $RET
-diff --git a/tools/testing/libos/dce-test.sh b/tools/testing/libos/dce-test.sh
-new file mode 100755
-index 0000000..e81e2d8
---- /dev/null
-+++ b/tools/testing/libos/dce-test.sh
-@@ -0,0 +1,23 @@
-+#!/bin/sh
-+
-+set -e
-+#set -x
-+export LD_LOG=symbol-fail
-+#VERBOSE="-v"
-+VALGRIND=""
-+FAULT_INJECTION=""
-+
-+if [ "$1" = "-g" ] ; then
-+ VALGRIND="-g"
-+# Not implemneted yet.
-+#elif [ "$1" = "-f" ] ; then
-+# FAULT_INJECTION="-f"
-+fi
-+
-+# FIXME
-+#export NS_ATTRIBUTE_DEFAULT='ns3::DceManagerHelper::LoaderFactory=ns3::\
-+#DlmLoaderFactory[];ns3::TaskManager::FiberManagerType=UcontextFiberManager'
-+
-+cd buildtop/source/ns-3-dce
-+LD_LIBRARY_PATH=${srctree} ./test.py -n ${VALGRIND} ${FAULT_INJECTION}\
-+	   ${VERBOSE} ${ADD_PARAM}
-diff --git a/tools/testing/libos/nuse-test.sh b/tools/testing/libos/nuse-test.sh
-new file mode 100755
-index 0000000..198e7e4
---- /dev/null
-+++ b/tools/testing/libos/nuse-test.sh
-@@ -0,0 +1,57 @@
-+#!/bin/bash -e
-+
-+LIBOS_TOOLS=arch/lib/tools
-+
-+IFNAME=`ip route |grep default | awk '{print $5}'`
-+GW=`ip route |grep default | awk '{print $3}'`
-+#XXX
-+IPADDR=`echo $GW | sed -r "s/([0-9]+\.[0-9]+\.[0-9]+\.)([0-9]+)$/\1\`expr \2 + 10\`/"`
-+
-+# ip route
-+# ip address
-+# ip link
-+
-+NUSE_CONF=/tmp/nuse.conf
-+
-+cat > ${NUSE_CONF} << ENDCONF
-+
-+interface ${IFNAME}
-+	address ${IPADDR}
-+	netmask 255.255.255.0
-+	macaddr 00:01:01:01:01:02
-+	viftype RAW
-+
-+route
-+	network 0.0.0.0
-+	netmask 0.0.0.0
-+	gateway ${GW}
-+
-+ENDCONF
-+
-+cd ${LIBOS_TOOLS}
-+sudo NUSECONF=${NUSE_CONF} ./nuse ping 127.0.0.1 -c 2
-+
-+# rump test
-+sudo NUSECONF=${NUSE_CONF} ./nuse sleep 5 &
-+
-+sleep 2
-+PID_SLEEP=`/bin/ls -ltr /tmp/rump-server-nuse.* | tail -1 | awk '{print $9}' | sed -e "s/.*rump-server-nuse\.//g" | sed "s/=//"`
-+RUMP_URL=unix:///tmp/rump-server-nuse.$PID_SLEEP
-+# ls -ltr /tmp/*
-+
-+sudo chmod 777 /tmp/rump-server-nuse.$PID_SLEEP
-+LD_PRELOAD=./libnuse-hijack.so  RUMPHIJACK=socket=all \
-+    RUMP_SERVER=$RUMP_URL ip addr show
-+
-+wait %1
-+
-+if [ "$1" == "--extended" ] ; then
-+sudo NUSECONF=${NUSE_CONF} ./nuse ping ${GW} -c 2
-+sudo NUSECONF=${NUSE_CONF} ./nuse iperf -c ${GW} -p 2000 -t 3
-+sudo NUSECONF=${NUSE_CONF} ./nuse iperf -c ${GW} -p 8 -u -t 3
-+sudo NUSECONF=${NUSE_CONF} ./nuse dig www.google.com
-+sudo NUSECONF=${NUSE_CONF} ./nuse host www.google.com
-+sudo NUSECONF=${NUSE_CONF} ./nuse nslookup www.google.com
-+#sudo NUSECONF=${NUSE_CONF} ./nuse nc www.google.com 80
-+sudo NUSECONF=${NUSE_CONF} ./nuse wget www.google.com -O -
-+fi
--- 
-2.1.0
+0-DAY kernel test infrastructure                Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
