@@ -1,56 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 07E5E6B0038
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 03:29:31 -0400 (EDT)
-Received: by wgin8 with SMTP id n8so106036383wgi.0
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 00:29:30 -0700 (PDT)
-Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
-        by mx.google.com with ESMTPS id om1si3103268wjc.104.2015.04.27.00.29.28
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 0459F6B006E
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 03:33:18 -0400 (EDT)
+Received: by igblo3 with SMTP id lo3so55342810igb.1
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 00:33:17 -0700 (PDT)
+Received: from mail-ie0-x229.google.com (mail-ie0-x229.google.com. [2607:f8b0:4001:c03::229])
+        by mx.google.com with ESMTPS id o3si15423789icv.34.2015.04.27.00.33.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 27 Apr 2015 00:29:29 -0700 (PDT)
-Message-ID: <553DE54D.9030301@nod.at>
-Date: Mon, 27 Apr 2015 09:29:17 +0200
-From: Richard Weinberger <richard@nod.at>
-MIME-Version: 1.0
-Subject: Re: [PATCH v4 00/10] an introduction of Linux library operating system
- (LibOS)
-References: <1429450104-47619-1-git-send-email-tazaki@sfc.wide.ad.jp> <1430103618-10832-1-git-send-email-tazaki@sfc.wide.ad.jp>
-In-Reply-To: <1430103618-10832-1-git-send-email-tazaki@sfc.wide.ad.jp>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Apr 2015 00:33:17 -0700 (PDT)
+Received: by iejt8 with SMTP id t8so120259073iej.2
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 00:33:17 -0700 (PDT)
+From: Derek Robson <robsonde@gmail.com>
+Subject: [PATCH] mm: fixed whitespace style errors in failslab.c
+Date: Mon, 27 Apr 2015 19:33:13 +1200
+Message-Id: <1430119993-7358-1-git-send-email-robsonde@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hajime Tazaki <tazaki@sfc.wide.ad.jp>, linux-arch@vger.kernel.org
-Cc: Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Christoph Lameter <cl@linux.com>, Jekka Enberg <penberg@kernel.org>, Javid Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jndrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, Jeff Dike <jdike@addtoit.com>, Rusty Russell <rusty@rustcorp.com.au>, Ryo Nakamura <upa@haeena.net>, Christoph Paasch <christoph.paasch@gmail.com>, Mathieu Lacage <mathieu.lacage@gmail.com>, libos-nuse@googlegroups.com
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Derek Robson <robsonde@gmail.com>
 
-Hi!
+This patch fixes a white space issue found with checkpatch.pl in failslab.c
+ERROR: code indent should use tabs where possible
 
-Am 27.04.2015 um 05:00 schrieb Hajime Tazaki:
-> This is the 4th version of Linux LibOS patchset which reflects a
-> couple of comments received from people.
-> 
-> changes from v3:
-> - Patch 09/10 ("lib: libos build scripts and documentation")
-> 1) Remove RFC (now it's a proposal)
-> 2) build environment cleanup (commented by Paul Bolle)
-> - Overall
-> 3) change based tree from arnd/asm-generic to torvalds/linux.git
->    (commented by Richard Weinberger)
-> 4) rebased to Linux 4.1-rc1 (b787f68c36d49bb1d9236f403813641efa74a031)
+Added a tab to replace the spaces to meet the preferred style.
 
-Hmm, it still does not build. This time I got:
+Signed-off-by: Derek Robson <robsonde@gmail.com>
+---
+ mm/failslab.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-  CC      kernel/time/time.o
-In file included from kernel/time/time.c:44:0:
-kernel/time/timeconst.h:11:2: error: #error "kernel/timeconst.h has the wrong HZ value!"
- #error "kernel/timeconst.h has the wrong HZ value!"
-  ^
-arch/lib/Makefile:187: recipe for target 'kernel/time/time.o' failed
-make: *** [kernel/time/time.o] Error 1
-
-Thanks,
-//richard
+diff --git a/mm/failslab.c b/mm/failslab.c
+index fefaaba..2064225 100644
+--- a/mm/failslab.c
++++ b/mm/failslab.c
+@@ -16,7 +16,7 @@ bool should_failslab(size_t size, gfp_t gfpflags, unsigned long cache_flags)
+ 	if (gfpflags & __GFP_NOFAIL)
+ 		return false;
+ 
+-        if (failslab.ignore_gfp_wait && (gfpflags & __GFP_WAIT))
++	if (failslab.ignore_gfp_wait && (gfpflags & __GFP_WAIT))
+ 		return false;
+ 
+ 	if (failslab.cache_filter && !(cache_flags & SLAB_FAILSLAB))
+-- 
+2.3.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
