@@ -1,49 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vn0-f41.google.com (mail-vn0-f41.google.com [209.85.216.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A5D96B0038
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 15:35:29 -0400 (EDT)
-Received: by vnbg1 with SMTP id g1so13357647vnb.2
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 12:35:27 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id az11si31301849vdd.56.2015.04.27.12.35.26
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D85736B0038
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 16:07:46 -0400 (EDT)
+Received: by igbhj9 with SMTP id hj9so3448372igb.1
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 13:07:46 -0700 (PDT)
+Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
+        by mx.google.com with ESMTPS id e38si16511359ioj.105.2015.04.27.13.07.46
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Apr 2015 12:35:27 -0700 (PDT)
-Message-ID: <553E8F75.5060502@redhat.com>
-Date: Mon, 27 Apr 2015 15:35:17 -0400
-From: Rik van Riel <riel@redhat.com>
+        Mon, 27 Apr 2015 13:07:46 -0700 (PDT)
+Message-ID: <553E970E.2040406@hp.com>
+Date: Mon, 27 Apr 2015 16:07:42 -0400
+From: Waiman Long <waiman.long@hp.com>
 MIME-Version: 1.0
-Subject: Re: Interacting with coherent memory on external devices
-References: <20150424171957.GE3840@gmail.com> <alpine.DEB.2.11.1504241353280.11285@gentwo.org> <20150424192859.GF3840@gmail.com> <alpine.DEB.2.11.1504241446560.11700@gentwo.org> <20150425114633.GI5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504271004240.28895@gentwo.org> <20150427154728.GA26980@gmail.com> <alpine.DEB.2.11.1504271113480.29515@gentwo.org> <20150427164325.GB26980@gmail.com> <alpine.DEB.2.11.1504271148240.29735@gentwo.org> <20150427172143.GC26980@gmail.com> <alpine.DEB.2.11.1504271411060.30615@gentwo.org>
-In-Reply-To: <alpine.DEB.2.11.1504271411060.30615@gentwo.org>
-Content-Type: text/plain; charset=utf-8
+Subject: Re: [PATCH 10/13] x86: mm: Enable deferred struct page initialisation
+ on x86-64
+References: <1429722473-28118-1-git-send-email-mgorman@suse.de> <1429722473-28118-11-git-send-email-mgorman@suse.de> <20150422164500.121a355e6b578243cb3650e3@linux-foundation.org> <20150423092327.GJ14842@suse.de> <553A54C5.3060106@hp.com> <20150424152007.GD2449@suse.de> <553A93BB.1010404@hp.com> <20150425172859.GE2449@suse.de>
+In-Reply-To: <20150425172859.GE2449@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Jerome Glisse <j.glisse@gmail.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 04/27/2015 03:26 PM, Christoph Lameter wrote:
+On 04/25/2015 01:28 PM, Mel Gorman wrote:
+> On Fri, Apr 24, 2015 at 03:04:27PM -0400, Waiman Long wrote:
+>>>> Within a NUMA node, however, we can split the
+>>>> memory initialization to 2 or more local CPUs if the memory size is
+>>>> big enough.
+>>>>
+>>> I considered it but discarded the idea. It'd be more complex to setup and
+>>> the two CPUs could simply end up contending on the same memory bus as
+>>> well as contending on zone->lock.
+>>>
+>> I don't think we need that now. However, we may have to consider
+>> this when one day even a single node can have TBs of memory unless
+>> we move to a page size larger than 4k.
+>>
+> We'll cross that bridge when we come to it. I suspect there is more room
+> for improvement in the initialisation that would be worth trying before
+> resorting to more threads. With more threads there is a risk that we hit
+> memory bus contention and a high risk that it actually is worse due to
+> contending on zone->lock when freeing the pages.
+>
+> In the meantime, do you mind updating the before/after figures for your
+> test machine with this series please?
+>
 
-> DAX is about directly accessing memory. It is made for the purpose of
-> serving as a block device for a filesystem right now but it can easily be
-> used as a way to map any external memory into a processes space using the
-> abstraction of a block device. But then you can do that with any device
-> driver using VM_PFNMAP or VM_MIXEDMAP. Maybe we better use that term
-> instead. Guess I have repeated myself 6 times or so now? I am stopping
-> with this one.
+I will test the latest patch once I got my hand on a 12TB machine.
 
-Yeah, please stop.
-
-If after 6 times you have still not grasped that having the
-application manage which memory goes onto the device and
-which goes in RAM is the exact opposite of the use model
-that Paul and Jerome are trying to enable (transparent moving
-around of memory, by eg. GPU calculation libraries), you are
-clearly not paying enough attention.
-
--- 
-All rights reversed
+Cheers,
+Longman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
