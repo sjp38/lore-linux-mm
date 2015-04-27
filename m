@@ -1,174 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FF1A6B0038
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 12:41:21 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so106976585wiz.1
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 09:41:20 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id wr1si34061112wjb.25.2015.04.27.09.41.18
+Received: from mail-yh0-f41.google.com (mail-yh0-f41.google.com [209.85.213.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CD6E6B006E
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 12:43:32 -0400 (EDT)
+Received: by yhda23 with SMTP id a23so19778538yhd.2
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 09:43:32 -0700 (PDT)
+Received: from mail-vn0-x229.google.com (mail-vn0-x229.google.com. [2607:f8b0:400c:c0f::229])
+        by mx.google.com with ESMTPS id d5si11861687ykf.174.2015.04.27.09.43.31
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Apr 2015 09:41:19 -0700 (PDT)
-Date: Mon, 27 Apr 2015 18:40:50 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: kernel BUG at mm/swap.c:134! - page dumped because:
- VM_BUG_ON_PAGE(page_mapcount(page) != 0)
-Message-ID: <20150427164050.GA24035@redhat.com>
-References: <20150418205656.GA7972@pd.tnic>
- <CA+55aFxfGOw7VNqpDN2hm+P8w-9F2pVZf+VN9rZnDqGXe2VQTg@mail.gmail.com>
- <20150418215656.GA13928@node.dhcp.inet.fi>
- <CA+55aFxMx8xmWq7Dszu9h9dZQPGn7hj5GRBrJzh1hsQV600z9w@mail.gmail.com>
- <20150418220803.GB7972@pd.tnic>
- <20150422131219.GD6897@pd.tnic>
- <20150422183309.GA4351@node.dhcp.inet.fi>
- <CA+55aFx5NXDUsyd2qjQ+Uu3mt9Fw4HrsonzREs9V0PhHwWmGPQ@mail.gmail.com>
- <20150423162311.GB19709@redhat.com>
- <20150424214225.GA18804@node.dhcp.inet.fi>
+        Mon, 27 Apr 2015 09:43:31 -0700 (PDT)
+Received: by vnbg1 with SMTP id g1so12638195vnb.2
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 09:43:31 -0700 (PDT)
+Date: Mon, 27 Apr 2015 12:43:27 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: Interacting with coherent memory on external devices
+Message-ID: <20150427164325.GB26980@gmail.com>
+References: <20150424164325.GD3840@gmail.com>
+ <alpine.DEB.2.11.1504241148420.10475@gentwo.org>
+ <20150424171957.GE3840@gmail.com>
+ <alpine.DEB.2.11.1504241353280.11285@gentwo.org>
+ <20150424192859.GF3840@gmail.com>
+ <alpine.DEB.2.11.1504241446560.11700@gentwo.org>
+ <20150425114633.GI5561@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1504271004240.28895@gentwo.org>
+ <20150427154728.GA26980@gmail.com>
+ <alpine.DEB.2.11.1504271113480.29515@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20150424214225.GA18804@node.dhcp.inet.fi>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <alpine.DEB.2.11.1504271113480.29515@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bp@alien8.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, x86-ml <x86@kernel.org>, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-Hello,
-
-On Sat, Apr 25, 2015 at 12:42:25AM +0300, Kirill A. Shutemov wrote:
-> On Thu, Apr 23, 2015 at 06:23:11PM +0200, Andrea Arcangeli wrote:
-> > On Wed, Apr 22, 2015 at 12:26:55PM -0700, Linus Torvalds wrote:
-> > > On Wed, Apr 22, 2015 at 11:33 AM, Kirill A. Shutemov
-> > > <kirill@shutemov.name> wrote:
-> > > >
-> > > > Could you try patch below instead? This can give a clue what's going on.
-> > > 
-> > > Just FYI, I've done the revert in my tree.
-> > > 
-> > > Trying to figure out what is going on despite that is obviously a good
-> > > idea, but I'm hoping that my merge window is winding down, so I am
-> > > trying to make sure it's all "good to go"..
-> > 
-> > Sounds safer to defer it, agreed.
-> > 
-> > Unfortunately I also can only reproduce it only on a workstation where
-> > it wasn't very handy to debug it as it'd disrupt my workflow and it
-> > isn't equipped with reliable logging either (and the KMS mode didn't
-> > switch to console to show me the oops either). It just got it logged
-> > once in syslog before freezing.
-> > 
-> > The problem has to be that there's some get_page/put_page activity
-> > before and after a PageAnon transition and it looks like a tail page
-> > got mapped by hand in userland by some driver using 4k ptes which
-> > isn't normal
+On Mon, Apr 27, 2015 at 11:17:43AM -0500, Christoph Lameter wrote:
+> On Mon, 27 Apr 2015, Jerome Glisse wrote:
 > 
-> Compound pages mapped with PTEs predates THP. See f3d48f0373c1.
-
-Yes, I intended "normal" as a feeling about it considering it's your
-new patchset that tries to introduce that behavior for regular anon
-pages, I didn't imply it was not ok for driver-owned pages, sorry for
-the confusion.
-
-> I looked into code a bit more. And the VM_BUG_ON_PAGE() is bogus. See
-> explanation in commit message below.
+> > > Improvements to the general code would be preferred instead of
+> > > having specialized solutions for a particular hardware alone.  If the
+> > > general code can then handle the special coprocessor situation then we
+> > > avoid a lot of code development.
+> >
+> > I think Paul only big change would be the memory ZONE changes. Having a
+> > way to add the device memory as struct page while blocking the kernel
+> > allocation from using this memory. Beside that i think the autonuma changes
+> > he would need would really be specific to his usecase but would still
+> > reuse all of the low level logic.
 > 
-> Tail page refcounting is mess. Please consider reviewing my patchset which
-> drops it [1]. ;)
-> 
-> Linus, how should we proceed with reverted patch? Should I re-submit it to
-> Andrew? Or you'll re-revert it?
+> Well lets avoid that. Access to device memory comparable to what the
+> drivers do today by establishing page table mappings or a generalization
+> of DAX approaches would be the most straightforward way of implementing it
+> and would build based on existing functionality. Page migration currently
+> does not work with driver mappings or DAX because there is no struct page
+> that would allow the lockdown of the page. That may require either
+> continued work on the DAX with page structs approach or new developments
+> in the page migration logic comparable to the get_user_page() alternative
+> of simply creating a scatter gather table to just submit a couple of
+> memory ranges to the I/O subsystem thereby avoiding page structs.
 
-You could resubmit the old patch together with this patch, so they go
-together.
+What you refuse to see is that DAX is geared toward filesystem and as such
+rely on special mapping. There is a reason why dax.c is in fs/ and not mm/
+and i keep pointing out we do not want our mecanism to be perceive as fs
+from userspace point of view. We want to be below the fs, at the mm level
+where we could really do thing transparently no matter what kind of memory
+we are talking about (anonymous, file mapped, share).
 
-In retrospect it may have been cleaner to pick another field than
-mapcount for the tail page refcounting, then the VM_BUG_ON could have
-been retained.
+The fact is that DAX is about persistant storage but the people that
+develop the persitant storage think it would be nice to expose it as some
+kind of special memory. I am all for the direct mapping of this kind of
+memory but still it is use as a backing store for a filesystem.
 
-mapcount was picked as candidate of tail page refcounting, because it
-already implemented a "count" too so it was simpler to use than
-another random 32bit word and didn't require further unions into the
-page struct.
+While in our case we are talking about "usual" _volatile_ memory that
+should be use or expose as a filesystem.
 
-page_count cannot be used for refcounting tail pages of THP or
-speculative pagecache lookups race against
-split_huge_page_refcount. For non-THP it doesn't matter, even
-page_count could have been used or even better no tail refcounting at
-all like with your patch.
+I can't understand why you are so hellbent on the DAX paradigm, but it is
+not what suit us in no way. We are not filesystem, we are regular memory,
+our realm is mm/ not fs/
 
-With your patch you're basically disabling the tail page refcounting
-for those usages so it probably doesn't matter anymore to move away
-from mapcount and removing the VM_BUG_ON doesn't concern me by now (it
-never actually triggered before).
-
-Even for those usages doubling up the refcounting in mapcount, the
-refcounting of 4.0 was safe. The false positive VM_BUG_ON could only
-happen only after the change.
-
-> [1] lkml.kernel.org/g/1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com
-> 
-> From 854cdc961b7f83f04a83144ab4f7459ae46b0f3d Mon Sep 17 00:00:00 2001
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Date: Fri, 24 Apr 2015 23:49:04 +0300
-> Subject: [PATCH] mm: drop bogus VM_BUG_ON_PAGE assert in put_page() codepath
-> 
-> My patch 8d63d99a5dfb which was merged during 4.1 merge window caused
-> regression:
-> 
->   page:ffffea0010a15040 count:0 mapcount:1 mapping:          (null) index:0x0
->   flags: 0x8000000000008014(referenced|dirty|tail)
->   page dumped because: VM_BUG_ON_PAGE(page_mapcount(page) != 0)
->   ------------[ cut here ]------------
->   kernel BUG at mm/swap.c:134!
-> 
-> The problem can be reproduced by playing *two* audio files at the same
-> time and then stopping one of players. I used two mplayers to trigger
-> this.
-> 
-> The VM_BUG_ON_PAGE() which triggers the bug is bogus:
-> 
-> Sound subsystem uses compound pages for its buffers, but unlike most
-> __GFP_COMP users sound maps compound pages to userspace with PTEs.
-> 
-> In our case with two players map the buffer twice and therefore elevates
-
-I didn't think at the case of mapping the same compound page twice in
-userland, this clearly explains the crash. I thought it had to be the
-PageAnon flipping somehow but I couldn't explain where... and in fact
-it was something else.
-
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Andrea Arcangeli <aarcange@redhat.com>
-> Reported-by: Borislav Petkov <bp@alien8.de>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> ---
->  mm/swap.c | 1 -
->  1 file changed, 1 deletion(-)
-> 
-> diff --git a/mm/swap.c b/mm/swap.c
-> index a7251a8ed532..a3a0a2f1f7c3 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -131,7 +131,6 @@ void put_unrefcounted_compound_page(struct page *page_head, struct page *page)
->  		 * here, see the comment above this function.
->  		 */
->  		VM_BUG_ON_PAGE(!PageHead(page_head), page_head);
-> -		VM_BUG_ON_PAGE(page_mapcount(page) != 0, page);
->  		if (put_page_testzero(page_head)) {
->  			/*
->  			 * If this is the tail of a slab THP page,
-
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
-
-If you resend a consolidated commit with the two changes in the same
-commit, feel free to retain the Reviewed-by for both.
-
-Optionally you could turn it into a VM_BUG_ON_PAGE(page_mapcount(page)
-< 0, page) but it's up to you.
-
-Thanks,
-Andrea
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
