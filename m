@@ -1,57 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A1C16B0038
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 03:16:38 -0400 (EDT)
-Received: by iedfl3 with SMTP id fl3so136081191ied.1
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 00:16:37 -0700 (PDT)
-Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com. [2607:f8b0:4001:c05::22b])
-        by mx.google.com with ESMTPS id m3si15119961iod.50.2015.04.27.00.16.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Apr 2015 00:16:37 -0700 (PDT)
-Received: by igblo3 with SMTP id lo3so55085198igb.1
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 00:16:37 -0700 (PDT)
-From: Derek Robson <robsonde@gmail.com>
-Subject: [PATCH] mm: fixed Missing a blank line after declarations
-Date: Mon, 27 Apr 2015 19:16:40 +1200
-Message-Id: <1430119000-7196-1-git-send-email-robsonde@gmail.com>
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id D6E226B0038
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 03:21:44 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so119362939pdb.0
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 00:21:44 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id ym5si28546958pbb.247.2015.04.27.00.21.43
+        for <linux-mm@kvack.org>;
+        Mon, 27 Apr 2015 00:21:44 -0700 (PDT)
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: [PATCH 1/3] mm/page_alloc: don't break highest order freepage if steal
+Date: Mon, 27 Apr 2015 16:23:39 +0900
+Message-Id: <1430119421-13536-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@suse.de, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Derek Robson <robsonde@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-This patch fixes warnings found with checkpatch.pl error in compaction.c
-WARNING: Missing a blank line after declarations
+When we steal whole pageblock, we don't need to break highest order
+freepage. Perhaps, there is small order freepage so we can use it.
 
-This patch adds blank lines to meet the preferred style.
+This also gives us some code size reduction because expand() which
+is used in __rmqueue_fallback() and inlined into __rmqueue_fallback()
+is removed.
 
-Signed-off-by: Derek Robson <robsonde@gmail.com>
+   text    data     bss     dec     hex filename
+  37413    1440     624   39477    9a35 mm/page_alloc.o
+  37249    1440     624   39313    9991 mm/page_alloc.o
+
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/compaction.c | 2 ++
- 1 file changed, 2 insertions(+)
+ mm/page_alloc.c | 40 +++++++++++++++++++++-------------------
+ 1 file changed, 21 insertions(+), 19 deletions(-)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 018f08d..6d564e0 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -57,6 +57,7 @@ static unsigned long release_freepages(struct list_head *freelist)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ed0f1c6..044f16c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1239,14 +1239,14 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
+ }
  
- 	list_for_each_entry_safe(page, next, freelist, lru) {
- 		unsigned long pfn = page_to_pfn(page);
-+
- 		list_del(&page->lru);
- 		__free_page(page);
- 		if (pfn > high_pfn)
-@@ -246,6 +247,7 @@ void reset_isolation_suitable(pg_data_t *pgdat)
+ /* Remove an element from the buddy allocator from the fallback list */
+-static inline struct page *
++static inline bool
+ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+ {
+ 	struct free_area *area;
+ 	unsigned int current_order;
+ 	struct page *page;
+ 	int fallback_mt;
+-	bool can_steal;
++	bool can_steal_pageblock;
  
- 	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
- 		struct zone *zone = &pgdat->node_zones[zoneid];
-+
- 		if (!populated_zone(zone))
+ 	/* Find the largest possible block of pages in the other list */
+ 	for (current_order = MAX_ORDER-1;
+@@ -1254,26 +1254,24 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+ 				--current_order) {
+ 		area = &(zone->free_area[current_order]);
+ 		fallback_mt = find_suitable_fallback(area, current_order,
+-				start_migratetype, false, &can_steal);
++						start_migratetype, false,
++						&can_steal_pageblock);
+ 		if (fallback_mt == -1)
  			continue;
  
+ 		page = list_entry(area->free_list[fallback_mt].next,
+ 						struct page, lru);
+-		if (can_steal)
++		BUG_ON(!page);
++
++		if (can_steal_pageblock)
+ 			steal_suitable_fallback(zone, page, start_migratetype);
+ 
+-		/* Remove the page from the freelists */
+-		area->nr_free--;
+-		list_del(&page->lru);
+-		rmv_page_order(page);
++		list_move(&page->lru, &area->free_list[start_migratetype]);
+ 
+-		expand(zone, page, order, current_order, area,
+-					start_migratetype);
+ 		/*
+ 		 * The freepage_migratetype may differ from pageblock's
+ 		 * migratetype depending on the decisions in
+-		 * try_to_steal_freepages(). This is OK as long as it
++		 * find_suitable_fallback(). This is OK as long as it
+ 		 * does not differ for MIGRATE_CMA pageblocks. For CMA
+ 		 * we need to make sure unallocated pages flushed from
+ 		 * pcp lists are returned to the correct freelist.
+@@ -1283,10 +1281,10 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+ 		trace_mm_page_alloc_extfrag(page, order, current_order,
+ 			start_migratetype, fallback_mt);
+ 
+-		return page;
++		return true;
+ 	}
+ 
+-	return NULL;
++	return false;
+ }
+ 
+ /*
+@@ -1297,28 +1295,32 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
+ 						int migratetype)
+ {
+ 	struct page *page;
++	bool steal_fallback;
+ 
+-retry_reserve:
++retry:
+ 	page = __rmqueue_smallest(zone, order, migratetype);
+ 
+ 	if (unlikely(!page) && migratetype != MIGRATE_RESERVE) {
+ 		if (migratetype == MIGRATE_MOVABLE)
+ 			page = __rmqueue_cma_fallback(zone, order);
+ 
+-		if (!page)
+-			page = __rmqueue_fallback(zone, order, migratetype);
++		if (page)
++			goto out;
++
++		steal_fallback = __rmqueue_fallback(zone, order, migratetype);
+ 
+ 		/*
+ 		 * Use MIGRATE_RESERVE rather than fail an allocation. goto
+ 		 * is used because __rmqueue_smallest is an inline function
+ 		 * and we want just one call site
+ 		 */
+-		if (!page) {
++		if (!steal_fallback)
+ 			migratetype = MIGRATE_RESERVE;
+-			goto retry_reserve;
+-		}
++
++		goto retry;
+ 	}
+ 
++out:
+ 	trace_mm_page_alloc_zone_locked(page, order, migratetype);
+ 	return page;
+ }
 -- 
-2.3.6
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
