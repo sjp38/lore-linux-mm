@@ -1,133 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vn0-f41.google.com (mail-vn0-f41.google.com [209.85.216.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 35B5F6B0038
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 16:52:12 -0400 (EDT)
-Received: by vnbg7 with SMTP id g7so13693502vnb.10
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 13:52:12 -0700 (PDT)
-Received: from mail-vn0-x233.google.com (mail-vn0-x233.google.com. [2607:f8b0:400c:c0f::233])
-        by mx.google.com with ESMTPS id ez9si31595184vdb.40.2015.04.27.13.52.10
+Received: from mail-vn0-f53.google.com (mail-vn0-f53.google.com [209.85.216.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 77B316B0038
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 17:12:41 -0400 (EDT)
+Received: by vnbf1 with SMTP id f1so13795736vnb.0
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 14:12:41 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id fp2si31658692vdb.39.2015.04.27.14.12.40
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Apr 2015 13:52:11 -0700 (PDT)
-Received: by vnbf1 with SMTP id f1so13670194vnb.5
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 13:52:10 -0700 (PDT)
-Date: Mon, 27 Apr 2015 16:52:07 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: Interacting with coherent memory on external devices
-Message-ID: <20150427205206.GD26980@gmail.com>
-References: <20150424192859.GF3840@gmail.com>
- <alpine.DEB.2.11.1504241446560.11700@gentwo.org>
- <20150425114633.GI5561@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1504271004240.28895@gentwo.org>
- <20150427154728.GA26980@gmail.com>
- <alpine.DEB.2.11.1504271113480.29515@gentwo.org>
- <20150427164325.GB26980@gmail.com>
- <alpine.DEB.2.11.1504271148240.29735@gentwo.org>
- <20150427172143.GC26980@gmail.com>
- <alpine.DEB.2.11.1504271411060.30615@gentwo.org>
+        Mon, 27 Apr 2015 14:12:40 -0700 (PDT)
+Date: Mon, 27 Apr 2015 23:12:37 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 2/3] uffd: Introduce the v2 API
+Message-ID: <20150427211236.GB24035@redhat.com>
+References: <5509D342.7000403@parallels.com>
+ <5509D375.7000809@parallels.com>
+ <20150421121817.GD4481@redhat.com>
+ <55389133.8070701@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.11.1504271411060.30615@gentwo.org>
+In-Reply-To: <55389133.8070701@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>
 
-On Mon, Apr 27, 2015 at 02:26:04PM -0500, Christoph Lameter wrote:
-> On Mon, 27 Apr 2015, Jerome Glisse wrote:
-> 
-> > > We can drop the DAX name and just talk about mapping to external memory if
-> > > that confuses the issue.
-> >
-> > DAX is for direct access block layer (X is for the cool name factor)
-> > there is zero code inside DAX that would be usefull to us. Because it
-> > is all about filesystem and short circuiting the pagecache. So DAX is
-> > _not_ about providing rw mappings to non regular memory, it is about
-> > allowing to directly map _filesystem backing storage_ into a process.
-> 
-> Its about directly mapping memory outside of regular kernel
-> management via a block device into user space. That you can put a
-> filesystem on top is one possible use case. You can provide a block
-> device to map the memory of the coprocessor and then configure the memory
-> space to have the same layout on the coprocessor as well as the linux
-> process.
+Hello,
 
-_Block device_ not what we want, the API of block device does not match
-anything remotely usefull for our usecase. Most of the block device api
-deals with disk and scheduling io on them, none of which is interesting
-to us. So we would need to carefully create various noop functions and
-insert ourself as some kind of fake block device while also making sure
-no userspace could actually use ourself as a regular block device. So
-we would be pretending being something we are not.
+On Thu, Apr 23, 2015 at 09:29:07AM +0300, Pavel Emelyanov wrote:
+> So your proposal is to always report 16 bytes per PF from read() and
+> let userspace decide itself how to handle the result?
 
-> 
-> > Moreover DAX is not about managing that persistent memory, all the
-> > management is done inside the fs (ext4, xfs, ...) in the same way as
-> > for non persistent memory. While in our case we want to manage the
-> > memory as a runtime resources that is allocated to process the same
-> > way regular system memory is managed.
-> 
-> I repeatedly said that. So you would have a block device that would be
-> used to mmap portions of the special memory into a process.
-> 
-> > So current DAX code have nothing of value for our usecase nor what we
-> > propose will have anyvalue for DAX. Unless they decide to go down the
-> > struct page road for persistent memory (which from last discussion i
-> > heard was not there plan, i am pretty sure they entirely dismissed
-> > that idea for now).
-> 
-> DAX is about directly accessing memory. It is made for the purpose of
-> serving as a block device for a filesystem right now but it can easily be
-> used as a way to map any external memory into a processes space using the
-> abstraction of a block device. But then you can do that with any device
-> driver using VM_PFNMAP or VM_MIXEDMAP. Maybe we better use that term
-> instead. Guess I have repeated myself 6 times or so now? I am stopping
-> with this one.
-> 
-> > My point is that this is 2 differents non overlapping problems, and
-> > thus mandate 2 differents solution.
-> 
-> Well confusion abounds since so much other stuff has ben attached to DAX
-> devices.
-> 
-> Lets drop the DAX term and use VM_PFNMAP or VM_MIXEDMAP instead. MIXEDMAP
-> is the mechanism that DAX relies on in the VM.
+Reading 16bytes for each userfault (instead of 8) and sharing the same
+read(2) protocol (UFFD_API) for both the cooperative and
+non-cooperative usages, is something I just suggested for
+consideration after reading your patchset.
 
-Which would require fare more changes than you seem to think. First using
-MIXED|PFNMAP means we loose any kind of memory accounting and forget about
-memcg too. Seconds it means we would need to set those flags on all vma,
-which kind of point out that something must be wrong here. You will also
-need to have vm_ops for all those vma (including for anonymous private vma
-which sounds like it will break quite few place that test for that). Then
-you have to think about vma that already have vm_ops but you would need
-to override it to handle case where its device memory and then forward
-other case to the existing vm_ops, extra layering, extra complexity.
+The pros of using a single protocol for both is that it would reduce
+amount of code and there would be just one file operation for the
+.read method. The cons is that it will waste 8 bytes per userfault in
+terms of memory footprint. The other major cons is that it would force
+us to define the format of the non cooperative protocol now despite it's
+not fully finished yet.
 
-All in all, this points me to believe that any such approach would be
-vastly more complex, involve changing many places and try to force shoe
-horning something into the block device model that is clearly not a
-block device.
+I'm also ok with two protocols if nobody else objects, but if we use
+two protocols, we should at least use different file operation methods
+and use __always_inline with constants passed as parameter to optimize
+away the branches at build time. This way we get the reduced memory
+footprint in the read syscall without other runtime overhead
+associated with it.
 
-Paul solution or mine, are far smaller, i think Paul can even get away
-from adding/changing ZONE by putting the device pages onto a different
-list that is not use by kernel memory allocator. Only few code place
-would need a new if() (when freeing a page and when initializing device
-memory struct page, you could keep the lru code intact here).
+> >> +struct uffd_v2_msg {
+> >> +	__u64	type;
+> >> +	__u64	arg;
+> >> +};
+> >> +
+> >> +#define UFFD_PAGEFAULT	0x1
+> >> +
+> >> +#define UFFD_PAGEFAULT_BIT	(1 << (UFFD_PAGEFAULT - 1))
+> >> +#define __UFFD_API_V2_BITS	(UFFD_PAGEFAULT_BIT)
+> >> +
+> >> +/*
+> >> + * Lower PAGE_SHIFT bits are used to report those supported
+> >> + * by the pagefault message itself. Other bits are used to
+> >> + * report the message types v2 API supports
+> >> + */
+> >> +#define UFFD_API_V2_BITS	(__UFFD_API_V2_BITS << 12)
+> >> +
+> > 
+> > And why exactly is this 12 hardcoded?
+> 
+> Ah, it should have been the PAGE_SHIFT one, but I was unsure whether it
+> would be OK to have different shifts in different arches.
+> 
+> But taking into account your comment that bits field id bad for these
+> values, if we introduce the new .features one for api message, then this
+> 12 will just go away.
 
-I think at this point there is nothing more to discuss here. It is pretty
-clear to me that any solution using block device/MIXEDMAP would be far
-more complex and far more intrusive. I do not mind being prove wrong but
-i will certainly not waste my time trying to implement such solution.
+Ok.
 
-Btw as a data point, if you ignore my patches to mmu_notifier (which are
-mostly about passing down more context information to the callback),
-i touch less then 50 lines of mm common code. Every thing else is helpers
-that are only use by the device driver.
+> > And which field should be masked
+> > with the bits? In the V1 protocol it was the "arg" (userfault address)
+> > not the "type". So this is a bit confusing and probably requires
+> > simplification.
+> 
+> I see. Actually I decided that since bits higher than 12th (for x86) is
+> always 0 in api message (no bits allowed there, since pfn sits in this
+> place), it would be OK to put non-PF bits there.
 
-Cheers,
-Jerome
+That was ok yes.
+
+> Should I better introduce another .features field in uffd API message?
+
+What about renaming "uffdio_api.bits" to "uffdio_api.features"?
+
+And then we set uffdio_api.features to
+UFFD_FEATURE_WRITE|UFFD_FEATURE_WP|UFFD_FEATURE_FORK as needed.
+
+UFFD_FEATURE_WRITE would always be enabled, it's there only in case we
+want to disable it later (mostly if some arch has trouble with it,
+which is unlikely, but qemu doesn't need that bit of information at
+all for example so qemu would be fine if UFFD_FEATURE_WRITE
+disappears).
+
+UFFD_FEATURE_WP would signal also that the wrprotection feature (not
+implemented yet) is available (then later the register ioctl would
+also show the new wrprotection ioctl numbers available to mangle the
+wrprotection). The UFFD_FEATURE_WP feature in the cooperative usage
+(qemu live snapshotting) can use the UFFD_API first protocol too.
+
+UFFD_FEATURE_FORK would be returned if the UFFD_API_V2 was set in
+uffdio.api, and it would be part of the incremental non-cooperative
+patchset.
+
+We could also not define "UFFD_FEATURE_FORK" at all and imply that
+fork/mremap/MADV_DONTNEED are all available if UFFD_API_V2 uffdio_api
+ioctl succeeds... That's only doable if we keep two different read
+protocols though. UFFD_FEATURE_FORK (or UFFD_FEATURE_NON_COOPERATIVE)
+are really strictly needed only if we share the same read(2) protocol
+for both the cooperative and non-cooperative usages.
+
+The idea is that there's not huge benefit of only having the "fork"
+feature supported but missing "mremap" and "madv_dontneed".
+
+In fact if a new syscall that works like mremap is added later (call
+it mremap2), we would need to fail the UFFDIO_API_V2 and require a
+UFFDIO_API_V3 for such kernel that can return a new mremap2 type of
+event. Userland couldn't just assume it is ok to use postcopy live
+migration for containers, because
+UFFD_FEATURE_FORK|MREMAP|MADV_DONTNEED are present in the
+uffdio.features when it asked for API_V2. There shall be something
+that tells userland "hey there's a new mremap2 that the software
+inside the container can run on top of this kernel, so you are going
+to get a new mremap2 type of userfault event too".
+
+In any case, regardless of how we solve the above,
+"uffdio_api.features" sounds better than ".bits".
+
+If we retain two different UFFD_API, we'll be able to freeze the
+current one and decide later if
+UFFD_FEATURE_FORK|UFFD_FEATURE_MREMAP|UFFD_FEATURE_MADV_DONTNEED shall
+be added to the .features, or if to rely on UFFD_API_V2 succeeding to
+let userland know that the non-cooperative usage is fully supported by
+the kernel.
+
+Not having to freeze these details now is the main benefit of having
+two different UFFD_API after all...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
