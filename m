@@ -1,39 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 402336B0038
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 18:46:35 -0400 (EDT)
-Received: by pdbqd1 with SMTP id qd1so143362024pdb.2
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 15:46:35 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n1si31776623pdf.241.2015.04.27.15.46.34
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Apr 2015 15:46:34 -0700 (PDT)
-Date: Mon, 27 Apr 2015 15:46:33 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 02/13] mm: meminit: Move page initialization into a
- separate function.
-Message-Id: <20150427154633.2134d804987dad88e008c2ff@linux-foundation.org>
-In-Reply-To: <1429785196-7668-3-git-send-email-mgorman@suse.de>
-References: <1429785196-7668-1-git-send-email-mgorman@suse.de>
-	<1429785196-7668-3-git-send-email-mgorman@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 172CB6B006C
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 19:01:28 -0400 (EDT)
+Received: by wiun10 with SMTP id n10so8168345wiu.1
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 16:01:27 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
+        by mx.google.com with ESMTP id cg3si18978244wjb.89.2015.04.27.16.01.26
+        for <linux-mm@kvack.org>;
+        Mon, 27 Apr 2015 16:01:26 -0700 (PDT)
+Date: Tue, 28 Apr 2015 02:01:18 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: mm: compaction: BUG in isolate_migratepages_block()
+Message-ID: <20150427230118.GA32541@node.dhcp.inet.fi>
+References: <553EB993.7030401@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <553EB993.7030401@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 23 Apr 2015 11:33:05 +0100 Mel Gorman <mgorman@suse.de> wrote:
+On Mon, Apr 27, 2015 at 06:34:59PM -0400, Sasha Levin wrote:
+> Hi all,
+> 
+> While fuzzing with trinity inside a KVM tools guest running the latest -next
+> kernel I've stumbled on the following spew:
+> 
+> [ 4249.344788] kernel BUG at include/linux/page-flags.h:575!
 
-> From: Robin Holt <holt@sgi.com>
+This should help: https://lkml.org/lkml/2015/4/27/218
 
-: <holt@sgi.com>: host cuda-allmx.sgi.com[192.48.157.12] said: 550 cuda_nsu 5.1.1
-:    <holt@sgi.com>: Recipient address rejected: User unknown in virtual alias
-:    table (in reply to RCPT TO command)
-
-Has Robin moved, or is SGI mail busted?
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
