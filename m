@@ -1,81 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A77A6B0038
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 19:33:31 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so118470797wid.0
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 16:33:30 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id y6si35600297wje.63.2015.04.27.16.33.29
-        for <linux-mm@kvack.org>;
-        Mon, 27 Apr 2015 16:33:29 -0700 (PDT)
-Date: Tue, 28 Apr 2015 02:33:12 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv5 00/28] THP refcounting redesign
-Message-ID: <20150427233312.GB32576@node.dhcp.inet.fi>
-References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20150427160348.fa3aefc5fc557e429d6b0295@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150427160348.fa3aefc5fc557e429d6b0295@linux-foundation.org>
+Received: from mail-vn0-f48.google.com (mail-vn0-f48.google.com [209.85.216.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DA276B0038
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 19:54:17 -0400 (EDT)
+Received: by vnbg62 with SMTP id g62so14207754vnb.7
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 16:54:17 -0700 (PDT)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id si1si28230183vdc.42.2015.04.27.16.54.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 27 Apr 2015 16:54:16 -0700 (PDT)
+Message-ID: <1430178843.16571.134.camel@kernel.crashing.org>
+Subject: Re: Interacting with coherent memory on external devices
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Tue, 28 Apr 2015 09:54:03 +1000
+In-Reply-To: <alpine.DEB.2.11.1504271147020.29735@gentwo.org>
+References: <20150424150829.GA3840@gmail.com>
+	 <alpine.DEB.2.11.1504241052240.9889@gentwo.org>
+	 <20150424164325.GD3840@gmail.com>
+	 <alpine.DEB.2.11.1504241148420.10475@gentwo.org>
+	 <20150424171957.GE3840@gmail.com>
+	 <alpine.DEB.2.11.1504241353280.11285@gentwo.org>
+	 <20150424192859.GF3840@gmail.com>
+	 <alpine.DEB.2.11.1504241446560.11700@gentwo.org>
+	 <20150425114633.GI5561@linux.vnet.ibm.com>
+	 <alpine.DEB.2.11.1504271004240.28895@gentwo.org>
+	 <20150427154728.GA26980@gmail.com>
+	 <alpine.DEB.2.11.1504271113480.29515@gentwo.org>
+	 <553E6405.1060007@redhat.com>
+	 <alpine.DEB.2.11.1504271147020.29735@gentwo.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Rik van Riel <riel@redhat.com>, Jerome Glisse <j.glisse@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Mon, Apr 27, 2015 at 04:03:48PM -0700, Andrew Morton wrote:
-> On Fri, 24 Apr 2015 00:03:35 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On Mon, 2015-04-27 at 11:48 -0500, Christoph Lameter wrote:
+> On Mon, 27 Apr 2015, Rik van Riel wrote:
 > 
-> > Hello everybody,
-> > 
-> > Here's reworked version of my patchset. All known issues were addressed.
-> > 
-> > The goal of patchset is to make refcounting on THP pages cheaper with
-> > simpler semantics and allow the same THP compound page to be mapped with
-> > PMD and PTEs. This is required to get reasonable THP-pagecache
-> > implementation.
+> > Why would we want to avoid the sane approach that makes this thing
+> > work with the fewest required changes to core code?
 > 
-> Are there any measurable performance improvements?
+> Becaus new ZONEs are a pretty invasive change to the memory management and
+> because there are  other ways to handle references to device specific
+> memory.
 
-I was focused on stability up to this point. I'll bring some numbers.
+ZONEs is just one option we put on the table.
 
-> > With the new refcounting design it's much easier to protect against
-> > split_huge_page(): simple reference on a page will make you the deal.
-> > It makes gup_fast() implementation simpler and doesn't require
-> > special-case in futex code to handle tail THP pages.
-> > 
-> > It should improve THP utilization over the system since splitting THP in
-> > one process doesn't necessary lead to splitting the page in all other
-> > processes have the page mapped.
-> > 
-> > The patchset drastically lower complexity of get_page()/put_page()
-> > codepaths. I encourage reviewers look on this code before-and-after to
-> > justify time budget on reviewing this patchset.
-> >
-> > ...
-> >
-> >  59 files changed, 1144 insertions(+), 1509 deletions(-)
-> 
-> It's huge.  I'm going to need help reviewing this.  Have earlier
-> versions been reviewed much?
+I think we can mostly agree on the fundamentals that a good model of
+such a co-processor is a NUMA node, possibly with a higher distance
+than other nodes (but even that can be debated).
 
-The most helpful was feedback from Aneesh for v4. Hugh pointed to few weak
-parts. But I can't say that the patchset was reviewed much.
+That gives us a lot of the basics we need such as struct page, ability
+to use existing migration infrastructure, and is actually a reasonably
+representation at high level as well.
 
-Sasha helped with testing. Few bugs he found was fixed during preparing v5
-for posting. One more issue was pointed after posting the patchset. I work
-on it now.
+The question is how do we additionally get the random stuff we don't
+care about out of the way. The large distance will not help that much
+under memory pressure for example.
 
-> Who do you believe are suitable reviewers?
+Covering the entire device memory with a CMA goes a long way toward that
+goal. It will avoid your ordinary kernel allocations.
 
-Andrea is obvious candidate. Hugh looked recently into the same area with
-his team pages idea.
+It also provides just what we need to be able to do large contiguous
+"explicit" allocations for use by workloads that don't want the
+transparent migration and by the driver for the device which might also
+need such special allocations for its own internal management data
+structures. 
 
-In general, I tried to keep people who can be helpful with review or
-testing on CC list.
+We still have the risk of pages in the CMA being pinned by something
+like gup however, that's where the ZONE idea comes in, to ensure the
+various kernel allocators will *never* allocate in that zone unless
+explicitly specified, but that could possibly implemented differently.
 
--- 
- Kirill A. Shutemov
+Maybe a concept of "exclusive" NUMA node, where allocations never
+fallback to that node unless explicitly asked to go there.
+
+Of course that would have an impact on memory pressure calculations,
+nothign comes completely for free, but at this stage, this is the goal
+of this thread, ie, to swap ideas around and see what's most likely to
+work in the long run before we even start implementing something.
+
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
