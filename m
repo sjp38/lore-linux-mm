@@ -1,75 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id C70E16B0078
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 15:06:51 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so111590898wid.0
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 12:06:51 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id c5si14223116wiw.8.2015.04.27.12.06.43
+Received: from mail-vn0-f51.google.com (mail-vn0-f51.google.com [209.85.216.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 37DAB6B0038
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 15:26:08 -0400 (EDT)
+Received: by vnbf62 with SMTP id f62so13316434vnb.13
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 12:26:08 -0700 (PDT)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id g1si31214544vdj.104.2015.04.27.12.26.06
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Apr 2015 12:06:44 -0700 (PDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 9/9] mm: page_alloc: memory reserve access for OOM-killing allocations
-Date: Mon, 27 Apr 2015 15:05:55 -0400
-Message-Id: <1430161555-6058-10-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1430161555-6058-1-git-send-email-hannes@cmpxchg.org>
-References: <1430161555-6058-1-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Mon, 27 Apr 2015 12:26:07 -0700 (PDT)
+Date: Mon, 27 Apr 2015 14:26:04 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Interacting with coherent memory on external devices
+In-Reply-To: <20150427172143.GC26980@gmail.com>
+Message-ID: <alpine.DEB.2.11.1504271411060.30615@gentwo.org>
+References: <20150424171957.GE3840@gmail.com> <alpine.DEB.2.11.1504241353280.11285@gentwo.org> <20150424192859.GF3840@gmail.com> <alpine.DEB.2.11.1504241446560.11700@gentwo.org> <20150425114633.GI5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504271004240.28895@gentwo.org>
+ <20150427154728.GA26980@gmail.com> <alpine.DEB.2.11.1504271113480.29515@gentwo.org> <20150427164325.GB26980@gmail.com> <alpine.DEB.2.11.1504271148240.29735@gentwo.org> <20150427172143.GC26980@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-The OOM killer connects random tasks in the system with unknown
-dependencies between them, and the OOM victim might well get blocked
-behind locks held by the allocating task.  That means that while
-allocations can issue OOM kills to improve the low memory situation,
-which generally frees more than they are going to take out, they can
-not rely on their *own* OOM kills to make forward progress.
+On Mon, 27 Apr 2015, Jerome Glisse wrote:
 
-However, OOM-killing allocations currently retry forever.  Without any
-extra measures the above situation will result in a deadlock; between
-the allocating task and the OOM victim at first, but it can spread
-once other tasks in the system start contending for the same locks.
+> > We can drop the DAX name and just talk about mapping to external memory if
+> > that confuses the issue.
+>
+> DAX is for direct access block layer (X is for the cool name factor)
+> there is zero code inside DAX that would be usefull to us. Because it
+> is all about filesystem and short circuiting the pagecache. So DAX is
+> _not_ about providing rw mappings to non regular memory, it is about
+> allowing to directly map _filesystem backing storage_ into a process.
 
-Allow OOM-killing allocations to dip into the system's memory reserves
-to avoid this deadlock scenario.  Those reserves are specifically for
-operations in the memory reclaim paths which need a small amount of
-memory to release a much larger amount.  Arguably, the same notion
-applies to the OOM killer.
+Its about directly mapping memory outside of regular kernel
+management via a block device into user space. That you can put a
+filesystem on top is one possible use case. You can provide a block
+device to map the memory of the coprocessor and then configure the memory
+space to have the same layout on the coprocessor as well as the linux
+process.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/page_alloc.c | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+> Moreover DAX is not about managing that persistent memory, all the
+> management is done inside the fs (ext4, xfs, ...) in the same way as
+> for non persistent memory. While in our case we want to manage the
+> memory as a runtime resources that is allocated to process the same
+> way regular system memory is managed.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 94530db..5f3806d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2384,6 +2384,20 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 		if (WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
- 			*did_some_progress = 1;
- 	}
-+
-+	/*
-+	 * In the current implementation, an OOM-killing allocation
-+	 * loops indefinitely inside the allocator.  However, it's
-+	 * possible for the OOM victim to get stuck behind locks held
-+	 * by the allocating task itself, so we can never rely on the
-+	 * OOM killer to free memory synchroneously without risking a
-+	 * deadlock.  Allow these allocations to dip into the memory
-+	 * reserves to ensure forward progress once the OOM kill has
-+	 * been issued.  The reserves will be replenished when the
-+	 * caller releases the locks and the victim exits.
-+	 */
-+	if (*did_some_progress)
-+		alloc_flags |= ALLOC_NO_WATERMARKS;
- out:
- 	mutex_unlock(&oom_lock);
- alloc:
--- 
-2.3.4
+I repeatedly said that. So you would have a block device that would be
+used to mmap portions of the special memory into a process.
+
+> So current DAX code have nothing of value for our usecase nor what we
+> propose will have anyvalue for DAX. Unless they decide to go down the
+> struct page road for persistent memory (which from last discussion i
+> heard was not there plan, i am pretty sure they entirely dismissed
+> that idea for now).
+
+DAX is about directly accessing memory. It is made for the purpose of
+serving as a block device for a filesystem right now but it can easily be
+used as a way to map any external memory into a processes space using the
+abstraction of a block device. But then you can do that with any device
+driver using VM_PFNMAP or VM_MIXEDMAP. Maybe we better use that term
+instead. Guess I have repeated myself 6 times or so now? I am stopping
+with this one.
+
+> My point is that this is 2 differents non overlapping problems, and
+> thus mandate 2 differents solution.
+
+Well confusion abounds since so much other stuff has ben attached to DAX
+devices.
+
+Lets drop the DAX term and use VM_PFNMAP or VM_MIXEDMAP instead. MIXEDMAP
+is the mechanism that DAX relies on in the VM.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
