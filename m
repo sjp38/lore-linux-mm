@@ -1,123 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id AD1776B0038
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 10:24:30 -0400 (EDT)
-Received: by pdbnk13 with SMTP id nk13so130116219pdb.0
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 07:24:30 -0700 (PDT)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id x1si30148870pdk.54.2015.04.27.07.24.29
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 41D376B0038
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 10:50:25 -0400 (EDT)
+Received: by obfe9 with SMTP id e9so84937597obf.1
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 07:50:25 -0700 (PDT)
+Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
+        by mx.google.com with ESMTPS id o62si14013393oig.107.2015.04.27.07.50.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Apr 2015 07:24:29 -0700 (PDT)
-Received: from compute6.internal (compute6.nyi.internal [10.202.2.46])
-	by mailout.nyi.internal (Postfix) with ESMTP id 66BDD20B70
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 10:24:26 -0400 (EDT)
-Date: Mon, 27 Apr 2015 16:24:21 +0200
-From: Greg KH <greg@kroah.com>
-Subject: Re: [RFC v2 1/4] fs: Add generic file system event notifications
-Message-ID: <20150427142421.GB21942@kroah.com>
-References: <1430135504-24334-1-git-send-email-b.michalska@samsung.com>
- <1430135504-24334-2-git-send-email-b.michalska@samsung.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1430135504-24334-2-git-send-email-b.michalska@samsung.com>
+        Mon, 27 Apr 2015 07:50:23 -0700 (PDT)
+Message-ID: <1430145076.23761.52.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v4 0/7] mtrr, mm, x86: Enhance MTRR checks for huge I/O
+ mapping
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Mon, 27 Apr 2015 08:31:16 -0600
+In-Reply-To: <1428074540.31093.110.camel@misato.fc.hp.com>
+References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
+	 <20150324154324.f9ca557127f7bc7aed45a86b@linux-foundation.org>
+	 <20150403063302.GA29212@gmail.com>
+	 <1428074540.31093.110.camel@misato.fc.hp.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Beata Michalska <b.michalska@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, jack@suse.cz, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
 
-On Mon, Apr 27, 2015 at 01:51:41PM +0200, Beata Michalska wrote:
-> Introduce configurable generic interface for file
-> system-wide event notifications, to provide file
-> systems with a common way of reporting any potential
-> issues as they emerge.
+On Fri, 2015-04-03 at 09:22 -0600, Toshi Kani wrote:
+> On Fri, 2015-04-03 at 08:33 +0200, Ingo Molnar wrote:
+> > * Andrew Morton <akpm@linux-foundation.org> wrote:
+> > 
+> > > On Tue, 24 Mar 2015 16:08:34 -0600 Toshi Kani <toshi.kani@hp.com> wrote:
+> > > 
+> > > > This patchset enhances MTRR checks for the kernel huge I/O mapping,
+> > > > which was enabled by the patchset below:
+> > > >   https://lkml.org/lkml/2015/3/3/589
+> > > > 
+> > > > The following functional changes are made in patch 7/7.
+> > > >  - Allow pud_set_huge() and pmd_set_huge() to create a huge page
+> > > >    mapping to a range covered by a single MTRR entry of any memory
+> > > >    type.
+> > > >  - Log a pr_warn() message when a specified PMD map range spans more
+> > > >    than a single MTRR entry.  Drivers should make a mapping request
+> > > >    aligned to a single MTRR entry when the range is covered by MTRRs.
+> > > > 
+> > > 
+> > > OK, I grabbed these after barely looking at them, to get them a bit of
+> > > runtime testing.
+> > > 
+> > > I'll await guidance from the x86 maintainers regarding next steps?
+> > 
+> > Could you please send the current version of them over to us if your 
+> > testing didn't find any problems?
+> > 
+> > I'd like to take a final look and have them cook in the x86 tree as 
+> > well for a while and want to preserve your testing effort.
 > 
-> The notifications are to be issued through generic
-> netlink interface by newly introduced multicast group.
+> This patchset is on top of the following patches in the -mm tree.
+> (Patches apply from the bottom to the top.)
+
+Ingo,
+
+The following patches (2 got squashed to 1) went to 4.1-rc1, but this
+patch-set is still sitting in the -mm tree.  I confirmed that the
+patch-set applies cleanly to 4.1-rc1.  Please take a final look and let
+me know if you have any comment.
+
+Thanks,
+-Toshi
+
+
+> 2. Build error fixes and cleanups
+> http://ozlabs.org/~akpm/mmotm/broken-out/x86-mm-support-huge-kva-mappings-on-x86-fix.patch
+> http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-vunmap-to-tear-down-huge-kva-mappings-fix.patch
+> http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-ioremap-to-set-up-huge-i-o-mappings-fix.patch
+> http://ozlabs.org/~akpm/mmotm/broken-out/lib-add-huge-i-o-map-capability-interfaces-fix.patch
 > 
-> Threshold notifications have been included, allowing
-> triggering an event whenever the amount of free space drops
-> below a certain level - or levels to be more precise as two
-> of them are being supported: the lower and the upper range.
-> The notifications work both ways: once the threshold level
-> has been reached, an event shall be generated whenever
-> the number of available blocks goes up again re-activating
-> the threshold.
+> 1. Kernel huge I/O mapping support
+> http://ozlabs.org/~akpm/mmotm/broken-out/x86-mm-support-huge-kva-mappings-on-x86.patch
+> http://ozlabs.org/~akpm/mmotm/broken-out/x86-mm-support-huge-i-o-mapping-capability-i-f.patch
+> http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-vunmap-to-tear-down-huge-kva-mappings.patch
+> http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-ioremap-to-set-up-huge-i-o-mappings.patch
+> http://ozlabs.org/~akpm/mmotm/broken-out/lib-add-huge-i-o-map-capability-interfaces.patch
+> http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-__get_vm_area_node-to-use-fls_long.patch
 > 
-> The interface has been exposed through a vfs. Once mounted,
-> it serves as an entry point for the set-up where one can
-> register for particular file system events.
+> Thanks,
+> -Toshi
 > 
-> Signed-off-by: Beata Michalska <b.michalska@samsung.com>
-> ---
->  Documentation/filesystems/events.txt |  231 ++++++++++
->  fs/Makefile                          |    1 +
->  fs/events/Makefile                   |    6 +
->  fs/events/fs_event.c                 |  770 ++++++++++++++++++++++++++++++++++
->  fs/events/fs_event.h                 |   25 ++
->  fs/events/fs_event_netlink.c         |   99 +++++
->  fs/namespace.c                       |    1 +
->  include/linux/fs.h                   |    6 +-
->  include/linux/fs_event.h             |   58 +++
->  include/uapi/linux/fs_event.h        |   54 +++
->  include/uapi/linux/genetlink.h       |    1 +
->  net/netlink/genetlink.c              |    7 +-
->  12 files changed, 1257 insertions(+), 2 deletions(-)
->  create mode 100644 Documentation/filesystems/events.txt
->  create mode 100644 fs/events/Makefile
->  create mode 100644 fs/events/fs_event.c
->  create mode 100644 fs/events/fs_event.h
->  create mode 100644 fs/events/fs_event_netlink.c
->  create mode 100644 include/linux/fs_event.h
->  create mode 100644 include/uapi/linux/fs_event.h
 
-Any reason why you just don't do uevents for the block devices today,
-and not create a new type of netlink message and userspace tool required
-to read these?
-
-> --- a/fs/Makefile
-> +++ b/fs/Makefile
-> @@ -126,3 +126,4 @@ obj-y				+= exofs/ # Multiple modules
->  obj-$(CONFIG_CEPH_FS)		+= ceph/
->  obj-$(CONFIG_PSTORE)		+= pstore/
->  obj-$(CONFIG_EFIVAR_FS)		+= efivarfs/
-> +obj-y				+= events/
-
-Always?
-
-> diff --git a/fs/events/Makefile b/fs/events/Makefile
-> new file mode 100644
-> index 0000000..58d1454
-> --- /dev/null
-> +++ b/fs/events/Makefile
-> @@ -0,0 +1,6 @@
-> +#
-> +# Makefile for the Linux Generic File System Event Interface
-> +#
-> +
-> +obj-y := fs_event.o
-
-Always?  Even if the option is not selected?  Why is everyone forced to
-always use this code?  Can't you disable it for the "tiny" systems that
-don't need it?
-
-> +struct fs_trace_entry {
-> +	atomic_t	 count;
-
-Why not just use a 'struct kref' for your count, which will save a bunch
-of open-coding of reference counting, and forcing us to audit your code
-to verify you got all the corner cases correct?  :)
-
-> +	atomic_t	 active;
-> +	struct super_block *sb;
-
-Are you properly reference counting this pointer?  I didn't see where
-that was happening, so I must have missed it.
-
-thanks,
-
-greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
