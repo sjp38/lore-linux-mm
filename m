@@ -1,94 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 41D376B0038
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 10:50:25 -0400 (EDT)
-Received: by obfe9 with SMTP id e9so84937597obf.1
-        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 07:50:25 -0700 (PDT)
-Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
-        by mx.google.com with ESMTPS id o62si14013393oig.107.2015.04.27.07.50.22
+Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id CFA0A6B0038
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2015 11:08:31 -0400 (EDT)
+Received: by iejt8 with SMTP id t8so128321356iej.2
+        for <linux-mm@kvack.org>; Mon, 27 Apr 2015 08:08:31 -0700 (PDT)
+Received: from resqmta-ch2-02v.sys.comcast.net (resqmta-ch2-02v.sys.comcast.net. [2001:558:fe21:29:69:252:207:34])
+        by mx.google.com with ESMTPS id 15si15929117iop.43.2015.04.27.08.08.30
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Apr 2015 07:50:23 -0700 (PDT)
-Message-ID: <1430145076.23761.52.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v4 0/7] mtrr, mm, x86: Enhance MTRR checks for huge I/O
- mapping
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 27 Apr 2015 08:31:16 -0600
-In-Reply-To: <1428074540.31093.110.camel@misato.fc.hp.com>
-References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
-	 <20150324154324.f9ca557127f7bc7aed45a86b@linux-foundation.org>
-	 <20150403063302.GA29212@gmail.com>
-	 <1428074540.31093.110.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Mon, 27 Apr 2015 08:08:30 -0700 (PDT)
+Date: Mon, 27 Apr 2015 10:08:29 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Interacting with coherent memory on external devices
+In-Reply-To: <20150425114633.GI5561@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.11.1504271004240.28895@gentwo.org>
+References: <20150423161105.GB2399@gmail.com> <alpine.DEB.2.11.1504240912560.7582@gentwo.org> <20150424150829.GA3840@gmail.com> <alpine.DEB.2.11.1504241052240.9889@gentwo.org> <20150424164325.GD3840@gmail.com> <alpine.DEB.2.11.1504241148420.10475@gentwo.org>
+ <20150424171957.GE3840@gmail.com> <alpine.DEB.2.11.1504241353280.11285@gentwo.org> <20150424192859.GF3840@gmail.com> <alpine.DEB.2.11.1504241446560.11700@gentwo.org> <20150425114633.GI5561@linux.vnet.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Jerome Glisse <j.glisse@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Fri, 2015-04-03 at 09:22 -0600, Toshi Kani wrote:
-> On Fri, 2015-04-03 at 08:33 +0200, Ingo Molnar wrote:
-> > * Andrew Morton <akpm@linux-foundation.org> wrote:
-> > 
-> > > On Tue, 24 Mar 2015 16:08:34 -0600 Toshi Kani <toshi.kani@hp.com> wrote:
-> > > 
-> > > > This patchset enhances MTRR checks for the kernel huge I/O mapping,
-> > > > which was enabled by the patchset below:
-> > > >   https://lkml.org/lkml/2015/3/3/589
-> > > > 
-> > > > The following functional changes are made in patch 7/7.
-> > > >  - Allow pud_set_huge() and pmd_set_huge() to create a huge page
-> > > >    mapping to a range covered by a single MTRR entry of any memory
-> > > >    type.
-> > > >  - Log a pr_warn() message when a specified PMD map range spans more
-> > > >    than a single MTRR entry.  Drivers should make a mapping request
-> > > >    aligned to a single MTRR entry when the range is covered by MTRRs.
-> > > > 
-> > > 
-> > > OK, I grabbed these after barely looking at them, to get them a bit of
-> > > runtime testing.
-> > > 
-> > > I'll await guidance from the x86 maintainers regarding next steps?
-> > 
-> > Could you please send the current version of them over to us if your 
-> > testing didn't find any problems?
-> > 
-> > I'd like to take a final look and have them cook in the x86 tree as 
-> > well for a while and want to preserve your testing effort.
-> 
-> This patchset is on top of the following patches in the -mm tree.
-> (Patches apply from the bottom to the top.)
+On Sat, 25 Apr 2015, Paul E. McKenney wrote:
 
-Ingo,
+> Would you have a URL or other pointer to this code?
 
-The following patches (2 got squashed to 1) went to 4.1-rc1, but this
-patch-set is still sitting in the -mm tree.  I confirmed that the
-patch-set applies cleanly to 4.1-rc1.  Please take a final look and let
-me know if you have any comment.
+linux/mm/migrate.c
 
-Thanks,
--Toshi
+> > > Without modifying a single line of mm code, the only way to do this is to
+> > > either unmap from the cpu page table the range being migrated or to mprotect
+> > > it in some way. In both case the cpu access will trigger some kind of fault.
+> >
+> > Yes that is how Linux migration works. If you can fix that then how about
+> > improving page migration in Linux between NUMA nodes first?
+>
+> In principle, that also would be a good thing.  But why do that first?
 
+Because it would benefit a lot of functionality that today relies on page
+migration to have a faster more reliable way of moving pages around.
 
-> 2. Build error fixes and cleanups
-> http://ozlabs.org/~akpm/mmotm/broken-out/x86-mm-support-huge-kva-mappings-on-x86-fix.patch
-> http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-vunmap-to-tear-down-huge-kva-mappings-fix.patch
-> http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-ioremap-to-set-up-huge-i-o-mappings-fix.patch
-> http://ozlabs.org/~akpm/mmotm/broken-out/lib-add-huge-i-o-map-capability-interfaces-fix.patch
-> 
-> 1. Kernel huge I/O mapping support
-> http://ozlabs.org/~akpm/mmotm/broken-out/x86-mm-support-huge-kva-mappings-on-x86.patch
-> http://ozlabs.org/~akpm/mmotm/broken-out/x86-mm-support-huge-i-o-mapping-capability-i-f.patch
-> http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-vunmap-to-tear-down-huge-kva-mappings.patch
-> http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-ioremap-to-set-up-huge-i-o-mappings.patch
-> http://ozlabs.org/~akpm/mmotm/broken-out/lib-add-huge-i-o-map-capability-interfaces.patch
-> http://ozlabs.org/~akpm/mmotm/broken-out/mm-change-__get_vm_area_node-to-use-fls_long.patch
-> 
-> Thanks,
-> -Toshi
-> 
+> > > This is not the behavior we want. What we want is same address space while
+> > > being able to migrate system memory to device memory (who make that decision
+> > > should not be part of that discussion) while still gracefully handling any
+> > > CPU access.
+> >
+> > Well then there could be a situation where you have concurrent write
+> > access. How do you reconcile that then? Somehow you need to stall one or
+> > the other until the transaction is complete.
+>
+> Or have store buffers on one or both sides.
 
+Well if those store buffers end up with divergent contents then you have
+the problem of not being able to decide which version should survive. But
+from Jerome's response I deduce that this is avoided by only allow
+read-only access during migration. That is actually similar to what page
+migration does.
+
+> > > This means if CPU access it we want to migrate memory back to system memory.
+> > > To achieve this there is no way around adding couple of if inside the mm
+> > > page fault code path. Now do you want each driver to add its own if branch
+> > > or do you want a common infrastructure to do just that ?
+> >
+> > If you can improve the page migration in general then we certainly would
+> > love that. Having faultless migration is certain a good thing for a lot of
+> > functionality that depends on page migration.
+>
+> We do have to start somewhere, though.  If we insist on perfection for
+> all situations before we agree to make a change, we won't be making very
+> many changes, now will we?
+
+Improvements to the general code would be preferred instead of
+having specialized solutions for a particular hardware alone.  If the
+general code can then handle the special coprocessor situation then we
+avoid a lot of code development.
+
+> As I understand it, the trick (if you can call it that) is having the
+> device have the same memory-mapping capabilities as the CPUs.
+
+Well yes that works with read-only mappings. Maybe we can special case
+that in the page migration code? We do not need migration entries if
+access is read-only actually.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
