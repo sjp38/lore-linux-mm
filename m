@@ -1,89 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 84F176B007D
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 12:23:21 -0400 (EDT)
-Received: by iebrs15 with SMTP id rs15so22242656ieb.3
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:23:21 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id mu7si8847125igb.29.2015.04.28.09.23.20
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 28 Apr 2015 09:23:20 -0700 (PDT)
-Subject: Re: [PATCH 0/9] mm: improve OOM mechanism v2
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1430161555-6058-1-git-send-email-hannes@cmpxchg.org>
-	<201504281934.IIH81695.LOHJQMOFStFFVO@I-love.SAKURA.ne.jp>
-	<20150428135535.GE2659@dhcp22.suse.cz>
-In-Reply-To: <20150428135535.GE2659@dhcp22.suse.cz>
-Message-Id: <201504290050.FDE18274.SOJVtFLOMOQFFH@I-love.SAKURA.ne.jp>
-Date: Wed, 29 Apr 2015 00:50:37 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 94D606B007B
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 12:25:09 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so168633209pde.3
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:25:09 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id pc5si35356352pac.85.2015.04.28.09.25.08
+        for <linux-mm@kvack.org>;
+        Tue, 28 Apr 2015 09:25:08 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH 1/2] mm: drop bogus VM_BUG_ON_PAGE assert in put_page() codepath
+Date: Tue, 28 Apr 2015 19:24:57 +0300
+Message-Id: <1430238298-80442-2-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1430238298-80442-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1430238298-80442-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, aarcange@redhat.com, david@fromorbit.com, rientjes@google.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Borislav Petkov <bp@alien8.de>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Michal Hocko wrote:
-> On Tue 28-04-15 19:34:47, Tetsuo Handa wrote:
-> [...]
-> > [PATCH 8/9] makes the speed of allocating __GFP_FS pages extremely slow (5
-> > seconds / page) because out_of_memory() serialized by the oom_lock sleeps for
-> > 5 seconds before returning true when the OOM victim got stuck. This throttling
-> > also slows down !__GFP_FS allocations when there is a thread doing a __GFP_FS
-> > allocation, for __alloc_pages_may_oom() is serialized by the oom_lock
-> > regardless of gfp_mask.
-> 
-> This is indeed unnecessary.
-> 
-> > How long will the OOM victim is blocked when the
-> > allocating task needs to allocate e.g. 1000 !__GFP_FS pages before allowing
-> > the OOM victim waiting at mutex_lock(&inode->i_mutex) to continue? It will be
-> > a too-long-to-wait stall which is effectively a deadlock for users. I think
-> > we should not sleep with the oom_lock held.
-> 
-> I do not see why sleeping with oom_lock would be a problem. It simply
-> doesn't make much sense to try to trigger OOM killer when there is/are
-> OOM victims still exiting.
+My patch 8d63d99a5dfb which was merged during 4.1 merge window caused
+regression:
 
-Because thread A's memory allocation is deferred by threads B, C, D...'s memory
-allocation which are holding (or waiting for) the oom_lock when the OOM victim
-is waiting for thread A's allocation. I think that a memory allocator which
-allocates at average 5 seconds is considered as unusable. If we sleep without
-the oom_lock held, the memory allocator can allocate at average
-(5 / number_of_allocating_threads) seconds. Sleeping with the oom_lock held
-can effectively prevent thread A from making progress.
+  page:ffffea0010a15040 count:0 mapcount:1 mapping:          (null) index:0x0
+  flags: 0x8000000000008014(referenced|dirty|tail)
+  page dumped because: VM_BUG_ON_PAGE(page_mapcount(page) != 0)
+  ------------[ cut here ]------------
+  kernel BUG at mm/swap.c:134!
 
-> > By the way, I came up with an idea (incomplete patch on top of patches up to
-> > 7/9 is shown below) while trying to avoid sleeping with the oom_lock held.
-> > This patch is meant for
-> > 
-> >   (1) blocking_notifier_call_chain(&oom_notify_list) is called after
-> >       the OOM killer is disabled in order to increase possibility of
-> >       memory allocation to succeed.
-> 
-> How do you guarantee that the notifier doesn't wake up any process and
-> break the oom_disable guarantee?
+The problem can be reproduced by playing *two* audio files at the same
+time and then stopping one of players. I used two mplayers to trigger
+this.
 
-I thought oom_notify_list wakes up only kernel threads. OK, that's the reason
-we don't call oom_notify_list after the OOM killer is disabled?
+The VM_BUG_ON_PAGE() which triggers the bug is bogus:
 
-> 
-> >   (2) oom_kill_process() can determine when to kill next OOM victim.
-> > 
-> >   (3) oom_scan_process_thread() can take TIF_MEMDIE timeout into
-> >       account when choosing an OOM victim.
-> 
-> You have heard my opinions about this and I do not plan to repeat them
-> here again.
+Sound subsystem uses compound pages for its buffers, but unlike most
+__GFP_COMP sound maps compound pages to userspace with PTEs.
 
-Yes, I've heard your opinions. But neither ALLOC_NO_WATERMARKS nor WMARK_OOM
-is a perfect measure for avoiding deadlock. We want to solve "Without any
-extra measures the above situation will result in a deadlock" problem.
-When WMARK_OOM failed to avoid the deadlock, and we don't want to go to
-ALLOC_NO_WATERMARKS, I think somehow choosing and killing more victims is
-the only possible measure. Maybe choosing next OOM victim upon reaching
-WMARK_OOM?
+In our case with two players map the buffer twice and therefore elevates
+page_mapcount() on tail pages by two. When one of players exits it
+unmaps the VMA and drops page_mapcount() to one and try to release
+reference on the page with put_page().
+
+My commit changes which path it takes under put_compound_page(). It hits
+put_unrefcounted_compound_page() where VM_BUG_ON_PAGE() is. It sees
+page_mapcount() == 1. The function wrongly assumes that subpages of
+compound page cannot be be mapped by itself with PTEs..
+
+The solution is simply drop the VM_BUG_ON_PAGE().
+
+Note: there's no need to move the check under put_page_testzero().
+Allocator will check the mapcount by itself before putting on free
+list.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-by: Andrea Arcangeli <aarcange@redhat.com>
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+Reported-by: Borislav Petkov <bp@alien8.de>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+---
+ mm/swap.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/mm/swap.c b/mm/swap.c
+index a7251a8ed532..a3a0a2f1f7c3 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -131,7 +131,6 @@ void put_unrefcounted_compound_page(struct page *page_head, struct page *page)
+ 		 * here, see the comment above this function.
+ 		 */
+ 		VM_BUG_ON_PAGE(!PageHead(page_head), page_head);
+-		VM_BUG_ON_PAGE(page_mapcount(page) != 0, page);
+ 		if (put_page_testzero(page_head)) {
+ 			/*
+ 			 * If this is the tail of a slab THP page,
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
