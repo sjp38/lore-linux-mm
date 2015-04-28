@@ -1,96 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 784676B0032
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:44:47 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so158339254wid.0
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:44:47 -0700 (PDT)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id g14si40860183wjz.39.2015.04.28.15.44.45
-        for <linux-mm@kvack.org>;
-        Tue, 28 Apr 2015 15:44:46 -0700 (PDT)
-Date: Wed, 29 Apr 2015 01:44:42 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] compaction: fix isolate_migratepages_block() for THP=n
-Message-ID: <20150428224442.GA6188@node.dhcp.inet.fi>
-References: <1430134006-215317-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20150428151420.227e7ac34745e9fe8e9bc145@linux-foundation.org>
- <20150428222828.GA6072@node.dhcp.inet.fi>
- <20150428153724.cbe99bef1e7c2f073755539a@linux-foundation.org>
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C9D46B0032
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:50:50 -0400 (EDT)
+Received: by igblo3 with SMTP id lo3so103003384igb.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:50:49 -0700 (PDT)
+Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com. [2607:f8b0:4001:c05::22f])
+        by mx.google.com with ESMTPS id h38si19721314ioi.92.2015.04.28.15.50.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Apr 2015 15:50:49 -0700 (PDT)
+Received: by igblo3 with SMTP id lo3so103003185igb.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:50:49 -0700 (PDT)
+Date: Tue, 28 Apr 2015 15:50:46 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch resend] android, lmk: avoid setting TIF_MEMDIE if process
+ has already exited
+In-Reply-To: <alpine.DEB.2.10.1504021558220.15536@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1504281550290.24802@chino.kir.corp.google.com>
+References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org> <1427264236-17249-4-git-send-email-hannes@cmpxchg.org> <alpine.DEB.2.10.1503252025230.16714@chino.kir.corp.google.com> <20150326110532.GB18560@cmpxchg.org> <alpine.DEB.2.10.1503261231440.9410@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1504021558220.15536@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150428153724.cbe99bef1e7c2f073755539a@linux-foundation.org>
+Content-Type: MULTIPART/MIXED; BOUNDARY="531381512-275516743-1430261448=:24802"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sasha Levin <sasha.levin@oracle.com>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: =?UTF-8?Q?Arve_Hj=C3=B8nnev=C3=A5g?= <arve@android.com>, Riley Andrews <riandrews@android.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@driverdev.osuosl.org
 
-On Tue, Apr 28, 2015 at 03:37:24PM -0700, Andrew Morton wrote:
-> On Wed, 29 Apr 2015 01:28:28 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-> 
-> > On Tue, Apr 28, 2015 at 03:14:20PM -0700, Andrew Morton wrote:
-> > > On Mon, 27 Apr 2015 14:26:46 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> > > 
-> > > > PageTrans* helpers are always-false if THP is disabled compile-time.
-> > > > It means the fucntion will fail to detect hugetlb pages in this case.
-> > > > 
-> > > > Let's use PageCompound() instead. With small tweak to how we calculate
-> > > > next low_pfn it will make function ready to see tail pages.
-> > > 
-> > > <scratches head>
-> > > 
-> > > So this patch has no runtime effects at present?  It is preparation for
-> > > something else?
-> > 
-> > I wrote this to fix bug I originally attributed to refcounting patchset,
-> > but Sasha triggered the same bug on -next without the patchset applied:
-> >
-> > http://lkml.kernel.org/g/553EB993.7030401@oracle.com
-> 
-> Well why the heck didn't the changelog tell us this?!?!?
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Sasha reported bug in -next after I sent the patch.
+--531381512-275516743-1430261448=:24802
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
 
-> 
-> > Now I think it's related to changing of PageLRU() behaviour on tail page
-> > by my page flags patchset.
-> 
-> So this patch is a bugfix against one of
-> 
-> page-flags-trivial-cleanup-for-pagetrans-helpers.patch
-> page-flags-introduce-page-flags-policies-wrt-compound-pages.patch
-> page-flags-define-pg_locked-behavior-on-compound-pages.patch
-> page-flags-define-behavior-of-fs-io-related-flags-on-compound-pages.patch
-> page-flags-define-behavior-of-lru-related-flags-on-compound-pages.patch
+TIF_MEMDIE should not be set on a process if it does not have a valid 
+->mm, and this is protected by task_lock().
 
-^^^ this one is fault, I think.
+If TIF_MEMDIE gets set after the mm has detached, and the process fails to 
+exit, then the oom killer will defer forever waiting for it to exit.
 
-> page-flags-define-behavior-slb-related-flags-on-compound-pages.patch
-> page-flags-define-behavior-of-xen-related-flags-on-compound-pages.patch
-> page-flags-define-pg_reserved-behavior-on-compound-pages.patch
-> page-flags-define-pg_swapbacked-behavior-on-compound-pages.patch
-> page-flags-define-pg_swapcache-behavior-on-compound-pages.patch
-> page-flags-define-pg_mlocked-behavior-on-compound-pages.patch
-> page-flags-define-pg_uncached-behavior-on-compound-pages.patch
-> page-flags-define-pg_uptodate-behavior-on-compound-pages.patch
-> page-flags-look-on-head-page-if-the-flag-is-encoded-in-page-mapping.patch
-> mm-sanitize-page-mapping-for-tail-pages.patch
-> include-linux-page-flagsh-rename-macros-to-avoid-collisions.patch
-> 
-> Which one was the faulty patch?
-> 
-> > PageLRU() on tail pages now reports true if
-> > head page is on LRU. It means no we can go futher insede
-> > isolate_migratepages_block() with tail page.
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+Make sure that the mm is still valid before setting TIF_MEMDIE by way of 
+mark_tsk_oom_victim().
 
--- 
- Kirill A. Shutemov
+Cc: "Arve HjA,nnevAJPYg" <arve@android.com>
+Cc: Riley Andrews <riandrews@android.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ drivers/staging/android/lowmemorykiller.c | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
+--- a/drivers/staging/android/lowmemorykiller.c
++++ b/drivers/staging/android/lowmemorykiller.c
+@@ -156,20 +156,27 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
+ 			     p->pid, p->comm, oom_score_adj, tasksize);
+ 	}
+ 	if (selected) {
+-		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
+-			     selected->pid, selected->comm,
+-			     selected_oom_score_adj, selected_tasksize);
+-		lowmem_deathpending_timeout = jiffies + HZ;
++		task_lock(selected);
++		if (!selected->mm) {
++			/* Already exited, cannot do mark_tsk_oom_victim() */
++			task_unlock(selected);
++			goto out;
++		}
+ 		/*
+ 		 * FIXME: lowmemorykiller shouldn't abuse global OOM killer
+ 		 * infrastructure. There is no real reason why the selected
+ 		 * task should have access to the memory reserves.
+ 		 */
+ 		mark_tsk_oom_victim(selected);
++		task_unlock(selected);
++		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
++			     selected->pid, selected->comm,
++			     selected_oom_score_adj, selected_tasksize);
++		lowmem_deathpending_timeout = jiffies + HZ;
+ 		send_sig(SIGKILL, selected, 0);
+ 		rem += selected_tasksize;
+ 	}
+-
++out:
+ 	lowmem_print(4, "lowmem_scan %lu, %x, return %lu\n",
+ 		     sc->nr_to_scan, sc->gfp_mask, rem);
+ 	rcu_read_unlock();
+--531381512-275516743-1430261448=:24802--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
