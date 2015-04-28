@@ -1,51 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vn0-f44.google.com (mail-vn0-f44.google.com [209.85.216.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EDCC6B0032
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:41:52 -0400 (EDT)
-Received: by vnbg190 with SMTP id g190so1353748vnb.12
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:41:52 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id xg5si36103483vdb.106.2015.04.28.15.41.51
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id D66D26B0032
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:43:37 -0400 (EDT)
+Received: by iget9 with SMTP id t9so97383911ige.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:43:37 -0700 (PDT)
+Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com. [2607:f8b0:4001:c05::231])
+        by mx.google.com with ESMTPS id hz3si19919476icc.74.2015.04.28.15.43.37
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Apr 2015 15:41:51 -0700 (PDT)
-Message-ID: <55400CA7.3050902@redhat.com>
-Date: Tue, 28 Apr 2015 18:41:43 -0400
-From: Rik van Riel <riel@redhat.com>
+        Tue, 28 Apr 2015 15:43:37 -0700 (PDT)
+Received: by igblo3 with SMTP id lo3so33670702igb.0
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:43:37 -0700 (PDT)
+Date: Tue, 28 Apr 2015 15:43:35 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 6/9] mm: oom_kill: simplify OOM killer locking
+In-Reply-To: <1430161555-6058-7-git-send-email-hannes@cmpxchg.org>
+Message-ID: <alpine.DEB.2.10.1504281540280.10203@chino.kir.corp.google.com>
+References: <1430161555-6058-1-git-send-email-hannes@cmpxchg.org> <1430161555-6058-7-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: PCID and TLB flushes (was: [GIT PULL] kdbus for 4.1-rc1)
-References: <20150428221553.GA5770@node.dhcp.inet.fi>
-In-Reply-To: <20150428221553.GA5770@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 04/28/2015 06:15 PM, Kirill A. Shutemov wrote:
-> On Tue, Apr 28, 2015 at 01:42:10PM -0700, Andy Lutomirski wrote:
->> At some point, I'd like to implement PCID on x86 (if no one beats me
->> to it, and this is a low priority for me), which will allow us to skip
->> expensive TLB flushes while context switching.  I have no idea whether
->> ARM can do something similar.
+On Mon, 27 Apr 2015, Johannes Weiner wrote:
+
+> The zonelist locking and the oom_sem are two overlapping locks that
+> are used to serialize global OOM killing against different things.
 > 
-> I talked with Dave about implementing PCID and he thinks that it will be
-> net loss. TLB entries will live longer and it means we would need to trigger
-> more IPIs to flash them out when we have to. Cost of IPIs will be higher
-> than benifit from hot TLB after context switch.
+> The historical zonelist locking serializes OOM kills from allocations
+> with overlapping zonelists against each other to prevent killing more
+> tasks than necessary in the same memory domain.  Only when neither
+> tasklists nor zonelists from two concurrent OOM kills overlap (tasks
+> in separate memcgs bound to separate nodes) are OOM kills allowed to
+> execute in parallel.
+> 
+> The younger oom_sem is a read-write lock to serialize OOM killing
+> against the PM code trying to disable the OOM killer altogether.
+> 
+> However, the OOM killer is a fairly cold error path, there is really
+> no reason to optimize for highly performant and concurrent OOM kills.
+> And the oom_sem is just flat-out redundant.
+> 
+> Replace both locking schemes with a single global mutex serializing
+> OOM kills regardless of context.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Michal Hocko <mhocko@suse.cz>
 
-I suspect that may depend on how you do the shootdown.
+Acked-by: David Rientjes <rientjes@google.com>
 
-If, when receiving a TLB shootdown for a non-current PCID, we just flush
-all the entries for that PCID and remove the CPU from the mm's
-cpu_vm_mask_var, we will never receive more than one shootdown IPI for
-a non-current mm, but we will still get the benefits of TLB longevity
-when dealing with eg. pipe workloads where tasks take turns running on
-the same CPU.
+Thanks for doing this, it cleans up the code quite a bit and I think 
+there's the added benefit of not interleaving oom killer messages in the 
+kernel log, and that's important since it's the only way we can currently 
+discover that the kernel has killed something.
 
--- 
-All rights reversed
+It's not vital and somewhat unrelated to your patch, but if we can't grab 
+the mutex with the trylock in __alloc_pages_may_oom() then I think it 
+would be more correct to do schedule_timeout_killable() rather than 
+uninterruptible.  I just mention it if you happen to go through another 
+revision of the series and want to switch it at the same time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
