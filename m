@@ -1,57 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B5C0B6B006E
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:41:02 -0400 (EDT)
-Received: by pabtp1 with SMTP id tp1so8846568pab.2
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:41:02 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ir4si36518068pbc.118.2015.04.28.15.41.01
+Received: from mail-vn0-f44.google.com (mail-vn0-f44.google.com [209.85.216.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EDCC6B0032
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:41:52 -0400 (EDT)
+Received: by vnbg190 with SMTP id g190so1353748vnb.12
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:41:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id xg5si36103483vdb.106.2015.04.28.15.41.51
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Apr 2015 15:41:01 -0700 (PDT)
-Date: Tue, 28 Apr 2015 15:41:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 02/13] mm: meminit: Move page initialization into a
- separate function.
-Message-Id: <20150428154100.0f6bd333620b2e744ee66221@linux-foundation.org>
-In-Reply-To: <20150428082831.GI2449@suse.de>
-References: <1429785196-7668-1-git-send-email-mgorman@suse.de>
-	<1429785196-7668-3-git-send-email-mgorman@suse.de>
-	<20150427154633.2134d804987dad88e008c2ff@linux-foundation.org>
-	<20150428082831.GI2449@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Tue, 28 Apr 2015 15:41:51 -0700 (PDT)
+Message-ID: <55400CA7.3050902@redhat.com>
+Date: Tue, 28 Apr 2015 18:41:43 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: PCID and TLB flushes (was: [GIT PULL] kdbus for 4.1-rc1)
+References: <20150428221553.GA5770@node.dhcp.inet.fi>
+In-Reply-To: <20150428221553.GA5770@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 
-On Tue, 28 Apr 2015 09:28:31 +0100 Mel Gorman <mgorman@suse.de> wrote:
-
-> On Mon, Apr 27, 2015 at 03:46:33PM -0700, Andrew Morton wrote:
-> > On Thu, 23 Apr 2015 11:33:05 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> > 
-> > > From: Robin Holt <holt@sgi.com>
-> > 
-> > : <holt@sgi.com>: host cuda-allmx.sgi.com[192.48.157.12] said: 550 cuda_nsu 5.1.1
-> > :    <holt@sgi.com>: Recipient address rejected: User unknown in virtual alias
-> > :    table (in reply to RCPT TO command)
-> > 
-> > Has Robin moved, or is SGI mail busted?
+On 04/28/2015 06:15 PM, Kirill A. Shutemov wrote:
+> On Tue, Apr 28, 2015 at 01:42:10PM -0700, Andy Lutomirski wrote:
+>> At some point, I'd like to implement PCID on x86 (if no one beats me
+>> to it, and this is a low priority for me), which will allow us to skip
+>> expensive TLB flushes while context switching.  I have no idea whether
+>> ARM can do something similar.
 > 
-> Robin has moved and I do not have an updated address for him. The
-> address used in the patches was the one he posted the patches with.
-> 
+> I talked with Dave about implementing PCID and he thinks that it will be
+> net loss. TLB entries will live longer and it means we would need to trigger
+> more IPIs to flash them out when we have to. Cost of IPIs will be higher
+> than benifit from hot TLB after context switch.
 
-As Nathan mentioned, 
+I suspect that may depend on how you do the shootdown.
 
-z:/usr/src/git26> git log | grep "Robin Holt"            
-    Cc: Robin Holt <holt@sgi.com>
-    Acked-by: Robin Holt <robinmholt@gmail.com>
-    Cc: Robin Holt <robinmholt@gmail.com>
-    Cc: Robin Holt <robinmholt@gmail.com>
-    Cc: Robin Holt <robinmholt@gmail.com>
+If, when receiving a TLB shootdown for a non-current PCID, we just flush
+all the entries for that PCID and remove the CPU from the mm's
+cpu_vm_mask_var, we will never receive more than one shootdown IPI for
+a non-current mm, but we will still get the benefits of TLB longevity
+when dealing with eg. pipe workloads where tasks take turns running on
+the same CPU.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
