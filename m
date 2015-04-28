@@ -1,123 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FE506B0038
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 10:09:43 -0400 (EDT)
-Received: by pabtp1 with SMTP id tp1so165734977pab.2
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 07:09:42 -0700 (PDT)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id pa10si29899025pdb.114.2015.04.28.07.09.41
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id AFEF66B006C
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 10:18:58 -0400 (EDT)
+Received: by iget9 with SMTP id t9so89223465ige.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 07:18:58 -0700 (PDT)
+Received: from resqmta-po-09v.sys.comcast.net (resqmta-po-09v.sys.comcast.net. [2001:558:fe16:19:96:114:154:168])
+        by mx.google.com with ESMTPS id x15si18483152ioi.89.2015.04.28.07.18.57
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Apr 2015 07:09:42 -0700 (PDT)
-Received: from compute1.internal (compute1.nyi.internal [10.202.2.41])
-	by mailout.nyi.internal (Postfix) with ESMTP id 133F7203EB
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 10:09:39 -0400 (EDT)
-Date: Tue, 28 Apr 2015 16:09:36 +0200
-From: Greg KH <greg@kroah.com>
-Subject: Re: [RFC v2 1/4] fs: Add generic file system event notifications
-Message-ID: <20150428140936.GA13406@kroah.com>
-References: <1430135504-24334-1-git-send-email-b.michalska@samsung.com>
- <1430135504-24334-2-git-send-email-b.michalska@samsung.com>
- <20150427142421.GB21942@kroah.com>
- <553E50EB.3000402@samsung.com>
- <20150427153711.GA23428@kroah.com>
- <20150428135653.GD9955@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150428135653.GD9955@quack.suse.cz>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Tue, 28 Apr 2015 07:18:57 -0700 (PDT)
+Date: Tue, 28 Apr 2015 09:18:55 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Interacting with coherent memory on external devices
+In-Reply-To: <20150427205206.GD26980@gmail.com>
+Message-ID: <alpine.DEB.2.11.1504280907350.4809@gentwo.org>
+References: <20150424192859.GF3840@gmail.com> <alpine.DEB.2.11.1504241446560.11700@gentwo.org> <20150425114633.GI5561@linux.vnet.ibm.com> <alpine.DEB.2.11.1504271004240.28895@gentwo.org> <20150427154728.GA26980@gmail.com> <alpine.DEB.2.11.1504271113480.29515@gentwo.org>
+ <20150427164325.GB26980@gmail.com> <alpine.DEB.2.11.1504271148240.29735@gentwo.org> <20150427172143.GC26980@gmail.com> <alpine.DEB.2.11.1504271411060.30615@gentwo.org> <20150427205206.GD26980@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Beata Michalska <b.michalska@samsung.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, airlied@redhat.com, aneesh.kumar@linux.vnet.ibm.com, Cameron Buschardt <cabuschardt@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Geoffrey Gerfin <ggerfin@nvidia.com>, John McKenna <jmckenna@nvidia.com>, akpm@linux-foundation.org
 
-On Tue, Apr 28, 2015 at 03:56:53PM +0200, Jan Kara wrote:
-> On Mon 27-04-15 17:37:11, Greg KH wrote:
-> > On Mon, Apr 27, 2015 at 05:08:27PM +0200, Beata Michalska wrote:
-> > > On 04/27/2015 04:24 PM, Greg KH wrote:
-> > > > On Mon, Apr 27, 2015 at 01:51:41PM +0200, Beata Michalska wrote:
-> > > >> Introduce configurable generic interface for file
-> > > >> system-wide event notifications, to provide file
-> > > >> systems with a common way of reporting any potential
-> > > >> issues as they emerge.
-> > > >>
-> > > >> The notifications are to be issued through generic
-> > > >> netlink interface by newly introduced multicast group.
-> > > >>
-> > > >> Threshold notifications have been included, allowing
-> > > >> triggering an event whenever the amount of free space drops
-> > > >> below a certain level - or levels to be more precise as two
-> > > >> of them are being supported: the lower and the upper range.
-> > > >> The notifications work both ways: once the threshold level
-> > > >> has been reached, an event shall be generated whenever
-> > > >> the number of available blocks goes up again re-activating
-> > > >> the threshold.
-> > > >>
-> > > >> The interface has been exposed through a vfs. Once mounted,
-> > > >> it serves as an entry point for the set-up where one can
-> > > >> register for particular file system events.
-> > > >>
-> > > >> Signed-off-by: Beata Michalska <b.michalska@samsung.com>
-> > > >> ---
-> > > >>  Documentation/filesystems/events.txt |  231 ++++++++++
-> > > >>  fs/Makefile                          |    1 +
-> > > >>  fs/events/Makefile                   |    6 +
-> > > >>  fs/events/fs_event.c                 |  770 ++++++++++++++++++++++++++++++++++
-> > > >>  fs/events/fs_event.h                 |   25 ++
-> > > >>  fs/events/fs_event_netlink.c         |   99 +++++
-> > > >>  fs/namespace.c                       |    1 +
-> > > >>  include/linux/fs.h                   |    6 +-
-> > > >>  include/linux/fs_event.h             |   58 +++
-> > > >>  include/uapi/linux/fs_event.h        |   54 +++
-> > > >>  include/uapi/linux/genetlink.h       |    1 +
-> > > >>  net/netlink/genetlink.c              |    7 +-
-> > > >>  12 files changed, 1257 insertions(+), 2 deletions(-)
-> > > >>  create mode 100644 Documentation/filesystems/events.txt
-> > > >>  create mode 100644 fs/events/Makefile
-> > > >>  create mode 100644 fs/events/fs_event.c
-> > > >>  create mode 100644 fs/events/fs_event.h
-> > > >>  create mode 100644 fs/events/fs_event_netlink.c
-> > > >>  create mode 100644 include/linux/fs_event.h
-> > > >>  create mode 100644 include/uapi/linux/fs_event.h
-> > > > 
-> > > > Any reason why you just don't do uevents for the block devices today,
-> > > > and not create a new type of netlink message and userspace tool required
-> > > > to read these?
-> > > 
-> > > The idea here is to have support for filesystems with no backing device as well.
-> > > Parsing the message with libnl is really simple and requires few lines of code
-> > > (sample application has been presented in the initial version of this RFC)
-> > 
-> > I'm not saying it's not "simple" to parse, just that now you are doing
-> > something that requires a different tool.  If you have a block device,
-> > you should be able to emit uevents for it, you don't need a backing
-> > device, we handle virtual filesystems in /sys/block/ just fine :)
-> > 
-> > People already have tools that listen to libudev for system monitoring
-> > and management, why require them to hook up to yet-another-library?  And
-> > what is going to provide the ability for multiple userspace tools to
-> > listen to these netlink messages in case you have more than one program
-> > that wants to watch for these things (i.e. multiple desktop filesystem
-> > monitoring tools, system-health checkers, etc.)?
->   As much as I understand your concerns I'm not convinced uevent interface
-> is a good fit. There are filesystems that don't have underlying block
-> device - think of e.g. tmpfs or filesystems working directly on top of
-> flash devices.  These still want to send notification to userspace (one of
-> primary motivation for this interfaces was so that tmpfs can notify about
-> something). And creating some fake nodes in /sys/block for tmpfs and
-> similar filesystems seems like doing more harm than good to me...
+On Mon, 27 Apr 2015, Jerome Glisse wrote:
 
-If these are "fake" block devices, what's going to be present in the
-block major/minor fields of the netlink message?  For some reason I
-thought it was a required field, and because of that, I thought we had a
-"real" filesystem somewhere to refer to, otherwise how would userspace
-know what filesystem was creating these events?
+> > is the mechanism that DAX relies on in the VM.
+>
+> Which would require fare more changes than you seem to think. First using
+> MIXED|PFNMAP means we loose any kind of memory accounting and forget about
+> memcg too. Seconds it means we would need to set those flags on all vma,
+> which kind of point out that something must be wrong here. You will also
+> need to have vm_ops for all those vma (including for anonymous private vma
+> which sounds like it will break quite few place that test for that). Then
+> you have to think about vma that already have vm_ops but you would need
+> to override it to handle case where its device memory and then forward
+> other case to the existing vm_ops, extra layering, extra complexity.
 
-What am I missing here?
+These vmas would only be used for those section of memory that use
+memory in the coprocessor. Special memory accounting etc can be done at
+the device driver layer. Multiple processes would be able to use different
+GPU contexts (or devices) which provides proper isolations.
 
-confused,
+memcg is about accouting for regular memory and this is not regular
+memory. It ooks like one would need a lot of special casing in
+the VM if one wanted to handle f.e. GPU memory as regular memory under
+Linux.
 
-greg k-h
+> I think at this point there is nothing more to discuss here. It is pretty
+> clear to me that any solution using block device/MIXEDMAP would be far
+> more complex and far more intrusive. I do not mind being prove wrong but
+> i will certainly not waste my time trying to implement such solution.
+
+The device driver method is the current solution used by the GPUS and
+that would be the natural starting point for development. And they do not
+currently add code to the core vm. I think we first need to figure out if
+we cannot do what you want through that method.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
