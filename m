@@ -1,37 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D2C46B006C
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:16:05 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so158072648wiz.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:16:04 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id k6si20316901wiz.1.2015.04.28.15.16.03
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 44C7A6B0032
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:28:35 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so158014194wid.0
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:28:34 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id h2si40826729wjq.17.2015.04.28.15.28.33
         for <linux-mm@kvack.org>;
-        Tue, 28 Apr 2015 15:16:04 -0700 (PDT)
-Date: Wed, 29 Apr 2015 01:15:53 +0300
+        Tue, 28 Apr 2015 15:28:33 -0700 (PDT)
+Date: Wed, 29 Apr 2015 01:28:28 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: PCID and TLB flushes (was: [GIT PULL] kdbus for 4.1-rc1)
-Message-ID: <20150428221553.GA5770@node.dhcp.inet.fi>
+Subject: Re: [PATCH] compaction: fix isolate_migratepages_block() for THP=n
+Message-ID: <20150428222828.GA6072@node.dhcp.inet.fi>
+References: <1430134006-215317-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20150428151420.227e7ac34745e9fe8e9bc145@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20150428151420.227e7ac34745e9fe8e9bc145@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sasha Levin <sasha.levin@oracle.com>
 
-On Tue, Apr 28, 2015 at 01:42:10PM -0700, Andy Lutomirski wrote:
-> At some point, I'd like to implement PCID on x86 (if no one beats me
-> to it, and this is a low priority for me), which will allow us to skip
-> expensive TLB flushes while context switching.  I have no idea whether
-> ARM can do something similar.
+On Tue, Apr 28, 2015 at 03:14:20PM -0700, Andrew Morton wrote:
+> On Mon, 27 Apr 2015 14:26:46 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> 
+> > PageTrans* helpers are always-false if THP is disabled compile-time.
+> > It means the fucntion will fail to detect hugetlb pages in this case.
+> > 
+> > Let's use PageCompound() instead. With small tweak to how we calculate
+> > next low_pfn it will make function ready to see tail pages.
+> 
+> <scratches head>
+> 
+> So this patch has no runtime effects at present?  It is preparation for
+> something else?
 
-I talked with Dave about implementing PCID and he thinks that it will be
-net loss. TLB entries will live longer and it means we would need to trigger
-more IPIs to flash them out when we have to. Cost of IPIs will be higher
-than benifit from hot TLB after context switch.
+I wrote this to fix bug I originally attributed to refcounting patchset,
+but Sasha triggered the same bug on -next without the patchset applied:
 
-Do you have different expectations?
+http://lkml.kernel.org/g/553EB993.7030401@oracle.com
+
+Now I think it's related to changing of PageLRU() behaviour on tail page
+by my page flags patchset. PageLRU() on tail pages now reports true if
+head page is on LRU. It means no we can go futher insede
+isolate_migratepages_block() with tail page.
 
 -- 
  Kirill A. Shutemov
