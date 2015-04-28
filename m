@@ -1,46 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B8E26B0082
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 12:25:10 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so64414pdb.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:25:10 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id pg3si35366967pdb.124.2015.04.28.09.25.08
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BB246B0087
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 12:25:39 -0400 (EDT)
+Received: by pdbqd1 with SMTP id qd1so29091pdb.2
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:25:39 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id la15si35362872pab.99.2015.04.28.09.25.38
         for <linux-mm@kvack.org>;
-        Tue, 28 Apr 2015 09:25:08 -0700 (PDT)
+        Tue, 28 Apr 2015 09:25:38 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 0/2] Reintroduce picky __compound_tail_refcounted()
-Date: Tue, 28 Apr 2015 19:24:56 +0300
-Message-Id: <1430238298-80442-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 2/2] mm: avoid tail page refcounting on non-THP compound pages
+Date: Tue, 28 Apr 2015 19:24:58 +0300
+Message-Id: <1430238298-80442-3-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1430238298-80442-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1430238298-80442-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Borislav Petkov <bp@alien8.de>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hi Andrew,
+[ kirill.shutemov: re-introduce 8d63d99a5dfb after removing bogus
+  VM_BUG_ON_PAGE() in put_unrefcounted_compound_page() ]
 
-My patch 8d63d99a5dfb which was merged during 4.1 merge window caused
-regression:
+THP uses tail page refcounting to be able to split huge pages at any time.
+ Tail page refcounting is not needed for other users of compound pages and
+it's harmful because of overhead.
 
-  page:ffffea0010a15040 count:0 mapcount:1 mapping:          (null) index:0x0
-  flags: 0x8000000000008014(referenced|dirty|tail)
-  page dumped because: VM_BUG_ON_PAGE(page_mapcount(page) != 0)
-  ------------[ cut here ]------------
-  kernel BUG at mm/swap.c:134!
+We try to exclude non-THP pages from tail page refcounting using
+__compound_tail_refcounted() check.  It excludes most common non-THP
+compound pages: SL*B and hugetlb, but it doesn't catch rest of __GFP_COMP
+users -- drivers.
 
-The patch was reverted by Linus.
+And it's not only about overhead.
 
-This VM_BUG_ON_PAGE() is bogus. The first patch explains why the assert is
-wrong and removes it. The second re-introduces original patch.
+Drivers might want to use compound pages to get refcounting semantics
+suitable for mapping high-order pages to userspace.  But tail page
+refcounting breaks it.
 
-Kirill A. Shutemov (2):
-  mm: drop bogus VM_BUG_ON_PAGE assert in put_page() codepath
-  mm: avoid tail page refcounting on non-THP compound pages
+Tail page refcounting uses ->_mapcount in tail pages to store GUP pins on
+them.  It means GUP pins would affect page_mapcount() for tail pages.
+It's not a problem for THP, because it never maps tail pages.  But unlike
+THP, drivers map parts of compound pages with PTEs and it makes
+page_mapcount() be called for tail pages.
 
+In particular, GUP pins would shift PSS up and affect /proc/kpagecount for
+such pages.  But, I'm not aware about anything which can lead to crash or
+other serious misbehaviour.
+
+Since currently all THP pages are anonymous and all drivers pages are not,
+we can fix the __compound_tail_refcounted() check by requiring PageAnon()
+to enable tail page refcounting.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Hugh Dickins <hughd@google.com>
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+---
  include/linux/mm.h | 2 +-
- mm/swap.c          | 1 -
- 2 files changed, 1 insertion(+), 2 deletions(-)
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 0755b9fd03a7..8b086070c3a5 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -499,7 +499,7 @@ static inline int page_count(struct page *page)
+ 
+ static inline bool __compound_tail_refcounted(struct page *page)
+ {
+-	return !PageSlab(page) && !PageHeadHuge(page);
++	return PageAnon(page) && !PageSlab(page) && !PageHeadHuge(page);
+ }
+ 
+ /*
 -- 
 2.1.4
 
