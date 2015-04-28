@@ -1,43 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 704566B006C
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:40:25 -0400 (EDT)
-Received: by iedfl3 with SMTP id fl3so33820298ied.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:40:25 -0700 (PDT)
-Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com. [2607:f8b0:4001:c05::234])
-        by mx.google.com with ESMTPS id f192si19736407iof.16.2015.04.28.15.40.25
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B5C0B6B006E
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:41:02 -0400 (EDT)
+Received: by pabtp1 with SMTP id tp1so8846568pab.2
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:41:02 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ir4si36518068pbc.118.2015.04.28.15.41.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Apr 2015 15:40:25 -0700 (PDT)
-Received: by igblo3 with SMTP id lo3so33620056igb.0
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:40:24 -0700 (PDT)
-Date: Tue, 28 Apr 2015 15:40:23 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 5/9] mm: oom_kill: remove unnecessary locking in
- exit_oom_victim()
-In-Reply-To: <1430161555-6058-6-git-send-email-hannes@cmpxchg.org>
-Message-ID: <alpine.DEB.2.10.1504281540100.10203@chino.kir.corp.google.com>
-References: <1430161555-6058-1-git-send-email-hannes@cmpxchg.org> <1430161555-6058-6-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Tue, 28 Apr 2015 15:41:01 -0700 (PDT)
+Date: Tue, 28 Apr 2015 15:41:00 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 02/13] mm: meminit: Move page initialization into a
+ separate function.
+Message-Id: <20150428154100.0f6bd333620b2e744ee66221@linux-foundation.org>
+In-Reply-To: <20150428082831.GI2449@suse.de>
+References: <1429785196-7668-1-git-send-email-mgorman@suse.de>
+	<1429785196-7668-3-git-send-email-mgorman@suse.de>
+	<20150427154633.2134d804987dad88e008c2ff@linux-foundation.org>
+	<20150428082831.GI2449@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 27 Apr 2015, Johannes Weiner wrote:
+On Tue, 28 Apr 2015 09:28:31 +0100 Mel Gorman <mgorman@suse.de> wrote:
 
-> Disabling the OOM killer needs to exclude allocators from entering,
-> not existing victims from exiting.
+> On Mon, Apr 27, 2015 at 03:46:33PM -0700, Andrew Morton wrote:
+> > On Thu, 23 Apr 2015 11:33:05 +0100 Mel Gorman <mgorman@suse.de> wrote:
+> > 
+> > > From: Robin Holt <holt@sgi.com>
+> > 
+> > : <holt@sgi.com>: host cuda-allmx.sgi.com[192.48.157.12] said: 550 cuda_nsu 5.1.1
+> > :    <holt@sgi.com>: Recipient address rejected: User unknown in virtual alias
+> > :    table (in reply to RCPT TO command)
+> > 
+> > Has Robin moved, or is SGI mail busted?
 > 
-> Right now the only waiter is suspend code, which achieves quiescence
-> by disabling the OOM killer.  But later on we want to add waits that
-> hold the lock instead to stop new victims from showing up.
+> Robin has moved and I do not have an updated address for him. The
+> address used in the patches was the one he posted the patches with.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Acked-by: David Rientjes <rientjes@google.com>
+As Nathan mentioned, 
+
+z:/usr/src/git26> git log | grep "Robin Holt"            
+    Cc: Robin Holt <holt@sgi.com>
+    Acked-by: Robin Holt <robinmholt@gmail.com>
+    Cc: Robin Holt <robinmholt@gmail.com>
+    Cc: Robin Holt <robinmholt@gmail.com>
+    Cc: Robin Holt <robinmholt@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
