@@ -1,93 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id D71D36B006C
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 12:02:00 -0400 (EDT)
-Received: by iejt8 with SMTP id t8so21721501iej.2
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:02:00 -0700 (PDT)
-Received: from mail-ie0-x22d.google.com (mail-ie0-x22d.google.com. [2607:f8b0:4001:c03::22d])
-        by mx.google.com with ESMTPS id ci8si8783868igc.44.2015.04.28.09.02.00
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Apr 2015 09:02:00 -0700 (PDT)
-Received: by iedfl3 with SMTP id fl3so24382961ied.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:02:00 -0700 (PDT)
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id DF0FC6B0075
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 12:02:53 -0400 (EDT)
+Received: by igblo3 with SMTP id lo3so93526545igb.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:02:53 -0700 (PDT)
+Received: from relay.sgi.com (relay2.sgi.com. [192.48.180.65])
+        by mx.google.com with ESMTP id mv8si8775571igb.62.2015.04.28.09.02.52
+        for <linux-mm@kvack.org>;
+        Tue, 28 Apr 2015 09:02:52 -0700 (PDT)
+Message-ID: <553FAF26.9060609@sgi.com>
+Date: Tue, 28 Apr 2015 11:02:46 -0500
+From: nzimmer <nzimmer@sgi.com>
 MIME-Version: 1.0
-In-Reply-To: <1430223111-14817-1-git-send-email-mhocko@suse.cz>
-References: <20150114095019.GC4706@dhcp22.suse.cz>
-	<1430223111-14817-1-git-send-email-mhocko@suse.cz>
-Date: Tue, 28 Apr 2015 09:01:59 -0700
-Message-ID: <CA+55aFxzLXx=cC309h_tEc-Gkn_zH4ipR7PsefVcE-97Uj066g@mail.gmail.com>
-Subject: Re: Should mmap MAP_LOCKED fail if mm_poppulate fails?
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 02/13] mm: meminit: Move page initialization into a separate
+ function.
+References: <1429785196-7668-1-git-send-email-mgorman@suse.de> <1429785196-7668-3-git-send-email-mgorman@suse.de> <20150427154633.2134d804987dad88e008c2ff@linux-foundation.org> <20150428082831.GI2449@suse.de>
+In-Reply-To: <20150428082831.GI2449@suse.de>
+Content-Type: text/plain; charset="iso-8859-15"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm <linux-mm@kvack.org>, Cyril Hrubis <chrubis@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Michael Kerrisk <mtk.manpages@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Apr 28, 2015 at 5:11 AM, Michal Hocko <mhocko@suse.cz> wrote:
+This is the one I have, but I haven't had a chance to talk with him in a 
+long time.
+robinmholt@gmail.com
+
+On 04/28/2015 03:28 AM, Mel Gorman wrote:
+> On Mon, Apr 27, 2015 at 03:46:33PM -0700, Andrew Morton wrote:
+>> On Thu, 23 Apr 2015 11:33:05 +0100 Mel Gorman <mgorman@suse.de> wrote:
+>>
+>>> From: Robin Holt <holt@sgi.com>
+>> : <holt@sgi.com>: host cuda-allmx.sgi.com[192.48.157.12] said: 550 cuda_nsu 5.1.1
+>> :    <holt@sgi.com>: Recipient address rejected: User unknown in virtual alias
+>> :    table (in reply to RCPT TO command)
+>>
+>> Has Robin moved, or is SGI mail busted?
+> Robin has moved and I do not have an updated address for him. The
+> address used in the patches was the one he posted the patches with.
 >
-> The first patch is dumb and straightforward. It should be safe as is and
-> also good without the follow up 2 patches which try to handle potential
-> allocation failures in the do_munmap path more gracefully. As we still
-> do not fail small allocations even the first patch could be simplified
-> a bit and the retry loop replaced by a BUG_ON right away.
-
-I think the BUG_ON() is a bad idea in the first place, and is in fact
-a good reason to ignore the patch series entirely.
-
-What is the point of that BUG_ON()?
-
-Hell, people add too many of those things. There is *no* excuse for
-killing the kernel for things like this (and in certain setups,
-BUG_ON() *will* cause the machine to be rebooted). None. It's
-completely inexcusable.
-
-Thinking like this must go. BUG_ON() is for things where our internal
-data structures are so corrupted that we don't know what to do, and
-there's no way to continue. Not for "I want to sprinkle these things
-around and this should not happen".
-
-I also think that the whole complex "do_munmap_nofail()" is broken to
-begin with, along with the crazy "!fatal_signal_pending()" thing.
-There is absolutely no excuse for any of this.
-
-Your code is also fundamentally buggy in that it tries to do unmap()
-after it has dropped all locks, and things went wrong. So you may nto
-be unmapping some other threads data.
-
-There is no way in hell any of these patches can ever be applied.
-
-There's a reason we don't handle populate failures - it's exactly
-because we've dropped the locks etc. After dropping the locks, we
-*cannot* clean up any more, because there's no way to know whather
-we're cleaning up the right thing.  You'd have to hold the write lock
-over the whole populate, which has serious problems of its own.
-
-So NAK on this series. I think just documenting the man-page might be
-better. I don't think MAP_LOCKED is sanely fixable.
-
-We might improve on MAP_LOCKED by having a heuristic up-front
-(*before* actually doing any mmap) to verify that it's *likely* that
-it will work. So we could return ENOMEM early if it looks like the
-user would hit the resource limits, for example. That wouldn't be any
-guarantee (another process might eat up the resource limit anyway),
-and in fact it might be overly eager to fail (maybe the
-mmap(MAP_LOCKED ends up unmapping an older locked mapping and we deny
-it too eagerly), but it would probably work well enough in practice.
-
-That, together with a warning in the man-page about mmap(MAP_LOCKED)
-not being able to return "I only locked part of the mapping", if you
-want full error handling you need to do mmap()+mlock() and check the
-two errors separately.
-
-Hmm? But I really dislike your patch-series as-is.
-
-                       Linus
-
-                      Linus
-
-                           Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
