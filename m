@@ -1,84 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 15FAA6B006E
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 10:56:37 -0400 (EDT)
-Received: by wgen6 with SMTP id n6so154363038wge.3
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 07:56:36 -0700 (PDT)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E914A6B0085
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 10:59:14 -0400 (EDT)
+Received: by wicmx19 with SMTP id mx19so110127464wic.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 07:59:14 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ez17si38857399wjc.157.2015.04.28.07.56.35
+        by mx.google.com with ESMTPS id j4si18434060wix.18.2015.04.28.07.59.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Apr 2015 07:56:35 -0700 (PDT)
-Date: Tue, 28 Apr 2015 15:56:32 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 07/13] mm: meminit: Initialise a subset of struct pages
- if CONFIG_DEFERRED_STRUCT_PAGE_INIT is set
-Message-ID: <20150428145632.GN2449@suse.de>
-References: <1429785196-7668-1-git-send-email-mgorman@suse.de>
- <1429785196-7668-8-git-send-email-mgorman@suse.de>
- <20150427154344.421fd9f151bf27d365d02fd2@linux-foundation.org>
- <20150428095323.GK2449@suse.de>
- <20150428064810.0882ad36.akpm@linux-foundation.org>
+        Tue, 28 Apr 2015 07:59:13 -0700 (PDT)
+Date: Tue, 28 Apr 2015 16:59:11 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 9/9] mm: page_alloc: memory reserve access for
+ OOM-killing allocations
+Message-ID: <20150428145911.GG2659@dhcp22.suse.cz>
+References: <1430161555-6058-1-git-send-email-hannes@cmpxchg.org>
+ <1430161555-6058-10-git-send-email-hannes@cmpxchg.org>
+ <20150428133009.GD2659@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150428064810.0882ad36.akpm@linux-foundation.org>
+In-Reply-To: <20150428133009.GD2659@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Apr 28, 2015 at 06:48:10AM -0700, Andrew Morton wrote:
-> On Tue, 28 Apr 2015 10:53:23 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > > > +#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-> > > > +#define __defermem_init __meminit
-> > > > +#define __defer_init    __meminit
-> > > > +#else
-> > > > +#define __defermem_init
-> > > > +#define __defer_init __init
-> > > > +#endif
-> > > 
-> > > Could we get some comments describing these?  What they do, when and
-> > > where they should be used.  I have a suspicion that the naming isn't
-> > > good, but I didn't spend a lot of time reverse-engineering the
-> > > intent...
-> > > 
+On Tue 28-04-15 15:30:09, Michal Hocko wrote:
+> On Mon 27-04-15 15:05:55, Johannes Weiner wrote:
+> > The OOM killer connects random tasks in the system with unknown
+> > dependencies between them, and the OOM victim might well get blocked
+> > behind locks held by the allocating task.  That means that while
+> > allocations can issue OOM kills to improve the low memory situation,
+> > which generally frees more than they are going to take out, they can
+> > not rely on their *own* OOM kills to make forward progress.
 > > 
-> > Of course. The next version will have
+> > However, OOM-killing allocations currently retry forever.  Without any
+> > extra measures the above situation will result in a deadlock; between
+> > the allocating task and the OOM victim at first, but it can spread
+> > once other tasks in the system start contending for the same locks.
 > > 
-> > +/*
-> > + * Deferred struct page initialisation requires some early init functions that
-> > + * are removed before kswapd is up and running. The feature depends on memory
-> > + * hotplug so put the data and code required by deferred initialisation into 
-> > + * the __meminit section where they are preserved.
-> > + */
+> > Allow OOM-killing allocations to dip into the system's memory reserves
+> > to avoid this deadlock scenario.  Those reserves are specifically for
+> > operations in the memory reclaim paths which need a small amount of
+> > memory to release a much larger amount.  Arguably, the same notion
+> > applies to the OOM killer.
 > 
-> I'm still not getting it even a little bit :(  You say "data and code",
-> so I'd expect to see
+> This will not work without some throttling.
+
+Hmm, thinking about it some more it seems that the throttling on
+out_of_memory and its wait_event_timeout might be sufficient to not
+allow too many tasks consume reserves. If this doesn't help to make any
+progress then we are screwed anyway. Maybe we should simply panic if
+the last get_page_from_freelist with ALLOC_NO_WATERMARKS fails...
+
+I will think about this some more but it is certainly easier than
+a new wmark and that one can be added later should there be a need.
+
+> You will basically give a
+> free ticket to all memory reserves to basically all allocating tasks
+> (which are allowed to trigger OOM and there might be hundreds of them)
+> and that itself might prevent the OOM victim from exiting.
 > 
-> #define __defer_meminitdata __meminitdata
-> #define __defer_meminit __meminit
-> 
-> But the patch doesn't mention the data segment at all.
-> 
-
-Take 2. Suggestions on different names are welcome because they are poor.
-
-/*
- * Deferred struct page initialisation requires init functions that are freed
- * before kswapd is available. Reuse the memory hotplug section annotation
- * to mark the required code.
- *
- * __defermem_init is code that always exists but is annotated __meminit to
- *      avoid section warnings.
- * __defer_init code gets marked __meminit when deferring struct page
- *      initialistion but is otherwise in the init section.
- */
-
-
+> Your previous OOM wmark was nicer because it naturally throttled
+> allocations and still left some room for the exiting task.
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
