@@ -1,65 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id B9ED16B0078
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 12:06:06 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so146708689wiz.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:06:06 -0700 (PDT)
-Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com. [2a00:1450:400c:c05::236])
-        by mx.google.com with ESMTPS id r8si18703029wia.94.2015.04.28.09.06.04
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 84F176B007D
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 12:23:21 -0400 (EDT)
+Received: by iebrs15 with SMTP id rs15so22242656ieb.3
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:23:21 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id mu7si8847125igb.29.2015.04.28.09.23.20
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Apr 2015 09:06:05 -0700 (PDT)
-Received: by wicmx19 with SMTP id mx19so111541818wic.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:06:04 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1430231830-7702-1-git-send-email-mgorman@suse.de>
-References: <1430231830-7702-1-git-send-email-mgorman@suse.de>
-Date: Tue, 28 Apr 2015 19:06:04 +0300
-Message-ID: <CAOJsxLG0Tr2QV8P55vJDOeUPoWw8xBextQ-qzj4E+PnOk9JBsQ@mail.gmail.com>
-Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 28 Apr 2015 09:23:20 -0700 (PDT)
+Subject: Re: [PATCH 0/9] mm: improve OOM mechanism v2
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1430161555-6058-1-git-send-email-hannes@cmpxchg.org>
+	<201504281934.IIH81695.LOHJQMOFStFFVO@I-love.SAKURA.ne.jp>
+	<20150428135535.GE2659@dhcp22.suse.cz>
+In-Reply-To: <20150428135535.GE2659@dhcp22.suse.cz>
+Message-Id: <201504290050.FDE18274.SOJVtFLOMOQFFH@I-love.SAKURA.ne.jp>
+Date: Wed, 29 Apr 2015 00:50:37 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: mhocko@suse.cz
+Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, aarcange@redhat.com, david@fromorbit.com, rientjes@google.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Apr 28, 2015 at 5:36 PM, Mel Gorman <mgorman@suse.de> wrote:
-> Struct page initialisation had been identified as one of the reasons why
-> large machines take a long time to boot. Patches were posted a long time ago
-> to defer initialisation until they were first used.  This was rejected on
-> the grounds it should not be necessary to hurt the fast paths. This series
-> reuses much of the work from that time but defers the initialisation of
-> memory to kswapd so that one thread per node initialises memory local to
-> that node.
->
-> After applying the series and setting the appropriate Kconfig variable I
-> see this in the boot log on a 64G machine
->
-> [    7.383764] kswapd 0 initialised deferred memory in 188ms
-> [    7.404253] kswapd 1 initialised deferred memory in 208ms
-> [    7.411044] kswapd 3 initialised deferred memory in 216ms
-> [    7.411551] kswapd 2 initialised deferred memory in 216ms
->
-> On a 1TB machine, I see
->
-> [    8.406511] kswapd 3 initialised deferred memory in 1116ms
-> [    8.428518] kswapd 1 initialised deferred memory in 1140ms
-> [    8.435977] kswapd 0 initialised deferred memory in 1148ms
-> [    8.437416] kswapd 2 initialised deferred memory in 1148ms
->
-> Once booted the machine appears to work as normal. Boot times were measured
-> from the time shutdown was called until ssh was available again.  In the
-> 64G case, the boot time savings are negligible. On the 1TB machine, the
-> savings were 16 seconds.
+Michal Hocko wrote:
+> On Tue 28-04-15 19:34:47, Tetsuo Handa wrote:
+> [...]
+> > [PATCH 8/9] makes the speed of allocating __GFP_FS pages extremely slow (5
+> > seconds / page) because out_of_memory() serialized by the oom_lock sleeps for
+> > 5 seconds before returning true when the OOM victim got stuck. This throttling
+> > also slows down !__GFP_FS allocations when there is a thread doing a __GFP_FS
+> > allocation, for __alloc_pages_may_oom() is serialized by the oom_lock
+> > regardless of gfp_mask.
+> 
+> This is indeed unnecessary.
+> 
+> > How long will the OOM victim is blocked when the
+> > allocating task needs to allocate e.g. 1000 !__GFP_FS pages before allowing
+> > the OOM victim waiting at mutex_lock(&inode->i_mutex) to continue? It will be
+> > a too-long-to-wait stall which is effectively a deadlock for users. I think
+> > we should not sleep with the oom_lock held.
+> 
+> I do not see why sleeping with oom_lock would be a problem. It simply
+> doesn't make much sense to try to trigger OOM killer when there is/are
+> OOM victims still exiting.
 
-FWIW,
+Because thread A's memory allocation is deferred by threads B, C, D...'s memory
+allocation which are holding (or waiting for) the oom_lock when the OOM victim
+is waiting for thread A's allocation. I think that a memory allocator which
+allocates at average 5 seconds is considered as unusable. If we sleep without
+the oom_lock held, the memory allocator can allocate at average
+(5 / number_of_allocating_threads) seconds. Sleeping with the oom_lock held
+can effectively prevent thread A from making progress.
 
-Acked-by: Pekka Enberg <penberg@kernel.org>
+> > By the way, I came up with an idea (incomplete patch on top of patches up to
+> > 7/9 is shown below) while trying to avoid sleeping with the oom_lock held.
+> > This patch is meant for
+> > 
+> >   (1) blocking_notifier_call_chain(&oom_notify_list) is called after
+> >       the OOM killer is disabled in order to increase possibility of
+> >       memory allocation to succeed.
+> 
+> How do you guarantee that the notifier doesn't wake up any process and
+> break the oom_disable guarantee?
 
-for the whole series.
+I thought oom_notify_list wakes up only kernel threads. OK, that's the reason
+we don't call oom_notify_list after the OOM killer is disabled?
 
-- Pekka
+> 
+> >   (2) oom_kill_process() can determine when to kill next OOM victim.
+> > 
+> >   (3) oom_scan_process_thread() can take TIF_MEMDIE timeout into
+> >       account when choosing an OOM victim.
+> 
+> You have heard my opinions about this and I do not plan to repeat them
+> here again.
+
+Yes, I've heard your opinions. But neither ALLOC_NO_WATERMARKS nor WMARK_OOM
+is a perfect measure for avoiding deadlock. We want to solve "Without any
+extra measures the above situation will result in a deadlock" problem.
+When WMARK_OOM failed to avoid the deadlock, and we don't want to go to
+ALLOC_NO_WATERMARKS, I think somehow choosing and killing more victims is
+the only possible measure. Maybe choosing next OOM victim upon reaching
+WMARK_OOM?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
