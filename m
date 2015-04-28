@@ -1,38 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id A09D86B0032
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 19:07:07 -0400 (EDT)
-Received: by igbyr2 with SMTP id yr2so105023955igb.0
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:07:07 -0700 (PDT)
-Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com. [2607:f8b0:4001:c03::233])
-        by mx.google.com with ESMTPS id p128si19768584ioe.59.2015.04.28.16.07.07
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id C9C936B0032
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 19:10:03 -0400 (EDT)
+Received: by pdbqd1 with SMTP id qd1so9623495pdb.2
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:10:03 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id cu9si36671007pad.177.2015.04.28.16.10.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Apr 2015 16:07:07 -0700 (PDT)
-Received: by iebrs15 with SMTP id rs15so30555722ieb.3
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:07:07 -0700 (PDT)
-Date: Tue, 28 Apr 2015 16:07:05 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/hugetlb: reduce arch dependent code about
- hugetlb_prefault_arch_hook
-In-Reply-To: <553B0D57.2090108@huawei.com>
-Message-ID: <alpine.DEB.2.10.1504281606520.10203@chino.kir.corp.google.com>
-References: <1429933043-56833-1-git-send-email-zhenzhang.zhang@huawei.com> <553B0D57.2090108@huawei.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Tue, 28 Apr 2015 16:10:03 -0700 (PDT)
+Date: Tue, 28 Apr 2015 16:10:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC 1/3] mm: mmap make MAP_LOCKED really mlock semantic
+Message-Id: <20150428161001.e854fb3eaf82f738865130af@linux-foundation.org>
+In-Reply-To: <1430223111-14817-2-git-send-email-mhocko@suse.cz>
+References: <20150114095019.GC4706@dhcp22.suse.cz>
+	<1430223111-14817-1-git-send-email-mhocko@suse.cz>
+	<1430223111-14817-2-git-send-email-mhocko@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Zhen <zhenzhang.zhang@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, nyc@holomorphy.com, anthony.iliopoulos@huawei.com, tony.luck@intel.com, Dave Hansen <dave.hansen@intel.com>, steve.capper@linaro.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Cyril Hrubis <chrubis@suse.cz>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michael Kerrisk <mtk.manpages@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Sat, 25 Apr 2015, Zhang Zhen wrote:
+On Tue, 28 Apr 2015 14:11:49 +0200 Michal Hocko <mhocko@suse.cz> wrote:
 
-> Currently we have many duplicates in definitions of hugetlb_prefault_arch_hook.
-> In all architectures this function is empty.
-> 
-> Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+> The man page however says
+> "
+> MAP_LOCKED (since Linux 2.5.37)
+>       Lock the pages of the mapped region into memory in the manner of
+>       mlock(2).  This flag is ignored in older kernels.
+> "
 
-Acked-by: David Rientjes <rientjes@google.com>
+I'm trying to remember why we implemented MAP_LOCKED in the first
+place.  Was it better than mmap+mlock in some fashion?
+
+afaict we had a #define MAP_LOCKED in the header file but it wasn't
+implemented, so we went and wired it up.  13 years ago:
+https://lkml.org/lkml/2002/9/18/108
+
+
+Anyway...  the third way of doing this is to use plain old mmap() while
+mlockall(MCL_FUTURE) is in force.  Has anyone looked at that, checked
+that the behaviour is sane and compared it with the mmap+mlock
+behaviour, the MAP_LOCKED behaviour and the manpages?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
