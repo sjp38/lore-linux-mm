@@ -1,67 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 976406B0032
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 19:05:12 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so159065692wiz.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:05:12 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dj6si20449431wib.22.2015.04.28.16.05.10
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id A09D86B0032
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 19:07:07 -0400 (EDT)
+Received: by igbyr2 with SMTP id yr2so105023955igb.0
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:07:07 -0700 (PDT)
+Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com. [2607:f8b0:4001:c03::233])
+        by mx.google.com with ESMTPS id p128si19768584ioe.59.2015.04.28.16.07.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Apr 2015 16:05:11 -0700 (PDT)
-Date: Wed, 29 Apr 2015 00:05:06 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 02/13] mm: meminit: Move page initialization into a
- separate function.
-Message-ID: <20150428230506.GP2449@suse.de>
-References: <1429785196-7668-1-git-send-email-mgorman@suse.de>
- <1429785196-7668-3-git-send-email-mgorman@suse.de>
- <20150427154633.2134d804987dad88e008c2ff@linux-foundation.org>
- <20150428082831.GI2449@suse.de>
- <20150428154100.0f6bd333620b2e744ee66221@linux-foundation.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Apr 2015 16:07:07 -0700 (PDT)
+Received: by iebrs15 with SMTP id rs15so30555722ieb.3
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:07:07 -0700 (PDT)
+Date: Tue, 28 Apr 2015 16:07:05 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm/hugetlb: reduce arch dependent code about
+ hugetlb_prefault_arch_hook
+In-Reply-To: <553B0D57.2090108@huawei.com>
+Message-ID: <alpine.DEB.2.10.1504281606520.10203@chino.kir.corp.google.com>
+References: <1429933043-56833-1-git-send-email-zhenzhang.zhang@huawei.com> <553B0D57.2090108@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20150428154100.0f6bd333620b2e744ee66221@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Robin Holt <robinmholt@gmail.com>, LKML <linux-kernel@vger.kernel.org>
+To: Zhang Zhen <zhenzhang.zhang@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, nyc@holomorphy.com, anthony.iliopoulos@huawei.com, tony.luck@intel.com, Dave Hansen <dave.hansen@intel.com>, steve.capper@linaro.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On Tue, Apr 28, 2015 at 03:41:00PM -0700, Andrew Morton wrote:
-> On Tue, 28 Apr 2015 09:28:31 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > On Mon, Apr 27, 2015 at 03:46:33PM -0700, Andrew Morton wrote:
-> > > On Thu, 23 Apr 2015 11:33:05 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> > > 
-> > > > From: Robin Holt <holt@sgi.com>
-> > > 
-> > > : <holt@sgi.com>: host cuda-allmx.sgi.com[192.48.157.12] said: 550 cuda_nsu 5.1.1
-> > > :    <holt@sgi.com>: Recipient address rejected: User unknown in virtual alias
-> > > :    table (in reply to RCPT TO command)
-> > > 
-> > > Has Robin moved, or is SGI mail busted?
-> > 
-> > Robin has moved and I do not have an updated address for him. The
-> > address used in the patches was the one he posted the patches with.
-> > 
-> 
-> As Nathan mentioned, 
-> 
-> z:/usr/src/git26> git log | grep "Robin Holt"            
->     Cc: Robin Holt <holt@sgi.com>
->     Acked-by: Robin Holt <robinmholt@gmail.com>
->     Cc: Robin Holt <robinmholt@gmail.com>
->     Cc: Robin Holt <robinmholt@gmail.com>
->     Cc: Robin Holt <robinmholt@gmail.com>
+On Sat, 25 Apr 2015, Zhang Zhen wrote:
 
-I can update the address if Robin wishes (cc'd). I was preserving the
-address that was used to actually sign off the patches as that was the
-history.
+> Currently we have many duplicates in definitions of hugetlb_prefault_arch_hook.
+> In all architectures this function is empty.
+> 
+> Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
 
--- 
-Mel Gorman
-SUSE Labs
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
