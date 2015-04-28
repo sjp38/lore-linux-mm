@@ -1,40 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 869836B0032
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:14:23 -0400 (EDT)
-Received: by pacwv17 with SMTP id wv17so8375673pac.0
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:14:23 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k5si36571919pdl.3.2015.04.28.15.14.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Apr 2015 15:14:22 -0700 (PDT)
-Date: Tue, 28 Apr 2015 15:14:20 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] compaction: fix isolate_migratepages_block() for THP=n
-Message-Id: <20150428151420.227e7ac34745e9fe8e9bc145@linux-foundation.org>
-In-Reply-To: <1430134006-215317-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1430134006-215317-1-git-send-email-kirill.shutemov@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D2C46B006C
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:16:05 -0400 (EDT)
+Received: by wizk4 with SMTP id k4so158072648wiz.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:16:04 -0700 (PDT)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
+        by mx.google.com with ESMTP id k6si20316901wiz.1.2015.04.28.15.16.03
+        for <linux-mm@kvack.org>;
+        Tue, 28 Apr 2015 15:16:04 -0700 (PDT)
+Date: Wed, 29 Apr 2015 01:15:53 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: PCID and TLB flushes (was: [GIT PULL] kdbus for 4.1-rc1)
+Message-ID: <20150428221553.GA5770@node.dhcp.inet.fi>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 
-On Mon, 27 Apr 2015 14:26:46 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On Tue, Apr 28, 2015 at 01:42:10PM -0700, Andy Lutomirski wrote:
+> At some point, I'd like to implement PCID on x86 (if no one beats me
+> to it, and this is a low priority for me), which will allow us to skip
+> expensive TLB flushes while context switching.  I have no idea whether
+> ARM can do something similar.
 
-> PageTrans* helpers are always-false if THP is disabled compile-time.
-> It means the fucntion will fail to detect hugetlb pages in this case.
-> 
-> Let's use PageCompound() instead. With small tweak to how we calculate
-> next low_pfn it will make function ready to see tail pages.
+I talked with Dave about implementing PCID and he thinks that it will be
+net loss. TLB entries will live longer and it means we would need to trigger
+more IPIs to flash them out when we have to. Cost of IPIs will be higher
+than benifit from hot TLB after context switch.
 
-<scratches head>
+Do you have different expectations?
 
-So this patch has no runtime effects at present?  It is preparation for
-something else?
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
