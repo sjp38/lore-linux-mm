@@ -1,91 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
-	by kanga.kvack.org (Postfix) with ESMTP id D6D6F6B0032
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 19:01:37 -0400 (EDT)
-Received: by lbcga7 with SMTP id ga7so7661639lbc.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:01:37 -0700 (PDT)
-Received: from mail-la0-f41.google.com (mail-la0-f41.google.com. [209.85.215.41])
-        by mx.google.com with ESMTPS id r10si17700664lal.5.2015.04.28.16.01.36
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 976406B0032
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 19:05:12 -0400 (EDT)
+Received: by wizk4 with SMTP id k4so159065692wiz.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:05:12 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dj6si20449431wib.22.2015.04.28.16.05.10
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Apr 2015 16:01:36 -0700 (PDT)
-Received: by layy10 with SMTP id y10so7639650lay.0
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:01:36 -0700 (PDT)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 28 Apr 2015 16:05:11 -0700 (PDT)
+Date: Wed, 29 Apr 2015 00:05:06 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 02/13] mm: meminit: Move page initialization into a
+ separate function.
+Message-ID: <20150428230506.GP2449@suse.de>
+References: <1429785196-7668-1-git-send-email-mgorman@suse.de>
+ <1429785196-7668-3-git-send-email-mgorman@suse.de>
+ <20150427154633.2134d804987dad88e008c2ff@linux-foundation.org>
+ <20150428082831.GI2449@suse.de>
+ <20150428154100.0f6bd333620b2e744ee66221@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <5540101D.7020800@redhat.com>
-References: <20150428221553.GA5770@node.dhcp.inet.fi> <55400CA7.3050902@redhat.com>
- <CALCETrUYc0W49-CVFpsj33CQx0N_ssaQeree3S7Zh3aisr3kNw@mail.gmail.com> <5540101D.7020800@redhat.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 28 Apr 2015 16:01:15 -0700
-Message-ID: <CALCETrVuvbSrA=Ekz3fc2oE5psPyqEvL0YN7JvCCkOx-D18N3w@mail.gmail.com>
-Subject: Re: PCID and TLB flushes (was: [GIT PULL] kdbus for 4.1-rc1)
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20150428154100.0f6bd333620b2e744ee66221@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Robin Holt <robinmholt@gmail.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Apr 28, 2015 at 3:56 PM, Rik van Riel <riel@redhat.com> wrote:
-> On 04/28/2015 06:54 PM, Andy Lutomirski wrote:
->> On Tue, Apr 28, 2015 at 3:41 PM, Rik van Riel <riel@redhat.com> wrote:
->>> On 04/28/2015 06:15 PM, Kirill A. Shutemov wrote:
->>>> On Tue, Apr 28, 2015 at 01:42:10PM -0700, Andy Lutomirski wrote:
->>>>> At some point, I'd like to implement PCID on x86 (if no one beats me
->>>>> to it, and this is a low priority for me), which will allow us to skip
->>>>> expensive TLB flushes while context switching.  I have no idea whether
->>>>> ARM can do something similar.
->>>>
->>>> I talked with Dave about implementing PCID and he thinks that it will be
->>>> net loss. TLB entries will live longer and it means we would need to trigger
->>>> more IPIs to flash them out when we have to. Cost of IPIs will be higher
->>>> than benifit from hot TLB after context switch.
->>>
->>> I suspect that may depend on how you do the shootdown.
->>>
->>> If, when receiving a TLB shootdown for a non-current PCID, we just flush
->>> all the entries for that PCID and remove the CPU from the mm's
->>> cpu_vm_mask_var, we will never receive more than one shootdown IPI for
->>> a non-current mm, but we will still get the benefits of TLB longevity
->>> when dealing with eg. pipe workloads where tasks take turns running on
->>> the same CPU.
->>
->> I had a totally different implementation idea in mind.  It goes
->> something like this:
->>
->> For each CPU, we allocate a fixed number of PCIDs, e.g. 0-7.  We have
->> a per-cpu array of the mm [1] that owns each PCID.  On context switch,
->> we look up the new mm in the array and, if there's a PCID mapped, we
->> switch cr3 and select that PCID.  If there is no PCID mapped, we
->> choose one (LRU?  clock replacement?), switch cr3 and select and
->> invalidate that PCID.
->>
->> When it's time to invalidate a TLB entry on an mm that's active
->> remotely, we really don't want to send an IPI to a CPU that doesn't
->> actually have that mm active.  Instead we bump some kind of generation
->> counter in the mm_struct that will cause the next switch to that mm
->> not to match the PCID list.  To keep this working, I think we also
->> need to update the per-cpu PCID list with our generation counter
->> either when we context switch out or when we process a TLB shootdown
->> IPI.
->
-> If we do that, we can also get rid of TLB shootdowns for
-> idle CPUs in lazy TLB mode.
->
-> Very nice, if the details work out.
->
+On Tue, Apr 28, 2015 at 03:41:00PM -0700, Andrew Morton wrote:
+> On Tue, 28 Apr 2015 09:28:31 +0100 Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > On Mon, Apr 27, 2015 at 03:46:33PM -0700, Andrew Morton wrote:
+> > > On Thu, 23 Apr 2015 11:33:05 +0100 Mel Gorman <mgorman@suse.de> wrote:
+> > > 
+> > > > From: Robin Holt <holt@sgi.com>
+> > > 
+> > > : <holt@sgi.com>: host cuda-allmx.sgi.com[192.48.157.12] said: 550 cuda_nsu 5.1.1
+> > > :    <holt@sgi.com>: Recipient address rejected: User unknown in virtual alias
+> > > :    table (in reply to RCPT TO command)
+> > > 
+> > > Has Robin moved, or is SGI mail busted?
+> > 
+> > Robin has moved and I do not have an updated address for him. The
+> > address used in the patches was the one he posted the patches with.
+> > 
+> 
+> As Nathan mentioned, 
+> 
+> z:/usr/src/git26> git log | grep "Robin Holt"            
+>     Cc: Robin Holt <holt@sgi.com>
+>     Acked-by: Robin Holt <robinmholt@gmail.com>
+>     Cc: Robin Holt <robinmholt@gmail.com>
+>     Cc: Robin Holt <robinmholt@gmail.com>
+>     Cc: Robin Holt <robinmholt@gmail.com>
 
-I wonder if we could treat the non-PCID case just like the PCID case
-but with only one PCID.  Maybe get rid of the mm vs active_mm
-distinction.  Maybe not, though -- if nothing else, we still need to
-kick our pgd out from idle or kthread CPUs before we free it.
+I can update the address if Robin wishes (cc'd). I was preserving the
+address that was used to actually sign off the patches as that was the
+history.
 
-The reason I thought of PCIDs this way is that 12 bits isn't nearly
-enough to get away with allocating each mm its own PCID.  Rather than
-trying to shoehorn them in, it seemed like a better approach would be
-to only use a very small number, since keeping around TLB entries that
-are more than a few context switches old seems mostly useless.
-
---Andy
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
