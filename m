@@ -1,92 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C9D46B0032
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:50:50 -0400 (EDT)
-Received: by igblo3 with SMTP id lo3so103003384igb.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:50:49 -0700 (PDT)
-Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com. [2607:f8b0:4001:c05::22f])
-        by mx.google.com with ESMTPS id h38si19721314ioi.92.2015.04.28.15.50.49
+Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
+	by kanga.kvack.org (Postfix) with ESMTP id EE3866B0032
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:54:52 -0400 (EDT)
+Received: by lbbuc2 with SMTP id uc2so7558064lbb.2
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:54:52 -0700 (PDT)
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com. [209.85.215.50])
+        by mx.google.com with ESMTPS id ld16si18038304lbb.169.2015.04.28.15.54.50
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Apr 2015 15:50:49 -0700 (PDT)
-Received: by igblo3 with SMTP id lo3so103003185igb.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:50:49 -0700 (PDT)
-Date: Tue, 28 Apr 2015 15:50:46 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch resend] android, lmk: avoid setting TIF_MEMDIE if process
- has already exited
-In-Reply-To: <alpine.DEB.2.10.1504021558220.15536@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1504281550290.24802@chino.kir.corp.google.com>
-References: <1427264236-17249-1-git-send-email-hannes@cmpxchg.org> <1427264236-17249-4-git-send-email-hannes@cmpxchg.org> <alpine.DEB.2.10.1503252025230.16714@chino.kir.corp.google.com> <20150326110532.GB18560@cmpxchg.org> <alpine.DEB.2.10.1503261231440.9410@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1504021558220.15536@chino.kir.corp.google.com>
+        Tue, 28 Apr 2015 15:54:51 -0700 (PDT)
+Received: by layy10 with SMTP id y10so7550966lay.0
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:54:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="531381512-275516743-1430261448=:24802"
+In-Reply-To: <55400CA7.3050902@redhat.com>
+References: <20150428221553.GA5770@node.dhcp.inet.fi> <55400CA7.3050902@redhat.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Tue, 28 Apr 2015 15:54:29 -0700
+Message-ID: <CALCETrUYc0W49-CVFpsj33CQx0N_ssaQeree3S7Zh3aisr3kNw@mail.gmail.com>
+Subject: Re: PCID and TLB flushes (was: [GIT PULL] kdbus for 4.1-rc1)
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: =?UTF-8?Q?Arve_Hj=C3=B8nnev=C3=A5g?= <arve@android.com>, Riley Andrews <riandrews@android.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@driverdev.osuosl.org
+To: Rik van Riel <riel@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Tue, Apr 28, 2015 at 3:41 PM, Rik van Riel <riel@redhat.com> wrote:
+> On 04/28/2015 06:15 PM, Kirill A. Shutemov wrote:
+>> On Tue, Apr 28, 2015 at 01:42:10PM -0700, Andy Lutomirski wrote:
+>>> At some point, I'd like to implement PCID on x86 (if no one beats me
+>>> to it, and this is a low priority for me), which will allow us to skip
+>>> expensive TLB flushes while context switching.  I have no idea whether
+>>> ARM can do something similar.
+>>
+>> I talked with Dave about implementing PCID and he thinks that it will be
+>> net loss. TLB entries will live longer and it means we would need to trigger
+>> more IPIs to flash them out when we have to. Cost of IPIs will be higher
+>> than benifit from hot TLB after context switch.
+>
+> I suspect that may depend on how you do the shootdown.
+>
+> If, when receiving a TLB shootdown for a non-current PCID, we just flush
+> all the entries for that PCID and remove the CPU from the mm's
+> cpu_vm_mask_var, we will never receive more than one shootdown IPI for
+> a non-current mm, but we will still get the benefits of TLB longevity
+> when dealing with eg. pipe workloads where tasks take turns running on
+> the same CPU.
 
---531381512-275516743-1430261448=:24802
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: 8BIT
+I had a totally different implementation idea in mind.  It goes
+something like this:
 
-TIF_MEMDIE should not be set on a process if it does not have a valid 
-->mm, and this is protected by task_lock().
+For each CPU, we allocate a fixed number of PCIDs, e.g. 0-7.  We have
+a per-cpu array of the mm [1] that owns each PCID.  On context switch,
+we look up the new mm in the array and, if there's a PCID mapped, we
+switch cr3 and select that PCID.  If there is no PCID mapped, we
+choose one (LRU?  clock replacement?), switch cr3 and select and
+invalidate that PCID.
 
-If TIF_MEMDIE gets set after the mm has detached, and the process fails to 
-exit, then the oom killer will defer forever waiting for it to exit.
+When it's time to invalidate a TLB entry on an mm that's active
+remotely, we really don't want to send an IPI to a CPU that doesn't
+actually have that mm active.  Instead we bump some kind of generation
+counter in the mm_struct that will cause the next switch to that mm
+not to match the PCID list.  To keep this working, I think we also
+need to update the per-cpu PCID list with our generation counter
+either when we context switch out or when we process a TLB shootdown
+IPI.
 
-Make sure that the mm is still valid before setting TIF_MEMDIE by way of 
-mark_tsk_oom_victim().
+This could be a bit tricky to get right, but I think it can be done
+without adding more than a cacheline or two to the context switch
+overhead and without any extra IPIs at all.
 
-Cc: "Arve HjA,nnevAJPYg" <arve@android.com>
-Cc: Riley Andrews <riandrews@android.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- drivers/staging/android/lowmemorykiller.c | 17 ++++++++++++-----
- 1 file changed, 12 insertions(+), 5 deletions(-)
+[1] It shouldn't be just an mm_struct pointer, because then we have to
+invalidate it somehow when we recycle an mm_struct.  Maybe we'd use
+some kind of counter.   We also need a TLB shootdown generation
+counter of some sort as described.
 
-diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
---- a/drivers/staging/android/lowmemorykiller.c
-+++ b/drivers/staging/android/lowmemorykiller.c
-@@ -156,20 +156,27 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
- 			     p->pid, p->comm, oom_score_adj, tasksize);
- 	}
- 	if (selected) {
--		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
--			     selected->pid, selected->comm,
--			     selected_oom_score_adj, selected_tasksize);
--		lowmem_deathpending_timeout = jiffies + HZ;
-+		task_lock(selected);
-+		if (!selected->mm) {
-+			/* Already exited, cannot do mark_tsk_oom_victim() */
-+			task_unlock(selected);
-+			goto out;
-+		}
- 		/*
- 		 * FIXME: lowmemorykiller shouldn't abuse global OOM killer
- 		 * infrastructure. There is no real reason why the selected
- 		 * task should have access to the memory reserves.
- 		 */
- 		mark_tsk_oom_victim(selected);
-+		task_unlock(selected);
-+		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
-+			     selected->pid, selected->comm,
-+			     selected_oom_score_adj, selected_tasksize);
-+		lowmem_deathpending_timeout = jiffies + HZ;
- 		send_sig(SIGKILL, selected, 0);
- 		rem += selected_tasksize;
- 	}
--
-+out:
- 	lowmem_print(4, "lowmem_scan %lu, %x, return %lu\n",
- 		     sc->nr_to_scan, sc->gfp_mask, rem);
- 	rcu_read_unlock();
---531381512-275516743-1430261448=:24802--
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
