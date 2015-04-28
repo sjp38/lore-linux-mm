@@ -1,72 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id E914A6B0085
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 10:59:14 -0400 (EDT)
-Received: by wicmx19 with SMTP id mx19so110127464wic.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 07:59:14 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j4si18434060wix.18.2015.04.28.07.59.12
+Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id D71D36B006C
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 12:02:00 -0400 (EDT)
+Received: by iejt8 with SMTP id t8so21721501iej.2
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:02:00 -0700 (PDT)
+Received: from mail-ie0-x22d.google.com (mail-ie0-x22d.google.com. [2607:f8b0:4001:c03::22d])
+        by mx.google.com with ESMTPS id ci8si8783868igc.44.2015.04.28.09.02.00
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Apr 2015 07:59:13 -0700 (PDT)
-Date: Tue, 28 Apr 2015 16:59:11 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 9/9] mm: page_alloc: memory reserve access for
- OOM-killing allocations
-Message-ID: <20150428145911.GG2659@dhcp22.suse.cz>
-References: <1430161555-6058-1-git-send-email-hannes@cmpxchg.org>
- <1430161555-6058-10-git-send-email-hannes@cmpxchg.org>
- <20150428133009.GD2659@dhcp22.suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Apr 2015 09:02:00 -0700 (PDT)
+Received: by iedfl3 with SMTP id fl3so24382961ied.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:02:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150428133009.GD2659@dhcp22.suse.cz>
+In-Reply-To: <1430223111-14817-1-git-send-email-mhocko@suse.cz>
+References: <20150114095019.GC4706@dhcp22.suse.cz>
+	<1430223111-14817-1-git-send-email-mhocko@suse.cz>
+Date: Tue, 28 Apr 2015 09:01:59 -0700
+Message-ID: <CA+55aFxzLXx=cC309h_tEc-Gkn_zH4ipR7PsefVcE-97Uj066g@mail.gmail.com>
+Subject: Re: Should mmap MAP_LOCKED fail if mm_poppulate fails?
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm <linux-mm@kvack.org>, Cyril Hrubis <chrubis@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Michael Kerrisk <mtk.manpages@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Tue 28-04-15 15:30:09, Michal Hocko wrote:
-> On Mon 27-04-15 15:05:55, Johannes Weiner wrote:
-> > The OOM killer connects random tasks in the system with unknown
-> > dependencies between them, and the OOM victim might well get blocked
-> > behind locks held by the allocating task.  That means that while
-> > allocations can issue OOM kills to improve the low memory situation,
-> > which generally frees more than they are going to take out, they can
-> > not rely on their *own* OOM kills to make forward progress.
-> > 
-> > However, OOM-killing allocations currently retry forever.  Without any
-> > extra measures the above situation will result in a deadlock; between
-> > the allocating task and the OOM victim at first, but it can spread
-> > once other tasks in the system start contending for the same locks.
-> > 
-> > Allow OOM-killing allocations to dip into the system's memory reserves
-> > to avoid this deadlock scenario.  Those reserves are specifically for
-> > operations in the memory reclaim paths which need a small amount of
-> > memory to release a much larger amount.  Arguably, the same notion
-> > applies to the OOM killer.
-> 
-> This will not work without some throttling.
+On Tue, Apr 28, 2015 at 5:11 AM, Michal Hocko <mhocko@suse.cz> wrote:
+>
+> The first patch is dumb and straightforward. It should be safe as is and
+> also good without the follow up 2 patches which try to handle potential
+> allocation failures in the do_munmap path more gracefully. As we still
+> do not fail small allocations even the first patch could be simplified
+> a bit and the retry loop replaced by a BUG_ON right away.
 
-Hmm, thinking about it some more it seems that the throttling on
-out_of_memory and its wait_event_timeout might be sufficient to not
-allow too many tasks consume reserves. If this doesn't help to make any
-progress then we are screwed anyway. Maybe we should simply panic if
-the last get_page_from_freelist with ALLOC_NO_WATERMARKS fails...
+I think the BUG_ON() is a bad idea in the first place, and is in fact
+a good reason to ignore the patch series entirely.
 
-I will think about this some more but it is certainly easier than
-a new wmark and that one can be added later should there be a need.
+What is the point of that BUG_ON()?
 
-> You will basically give a
-> free ticket to all memory reserves to basically all allocating tasks
-> (which are allowed to trigger OOM and there might be hundreds of them)
-> and that itself might prevent the OOM victim from exiting.
-> 
-> Your previous OOM wmark was nicer because it naturally throttled
-> allocations and still left some room for the exiting task.
--- 
-Michal Hocko
-SUSE Labs
+Hell, people add too many of those things. There is *no* excuse for
+killing the kernel for things like this (and in certain setups,
+BUG_ON() *will* cause the machine to be rebooted). None. It's
+completely inexcusable.
+
+Thinking like this must go. BUG_ON() is for things where our internal
+data structures are so corrupted that we don't know what to do, and
+there's no way to continue. Not for "I want to sprinkle these things
+around and this should not happen".
+
+I also think that the whole complex "do_munmap_nofail()" is broken to
+begin with, along with the crazy "!fatal_signal_pending()" thing.
+There is absolutely no excuse for any of this.
+
+Your code is also fundamentally buggy in that it tries to do unmap()
+after it has dropped all locks, and things went wrong. So you may nto
+be unmapping some other threads data.
+
+There is no way in hell any of these patches can ever be applied.
+
+There's a reason we don't handle populate failures - it's exactly
+because we've dropped the locks etc. After dropping the locks, we
+*cannot* clean up any more, because there's no way to know whather
+we're cleaning up the right thing.  You'd have to hold the write lock
+over the whole populate, which has serious problems of its own.
+
+So NAK on this series. I think just documenting the man-page might be
+better. I don't think MAP_LOCKED is sanely fixable.
+
+We might improve on MAP_LOCKED by having a heuristic up-front
+(*before* actually doing any mmap) to verify that it's *likely* that
+it will work. So we could return ENOMEM early if it looks like the
+user would hit the resource limits, for example. That wouldn't be any
+guarantee (another process might eat up the resource limit anyway),
+and in fact it might be overly eager to fail (maybe the
+mmap(MAP_LOCKED ends up unmapping an older locked mapping and we deny
+it too eagerly), but it would probably work well enough in practice.
+
+That, together with a warning in the man-page about mmap(MAP_LOCKED)
+not being able to return "I only locked part of the mapping", if you
+want full error handling you need to do mmap()+mlock() and check the
+two errors separately.
+
+Hmm? But I really dislike your patch-series as-is.
+
+                       Linus
+
+                      Linus
+
+                           Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
