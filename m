@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id C78926B0032
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:40:07 -0400 (EDT)
-Received: by iget9 with SMTP id t9so97343985ige.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:40:07 -0700 (PDT)
-Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com. [2607:f8b0:4001:c05::233])
-        by mx.google.com with ESMTPS id h36si19736488iod.13.2015.04.28.15.40.07
+Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 704566B006C
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 18:40:25 -0400 (EDT)
+Received: by iedfl3 with SMTP id fl3so33820298ied.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:40:25 -0700 (PDT)
+Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com. [2607:f8b0:4001:c05::234])
+        by mx.google.com with ESMTPS id f192si19736407iof.16.2015.04.28.15.40.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Apr 2015 15:40:07 -0700 (PDT)
-Received: by igbpi8 with SMTP id pi8so97266913igb.0
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:40:07 -0700 (PDT)
-Date: Tue, 28 Apr 2015 15:40:05 -0700 (PDT)
+        Tue, 28 Apr 2015 15:40:25 -0700 (PDT)
+Received: by igblo3 with SMTP id lo3so33620056igb.0
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 15:40:24 -0700 (PDT)
+Date: Tue, 28 Apr 2015 15:40:23 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/9] mm: oom_kill: generalize OOM progress waitqueue
-In-Reply-To: <1430161555-6058-5-git-send-email-hannes@cmpxchg.org>
-Message-ID: <alpine.DEB.2.10.1504281539520.10203@chino.kir.corp.google.com>
-References: <1430161555-6058-1-git-send-email-hannes@cmpxchg.org> <1430161555-6058-5-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [PATCH 5/9] mm: oom_kill: remove unnecessary locking in
+ exit_oom_victim()
+In-Reply-To: <1430161555-6058-6-git-send-email-hannes@cmpxchg.org>
+Message-ID: <alpine.DEB.2.10.1504281540100.10203@chino.kir.corp.google.com>
+References: <1430161555-6058-1-git-send-email-hannes@cmpxchg.org> <1430161555-6058-6-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,22 +27,12 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Te
 
 On Mon, 27 Apr 2015, Johannes Weiner wrote:
 
-> It turns out that the mechanism to wait for exiting OOM victims is
-> less generic than it looks: it won't issue wakeups unless the OOM
-> killer is disabled.
+> Disabling the OOM killer needs to exclude allocators from entering,
+> not existing victims from exiting.
 > 
-> The reason this check was added was the thought that, since only the
-> OOM disabling code would wait on this queue, wakeup operations could
-> be saved when that specific consumer is known to be absent.
-> 
-> However, this is quite the handgrenade.  Later attempts to reuse the
-> waitqueue for other purposes will lead to completely unexpected bugs
-> and the failure mode will appear seemingly illogical.  Generally,
-> providers shouldn't make unnecessary assumptions about consumers.
-> 
-> This could have been replaced with waitqueue_active(), but it only
-> saves a few instructions in one of the coldest paths in the kernel.
-> Simply remove it.
+> Right now the only waiter is suspend code, which achieves quiescence
+> by disabling the OOM killer.  But later on we want to add waits that
+> hold the lock instead to stop new victims from showing up.
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 > Acked-by: Michal Hocko <mhocko@suse.cz>
