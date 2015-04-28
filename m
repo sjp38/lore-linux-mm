@@ -1,80 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BB246B0087
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 12:25:39 -0400 (EDT)
-Received: by pdbqd1 with SMTP id qd1so29091pdb.2
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:25:39 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id la15si35362872pab.99.2015.04.28.09.25.38
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 94E536B0089
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 12:27:43 -0400 (EDT)
+Received: by wgin8 with SMTP id n8so181063wgi.0
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:27:43 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id ck4si18839215wib.31.2015.04.28.09.27.41
         for <linux-mm@kvack.org>;
-        Tue, 28 Apr 2015 09:25:38 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 2/2] mm: avoid tail page refcounting on non-THP compound pages
-Date: Tue, 28 Apr 2015 19:24:58 +0300
-Message-Id: <1430238298-80442-3-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1430238298-80442-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1430238298-80442-1-git-send-email-kirill.shutemov@linux.intel.com>
+        Tue, 28 Apr 2015 09:27:42 -0700 (PDT)
+Date: Tue, 28 Apr 2015 19:27:34 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv5 04/28] mm, thp: adjust conditions when we can reuse the
+ page on WP fault
+Message-ID: <20150428162734.GA2539@node.dhcp.inet.fi>
+References: <001901d0815e$f438b390$dcaa1ab0$@alibaba-inc.com>
+ <002001d0815f$ce928750$6bb795f0$@alibaba-inc.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <002001d0815f$ce928750$6bb795f0$@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Borislav Petkov <bp@alien8.de>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-[ kirill.shutemov: re-introduce 8d63d99a5dfb after removing bogus
-  VM_BUG_ON_PAGE() in put_unrefcounted_compound_page() ]
+On Tue, Apr 28, 2015 at 11:02:46AM +0800, Hillf Danton wrote:
+> > 
+> > With new refcounting we will be able map the same compound page with
+> > PTEs and PMDs. It requires adjustment to conditions when we can reuse
+> > the page on write-protection fault.
+> > 
+> > For PTE fault we can't reuse the page if it's part of huge page.
+> > 
+> > For PMD we can only reuse the page if nobody else maps the huge page or
+> > it's part. We can do it by checking page_mapcount() on each sub-page,
+> > but it's expensive.
+> > 
+> > The cheaper way is to check page_count() to be equal 1: every mapcount
+> > takes page reference, so this way we can guarantee, that the PMD is the
+> > only mapping.
+> > 
+> > This approach can give false negative if somebody pinned the page, but
+> > that doesn't affect correctness.
+> >
+> Then we have to try more to allocate THP if pinned?
+> Are we adding new cost?
 
-THP uses tail page refcounting to be able to split huge pages at any time.
- Tail page refcounting is not needed for other users of compound pages and
-it's harmful because of overhead.
+Yes we do. But that shouldn't be often.
 
-We try to exclude non-THP pages from tail page refcounting using
-__compound_tail_refcounted() check.  It excludes most common non-THP
-compound pages: SL*B and hugetlb, but it doesn't catch rest of __GFP_COMP
-users -- drivers.
+Alternatively, we could iterate over all sub-pages and check their
+mapcount.
 
-And it's not only about overhead.
-
-Drivers might want to use compound pages to get refcounting semantics
-suitable for mapping high-order pages to userspace.  But tail page
-refcounting breaks it.
-
-Tail page refcounting uses ->_mapcount in tail pages to store GUP pins on
-them.  It means GUP pins would affect page_mapcount() for tail pages.
-It's not a problem for THP, because it never maps tail pages.  But unlike
-THP, drivers map parts of compound pages with PTEs and it makes
-page_mapcount() be called for tail pages.
-
-In particular, GUP pins would shift PSS up and affect /proc/kpagecount for
-such pages.  But, I'm not aware about anything which can lead to crash or
-other serious misbehaviour.
-
-Since currently all THP pages are anonymous and all drivers pages are not,
-we can fix the __compound_tail_refcounted() check by requiring PageAnon()
-to enable tail page refcounting.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Acked-by: Hugh Dickins <hughd@google.com>
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
----
- include/linux/mm.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0755b9fd03a7..8b086070c3a5 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -499,7 +499,7 @@ static inline int page_count(struct page *page)
- 
- static inline bool __compound_tail_refcounted(struct page *page)
- {
--	return !PageSlab(page) && !PageHeadHuge(page);
-+	return PageAnon(page) && !PageSlab(page) && !PageHeadHuge(page);
- }
- 
- /*
 -- 
-2.1.4
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
