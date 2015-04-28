@@ -1,75 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 991176B0038
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 14:35:39 -0400 (EDT)
-Received: by wicmx19 with SMTP id mx19so114408577wic.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 11:35:39 -0700 (PDT)
-Received: from mail-wg0-x22c.google.com (mail-wg0-x22c.google.com. [2a00:1450:400c:c00::22c])
-        by mx.google.com with ESMTPS id bf4si19416125wib.67.2015.04.28.11.35.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Apr 2015 11:35:38 -0700 (PDT)
-Received: by wgen6 with SMTP id n6so3780976wge.3
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 11:35:37 -0700 (PDT)
-Date: Tue, 28 Apr 2015 20:35:36 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Should mmap MAP_LOCKED fail if mm_poppulate fails?
-Message-ID: <20150428183535.GB30918@dhcp22.suse.cz>
-References: <20150114095019.GC4706@dhcp22.suse.cz>
- <1430223111-14817-1-git-send-email-mhocko@suse.cz>
- <CA+55aFxzLXx=cC309h_tEc-Gkn_zH4ipR7PsefVcE-97Uj066g@mail.gmail.com>
- <20150428164302.GI2659@dhcp22.suse.cz>
- <CA+55aFydkG-BgZzry5DrTzueVh9VvEcVJdLV8iOyUphQk=0vpw@mail.gmail.com>
+Received: from mail-yh0-f47.google.com (mail-yh0-f47.google.com [209.85.213.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 55E166B0038
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 14:38:23 -0400 (EDT)
+Received: by yhcb70 with SMTP id b70so852753yhc.0
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 11:38:23 -0700 (PDT)
+Received: from relay.sgi.com (relay1.sgi.com. [192.48.180.66])
+        by mx.google.com with ESMTP id fj3si36370489vdb.81.2015.04.28.11.38.22
+        for <linux-mm@kvack.org>;
+        Tue, 28 Apr 2015 11:38:22 -0700 (PDT)
+Message-ID: <553FD39C.2070503@sgi.com>
+Date: Tue, 28 Apr 2015 13:38:20 -0500
+From: nzimmer <nzimmer@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFydkG-BgZzry5DrTzueVh9VvEcVJdLV8iOyUphQk=0vpw@mail.gmail.com>
+Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
+References: <1430231830-7702-1-git-send-email-mgorman@suse.de> <CAOJsxLG0Tr2QV8P55vJDOeUPoWw8xBextQ-qzj4E+PnOk9JBsQ@mail.gmail.com>
+In-Reply-To: <CAOJsxLG0Tr2QV8P55vJDOeUPoWw8xBextQ-qzj4E+PnOk9JBsQ@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, Cyril Hrubis <chrubis@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Michael Kerrisk <mtk.manpages@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 28-04-15 09:57:11, Linus Torvalds wrote:
-> On Tue, Apr 28, 2015 at 9:43 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> >
-> > Hmm, no other thread has the address from the current mmap call except
-> > for MAP_FIXED (more on that below).
-> 
-> With things like opportunistic SIGSEGV handlers that map/unmap things
-> as the user takes faults, that's actually not at all guaranteed.
-> 
-> Yeah, it's unusual, but I've seen it, with threaded applications where
-> people play games with user-space memory management, and do "demand
-> allocation" with mmap() in response to signals.
+On an older 8 TB box with lots and lots of cpus the boot time, as 
+measure from grub to login prompt, the boot time improved from 1484 
+seconds to exactly 1000 seconds.
 
-I am still not sure I see the problem here. Let's say we have a
-userspace page fault handler which would do mmap(fault_addr, MAP_FIXED),
-right?
+I have time on 16 TB box tonight and a 12 TB box thursday and will 
+hopefully have more numbers then.
 
-If we had a racy mmap(NULL, MAP_LOCKED) that could have mapped
-fault_addr by the time handler does its work then this is buggy wrt. to
-MAP_LOCKED semantic because the fault handler would discard the locked
-part. This wouldn't lead to a data loss but still makes MAP_LOCKED usage
-buggy IMO.
 
-If the racing thread did mmap(around_fault_addr, MAP_FIXED|MAP_LOCKED)
-then it would be broken as well, and even worse I would say, because the
-original fault could have been discarded and data lost.
 
-I would expect that user fault handlers would be synchronized with
-other mmap activity otherwise I have hard time to see how this can all
-have a well defined behavior. Especially when MAP_FIXED is involved.
-
-> Admittedly we already do bad things in mmap(MAP_FIXED) for that case,
-> since we dropped the vm lock. But at least it shouldn't be any worse
-> than a thread speculatively touching the pages..
-
-Actually we already allow to mmap(MAP_FIXED) to fail after
-discarding an existing mmaped area (see mmap_region and e.g.
-security_vm_enough_memory_mm or other failure cases).
--- 
-Michal Hocko
-SUSE Labs
+On 04/28/2015 11:06 AM, Pekka Enberg wrote:
+> On Tue, Apr 28, 2015 at 5:36 PM, Mel Gorman <mgorman@suse.de> wrote:
+>> Struct page initialisation had been identified as one of the reasons why
+>> large machines take a long time to boot. Patches were posted a long time ago
+>> to defer initialisation until they were first used.  This was rejected on
+>> the grounds it should not be necessary to hurt the fast paths. This series
+>> reuses much of the work from that time but defers the initialisation of
+>> memory to kswapd so that one thread per node initialises memory local to
+>> that node.
+>>
+>> After applying the series and setting the appropriate Kconfig variable I
+>> see this in the boot log on a 64G machine
+>>
+>> [    7.383764] kswapd 0 initialised deferred memory in 188ms
+>> [    7.404253] kswapd 1 initialised deferred memory in 208ms
+>> [    7.411044] kswapd 3 initialised deferred memory in 216ms
+>> [    7.411551] kswapd 2 initialised deferred memory in 216ms
+>>
+>> On a 1TB machine, I see
+>>
+>> [    8.406511] kswapd 3 initialised deferred memory in 1116ms
+>> [    8.428518] kswapd 1 initialised deferred memory in 1140ms
+>> [    8.435977] kswapd 0 initialised deferred memory in 1148ms
+>> [    8.437416] kswapd 2 initialised deferred memory in 1148ms
+>>
+>> Once booted the machine appears to work as normal. Boot times were measured
+>> from the time shutdown was called until ssh was available again.  In the
+>> 64G case, the boot time savings are negligible. On the 1TB machine, the
+>> savings were 16 seconds.
+> FWIW,
+>
+> Acked-by: Pekka Enberg <penberg@kernel.org>
+>
+> for the whole series.
+>
+> - Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
