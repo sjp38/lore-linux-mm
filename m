@@ -1,63 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A3A06B0032
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:36:29 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so155526807wiz.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 13:36:29 -0700 (PDT)
-Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com. [2a00:1450:400c:c05::22c])
-        by mx.google.com with ESMTPS id bw17si40422988wjb.30.2015.04.28.13.36.27
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 927BD6B0032
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 17:36:08 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so7672633pdb.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 14:36:08 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id km1si28826615pab.155.2015.04.28.14.36.07
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Apr 2015 13:36:28 -0700 (PDT)
-Received: by widdi4 with SMTP id di4so43234047wid.0
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 13:36:27 -0700 (PDT)
-Date: Tue, 28 Apr 2015 22:36:25 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Should mmap MAP_LOCKED fail if mm_poppulate fails?
-Message-ID: <20150428203625.GA9664@dhcp22.suse.cz>
-References: <20150114095019.GC4706@dhcp22.suse.cz>
- <1430223111-14817-1-git-send-email-mhocko@suse.cz>
- <CA+55aFxzLXx=cC309h_tEc-Gkn_zH4ipR7PsefVcE-97Uj066g@mail.gmail.com>
- <20150428164302.GI2659@dhcp22.suse.cz>
- <CA+55aFydkG-BgZzry5DrTzueVh9VvEcVJdLV8iOyUphQk=0vpw@mail.gmail.com>
- <20150428183535.GB30918@dhcp22.suse.cz>
- <CA+55aFyajquhGhw59qNWKGK4dBV0TPmDD7-1XqPo7DZWvO_hPg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFyajquhGhw59qNWKGK4dBV0TPmDD7-1XqPo7DZWvO_hPg@mail.gmail.com>
+        Tue, 28 Apr 2015 14:36:07 -0700 (PDT)
+Date: Tue, 28 Apr 2015 14:36:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 97321] New: WARNING at untrack_pfn+0x 99/0xa0()
+Message-Id: <20150428143606.ba343c2f828f5cec615aa366@linux-foundation.org>
+In-Reply-To: <bug-97321-27@https.bugzilla.kernel.org/>
+References: <bug-97321-27@https.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, Cyril Hrubis <chrubis@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Michael Kerrisk <mtk.manpages@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: stsp@list.ru
+Cc: bugzilla-daemon@bugzilla.kernel.org, Suresh Siddha <sbsiddha@gmail.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
 
-On Tue 28-04-15 11:38:35, Linus Torvalds wrote:
-> On Tue, Apr 28, 2015 at 11:35 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> >
-> > I am still not sure I see the problem here.
+
+I'm switching this to email - we don't handle patches via bugzilla.
+
+Suresh, could you please take a look?
+
+
+On Sun, 26 Apr 2015 21:09:07 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+
+> https://bugzilla.kernel.org/show_bug.cgi?id=97321
 > 
-> Basically, I absolutely hate the notion of us doing something
-> unsynchronized, when I can see us undoing a mmap that another thread
-> is doing. It's wrong.
+>             Bug ID: 97321
+>            Summary: WARNING at untrack_pfn+0x 99/0xa0()
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: 4.0.0-rc6+ git
+>           Hardware: All
+>                 OS: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Other
+>           Assignee: akpm@linux-foundation.org
+>           Reporter: stsp@list.ru
+>         Regression: No
 > 
-> You also didn't react to all the *other* things that were wrong in
-> that patch-set. The games you play with !fatal_signal_pending() etc
-> are just crazy.
+> Created attachment 175121
+>   --> https://bugzilla.kernel.org/attachment.cgi?id=175121&action=edit
+> possible fix
+> 
+> Hello.
+> 
+> I have a program that AFAIK does mremap() on previously
+> mmap()ed /dev/mem. This results in the following stack trace:
+> 
+> [   67.887346] WARNING: CPU: 3 PID: 5144 at arch/x86/mm/pat.c:904
+> untrack_pfn+0x
+> 99/0xa0()
+> 
+> [   67.892540] Call Trace:
+> [   67.892623]  [<ffffffff81541bcd>] dump_stack+0x4f/0x7b
+> [   67.892706]  [<ffffffff810533fb>] warn_slowpath_common+0x8b/0xd0
+> [   67.892788]  [<ffffffff810534e5>] warn_slowpath_null+0x15/0x20
+> [   67.892870]  [<ffffffff8104b309>] untrack_pfn+0x99/0xa0
+> [   67.892952]  [<ffffffff81138f3c>] unmap_single_vma+0x73c/0x750
+> [   67.893035]  [<ffffffff8115879d>] ? alloc_pages_current+0x10d/0x1c0
+> [   67.893118]  [<ffffffff81096846>] ? lockdep_init_map+0x66/0x7f0
+> [   67.893200]  [<ffffffff81139b5c>] unmap_vmas+0x4c/0xb0
+> [   67.893282]  [<ffffffff8113f1a3>] unmap_region+0xa3/0x110
+> [   67.893364]  [<ffffffff8113f5d9>] ? vma_rb_erase+0x129/0x250
+> [   67.893446]  [<ffffffff811413b0>] do_munmap+0x1f0/0x460
+> [   67.893560]  [<ffffffff811444bd>] move_vma+0x14d/0x280
+> [   67.893641]  [<ffffffff81144992>] SyS_mremap+0x3a2/0x510
+> [   67.893724]  [<ffffffff8154b689>] system_call_fastpath+0x12/0x17
+> 
+> 
+> The problem happens because __follow_pte() returns
+> -EINVAL after !pte_present(*ptep) check, and so
+> follow_phys() fails.
+> I think if the page is not present, it is simply not
+> needed to do free_pfn_range(). So I made a naive patch
+> (attached) that seem to fix the problem.
 
-I planed to get to those later, because I felt the locks vs. racing
-mmaps argument was the most important objection.
+patch:
 
-> End result: I absolutely detest the whole thing. I told you what I
-> consider an acceptable solution instead, that is much simpler and
-> doesn't have any of the problems of your patchset.
-
-I will surely think about those. As I've written in the cover email
-already, I am fine with patching the man page and be clear about a long
-term behavior. The primary motivation for this RFC was to start the
-discussion.
--- 
-Michal Hocko
-SUSE Labs
+diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+index 7ac6869..2df97f6 100644
+--- a/arch/x86/mm/pat.c
++++ b/arch/x86/mm/pat.c
+@@ -900,14 +900,12 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
+ 	/* free the chunk starting from pfn or the whole chunk */
+ 	paddr = (resource_size_t)pfn << PAGE_SHIFT;
+ 	if (!paddr && !size) {
+-		if (follow_phys(vma, vma->vm_start, 0, &prot, &paddr)) {
+-			WARN_ON_ONCE(1);
+-			return;
+-		}
+-
+-		size = vma->vm_end - vma->vm_start;
++		int err = follow_phys(vma, vma->vm_start, 0, &prot, &paddr);
++		if (!err)
++			size = vma->vm_end - vma->vm_start;
+ 	}
+-	free_pfn_range(paddr, size);
++	if (size)
++		free_pfn_range(paddr, size);
+ 	vma->vm_flags &= ~VM_PAT;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
