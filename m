@@ -1,45 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id DF0FC6B0075
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 12:02:53 -0400 (EDT)
-Received: by igblo3 with SMTP id lo3so93526545igb.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:02:53 -0700 (PDT)
-Received: from relay.sgi.com (relay2.sgi.com. [192.48.180.65])
-        by mx.google.com with ESMTP id mv8si8775571igb.62.2015.04.28.09.02.52
-        for <linux-mm@kvack.org>;
-        Tue, 28 Apr 2015 09:02:52 -0700 (PDT)
-Message-ID: <553FAF26.9060609@sgi.com>
-Date: Tue, 28 Apr 2015 11:02:46 -0500
-From: nzimmer <nzimmer@sgi.com>
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B9ED16B0078
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 12:06:06 -0400 (EDT)
+Received: by wizk4 with SMTP id k4so146708689wiz.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:06:06 -0700 (PDT)
+Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com. [2a00:1450:400c:c05::236])
+        by mx.google.com with ESMTPS id r8si18703029wia.94.2015.04.28.09.06.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Apr 2015 09:06:05 -0700 (PDT)
+Received: by wicmx19 with SMTP id mx19so111541818wic.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 09:06:04 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/13] mm: meminit: Move page initialization into a separate
- function.
-References: <1429785196-7668-1-git-send-email-mgorman@suse.de> <1429785196-7668-3-git-send-email-mgorman@suse.de> <20150427154633.2134d804987dad88e008c2ff@linux-foundation.org> <20150428082831.GI2449@suse.de>
-In-Reply-To: <20150428082831.GI2449@suse.de>
-Content-Type: text/plain; charset="iso-8859-15"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1430231830-7702-1-git-send-email-mgorman@suse.de>
+References: <1430231830-7702-1-git-send-email-mgorman@suse.de>
+Date: Tue, 28 Apr 2015 19:06:04 +0300
+Message-ID: <CAOJsxLG0Tr2QV8P55vJDOeUPoWw8xBextQ-qzj4E+PnOk9JBsQ@mail.gmail.com>
+Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-This is the one I have, but I haven't had a chance to talk with him in a 
-long time.
-robinmholt@gmail.com
-
-On 04/28/2015 03:28 AM, Mel Gorman wrote:
-> On Mon, Apr 27, 2015 at 03:46:33PM -0700, Andrew Morton wrote:
->> On Thu, 23 Apr 2015 11:33:05 +0100 Mel Gorman <mgorman@suse.de> wrote:
->>
->>> From: Robin Holt <holt@sgi.com>
->> : <holt@sgi.com>: host cuda-allmx.sgi.com[192.48.157.12] said: 550 cuda_nsu 5.1.1
->> :    <holt@sgi.com>: Recipient address rejected: User unknown in virtual alias
->> :    table (in reply to RCPT TO command)
->>
->> Has Robin moved, or is SGI mail busted?
-> Robin has moved and I do not have an updated address for him. The
-> address used in the patches was the one he posted the patches with.
+On Tue, Apr 28, 2015 at 5:36 PM, Mel Gorman <mgorman@suse.de> wrote:
+> Struct page initialisation had been identified as one of the reasons why
+> large machines take a long time to boot. Patches were posted a long time ago
+> to defer initialisation until they were first used.  This was rejected on
+> the grounds it should not be necessary to hurt the fast paths. This series
+> reuses much of the work from that time but defers the initialisation of
+> memory to kswapd so that one thread per node initialises memory local to
+> that node.
 >
+> After applying the series and setting the appropriate Kconfig variable I
+> see this in the boot log on a 64G machine
+>
+> [    7.383764] kswapd 0 initialised deferred memory in 188ms
+> [    7.404253] kswapd 1 initialised deferred memory in 208ms
+> [    7.411044] kswapd 3 initialised deferred memory in 216ms
+> [    7.411551] kswapd 2 initialised deferred memory in 216ms
+>
+> On a 1TB machine, I see
+>
+> [    8.406511] kswapd 3 initialised deferred memory in 1116ms
+> [    8.428518] kswapd 1 initialised deferred memory in 1140ms
+> [    8.435977] kswapd 0 initialised deferred memory in 1148ms
+> [    8.437416] kswapd 2 initialised deferred memory in 1148ms
+>
+> Once booted the machine appears to work as normal. Boot times were measured
+> from the time shutdown was called until ssh was available again.  In the
+> 64G case, the boot time savings are negligible. On the 1TB machine, the
+> savings were 16 seconds.
+
+FWIW,
+
+Acked-by: Pekka Enberg <penberg@kernel.org>
+
+for the whole series.
+
+- Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
