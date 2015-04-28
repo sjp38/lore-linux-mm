@@ -1,52 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id C9C936B0032
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 19:10:03 -0400 (EDT)
-Received: by pdbqd1 with SMTP id qd1so9623495pdb.2
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:10:03 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id cu9si36671007pad.177.2015.04.28.16.10.02
+Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E3EF6B0032
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 19:16:19 -0400 (EDT)
+Received: by iecrt8 with SMTP id rt8so30691729iec.0
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:16:18 -0700 (PDT)
+Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com. [2607:f8b0:4001:c05::234])
+        by mx.google.com with ESMTPS id d16si9826855igm.0.2015.04.28.16.16.18
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Apr 2015 16:10:03 -0700 (PDT)
-Date: Tue, 28 Apr 2015 16:10:01 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC 1/3] mm: mmap make MAP_LOCKED really mlock semantic
-Message-Id: <20150428161001.e854fb3eaf82f738865130af@linux-foundation.org>
-In-Reply-To: <1430223111-14817-2-git-send-email-mhocko@suse.cz>
-References: <20150114095019.GC4706@dhcp22.suse.cz>
-	<1430223111-14817-1-git-send-email-mhocko@suse.cz>
-	<1430223111-14817-2-git-send-email-mhocko@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 28 Apr 2015 16:16:18 -0700 (PDT)
+Received: by iget9 with SMTP id t9so97751141ige.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:16:18 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CALCETrUYc0W49-CVFpsj33CQx0N_ssaQeree3S7Zh3aisr3kNw@mail.gmail.com>
+References: <20150428221553.GA5770@node.dhcp.inet.fi>
+	<55400CA7.3050902@redhat.com>
+	<CALCETrUYc0W49-CVFpsj33CQx0N_ssaQeree3S7Zh3aisr3kNw@mail.gmail.com>
+Date: Tue, 28 Apr 2015 16:16:18 -0700
+Message-ID: <CA+55aFz6CfnVgGABpGZ4ywqaOyt2E3KFO9zY_H_nH1R=nria-A@mail.gmail.com>
+Subject: Re: PCID and TLB flushes (was: [GIT PULL] kdbus for 4.1-rc1)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Cyril Hrubis <chrubis@suse.cz>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michael Kerrisk <mtk.manpages@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
 
-On Tue, 28 Apr 2015 14:11:49 +0200 Michal Hocko <mhocko@suse.cz> wrote:
+On Tue, Apr 28, 2015 at 3:54 PM, Andy Lutomirski <luto@amacapital.net> wrote:
+>
+> I had a totally different implementation idea in mind.  It goes
+> something like this:
+>
+> For each CPU, we allocate a fixed number of PCIDs, e.g. 0-7.  We have
+> a per-cpu array of the mm [1] that owns each PCID. [...]
 
-> The man page however says
-> "
-> MAP_LOCKED (since Linux 2.5.37)
->       Lock the pages of the mapped region into memory in the manner of
->       mlock(2).  This flag is ignored in older kernels.
-> "
+We've done this before on other architectures.  See for example alpha.
+Look up "__get_new_mm_context()" and friends. I think sparc does the
+same (and I think sparc copied a lot of it from the alpha
+implementation).
 
-I'm trying to remember why we implemented MAP_LOCKED in the first
-place.  Was it better than mmap+mlock in some fashion?
+Iirc, the alpha version just generates a (per-cpu) asid one at a time,
+and has a generation counter so that when you run out of ASID's you do
+a global TLB invalidate on that CPU and start from 0 again. Actually,
+I think the generation number is just the high bits of the asid
+counter (alpha calls them "asn", intel calls them "pcid", and I tend
+to prefer "asid", but it's all the same thing).
 
-afaict we had a #define MAP_LOCKED in the header file but it wasn't
-implemented, so we went and wired it up.  13 years ago:
-https://lkml.org/lkml/2002/9/18/108
+Then each thread just has a per-thread ASID. We don't try to make that
+be per-thread and per-cpu, but instead just force a new allocation
+when a thread moves to another CPU.
 
+It's not obvious what alpha does, because we end up hiding the
+per-thread ASN in the "struct pcb_struct" (in 'struct thread_info')
+which is part the alpha pal-code interface. But it seemed to work and
+is fairly simple.
 
-Anyway...  the third way of doing this is to use plain old mmap() while
-mlockall(MCL_FUTURE) is in force.  Has anyone looked at that, checked
-that the behaviour is sane and compared it with the mmap+mlock
-behaviour, the MAP_LOCKED behaviour and the manpages?
+I think something very similar should work with intel pcid's.
 
+                        Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
