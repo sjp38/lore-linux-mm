@@ -1,66 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id A7ABC6B0032
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 19:23:52 -0400 (EDT)
-Received: by lbcga7 with SMTP id ga7so7942782lbc.1
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:23:52 -0700 (PDT)
-Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com. [209.85.217.172])
-        by mx.google.com with ESMTPS id j8si18101767lah.14.2015.04.28.16.23.50
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 04A736B0032
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2015 19:38:06 -0400 (EDT)
+Received: by igbhj9 with SMTP id hj9so35560008igb.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:38:05 -0700 (PDT)
+Received: from mail-ig0-x22e.google.com (mail-ig0-x22e.google.com. [2607:f8b0:4001:c05::22e])
+        by mx.google.com with ESMTPS id zw6si2878igc.11.2015.04.28.16.38.05
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Apr 2015 16:23:51 -0700 (PDT)
-Received: by lbbqq2 with SMTP id qq2so7867548lbb.3
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:23:50 -0700 (PDT)
+        Tue, 28 Apr 2015 16:38:05 -0700 (PDT)
+Received: by igblo3 with SMTP id lo3so103723375igb.1
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2015 16:38:05 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFz6CfnVgGABpGZ4ywqaOyt2E3KFO9zY_H_nH1R=nria-A@mail.gmail.com>
-References: <20150428221553.GA5770@node.dhcp.inet.fi> <55400CA7.3050902@redhat.com>
- <CALCETrUYc0W49-CVFpsj33CQx0N_ssaQeree3S7Zh3aisr3kNw@mail.gmail.com> <CA+55aFz6CfnVgGABpGZ4ywqaOyt2E3KFO9zY_H_nH1R=nria-A@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 28 Apr 2015 16:23:29 -0700
-Message-ID: <CALCETrXEP+00uezAo5dYTRFLFH0hfk9KxgDTd2zSusUgJz8NDg@mail.gmail.com>
+In-Reply-To: <CALCETrXEP+00uezAo5dYTRFLFH0hfk9KxgDTd2zSusUgJz8NDg@mail.gmail.com>
+References: <20150428221553.GA5770@node.dhcp.inet.fi>
+	<55400CA7.3050902@redhat.com>
+	<CALCETrUYc0W49-CVFpsj33CQx0N_ssaQeree3S7Zh3aisr3kNw@mail.gmail.com>
+	<CA+55aFz6CfnVgGABpGZ4ywqaOyt2E3KFO9zY_H_nH1R=nria-A@mail.gmail.com>
+	<CALCETrXEP+00uezAo5dYTRFLFH0hfk9KxgDTd2zSusUgJz8NDg@mail.gmail.com>
+Date: Tue, 28 Apr 2015 16:38:05 -0700
+Message-ID: <CA+55aFw2KMm=E9OYQkhJqL+9pmUoaqdO9m4jJZFw3Jr4=Br4Eg@mail.gmail.com>
 Subject: Re: PCID and TLB flushes (was: [GIT PULL] kdbus for 4.1-rc1)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
+To: Andy Lutomirski <luto@amacapital.net>
 Cc: Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
 
-On Tue, Apr 28, 2015 at 4:16 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> On Tue, Apr 28, 2015 at 3:54 PM, Andy Lutomirski <luto@amacapital.net> wrote:
->>
->> I had a totally different implementation idea in mind.  It goes
->> something like this:
->>
->> For each CPU, we allocate a fixed number of PCIDs, e.g. 0-7.  We have
->> a per-cpu array of the mm [1] that owns each PCID. [...]
+On Tue, Apr 28, 2015 at 4:23 PM, Andy Lutomirski <luto@amacapital.net> wrote:
 >
-> We've done this before on other architectures.  See for example alpha.
-> Look up "__get_new_mm_context()" and friends. I think sparc does the
-> same (and I think sparc copied a lot of it from the alpha
-> implementation).
->
-> Iirc, the alpha version just generates a (per-cpu) asid one at a time,
-> and has a generation counter so that when you run out of ASID's you do
-> a global TLB invalidate on that CPU and start from 0 again. Actually,
-> I think the generation number is just the high bits of the asid
-> counter (alpha calls them "asn", intel calls them "pcid", and I tend
-> to prefer "asid", but it's all the same thing).
->
-> Then each thread just has a per-thread ASID. We don't try to make that
-> be per-thread and per-cpu, but instead just force a new allocation
-> when a thread moves to another CPU.
+> I think we can do it without that by keeping the mapping in reverse as
+> I sort of outlined -- for each cpu, store a mapping from mm to pcid.
+> When things fall out of the list, no big deal.
 
-Alpha appears to have a per-thread per-cpu id of some sort:
+So you do it by just having a per-cpu array of (say, 64 entries), you
+now end up having to search that every time you do a task switch to
+find the asid for the mm. And even then you've limited yourself to
+just six bits, because doing the same for a possible full 12-bit asid
+would not be possible.
 
-/* The alpha MMU context is one "unsigned long" bitmap per CPU */
-typedef unsigned long mm_context_t[NR_CPUS];
+It's actually much simpler if you just do it the other way.
 
-I think we can do it without that by keeping the mapping in reverse as
-I sort of outlined -- for each cpu, store a mapping from mm to pcid.
-When things fall out of the list, no big deal.
+But hey, maybe you do something clever and can figure out a good way
+to do it. I'm just saying that we *have* done this before on other
+architectures, and it has worked. I think ARM has another asid
+implementation in arch/arm/mm/context.c. I really think it would be a
+good idea to copy some existing case rather than make up a new one.
+It's not like asid's are unusual. It's arguably x86 that was unusual
+in _not_ having them.
 
---Andy
+                     Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
