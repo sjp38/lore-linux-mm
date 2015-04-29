@@ -1,186 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 1044F6B0032
-	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 03:12:56 -0400 (EDT)
-Received: by oign205 with SMTP id n205so14847926oig.2
-        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 00:12:55 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id g8si17297604oep.106.2015.04.29.00.12.54
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id AC8336B0032
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 03:43:07 -0400 (EDT)
+Received: by wgyo15 with SMTP id o15so18686018wgy.2
+        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 00:43:07 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dn3si22005843wid.77.2015.04.29.00.43.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 29 Apr 2015 00:12:55 -0700 (PDT)
-Message-ID: <55408462.6010703@huawei.com>
-Date: Wed, 29 Apr 2015 15:12:34 +0800
-From: Zhang Zhen <zhenzhang.zhang@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 29 Apr 2015 00:43:05 -0700 (PDT)
+Date: Wed, 29 Apr 2015 09:42:59 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC v2 1/4] fs: Add generic file system event notifications
+Message-ID: <20150429074259.GA31089@quack.suse.cz>
+References: <1430135504-24334-1-git-send-email-b.michalska@samsung.com>
+ <1430135504-24334-2-git-send-email-b.michalska@samsung.com>
+ <20150427142421.GB21942@kroah.com>
+ <553E50EB.3000402@samsung.com>
+ <20150427153711.GA23428@kroah.com>
+ <20150428135653.GD9955@quack.suse.cz>
+ <20150428140936.GA13406@kroah.com>
+ <553F9D56.6030301@samsung.com>
+ <20150428173900.GA16708@kroah.com>
+ <5540822C.10000@samsung.com>
 MIME-Version: 1.0
-Subject: Why task_struct slab can't be released back to buddy system?
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5540822C.10000@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, dave.hansen@linux.intel.com
-Cc: Linux MM <linux-mm@kvack.org>, qiuxishi@huawei.com
+To: Beata Michalska <b.michalska@samsung.com>
+Cc: Greg KH <greg@kroah.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
-Hi,
+On Wed 29-04-15 09:03:08, Beata Michalska wrote:
+> On 04/28/2015 07:39 PM, Greg KH wrote:
+> > On Tue, Apr 28, 2015 at 04:46:46PM +0200, Beata Michalska wrote:
+> >> On 04/28/2015 04:09 PM, Greg KH wrote:
+> >>> On Tue, Apr 28, 2015 at 03:56:53PM +0200, Jan Kara wrote:
+> >>>> On Mon 27-04-15 17:37:11, Greg KH wrote:
+> >>>>> On Mon, Apr 27, 2015 at 05:08:27PM +0200, Beata Michalska wrote:
+> >>>>>> On 04/27/2015 04:24 PM, Greg KH wrote:
+> >>>>>>> On Mon, Apr 27, 2015 at 01:51:41PM +0200, Beata Michalska wrote:
+> >>>>>>>> Introduce configurable generic interface for file
+> >>>>>>>> system-wide event notifications, to provide file
+> >>>>>>>> systems with a common way of reporting any potential
+> >>>>>>>> issues as they emerge.
+> >>>>>>>>
+> >>>>>>>> The notifications are to be issued through generic
+> >>>>>>>> netlink interface by newly introduced multicast group.
+> >>>>>>>>
+> >>>>>>>> Threshold notifications have been included, allowing
+> >>>>>>>> triggering an event whenever the amount of free space drops
+> >>>>>>>> below a certain level - or levels to be more precise as two
+> >>>>>>>> of them are being supported: the lower and the upper range.
+> >>>>>>>> The notifications work both ways: once the threshold level
+> >>>>>>>> has been reached, an event shall be generated whenever
+> >>>>>>>> the number of available blocks goes up again re-activating
+> >>>>>>>> the threshold.
+> >>>>>>>>
+> >>>>>>>> The interface has been exposed through a vfs. Once mounted,
+> >>>>>>>> it serves as an entry point for the set-up where one can
+> >>>>>>>> register for particular file system events.
+> >>>>>>>>
+> >>>>>>>> Signed-off-by: Beata Michalska <b.michalska@samsung.com>
+> >>>>>>>> ---
+> >>>>>>>>  Documentation/filesystems/events.txt |  231 ++++++++++
+> >>>>>>>>  fs/Makefile                          |    1 +
+> >>>>>>>>  fs/events/Makefile                   |    6 +
+> >>>>>>>>  fs/events/fs_event.c                 |  770 ++++++++++++++++++++++++++++++++++
+> >>>>>>>>  fs/events/fs_event.h                 |   25 ++
+> >>>>>>>>  fs/events/fs_event_netlink.c         |   99 +++++
+> >>>>>>>>  fs/namespace.c                       |    1 +
+> >>>>>>>>  include/linux/fs.h                   |    6 +-
+> >>>>>>>>  include/linux/fs_event.h             |   58 +++
+> >>>>>>>>  include/uapi/linux/fs_event.h        |   54 +++
+> >>>>>>>>  include/uapi/linux/genetlink.h       |    1 +
+> >>>>>>>>  net/netlink/genetlink.c              |    7 +-
+> >>>>>>>>  12 files changed, 1257 insertions(+), 2 deletions(-)
+> >>>>>>>>  create mode 100644 Documentation/filesystems/events.txt
+> >>>>>>>>  create mode 100644 fs/events/Makefile
+> >>>>>>>>  create mode 100644 fs/events/fs_event.c
+> >>>>>>>>  create mode 100644 fs/events/fs_event.h
+> >>>>>>>>  create mode 100644 fs/events/fs_event_netlink.c
+> >>>>>>>>  create mode 100644 include/linux/fs_event.h
+> >>>>>>>>  create mode 100644 include/uapi/linux/fs_event.h
+> >>>>>>>
+> >>>>>>> Any reason why you just don't do uevents for the block devices today,
+> >>>>>>> and not create a new type of netlink message and userspace tool required
+> >>>>>>> to read these?
+> >>>>>>
+> >>>>>> The idea here is to have support for filesystems with no backing device as well.
+> >>>>>> Parsing the message with libnl is really simple and requires few lines of code
+> >>>>>> (sample application has been presented in the initial version of this RFC)
+> >>>>>
+> >>>>> I'm not saying it's not "simple" to parse, just that now you are doing
+> >>>>> something that requires a different tool.  If you have a block device,
+> >>>>> you should be able to emit uevents for it, you don't need a backing
+> >>>>> device, we handle virtual filesystems in /sys/block/ just fine :)
+> >>>>>
+> >>>>> People already have tools that listen to libudev for system monitoring
+> >>>>> and management, why require them to hook up to yet-another-library?  And
+> >>>>> what is going to provide the ability for multiple userspace tools to
+> >>>>> listen to these netlink messages in case you have more than one program
+> >>>>> that wants to watch for these things (i.e. multiple desktop filesystem
+> >>>>> monitoring tools, system-health checkers, etc.)?
+> >>>>   As much as I understand your concerns I'm not convinced uevent interface
+> >>>> is a good fit. There are filesystems that don't have underlying block
+> >>>> device - think of e.g. tmpfs or filesystems working directly on top of
+> >>>> flash devices.  These still want to send notification to userspace (one of
+> >>>> primary motivation for this interfaces was so that tmpfs can notify about
+> >>>> something). And creating some fake nodes in /sys/block for tmpfs and
+> >>>> similar filesystems seems like doing more harm than good to me...
+> >>>
+> >>> If these are "fake" block devices, what's going to be present in the
+> >>> block major/minor fields of the netlink message?  For some reason I
+> >>> thought it was a required field, and because of that, I thought we had a
+> >>> "real" filesystem somewhere to refer to, otherwise how would userspace
+> >>> know what filesystem was creating these events?
+> >>>
+> >>> What am I missing here?
+> >>>
+> >>> confused,
+> >>>
+> >>> greg k-h
+> >>>
+> >>
+> >> For those 'fake' block devs, upon mount, get_anon_bdev will assign
+> >> the major:minor numbers. Userspace might get those through stat.
+> > 
+> > How can userspace do the mapping backwards from this "anonymous"
+> > major:minor number for these types of filesystems in such a way that
+> > they can "know" how to report the block device that is causing the
+> > event?
+> > 
+> > thanks,
+> > 
+> > greg k-h
+> > 
+> 
+> It needs to be done internally by the app but is doable.
+> The app knows what it is watching, so it can maintain the mappings.
+> So prior to activating the notifications it can call 'stat' on the mount point.
+> Stat struct gives the 'st_dev' which is the device id. Same will be reported
+> within the message payload (through major:minor numbers). So having this,
+> the app is able to get any other information it needs. 
+> Note that the events refer to the file system as a whole and they may not
+> necessarily have anything to do with the actual block device. 
+  Or you can use /proc/self/mountinfo for the mapping. There you can see
+device numbers, real device names if applicable and mountpoints. This has
+the advantage that it works even if filesystem mountpoints change.
 
-Our x86 system has crashed because oom.
-We found task_struct slabs ate much memory.
-And we analyzed the core file just as follows.
-
-Why the page's inuse is 0 but the slab can't be released back to buddy system ?
-The memory allocator is slub.
-
-crash> kmem -s task_struct
-CACHE    	  NAME                 OBJSIZE  ALLOCATED     TOTAL  SLABS  SSIZE          //**Slabs is much larger than alloctated object counts**
-ffff88081e007500 task_struct             6528       4639    229775  45955    32k
-
-crash> p *(struct kmem_cache *)0xffff88081e007500
-$54 = {
-  cpu_slab = 0x14e10,
-  flags = 1074003968,
-  min_partial = 6,
-  size = 6528,
-  objsize = 6528,
-  offset = 0,
-  cpu_partial = 2,
-  oo = {
-    x = 196613
-  },
-  max = {
-    x = 196613
-  },
-  min = {
-    x = 65537
-  },
-  allocflags = 16384,
-  refcount = 1,
-  ctor = 0x0,
-  inuse = 6528,
-  align = 16,
-  reserved = 0,
-  name = 0xffff88081e000920 "task_struct",
-  list = {
-    next = 0xffff88081e007468,
-    prev = 0xffff88081e007668
-  },
-  kobj = {
-    name = 0xffff880810faf9b0 ":t-0006528",
-    entry = {
-      next = 0xffff88081e007480,
-      prev = 0xffff88081e007680
-    },
-    parent = 0xffff880810fc0258,
-    kset = 0xffff880810fc0240,
-    ktype = 0xffffffff81847040 <slab_ktype>,
-    sd = 0xffff880c2542c3f0,
-    kref = {
-      refcount = {
-        counter = 1
-      }
-    },
-    state_initialized = 1,
-    state_in_sysfs = 1,
-    state_add_uevent_sent = 1,
-    state_remove_uevent_sent = 0,
-    uevent_suppress = 0
-  },
-  remote_node_defrag_ratio = 1000,
-  node = {0xffff88081e001440, 0xffff880c2e800440, 0x0, 0x0, 0x0, 0x0,
-
-crash> p *(struct kmem_cache_node *)0xffff88081e001440
-$55 = {
-  list_lock = {
-    {
-      rlock = {
-        raw_lock = {
-          {
-            head_tail = 254283560,
-            tickets = {
-              head = 3880,
-              tail = 3880
-            }
-          }
-        }
-      }
-    }
-  },
-  nr_partial = 45287,
-  partial = {
-    next = 0xffffea0001396c20,
-    prev = 0xffffea00202a8220
-  },
-  nr_slabs = {
-    counter = 45829
-  },
-  total_objects = {
-    counter = 229125
-  },
-  full = {
-    next = 0xffff88081e001470,
-    prev = 0xffff88081e001470
-  }
-}
-
-crash> p *((struct page *)((char *)0xffffea0001396c20-32))
-$57 = {
-  flags = 9007199254757504,
-  mapping = 0x0,
-  {
-    {
-      index = 18446612136879672448,
-      freelist = 0xffff8801101f4c80
-    },
-    {
-      counters = 4295294976,
-      {
-        {
-          _mapcount = {
-            counter = 327680
-          },
-          {
-            inuse = 0,                         //##Here we found the slab page's inuse is 0.##
-            objects = 5,
-            frozen = 0
-          }
-        },
-        _count = {
-          counter = 1
-        }
-      }
-    }
-  },
-  {
-    lru = {
-      next = 0xffffea00055dde20,
-      prev = 0xffffea0002e0be20
-    },
-    {
-      next = 0xffffea00055dde20,
-      pages = 48283168,
-      pobjects = -5632
-    }
-  },
-  {
-    private = 18446612167177303296,
-    ptl = {
-      {
-        rlock = {
-          raw_lock = {
-            {
-              head_tail = 503346432,
-              tickets = {
-                head = 29952,
-                tail = 7680
-              }
-            }
-          }
-        }
-      }
-    },
-    slab = 0xffff88081e007500,
-    first_page = 0xffff88081e007500
-  }
-}
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
