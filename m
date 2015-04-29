@@ -1,106 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C6AE6B0032
-	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 12:03:08 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so185745743wid.0
-        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 09:03:08 -0700 (PDT)
+Received: from mail-vn0-f41.google.com (mail-vn0-f41.google.com [209.85.216.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BBF76B0032
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 12:11:17 -0400 (EDT)
+Received: by vnbg190 with SMTP id g190so3885285vnb.12
+        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 09:11:16 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e8si24089413wib.65.2015.04.29.09.03.06
+        by mx.google.com with ESMTPS id yn14si41340602vdb.73.2015.04.29.09.11.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Apr 2015 09:03:07 -0700 (PDT)
-Message-ID: <554100A6.8070003@redhat.com>
-Date: Wed, 29 Apr 2015 18:02:46 +0200
+        Wed, 29 Apr 2015 09:11:16 -0700 (PDT)
+Message-ID: <5541029C.60207@redhat.com>
+Date: Wed, 29 Apr 2015 18:11:08 +0200
 From: Jerome Marchand <jmarchan@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv5 10/28] mm, vmstats: new THP splitting event
-References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com> <1429823043-157133-11-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1429823043-157133-11-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv5 16/28] mm, thp: remove compound_lock
+References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com> <1429823043-157133-17-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1429823043-157133-17-git-send-email-kirill.shutemov@linux.intel.com>
 Content-Type: multipart/signed; micalg=pgp-sha256;
  protocol="application/pgp-signature";
- boundary="dD50TWtfW8607vdjHHDFS6p1DuMvSuAxc"
+ boundary="RASj1PwBrQ8btWvopfh4g1jPWTkiUJ3BL"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---dD50TWtfW8607vdjHHDFS6p1DuMvSuAxc
+--RASj1PwBrQ8btWvopfh4g1jPWTkiUJ3BL
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: quoted-printable
 
 On 04/23/2015 11:03 PM, Kirill A. Shutemov wrote:
-> The patch replaces THP_SPLIT with tree events: THP_SPLIT_PAGE,
-> THP_SPLIT_PAGE_FAILT and THP_SPLIT_PMD. It reflects the fact that we
+> We are going to use migration entries to stabilize page counts. It mean=
+s
 
-s/FAILT/FAILED
+By "stabilize" do you mean "protect" from concurrent access? I've seen
+that you use the same term in seemingly the same sense several times (at
+least in patches 15, 16, 23, 24 and 28).
 
-> are going to be able split PMD without the compound page and that
-> split_huge_page() can fail.
+Jerome
+
+> we don't need compound_lock() for that.
 >=20
 > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Acked-by: Christoph Lameter <cl@linux.com>
 > Tested-by: Sasha Levin <sasha.levin@oracle.com>
-
-Acked-by: Jerome Marchand <jmarchan@redhat.com>
-
 > ---
->  include/linux/vm_event_item.h | 4 +++-
->  mm/huge_memory.c              | 2 +-
->  mm/vmstat.c                   | 4 +++-
->  3 files changed, 7 insertions(+), 3 deletions(-)
+>  include/linux/mm.h         | 35 -----------------------------------
+>  include/linux/page-flags.h | 12 +-----------
+>  mm/debug.c                 |  3 ---
+>  3 files changed, 1 insertion(+), 49 deletions(-)
 >=20
-> diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_ite=
-m.h
-> index 2b1cef88b827..3261bfe2156a 100644
-> --- a/include/linux/vm_event_item.h
-> +++ b/include/linux/vm_event_item.h
-> @@ -69,7 +69,9 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT=
-,
->  		THP_FAULT_FALLBACK,
->  		THP_COLLAPSE_ALLOC,
->  		THP_COLLAPSE_ALLOC_FAILED,
-> -		THP_SPLIT,
-> +		THP_SPLIT_PAGE,
-> +		THP_SPLIT_PAGE_FAILED,
-> +		THP_SPLIT_PMD,
->  		THP_ZERO_PAGE_ALLOC,
->  		THP_ZERO_PAGE_ALLOC_FAILED,
->  #endif
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index ccbfacf07160..be6d0e0f5050 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1961,7 +1961,7 @@ int split_huge_page_to_list(struct page *page, st=
-ruct list_head *list)
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index dd1b5f2b1966..dad667d99304 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -393,41 +393,6 @@ static inline int is_vmalloc_or_module_addr(const =
+void *x)
 > =20
->  	BUG_ON(!PageSwapBacked(page));
->  	__split_huge_page(page, anon_vma, list);
-> -	count_vm_event(THP_SPLIT);
-> +	count_vm_event(THP_SPLIT_PAGE);
+>  extern void kvfree(const void *addr);
 > =20
->  	BUG_ON(PageCompound(page));
->  out_unlock:
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 1fd0886a389f..e1c87425fe11 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -821,7 +821,9 @@ const char * const vmstat_text[] =3D {
->  	"thp_fault_fallback",
->  	"thp_collapse_alloc",
->  	"thp_collapse_alloc_failed",
-> -	"thp_split",
-> +	"thp_split_page",
-> +	"thp_split_page_failed",
-> +	"thp_split_pmd",
->  	"thp_zero_page_alloc",
->  	"thp_zero_page_alloc_failed",
+> -static inline void compound_lock(struct page *page)
+> -{
+> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> -	VM_BUG_ON_PAGE(PageSlab(page), page);
+> -	bit_spin_lock(PG_compound_lock, &page->flags);
+> -#endif
+> -}
+> -
+> -static inline void compound_unlock(struct page *page)
+> -{
+> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> -	VM_BUG_ON_PAGE(PageSlab(page), page);
+> -	bit_spin_unlock(PG_compound_lock, &page->flags);
+> -#endif
+> -}
+> -
+> -static inline unsigned long compound_lock_irqsave(struct page *page)
+> -{
+> -	unsigned long uninitialized_var(flags);
+> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> -	local_irq_save(flags);
+> -	compound_lock(page);
+> -#endif
+> -	return flags;
+> -}
+> -
+> -static inline void compound_unlock_irqrestore(struct page *page,
+> -					      unsigned long flags)
+> -{
+> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> -	compound_unlock(page);
+> -	local_irq_restore(flags);
+> -#endif
+> -}
+> -
+>  /*
+>   * The atomic page->_mapcount, starts from -1: so that transitions
+>   * both from it and to it can be tracked, using atomic_inc_and_test
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index 91b7f9b2b774..74b7cece1dfa 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -106,9 +106,6 @@ enum pageflags {
+>  #ifdef CONFIG_MEMORY_FAILURE
+>  	PG_hwpoison,		/* hardware poisoned page. Don't touch */
 >  #endif
+> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> -	PG_compound_lock,
+> -#endif
+>  	__NR_PAGEFLAGS,
+> =20
+>  	/* Filesystems */
+> @@ -683,12 +680,6 @@ static inline void ClearPageSlabPfmemalloc(struct =
+page *page)
+>  #define __PG_MLOCKED		0
+>  #endif
+> =20
+> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> -#define __PG_COMPOUND_LOCK		(1 << PG_compound_lock)
+> -#else
+> -#define __PG_COMPOUND_LOCK		0
+> -#endif
+> -
+>  /*
+>   * Flags checked when a page is freed.  Pages being freed should not h=
+ave
+>   * these flags set.  It they are, there is a problem.
+> @@ -698,8 +689,7 @@ static inline void ClearPageSlabPfmemalloc(struct p=
+age *page)
+>  	 1 << PG_private | 1 << PG_private_2 | \
+>  	 1 << PG_writeback | 1 << PG_reserved | \
+>  	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
+> -	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
+> -	 __PG_COMPOUND_LOCK)
+> +	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON )
+> =20
+>  /*
+>   * Flags checked when a page is prepped for return by the page allocat=
+or.
+> diff --git a/mm/debug.c b/mm/debug.c
+> index 3eb3ac2fcee7..9dfcd77e7354 100644
+> --- a/mm/debug.c
+> +++ b/mm/debug.c
+> @@ -45,9 +45,6 @@ static const struct trace_print_flags pageflag_names[=
+] =3D {
+>  #ifdef CONFIG_MEMORY_FAILURE
+>  	{1UL << PG_hwpoison,		"hwpoison"	},
+>  #endif
+> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> -	{1UL << PG_compound_lock,	"compound_lock"	},
+> -#endif
+>  };
+> =20
+>  static void dump_flags(unsigned long flags,
 >=20
 
 
 
---dD50TWtfW8607vdjHHDFS6p1DuMvSuAxc
+--RASj1PwBrQ8btWvopfh4g1jPWTkiUJ3BL
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: OpenPGP digital signature
 Content-Disposition: attachment; filename="signature.asc"
@@ -108,16 +164,16 @@ Content-Disposition: attachment; filename="signature.asc"
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2
 
-iQEcBAEBCAAGBQJVQQCmAAoJEHTzHJCtsuoCELEH/1A/Ekf6zCjgTKixiNcBmkr3
-nLhdIOGJydcFLArj7ZcKhpzgTErwhEuUCLOwApo9eLvV3wzq9/fLmiwDYcKt1Mu2
-LTG55QtecCnUc8YjYfV2RUgUqZf6ZUo+DY8hxCn1X5RbsOd2NPUnSfDCriDDtzg6
-LH3pOLRucpcuF1oMZ8pMsf6P1P7ZiLZOfkFFBI6h9QPxVJ3xeVdSH4hRsUcAvVR+
-W24O8F7AZ9W349yPQ1qJodWOLilCXLEzTpfz+pL39SrFuTFNsvvd7pqA6zksQ94w
-CsnpKQJgSTadiORd0gKHOZRsTTXk7Bc+RekJ8/xIRwgc6DjuvAmd3bITpZJfgSM=
-=qCJC
+iQEcBAEBCAAGBQJVQQKcAAoJEHTzHJCtsuoCqAYH+wREHT26pjunMcFq9mEt8Ugg
+r25N+EVlCNGa4/opsLRk9EeUqPtrDNsvSAYtN3gM0FUh9+HjeQZitJlDsWLlvW+k
+KgwPEMe6g+TwGYNcPaQDmLreeGVoiaLtFcCVJ/U5Sr2jTa7q4+Fe2DEkHBKu8KzW
++TQz5h+VqWLt9xcLPD7WgrSWRbdlEqGtb1CrGoRBINO+Yyz04qiGQn+AAF/L5csr
+D0m4+HZM0ZdGi8/ORTzMZnxwZQ4gLBMNfkZVIQAkFmsMgo/0H4YAt5sLSCGfjUP8
+M/pYTkVbwuzxVMtJTgffp+7+vlKl2DLEBUC/j6Smj4sudSF7baKcmGlY7F3mLSc=
+=dY0Y
 -----END PGP SIGNATURE-----
 
---dD50TWtfW8607vdjHHDFS6p1DuMvSuAxc--
+--RASj1PwBrQ8btWvopfh4g1jPWTkiUJ3BL--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
