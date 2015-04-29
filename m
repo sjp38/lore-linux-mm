@@ -1,96 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 809386B0032
-	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 17:19:03 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so39425993pdb.1
-        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 14:19:03 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id px1si327037pbb.117.2015.04.29.14.19.02
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Apr 2015 14:19:02 -0700 (PDT)
-Date: Wed, 29 Apr 2015 14:19:01 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 07/13] mm: meminit: Initialise a subset of struct pages
- if CONFIG_DEFERRED_STRUCT_PAGE_INIT is set
-Message-Id: <20150429141901.df10d11cc8fa2d5df377922f@linux-foundation.org>
-In-Reply-To: <1430231830-7702-8-git-send-email-mgorman@suse.de>
-References: <1430231830-7702-1-git-send-email-mgorman@suse.de>
-	<1430231830-7702-8-git-send-email-mgorman@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A69C6B0032
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 18:09:40 -0400 (EDT)
+Received: by iecrt8 with SMTP id rt8so53928609iec.0
+        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 15:09:40 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTP id t18si573666icc.89.2015.04.29.15.09.39
+        for <linux-mm@kvack.org>;
+        Wed, 29 Apr 2015 15:09:39 -0700 (PDT)
+Message-ID: <554156A1.3010903@kernel.org>
+Date: Wed, 29 Apr 2015 15:09:37 -0700
+From: Andy Lutomirski <luto@kernel.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH] Hardening memory maunipulation.
+References: <1430321975-13626-1-git-send-email-citypw@gmail.com>
+In-Reply-To: <1430321975-13626-1-git-send-email-citypw@gmail.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Shawn Chang <citypw@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: spender@grsecurity.net, keescook@chromium.org
 
-On Tue, 28 Apr 2015 15:37:04 +0100 Mel Gorman <mgorman@suse.de> wrote:
+On 04/29/2015 08:39 AM, Shawn Chang wrote:
+> From: Shawn C <citypw@gmail.com>
+>
+> Hi kernel maintainers,
+>
+> It won't allow the address above the TASK_SIZE being mmap'ed( or mprotect'ed).
+> This patch is from PaX/Grsecurity.
+>
+> Thanks for your review time!
 
-> +/*
-> + * Deferred struct page initialisation requires some early init functions that
-> + * are removed before kswapd is up and running. The feature depends on memory
-> + * hotplug so put the data and code required by deferred initialisation into
-> + * the __meminit section where they are preserved.
-> + */
-> +#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-> +#define __defermem_init __meminit
-> +#define __defer_init    __meminit
-> +#else
-> +#define __defermem_init
-> +#define __defer_init __init
-> +#endif
+Does this actually reduce the attack surface of anything?
 
-I still don't get it :(
+These functions all search for vmas.  If there's a vma outside of the 
+user range, we have a problem.
 
-__defermem_init:
+Also, that use of TASK_SIZE is IMO ridiculous.  Shouldn't be TASK_SIZE_MAX?
 
-	if (CONFIG_DEFERRED_STRUCT_PAGE_INIT) {
-		if (CONFIG_MEMORY_HOTPLUG)
-			retain
-	} else {
-		retain
-	}
-
-    but CONFIG_DEFERRED_STRUCT_PAGE_INIT depends on
-    CONFIG_MEMORY_HOTPLUG, so this becomes
-
-	if (CONFIG_DEFERRED_STRUCT_PAGE_INIT) {
-		retain
-	} else {
-		retain
-	}
-
-    which becomes
-
-	retain
-
-    so why does __defermem_init exist?
-
-
-
-__defer_init:
-
-	if (CONFIG_DEFERRED_STRUCT_PAGE_INIT) {
-		if (CONFIG_MEMORY_HOTPLUG)
-			retain
-	} else {
-		discard
-	}
-
-    becomes
-
-	if (CONFIG_DEFERRED_STRUCT_PAGE_INIT) {
-		retain
-	} else {
-		discard
-	}
-
-    this one makes sense, but could be documented much more clearly!
-
-
-And why does the comment refer to "and data".  There is no
-__defer_initdata, etc.  Just not needed yet?
+--Andy, who is annoyed every time another pointless TIF_IA32 reference, 
+even hidden in a macro, makes it into the kernel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
