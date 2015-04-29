@@ -1,68 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A7146B0032
-	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 09:41:36 -0400 (EDT)
-Received: by wicmx19 with SMTP id mx19so131485663wic.1
-        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 06:41:35 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id sa4si43929928wjb.60.2015.04.29.06.41.34
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FD0B6B0032
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 09:45:11 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so28811097pdb.0
+        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 06:45:11 -0700 (PDT)
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id e12si39514087pat.195.2015.04.29.06.45.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 29 Apr 2015 06:41:34 -0700 (PDT)
-Date: Wed, 29 Apr 2015 14:41:31 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [mm/meminit] PANIC: early exception 06 rip 10:ffffffff811bfa9a
- error 0 cr2 ffff88000fbff000
-Message-ID: <20150429134131.GR2449@suse.de>
-References: <20150429132817.GA10479@wfg-t540p.sh.intel.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 Apr 2015 06:45:10 -0700 (PDT)
+Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
+	by mailout.nyi.internal (Postfix) with ESMTP id 85F5F209FF
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 09:45:07 -0400 (EDT)
+Date: Wed, 29 Apr 2015 15:45:05 +0200
+From: Greg KH <greg@kroah.com>
+Subject: Re: [RFC v2 1/4] fs: Add generic file system event notifications
+Message-ID: <20150429134505.GB15398@kroah.com>
+References: <553E50EB.3000402@samsung.com>
+ <20150427153711.GA23428@kroah.com>
+ <20150428135653.GD9955@quack.suse.cz>
+ <20150428140936.GA13406@kroah.com>
+ <553F9D56.6030301@samsung.com>
+ <20150428173900.GA16708@kroah.com>
+ <5540822C.10000@samsung.com>
+ <20150429074259.GA31089@quack.suse.cz>
+ <20150429091303.GA4090@kroah.com>
+ <5540BC2A.8010504@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150429132817.GA10479@wfg-t540p.sh.intel.com>
+In-Reply-To: <5540BC2A.8010504@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: LKP <lkp@01.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Beata Michalska <b.michalska@samsung.com>
+Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
-On Wed, Apr 29, 2015 at 09:28:17PM +0800, Fengguang Wu wrote:
-> Greetings,
+On Wed, Apr 29, 2015 at 01:10:34PM +0200, Beata Michalska wrote:
+> >>> It needs to be done internally by the app but is doable.
+> >>> The app knows what it is watching, so it can maintain the mappings.
+> >>> So prior to activating the notifications it can call 'stat' on the mount point.
+> >>> Stat struct gives the 'st_dev' which is the device id. Same will be reported
+> >>> within the message payload (through major:minor numbers). So having this,
+> >>> the app is able to get any other information it needs. 
+> >>> Note that the events refer to the file system as a whole and they may not
+> >>> necessarily have anything to do with the actual block device. 
+> > 
+> > How are you going to show an event for a filesystem that is made up of
+> > multiple block devices?
 > 
-> 0day kernel testing robot got the below dmesg and the first bad commit is
-> 
-> git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma mm-deferred-meminit-v6r1
-> 
-> commit 285c36ab5b3e59865a0f4d79f4c1758455e684f7
-> Author:     Mel Gorman <mgorman@suse.de>
-> AuthorDate: Mon Sep 29 14:54:01 2014 +0100
-> Commit:     Mel Gorman <mgorman@suse.de>
-> CommitDate: Wed Apr 22 19:48:15 2015 +0100
-> 
->     mm: meminit: Reduce number of times pageblocks are set during struct page init
->     
->     During parallel sturct page initialisation, ranges are checked for every
->     PFN unnecessarily which increases boot times. This patch alters when the
->     ranges are checked.
->     
->     Signed-off-by: Mel Gorman <mgorman@suse.de>
-> 
+> AFAIK, for such filesystems there will be similar case with the anonymous
+> major:minor numbers - at least the btrfs is doing so. Not sure we can
+> differentiate here the actual block device. So in this case such events
+> serves merely as a hint for the userspace.
 
-The series is old but I think it's still relevant. Can you try this
-please?
+"hint" seems like this isn't really going to work well.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9c8f2a72263d..19543f708642 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4489,8 +4489,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		if (!(pfn & (pageblock_nr_pages - 1))) {
- 			struct page *page = pfn_to_page(pfn);
- 
--			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
- 			__init_single_page(page, pfn, zone, nid);
-+			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
- 		} else {
- 			__init_single_pfn(pfn, zone, nid);
- 		}
+Do you have userspace code that can properly map this back to the "real"
+device that is causing problems?  Without that, this doesn't seem all
+that useful as no one would be able to use those events.
+
+> At this point a user might decide to run some scanning tools.
+
+You can't run a scanning tool on a tmpfs :)
+
+So what can a user do with information about one of these "virtual"
+filesystems that it can't directly see or access?
+
+> We might extend the scope of the
+> info being sent, though I would consider this as a nice-to-have but not
+> required for this initial version of notifications. The filesystems
+> might also want to decide to send their own custom messages so it is
+> possible for filesystems like btrfs to send more detailed information
+> using the new genetlink multicast group.
+> >>   Or you can use /proc/self/mountinfo for the mapping. There you can see
+> >> device numbers, real device names if applicable and mountpoints. This has
+> >> the advantage that it works even if filesystem mountpoints change.
+> > 
+> > Ok, then that brings up my next question, how does this handle
+> > namespaces?  What namespace is the event being sent in?  block devices
+> > aren't namespaced, but the mount points are, is that going to cause
+> > problems?
+> > 
+> 
+> The path should get resolved properly (as from root level). though I must
+> admit I'm not sure if there will be no issues when it comes to the network
+> namespaces. I'll double check it. Any hints though are more than welcomed :)
+
+What is "root level" here?  You can mount things in different namespaces
+all over the place.
+
+This is going to get really complex very quickly :(
+
+I still think you should tie this to an existing sysfs device, which
+handles the namespace issues for you, and it also handles the fact that
+userspace can properly identify the device, if at all possible.
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
