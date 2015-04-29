@@ -1,144 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id B811B6B0032
-	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 11:55:26 -0400 (EDT)
-Received: by wgso17 with SMTP id o17so33314248wgs.1
-        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 08:55:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j4si24084370wix.18.2015.04.29.08.55.24
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DD4A6B006C
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 11:55:29 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so32020198pdb.0
+        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 08:55:28 -0700 (PDT)
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id s1si20288255pdf.63.2015.04.29.08.55.27
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Apr 2015 08:55:25 -0700 (PDT)
-Message-ID: <5540FED0.1070007@redhat.com>
-Date: Wed, 29 Apr 2015 17:54:56 +0200
-From: Jerome Marchand <jmarchan@redhat.com>
+        Wed, 29 Apr 2015 08:55:28 -0700 (PDT)
+Received: from compute1.internal (compute1.nyi.internal [10.202.2.41])
+	by mailout.nyi.internal (Postfix) with ESMTP id 6013520945
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 11:55:25 -0400 (EDT)
+Date: Wed, 29 Apr 2015 17:55:22 +0200
+From: Greg KH <greg@kroah.com>
+Subject: Re: [RFC v2 1/4] fs: Add generic file system event notifications
+Message-ID: <20150429155522.GA14723@kroah.com>
+References: <20150428135653.GD9955@quack.suse.cz>
+ <20150428140936.GA13406@kroah.com>
+ <553F9D56.6030301@samsung.com>
+ <20150428173900.GA16708@kroah.com>
+ <5540822C.10000@samsung.com>
+ <20150429074259.GA31089@quack.suse.cz>
+ <20150429091303.GA4090@kroah.com>
+ <5540BC2A.8010504@samsung.com>
+ <20150429134505.GB15398@kroah.com>
+ <5540FD3E.9050801@samsung.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv5 04/28] mm, thp: adjust conditions when we can reuse
- the page on WP fault
-References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com> <1429823043-157133-5-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1429823043-157133-5-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="AQ1Mfdmg1FFD6oQMGhbm41BFq361wWoLO"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5540FD3E.9050801@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Beata Michalska <b.michalska@samsung.com>
+Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---AQ1Mfdmg1FFD6oQMGhbm41BFq361wWoLO
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+On Wed, Apr 29, 2015 at 05:48:14PM +0200, Beata Michalska wrote:
+> On 04/29/2015 03:45 PM, Greg KH wrote:
+> > On Wed, Apr 29, 2015 at 01:10:34PM +0200, Beata Michalska wrote:
+> >>>>> It needs to be done internally by the app but is doable.
+> >>>>> The app knows what it is watching, so it can maintain the mappings.
+> >>>>> So prior to activating the notifications it can call 'stat' on the mount point.
+> >>>>> Stat struct gives the 'st_dev' which is the device id. Same will be reported
+> >>>>> within the message payload (through major:minor numbers). So having this,
+> >>>>> the app is able to get any other information it needs. 
+> >>>>> Note that the events refer to the file system as a whole and they may not
+> >>>>> necessarily have anything to do with the actual block device. 
+> >>>
+> >>> How are you going to show an event for a filesystem that is made up of
+> >>> multiple block devices?
+> >>
+> >> AFAIK, for such filesystems there will be similar case with the anonymous
+> >> major:minor numbers - at least the btrfs is doing so. Not sure we can
+> >> differentiate here the actual block device. So in this case such events
+> >> serves merely as a hint for the userspace.
+> > 
+> > "hint" seems like this isn't really going to work well.
+> > 
+> > Do you have userspace code that can properly map this back to the "real"
+> > device that is causing problems?  Without that, this doesn't seem all
+> > that useful as no one would be able to use those events.
+> 
+> I'm not sure we are on the same page here.
+> This is about watching the file system rather than the 'real' device.
+> Like the threshold notifications: you would like to know when you
+> will be approaching certain level of available space for the tmpfs
+> mounted on /tmp.  You do know you are watching the /tmp
+> and you know that the dev numbers for this are 0:20 (or so). 
+> (either through calling stat on /tmp or through reading the /proc/$$/mountinfo)
+> With this interface you can setup threshold levels
+> for /tmp. Then, once the limit is reached the event will be
+> sent with those anonymous major:minor numbers.
+> 
+> I can provide a sample code which will demonstrate how this
+> can be achieved.
 
-On 04/23/2015 11:03 PM, Kirill A. Shutemov wrote:
-> With new refcounting we will be able map the same compound page with
-> PTEs and PMDs. It requires adjustment to conditions when we can reuse
-> the page on write-protection fault.
->=20
-> For PTE fault we can't reuse the page if it's part of huge page.
->=20
-> For PMD we can only reuse the page if nobody else maps the huge page or=
+Yes, example code would be helpful to understand this, thanks.
 
-> it's part. We can do it by checking page_mapcount() on each sub-page,
-> but it's expensive.
->=20
-> The cheaper way is to check page_count() to be equal 1: every mapcount
-> takes page reference, so this way we can guarantee, that the PMD is the=
-
-> only mapping.
->=20
-> This approach can give false negative if somebody pinned the page, but
-> that doesn't affect correctness.
->=20
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Tested-by: Sasha Levin <sasha.levin@oracle.com>
-
-Acked-by: Jerome Marchand <jmarchan@redhat.com>
-
-> ---
->  include/linux/swap.h |  3 ++-
->  mm/huge_memory.c     | 12 +++++++++++-
->  mm/swapfile.c        |  3 +++
->  3 files changed, 16 insertions(+), 2 deletions(-)
->=20
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 0428e4c84e1d..17cdd6b9456b 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -524,7 +524,8 @@ static inline int page_swapcount(struct page *page)=
-
->  	return 0;
->  }
-> =20
-> -#define reuse_swap_page(page)	(page_mapcount(page) =3D=3D 1)
-> +#define reuse_swap_page(page) \
-> +	(!PageTransCompound(page) && page_mapcount(page) =3D=3D 1)
-> =20
->  static inline int try_to_free_swap(struct page *page)
->  {
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 534f353e12bf..fd8af5b9917f 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1103,7 +1103,17 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, st=
-ruct vm_area_struct *vma,
-> =20
->  	page =3D pmd_page(orig_pmd);
->  	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
-> -	if (page_mapcount(page) =3D=3D 1) {
-> +	/*
-> +	 * We can only reuse the page if nobody else maps the huge page or it=
-'s
-> +	 * part. We can do it by checking page_mapcount() on each sub-page, b=
-ut
-> +	 * it's expensive.
-> +	 * The cheaper way is to check page_count() to be equal 1: every
-> +	 * mapcount takes page reference reference, so this way we can
-> +	 * guarantee, that the PMD is the only mapping.
-> +	 * This can give false negative if somebody pinned the page, but that=
-'s
-> +	 * fine.
-> +	 */
-> +	if (page_mapcount(page) =3D=3D 1 && page_count(page) =3D=3D 1) {
->  		pmd_t entry;
->  		entry =3D pmd_mkyoung(orig_pmd);
->  		entry =3D maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 6dd365d1c488..3cd5f188b996 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -887,6 +887,9 @@ int reuse_swap_page(struct page *page)
->  	VM_BUG_ON_PAGE(!PageLocked(page), page);
->  	if (unlikely(PageKsm(page)))
->  		return 0;
-> +	/* The page is part of THP and cannot be reused */
-> +	if (PageTransCompound(page))
-> +		return 0;
->  	count =3D page_mapcount(page);
->  	if (count <=3D 1 && PageSwapCache(page)) {
->  		count +=3D page_swapcount(page);
->=20
-
-
-
---AQ1Mfdmg1FFD6oQMGhbm41BFq361wWoLO
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAEBCAAGBQJVQP7QAAoJEHTzHJCtsuoChrYH/32xucRXxoHc1CBBA5yUYOGZ
-zxg3R9tDcG5j4JBejjgrF9fsZLCgKey7T1ARfqmHQKy4sjW5bc5TX39yoP2lTqnw
-9cexlNDSf7et8ocmovZG9kx4UAsTiflXtV7JggMPAqJbhQMuWeX3/kVXsMf8tmdR
-Du0hh8Ukx1BYJmEZcXJA6V9tZAbAhhnh75iO1PKkp9RPEwHqXsDiaDmYId8anWtJ
-GFBvRa846dxA7XAWiXAokXxoJnWA7KoEutxGm06oeuAGlG1rowONtL+47Bcem1P2
-3V23vIBeyb82ArdFLOrj7VijyGwXQbUPScA971r7/PJsuiwyY+4UGjE4+xv8odY=
-=CNbG
------END PGP SIGNATURE-----
-
---AQ1Mfdmg1FFD6oQMGhbm41BFq361wWoLO--
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
