@@ -1,171 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 193EA6B006C
-	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 05:13:10 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so22809238pdb.1
-        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 02:13:09 -0700 (PDT)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id ci15si38532300pdb.234.2015.04.29.02.13.08
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 80AF86B0032
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 05:15:00 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so22765168pde.3
+        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 02:15:00 -0700 (PDT)
+Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com. [202.81.31.140])
+        by mx.google.com with ESMTPS id yw3si14500116pac.106.2015.04.29.02.14.58
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Apr 2015 02:13:08 -0700 (PDT)
-Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id 0814E20A84
-	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 05:13:06 -0400 (EDT)
-Date: Wed, 29 Apr 2015 11:13:03 +0200
-From: Greg KH <greg@kroah.com>
-Subject: Re: [RFC v2 1/4] fs: Add generic file system event notifications
-Message-ID: <20150429091303.GA4090@kroah.com>
-References: <1430135504-24334-2-git-send-email-b.michalska@samsung.com>
- <20150427142421.GB21942@kroah.com>
- <553E50EB.3000402@samsung.com>
- <20150427153711.GA23428@kroah.com>
- <20150428135653.GD9955@quack.suse.cz>
- <20150428140936.GA13406@kroah.com>
- <553F9D56.6030301@samsung.com>
- <20150428173900.GA16708@kroah.com>
- <5540822C.10000@samsung.com>
- <20150429074259.GA31089@quack.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 29 Apr 2015 02:14:59 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 29 Apr 2015 19:14:53 +1000
+Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id A677D2CE8040
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 19:14:49 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3T9Ee0m44433636
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 19:14:49 +1000
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3T9EEPi023840
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 19:14:15 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCHv5 18/28] x86, thp: remove infrastructure for handling splitting PMDs
+In-Reply-To: <1429823043-157133-19-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com> <1429823043-157133-19-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Wed, 29 Apr 2015 14:43:45 +0530
+Message-ID: <87d22n8fg6.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150429074259.GA31089@quack.suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Beata Michalska <b.michalska@samsung.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Apr 29, 2015 at 09:42:59AM +0200, Jan Kara wrote:
-> On Wed 29-04-15 09:03:08, Beata Michalska wrote:
-> > On 04/28/2015 07:39 PM, Greg KH wrote:
-> > > On Tue, Apr 28, 2015 at 04:46:46PM +0200, Beata Michalska wrote:
-> > >> On 04/28/2015 04:09 PM, Greg KH wrote:
-> > >>> On Tue, Apr 28, 2015 at 03:56:53PM +0200, Jan Kara wrote:
-> > >>>> On Mon 27-04-15 17:37:11, Greg KH wrote:
-> > >>>>> On Mon, Apr 27, 2015 at 05:08:27PM +0200, Beata Michalska wrote:
-> > >>>>>> On 04/27/2015 04:24 PM, Greg KH wrote:
-> > >>>>>>> On Mon, Apr 27, 2015 at 01:51:41PM +0200, Beata Michalska wrote:
-> > >>>>>>>> Introduce configurable generic interface for file
-> > >>>>>>>> system-wide event notifications, to provide file
-> > >>>>>>>> systems with a common way of reporting any potential
-> > >>>>>>>> issues as they emerge.
-> > >>>>>>>>
-> > >>>>>>>> The notifications are to be issued through generic
-> > >>>>>>>> netlink interface by newly introduced multicast group.
-> > >>>>>>>>
-> > >>>>>>>> Threshold notifications have been included, allowing
-> > >>>>>>>> triggering an event whenever the amount of free space drops
-> > >>>>>>>> below a certain level - or levels to be more precise as two
-> > >>>>>>>> of them are being supported: the lower and the upper range.
-> > >>>>>>>> The notifications work both ways: once the threshold level
-> > >>>>>>>> has been reached, an event shall be generated whenever
-> > >>>>>>>> the number of available blocks goes up again re-activating
-> > >>>>>>>> the threshold.
-> > >>>>>>>>
-> > >>>>>>>> The interface has been exposed through a vfs. Once mounted,
-> > >>>>>>>> it serves as an entry point for the set-up where one can
-> > >>>>>>>> register for particular file system events.
-> > >>>>>>>>
-> > >>>>>>>> Signed-off-by: Beata Michalska <b.michalska@samsung.com>
-> > >>>>>>>> ---
-> > >>>>>>>>  Documentation/filesystems/events.txt |  231 ++++++++++
-> > >>>>>>>>  fs/Makefile                          |    1 +
-> > >>>>>>>>  fs/events/Makefile                   |    6 +
-> > >>>>>>>>  fs/events/fs_event.c                 |  770 ++++++++++++++++++++++++++++++++++
-> > >>>>>>>>  fs/events/fs_event.h                 |   25 ++
-> > >>>>>>>>  fs/events/fs_event_netlink.c         |   99 +++++
-> > >>>>>>>>  fs/namespace.c                       |    1 +
-> > >>>>>>>>  include/linux/fs.h                   |    6 +-
-> > >>>>>>>>  include/linux/fs_event.h             |   58 +++
-> > >>>>>>>>  include/uapi/linux/fs_event.h        |   54 +++
-> > >>>>>>>>  include/uapi/linux/genetlink.h       |    1 +
-> > >>>>>>>>  net/netlink/genetlink.c              |    7 +-
-> > >>>>>>>>  12 files changed, 1257 insertions(+), 2 deletions(-)
-> > >>>>>>>>  create mode 100644 Documentation/filesystems/events.txt
-> > >>>>>>>>  create mode 100644 fs/events/Makefile
-> > >>>>>>>>  create mode 100644 fs/events/fs_event.c
-> > >>>>>>>>  create mode 100644 fs/events/fs_event.h
-> > >>>>>>>>  create mode 100644 fs/events/fs_event_netlink.c
-> > >>>>>>>>  create mode 100644 include/linux/fs_event.h
-> > >>>>>>>>  create mode 100644 include/uapi/linux/fs_event.h
-> > >>>>>>>
-> > >>>>>>> Any reason why you just don't do uevents for the block devices today,
-> > >>>>>>> and not create a new type of netlink message and userspace tool required
-> > >>>>>>> to read these?
-> > >>>>>>
-> > >>>>>> The idea here is to have support for filesystems with no backing device as well.
-> > >>>>>> Parsing the message with libnl is really simple and requires few lines of code
-> > >>>>>> (sample application has been presented in the initial version of this RFC)
-> > >>>>>
-> > >>>>> I'm not saying it's not "simple" to parse, just that now you are doing
-> > >>>>> something that requires a different tool.  If you have a block device,
-> > >>>>> you should be able to emit uevents for it, you don't need a backing
-> > >>>>> device, we handle virtual filesystems in /sys/block/ just fine :)
-> > >>>>>
-> > >>>>> People already have tools that listen to libudev for system monitoring
-> > >>>>> and management, why require them to hook up to yet-another-library?  And
-> > >>>>> what is going to provide the ability for multiple userspace tools to
-> > >>>>> listen to these netlink messages in case you have more than one program
-> > >>>>> that wants to watch for these things (i.e. multiple desktop filesystem
-> > >>>>> monitoring tools, system-health checkers, etc.)?
-> > >>>>   As much as I understand your concerns I'm not convinced uevent interface
-> > >>>> is a good fit. There are filesystems that don't have underlying block
-> > >>>> device - think of e.g. tmpfs or filesystems working directly on top of
-> > >>>> flash devices.  These still want to send notification to userspace (one of
-> > >>>> primary motivation for this interfaces was so that tmpfs can notify about
-> > >>>> something). And creating some fake nodes in /sys/block for tmpfs and
-> > >>>> similar filesystems seems like doing more harm than good to me...
-> > >>>
-> > >>> If these are "fake" block devices, what's going to be present in the
-> > >>> block major/minor fields of the netlink message?  For some reason I
-> > >>> thought it was a required field, and because of that, I thought we had a
-> > >>> "real" filesystem somewhere to refer to, otherwise how would userspace
-> > >>> know what filesystem was creating these events?
-> > >>>
-> > >>> What am I missing here?
-> > >>>
-> > >>> confused,
-> > >>>
-> > >>> greg k-h
-> > >>>
-> > >>
-> > >> For those 'fake' block devs, upon mount, get_anon_bdev will assign
-> > >> the major:minor numbers. Userspace might get those through stat.
-> > > 
-> > > How can userspace do the mapping backwards from this "anonymous"
-> > > major:minor number for these types of filesystems in such a way that
-> > > they can "know" how to report the block device that is causing the
-> > > event?
-> > > 
-> > > thanks,
-> > > 
-> > > greg k-h
-> > > 
-> > 
-> > It needs to be done internally by the app but is doable.
-> > The app knows what it is watching, so it can maintain the mappings.
-> > So prior to activating the notifications it can call 'stat' on the mount point.
-> > Stat struct gives the 'st_dev' which is the device id. Same will be reported
-> > within the message payload (through major:minor numbers). So having this,
-> > the app is able to get any other information it needs. 
-> > Note that the events refer to the file system as a whole and they may not
-> > necessarily have anything to do with the actual block device. 
+"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
 
-How are you going to show an event for a filesystem that is made up of
-multiple block devices?
+> With new refcounting we don't need to mark PMDs splitting. Let's drop
+> code to handle this.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Tested-by: Sasha Levin <sasha.levin@oracle.com>
+> ---
+>  arch/x86/include/asm/pgtable.h       |  9 ---------
+>  arch/x86/include/asm/pgtable_types.h |  2 --
+>  arch/x86/mm/gup.c                    | 13 +------------
+>  arch/x86/mm/pgtable.c                | 14 --------------
+>  4 files changed, 1 insertion(+), 37 deletions(-)
+>
+> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+> index f89d6c9943ea..21a2e25a5393 100644
+> --- a/arch/x86/include/asm/pgtable.h
+> +++ b/arch/x86/include/asm/pgtable.h
+> @@ -158,11 +158,6 @@ static inline int pmd_large(pmd_t pte)
+>  }
+>  
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> -static inline int pmd_trans_splitting(pmd_t pmd)
+> -{
+> -	return pmd_val(pmd) & _PAGE_SPLITTING;
+> -}
+> -
+>  static inline int pmd_trans_huge(pmd_t pmd)
+>  {
+>  	return pmd_val(pmd) & _PAGE_PSE;
+> @@ -792,10 +787,6 @@ extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
+>  				  unsigned long address, pmd_t *pmdp);
+>  
+>  
+> -#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+> -extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+> -				 unsigned long addr, pmd_t *pmdp);
+> -
 
->   Or you can use /proc/self/mountinfo for the mapping. There you can see
-> device numbers, real device names if applicable and mountpoints. This has
-> the advantage that it works even if filesystem mountpoints change.
+Can we keep pmdp_splitting_flush or a variant and use that before a
+hugepage split ? That is to have a special function to do
+pmd_clear before splitting ?. We still depend on a IPI to be send to
+other cpus on split and not all archs will do that in
+pmdp_clear_flush_notify. I guess we need the ipi to make sure a
+local_irq_disable can prevent a parallel split ?
 
-Ok, then that brings up my next question, how does this handle
-namespaces?  What namespace is the event being sent in?  block devices
-aren't namespaced, but the mount points are, is that going to cause
-problems?
+Something like ?
 
-thanks,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index cce4604c192f..0a0d00b21f76 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2608,7 +2608,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 	young = pmd_young(*pmd);
+ 
+ 	/* leave pmd empty until pte is filled */
+-	pmdp_clear_flush_notify(vma, haddr, pmd);
++	pmdp_splitting_clear_flush_notify(vma, haddr, pmd);
+ 
+ 	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
+ 	pmd_populate(mm, &_pmd, pgtable);
 
-greg k-h
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
