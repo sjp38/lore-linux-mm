@@ -1,93 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id F179B6B0032
-	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 10:40:35 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so182989495wiz.1
-        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 07:40:35 -0700 (PDT)
-Received: from mail-wi0-x22a.google.com (mail-wi0-x22a.google.com. [2a00:1450:400c:c05::22a])
-        by mx.google.com with ESMTPS id h8si44193724wjs.46.2015.04.29.07.40.33
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B24A6B0032
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 11:39:51 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so31642865pdb.0
+        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 08:39:51 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id pk5si39888758pbb.133.2015.04.29.08.39.50
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Apr 2015 07:40:34 -0700 (PDT)
-Received: by widdi4 with SMTP id di4so182609424wid.0
-        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 07:40:33 -0700 (PDT)
-Date: Wed, 29 Apr 2015 16:40:31 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 0/9] mm: improve OOM mechanism v2
-Message-ID: <20150429144031.GB31341@dhcp22.suse.cz>
-References: <1430161555-6058-1-git-send-email-hannes@cmpxchg.org>
- <201504281934.IIH81695.LOHJQMOFStFFVO@I-love.SAKURA.ne.jp>
- <20150428135535.GE2659@dhcp22.suse.cz>
- <201504290050.FDE18274.SOJVtFLOMOQFFH@I-love.SAKURA.ne.jp>
- <20150429125506.GB7148@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150429125506.GB7148@cmpxchg.org>
+        Wed, 29 Apr 2015 08:39:50 -0700 (PDT)
+Received: by pacwv17 with SMTP id wv17so31234049pac.0
+        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 08:39:50 -0700 (PDT)
+From: Shawn Chang <citypw@gmail.com>
+Subject: [PATCH] Hardening memory maunipulation. 
+Date: Wed, 29 Apr 2015 23:39:35 +0800
+Message-Id: <1430321975-13626-1-git-send-email-citypw@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, aarcange@redhat.com, david@fromorbit.com, rientjes@google.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: spender@grsecurity.net, keescook@chromium.org, Shawn C <citypw@gmail.com>
 
-On Wed 29-04-15 08:55:06, Johannes Weiner wrote:
-> On Wed, Apr 29, 2015 at 12:50:37AM +0900, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Tue 28-04-15 19:34:47, Tetsuo Handa wrote:
-> > > [...]
-> > > > [PATCH 8/9] makes the speed of allocating __GFP_FS pages extremely slow (5
-> > > > seconds / page) because out_of_memory() serialized by the oom_lock sleeps for
-> > > > 5 seconds before returning true when the OOM victim got stuck. This throttling
-> > > > also slows down !__GFP_FS allocations when there is a thread doing a __GFP_FS
-> > > > allocation, for __alloc_pages_may_oom() is serialized by the oom_lock
-> > > > regardless of gfp_mask.
-> > > 
-> > > This is indeed unnecessary.
-> > > 
-> > > > How long will the OOM victim is blocked when the
-> > > > allocating task needs to allocate e.g. 1000 !__GFP_FS pages before allowing
-> > > > the OOM victim waiting at mutex_lock(&inode->i_mutex) to continue? It will be
-> > > > a too-long-to-wait stall which is effectively a deadlock for users. I think
-> > > > we should not sleep with the oom_lock held.
-> > > 
-> > > I do not see why sleeping with oom_lock would be a problem. It simply
-> > > doesn't make much sense to try to trigger OOM killer when there is/are
-> > > OOM victims still exiting.
-> > 
-> > Because thread A's memory allocation is deferred by threads B, C, D...'s memory
-> > allocation which are holding (or waiting for) the oom_lock when the OOM victim
-> > is waiting for thread A's allocation. I think that a memory allocator which
-> > allocates at average 5 seconds is considered as unusable. If we sleep without
-> > the oom_lock held, the memory allocator can allocate at average
-> > (5 / number_of_allocating_threads) seconds. Sleeping with the oom_lock held
-> > can effectively prevent thread A from making progress.
-> 
-> I agree with that.  The problem with the sleeping is that it has to be
-> long enough to give the OOM victim a fair chance to exit, but short
-> enough to not make the page allocator unusable in case there is a
-> genuine deadlock.  And you are right, the context blocking the OOM
-> victim from exiting might do a whole string of allocations, not just
-> one, before releasing any locks.
-> 
-> What we can do to mitigate this is tie the timeout to the setting of
-> TIF_MEMDIE so that the wait is not 5s from the point of calling
-> out_of_memory() but from the point of where TIF_MEMDIE was set.
-> Subsequent allocations will then go straight to the reserves.
+From: Shawn C <citypw@gmail.com>
 
-That would deplete the reserves very easily. Shouldn't we rather
-go other way around? Allow OOM killer context to dive into memory
-reserves some more (ALLOC_OOM on top of current ALLOC flags and
-__zone_watermark_ok would allow an additional 1/4 of the reserves) and
-start waiting for the victim after that reserve is depleted. We would
-still have some room for TIF_MEMDIE to allocate, the reserves consumption
-would be throttled somehow and the holders of resources would have some
-chance to release them and allow the victim to die.
+Hi kernel maintainers,
 
-If the allocation still fails after the timeout then we should consider
-failing the allocation as the next step or give NO_WATERMARK to
-GFP_NOFAIL.
+It won't allow the address above the TASK_SIZE being mmap'ed( or mprotect'ed).
+This patch is from PaX/Grsecurity.
+
+Thanks for your review time!
+
+Signed-off-by: Shawn C <citypw@gmail.com>
+---
+ mm/madvise.c   | 4 ++++
+ mm/mempolicy.c | 5 +++++
+ mm/mlock.c     | 4 ++++
+ mm/mprotect.c  | 5 +++++
+ 4 files changed, 18 insertions(+)
+
+diff --git a/mm/madvise.c b/mm/madvise.c
+index d551475..3f5dd3d 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -484,6 +484,10 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+ 	if (end < start)
+ 		return error;
+ 
++	/* We should never reach the kernel address space here */
++	if (end > TASK_SIZE)
++		return error;
++
+ 	error = 0;
+ 	if (end == start)
+ 		return error;
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index ede2629..56c2eed 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1161,6 +1161,11 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 
+ 	if (end < start)
+ 		return -EINVAL;
++
++	/* We should never reach the kernel address space here */
++	if (end > TASK_SIZE)
++		return -EINVAL;
++
+ 	if (end == start)
+ 		return 0;
+ 
+diff --git a/mm/mlock.c b/mm/mlock.c
+index 6fd2cf1..c7f6785 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -566,6 +566,10 @@ static int do_mlock(unsigned long start, size_t len, int on)
+ 		return -EINVAL;
+ 	if (end == start)
+ 		return 0;
++
++	if (end > TASK_SIZE)
++		return -EINVAL;
++
+ 	vma = find_vma(current->mm, start);
+ 	if (!vma || vma->vm_start > start)
+ 		return -ENOMEM;
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 8858483..cd58a31 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -351,6 +351,11 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+ 	end = start + len;
+ 	if (end <= start)
+ 		return -ENOMEM;
++
++	/* We should never reach the kernel address space here */
++	if (end > TASK_SIZE)
++		return -EINVAL;
++
+ 	if (!arch_validate_prot(prot))
+ 		return -EINVAL;
+ 
 -- 
-Michal Hocko
-SUSE Labs
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
