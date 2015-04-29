@@ -1,154 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id E031F6B0032
-	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 05:13:00 -0400 (EDT)
-Received: by pabtp1 with SMTP id tp1so22487043pab.2
-        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 02:13:00 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id hj2si38466092pbc.103.2015.04.29.02.12.59
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 193EA6B006C
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 05:13:10 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so22809238pdb.1
+        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 02:13:09 -0700 (PDT)
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id ci15si38532300pdb.234.2015.04.29.02.13.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Apr 2015 02:13:00 -0700 (PDT)
-Date: Wed, 29 Apr 2015 12:12:48 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH v3 3/3] proc: add kpageidle file
-Message-ID: <20150429091248.GD1694@esperanza>
-References: <cover.1430217477.git.vdavydov@parallels.com>
- <4c24a6bf2c9711dd4dbb72a43a16eba6867527b7.1430217477.git.vdavydov@parallels.com>
- <20150429043536.GB11486@blaptop>
+        Wed, 29 Apr 2015 02:13:08 -0700 (PDT)
+Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
+	by mailout.nyi.internal (Postfix) with ESMTP id 0814E20A84
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 05:13:06 -0400 (EDT)
+Date: Wed, 29 Apr 2015 11:13:03 +0200
+From: Greg KH <greg@kroah.com>
+Subject: Re: [RFC v2 1/4] fs: Add generic file system event notifications
+Message-ID: <20150429091303.GA4090@kroah.com>
+References: <1430135504-24334-2-git-send-email-b.michalska@samsung.com>
+ <20150427142421.GB21942@kroah.com>
+ <553E50EB.3000402@samsung.com>
+ <20150427153711.GA23428@kroah.com>
+ <20150428135653.GD9955@quack.suse.cz>
+ <20150428140936.GA13406@kroah.com>
+ <553F9D56.6030301@samsung.com>
+ <20150428173900.GA16708@kroah.com>
+ <5540822C.10000@samsung.com>
+ <20150429074259.GA31089@quack.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150429043536.GB11486@blaptop>
+In-Reply-To: <20150429074259.GA31089@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Beata Michalska <b.michalska@samsung.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
-On Wed, Apr 29, 2015 at 01:35:36PM +0900, Minchan Kim wrote:
-> On Tue, Apr 28, 2015 at 03:24:42PM +0300, Vladimir Davydov wrote:
-> > diff --git a/fs/proc/page.c b/fs/proc/page.c
-> > index 70d23245dd43..cfc55ba7fee6 100644
-> > --- a/fs/proc/page.c
-> > +++ b/fs/proc/page.c
-> > @@ -275,6 +275,156 @@ static const struct file_operations proc_kpagecgroup_operations = {
-> >  };
-> >  #endif /* CONFIG_MEMCG */
-> >  
-> > +#ifdef CONFIG_IDLE_PAGE_TRACKING
-> > +static struct page *kpageidle_get_page(unsigned long pfn)
-> > +{
-> > +	struct page *page;
-> > +
-> > +	if (!pfn_valid(pfn))
-> > +		return NULL;
-> > +	page = pfn_to_page(pfn);
-> > +	/*
-> > +	 * We are only interested in user memory pages, i.e. pages that are
-> > +	 * allocated and on an LRU list.
-> > +	 */
-> > +	if (!page || page_count(page) == 0 || !PageLRU(page))
-> 
-> Why do you check (page_count == 0) even if we check it with get_page_unless_zero
-> below?
+On Wed, Apr 29, 2015 at 09:42:59AM +0200, Jan Kara wrote:
+> On Wed 29-04-15 09:03:08, Beata Michalska wrote:
+> > On 04/28/2015 07:39 PM, Greg KH wrote:
+> > > On Tue, Apr 28, 2015 at 04:46:46PM +0200, Beata Michalska wrote:
+> > >> On 04/28/2015 04:09 PM, Greg KH wrote:
+> > >>> On Tue, Apr 28, 2015 at 03:56:53PM +0200, Jan Kara wrote:
+> > >>>> On Mon 27-04-15 17:37:11, Greg KH wrote:
+> > >>>>> On Mon, Apr 27, 2015 at 05:08:27PM +0200, Beata Michalska wrote:
+> > >>>>>> On 04/27/2015 04:24 PM, Greg KH wrote:
+> > >>>>>>> On Mon, Apr 27, 2015 at 01:51:41PM +0200, Beata Michalska wrote:
+> > >>>>>>>> Introduce configurable generic interface for file
+> > >>>>>>>> system-wide event notifications, to provide file
+> > >>>>>>>> systems with a common way of reporting any potential
+> > >>>>>>>> issues as they emerge.
+> > >>>>>>>>
+> > >>>>>>>> The notifications are to be issued through generic
+> > >>>>>>>> netlink interface by newly introduced multicast group.
+> > >>>>>>>>
+> > >>>>>>>> Threshold notifications have been included, allowing
+> > >>>>>>>> triggering an event whenever the amount of free space drops
+> > >>>>>>>> below a certain level - or levels to be more precise as two
+> > >>>>>>>> of them are being supported: the lower and the upper range.
+> > >>>>>>>> The notifications work both ways: once the threshold level
+> > >>>>>>>> has been reached, an event shall be generated whenever
+> > >>>>>>>> the number of available blocks goes up again re-activating
+> > >>>>>>>> the threshold.
+> > >>>>>>>>
+> > >>>>>>>> The interface has been exposed through a vfs. Once mounted,
+> > >>>>>>>> it serves as an entry point for the set-up where one can
+> > >>>>>>>> register for particular file system events.
+> > >>>>>>>>
+> > >>>>>>>> Signed-off-by: Beata Michalska <b.michalska@samsung.com>
+> > >>>>>>>> ---
+> > >>>>>>>>  Documentation/filesystems/events.txt |  231 ++++++++++
+> > >>>>>>>>  fs/Makefile                          |    1 +
+> > >>>>>>>>  fs/events/Makefile                   |    6 +
+> > >>>>>>>>  fs/events/fs_event.c                 |  770 ++++++++++++++++++++++++++++++++++
+> > >>>>>>>>  fs/events/fs_event.h                 |   25 ++
+> > >>>>>>>>  fs/events/fs_event_netlink.c         |   99 +++++
+> > >>>>>>>>  fs/namespace.c                       |    1 +
+> > >>>>>>>>  include/linux/fs.h                   |    6 +-
+> > >>>>>>>>  include/linux/fs_event.h             |   58 +++
+> > >>>>>>>>  include/uapi/linux/fs_event.h        |   54 +++
+> > >>>>>>>>  include/uapi/linux/genetlink.h       |    1 +
+> > >>>>>>>>  net/netlink/genetlink.c              |    7 +-
+> > >>>>>>>>  12 files changed, 1257 insertions(+), 2 deletions(-)
+> > >>>>>>>>  create mode 100644 Documentation/filesystems/events.txt
+> > >>>>>>>>  create mode 100644 fs/events/Makefile
+> > >>>>>>>>  create mode 100644 fs/events/fs_event.c
+> > >>>>>>>>  create mode 100644 fs/events/fs_event.h
+> > >>>>>>>>  create mode 100644 fs/events/fs_event_netlink.c
+> > >>>>>>>>  create mode 100644 include/linux/fs_event.h
+> > >>>>>>>>  create mode 100644 include/uapi/linux/fs_event.h
+> > >>>>>>>
+> > >>>>>>> Any reason why you just don't do uevents for the block devices today,
+> > >>>>>>> and not create a new type of netlink message and userspace tool required
+> > >>>>>>> to read these?
+> > >>>>>>
+> > >>>>>> The idea here is to have support for filesystems with no backing device as well.
+> > >>>>>> Parsing the message with libnl is really simple and requires few lines of code
+> > >>>>>> (sample application has been presented in the initial version of this RFC)
+> > >>>>>
+> > >>>>> I'm not saying it's not "simple" to parse, just that now you are doing
+> > >>>>> something that requires a different tool.  If you have a block device,
+> > >>>>> you should be able to emit uevents for it, you don't need a backing
+> > >>>>> device, we handle virtual filesystems in /sys/block/ just fine :)
+> > >>>>>
+> > >>>>> People already have tools that listen to libudev for system monitoring
+> > >>>>> and management, why require them to hook up to yet-another-library?  And
+> > >>>>> what is going to provide the ability for multiple userspace tools to
+> > >>>>> listen to these netlink messages in case you have more than one program
+> > >>>>> that wants to watch for these things (i.e. multiple desktop filesystem
+> > >>>>> monitoring tools, system-health checkers, etc.)?
+> > >>>>   As much as I understand your concerns I'm not convinced uevent interface
+> > >>>> is a good fit. There are filesystems that don't have underlying block
+> > >>>> device - think of e.g. tmpfs or filesystems working directly on top of
+> > >>>> flash devices.  These still want to send notification to userspace (one of
+> > >>>> primary motivation for this interfaces was so that tmpfs can notify about
+> > >>>> something). And creating some fake nodes in /sys/block for tmpfs and
+> > >>>> similar filesystems seems like doing more harm than good to me...
+> > >>>
+> > >>> If these are "fake" block devices, what's going to be present in the
+> > >>> block major/minor fields of the netlink message?  For some reason I
+> > >>> thought it was a required field, and because of that, I thought we had a
+> > >>> "real" filesystem somewhere to refer to, otherwise how would userspace
+> > >>> know what filesystem was creating these events?
+> > >>>
+> > >>> What am I missing here?
+> > >>>
+> > >>> confused,
+> > >>>
+> > >>> greg k-h
+> > >>>
+> > >>
+> > >> For those 'fake' block devs, upon mount, get_anon_bdev will assign
+> > >> the major:minor numbers. Userspace might get those through stat.
+> > > 
+> > > How can userspace do the mapping backwards from this "anonymous"
+> > > major:minor number for these types of filesystems in such a way that
+> > > they can "know" how to report the block device that is causing the
+> > > event?
+> > > 
+> > > thanks,
+> > > 
+> > > greg k-h
+> > > 
+> > 
+> > It needs to be done internally by the app but is doable.
+> > The app knows what it is watching, so it can maintain the mappings.
+> > So prior to activating the notifications it can call 'stat' on the mount point.
+> > Stat struct gives the 'st_dev' which is the device id. Same will be reported
+> > within the message payload (through major:minor numbers). So having this,
+> > the app is able to get any other information it needs. 
+> > Note that the events refer to the file system as a whole and they may not
+> > necessarily have anything to do with the actual block device. 
 
-I intended to avoid overhead of cmpxchg in case page_count is 0, but
-diving deeper into get_page_unless_zero, I see that it already handles
-such a scenario, so this check is useless. I'll remove it.
+How are you going to show an event for a filesystem that is made up of
+multiple block devices?
 
-> 
-> > +		return NULL;
-> > +	if (!get_page_unless_zero(page))
-> > +		return NULL;
-> > +	if (unlikely(!PageLRU(page))) {
-> 
-> What lock protect the check PageLRU?
-> If it is racing ClearPageLRU, what happens?
+>   Or you can use /proc/self/mountinfo for the mapping. There you can see
+> device numbers, real device names if applicable and mountpoints. This has
+> the advantage that it works even if filesystem mountpoints change.
 
-If we hold a reference to a page and see that it's on an LRU list, it
-will surely remain a user memory page at least until we release the
-reference to it, so it must be safe to play with idle/young flags. If we
-race with isolate_lru_page, or any similar function temporarily clearing
-PG_lru, we will silently skip the page w/o touching its idle/young
-flags. We could consider isolated pages too, but that would increase the
-cost of this function.
+Ok, then that brings up my next question, how does this handle
+namespaces?  What namespace is the event being sent in?  block devices
+aren't namespaced, but the mount points are, is that going to cause
+problems?
 
-If you find this explanation OK, I'll add it to the comment to this
-function.
+thanks,
 
-> 
-> > +		put_page(page);
-> > +		return NULL;
-> > +	}
-> > +	return page;
-> > +}
-> > +
-> > +static void kpageidle_clear_refs(struct page *page)
-> > +{
-> > +	unsigned long dummy;
-> > +
-> > +	if (page_referenced(page, 0, NULL, &dummy))
-> > +		/*
-> > +		 * This page was referenced. To avoid interference with the
-> > +		 * reclaimer, mark it young so that the next call will also
-> 
->                                                         next what call?
-> 
-> It just works with mapped page so kpageidle_clear_pte_refs as function name
-> is more clear.
-> 
-> One more, kpageidle_clear_refs removes PG_idle via page_referenced which
-> is important feature for the function. Please document it so we could
-> understand why we need double check for PG_idle after calling
-> kpageidle_clear_refs for pte access bit.
-
-Sounds reasonable, will do.
-
-> > diff --git a/mm/rmap.c b/mm/rmap.c
-> > index 24dd3f9fee27..12e73b758d9e 100644
-> > --- a/mm/rmap.c
-> > +++ b/mm/rmap.c
-> > @@ -784,6 +784,13 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
-> >  	if (referenced) {
-> >  		pra->referenced++;
-> >  		pra->vm_flags |= vma->vm_flags;
-> > +		if (page_is_idle(page))
-> > +			clear_page_idle(page);
-> > +	}
-> > +
-> > +	if (page_is_young(page)) {
-> > +		clear_page_young(page);
-> > +		pra->referenced++;
-> 
-> If a page was page_is_young and referenced recenlty,
-> pra->referenced is increased doubly and it changes current
-> behavior for file-backed page promotion. Look at page_check_references.
-
-Yeah, you're quite right, I missed that. Something like this should get
-rid of this extra reference:
-
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 24dd3f9fee27..eca7416f55d7 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -781,6 +781,14 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 		pte_unmap_unlock(pte, ptl);
- 	}
- 
-+	if (referenced && page_is_idle(page))
-+		clear_page_idle(page);
-+
-+	if (page_is_young(page)) {
-+		clear_page_young(page);
-+		referenced++;
-+	}
-+
- 	if (referenced) {
- 		pra->referenced++;
- 		pra->vm_flags |= vma->vm_flags;
-
-Thanks,
-Vladimir
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
