@@ -1,103 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FD0B6B0032
-	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 09:45:11 -0400 (EDT)
-Received: by pdbnk13 with SMTP id nk13so28811097pdb.0
-        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 06:45:11 -0700 (PDT)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id e12si39514087pat.195.2015.04.29.06.45.10
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id F179B6B0032
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 10:40:35 -0400 (EDT)
+Received: by wizk4 with SMTP id k4so182989495wiz.1
+        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 07:40:35 -0700 (PDT)
+Received: from mail-wi0-x22a.google.com (mail-wi0-x22a.google.com. [2a00:1450:400c:c05::22a])
+        by mx.google.com with ESMTPS id h8si44193724wjs.46.2015.04.29.07.40.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Apr 2015 06:45:10 -0700 (PDT)
-Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id 85F5F209FF
-	for <linux-mm@kvack.org>; Wed, 29 Apr 2015 09:45:07 -0400 (EDT)
-Date: Wed, 29 Apr 2015 15:45:05 +0200
-From: Greg KH <greg@kroah.com>
-Subject: Re: [RFC v2 1/4] fs: Add generic file system event notifications
-Message-ID: <20150429134505.GB15398@kroah.com>
-References: <553E50EB.3000402@samsung.com>
- <20150427153711.GA23428@kroah.com>
- <20150428135653.GD9955@quack.suse.cz>
- <20150428140936.GA13406@kroah.com>
- <553F9D56.6030301@samsung.com>
- <20150428173900.GA16708@kroah.com>
- <5540822C.10000@samsung.com>
- <20150429074259.GA31089@quack.suse.cz>
- <20150429091303.GA4090@kroah.com>
- <5540BC2A.8010504@samsung.com>
+        Wed, 29 Apr 2015 07:40:34 -0700 (PDT)
+Received: by widdi4 with SMTP id di4so182609424wid.0
+        for <linux-mm@kvack.org>; Wed, 29 Apr 2015 07:40:33 -0700 (PDT)
+Date: Wed, 29 Apr 2015 16:40:31 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 0/9] mm: improve OOM mechanism v2
+Message-ID: <20150429144031.GB31341@dhcp22.suse.cz>
+References: <1430161555-6058-1-git-send-email-hannes@cmpxchg.org>
+ <201504281934.IIH81695.LOHJQMOFStFFVO@I-love.SAKURA.ne.jp>
+ <20150428135535.GE2659@dhcp22.suse.cz>
+ <201504290050.FDE18274.SOJVtFLOMOQFFH@I-love.SAKURA.ne.jp>
+ <20150429125506.GB7148@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5540BC2A.8010504@samsung.com>
+In-Reply-To: <20150429125506.GB7148@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Beata Michalska <b.michalska@samsung.com>
-Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, aarcange@redhat.com, david@fromorbit.com, rientjes@google.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Apr 29, 2015 at 01:10:34PM +0200, Beata Michalska wrote:
-> >>> It needs to be done internally by the app but is doable.
-> >>> The app knows what it is watching, so it can maintain the mappings.
-> >>> So prior to activating the notifications it can call 'stat' on the mount point.
-> >>> Stat struct gives the 'st_dev' which is the device id. Same will be reported
-> >>> within the message payload (through major:minor numbers). So having this,
-> >>> the app is able to get any other information it needs. 
-> >>> Note that the events refer to the file system as a whole and they may not
-> >>> necessarily have anything to do with the actual block device. 
+On Wed 29-04-15 08:55:06, Johannes Weiner wrote:
+> On Wed, Apr 29, 2015 at 12:50:37AM +0900, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > On Tue 28-04-15 19:34:47, Tetsuo Handa wrote:
+> > > [...]
+> > > > [PATCH 8/9] makes the speed of allocating __GFP_FS pages extremely slow (5
+> > > > seconds / page) because out_of_memory() serialized by the oom_lock sleeps for
+> > > > 5 seconds before returning true when the OOM victim got stuck. This throttling
+> > > > also slows down !__GFP_FS allocations when there is a thread doing a __GFP_FS
+> > > > allocation, for __alloc_pages_may_oom() is serialized by the oom_lock
+> > > > regardless of gfp_mask.
+> > > 
+> > > This is indeed unnecessary.
+> > > 
+> > > > How long will the OOM victim is blocked when the
+> > > > allocating task needs to allocate e.g. 1000 !__GFP_FS pages before allowing
+> > > > the OOM victim waiting at mutex_lock(&inode->i_mutex) to continue? It will be
+> > > > a too-long-to-wait stall which is effectively a deadlock for users. I think
+> > > > we should not sleep with the oom_lock held.
+> > > 
+> > > I do not see why sleeping with oom_lock would be a problem. It simply
+> > > doesn't make much sense to try to trigger OOM killer when there is/are
+> > > OOM victims still exiting.
 > > 
-> > How are you going to show an event for a filesystem that is made up of
-> > multiple block devices?
+> > Because thread A's memory allocation is deferred by threads B, C, D...'s memory
+> > allocation which are holding (or waiting for) the oom_lock when the OOM victim
+> > is waiting for thread A's allocation. I think that a memory allocator which
+> > allocates at average 5 seconds is considered as unusable. If we sleep without
+> > the oom_lock held, the memory allocator can allocate at average
+> > (5 / number_of_allocating_threads) seconds. Sleeping with the oom_lock held
+> > can effectively prevent thread A from making progress.
 > 
-> AFAIK, for such filesystems there will be similar case with the anonymous
-> major:minor numbers - at least the btrfs is doing so. Not sure we can
-> differentiate here the actual block device. So in this case such events
-> serves merely as a hint for the userspace.
-
-"hint" seems like this isn't really going to work well.
-
-Do you have userspace code that can properly map this back to the "real"
-device that is causing problems?  Without that, this doesn't seem all
-that useful as no one would be able to use those events.
-
-> At this point a user might decide to run some scanning tools.
-
-You can't run a scanning tool on a tmpfs :)
-
-So what can a user do with information about one of these "virtual"
-filesystems that it can't directly see or access?
-
-> We might extend the scope of the
-> info being sent, though I would consider this as a nice-to-have but not
-> required for this initial version of notifications. The filesystems
-> might also want to decide to send their own custom messages so it is
-> possible for filesystems like btrfs to send more detailed information
-> using the new genetlink multicast group.
-> >>   Or you can use /proc/self/mountinfo for the mapping. There you can see
-> >> device numbers, real device names if applicable and mountpoints. This has
-> >> the advantage that it works even if filesystem mountpoints change.
-> > 
-> > Ok, then that brings up my next question, how does this handle
-> > namespaces?  What namespace is the event being sent in?  block devices
-> > aren't namespaced, but the mount points are, is that going to cause
-> > problems?
-> > 
+> I agree with that.  The problem with the sleeping is that it has to be
+> long enough to give the OOM victim a fair chance to exit, but short
+> enough to not make the page allocator unusable in case there is a
+> genuine deadlock.  And you are right, the context blocking the OOM
+> victim from exiting might do a whole string of allocations, not just
+> one, before releasing any locks.
 > 
-> The path should get resolved properly (as from root level). though I must
-> admit I'm not sure if there will be no issues when it comes to the network
-> namespaces. I'll double check it. Any hints though are more than welcomed :)
+> What we can do to mitigate this is tie the timeout to the setting of
+> TIF_MEMDIE so that the wait is not 5s from the point of calling
+> out_of_memory() but from the point of where TIF_MEMDIE was set.
+> Subsequent allocations will then go straight to the reserves.
 
-What is "root level" here?  You can mount things in different namespaces
-all over the place.
+That would deplete the reserves very easily. Shouldn't we rather
+go other way around? Allow OOM killer context to dive into memory
+reserves some more (ALLOC_OOM on top of current ALLOC flags and
+__zone_watermark_ok would allow an additional 1/4 of the reserves) and
+start waiting for the victim after that reserve is depleted. We would
+still have some room for TIF_MEMDIE to allocate, the reserves consumption
+would be throttled somehow and the holders of resources would have some
+chance to release them and allow the victim to die.
 
-This is going to get really complex very quickly :(
-
-I still think you should tie this to an existing sysfs device, which
-handles the namespace issues for you, and it also handles the fact that
-userspace can properly identify the device, if at all possible.
-
-thanks,
-
-greg k-h
+If the allocation still fails after the timeout then we should consider
+failing the allocation as the next step or give NO_WATERMARK to
+GFP_NOFAIL.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
