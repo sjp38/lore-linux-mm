@@ -1,109 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 97DD76B0032
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 09:30:45 -0400 (EDT)
-Received: by wgyo15 with SMTP id o15so62460917wgy.2
-        for <linux-mm@kvack.org>; Thu, 30 Apr 2015 06:30:45 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
-        by mx.google.com with ESMTP id dl8si2866549wib.11.2015.04.30.06.30.43
-        for <linux-mm@kvack.org>;
-        Thu, 30 Apr 2015 06:30:44 -0700 (PDT)
-Date: Thu, 30 Apr 2015 16:30:35 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC PATCH 1/3] mm/thp: Use pmdp_splitting_flush_notify to clear
- pmd on splitting
-Message-ID: <20150430133035.GF15874@node.dhcp.inet.fi>
-References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1430382341-8316-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1430382341-8316-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 7375C6B0032
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 10:25:39 -0400 (EDT)
+Received: by wgen6 with SMTP id n6so64276785wge.3
+        for <linux-mm@kvack.org>; Thu, 30 Apr 2015 07:25:38 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id by11si264013wib.105.2015.04.30.07.25.37
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 30 Apr 2015 07:25:37 -0700 (PDT)
+Date: Thu, 30 Apr 2015 16:25:35 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 0/9] mm: improve OOM mechanism v2
+Message-ID: <20150430142534.GA16964@dhcp22.suse.cz>
+References: <201504290050.FDE18274.SOJVtFLOMOQFFH@I-love.SAKURA.ne.jp>
+ <20150429125506.GB7148@cmpxchg.org>
+ <20150429144031.GB31341@dhcp22.suse.cz>
+ <201504300227.JCJ81217.FHOLSQVOFFJtMO@I-love.SAKURA.ne.jp>
+ <20150429183135.GH31341@dhcp22.suse.cz>
+ <201504301844.CFE13027.FOMtJHQOFSOFVL@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1430382341-8316-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <201504301844.CFE13027.FOMtJHQOFSOFVL@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, paulus@samba.org, benh@kernel.crashing.org, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: david@fromorbit.com, hannes@cmpxchg.org, akpm@linux-foundation.org, aarcange@redhat.com, rientjes@google.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Apr 30, 2015 at 01:55:39PM +0530, Aneesh Kumar K.V wrote:
-> Some arch may require an explicit IPI before a THP PMD split. This
-> ensures that a local_irq_disable can prevent a parallel THP PMD split.
-> So use new function which arch can override
+On Thu 30-04-15 18:44:25, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > I mean we should eventually fail all the allocation types but GFP_NOFS
+> > is coming from _carefully_ handled code paths which is an easier starting
+> > point than a random code path in the kernel/drivers. So can we finally
+> > move at least in this direction?
 > 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  include/asm-generic/pgtable.h |  5 +++++
->  mm/huge_memory.c              |  7 ++++---
->  mm/pgtable-generic.c          | 11 +++++++++++
->  3 files changed, 20 insertions(+), 3 deletions(-)
-> 
-> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-> index fe617b7e4be6..d091a666f5b1 100644
-> --- a/include/asm-generic/pgtable.h
-> +++ b/include/asm-generic/pgtable.h
-> @@ -184,6 +184,11 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
->  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->  #endif
->  
-> +#ifndef __HAVE_ARCH_PMDP_SPLITTING_FLUSH_NOTIFY
-> +extern void pmdp_splitting_flush_notify(struct vm_area_struct *vma,
-> +					unsigned long address, pmd_t *pmdp);
-> +#endif
-> +
->  #ifndef __HAVE_ARCH_PGTABLE_DEPOSIT
->  extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
->  				       pgtable_t pgtable);
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index cce4604c192f..81e9578bf43a 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2606,9 +2606,10 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->  
->  	write = pmd_write(*pmd);
->  	young = pmd_young(*pmd);
-> -
-> -	/* leave pmd empty until pte is filled */
-> -	pmdp_clear_flush_notify(vma, haddr, pmd);
-> +	/*
-> +	 * leave pmd empty until pte is filled.
-> +	 */
-> +	pmdp_splitting_flush_notify(vma, haddr, pmd);
->  
->  	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
->  	pmd_populate(mm, &_pmd, pgtable);
-> diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
-> index 2fe699cedd4d..0fc1f5a06979 100644
-> --- a/mm/pgtable-generic.c
-> +++ b/mm/pgtable-generic.c
-> @@ -7,6 +7,7 @@
->   */
->  
->  #include <linux/pagemap.h>
-> +#include <linux/mmu_notifier.h>
->  #include <asm/tlb.h>
->  #include <asm-generic/pgtable.h>
->  
-> @@ -184,3 +185,13 @@ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
->  }
->  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->  #endif
-> +
-> +#ifndef __HAVE_ARCH_PMDP_SPLITTING_FLUSH_NOTIFY
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> +void pmdp_splitting_flush_notify(struct vm_area_struct *vma,
-> +				 unsigned long address, pmd_t *pmdp)
-> +{
-> +	pmdp_clear_flush_notify(vma, address, pmdp);
-> +}
-> +#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-> +#endif
+> I agree that all the allocation types can fail unless GFP_NOFAIL is given.
+> But I also expect that all the allocation types should not fail unless
+> order > PAGE_ALLOC_COSTLY_ORDER or GFP_NORETRY is given or chosen as an OOM
+> victim.
 
-I think it worth inlining. Let's put it to <asm-generic/pgtable.h>
+Yeah, let's keep shooting our feet and then look for workarounds to deal
+with it...
+ 
+> We already experienced at Linux 3.19 what happens if !__GFP_FS allocations
+> fails. out_of_memory() is called by pagefault_out_of_memory() when 0x2015a
+> (!__GFP_FS) allocation failed.
 
-It probably worth combining with collapse counterpart in the same patch.
+I have posted a patch to deal with this
+(http://marc.info/?l=linux-mm&m=142770374521952&w=2). There is no real
+reason to do the GFP_NOFS from the page fault context just because the
+mapping _always_ insists on it. Page fault simply _has_ to be GFP_FS
+safe, we are badly broken otherwise. That patch should go in hand with
+GFP_NOFS might fail one. I haven't posted it yet because I was waiting
+for the merge window to close.
 
+> This looks to me that !__GFP_FS allocations
+> are effectively OOM killer context. It is not fair to kill the thread which
+> triggered a page fault, for that thread may not be using so much memory
+> (unfair from memory usage point of view) or that thread may be global init
+> (unfair because killing the entire system than survive by killing somebody).
+
+Why would we kill the faulting process?
+
+> Also, failing the GFP_NOFS/GFP_NOIO allocations which are not triggered by
+> a page fault generally causes more damage (e.g. taking filesystem error
+> action) than survive by killing somebody. Therefore, I think we should not
+> hesitate invoking the OOM killer for !__GFP_FS allocation.
+
+No, we should fix those places and use proper gfp flags rather than
+pretend that the problem doesn't exist and deal with all the side
+effectes.
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
