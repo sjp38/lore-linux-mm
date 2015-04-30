@@ -1,91 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 81C286B0032
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 10:52:57 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so22801064wiz.1
-        for <linux-mm@kvack.org>; Thu, 30 Apr 2015 07:52:56 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fb11si4379806wjc.83.2015.04.30.07.52.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 30 Apr 2015 07:52:55 -0700 (PDT)
-Date: Thu, 30 Apr 2015 16:52:54 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC PATCH] mmap.2: clarify MAP_LOCKED semantic (was: Re: Should
- mmap MAP_LOCKED fail if mm_poppulate fails?)
-Message-ID: <20150430145254.GB16964@dhcp22.suse.cz>
-References: <20150114095019.GC4706@dhcp22.suse.cz>
- <1430223111-14817-1-git-send-email-mhocko@suse.cz>
- <CA+55aFxzLXx=cC309h_tEc-Gkn_zH4ipR7PsefVcE-97Uj066g@mail.gmail.com>
- <20150428164302.GI2659@dhcp22.suse.cz>
- <CA+55aFydkG-BgZzry5DrTzueVh9VvEcVJdLV8iOyUphQk=0vpw@mail.gmail.com>
- <20150428183535.GB30918@dhcp22.suse.cz>
- <CA+55aFyajquhGhw59qNWKGK4dBV0TPmDD7-1XqPo7DZWvO_hPg@mail.gmail.com>
- <20150429113818.GC16097@dhcp22.suse.cz>
- <alpine.DEB.2.10.1504291723001.17825@chino.kir.corp.google.com>
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id D62CD6B0032
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 11:39:45 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so24670139wid.0
+        for <linux-mm@kvack.org>; Thu, 30 Apr 2015 08:39:45 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
+        by mx.google.com with ESMTP id fw6si3427217wib.35.2015.04.30.08.39.43
+        for <linux-mm@kvack.org>;
+        Thu, 30 Apr 2015 08:39:43 -0700 (PDT)
+Date: Thu, 30 Apr 2015 18:39:40 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC 01/11] mm: debug: format flags in a buffer
+Message-ID: <20150430153940.GA17156@node.dhcp.inet.fi>
+References: <1429044993-1677-1-git-send-email-sasha.levin@oracle.com>
+ <1429044993-1677-2-git-send-email-sasha.levin@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1504291723001.17825@chino.kir.corp.google.com>
+In-Reply-To: <1429044993-1677-2-git-send-email-sasha.levin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Michael Kerrisk <mtk.manpages@gmail.com>, linux-mm <linux-mm@kvack.org>, Cyril Hrubis <chrubis@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org
 
-On Wed 29-04-15 17:28:54, David Rientjes wrote:
-[...]
-> The wording of this begs the question on the behavior of 
-> MAP_LOCKED | MAP_POPULATE since this same man page specifies that 
-> accesses to memory mapped with MAP_POPULATE will not block on page faults 
-> later.
+On Tue, Apr 14, 2015 at 04:56:23PM -0400, Sasha Levin wrote:
+> Format various flags to a string buffer rather than printing them. This is
+> a helper for later.
+> 
+> Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+> ---
+>  mm/debug.c |   35 +++++++++++++++++++++++++++++++++++
+>  1 file changed, 35 insertions(+)
+> 
+> diff --git a/mm/debug.c b/mm/debug.c
+> index 3eb3ac2..c9f7dd7 100644
+> --- a/mm/debug.c
+> +++ b/mm/debug.c
+> @@ -80,6 +80,41 @@ static void dump_flags(unsigned long flags,
+>  	pr_cont(")\n");
+>  }
+>  
+> +static char *format_flags(unsigned long flags,
+> +			const struct trace_print_flags *names, int count,
+> +			char *buf, char *end)
+> +{
+> +	const char *delim = "";
+> +	unsigned long mask;
+> +	int i;
+> +
+> +	buf += snprintf(buf, (buf > end ? 0 : end - buf),
+> +				"flags: %#lx(", flags);
+> +
+> +	/* remove zone id */
+> +	flags &= (1UL << NR_PAGEFLAGS) - 1;
+> +
+> +	for (i = 0; i < count && flags; i++) {
+> +                mask = names[i].mask;
+> +                if ((flags & mask) != mask)
+> +                        continue;
+> +
+> +                flags &= ~mask;
+> +		buf += snprintf(buf, (buf > end ? 0 : end - buf),
+> +                		"%s%s", delim, names[i].name);
 
-Interesting. I haven't thought of this combination. The wording of
-MAP_POPULATE is too strong and it really might suggest that no future
-major faults will happen. And that is simply not true.
----
-diff --git a/man2/mmap.2 b/man2/mmap.2
-index 1486be2e96b3..c51d3f241ff9 100644
---- a/man2/mmap.2
-+++ b/man2/mmap.2
-@@ -284,7 +284,7 @@ private writable mappings.
- .BR MAP_POPULATE " (since Linux 2.5.46)"
- Populate (prefault) page tables for a mapping.
- For a file mapping, this causes read-ahead on the file.
--Later accesses to the mapping will not be blocked by page faults.
-+This will help to reduce blocking on the page faults later.
- .BR MAP_POPULATE
- is supported for private mappings only since Linux 2.6.23.
- .TP
- 
-> I think Documentation/vm/unevictable-lru.txt would benefit from an update 
-> under the mmap(MAP_LOCKED) section where all this can be laid out and 
-> perhaps reference it from the man page?
+Indent is off. Otherwise look okay to me.
 
-Sure, what about the following:
----
-diff --git a/Documentation/vm/unevictable-lru.txt b/Documentation/vm/unevictable-lru.txt
-index 3be0bfc4738d..9106f50781ac 100644
---- a/Documentation/vm/unevictable-lru.txt
-+++ b/Documentation/vm/unevictable-lru.txt
-@@ -467,7 +467,13 @@ mmap(MAP_LOCKED) SYSTEM CALL HANDLING
- 
- In addition the mlock()/mlockall() system calls, an application can request
- that a region of memory be mlocked supplying the MAP_LOCKED flag to the mmap()
--call.  Furthermore, any mmap() call or brk() call that expands the heap by a
-+call. There is one important and subtle difference here, though. mmap() + mlock()
-+will fail if the range cannot be faulted in (e.g. because mm_populate fails)
-+and returns with ENOMEM while mmap(MAP_LOCKED) will not fail. The mmaped are
-+will still have properties of the locked area - aka. pages will not get
-+swapped out - but major page faults to fault memory in might still happen.
-+
-+Furthermore, any mmap() call or brk() call that expands the heap by a
- task that has previously called mlockall() with the MCL_FUTURE flag will result
- in the newly mapped memory being mlocked.  Before the unevictable/mlock
- changes, the kernel simply called make_pages_present() to allocate pages and
+> +                delim = "|";
+> +        }
+> +
+> +        /* check for left over flags */
+> +        if (flags)
+> +		buf += snprintf(buf, (buf > end ? 0 : end - buf),
+> +                		"%s%#lx", delim, flags);
+> +
+> +	buf += snprintf(buf, (buf > end ? 0 : end - buf), ")\n");
+> +
+> +	return buf;
+> +}
+> +
+>  void dump_page_badflags(struct page *page, const char *reason,
+>  		unsigned long badflags)
+>  {
+> -- 
+> 1.7.10.4
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
