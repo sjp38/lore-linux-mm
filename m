@@ -1,79 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 7375C6B0032
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 10:25:39 -0400 (EDT)
-Received: by wgen6 with SMTP id n6so64276785wge.3
-        for <linux-mm@kvack.org>; Thu, 30 Apr 2015 07:25:38 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id by11si264013wib.105.2015.04.30.07.25.37
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 37D4E6B0032
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 10:51:10 -0400 (EDT)
+Received: by pabsx10 with SMTP id sx10so61906257pab.3
+        for <linux-mm@kvack.org>; Thu, 30 Apr 2015 07:51:10 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id nt2si3863467pbc.28.2015.04.30.07.51.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 30 Apr 2015 07:25:37 -0700 (PDT)
-Date: Thu, 30 Apr 2015 16:25:35 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 0/9] mm: improve OOM mechanism v2
-Message-ID: <20150430142534.GA16964@dhcp22.suse.cz>
-References: <201504290050.FDE18274.SOJVtFLOMOQFFH@I-love.SAKURA.ne.jp>
- <20150429125506.GB7148@cmpxchg.org>
- <20150429144031.GB31341@dhcp22.suse.cz>
- <201504300227.JCJ81217.FHOLSQVOFFJtMO@I-love.SAKURA.ne.jp>
- <20150429183135.GH31341@dhcp22.suse.cz>
- <201504301844.CFE13027.FOMtJHQOFSOFVL@I-love.SAKURA.ne.jp>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Apr 2015 07:51:08 -0700 (PDT)
+Date: Thu, 30 Apr 2015 17:50:55 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH v3 3/3] proc: add kpageidle file
+Message-ID: <20150430145055.GB17640@esperanza>
+References: <cover.1430217477.git.vdavydov@parallels.com>
+ <4c24a6bf2c9711dd4dbb72a43a16eba6867527b7.1430217477.git.vdavydov@parallels.com>
+ <20150429043536.GB11486@blaptop>
+ <20150429091248.GD1694@esperanza>
+ <20150430082531.GD21771@blaptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <201504301844.CFE13027.FOMtJHQOFSOFVL@I-love.SAKURA.ne.jp>
+In-Reply-To: <20150430082531.GD21771@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: david@fromorbit.com, hannes@cmpxchg.org, akpm@linux-foundation.org, aarcange@redhat.com, rientjes@google.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu 30-04-15 18:44:25, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > I mean we should eventually fail all the allocation types but GFP_NOFS
-> > is coming from _carefully_ handled code paths which is an easier starting
-> > point than a random code path in the kernel/drivers. So can we finally
-> > move at least in this direction?
+On Thu, Apr 30, 2015 at 05:25:31PM +0900, Minchan Kim wrote:
+> On Wed, Apr 29, 2015 at 12:12:48PM +0300, Vladimir Davydov wrote:
+> > On Wed, Apr 29, 2015 at 01:35:36PM +0900, Minchan Kim wrote:
+> > > On Tue, Apr 28, 2015 at 03:24:42PM +0300, Vladimir Davydov wrote:
+> > > > +#ifdef CONFIG_IDLE_PAGE_TRACKING
+> > > > +static struct page *kpageidle_get_page(unsigned long pfn)
+> > > > +{
+> > > > +	struct page *page;
+> > > > +
+> > > > +	if (!pfn_valid(pfn))
+> > > > +		return NULL;
+> > > > +	page = pfn_to_page(pfn);
+> > > > +	/*
+> > > > +	 * We are only interested in user memory pages, i.e. pages that are
+> > > > +	 * allocated and on an LRU list.
+> > > > +	 */
+> > > > +	if (!page || page_count(page) == 0 || !PageLRU(page))
+> > > > +		return NULL;
+> > > > +	if (!get_page_unless_zero(page))
+> > > > +		return NULL;
+> > > > +	if (unlikely(!PageLRU(page))) {
+> > > 
+> > > What lock protect the check PageLRU?
+> > > If it is racing ClearPageLRU, what happens?
+> > 
+> > If we hold a reference to a page and see that it's on an LRU list, it
+> > will surely remain a user memory page at least until we release the
+> > reference to it, so it must be safe to play with idle/young flags. If we
 > 
-> I agree that all the allocation types can fail unless GFP_NOFAIL is given.
-> But I also expect that all the allocation types should not fail unless
-> order > PAGE_ALLOC_COSTLY_ORDER or GFP_NORETRY is given or chosen as an OOM
-> victim.
+> The problem is that you pass the page in rmap reverse logic(ie, page_referenced)
+> once you judge it's LRU page so if it is false-positive, what happens?
+> A question is SetPageLRU, PageLRU, ClearPageLRU keeps memory ordering?
+> IOW, all of fields from struct page rmap can acccess should be set up completely
+> before LRU checking. Otherwise, something will be broken.
 
-Yeah, let's keep shooting our feet and then look for workarounds to deal
-with it...
- 
-> We already experienced at Linux 3.19 what happens if !__GFP_FS allocations
-> fails. out_of_memory() is called by pagefault_out_of_memory() when 0x2015a
-> (!__GFP_FS) allocation failed.
+So, basically you are concerned about the case when we encounter a
+freshly allocated page, which has PG_lru bit set and it's going to
+become anonymous, but it is still in the process of rmap initialization,
+i.e. its ->mapping or ->mapcount may still be uninitialized, right?
 
-I have posted a patch to deal with this
-(http://marc.info/?l=linux-mm&m=142770374521952&w=2). There is no real
-reason to do the GFP_NOFS from the page fault context just because the
-mapping _always_ insists on it. Page fault simply _has_ to be GFP_FS
-safe, we are badly broken otherwise. That patch should go in hand with
-GFP_NOFS might fail one. I haven't posted it yet because I was waiting
-for the merge window to close.
+AFAICS, page_referenced should handle such pages fine. Look, it only
+needs ->index, ->mapping, and ->mapcount.
 
-> This looks to me that !__GFP_FS allocations
-> are effectively OOM killer context. It is not fair to kill the thread which
-> triggered a page fault, for that thread may not be using so much memory
-> (unfair from memory usage point of view) or that thread may be global init
-> (unfair because killing the entire system than survive by killing somebody).
+If ->mapping is unset, than it is NULL and rmap_walk_anon_lock ->
+page_lock_anon_vma_read will return NULL so that rmap_walk will be a
+no-op.
 
-Why would we kill the faulting process?
+If ->index is not initialized, than at worst we will go to
+anon_vma_interval_tree_foreach over a wrong interval, in which case we
+will see that the page is actually not mapped in page_referenced_one ->
+page_check_address and again do nothing.
 
-> Also, failing the GFP_NOFS/GFP_NOIO allocations which are not triggered by
-> a page fault generally causes more damage (e.g. taking filesystem error
-> action) than survive by killing somebody. Therefore, I think we should not
-> hesitate invoking the OOM killer for !__GFP_FS allocation.
+If ->mapcount is not initialized it is -1, and page_lock_anon_vma_read
+will return NULL, just as it does in case ->mapping = NULL.
 
-No, we should fix those places and use proper gfp flags rather than
-pretend that the problem doesn't exist and deal with all the side
-effectes.
--- 
-Michal Hocko
-SUSE Labs
+For file pages, we always take PG_locked before checking ->mapping, so
+it must be valid.
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
