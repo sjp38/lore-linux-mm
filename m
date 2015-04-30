@@ -1,129 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id C73A36B0032
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 12:47:14 -0400 (EDT)
-Received: by pabtp1 with SMTP id tp1so64914920pab.2
-        for <linux-mm@kvack.org>; Thu, 30 Apr 2015 09:47:14 -0700 (PDT)
-Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com. [122.248.162.6])
-        by mx.google.com with ESMTPS id po7si4305179pbc.6.2015.04.30.09.47.12
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 30 Apr 2015 09:47:13 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 30 Apr 2015 22:17:09 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 2083F125805B
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 22:19:09 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t3UGl5cT46596158
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 22:17:05 +0530
-Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t3UGl5Sj005558
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 22:17:05 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH 1/3] mm/thp: Use pmdp_splitting_flush_notify to clear pmd on splitting
-In-Reply-To: <87iocd38uj.fsf@linux.vnet.ibm.com>
-References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com> <1430382341-8316-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1430382341-8316-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20150430133035.GF15874@node.dhcp.inet.fi> <87iocd38uj.fsf@linux.vnet.ibm.com>
-Date: Thu, 30 Apr 2015 22:17:04 +0530
-Message-ID: <87fv7h36nr.fsf@linux.vnet.ibm.com>
+Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FE956B006E
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 13:12:56 -0400 (EDT)
+Received: by qcrf4 with SMTP id f4so32251529qcr.0
+        for <linux-mm@kvack.org>; Thu, 30 Apr 2015 10:12:56 -0700 (PDT)
+Received: from relay.sgi.com (relay1.sgi.com. [192.48.180.66])
+        by mx.google.com with ESMTP id 144si10631376qhb.33.2015.04.30.10.12.55
+        for <linux-mm@kvack.org>;
+        Thu, 30 Apr 2015 10:12:55 -0700 (PDT)
+Message-ID: <55426292.4030309@sgi.com>
+Date: Thu, 30 Apr 2015 12:12:50 -0500
+From: nzimmer <nzimmer@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
+References: <1430410227.8193.0@cpanel21.proisp.no>
+In-Reply-To: <1430410227.8193.0@cpanel21.proisp.no>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: akpm@linux-foundation.org, paulus@samba.org, benh@kernel.crashing.org, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Daniel J Blueman <daniel@numascale.com>, Mel Gorman <mgorman@suse.de>
+Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 'Steffen Persvold' <sp@numascale.com>
 
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
-
-> "Kirill A. Shutemov" <kirill@shutemov.name> writes:
+On 04/30/2015 11:10 AM, Daniel J Blueman wrote:
+> On Wed, Apr 29, 2015 at 2:38 AM, nzimmer <nzimmer@sgi.com> wrote:
+>> On 04/28/2015 11:06 AM, Pekka Enberg wrote:
+>>> On Tue, Apr 28, 2015 at 5:36 PM, Mel Gorman <mgorman@suse.de> wrote:
+>>>> Struct page initialisation had been identified as one of the 
+>>>> reasons why
+>>>> large machines take a long time to boot. Patches were posted a long 
+>>>> time ago
+>>>> to defer initialisation until they were first used.  This was 
+>>>> rejected on
+>>>> the grounds it should not be necessary to hurt the fast paths. This 
+>>>> series
+>>>> reuses much of the work from that time but defers the 
+>>>> initialisation of
+>>>> memory to kswapd so that one thread per node initialises memory 
+>>>> local to
+>>>> that node.
+>>>>
+>>>> After applying the series and setting the appropriate Kconfig 
+>>>> variable I
+>>>> see this in the boot log on a 64G machine
+>>>>
+>>>> [    7.383764] kswapd 0 initialised deferred memory in 188ms
+>>>> [    7.404253] kswapd 1 initialised deferred memory in 208ms
+>>>> [    7.411044] kswapd 3 initialised deferred memory in 216ms
+>>>> [    7.411551] kswapd 2 initialised deferred memory in 216ms
+>>>>
+>>>> On a 1TB machine, I see
+>>>>
+>>>> [    8.406511] kswapd 3 initialised deferred memory in 1116ms
+>>>> [    8.428518] kswapd 1 initialised deferred memory in 1140ms
+>>>> [    8.435977] kswapd 0 initialised deferred memory in 1148ms
+>>>> [    8.437416] kswapd 2 initialised deferred memory in 1148ms
+>>>>
+>>>> Once booted the machine appears to work as normal. Boot times were 
+>>>> measured
+>>>> from the time shutdown was called until ssh was available again.  
+>>>> In the
+>>>> 64G case, the boot time savings are negligible. On the 1TB machine, 
+>>>> the
+>>>> savings were 16 seconds.
 >
->>> @@ -184,3 +185,13 @@ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
->>>  }
->>>  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->>>  #endif
->>> +
->>> +#ifndef __HAVE_ARCH_PMDP_SPLITTING_FLUSH_NOTIFY
->>> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->>> +void pmdp_splitting_flush_notify(struct vm_area_struct *vma,
->>> +				 unsigned long address, pmd_t *pmdp)
->>> +{
->>> +	pmdp_clear_flush_notify(vma, address, pmdp);
->>> +}
->>> +#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->>> +#endif
+>> On an older 8 TB box with lots and lots of cpus the boot time, as 
+>> measure from grub to login prompt, the boot time improved from 1484 
+>> seconds to exactly 1000 seconds.
 >>
->> I think it worth inlining. Let's put it to <asm-generic/pgtable.h>
->>
->> It probably worth combining with collapse counterpart in the same patch.
->>
+>> I have time on 16 TB box tonight and a 12 TB box thursday and will 
+>> hopefully have more numbers then.
 >
-> I tried that first, But that pulls in mmu_notifier.h and huge_mm.h
-> headers and other build failures
+> Neat, and a roughly similar picture here.
+>
+> On a 7TB, 1728-core NumaConnect system with 108 NUMA nodes, we're 
+> seeing stock 4.0 boot in 7136s. This drops to 2159s, or a 70% 
+> reduction with this patchset. Non-temporal PMD init [1] drops this to 
+> 1045s.
+>
+> Nathan, what do you guys see with the non-temporal PMD patch [1]? Do 
+> add a sfence at the ende label if you manually patch.
 >
 
-Putting them in TRANSPATENT_HUGEPAGE helped.
+I have not tried the non-temporal patch yet, Daniel.
+I will give that a go when I can grab more machine time but that 
+probably won't be today.
 
-commit 9c60ab5d1d684db2ba454ee1c7f3e9a6bf57f026
-Author: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Date:   Wed Apr 29 14:57:30 2015 +0530
+> Thanks!
+>  Daniel
+>
+> [1] https://lkml.org/lkml/2015/4/23/350
+>
 
-    mm/thp: Use pmdp_splitting_flush_notify to clear pmd on splitting
-    
-    Some arch may require an explicit IPI before a THP PMD split. This
-    ensures that a local_irq_disable can prevent a parallel THP PMD split.
-    So use new function which arch can override
-    
-    Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+More numbers, including my first set.
 
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index fe617b7e4be6..6a0b2ab899d1 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -184,6 +184,24 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- #endif
- 
-+#ifndef __HAVE_ARCH_PMDP_SPLITTING_FLUSH_NOTIFY
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline void pmdp_splitting_flush_notify(struct vm_area_struct *vma,
-+					       unsigned long address,
-+					       pmd_t *pmdp)
-+{
-+	pmdp_clear_flush_notify(vma, address, pmdp);
-+}
-+#else
-+static inline void pmdp_splitting_flush_notify(struct vm_area_struct *vma,
-+					       unsigned long address,
-+					       pmd_t *pmdp)
-+{
-+	BUG();
-+}
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#endif
-+
- #ifndef __HAVE_ARCH_PGTABLE_DEPOSIT
- extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
- 				       pgtable_t pgtable);
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index cce4604c192f..81e9578bf43a 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2606,9 +2606,10 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 
- 	write = pmd_write(*pmd);
- 	young = pmd_young(*pmd);
--
--	/* leave pmd empty until pte is filled */
--	pmdp_clear_flush_notify(vma, haddr, pmd);
-+	/*
-+	 * leave pmd empty until pte is filled.
-+	 */
-+	pmdp_splitting_flush_notify(vma, haddr, pmd);
- 
- 	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
- 	pmd_populate(mm, &_pmd, pgtable);
+My numbers are from grub prompt to login prompt.
+All times are in seconds.
+The configs are very much like the ones found in sles but with 
+RCU_FANOUT_LEAF=64 instead of 16
+     Large core count boxed benefit from this quite a bit.
+
+Older 8 TB box (128 nodes)
+1484s -> 1000s (yes exactly)
+
+32TB box (128 nodes)
+4890s -> 1240s
+
+Recent 12 TB box (32 nodes)
+598s -> 450s
+
+I am inferring from these numbers and others that memory locality is a 
+big part of the win.
+
+Out of curiosity has anyone ran any tests post boot time?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
