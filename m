@@ -1,152 +1,282 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 237146B0038
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 18:24:27 -0400 (EDT)
-Received: by wgso17 with SMTP id o17so77170061wgs.1
-        for <linux-mm@kvack.org>; Thu, 30 Apr 2015 15:24:26 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id ym6si6122544wjc.130.2015.04.30.15.24.24
-        for <linux-mm@kvack.org>;
-        Thu, 30 Apr 2015 15:24:25 -0700 (PDT)
-Date: Fri, 1 May 2015 01:24:21 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: mm: hangs in collapse_huge_page
-Message-ID: <20150430222421.GA18890@node.dhcp.inet.fi>
-References: <534DE5C0.2000408@oracle.com>
- <20140430154230.GA23371@node.dhcp.inet.fi>
- <5542A9FE.1000604@oracle.com>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 841C66B0038
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 18:44:12 -0400 (EDT)
+Received: by pacyx8 with SMTP id yx8so73299574pac.1
+        for <linux-mm@kvack.org>; Thu, 30 Apr 2015 15:44:12 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ku2si5336213pbc.235.2015.04.30.15.44.10
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Apr 2015 15:44:11 -0700 (PDT)
+Date: Thu, 30 Apr 2015 15:44:10 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2015-04-30-15-43 uploaded
+Message-ID: <5542b03a.eGilmwPZE40EJM9K%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5542A9FE.1000604@oracle.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz
 
-On Thu, Apr 30, 2015 at 06:17:34PM -0400, Sasha Levin wrote:
-> On 04/30/2014 11:42 AM, Kirill A. Shutemov wrote:
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index b4b1feba6472..1c6ace5207b9 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -1986,6 +1986,8 @@ static void insert_to_mm_slots_hash(struct mm_struct *mm,
-> >  
-> >  static inline int khugepaged_test_exit(struct mm_struct *mm)
-> >  {
-> > +       VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem) &&
-> > +                       !spin_is_locked(&khugepaged_mm_lock));
-> >         return atomic_read(&mm->mm_users) == 0;
-> >  }
-> 
-> I've managed to hit this during testing:
-> 
-> [ 8048.304275] kernel BUG at mm/huge_memory.c:2060!
-> [ 8048.305878] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC KASAN
-> [ 8048.307479] Modules linked in: quota_v2 quota_tree xfs libcrc32c x86_pkg_temp_thermal intel_powerclamp coretemp kvm_intel ast kvm ttm drm_kms_helper crct10dif_pclmul crc32_pclmul drm ghash_clmulni_intel aesni_
-> intel aes_x86_64 lrw glue_helper ablk_helper cryptd joydev i2c_algo_bit sb_edac syscopyarea sysfillrect edac_core sysimgblt lpc_ich ipmi_si ipmi_msghandler ioatdma shpchp mac_hid btrfs xor mlx4_en vxlan raid6_pq
-> hid_generic ixgbe mlx4_core usbhid hid dca megaraid_sas ahci ptp libahci pps_core mdio
-> [ 8048.314422] CPU: 31 PID: 13065 Comm: thp01 Not tainted 4.1.0-rc1-next-20150430+ #8
-> [ 8048.316215] Hardware name: Oracle Corporation OVCA X3-2             /ASSY,MOTHERBOARD,1U   , BIOS 17021300 06/19/2012
-> [ 8048.318070] task: ffff8837ba9b3b40 ti: ffff8837bfcf8000 task.ti: ffff8837bfcf8000
-> [ 8048.319941] RIP: __khugepaged_enter (mm/huge_memory.c:2059 mm/huge_memory.c:2075)
-> [ 8048.321856] RSP: 0018:ffff8837bfcff8a0  EFLAGS: 00010246
-> [ 8048.323752] RAX: 000000000000d800 RBX: ffff8837b8314b00 RCX: 0000000000000000
-> [ 8048.325665] RDX: 00000000000000d8 RSI: 00000000000000fc RDI: ffff8837b8314ba8
-> [ 8048.327570] RBP: ffff8837bfcff8e0 R08: ffff8837df1e5040 R09: ffffed06f4b701b8
-> [ 8048.329486] R10: 000000002a82d01f R11: 1ffff106f82c0f77 R12: ffff8837a5b80d98
-> [ 8048.331414] R13: ffff8837c6c58b80 R14: ffff8837c6c58bd0 R15: 0000000000000000
-> [ 8048.333357] FS:  00007f238e593740(0000) GS:ffff8837df1c0000(0000) knlGS:0000000000000000
-> [ 8048.335329] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [ 8048.337304] CR2: 00007f8a8d2c4740 CR3: 00000037c7c10000 CR4: 00000000000407e0
-> [ 8048.339369] Stack:
-> [ 8048.341343]  0000000000000000 00000007fffffffe ffff883700000001 ffff8837b8314b00
-> [ 8048.343382]  00007fffffc00000 ffff8837c6c58b80 ffff8837c6c58bd0 0000000000000000
-> [ 8048.345421]  ffff8837bfcff910 ffffffff815cfa60 ffff8837bfcff910 ffffffff81249cd3
-> [ 8048.347473] Call Trace:
-> [ 8048.349502] khugepaged_enter_vma_merge (include/linux/khugepaged.h:46 mm/huge_memory.c:2115)
-> [ 8048.351584] ? up_write (kernel/locking/rwsem.h:9 kernel/locking/rwsem.c:93)
-> [ 8048.353654] expand_downwards (mm/mmap.c:2278)
-> [ 8048.355719] ? __mem_cgroup_count_vm_event (mm/memcontrol.c:1156)
-> [ 8048.357791] handle_mm_fault (mm/memory.c:2673 mm/memory.c:3250 mm/memory.c:3371 mm/memory.c:3400)
-> [ 8048.359886] ? follow_page_pte (mm/gup.c:48)
-> [ 8048.361952] ? __pmd_alloc (mm/memory.c:3382)
-> [ 8048.364020] ? _raw_spin_unlock (./arch/x86/include/asm/preempt.h:95 include/linux/spinlock_api_smp.h:154 kernel/locking/spinlock.c:183)
-> [ 8048.366083] ? follow_page_pte (mm/gup.c:125)
-> [ 8048.368139] ? follow_page_mask (mm/gup.c:209)
-> [ 8048.370181] __get_user_pages (mm/gup.c:285 mm/gup.c:477)
-> [ 8048.372214] ? follow_page_mask (mm/gup.c:420)
-> [ 8048.374242] ? might_fault (./arch/x86/include/asm/current.h:14 mm/memory.c:3762)
-> [ 8048.376269] get_user_pages (mm/gup.c:818)
+The mm-of-the-moment snapshot 2015-04-30-15-43 has been uploaded to
 
-We call get_user_pages() here without ->mmap_sem taken. It violates
-get_user_pages() interface but should not cause a problem because we don't
-have concurency for the mm yet -- it's exec path.
+   http://www.ozlabs.org/~akpm/mmotm/
 
-Not sure if we should correct it.
+mmotm-readme.txt says
 
-Hm. __bprm_mm_init() in the same exec path takes ->mmap_sem.
+README for mm-of-the-moment:
 
-Any comments?
+http://www.ozlabs.org/~akpm/mmotm/
 
-> [ 8048.378295] copy_strings.isra.20 (fs/exec.c:197 fs/exec.c:510)
-> [ 8048.380392] ? count.isra.18.constprop.36 (fs/exec.c:454)
-> [ 8048.382439] ? copy_strings_kernel (fs/exec.c:556)
-> [ 8048.384464] do_execveat_common.isra.32 (fs/exec.c:1577)
-> [ 8048.386469] ? do_execveat_common.isra.32 (include/linux/spinlock.h:312 fs/exec.c:1263 fs/exec.c:1518)
-> [ 8048.388448] ? prepare_bprm_creds (fs/exec.c:1475)
-> [ 8048.390395] ? kmem_cache_alloc (include/trace/events/kmem.h:53 mm/slub.c:2524)
-> [ 8048.392309] ? getname_flags (fs/namei.c:135)
-> [ 8048.394187] ? up_read (./arch/x86/include/asm/rwsem.h:156 kernel/locking/rwsem.c:81)
-> [ 8048.396027] ? getname_flags (fs/namei.c:146)
-> [ 8048.397869] SyS_execve (fs/exec.c:1701)
-> [ 8048.399715] stub_execve (arch/x86/kernel/entry_64.S:510)
-> [ 8048.401482] ? system_call_fastpath (arch/x86/kernel/entry_64.S:261)
-> [ 8048.403207] Code: 1f 84 00 00 00 00 00 b8 f4 ff ff ff c3 66 2e 0f 1f 84 00 00 00 00 00 0f b7 05 a9 fb db 01 0f b6 d4 31 d0 a8 fe 0f 85 3e fe ff ff <0f> 0b 66 2e 0f 1f 84 00 00 00 00 00 48 89 df e8 18 88 f6 ff 0f
-> All code
-> ========
->    0:   1f                      (bad)
->    1:   84 00                   test   %al,(%rax)
->    3:   00 00                   add    %al,(%rax)
->    5:   00 00                   add    %al,(%rax)
->    7:   b8 f4 ff ff ff          mov    $0xfffffff4,%eax
->    c:   c3                      retq
->    d:   66 2e 0f 1f 84 00 00    nopw   %cs:0x0(%rax,%rax,1)
->   14:   00 00 00
->   17:   0f b7 05 a9 fb db 01    movzwl 0x1dbfba9(%rip),%eax        # 0x1dbfbc7
->   1e:   0f b6 d4                movzbl %ah,%edx
->   21:   31 d0                   xor    %edx,%eax
->   23:   a8 fe                   test   $0xfe,%al
->   25:   0f 85 3e fe ff ff       jne    0xfffffffffffffe69
->   2b:*  0f 0b                   ud2             <-- trapping instruction
->   2d:   66 2e 0f 1f 84 00 00    nopw   %cs:0x0(%rax,%rax,1)
->   34:   00 00 00
->   37:   48 89 df                mov    %rbx,%rdi
->   3a:   e8 18 88 f6 ff          callq  0xfffffffffff68857
->   3f:
-> 
-> Code starting with the faulting instruction
-> ===========================================
->    0:   0f 0b                   ud2
->    2:   66 2e 0f 1f 84 00 00    nopw   %cs:0x0(%rax,%rax,1)
->    9:   00 00 00
->    c:   48 89 df                mov    %rbx,%rdi
->    f:   e8 18 88 f6 ff          callq  0xfffffffffff6882c
->   14:
-> [ 8048.406837] RIP __khugepaged_enter (mm/huge_memory.c:2059 mm/huge_memory.c:2075)
-> [ 8048.408525]  RSP <ffff8837bfcff8a0>
-> 
-> 
-> Thanks,
-> Sasha
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
 
--- 
- Kirill A. Shutemov
+You will need quilt to apply these patches to the latest Linus release (3.x
+or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
+
+
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+
+To develop on top of mmotm git:
+
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
+
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.1-rc1:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+  arch-alpha-kernel-systblss-remove-debug-check.patch
+* revert-zram-move-compact_store-to-sysfs-functions-area.patch
+* zram-add-designated-reviewer-for-zram-in-maintainers.patch
+* maintainers-add-co-maintainer-for-led-subsystem.patch
+* lib-delete-lib-find_last_bitc.patch
+* mm-memory-failure-call-shake_page-when-error-hits-thp-tail-page.patch
+* compiler-gcch-neatening.patch
+* compiler-gcc-integrate-the-various-compiler-gcch-files.patch
+* kasan-show-gcc-version-requirements-in-kconfig-and-documentation.patch
+* documentation-bindings-add-abraconabx80x.patch
+* rtc-add-rtc-abx80x-a-driver-for-the-abracon-ab-x80x-i2c-rtc.patch
+* rtc-add-rtc-abx80x-a-driver-for-the-abracon-ab-x80x-i2c-rtc-v3.patch
+* mm-soft-offline-fix-num_poisoned_pages-counting-on-concurrent-events.patch
+* mm-hwpoison-inject-fix-refcounting-in-no-injection-case.patch
+* mm-hwpoison-inject-check-pagelru-of-hpage.patch
+* revert-fanotify-dont-set-fan_ondir-implicitly-on-a-marks-ignored-mask.patch
+* configfs-init-configfs-module-earlier-at-boot-time.patch
+* util_macrosh-have-array-pointer-point-to-array-of-constants.patch
+* nilfs2-fix-sanity-check-of-btree-level-in-nilfs_btree_root_broken.patch
+* mm-x86-document-return-values-of-mapping-funcs.patch
+* mtrr-x86-fix-mtrr-lookup-to-handle-inclusive-entry.patch
+* mtrr-x86-remove-a-wrong-address-check-in-__mtrr_type_lookup.patch
+* mtrr-x86-fix-mtrr-state-checks-in-mtrr_type_lookup.patch
+* mtrr-x86-define-mtrr_type_invalid-for-mtrr_type_lookup.patch
+* mtrr-x86-clean-up-mtrr_type_lookup.patch
+* mtrr-mm-x86-enhance-mtrr-checks-for-kva-huge-page-mapping.patch
+* fs-ext4-fsyncc-generic_file_fsync-call-based-on-barrier-flag.patch
+* jbd2-revert-must-not-fail-allocation-loops-back-to-gfp_nofail.patch
+* ocfs2-reduce-object-size-of-mlog-uses.patch
+* ocfs2-reduce-object-size-of-mlog-uses-fix.patch
+* ocfs2-remove-__mlog_cpu_guess.patch
+* ocfs2-remove-__mlog_cpu_guess-fix.patch
+* ocfs2-fix-a-tiny-race-when-truncate-dio-orohaned-entry.patch
+* ocfs2-use-retval-instead-of-status-for-checking-error.patch
+* ocfs2-dlm-cleanup-unused-function-__dlm_wait_on_lockres_flags_set.patch
+* ocfs2-return-error-while-ocfs2_figure_merge_contig_type-failing.patch
+* ocfs2-remove-bug_onempty_extent-in-__ocfs2_rotate_tree_left.patch
+* ocfs2-dlm-fix-race-between-purge-and-get-lock-resource.patch
+* ocfs2-set-filesytem-read-only-when-ocfs2_delete_entry-failed.patch
+* ocfs2-set-filesytem-read-only-when-ocfs2_delete_entry-failed-v2.patch
+* ocfs2-trusted-xattr-missing-cap_sys_admin-check.patch
+* ocfs2-flush-inode-data-to-disk-and-free-inode-when-i_count-becomes-zero.patch
+* add-errors=continue.patch
+* acknowledge-return-value-of-ocfs2_error.patch
+* clear-the-rest-of-the-buffers-on-error.patch
+* ocfs2-fix-a-tiny-case-that-inode-can-not-removed.patch
+* ocfs2-extend-transaction-for-ocfs2_remove_rightmost_path-and-ocfs2_update_edge_lengths-before-to-avoid-inconsistency-between-inode-and-et.patch
+* ocfs2-do-not-set-fs-read-only-if-rec-is-empty-while-committing-truncate.patch
+* extend-enough-credits-for-freeing-one-truncate-record-while-replaying-truncate-records.patch
+* ocfs2-use-64bit-variables-to-track-heartbeat-time.patch
+* ocfs2-call-ocfs2_journal_access_di-before-ocfs2_journal_dirty-in-ocfs2_write_end_nolock.patch
+* ocfs2-avoid-access-invalid-address-when-read-o2dlm-debug-messages.patch
+* ocfs2-neaten-do_error-ocfs2_error-and-ocfs2_abort.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* posix_acl-make-posix_acl_create-safer-and-cleaner.patch
+* watchdog-fix-watchdog_nmi_enable_all.patch
+* smpboot-allow-excluding-cpus-from-the-smpboot-threads.patch
+* watchdog-add-watchdog_cpumask-sysctl-to-assist-nohz.patch
+* procfs-treat-parked-tasks-as-sleeping-for-task-state.patch
+  mm.patch
+* mm-slab_common-support-the-slub_debug-boot-option-on-specific-object-size.patch
+* mm-slab_common-support-the-slub_debug-boot-option-on-specific-object-size-fix.patch
+* slab-correct-size_index-table-before-replacing-the-bootstrap-kmem_cache_node.patch
+* linux-slabh-fix-three-off-by-one-typos-in-comment.patch
+* slab-infrastructure-for-bulk-object-allocation-and-freeing-v3.patch
+* slub-bulk-alloc-extract-objects-from-the-per-cpu-slab.patch
+* slub-bulk-allocation-from-per-cpu-partial-pages.patch
+* slub-bulk-allocation-from-per-cpu-partial-pages-fix.patch
+* mm-hwpoison-add-comment-describing-when-to-add-new-cases.patch
+* mm-hwpoison-remove-obsolete-notebook-todo-list.patch
+* thp-cleanup-how-khugepaged-enters-freezer.patch
+* mm-fix-mprotect-behaviour-on-vm_locked-vmas.patch
+* mm-fix-mprotect-behaviour-on-vm_locked-vmas-fix.patch
+* mm-hugetlb-reduce-arch-dependent-code-about-huge_pmd_unshare.patch
+* mm-new-mm-hook-framework.patch
+* mm-new-arch_remap-hook.patch
+* powerpc-mm-tracking-vdso-remap.patch
+* mm-hugetlb-reduce-arch-dependent-code-about-hugetlb_prefault_arch_hook.patch
+* memblock-introduce-a-for_each_reserved_mem_region-iterator.patch
+* mm-meminit-move-page-initialization-into-a-separate-function.patch
+* mm-meminit-only-set-page-reserved-in-the-memblock-region.patch
+* mm-page_alloc-pass-pfn-to-__free_pages_bootmem.patch
+* mm-meminit-make-__early_pfn_to_nid-smp-safe-and-introduce-meminit_pfn_in_nid.patch
+* mm-meminit-inline-some-helper-functions.patch
+* mm-meminit-inline-some-helper-functions-fix.patch
+* mm-meminit-initialise-a-subset-of-struct-pages-if-config_deferred_struct_page_init-is-set.patch
+* mm-meminit-initialise-remaining-struct-pages-in-parallel-with-kswapd.patch
+* mm-meminit-minimise-number-of-pfn-page-lookups-during-initialisation.patch
+* x86-mm-enable-deferred-struct-page-initialisation-on-x86-64.patch
+* mm-meminit-free-pages-in-large-chunks-where-possible.patch
+* mm-meminit-reduce-number-of-times-pageblocks-are-set-during-struct-page-init.patch
+* mm-meminit-remove-mminit_verify_page_links.patch
+* page-flags-trivial-cleanup-for-pagetrans-helpers.patch
+* page-flags-introduce-page-flags-policies-wrt-compound-pages.patch
+* page-flags-define-pg_locked-behavior-on-compound-pages.patch
+* page-flags-define-behavior-of-fs-io-related-flags-on-compound-pages.patch
+* page-flags-define-behavior-of-lru-related-flags-on-compound-pages.patch
+* page-flags-define-behavior-of-lru-related-flags-on-compound-pages-fix.patch
+* page-flags-define-behavior-slb-related-flags-on-compound-pages.patch
+* page-flags-define-behavior-of-xen-related-flags-on-compound-pages.patch
+* page-flags-define-pg_reserved-behavior-on-compound-pages.patch
+* page-flags-define-pg_swapbacked-behavior-on-compound-pages.patch
+* page-flags-define-pg_swapcache-behavior-on-compound-pages.patch
+* page-flags-define-pg_mlocked-behavior-on-compound-pages.patch
+* page-flags-define-pg_uncached-behavior-on-compound-pages.patch
+* page-flags-define-pg_uptodate-behavior-on-compound-pages.patch
+* page-flags-look-on-head-page-if-the-flag-is-encoded-in-page-mapping.patch
+* mm-sanitize-page-mapping-for-tail-pages.patch
+* include-linux-page-flagsh-rename-macros-to-avoid-collisions.patch
+* mm-vmscan-do-not-throttle-based-on-pfmemalloc-reserves-if-node-has-no-reclaimable-pages.patch
+* mm-vmscan-fix-the-page-state-calculation-in-too_many_isolated.patch
+* mm-page_isolation-check-pfn-validity-before-access.patch
+* mm-fix-invalid-use-of-pfn_valid_within-in-test_pages_in_a_zone.patch
+* fs-mpagec-forgotten-write_sync-in-case-of-data-integrity-write.patch
+* x86-add-pmd_-for-thp.patch
+* x86-add-pmd_-for-thp-fix.patch
+* sparc-add-pmd_-for-thp.patch
+* sparc-add-pmd_-for-thp-fix.patch
+* powerpc-add-pmd_-for-thp.patch
+* arm-add-pmd_mkclean-for-thp.patch
+* arm64-add-pmd_-for-thp.patch
+* mm-support-madvisemadv_free.patch
+* mm-support-madvisemadv_free-fix.patch
+* mm-support-madvisemadv_free-fix-2.patch
+* mm-dont-split-thp-page-when-syscall-is-called.patch
+* mm-dont-split-thp-page-when-syscall-is-called-fix.patch
+* mm-dont-split-thp-page-when-syscall-is-called-fix-2.patch
+* mm-free-swp_entry-in-madvise_free.patch
+* mm-move-lazy-free-pages-to-inactive-list.patch
+* mm-move-lazy-free-pages-to-inactive-list-fix.patch
+* mm-move-lazy-free-pages-to-inactive-list-fix-fix.patch
+* mm-move-lazy-free-pages-to-inactive-list-fix-fix-fix.patch
+* zram-remove-obsolete-zram_debug-option.patch
+* zsmalloc-remove-obsolete-zsmalloc_debug.patch
+* frv-remove-unused-inline-function-is_in_rom.patch
+* lib-vsprintf-add-%pt-format-specifier.patch
+* maintainers-remove-website-for-paride.patch
+* __bitmap_parselist-fix-bug-in-empty-string-handling.patch
+* hexdump-make-test-data-really-const.patch
+* lib-sort-add-64-bit-swap-function.patch
+* bitmap-remove-explicit-newline-handling-using-scnprintf-format-string.patch
+* bitmap-remove-explicit-newline-handling-using-scnprintf-format-string-fix.patch
+* mm-utilc-add-kstrimdup.patch
+* lib-add-crc64-ecma-module.patch
+* efs-remove-unneeded-cast.patch
+* kasan-remove-duplicate-definition-of-the-macro-kasan_free_page.patch
+* drivers-rtc-rtc-ds1307c-enable-the-mcp794xx-alarm-after-programming-time.patch
+* rtc-omap-add-external-32k-clock-feature.patch
+* rtc-omap-add-external-32k-clock-feature-fix.patch
+* drivers-rtc-interfacec-check-the-error-after-__rtc_read_time.patch
+* rtc-restore-alarm-after-resume.patch
+* minix-no-need-to-cast-alloction-return-value-in-minix.patch
+* fs-befs-btreec-remove-unneeded-initializations.patch
+* reiserfs-avoid-pointless-casts-in-alloc-codes.patch
+* fat-add-fat_fallocate-operation.patch
+* fat-skip-cluster-allocation-on-fallocated-region.patch
+* fat-permit-to-return-phy-block-number-by-fibmap-in-fallocated-region.patch
+* documentation-filesystems-vfattxt-update-the-limitation-for-fat-fallocate.patch
+* exitstats-obey-this-comment.patch
+* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
+* adfs-remove-unneeded-cast.patch
+* fs-affs-inodec-remove-unneeded-initialization.patch
+* fs-affs-amigaffsc-remove-unneeded-initialization.patch
+* memstick-remove-deprecated-use-of-pci-api.patch
+* msgrcv-use-freezable-blocking-call.patch
+* lib-scatterlist-fix-kerneldoc-for-sg_pcopy_tofrom_buffer.patch
+* lib-scatterlist-mark-input-buffer-parameters-as-const.patch
+  linux-next.patch
+  linux-next-rejects.patch
+* unicore32-remove-unnecessary-kern_err-in-fpu-ucf64c.patch
+* printk-improve-the-description-of-dev-kmsg-line-format.patch
+* w1-call-put_device-if-device_register-fails.patch
+  mm-add-strictlimit-knob-v2.patch
+  do_shared_fault-check-that-mmap_sem-is-held.patch
+  make-sure-nobodys-leaking-resources.patch
+  journal_add_journal_head-debug.patch
+  journal_add_journal_head-debug-fix.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
