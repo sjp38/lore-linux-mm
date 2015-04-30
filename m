@@ -1,166 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id CEFB06B0032
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 05:50:59 -0400 (EDT)
-Received: by lbbqq2 with SMTP id qq2so40203830lbb.3
-        for <linux-mm@kvack.org>; Thu, 30 Apr 2015 02:50:59 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id xa2si1358993lbb.156.2015.04.30.02.50.57
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FB696B0032
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2015 06:23:21 -0400 (EDT)
+Received: by pdbqd1 with SMTP id qd1so56495488pdb.2
+        for <linux-mm@kvack.org>; Thu, 30 Apr 2015 03:23:21 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id yr1si2883204pbc.78.2015.04.30.03.23.19
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Apr 2015 02:50:57 -0700 (PDT)
-Message-ID: <5541FAF3.4080008@parallels.com>
-Date: Thu, 30 Apr 2015 12:50:43 +0300
-From: Pavel Emelyanov <xemul@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] uffd: Introduce the v2 API
-References: <5509D342.7000403@parallels.com> <5509D375.7000809@parallels.com> <20150421121817.GD4481@redhat.com> <55389133.8070701@parallels.com> <20150427211236.GB24035@redhat.com>
-In-Reply-To: <20150427211236.GB24035@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 30 Apr 2015 03:23:20 -0700 (PDT)
+Subject: Re: [PATCH 0/9] mm: improve OOM mechanism v2
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201504290050.FDE18274.SOJVtFLOMOQFFH@I-love.SAKURA.ne.jp>
+	<20150429125506.GB7148@cmpxchg.org>
+	<20150429144031.GB31341@dhcp22.suse.cz>
+	<201504300227.JCJ81217.FHOLSQVOFFJtMO@I-love.SAKURA.ne.jp>
+	<20150429183135.GH31341@dhcp22.suse.cz>
+In-Reply-To: <20150429183135.GH31341@dhcp22.suse.cz>
+Message-Id: <201504301844.CFE13027.FOMtJHQOFSOFVL@I-love.SAKURA.ne.jp>
+Date: Thu, 30 Apr 2015 18:44:25 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>
+To: mhocko@suse.cz, david@fromorbit.com
+Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, aarcange@redhat.com, rientjes@google.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 04/28/2015 12:12 AM, Andrea Arcangeli wrote:
-> Hello,
-> 
-> On Thu, Apr 23, 2015 at 09:29:07AM +0300, Pavel Emelyanov wrote:
->> So your proposal is to always report 16 bytes per PF from read() and
->> let userspace decide itself how to handle the result?
-> 
-> Reading 16bytes for each userfault (instead of 8) and sharing the same
-> read(2) protocol (UFFD_API) for both the cooperative and
-> non-cooperative usages, is something I just suggested for
-> consideration after reading your patchset.
-> 
-> The pros of using a single protocol for both is that it would reduce
-> amount of code and there would be just one file operation for the
-> .read method. The cons is that it will waste 8 bytes per userfault in
-> terms of memory footprint. The other major cons is that it would force
-> us to define the format of the non cooperative protocol now despite it's
-> not fully finished yet.
-> 
-> I'm also ok with two protocols if nobody else objects, but if we use
-> two protocols, we should at least use different file operation methods
-> and use __always_inline with constants passed as parameter to optimize
-> away the branches at build time. This way we get the reduced memory
-> footprint in the read syscall without other runtime overhead
-> associated with it.
+Michal Hocko wrote:
+> I mean we should eventually fail all the allocation types but GFP_NOFS
+> is coming from _carefully_ handled code paths which is an easier starting
+> point than a random code path in the kernel/drivers. So can we finally
+> move at least in this direction?
 
-OK. I would go with two protocols then and will reshuffle the code to
-use two ops.
+I agree that all the allocation types can fail unless GFP_NOFAIL is given.
+But I also expect that all the allocation types should not fail unless
+order > PAGE_ALLOC_COSTLY_ORDER or GFP_NORETRY is given or chosen as an OOM
+victim.
 
->>>> +struct uffd_v2_msg {
->>>> +	__u64	type;
->>>> +	__u64	arg;
->>>> +};
->>>> +
->>>> +#define UFFD_PAGEFAULT	0x1
->>>> +
->>>> +#define UFFD_PAGEFAULT_BIT	(1 << (UFFD_PAGEFAULT - 1))
->>>> +#define __UFFD_API_V2_BITS	(UFFD_PAGEFAULT_BIT)
->>>> +
->>>> +/*
->>>> + * Lower PAGE_SHIFT bits are used to report those supported
->>>> + * by the pagefault message itself. Other bits are used to
->>>> + * report the message types v2 API supports
->>>> + */
->>>> +#define UFFD_API_V2_BITS	(__UFFD_API_V2_BITS << 12)
->>>> +
->>>
->>> And why exactly is this 12 hardcoded?
->>
->> Ah, it should have been the PAGE_SHIFT one, but I was unsure whether it
->> would be OK to have different shifts in different arches.
->>
->> But taking into account your comment that bits field id bad for these
->> values, if we introduce the new .features one for api message, then this
->> 12 will just go away.
-> 
-> Ok.
-> 
->>> And which field should be masked
->>> with the bits? In the V1 protocol it was the "arg" (userfault address)
->>> not the "type". So this is a bit confusing and probably requires
->>> simplification.
->>
->> I see. Actually I decided that since bits higher than 12th (for x86) is
->> always 0 in api message (no bits allowed there, since pfn sits in this
->> place), it would be OK to put non-PF bits there.
-> 
-> That was ok yes.
-> 
->> Should I better introduce another .features field in uffd API message?
-> 
-> What about renaming "uffdio_api.bits" to "uffdio_api.features"?
+We already experienced at Linux 3.19 what happens if !__GFP_FS allocations
+fails. out_of_memory() is called by pagefault_out_of_memory() when 0x2015a
+(!__GFP_FS) allocation failed. This looks to me that !__GFP_FS allocations
+are effectively OOM killer context. It is not fair to kill the thread which
+triggered a page fault, for that thread may not be using so much memory
+(unfair from memory usage point of view) or that thread may be global init
+(unfair because killing the entire system than survive by killing somebody).
+Also, failing the GFP_NOFS/GFP_NOIO allocations which are not triggered by
+a page fault generally causes more damage (e.g. taking filesystem error
+action) than survive by killing somebody. Therefore, I think we should not
+hesitate invoking the OOM killer for !__GFP_FS allocation.
 
-Yup, agreed, will do.
+> > Likewise, there is possibility that such memory reserve is used by threads
+> > which the OOM victim is not waiting for, for malloc() + memset() causes
+> > __GFP_FS allocations.
+> 
+> We cannot be certain without complete dependency tracking. This is
+> just a heuristic.
 
-> And then we set uffdio_api.features to
-> UFFD_FEATURE_WRITE|UFFD_FEATURE_WP|UFFD_FEATURE_FORK as needed.
-> 
-> UFFD_FEATURE_WRITE would always be enabled, it's there only in case we
-> want to disable it later (mostly if some arch has trouble with it,
-> which is unlikely, but qemu doesn't need that bit of information at
-> all for example so qemu would be fine if UFFD_FEATURE_WRITE
-> disappears).
-> 
-> UFFD_FEATURE_WP would signal also that the wrprotection feature (not
-> implemented yet) is available (then later the register ioctl would
-> also show the new wrprotection ioctl numbers available to mangle the
-> wrprotection). The UFFD_FEATURE_WP feature in the cooperative usage
-> (qemu live snapshotting) can use the UFFD_API first protocol too.
-> 
-> UFFD_FEATURE_FORK would be returned if the UFFD_API_V2 was set in
-> uffdio.api, and it would be part of the incremental non-cooperative
-> patchset.
-> 
-> We could also not define "UFFD_FEATURE_FORK" at all and imply that
-> fork/mremap/MADV_DONTNEED are all available if UFFD_API_V2 uffdio_api
-> ioctl succeeds... That's only doable if we keep two different read
-> protocols though. UFFD_FEATURE_FORK (or UFFD_FEATURE_NON_COOPERATIVE)
-> are really strictly needed only if we share the same read(2) protocol
-> for both the cooperative and non-cooperative usages.
-> 
-> The idea is that there's not huge benefit of only having the "fork"
-> feature supported but missing "mremap" and "madv_dontneed".
-> 
-> In fact if a new syscall that works like mremap is added later (call
-> it mremap2), we would need to fail the UFFDIO_API_V2 and require a
-> UFFDIO_API_V3 for such kernel that can return a new mremap2 type of
-> event. Userland couldn't just assume it is ok to use postcopy live
-> migration for containers, because
-> UFFD_FEATURE_FORK|MREMAP|MADV_DONTNEED are present in the
-> uffdio.features when it asked for API_V2. There shall be something
-> that tells userland "hey there's a new mremap2 that the software
-> inside the container can run on top of this kernel, so you are going
-> to get a new mremap2 type of userfault event too".
-
-But that's why I assumed to use per-sycall bits -- UFFD_FEATURE_FORK,
-_MREMAP, _MWHATEVER so that userspace can read those bits and make sure
-it contains only bits it understands with other bits set to zero.
-
-If we had only one UFFD_API_NON_COOPERATIVE userspace would have no idea
-what kind of messages it may receive.
-
-> In any case, regardless of how we solve the above,
-> "uffdio_api.features" sounds better than ".bits".
-> 
-> If we retain two different UFFD_API, we'll be able to freeze the
-> current one and decide later if
-> UFFD_FEATURE_FORK|UFFD_FEATURE_MREMAP|UFFD_FEATURE_MADV_DONTNEED shall
-> be added to the .features, or if to rely on UFFD_API_V2 succeeding to
-> let userland know that the non-cooperative usage is fully supported by
-> the kernel.
-> 
-> Not having to freeze these details now is the main benefit of having
-> two different UFFD_API after all...
-> .
-> 
-
--- Pavel
+Yes, we cannot be certain without complete dependency tracking. And doing
+complete dependency tracking is too expensive to implement. Dave is
+recommending that we should focus on not to trigger the OOM killer than
+how to handle corner cases in OOM conditions, isn't he? I still believe that
+choosing more OOM victims upon timeout (which is a heuristic after all) and
+invoking the OOM killer for !__GFP_FS allocations are the cheapest and least
+surprising. This is something like automatically and periodically pressing
+SysRq-f on behalf of the system administrator when memory allocator cannot
+recover from low memory situation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
