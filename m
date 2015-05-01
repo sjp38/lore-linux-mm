@@ -1,120 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id F14886B006E
-	for <linux-mm@kvack.org>; Fri,  1 May 2015 01:43:58 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so83143085pde.3
-        for <linux-mm@kvack.org>; Thu, 30 Apr 2015 22:43:58 -0700 (PDT)
-Received: from e28smtp07.in.ibm.com (e28smtp07.in.ibm.com. [122.248.162.7])
-        by mx.google.com with ESMTPS id y2si6594792pas.55.2015.04.30.22.43.54
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id E15296B0038
+	for <linux-mm@kvack.org>; Fri,  1 May 2015 05:20:39 -0400 (EDT)
+Received: by wgin8 with SMTP id n8so86143673wgi.0
+        for <linux-mm@kvack.org>; Fri, 01 May 2015 02:20:39 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i15si7022946wiv.82.2015.05.01.02.20.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 30 Apr 2015 22:43:55 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 1 May 2015 11:13:52 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id DCA8CE0067
-	for <linux-mm@kvack.org>; Fri,  1 May 2015 11:16:34 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay01.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t415hkvH49021152
-	for <linux-mm@kvack.org>; Fri, 1 May 2015 11:13:47 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t415hjW8005940
-	for <linux-mm@kvack.org>; Fri, 1 May 2015 11:13:46 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V2 1/2] mm/thp: Use new functions to clear pmd on splitting and collapse
-Date: Fri,  1 May 2015 11:13:25 +0530
-Message-Id: <1430459006-18142-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1430459006-18142-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1430459006-18142-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        Fri, 01 May 2015 02:20:37 -0700 (PDT)
+Date: Fri, 1 May 2015 10:20:31 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: page_alloc: pass PFN to __free_pages_bootmem -fix
+Message-ID: <20150501092031.GB2449@suse.de>
+References: <1430231830-7702-1-git-send-email-mgorman@suse.de>
+ <1430231830-7702-5-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1430231830-7702-5-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mpe@ellerman.id.au, paulus@samba.org, benh@kernel.crashing.org, kirill.shutemov@linux.intel.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Some arch may require an explicit IPI before a THP PMD split or
-collapse. This enable us to use local_irq_disable to prevent
-a parallel THP PMD split or collapse.
+Stephen Rothwell reported the following
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+	Today's linux-next build (sparc defconfig) failed like this:
+
+	mm/bootmem.c: In function 'free_all_bootmem_core':
+	mm/bootmem.c:237:32: error: 'cur' undeclared (first use in this function)
+	   __free_pages_bootmem(page++, cur++, 0);
+                                ^
+	Caused by commit "mm: page_alloc: pass PFN to __free_pages_bootmem".
+
+He also merged a fix. The only difference in this version is one line is
+moved so the final diff context is clearer. This is a fix to the mmotm
+patch mm-page_alloc-pass-pfn-to-__free_pages_bootmem.patch
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/asm-generic/pgtable.h | 32 ++++++++++++++++++++++++++++++++
- mm/huge_memory.c              |  9 +++++----
- 2 files changed, 37 insertions(+), 4 deletions(-)
+ mm/bootmem.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index fe617b7e4be6..e95c697bef25 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -184,6 +184,38 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- #endif
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index daf956bb4782..a23dd1934654 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -172,7 +172,7 @@ void __init free_bootmem_late(unsigned long physaddr, unsigned long size)
+ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+ {
+ 	struct page *page;
+-	unsigned long *map, start, end, pages, count = 0;
++	unsigned long *map, start, end, pages, cur, count = 0;
  
-+#ifndef __HAVE_ARCH_PMDP_SPLITTING_FLUSH_NOTIFY
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define pmdp_splitting_flush_notify pmdp_clear_flush_notify
-+#else
-+static inline void pmdp_splitting_flush_notify(struct vm_area_struct *vma,
-+					       unsigned long address,
-+					       pmd_t *pmdp)
-+{
-+	BUILD_BUG();
-+}
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#endif
-+
-+#ifndef __HAVE_ARCH_PMDP_COLLAPSE_FLUSH
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
-+				       unsigned long address,
-+				       pmd_t *pmdp)
-+{
-+	return pmdp_clear_flush(vma, address, pmdp);
-+}
-+#else
-+static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
-+				       unsigned long address,
-+				       pmd_t *pmdp)
-+{
-+	BUILD_BUG();
-+	return __pmd(0);
-+}
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#endif
-+
- #ifndef __HAVE_ARCH_PGTABLE_DEPOSIT
- extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
- 				       pgtable_t pgtable);
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index cce4604c192f..30c1b46fcf6d 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2187,7 +2187,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	 * huge and small TLB entries for the same virtual address
- 	 * to avoid the risk of CPU bugs in that area.
- 	 */
--	_pmd = pmdp_clear_flush(vma, address, pmd);
-+	_pmd = pmdp_collapse_flush(vma, address, pmd);
- 	spin_unlock(pmd_ptl);
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+ 	if (!bdata->node_bootmem_map)
+ 		return 0;
+@@ -214,7 +214,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+ 			count += BITS_PER_LONG;
+ 			start += BITS_PER_LONG;
+ 		} else {
+-			unsigned long cur = start;
++			cur = start;
  
-@@ -2606,9 +2606,10 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 			start = ALIGN(start + 1, BITS_PER_LONG);
+ 			while (vec && cur != start) {
+@@ -229,6 +229,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+ 		}
+ 	}
  
- 	write = pmd_write(*pmd);
- 	young = pmd_young(*pmd);
--
--	/* leave pmd empty until pte is filled */
--	pmdp_clear_flush_notify(vma, haddr, pmd);
-+	/*
-+	 * leave pmd empty until pte is filled.
-+	 */
-+	pmdp_splitting_flush_notify(vma, haddr, pmd);
- 
- 	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
- 	pmd_populate(mm, &_pmd, pgtable);
--- 
-2.1.4
++	cur = bdata->node_min_pfn;
+ 	page = virt_to_page(bdata->node_bootmem_map);
+ 	pages = bdata->node_low_pfn - bdata->node_min_pfn;
+ 	pages = bootmem_bootmap_pages(pages);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
