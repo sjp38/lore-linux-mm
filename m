@@ -1,41 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 896076B006C
-	for <linux-mm@kvack.org>; Mon,  4 May 2015 05:06:44 -0400 (EDT)
-Received: by wgyo15 with SMTP id o15so143454927wgy.2
-        for <linux-mm@kvack.org>; Mon, 04 May 2015 02:06:44 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q3si10533737wix.19.2015.05.04.02.06.42
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id CD5366B006C
+	for <linux-mm@kvack.org>; Mon,  4 May 2015 05:41:23 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so158436106pdb.1
+        for <linux-mm@kvack.org>; Mon, 04 May 2015 02:41:23 -0700 (PDT)
+Received: from xiaomi.com (outboundhk.mxmail.xiaomi.com. [207.226.244.122])
+        by mx.google.com with ESMTPS id on8si17784230pac.235.2015.05.04.02.41.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 04 May 2015 02:06:43 -0700 (PDT)
-Date: Mon, 4 May 2015 10:06:39 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: mm: VM_BUG on boot in set_pfnblock_flags_mask
-Message-ID: <20150504090639.GA2462@suse.de>
-References: <5546D9EB.4060602@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 04 May 2015 02:41:23 -0700 (PDT)
+From: Hui Zhu <zhuhui@xiaomi.com>
+Subject: [PATCH] CMA: page_isolation: check buddy before access it
+Date: Mon, 4 May 2015 17:41:17 +0800
+Message-ID: <1430732477-16977-1-git-send-email-zhuhui@xiaomi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <5546D9EB.4060602@oracle.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: akpm@linux-foundation.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, lauraa@codeaurora.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: teawater@gmail.com, Hui Zhu <zhuhui@xiaomi.com>
 
-On Sun, May 03, 2015 at 10:31:07PM -0400, Sasha Levin wrote:
-> Hi all,
-> 
-> I've decided to try and put more effort into testing on physical machines, but couldn't
-> even get the box to boot :(
-> 
+I got a issue:
+[  214.294917] Unable to handle kernel NULL pointer dereference at virtual address 0000082a
+[  214.303013] pgd = cc970000
+[  214.305721] [0000082a] *pgd=00000000
+[  214.309316] Internal error: Oops: 5 [#1] PREEMPT SMP ARM
+[  214.335704] PC is at get_pageblock_flags_group+0x5c/0xb0
+[  214.341030] LR is at unset_migratetype_isolate+0x148/0x1b0
+[  214.346523] pc : [<c00cc9a0>]    lr : [<c0109874>]    psr: 80000093
+[  214.346523] sp : c7029d00  ip : 00000105  fp : c7029d1c
+[  214.358005] r10: 00000001  r9 : 0000000a  r8 : 00000004
+[  214.363231] r7 : 60000013  r6 : 000000a4  r5 : c0a357e4  r4 : 00000000
+[  214.369761] r3 : 00000826  r2 : 00000002  r1 : 00000000  r0 : 0000003f
+[  214.376291] Flags: Nzcv  IRQs off  FIQs on  Mode SVC_32  ISA ARM  Segment user
+[  214.383516] Control: 10c5387d  Table: 2cb7006a  DAC: 00000015
+[  214.949720] Backtrace:
+[  214.952192] [<c00cc944>] (get_pageblock_flags_group+0x0/0xb0) from [<c0109874>] (unset_migratetype_isolate+0x148/0x1b0)
+[  214.962978]  r7:60000013 r6:c0a357c0 r5:c0a357e4 r4:c1555000
+[  214.968693] [<c010972c>] (unset_migratetype_isolate+0x0/0x1b0) from [<c0109adc>] (undo_isolate_page_range+0xd0/0xdc)
+[  214.979222] [<c0109a0c>] (undo_isolate_page_range+0x0/0xdc) from [<c00d097c>] (__alloc_contig_range+0x254/0x34c)
+[  214.989398]  r9:000abc00 r8:c7028000 r7:000b1f53 r6:000b3e00 r5:00000005
+r4:c7029db4
+[  214.997308] [<c00d0728>] (__alloc_contig_range+0x0/0x34c) from [<c00d0a88>] (alloc_contig_range+0x14/0x18)
+[  215.006973] [<c00d0a74>] (alloc_contig_range+0x0/0x18) from [<c0398148>] (dma_alloc_from_contiguous_addr+0x1ac/0x304)
 
-Fix added to mmotm and should be in linux-next as
-mm-meminit-reduce-number-of-times-pageblocks-are-set-during-struct-page-init-fix.patch
+This issue is because when call unset_migratetype_isolate to unset a part
+of CMA memory, it try to access the buddy page to get its status:
+		if (order >= pageblock_order) {
+			page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
+			buddy_idx = __find_buddy_index(page_idx, order);
+			buddy = page + (buddy_idx - page_idx);
 
+			if (!is_migrate_isolate_page(buddy)) {
+But the begin addr of this part of CMA memory is very close to a part of
+memory that is reserved in the boot time (not in buddy system).
+So add a check before access it.
+
+Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
+---
+ mm/page_isolation.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 755a42c..434730b 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -101,7 +101,8 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
+ 			buddy_idx = __find_buddy_index(page_idx, order);
+ 			buddy = page + (buddy_idx - page_idx);
+ 
+-			if (!is_migrate_isolate_page(buddy)) {
++			if (!pfn_present(page_to_pfn(buddy))
++			    || !is_migrate_isolate_page(buddy)) {
+ 				__isolate_free_page(page, order);
+ 				kernel_map_pages(page, (1 << order), 1);
+ 				set_page_refcounted(page);
 -- 
-Mel Gorman
-SUSE Labs
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
