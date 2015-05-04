@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id ED31B6B006E
-	for <linux-mm@kvack.org>; Mon,  4 May 2015 02:19:16 -0400 (EDT)
-Received: by wgin8 with SMTP id n8so139622165wgi.0
-        for <linux-mm@kvack.org>; Sun, 03 May 2015 23:19:16 -0700 (PDT)
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 22AAE6B0070
+	for <linux-mm@kvack.org>; Mon,  4 May 2015 02:19:19 -0400 (EDT)
+Received: by wief7 with SMTP id f7so70160247wie.0
+        for <linux-mm@kvack.org>; Sun, 03 May 2015 23:19:18 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id om1si21158313wjc.104.2015.05.03.23.19.11
+        by mx.google.com with ESMTPS id e19si21088471wjn.201.2015.05.03.23.19.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 03 May 2015 23:19:11 -0700 (PDT)
+        Sun, 03 May 2015 23:19:12 -0700 (PDT)
 From: Juergen Gross <jgross@suse.com>
-Subject: [RESEND Patch V3 02/15] xen: save linear p2m list address in shared info structure
-Date: Mon,  4 May 2015 08:18:53 +0200
-Message-Id: <1430720346-21063-3-git-send-email-jgross@suse.com>
+Subject: [RESEND Patch V3 03/15] xen: don't build mfn tree if tools don't need it
+Date: Mon,  4 May 2015 08:18:54 +0200
+Message-Id: <1430720346-21063-4-git-send-email-jgross@suse.com>
 In-Reply-To: <1430720346-21063-1-git-send-email-jgross@suse.com>
 References: <1430720346-21063-1-git-send-email-jgross@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,73 +20,44 @@ List-ID: <linux-mm.kvack.org>
 To: xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com, linux-mm@kvack.org
 Cc: Juergen Gross <jgross@suse.com>
 
-The virtual address of the linear p2m list should be stored in the
-shared info structure read by the Xen tools to be able to support
-64 bit pv-domains larger than 512 GB. Additionally the linear p2m
-list interface includes a generation count which is changed prior
-to and after each mapping change of the p2m list. Reading the
-generation count the Xen tools can detect changes of the mappings
-and re-read the p2m list eventually.
+In case the Xen tools indicate they don't need the p2m 3 level tree
+as they support the virtual mapped linear p2m list, just omit building
+the tree.
 
 Signed-off-by: Juergen Gross <jgross@suse.com>
 Reviewed-by: David Vrabel <david.vrabel@citrix.com>
 ---
- arch/x86/xen/p2m.c | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ arch/x86/xen/p2m.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
 
 diff --git a/arch/x86/xen/p2m.c b/arch/x86/xen/p2m.c
-index b47124d..703f803 100644
+index 703f803..6f80cd3 100644
 --- a/arch/x86/xen/p2m.c
 +++ b/arch/x86/xen/p2m.c
-@@ -262,6 +262,10 @@ void xen_setup_mfn_list_list(void)
- 	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
- 		virt_to_mfn(p2m_top_mfn);
+@@ -198,7 +198,8 @@ void __ref xen_build_mfn_list_list(void)
+ 	unsigned int level, topidx, mididx;
+ 	unsigned long *mid_mfn_p;
+ 
+-	if (xen_feature(XENFEAT_auto_translated_physmap))
++	if (xen_feature(XENFEAT_auto_translated_physmap) ||
++	    xen_start_info->flags & SIF_VIRT_P2M_4TOOLS)
+ 		return;
+ 
+ 	/* Pre-initialize p2m_top_mfn to be completely missing */
+@@ -259,8 +260,11 @@ void xen_setup_mfn_list_list(void)
+ 
+ 	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
+ 
+-	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
+-		virt_to_mfn(p2m_top_mfn);
++	if (xen_start_info->flags & SIF_VIRT_P2M_4TOOLS)
++		HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list = ~0UL;
++	else
++		HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
++			virt_to_mfn(p2m_top_mfn);
  	HYPERVISOR_shared_info->arch.max_pfn = xen_max_p2m_pfn;
-+	HYPERVISOR_shared_info->arch.p2m_generation = 0;
-+	HYPERVISOR_shared_info->arch.p2m_vaddr = (unsigned long)xen_p2m_addr;
-+	HYPERVISOR_shared_info->arch.p2m_cr3 =
-+		xen_pfn_to_cr3(virt_to_mfn(swapper_pg_dir));
- }
- 
- /* Set up p2m_top to point to the domain-builder provided p2m pages */
-@@ -477,8 +481,12 @@ static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
- 
- 		ptechk = lookup_address(vaddr, &level);
- 		if (ptechk == pte_pg) {
-+			HYPERVISOR_shared_info->arch.p2m_generation++;
-+			wmb(); /* Tools are synchronizing via p2m_generation. */
- 			set_pmd(pmdp,
- 				__pmd(__pa(pte_newpg[i]) | _KERNPG_TABLE));
-+			wmb(); /* Tools are synchronizing via p2m_generation. */
-+			HYPERVISOR_shared_info->arch.p2m_generation++;
- 			pte_newpg[i] = NULL;
- 		}
- 
-@@ -576,8 +584,12 @@ static bool alloc_p2m(unsigned long pfn)
- 		spin_lock_irqsave(&p2m_update_lock, flags);
- 
- 		if (pte_pfn(*ptep) == p2m_pfn) {
-+			HYPERVISOR_shared_info->arch.p2m_generation++;
-+			wmb(); /* Tools are synchronizing via p2m_generation. */
- 			set_pte(ptep,
- 				pfn_pte(PFN_DOWN(__pa(p2m)), PAGE_KERNEL));
-+			wmb(); /* Tools are synchronizing via p2m_generation. */
-+			HYPERVISOR_shared_info->arch.p2m_generation++;
- 			if (mid_mfn)
- 				mid_mfn[mididx] = virt_to_mfn(p2m);
- 			p2m = NULL;
-@@ -629,6 +641,11 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
- 		return true;
- 	}
- 
-+	/*
-+	 * The interface requires atomic updates on p2m elements.
-+	 * xen_safe_write_ulong() is using __put_user which does an atomic
-+	 * store via asm().
-+	 */
- 	if (likely(!xen_safe_write_ulong(xen_p2m_addr + pfn, mfn)))
- 		return true;
- 
+ 	HYPERVISOR_shared_info->arch.p2m_generation = 0;
+ 	HYPERVISOR_shared_info->arch.p2m_vaddr = (unsigned long)xen_p2m_addr;
 -- 
 2.1.4
 
