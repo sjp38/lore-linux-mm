@@ -1,82 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id CD5366B006C
-	for <linux-mm@kvack.org>; Mon,  4 May 2015 05:41:23 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so158436106pdb.1
-        for <linux-mm@kvack.org>; Mon, 04 May 2015 02:41:23 -0700 (PDT)
-Received: from xiaomi.com (outboundhk.mxmail.xiaomi.com. [207.226.244.122])
-        by mx.google.com with ESMTPS id on8si17784230pac.235.2015.05.04.02.41.22
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 3903B6B0038
+	for <linux-mm@kvack.org>; Mon,  4 May 2015 05:49:56 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so158710254pde.3
+        for <linux-mm@kvack.org>; Mon, 04 May 2015 02:49:55 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id z8si3777395pas.64.2015.05.04.02.49.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 04 May 2015 02:41:23 -0700 (PDT)
-From: Hui Zhu <zhuhui@xiaomi.com>
-Subject: [PATCH] CMA: page_isolation: check buddy before access it
-Date: Mon, 4 May 2015 17:41:17 +0800
-Message-ID: <1430732477-16977-1-git-send-email-zhuhui@xiaomi.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 May 2015 02:49:55 -0700 (PDT)
+Date: Mon, 4 May 2015 12:49:39 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH v3 3/3] proc: add kpageidle file
+Message-ID: <20150504094938.GB4197@esperanza>
+References: <cover.1430217477.git.vdavydov@parallels.com>
+ <4c24a6bf2c9711dd4dbb72a43a16eba6867527b7.1430217477.git.vdavydov@parallels.com>
+ <20150429043536.GB11486@blaptop>
+ <20150429091248.GD1694@esperanza>
+ <20150430082531.GD21771@blaptop>
+ <20150430145055.GB17640@esperanza>
+ <20150504031722.GA2768@blaptop>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150504031722.GA2768@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, lauraa@codeaurora.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: teawater@gmail.com, Hui Zhu <zhuhui@xiaomi.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-I got a issue:
-[  214.294917] Unable to handle kernel NULL pointer dereference at virtual address 0000082a
-[  214.303013] pgd = cc970000
-[  214.305721] [0000082a] *pgd=00000000
-[  214.309316] Internal error: Oops: 5 [#1] PREEMPT SMP ARM
-[  214.335704] PC is at get_pageblock_flags_group+0x5c/0xb0
-[  214.341030] LR is at unset_migratetype_isolate+0x148/0x1b0
-[  214.346523] pc : [<c00cc9a0>]    lr : [<c0109874>]    psr: 80000093
-[  214.346523] sp : c7029d00  ip : 00000105  fp : c7029d1c
-[  214.358005] r10: 00000001  r9 : 0000000a  r8 : 00000004
-[  214.363231] r7 : 60000013  r6 : 000000a4  r5 : c0a357e4  r4 : 00000000
-[  214.369761] r3 : 00000826  r2 : 00000002  r1 : 00000000  r0 : 0000003f
-[  214.376291] Flags: Nzcv  IRQs off  FIQs on  Mode SVC_32  ISA ARM  Segment user
-[  214.383516] Control: 10c5387d  Table: 2cb7006a  DAC: 00000015
-[  214.949720] Backtrace:
-[  214.952192] [<c00cc944>] (get_pageblock_flags_group+0x0/0xb0) from [<c0109874>] (unset_migratetype_isolate+0x148/0x1b0)
-[  214.962978]  r7:60000013 r6:c0a357c0 r5:c0a357e4 r4:c1555000
-[  214.968693] [<c010972c>] (unset_migratetype_isolate+0x0/0x1b0) from [<c0109adc>] (undo_isolate_page_range+0xd0/0xdc)
-[  214.979222] [<c0109a0c>] (undo_isolate_page_range+0x0/0xdc) from [<c00d097c>] (__alloc_contig_range+0x254/0x34c)
-[  214.989398]  r9:000abc00 r8:c7028000 r7:000b1f53 r6:000b3e00 r5:00000005
-r4:c7029db4
-[  214.997308] [<c00d0728>] (__alloc_contig_range+0x0/0x34c) from [<c00d0a88>] (alloc_contig_range+0x14/0x18)
-[  215.006973] [<c00d0a74>] (alloc_contig_range+0x0/0x18) from [<c0398148>] (dma_alloc_from_contiguous_addr+0x1ac/0x304)
+On Mon, May 04, 2015 at 12:17:22PM +0900, Minchan Kim wrote:
+> On Thu, Apr 30, 2015 at 05:50:55PM +0300, Vladimir Davydov wrote:
+> > On Thu, Apr 30, 2015 at 05:25:31PM +0900, Minchan Kim wrote:
+> > > On Wed, Apr 29, 2015 at 12:12:48PM +0300, Vladimir Davydov wrote:
+> > > > On Wed, Apr 29, 2015 at 01:35:36PM +0900, Minchan Kim wrote:
+> > > > > On Tue, Apr 28, 2015 at 03:24:42PM +0300, Vladimir Davydov wrote:
+> > > > > > +#ifdef CONFIG_IDLE_PAGE_TRACKING
+> > > > > > +static struct page *kpageidle_get_page(unsigned long pfn)
+> > > > > > +{
+> > > > > > +	struct page *page;
+> > > > > > +
+> > > > > > +	if (!pfn_valid(pfn))
+> > > > > > +		return NULL;
+> > > > > > +	page = pfn_to_page(pfn);
+> > > > > > +	/*
+> > > > > > +	 * We are only interested in user memory pages, i.e. pages that are
+> > > > > > +	 * allocated and on an LRU list.
+> > > > > > +	 */
+> > > > > > +	if (!page || page_count(page) == 0 || !PageLRU(page))
+> > > > > > +		return NULL;
+> > > > > > +	if (!get_page_unless_zero(page))
+> > > > > > +		return NULL;
+> > > > > > +	if (unlikely(!PageLRU(page))) {
+> > > > > 
+> > > > > What lock protect the check PageLRU?
+> > > > > If it is racing ClearPageLRU, what happens?
+> > > > 
+> > > > If we hold a reference to a page and see that it's on an LRU list, it
+> > > > will surely remain a user memory page at least until we release the
+> > > > reference to it, so it must be safe to play with idle/young flags. If we
+> > > 
+> > > The problem is that you pass the page in rmap reverse logic(ie, page_referenced)
+> > > once you judge it's LRU page so if it is false-positive, what happens?
+> > > A question is SetPageLRU, PageLRU, ClearPageLRU keeps memory ordering?
+> > > IOW, all of fields from struct page rmap can acccess should be set up completely
+> > > before LRU checking. Otherwise, something will be broken.
+> > 
+> > So, basically you are concerned about the case when we encounter a
+> > freshly allocated page, which has PG_lru bit set and it's going to
+> > become anonymous, but it is still in the process of rmap initialization,
+> > i.e. its ->mapping or ->mapcount may still be uninitialized, right?
+> > 
+> > AFAICS, page_referenced should handle such pages fine. Look, it only
+> > needs ->index, ->mapping, and ->mapcount.
+> > 
+> > If ->mapping is unset, than it is NULL and rmap_walk_anon_lock ->
+> > page_lock_anon_vma_read will return NULL so that rmap_walk will be a
+> > no-op.
+> > 
+> > If ->index is not initialized, than at worst we will go to
+> > anon_vma_interval_tree_foreach over a wrong interval, in which case we
+> > will see that the page is actually not mapped in page_referenced_one ->
+> > page_check_address and again do nothing.
+> > 
+> > If ->mapcount is not initialized it is -1, and page_lock_anon_vma_read
+> > will return NULL, just as it does in case ->mapping = NULL.
+> > 
+> > For file pages, we always take PG_locked before checking ->mapping, so
+> > it must be valid.
+> > 
+> > Thanks,
+> > Vladimir
+> 
+> 
+> do_anonymous_page
+> page_add_new_anon_rmap
+> atomic_set(&page->_mapcount, 0);
+> __page_set_anon_rmap
+>    anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+>    page->mapping = (struct address_space *) anon_vma;
+>    page->index = linear_page_index(vma, address);
+> lru_cache_add 
+>   __pagevec_lru_add_fn
+>   SetPageLRU(page);
+> 
+> During the procedure, there is no lock to prevent race. Then, at least,
+> we need a write memory barrier to guarantee other fields set up before
+> SetPageLRU. (Of course, PageLRU should have read-memory barrier to work
+> well) But I can't find any barrier, either.
+> 
+> IOW, any fields you said could be out of order store without any lock or
+> memory barrier. You might argue atomic op is a barrier on x86 but it
+> doesn't guarantee other arches work like that so we need explict momory
+> barrier or lock.
+> 
+> Let's have a theoretical example.
+> 
+>         CPU 0                                                                           CPU 1
+> 
+> do_anonymous_page
+>   __page_set_anon_rmap
+>   /* out of order happened so SetPageLRU is done ahead */
+>   SetPageLRU(page)
+>   /* Compilr changed store operation like below */
 
-This issue is because when call unset_migratetype_isolate to unset a part
-of CMA memory, it try to access the buddy page to get its status:
-		if (order >= pageblock_order) {
-			page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
-			buddy_idx = __find_buddy_index(page_idx, order);
-			buddy = page + (buddy_idx - page_idx);
+But it couldn't. Quoting Documentation/atomic_ops.txt:
 
-			if (!is_migrate_isolate_page(buddy)) {
-But the begin addr of this part of CMA memory is very close to a part of
-memory that is reserved in the boot time (not in buddy system).
-So add a check before access it.
+	Properly aligned pointers, longs, ints, and chars (and unsigned
+	equivalents) may be atomically loaded from and stored to in the same
+	sense as described for atomic_read() and atomic_set().
 
-Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
----
- mm/page_isolation.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+__page_set_anon_rmap sets page->mapping using the following expression:
 
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 755a42c..434730b 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -101,7 +101,8 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
- 			buddy_idx = __find_buddy_index(page_idx, order);
- 			buddy = page + (buddy_idx - page_idx);
- 
--			if (!is_migrate_isolate_page(buddy)) {
-+			if (!pfn_present(page_to_pfn(buddy))
-+			    || !is_migrate_isolate_page(buddy)) {
- 				__isolate_free_page(page, order);
- 				kernel_map_pages(page, (1 << order), 1);
- 				set_page_refcounted(page);
--- 
-1.9.1
+ 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+ 	page->mapping = (struct address_space *) anon_vma;
+
+and it can't be split, i.e. if one concurrently reads page->mapping
+he/she will see either NULL or (anon_vma+PAGE_MAPPING_ANON), and there
+can't be any intermediate result in page->mapping, such as anon_vma or
+PAGE_MAPPING_ANON, because one doesn't expect
+
+	atomic_set(&p, a + b);
+
+to behave like
+
+	atomic_set(&p, a);
+	atomic_set(&p, atomic_read(&p) + b);
+
+Thanks,
+Vladimir
+
+>   page->mapping = (struct address_space *) anon_vma;
+>   /* Big stall happens */
+>                                                                 /* idletacking judged it as LRU page so pass the page
+>                                                                    in page_reference */
+>                                                                 page_refernced
+>                                                                         page_rmapping return true because
+>                                                                         page->mapping has some vaule but not complete
+>                                                                         so it calls rmap_walk_file.
+>                                                                         it's okay to pass non-completed anon page in rmap_walk_file?
+> 
+>   page->mapping = (struct address_space *)
+>         ((void *)page_mapping + PAGE_MAPPING_ANON);
+> 
+> It's too theoretical so it might be hard to happen in real practice.
+> My point is there is nothing to prevent explict race.
+> Even if there is no problem with other lock, it's fragile.
+> Do I miss something?
+> 
+> I think general way to handle PageLRU are ahead isolation or zone->lru_lock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
