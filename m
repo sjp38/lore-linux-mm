@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id AE3BC6B0071
-	for <linux-mm@kvack.org>; Mon,  4 May 2015 02:19:21 -0400 (EDT)
-Received: by wiun10 with SMTP id n10so99152865wiu.1
-        for <linux-mm@kvack.org>; Sun, 03 May 2015 23:19:21 -0700 (PDT)
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AFE36B0072
+	for <linux-mm@kvack.org>; Mon,  4 May 2015 02:19:24 -0400 (EDT)
+Received: by wief7 with SMTP id f7so70161390wie.0
+        for <linux-mm@kvack.org>; Sun, 03 May 2015 23:19:23 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ei5si9908998wid.118.2015.05.03.23.19.12
+        by mx.google.com with ESMTPS id wc6si21153307wjc.103.2015.05.03.23.19.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Sun, 03 May 2015 23:19:12 -0700 (PDT)
 From: Juergen Gross <jgross@suse.com>
-Subject: [RESEND Patch V3 04/15] xen: eliminate scalability issues from initial mapping setup
-Date: Mon,  4 May 2015 08:18:55 +0200
-Message-Id: <1430720346-21063-5-git-send-email-jgross@suse.com>
+Subject: [RESEND Patch V3 05/15] xen: move static e820 map to global scope
+Date: Mon,  4 May 2015 08:18:56 +0200
+Message-Id: <1430720346-21063-6-git-send-email-jgross@suse.com>
 In-Reply-To: <1430720346-21063-1-git-send-email-jgross@suse.com>
 References: <1430720346-21063-1-git-send-email-jgross@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,314 +20,264 @@ List-ID: <linux-mm.kvack.org>
 To: xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com, linux-mm@kvack.org
 Cc: Juergen Gross <jgross@suse.com>
 
-Direct Xen to place the initial P->M table outside of the initial
-mapping, as otherwise the 1G (implementation) / 2G (theoretical)
-restriction on the size of the initial mapping limits the amount
-of memory a domain can be handed initially.
-
-As the initial P->M table is copied rather early during boot to
-domain private memory and it's initial virtual mapping is dropped,
-the easiest way to avoid virtual address conflicts with other
-addresses in the kernel is to use a user address area for the
-virtual address of the initial P->M table. This allows us to just
-throw away the page tables of the initial mapping after the copy
-without having to care about address invalidation.
-
-It should be noted that this patch won't enable a pv-domain to USE
-more than 512 GB of RAM. It just enables it to be started with a
-P->M table covering more memory. This is especially important for
-being able to boot a Dom0 on a system with more than 512 GB memory.
+Instead of using a function local static e820 map in xen_memory_setup()
+and calling various functions in the same source with the map as a
+parameter use a map directly accessible by all functions in the source.
 
 Signed-off-by: Juergen Gross <jgross@suse.com>
-Based-on-patch-by: Jan Beulich <jbeulich@suse.com>
+Reviewed-by: David Vrabel <david.vrabel@citrix.com>
 ---
- arch/x86/xen/mmu.c      | 126 ++++++++++++++++++++++++++++++++++++++++++++----
- arch/x86/xen/setup.c    |  67 ++++++++++++++-----------
- arch/x86/xen/xen-head.S |   2 +
- 3 files changed, 156 insertions(+), 39 deletions(-)
+ arch/x86/xen/setup.c | 96 +++++++++++++++++++++++++++-------------------------
+ 1 file changed, 49 insertions(+), 47 deletions(-)
 
-diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
-index dd151b2..c04e14e 100644
---- a/arch/x86/xen/mmu.c
-+++ b/arch/x86/xen/mmu.c
-@@ -1114,6 +1114,77 @@ static void __init xen_cleanhighmap(unsigned long vaddr,
- 	xen_mc_flush();
- }
- 
-+/*
-+ * Make a page range writeable and free it.
-+ */
-+static void __init xen_free_ro_pages(unsigned long paddr, unsigned long size)
-+{
-+	void *vaddr = __va(paddr);
-+	void *vaddr_end = vaddr + size;
-+
-+	for (; vaddr < vaddr_end; vaddr += PAGE_SIZE)
-+		make_lowmem_page_readwrite(vaddr);
-+
-+	memblock_free(paddr, size);
-+}
-+
-+static void __init xen_cleanmfnmap_free_pgtbl(void *pgtbl)
-+{
-+	unsigned long pa = __pa(pgtbl) & PHYSICAL_PAGE_MASK;
-+
-+	ClearPagePinned(virt_to_page(__va(pa)));
-+	xen_free_ro_pages(pa, PAGE_SIZE);
-+}
-+
-+/*
-+ * Since it is well isolated we can (and since it is perhaps large we should)
-+ * also free the page tables mapping the initial P->M table.
-+ */
-+static void __init xen_cleanmfnmap(unsigned long vaddr)
-+{
-+	unsigned long va = vaddr & PMD_MASK;
-+	unsigned long pa;
-+	pgd_t *pgd = pgd_offset_k(va);
-+	pud_t *pud_page = pud_offset(pgd, 0);
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	pte_t *pte;
-+	unsigned int i;
-+
-+	set_pgd(pgd, __pgd(0));
-+	do {
-+		pud = pud_page + pud_index(va);
-+		if (pud_none(*pud)) {
-+			va += PUD_SIZE;
-+		} else if (pud_large(*pud)) {
-+			pa = pud_val(*pud) & PHYSICAL_PAGE_MASK;
-+			xen_free_ro_pages(pa, PUD_SIZE);
-+			va += PUD_SIZE;
-+		} else {
-+			pmd = pmd_offset(pud, va);
-+			if (pmd_large(*pmd)) {
-+				pa = pmd_val(*pmd) & PHYSICAL_PAGE_MASK;
-+				xen_free_ro_pages(pa, PMD_SIZE);
-+			} else if (!pmd_none(*pmd)) {
-+				pte = pte_offset_kernel(pmd, va);
-+				for (i = 0; i < PTRS_PER_PTE; ++i) {
-+					if (pte_none(pte[i]))
-+						break;
-+					pa = pte_pfn(pte[i]) << PAGE_SHIFT;
-+					xen_free_ro_pages(pa, PAGE_SIZE);
-+				}
-+				xen_cleanmfnmap_free_pgtbl(pte);
-+			}
-+			va += PMD_SIZE;
-+			if (pmd_index(va))
-+				continue;
-+			xen_cleanmfnmap_free_pgtbl(pmd);
-+		}
-+
-+	} while (pud_index(va) || pmd_index(va));
-+	xen_cleanmfnmap_free_pgtbl(pud_page);
-+}
-+
- static void __init xen_pagetable_p2m_free(void)
- {
- 	unsigned long size;
-@@ -1128,18 +1199,25 @@ static void __init xen_pagetable_p2m_free(void)
- 	/* using __ka address and sticking INVALID_P2M_ENTRY! */
- 	memset((void *)xen_start_info->mfn_list, 0xff, size);
- 
--	/* We should be in __ka space. */
--	BUG_ON(xen_start_info->mfn_list < __START_KERNEL_map);
- 	addr = xen_start_info->mfn_list;
--	/* We roundup to the PMD, which means that if anybody at this stage is
--	 * using the __ka address of xen_start_info or xen_start_info->shared_info
--	 * they are in going to crash. Fortunatly we have already revectored
--	 * in xen_setup_kernel_pagetable and in xen_setup_shared_info. */
-+	/*
-+	 * We could be in __ka space.
-+	 * We roundup to the PMD, which means that if anybody at this stage is
-+	 * using the __ka address of xen_start_info or
-+	 * xen_start_info->shared_info they are in going to crash. Fortunatly
-+	 * we have already revectored in xen_setup_kernel_pagetable and in
-+	 * xen_setup_shared_info.
-+	 */
- 	size = roundup(size, PMD_SIZE);
--	xen_cleanhighmap(addr, addr + size);
- 
--	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
--	memblock_free(__pa(xen_start_info->mfn_list), size);
-+	if (addr >= __START_KERNEL_map) {
-+		xen_cleanhighmap(addr, addr + size);
-+		size = PAGE_ALIGN(xen_start_info->nr_pages *
-+				  sizeof(unsigned long));
-+		memblock_free(__pa(addr), size);
-+	} else {
-+		xen_cleanmfnmap(addr);
-+	}
- 
- 	/* At this stage, cleanup_highmap has already cleaned __ka space
- 	 * from _brk_limit way up to the max_pfn_mapped (which is the end of
-@@ -1461,6 +1539,24 @@ static pte_t __init mask_rw_pte(pte_t *ptep, pte_t pte)
- #else /* CONFIG_X86_64 */
- static pte_t __init mask_rw_pte(pte_t *ptep, pte_t pte)
- {
-+	unsigned long pfn;
-+
-+	if (xen_feature(XENFEAT_writable_page_tables) ||
-+	    xen_feature(XENFEAT_auto_translated_physmap) ||
-+	    xen_start_info->mfn_list >= __START_KERNEL_map)
-+		return pte;
-+
-+	/*
-+	 * Pages belonging to the initial p2m list mapped outside the default
-+	 * address range must be mapped read-only. This region contains the
-+	 * page tables for mapping the p2m list, too, and page tables MUST be
-+	 * mapped read-only.
-+	 */
-+	pfn = pte_pfn(pte);
-+	if (pfn >= xen_start_info->first_p2m_pfn &&
-+	    pfn < xen_start_info->first_p2m_pfn + xen_start_info->nr_p2m_frames)
-+		pte = __pte_ma(pte_val_ma(pte) & ~_PAGE_RW);
-+
- 	return pte;
- }
- #endif /* CONFIG_X86_64 */
-@@ -1815,7 +1911,10 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
- 	 * mappings. Considering that on Xen after the kernel mappings we
- 	 * have the mappings of some pages that don't exist in pfn space, we
- 	 * set max_pfn_mapped to the last real pfn mapped. */
--	max_pfn_mapped = PFN_DOWN(__pa(xen_start_info->mfn_list));
-+	if (xen_start_info->mfn_list < __START_KERNEL_map)
-+		max_pfn_mapped = xen_start_info->first_p2m_pfn;
-+	else
-+		max_pfn_mapped = PFN_DOWN(__pa(xen_start_info->mfn_list));
- 
- 	pt_base = PFN_DOWN(__pa(xen_start_info->pt_base));
- 	pt_end = pt_base + xen_start_info->nr_pt_frames;
-@@ -1855,6 +1954,11 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
- 	/* Graft it onto L4[511][510] */
- 	copy_page(level2_kernel_pgt, l2);
- 
-+	/* Copy the initial P->M table mappings if necessary. */
-+	i = pgd_index(xen_start_info->mfn_list);
-+	if (i && i < pgd_index(__START_KERNEL_map))
-+		init_level4_pgt[i] = ((pgd_t *)xen_start_info->pt_base)[i];
-+
- 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
- 		/* Make pagetable pieces RO */
- 		set_page_prot(init_level4_pgt, PAGE_KERNEL_RO);
-@@ -1895,6 +1999,8 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
- 
- 	/* Our (by three pages) smaller Xen pagetable that we are using */
- 	memblock_reserve(PFN_PHYS(pt_base), (pt_end - pt_base) * PAGE_SIZE);
-+	/* protect xen_start_info */
-+	memblock_reserve(__pa(xen_start_info), PAGE_SIZE);
- 	/* Revector the xen_start_info */
- 	xen_start_info = (struct start_info *)__va(__pa(xen_start_info));
- }
 diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
-index 55f388e..adad417 100644
+index adad417..ab6c36e 100644
 --- a/arch/x86/xen/setup.c
 +++ b/arch/x86/xen/setup.c
-@@ -560,6 +560,41 @@ static void __init xen_ignore_unusable(struct e820entry *list, size_t map_size)
+@@ -38,6 +38,10 @@ struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
+ /* Number of pages released from the initial allocation. */
+ unsigned long xen_released_pages;
+ 
++/* E820 map used during setting up memory. */
++static struct e820entry xen_e820_map[E820MAX] __initdata;
++static u32 xen_e820_map_entries __initdata;
++
+ /*
+  * Buffer used to remap identity mapped pages. We only need the virtual space.
+  * The physical page behind this address is remapped as needed to different
+@@ -164,15 +168,13 @@ void __init xen_inv_extra_mem(void)
+  * This function updates min_pfn with the pfn found and returns
+  * the size of that range or zero if not found.
+  */
+-static unsigned long __init xen_find_pfn_range(
+-	const struct e820entry *list, size_t map_size,
+-	unsigned long *min_pfn)
++static unsigned long __init xen_find_pfn_range(unsigned long *min_pfn)
+ {
+-	const struct e820entry *entry;
++	const struct e820entry *entry = xen_e820_map;
+ 	unsigned int i;
+ 	unsigned long done = 0;
+ 
+-	for (i = 0, entry = list; i < map_size; i++, entry++) {
++	for (i = 0; i < xen_e820_map_entries; i++, entry++) {
+ 		unsigned long s_pfn;
+ 		unsigned long e_pfn;
+ 
+@@ -356,9 +358,9 @@ static void __init xen_do_set_identity_and_remap_chunk(
+  * to Xen and not remapped.
+  */
+ static unsigned long __init xen_set_identity_and_remap_chunk(
+-        const struct e820entry *list, size_t map_size, unsigned long start_pfn,
+-	unsigned long end_pfn, unsigned long nr_pages, unsigned long remap_pfn,
+-	unsigned long *released, unsigned long *remapped)
++	unsigned long start_pfn, unsigned long end_pfn, unsigned long nr_pages,
++	unsigned long remap_pfn, unsigned long *released,
++	unsigned long *remapped)
+ {
+ 	unsigned long pfn;
+ 	unsigned long i = 0;
+@@ -379,8 +381,7 @@ static unsigned long __init xen_set_identity_and_remap_chunk(
+ 		if (cur_pfn + size > nr_pages)
+ 			size = nr_pages - cur_pfn;
+ 
+-		remap_range_size = xen_find_pfn_range(list, map_size,
+-						      &remap_pfn);
++		remap_range_size = xen_find_pfn_range(&remap_pfn);
+ 		if (!remap_range_size) {
+ 			pr_warning("Unable to find available pfn range, not remapping identity pages\n");
+ 			xen_set_identity_and_release_chunk(cur_pfn,
+@@ -411,13 +412,12 @@ static unsigned long __init xen_set_identity_and_remap_chunk(
+ 	return remap_pfn;
+ }
+ 
+-static void __init xen_set_identity_and_remap(
+-	const struct e820entry *list, size_t map_size, unsigned long nr_pages,
+-	unsigned long *released, unsigned long *remapped)
++static void __init xen_set_identity_and_remap(unsigned long nr_pages,
++			unsigned long *released, unsigned long *remapped)
+ {
+ 	phys_addr_t start = 0;
+ 	unsigned long last_pfn = nr_pages;
+-	const struct e820entry *entry;
++	const struct e820entry *entry = xen_e820_map;
+ 	unsigned long num_released = 0;
+ 	unsigned long num_remapped = 0;
+ 	int i;
+@@ -433,9 +433,9 @@ static void __init xen_set_identity_and_remap(
+ 	 * example) the DMI tables in a reserved region that begins on
+ 	 * a non-page boundary.
+ 	 */
+-	for (i = 0, entry = list; i < map_size; i++, entry++) {
++	for (i = 0; i < xen_e820_map_entries; i++, entry++) {
+ 		phys_addr_t end = entry->addr + entry->size;
+-		if (entry->type == E820_RAM || i == map_size - 1) {
++		if (entry->type == E820_RAM || i == xen_e820_map_entries - 1) {
+ 			unsigned long start_pfn = PFN_DOWN(start);
+ 			unsigned long end_pfn = PFN_UP(end);
+ 
+@@ -444,9 +444,9 @@ static void __init xen_set_identity_and_remap(
+ 
+ 			if (start_pfn < end_pfn)
+ 				last_pfn = xen_set_identity_and_remap_chunk(
+-						list, map_size, start_pfn,
+-						end_pfn, nr_pages, last_pfn,
+-						&num_released, &num_remapped);
++						start_pfn, end_pfn, nr_pages,
++						last_pfn, &num_released,
++						&num_remapped);
+ 			start = end;
+ 		}
  	}
+@@ -549,12 +549,12 @@ static void __init xen_align_and_add_e820_region(phys_addr_t start,
+ 	e820_add_region(start, end - start, type);
  }
  
-+/*
-+ * Reserve Xen mfn_list.
-+ * See comment above "struct start_info" in <xen/interface/xen.h>
-+ * We tried to make the the memblock_reserve more selective so
-+ * that it would be clear what region is reserved. Sadly we ran
-+ * in the problem wherein on a 64-bit hypervisor with a 32-bit
-+ * initial domain, the pt_base has the cr3 value which is not
-+ * neccessarily where the pagetable starts! As Jan put it: "
-+ * Actually, the adjustment turns out to be correct: The page
-+ * tables for a 32-on-64 dom0 get allocated in the order "first L1",
-+ * "first L2", "first L3", so the offset to the page table base is
-+ * indeed 2. When reading xen/include/public/xen.h's comment
-+ * very strictly, this is not a violation (since there nothing is said
-+ * that the first thing in the page table space is pointed to by
-+ * pt_base; I admit that this seems to be implied though, namely
-+ * do I think that it is implied that the page table space is the
-+ * range [pt_base, pt_base + nt_pt_frames), whereas that
-+ * range here indeed is [pt_base - 2, pt_base - 2 + nt_pt_frames),
-+ * which - without a priori knowledge - the kernel would have
-+ * difficulty to figure out)." - so lets just fall back to the
-+ * easy way and reserve the whole region.
-+ */
-+static void __init xen_reserve_xen_mfnlist(void)
-+{
-+	if (xen_start_info->mfn_list >= __START_KERNEL_map) {
-+		memblock_reserve(__pa(xen_start_info->mfn_list),
-+				 xen_start_info->pt_base -
-+				 xen_start_info->mfn_list);
-+		return;
-+	}
-+
-+	memblock_reserve(PFN_PHYS(xen_start_info->first_p2m_pfn),
-+			 PFN_PHYS(xen_start_info->nr_p2m_frames));
-+}
-+
- /**
-  * machine_specific_memory_setup - Hook for machine specific memory setup.
+-static void __init xen_ignore_unusable(struct e820entry *list, size_t map_size)
++static void __init xen_ignore_unusable(void)
+ {
+-	struct e820entry *entry;
++	struct e820entry *entry = xen_e820_map;
+ 	unsigned int i;
+ 
+-	for (i = 0, entry = list; i < map_size; i++, entry++) {
++	for (i = 0; i < xen_e820_map_entries; i++, entry++) {
+ 		if (entry->type == E820_UNUSABLE)
+ 			entry->type = E820_RAM;
+ 	}
+@@ -600,8 +600,6 @@ static void __init xen_reserve_xen_mfnlist(void)
   **/
-@@ -684,35 +719,10 @@ char * __init xen_memory_setup(void)
- 	e820_add_region(ISA_START_ADDRESS, ISA_END_ADDRESS - ISA_START_ADDRESS,
- 			E820_RESERVED);
- 
--	/*
--	 * Reserve Xen bits:
--	 *  - mfn_list
--	 *  - xen_start_info
--	 * See comment above "struct start_info" in <xen/interface/xen.h>
--	 * We tried to make the the memblock_reserve more selective so
--	 * that it would be clear what region is reserved. Sadly we ran
--	 * in the problem wherein on a 64-bit hypervisor with a 32-bit
--	 * initial domain, the pt_base has the cr3 value which is not
--	 * neccessarily where the pagetable starts! As Jan put it: "
--	 * Actually, the adjustment turns out to be correct: The page
--	 * tables for a 32-on-64 dom0 get allocated in the order "first L1",
--	 * "first L2", "first L3", so the offset to the page table base is
--	 * indeed 2. When reading xen/include/public/xen.h's comment
--	 * very strictly, this is not a violation (since there nothing is said
--	 * that the first thing in the page table space is pointed to by
--	 * pt_base; I admit that this seems to be implied though, namely
--	 * do I think that it is implied that the page table space is the
--	 * range [pt_base, pt_base + nt_pt_frames), whereas that
--	 * range here indeed is [pt_base - 2, pt_base - 2 + nt_pt_frames),
--	 * which - without a priori knowledge - the kernel would have
--	 * difficulty to figure out)." - so lets just fall back to the
--	 * easy way and reserve the whole region.
--	 */
--	memblock_reserve(__pa(xen_start_info->mfn_list),
--			 xen_start_info->pt_base - xen_start_info->mfn_list);
+ char * __init xen_memory_setup(void)
+ {
+-	static struct e820entry map[E820MAX] __initdata;
 -
- 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+ 	unsigned long max_pfn = xen_start_info->nr_pages;
+ 	phys_addr_t mem_end;
+ 	int rc;
+@@ -616,7 +614,7 @@ char * __init xen_memory_setup(void)
+ 	mem_end = PFN_PHYS(max_pfn);
  
-+	xen_reserve_xen_mfnlist();
+ 	memmap.nr_entries = E820MAX;
+-	set_xen_guest_handle(memmap.buffer, map);
++	set_xen_guest_handle(memmap.buffer, xen_e820_map);
+ 
+ 	op = xen_initial_domain() ?
+ 		XENMEM_machine_memory_map :
+@@ -625,15 +623,16 @@ char * __init xen_memory_setup(void)
+ 	if (rc == -ENOSYS) {
+ 		BUG_ON(xen_initial_domain());
+ 		memmap.nr_entries = 1;
+-		map[0].addr = 0ULL;
+-		map[0].size = mem_end;
++		xen_e820_map[0].addr = 0ULL;
++		xen_e820_map[0].size = mem_end;
+ 		/* 8MB slack (to balance backend allocations). */
+-		map[0].size += 8ULL << 20;
+-		map[0].type = E820_RAM;
++		xen_e820_map[0].size += 8ULL << 20;
++		xen_e820_map[0].type = E820_RAM;
+ 		rc = 0;
+ 	}
+ 	BUG_ON(rc);
+ 	BUG_ON(memmap.nr_entries == 0);
++	xen_e820_map_entries = memmap.nr_entries;
+ 
+ 	/*
+ 	 * Xen won't allow a 1:1 mapping to be created to UNUSABLE
+@@ -644,10 +643,11 @@ char * __init xen_memory_setup(void)
+ 	 * a patch in the future.
+ 	 */
+ 	if (xen_initial_domain())
+-		xen_ignore_unusable(map, memmap.nr_entries);
++		xen_ignore_unusable();
+ 
+ 	/* Make sure the Xen-supplied memory map is well-ordered. */
+-	sanitize_e820_map(map, memmap.nr_entries, &memmap.nr_entries);
++	sanitize_e820_map(xen_e820_map, xen_e820_map_entries,
++			  &xen_e820_map_entries);
+ 
+ 	max_pages = xen_get_max_pages();
+ 	if (max_pages > max_pfn)
+@@ -657,8 +657,8 @@ char * __init xen_memory_setup(void)
+ 	 * Set identity map on non-RAM pages and prepare remapping the
+ 	 * underlying RAM.
+ 	 */
+-	xen_set_identity_and_remap(map, memmap.nr_entries, max_pfn,
+-				   &xen_released_pages, &remapped_pages);
++	xen_set_identity_and_remap(max_pfn, &xen_released_pages,
++				   &remapped_pages);
+ 
+ 	extra_pages += xen_released_pages;
+ 	extra_pages += remapped_pages;
+@@ -677,10 +677,10 @@ char * __init xen_memory_setup(void)
+ 	extra_pages = min(EXTRA_MEM_RATIO * min(max_pfn, PFN_DOWN(MAXMEM)),
+ 			  extra_pages);
+ 	i = 0;
+-	while (i < memmap.nr_entries) {
+-		phys_addr_t addr = map[i].addr;
+-		phys_addr_t size = map[i].size;
+-		u32 type = map[i].type;
++	while (i < xen_e820_map_entries) {
++		phys_addr_t addr = xen_e820_map[i].addr;
++		phys_addr_t size = xen_e820_map[i].size;
++		u32 type = xen_e820_map[i].type;
+ 
+ 		if (type == E820_RAM) {
+ 			if (addr < mem_end) {
+@@ -696,9 +696,9 @@ char * __init xen_memory_setup(void)
+ 
+ 		xen_align_and_add_e820_region(addr, size, type);
+ 
+-		map[i].addr += size;
+-		map[i].size -= size;
+-		if (map[i].size == 0)
++		xen_e820_map[i].addr += size;
++		xen_e820_map[i].size -= size;
++		if (xen_e820_map[i].size == 0)
+ 			i++;
+ 	}
+ 
+@@ -709,7 +709,7 @@ char * __init xen_memory_setup(void)
+ 	 * PFNs above MAX_P2M_PFN are considered identity mapped as
+ 	 * well.
+ 	 */
+-	set_phys_range_identity(map[i-1].addr / PAGE_SIZE, ~0ul);
++	set_phys_range_identity(xen_e820_map[i - 1].addr / PAGE_SIZE, ~0ul);
+ 
+ 	/*
+ 	 * In domU, the ISA region is normal, usable memory, but we
+@@ -731,23 +731,25 @@ char * __init xen_memory_setup(void)
+  */
+ char * __init xen_auto_xlated_memory_setup(void)
+ {
+-	static struct e820entry map[E820MAX] __initdata;
+-
+ 	struct xen_memory_map memmap;
+ 	int i;
+ 	int rc;
+ 
+ 	memmap.nr_entries = E820MAX;
+-	set_xen_guest_handle(memmap.buffer, map);
++	set_xen_guest_handle(memmap.buffer, xen_e820_map);
+ 
+ 	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
+ 	if (rc < 0)
+ 		panic("No memory map (%d)\n", rc);
+ 
+-	sanitize_e820_map(map, ARRAY_SIZE(map), &memmap.nr_entries);
++	xen_e820_map_entries = memmap.nr_entries;
 +
- 	return "Xen";
- }
++	sanitize_e820_map(xen_e820_map, ARRAY_SIZE(xen_e820_map),
++			  &xen_e820_map_entries);
  
-@@ -739,8 +749,7 @@ char * __init xen_auto_xlated_memory_setup(void)
- 	for (i = 0; i < memmap.nr_entries; i++)
- 		e820_add_region(map[i].addr, map[i].size, map[i].type);
+-	for (i = 0; i < memmap.nr_entries; i++)
+-		e820_add_region(map[i].addr, map[i].size, map[i].type);
++	for (i = 0; i < xen_e820_map_entries; i++)
++		e820_add_region(xen_e820_map[i].addr, xen_e820_map[i].size,
++				xen_e820_map[i].type);
  
--	memblock_reserve(__pa(xen_start_info->mfn_list),
--			 xen_start_info->pt_base - xen_start_info->mfn_list);
-+	xen_reserve_xen_mfnlist();
+ 	xen_reserve_xen_mfnlist();
  
- 	return "Xen";
- }
-diff --git a/arch/x86/xen/xen-head.S b/arch/x86/xen/xen-head.S
-index 8afdfcc..b65f59a 100644
---- a/arch/x86/xen/xen-head.S
-+++ b/arch/x86/xen/xen-head.S
-@@ -104,6 +104,8 @@ ENTRY(hypercall_page)
- 	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,      _ASM_PTR __PAGE_OFFSET)
- #else
- 	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,      _ASM_PTR __START_KERNEL_map)
-+	/* Map the p2m table to a 512GB-aligned user address. */
-+	ELFNOTE(Xen, XEN_ELFNOTE_INIT_P2M,       .quad PGDIR_SIZE)
- #endif
- 	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          _ASM_PTR startup_xen)
- 	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, _ASM_PTR hypercall_page)
 -- 
 2.1.4
 
