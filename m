@@ -1,125 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EDD16B0070
-	for <linux-mm@kvack.org>; Mon,  4 May 2015 02:26:32 -0400 (EDT)
-Received: by wgso17 with SMTP id o17so140039702wgs.1
-        for <linux-mm@kvack.org>; Sun, 03 May 2015 23:26:32 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id F0CDC6B0038
+	for <linux-mm@kvack.org>; Mon,  4 May 2015 04:22:31 -0400 (EDT)
+Received: by wgyo15 with SMTP id o15so142413646wgy.2
+        for <linux-mm@kvack.org>; Mon, 04 May 2015 01:22:31 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s9si9948372wiz.55.2015.05.03.23.19.14
+        by mx.google.com with ESMTPS id dx2si10389291wib.2.2015.05.04.01.22.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 03 May 2015 23:19:15 -0700 (PDT)
+        Mon, 04 May 2015 01:22:30 -0700 (PDT)
+Message-ID: <55472C44.30202@suse.com>
+Date: Mon, 04 May 2015 10:22:28 +0200
 From: Juergen Gross <jgross@suse.com>
-Subject: [RESEND Patch V3 15/15] xen: remove no longer needed p2m.h
-Date: Mon,  4 May 2015 08:19:06 +0200
-Message-Id: <1430720346-21063-16-git-send-email-jgross@suse.com>
-In-Reply-To: <1430720346-21063-1-git-send-email-jgross@suse.com>
+MIME-Version: 1.0
+Subject: Re: [Xen-devel] [RESEND Patch V3 00/15] xen: support pv-domains larger
+ than 512GB
 References: <1430720346-21063-1-git-send-email-jgross@suse.com>
+In-Reply-To: <1430720346-21063-1-git-send-email-jgross@suse.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com, linux-mm@kvack.org
-Cc: Juergen Gross <jgross@suse.com>
 
-Cleanup by removing arch/x86/xen/p2m.h as it isn't needed any more.
+Oops, just detected that I missed to send this to lkml, too.
 
-Most definitions in this file are used in p2m.c only. Move those into
-p2m.c.
+Will resend.
 
-set_phys_range_identity() is already declared in
-arch/x86/include/asm/xen/page.h, add __init annotation there.
 
-MAX_REMAP_RANGES isn't used at all, just delete it.
+Juergen
 
-The only define left is P2M_PER_PAGE which is moved to page.h as well.
-
-Signed-off-by: Juergen Gross <jgross@suse.com>
----
- arch/x86/include/asm/xen/page.h |  6 ++++--
- arch/x86/xen/p2m.c              |  6 +++++-
- arch/x86/xen/p2m.h              | 15 ---------------
- arch/x86/xen/setup.c            |  1 -
- 4 files changed, 9 insertions(+), 19 deletions(-)
- delete mode 100644 arch/x86/xen/p2m.h
-
-diff --git a/arch/x86/include/asm/xen/page.h b/arch/x86/include/asm/xen/page.h
-index 18a11f2..b858592 100644
---- a/arch/x86/include/asm/xen/page.h
-+++ b/arch/x86/include/asm/xen/page.h
-@@ -35,6 +35,8 @@ typedef struct xpaddr {
- #define FOREIGN_FRAME(m)	((m) | FOREIGN_FRAME_BIT)
- #define IDENTITY_FRAME(m)	((m) | IDENTITY_FRAME_BIT)
- 
-+#define P2M_PER_PAGE		(PAGE_SIZE / sizeof(unsigned long))
-+
- extern unsigned long *machine_to_phys_mapping;
- extern unsigned long  machine_to_phys_nr;
- extern unsigned long *xen_p2m_addr;
-@@ -44,8 +46,8 @@ extern unsigned long  xen_max_p2m_pfn;
- extern unsigned long get_phys_to_machine(unsigned long pfn);
- extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
- extern bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
--extern unsigned long set_phys_range_identity(unsigned long pfn_s,
--					     unsigned long pfn_e);
-+extern unsigned long __init set_phys_range_identity(unsigned long pfn_s,
-+						    unsigned long pfn_e);
- 
- extern int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
- 				   struct gnttab_map_grant_ref *kmap_ops,
-diff --git a/arch/x86/xen/p2m.c b/arch/x86/xen/p2m.c
-index 365a64a..1f63ad2 100644
---- a/arch/x86/xen/p2m.c
-+++ b/arch/x86/xen/p2m.c
-@@ -78,10 +78,14 @@
- #include <xen/balloon.h>
- #include <xen/grant_table.h>
- 
--#include "p2m.h"
- #include "multicalls.h"
- #include "xen-ops.h"
- 
-+#define P2M_MID_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long *))
-+#define P2M_TOP_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long **))
-+
-+#define MAX_P2M_PFN	(P2M_TOP_PER_PAGE * P2M_MID_PER_PAGE * P2M_PER_PAGE)
-+
- #define PMDS_PER_MID_PAGE	(P2M_MID_PER_PAGE / PTRS_PER_PTE)
- 
- unsigned long *xen_p2m_addr __read_mostly;
-diff --git a/arch/x86/xen/p2m.h b/arch/x86/xen/p2m.h
-deleted file mode 100644
-index ad8aee2..0000000
---- a/arch/x86/xen/p2m.h
-+++ /dev/null
-@@ -1,15 +0,0 @@
--#ifndef _XEN_P2M_H
--#define _XEN_P2M_H
--
--#define P2M_PER_PAGE        (PAGE_SIZE / sizeof(unsigned long))
--#define P2M_MID_PER_PAGE    (PAGE_SIZE / sizeof(unsigned long *))
--#define P2M_TOP_PER_PAGE    (PAGE_SIZE / sizeof(unsigned long **))
--
--#define MAX_P2M_PFN         (P2M_TOP_PER_PAGE * P2M_MID_PER_PAGE * P2M_PER_PAGE)
--
--#define MAX_REMAP_RANGES    10
--
--extern unsigned long __init set_phys_range_identity(unsigned long pfn_s,
--                                      unsigned long pfn_e);
--
--#endif  /* _XEN_P2M_H */
-diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
-index f960021..a1a77ea 100644
---- a/arch/x86/xen/setup.c
-+++ b/arch/x86/xen/setup.c
-@@ -30,7 +30,6 @@
- #include <xen/hvc-console.h>
- #include "xen-ops.h"
- #include "vdso.h"
--#include "p2m.h"
- #include "mmu.h"
- 
- #define GB(x) ((uint64_t)(x) * 1024 * 1024 * 1024)
--- 
-2.1.4
+On 05/04/2015 08:18 AM, Juergen Gross wrote:
+> Support 64 bit pv-domains with more than 512GB of memory.
+>
+> Tested with 64 bit dom0 on machines with 8GB and 1TB and 32 bit dom0 on a
+> 8GB machine. Conflicts between E820 map and different hypervisor populated
+> memory areas have been tested via a fake E820 map reserved area on the
+> 8GB machine.
+>
+> Changes in V3:
+> - rename xen_chk_e820_reserved() to xen_is_e820_reserved() as requested by
+>    David Vrabel
+> - add __initdata tag to global variables in patch 10
+> - move initrd conflict checking after reserving p2m memory (patch 11)
+>
+> Changes in V2:
+> - some clarifications and better explanations in commit messages
+> - add header changes of include/xen/interface/xen.h (patch 01)
+> - add wmb() when incrementing p2m_generation (patch 02)
+> - add new patch 03 (don't build mfn tree if tools don't need it)
+> - add new patch 06 (split counting of extra memory pages from remapping)
+> - add new patch 07 (check memory area against e820 map)
+> - replace early_iounmap() with early_memunmap() (patch 07->patch 08)
+> - rework patch 09 (check for kernel memory conflicting with memory layout)
+> - rework patch 10 (check pre-allocated page tables for conflict with memory map)
+> - combine old patches 08 and 11 into patch 11
+> - add new patch 12 (provide early_memremap_ro to establish read-only mapping)
+> - rework old patch 12 (if p2m list located in to be remapped region delay
+>    remapping) to copy p2m list in case of a conflict (now patch 13)
+> - correct Kconfig dependency (patch 13->14)
+> - don't limit dom0 to 512GB (patch 13->14)
+> - modify parameter parsing to work in very early boot (patch 13->14)
+> - add new patch 15 to do some cleanup
+> - remove old patch 05 (simplify xen_set_identity_and_remap() by using global
+>    variables)
+> - remove old patch 08 (detect pre-allocated memory interfering with e820 map)
+>
+>
+> Juergen Gross (15):
+>    xen: sync with xen headers
+>    xen: save linear p2m list address in shared info structure
+>    xen: don't build mfn tree if tools don't need it
+>    xen: eliminate scalability issues from initial mapping setup
+>    xen: move static e820 map to global scope
+>    xen: split counting of extra memory pages from remapping
+>    xen: check memory area against e820 map
+>    xen: find unused contiguous memory area
+>    xen: check for kernel memory conflicting with memory layout
+>    xen: check pre-allocated page tables for conflict with memory map
+>    xen: check for initrd conflicting with e820 map
+>    mm: provide early_memremap_ro to establish read-only mapping
+>    xen: move p2m list if conflicting with e820 map
+>    xen: allow more than 512 GB of RAM for 64 bit pv-domains
+>    xen: remove no longer needed p2m.h
+>
+>   Documentation/kernel-parameters.txt  |   7 +
+>   arch/x86/include/asm/xen/interface.h |  96 +++++++-
+>   arch/x86/include/asm/xen/page.h      |   8 +-
+>   arch/x86/xen/Kconfig                 |  20 +-
+>   arch/x86/xen/mmu.c                   | 367 +++++++++++++++++++++++++++++--
+>   arch/x86/xen/p2m.c                   |  43 +++-
+>   arch/x86/xen/p2m.h                   |  15 --
+>   arch/x86/xen/setup.c                 | 414 ++++++++++++++++++++++++++---------
+>   arch/x86/xen/xen-head.S              |   2 +
+>   arch/x86/xen/xen-ops.h               |   6 +
+>   include/asm-generic/early_ioremap.h  |   2 +
+>   include/asm-generic/fixmap.h         |   3 +
+>   include/xen/interface/xen.h          |  10 +-
+>   mm/early_ioremap.c                   |  11 +
+>   14 files changed, 822 insertions(+), 182 deletions(-)
+>   delete mode 100644 arch/x86/xen/p2m.h
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
