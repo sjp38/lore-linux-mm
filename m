@@ -1,108 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id C4B9C6B0073
-	for <linux-mm@kvack.org>; Mon,  4 May 2015 16:57:52 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so173487113pdb.1
-        for <linux-mm@kvack.org>; Mon, 04 May 2015 13:57:52 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id ha8si21264229pac.226.2015.05.04.13.57.51
-        for <linux-mm@kvack.org>;
-        Mon, 04 May 2015 13:57:51 -0700 (PDT)
-Message-Id: <b28413d7e10a07406d87f8b48c7ea54e53273691.1430772743.git.tony.luck@intel.com>
-In-Reply-To: <cover.1430772743.git.tony.luck@intel.com>
-References: <cover.1430772743.git.tony.luck@intel.com>
-From: Tony Luck <tony.luck@intel.com>
-Date: Tue, 3 Feb 2015 14:40:19 -0800
-Subject: [PATCH 3/3] x86, mirror: x86 enabling - find mirrored memory ranges
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C4DCD6B006C
+	for <linux-mm@kvack.org>; Mon,  4 May 2015 17:17:07 -0400 (EDT)
+Received: by wicmx19 with SMTP id mx19so86449046wic.1
+        for <linux-mm@kvack.org>; Mon, 04 May 2015 14:17:07 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com. [209.85.212.176])
+        by mx.google.com with ESMTPS id ga17si1684298wic.36.2015.05.04.14.17.05
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 May 2015 14:17:06 -0700 (PDT)
+Received: by wiun10 with SMTP id n10so124153769wiu.1
+        for <linux-mm@kvack.org>; Mon, 04 May 2015 14:17:05 -0700 (PDT)
+From: Anisse Astier <anisse@astier.eu>
+Subject: [PATCH v2 0/4] Sanitizing freed pages
+Date: Mon,  4 May 2015 23:16:54 +0200
+Message-Id: <1430774218-5311-1-git-send-email-anisse@astier.eu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Anisse Astier <anisse@astier.eu>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-UEFI GetMemoryMap() uses a new attribute bit to mark mirrored memory
-address ranges. See UEFI 2.5 spec pages 157-158:
+Hi,
 
-  http://www.uefi.org/sites/default/files/resources/UEFI%202_5.pdf
+I'm trying revive an old debate here[1], though with a simpler approach than
+was previously tried. This patch series implements a new option to sanitize
+freed pages, a (very) small subset of what is done in PaX/grsecurity[3],
+inspired by a previous submission [4].
 
-On EFI enabled systems scan the memory map and tell memblock about
-any mirrored ranges.
+The first patch is fairly independent, and could be taken as-is. The second is
+the meat and should be straight-forward to review.
 
-Signed-off-by: Tony Luck <tony.luck@intel.com>
----
- arch/x86/kernel/setup.c     |  3 +++
- arch/x86/platform/efi/efi.c | 21 +++++++++++++++++++++
- include/linux/efi.h         |  3 +++
- 3 files changed, 27 insertions(+)
+There are a few different uses that this can cover:
+ - some cases of use-after-free could be detected (crashes), although this not
+   as efficient as KAsan/kmemcheck
+ - it can help with long-term memory consumption in an environment with
+   multiple VMs and Kernel Same-page Merging on the host. [2]
+ - finally, it can reduce infoleaks, although this is hard to measure.
 
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index d74ac33290ae..ac85a1775661 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1103,6 +1103,9 @@ void __init setup_arch(char **cmdline_p)
- 	memblock_set_current_limit(ISA_END_ADDRESS);
- 	memblock_x86_fill();
- 
-+	if (efi_enabled(EFI_BOOT))
-+		efi_find_mirror();
-+
- 	/*
- 	 * The EFI specification says that boot service code won't be called
- 	 * after ExitBootServices(). This is, in fact, a lie.
-diff --git a/arch/x86/platform/efi/efi.c b/arch/x86/platform/efi/efi.c
-index 02744df576d5..31635dc5bca4 100644
---- a/arch/x86/platform/efi/efi.c
-+++ b/arch/x86/platform/efi/efi.c
-@@ -117,6 +117,27 @@ void efi_get_time(struct timespec *now)
- 	now->tv_nsec = 0;
- }
- 
-+void __init efi_find_mirror(void)
-+{
-+	void *p;
-+	unsigned long long mirror_size = 0, total_size = 0;
-+
-+	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-+		efi_memory_desc_t *md = p;
-+		unsigned long long start = md->phys_addr;
-+		unsigned long long size = md->num_pages << EFI_PAGE_SHIFT;
-+
-+		total_size += size;
-+		if (md->attribute & EFI_MEMORY_MORE_RELIABLE) {
-+			memblock_mark_mirror(start, size);
-+			mirror_size += size;
-+		}
-+	}
-+	if (mirror_size)
-+		pr_info("Memory: %lldM/%lldM mirrored memory\n",
-+			mirror_size>>20, total_size>>20);
-+}
-+
- /*
-  * Tell the kernel about the EFI memory map.  This might include
-  * more than the max 128 entries that can fit in the e820 legacy
-diff --git a/include/linux/efi.h b/include/linux/efi.h
-index af5be0368dec..3f13903346a2 100644
---- a/include/linux/efi.h
-+++ b/include/linux/efi.h
-@@ -96,6 +96,8 @@ typedef	struct {
- #define EFI_MEMORY_WP		((u64)0x0000000000001000ULL)	/* write-protect */
- #define EFI_MEMORY_RP		((u64)0x0000000000002000ULL)	/* read-protect */
- #define EFI_MEMORY_XP		((u64)0x0000000000004000ULL)	/* execute-protect */
-+#define EFI_MEMORY_MORE_RELIABLE \
-+				((u64)0x0000000000010000ULL)	/* higher reliability */
- #define EFI_MEMORY_RUNTIME	((u64)0x8000000000000000ULL)	/* range requires runtime mapping */
- #define EFI_MEMORY_DESCRIPTOR_VERSION	1
- 
-@@ -864,6 +866,7 @@ extern void efi_enter_virtual_mode (void);	/* switch EFI to virtual mode, if pos
- extern void efi_late_init(void);
- extern void efi_free_boot_services(void);
- extern efi_status_t efi_query_variable_store(u32 attributes, unsigned long size);
-+extern void efi_find_mirror (void);
- #else
- static inline void efi_late_init(void) {}
- static inline void efi_free_boot_services(void) {}
+The approach is voluntarily kept as simple as possible. A single configuration
+option, no command line option, no sysctl nob. It can of course be changed,
+although I'd be wary of runtime-configuration options that could be used for
+races.
+
+I haven't been able to measure a meaningful performance difference when
+compiling a (in-cache) kernel; I'd be interested to see what difference it
+makes with your particular workload/hardware (I suspect mine is CPU-bound on
+this small laptop).
+
+Changes since v1:
+ - fix some issues raised by David Rientjes, Andi Kleen and PaX Team.
+ - add hibernate fix (third patch)
+ - add debug code, this is "just in case" someone has an issue with this
+   feature. Not sure if it should be merged.
+
+
+[1] https://lwn.net/Articles/334747/
+[2] https://staff.aist.go.jp/k.suzaki/EuroSec12-SUZAKI-revised2.pdf
+[3] http://en.wikibooks.org/wiki/Grsecurity/Appendix/Grsecurity_and_PaX_Configuration_Options#Sanitize_all_freed_memory
+[4] http://article.gmane.org/gmane.linux.kernel.mm/34398
+
+
+
+Anisse Astier (4):
+  mm/page_alloc.c: cleanup obsolete KM_USER*
+  mm/page_alloc.c: add config option to sanitize freed pages
+  PM / Hibernate: fix SANITIZE_FREED_PAGES
+  mm: Add debug code for SANITIZE_FREED_PAGES
+
+ kernel/power/hibernate.c |  7 ++++++-
+ kernel/power/power.h     |  4 ++++
+ kernel/power/snapshot.c  | 24 ++++++++++++++++++++++
+ mm/Kconfig               | 22 ++++++++++++++++++++
+ mm/page_alloc.c          | 52 ++++++++++++++++++++++++++++++++++--------------
+ 5 files changed, 93 insertions(+), 16 deletions(-)
+
 -- 
-2.1.4
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
