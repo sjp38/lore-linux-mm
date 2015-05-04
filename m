@@ -1,113 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EFB16B0073
-	for <linux-mm@kvack.org>; Mon,  4 May 2015 17:17:13 -0400 (EDT)
-Received: by wgin8 with SMTP id n8so163088671wgi.0
-        for <linux-mm@kvack.org>; Mon, 04 May 2015 14:17:13 -0700 (PDT)
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com. [74.125.82.46])
-        by mx.google.com with ESMTPS id t1si13360102wif.84.2015.05.04.14.17.11
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B31D6B006C
+	for <linux-mm@kvack.org>; Mon,  4 May 2015 17:30:49 -0400 (EDT)
+Received: by pabtp1 with SMTP id tp1so171784421pab.2
+        for <linux-mm@kvack.org>; Mon, 04 May 2015 14:30:49 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id oy9si21380037pbc.47.2015.05.04.14.30.47
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 May 2015 14:17:11 -0700 (PDT)
-Received: by wgin8 with SMTP id n8so163088065wgi.0
-        for <linux-mm@kvack.org>; Mon, 04 May 2015 14:17:11 -0700 (PDT)
-From: Anisse Astier <anisse@astier.eu>
-Subject: [PATCH v2 4/4] mm: Add debug code for SANITIZE_FREED_PAGES
-Date: Mon,  4 May 2015 23:16:58 +0200
-Message-Id: <1430774218-5311-5-git-send-email-anisse@astier.eu>
-In-Reply-To: <1430774218-5311-1-git-send-email-anisse@astier.eu>
-References: <1430774218-5311-1-git-send-email-anisse@astier.eu>
+        Mon, 04 May 2015 14:30:48 -0700 (PDT)
+Date: Mon, 4 May 2015 14:30:46 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
+Message-Id: <20150504143046.9404c572486caf71bdef0676@linux-foundation.org>
+In-Reply-To: <554415B1.2050702@hp.com>
+References: <1430231830-7702-1-git-send-email-mgorman@suse.de>
+	<554030D1.8080509@hp.com>
+	<5543F802.9090504@hp.com>
+	<554415B1.2050702@hp.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Anisse Astier <anisse@astier.eu>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Waiman Long <waiman.long@hp.com>
+Cc: Mel Gorman <mgorman@suse.de>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Add debug code for sanitize freed pages to print status and verify pages
-at alloc to make sure they're clean. It can be useful if you have
-crashes when using SANITIZE_FREED_PAGES.
+On Fri, 01 May 2015 20:09:21 -0400 Waiman Long <waiman.long@hp.com> wrote:
 
-Signed-off-by: Anisse Astier <anisse@astier.eu>
----
- kernel/power/snapshot.c |  8 ++++++--
- mm/Kconfig              | 10 ++++++++++
- mm/page_alloc.c         | 25 +++++++++++++++++++++++++
- 3 files changed, 41 insertions(+), 2 deletions(-)
+> On 05/01/2015 06:02 PM, Waiman Long wrote:
+> >
+> > Bad news!
+> >
+> > I tried your patch on a 24-TB DragonHawk and got an out of memory 
+> > panic. The kernel log messages were:
+>
+> ...
+>
+> > [   81.360287]  [<ffffffff8151b0c9>] dump_stack+0x68/0x77
+> > [   81.365942]  [<ffffffff8151ae1e>] panic+0xb9/0x219
+> > [   81.371213]  [<ffffffff810785c3>] ? 
+> > __blocking_notifier_call_chain+0x63/0x80
+> > [   81.378971]  [<ffffffff811384ce>] __out_of_memory+0x34e/0x350
+> > [   81.385292]  [<ffffffff811385ee>] out_of_memory+0x5e/0x90
+> > [   81.391230]  [<ffffffff8113ce9e>] __alloc_pages_slowpath+0x6be/0x740
+> > [   81.398219]  [<ffffffff8113d15c>] __alloc_pages_nodemask+0x23c/0x250
+> > [   81.405212]  [<ffffffff81186346>] kmem_getpages+0x56/0x110
+> > [   81.411246]  [<ffffffff81187f44>] fallback_alloc+0x164/0x200
+> > [   81.417474]  [<ffffffff81187cfd>] ____cache_alloc_node+0x8d/0x170
+> > [   81.424179]  [<ffffffff811887bb>] kmem_cache_alloc_trace+0x17b/0x240
+> > [   81.431169]  [<ffffffff813d5f3a>] init_memory_block+0x3a/0x110
+> > [   81.437586]  [<ffffffff81b5f687>] memory_dev_init+0xd7/0x13d
+> > [   81.443810]  [<ffffffff81b5f2af>] driver_init+0x2f/0x37
+> > [   81.449556]  [<ffffffff81b1599b>] do_basic_setup+0x29/0xd5
+> > [   81.455597]  [<ffffffff81b372c4>] ? sched_init_smp+0x140/0x147
+> > [   81.462015]  [<ffffffff81b15c55>] kernel_init_freeable+0x20e/0x297
+> > [   81.468815]  [<ffffffff81512ea0>] ? rest_init+0x80/0x80
+> > [   81.474565]  [<ffffffff81512ea9>] kernel_init+0x9/0xf0
+> > [   81.480216]  [<ffffffff8151f788>] ret_from_fork+0x58/0x90
+> > [   81.486156]  [<ffffffff81512ea0>] ? rest_init+0x80/0x80
+> > [   81.492350] ---[ end Kernel panic - not syncing: Out of memory and 
+> > no killable processes...
+> > [   81.492350]
+> >
+> > -Longman
+> 
+> I increased the pre-initialized memory per node in update_defer_init() 
+> of mm/page_alloc.c from 2G to 4G. Now I am able to boot the 24-TB 
+> machine without error. The 12-TB has 0.75TB/node, while the 24-TB 
+> machine has 1.5TB/node. I would suggest something like pre-initializing 
+> 1G per 0.25TB/node. In this way, it will scale properly with the memory 
+> size.
 
-diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
-index 673ade1..dfbfb5f 100644
---- a/kernel/power/snapshot.c
-+++ b/kernel/power/snapshot.c
-@@ -1044,9 +1044,13 @@ void clear_free_pages(void)
- 	memory_bm_position_reset(bm);
- 	pfn = memory_bm_next_pfn(bm);
- 	while (pfn != BM_END_OF_MAP) {
--		if (pfn_valid(pfn))
-+		if (pfn_valid(pfn)) {
-+#ifdef CONFIG_SANITIZE_FREED_PAGES_DEBUG
-+			printk(KERN_INFO "Clearing page %p\n",
-+					page_address(pfn_to_page(pfn)));
-+#endif
- 			clear_highpage(pfn_to_page(pfn));
--
-+		}
- 		pfn = memory_bm_next_pfn(bm);
- 	}
- 	memory_bm_position_reset(bm);
-diff --git a/mm/Kconfig b/mm/Kconfig
-index e9fb3bd..95364f2 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -647,3 +647,13 @@ config SANITIZE_FREED_PAGES
- 	  Depending on your workload it will greatly reduce performance.
- 
- 	  If unsure, say N.
-+
-+config SANITIZE_FREED_PAGES_DEBUG
-+	bool "Debug sanitize pages feature"
-+	default n
-+	depends on SANITIZE_FREED_PAGES && DEBUG_KERNEL
-+	help
-+	  This option adds some debugging code for the SANITIZE_FREED_PAGES
-+	  option, as well as verification code to ensure pages are really
-+	  zeroed. Don't enable unless you want to debug this feature.
-+	  If unsure, say N.
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c29e3a0..ba8aa25 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -975,6 +975,31 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
- 		for (i = 0; i < (1 << order); i++)
- 			clear_highpage(page + i);
- #endif
-+#ifdef CONFIG_SANITIZE_FREED_PAGES_DEBUG
-+	for (i = 0; i < (1 << order); i++) {
-+		struct page *p = page + i;
-+		int j;
-+		bool err = false;
-+		void *kaddr = kmap_atomic(p);
-+
-+		for (j = 0; j < PAGE_SIZE; j++) {
-+			if (((char *)kaddr)[j] != 0) {
-+				pr_err("page %p is not zero on alloc! %s\n",
-+						page_address(p), (gfp_flags &
-+							__GFP_ZERO) ?
-+						"fixing." : "");
-+				if (gfp_flags & __GFP_ZERO) {
-+					err = true;
-+					kunmap_atomic(kaddr);
-+					clear_highpage(p);
-+				}
-+				break;
-+			}
-+		}
-+		if (!err)
-+			kunmap_atomic(kaddr);
-+	}
-+#endif
- 
- 	if (order && (gfp_flags & __GFP_COMP))
- 		prep_compound_page(page, order);
--- 
-1.9.3
+We're using more than 2G before we've even completed do_basic_setup()? 
+Where did it all go?
+
+> Before the patch, the boot time from elilo prompt to ssh login was 694s. 
+> After the patch, the boot up time was 346s, a saving of 348s (about 50%).
+
+Having to guesstimate the amount of memory which is needed for a
+successful boot will be painful.  Any number we choose will be wrong
+99% of the time.
+
+If the kswapd threads have started, all we need to do is to wait: take
+a little nap in the allocator's page==NULL slowpath.
+
+I'm not seeing any reason why we can't start kswapd much earlier -
+right at the start of do_basic_setup()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
