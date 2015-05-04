@@ -1,93 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id A0AE36B006C
-	for <linux-mm@kvack.org>; Mon,  4 May 2015 02:19:14 -0400 (EDT)
-Received: by wgyo15 with SMTP id o15so139813268wgy.2
-        for <linux-mm@kvack.org>; Sun, 03 May 2015 23:19:14 -0700 (PDT)
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id ED31B6B006E
+	for <linux-mm@kvack.org>; Mon,  4 May 2015 02:19:16 -0400 (EDT)
+Received: by wgin8 with SMTP id n8so139622165wgi.0
+        for <linux-mm@kvack.org>; Sun, 03 May 2015 23:19:16 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w6si9977278wiv.14.2015.05.03.23.19.11
+        by mx.google.com with ESMTPS id om1si21158313wjc.104.2015.05.03.23.19.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Sun, 03 May 2015 23:19:11 -0700 (PDT)
 From: Juergen Gross <jgross@suse.com>
-Subject: [RESEND Patch V3 00/15] xen: support pv-domains larger than 512GB
-Date: Mon,  4 May 2015 08:18:51 +0200
-Message-Id: <1430720346-21063-1-git-send-email-jgross@suse.com>
+Subject: [RESEND Patch V3 02/15] xen: save linear p2m list address in shared info structure
+Date: Mon,  4 May 2015 08:18:53 +0200
+Message-Id: <1430720346-21063-3-git-send-email-jgross@suse.com>
+In-Reply-To: <1430720346-21063-1-git-send-email-jgross@suse.com>
+References: <1430720346-21063-1-git-send-email-jgross@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com, linux-mm@kvack.org
 Cc: Juergen Gross <jgross@suse.com>
 
-Support 64 bit pv-domains with more than 512GB of memory.
+The virtual address of the linear p2m list should be stored in the
+shared info structure read by the Xen tools to be able to support
+64 bit pv-domains larger than 512 GB. Additionally the linear p2m
+list interface includes a generation count which is changed prior
+to and after each mapping change of the p2m list. Reading the
+generation count the Xen tools can detect changes of the mappings
+and re-read the p2m list eventually.
 
-Tested with 64 bit dom0 on machines with 8GB and 1TB and 32 bit dom0 on a
-8GB machine. Conflicts between E820 map and different hypervisor populated
-memory areas have been tested via a fake E820 map reserved area on the
-8GB machine.
+Signed-off-by: Juergen Gross <jgross@suse.com>
+Reviewed-by: David Vrabel <david.vrabel@citrix.com>
+---
+ arch/x86/xen/p2m.c | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
 
-Changes in V3:
-- rename xen_chk_e820_reserved() to xen_is_e820_reserved() as requested by
-  David Vrabel
-- add __initdata tag to global variables in patch 10
-- move initrd conflict checking after reserving p2m memory (patch 11)
-
-Changes in V2:
-- some clarifications and better explanations in commit messages 
-- add header changes of include/xen/interface/xen.h (patch 01)
-- add wmb() when incrementing p2m_generation (patch 02)
-- add new patch 03 (don't build mfn tree if tools don't need it)
-- add new patch 06 (split counting of extra memory pages from remapping)
-- add new patch 07 (check memory area against e820 map)
-- replace early_iounmap() with early_memunmap() (patch 07->patch 08)
-- rework patch 09 (check for kernel memory conflicting with memory layout)
-- rework patch 10 (check pre-allocated page tables for conflict with memory map)
-- combine old patches 08 and 11 into patch 11
-- add new patch 12 (provide early_memremap_ro to establish read-only mapping)
-- rework old patch 12 (if p2m list located in to be remapped region delay
-  remapping) to copy p2m list in case of a conflict (now patch 13)
-- correct Kconfig dependency (patch 13->14)
-- don't limit dom0 to 512GB (patch 13->14)
-- modify parameter parsing to work in very early boot (patch 13->14)
-- add new patch 15 to do some cleanup
-- remove old patch 05 (simplify xen_set_identity_and_remap() by using global
-  variables)
-- remove old patch 08 (detect pre-allocated memory interfering with e820 map)
-
-
-Juergen Gross (15):
-  xen: sync with xen headers
-  xen: save linear p2m list address in shared info structure
-  xen: don't build mfn tree if tools don't need it
-  xen: eliminate scalability issues from initial mapping setup
-  xen: move static e820 map to global scope
-  xen: split counting of extra memory pages from remapping
-  xen: check memory area against e820 map
-  xen: find unused contiguous memory area
-  xen: check for kernel memory conflicting with memory layout
-  xen: check pre-allocated page tables for conflict with memory map
-  xen: check for initrd conflicting with e820 map
-  mm: provide early_memremap_ro to establish read-only mapping
-  xen: move p2m list if conflicting with e820 map
-  xen: allow more than 512 GB of RAM for 64 bit pv-domains
-  xen: remove no longer needed p2m.h
-
- Documentation/kernel-parameters.txt  |   7 +
- arch/x86/include/asm/xen/interface.h |  96 +++++++-
- arch/x86/include/asm/xen/page.h      |   8 +-
- arch/x86/xen/Kconfig                 |  20 +-
- arch/x86/xen/mmu.c                   | 367 +++++++++++++++++++++++++++++--
- arch/x86/xen/p2m.c                   |  43 +++-
- arch/x86/xen/p2m.h                   |  15 --
- arch/x86/xen/setup.c                 | 414 ++++++++++++++++++++++++++---------
- arch/x86/xen/xen-head.S              |   2 +
- arch/x86/xen/xen-ops.h               |   6 +
- include/asm-generic/early_ioremap.h  |   2 +
- include/asm-generic/fixmap.h         |   3 +
- include/xen/interface/xen.h          |  10 +-
- mm/early_ioremap.c                   |  11 +
- 14 files changed, 822 insertions(+), 182 deletions(-)
- delete mode 100644 arch/x86/xen/p2m.h
-
+diff --git a/arch/x86/xen/p2m.c b/arch/x86/xen/p2m.c
+index b47124d..703f803 100644
+--- a/arch/x86/xen/p2m.c
++++ b/arch/x86/xen/p2m.c
+@@ -262,6 +262,10 @@ void xen_setup_mfn_list_list(void)
+ 	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
+ 		virt_to_mfn(p2m_top_mfn);
+ 	HYPERVISOR_shared_info->arch.max_pfn = xen_max_p2m_pfn;
++	HYPERVISOR_shared_info->arch.p2m_generation = 0;
++	HYPERVISOR_shared_info->arch.p2m_vaddr = (unsigned long)xen_p2m_addr;
++	HYPERVISOR_shared_info->arch.p2m_cr3 =
++		xen_pfn_to_cr3(virt_to_mfn(swapper_pg_dir));
+ }
+ 
+ /* Set up p2m_top to point to the domain-builder provided p2m pages */
+@@ -477,8 +481,12 @@ static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
+ 
+ 		ptechk = lookup_address(vaddr, &level);
+ 		if (ptechk == pte_pg) {
++			HYPERVISOR_shared_info->arch.p2m_generation++;
++			wmb(); /* Tools are synchronizing via p2m_generation. */
+ 			set_pmd(pmdp,
+ 				__pmd(__pa(pte_newpg[i]) | _KERNPG_TABLE));
++			wmb(); /* Tools are synchronizing via p2m_generation. */
++			HYPERVISOR_shared_info->arch.p2m_generation++;
+ 			pte_newpg[i] = NULL;
+ 		}
+ 
+@@ -576,8 +584,12 @@ static bool alloc_p2m(unsigned long pfn)
+ 		spin_lock_irqsave(&p2m_update_lock, flags);
+ 
+ 		if (pte_pfn(*ptep) == p2m_pfn) {
++			HYPERVISOR_shared_info->arch.p2m_generation++;
++			wmb(); /* Tools are synchronizing via p2m_generation. */
+ 			set_pte(ptep,
+ 				pfn_pte(PFN_DOWN(__pa(p2m)), PAGE_KERNEL));
++			wmb(); /* Tools are synchronizing via p2m_generation. */
++			HYPERVISOR_shared_info->arch.p2m_generation++;
+ 			if (mid_mfn)
+ 				mid_mfn[mididx] = virt_to_mfn(p2m);
+ 			p2m = NULL;
+@@ -629,6 +641,11 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
+ 		return true;
+ 	}
+ 
++	/*
++	 * The interface requires atomic updates on p2m elements.
++	 * xen_safe_write_ulong() is using __put_user which does an atomic
++	 * store via asm().
++	 */
+ 	if (likely(!xen_safe_write_ulong(xen_p2m_addr + pfn, mfn)))
+ 		return true;
+ 
 -- 
 2.1.4
 
