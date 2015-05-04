@@ -1,265 +1,308 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 35B776B0038
-	for <linux-mm@kvack.org>; Mon,  4 May 2015 06:55:12 -0400 (EDT)
-Received: by pdbqd1 with SMTP id qd1so159986506pdb.2
-        for <linux-mm@kvack.org>; Mon, 04 May 2015 03:55:11 -0700 (PDT)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id tu9si19389618pbc.44.2015.05.04.03.55.11
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EDC46B0038
+	for <linux-mm@kvack.org>; Mon,  4 May 2015 11:14:05 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so125338516wid.0
+        for <linux-mm@kvack.org>; Mon, 04 May 2015 08:14:05 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ho2si23145169wjb.162.2015.05.04.08.14.03
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 May 2015 03:55:11 -0700 (PDT)
-Received: by pabtp1 with SMTP id tp1so157637084pab.2
-        for <linux-mm@kvack.org>; Mon, 04 May 2015 03:55:11 -0700 (PDT)
-Date: Mon, 4 May 2015 19:54:59 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v3 3/3] proc: add kpageidle file
-Message-ID: <20150504105459.GA19384@blaptop>
-References: <cover.1430217477.git.vdavydov@parallels.com>
- <4c24a6bf2c9711dd4dbb72a43a16eba6867527b7.1430217477.git.vdavydov@parallels.com>
- <20150429043536.GB11486@blaptop>
- <20150429091248.GD1694@esperanza>
- <20150430082531.GD21771@blaptop>
- <20150430145055.GB17640@esperanza>
- <20150504031722.GA2768@blaptop>
- <20150504094938.GB4197@esperanza>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 04 May 2015 08:14:03 -0700 (PDT)
+Date: Mon, 4 May 2015 17:14:01 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/9] mm: Provide new get_vaddr_pfns() helper
+Message-ID: <20150504151401.GC5805@quack.suse.cz>
+References: <1426593399-6549-1-git-send-email-jack@suse.cz>
+ <1426593399-6549-3-git-send-email-jack@suse.cz>
+ <20150430155531.GY2449@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150504094938.GB4197@esperanza>
+In-Reply-To: <20150430155531.GY2449@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Jan Kara <jack@suse.cz>, linux-media@vger.kernel.org, Hans Verkuil <hans.verkuil@cisco.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>
 
-On Mon, May 04, 2015 at 12:49:39PM +0300, Vladimir Davydov wrote:
-> On Mon, May 04, 2015 at 12:17:22PM +0900, Minchan Kim wrote:
-> > On Thu, Apr 30, 2015 at 05:50:55PM +0300, Vladimir Davydov wrote:
-> > > On Thu, Apr 30, 2015 at 05:25:31PM +0900, Minchan Kim wrote:
-> > > > On Wed, Apr 29, 2015 at 12:12:48PM +0300, Vladimir Davydov wrote:
-> > > > > On Wed, Apr 29, 2015 at 01:35:36PM +0900, Minchan Kim wrote:
-> > > > > > On Tue, Apr 28, 2015 at 03:24:42PM +0300, Vladimir Davydov wrote:
-> > > > > > > +#ifdef CONFIG_IDLE_PAGE_TRACKING
-> > > > > > > +static struct page *kpageidle_get_page(unsigned long pfn)
-> > > > > > > +{
-> > > > > > > +	struct page *page;
-> > > > > > > +
-> > > > > > > +	if (!pfn_valid(pfn))
-> > > > > > > +		return NULL;
-> > > > > > > +	page = pfn_to_page(pfn);
-> > > > > > > +	/*
-> > > > > > > +	 * We are only interested in user memory pages, i.e. pages that are
-> > > > > > > +	 * allocated and on an LRU list.
-> > > > > > > +	 */
-> > > > > > > +	if (!page || page_count(page) == 0 || !PageLRU(page))
-> > > > > > > +		return NULL;
-> > > > > > > +	if (!get_page_unless_zero(page))
-> > > > > > > +		return NULL;
-> > > > > > > +	if (unlikely(!PageLRU(page))) {
-> > > > > > 
-> > > > > > What lock protect the check PageLRU?
-> > > > > > If it is racing ClearPageLRU, what happens?
-> > > > > 
-> > > > > If we hold a reference to a page and see that it's on an LRU list, it
-> > > > > will surely remain a user memory page at least until we release the
-> > > > > reference to it, so it must be safe to play with idle/young flags. If we
-> > > > 
-> > > > The problem is that you pass the page in rmap reverse logic(ie, page_referenced)
-> > > > once you judge it's LRU page so if it is false-positive, what happens?
-> > > > A question is SetPageLRU, PageLRU, ClearPageLRU keeps memory ordering?
-> > > > IOW, all of fields from struct page rmap can acccess should be set up completely
-> > > > before LRU checking. Otherwise, something will be broken.
-> > > 
-> > > So, basically you are concerned about the case when we encounter a
-> > > freshly allocated page, which has PG_lru bit set and it's going to
-> > > become anonymous, but it is still in the process of rmap initialization,
-> > > i.e. its ->mapping or ->mapcount may still be uninitialized, right?
-> > > 
-> > > AFAICS, page_referenced should handle such pages fine. Look, it only
-> > > needs ->index, ->mapping, and ->mapcount.
-> > > 
-> > > If ->mapping is unset, than it is NULL and rmap_walk_anon_lock ->
-> > > page_lock_anon_vma_read will return NULL so that rmap_walk will be a
-> > > no-op.
-> > > 
-> > > If ->index is not initialized, than at worst we will go to
-> > > anon_vma_interval_tree_foreach over a wrong interval, in which case we
-> > > will see that the page is actually not mapped in page_referenced_one ->
-> > > page_check_address and again do nothing.
-> > > 
-> > > If ->mapcount is not initialized it is -1, and page_lock_anon_vma_read
-> > > will return NULL, just as it does in case ->mapping = NULL.
-> > > 
-> > > For file pages, we always take PG_locked before checking ->mapping, so
-> > > it must be valid.
-> > > 
-> > > Thanks,
-> > > Vladimir
+On Thu 30-04-15 16:55:31, Mel Gorman wrote:
+> On Tue, Mar 17, 2015 at 12:56:32PM +0100, Jan Kara wrote:
+> > Provide new function get_vaddr_pfns().  This function maps virtual
+> > addresses from given start and fills given array with page frame numbers of
+> > the corresponding pages. If given start belongs to a normal vma, the function
+> > grabs reference to each of the pages to pin them in memory. If start
+> > belongs to VM_IO | VM_PFNMAP vma, we don't touch page structures. Caller
+> > should make sure pfns aren't reused for anything else while he is using
+> > them.
 > > 
+> > This function is created for various drivers to simplify handling of
+> > their buffers.
 > > 
-> > do_anonymous_page
-> > page_add_new_anon_rmap
-> > atomic_set(&page->_mapcount, 0);
-> > __page_set_anon_rmap
-> >    anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-> >    page->mapping = (struct address_space *) anon_vma;
-> >    page->index = linear_page_index(vma, address);
-> > lru_cache_add 
-> >   __pagevec_lru_add_fn
-> >   SetPageLRU(page);
+> > Signed-off-by: Jan Kara <jack@suse.cz>
+> > ---
+> >  include/linux/mm.h |  38 +++++++++++
+> >  mm/gup.c           | 180 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+> >  2 files changed, 218 insertions(+)
 > > 
-> > During the procedure, there is no lock to prevent race. Then, at least,
-> > we need a write memory barrier to guarantee other fields set up before
-> > SetPageLRU. (Of course, PageLRU should have read-memory barrier to work
-> > well) But I can't find any barrier, either.
-> > 
-> > IOW, any fields you said could be out of order store without any lock or
-> > memory barrier. You might argue atomic op is a barrier on x86 but it
-> > doesn't guarantee other arches work like that so we need explict momory
-> > barrier or lock.
-> > 
-> > Let's have a theoretical example.
-> > 
-> >         CPU 0                                                                           CPU 1
-> > 
-> > do_anonymous_page
-> >   __page_set_anon_rmap
-> >   /* out of order happened so SetPageLRU is done ahead */
-> >   SetPageLRU(page)
-> >   /* Compilr changed store operation like below */
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index 47a93928b90f..a5045df92454 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -1279,6 +1279,44 @@ long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
+> >  		    int write, int force, struct page **pages);
+> >  int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+> >  			struct page **pages);
+> > +
+> > +/* Container for pinned pfns / pages */
+> > +struct pinned_pfns {
+> > +	unsigned int nr_allocated_pfns;	/* Number of pfns we have space for */
+> > +	unsigned int nr_pfns;		/* Number of pfns stored in pfns array */
+> > +	unsigned int got_ref:1;		/* Did we pin pfns by getting page ref? */
+> > +	unsigned int is_pages:1;	/* Does array contain pages or pfns? */
 > 
-> But it couldn't. Quoting Documentation/atomic_ops.txt:
+> The bit field is probably overkill as I expect it'll get padded out for
+> pointer alignment anyway. Just use bools.
+  Makes sense.
+
+> is_pfns is less ambiguous than is_pages but not very important.
 > 
-> 	Properly aligned pointers, longs, ints, and chars (and unsigned
-> 	equivalents) may be atomically loaded from and stored to in the same
-> 	sense as described for atomic_read() and atomic_set().
+> The naming is not great in general. Only struct pages are pinned in the
+> traditional meaning of the word. The raw PFNs are not so there is no such
+> thing as a "pinned pfns". It might be better just to call it frame_vectors
+> and document that it's either raw PFNs that the caller should be responsible
+> for or struct pages that are pinned.
+  Good point. I'll try to come up with a better name.
+
+<snip> - I agree with minor comments there.
+
+> >  /**
+> > + * get_vaddr_pfns() - map virtual addresses to pfns
+> > + * @start:	starting user address
+> > + * @nr_pfns:	number of pfns from start to map
+> > + * @write:	whether pages will be written to by the caller
+> > + * @force:	whether to force write access even if user mapping is
+> > + *		readonly. This will result in the page being COWed even
+> > + *		in MAP_SHARED mappings. You do not want this.
+> > + * @pfns:	structure which receives pfns of the pages mapped.
+> > + *		It should have space for at least nr_pfns pfns.
+> > + *
+> > + * This function maps virtual addresses from @start and fills @pfns structure
+> > + * with page frame numbers of corresponding pages. If @start belongs to a
+> > + * normal vma, the function grabs reference to each of the pages to pin them in
+> > + * memory. If @start belongs to VM_IO | VM_PFNMAP vma, we don't touch page
+> > + * structures. Caller should make sure pfns aren't reused for anything else
+> > + * while he is using them.
+> > + *
+> > + * This function takes care of grabbing mmap_sem as necessary.
+> > + */
+> > +int get_vaddr_pfns(unsigned long start, int nr_pfns, int write, int force,
+> > +		   struct pinned_pfns *pfns)
+> > +{
+> > +	struct mm_struct *mm = current->mm;
+> > +	struct vm_area_struct *vma;
+> > +	int ret = 0;
+> > +	int err;
+> > +
+> > +	if (nr_pfns <= 0)
+> > +		return 0;
+> > +
 > 
-> __page_set_anon_rmap sets page->mapping using the following expression:
+> I know I suggested that nr_pfns should be unsigned earlier and then I
+> saw this. Is there any valid use of the API that would pass in a
+> negative number here?
+  No. It was there just because I had ints everywhere without too much
+thought (it's shorter to type *grin*). I'll put unsigned types where it
+makes sense and add a test for INT_MAX so that get_vaddr_pfns() can still
+return negative errors.
+
+> > +	if (nr_pfns > pfns->nr_allocated_pfns)
+> > +		nr_pfns = pfns->nr_allocated_pfns;
+> > +
 > 
->  	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
->  	page->mapping = (struct address_space *) anon_vma;
+> Should this be a WARN_ON_ONCE? You recover from it obviously but the return
+> value is not documented to say that it could return less than requested.
+> Of course, this is implied but a caller might assume it's due to a transient
+> error instead of broken API usage.
+  Yep, good idea.
+
+> > +	down_read(&mm->mmap_sem);
+> > +	vma = find_vma_intersection(mm, start, start + 1);
+> > +	if (!vma) {
+> > +		ret = -EFAULT;
+> > +		goto out;
+> > +	}
 > 
-> and it can't be split, i.e. if one concurrently reads page->mapping
-> he/she will see either NULL or (anon_vma+PAGE_MAPPING_ANON), and there
-> can't be any intermediate result in page->mapping, such as anon_vma or
-> PAGE_MAPPING_ANON, because one doesn't expect
+> Returning -EFAULT means that the return value has to be signed but the
+> structure itself has unsigned int for counters so the maximum number of
+> PFNs supported is not available. We'd never want that number of PFNs pinned
+> but still it might make sense to enforce the maximum possible size of the
+> structure that takes into account the values needed for returning errors.
+  Yes. See above.
+
+> > +	if (!(vma->vm_flags & (VM_IO | VM_PFNMAP))) {
+> > +		pfns->got_ref = 1;
+> > +		pfns->is_pages = 1;
+> > +		ret = get_user_pages(current, mm, start, nr_pfns, write, force,
+> > +				     pfns_vector_pages(pfns), NULL);
+> > +		goto out;
+> > +	}
+> > +
+> > +	pfns->got_ref = 0;
+> > +	pfns->is_pages = 0;
+> > +	do {
+> > +		unsigned long *nums = pfns_vector_pfns(pfns);
+> > +
+> > +		while (ret < nr_pfns && start + PAGE_SIZE <= vma->vm_end) {
+> > +			err = follow_pfn(vma, start, &nums[ret]);
+> > +			if (err) {
+> > +				if (ret == 0)
+> > +					ret = err;
+> > +				goto out;
+> > +			}
+> > +			start += PAGE_SIZE;
+> > +			ret++;
+> > +		}
+> > +		/*
+> > +		 * We stop if we have enough pages or if VMA doesn't completely
+> > +		 * cover the tail page.
+> > +		 */
+> > +		if (ret >= nr_pfns || start < vma->vm_end)
+> > +			break;
+> > +		vma = find_vma_intersection(mm, start, start + 1);
+> > +	} while (vma && vma->vm_flags & (VM_IO | VM_PFNMAP));
 > 
-> 	atomic_set(&p, a + b);
+> Documentation probably should mention that a range that strides VMA types
+> will return partial results.
+  Good point. Will add that.
+
+> > +out:
+> > +	up_read(&mm->mmap_sem);
+> > +	if (!ret)
+> > +		ret = -EFAULT;
 > 
-> to behave like
+> Really? Maybe we just failed to call get_user_pages on any of them. The
+> meaning of -EFAULT probably needs a comment.
+  So the only real case where we could have 0 here is when get_user_pages()
+returns 0 for whatever reason. It seemed better to me to translate 0 to
+-EFAULT since all the drivers I saw did that anyway (at least those that
+didn't forget about checking for 0). It just seems as a less error-prone
+interface to return error or number > 0. I agree that -EFAULT doesn't
+necessarily always make sense so if you have idea for a better error I'm
+open to suggestions.
+
+> > +	if (ret > 0)
+> > +		pfns->nr_pfns = ret;
+> > +	return ret;
+> > +}
+> > +EXPORT_SYMBOL(get_vaddr_pfns);
+> > +
+> > +/**
+> > + * put_vaddr_pfns() - drop references to pages if get_vaddr_pfns() acquired them
+> > + * @pfns:     structure with pfns we pinned
+> > + *
+> > + * Drop references to pages if get_vaddr_pfns() acquired them. We also
+> > + * invalidate the array of pfns so that it is prepared for the next call into
+> > + * get_vaddr_pfns().
+> > + */
+> > +void put_vaddr_pfns(struct pinned_pfns *pfns)
+> > +{
+> > +	int i;
+> > +
+> > +	if (!pfns->got_ref)
+> > +		goto out;
+> > +	if (pfns->is_pages) {
+> > +		struct page **pages = pfns_vector_pages(pfns);
+> > +
+> > +		for (i = 0; i < pfns->nr_pfns; i++)
+> > +			put_page(pages[i]);
 > 
-> 	atomic_set(&p, a);
-> 	atomic_set(&p, atomic_read(&p) + b);
-
-When I parsed the documentation, I understand it that each of words
-store/load operation is atomically loaded or stored, not forcing to
-preventing split.
-
-Hmm, but it's really important part in this patchset's implementation
-so I want to confirm during review process.
-
-I don't have a worry even if I am not a expert about that part because
-I know other experts. ;-) Ccing them.
-
-What I want to know is as follows,
-
-In do_anonymous_page, there is following peice of code.
-page_add_new_anon_rmap
-        __page_set_anon_rmap
-                anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON; 
-                page->mapping = (struct address_space *) anon_vma;
-lru_cache_add_active_or_unevictable
-        __lru_cache_add
-                __pagevec_lru_add_fn 
-                        SetPageLRU(page);
-
->From page->mapping to SetPageLRU, there is no explict lock and memory
-barrier.
-
-As counterpart, kpageidle can pass page in page_referenced once it judges
-out the page has PG_lru with PageLRU check but my concern is that it
-judges without any lock or barrier like below.
-
-static struct page *kpageidle_get_page(unsigned long pfn)
-{
-       struct page *page;
-
-       if (!pfn_valid(pfn))
-               return NULL;
-       page = pfn_to_page(pfn);
-       /*
-        * We are only interested in user memory pages, i.e. pages that are
-        * allocated and on an LRU list.
-        */
-       if (!page || page_count(page) == 0 || !PageLRU(page))
-               return NULL;
-       if (!get_page_unless_zero(page))
-               return NULL;
-       if (unlikely(!PageLRU(page))) {
-               put_page(page);
-               return NULL;
-       }
-       return page;
-}
-
-So, I guess once below compiler optimization happens in __page_set_anon_rmap,
-it could be corrupt in page_refernced.
-
-__page_set_anon_rmap:
-        page->mapping = (struct address_space *) anon_vma;
-        page->mapping = (struct address_space *)((void *)page_mapping + PAGE_MAPPING_ANON);
-
-Because page_referenced checks it with PageAnon which has no memory barrier.
-So if above compiler optimization happens, page_referenced can pass the anon
-page in rmap_walk_file, not ramp_walk_anon. It's my theory. :)
-
-But Vladimir said above above compiler optimization cannot happen because
-it's aligned pointer and Documentation/atomic_ops.txt said it couldn't happen.
-
-Thanks for looking this.
-
-
-> >   page->mapping = (struct address_space *) anon_vma;
-> >   /* Big stall happens */
-> >                                                                 /* idletacking judged it as LRU page so pass the page
-> >                                                                    in page_reference */
-> >                                                                 page_refernced
-> >                                                                         page_rmapping return true because
-> >                                                                         page->mapping has some vaule but not complete
-> >                                                                         so it calls rmap_walk_file.
-> >                                                                         it's okay to pass non-completed anon page in rmap_walk_file?
-> > 
-> >   page->mapping = (struct address_space *)
-> >         ((void *)page_mapping + PAGE_MAPPING_ANON);
->
-
+> Ok.
 > 
-> Thanks,
-> Vladimir
+> > +	} else {
+> > +		unsigned long *nums = pfns_vector_pfns(pfns);
+> > +
+> > +		for (i = 0; i < pfns->nr_pfns; i++)
+> > +			put_page(pfn_to_page(nums[i]));
+> > +	}
 > 
-> >   page->mapping = (struct address_space *) anon_vma;
-> >   /* Big stall happens */
-> >                                                                 /* idletacking judged it as LRU page so pass the page
-> >                                                                    in page_reference */
-> >                                                                 page_refernced
-> >                                                                         page_rmapping return true because
-> >                                                                         page->mapping has some vaule but not complete
-> >                                                                         so it calls rmap_walk_file.
-> >                                                                         it's okay to pass non-completed anon page in rmap_walk_file?
-> > 
-> >   page->mapping = (struct address_space *)
-> >         ((void *)page_mapping + PAGE_MAPPING_ANON);
-> > 
-> > It's too theoretical so it might be hard to happen in real practice.
-> > My point is there is nothing to prevent explict race.
-> > Even if there is no problem with other lock, it's fragile.
-> > Do I miss something?
-> > 
-> > I think general way to handle PageLRU are ahead isolation or zone->lru_lock.
+> I'm missing something here. The !is_pages branch in get_vaddr_pfns()
+> used follow_pfn() and it does not take a reference on the struct page so
+> I'm not sure what this is putting exactly.
+  So this case should have covered the situation when we have a vector of
+normal pages (thus got_ref == 1) and convert that to a vector of pfns.
+Noone currently does that and that function for conversion even doesn't
+seem to exist but it seems to me at least omap driver may need it and the
+conversion I did has a bug. Anyway, I'll recheck the situation and either
+drop this or make the function more comprehensible.
+ 
+> > +	pfns->got_ref = 0;
+> > +out:
+> > +	pfns->nr_pfns = 0;
+> > +}
+> > +EXPORT_SYMBOL(put_vaddr_pfns);
+> > +
+> 
+> EXPORT_SYMBOL_GPL?
+  I've just followed what __get_user_pages() does...
 
+> > +/**
+> > + * pfns_vector_to_pages - convert vector of pfns to vector of page pointers
+> > + * @pfns:	structure with pinned pfns
+> > + *
+> > + * Convert @pfns to not contain array of pfns but array of page pointers.
+> > + * If the conversion is successful, return 0. Otherwise return an error.
+> > + */
+> > +int pfns_vector_to_pages(struct pinned_pfns *pfns)
+> > +{
+> > +	int i;
+> > +	unsigned long *nums;
+> > +	struct page **pages;
+> > +
+> > +	if (pfns->is_pages)
+> > +		return 0;
+> > +	nums = pfns_vector_pfns(pfns);
+> > +	for (i = 0; i < pfns->nr_pfns; i++)
+> > +		if (!pfn_valid(nums[i]))
+> > +			return -EINVAL;
+> > +	pages = (struct page **)nums;
+> > +	for (i = 0; i < pfns->nr_pfns; i++)
+> > +		pages[i] = pfn_to_page(nums[i]);
+> > +	pfns->is_pages = 1;
+> > +	return 0;
+> > +}
+> > +EXPORT_SYMBOL(pfns_vector_to_pages);
+> > +
+> > +/**
+> > + * pfns_vector_create() - allocate & initialize structure for pinned pfns
+> > + * @nr_pfns:	number of pfns slots we should reserve
+> > + *
+> > + * Allocate and initialize struct pinned_pfns to be able to hold @nr_pfns
+> > + * pfns.
+> > + */
+> > +struct pinned_pfns *pfns_vector_create(int nr_pfns)
+> > +{
+> > +	struct pinned_pfns *pfns;
+> > +	int size = sizeof(struct pinned_pfns) + sizeof(unsigned long) * nr_pfns;
+> > +
+> 
+> Should be sizeof(void *) 
+  OK.
+
+> > +	if (WARN_ON_ONCE(nr_pfns <= 0))
+> > +		return NULL;
+> > +	if (size <= PAGE_SIZE)
+> > +		pfns = kmalloc(size, GFP_KERNEL);
+> 
+> kmalloc supports larger sizes than this but I suspect this was
+> deliberate to avoid high-order allocations.
+  Exactly.
+
+  Thanks a lot for review Mel!
+
+								Honza
 -- 
-Kind regards,
-Minchan Kim
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
