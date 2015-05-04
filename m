@@ -1,151 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 07F906B0038
-	for <linux-mm@kvack.org>; Sun,  3 May 2015 23:17:36 -0400 (EDT)
-Received: by pacyx8 with SMTP id yx8so149198206pac.1
-        for <linux-mm@kvack.org>; Sun, 03 May 2015 20:17:35 -0700 (PDT)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id t12si18031927pbs.27.2015.05.03.20.17.34
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id BCCE66B0038
+	for <linux-mm@kvack.org>; Mon,  4 May 2015 02:19:13 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so109701693wid.0
+        for <linux-mm@kvack.org>; Sun, 03 May 2015 23:19:13 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cu4si21097592wjb.191.2015.05.03.23.19.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 May 2015 20:17:35 -0700 (PDT)
-Received: by pdbnk13 with SMTP id nk13so151416984pdb.0
-        for <linux-mm@kvack.org>; Sun, 03 May 2015 20:17:34 -0700 (PDT)
-Date: Mon, 4 May 2015 12:17:22 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v3 3/3] proc: add kpageidle file
-Message-ID: <20150504031722.GA2768@blaptop>
-References: <cover.1430217477.git.vdavydov@parallels.com>
- <4c24a6bf2c9711dd4dbb72a43a16eba6867527b7.1430217477.git.vdavydov@parallels.com>
- <20150429043536.GB11486@blaptop>
- <20150429091248.GD1694@esperanza>
- <20150430082531.GD21771@blaptop>
- <20150430145055.GB17640@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150430145055.GB17640@esperanza>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 03 May 2015 23:19:11 -0700 (PDT)
+From: Juergen Gross <jgross@suse.com>
+Subject: [RESEND Patch V3 01/15] xen: sync with xen headers
+Date: Mon,  4 May 2015 08:18:52 +0200
+Message-Id: <1430720346-21063-2-git-send-email-jgross@suse.com>
+In-Reply-To: <1430720346-21063-1-git-send-email-jgross@suse.com>
+References: <1430720346-21063-1-git-send-email-jgross@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com, linux-mm@kvack.org
+Cc: Juergen Gross <jgross@suse.com>
 
-On Thu, Apr 30, 2015 at 05:50:55PM +0300, Vladimir Davydov wrote:
-> On Thu, Apr 30, 2015 at 05:25:31PM +0900, Minchan Kim wrote:
-> > On Wed, Apr 29, 2015 at 12:12:48PM +0300, Vladimir Davydov wrote:
-> > > On Wed, Apr 29, 2015 at 01:35:36PM +0900, Minchan Kim wrote:
-> > > > On Tue, Apr 28, 2015 at 03:24:42PM +0300, Vladimir Davydov wrote:
-> > > > > +#ifdef CONFIG_IDLE_PAGE_TRACKING
-> > > > > +static struct page *kpageidle_get_page(unsigned long pfn)
-> > > > > +{
-> > > > > +	struct page *page;
-> > > > > +
-> > > > > +	if (!pfn_valid(pfn))
-> > > > > +		return NULL;
-> > > > > +	page = pfn_to_page(pfn);
-> > > > > +	/*
-> > > > > +	 * We are only interested in user memory pages, i.e. pages that are
-> > > > > +	 * allocated and on an LRU list.
-> > > > > +	 */
-> > > > > +	if (!page || page_count(page) == 0 || !PageLRU(page))
-> > > > > +		return NULL;
-> > > > > +	if (!get_page_unless_zero(page))
-> > > > > +		return NULL;
-> > > > > +	if (unlikely(!PageLRU(page))) {
-> > > > 
-> > > > What lock protect the check PageLRU?
-> > > > If it is racing ClearPageLRU, what happens?
-> > > 
-> > > If we hold a reference to a page and see that it's on an LRU list, it
-> > > will surely remain a user memory page at least until we release the
-> > > reference to it, so it must be safe to play with idle/young flags. If we
-> > 
-> > The problem is that you pass the page in rmap reverse logic(ie, page_referenced)
-> > once you judge it's LRU page so if it is false-positive, what happens?
-> > A question is SetPageLRU, PageLRU, ClearPageLRU keeps memory ordering?
-> > IOW, all of fields from struct page rmap can acccess should be set up completely
-> > before LRU checking. Otherwise, something will be broken.
-> 
-> So, basically you are concerned about the case when we encounter a
-> freshly allocated page, which has PG_lru bit set and it's going to
-> become anonymous, but it is still in the process of rmap initialization,
-> i.e. its ->mapping or ->mapcount may still be uninitialized, right?
-> 
-> AFAICS, page_referenced should handle such pages fine. Look, it only
-> needs ->index, ->mapping, and ->mapcount.
-> 
-> If ->mapping is unset, than it is NULL and rmap_walk_anon_lock ->
-> page_lock_anon_vma_read will return NULL so that rmap_walk will be a
-> no-op.
-> 
-> If ->index is not initialized, than at worst we will go to
-> anon_vma_interval_tree_foreach over a wrong interval, in which case we
-> will see that the page is actually not mapped in page_referenced_one ->
-> page_check_address and again do nothing.
-> 
-> If ->mapcount is not initialized it is -1, and page_lock_anon_vma_read
-> will return NULL, just as it does in case ->mapping = NULL.
-> 
-> For file pages, we always take PG_locked before checking ->mapping, so
-> it must be valid.
-> 
-> Thanks,
-> Vladimir
+Use the newest headers from the xen tree to get some new structure
+layouts.
 
+Signed-off-by: Juergen Gross <jgross@suse.com>
+Reviewed-by: David Vrabel <david.vrabel@citrix.com>
+---
+ arch/x86/include/asm/xen/interface.h | 96 ++++++++++++++++++++++++++++++++----
+ include/xen/interface/xen.h          | 10 ++--
+ 2 files changed, 93 insertions(+), 13 deletions(-)
 
-do_anonymous_page
-page_add_new_anon_rmap
-atomic_set(&page->_mapcount, 0);
-__page_set_anon_rmap
-   anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-   page->mapping = (struct address_space *) anon_vma;
-   page->index = linear_page_index(vma, address);
-lru_cache_add 
-  __pagevec_lru_add_fn
-  SetPageLRU(page);
-
-During the procedure, there is no lock to prevent race. Then, at least,
-we need a write memory barrier to guarantee other fields set up before
-SetPageLRU. (Of course, PageLRU should have read-memory barrier to work
-well) But I can't find any barrier, either.
-
-IOW, any fields you said could be out of order store without any lock or
-memory barrier. You might argue atomic op is a barrier on x86 but it
-doesn't guarantee other arches work like that so we need explict momory
-barrier or lock.
-
-Let's have a theoretical example.
-
-        CPU 0                                                                           CPU 1
-
-do_anonymous_page
-  __page_set_anon_rmap
-  /* out of order happened so SetPageLRU is done ahead */
-  SetPageLRU(page)
-  /* Compilr changed store operation like below */
-  page->mapping = (struct address_space *) anon_vma;
-  /* Big stall happens */
-                                                                /* idletacking judged it as LRU page so pass the page
-                                                                   in page_reference */
-                                                                page_refernced
-                                                                        page_rmapping return true because
-                                                                        page->mapping has some vaule but not complete
-                                                                        so it calls rmap_walk_file.
-                                                                        it's okay to pass non-completed anon page in rmap_walk_file?
-
-  page->mapping = (struct address_space *)
-        ((void *)page_mapping + PAGE_MAPPING_ANON);
-
-It's too theoretical so it might be hard to happen in real practice.
-My point is there is nothing to prevent explict race.
-Even if there is no problem with other lock, it's fragile.
-Do I miss something?
-
-I think general way to handle PageLRU are ahead isolation or zone->lru_lock.
-
+diff --git a/arch/x86/include/asm/xen/interface.h b/arch/x86/include/asm/xen/interface.h
+index 3400dba..3b88eea 100644
+--- a/arch/x86/include/asm/xen/interface.h
++++ b/arch/x86/include/asm/xen/interface.h
+@@ -3,12 +3,38 @@
+  *
+  * Guest OS interface to x86 Xen.
+  *
+- * Copyright (c) 2004, K A Fraser
++ * Permission is hereby granted, free of charge, to any person obtaining a copy
++ * of this software and associated documentation files (the "Software"), to
++ * deal in the Software without restriction, including without limitation the
++ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
++ * sell copies of the Software, and to permit persons to whom the Software is
++ * furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ *
++ * Copyright (c) 2004-2006, K A Fraser
+  */
+ 
+ #ifndef _ASM_X86_XEN_INTERFACE_H
+ #define _ASM_X86_XEN_INTERFACE_H
+ 
++/*
++ * XEN_GUEST_HANDLE represents a guest pointer, when passed as a field
++ * in a struct in memory.
++ * XEN_GUEST_HANDLE_PARAM represent a guest pointer, when passed as an
++ * hypercall argument.
++ * XEN_GUEST_HANDLE_PARAM and XEN_GUEST_HANDLE are the same on X86 but
++ * they might not be on other architectures.
++ */
+ #ifdef __XEN__
+ #define __DEFINE_GUEST_HANDLE(name, type) \
+     typedef struct { type *p; } __guest_handle_ ## name
+@@ -88,13 +114,16 @@ DEFINE_GUEST_HANDLE(xen_ulong_t);
+  * start of the GDT because some stupid OSes export hard-coded selector values
+  * in their ABI. These hard-coded values are always near the start of the GDT,
+  * so Xen places itself out of the way, at the far end of the GDT.
++ *
++ * NB The LDT is set using the MMUEXT_SET_LDT op of HYPERVISOR_mmuext_op
+  */
+ #define FIRST_RESERVED_GDT_PAGE  14
+ #define FIRST_RESERVED_GDT_BYTE  (FIRST_RESERVED_GDT_PAGE * 4096)
+ #define FIRST_RESERVED_GDT_ENTRY (FIRST_RESERVED_GDT_BYTE / 8)
+ 
+ /*
+- * Send an array of these to HYPERVISOR_set_trap_table()
++ * Send an array of these to HYPERVISOR_set_trap_table().
++ * Terminate the array with a sentinel entry, with traps[].address==0.
+  * The privilege level specifies which modes may enter a trap via a software
+  * interrupt. On x86/64, since rings 1 and 2 are unavailable, we allocate
+  * privilege levels as follows:
+@@ -118,10 +147,41 @@ struct trap_info {
+ DEFINE_GUEST_HANDLE_STRUCT(trap_info);
+ 
+ struct arch_shared_info {
+-    unsigned long max_pfn;                  /* max pfn that appears in table */
+-    /* Frame containing list of mfns containing list of mfns containing p2m. */
+-    unsigned long pfn_to_mfn_frame_list_list;
+-    unsigned long nmi_reason;
++	/*
++	 * Number of valid entries in the p2m table(s) anchored at
++	 * pfn_to_mfn_frame_list_list and/or p2m_vaddr.
++	 */
++	unsigned long max_pfn;
++	/*
++	 * Frame containing list of mfns containing list of mfns containing p2m.
++	 * A value of 0 indicates it has not yet been set up, ~0 indicates it
++	 * has been set to invalid e.g. due to the p2m being too large for the
++	 * 3-level p2m tree. In this case the linear mapper p2m list anchored
++	 * at p2m_vaddr is to be used.
++	 */
++	xen_pfn_t pfn_to_mfn_frame_list_list;
++	unsigned long nmi_reason;
++	/*
++	 * Following three fields are valid if p2m_cr3 contains a value
++	 * different from 0.
++	 * p2m_cr3 is the root of the address space where p2m_vaddr is valid.
++	 * p2m_cr3 is in the same format as a cr3 value in the vcpu register
++	 * state and holds the folded machine frame number (via xen_pfn_to_cr3)
++	 * of a L3 or L4 page table.
++	 * p2m_vaddr holds the virtual address of the linear p2m list. All
++	 * entries in the range [0...max_pfn[ are accessible via this pointer.
++	 * p2m_generation will be incremented by the guest before and after each
++	 * change of the mappings of the p2m list. p2m_generation starts at 0
++	 * and a value with the least significant bit set indicates that a
++	 * mapping update is in progress. This allows guest external software
++	 * (e.g. in Dom0) to verify that read mappings are consistent and
++	 * whether they have changed since the last check.
++	 * Modifying a p2m element in the linear p2m list is allowed via an
++	 * atomic write only.
++	 */
++	unsigned long p2m_cr3;		/* cr3 value of the p2m address space */
++	unsigned long p2m_vaddr;	/* virtual address of the p2m list */
++	unsigned long p2m_generation;	/* generation count of p2m mapping */
+ };
+ #endif	/* !__ASSEMBLY__ */
+ 
+@@ -137,13 +197,31 @@ struct arch_shared_info {
+ /*
+  * The following is all CPU context. Note that the fpu_ctxt block is filled
+  * in by FXSAVE if the CPU has feature FXSR; otherwise FSAVE is used.
++ *
++ * Also note that when calling DOMCTL_setvcpucontext and VCPU_initialise
++ * for HVM and PVH guests, not all information in this structure is updated:
++ *
++ * - For HVM guests, the structures read include: fpu_ctxt (if
++ * VGCT_I387_VALID is set), flags, user_regs, debugreg[*]
++ *
++ * - PVH guests are the same as HVM guests, but additionally use ctrlreg[3] to
++ * set cr3. All other fields not used should be set to 0.
+  */
+ struct vcpu_guest_context {
+     /* FPU registers come first so they can be aligned for FXSAVE/FXRSTOR. */
+     struct { char x[512]; } fpu_ctxt;       /* User-level FPU registers     */
+-#define VGCF_I387_VALID (1<<0)
+-#define VGCF_HVM_GUEST  (1<<1)
+-#define VGCF_IN_KERNEL  (1<<2)
++#define VGCF_I387_VALID                (1<<0)
++#define VGCF_IN_KERNEL                 (1<<2)
++#define _VGCF_i387_valid               0
++#define VGCF_i387_valid                (1<<_VGCF_i387_valid)
++#define _VGCF_in_kernel                2
++#define VGCF_in_kernel                 (1<<_VGCF_in_kernel)
++#define _VGCF_failsafe_disables_events 3
++#define VGCF_failsafe_disables_events  (1<<_VGCF_failsafe_disables_events)
++#define _VGCF_syscall_disables_events  4
++#define VGCF_syscall_disables_events   (1<<_VGCF_syscall_disables_events)
++#define _VGCF_online                   5
++#define VGCF_online                    (1<<_VGCF_online)
+     unsigned long flags;                    /* VGCF_* flags                 */
+     struct cpu_user_regs user_regs;         /* User-level CPU registers     */
+     struct trap_info trap_ctxt[256];        /* Virtual IDT                  */
+diff --git a/include/xen/interface/xen.h b/include/xen/interface/xen.h
+index a483789..da16a73 100644
+--- a/include/xen/interface/xen.h
++++ b/include/xen/interface/xen.h
+@@ -641,10 +641,12 @@ struct start_info {
+ };
+ 
+ /* These flags are passed in the 'flags' field of start_info_t. */
+-#define SIF_PRIVILEGED    (1<<0)  /* Is the domain privileged? */
+-#define SIF_INITDOMAIN    (1<<1)  /* Is this the initial control domain? */
+-#define SIF_MULTIBOOT_MOD (1<<2)  /* Is mod_start a multiboot module? */
+-#define SIF_MOD_START_PFN (1<<3)  /* Is mod_start a PFN? */
++#define SIF_PRIVILEGED      (1<<0)  /* Is the domain privileged? */
++#define SIF_INITDOMAIN      (1<<1)  /* Is this the initial control domain? */
++#define SIF_MULTIBOOT_MOD   (1<<2)  /* Is mod_start a multiboot module? */
++#define SIF_MOD_START_PFN   (1<<3)  /* Is mod_start a PFN? */
++#define SIF_VIRT_P2M_4TOOLS (1<<4)  /* Do Xen tools understand a virt. mapped */
++				    /* P->M making the 3 level tree obsolete? */
+ #define SIF_PM_MASK       (0xFF<<8) /* reserve 1 byte for xen-pm options */
+ 
+ /*
 -- 
-Kind regards,
-Minchan Kim
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
