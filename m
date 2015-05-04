@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id D404B6B0080
-	for <linux-mm@kvack.org>; Mon,  4 May 2015 04:23:46 -0400 (EDT)
-Received: by wiun10 with SMTP id n10so101920507wiu.1
-        for <linux-mm@kvack.org>; Mon, 04 May 2015 01:23:46 -0700 (PDT)
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id CDBF86B006C
+	for <linux-mm@kvack.org>; Mon,  4 May 2015 04:29:38 -0400 (EDT)
+Received: by wgyo15 with SMTP id o15so142576018wgy.2
+        for <linux-mm@kvack.org>; Mon, 04 May 2015 01:29:38 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l9si10322163wia.121.2015.05.04.01.23.20
+        by mx.google.com with ESMTPS id eh1si10511637wib.3.2015.05.04.01.23.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 04 May 2015 01:23:21 -0700 (PDT)
+        Mon, 04 May 2015 01:23:22 -0700 (PDT)
 From: Juergen Gross <jgross@suse.com>
-Subject: [RESEND Patch V3 11/15] xen: check for initrd conflicting with e820 map
-Date: Mon,  4 May 2015 10:23:11 +0200
-Message-Id: <1430727795-25133-12-git-send-email-jgross@suse.com>
+Subject: [RESEND Patch V3 14/15] xen: allow more than 512 GB of RAM for 64 bit pv-domains
+Date: Mon,  4 May 2015 10:23:14 +0200
+Message-Id: <1430727795-25133-15-git-send-email-jgross@suse.com>
 In-Reply-To: <1430727795-25133-1-git-send-email-jgross@suse.com>
 References: <1430727795-25133-1-git-send-email-jgross@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,85 +20,271 @@ List-ID: <linux-mm.kvack.org>
 To: xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Juergen Gross <jgross@suse.com>
 
-Check whether the initrd is placed at a location which is conflicting
-with the target E820 map. If this is the case relocate it to a new
-area unused up to now and compliant to the E820 map.
+64 bit pv-domains under Xen are limited to 512 GB of RAM today. The
+main reason has been the 3 level p2m tree, which was replaced by the
+virtual mapped linear p2m list. Parallel to the p2m list which is
+being used by the kernel itself there is a 3 level mfn tree for usage
+by the Xen tools and eventually for crash dump analysis. For this tree
+the linear p2m list can serve as a replacement, too. As the kernel
+can't know whether the tools are capable of dealing with the p2m list
+instead of the mfn tree, the limit of 512 GB can't be dropped in all
+cases.
+
+This patch replaces the hard limit by a kernel parameter which tells
+the kernel to obey the 512 GB limit or not. The default is selected by
+a configuration parameter which specifies whether the 512 GB limit
+should be active per default for domUs (domain save/restore/migration
+and crash dump analysis are affected).
+
+Memory above the domain limit is returned to the hypervisor instead of
+being identity mapped, which was wrong anyway.
+
+The kernel configuration parameter to specify the maximum size of a
+domain can be deleted, as it is not relevant any more.
 
 Signed-off-by: Juergen Gross <jgross@suse.com>
-Reviewed-by: David Vrabel <david.vrabel@citrix.com>
 ---
- arch/x86/xen/setup.c | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 51 insertions(+)
+ Documentation/kernel-parameters.txt |  7 +++++
+ arch/x86/include/asm/xen/page.h     |  4 ---
+ arch/x86/xen/Kconfig                | 20 ++++++++-----
+ arch/x86/xen/p2m.c                  | 10 +++----
+ arch/x86/xen/setup.c                | 59 +++++++++++++++++++++++++++++++------
+ 5 files changed, 73 insertions(+), 27 deletions(-)
 
+diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+index 274252f..87b7a50 100644
+--- a/Documentation/kernel-parameters.txt
++++ b/Documentation/kernel-parameters.txt
+@@ -3999,6 +3999,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+ 			plus one apbt timer for broadcast timer.
+ 			x86_intel_mid_timer=apbt_only | lapic_and_apbt
+ 
++	xen_512gb_limit		[KNL,X86-64,XEN]
++			Restricts the kernel running paravirtualized under Xen
++			to use only up to 512 GB of RAM. The reason to do so is
++			crash analysis tools and Xen tools for doing domain
++			save/restore/migration must be enabled to handle larger
++			domains.
++
+ 	xen_emul_unplug=		[HW,X86,XEN]
+ 			Unplug Xen emulated devices
+ 			Format: [unplug0,][unplug1]
+diff --git a/arch/x86/include/asm/xen/page.h b/arch/x86/include/asm/xen/page.h
+index 358dcd3..18a11f2 100644
+--- a/arch/x86/include/asm/xen/page.h
++++ b/arch/x86/include/asm/xen/page.h
+@@ -35,10 +35,6 @@ typedef struct xpaddr {
+ #define FOREIGN_FRAME(m)	((m) | FOREIGN_FRAME_BIT)
+ #define IDENTITY_FRAME(m)	((m) | IDENTITY_FRAME_BIT)
+ 
+-/* Maximum amount of memory we can handle in a domain in pages */
+-#define MAX_DOMAIN_PAGES						\
+-    ((unsigned long)((u64)CONFIG_XEN_MAX_DOMAIN_MEMORY * 1024 * 1024 * 1024 / PAGE_SIZE))
+-
+ extern unsigned long *machine_to_phys_mapping;
+ extern unsigned long  machine_to_phys_nr;
+ extern unsigned long *xen_p2m_addr;
+diff --git a/arch/x86/xen/Kconfig b/arch/x86/xen/Kconfig
+index e88fda8..7bcf21b 100644
+--- a/arch/x86/xen/Kconfig
++++ b/arch/x86/xen/Kconfig
+@@ -23,14 +23,18 @@ config XEN_PVHVM
+ 	def_bool y
+ 	depends on XEN && PCI && X86_LOCAL_APIC
+ 
+-config XEN_MAX_DOMAIN_MEMORY
+-       int
+-       default 500 if X86_64
+-       default 64 if X86_32
+-       depends on XEN
+-       help
+-         This only affects the sizing of some bss arrays, the unused
+-         portions of which are freed.
++config XEN_512GB
++	bool "Limit Xen pv-domain memory to 512GB"
++	depends on XEN && X86_64
++	default y
++	help
++	  Limit paravirtualized user domains to 512GB of RAM.
++
++	  The Xen tools and crash dump analysis tools might not support
++	  pv-domains with more than 512 GB of RAM. This option controls the
++	  default setting of the kernel to use only up to 512 GB or more.
++	  It is always possible to change the default via specifying the
++	  boot parameter "xen_512gb_limit".
+ 
+ config XEN_SAVE_RESTORE
+        bool
+diff --git a/arch/x86/xen/p2m.c b/arch/x86/xen/p2m.c
+index 6f80cd3..365a64a 100644
+--- a/arch/x86/xen/p2m.c
++++ b/arch/x86/xen/p2m.c
+@@ -516,7 +516,7 @@ static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
+  */
+ static bool alloc_p2m(unsigned long pfn)
+ {
+-	unsigned topidx, mididx;
++	unsigned topidx;
+ 	unsigned long *top_mfn_p, *mid_mfn;
+ 	pte_t *ptep, *pte_pg;
+ 	unsigned int level;
+@@ -524,9 +524,6 @@ static bool alloc_p2m(unsigned long pfn)
+ 	unsigned long addr = (unsigned long)(xen_p2m_addr + pfn);
+ 	unsigned long p2m_pfn;
+ 
+-	topidx = p2m_top_index(pfn);
+-	mididx = p2m_mid_index(pfn);
+-
+ 	ptep = lookup_address(addr, &level);
+ 	BUG_ON(!ptep || level != PG_LEVEL_4K);
+ 	pte_pg = (pte_t *)((unsigned long)ptep & ~(PAGE_SIZE - 1));
+@@ -538,7 +535,8 @@ static bool alloc_p2m(unsigned long pfn)
+ 			return false;
+ 	}
+ 
+-	if (p2m_top_mfn) {
++	if (p2m_top_mfn && pfn < MAX_P2M_PFN) {
++		topidx = p2m_top_index(pfn);
+ 		top_mfn_p = &p2m_top_mfn[topidx];
+ 		mid_mfn = ACCESS_ONCE(p2m_top_mfn_p[topidx]);
+ 
+@@ -595,7 +593,7 @@ static bool alloc_p2m(unsigned long pfn)
+ 			wmb(); /* Tools are synchronizing via p2m_generation. */
+ 			HYPERVISOR_shared_info->arch.p2m_generation++;
+ 			if (mid_mfn)
+-				mid_mfn[mididx] = virt_to_mfn(p2m);
++				mid_mfn[p2m_mid_index(pfn)] = virt_to_mfn(p2m);
+ 			p2m = NULL;
+ 		}
+ 
 diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
-index 3fca9c1..0d7f881 100644
+index b096d02..f960021 100644
 --- a/arch/x86/xen/setup.c
 +++ b/arch/x86/xen/setup.c
-@@ -632,6 +632,36 @@ phys_addr_t __init xen_find_free_area(phys_addr_t size)
- }
+@@ -33,6 +33,8 @@
+ #include "p2m.h"
+ #include "mmu.h"
  
- /*
-+ * Like memcpy, but with physical addresses for dest and src.
-+ */
-+static void __init xen_phys_memcpy(phys_addr_t dest, phys_addr_t src,
-+				   phys_addr_t n)
-+{
-+	phys_addr_t dest_off, src_off, dest_len, src_len, len;
-+	void *from, *to;
++#define GB(x) ((uint64_t)(x) * 1024 * 1024 * 1024)
 +
-+	while (n) {
-+		dest_off = dest & ~PAGE_MASK;
-+		src_off = src & ~PAGE_MASK;
-+		dest_len = n;
-+		if (dest_len > (NR_FIX_BTMAPS << PAGE_SHIFT) - dest_off)
-+			dest_len = (NR_FIX_BTMAPS << PAGE_SHIFT) - dest_off;
-+		src_len = n;
-+		if (src_len > (NR_FIX_BTMAPS << PAGE_SHIFT) - src_off)
-+			src_len = (NR_FIX_BTMAPS << PAGE_SHIFT) - src_off;
-+		len = min(dest_len, src_len);
-+		to = early_memremap(dest - dest_off, dest_len + dest_off);
-+		from = early_memremap(src - src_off, src_len + src_off);
-+		memcpy(to, from, len);
-+		early_memunmap(to, dest_len + dest_off);
-+		early_memunmap(from, src_len + src_off);
-+		n -= len;
-+		dest += len;
-+		src += len;
-+	}
+ /* Amount of extra memory space we add to the e820 ranges */
+ struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
+ 
+@@ -69,6 +71,26 @@ static unsigned long xen_remap_mfn __initdata = INVALID_P2M_ENTRY;
+  */
+ #define EXTRA_MEM_RATIO		(10)
+ 
++static bool xen_512gb_limit __initdata = IS_ENABLED(CONFIG_XEN_512GB);
++
++static void __init xen_parse_512gb(void)
++{
++	bool val = false;
++	char *arg;
++
++	arg = strstr(xen_start_info->cmd_line, "xen_512gb_limit");
++	if (!arg)
++		return;
++
++	arg = strstr(xen_start_info->cmd_line, "xen_512gb_limit=");
++	if (!arg)
++		val = true;
++	else if (strtobool(arg + strlen("xen_512gb_limit="), &val))
++		return;
++
++	xen_512gb_limit = val;
 +}
 +
-+/*
-  * Reserve Xen mfn_list.
-  * See comment above "struct start_info" in <xen/interface/xen.h>
-  * We tried to make the the memblock_reserve more selective so
-@@ -810,6 +840,27 @@ char * __init xen_memory_setup(void)
+ static void __init xen_add_extra_mem(phys_addr_t start, phys_addr_t size)
+ {
+ 	int i;
+@@ -503,12 +525,29 @@ void __init xen_remap_memory(void)
+ 	pr_info("Remapped %ld page(s)\n", remapped);
+ }
  
- 	xen_reserve_xen_mfnlist();
++static unsigned long __init xen_get_pages_limit(void)
++{
++	unsigned long limit;
++
++#ifdef CONFIG_X86_32
++	limit = GB(64) / PAGE_SIZE;
++#else
++	limit = ~0ul;
++	if (!xen_initial_domain() && xen_512gb_limit)
++		limit = GB(512) / PAGE_SIZE;
++#endif
++	return limit;
++}
++
+ static unsigned long __init xen_get_max_pages(void)
+ {
+-	unsigned long max_pages = MAX_DOMAIN_PAGES;
++	unsigned long max_pages, limit;
+ 	domid_t domid = DOMID_SELF;
+ 	int ret;
  
-+	/* Check for a conflict of the initrd with the target E820 map. */
-+	if (xen_is_e820_reserved(boot_params.hdr.ramdisk_image,
-+				 boot_params.hdr.ramdisk_size)) {
-+		phys_addr_t new_area, start, size;
-+
-+		new_area = xen_find_free_area(boot_params.hdr.ramdisk_size);
-+		if (!new_area) {
-+			xen_raw_console_write("Can't find new memory area for initrd needed due to E820 map conflict\n");
-+			BUG();
-+		}
-+
-+		start = boot_params.hdr.ramdisk_image;
-+		size = boot_params.hdr.ramdisk_size;
-+		xen_phys_memcpy(new_area, start, size);
-+		pr_info("initrd moved from [mem %#010llx-%#010llx] to [mem %#010llx-%#010llx]\n",
-+			start, start + size, new_area, new_area + size);
-+		memblock_free(start, size);
-+		boot_params.hdr.ramdisk_image = new_area;
-+		boot_params.ext_ramdisk_image = new_area >> 32;
-+	}
++	limit = xen_get_pages_limit();
++	max_pages = limit;
 +
  	/*
- 	 * Set identity map on non-RAM pages and prepare remapping the
- 	 * underlying RAM.
+ 	 * For the initial domain we use the maximum reservation as
+ 	 * the maximum page.
+@@ -524,7 +563,7 @@ static unsigned long __init xen_get_max_pages(void)
+ 			max_pages = ret;
+ 	}
+ 
+-	return min(max_pages, MAX_DOMAIN_PAGES);
++	return min(max_pages, limit);
+ }
+ 
+ static void __init xen_align_and_add_e820_region(phys_addr_t start,
+@@ -699,7 +738,7 @@ static void __init xen_reserve_xen_mfnlist(void)
+  **/
+ char * __init xen_memory_setup(void)
+ {
+-	unsigned long max_pfn = xen_start_info->nr_pages;
++	unsigned long max_pfn;
+ 	phys_addr_t mem_end, addr, size, chunk_size;
+ 	u32 type;
+ 	int rc;
+@@ -709,7 +748,9 @@ char * __init xen_memory_setup(void)
+ 	int i;
+ 	int op;
+ 
+-	max_pfn = min(MAX_DOMAIN_PAGES, max_pfn);
++	xen_parse_512gb();
++	max_pfn = xen_get_pages_limit();
++	max_pfn = min(max_pfn, xen_start_info->nr_pages);
+ 	mem_end = PFN_PHYS(max_pfn);
+ 
+ 	memmap.nr_entries = E820MAX;
+@@ -762,12 +803,15 @@ char * __init xen_memory_setup(void)
+ 	 * is limited to the max size of lowmem, so that it doesn't
+ 	 * get completely filled.
+ 	 *
++	 * Make sure we have no memory above max_pages, as this area
++	 * isn't handled by the p2m management.
++	 *
+ 	 * In principle there could be a problem in lowmem systems if
+ 	 * the initial memory is also very large with respect to
+ 	 * lowmem, but we won't try to deal with that here.
+ 	 */
+-	extra_pages = min(EXTRA_MEM_RATIO * min(max_pfn, PFN_DOWN(MAXMEM)),
+-			  extra_pages);
++	extra_pages = min3(EXTRA_MEM_RATIO * min(max_pfn, PFN_DOWN(MAXMEM)),
++			   extra_pages, max_pages - max_pfn);
+ 	i = 0;
+ 	addr = xen_e820_map[0].addr;
+ 	size = xen_e820_map[0].size;
+@@ -803,9 +847,6 @@ char * __init xen_memory_setup(void)
+ 	/*
+ 	 * Set the rest as identity mapped, in case PCI BARs are
+ 	 * located here.
+-	 *
+-	 * PFNs above MAX_P2M_PFN are considered identity mapped as
+-	 * well.
+ 	 */
+ 	set_phys_range_identity(addr / PAGE_SIZE, ~0ul);
+ 
 -- 
 2.1.4
 
