@@ -1,75 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D27A66B0038
-	for <linux-mm@kvack.org>; Mon,  4 May 2015 22:49:56 -0400 (EDT)
-Received: by qgfi89 with SMTP id i89so75323069qgf.1
-        for <linux-mm@kvack.org>; Mon, 04 May 2015 19:49:56 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s68si14826883qgs.69.2015.05.04.19.49.55
+Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 629946B006E
+	for <linux-mm@kvack.org>; Mon,  4 May 2015 23:17:55 -0400 (EDT)
+Received: by oica37 with SMTP id a37so127474331oic.0
+        for <linux-mm@kvack.org>; Mon, 04 May 2015 20:17:55 -0700 (PDT)
+Received: from mail-ob0-x22b.google.com (mail-ob0-x22b.google.com. [2607:f8b0:4003:c01::22b])
+        by mx.google.com with ESMTPS id s6si9294581oem.7.2015.05.04.20.17.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 May 2015 19:49:55 -0700 (PDT)
-Message-ID: <55482FD1.5060707@redhat.com>
-Date: Mon, 04 May 2015 19:49:53 -0700
-From: Alexander Duyck <alexander.h.duyck@redhat.com>
+        Mon, 04 May 2015 20:17:54 -0700 (PDT)
+Received: by obcux3 with SMTP id ux3so120576058obc.2
+        for <linux-mm@kvack.org>; Mon, 04 May 2015 20:17:52 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [net-next PATCH 1/6] net: Add skb_free_frag to replace use of
- put_page in freeing skb->head
-References: <20150504231000.1538.70520.stgit@ahduyck-vm-fedora22>	 <20150504231448.1538.84164.stgit@ahduyck-vm-fedora22> <1430785003.27254.20.camel@edumazet-glaptop2.roam.corp.google.com>
-In-Reply-To: <1430785003.27254.20.camel@edumazet-glaptop2.roam.corp.google.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <5547BBB3.7010800@redhat.com>
+References: <1430732477-16977-1-git-send-email-zhuhui@xiaomi.com> <5547BBB3.7010800@redhat.com>
+From: Hui Zhu <teawater@gmail.com>
+Date: Tue, 5 May 2015 11:17:11 +0800
+Message-ID: <CANFwon05_gbYrPSyj-3Uqbr+Eb=zwKWgLvG4zg0eH_zN2u+oiQ@mail.gmail.com>
+Subject: Re: [PATCH] CMA: page_isolation: check buddy before access it
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: linux-mm@kvack.org, netdev@vger.kernel.org, akpm@linux-foundation.org, davem@davemloft.net
+To: Laura Abbott <labbott@redhat.com>
+Cc: Hui Zhu <zhuhui@xiaomi.com>, Andrew Morton <akpm@linux-foundation.org>, vbabka@suse.cz, iamjoonsoo.kim@lge.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-
-
-On 05/04/2015 05:16 PM, Eric Dumazet wrote:
-> On Mon, 2015-05-04 at 16:14 -0700, Alexander Duyck wrote:
->> This change adds a function called skb_free_frag which is meant to
->> compliment the function __alloc_page_frag.  The general idea is to enable a
->> more lightweight version of page freeing since we don't actually need all
->> the overhead of a put_page, and we don't quite fit the model of __free_pages.
+On Tue, May 5, 2015 at 2:34 AM, Laura Abbott <labbott@redhat.com> wrote:
+> On 05/04/2015 02:41 AM, Hui Zhu wrote:
+>>
+>> I got a issue:
+>> [  214.294917] Unable to handle kernel NULL pointer dereference at virtual
+>> address 0000082a
+>> [  214.303013] pgd = cc970000
+>> [  214.305721] [0000082a] *pgd=00000000
+>> [  214.309316] Internal error: Oops: 5 [#1] PREEMPT SMP ARM
+>> [  214.335704] PC is at get_pageblock_flags_group+0x5c/0xb0
+>> [  214.341030] LR is at unset_migratetype_isolate+0x148/0x1b0
+>> [  214.346523] pc : [<c00cc9a0>]    lr : [<c0109874>]    psr: 80000093
+>> [  214.346523] sp : c7029d00  ip : 00000105  fp : c7029d1c
+>> [  214.358005] r10: 00000001  r9 : 0000000a  r8 : 00000004
+>> [  214.363231] r7 : 60000013  r6 : 000000a4  r5 : c0a357e4  r4 : 00000000
+>> [  214.369761] r3 : 00000826  r2 : 00000002  r1 : 00000000  r0 : 0000003f
+>> [  214.376291] Flags: Nzcv  IRQs off  FIQs on  Mode SVC_32  ISA ARM
+>> Segment user
+>> [  214.383516] Control: 10c5387d  Table: 2cb7006a  DAC: 00000015
+>> [  214.949720] Backtrace:
+>> [  214.952192] [<c00cc944>] (get_pageblock_flags_group+0x0/0xb0) from
+>> [<c0109874>] (unset_migratetype_isolate+0x148/0x1b0)
+>> [  214.962978]  r7:60000013 r6:c0a357c0 r5:c0a357e4 r4:c1555000
+>> [  214.968693] [<c010972c>] (unset_migratetype_isolate+0x0/0x1b0) from
+>> [<c0109adc>] (undo_isolate_page_range+0xd0/0xdc)
+>> [  214.979222] [<c0109a0c>] (undo_isolate_page_range+0x0/0xdc) from
+>> [<c00d097c>] (__alloc_contig_range+0x254/0x34c)
+>> [  214.989398]  r9:000abc00 r8:c7028000 r7:000b1f53 r6:000b3e00
+>> r5:00000005
+>> r4:c7029db4
+>> [  214.997308] [<c00d0728>] (__alloc_contig_range+0x0/0x34c) from
+>> [<c00d0a88>] (alloc_contig_range+0x14/0x18)
+>> [  215.006973] [<c00d0a74>] (alloc_contig_range+0x0/0x18) from
+>> [<c0398148>] (dma_alloc_from_contiguous_addr+0x1ac/0x304)
+>>
+>> This issue is because when call unset_migratetype_isolate to unset a part
+>> of CMA memory, it try to access the buddy page to get its status:
+>>                 if (order >= pageblock_order) {
+>>                         page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) -
+>> 1);
+>>                         buddy_idx = __find_buddy_index(page_idx, order);
+>>                         buddy = page + (buddy_idx - page_idx);
+>>
+>>                         if (!is_migrate_isolate_page(buddy)) {
+>> But the begin addr of this part of CMA memory is very close to a part of
+>> memory that is reserved in the boot time (not in buddy system).
+>> So add a check before access it.
+>>
+>> Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
+>> ---
+>>   mm/page_isolation.c | 3 ++-
+>>   1 file changed, 2 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+>> index 755a42c..434730b 100644
+>> --- a/mm/page_isolation.c
+>> +++ b/mm/page_isolation.c
+>> @@ -101,7 +101,8 @@ void unset_migratetype_isolate(struct page *page,
+>> unsigned migratetype)
+>>                         buddy_idx = __find_buddy_index(page_idx, order);
+>>                         buddy = page + (buddy_idx - page_idx);
+>>
+>> -                       if (!is_migrate_isolate_page(buddy)) {
+>> +                       if (!pfn_present(page_to_pfn(buddy))
+>> +                           || !is_migrate_isolate_page(buddy)) {
+>>                                 __isolate_free_page(page, order);
+>>                                 kernel_map_pages(page, (1 << order), 1);
+>>                                 set_page_refcounted(page);
+>>
 >
-> Could you describe what are the things that put_page() handle that we
-> don't need for skb frags ?
+> I think you want to use pfn_valid_within instead of pfn_present.
 
-A large part of it is just all the extra code flow with each level 
-having to retest flags.  So if you follow the calls for put_page w/ a 
-page frag you end up with something like:
-skb_free_head - virt_to_head_page
-   put_page() - (Head | Tail)
-     put_compound_page() - Tail, Head, _count
-       __put_compound_page() - compound_dtor
-         __page_cache_release() - LRU, mem_cgroup
-           free_compound_page() - Head, compound_order
-             __free_pages_ok()
+Thanks.  I will post a new version for it.
 
-If I free the same page frag in skb_frag_free the path ends up looking like:
-skb_free_head - inlined by compiler
-   skb_free_frag - virt_to_head_page, count, head, order
-     __free_pages_ok()
+Best,
+Hui
 
-> It looks the change could benefit to other users (outside of networking)
-
-It could, but there are also other mechanisms already in place for 
-freeing pages.  For example in the Intel drivers I had gotten into the 
-habit of using __free_pages for Rx pages since it does exactly the same 
-thing but you need to know the order of the pages you are freeing before 
-you can use it.  In the case of head frags we don't really know that 
-since it can be a page fragment given to us by any of the drivers using 
-alloc_pages.
-
-The motivation behind creating a centralized function was to take care 
-of the virt_to_head_page and compound_order portions of this in one 
-centralized spot.  It avoids bloating things as I'm able to get away 
-with little tricks like combining the compound_order Head flag check 
-with the one to determine if I call the compound freeing function or the 
-order 0 one.
-
-- Alex
+>
+> Thanks,
+> Laura
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
