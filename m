@@ -1,72 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BFCE6B0032
-	for <linux-mm@kvack.org>; Tue,  5 May 2015 16:02:58 -0400 (EDT)
-Received: by pdbnk13 with SMTP id nk13so207457058pdb.0
-        for <linux-mm@kvack.org>; Tue, 05 May 2015 13:02:57 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id x14si25874405pas.213.2015.05.05.13.02.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 May 2015 13:02:57 -0700 (PDT)
-Date: Tue, 5 May 2015 13:02:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
-Message-Id: <20150505130255.49ff76bbf0a3b32d884ab2ce@linux-foundation.org>
-In-Reply-To: <20150505104514.GC2462@suse.de>
-References: <1430231830-7702-1-git-send-email-mgorman@suse.de>
-	<554030D1.8080509@hp.com>
-	<5543F802.9090504@hp.com>
-	<554415B1.2050702@hp.com>
-	<20150504143046.9404c572486caf71bdef0676@linux-foundation.org>
-	<20150505104514.GC2462@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 08E666B0032
+	for <linux-mm@kvack.org>; Tue,  5 May 2015 16:09:36 -0400 (EDT)
+Received: by wgso17 with SMTP id o17so195996974wgs.1
+        for <linux-mm@kvack.org>; Tue, 05 May 2015 13:09:35 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id r18si557043wiw.123.2015.05.05.13.09.34
+        for <linux-mm@kvack.org>;
+        Tue, 05 May 2015 13:09:34 -0700 (PDT)
+Date: Tue, 5 May 2015 22:09:31 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v4 2/7] mtrr, x86: Fix MTRR lookup to handle inclusive
+ entry
+Message-ID: <20150505200931.GS3910@pd.tnic>
+References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
+ <1427234921-19737-3-git-send-email-toshi.kani@hp.com>
+ <20150505171114.GM3910@pd.tnic>
+ <1430847128.23761.276.camel@misato.fc.hp.com>
+ <20150505183947.GO3910@pd.tnic>
+ <1430854292.23761.284.camel@misato.fc.hp.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <1430854292.23761.284.camel@misato.fc.hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Waiman Long <waiman.long@hp.com>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
 
-On Tue, 5 May 2015 11:45:14 +0100 Mel Gorman <mgorman@suse.de> wrote:
-
-> On Mon, May 04, 2015 at 02:30:46PM -0700, Andrew Morton wrote:
-> > > Before the patch, the boot time from elilo prompt to ssh login was 694s. 
-> > > After the patch, the boot up time was 346s, a saving of 348s (about 50%).
-> > 
-> > Having to guesstimate the amount of memory which is needed for a
-> > successful boot will be painful.  Any number we choose will be wrong
-> > 99% of the time.
-> > 
-> > If the kswapd threads have started, all we need to do is to wait: take
-> > a little nap in the allocator's page==NULL slowpath.
-> > 
-> > I'm not seeing any reason why we can't start kswapd much earlier -
-> > right at the start of do_basic_setup()?
+On Tue, May 05, 2015 at 01:31:32PM -0600, Toshi Kani wrote:
+> Well, the comment kinda says it already, but I will try to clarify it.
 > 
-> It doesn't even have to be kswapd, it just should be a thread pinned to
-> a done. The difficulty is that dealing with the system hashes means the
-> initialisation has to happen before vfs_caches_init_early() when there is
-> no scheduler.
+>            /*
+>             * We have start:end spanning across an MTRR.
+>             * We split the region into either
+>             * - start_state:1
+>             *     (start:mtrr_end) (mtrr_end:end)
+>             * - end_state:1 or inclusive:1
+>             *     (start:mtrr_start) (mtrr_start:end)
 
-I bet we can run vfs_caches_init_early() after sched_init().  Might
-need a few little fixups.
+What I mean is this:
 
-> Those allocations could be delayed further but then there is
-> the possibility that the allocations would not be contiguous and they'd
-> have to rely on CMA to make the attempt. That potentially alters the
-> performance of the large system hashes at run time.
+		* - start_state:1
+		*     (start:mtrr_end) (mtrr_end:end)
+		* - end_state:1
+		*     (start:mtrr_start) (mtrr_start:end)
+		* - inclusive:1
+		*     (start:mtrr_start) (mtrr_start:mtrr_end) (mtrr_end:end)
+		*
+		* depending on kind of overlap.
+		*
+		* Return the type of the first region and a pointer to the start
+		* of next region so that caller will be advised to lookup again
+		* after having adjusted start and end.
+		*
+		* Note: This way we handle multiple overlaps as well.
+		*/
 
-hm, why.  If the kswapd threads are running and busily creating free
-pages then alloc_pages(order=10) can detect this situation and stall
-for a while, waiting for kswapd to create an order-10 page.
+We add comments so that people can read them and can quickly understand
+what the function does. Not to make them parse it and wonder why
+inclusive:1 is listed together with end_state:1 which returns two
+intervals.
 
-Alternatively, the page allocator can go off and synchronously
-initialize some pageframes itself.  Keep doing that until the
-allocation attempt succeeds.
+Note that I changed the text to talk about the *next* region and not
+about the *second* region, to make it even more clear.
 
-Such an approach is much more robust than trying to predict how much
-memory will be needed.
+-- 
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
