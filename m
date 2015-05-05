@@ -1,61 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F69E6B006C
-	for <linux-mm@kvack.org>; Tue,  5 May 2015 12:06:47 -0400 (EDT)
-Received: by pabtp1 with SMTP id tp1so198041399pab.2
-        for <linux-mm@kvack.org>; Tue, 05 May 2015 09:06:47 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id o16si24972541pdj.244.2015.05.05.09.05.11
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 May 2015 09:05:12 -0700 (PDT)
-Date: Tue, 5 May 2015 19:04:59 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH 2/2] kernfs: do not account ino_ida allocations to memcg
-Message-ID: <20150505160459.GA23654@esperanza>
-References: <fdf631b3fa95567a830ea4f3e19d0b3b2fc99662.1430819044.git.vdavydov@parallels.com>
- <0cf48f4219721952f182715a61910f626d7c4aca.1430819044.git.vdavydov@parallels.com>
- <20150505134521.GL1971@htj.duckdns.org>
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 25ADA6B006C
+	for <linux-mm@kvack.org>; Tue,  5 May 2015 13:11:21 -0400 (EDT)
+Received: by wizk4 with SMTP id k4so170067963wiz.1
+        for <linux-mm@kvack.org>; Tue, 05 May 2015 10:11:20 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id ck4si18066496wib.31.2015.05.05.10.11.19
+        for <linux-mm@kvack.org>;
+        Tue, 05 May 2015 10:11:19 -0700 (PDT)
+Date: Tue, 5 May 2015 19:11:15 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v4 2/7] mtrr, x86: Fix MTRR lookup to handle inclusive
+ entry
+Message-ID: <20150505171114.GM3910@pd.tnic>
+References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
+ <1427234921-19737-3-git-send-email-toshi.kani@hp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20150505134521.GL1971@htj.duckdns.org>
+In-Reply-To: <1427234921-19737-3-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
 
-On Tue, May 05, 2015 at 09:45:21AM -0400, Tejun Heo wrote:
-> On Tue, May 05, 2015 at 12:45:43PM +0300, Vladimir Davydov wrote:
-> > root->ino_ida is used for kernfs inode number allocations. Since IDA has
-> > a layered structure, different IDs can reside on the same layer, which
-> > is currently accounted to some memory cgroup. The problem is that each
-> > kmem cache of a memory cgroup has its own directory on sysfs (under
-> > /sys/fs/kernel/<cache-name>/cgroup). If the inode number of such a
-> > directory or any file in it gets allocated from a layer accounted to the
-> > cgroup which the cache is created for, the cgroup will get pinned for
-> > good, because one has to free all kmem allocations accounted to a cgroup
-> > in order to release it and destroy all its kmem caches. That said we
-> > must not account layers of ino_ida to any memory cgroup.
-> > 
-> > Since per net init operations may create new sysfs entries directly
-> > (e.g. lo device) or indirectly (nf_conntrack creates a new kmem cache
-> > per each namespace, which, in turn, creates new sysfs entries), an easy
-> > way to reproduce this issue is by creating network namespace(s) from
-> > inside a kmem-active memory cgroup.
-> > 
-> > Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+On Tue, Mar 24, 2015 at 04:08:36PM -0600, Toshi Kani wrote:
+> When an MTRR entry is inclusive to a requested range, i.e.
+> the start and end of the request are not within the MTRR
+> entry range but the range contains the MTRR entry entirely,
+> __mtrr_type_lookup() ignores such a case because both
+> start_state and end_state are set to zero.
 > 
-> Man, that's nasty.  For the kernfs part,
+> This bug can cause the following issues:
+> 1) reserve_memtype() tracks an effective memory type in case
+>    a request type is WB (ex. /dev/mem blindly uses WB). Missing
+>    to track with its effective type causes a subsequent request
+>    to map the same range with the effective type to fail.
+> 2) pud_set_huge() and pmd_set_huge() check if a requested range
+>    has any overlap with MTRRs. Missing to detect an overlap may
+>    cause a performance penalty or undefined behavior.
 > 
-> Acked-by: Tejun Heo <tj@kernel.org>
+> This patch fixes the bug by adding a new flag, 'inclusive',
+> to detect the inclusive case.  This case is then handled in
+> the same way as (!start_state && end_state).  With this fix,
+> __mtrr_type_lookup() handles the inclusive case properly.
+> 
+> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+> ---
+>  arch/x86/kernel/cpu/mtrr/generic.c |   17 +++++++++--------
+>  1 file changed, 9 insertions(+), 8 deletions(-)
+> 
+> diff --git a/arch/x86/kernel/cpu/mtrr/generic.c b/arch/x86/kernel/cpu/mtrr/generic.c
+> index 7d74f7b..a82e370 100644
+> --- a/arch/x86/kernel/cpu/mtrr/generic.c
+> +++ b/arch/x86/kernel/cpu/mtrr/generic.c
+> @@ -154,7 +154,7 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
+>  
+>  	prev_match = 0xFF;
+>  	for (i = 0; i < num_var_ranges; ++i) {
+> -		unsigned short start_state, end_state;
+> +		unsigned short start_state, end_state, inclusive;
+>  
+>  		if (!(mtrr_state.var_ranges[i].mask_lo & (1 << 11)))
+>  			continue;
+> @@ -166,15 +166,16 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
+>  
+>  		start_state = ((start & mask) == (base & mask));
+>  		end_state = ((end & mask) == (base & mask));
+> +		inclusive = ((start < base) && (end > base));
+>  
+> -		if (start_state != end_state) {
+> +		if ((start_state != end_state) || inclusive) {
+>  			/*
+>  			 * We have start:end spanning across an MTRR.
+> -			 * We split the region into
+> -			 * either
+> -			 * (start:mtrr_end) (mtrr_end:end)
+> -			 * or
+> -			 * (start:mtrr_start) (mtrr_start:end)
+> +			 * We split the region into either
+> +			 * - start_state:1
+> +			 *     (start:mtrr_end) (mtrr_end:end)
+> +			 * - end_state:1 or inclusive:1
+> +			 *     (start:mtrr_start) (mtrr_start:end)
+
+Ok, I'm confused. Shouldn't the inclusive:1 case be
+
+			(start:mtrr_start) (mtrr_start:mtrr_end) (mtrr_end:end)
+
+?
+
+If so, this function would need more changes...
+
+>  			 * depending on kind of overlap.
+>  			 * Return the type for first region and a pointer to
+>  			 * the start of second region so that caller will
+> @@ -195,7 +196,7 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
+>  			*repeat = 1;
+>  		}
+>  
+> -		if ((start & mask) != (base & mask))
+> +		if (!start_state)
+>  			continue;
+
+That change actually makes the code more unreadable because you have to
+go and look up what start_state was and the previous version actually
+shows the check that start is within the range, exactly like it is
+documented in the CPU manuals.
+
+And I'd leave it this way because gcc is smart enough to reload the
+result saved in start_state and not compute it again.
 
 Thanks.
 
-> 
-> Can you please repost this patch w/ Greg KH cc'd?
+-- 
+Regards/Gruss,
+    Boris.
 
-OK.
+ECO tip #101: Trim your mails when you reply.
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
