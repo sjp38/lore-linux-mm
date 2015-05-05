@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 71A1B6B0032
-	for <linux-mm@kvack.org>; Tue,  5 May 2015 10:16:39 -0400 (EDT)
-Received: by pacwv17 with SMTP id wv17so194631984pac.0
-        for <linux-mm@kvack.org>; Tue, 05 May 2015 07:16:39 -0700 (PDT)
-Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
-        by mx.google.com with ESMTPS id fm7si24574526pab.81.2015.05.05.07.16.34
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 May 2015 07:16:35 -0700 (PDT)
-Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
-	by mailout.nyi.internal (Postfix) with ESMTP id 3509220DC0
-	for <linux-mm@kvack.org>; Tue,  5 May 2015 10:16:32 -0400 (EDT)
-Message-ID: <5548D0BD.3080602@iki.fi>
-Date: Tue, 05 May 2015 17:16:29 +0300
-From: Pekka Enberg <penberg@iki.fi>
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AE9D6B0032
+	for <linux-mm@kvack.org>; Tue,  5 May 2015 10:19:18 -0400 (EDT)
+Received: by wgso17 with SMTP id o17so184998133wgs.1
+        for <linux-mm@kvack.org>; Tue, 05 May 2015 07:19:18 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id ay8si17127885wib.96.2015.05.05.07.19.08
+        for <linux-mm@kvack.org>;
+        Tue, 05 May 2015 07:19:08 -0700 (PDT)
+Date: Tue, 5 May 2015 16:19:06 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v4 1/7] mm, x86: Document return values of mapping funcs
+Message-ID: <20150505141906.GI3910@pd.tnic>
+References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
+ <1427234921-19737-2-git-send-email-toshi.kani@hp.com>
+ <20150505111913.GH3910@pd.tnic>
+ <1430833596.23761.245.camel@misato.fc.hp.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] perf kmem: Show warning when trying to run stat without
- record
-References: <20150504161539.GG10475@kernel.org> <1430787492-6893-1-git-send-email-namhyung@kernel.org> <20150505140706.GJ10475@kernel.org>
-In-Reply-To: <20150505140706.GJ10475@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <1430833596.23761.245.camel@misato.fc.hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnaldo Carvalho de Melo <acme@kernel.org>, Namhyung Kim <namhyung@kernel.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
 
-On 05/05/2015 05:07 PM, Arnaldo Carvalho de Melo wrote:
-> Em Tue, May 05, 2015 at 09:58:12AM +0900, Namhyung Kim escreveu:
->> Sometimes one can mistakenly run perf kmem stat without perf kmem
->> record before or different configuration like recoding --slab and stat
->> --page.  Show a warning message like below to inform user:
->>
->>    # perf kmem stat --page --caller
->>    Not found page events.  Have you run 'perf kmem record --page' before?
->>
->> Acked-by: Pekka Enberg <penberg@kernel.org>
->> Signed-off-by: Namhyung Kim <namhyung@kernel.org>
-> Thanks, applied.
->
-> I just found the messages a bit odd souding, perhaps:
->
->     # perf kmem stat --page --caller
->     No page allocation events found.  Have you run 'perf kmem record --page'?
->
-> Pekka?
+On Tue, May 05, 2015 at 07:46:36AM -0600, Toshi Kani wrote:
+> Agreed.  This patch-set was originally a small set of patches, but was
+> extended later with additional patches, which ended up with touching the
+> same place again.  I will reorganize the patch-set.
 
-Sure, that sounds less confusing.
+Ok, but please wait until I take a look at the rest.
 
-- Pekka
+Thanks.
+
+Btw, is there anything else MTRR-related pending for tip?
+
+-- 
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
