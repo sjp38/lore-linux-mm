@@ -1,86 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CC5A6B006E
-	for <linux-mm@kvack.org>; Mon,  4 May 2015 23:23:14 -0400 (EDT)
-Received: by pdbqd1 with SMTP id qd1so181284013pdb.2
-        for <linux-mm@kvack.org>; Mon, 04 May 2015 20:23:14 -0700 (PDT)
-Received: from xiaomi.com (outboundhk.mxmail.xiaomi.com. [207.226.244.122])
-        by mx.google.com with ESMTPS id fn7si22256139pdb.248.2015.05.04.20.23.12
+Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 1185A6B0038
+	for <linux-mm@kvack.org>; Mon,  4 May 2015 23:32:37 -0400 (EDT)
+Received: by oiko83 with SMTP id o83so127738904oik.1
+        for <linux-mm@kvack.org>; Mon, 04 May 2015 20:32:36 -0700 (PDT)
+Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
+        by mx.google.com with ESMTPS id g3si9284446oeu.95.2015.05.04.20.32.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 04 May 2015 20:23:13 -0700 (PDT)
-From: Hui Zhu <zhuhui@xiaomi.com>
-Subject: [PATCH v2] CMA: page_isolation: check buddy before access it
-Date: Tue, 5 May 2015 11:22:59 +0800
-Message-ID: <1430796179-1795-1-git-send-email-zhuhui@xiaomi.com>
-In-Reply-To: <1430732477-16977-1-git-send-email-zhuhui@xiaomi.com>
-References: <1430732477-16977-1-git-send-email-zhuhui@xiaomi.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 May 2015 20:32:36 -0700 (PDT)
+Message-ID: <554839D0.3080703@hp.com>
+Date: Mon, 04 May 2015 23:32:32 -0400
+From: Waiman Long <waiman.long@hp.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
+References: <1430231830-7702-1-git-send-email-mgorman@suse.de> <554030D1.8080509@hp.com> <5543F802.9090504@hp.com> <554415B1.2050702@hp.com> <20150504143046.9404c572486caf71bdef0676@linux-foundation.org>
+In-Reply-To: <20150504143046.9404c572486caf71bdef0676@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, lauraa@codeaurora.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: teawater@gmail.com, Hui Zhu <zhuhui@xiaomi.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Change pfn_present to pfn_valid_within according to the review of Laura.
+On 05/04/2015 05:30 PM, Andrew Morton wrote:
+> On Fri, 01 May 2015 20:09:21 -0400 Waiman Long<waiman.long@hp.com>  wrote:
+>
+>> On 05/01/2015 06:02 PM, Waiman Long wrote:
+>>> Bad news!
+>>>
+>>> I tried your patch on a 24-TB DragonHawk and got an out of memory
+>>> panic. The kernel log messages were:
+>> ...
+>>
+>>> [   81.360287]  [<ffffffff8151b0c9>] dump_stack+0x68/0x77
+>>> [   81.365942]  [<ffffffff8151ae1e>] panic+0xb9/0x219
+>>> [   81.371213]  [<ffffffff810785c3>] ?
+>>> __blocking_notifier_call_chain+0x63/0x80
+>>> [   81.378971]  [<ffffffff811384ce>] __out_of_memory+0x34e/0x350
+>>> [   81.385292]  [<ffffffff811385ee>] out_of_memory+0x5e/0x90
+>>> [   81.391230]  [<ffffffff8113ce9e>] __alloc_pages_slowpath+0x6be/0x740
+>>> [   81.398219]  [<ffffffff8113d15c>] __alloc_pages_nodemask+0x23c/0x250
+>>> [   81.405212]  [<ffffffff81186346>] kmem_getpages+0x56/0x110
+>>> [   81.411246]  [<ffffffff81187f44>] fallback_alloc+0x164/0x200
+>>> [   81.417474]  [<ffffffff81187cfd>] ____cache_alloc_node+0x8d/0x170
+>>> [   81.424179]  [<ffffffff811887bb>] kmem_cache_alloc_trace+0x17b/0x240
+>>> [   81.431169]  [<ffffffff813d5f3a>] init_memory_block+0x3a/0x110
+>>> [   81.437586]  [<ffffffff81b5f687>] memory_dev_init+0xd7/0x13d
+>>> [   81.443810]  [<ffffffff81b5f2af>] driver_init+0x2f/0x37
+>>> [   81.449556]  [<ffffffff81b1599b>] do_basic_setup+0x29/0xd5
+>>> [   81.455597]  [<ffffffff81b372c4>] ? sched_init_smp+0x140/0x147
+>>> [   81.462015]  [<ffffffff81b15c55>] kernel_init_freeable+0x20e/0x297
+>>> [   81.468815]  [<ffffffff81512ea0>] ? rest_init+0x80/0x80
+>>> [   81.474565]  [<ffffffff81512ea9>] kernel_init+0x9/0xf0
+>>> [   81.480216]  [<ffffffff8151f788>] ret_from_fork+0x58/0x90
+>>> [   81.486156]  [<ffffffff81512ea0>] ? rest_init+0x80/0x80
+>>> [   81.492350] ---[ end Kernel panic - not syncing: Out of memory and
+>>> no killable processes...
+>>> [   81.492350]
+>>>
+>>> -Longman
+>> I increased the pre-initialized memory per node in update_defer_init()
+>> of mm/page_alloc.c from 2G to 4G. Now I am able to boot the 24-TB
+>> machine without error. The 12-TB has 0.75TB/node, while the 24-TB
+>> machine has 1.5TB/node. I would suggest something like pre-initializing
+>> 1G per 0.25TB/node. In this way, it will scale properly with the memory
+>> size.
+> We're using more than 2G before we've even completed do_basic_setup()?
+> Where did it all go?
 
-I got a issue:
-[  214.294917] Unable to handle kernel NULL pointer dereference at virtual address 0000082a
-[  214.303013] pgd = cc970000
-[  214.305721] [0000082a] *pgd=00000000
-[  214.309316] Internal error: Oops: 5 [#1] PREEMPT SMP ARM
-[  214.335704] PC is at get_pageblock_flags_group+0x5c/0xb0
-[  214.341030] LR is at unset_migratetype_isolate+0x148/0x1b0
-[  214.346523] pc : [<c00cc9a0>]    lr : [<c0109874>]    psr: 80000093
-[  214.346523] sp : c7029d00  ip : 00000105  fp : c7029d1c
-[  214.358005] r10: 00000001  r9 : 0000000a  r8 : 00000004
-[  214.363231] r7 : 60000013  r6 : 000000a4  r5 : c0a357e4  r4 : 00000000
-[  214.369761] r3 : 00000826  r2 : 00000002  r1 : 00000000  r0 : 0000003f
-[  214.376291] Flags: Nzcv  IRQs off  FIQs on  Mode SVC_32  ISA ARM  Segment user
-[  214.383516] Control: 10c5387d  Table: 2cb7006a  DAC: 00000015
-[  214.949720] Backtrace:
-[  214.952192] [<c00cc944>] (get_pageblock_flags_group+0x0/0xb0) from [<c0109874>] (unset_migratetype_isolate+0x148/0x1b0)
-[  214.962978]  r7:60000013 r6:c0a357c0 r5:c0a357e4 r4:c1555000
-[  214.968693] [<c010972c>] (unset_migratetype_isolate+0x0/0x1b0) from [<c0109adc>] (undo_isolate_page_range+0xd0/0xdc)
-[  214.979222] [<c0109a0c>] (undo_isolate_page_range+0x0/0xdc) from [<c00d097c>] (__alloc_contig_range+0x254/0x34c)
-[  214.989398]  r9:000abc00 r8:c7028000 r7:000b1f53 r6:000b3e00 r5:00000005
-r4:c7029db4
-[  214.997308] [<c00d0728>] (__alloc_contig_range+0x0/0x34c) from [<c00d0a88>] (alloc_contig_range+0x14/0x18)
-[  215.006973] [<c00d0a74>] (alloc_contig_range+0x0/0x18) from [<c0398148>] (dma_alloc_from_contiguous_addr+0x1ac/0x304)
+I think they may be used in the allocation of the hash tables like:
 
-This issue is because when call unset_migratetype_isolate to unset a part
-of CMA memory, it try to access the buddy page to get its status:
-		if (order >= pageblock_order) {
-			page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
-			buddy_idx = __find_buddy_index(page_idx, order);
-			buddy = page + (buddy_idx - page_idx);
+[    2.367440] Dentry cache hash table entries: 2147483648 (order: 22, 
+17179869184 bytes)
+[   11.522768] Inode-cache hash table entries: 2147483648 (order: 22, 
+17179869184 bytes)
+[   18.598513] Mount-cache hash table entries: 67108864 (order: 17, 
+536870912 bytes)
+[   18.667485] Mountpoint-cache hash table entries: 67108864 (order: 17, 
+536870912 bytes)
 
-			if (!is_migrate_isolate_page(buddy)) {
-But the begin addr of this part of CMA memory is very close to a part of
-memory that is reserved in the boot time (not in buddy system).
-So add a check before access it.
+The size of those hash tables do scale somewhat linearly with the amount 
+of total memory available.
 
-Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
----
- mm/page_isolation.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+>> Before the patch, the boot time from elilo prompt to ssh login was 694s.
+>> After the patch, the boot up time was 346s, a saving of 348s (about 50%).
+> Having to guesstimate the amount of memory which is needed for a
+> successful boot will be painful.  Any number we choose will be wrong
+> 99% of the time.
+>
+> If the kswapd threads have started, all we need to do is to wait: take
+> a little nap in the allocator's page==NULL slowpath.
+>
+> I'm not seeing any reason why we can't start kswapd much earlier -
+> right at the start of do_basic_setup()?
 
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 755a42c..eb22d1f 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -101,7 +101,8 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
- 			buddy_idx = __find_buddy_index(page_idx, order);
- 			buddy = page + (buddy_idx - page_idx);
- 
--			if (!is_migrate_isolate_page(buddy)) {
-+			if (!pfn_valid_within(page_to_pfn(buddy))
-+			    || !is_migrate_isolate_page(buddy)) {
- 				__isolate_free_page(page, order);
- 				kernel_map_pages(page, (1 << order), 1);
- 				set_page_refcounted(page);
--- 
-1.9.1
+I think we can, we just have to change the hash table allocator to do that.
+
+Cheers,
+Longman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
