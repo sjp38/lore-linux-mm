@@ -1,61 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id CC66E6B0038
-	for <linux-mm@kvack.org>; Tue,  5 May 2015 09:45:27 -0400 (EDT)
-Received: by qgej70 with SMTP id j70so81131027qge.2
-        for <linux-mm@kvack.org>; Tue, 05 May 2015 06:45:27 -0700 (PDT)
-Received: from mail-qc0-x229.google.com (mail-qc0-x229.google.com. [2607:f8b0:400d:c01::229])
-        by mx.google.com with ESMTPS id i74si15773938qge.99.2015.05.05.06.45.25
+Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 11CDE6B0038
+	for <linux-mm@kvack.org>; Tue,  5 May 2015 09:55:55 -0400 (EDT)
+Received: by oica37 with SMTP id a37so146582034oic.0
+        for <linux-mm@kvack.org>; Tue, 05 May 2015 06:55:54 -0700 (PDT)
+Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
+        by mx.google.com with ESMTPS id f1si10206305obh.88.2015.05.05.06.55.54
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 May 2015 06:45:26 -0700 (PDT)
-Received: by qcyk17 with SMTP id k17so87966600qcy.1
-        for <linux-mm@kvack.org>; Tue, 05 May 2015 06:45:25 -0700 (PDT)
-Date: Tue, 5 May 2015 09:45:21 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/2] kernfs: do not account ino_ida allocations to memcg
-Message-ID: <20150505134521.GL1971@htj.duckdns.org>
-References: <fdf631b3fa95567a830ea4f3e19d0b3b2fc99662.1430819044.git.vdavydov@parallels.com>
- <0cf48f4219721952f182715a61910f626d7c4aca.1430819044.git.vdavydov@parallels.com>
+        Tue, 05 May 2015 06:55:54 -0700 (PDT)
+Message-ID: <5548CBE8.5090203@hp.com>
+Date: Tue, 05 May 2015 09:55:52 -0400
+From: Waiman Long <waiman.long@hp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0cf48f4219721952f182715a61910f626d7c4aca.1430819044.git.vdavydov@parallels.com>
+Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
+References: <1430231830-7702-1-git-send-email-mgorman@suse.de> <554030D1.8080509@hp.com> <5543F802.9090504@hp.com> <554415B1.2050702@hp.com> <20150504143046.9404c572486caf71bdef0676@linux-foundation.org> <20150505104514.GC2462@suse.de>
+In-Reply-To: <20150505104514.GC2462@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, May 05, 2015 at 12:45:43PM +0300, Vladimir Davydov wrote:
-> root->ino_ida is used for kernfs inode number allocations. Since IDA has
-> a layered structure, different IDs can reside on the same layer, which
-> is currently accounted to some memory cgroup. The problem is that each
-> kmem cache of a memory cgroup has its own directory on sysfs (under
-> /sys/fs/kernel/<cache-name>/cgroup). If the inode number of such a
-> directory or any file in it gets allocated from a layer accounted to the
-> cgroup which the cache is created for, the cgroup will get pinned for
-> good, because one has to free all kmem allocations accounted to a cgroup
-> in order to release it and destroy all its kmem caches. That said we
-> must not account layers of ino_ida to any memory cgroup.
-> 
-> Since per net init operations may create new sysfs entries directly
-> (e.g. lo device) or indirectly (nf_conntrack creates a new kmem cache
-> per each namespace, which, in turn, creates new sysfs entries), an easy
-> way to reproduce this issue is by creating network namespace(s) from
-> inside a kmem-active memory cgroup.
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+On 05/05/2015 06:45 AM, Mel Gorman wrote:
+> On Mon, May 04, 2015 at 02:30:46PM -0700, Andrew Morton wrote:
+>>> Before the patch, the boot time from elilo prompt to ssh login was 694s.
+>>> After the patch, the boot up time was 346s, a saving of 348s (about 50%).
+>> Having to guesstimate the amount of memory which is needed for a
+>> successful boot will be painful.  Any number we choose will be wrong
+>> 99% of the time.
+>>
+>> If the kswapd threads have started, all we need to do is to wait: take
+>> a little nap in the allocator's page==NULL slowpath.
+>>
+>> I'm not seeing any reason why we can't start kswapd much earlier -
+>> right at the start of do_basic_setup()?
+> It doesn't even have to be kswapd, it just should be a thread pinned to
+> a done. The difficulty is that dealing with the system hashes means the
+> initialisation has to happen before vfs_caches_init_early() when there is
+> no scheduler. Those allocations could be delayed further but then there is
+> the possibility that the allocations would not be contiguous and they'd
+> have to rely on CMA to make the attempt. That potentially alters the
+> performance of the large system hashes at run time.
+>
+> We can scale the amount initialised with memory sizes relatively easy.
+> This boots on the same 1TB machine I was testing before but that is
+> hardly a surprise.
+>
+> ---8<---
+> mm: meminit: Take into account that large system caches scale linearly with memory
+>
+> Waiman Long reported a 24TB machine triggered an OOM as parallel memory
+> initialisation deferred too much memory for initialisation. The likely
+> consumer of this memory was large system hashes that scale with memory
+> size. This patch initialises at least 2G per node but scales the amount
+> initialised for larger systems.
+>
+> Signed-off-by: Mel Gorman<mgorman@suse.de>
+> ---
+>   mm/page_alloc.c | 15 +++++++++++++--
+>   1 file changed, 13 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 598f78d6544c..f7cc6c9fb909 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -266,15 +266,16 @@ static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
+>    */
+>   static inline bool update_defer_init(pg_data_t *pgdat,
+>   				unsigned long pfn, unsigned long zone_end,
+> +				unsigned long max_initialise,
+>   				unsigned long *nr_initialised)
+>   {
+>   	/* Always populate low zones for address-contrained allocations */
+>   	if (zone_end<  pgdat_end_pfn(pgdat))
+>   		return true;
+>
+> -	/* Initialise at least 2G of the highest zone */
+> +	/* Initialise at least the requested amount in the highest zone */
+>   	(*nr_initialised)++;
+> -	if (*nr_initialised>  (2UL<<  (30 - PAGE_SHIFT))&&
+> +	if ((*nr_initialised>  max_initialise)&&
+>   	(pfn&  (PAGES_PER_SECTION - 1)) == 0) {
+>   		pgdat->first_deferred_pfn = pfn;
+>   		return false;
+> @@ -299,6 +300,7 @@ static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
+>
+>   static inline bool update_defer_init(pg_data_t *pgdat,
+>   				unsigned long pfn, unsigned long zone_end,
+> +				unsigned long max_initialise,
+>   				unsigned long *nr_initialised)
+>   {
+>   	return true;
+> @@ -4457,11 +4459,19 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+>   	unsigned long end_pfn = start_pfn + size;
+>   	unsigned long pfn;
+>   	struct zone *z;
+> +	unsigned long max_initialise;
+>   	unsigned long nr_initialised = 0;
+>
+>   	if (highest_memmap_pfn<  end_pfn - 1)
+>   		highest_memmap_pfn = end_pfn - 1;
+>
+> +	/*
+> +	 * Initialise at least 2G of a node but also take into account that
+> +	 * two large system hashes that can take up an 8th of memory.
+> +	 */
+> +	max_initialise = min(2UL<<  (30 - PAGE_SHIFT),
+> +			(pgdat->node_spanned_pages>>  3));
+> +
 
-Man, that's nasty.  For the kernfs part,
+I think you may be pre-allocating too much memory here. On the 24-TB 
+machine, the size of the dentry and inode hash tables were 16G each. So 
+the ratio is about is about 32G/24T = 0.13%. I think a shift factor of 
+(>> 8) which is about 0.39% should be more than enough. For the 24TB 
+machine, that means a preallocated memory of 96+4G which should be even 
+more than the 64+4G in the modified kernel that I used. At the same 
+time, I think we can also set the minimum to 1G or even 0.5G for better 
+performance for systems that have many CPUs, but not as much memory per 
+node.
 
-Acked-by: Tejun Heo <tj@kernel.org>
-
-Can you please repost this patch w/ Greg KH cc'd?
-
-Thanks.
-
--- 
-tejun
+Cheers,
+Longman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
