@@ -1,71 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id AEE7D6B006C
-	for <linux-mm@kvack.org>; Tue,  5 May 2015 05:45:56 -0400 (EDT)
-Received: by pdbnk13 with SMTP id nk13so190436102pdb.0
-        for <linux-mm@kvack.org>; Tue, 05 May 2015 02:45:56 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id bk10si23545168pac.111.2015.05.05.02.45.54
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 6ABEC6B0038
+	for <linux-mm@kvack.org>; Tue,  5 May 2015 06:45:21 -0400 (EDT)
+Received: by wgso17 with SMTP id o17so178253118wgs.1
+        for <linux-mm@kvack.org>; Tue, 05 May 2015 03:45:21 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w13si27351036wjq.111.2015.05.05.03.45.19
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 May 2015 02:45:55 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH 2/2] kernfs: do not account ino_ida allocations to memcg
-Date: Tue, 5 May 2015 12:45:43 +0300
-Message-ID: <0cf48f4219721952f182715a61910f626d7c4aca.1430819044.git.vdavydov@parallels.com>
-In-Reply-To: <fdf631b3fa95567a830ea4f3e19d0b3b2fc99662.1430819044.git.vdavydov@parallels.com>
-References: <fdf631b3fa95567a830ea4f3e19d0b3b2fc99662.1430819044.git.vdavydov@parallels.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 05 May 2015 03:45:19 -0700 (PDT)
+Date: Tue, 5 May 2015 11:45:14 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
+Message-ID: <20150505104514.GC2462@suse.de>
+References: <1430231830-7702-1-git-send-email-mgorman@suse.de>
+ <554030D1.8080509@hp.com>
+ <5543F802.9090504@hp.com>
+ <554415B1.2050702@hp.com>
+ <20150504143046.9404c572486caf71bdef0676@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20150504143046.9404c572486caf71bdef0676@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Waiman Long <waiman.long@hp.com>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-root->ino_ida is used for kernfs inode number allocations. Since IDA has
-a layered structure, different IDs can reside on the same layer, which
-is currently accounted to some memory cgroup. The problem is that each
-kmem cache of a memory cgroup has its own directory on sysfs (under
-/sys/fs/kernel/<cache-name>/cgroup). If the inode number of such a
-directory or any file in it gets allocated from a layer accounted to the
-cgroup which the cache is created for, the cgroup will get pinned for
-good, because one has to free all kmem allocations accounted to a cgroup
-in order to release it and destroy all its kmem caches. That said we
-must not account layers of ino_ida to any memory cgroup.
+On Mon, May 04, 2015 at 02:30:46PM -0700, Andrew Morton wrote:
+> > Before the patch, the boot time from elilo prompt to ssh login was 694s. 
+> > After the patch, the boot up time was 346s, a saving of 348s (about 50%).
+> 
+> Having to guesstimate the amount of memory which is needed for a
+> successful boot will be painful.  Any number we choose will be wrong
+> 99% of the time.
+> 
+> If the kswapd threads have started, all we need to do is to wait: take
+> a little nap in the allocator's page==NULL slowpath.
+> 
+> I'm not seeing any reason why we can't start kswapd much earlier -
+> right at the start of do_basic_setup()?
 
-Since per net init operations may create new sysfs entries directly
-(e.g. lo device) or indirectly (nf_conntrack creates a new kmem cache
-per each namespace, which, in turn, creates new sysfs entries), an easy
-way to reproduce this issue is by creating network namespace(s) from
-inside a kmem-active memory cgroup.
+It doesn't even have to be kswapd, it just should be a thread pinned to
+a done. The difficulty is that dealing with the system hashes means the
+initialisation has to happen before vfs_caches_init_early() when there is
+no scheduler. Those allocations could be delayed further but then there is
+the possibility that the allocations would not be contiguous and they'd
+have to rely on CMA to make the attempt. That potentially alters the
+performance of the large system hashes at run time.
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+We can scale the amount initialised with memory sizes relatively easy.
+This boots on the same 1TB machine I was testing before but that is
+hardly a surprise.
+
+---8<---
+mm: meminit: Take into account that large system caches scale linearly with memory
+
+Waiman Long reported a 24TB machine triggered an OOM as parallel memory
+initialisation deferred too much memory for initialisation. The likely
+consumer of this memory was large system hashes that scale with memory
+size. This patch initialises at least 2G per node but scales the amount
+initialised for larger systems.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- fs/kernfs/dir.c |    9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ mm/page_alloc.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
 
-diff --git a/fs/kernfs/dir.c b/fs/kernfs/dir.c
-index f131fc23ffc4..fffca9517321 100644
---- a/fs/kernfs/dir.c
-+++ b/fs/kernfs/dir.c
-@@ -518,7 +518,14 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
- 	if (!kn)
- 		goto err_out1;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 598f78d6544c..f7cc6c9fb909 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -266,15 +266,16 @@ static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
+  */
+ static inline bool update_defer_init(pg_data_t *pgdat,
+ 				unsigned long pfn, unsigned long zone_end,
++				unsigned long max_initialise,
+ 				unsigned long *nr_initialised)
+ {
+ 	/* Always populate low zones for address-contrained allocations */
+ 	if (zone_end < pgdat_end_pfn(pgdat))
+ 		return true;
  
--	ret = ida_simple_get(&root->ino_ida, 1, 0, GFP_KERNEL);
+-	/* Initialise at least 2G of the highest zone */
++	/* Initialise at least the requested amount in the highest zone */
+ 	(*nr_initialised)++;
+-	if (*nr_initialised > (2UL << (30 - PAGE_SHIFT)) &&
++	if ((*nr_initialised > max_initialise) &&
+ 	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
+ 		pgdat->first_deferred_pfn = pfn;
+ 		return false;
+@@ -299,6 +300,7 @@ static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
+ 
+ static inline bool update_defer_init(pg_data_t *pgdat,
+ 				unsigned long pfn, unsigned long zone_end,
++				unsigned long max_initialise,
+ 				unsigned long *nr_initialised)
+ {
+ 	return true;
+@@ -4457,11 +4459,19 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 	unsigned long end_pfn = start_pfn + size;
+ 	unsigned long pfn;
+ 	struct zone *z;
++	unsigned long max_initialise;
+ 	unsigned long nr_initialised = 0;
+ 
+ 	if (highest_memmap_pfn < end_pfn - 1)
+ 		highest_memmap_pfn = end_pfn - 1;
+ 
 +	/*
-+	 * If the ino of the sysfs entry created for a kmem cache gets
-+	 * allocated from an ida layer, which is accounted to the memcg that
-+	 * owns the cache, the memcg will get pinned forever. So do not account
-+	 * ino ida allocations.
++	 * Initialise at least 2G of a node but also take into account that
++	 * two large system hashes that can take up an 8th of memory.
 +	 */
-+	ret = ida_simple_get(&root->ino_ida, 1, 0,
-+			     GFP_KERNEL | __GFP_NOACCOUNT);
- 	if (ret < 0)
- 		goto err_out2;
- 	kn->ino = ret;
--- 
-1.7.10.4
++	max_initialise = min(2UL << (30 - PAGE_SHIFT),
++			(pgdat->node_spanned_pages >> 3));
++
+ 	z = &pgdat->node_zones[zone];
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+ 		/*
+@@ -4475,6 +4485,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 			if (!early_pfn_in_nid(pfn, nid))
+ 				continue;
+ 			if (!update_defer_init(pgdat, pfn, end_pfn,
++						max_initialise,
+ 						&nr_initialised))
+ 				break;
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
