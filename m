@@ -1,131 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CAED6B0070
-	for <linux-mm@kvack.org>; Tue,  5 May 2015 11:01:20 -0400 (EDT)
-Received: by pdbnk13 with SMTP id nk13so198837174pdb.0
-        for <linux-mm@kvack.org>; Tue, 05 May 2015 08:01:20 -0700 (PDT)
-Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
-        by mx.google.com with ESMTPS id la15si24749331pab.99.2015.05.05.08.01.14
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 539D26B0032
+	for <linux-mm@kvack.org>; Tue,  5 May 2015 12:01:27 -0400 (EDT)
+Received: by wgyo15 with SMTP id o15so188562248wgy.2
+        for <linux-mm@kvack.org>; Tue, 05 May 2015 09:01:27 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q2si4026887wje.194.2015.05.05.09.01.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 May 2015 08:01:15 -0700 (PDT)
-Message-ID: <5548DB38.6080402@hp.com>
-Date: Tue, 05 May 2015 11:01:12 -0400
-From: Waiman Long <waiman.long@hp.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
-References: <1430231830-7702-1-git-send-email-mgorman@suse.de> <554030D1.8080509@hp.com> <5543F802.9090504@hp.com> <554415B1.2050702@hp.com> <20150504143046.9404c572486caf71bdef0676@linux-foundation.org> <20150505104514.GC2462@suse.de> <5548CBE8.5090203@hp.com> <20150505143102.GD2462@suse.de>
-In-Reply-To: <20150505143102.GD2462@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 05 May 2015 09:01:23 -0700 (PDT)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH 0/9 v3] Helper to abstract vma handling in media layer
+Date: Tue,  5 May 2015 18:01:09 +0200
+Message-Id: <1430841678-11117-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: linux-media@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, dri-devel@lists.freedesktop.org, Pawel Osciak <pawel@osciak.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, mgorman@suse.de, Marek Szyprowski <m.szyprowski@samsung.com>, Jan Kara <jack@suse.cz>
 
-On 05/05/2015 10:31 AM, Mel Gorman wrote:
-> On Tue, May 05, 2015 at 09:55:52AM -0400, Waiman Long wrote:
->> On 05/05/2015 06:45 AM, Mel Gorman wrote:
->>> On Mon, May 04, 2015 at 02:30:46PM -0700, Andrew Morton wrote:
->>>>> Before the patch, the boot time from elilo prompt to ssh login was 694s.
->>>>> After the patch, the boot up time was 346s, a saving of 348s (about 50%).
->>>> Having to guesstimate the amount of memory which is needed for a
->>>> successful boot will be painful.  Any number we choose will be wrong
->>>> 99% of the time.
->>>>
->>>> If the kswapd threads have started, all we need to do is to wait: take
->>>> a little nap in the allocator's page==NULL slowpath.
->>>>
->>>> I'm not seeing any reason why we can't start kswapd much earlier -
->>>> right at the start of do_basic_setup()?
->>> It doesn't even have to be kswapd, it just should be a thread pinned to
->>> a done. The difficulty is that dealing with the system hashes means the
->>> initialisation has to happen before vfs_caches_init_early() when there is
->>> no scheduler. Those allocations could be delayed further but then there is
->>> the possibility that the allocations would not be contiguous and they'd
->>> have to rely on CMA to make the attempt. That potentially alters the
->>> performance of the large system hashes at run time.
->>>
->>> We can scale the amount initialised with memory sizes relatively easy.
->>> This boots on the same 1TB machine I was testing before but that is
->>> hardly a surprise.
->>>
->>> ---8<---
->>> mm: meminit: Take into account that large system caches scale linearly with memory
->>>
->>> Waiman Long reported a 24TB machine triggered an OOM as parallel memory
->>> initialisation deferred too much memory for initialisation. The likely
->>> consumer of this memory was large system hashes that scale with memory
->>> size. This patch initialises at least 2G per node but scales the amount
->>> initialised for larger systems.
->>>
->>> Signed-off-by: Mel Gorman<mgorman@suse.de>
->>> ---
->>>   mm/page_alloc.c | 15 +++++++++++++--
->>>   1 file changed, 13 insertions(+), 2 deletions(-)
->>>
->>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>> index 598f78d6544c..f7cc6c9fb909 100644
->>> --- a/mm/page_alloc.c
->>> +++ b/mm/page_alloc.c
->>> @@ -266,15 +266,16 @@ static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
->>>    */
->>>   static inline bool update_defer_init(pg_data_t *pgdat,
->>>   				unsigned long pfn, unsigned long zone_end,
->>> +				unsigned long max_initialise,
->>>   				unsigned long *nr_initialised)
->>>   {
->>>   	/* Always populate low zones for address-contrained allocations */
->>>   	if (zone_end<   pgdat_end_pfn(pgdat))
->>>   		return true;
->>>
->>> -	/* Initialise at least 2G of the highest zone */
->>> +	/* Initialise at least the requested amount in the highest zone */
->>>   	(*nr_initialised)++;
->>> -	if (*nr_initialised>   (2UL<<   (30 - PAGE_SHIFT))&&
->>> +	if ((*nr_initialised>   max_initialise)&&
->>>   	(pfn&   (PAGES_PER_SECTION - 1)) == 0) {
->>>   		pgdat->first_deferred_pfn = pfn;
->>>   		return false;
->>> @@ -299,6 +300,7 @@ static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
->>>
->>>   static inline bool update_defer_init(pg_data_t *pgdat,
->>>   				unsigned long pfn, unsigned long zone_end,
->>> +				unsigned long max_initialise,
->>>   				unsigned long *nr_initialised)
->>>   {
->>>   	return true;
->>> @@ -4457,11 +4459,19 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->>>   	unsigned long end_pfn = start_pfn + size;
->>>   	unsigned long pfn;
->>>   	struct zone *z;
->>> +	unsigned long max_initialise;
->>>   	unsigned long nr_initialised = 0;
->>>
->>>   	if (highest_memmap_pfn<   end_pfn - 1)
->>>   		highest_memmap_pfn = end_pfn - 1;
->>>
->>> +	/*
->>> +	 * Initialise at least 2G of a node but also take into account that
->>> +	 * two large system hashes that can take up an 8th of memory.
->>> +	 */
->>> +	max_initialise = min(2UL<<   (30 - PAGE_SHIFT),
->>> +			(pgdat->node_spanned_pages>>   3));
->>> +
->> I think you may be pre-allocating too much memory here. On the 24-TB
->> machine, the size of the dentry and inode hash tables were 16G each.
->> So the ratio is about is about 32G/24T = 0.13%. I think a shift
->> factor of (>>  8) which is about 0.39% should be more than enough.
-> I was taking the most pessimistic value possible to match where those
-> hashes currently get allocated from so that the locality does not change
-> after the series is applied. Can you try both (>>  3) and (>>  8) and see
-> do both work and if so, what the timing is?
+  Hello,
 
-Sure. I will try both and get you the results, hopefully by tomorrow at 
-the latest.
+  I'm sending the third version of my patch series to abstract vma handling
+from the various media drivers. After this patch set drivers have to know much
+less details about vmas, their types, and locking. Also quite some code is
+removed from them. As a bonus drivers get automatically VM_FAULT_RETRY
+handling. The primary motivation for this series is to remove knowledge about
+mmap_sem locking from as many places a possible so that we can change it with
+reasonable effort.
 
-Cheers,
-Longman
+The core of the series is the new helper get_vaddr_frames() which is given a
+virtual address and it fills in PFNs / struct page pointers (depending on VMA
+type) into the provided array. If PFNs correspond to normal pages it also grabs
+references to these pages. The difference from get_user_pages() is that this
+function can also deal with pfnmap, and io mappings which is what the media
+drivers need.
+
+I have tested the patches with vivid driver so at least vb2 code got some
+exposure. Conversion of other drivers was just compile-tested so I'd like to
+ask respective maintainers if they could have a look.  Also I'd like to ask mm
+folks to check patch 2/9 implementing the helper. Thanks!
+
+								Honza
+
+Changes since v2:
+* Renamed functions and structures as Mel suggested
+* Other minor changes suggested by Mel
+* Rebased on top of 4.1-rc2
+* Changed functions to get pointer to array of pages / pfns to perform
+  conversion if necessary. This fixes possible issue in the omap I may have
+  introduced in v2 and generally makes the API less errorprone.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
