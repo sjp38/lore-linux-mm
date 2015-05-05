@@ -1,109 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id AC20A6B0038
-	for <linux-mm@kvack.org>; Tue,  5 May 2015 05:12:55 -0400 (EDT)
-Received: by wgyo15 with SMTP id o15so175573597wgy.2
-        for <linux-mm@kvack.org>; Tue, 05 May 2015 02:12:55 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id el3si1515038wib.24.2015.05.05.02.12.53
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 140436B0038
+	for <linux-mm@kvack.org>; Tue,  5 May 2015 05:45:56 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so190544496pde.3
+        for <linux-mm@kvack.org>; Tue, 05 May 2015 02:45:55 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id zb14si23501731pac.209.2015.05.05.02.45.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 05 May 2015 02:12:54 -0700 (PDT)
-Message-ID: <55488994.8010303@suse.cz>
-Date: Tue, 05 May 2015 11:12:52 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 May 2015 02:45:55 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH 1/2] gfp: add __GFP_NOACCOUNT
+Date: Tue, 5 May 2015 12:45:42 +0300
+Message-ID: <fdf631b3fa95567a830ea4f3e19d0b3b2fc99662.1430819044.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [patch v2 for-4.0] mm, thp: really limit transparent hugepage
- allocation to local node
-References: <alpine.DEB.2.10.1502241422370.11324@chino.kir.corp.google.com> <alpine.DEB.2.10.1502241522590.9480@chino.kir.corp.google.com> <54EDA96C.4000609@suse.cz> <alpine.DEB.2.10.1502251311360.18097@chino.kir.corp.google.com> <54EE60FC.7000909@suse.cz> <87k2x6q6n0.fsf@linux.vnet.ibm.com>
-In-Reply-To: <87k2x6q6n0.fsf@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 04/21/2015 09:31 AM, Aneesh Kumar K.V wrote:
-> Vlastimil Babka <vbabka@suse.cz> writes:
->
->> On 25.2.2015 22:24, David Rientjes wrote:
->>>
->>>> alloc_pages_preferred_node() variant, change the exact_node() variant to pass
->>>> __GFP_THISNODE, and audit and adjust all callers accordingly.
->>>>
->>> Sounds like that should be done as part of a cleanup after the 4.0 issues
->>> are addressed.  alloc_pages_exact_node() does seem to suggest that we want
->>> exactly that node, implying __GFP_THISNODE behavior already, so it would
->>> be good to avoid having this come up again in the future.
->>
->> Oh lovely, just found out that there's alloc_pages_node which should be the
->> preferred-only version, but in fact does not differ from
->> alloc_pages_exact_node
->> in any relevant way. I agree we should do some larger cleanup for next
->> version.
->>
->>>> Also, you pass __GFP_NOWARN but that should be covered by GFP_TRANSHUGE
->>>> already. Of course, nothing guarantees that hugepage == true implies that gfp
->>>> == GFP_TRANSHUGE... but current in-tree callers conform to that.
->>>>
->>> Ah, good point, and it includes __GFP_NORETRY as well which means that
->>> this patch is busted.  It won't try compaction or direct reclaim in the
->>> page allocator slowpath because of this:
->>>
->>> 	/*
->>> 	 * GFP_THISNODE (meaning __GFP_THISNODE, __GFP_NORETRY and
->>> 	 * __GFP_NOWARN set) should not cause reclaim since the subsystem
->>> 	 * (f.e. slab) using GFP_THISNODE may choose to trigger reclaim
->>> 	 * using a larger set of nodes after it has established that the
->>> 	 * allowed per node queues are empty and that nodes are
->>> 	 * over allocated.
->>> 	 */
->>> 	if (IS_ENABLED(CONFIG_NUMA) &&
->>> 	    (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
->>> 		goto nopage;
->>>
->>> Hmm.  It would be disappointing to have to pass the nodemask of the exact
->>> node that we want to allocate from into the page allocator to avoid using
->>> __GFP_THISNODE.
->>
->> Yeah.
->>
->>>
->>> There's a sneaky way around it by just removing __GFP_NORETRY from
->>> GFP_TRANSHUGE so the condition above fails and since the page allocator
->>> won't retry for such a high-order allocation, but that probably just
->>> papers over this stuff too much already.  I think what we want to do is
->>
->> Alternatively alloc_pages_exact_node() adds __GFP_THISNODE just to
->> node_zonelist() call and not to __alloc_pages() gfp_mask proper? Unless
->> __GFP_THISNODE
->> was given *also* in the incoming gfp_mask, this should give us the right
->> combination?
->> But it's also subtle....
->>
->>> cause the slab allocators to not use __GFP_WAIT if they want to avoid
->>> reclaim.
->>
->> Yes, the fewer subtle heuristics we have that include combinations of
->> flags (*cough*
->> GFP_TRANSHUGE *cough*), the better.
->>
->>> This is probably going to be a much more invasive patch than originally
->>> thought.
->>
->> Right, we might be changing behavior not just for slab allocators, but
->> also others using such
->> combination of flags.
->
-> Any update on this ? Did we reach a conclusion on how to go forward here
-> ?
+Not all kmem allocations should be accounted to memcg. The following
+patch gives an example when accounting of a certain type of allocations
+to memcg can effectively result in a memory leak. This patch adds the
+__GFP_NOACCOUNT flag which if passed to kmalloc and friends will force
+the allocation to go through the root cgroup. It will be used by the
+next patch.
 
-I believe David's later version was merged already. Or what exactly are 
-you asking about?
+Note, since in case of kmemleak enabled each kmalloc implies yet another
+allocation from the kmemleak_object cache, we add __GFP_NOACCOUNT to
+gfp_kmemleak_mask.
 
-> -aneesh
->
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ include/linux/gfp.h        |    2 ++
+ include/linux/memcontrol.h |    4 ++++
+ mm/kmemleak.c              |    3 ++-
+ 3 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 97a9373e61e8..37c422df2a0f 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -30,6 +30,7 @@ struct vm_area_struct;
+ #define ___GFP_HARDWALL		0x20000u
+ #define ___GFP_THISNODE		0x40000u
+ #define ___GFP_RECLAIMABLE	0x80000u
++#define ___GFP_NOACCOUNT	0x100000u
+ #define ___GFP_NOTRACK		0x200000u
+ #define ___GFP_NO_KSWAPD	0x400000u
+ #define ___GFP_OTHER_NODE	0x800000u
+@@ -87,6 +88,7 @@ struct vm_area_struct;
+ #define __GFP_HARDWALL   ((__force gfp_t)___GFP_HARDWALL) /* Enforce hardwall cpuset memory allocs */
+ #define __GFP_THISNODE	((__force gfp_t)___GFP_THISNODE)/* No fallback, no policies */
+ #define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE) /* Page is reclaimable */
++#define __GFP_NOACCOUNT	((__force gfp_t)___GFP_NOACCOUNT) /* Don't account to memcg */
+ #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
+ 
+ #define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 72dff5fb0d0c..6c8918114804 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -463,6 +463,8 @@ memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
+ 	if (!memcg_kmem_enabled())
+ 		return true;
+ 
++	if (gfp & __GFP_NOACCOUNT)
++		return true;
+ 	/*
+ 	 * __GFP_NOFAIL allocations will move on even if charging is not
+ 	 * possible. Therefore we don't even try, and have this allocation
+@@ -522,6 +524,8 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+ {
+ 	if (!memcg_kmem_enabled())
+ 		return cachep;
++	if (gfp & __GFP_NOACCOUNT)
++		return cachep;
+ 	if (gfp & __GFP_NOFAIL)
+ 		return cachep;
+ 	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 5405aff5a590..f0fe4f2c1fa7 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -115,7 +115,8 @@
+ #define BYTES_PER_POINTER	sizeof(void *)
+ 
+ /* GFP bitmask for kmemleak internal allocations */
+-#define gfp_kmemleak_mask(gfp)	(((gfp) & (GFP_KERNEL | GFP_ATOMIC)) | \
++#define gfp_kmemleak_mask(gfp)	(((gfp) & (GFP_KERNEL | GFP_ATOMIC | \
++					   __GFP_NOACCOUNT)) | \
+ 				 __GFP_NORETRY | __GFP_NOMEMALLOC | \
+ 				 __GFP_NOWARN)
+ 
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
