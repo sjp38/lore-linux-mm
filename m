@@ -1,89 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 98F236B0038
-	for <linux-mm@kvack.org>; Tue,  5 May 2015 04:43:51 -0400 (EDT)
-Received: by wgyo15 with SMTP id o15so174774636wgy.2
-        for <linux-mm@kvack.org>; Tue, 05 May 2015 01:43:51 -0700 (PDT)
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id AC20A6B0038
+	for <linux-mm@kvack.org>; Tue,  5 May 2015 05:12:55 -0400 (EDT)
+Received: by wgyo15 with SMTP id o15so175573597wgy.2
+        for <linux-mm@kvack.org>; Tue, 05 May 2015 02:12:55 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id el3si1397784wib.24.2015.05.05.01.43.49
+        by mx.google.com with ESMTPS id el3si1515038wib.24.2015.05.05.02.12.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 05 May 2015 01:43:49 -0700 (PDT)
-Message-ID: <554882BE.5020804@suse.cz>
-Date: Tue, 05 May 2015 10:43:42 +0200
+        Tue, 05 May 2015 02:12:54 -0700 (PDT)
+Message-ID: <55488994.8010303@suse.cz>
+Date: Tue, 05 May 2015 11:12:52 +0200
 From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] CMA: page_isolation: check buddy before access it
-References: <1430732477-16977-1-git-send-email-zhuhui@xiaomi.com> <1430796179-1795-1-git-send-email-zhuhui@xiaomi.com>
-In-Reply-To: <1430796179-1795-1-git-send-email-zhuhui@xiaomi.com>
+Subject: Re: [patch v2 for-4.0] mm, thp: really limit transparent hugepage
+ allocation to local node
+References: <alpine.DEB.2.10.1502241422370.11324@chino.kir.corp.google.com> <alpine.DEB.2.10.1502241522590.9480@chino.kir.corp.google.com> <54EDA96C.4000609@suse.cz> <alpine.DEB.2.10.1502251311360.18097@chino.kir.corp.google.com> <54EE60FC.7000909@suse.cz> <87k2x6q6n0.fsf@linux.vnet.ibm.com>
+In-Reply-To: <87k2x6q6n0.fsf@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <zhuhui@xiaomi.com>, akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, lauraa@codeaurora.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: teawater@gmail.com
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 05/05/2015 05:22 AM, Hui Zhu wrote:
-> Change pfn_present to pfn_valid_within according to the review of Laura.
+On 04/21/2015 09:31 AM, Aneesh Kumar K.V wrote:
+> Vlastimil Babka <vbabka@suse.cz> writes:
 >
-> I got a issue:
-> [  214.294917] Unable to handle kernel NULL pointer dereference at virtual address 0000082a
-> [  214.303013] pgd = cc970000
-> [  214.305721] [0000082a] *pgd=00000000
-> [  214.309316] Internal error: Oops: 5 [#1] PREEMPT SMP ARM
-> [  214.335704] PC is at get_pageblock_flags_group+0x5c/0xb0
-> [  214.341030] LR is at unset_migratetype_isolate+0x148/0x1b0
-> [  214.346523] pc : [<c00cc9a0>]    lr : [<c0109874>]    psr: 80000093
-> [  214.346523] sp : c7029d00  ip : 00000105  fp : c7029d1c
-> [  214.358005] r10: 00000001  r9 : 0000000a  r8 : 00000004
-> [  214.363231] r7 : 60000013  r6 : 000000a4  r5 : c0a357e4  r4 : 00000000
-> [  214.369761] r3 : 00000826  r2 : 00000002  r1 : 00000000  r0 : 0000003f
-> [  214.376291] Flags: Nzcv  IRQs off  FIQs on  Mode SVC_32  ISA ARM  Segment user
-> [  214.383516] Control: 10c5387d  Table: 2cb7006a  DAC: 00000015
-> [  214.949720] Backtrace:
-> [  214.952192] [<c00cc944>] (get_pageblock_flags_group+0x0/0xb0) from [<c0109874>] (unset_migratetype_isolate+0x148/0x1b0)
-> [  214.962978]  r7:60000013 r6:c0a357c0 r5:c0a357e4 r4:c1555000
-> [  214.968693] [<c010972c>] (unset_migratetype_isolate+0x0/0x1b0) from [<c0109adc>] (undo_isolate_page_range+0xd0/0xdc)
-> [  214.979222] [<c0109a0c>] (undo_isolate_page_range+0x0/0xdc) from [<c00d097c>] (__alloc_contig_range+0x254/0x34c)
-> [  214.989398]  r9:000abc00 r8:c7028000 r7:000b1f53 r6:000b3e00 r5:00000005
-> r4:c7029db4
-> [  214.997308] [<c00d0728>] (__alloc_contig_range+0x0/0x34c) from [<c00d0a88>] (alloc_contig_range+0x14/0x18)
-> [  215.006973] [<c00d0a74>] (alloc_contig_range+0x0/0x18) from [<c0398148>] (dma_alloc_from_contiguous_addr+0x1ac/0x304)
+>> On 25.2.2015 22:24, David Rientjes wrote:
+>>>
+>>>> alloc_pages_preferred_node() variant, change the exact_node() variant to pass
+>>>> __GFP_THISNODE, and audit and adjust all callers accordingly.
+>>>>
+>>> Sounds like that should be done as part of a cleanup after the 4.0 issues
+>>> are addressed.  alloc_pages_exact_node() does seem to suggest that we want
+>>> exactly that node, implying __GFP_THISNODE behavior already, so it would
+>>> be good to avoid having this come up again in the future.
+>>
+>> Oh lovely, just found out that there's alloc_pages_node which should be the
+>> preferred-only version, but in fact does not differ from
+>> alloc_pages_exact_node
+>> in any relevant way. I agree we should do some larger cleanup for next
+>> version.
+>>
+>>>> Also, you pass __GFP_NOWARN but that should be covered by GFP_TRANSHUGE
+>>>> already. Of course, nothing guarantees that hugepage == true implies that gfp
+>>>> == GFP_TRANSHUGE... but current in-tree callers conform to that.
+>>>>
+>>> Ah, good point, and it includes __GFP_NORETRY as well which means that
+>>> this patch is busted.  It won't try compaction or direct reclaim in the
+>>> page allocator slowpath because of this:
+>>>
+>>> 	/*
+>>> 	 * GFP_THISNODE (meaning __GFP_THISNODE, __GFP_NORETRY and
+>>> 	 * __GFP_NOWARN set) should not cause reclaim since the subsystem
+>>> 	 * (f.e. slab) using GFP_THISNODE may choose to trigger reclaim
+>>> 	 * using a larger set of nodes after it has established that the
+>>> 	 * allowed per node queues are empty and that nodes are
+>>> 	 * over allocated.
+>>> 	 */
+>>> 	if (IS_ENABLED(CONFIG_NUMA) &&
+>>> 	    (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
+>>> 		goto nopage;
+>>>
+>>> Hmm.  It would be disappointing to have to pass the nodemask of the exact
+>>> node that we want to allocate from into the page allocator to avoid using
+>>> __GFP_THISNODE.
+>>
+>> Yeah.
+>>
+>>>
+>>> There's a sneaky way around it by just removing __GFP_NORETRY from
+>>> GFP_TRANSHUGE so the condition above fails and since the page allocator
+>>> won't retry for such a high-order allocation, but that probably just
+>>> papers over this stuff too much already.  I think what we want to do is
+>>
+>> Alternatively alloc_pages_exact_node() adds __GFP_THISNODE just to
+>> node_zonelist() call and not to __alloc_pages() gfp_mask proper? Unless
+>> __GFP_THISNODE
+>> was given *also* in the incoming gfp_mask, this should give us the right
+>> combination?
+>> But it's also subtle....
+>>
+>>> cause the slab allocators to not use __GFP_WAIT if they want to avoid
+>>> reclaim.
+>>
+>> Yes, the fewer subtle heuristics we have that include combinations of
+>> flags (*cough*
+>> GFP_TRANSHUGE *cough*), the better.
+>>
+>>> This is probably going to be a much more invasive patch than originally
+>>> thought.
+>>
+>> Right, we might be changing behavior not just for slab allocators, but
+>> also others using such
+>> combination of flags.
 >
-> This issue is because when call unset_migratetype_isolate to unset a part
-> of CMA memory, it try to access the buddy page to get its status:
-> 		if (order >= pageblock_order) {
-> 			page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
-> 			buddy_idx = __find_buddy_index(page_idx, order);
-> 			buddy = page + (buddy_idx - page_idx);
->
-> 			if (!is_migrate_isolate_page(buddy)) {
-> But the begin addr of this part of CMA memory is very close to a part of
-> memory that is reserved in the boot time (not in buddy system).
-> So add a check before access it.
->
-> Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
+> Any update on this ? Did we reach a conclusion on how to go forward here
+> ?
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+I believe David's later version was merged already. Or what exactly are 
+you asking about?
 
-> ---
->   mm/page_isolation.c | 3 ++-
->   1 file changed, 2 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index 755a42c..eb22d1f 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -101,7 +101,8 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
->   			buddy_idx = __find_buddy_index(page_idx, order);
->   			buddy = page + (buddy_idx - page_idx);
->
-> -			if (!is_migrate_isolate_page(buddy)) {
-> +			if (!pfn_valid_within(page_to_pfn(buddy))
-> +			    || !is_migrate_isolate_page(buddy)) {
->   				__isolate_free_page(page, order);
->   				kernel_map_pages(page, (1 << order), 1);
->   				set_page_refcounted(page);
+> -aneesh
 >
 
 --
