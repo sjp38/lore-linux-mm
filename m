@@ -1,146 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FA186B0032
-	for <linux-mm@kvack.org>; Tue,  5 May 2015 10:31:08 -0400 (EDT)
-Received: by wgso17 with SMTP id o17so185443722wgs.1
-        for <linux-mm@kvack.org>; Tue, 05 May 2015 07:31:08 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cs3si17177432wib.117.2015.05.05.07.31.06
+Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 09C2E6B0032
+	for <linux-mm@kvack.org>; Tue,  5 May 2015 10:33:34 -0400 (EDT)
+Received: by oica37 with SMTP id a37so147609240oic.0
+        for <linux-mm@kvack.org>; Tue, 05 May 2015 07:33:33 -0700 (PDT)
+Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
+        by mx.google.com with ESMTPS id c123si10258848oib.112.2015.05.05.07.33.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 05 May 2015 07:31:07 -0700 (PDT)
-Date: Tue, 5 May 2015 15:31:02 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
-Message-ID: <20150505143102.GD2462@suse.de>
-References: <1430231830-7702-1-git-send-email-mgorman@suse.de>
- <554030D1.8080509@hp.com>
- <5543F802.9090504@hp.com>
- <554415B1.2050702@hp.com>
- <20150504143046.9404c572486caf71bdef0676@linux-foundation.org>
- <20150505104514.GC2462@suse.de>
- <5548CBE8.5090203@hp.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <5548CBE8.5090203@hp.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 May 2015 07:33:33 -0700 (PDT)
+Message-ID: <1430835266.23761.251.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v4 1/7] mm, x86: Document return values of mapping funcs
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Tue, 05 May 2015 08:14:26 -0600
+In-Reply-To: <20150505141906.GI3910@pd.tnic>
+References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
+	 <1427234921-19737-2-git-send-email-toshi.kani@hp.com>
+	 <20150505111913.GH3910@pd.tnic>
+	 <1430833596.23761.245.camel@misato.fc.hp.com>
+	 <20150505141906.GI3910@pd.tnic>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <waiman.long@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Borislav Petkov <bp@alien8.de>
+Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
 
-On Tue, May 05, 2015 at 09:55:52AM -0400, Waiman Long wrote:
-> On 05/05/2015 06:45 AM, Mel Gorman wrote:
-> >On Mon, May 04, 2015 at 02:30:46PM -0700, Andrew Morton wrote:
-> >>>Before the patch, the boot time from elilo prompt to ssh login was 694s.
-> >>>After the patch, the boot up time was 346s, a saving of 348s (about 50%).
-> >>Having to guesstimate the amount of memory which is needed for a
-> >>successful boot will be painful.  Any number we choose will be wrong
-> >>99% of the time.
-> >>
-> >>If the kswapd threads have started, all we need to do is to wait: take
-> >>a little nap in the allocator's page==NULL slowpath.
-> >>
-> >>I'm not seeing any reason why we can't start kswapd much earlier -
-> >>right at the start of do_basic_setup()?
-> >It doesn't even have to be kswapd, it just should be a thread pinned to
-> >a done. The difficulty is that dealing with the system hashes means the
-> >initialisation has to happen before vfs_caches_init_early() when there is
-> >no scheduler. Those allocations could be delayed further but then there is
-> >the possibility that the allocations would not be contiguous and they'd
-> >have to rely on CMA to make the attempt. That potentially alters the
-> >performance of the large system hashes at run time.
-> >
-> >We can scale the amount initialised with memory sizes relatively easy.
-> >This boots on the same 1TB machine I was testing before but that is
-> >hardly a surprise.
-> >
-> >---8<---
-> >mm: meminit: Take into account that large system caches scale linearly with memory
-> >
-> >Waiman Long reported a 24TB machine triggered an OOM as parallel memory
-> >initialisation deferred too much memory for initialisation. The likely
-> >consumer of this memory was large system hashes that scale with memory
-> >size. This patch initialises at least 2G per node but scales the amount
-> >initialised for larger systems.
-> >
-> >Signed-off-by: Mel Gorman<mgorman@suse.de>
-> >---
-> >  mm/page_alloc.c | 15 +++++++++++++--
-> >  1 file changed, 13 insertions(+), 2 deletions(-)
-> >
-> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >index 598f78d6544c..f7cc6c9fb909 100644
-> >--- a/mm/page_alloc.c
-> >+++ b/mm/page_alloc.c
-> >@@ -266,15 +266,16 @@ static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
-> >   */
-> >  static inline bool update_defer_init(pg_data_t *pgdat,
-> >  				unsigned long pfn, unsigned long zone_end,
-> >+				unsigned long max_initialise,
-> >  				unsigned long *nr_initialised)
-> >  {
-> >  	/* Always populate low zones for address-contrained allocations */
-> >  	if (zone_end<  pgdat_end_pfn(pgdat))
-> >  		return true;
-> >
-> >-	/* Initialise at least 2G of the highest zone */
-> >+	/* Initialise at least the requested amount in the highest zone */
-> >  	(*nr_initialised)++;
-> >-	if (*nr_initialised>  (2UL<<  (30 - PAGE_SHIFT))&&
-> >+	if ((*nr_initialised>  max_initialise)&&
-> >  	(pfn&  (PAGES_PER_SECTION - 1)) == 0) {
-> >  		pgdat->first_deferred_pfn = pfn;
-> >  		return false;
-> >@@ -299,6 +300,7 @@ static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
-> >
-> >  static inline bool update_defer_init(pg_data_t *pgdat,
-> >  				unsigned long pfn, unsigned long zone_end,
-> >+				unsigned long max_initialise,
-> >  				unsigned long *nr_initialised)
-> >  {
-> >  	return true;
-> >@@ -4457,11 +4459,19 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
-> >  	unsigned long end_pfn = start_pfn + size;
-> >  	unsigned long pfn;
-> >  	struct zone *z;
-> >+	unsigned long max_initialise;
-> >  	unsigned long nr_initialised = 0;
-> >
-> >  	if (highest_memmap_pfn<  end_pfn - 1)
-> >  		highest_memmap_pfn = end_pfn - 1;
-> >
-> >+	/*
-> >+	 * Initialise at least 2G of a node but also take into account that
-> >+	 * two large system hashes that can take up an 8th of memory.
-> >+	 */
-> >+	max_initialise = min(2UL<<  (30 - PAGE_SHIFT),
-> >+			(pgdat->node_spanned_pages>>  3));
-> >+
+On Tue, 2015-05-05 at 16:19 +0200, Borislav Petkov wrote:
+> On Tue, May 05, 2015 at 07:46:36AM -0600, Toshi Kani wrote:
+> > Agreed.  This patch-set was originally a small set of patches, but was
+> > extended later with additional patches, which ended up with touching the
+> > same place again.  I will reorganize the patch-set.
 > 
-> I think you may be pre-allocating too much memory here. On the 24-TB
-> machine, the size of the dentry and inode hash tables were 16G each.
-> So the ratio is about is about 32G/24T = 0.13%. I think a shift
-> factor of (>> 8) which is about 0.39% should be more than enough.
+> Ok, but please wait until I take a look at the rest.
 
-I was taking the most pessimistic value possible to match where those
-hashes currently get allocated from so that the locality does not change
-after the series is applied. Can you try both (>> 3) and (>> 8) and see
-do both work and if so, what the timing is?
+Sure, I will wait for your review.  
 
-> For the 24TB machine, that means a preallocated memory of 96+4G
-> which should be even more than the 64+4G in the modified kernel that
-> I used. At the same time, I think we can also set the minimum to 1G
-> or even 0.5G for better performance for systems that have many CPUs,
-> but not as much memory per node.
 > 
+> Thanks.
+> 
+> Btw, is there anything else MTRR-related pending for tip?
 
-I think the benefit there is going to be marginal except maybe on machines
-where remote accesses are extremely costly.
+Not exactly MTRR-related, but I am planing to re-submit my WT patchset
+after checking to see if Luis's patchset (which you are reviewing) has
+any conflict with this.
 
--- 
-Mel Gorman
-SUSE Labs
+https://lkml.org/lkml/2015/2/24/773
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
