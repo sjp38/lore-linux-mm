@@ -1,70 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 17DA36B0083
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 13:51:22 -0400 (EDT)
-Received: by wicmx19 with SMTP id mx19so130811260wic.1
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 10:51:21 -0700 (PDT)
-Received: from e06smtp16.uk.ibm.com (e06smtp16.uk.ibm.com. [195.75.94.112])
-        by mx.google.com with ESMTPS id op8si1637525wjc.112.2015.05.06.10.50.54
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 461516B0093
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 13:52:30 -0400 (EDT)
+Received: by wizk4 with SMTP id k4so212151221wiz.1
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 10:52:29 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id d2si3356390wix.113.2015.05.06.10.52.28
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Wed, 06 May 2015 10:50:55 -0700 (PDT)
-Received: from /spool/local
-	by e06smtp16.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dahi@linux.vnet.ibm.com>;
-	Wed, 6 May 2015 18:50:54 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 7F6462190046
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 18:50:34 +0100 (BST)
-Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t46HoqbV45875370
-	for <linux-mm@kvack.org>; Wed, 6 May 2015 17:50:52 GMT
-Received: from d06av05.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t46HopMI028030
-	for <linux-mm@kvack.org>; Wed, 6 May 2015 11:50:52 -0600
-From: David Hildenbrand <dahi@linux.vnet.ibm.com>
-Subject: [PATCH RFC 14/15] mips: properly lock access to the fpu
-Date: Wed,  6 May 2015 19:50:38 +0200
-Message-Id: <1430934639-2131-15-git-send-email-dahi@linux.vnet.ibm.com>
-In-Reply-To: <1430934639-2131-1-git-send-email-dahi@linux.vnet.ibm.com>
-References: <1430934639-2131-1-git-send-email-dahi@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 May 2015 10:52:29 -0700 (PDT)
+Date: Wed, 6 May 2015 13:52:12 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/2] gfp: add __GFP_NOACCOUNT
+Message-ID: <20150506175212.GA4813@cmpxchg.org>
+References: <fdf631b3fa95567a830ea4f3e19d0b3b2fc99662.1430819044.git.vdavydov@parallels.com>
+ <20150506145814.GP14550@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150506145814.GP14550@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: dahi@linux.vnet.ibm.com, mingo@redhat.com, peterz@infradead.org, yang.shi@windriver.com, bigeasy@linutronix.de, benh@kernel.crashing.org, paulus@samba.org, akpm@linux-foundation.org, heiko.carstens@de.ibm.com, schwidefsky@de.ibm.com, borntraeger@de.ibm.com, mst@redhat.com, tglx@linutronix.de, David.Laight@ACULAB.COM, hughd@google.com, hocko@suse.cz, ralf@linux-mips.org, herbert@gondor.apana.org.au, linux@arm.linux.org.uk, airlied@linux.ie, daniel.vetter@intel.com, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Let's always disable preemption and pagefaults when locking the fpu,
-so we can be sure that the owner won't change in between.
+On Wed, May 06, 2015 at 04:58:14PM +0200, Michal Hocko wrote:
+> On Tue 05-05-15 12:45:42, Vladimir Davydov wrote:
+> [...]
+> > diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> > index 97a9373e61e8..37c422df2a0f 100644
+> > --- a/include/linux/gfp.h
+> > +++ b/include/linux/gfp.h
+> > @@ -30,6 +30,7 @@ struct vm_area_struct;
+> >  #define ___GFP_HARDWALL		0x20000u
+> >  #define ___GFP_THISNODE		0x40000u
+> >  #define ___GFP_RECLAIMABLE	0x80000u
+> > +#define ___GFP_NOACCOUNT	0x100000u
+> >  #define ___GFP_NOTRACK		0x200000u
+> >  #define ___GFP_NO_KSWAPD	0x400000u
+> >  #define ___GFP_OTHER_NODE	0x800000u
+> > @@ -87,6 +88,7 @@ struct vm_area_struct;
+> >  #define __GFP_HARDWALL   ((__force gfp_t)___GFP_HARDWALL) /* Enforce hardwall cpuset memory allocs */
+> >  #define __GFP_THISNODE	((__force gfp_t)___GFP_THISNODE)/* No fallback, no policies */
+> >  #define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE) /* Page is reclaimable */
+> > +#define __GFP_NOACCOUNT	((__force gfp_t)___GFP_NOACCOUNT) /* Don't account to memcg */
+> 
+> The wording suggests that _any_ memcg charge might be skipped by this flag
+> but only kmem part is handled.
+>
+> So either handle the flag in try_charge or, IMO preferably, update the
+> comment here and add WARN_ON{_ONCE}(gfp & __GFP_NOACCOUNT). I do not
+> think we should allow to skip the charge for user pages ATM and warning
+> could tell us about the abuse of the flag.
 
-This is a preparation for pagefault_disable() not touching preemption
-anymore.
+Michal, please just stop.
 
-Signed-off-by: David Hildenbrand <dahi@linux.vnet.ibm.com>
----
- arch/mips/kernel/signal-common.h | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+There is no reason to warn the user about this whatsoever.  If you
+want to prevent abuse - whatever that means - program your mailreader
+to flag patches containing __GFP_NOACCOUNT and review them carefully.
 
-diff --git a/arch/mips/kernel/signal-common.h b/arch/mips/kernel/signal-common.h
-index 06805e0..0b85f82 100644
---- a/arch/mips/kernel/signal-common.h
-+++ b/arch/mips/kernel/signal-common.h
-@@ -28,12 +28,7 @@ extern void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
- extern int fpcsr_pending(unsigned int __user *fpcsr);
- 
- /* Make sure we will not lose FPU ownership */
--#ifdef CONFIG_PREEMPT
--#define lock_fpu_owner()	preempt_disable()
--#define unlock_fpu_owner()	preempt_enable()
--#else
--#define lock_fpu_owner()	pagefault_disable()
--#define unlock_fpu_owner()	pagefault_enable()
--#endif
-+#define lock_fpu_owner()	({ preempt_disable(); pagefault_disable(); })
-+#define unlock_fpu_owner()	({ pagefault_enable(); preempt_enable(); })
- 
- #endif	/* __SIGNAL_COMMON_H */
--- 
-2.1.4
+This eagerness to clutter the code with defensiveness against the rest
+of the kernel tree and to disrupt the user over every little blip that
+has nothing to do with them is really getting old at this point.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
