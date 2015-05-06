@@ -1,271 +1,286 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 293276B0038
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 12:19:39 -0400 (EDT)
-Received: by oign205 with SMTP id n205so11614517oig.2
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 09:19:39 -0700 (PDT)
-Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
-        by mx.google.com with ESMTPS id s7si12227477oei.66.2015.05.06.09.19.38
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 365C16B0038
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 12:28:33 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so209049374wid.0
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 09:28:32 -0700 (PDT)
+Received: from mail-wg0-x235.google.com (mail-wg0-x235.google.com. [2a00:1450:400c:c00::235])
+        by mx.google.com with ESMTPS id x13si3051969wie.5.2015.05.06.09.28.30
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 May 2015 09:19:38 -0700 (PDT)
-Message-ID: <1430928030.23761.328.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v4 6/7] mtrr, x86: Clean up mtrr_type_lookup()
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 06 May 2015 10:00:30 -0600
-In-Reply-To: <20150506134127.GE22949@pd.tnic>
-References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
-	 <1427234921-19737-7-git-send-email-toshi.kani@hp.com>
-	 <20150506134127.GE22949@pd.tnic>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Wed, 06 May 2015 09:28:31 -0700 (PDT)
+Received: by wgyo15 with SMTP id o15so17556660wgy.2
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 09:28:30 -0700 (PDT)
+Message-ID: <554A412A.3030709@gmail.com>
+Date: Wed, 06 May 2015 18:28:26 +0200
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] set/get_mempolicy.2: policy is per thread, not per process
+References: <5542046D.5060703@inria.fr> <554A09BE.7030800@gmail.com> <20150506125709.GL2366@two.firstfloor.org>
+In-Reply-To: <20150506125709.GL2366@two.firstfloor.org>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
+To: Andi Kleen <andi@firstfloor.org>
+Cc: mtk.manpages@gmail.com, Brice Goglin <Brice.Goglin@inria.fr>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Wed, 2015-05-06 at 15:41 +0200, Borislav Petkov wrote:
-> On Tue, Mar 24, 2015 at 04:08:40PM -0600, Toshi Kani wrote:
-> > MTRRs contain fixed and variable entries.  mtrr_type_lookup()
-> > may repeatedly call __mtrr_type_lookup() to handle a request
-> > that overlaps with variable entries.  However,
-> > __mtrr_type_lookup() also handles the fixed entries, which
-> > do not have to be repeated.  Therefore, this patch creates
-> > separate functions, mtrr_type_lookup_fixed() and
-> > mtrr_type_lookup_variable(), to handle the fixed and variable
-> > ranges respectively.
-> > 
-> > The patch also updates the function headers to clarify the
-> > return values and output argument.  It updates comments to
-> > clarify that the repeating is necessary to handle overlaps
-> > with the default type, since overlaps with multiple entries
-> > alone can be handled without such repeating.
-> > 
-> > There is no functional change in this patch.
-> > 
-> > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-> > ---
-> >  arch/x86/kernel/cpu/mtrr/generic.c |  137 +++++++++++++++++++++++-------------
-> >  1 file changed, 86 insertions(+), 51 deletions(-)
-> > 
-> > diff --git a/arch/x86/kernel/cpu/mtrr/generic.c b/arch/x86/kernel/cpu/mtrr/generic.c
-> > index 8bd1298..3652e2b 100644
-> > --- a/arch/x86/kernel/cpu/mtrr/generic.c
-> > +++ b/arch/x86/kernel/cpu/mtrr/generic.c
-> > @@ -102,55 +102,69 @@ static int check_type_overlap(u8 *prev, u8 *curr)
-> >  	return 0;
-> >  }
-> >  
-> > -/*
-> > - * Error/Semi-error returns:
-> > - * MTRR_TYPE_INVALID - when MTRR is not enabled
-> > - * *repeat == 1 implies [start:end] spanned across MTRR range and type returned
-> > - *		corresponds only to [start:*partial_end].
-> > - *		Caller has to lookup again for [*partial_end:end].
-> > +/**
-> > + * mtrr_type_lookup_fixed - look up memory type in MTRR fixed entries
-> > + *
-> > + * MTRR fixed entries are divided into the following ways:
-> > + *  0x00000 - 0x7FFFF : This range is divided into eight 64KB sub-ranges
-> > + *  0x80000 - 0xBFFFF : This range is divided into sixteen 16KB sub-ranges
-> > + *  0xC0000 - 0xFFFFF : This range is divided into sixty-four 4KB sub-ranges
-> 
-> No need for those - simply a pointer to either the SDM or APM manuals'
-> section suffices as they both describe it good.
+Hi Andi,
 
-Ingo asked me to describe this info here in his review...
+On 05/06/2015 02:57 PM, Andi Kleen wrote:
+> On Wed, May 06, 2015 at 02:31:58PM +0200, Michael Kerrisk (man-pages) wrote:
+>> Hi Andi,
+>>
+>> Brice's patch seems broadly okay to me, but you originally wrote the
+>> pages, so I'd be happy if you could comment. Could you take a look please?
+> 
+> Just s/process/thread/g ?
 
-> > + *
-> > + * Return Values:
-> > + * MTRR_TYPE_(type)  - Matched memory type
-> > + * MTRR_TYPE_INVALID - Unmatched or fixed entries are disabled
-> >   */
-> > -static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
-> > +static u8 mtrr_type_lookup_fixed(u64 start, u64 end)
-> > +{
-> > +	int idx;
-> > +
-> > +	if (start >= 0x100000)
-> > +		return MTRR_TYPE_INVALID;
-> > +
-> > +	if (!(mtrr_state.have_fixed) ||
-> > +	    !(mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED))
-> > +		return MTRR_TYPE_INVALID;
-> > +
-> > +	if (start < 0x80000) {		/* 0x0 - 0x7FFFF */
-> > +		idx = 0;
-> > +		idx += (start >> 16);
-> > +		return mtrr_state.fixed_ranges[idx];
-> > +
-> > +	} else if (start < 0xC0000) {	/* 0x80000 - 0xBFFFF */
-> > +		idx = 1 * 8;
-> > +		idx += ((start - 0x80000) >> 14);
-> > +		return mtrr_state.fixed_ranges[idx];
-> > +	}
-> > +
-> > +	/* 0xC0000 - 0xFFFFF */
-> > +	idx = 3 * 8;
-> > +	idx += ((start - 0xC0000) >> 12);
-> > +	return mtrr_state.fixed_ranges[idx];
-> > +}
-> > +
-> > +/**
-> > + * mtrr_type_lookup_variable - look up memory type in MTRR variable entries
-> > + *
-> > + * Return Value:
-> > + * MTRR_TYPE_(type) - Matched memory type or default memory type (unmatched)
-> > + *
-> > + * Output Argument:
-> > + * repeat - Set to 1 when [start:end] spanned across MTRR range and type
-> > + *	    returned corresponds only to [start:*partial_end].  Caller has
-> > + *	    to lookup again for [*partial_end:end].
-> > + */
-> > +static u8 mtrr_type_lookup_variable(u64 start, u64 end, u64 *partial_end,
-> > +				    int *repeat)
-> >  {
-> >  	int i;
-> >  	u64 base, mask;
-> >  	u8 prev_match, curr_match;
-> >  
-> >  	*repeat = 0;
-> > -	if (!mtrr_state_set)
-> > -		return MTRR_TYPE_INVALID;
-> > -
-> > -	if (!(mtrr_state.enabled & MTRR_STATE_MTRR_ENABLED))
-> > -		return MTRR_TYPE_INVALID;
-> >  
-> >  	/* Make end inclusive end, instead of exclusive */
-> >  	end--;
-> >  
-> > -	/* Look in fixed ranges. Just return the type as per start */
-> > -	if ((start < 0x100000) &&
-> > -	    (mtrr_state.have_fixed) &&
-> > -	    (mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED)) {
-> > -		int idx;
-> > -
-> > -		if (start < 0x80000) {
-> > -			idx = 0;
-> > -			idx += (start >> 16);
-> > -			return mtrr_state.fixed_ranges[idx];
-> > -		} else if (start < 0xC0000) {
-> > -			idx = 1 * 8;
-> > -			idx += ((start - 0x80000) >> 14);
-> > -			return mtrr_state.fixed_ranges[idx];
-> > -		} else {
-> > -			idx = 3 * 8;
-> > -			idx += ((start - 0xC0000) >> 12);
-> > -			return mtrr_state.fixed_ranges[idx];
-> > -		}
-> > -	}
-> > -
-> > -	/*
-> > -	 * Look in variable ranges
-> > -	 * Look of multiple ranges matching this address and pick type
-> > -	 * as per MTRR precedence
-> > -	 */
-> >  	prev_match = MTRR_TYPE_INVALID;
-> >  	for (i = 0; i < num_var_ranges; ++i) {
-> >  		unsigned short start_state, end_state, inclusive;
-> > @@ -179,7 +193,8 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
-> >  			 * Return the type for first region and a pointer to
-> >  			 * the start of second region so that caller will
-> >  			 * lookup again on the second region.
-> > -			 * Note: This way we handle multiple overlaps as well.
-> > +			 * Note: This way we handle overlaps with multiple
-> > +			 * entries and the default type properly.
-> >  			 */
-> >  			if (start_state)
-> >  				*partial_end = base + get_mtrr_size(mask);
-> > @@ -208,21 +223,18 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
-> >  			return curr_match;
-> >  	}
-> >  
-> > -	if (mtrr_tom2) {
-> > -		if (start >= (1ULL<<32) && (end < mtrr_tom2))
-> > -			return MTRR_TYPE_WRBACK;
-> > -	}
-> > -
-> >  	if (prev_match != MTRR_TYPE_INVALID)
-> >  		return prev_match;
-> >  
-> >  	return mtrr_state.def_type;
-> >  }
-> >  
-> > -/*
-> > - * Returns the effective MTRR type for the region
-> > - * Error return:
-> > - * MTRR_TYPE_INVALID - when MTRR is not enabled
-> > +/**
-> > + * mtrr_type_lookup - look up memory type in MTRR
-> > + *
-> > + * Return Values:
-> > + * MTRR_TYPE_(type)  - The effective MTRR type for the region
-> > + * MTRR_TYPE_INVALID - MTRR is disabled
-> >   */
-> >  u8 mtrr_type_lookup(u64 start, u64 end)
-> >  {
-> > @@ -230,22 +242,45 @@ u8 mtrr_type_lookup(u64 start, u64 end)
-> >  	int repeat;
-> >  	u64 partial_end;
-> >  
-> > -	type = __mtrr_type_lookup(start, end, &partial_end, &repeat);
-> > +	if (!mtrr_state_set)
-> > +		return MTRR_TYPE_INVALID;
-> > +
-> > +	if (!(mtrr_state.enabled & MTRR_STATE_MTRR_ENABLED))
-> > +		return MTRR_TYPE_INVALID;
-> > +
-> > +	/*
-> > +	 * Look up the fixed ranges first, which take priority over
-> > +	 * the variable ranges.
-> > +	 */
-> > +	type = mtrr_type_lookup_fixed(start, end);
-> > +	if (type != MTRR_TYPE_INVALID)
-> > +		return type;
-> 
-> Huh, why are we not looking at start?
-> 
-> I mean, fixed MTRRs cover the first 1MB so we can simply do:
-> 
->         if ((start < 0x100000) &&
->             (mtrr_state.have_fixed) &&
->             (mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED))
-> 		return mtrr_type_lookup_fixed(start, end);
+No, it doesn't seem to be quite that. Brice, can you say a little more here?
 
-mtrr_type_lookup_fixed() checks the above conditions at entry, and
-returns immediately with TYPE_INVALID.  I think it is safer to have such
-checks in mtrr_type_lookup_fixed() in case there will be multiple
-callers.
+> The distinction between process and thread is fuzzy in Linux of course,
+> but i suppose it matches the user's terms better.
+> 
+> Fine for me.
 
-> and for all the other ranges we would do the variable lookup:
-> 
-> 	type = mtrr_type_lookup_variable(start, end, &partial_end, &repeat);
-> 	...
-> 
-> ?
-> 
-> Although I don't know what the code is supposed to do when a region
-> starts in the fixed range and overlaps its end, i,e, something like
-> that:
-> 
-> 	[ start ... 0x100000 ... end ]
-> 
-> The current code would return a fixed range index and that would be not
-> really correct.
-> 
-> OTOH, this has been like this forever so maybe we don't care...
+Okay -- I'll await further input from Brice, and then apply.
 
-Right, and there is more.  As the original code had comment "Just return
-the type as per start", which I noticed that I had accidentally removed,
-the code only returns the type of the start address.  The fixed ranges
-have multiple entries with different types.  Hence, a given range may
-overlap with multiple fixed entries.  I will restore the comment in the
-function header to clarify this limitation.
+Cheers,
 
-Thanks,
--Toshi
+Michael
 
+
+>> Cheers,
+>>
+>> Michael
+>>
+>>
+>> On 04/30/2015 12:31 PM, Brice Goglin wrote:
+>>> Hello,
+>>>
+>>> set/get_mempolicy manpages say that the memory allocation policy is
+>>> per process while reading the code and testing shows that it's actually
+>>> per thread.
+>>> Here's a quick fix, which may need to be improved to better explain that we're
+>>> allocating in the context of a thread within a process address space.
+>>>
+>>> Brice
+>>>  
+>>>
+>>>
+>>>
+>>>
+>>>
+>>> set/get_mempolicy.2: policy is per thread, not per process
+>>>
+>>> Signed-off-by: Brice Goglin <Brice.Goglin@inria.fr>
+>>>
+>>> diff --git a/man2/get_mempolicy.2 b/man2/get_mempolicy.2
+>>> index a17c0f3..c0e9639 100644
+>>> --- a/man2/get_mempolicy.2
+>>> +++ b/man2/get_mempolicy.2
+>>> @@ -26,7 +26,7 @@
+>>>  .\"
+>>>  .TH GET_MEMPOLICY 2 2008-08-15 Linux "Linux Programmer's Manual"
+>>>  .SH NAME
+>>> -get_mempolicy \- retrieve NUMA memory policy for a process
+>>> +get_mempolicy \- retrieve NUMA memory policy for a thread
+>>>  .SH SYNOPSIS
+>>>  .B "#include <numaif.h>"
+>>>  .nf
+>>> @@ -39,19 +39,19 @@ Link with \fI\-lnuma\fP.
+>>>  .fi
+>>>  .SH DESCRIPTION
+>>>  .BR get_mempolicy ()
+>>> -retrieves the NUMA policy of the calling process or of a memory address,
+>>> +retrieves the NUMA policy of the calling thread or of a memory address,
+>>>  depending on the setting of
+>>>  .IR flags .
+>>>  
+>>>  A NUMA machine has different
+>>>  memory controllers with different distances to specific CPUs.
+>>>  The memory policy defines from which node memory is allocated for
+>>> -the process.
+>>> +the thread.
+>>>  
+>>>  If
+>>>  .I flags
+>>>  is specified as 0,
+>>> -then information about the calling process's default policy
+>>> +then information about the calling thread's default policy
+>>>  (as set by
+>>>  .BR set_mempolicy (2))
+>>>  is returned.
+>>> @@ -59,7 +59,7 @@ The policy returned
+>>>  .RI [ mode
+>>>  and
+>>>  .IR nodemask ]
+>>> -may be used to restore the process's policy to its state at
+>>> +may be used to restore the thread's policy to its state at
+>>>  the time of the call to
+>>>  .BR get_mempolicy ()
+>>>  using
+>>> @@ -72,7 +72,7 @@ specifies
+>>>  (available since Linux 2.6.24), the
+>>>  .I mode
+>>>  argument is ignored and the set of nodes [memories] that the
+>>> -process is allowed to specify in subsequent calls to
+>>> +thread is allowed to specify in subsequent calls to
+>>>  .BR mbind (2)
+>>>  or
+>>>  .BR set_mempolicy (2)
+>>> @@ -94,7 +94,7 @@ specifies
+>>>  then information is returned about the policy governing the memory
+>>>  address given in
+>>>  .IR addr .
+>>> -This policy may be different from the process's default policy if
+>>> +This policy may be different from the thread's default policy if
+>>>  .BR mbind (2)
+>>>  or one of the helper functions described in
+>>>  .BR numa (3)
+>>> @@ -135,7 +135,7 @@ is allocated into the location pointed to by
+>>>  .IR mode .
+>>>  If no page has yet been allocated for the specified address,
+>>>  .BR get_mempolicy ()
+>>> -will allocate a page as if the process had performed a read
+>>> +will allocate a page as if the thread had performed a read
+>>>  [load] access to that address, and return the ID of the node
+>>>  where that page was allocated.
+>>>  
+>>> @@ -145,7 +145,7 @@ specifies
+>>>  .BR MPOL_F_NODE ,
+>>>  but not
+>>>  .BR MPOL_F_ADDR ,
+>>> -and the process's current policy is
+>>> +and the thread's current policy is
+>>>  .BR MPOL_INTERLEAVE ,
+>>>  then
+>>>  .BR get_mempolicy ()
+>>> @@ -153,7 +153,7 @@ will return in the location pointed to by a non-NULL
+>>>  .I mode
+>>>  argument,
+>>>  the node ID of the next node that will be used for
+>>> -interleaving of internal kernel pages allocated on behalf of the process.
+>>> +interleaving of internal kernel pages allocated on behalf of the thread.
+>>>  .\" Note:  code returns next interleave node via 'mode' argument -Lee Schermerhorn
+>>>  These allocations include pages for memory-mapped files in
+>>>  process memory ranges mapped using the
+>>> @@ -214,7 +214,7 @@ specified
+>>>  .B MPOL_F_NODE
+>>>  but not
+>>>  .B MPOL_F_ADDR
+>>> -and the current process policy is not
+>>> +and the current thread policy is not
+>>>  .BR MPOL_INTERLEAVE .
+>>>  Or,
+>>>  .I flags
+>>> diff --git a/man2/set_mempolicy.2 b/man2/set_mempolicy.2
+>>> index 9d7d1de..f5169da 100644
+>>> --- a/man2/set_mempolicy.2
+>>> +++ b/man2/set_mempolicy.2
+>>> @@ -26,7 +26,7 @@
+>>>  .\"
+>>>  .TH SET_MEMPOLICY 2 2014-05-28 Linux "Linux Programmer's Manual"
+>>>  .SH NAME
+>>> -set_mempolicy \- set default NUMA memory policy for a process and its children
+>>> +set_mempolicy \- set default NUMA memory policy for a thread and its children
+>>>  .SH SYNOPSIS
+>>>  .nf
+>>>  .B "#include <numaif.h>"
+>>> @@ -38,7 +38,7 @@ Link with \fI\-lnuma\fP.
+>>>  .fi
+>>>  .SH DESCRIPTION
+>>>  .BR set_mempolicy ()
+>>> -sets the NUMA memory policy of the calling process,
+>>> +sets the NUMA memory policy of the calling thread,
+>>>  which consists of a policy mode and zero or more nodes,
+>>>  to the values specified by the
+>>>  .IR mode ,
+>>> @@ -50,28 +50,28 @@ arguments.
+>>>  A NUMA machine has different
+>>>  memory controllers with different distances to specific CPUs.
+>>>  The memory policy defines from which node memory is allocated for
+>>> -the process.
+>>> +the thread.
+>>>  
+>>> -This system call defines the default policy for the process.
+>>> -The process policy governs allocation of pages in the process's
+>>> +This system call defines the default policy for the thread.
+>>> +The thread policy governs allocation of pages in the process's
+>>>  address space outside of memory ranges
+>>>  controlled by a more specific policy set by
+>>>  .BR mbind (2).
+>>> -The process default policy also controls allocation of any pages for
+>>> +The thread default policy also controls allocation of any pages for
+>>>  memory-mapped files mapped using the
+>>>  .BR mmap (2)
+>>>  call with the
+>>>  .B MAP_PRIVATE
+>>> -flag and that are only read [loaded] from by the process
+>>> +flag and that are only read [loaded] from by the thread
+>>>  and of memory-mapped files mapped using the
+>>>  .BR mmap (2)
+>>>  call with the
+>>>  .B MAP_SHARED
+>>>  flag, regardless of the access type.
+>>>  The policy is applied only when a new page is allocated
+>>> -for the process.
+>>> +for the thread.
+>>>  For anonymous memory this is when the page is first
+>>> -touched by the application.
+>>> +touched by the thread.
+>>>  
+>>>  The
+>>>  .I mode
+>>> @@ -154,7 +154,7 @@ cpuset context includes one or more of the nodes specified by
+>>>  
+>>>  The
+>>>  .B MPOL_DEFAULT
+>>> -mode specifies that any nondefault process memory policy be removed,
+>>> +mode specifies that any nondefault thread memory policy be removed,
+>>>  so that the memory policy "falls back" to the system default policy.
+>>>  The system default policy is "local allocation"\(emthat is,
+>>>  allocate memory on the node of the CPU that triggered the allocation.
+>>> @@ -211,9 +211,9 @@ arguments specify the empty set, then the policy
+>>>  specifies "local allocation"
+>>>  (like the system default policy discussed above).
+>>>  
+>>> -The process memory policy is preserved across an
+>>> +The thread memory policy is preserved across an
+>>>  .BR execve (2),
+>>> -and is inherited by child processes created using
+>>> +and is inherited by child threads created using
+>>>  .BR fork (2)
+>>>  or
+>>>  .BR clone (2).
+>>> @@ -279,9 +279,9 @@ system call was added to the Linux kernel in version 2.6.7.
+>>>  .SH CONFORMING TO
+>>>  This system call is Linux-specific.
+>>>  .SH NOTES
+>>> -Process policy is not remembered if the page is swapped out.
+>>> +Memory policy is not remembered if the page is swapped out.
+>>>  When such a page is paged back in, it will use the policy of
+>>> -the process or memory range that is in effect at the time the
+>>> +the thread or memory range that is in effect at the time the
+>>>  page is allocated.
+>>>  
+>>>  For information on library support, see
+>>>
+>>>
+>>
+>>
+>> -- 
+>> Michael Kerrisk
+>> Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+>> Linux/UNIX System Programming Training: http://man7.org/training/
+>>
+> 
+
+
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
