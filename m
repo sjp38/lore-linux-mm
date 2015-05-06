@@ -1,77 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id E53B96B009A
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 13:58:48 -0400 (EDT)
-Received: by obblk2 with SMTP id lk2so13177643obb.0
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 10:58:48 -0700 (PDT)
-Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
-        by mx.google.com with ESMTPS id u8si12403719oie.22.2015.05.06.10.58.48
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 1715A6B009B
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 13:58:51 -0400 (EDT)
+Received: by wgyo15 with SMTP id o15so20053292wgy.2
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 10:58:50 -0700 (PDT)
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com. [195.75.94.108])
+        by mx.google.com with ESMTPS id sa4si35185181wjb.60.2015.05.06.10.50.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 May 2015 10:58:48 -0700 (PDT)
-Message-ID: <554A5655.6060108@hp.com>
-Date: Wed, 06 May 2015 13:58:45 -0400
-From: Waiman Long <waiman.long@hp.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
-References: <1430231830-7702-1-git-send-email-mgorman@suse.de> <554030D1.8080509@hp.com> <5543F802.9090504@hp.com> <554415B1.2050702@hp.com> <20150504143046.9404c572486caf71bdef0676@linux-foundation.org> <20150505104514.GC2462@suse.de> <20150505130255.49ff76bbf0a3b32d884ab2ce@linux-foundation.org> <20150505221329.GE2462@suse.de> <20150505152549.037679566fad8c593df176ed@linux-foundation.org> <20150506071246.GF2462@suse.de> <20150506102220.GH2462@suse.de>
-In-Reply-To: <20150506102220.GH2462@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Wed, 06 May 2015 10:50:57 -0700 (PDT)
+Received: from /spool/local
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dahi@linux.vnet.ibm.com>;
+	Wed, 6 May 2015 18:50:56 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 031632190061
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 18:50:35 +0100 (BST)
+Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t46HormX49086620
+	for <linux-mm@kvack.org>; Wed, 6 May 2015 17:50:53 GMT
+Received: from d06av05.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t46Hoptw028067
+	for <linux-mm@kvack.org>; Wed, 6 May 2015 11:50:52 -0600
+From: David Hildenbrand <dahi@linux.vnet.ibm.com>
+Subject: [PATCH RFC 15/15] uaccess: decouple preemption from the pagefault logic
+Date: Wed,  6 May 2015 19:50:39 +0200
+Message-Id: <1430934639-2131-16-git-send-email-dahi@linux.vnet.ibm.com>
+In-Reply-To: <1430934639-2131-1-git-send-email-dahi@linux.vnet.ibm.com>
+References: <1430934639-2131-1-git-send-email-dahi@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: dahi@linux.vnet.ibm.com, mingo@redhat.com, peterz@infradead.org, yang.shi@windriver.com, bigeasy@linutronix.de, benh@kernel.crashing.org, paulus@samba.org, akpm@linux-foundation.org, heiko.carstens@de.ibm.com, schwidefsky@de.ibm.com, borntraeger@de.ibm.com, mst@redhat.com, tglx@linutronix.de, David.Laight@ACULAB.COM, hughd@google.com, hocko@suse.cz, ralf@linux-mips.org, herbert@gondor.apana.org.au, linux@arm.linux.org.uk, airlied@linux.ie, daniel.vetter@intel.com, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-On 05/06/2015 06:22 AM, Mel Gorman wrote:
-> On Wed, May 06, 2015 at 08:12:46AM +0100, Mel Gorman wrote:
->> On Tue, May 05, 2015 at 03:25:49PM -0700, Andrew Morton wrote:
->>> On Tue, 5 May 2015 23:13:29 +0100 Mel Gorman<mgorman@suse.de>  wrote:
->>>
->>>>> Alternatively, the page allocator can go off and synchronously
->>>>> initialize some pageframes itself.  Keep doing that until the
->>>>> allocation attempt succeeds.
->>>>>
->>>> That was rejected during review of earlier attempts at this feature on
->>>> the grounds that it impacted allocator fast paths.
->>> eh?  Changes are only needed on the allocation-attempt-failed path,
->>> which is slow-path.
->> We'd have to distinguish between falling back to other zones because the
->> high zone is artifically exhausted and normal ALLOC_BATCH exhaustion. We'd
->> also have to avoid falling back to remote nodes prematurely. While I have
->> not tried an implementation, I expected they would need to be in the fast
->> paths unless I used jump labels to get around it. I'm going to try altering
->> when we initialise instead so that it happens earlier.
->>
-> Which looks as follows. Waiman, a test on the 24TB machine would be
-> appreciated again. This patch should be applied instead of "mm: meminit:
-> Take into account that large system caches scale linearly with memory"
->
-> ---8<---
-> mm: meminit: Finish initialisation of memory before basic setup
->
-> Waiman Long reported that 24TB machines hit OOM during basic setup when
-> struct page initialisation was deferred. One approach is to initialise memory
-> on demand but it interferes with page allocator paths. This patch creates
-> dedicated threads to initialise memory before basic setup. It then blocks
-> on a rw_semaphore until completion as a wait_queue and counter is overkill.
-> This may be slower to boot but it's simplier overall and also gets rid of a
-> lot of section mangling which existed so kswapd could do the initialisation.
->
-> Signed-off-by: Mel Gorman<mgorman@suse.de>
->
+As the fault handlers now all rely on the pagefault_disabled() checks
+and implicit preempt_disable() calls by pagefault_disable() have been
+made explicit, we can completely rely on the pagefault_disableD counter.
 
-This patch moves the deferred meminit from kswapd to its own kernel 
-threads started after smp_init(). However, the hash table allocation was 
-done earlier than that. It seems like it will still run out of memory in 
-the 24TB machine that I tested on.
+So let's no longer touch the preempt count when disabling/enabling
+pagefaults. After a call to pagefault_disable(), pagefault_disabled()
+will return true, but in_atomic() won't.
 
-I will certainly try it out, but I doubt it will solve the problem on 
-its own.
+Signed-off-by: David Hildenbrand <dahi@linux.vnet.ibm.com>
+---
+ include/linux/uaccess.h | 16 ++--------------
+ 1 file changed, 2 insertions(+), 14 deletions(-)
 
-Cheers,
-Longman
-
+diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
+index 23290cc..83f2a7b 100644
+--- a/include/linux/uaccess.h
++++ b/include/linux/uaccess.h
+@@ -1,7 +1,6 @@
+ #ifndef __LINUX_UACCESS_H__
+ #define __LINUX_UACCESS_H__
+ 
+-#include <linux/preempt.h>
+ #include <linux/sched.h>
+ #include <asm/uaccess.h>
+ 
+@@ -20,17 +19,11 @@ static __always_inline void pagefault_disabled_dec(void)
+  * These routines enable/disable the pagefault handler. If disabled, it will
+  * not take any locks and go straight to the fixup table.
+  *
+- * We increase the preempt and the pagefault count, to be able to distinguish
+- * whether we run in simple atomic context or in a real pagefault_disable()
+- * context.
+- *
+- * For now, after pagefault_disabled() has been called, we run in atomic
+- * context. User access methods will not sleep.
+- *
++ * User access methods will not sleep when called from a pagefault_disabled()
++ * environment.
+  */
+ static inline void pagefault_disable(void)
+ {
+-	preempt_count_inc();
+ 	pagefault_disabled_inc();
+ 	/*
+ 	 * make sure to have issued the store before a pagefault
+@@ -47,11 +40,6 @@ static inline void pagefault_enable(void)
+ 	 */
+ 	barrier();
+ 	pagefault_disabled_dec();
+-#ifndef CONFIG_PREEMPT
+-	preempt_count_dec();
+-#else
+-	preempt_enable();
+-#endif
+ }
+ 
+ /*
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
