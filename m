@@ -1,75 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id BFAE56B0070
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 19:30:26 -0400 (EDT)
-Received: by pacyx8 with SMTP id yx8so22722978pac.1
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 16:30:26 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v3si358353pdr.19.2015.05.06.16.30.25
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 39C5D6B0032
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 19:59:41 -0400 (EDT)
+Received: by qgeb100 with SMTP id b100so13259252qge.3
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 16:59:41 -0700 (PDT)
+Received: from relay4-d.mail.gandi.net (relay4-d.mail.gandi.net. [2001:4b98:c:538::196])
+        by mx.google.com with ESMTPS id 7si383435qgx.48.2015.05.06.16.59.40
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 May 2015 16:30:25 -0700 (PDT)
-Date: Wed, 6 May 2015 16:30:24 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/3] x86, mirror: x86 enabling - find mirrored memory
- ranges
-Message-Id: <20150506163024.ba4a8eddc8031e5d32b061ba@linux-foundation.org>
-In-Reply-To: <b28413d7e10a07406d87f8b48c7ea54e53273691.1430772743.git.tony.luck@intel.com>
-References: <cover.1430772743.git.tony.luck@intel.com>
-	<b28413d7e10a07406d87f8b48c7ea54e53273691.1430772743.git.tony.luck@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 06 May 2015 16:59:40 -0700 (PDT)
+Date: Wed, 6 May 2015 16:59:36 -0700
+From: josh@joshtriplett.org
+Subject: Re: [CONFIG_MULTIUSER] BUG: unable to handle kernel paging request
+ at ffffffee
+Message-ID: <20150506235936.GB23822@cloud>
+References: <20150428004320.GA19623@wfg-t540p.sh.intel.com>
+ <20150506090850.GA30187@wfg-t540p.sh.intel.com>
+ <20150506154429.GA21798@x>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150506154429.GA21798@x>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Iulia Manda <iulia.manda21@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, LKP <lkp@01.org>, linux-kernel@vger.kernel.org
 
-On Tue, 3 Feb 2015 14:40:19 -0800 Tony Luck <tony.luck@intel.com> wrote:
-
-> UEFI GetMemoryMap() uses a new attribute bit to mark mirrored memory
-> address ranges. See UEFI 2.5 spec pages 157-158:
+On Wed, May 06, 2015 at 08:44:29AM -0700, Josh Triplett wrote:
+> On Wed, May 06, 2015 at 05:08:50PM +0800, Fengguang Wu wrote:
+> > FYI, the reported bug is still not fixed in linux-next 20150506.
 > 
->   http://www.uefi.org/sites/default/files/resources/UEFI%202_5.pdf
+> This isn't the same bug.  The previous one you mentioned was a userspace
+> assertion failure in libnih, likely caused because some part of upstart
+> didn't have appropriate error handling for some syscall returning
+> ENOSYS; that one wasn't an issue, since CONFIG_MULTIUSER=n is not
+> expected to boot a standard Linux distribution.
 > 
-> On EFI enabled systems scan the memory map and tell memblock about
-> any mirrored ranges.
+> This one, on the other hand, is a kernel panic, and does need fixing.
 > 
-> ...
->
-> --- a/arch/x86/platform/efi/efi.c
-> +++ b/arch/x86/platform/efi/efi.c
-> @@ -117,6 +117,27 @@ void efi_get_time(struct timespec *now)
->  	now->tv_nsec = 0;
->  }
->  
-> +void __init efi_find_mirror(void)
-> +{
-> +	void *p;
-> +	unsigned long long mirror_size = 0, total_size = 0;
-> +
-> +	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-> +		efi_memory_desc_t *md = p;
-> +		unsigned long long start = md->phys_addr;
-> +		unsigned long long size = md->num_pages << EFI_PAGE_SHIFT;
+> > commit 2813893f8b197a14f1e1ddb04d99bce46817c84a
+> > 
+> > +-----------------------------------------------------------+------------+------------+------------+
+> > |                                                           | c79574abe2 | 2813893f8b | cbdacaf0c1 |
+> > +-----------------------------------------------------------+------------+------------+------------+
+> > | boot_successes                                            | 60         | 0          | 0          |
+> > | boot_failures                                             | 0          | 22         | 1064       |
+> > | BUG:unable_to_handle_kernel                               | 0          | 22         | 1032       |
+> > | Oops                                                      | 0          | 22         | 1032       |
+> > | EIP_is_at_devpts_new_index                                | 0          | 22         | 1032       |
+> > | Kernel_panic-not_syncing:Fatal_exception                  | 0          | 22         | 1032       |
+> > | backtrace:do_sys_open                                     | 0          | 22         | 1032       |
+> > | backtrace:SyS_open                                        | 0          | 22         | 1032       |
+> > | WARNING:at_arch/x86/kernel/fpu/core.c:#fpu__clear()       | 0          | 0          | 32         |
+> > | Kernel_panic-not_syncing:Attempted_to_kill_init!exitcode= | 0          | 0          | 32         |
+> > +-----------------------------------------------------------+------------+------------+------------+
+> 
+> Is this table saying the number of times the type of error in the first
+> column occurred in each commit?
+> 
+> In any case, investigating.  Iulia, can you look at this as well?
+> 
+> I'm digging through the call stack, and I'm having a hard time seeing
+> how the CONFIG_MULTIUSER patch could affect anything here.
 
-efi_memory_desc_t uses u64 for all this stuff.  Was there a reason for
-using ull instead?
+Update: it looks like init_devpts_fs is getting ERR_PTR(-EINVAL) back
+from kern_mount and storing that in devpts_mnt; later, devpts_new_index
+pokes at devpts_mnt and explodes.
 
-> +		total_size += size;
-> +		if (md->attribute & EFI_MEMORY_MORE_RELIABLE) {
-> +			memblock_mark_mirror(start, size);
-> +			mirror_size += size;
-> +		}
-> +	}
-> +	if (mirror_size)
-> +		pr_info("Memory: %lldM/%lldM mirrored memory\n",
-> +			mirror_size>>20, total_size>>20);
-> +}
-> +
->
-> ...
->
+So, there are two separate bugs here.  On the one hand, CONFIG_MULTIUSER
+should not be causing kern_mount to fail with -EINVAL; tracking that
+down now.  On the other hand, devpts and ptmx should handle the failure
+better, without crashing; ptmx_open should have gracefully failed back
+to userspace with -ENODEV or something, since ptmx doesn't make sense
+without devpts.  I'll send a patch for that too.
+
+- Josh Triplett
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
