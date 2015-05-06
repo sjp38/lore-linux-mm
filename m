@@ -1,101 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 18DD26B0038
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 07:47:11 -0400 (EDT)
-Received: by wief7 with SMTP id f7so123379999wie.0
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 04:47:10 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id o2si1823460wic.59.2015.05.06.04.47.09
-        for <linux-mm@kvack.org>;
-        Wed, 06 May 2015 04:47:09 -0700 (PDT)
-Date: Wed, 6 May 2015 13:47:05 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v4 4/7] mtrr, x86: Fix MTRR state checks in
- mtrr_type_lookup()
-Message-ID: <20150506114705.GD22949@pd.tnic>
-References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
- <1427234921-19737-5-git-send-email-toshi.kani@hp.com>
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id BB10C6B0038
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 07:59:44 -0400 (EDT)
+Received: by wgso17 with SMTP id o17so8921891wgs.1
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 04:59:44 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gy3si1064899wjc.211.2015.05.06.04.59.42
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 06 May 2015 04:59:43 -0700 (PDT)
+Date: Wed, 6 May 2015 13:59:41 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/2] gfp: add __GFP_NOACCOUNT
+Message-ID: <20150506115941.GH14550@dhcp22.suse.cz>
+References: <fdf631b3fa95567a830ea4f3e19d0b3b2fc99662.1430819044.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1427234921-19737-5-git-send-email-toshi.kani@hp.com>
+In-Reply-To: <fdf631b3fa95567a830ea4f3e19d0b3b2fc99662.1430819044.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Mar 24, 2015 at 04:08:38PM -0600, Toshi Kani wrote:
-> 'mtrr_state.enabled' contains the FE (fixed MTRRs enabled)
-> and E (MTRRs enabled) flags in MSR_MTRRdefType.  Intel SDM,
-> section 11.11.2.1, defines these flags as follows:
->  - All MTRRs are disabled when the E flag is clear.
->    The FE flag has no affect when the E flag is clear.
->  - The default type is enabled when the E flag is set.
->  - MTRR variable ranges are enabled when the E flag is set.
->  - MTRR fixed ranges are enabled when both E and FE flags
->    are set.
-> 
-> MTRR state checks in __mtrr_type_lookup() do not match with
-> SDM.  Hence, this patch makes the following changes:
->  - The current code detects MTRRs disabled when both E and
->    FE flags are clear in mtrr_state.enabled.  Fix to detect
->    MTRRs disabled when the E flag is clear.
->  - The current code does not check if the FE bit is set in
->    mtrr_state.enabled when looking into the fixed entries.
->    Fix to check the FE flag.
->  - The current code returns the default type when the E flag
->    is clear in mtrr_state.enabled.  However, the default type
->    is also disabled when the E flag is clear.  Fix to remove
->    the code as this case is handled as MTRR disabled with
->    the 1st change.
-> 
-> In addition, this patch defines the E and FE flags in
-> mtrr_state.enabled as follows.
->  - FE flag: MTRR_STATE_MTRR_FIXED_ENABLED
->  - E  flag: MTRR_STATE_MTRR_ENABLED
-> 
-> print_mtrr_state() is also updated accordingly.
-> 
-> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+On Tue 05-05-15 12:45:42, Vladimir Davydov wrote:
+> Not all kmem allocations should be accounted to memcg. The following
+> patch gives an example when accounting of a certain type of allocations
+> to memcg can effectively result in a memory leak.
+
+> This patch adds the __GFP_NOACCOUNT flag which if passed to kmalloc
+> and friends will force the allocation to go through the root
+> cgroup. It will be used by the next patch.
+
+The name of the flag is way too generic. It is not clear that the
+accounting is KMEMCG related. __GFP_NO_KMEMCG sounds better?
+
+I was going to suggest doing per-cache rather than gfp flag and that
+would actually work just fine for the kmemleak as it uses its own cache
+already. But the ida_simple_get would be trickier because it doesn't use
+any special cache and more over only one user seem to have a problem so
+this doesn't sound like a good fit.
+
+So I do not object to opt-out for kmemcg accounting but I really think
+the name should be changed.
+
+> Note, since in case of kmemleak enabled each kmalloc implies yet another
+> allocation from the kmemleak_object cache, we add __GFP_NOACCOUNT to
+> gfp_kmemleak_mask.
+
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 > ---
->  arch/x86/include/uapi/asm/mtrr.h   |    4 ++++
->  arch/x86/kernel/cpu/mtrr/generic.c |   15 ++++++++-------
->  2 files changed, 12 insertions(+), 7 deletions(-)
-
-You missed a spot in the conversion in
-arch/x86/kernel/cpu/mtrr/cleanup.c::x86_get_mtrr_mem_range():
-
-There we have
-
-	if (base < (1<<(20-PAGE_SHIFT)) && mtrr_state.have_fixed &&
-	    (mtrr_state.enabled & 1)) {
-
-which should be mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED.
-
-> diff --git a/arch/x86/include/uapi/asm/mtrr.h b/arch/x86/include/uapi/asm/mtrr.h
-> index d0acb65..66ba88d 100644
-> --- a/arch/x86/include/uapi/asm/mtrr.h
-> +++ b/arch/x86/include/uapi/asm/mtrr.h
-> @@ -88,6 +88,10 @@ struct mtrr_state_type {
->         mtrr_type def_type;
->  };
+>  include/linux/gfp.h        |    2 ++
+>  include/linux/memcontrol.h |    4 ++++
+>  mm/kmemleak.c              |    3 ++-
+>  3 files changed, 8 insertions(+), 1 deletion(-)
 > 
-> +/* Bit fields for enabled in struct mtrr_state_type */
-> +#define MTRR_STATE_MTRR_FIXED_ENABLED  0x01
-> +#define MTRR_STATE_MTRR_ENABLED                0x02
-> +
->  #define MTRRphysBase_MSR(reg) (0x200 + 2 * (reg))
->  #define MTRRphysMask_MSR(reg) (0x200 + 2 * (reg) + 1)
-
-Please add those to arch/x86/include/asm/mtrr.h instead. They have no
-place in the uapi header.
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 97a9373e61e8..37c422df2a0f 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -30,6 +30,7 @@ struct vm_area_struct;
+>  #define ___GFP_HARDWALL		0x20000u
+>  #define ___GFP_THISNODE		0x40000u
+>  #define ___GFP_RECLAIMABLE	0x80000u
+> +#define ___GFP_NOACCOUNT	0x100000u
+>  #define ___GFP_NOTRACK		0x200000u
+>  #define ___GFP_NO_KSWAPD	0x400000u
+>  #define ___GFP_OTHER_NODE	0x800000u
+> @@ -87,6 +88,7 @@ struct vm_area_struct;
+>  #define __GFP_HARDWALL   ((__force gfp_t)___GFP_HARDWALL) /* Enforce hardwall cpuset memory allocs */
+>  #define __GFP_THISNODE	((__force gfp_t)___GFP_THISNODE)/* No fallback, no policies */
+>  #define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE) /* Page is reclaimable */
+> +#define __GFP_NOACCOUNT	((__force gfp_t)___GFP_NOACCOUNT) /* Don't account to memcg */
+>  #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
+>  
+>  #define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 72dff5fb0d0c..6c8918114804 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -463,6 +463,8 @@ memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
+>  	if (!memcg_kmem_enabled())
+>  		return true;
+>  
+> +	if (gfp & __GFP_NOACCOUNT)
+> +		return true;
+>  	/*
+>  	 * __GFP_NOFAIL allocations will move on even if charging is not
+>  	 * possible. Therefore we don't even try, and have this allocation
+> @@ -522,6 +524,8 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+>  {
+>  	if (!memcg_kmem_enabled())
+>  		return cachep;
+> +	if (gfp & __GFP_NOACCOUNT)
+> +		return cachep;
+>  	if (gfp & __GFP_NOFAIL)
+>  		return cachep;
+>  	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
+> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+> index 5405aff5a590..f0fe4f2c1fa7 100644
+> --- a/mm/kmemleak.c
+> +++ b/mm/kmemleak.c
+> @@ -115,7 +115,8 @@
+>  #define BYTES_PER_POINTER	sizeof(void *)
+>  
+>  /* GFP bitmask for kmemleak internal allocations */
+> -#define gfp_kmemleak_mask(gfp)	(((gfp) & (GFP_KERNEL | GFP_ATOMIC)) | \
+> +#define gfp_kmemleak_mask(gfp)	(((gfp) & (GFP_KERNEL | GFP_ATOMIC | \
+> +					   __GFP_NOACCOUNT)) | \
+>  				 __GFP_NORETRY | __GFP_NOMEMALLOC | \
+>  				 __GFP_NOWARN)
+>  
+> -- 
+> 1.7.10.4
+> 
 
 -- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
---
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
