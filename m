@@ -1,143 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E4216B0038
-	for <linux-mm@kvack.org>; Tue,  5 May 2015 22:47:38 -0400 (EDT)
-Received: by wgiu9 with SMTP id u9so39415486wgi.3
-        for <linux-mm@kvack.org>; Tue, 05 May 2015 19:47:38 -0700 (PDT)
-Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com. [2a00:1450:400c:c05::229])
-        by mx.google.com with ESMTPS id b10si31594283wjb.173.2015.05.05.19.47.36
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 90E076B0038
+	for <linux-mm@kvack.org>; Tue,  5 May 2015 23:39:14 -0400 (EDT)
+Received: by obbkp3 with SMTP id kp3so100033238obb.3
+        for <linux-mm@kvack.org>; Tue, 05 May 2015 20:39:14 -0700 (PDT)
+Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
+        by mx.google.com with ESMTPS id 145si11304233oib.136.2015.05.05.20.39.13
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 May 2015 19:47:37 -0700 (PDT)
-Received: by widdi4 with SMTP id di4so6187136wid.0
-        for <linux-mm@kvack.org>; Tue, 05 May 2015 19:47:36 -0700 (PDT)
-Date: Wed, 6 May 2015 04:47:32 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [GIT PULL 00/25] perf/core improvements and fixes
-Message-ID: <20150506024732.GA29486@gmail.com>
-References: <1430861539-30518-1-git-send-email-acme@kernel.org>
+        Tue, 05 May 2015 20:39:13 -0700 (PDT)
+Message-ID: <55498CDD.7010403@hp.com>
+Date: Tue, 05 May 2015 23:39:09 -0400
+From: Waiman Long <waiman.long@hp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1430861539-30518-1-git-send-email-acme@kernel.org>
+Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
+References: <1430231830-7702-1-git-send-email-mgorman@suse.de> <554030D1.8080509@hp.com> <5543F802.9090504@hp.com> <554415B1.2050702@hp.com> <20150504143046.9404c572486caf71bdef0676@linux-foundation.org> <20150505104514.GC2462@suse.de> <5548CBE8.5090203@hp.com> <20150505143102.GD2462@suse.de> <5548DB38.6080402@hp.com>
+In-Reply-To: <5548DB38.6080402@hp.com>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: linux-kernel@vger.kernel.org, Adrian Hunter <adrian.hunter@intel.com>, David Ahern <dsahern@gmail.com>, Frederic Weisbecker <fweisbec@gmail.com>, Jiri Olsa <jolsa@redhat.com>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Minchan Kim <minchan@kernel.org>, Namhyung Kim <namhyung@kernel.org>, Pekka Enberg <penberg@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Stephane Eranian <eranian@google.com>, Arnaldo Carvalho de Melo <acme@redhat.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
+On 05/05/2015 11:01 AM, Waiman Long wrote:
+> On 05/05/2015 10:31 AM, Mel Gorman wrote:
+>> On Tue, May 05, 2015 at 09:55:52AM -0400, Waiman Long wrote:
+>>> On 05/05/2015 06:45 AM, Mel Gorman wrote:
+>>>> On Mon, May 04, 2015 at 02:30:46PM -0700, Andrew Morton wrote:
+>>>>>> Before the patch, the boot time from elilo prompt to ssh login 
+>>>>>> was 694s.
+>>>>>> After the patch, the boot up time was 346s, a saving of 348s 
+>>>>>> (about 50%).
+>>>>> Having to guesstimate the amount of memory which is needed for a
+>>>>> successful boot will be painful.  Any number we choose will be wrong
+>>>>> 99% of the time.
+>>>>>
+>>>>> If the kswapd threads have started, all we need to do is to wait: 
+>>>>> take
+>>>>> a little nap in the allocator's page==NULL slowpath.
+>>>>>
+>>>>> I'm not seeing any reason why we can't start kswapd much earlier -
+>>>>> right at the start of do_basic_setup()?
+>>>> It doesn't even have to be kswapd, it just should be a thread 
+>>>> pinned to
+>>>> a done. The difficulty is that dealing with the system hashes means 
+>>>> the
+>>>> initialisation has to happen before vfs_caches_init_early() when 
+>>>> there is
+>>>> no scheduler. Those allocations could be delayed further but then 
+>>>> there is
+>>>> the possibility that the allocations would not be contiguous and 
+>>>> they'd
+>>>> have to rely on CMA to make the attempt. That potentially alters the
+>>>> performance of the large system hashes at run time.
+>>>>
+>>>> We can scale the amount initialised with memory sizes relatively easy.
+>>>> This boots on the same 1TB machine I was testing before but that is
+>>>> hardly a surprise.
+>>>>
+>>>> ---8<---
+>>>> mm: meminit: Take into account that large system caches scale 
+>>>> linearly with memory
+>>>>
+>>>> Waiman Long reported a 24TB machine triggered an OOM as parallel 
+>>>> memory
+>>>> initialisation deferred too much memory for initialisation. The likely
+>>>> consumer of this memory was large system hashes that scale with memory
+>>>> size. This patch initialises at least 2G per node but scales the 
+>>>> amount
+>>>> initialised for larger systems.
+>>>>
+>>>> Signed-off-by: Mel Gorman<mgorman@suse.de>
+>>>> ---
+>>>>   mm/page_alloc.c | 15 +++++++++++++--
+>>>>   1 file changed, 13 insertions(+), 2 deletions(-)
+>>>>
+>>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>>> index 598f78d6544c..f7cc6c9fb909 100644
+>>>> --- a/mm/page_alloc.c
+>>>> +++ b/mm/page_alloc.c
+>>>> @@ -266,15 +266,16 @@ static inline bool 
+>>>> early_page_nid_uninitialised(unsigned long pfn, int nid)
+>>>>    */
+>>>>   static inline bool update_defer_init(pg_data_t *pgdat,
+>>>>                   unsigned long pfn, unsigned long zone_end,
+>>>> +                unsigned long max_initialise,
+>>>>                   unsigned long *nr_initialised)
+>>>>   {
+>>>>       /* Always populate low zones for address-contrained 
+>>>> allocations */
+>>>>       if (zone_end<   pgdat_end_pfn(pgdat))
+>>>>           return true;
+>>>>
+>>>> -    /* Initialise at least 2G of the highest zone */
+>>>> +    /* Initialise at least the requested amount in the highest 
+>>>> zone */
+>>>>       (*nr_initialised)++;
+>>>> -    if (*nr_initialised>   (2UL<<   (30 - PAGE_SHIFT))&&
+>>>> +    if ((*nr_initialised>   max_initialise)&&
+>>>>       (pfn&   (PAGES_PER_SECTION - 1)) == 0) {
+>>>>           pgdat->first_deferred_pfn = pfn;
+>>>>           return false;
+>>>> @@ -299,6 +300,7 @@ static inline bool 
+>>>> early_page_nid_uninitialised(unsigned long pfn, int nid)
+>>>>
+>>>>   static inline bool update_defer_init(pg_data_t *pgdat,
+>>>>                   unsigned long pfn, unsigned long zone_end,
+>>>> +                unsigned long max_initialise,
+>>>>                   unsigned long *nr_initialised)
+>>>>   {
+>>>>       return true;
+>>>> @@ -4457,11 +4459,19 @@ void __meminit memmap_init_zone(unsigned 
+>>>> long size, int nid, unsigned long zone,
+>>>>       unsigned long end_pfn = start_pfn + size;
+>>>>       unsigned long pfn;
+>>>>       struct zone *z;
+>>>> +    unsigned long max_initialise;
+>>>>       unsigned long nr_initialised = 0;
+>>>>
+>>>>       if (highest_memmap_pfn<   end_pfn - 1)
+>>>>           highest_memmap_pfn = end_pfn - 1;
+>>>>
+>>>> +    /*
+>>>> +     * Initialise at least 2G of a node but also take into account 
+>>>> that
+>>>> +     * two large system hashes that can take up an 8th of memory.
+>>>> +     */
+>>>> +    max_initialise = min(2UL<<   (30 - PAGE_SHIFT),
+>>>> +            (pgdat->node_spanned_pages>>   3));
+>>>> +
+>>> I think you may be pre-allocating too much memory here. On the 24-TB
+>>> machine, the size of the dentry and inode hash tables were 16G each.
+>>> So the ratio is about is about 32G/24T = 0.13%. I think a shift
+>>> factor of (>>  8) which is about 0.39% should be more than enough.
+>> I was taking the most pessimistic value possible to match where those
+>> hashes currently get allocated from so that the locality does not change
+>> after the series is applied. Can you try both (>>  3) and (>>  8) and 
+>> see
+>> do both work and if so, what the timing is?
+>
+> Sure. I will try both and get you the results, hopefully by tomorrow 
+> at the latest.
+>
 
-* Arnaldo Carvalho de Melo <acme@kernel.org> wrote:
+With the modified patch, both (>>3) and (>>8) worked without any 
+problem. The bootup times are:
 
-> Hi Ingo,
-> 
-> 	Please consider applying, on top of previous requests,
-> 
-> - Arnaldo
-> 
-> The following changes since commit 0c160d495b5616e071bb4f873812e8f473128149:
-> 
->   perf kmem: Add kmem.default config option (2015-05-04 13:34:48 -0300)
-> 
-> are available in the git repository at:
-> 
->   git://git.kernel.org/pub/scm/linux/kernel/git/acme/linux.git tags/perf-core-for-mingo-3
-> 
-> for you to fetch changes up to 3698dab1c849c7e1cd440df4fca24baa1973d53b:
-> 
->   perf tools: Move TUI-specific fields out of map_symbol (2015-05-05 18:13:24 -0300)
-> 
-> ----------------------------------------------------------------
-> perf/core improvements and fixes:
-> 
-> User visible:
-> 
-> - Improve --filter support for 'perf probe', allowing using its arguments
->   on other commands, as --add, --del, etc (Masami Hiramatsu)
-> 
-> - Show warning when running 'perf kmem stat' on a unsuitable perf.data file,
->   i.e. one with events that are not the ones required for the stat variant
->   used (Namhyung Kim).
-> 
-> Infrastructure:
-> 
-> - Auxtrace support patches, paving the way to support Intel PT and BTS (Adrian Hunter)
-> 
-> - hists browser (top, report) refactorings (Namhyung Kim)
-> 
-> Signed-off-by: Arnaldo Carvalho de Melo <acme@redhat.com>
-> 
-> ----------------------------------------------------------------
-> Adrian Hunter (9):
->       perf report: Fix placement of itrace option in documentation
->       perf tools: Add AUX area tracing index
->       perf tools: Hit all build ids when AUX area tracing
->       perf tools: Add build option NO_AUXTRACE to exclude AUX area tracing
->       perf auxtrace: Add option to synthesize events for transactions
->       perf tools: Add support for PERF_RECORD_AUX
->       perf tools: Add support for PERF_RECORD_ITRACE_START
->       perf tools: Add AUX area tracing Snapshot Mode
->       perf record: Add AUX area tracing Snapshot Mode support
-> 
-> Masami Hiramatsu (4):
->       perf probe: Allow to use filter on --del command
->       perf probe: Accept filter argument for --funcs
->       perf probe: Remove redundant cleanup of params.filter
->       perf probe: Cleanup and consolidate command parsers
-> 
-> Namhyung Kim (12):
->       perf kmem: Show warning when trying to run stat without record
->       perf tools: Move TUI-specific fields into unnamed union
->       perf tools: Move init_have_children field to the unnamed union
->       perf hists browser: Fix possible memory leak
->       perf hists browser: Save hist_browser_timer pointer in hist_browser
->       perf hists browser: Save pstack in the hist_browser
->       perf hists browser: Save perf_session_env in the hist_browser
->       perf hists browser: Split popup menu actions
->       perf hists browser: Split popup menu actions - part 2
->       perf tools: Introduce pstack_peek()
->       perf hists browser: Simplify zooming code using pstack_peek()
->       perf tools: Move TUI-specific fields out of map_symbol
-> 
->  tools/perf/Documentation/perf-inject.txt |   9 +-
->  tools/perf/Documentation/perf-probe.txt  |   3 +-
->  tools/perf/Documentation/perf-record.txt |   7 +
->  tools/perf/Documentation/perf-report.txt |  15 +-
->  tools/perf/Documentation/perf-script.txt |   9 +-
->  tools/perf/Makefile.perf                 |   2 +
->  tools/perf/builtin-buildid-list.c        |   9 +
->  tools/perf/builtin-inject.c              |  78 +++-
->  tools/perf/builtin-kmem.c                |  17 +-
->  tools/perf/builtin-probe.c               | 133 +++----
->  tools/perf/builtin-record.c              | 172 ++++++++-
->  tools/perf/config/Makefile               |   5 +
->  tools/perf/perf.h                        |   3 +
->  tools/perf/tests/make                    |   4 +-
->  tools/perf/ui/browsers/hists.c           | 633 +++++++++++++++++++------------
->  tools/perf/util/Build                    |   2 +-
->  tools/perf/util/auxtrace.c               | 305 ++++++++++++++-
->  tools/perf/util/auxtrace.h               | 217 +++++++++++
->  tools/perf/util/callchain.h              |   4 +
->  tools/perf/util/event.c                  |  39 ++
->  tools/perf/util/event.h                  |  24 ++
->  tools/perf/util/header.c                 |  31 +-
->  tools/perf/util/hist.c                   |   2 +-
->  tools/perf/util/machine.c                |  21 +
->  tools/perf/util/machine.h                |   4 +
->  tools/perf/util/parse-options.h          |   4 +
->  tools/perf/util/probe-event.c            | 102 ++---
->  tools/perf/util/probe-event.h            |   2 +-
->  tools/perf/util/pstack.c                 |   7 +
->  tools/perf/util/pstack.h                 |   1 +
->  tools/perf/util/session.c                |  32 ++
->  tools/perf/util/session.h                |   1 +
->  tools/perf/util/sort.h                   |  22 +-
->  tools/perf/util/symbol.h                 |   2 -
->  tools/perf/util/tool.h                   |   2 +
->  35 files changed, 1455 insertions(+), 468 deletions(-)
+1. Unpatch 4.0 kernel - 694s
+2. Patch kernel with 4G/node - 346s
+3. Patch kernel with (>>3) - 389s
+4. Patch kernel with (>>8) - 353s
 
-Pulled, thanks a lot Arnaldo!
-
-	Ingo
+Cheers,
+Longman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
