@@ -1,102 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 80C866B0038
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 10:58:17 -0400 (EDT)
-Received: by wgiu9 with SMTP id u9so14634412wgi.3
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 07:58:17 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 012516B006C
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 10:59:00 -0400 (EDT)
+Received: by wiun10 with SMTP id n10so25807544wiu.1
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 07:58:59 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id mm8si34423738wjc.36.2015.05.06.07.58.15
+        by mx.google.com with ESMTPS id 16si34452457wjs.1.2015.05.06.07.58.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 06 May 2015 07:58:16 -0700 (PDT)
-Date: Wed, 6 May 2015 16:58:14 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] gfp: add __GFP_NOACCOUNT
-Message-ID: <20150506145814.GP14550@dhcp22.suse.cz>
-References: <fdf631b3fa95567a830ea4f3e19d0b3b2fc99662.1430819044.git.vdavydov@parallels.com>
+        Wed, 06 May 2015 07:58:58 -0700 (PDT)
+Date: Wed, 6 May 2015 16:58:52 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/9] mm: Provide new get_vaddr_frames() helper
+Message-ID: <20150506145852.GA27648@quack.suse.cz>
+References: <1430897296-5469-1-git-send-email-jack@suse.cz>
+ <1430897296-5469-3-git-send-email-jack@suse.cz>
+ <5549F0DF.4030205@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fdf631b3fa95567a830ea4f3e19d0b3b2fc99662.1430819044.git.vdavydov@parallels.com>
+In-Reply-To: <5549F0DF.4030205@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-media@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, dri-devel@lists.freedesktop.org, Pawel Osciak <pawel@osciak.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, mgorman@suse.de, Marek Szyprowski <m.szyprowski@samsung.com>, linux-samsung-soc@vger.kernel.org
 
-On Tue 05-05-15 12:45:42, Vladimir Davydov wrote:
-[...]
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 97a9373e61e8..37c422df2a0f 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -30,6 +30,7 @@ struct vm_area_struct;
->  #define ___GFP_HARDWALL		0x20000u
->  #define ___GFP_THISNODE		0x40000u
->  #define ___GFP_RECLAIMABLE	0x80000u
-> +#define ___GFP_NOACCOUNT	0x100000u
->  #define ___GFP_NOTRACK		0x200000u
->  #define ___GFP_NO_KSWAPD	0x400000u
->  #define ___GFP_OTHER_NODE	0x800000u
-> @@ -87,6 +88,7 @@ struct vm_area_struct;
->  #define __GFP_HARDWALL   ((__force gfp_t)___GFP_HARDWALL) /* Enforce hardwall cpuset memory allocs */
->  #define __GFP_THISNODE	((__force gfp_t)___GFP_THISNODE)/* No fallback, no policies */
->  #define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE) /* Page is reclaimable */
-> +#define __GFP_NOACCOUNT	((__force gfp_t)___GFP_NOACCOUNT) /* Don't account to memcg */
-
-The wording suggests that _any_ memcg charge might be skipped by this flag
-but only kmem part is handled.
-
-So either handle the flag in try_charge or, IMO preferably, update the
-comment here and add WARN_ON{_ONCE}(gfp & __GFP_NOACCOUNT). I do not
-think we should allow to skip the charge for user pages ATM and warning
-could tell us about the abuse of the flag.
-
->  #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
->  
->  #define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 72dff5fb0d0c..6c8918114804 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -463,6 +463,8 @@ memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
->  	if (!memcg_kmem_enabled())
->  		return true;
->  
-> +	if (gfp & __GFP_NOACCOUNT)
-> +		return true;
->  	/*
->  	 * __GFP_NOFAIL allocations will move on even if charging is not
->  	 * possible. Therefore we don't even try, and have this allocation
-> @@ -522,6 +524,8 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
->  {
->  	if (!memcg_kmem_enabled())
->  		return cachep;
-> +	if (gfp & __GFP_NOACCOUNT)
-> +		return cachep;
->  	if (gfp & __GFP_NOFAIL)
->  		return cachep;
->  	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
-> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-> index 5405aff5a590..f0fe4f2c1fa7 100644
-> --- a/mm/kmemleak.c
-> +++ b/mm/kmemleak.c
-> @@ -115,7 +115,8 @@
->  #define BYTES_PER_POINTER	sizeof(void *)
->  
->  /* GFP bitmask for kmemleak internal allocations */
-> -#define gfp_kmemleak_mask(gfp)	(((gfp) & (GFP_KERNEL | GFP_ATOMIC)) | \
-> +#define gfp_kmemleak_mask(gfp)	(((gfp) & (GFP_KERNEL | GFP_ATOMIC | \
-> +					   __GFP_NOACCOUNT)) | \
->  				 __GFP_NORETRY | __GFP_NOMEMALLOC | \
->  				 __GFP_NOWARN)
->  
-> -- 
-> 1.7.10.4
+On Wed 06-05-15 12:45:51, Vlastimil Babka wrote:
+> On 05/06/2015 09:28 AM, Jan Kara wrote:
+> >Provide new function get_vaddr_frames().  This function maps virtual
+> >addresses from given start and fills given array with page frame numbers of
+> >the corresponding pages. If given start belongs to a normal vma, the function
+> >grabs reference to each of the pages to pin them in memory. If start
+> >belongs to VM_IO | VM_PFNMAP vma, we don't touch page structures. Caller
+> >must make sure pfns aren't reused for anything else while he is using
+> >them.
+> >
+> >This function is created for various drivers to simplify handling of
+> >their buffers.
+> >
+> >Signed-off-by: Jan Kara <jack@suse.cz>
 > 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> 
+> With some nitpicks below...
+> 
+> >---
+> >  include/linux/mm.h |  44 +++++++++++
+> >  mm/gup.c           | 214 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+> >  2 files changed, 258 insertions(+)
+> >
+> >diff --git a/include/linux/mm.h b/include/linux/mm.h
+> >index 0755b9fd03a7..dcd1f02a78e9 100644
+> >--- a/include/linux/mm.h
+> >+++ b/include/linux/mm.h
+> >@@ -20,6 +20,7 @@
+> >  #include <linux/shrinker.h>
+> >  #include <linux/resource.h>
+> >  #include <linux/page_ext.h>
+> >+#include <linux/err.h>
+> >
+> >  struct mempolicy;
+> >  struct anon_vma;
+> >@@ -1197,6 +1198,49 @@ long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
+> >  		    int write, int force, struct page **pages);
+> >  int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+> >  			struct page **pages);
+> >+
+> >+/* Container for pinned pfns / pages */
+> >+struct frame_vector {
+> >+	unsigned int nr_allocated;	/* Number of frames we have space for */
+> >+	unsigned int nr_frames;	/* Number of frames stored in ptrs array */
+> >+	bool got_ref;		/* Did we pin pages by getting page ref? */
+> >+	bool is_pfns;		/* Does array contain pages or pfns? */
+> >+	void *ptrs[0];		/* Array of pinned pfns / pages. Use
+> >+				 * pfns_vector_pages() or pfns_vector_pfns()
+> >+				 * for access */
+> >+};
+> >+
+> >+struct frame_vector *frame_vector_create(unsigned int nr_frames);
+> >+void frame_vector_destroy(struct frame_vector *vec);
+> >+int get_vaddr_frames(unsigned long start, unsigned int nr_pfns,
+> >+		     bool write, bool force, struct frame_vector *vec);
+> >+void put_vaddr_frames(struct frame_vector *vec);
+> >+int frame_vector_to_pages(struct frame_vector *vec);
+> >+void frame_vector_to_pfns(struct frame_vector *vec);
+> >+
+> >+static inline unsigned int frame_vector_count(struct frame_vector *vec)
+> >+{
+> >+	return vec->nr_frames;
+> >+}
+> >+
+> >+static inline struct page **frame_vector_pages(struct frame_vector *vec)
+> >+{
+> >+	if (vec->is_pfns) {
+> >+		int err = frame_vector_to_pages(vec);
+> >+
+> >+		if (err)
+> >+			return ERR_PTR(err);
+> >+	}
+> >+	return (struct page **)(vec->ptrs);
+> >+}
+> >+
+> >+static inline unsigned long *frame_vector_pfns(struct frame_vector *vec)
+> >+{
+> >+	if (!vec->is_pfns)
+> >+		frame_vector_to_pfns(vec);
+> >+	return (unsigned long *)(vec->ptrs);
+> >+}
+> >+
+> >  struct kvec;
+> >  int get_kernel_pages(const struct kvec *iov, int nr_pages, int write,
+> >  			struct page **pages);
+> >diff --git a/mm/gup.c b/mm/gup.c
+> >index 6297f6bccfb1..8db5c40e65c4 100644
+> >--- a/mm/gup.c
+> >+++ b/mm/gup.c
+> >@@ -8,6 +8,7 @@
+> >  #include <linux/rmap.h>
+> >  #include <linux/swap.h>
+> >  #include <linux/swapops.h>
+> >+#include <linux/vmalloc.h>
+> >
+> >  #include <linux/sched.h>
+> >  #include <linux/rwsem.h>
+> >@@ -936,6 +937,219 @@ int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
+> >  	return ret;	/* 0 or negative error code */
+> >  }
+> >
+> >+/*
+> >+ * get_vaddr_frames() - map virtual addresses to pfns
+> >+ * @start:	starting user address
+> >+ * @nr_frames:	number of pages / pfns from start to map
+> >+ * @write:	whether pages will be written to by the caller
+> >+ * @force:	whether to force write access even if user mapping is
+> >+ *		readonly. This will result in the page being COWed even
+> >+ *		in MAP_SHARED mappings. You do not want this.
+> 
+> "You do not want this" and yet some of the drivers in later patches
+> do. That looks weird. Explain better?
+  That was copied from get_user_pages() comment but that got changed in the
+mean time. I've referenced that instead of copying it.
+
+> >+ * @vec:	structure which receives pages / pfns of the addresses mapped.
+> >+ *		It should have space for at least nr_frames entries.
+> >+ *
+> >+ * This function maps virtual addresses from @start and fills @vec structure
+> >+ * with page frame numbers or page pointers to corresponding pages (choice
+> >+ * depends on the type of the vma underlying the virtual address). If @start
+> >+ * belongs to a normal vma, the function grabs reference to each of the pages
+> >+ * to pin them in memory. If @start belongs to VM_IO | VM_PFNMAP vma, we don't
+> >+ * touch page structures and the caller must make sure pfns aren't reused for
+> >+ * anything else while he is using them.
+> >+ *
+> >+ * The function returns number of pages mapped which may be less than
+> >+ * @nr_frames. In particular we stop mapping if there are more vmas of
+> >+ * different type underlying the specified range of virtual addresses.
+> 
+> The function can also return e.g. -EFAULT, shouldn't that be documented too?
+  I've added a comment that the function can return error.
+
+> >+ *
+> >+ * This function takes care of grabbing mmap_sem as necessary.
+> >+ */
+> >+int get_vaddr_frames(unsigned long start, unsigned int nr_frames,
+> >+		     bool write, bool force, struct frame_vector *vec)
+> >+{
+> >+	struct mm_struct *mm = current->mm;
+> >+	struct vm_area_struct *vma;
+> >+	int ret = 0;
+> >+	int err;
+> >+	int locked = 1;
+> 
+> It looks strange that locked is set to 1 before taking the actual
+> mmap_sem. Also future-proofing.
+  OK.
+
+> >+/**
+> >+ * frame_vector_destroy() - free memory allocated to carry frame vector
+> >+ * @vec:	Frame vector to free
+> >+ *
+> >+ * Free structure allocated by frame_vector_create() to carry frames.
+> >+ */
+> >+void frame_vector_destroy(struct frame_vector *vec)
+> >+{
+> 
+> Add some VM_BUG_ON()'s for nr_frames and got_ref perhaps?
+  Good idea. Added:
+VM_BUG_ON(vec->nr_frames > 0);
+  Asserting got_ref when nr_frames is 0 is pointless... Thanks for review!
+
+								Honza
 
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
