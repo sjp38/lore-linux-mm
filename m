@@ -1,65 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 2675E6B0071
-	for <linux-mm@kvack.org>; Tue,  5 May 2015 20:11:23 -0400 (EDT)
-Received: by wicmx19 with SMTP id mx19so113059217wic.1
-        for <linux-mm@kvack.org>; Tue, 05 May 2015 17:11:22 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id d2si1552693wix.113.2015.05.05.17.11.20
-        for <linux-mm@kvack.org>;
-        Tue, 05 May 2015 17:11:21 -0700 (PDT)
-Date: Wed, 6 May 2015 03:11:05 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC PATCH] mm/thp: Use new function to clear pmd before THP
- splitting
-Message-ID: <20150506001105.GA14559@node.dhcp.inet.fi>
-References: <1430760556-28137-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E80F6B0073
+	for <linux-mm@kvack.org>; Tue,  5 May 2015 20:55:49 -0400 (EDT)
+Received: by obcux3 with SMTP id ux3so151841081obc.2
+        for <linux-mm@kvack.org>; Tue, 05 May 2015 17:55:49 -0700 (PDT)
+Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
+        by mx.google.com with ESMTPS id r133si11122669oib.79.2015.05.05.17.55.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 May 2015 17:55:48 -0700 (PDT)
+Message-ID: <5549668A.3080503@hp.com>
+Date: Tue, 05 May 2015 20:55:38 -0400
+From: Waiman Long <waiman.long@hp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1430760556-28137-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
+References: <1430231830-7702-1-git-send-email-mgorman@suse.de> <554030D1.8080509@hp.com> <5543F802.9090504@hp.com> <554415B1.2050702@hp.com> <20150504143046.9404c572486caf71bdef0676@linux-foundation.org> <20150505104514.GC2462@suse.de> <5548CBE8.5090203@hp.com> <20150505143102.GD2462@suse.de>
+In-Reply-To: <20150505143102.GD2462@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, mpe@ellerman.id.au, paulus@samba.org, benh@kernel.crashing.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, May 04, 2015 at 10:59:16PM +0530, Aneesh Kumar K.V wrote:
-> Archs like ppc64 require pte_t * to remain stable in some code path.
-> They use local_irq_disable to prevent a parallel split. Generic code
-> clear pmd instead of marking it _PAGE_SPLITTING in code path
-> where we can afford to mark pmd none before splitting. Use a
-> variant of pmdp_splitting_clear_notify that arch can override.
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+On 05/05/2015 10:31 AM, Mel Gorman wrote:
+> On Tue, May 05, 2015 at 09:55:52AM -0400, Waiman Long wrote:
+>> On 05/05/2015 06:45 AM, Mel Gorman wrote:
+>>> On Mon, May 04, 2015 at 02:30:46PM -0700, Andrew Morton wrote:
+>>>>> Before the patch, the boot time from elilo prompt to ssh login was 694s.
+>>>>> After the patch, the boot up time was 346s, a saving of 348s (about 50%).
+>>>> Having to guesstimate the amount of memory which is needed for a
+>>>> successful boot will be painful.  Any number we choose will be wrong
+>>>> 99% of the time.
+>>>>
+>>>> If the kswapd threads have started, all we need to do is to wait: take
+>>>> a little nap in the allocator's page==NULL slowpath.
+>>>>
+>>>> I'm not seeing any reason why we can't start kswapd much earlier -
+>>>> right at the start of do_basic_setup()?
+>>> It doesn't even have to be kswapd, it just should be a thread pinned to
+>>> a done. The difficulty is that dealing with the system hashes means the
+>>> initialisation has to happen before vfs_caches_init_early() when there is
+>>> no scheduler. Those allocations could be delayed further but then there is
+>>> the possibility that the allocations would not be contiguous and they'd
+>>> have to rely on CMA to make the attempt. That potentially alters the
+>>> performance of the large system hashes at run time.
+>>>
+>>> We can scale the amount initialised with memory sizes relatively easy.
+>>> This boots on the same 1TB machine I was testing before but that is
+>>> hardly a surprise.
+>>>
+>>> ---8<---
+>>> mm: meminit: Take into account that large system caches scale linearly with memory
+>>>
+>>> Waiman Long reported a 24TB machine triggered an OOM as parallel memory
+>>> initialisation deferred too much memory for initialisation. The likely
+>>> consumer of this memory was large system hashes that scale with memory
+>>> size. This patch initialises at least 2G per node but scales the amount
+>>> initialised for larger systems.
+>>>
+>>> Signed-off-by: Mel Gorman<mgorman@suse.de>
+>>> ---
+>>>   mm/page_alloc.c | 15 +++++++++++++--
+>>>   1 file changed, 13 insertions(+), 2 deletions(-)
+>>>
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index 598f78d6544c..f7cc6c9fb909 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -266,15 +266,16 @@ static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
+>>>    */
+>>>   static inline bool update_defer_init(pg_data_t *pgdat,
+>>>   				unsigned long pfn, unsigned long zone_end,
+>>> +				unsigned long max_initialise,
+>>>   				unsigned long *nr_initialised)
+>>>   {
+>>>   	/* Always populate low zones for address-contrained allocations */
+>>>   	if (zone_end<   pgdat_end_pfn(pgdat))
+>>>   		return true;
+>>>
+>>> -	/* Initialise at least 2G of the highest zone */
+>>> +	/* Initialise at least the requested amount in the highest zone */
+>>>   	(*nr_initialised)++;
+>>> -	if (*nr_initialised>   (2UL<<   (30 - PAGE_SHIFT))&&
+>>> +	if ((*nr_initialised>   max_initialise)&&
+>>>   	(pfn&   (PAGES_PER_SECTION - 1)) == 0) {
+>>>   		pgdat->first_deferred_pfn = pfn;
+>>>   		return false;
+>>> @@ -299,6 +300,7 @@ static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
+>>>
+>>>   static inline bool update_defer_init(pg_data_t *pgdat,
+>>>   				unsigned long pfn, unsigned long zone_end,
+>>> +				unsigned long max_initialise,
+>>>   				unsigned long *nr_initialised)
+>>>   {
+>>>   	return true;
+>>> @@ -4457,11 +4459,19 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+>>>   	unsigned long end_pfn = start_pfn + size;
+>>>   	unsigned long pfn;
+>>>   	struct zone *z;
+>>> +	unsigned long max_initialise;
+>>>   	unsigned long nr_initialised = 0;
+>>>
+>>>   	if (highest_memmap_pfn<   end_pfn - 1)
+>>>   		highest_memmap_pfn = end_pfn - 1;
+>>>
+>>> +	/*
+>>> +	 * Initialise at least 2G of a node but also take into account that
+>>> +	 * two large system hashes that can take up an 8th of memory.
+>>> +	 */
+>>> +	max_initialise = min(2UL<<   (30 - PAGE_SHIFT),
+>>> +			(pgdat->node_spanned_pages>>   3));
+>>> +
 
-Sorry, I still try wrap my head around this problem.
+I found an error here. The correct code should be:
 
-So, Power has __find_linux_pte_or_hugepte() which does lock-less lookup in
-page tables with local interrupts disabled. For huge pages it casts pmd_t
-to pte_t. Since format of pte_t is different from pmd_t we want to prevent
-transit from pmd pointing to page table to pmd pinging to huge page (and
-back) while interrupts are disabled.
+max_initialise = max(2UL<<  (30 - PAGE_SHIFT), (pgdat->node_spanned_pages>>   3));
 
-The complication for Power is that it doesn't do implicit IPI on tlb
-flush.
 
-Is it correct?
+The error made the 24-TB machine crash again.
 
-For THP, split_huge_page() and collapse sides are covered. This patch
-should address two cases of splitting PMD, but not compound page in
-current upstream.
-
-But I think there's still *big* problem for Power -- zap_huge_pmd().
-
-For instance: other CPU can shoot out a THP PMD with MADV_DONTNEED and
-fault in small pages instead. IIUC, for __find_linux_pte_or_hugepte(),
-it's equivalent of splitting.
-
-I don't see how this can be fixed without kick_all_cpus_sync() in all
-pmdp_clear_flush() on Power.
-
--- 
- Kirill A. Shutemov
+Cheers,
+Longman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
