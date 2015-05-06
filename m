@@ -1,135 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id B0A526B0038
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 12:35:25 -0400 (EDT)
-Received: by pdbqd1 with SMTP id qd1so14472176pdb.2
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 09:35:25 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id or3si29681527pdb.190.2015.05.06.09.35.24
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B892A6B0038
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 13:50:48 -0400 (EDT)
+Received: by wiun10 with SMTP id n10so31562564wiu.1
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 10:50:48 -0700 (PDT)
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com. [195.75.94.111])
+        by mx.google.com with ESMTPS id ly8si10168080wjb.40.2015.05.06.10.50.46
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 May 2015 09:35:24 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v2] gfp: add __GFP_NOACCOUNT
-Date: Wed, 6 May 2015 19:35:12 +0300
-Message-ID: <1430930112-31661-1-git-send-email-vdavydov@parallels.com>
-In-Reply-To: <20150506145814.GP14550@dhcp22.suse.cz>
-References: <20150506145814.GP14550@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Wed, 06 May 2015 10:50:46 -0700 (PDT)
+Received: from /spool/local
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dahi@linux.vnet.ibm.com>;
+	Wed, 6 May 2015 18:50:45 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 679EA17D805F
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 18:51:27 +0100 (BST)
+Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t46Hoga69371930
+	for <linux-mm@kvack.org>; Wed, 6 May 2015 17:50:42 GMT
+Received: from d06av05.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t46HofGL027370
+	for <linux-mm@kvack.org>; Wed, 6 May 2015 11:50:42 -0600
+From: David Hildenbrand <dahi@linux.vnet.ibm.com>
+Subject: [PATCH RFC 00/15] decouple pagefault_disable() from preempt_disable()
+Date: Wed,  6 May 2015 19:50:24 +0200
+Message-Id: <1430934639-2131-1-git-send-email-dahi@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: dahi@linux.vnet.ibm.com, mingo@redhat.com, peterz@infradead.org, yang.shi@windriver.com, bigeasy@linutronix.de, benh@kernel.crashing.org, paulus@samba.org, akpm@linux-foundation.org, heiko.carstens@de.ibm.com, schwidefsky@de.ibm.com, borntraeger@de.ibm.com, mst@redhat.com, tglx@linutronix.de, David.Laight@ACULAB.COM, hughd@google.com, hocko@suse.cz, ralf@linux-mips.org, herbert@gondor.apana.org.au, linux@arm.linux.org.uk, airlied@linux.ie, daniel.vetter@intel.com, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-Not all kmem allocations should be accounted to memcg. The following
-patch gives an example when accounting of a certain type of allocations
-to memcg can effectively result in a memory leak. This patch adds the
-__GFP_NOACCOUNT flag which if passed to kmalloc and friends will force
-the allocation to go through the root cgroup. It will be used by the
-next patch.
+As Peter asked me to also do the decoupling in one shot, this is
+the new series.
 
-Note, since in case of kmemleak enabled each kmalloc implies yet another
-allocation from the kmemleak_object cache, we add __GFP_NOACCOUNT to
-gfp_kmemleak_mask.
+I recently discovered that might_fault() doesn't call might_sleep()
+anymore. Therefore bugs like:
 
-Alternatively, we could introduce a per kmem cache flag disabling
-accounting for all allocations of a particular kind, but (a) we would
-not be able to bypass accounting for kmalloc then and (b) a kmem cache
-with this flag set could not be merged with a kmem cache without this
-flag, which would increase the number of global caches and therefore
-fragmentation even if the memory cgroup controller is not used.
+  spin_lock(&lock);
+  rc = copy_to_user(...);
+  spin_unlock(&lock);
 
-Despite its generic name, currently __GFP_NOACCOUNT disables accounting
-only for kmem allocations while user page allocations are always
-charged. To catch abusing of this flag, a warning is issued on an
-attempt of passing it to mem_cgroup_try_charge.
+would not be detected with CONFIG_DEBUG_ATOMIC_SLEEP. The code was
+changed to disable false positives for code like:
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-Cc: <stable@vger.kernel.org> # 4.0
----
-Changes in v2:
- - explain drawbacks of per kmem cache flag disabling accounting as a possible
-   alternative to a GFP flag in commit message (Michal)
- - warn if __GFP_NOACCOUNT is passed to mem_cgroup_try_charge (Michal)
+  pagefault_disable();
+  rc = copy_to_user(...);
+  pagefault_enable();
 
- include/linux/gfp.h        |    2 ++
- include/linux/memcontrol.h |    4 ++++
- mm/kmemleak.c              |    3 ++-
- mm/memcontrol.c            |    2 ++
- 4 files changed, 10 insertions(+), 1 deletion(-)
+Whereby the caller wants do deal with failures.
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 97a9373e61e8..15928f0647e4 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -30,6 +30,7 @@ struct vm_area_struct;
- #define ___GFP_HARDWALL		0x20000u
- #define ___GFP_THISNODE		0x40000u
- #define ___GFP_RECLAIMABLE	0x80000u
-+#define ___GFP_NOACCOUNT	0x100000u
- #define ___GFP_NOTRACK		0x200000u
- #define ___GFP_NO_KSWAPD	0x400000u
- #define ___GFP_OTHER_NODE	0x800000u
-@@ -87,6 +88,7 @@ struct vm_area_struct;
- #define __GFP_HARDWALL   ((__force gfp_t)___GFP_HARDWALL) /* Enforce hardwall cpuset memory allocs */
- #define __GFP_THISNODE	((__force gfp_t)___GFP_THISNODE)/* No fallback, no policies */
- #define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE) /* Page is reclaimable */
-+#define __GFP_NOACCOUNT	((__force gfp_t)___GFP_NOACCOUNT) /* Don't account to kmemcg */
- #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
- 
- #define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 72dff5fb0d0c..6c8918114804 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -463,6 +463,8 @@ memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
- 	if (!memcg_kmem_enabled())
- 		return true;
- 
-+	if (gfp & __GFP_NOACCOUNT)
-+		return true;
- 	/*
- 	 * __GFP_NOFAIL allocations will move on even if charging is not
- 	 * possible. Therefore we don't even try, and have this allocation
-@@ -522,6 +524,8 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
- {
- 	if (!memcg_kmem_enabled())
- 		return cachep;
-+	if (gfp & __GFP_NOACCOUNT)
-+		return cachep;
- 	if (gfp & __GFP_NOFAIL)
- 		return cachep;
- 	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 5405aff5a590..f0fe4f2c1fa7 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -115,7 +115,8 @@
- #define BYTES_PER_POINTER	sizeof(void *)
- 
- /* GFP bitmask for kmemleak internal allocations */
--#define gfp_kmemleak_mask(gfp)	(((gfp) & (GFP_KERNEL | GFP_ATOMIC)) | \
-+#define gfp_kmemleak_mask(gfp)	(((gfp) & (GFP_KERNEL | GFP_ATOMIC | \
-+					   __GFP_NOACCOUNT)) | \
- 				 __GFP_NORETRY | __GFP_NOMEMALLOC | \
- 				 __GFP_NOWARN)
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 14c2f2017e37..41c9e530f1cd 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5462,6 +5462,8 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
- 	unsigned int nr_pages = 1;
- 	int ret = 0;
- 
-+	WARN_ON_ONCE(gfp_mask & __GFP_NOACCOUNT);
-+
- 	if (mem_cgroup_disabled())
- 		goto out;
- 
+If we schedule while holding a spinlock, bad things can happen.
+Preemption is disabled, but we still preempt - on s390 this can lead
+to spinlocks never getting unlocked (as unlocking code checks for the
+cpu id that locke the spinlock), therefore resulting in a deadlock.
+
+Until now, pagefault_(dis|en)nable) simply modified the preempt count,
+therefore telling the pagefault handler that the context is atomic and
+sleeping is disallowed.
+
+With !CONFIG_PREEMPT_COUNT, the preempt count does not exist.
+So preempt_disable() as well es pagefault_disable() is a NOP.
+in_atomic() checks the preempt count. So we can't detect in_atomic on
+systems without preemption.
+That is also mentioned in the comment of in_atomic():
+
+  "WARNING: this macro cannot always detect atomic context; in particular,
+   it cannot know about held spinlocks in non-preemptible kernels."
+
+We automatically have !CONFIG_PREEMPT_COUNT with !CONFIG_PREEMPT
+and !CONFIG_DEBUG_ATOMIC_SLEEP, so on a system with disabled pagefaults.
+
+All fault handlers currently rely on in_atomic() to check for disabled
+pagefaults.
+
+This series therefore does 2 things:
+
+
+1. Decouple pagefault_disable() from preempt_enable()
+
+pagefault_(dis|en)able() modifies an own counter and doesn't touch
+preemption anymore. The fault handlers now only check for
+disabled pagefaults.
+
+I checked (hopefully) every caller of pagefault_disable(), if they
+implicitly rely on preempt_disable() -  and if so added these calls.
+Hope I haven't missed some cases.
+
+I didn't check all users of preempt_disable() if they relied on them
+disabling pagefaults. My assumption is that such code is broken
+either way (on non-preemptible systems). Pagefaults would only be
+disabled with CONFIG_PREEMPT_COUNT.
+
+I also thought about leaving the in_atomic() check inside the
+fault handlers in addition to the new check. In my opinion that
+can only hide bugs that would happen with !CONFIG_PREEMPT_COUNT.
+
+We could even add a warning at that place like
+  WARN_ONCE(in_atomic() && !pagefault_disabled())
+
+But most of these cases should be found with the following part.
+
+
+2. Reenable might_sleep() checks for might_fault()
+
+As we can now decide if we really have pagefaults disabled,
+we can reenable the might_sleep() check in might_fault().
+
+So this should now work:
+
+  spin_lock(&lock); /* also if left away */
+  pagefault_disable()
+  rc = copy_to_user(...);
+  pagefault_enable();
+  spin_unlock(&lock);
+
+And this should report a warning again:
+
+  spin_lock(&lock);
+  rc = copy_to_user(...);
+  spin_unlock(&lock);
+
+
+Cross compiled on powerpc, arm, sparc, sparc64, arm64, x86_64, i386,
+mips, alpha, ia64, xtensa, m68k, microblaze.
+
+Tested on s390x.
+
+Any feedback very welcome!
+
+Thanks!
+
+
+David Hildenbrand (15):
+  uaccess: count pagefault_disable() levels in pagefault_disabled
+  mm, uaccess: trigger might_sleep() in might_fault() with disabled
+    pagefaults
+  uaccess: clarify that uaccess may only sleep if pagefaults are enabled
+  mm: explicitly disable/enable preemption in kmap_atomic_*
+  mips: kmap_coherent relies on disabled preemption
+  mm: use pagefault_disabled() to check for disabled pagefaults
+  drm/i915: use pagefault_disabled() to check for disabled pagefaults
+  futex: UP futex_atomic_op_inuser() relies on disabled preemption
+  futex: UP futex_atomic_cmpxchg_inatomic() relies on disabled
+    preemption
+  arm/futex: UP futex_atomic_cmpxchg_inatomic() relies on disabled
+    preemption
+  arm/futex: UP futex_atomic_op_inuser() relies on disabled preemption
+  futex: clarify that preemption doesn't have to be disabled
+  powerpc: enable_kernel_altivec() requires disabled preemption
+  mips: properly lock access to the fpu
+  uaccess: decouple preemption from the pagefault logic
+
+ arch/alpha/mm/fault.c                      |  5 ++--
+ arch/arc/include/asm/futex.h               | 10 +++----
+ arch/arc/mm/fault.c                        |  2 +-
+ arch/arm/include/asm/futex.h               | 13 +++++++--
+ arch/arm/mm/fault.c                        |  2 +-
+ arch/arm/mm/highmem.c                      |  3 ++
+ arch/arm64/include/asm/futex.h             |  4 +--
+ arch/arm64/mm/fault.c                      |  2 +-
+ arch/avr32/include/asm/uaccess.h           | 12 +++++---
+ arch/avr32/mm/fault.c                      |  4 +--
+ arch/cris/mm/fault.c                       |  4 +--
+ arch/frv/mm/fault.c                        |  4 +--
+ arch/frv/mm/highmem.c                      |  2 ++
+ arch/hexagon/include/asm/uaccess.h         |  3 +-
+ arch/ia64/mm/fault.c                       |  4 +--
+ arch/m32r/include/asm/uaccess.h            | 30 +++++++++++++-------
+ arch/m32r/mm/fault.c                       |  4 +--
+ arch/m68k/mm/fault.c                       |  4 +--
+ arch/metag/mm/fault.c                      |  2 +-
+ arch/metag/mm/highmem.c                    |  4 ++-
+ arch/microblaze/include/asm/uaccess.h      |  6 ++--
+ arch/microblaze/mm/fault.c                 |  6 ++--
+ arch/microblaze/mm/highmem.c               |  4 ++-
+ arch/mips/include/asm/uaccess.h            | 45 ++++++++++++++++++++----------
+ arch/mips/kernel/signal-common.h           |  9 ++----
+ arch/mips/mm/fault.c                       |  4 +--
+ arch/mips/mm/highmem.c                     |  5 +++-
+ arch/mips/mm/init.c                        |  2 ++
+ arch/mn10300/include/asm/highmem.h         |  3 ++
+ arch/mn10300/mm/fault.c                    |  4 +--
+ arch/nios2/mm/fault.c                      |  2 +-
+ arch/parisc/include/asm/cacheflush.h       |  2 ++
+ arch/parisc/kernel/traps.c                 |  4 +--
+ arch/parisc/mm/fault.c                     |  4 +--
+ arch/powerpc/lib/vmx-helper.c              | 11 ++++----
+ arch/powerpc/mm/fault.c                    |  9 +++---
+ arch/powerpc/mm/highmem.c                  |  4 ++-
+ arch/s390/include/asm/uaccess.h            | 15 ++++++----
+ arch/s390/mm/fault.c                       |  2 +-
+ arch/score/include/asm/uaccess.h           | 15 ++++++----
+ arch/score/mm/fault.c                      |  3 +-
+ arch/sh/mm/fault.c                         |  3 +-
+ arch/sparc/mm/fault_32.c                   |  4 +--
+ arch/sparc/mm/fault_64.c                   |  4 +--
+ arch/sparc/mm/highmem.c                    |  4 ++-
+ arch/sparc/mm/init_64.c                    |  2 +-
+ arch/tile/include/asm/uaccess.h            | 18 ++++++++----
+ arch/tile/mm/fault.c                       |  4 +--
+ arch/tile/mm/highmem.c                     |  3 +-
+ arch/um/kernel/trap.c                      |  4 +--
+ arch/unicore32/mm/fault.c                  |  2 +-
+ arch/x86/include/asm/uaccess.h             | 15 ++++++----
+ arch/x86/include/asm/uaccess_32.h          |  6 ++--
+ arch/x86/lib/usercopy_32.c                 |  6 ++--
+ arch/x86/mm/fault.c                        |  5 ++--
+ arch/x86/mm/highmem_32.c                   |  3 +-
+ arch/x86/mm/iomap_32.c                     |  2 ++
+ arch/xtensa/mm/fault.c                     |  4 +--
+ arch/xtensa/mm/highmem.c                   |  2 ++
+ drivers/crypto/vmx/aes.c                   |  8 +++++-
+ drivers/crypto/vmx/aes_cbc.c               |  6 ++++
+ drivers/crypto/vmx/ghash.c                 |  8 ++++++
+ drivers/gpu/drm/i915/i915_gem_execbuffer.c |  3 +-
+ include/asm-generic/futex.h                |  7 +++--
+ include/linux/highmem.h                    |  2 ++
+ include/linux/io-mapping.h                 |  2 ++
+ include/linux/kernel.h                     |  3 +-
+ include/linux/sched.h                      |  1 +
+ include/linux/uaccess.h                    | 36 +++++++++++++++---------
+ kernel/fork.c                              |  3 ++
+ lib/strnlen_user.c                         |  6 ++--
+ mm/memory.c                                | 18 ++++--------
+ 72 files changed, 302 insertions(+), 169 deletions(-)
+
 -- 
-1.7.10.4
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
