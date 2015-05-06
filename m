@@ -1,289 +1,363 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 20E1D6B0038
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 06:22:30 -0400 (EDT)
-Received: by wgso17 with SMTP id o17so6330583wgs.1
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 03:22:29 -0700 (PDT)
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id D765E6B0038
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 06:45:58 -0400 (EDT)
+Received: by wgyo15 with SMTP id o15so6915743wgy.2
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 03:45:58 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gs3si1480712wib.29.2015.05.06.03.22.27
+        by mx.google.com with ESMTPS id s5si1557084wix.78.2015.05.06.03.45.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 06 May 2015 03:22:28 -0700 (PDT)
-Date: Wed, 6 May 2015 11:22:20 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
-Message-ID: <20150506102220.GH2462@suse.de>
-References: <1430231830-7702-1-git-send-email-mgorman@suse.de>
- <554030D1.8080509@hp.com>
- <5543F802.9090504@hp.com>
- <554415B1.2050702@hp.com>
- <20150504143046.9404c572486caf71bdef0676@linux-foundation.org>
- <20150505104514.GC2462@suse.de>
- <20150505130255.49ff76bbf0a3b32d884ab2ce@linux-foundation.org>
- <20150505221329.GE2462@suse.de>
- <20150505152549.037679566fad8c593df176ed@linux-foundation.org>
- <20150506071246.GF2462@suse.de>
+        Wed, 06 May 2015 03:45:57 -0700 (PDT)
+Message-ID: <5549F0DF.4030205@suse.cz>
+Date: Wed, 06 May 2015 12:45:51 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20150506071246.GF2462@suse.de>
+Subject: Re: [PATCH 2/9] mm: Provide new get_vaddr_frames() helper
+References: <1430897296-5469-1-git-send-email-jack@suse.cz> <1430897296-5469-3-git-send-email-jack@suse.cz>
+In-Reply-To: <1430897296-5469-3-git-send-email-jack@suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Waiman Long <waiman.long@hp.com>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>, linux-mm@kvack.org
+Cc: linux-media@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, dri-devel@lists.freedesktop.org, Pawel Osciak <pawel@osciak.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, mgorman@suse.de, Marek Szyprowski <m.szyprowski@samsung.com>, linux-samsung-soc@vger.kernel.org
 
-On Wed, May 06, 2015 at 08:12:46AM +0100, Mel Gorman wrote:
-> On Tue, May 05, 2015 at 03:25:49PM -0700, Andrew Morton wrote:
-> > On Tue, 5 May 2015 23:13:29 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> > 
-> > > > Alternatively, the page allocator can go off and synchronously
-> > > > initialize some pageframes itself.  Keep doing that until the
-> > > > allocation attempt succeeds.
-> > > > 
-> > > 
-> > > That was rejected during review of earlier attempts at this feature on
-> > > the grounds that it impacted allocator fast paths. 
-> > 
-> > eh?  Changes are only needed on the allocation-attempt-failed path,
-> > which is slow-path.
-> 
-> We'd have to distinguish between falling back to other zones because the
-> high zone is artifically exhausted and normal ALLOC_BATCH exhaustion. We'd
-> also have to avoid falling back to remote nodes prematurely. While I have
-> not tried an implementation, I expected they would need to be in the fast
-> paths unless I used jump labels to get around it. I'm going to try altering
-> when we initialise instead so that it happens earlier.
-> 
+On 05/06/2015 09:28 AM, Jan Kara wrote:
+> Provide new function get_vaddr_frames().  This function maps virtual
+> addresses from given start and fills given array with page frame numbers of
+> the corresponding pages. If given start belongs to a normal vma, the function
+> grabs reference to each of the pages to pin them in memory. If start
+> belongs to VM_IO | VM_PFNMAP vma, we don't touch page structures. Caller
+> must make sure pfns aren't reused for anything else while he is using
+> them.
+>
+> This function is created for various drivers to simplify handling of
+> their buffers.
+>
+> Signed-off-by: Jan Kara <jack@suse.cz>
 
-Which looks as follows. Waiman, a test on the 24TB machine would be
-appreciated again. This patch should be applied instead of "mm: meminit:
-Take into account that large system caches scale linearly with memory"
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
----8<---
-mm: meminit: Finish initialisation of memory before basic setup
+With some nitpicks below...
 
-Waiman Long reported that 24TB machines hit OOM during basic setup when
-struct page initialisation was deferred. One approach is to initialise memory
-on demand but it interferes with page allocator paths. This patch creates
-dedicated threads to initialise memory before basic setup. It then blocks
-on a rw_semaphore until completion as a wait_queue and counter is overkill.
-This may be slower to boot but it's simplier overall and also gets rid of a
-lot of section mangling which existed so kswapd could do the initialisation.
+> ---
+>   include/linux/mm.h |  44 +++++++++++
+>   mm/gup.c           | 214 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+>   2 files changed, 258 insertions(+)
+>
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 0755b9fd03a7..dcd1f02a78e9 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -20,6 +20,7 @@
+>   #include <linux/shrinker.h>
+>   #include <linux/resource.h>
+>   #include <linux/page_ext.h>
+> +#include <linux/err.h>
+>
+>   struct mempolicy;
+>   struct anon_vma;
+> @@ -1197,6 +1198,49 @@ long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
+>   		    int write, int force, struct page **pages);
+>   int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+>   			struct page **pages);
+> +
+> +/* Container for pinned pfns / pages */
+> +struct frame_vector {
+> +	unsigned int nr_allocated;	/* Number of frames we have space for */
+> +	unsigned int nr_frames;	/* Number of frames stored in ptrs array */
+> +	bool got_ref;		/* Did we pin pages by getting page ref? */
+> +	bool is_pfns;		/* Does array contain pages or pfns? */
+> +	void *ptrs[0];		/* Array of pinned pfns / pages. Use
+> +				 * pfns_vector_pages() or pfns_vector_pfns()
+> +				 * for access */
+> +};
+> +
+> +struct frame_vector *frame_vector_create(unsigned int nr_frames);
+> +void frame_vector_destroy(struct frame_vector *vec);
+> +int get_vaddr_frames(unsigned long start, unsigned int nr_pfns,
+> +		     bool write, bool force, struct frame_vector *vec);
+> +void put_vaddr_frames(struct frame_vector *vec);
+> +int frame_vector_to_pages(struct frame_vector *vec);
+> +void frame_vector_to_pfns(struct frame_vector *vec);
+> +
+> +static inline unsigned int frame_vector_count(struct frame_vector *vec)
+> +{
+> +	return vec->nr_frames;
+> +}
+> +
+> +static inline struct page **frame_vector_pages(struct frame_vector *vec)
+> +{
+> +	if (vec->is_pfns) {
+> +		int err = frame_vector_to_pages(vec);
+> +
+> +		if (err)
+> +			return ERR_PTR(err);
+> +	}
+> +	return (struct page **)(vec->ptrs);
+> +}
+> +
+> +static inline unsigned long *frame_vector_pfns(struct frame_vector *vec)
+> +{
+> +	if (!vec->is_pfns)
+> +		frame_vector_to_pfns(vec);
+> +	return (unsigned long *)(vec->ptrs);
+> +}
+> +
+>   struct kvec;
+>   int get_kernel_pages(const struct kvec *iov, int nr_pages, int write,
+>   			struct page **pages);
+> diff --git a/mm/gup.c b/mm/gup.c
+> index 6297f6bccfb1..8db5c40e65c4 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -8,6 +8,7 @@
+>   #include <linux/rmap.h>
+>   #include <linux/swap.h>
+>   #include <linux/swapops.h>
+> +#include <linux/vmalloc.h>
+>
+>   #include <linux/sched.h>
+>   #include <linux/rwsem.h>
+> @@ -936,6 +937,219 @@ int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
+>   	return ret;	/* 0 or negative error code */
+>   }
+>
+> +/*
+> + * get_vaddr_frames() - map virtual addresses to pfns
+> + * @start:	starting user address
+> + * @nr_frames:	number of pages / pfns from start to map
+> + * @write:	whether pages will be written to by the caller
+> + * @force:	whether to force write access even if user mapping is
+> + *		readonly. This will result in the page being COWed even
+> + *		in MAP_SHARED mappings. You do not want this.
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/linux/gfp.h |  8 ++++++++
- init/main.c         |  2 ++
- mm/internal.h       | 24 ------------------------
- mm/page_alloc.c     | 44 ++++++++++++++++++++++++++++++++++++--------
- mm/vmscan.c         |  6 ++----
- 5 files changed, 48 insertions(+), 36 deletions(-)
+"You do not want this" and yet some of the drivers in later patches do. 
+That looks weird. Explain better?
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 51bd1e72a917..28a3128d9e59 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -385,6 +385,14 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp);
- void drain_all_pages(struct zone *zone);
- void drain_local_pages(struct zone *zone);
- 
-+#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-+void page_alloc_init_late(void);
-+#else
-+static inline void page_alloc_init_late(void)
-+{
-+}
-+#endif
-+
- /*
-  * gfp_allowed_mask is set to GFP_BOOT_MASK during early boot to restrict what
-  * GFP flags are used before interrupts are enabled. Once interrupts are
-diff --git a/init/main.c b/init/main.c
-index 6f0f1c5ff8cc..9bef5f0c9864 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -995,6 +995,8 @@ static noinline void __init kernel_init_freeable(void)
- 	smp_init();
- 	sched_init_smp();
- 
-+	page_alloc_init_late();
-+
- 	do_basic_setup();
- 
- 	/* Open the /dev/console on the rootfs, this should never fail */
-diff --git a/mm/internal.h b/mm/internal.h
-index 5c221ad41a29..5a7c7a531720 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -377,30 +377,6 @@ static inline void mminit_verify_zonelist(void)
- }
- #endif /* CONFIG_DEBUG_MEMORY_INIT */
- 
--/*
-- * Deferred struct page initialisation requires init functions that are freed
-- * before kswapd is available. Reuse the memory hotplug section annotation
-- * to mark the required code.
-- *
-- * __defermem_init is code that always exists but is annotated __meminit to
-- * 	avoid section warnings.
-- * __defer_init code gets marked __meminit when deferring struct page
-- *	initialistion but is otherwise in the init section.
-- */
--#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
--#define __defermem_init __meminit
--#define __defer_init    __meminit
--
--void deferred_init_memmap(int nid);
--#else
--#define __defermem_init
--#define __defer_init __init
--
--static inline void deferred_init_memmap(int nid)
--{
--}
--#endif
--
- /* mminit_validate_memmodel_limits is independent of CONFIG_DEBUG_MEMORY_INIT */
- #if defined(CONFIG_SPARSEMEM)
- extern void mminit_validate_memmodel_limits(unsigned long *start_pfn,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 598f78d6544c..1cef116727b6 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -61,6 +61,7 @@
- #include <linux/hugetlb.h>
- #include <linux/sched/rt.h>
- #include <linux/page_owner.h>
-+#include <linux/kthread.h>
- 
- #include <asm/sections.h>
- #include <asm/tlbflush.h>
-@@ -242,7 +243,7 @@ static inline void reset_deferred_meminit(pg_data_t *pgdat)
- }
- 
- /* Returns true if the struct page for the pfn is uninitialised */
--static inline bool __defermem_init early_page_uninitialised(unsigned long pfn)
-+static inline bool __init early_page_uninitialised(unsigned long pfn)
- {
- 	int nid = early_pfn_to_nid(pfn);
- 
-@@ -972,7 +973,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
- 	local_irq_restore(flags);
- }
- 
--static void __defer_init __free_pages_boot_core(struct page *page,
-+static void __init __free_pages_boot_core(struct page *page,
- 					unsigned long pfn, unsigned int order)
- {
- 	unsigned int nr_pages = 1 << order;
-@@ -1039,7 +1040,7 @@ static inline bool __meminit early_pfn_in_nid(unsigned long pfn, int node)
- }
- #endif
- 
--void __defer_init __free_pages_bootmem(struct page *page, unsigned long pfn,
-+void __init __free_pages_bootmem(struct page *page, unsigned long pfn,
- 							unsigned int order)
- {
- 	if (early_page_uninitialised(pfn))
-@@ -1048,7 +1049,7 @@ void __defer_init __free_pages_bootmem(struct page *page, unsigned long pfn,
- }
- 
- #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
--static void __defermem_init deferred_free_range(struct page *page,
-+static void __init deferred_free_range(struct page *page,
- 					unsigned long pfn, int nr_pages)
- {
- 	int i;
-@@ -1068,20 +1069,30 @@ static void __defermem_init deferred_free_range(struct page *page,
- 		__free_pages_boot_core(page, pfn, 0);
- }
- 
-+static struct rw_semaphore __initdata pgdat_init_rwsem;
-+
- /* Initialise remaining memory on a node */
--void __defermem_init deferred_init_memmap(int nid)
-+static int __init deferred_init_memmap(void *data)
- {
-+	pg_data_t *pgdat = (pg_data_t *)data;
-+	int nid = pgdat->node_id;
- 	struct mminit_pfnnid_cache nid_init_state = { };
- 	unsigned long start = jiffies;
- 	unsigned long nr_pages = 0;
- 	unsigned long walk_start, walk_end;
- 	int i, zid;
- 	struct zone *zone;
--	pg_data_t *pgdat = NODE_DATA(nid);
- 	unsigned long first_init_pfn = pgdat->first_deferred_pfn;
-+	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
- 
--	if (first_init_pfn == ULONG_MAX)
--		return;
-+	if (first_init_pfn == ULONG_MAX) {
-+		up_read(&pgdat_init_rwsem);
-+		return 0;
-+	}
-+
-+	/* Bound memory initialisation to a local node if possible */
-+	if (!cpumask_empty(cpumask))
-+		set_cpus_allowed_ptr(current, cpumask);
- 
- 	/* Sanity check boundaries */
- 	BUG_ON(pgdat->first_deferred_pfn < pgdat->node_start_pfn);
-@@ -1175,6 +1186,23 @@ free_range:
- 
- 	pr_info("kswapd %d initialised %lu pages in %ums\n", nid, nr_pages,
- 					jiffies_to_msecs(jiffies - start));
-+	up_read(&pgdat_init_rwsem);
-+	return 0;
-+}
-+
-+void __init page_alloc_init_late(void)
-+{
-+	int nid;
-+
-+	init_rwsem(&pgdat_init_rwsem);
-+	for_each_node_state(nid, N_MEMORY) {
-+		down_read(&pgdat_init_rwsem);
-+		kthread_run(deferred_init_memmap, NODE_DATA(nid), "pgdatinit%d", nid);
-+	}
-+
-+	/* Block until all are initialised */
-+	down_write(&pgdat_init_rwsem);
-+	up_write(&pgdat_init_rwsem);
- }
- #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c4895d26d036..5e8eadd71bac 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3348,7 +3348,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
-  * If there are applications that are active memory-allocators
-  * (most normal use), this basically shouldn't matter.
-  */
--static int __defermem_init kswapd(void *p)
-+static int kswapd(void *p)
- {
- 	unsigned long order, new_order;
- 	unsigned balanced_order;
-@@ -3383,8 +3383,6 @@ static int __defermem_init kswapd(void *p)
- 	tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
- 	set_freezable();
- 
--	deferred_init_memmap(pgdat->node_id);
--
- 	order = new_order = 0;
- 	balanced_order = 0;
- 	classzone_idx = new_classzone_idx = pgdat->nr_zones - 1;
-@@ -3540,7 +3538,7 @@ static int cpu_callback(struct notifier_block *nfb, unsigned long action,
-  * This kswapd start function will be called by init and node-hot-add.
-  * On node-hot-add, kswapd will moved to proper cpus if cpus are hot-added.
-  */
--int __defermem_init kswapd_run(int nid)
-+int kswapd_run(int nid)
- {
- 	pg_data_t *pgdat = NODE_DATA(nid);
- 	int ret = 0;
+> + * @vec:	structure which receives pages / pfns of the addresses mapped.
+> + *		It should have space for at least nr_frames entries.
+> + *
+> + * This function maps virtual addresses from @start and fills @vec structure
+> + * with page frame numbers or page pointers to corresponding pages (choice
+> + * depends on the type of the vma underlying the virtual address). If @start
+> + * belongs to a normal vma, the function grabs reference to each of the pages
+> + * to pin them in memory. If @start belongs to VM_IO | VM_PFNMAP vma, we don't
+> + * touch page structures and the caller must make sure pfns aren't reused for
+> + * anything else while he is using them.
+> + *
+> + * The function returns number of pages mapped which may be less than
+> + * @nr_frames. In particular we stop mapping if there are more vmas of
+> + * different type underlying the specified range of virtual addresses.
+
+The function can also return e.g. -EFAULT, shouldn't that be documented too?
+
+> + *
+> + * This function takes care of grabbing mmap_sem as necessary.
+> + */
+> +int get_vaddr_frames(unsigned long start, unsigned int nr_frames,
+> +		     bool write, bool force, struct frame_vector *vec)
+> +{
+> +	struct mm_struct *mm = current->mm;
+> +	struct vm_area_struct *vma;
+> +	int ret = 0;
+> +	int err;
+> +	int locked = 1;
+
+It looks strange that locked is set to 1 before taking the actual 
+mmap_sem. Also future-proofing.
+
+> +
+> +	if (nr_frames == 0)
+> +		return 0;
+> +
+> +	if (WARN_ON_ONCE(nr_frames > vec->nr_allocated))
+> +		nr_frames = vec->nr_allocated;
+> +
+> +	down_read(&mm->mmap_sem);
+> +	vma = find_vma_intersection(mm, start, start + 1);
+> +	if (!vma) {
+> +		ret = -EFAULT;
+> +		goto out;
+> +	}
+> +	if (!(vma->vm_flags & (VM_IO | VM_PFNMAP))) {
+> +		vec->got_ref = 1;
+> +		vec->is_pfns = 0;
+> +		ret = get_user_pages_locked(current, mm, start, nr_frames,
+> +			write, force, (struct page **)(vec->ptrs), &locked);
+> +		goto out;
+> +	}
+> +
+> +	vec->got_ref = 0;
+> +	vec->is_pfns = 1;
+> +	do {
+> +		unsigned long *nums = frame_vector_pfns(vec);
+> +
+> +		while (ret < nr_frames && start + PAGE_SIZE <= vma->vm_end) {
+> +			err = follow_pfn(vma, start, &nums[ret]);
+> +			if (err) {
+> +				if (ret == 0)
+> +					ret = err;
+> +				goto out;
+> +			}
+> +			start += PAGE_SIZE;
+> +			ret++;
+> +		}
+> +		/*
+> +		 * We stop if we have enough pages or if VMA doesn't completely
+> +		 * cover the tail page.
+> +		 */
+> +		if (ret >= nr_frames || start < vma->vm_end)
+> +			break;
+> +		vma = find_vma_intersection(mm, start, start + 1);
+> +	} while (vma && vma->vm_flags & (VM_IO | VM_PFNMAP));
+> +out:
+> +	if (locked)
+> +		up_read(&mm->mmap_sem);
+> +	if (!ret)
+> +		ret = -EFAULT;
+> +	if (ret > 0)
+> +		vec->nr_frames = ret;
+> +	return ret;
+> +}
+> +EXPORT_SYMBOL(get_vaddr_frames);
+> +
+> +/**
+> + * put_vaddr_frames() - drop references to pages if get_vaddr_frames() acquired
+> + *			them
+> + * @vec:	frame vector to put
+> + *
+> + * Drop references to pages if get_vaddr_frames() acquired them. We also
+> + * invalidate the frame vector so that it is prepared for the next call into
+> + * get_vaddr_frames().
+> + */
+> +void put_vaddr_frames(struct frame_vector *vec)
+> +{
+> +	int i;
+> +	struct page **pages;
+> +
+> +	if (!vec->got_ref)
+> +		goto out;
+> +	pages = frame_vector_pages(vec);
+> +	/*
+> +	 * frame_vector_pages() might needed to do a conversion when we
+
+                                                           remove "we" ^
+
+> +	 * get_vaddr_frames() got pages but vec was later converted to pfns.
+> +	 * But it shouldn't really fail to convert pfns back...
+> +	 */
+> +	BUG_ON(IS_ERR(pages));
+> +	for (i = 0; i < vec->nr_frames; i++)
+> +		put_page(pages[i]);
+> +	vec->got_ref = 0;
+> +out:
+> +	vec->nr_frames = 0;
+> +}
+> +EXPORT_SYMBOL(put_vaddr_frames);
+> +
+> +/**
+> + * frame_vector_to_pages - convert frame vector to contain page pointers
+> + * @vec:	frame vector to convert
+> + *
+> + * Convert @vec to contain array of page pointers.  If the conversion is
+> + * successful, return 0. Otherwise return an error.
+> + */
+> +int frame_vector_to_pages(struct frame_vector *vec)
+> +{
+> +	int i;
+> +	unsigned long *nums;
+> +	struct page **pages;
+> +
+> +	if (!vec->is_pfns)
+> +		return 0;
+> +	nums = frame_vector_pfns(vec);
+> +	for (i = 0; i < vec->nr_frames; i++)
+> +		if (!pfn_valid(nums[i]))
+> +			return -EINVAL;
+> +	pages = (struct page **)nums;
+> +	for (i = 0; i < vec->nr_frames; i++)
+> +		pages[i] = pfn_to_page(nums[i]);
+> +	vec->is_pfns = 0;
+> +	return 0;
+> +}
+> +EXPORT_SYMBOL(frame_vector_to_pages);
+> +
+> +/**
+> + * frame_vector_to_pfns - convert frame vector to contain pfns
+> + * @vec:	frame vector to convert
+> + *
+> + * Convert @vec to contain array of pfns.
+> + */
+> +void frame_vector_to_pfns(struct frame_vector *vec)
+> +{
+> +	int i;
+> +	unsigned long *nums;
+> +	struct page **pages;
+> +
+> +	if (vec->is_pfns)
+> +		return;
+> +	pages = (struct page **)(vec->ptrs);
+> +	nums = (unsigned long *)pages;
+> +	for (i = 0; i < vec->nr_frames; i++)
+> +		nums[i] = page_to_pfn(pages[i]);
+> +	vec->is_pfns = 1;
+> +}
+> +EXPORT_SYMBOL(frame_vector_to_pfns);
+> +
+> +/**
+> + * frame_vector_create() - allocate & initialize structure for pinned pfns
+> + * @nr_frames:	number of pfns slots we should reserve
+> + *
+> + * Allocate and initialize struct pinned_pfns to be able to hold @nr_pfns
+> + * pfns.
+> + */
+> +struct frame_vector *frame_vector_create(unsigned int nr_frames)
+> +{
+> +	struct frame_vector *vec;
+> +	int size = sizeof(struct frame_vector) + sizeof(void *) * nr_frames;
+> +
+> +	if (WARN_ON_ONCE(nr_frames == 0))
+> +		return NULL;
+> +	/*
+> +	 * Avoid higher order allocations, use vmalloc instead. It should
+> +	 * be rare anyway.
+> +	 */
+> +	if (size <= PAGE_SIZE)
+> +		vec = kmalloc(size, GFP_KERNEL);
+> +	else
+> +		vec = vmalloc(size);
+> +	if (!vec)
+> +		return NULL;
+> +	vec->nr_allocated = nr_frames;
+> +	vec->nr_frames = 0;
+> +	return vec;
+> +}
+> +EXPORT_SYMBOL(frame_vector_create);
+> +
+> +/**
+> + * frame_vector_destroy() - free memory allocated to carry frame vector
+> + * @vec:	Frame vector to free
+> + *
+> + * Free structure allocated by frame_vector_create() to carry frames.
+> + */
+> +void frame_vector_destroy(struct frame_vector *vec)
+> +{
+
+Add some VM_BUG_ON()'s for nr_frames and got_ref perhaps?
+
+> +	if (!is_vmalloc_addr(vec))
+> +		kfree(vec);
+> +	else
+> +		vfree(vec);
+> +}
+> +EXPORT_SYMBOL(frame_vector_destroy);
+> +
+>   /**
+>    * get_dump_page() - pin user page in memory while writing it to core dump
+>    * @addr: user address
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
