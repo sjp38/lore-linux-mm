@@ -1,75 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id EAD9F6B0038
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 11:01:13 -0400 (EDT)
-Received: by wief7 with SMTP id f7so127576720wie.0
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 08:01:13 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id f3si34418979wjq.54.2015.05.06.08.01.11
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B1346B006C
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 11:01:54 -0400 (EDT)
+Received: by wgiu9 with SMTP id u9so14762272wgi.3
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 08:01:53 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fi8si2650096wib.10.2015.05.06.08.01.52
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 May 2015 08:01:12 -0700 (PDT)
-Date: Wed, 6 May 2015 11:00:58 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/2] gfp: add __GFP_NOACCOUNT
-Message-ID: <20150506150058.GA4705@cmpxchg.org>
-References: <fdf631b3fa95567a830ea4f3e19d0b3b2fc99662.1430819044.git.vdavydov@parallels.com>
- <20150506115941.GH14550@dhcp22.suse.cz>
- <20150506131622.GA4629@cmpxchg.org>
- <20150506134620.GM14550@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 06 May 2015 08:01:53 -0700 (PDT)
+Date: Wed, 6 May 2015 17:01:49 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 3/9] media: omap_vout: Convert
+ omap_vout_uservirt_to_phys() to use get_vaddr_pfns()
+Message-ID: <20150506150149.GB27648@quack.suse.cz>
+References: <1430897296-5469-1-git-send-email-jack@suse.cz>
+ <1430897296-5469-4-git-send-email-jack@suse.cz>
+ <5549F112.1000405@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150506134620.GM14550@dhcp22.suse.cz>
+In-Reply-To: <5549F112.1000405@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-media@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, dri-devel@lists.freedesktop.org, Pawel Osciak <pawel@osciak.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, mgorman@suse.de, Marek Szyprowski <m.szyprowski@samsung.com>, linux-samsung-soc@vger.kernel.org
 
-On Wed, May 06, 2015 at 03:46:20PM +0200, Michal Hocko wrote:
-> On Wed 06-05-15 09:16:22, Johannes Weiner wrote:
-> > On Wed, May 06, 2015 at 01:59:41PM +0200, Michal Hocko wrote:
-> > > On Tue 05-05-15 12:45:42, Vladimir Davydov wrote:
-> > > > Not all kmem allocations should be accounted to memcg. The following
-> > > > patch gives an example when accounting of a certain type of allocations
-> > > > to memcg can effectively result in a memory leak.
-> > > 
-> > > > This patch adds the __GFP_NOACCOUNT flag which if passed to kmalloc
-> > > > and friends will force the allocation to go through the root
-> > > > cgroup. It will be used by the next patch.
-> > > 
-> > > The name of the flag is way too generic. It is not clear that the
-> > > accounting is KMEMCG related.
-> > 
-> > The memory controller is the (primary) component that accounts
-> > physical memory allocations in the kernel, so I don't see how this
-> > would be ambiguous in any way.
+On Wed 06-05-15 12:46:42, Vlastimil Babka wrote:
+> On 05/06/2015 09:28 AM, Jan Kara wrote:
+> >Convert omap_vout_uservirt_to_phys() to use get_vaddr_pfns() instead of
+> >hand made mapping of virtual address to physical address. Also the
+> >function leaked page reference from get_user_pages() so fix that by
+> >properly release the reference when omap_vout_buffer_release() is
+> >called.
+> >
+> >Signed-off-by: Jan Kara <jack@suse.cz>
+> >---
+> >  drivers/media/platform/omap/omap_vout.c | 67 +++++++++++++++------------------
+> >  1 file changed, 31 insertions(+), 36 deletions(-)
+> >
 > 
-> What if a high-level allocator wants to do some accounting as well?
-> E.g. slab allocator accounts {un}reclaimable pages. It is a different
-> thing because the accounting is per-cache rather than gfp based but I
-> just wanted to point out that accounting is rather a wide term.
+> ...
+> 
+> >+	vec = frame_vector_create(1);
+> >+	if (!vec)
+> >+		return -ENOMEM;
+> >
+> >-		if (res == nr_pages) {
+> >-			physp =  __pa(page_address(&pages[0]) +
+> >-					(virtp & ~PAGE_MASK));
+> >-		} else {
+> >-			printk(KERN_WARNING VOUT_NAME
+> >-					"get_user_pages failed\n");
+> >-			return 0;
+> >-		}
+> >+	ret = get_vaddr_frames(virtp, 1, 1, 0, vec);
+> 
+> Use true/false where appropriate.
+  Right. Thanks.
 
-This is a concept we have discussed so many times before.  The more
-generic or fundamental the functionality in its context, the more
-generic the name.  The longer and more specific the name, the more
-niche its functionality in that context.
-
-See schedule().
-
-See open().
-
-Accounting is a broad term, but in the context of a physical memory
-request I can not think of a more fundamental meaning of "do not
-account" - without further qualification - then inhibiting what memcg
-does: accounting the requested memory to the caller.
-
-If some allocator would want to modify the accounting of a certain
-*type* of memory, then that would be more specific, and a flag to
-accomplish this would be expected to have a longer name.
-
-One is a core feature of the VM, the other is a niche aspect of
-another core feature of the VM.
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
