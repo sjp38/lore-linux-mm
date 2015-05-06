@@ -1,84 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B77C6B006E
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 11:02:07 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so206104264wiz.1
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 08:02:07 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fz3si34328427wjb.197.2015.05.06.08.02.05
+Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CD4276B0038
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 11:42:42 -0400 (EDT)
+Received: by oign205 with SMTP id n205so10665489oig.2
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 08:42:41 -0700 (PDT)
+Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
+        by mx.google.com with ESMTPS id pz7si12185844oec.44.2015.05.06.08.42.40
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 06 May 2015 08:02:06 -0700 (PDT)
-Date: Wed, 6 May 2015 17:02:02 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 9/9] drm/exynos: Convert g2d_userptr_get_dma_addr() to
- use get_vaddr_frames()
-Message-ID: <20150506150202.GC27648@quack.suse.cz>
-References: <1430897296-5469-1-git-send-email-jack@suse.cz>
- <1430897296-5469-10-git-send-email-jack@suse.cz>
- <5549F147.3050800@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5549F147.3050800@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 May 2015 08:42:40 -0700 (PDT)
+Message-ID: <1430925811.23761.303.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v4 4/7] mtrr, x86: Fix MTRR state checks in
+ mtrr_type_lookup()
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 06 May 2015 09:23:31 -0600
+In-Reply-To: <20150506114705.GD22949@pd.tnic>
+References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
+	 <1427234921-19737-5-git-send-email-toshi.kani@hp.com>
+	 <20150506114705.GD22949@pd.tnic>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-media@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, dri-devel@lists.freedesktop.org, Pawel Osciak <pawel@osciak.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, mgorman@suse.de, Marek Szyprowski <m.szyprowski@samsung.com>, linux-samsung-soc@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
 
-On Wed 06-05-15 12:47:35, Vlastimil Babka wrote:
-> On 05/06/2015 09:28 AM, Jan Kara wrote:
-> >Convert g2d_userptr_get_dma_addr() to pin pages using get_vaddr_frames().
-> >This removes the knowledge about vmas and mmap_sem locking from exynos
-> >driver. Also it fixes a problem that the function has been mapping user
-> >provided address without holding mmap_sem.
-> >
-> >Signed-off-by: Jan Kara <jack@suse.cz>
-> >---
-> >  drivers/gpu/drm/exynos/exynos_drm_g2d.c | 89 ++++++++++--------------------
-> >  drivers/gpu/drm/exynos/exynos_drm_gem.c | 97 ---------------------------------
-> >  2 files changed, 29 insertions(+), 157 deletions(-)
-> >
-> >diff --git a/drivers/gpu/drm/exynos/exynos_drm_g2d.c b/drivers/gpu/drm/exynos/exynos_drm_g2d.c
-> >index 81a250830808..265519c0fe2d 100644
-> >--- a/drivers/gpu/drm/exynos/exynos_drm_g2d.c
-> >+++ b/drivers/gpu/drm/exynos/exynos_drm_g2d.c
-> ...
-> >@@ -456,65 +458,37 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
-> >  		return ERR_PTR(-ENOMEM);
-> >
-> >  	atomic_set(&g2d_userptr->refcount, 1);
-> >+	g2d_userptr->size = size;
-> >
-> >  	start = userptr & PAGE_MASK;
-> >  	offset = userptr & ~PAGE_MASK;
-> >  	end = PAGE_ALIGN(userptr + size);
-> >  	npages = (end - start) >> PAGE_SHIFT;
-> >-	g2d_userptr->npages = npages;
-> >-
-> >-	pages = drm_calloc_large(npages, sizeof(struct page *));
-> >-	if (!pages) {
-> >-		DRM_ERROR("failed to allocate pages.\n");
-> >-		ret = -ENOMEM;
-> >+	vec = g2d_userptr->vec = frame_vector_create(npages);
-> >+	if (!vec)
-> >  		goto err_free;
-> >-	}
-> >
-> >-	down_read(&current->mm->mmap_sem);
-> >-	vma = find_vma(current->mm, userptr);
-> >-	if (!vma) {
-> >-		up_read(&current->mm->mmap_sem);
-> >-		DRM_ERROR("failed to get vm region.\n");
-> >+	ret = get_vaddr_frames(start, npages, 1, 1, vec);
+On Wed, 2015-05-06 at 13:47 +0200, Borislav Petkov wrote:
+> On Tue, Mar 24, 2015 at 04:08:38PM -0600, Toshi Kani wrote:
+> > 'mtrr_state.enabled' contains the FE (fixed MTRRs enabled)
+> > and E (MTRRs enabled) flags in MSR_MTRRdefType.  Intel SDM,
+> > section 11.11.2.1, defines these flags as follows:
+> >  - All MTRRs are disabled when the E flag is clear.
+> >    The FE flag has no affect when the E flag is clear.
+> >  - The default type is enabled when the E flag is set.
+> >  - MTRR variable ranges are enabled when the E flag is set.
+> >  - MTRR fixed ranges are enabled when both E and FE flags
+> >    are set.
+> > 
+> > MTRR state checks in __mtrr_type_lookup() do not match with
+> > SDM.  Hence, this patch makes the following changes:
+> >  - The current code detects MTRRs disabled when both E and
+> >    FE flags are clear in mtrr_state.enabled.  Fix to detect
+> >    MTRRs disabled when the E flag is clear.
+> >  - The current code does not check if the FE bit is set in
+> >    mtrr_state.enabled when looking into the fixed entries.
+> >    Fix to check the FE flag.
+> >  - The current code returns the default type when the E flag
+> >    is clear in mtrr_state.enabled.  However, the default type
+> >    is also disabled when the E flag is clear.  Fix to remove
+> >    the code as this case is handled as MTRR disabled with
+> >    the 1st change.
+> > 
+> > In addition, this patch defines the E and FE flags in
+> > mtrr_state.enabled as follows.
+> >  - FE flag: MTRR_STATE_MTRR_FIXED_ENABLED
+> >  - E  flag: MTRR_STATE_MTRR_ENABLED
+> > 
+> > print_mtrr_state() is also updated accordingly.
+> > 
+> > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+> > ---
+> >  arch/x86/include/uapi/asm/mtrr.h   |    4 ++++
+> >  arch/x86/kernel/cpu/mtrr/generic.c |   15 ++++++++-------
+> >  2 files changed, 12 insertions(+), 7 deletions(-)
 > 
-> Use true instead of 1.
-  Yes, thanks!
+> You missed a spot in the conversion in
+> arch/x86/kernel/cpu/mtrr/cleanup.c::x86_get_mtrr_mem_range():
+> 
+> There we have
+> 
+> 	if (base < (1<<(20-PAGE_SHIFT)) && mtrr_state.have_fixed &&
+> 	    (mtrr_state.enabled & 1)) {
+> 
+> which should be mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Right.  I will also check both MTRR_STATE_MTRR_FIXED_ENABLED &
+MTRR_STATE_MTRR_FIXED_ENABLED bits here.
+
+> > diff --git a/arch/x86/include/uapi/asm/mtrr.h b/arch/x86/include/uapi/asm/mtrr.h
+> > index d0acb65..66ba88d 100644
+> > --- a/arch/x86/include/uapi/asm/mtrr.h
+> > +++ b/arch/x86/include/uapi/asm/mtrr.h
+> > @@ -88,6 +88,10 @@ struct mtrr_state_type {
+> >         mtrr_type def_type;
+> >  };
+> > 
+> > +/* Bit fields for enabled in struct mtrr_state_type */
+> > +#define MTRR_STATE_MTRR_FIXED_ENABLED  0x01
+> > +#define MTRR_STATE_MTRR_ENABLED                0x02
+> > +
+> >  #define MTRRphysBase_MSR(reg) (0x200 + 2 * (reg))
+> >  #define MTRRphysMask_MSR(reg) (0x200 + 2 * (reg) + 1)
+> 
+> Please add those to arch/x86/include/asm/mtrr.h instead. They have no
+> place in the uapi header.
+
+I have a question.  Those bits define the bit field of enabled in struct
+mtrr_state_type, which is defined in this header.  Is it OK to only move
+those definitions to other header?
+
+Thanks,
+-Toshi
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
