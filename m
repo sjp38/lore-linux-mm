@@ -1,53 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id A82F16B006C
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 06:46:14 -0400 (EDT)
-Received: by wiun10 with SMTP id n10so17170341wiu.1
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 03:46:14 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id e7si1054988wib.9.2015.05.06.03.46.12
-        for <linux-mm@kvack.org>;
-        Wed, 06 May 2015 03:46:13 -0700 (PDT)
-Date: Wed, 6 May 2015 12:46:09 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v4 3/7] mtrr, x86: Remove a wrong address check in
- __mtrr_type_lookup()
-Message-ID: <20150506104609.GC22949@pd.tnic>
-References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
- <1427234921-19737-4-git-send-email-toshi.kani@hp.com>
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 810C06B006E
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 06:46:45 -0400 (EDT)
+Received: by wgyo15 with SMTP id o15so6935862wgy.2
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 03:46:45 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o2si1571780wic.59.2015.05.06.03.46.43
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 06 May 2015 03:46:44 -0700 (PDT)
+Message-ID: <5549F112.1000405@suse.cz>
+Date: Wed, 06 May 2015 12:46:42 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <1427234921-19737-4-git-send-email-toshi.kani@hp.com>
+Subject: Re: [PATCH 3/9] media: omap_vout: Convert omap_vout_uservirt_to_phys()
+ to use get_vaddr_pfns()
+References: <1430897296-5469-1-git-send-email-jack@suse.cz> <1430897296-5469-4-git-send-email-jack@suse.cz>
+In-Reply-To: <1430897296-5469-4-git-send-email-jack@suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
+To: Jan Kara <jack@suse.cz>, linux-mm@kvack.org
+Cc: linux-media@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, dri-devel@lists.freedesktop.org, Pawel Osciak <pawel@osciak.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, mgorman@suse.de, Marek Szyprowski <m.szyprowski@samsung.com>, linux-samsung-soc@vger.kernel.org
 
-On Tue, Mar 24, 2015 at 04:08:37PM -0600, Toshi Kani wrote:
-> __mtrr_type_lookup() checks MTRR fixed ranges when
-> mtrr_state.have_fixed is set and start is less than
-> 0x100000.  However, the 'else if (start < 0x1000000)'
-> in the code checks with a wrong address as it has
-> an extra-zero in the address.  The code still runs
-> correctly as this check is meaningless, though.
-> 
-> This patch replaces the wrong address check with 'else'
-> with no condition.
-> 
-> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+On 05/06/2015 09:28 AM, Jan Kara wrote:
+> Convert omap_vout_uservirt_to_phys() to use get_vaddr_pfns() instead of
+> hand made mapping of virtual address to physical address. Also the
+> function leaked page reference from get_user_pages() so fix that by
+> properly release the reference when omap_vout_buffer_release() is
+> called.
+>
+> Signed-off-by: Jan Kara <jack@suse.cz>
 > ---
->  arch/x86/kernel/cpu/mtrr/generic.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+>   drivers/media/platform/omap/omap_vout.c | 67 +++++++++++++++------------------
+>   1 file changed, 31 insertions(+), 36 deletions(-)
+>
 
-Applied, thanks.
+...
 
--- 
-Regards/Gruss,
-    Boris.
+> +	vec = frame_vector_create(1);
+> +	if (!vec)
+> +		return -ENOMEM;
+>
+> -		if (res == nr_pages) {
+> -			physp =  __pa(page_address(&pages[0]) +
+> -					(virtp & ~PAGE_MASK));
+> -		} else {
+> -			printk(KERN_WARNING VOUT_NAME
+> -					"get_user_pages failed\n");
+> -			return 0;
+> -		}
+> +	ret = get_vaddr_frames(virtp, 1, 1, 0, vec);
 
-ECO tip #101: Trim your mails when you reply.
---
+Use true/false where appropriate.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
