@@ -1,76 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 9580F6B0032
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 15:38:42 -0400 (EDT)
-Received: by pacwv17 with SMTP id wv17so18170728pac.0
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 12:38:42 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k4si30328105pdb.126.2015.05.06.12.38.41
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id AA1C36B0032
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 15:50:06 -0400 (EDT)
+Received: by iecnq11 with SMTP id nq11so23110530iec.3
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 12:50:06 -0700 (PDT)
+Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com. [2607:f8b0:4001:c03::22e])
+        by mx.google.com with ESMTPS id u9si96386icv.80.2015.05.06.12.50.06
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 May 2015 12:38:41 -0700 (PDT)
-Date: Wed, 6 May 2015 12:38:40 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [net-next PATCH 1/6] net: Add skb_free_frag to replace use of
- put_page in freeing skb->head
-Message-Id: <20150506123840.312f41000e8d46f1ef9ce046@linux-foundation.org>
-In-Reply-To: <20150504231448.1538.84164.stgit@ahduyck-vm-fedora22>
-References: <20150504231000.1538.70520.stgit@ahduyck-vm-fedora22>
-	<20150504231448.1538.84164.stgit@ahduyck-vm-fedora22>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 06 May 2015 12:50:06 -0700 (PDT)
+Received: by ieczm2 with SMTP id zm2so23044274iec.2
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 12:50:06 -0700 (PDT)
+Date: Wed, 6 May 2015 12:50:03 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: only define hashdist variable when needed
+In-Reply-To: <1430753249-30850-1-git-send-email-linux@rasmusvillemoes.dk>
+Message-ID: <alpine.DEB.2.10.1505061249520.10365@chino.kir.corp.google.com>
+References: <1430753249-30850-1-git-send-email-linux@rasmusvillemoes.dk>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@redhat.com>
-Cc: linux-mm@kvack.org, netdev@vger.kernel.org, davem@davemloft.net
+To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 04 May 2015 16:14:48 -0700 Alexander Duyck <alexander.h.duyck@redhat.com> wrote:
+On Mon, 4 May 2015, Rasmus Villemoes wrote:
 
-> +/**
-> + * skb_free_frag - free a page fragment
-> + * @head: virtual address of page fragment
-> + *
-> + * Frees a page fragment allocated out of either a compound or order 0 page.
-> + * The function itself is a hybrid between free_pages and free_compound_page
-> + * which can be found in mm/page_alloc.c
-> + */
-> +void skb_free_frag(void *head)
-> +{
-> +	struct page *page = virt_to_head_page(head);
-> +
-> +	if (unlikely(put_page_testzero(page))) {
-> +		if (likely(PageHead(page)))
-> +			__free_pages_ok(page, compound_order(page));
-> +		else
-> +			free_hot_cold_page(page, false);
-> +	}
-> +}
+> For !CONFIG_NUMA, hashdist will always be 0, since it's setter is
+> otherwise compiled out. So we can save 4 bytes of data and some .text
+> (although mostly in __init functions) by only defining it for
+> CONFIG_NUMA.
+> 
+> Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
 
-Why are we testing for PageHead in here?  If the code were to simply do
-
-	if (unlikely(put_page_testzero(page)))
-		__free_pages_ok(page, compound_order(page));
-
-that would still work?
-
-
-There's nothing networking-specific in here.  I suggest the function be
-renamed and moved to page_alloc.c.  Add an inlined skb_free_frag() in a
-net header which calls it.  This way the mm developers know about it
-and will hopefully maintain it.  It would need a comment explaining
-when and why people should and shouldn't use it.
-
-The term "page fragment" is a net thing and isn't something we know
-about.  What is it?  From context I'm thinking a definition would look
-something like
-
-  An arbitrary-length arbitrary-offset area of memory which resides
-  within a 0 or higher order page.  Multiple fragments within that page
-  are individually refcounted, in the page's reference counter.
-
-Is that correct and complete?
-
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
