@@ -1,178 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id A9E926B0083
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 03:28:47 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so190442345wid.0
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 00:28:47 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id F3DAC6B0038
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 03:55:40 -0400 (EDT)
+Received: by wiun10 with SMTP id n10so12206230wiu.1
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 00:55:40 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dl8si813144wib.11.2015.05.06.00.28.26
+        by mx.google.com with ESMTPS id ha1si863654wib.100.2015.05.06.00.55.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 06 May 2015 00:28:27 -0700 (PDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 6/9] media: vb2: Convert vb2_vmalloc_get_userptr() to use frame vector
-Date: Wed,  6 May 2015 09:28:13 +0200
-Message-Id: <1430897296-5469-7-git-send-email-jack@suse.cz>
-In-Reply-To: <1430897296-5469-1-git-send-email-jack@suse.cz>
-References: <1430897296-5469-1-git-send-email-jack@suse.cz>
+        Wed, 06 May 2015 00:55:39 -0700 (PDT)
+Message-ID: <5549C8FB.7080404@suse.cz>
+Date: Wed, 06 May 2015 09:55:39 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2] CMA: page_isolation: check buddy before access it
+References: <1430732477-16977-1-git-send-email-zhuhui@xiaomi.com> <1430796179-1795-1-git-send-email-zhuhui@xiaomi.com> <20150506062801.GA12737@js1304-P5Q-DELUXE>
+In-Reply-To: <20150506062801.GA12737@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-media@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, dri-devel@lists.freedesktop.org, Pawel Osciak <pawel@osciak.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, mgorman@suse.de, Marek Szyprowski <m.szyprowski@samsung.com>, linux-samsung-soc@vger.kernel.org, Jan Kara <jack@suse.cz>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hui Zhu <zhuhui@xiaomi.com>
+Cc: akpm@linux-foundation.org, lauraa@codeaurora.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, teawater@gmail.com
 
-Convert vb2_vmalloc_get_userptr() to use frame vector infrastructure.
-When we are doing that there's no need to allocate page array and some
-code can be simplified.
+On 6.5.2015 8:28, Joonsoo Kim wrote:
+> On Tue, May 05, 2015 at 11:22:59AM +0800, Hui Zhu wrote:
+>>
+>> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+>> index 755a42c..eb22d1f 100644
+>> --- a/mm/page_isolation.c
+>> +++ b/mm/page_isolation.c
+>> @@ -101,7 +101,8 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
+>>  			buddy_idx = __find_buddy_index(page_idx, order);
+>>  			buddy = page + (buddy_idx - page_idx);
+>>  
+>> -			if (!is_migrate_isolate_page(buddy)) {
+>> +			if (!pfn_valid_within(page_to_pfn(buddy))
+>> +			    || !is_migrate_isolate_page(buddy)) {
+>>  				__isolate_free_page(page, order);
+>>  				kernel_map_pages(page, (1 << order), 1);
+>>  				set_page_refcounted(page);
+> 
+> Hello,
+> 
+> This isolation is for merging buddy pages. If buddy is not valid, we
+> don't need to isolate page, because we can't merge them.
+> I think that correct code would be:
+> 
+> pfn_valid_within(page_to_pfn(buddy)) &&
+>         !is_migrate_isolate_page(buddy)
+> 
+> But, isolation and free here is safe operation so your code will work
+> fine.
 
-Acked-by: Marek Szyprowski <m.szyprowski@samsung.com>
-Tested-by: Marek Szyprowski <m.szyprowski@samsung.com>
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- drivers/media/v4l2-core/videobuf2-vmalloc.c | 94 +++++++++++------------------
- 1 file changed, 36 insertions(+), 58 deletions(-)
+Ah damnit, you're right. But now you got me thinking about it more, and
+paranoid... I thought I saw more bugs since the buddy might be in different zone
+and we are not locking that zone, but then again it's probably fine, just very
+tricky. Then I thought it could be simplified but then not again. Guess I'll
+just run away fast :)
 
-diff --git a/drivers/media/v4l2-core/videobuf2-vmalloc.c b/drivers/media/v4l2-core/videobuf2-vmalloc.c
-index 0ba40be21ebd..d2ce81fa2cdf 100644
---- a/drivers/media/v4l2-core/videobuf2-vmalloc.c
-+++ b/drivers/media/v4l2-core/videobuf2-vmalloc.c
-@@ -23,11 +23,9 @@
- 
- struct vb2_vmalloc_buf {
- 	void				*vaddr;
--	struct page			**pages;
--	struct vm_area_struct		*vma;
-+	struct frame_vector		*vec;
- 	enum dma_data_direction		dma_dir;
- 	unsigned long			size;
--	unsigned int			n_pages;
- 	atomic_t			refcount;
- 	struct vb2_vmarea_handler	handler;
- 	struct dma_buf			*dbuf;
-@@ -76,10 +74,8 @@ static void *vb2_vmalloc_get_userptr(void *alloc_ctx, unsigned long vaddr,
- 				     enum dma_data_direction dma_dir)
- {
- 	struct vb2_vmalloc_buf *buf;
--	unsigned long first, last;
--	int n_pages, offset;
--	struct vm_area_struct *vma;
--	dma_addr_t physp;
-+	struct frame_vector *vec;
-+	int n_pages, offset, i;
- 
- 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
- 	if (!buf)
-@@ -88,53 +84,36 @@ static void *vb2_vmalloc_get_userptr(void *alloc_ctx, unsigned long vaddr,
- 	buf->dma_dir = dma_dir;
- 	offset = vaddr & ~PAGE_MASK;
- 	buf->size = size;
--
--	down_read(&current->mm->mmap_sem);
--	vma = find_vma(current->mm, vaddr);
--	if (vma && (vma->vm_flags & VM_PFNMAP) && (vma->vm_pgoff)) {
--		if (vb2_get_contig_userptr(vaddr, size, &vma, &physp))
--			goto fail_pages_array_alloc;
--		buf->vma = vma;
--		buf->vaddr = (__force void *)ioremap_nocache(physp, size);
--		if (!buf->vaddr)
--			goto fail_pages_array_alloc;
-+	vec = vb2_create_framevec(vaddr, size, dma_dir == DMA_FROM_DEVICE);
-+	if (IS_ERR(vec))
-+		goto fail_pfnvec_create;
-+	buf->vec = vec;
-+	n_pages = frame_vector_count(vec);
-+	if (frame_vector_to_pages(vec) < 0) {
-+		unsigned long *nums = frame_vector_pfns(vec);
-+
-+		/*
-+		 * We cannot get page pointers for these pfns. Check memory is
-+		 * physically contiguous and use direct mapping.
-+		 */
-+		for (i = 1; i < n_pages; i++)
-+			if (nums[i-1] + 1 != nums[i])
-+				goto fail_map;
-+		buf->vaddr = (__force void *)
-+				ioremap_nocache(nums[0] << PAGE_SHIFT, size);
- 	} else {
--		first = vaddr >> PAGE_SHIFT;
--		last  = (vaddr + size - 1) >> PAGE_SHIFT;
--		buf->n_pages = last - first + 1;
--		buf->pages = kzalloc(buf->n_pages * sizeof(struct page *),
--				     GFP_KERNEL);
--		if (!buf->pages)
--			goto fail_pages_array_alloc;
--
--		/* current->mm->mmap_sem is taken by videobuf2 core */
--		n_pages = get_user_pages(current, current->mm,
--					 vaddr & PAGE_MASK, buf->n_pages,
--					 dma_dir == DMA_FROM_DEVICE,
--					 1, /* force */
--					 buf->pages, NULL);
--		if (n_pages != buf->n_pages)
--			goto fail_get_user_pages;
--
--		buf->vaddr = vm_map_ram(buf->pages, buf->n_pages, -1,
-+		buf->vaddr = vm_map_ram(frame_vector_pages(vec), n_pages, -1,
- 					PAGE_KERNEL);
--		if (!buf->vaddr)
--			goto fail_get_user_pages;
- 	}
--	up_read(&current->mm->mmap_sem);
- 
-+	if (!buf->vaddr)
-+		goto fail_map;
- 	buf->vaddr += offset;
- 	return buf;
- 
--fail_get_user_pages:
--	pr_debug("get_user_pages requested/got: %d/%d]\n", n_pages,
--		 buf->n_pages);
--	while (--n_pages >= 0)
--		put_page(buf->pages[n_pages]);
--	kfree(buf->pages);
--
--fail_pages_array_alloc:
--	up_read(&current->mm->mmap_sem);
-+fail_map:
-+	vb2_destroy_framevec(vec);
-+fail_pfnvec_create:
- 	kfree(buf);
- 
- 	return NULL;
-@@ -145,22 +124,21 @@ static void vb2_vmalloc_put_userptr(void *buf_priv)
- 	struct vb2_vmalloc_buf *buf = buf_priv;
- 	unsigned long vaddr = (unsigned long)buf->vaddr & PAGE_MASK;
- 	unsigned int i;
-+	struct page **pages;
-+	unsigned int n_pages;
- 
--	down_read(&current->mm->mmap_sem);
--	if (buf->pages) {
-+	if (!buf->vec->is_pfns) {
-+		n_pages = frame_vector_count(buf->vec);
-+		pages = frame_vector_pages(buf->vec);
- 		if (vaddr)
--			vm_unmap_ram((void *)vaddr, buf->n_pages);
--		for (i = 0; i < buf->n_pages; ++i) {
--			if (buf->dma_dir == DMA_FROM_DEVICE)
--				set_page_dirty_lock(buf->pages[i]);
--			put_page(buf->pages[i]);
--		}
--		kfree(buf->pages);
-+			vm_unmap_ram((void *)vaddr, n_pages);
-+		if (buf->dma_dir == DMA_FROM_DEVICE)
-+			for (i = 0; i < n_pages; i++)
-+				set_page_dirty_lock(pages[i]);
- 	} else {
--		vb2_put_vma(buf->vma);
- 		iounmap((__force void __iomem *)buf->vaddr);
- 	}
--	up_read(&current->mm->mmap_sem);
-+	vb2_destroy_framevec(buf->vec);
- 	kfree(buf);
- }
- 
--- 
-2.1.4
+> Thanks.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
