@@ -1,66 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id F3DAC6B0038
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 03:55:40 -0400 (EDT)
-Received: by wiun10 with SMTP id n10so12206230wiu.1
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 00:55:40 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ha1si863654wib.100.2015.05.06.00.55.38
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id A29786B0070
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 04:48:42 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so3581511pdb.1
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 01:48:42 -0700 (PDT)
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
+        by mx.google.com with ESMTPS id ed4si9068538pbc.132.2015.05.06.01.48.40
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 06 May 2015 00:55:39 -0700 (PDT)
-Message-ID: <5549C8FB.7080404@suse.cz>
-Date: Wed, 06 May 2015 09:55:39 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        Wed, 06 May 2015 01:48:41 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 6 May 2015 14:18:35 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 43C893940063
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 14:18:33 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t468mKY326607694
+	for <linux-mm@kvack.org>; Wed, 6 May 2015 14:18:20 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t468mJVi014422
+	for <linux-mm@kvack.org>; Wed, 6 May 2015 14:18:20 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH] mm/thp: Use new function to clear pmd before THP splitting
+In-Reply-To: <20150506001105.GA14559@node.dhcp.inet.fi>
+References: <1430760556-28137-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20150506001105.GA14559@node.dhcp.inet.fi>
+Date: Wed, 06 May 2015 14:18:17 +0530
+Message-ID: <87lhh2ccry.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] CMA: page_isolation: check buddy before access it
-References: <1430732477-16977-1-git-send-email-zhuhui@xiaomi.com> <1430796179-1795-1-git-send-email-zhuhui@xiaomi.com> <20150506062801.GA12737@js1304-P5Q-DELUXE>
-In-Reply-To: <20150506062801.GA12737@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hui Zhu <zhuhui@xiaomi.com>
-Cc: akpm@linux-foundation.org, lauraa@codeaurora.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, teawater@gmail.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: akpm@linux-foundation.org, mpe@ellerman.id.au, paulus@samba.org, benh@kernel.crashing.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-On 6.5.2015 8:28, Joonsoo Kim wrote:
-> On Tue, May 05, 2015 at 11:22:59AM +0800, Hui Zhu wrote:
->>
->> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
->> index 755a42c..eb22d1f 100644
->> --- a/mm/page_isolation.c
->> +++ b/mm/page_isolation.c
->> @@ -101,7 +101,8 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
->>  			buddy_idx = __find_buddy_index(page_idx, order);
->>  			buddy = page + (buddy_idx - page_idx);
->>  
->> -			if (!is_migrate_isolate_page(buddy)) {
->> +			if (!pfn_valid_within(page_to_pfn(buddy))
->> +			    || !is_migrate_isolate_page(buddy)) {
->>  				__isolate_free_page(page, order);
->>  				kernel_map_pages(page, (1 << order), 1);
->>  				set_page_refcounted(page);
-> 
-> Hello,
-> 
-> This isolation is for merging buddy pages. If buddy is not valid, we
-> don't need to isolate page, because we can't merge them.
-> I think that correct code would be:
-> 
-> pfn_valid_within(page_to_pfn(buddy)) &&
->         !is_migrate_isolate_page(buddy)
-> 
-> But, isolation and free here is safe operation so your code will work
-> fine.
+"Kirill A. Shutemov" <kirill@shutemov.name> writes:
 
-Ah damnit, you're right. But now you got me thinking about it more, and
-paranoid... I thought I saw more bugs since the buddy might be in different zone
-and we are not locking that zone, but then again it's probably fine, just very
-tricky. Then I thought it could be simplified but then not again. Guess I'll
-just run away fast :)
+> On Mon, May 04, 2015 at 10:59:16PM +0530, Aneesh Kumar K.V wrote:
+>> Archs like ppc64 require pte_t * to remain stable in some code path.
+>> They use local_irq_disable to prevent a parallel split. Generic code
+>> clear pmd instead of marking it _PAGE_SPLITTING in code path
+>> where we can afford to mark pmd none before splitting. Use a
+>> variant of pmdp_splitting_clear_notify that arch can override.
+>> 
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>
+> Sorry, I still try wrap my head around this problem.
+>
+> So, Power has __find_linux_pte_or_hugepte() which does lock-less lookup in
+> page tables with local interrupts disabled. For huge pages it casts pmd_t
+> to pte_t. Since format of pte_t is different from pmd_t we want to prevent
+> transit from pmd pointing to page table to pmd pinging to huge page (and
+> back) while interrupts are disabled.
+>
+> The complication for Power is that it doesn't do implicit IPI on tlb
+> flush.
+>
 
-> Thanks.
-> 
+s/doesn't do/doesn't need to do/
+
+
+> Is it correct?
+
+that is correct. I will add more info to the commit message of the patch
+I will end up doing.
+
+>
+> For THP, split_huge_page() and collapse sides are covered. This patch
+> should address two cases of splitting PMD, but not compound page in
+> current upstream.
+>
+> But I think there's still *big* problem for Power -- zap_huge_pmd().
+>
+> For instance: other CPU can shoot out a THP PMD with MADV_DONTNEED and
+> fault in small pages instead. IIUC, for __find_linux_pte_or_hugepte(),
+> it's equivalent of splitting.
+>
+> I don't see how this can be fixed without kick_all_cpus_sync() in all
+> pmdp_clear_flush() on Power.
+>
+
+
+Yes we could run into issue with that. Thanks for catching this. Now i
+am not sure whether we want to do the kick_all_cpus_sync in
+pmdp_get_and_clear. We do use that function while updating huge pte. The
+one i am looking at is change_huge_pmd. We don't need a IPI there
+and we would really like to avoid the IPI. Any idea why we follow
+the sequence of pmd_clear and set_pmd, instead of pmd_update there ?
+
+I looked at code paths we are clearing pmd where we would not
+require an IPI. Listing them
+
+move_huge_pmd
+do_huge_pmd_wp_page
+migrate_misplace_transhuge_page
+change_huge_pmd.
+
+Of this IIUC change_huge_pmd may be called more frequently and hence we
+may want to avoid doing kick_all_cpus_sync there ?
+
+One way to fix that would be switch change_huge_pmd to pmd_update and
+then we could do a kick_all_cpus_sync in pmdp_get_and_clear.
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
