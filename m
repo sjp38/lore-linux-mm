@@ -1,72 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id C5FE86B0032
-	for <linux-mm@kvack.org>; Thu,  7 May 2015 10:28:53 -0400 (EDT)
-Received: by pacwv17 with SMTP id wv17so41725832pac.0
-        for <linux-mm@kvack.org>; Thu, 07 May 2015 07:28:53 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id x1si31987pdm.181.2015.05.07.07.28.52
+Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 483E66B006E
+	for <linux-mm@kvack.org>; Thu,  7 May 2015 10:33:48 -0400 (EDT)
+Received: by qcbgy10 with SMTP id gy10so21887416qcb.3
+        for <linux-mm@kvack.org>; Thu, 07 May 2015 07:33:48 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m46si2167922qgd.70.2015.05.07.07.33.46
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 May 2015 07:28:53 -0700 (PDT)
-Message-ID: <554B769E.1040000@parallels.com>
-Date: Thu, 7 May 2015 17:28:46 +0300
-From: Pavel Emelyanov <xemul@parallels.com>
-MIME-Version: 1.0
+        Thu, 07 May 2015 07:33:47 -0700 (PDT)
+Date: Thu, 7 May 2015 16:33:43 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [PATCH] UserfaultFD: Rename uffd_api.bits into .features
-References: <5509D342.7000403@parallels.com> <20150421120222.GC4481@redhat.com> <55389261.50105@parallels.com> <20150427211650.GC24035@redhat.com> <55425A74.3020604@parallels.com> <20150507134236.GB13098@redhat.com>
-In-Reply-To: <20150507134236.GB13098@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Message-ID: <20150507143343.GG13098@redhat.com>
+References: <5509D342.7000403@parallels.com>
+ <20150421120222.GC4481@redhat.com>
+ <55389261.50105@parallels.com>
+ <20150427211650.GC24035@redhat.com>
+ <55425A74.3020604@parallels.com>
+ <20150507134236.GB13098@redhat.com>
+ <554B769E.1040000@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <554B769E.1040000@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
+To: Pavel Emelyanov <xemul@parallels.com>
 Cc: Linux MM <linux-mm@kvack.org>
 
-On 05/07/2015 04:42 PM, Andrea Arcangeli wrote:
-> Hi Pavel,
-> 
-> On Thu, Apr 30, 2015 at 07:38:12PM +0300, Pavel Emelyanov wrote:
->> Hi,
->>
->> This is (seem to be) the minimal thing that is required to unblock
->> standard uffd usage from the non-cooperative one. Now more bits can
->> be added to the features field indicating e.g. UFFD_FEATURE_FORK and
->> others needed for the latter use-case.
->>
->> Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
-> 
-> Applied.
-> 
-> http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=c2dee3384770a953cbad27b46854aa6fd13656c6
-> http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=d0df59f21f2cde4c49879c00586ce3cb1e3860fe
+On Thu, May 07, 2015 at 05:28:46PM +0300, Pavel Emelyanov wrote:
+> Yup, this is very close to what I did in my set -- introduced a message to
+> report back to the user-space on read. But my message is more than 8+2*1 bytes,
+> so we'll have one message for 0xAA API and another one for 0xAB (new) one :)
 
-Great!
+I slightly altered it to fix an issue with packet alignments so it'd
+be 16bytes.
 
-> I was also asked if we could return the full address of the fault
-> including the page offset. In the end I also implemented this
-> incremental to your change:
-> 
-> http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=c308fc81b0a9c53c11b33331ad00d8e5b9763e60
-> 
-> Let me know if you're ok with it. 
+How big is your msg currently? Could we get to use the same API?
 
-Yup, this is very close to what I did in my set -- introduced a message to
-report back to the user-space on read. But my message is more than 8+2*1 bytes,
-so we'll have one message for 0xAA API and another one for 0xAB (new) one :)
+UFFDIO_REGISTER_MODE_FORK
 
-> The commit header explains more why
-> I think the bits below PAGE_SHIFT of the fault address aren't
-> interesting but why I did this change anyway.
-> 
-> After reviewing this last change I think it's time to make a proper
-> submit and it's polished enough for merging in -mm after proper review
-> of the full patchset.
+or 
 
-Yup, fully agree :) And I will soon send the re-based non-cooperative patchset
-with new API version, longer messages, fork and remap events reporting.
-
--- Pavel
+UFFDIO_REGISTER_MODE_NON_COOPERATIVE would differentiate if you want
+to register for fork/mremap/dontneed events as well or only the
+default (UFFD_EVENT_PAGEFAULT).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
