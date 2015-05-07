@@ -1,118 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 801E86B0032
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 20:35:55 -0400 (EDT)
-Received: by qku63 with SMTP id 63so18042879qku.3
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 17:35:55 -0700 (PDT)
-Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [2001:4b98:c:538::195])
-        by mx.google.com with ESMTPS id w104si485480qgd.2.2015.05.06.17.35.54
+Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 746376B0038
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 20:39:29 -0400 (EDT)
+Received: by qcbgy10 with SMTP id gy10so13737409qcb.3
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 17:39:29 -0700 (PDT)
+Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com. [209.85.220.179])
+        by mx.google.com with ESMTPS id l42si491925qgl.9.2015.05.06.17.39.28
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 06 May 2015 17:35:54 -0700 (PDT)
-Date: Wed, 6 May 2015 17:35:47 -0700
-From: Josh Triplett <josh@joshtriplett.org>
-Subject: [PATCH] devpts: If initialization failed, don't crash when opening
- /dev/ptmx
-Message-ID: <20150507003547.GA6862@jtriplet-mobl1>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 May 2015 17:39:28 -0700 (PDT)
+Received: by qku63 with SMTP id 63so18083928qku.3
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 17:39:28 -0700 (PDT)
+Message-ID: <554AB43A.1030709@hurleysoftware.com>
+Date: Wed, 06 May 2015 20:39:22 -0400
+From: Peter Hurley <peter@hurleysoftware.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [CONFIG_MULTIUSER] BUG: unable to handle kernel paging request
+ at ffffffee
+References: <20150428004320.GA19623@wfg-t540p.sh.intel.com> <20150506090850.GA30187@wfg-t540p.sh.intel.com> <20150506154429.GA21798@x> <20150506235936.GB23822@cloud>
+In-Reply-To: <20150506235936.GB23822@cloud>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, Iulia Manda <iulia.manda21@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Fabian Frederick <fabf@skynet.be>, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: josh@joshtriplett.org, Fengguang Wu <fengguang.wu@intel.com>
+Cc: Iulia Manda <iulia.manda21@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, LKP <lkp@01.org>, linux-kernel@vger.kernel.org
 
-If devpts failed to initialize, it would store an ERR_PTR in the global
-devpts_mnt.  A subsequent open of /dev/ptmx would call devpts_new_index,
-which would dereference devpts_mnt and crash.
+On 05/06/2015 07:59 PM, josh@joshtriplett.org wrote:
+> On Wed, May 06, 2015 at 08:44:29AM -0700, Josh Triplett wrote:
+>> On Wed, May 06, 2015 at 05:08:50PM +0800, Fengguang Wu wrote:
+>>> FYI, the reported bug is still not fixed in linux-next 20150506.
+>>
+>> This isn't the same bug.  The previous one you mentioned was a userspace
+>> assertion failure in libnih, likely caused because some part of upstart
+>> didn't have appropriate error handling for some syscall returning
+>> ENOSYS; that one wasn't an issue, since CONFIG_MULTIUSER=n is not
+>> expected to boot a standard Linux distribution.
+>>
+>> This one, on the other hand, is a kernel panic, and does need fixing.
+>>
+>>> commit 2813893f8b197a14f1e1ddb04d99bce46817c84a
+>>>
+>>> +-----------------------------------------------------------+------------+------------+------------+
+>>> |                                                           | c79574abe2 | 2813893f8b | cbdacaf0c1 |
+>>> +-----------------------------------------------------------+------------+------------+------------+
+>>> | boot_successes                                            | 60         | 0          | 0          |
+>>> | boot_failures                                             | 0          | 22         | 1064       |
+>>> | BUG:unable_to_handle_kernel                               | 0          | 22         | 1032       |
+>>> | Oops                                                      | 0          | 22         | 1032       |
+>>> | EIP_is_at_devpts_new_index                                | 0          | 22         | 1032       |
+>>> | Kernel_panic-not_syncing:Fatal_exception                  | 0          | 22         | 1032       |
+>>> | backtrace:do_sys_open                                     | 0          | 22         | 1032       |
+>>> | backtrace:SyS_open                                        | 0          | 22         | 1032       |
+>>> | WARNING:at_arch/x86/kernel/fpu/core.c:#fpu__clear()       | 0          | 0          | 32         |
+>>> | Kernel_panic-not_syncing:Attempted_to_kill_init!exitcode= | 0          | 0          | 32         |
+>>> +-----------------------------------------------------------+------------+------------+------------+
+>>
+>> Is this table saying the number of times the type of error in the first
+>> column occurred in each commit?
+>>
+>> In any case, investigating.  Iulia, can you look at this as well?
+>>
+>> I'm digging through the call stack, and I'm having a hard time seeing
+>> how the CONFIG_MULTIUSER patch could affect anything here.
+> 
+> Update: it looks like init_devpts_fs is getting ERR_PTR(-EINVAL) back
+> from kern_mount and storing that in devpts_mnt; later, devpts_new_index
+> pokes at devpts_mnt and explodes.
+> 
+> So, there are two separate bugs here.  On the one hand, CONFIG_MULTIUSER
+> should not be causing kern_mount to fail with -EINVAL; tracking that
+> down now.
 
-Avoid storing invalid values in devpts_mnt; leave it NULL instead.
-Make both devpts_new_index and devpts_pty_new fail gracefully with
-ENODEV in that case, which then becomes the return value to the
-userspace open call on /dev/ptmx.
+The mount failure is probably from the devpts mount options specifying
+gid= for devpts nodes:
 
-Signed-off-by: Josh Triplett <josh@joshtriplett.org>
----
+devpts /dev/pts devpts rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000 0 0
 
-This fixes a crash found by Fengguang Wu's 0-day service ("BUG: unable to
-handle kernel paging request at ffffffee").  It doesn't yet fix the underlying
-initialization failure in init_devpts_fs, but it stops that failure from
-becoming a kernel crash.  I'm working on the initialization failure now.
+The relevant code is fs/devpts/inode.c:parse_mount_options().
+devpts also supports specifying the uid.
 
- fs/devpts/inode.c | 30 +++++++++++++++++++++++-------
- 1 file changed, 23 insertions(+), 7 deletions(-)
+To me, kern_mount() appropriately fails with -EINVAL, since the mount
+options failed.
 
-diff --git a/fs/devpts/inode.c b/fs/devpts/inode.c
-index cfe8466..03e9076 100644
---- a/fs/devpts/inode.c
-+++ b/fs/devpts/inode.c
-@@ -142,6 +142,8 @@ static inline struct super_block *pts_sb_from_inode(struct inode *inode)
- 	if (inode->i_sb->s_magic == DEVPTS_SUPER_MAGIC)
- 		return inode->i_sb;
- #endif
-+	if (!devpts_mnt)
-+		return NULL;
- 	return devpts_mnt->mnt_sb;
- }
- 
-@@ -525,10 +527,14 @@ static struct file_system_type devpts_fs_type = {
- int devpts_new_index(struct inode *ptmx_inode)
- {
- 	struct super_block *sb = pts_sb_from_inode(ptmx_inode);
--	struct pts_fs_info *fsi = DEVPTS_SB(sb);
-+	struct pts_fs_info *fsi;
- 	int index;
- 	int ida_ret;
- 
-+	if (!sb)
-+		return -ENODEV;
-+
-+	fsi = DEVPTS_SB(sb);
- retry:
- 	if (!ida_pre_get(&fsi->allocated_ptys, GFP_KERNEL))
- 		return -ENOMEM;
-@@ -584,11 +590,18 @@ struct inode *devpts_pty_new(struct inode *ptmx_inode, dev_t device, int index,
- 	struct dentry *dentry;
- 	struct super_block *sb = pts_sb_from_inode(ptmx_inode);
- 	struct inode *inode;
--	struct dentry *root = sb->s_root;
--	struct pts_fs_info *fsi = DEVPTS_SB(sb);
--	struct pts_mount_opts *opts = &fsi->mount_opts;
-+	struct dentry *root;
-+	struct pts_fs_info *fsi;
-+	struct pts_mount_opts *opts;
- 	char s[12];
- 
-+	if (!sb)
-+		return ERR_PTR(-ENODEV);
-+
-+	root = sb->s_root;
-+	fsi = DEVPTS_SB(sb);
-+	opts = &fsi->mount_opts;
-+
- 	inode = new_inode(sb);
- 	if (!inode)
- 		return ERR_PTR(-ENOMEM);
-@@ -676,12 +689,15 @@ static int __init init_devpts_fs(void)
- 	struct ctl_table_header *table;
- 
- 	if (!err) {
-+		static struct vfsmount *mnt;
- 		table = register_sysctl_table(pty_root_table);
--		devpts_mnt = kern_mount(&devpts_fs_type);
--		if (IS_ERR(devpts_mnt)) {
--			err = PTR_ERR(devpts_mnt);
-+		mnt = kern_mount(&devpts_fs_type);
-+		if (IS_ERR(mnt)) {
-+			err = PTR_ERR(mnt);
- 			unregister_filesystem(&devpts_fs_type);
- 			unregister_sysctl_table(table);
-+		} else {
-+			devpts_mnt = mnt;
- 		}
- 	}
- 	return err;
--- 
-2.1.4
+
+> On the other hand, devpts and ptmx should handle the failure
+> better, without crashing; ptmx_open should have gracefully failed back
+> to userspace with -ENODEV or something, since ptmx doesn't make sense
+> without devpts.  I'll send a patch for that too.
+
+Yeah, crashing is bad, but I don't think we should even be init'ing
+either BSD or SysV pty drivers if there is no devpts.
+
+Regards,
+Peter Hurley
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
