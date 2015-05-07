@@ -1,204 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BF4096B0038
-	for <linux-mm@kvack.org>; Thu,  7 May 2015 05:20:18 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so234115870wid.0
-        for <linux-mm@kvack.org>; Thu, 07 May 2015 02:20:18 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
-        by mx.google.com with ESMTP id o1si6489772wix.88.2015.05.07.02.20.15
-        for <linux-mm@kvack.org>;
-        Thu, 07 May 2015 02:20:16 -0700 (PDT)
-Date: Thu, 7 May 2015 12:20:00 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH V2 1/2] mm/thp: Split out pmd collpase flush into a
- seperate functions
-Message-ID: <20150507092000.GA18516@node.dhcp.inet.fi>
-References: <1430983408-24924-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 634C86B0038
+	for <linux-mm@kvack.org>; Thu,  7 May 2015 05:48:26 -0400 (EDT)
+Received: by wicmx19 with SMTP id mx19so9525260wic.1
+        for <linux-mm@kvack.org>; Thu, 07 May 2015 02:48:25 -0700 (PDT)
+Received: from mail-wg0-x22d.google.com (mail-wg0-x22d.google.com. [2a00:1450:400c:c00::22d])
+        by mx.google.com with ESMTPS id h6si2408366wjy.71.2015.05.07.02.48.24
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 May 2015 02:48:24 -0700 (PDT)
+Received: by wgic8 with SMTP id c8so11300912wgi.1
+        for <linux-mm@kvack.org>; Thu, 07 May 2015 02:48:23 -0700 (PDT)
+Date: Thu, 7 May 2015 11:48:19 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH RFC 00/15] decouple pagefault_disable() from
+ preempt_disable()
+Message-ID: <20150507094819.GC4734@gmail.com>
+References: <1430934639-2131-1-git-send-email-dahi@linux.vnet.ibm.com>
+ <20150506150158.0a927470007e8ea5f3278956@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1430983408-24924-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <20150506150158.0a927470007e8ea5f3278956@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, mpe@ellerman.id.au, paulus@samba.org, benh@kernel.crashing.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Hildenbrand <dahi@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, mingo@redhat.com, peterz@infradead.org, yang.shi@windriver.com, bigeasy@linutronix.de, benh@kernel.crashing.org, paulus@samba.org, heiko.carstens@de.ibm.com, schwidefsky@de.ibm.com, borntraeger@de.ibm.com, mst@redhat.com, tglx@linutronix.de, David.Laight@ACULAB.COM, hughd@google.com, hocko@suse.cz, ralf@linux-mips.org, herbert@gondor.apana.org.au, linux@arm.linux.org.uk, airlied@linux.ie, daniel.vetter@intel.com, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-On Thu, May 07, 2015 at 12:53:27PM +0530, Aneesh Kumar K.V wrote:
-> After this patch pmdp_* functions operate only on hugepage pte,
-> and not on regular pmd_t values pointing to page table.
+
+* Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> On Wed,  6 May 2015 19:50:24 +0200 David Hildenbrand <dahi@linux.vnet.ibm.com> wrote:
 > 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  arch/powerpc/include/asm/pgtable-ppc64.h |  4 ++
->  arch/powerpc/mm/pgtable_64.c             | 76 +++++++++++++++++---------------
->  include/asm-generic/pgtable.h            | 19 ++++++++
->  mm/huge_memory.c                         |  2 +-
->  4 files changed, 65 insertions(+), 36 deletions(-)
+> > As Peter asked me to also do the decoupling in one shot, this is
+> > the new series.
+> > 
+> > I recently discovered that might_fault() doesn't call might_sleep()
+> > anymore. Therefore bugs like:
+> > 
+> >   spin_lock(&lock);
+> >   rc = copy_to_user(...);
+> >   spin_unlock(&lock);
+> > 
+> > would not be detected with CONFIG_DEBUG_ATOMIC_SLEEP. The code was
+> > changed to disable false positives for code like:
+> > 
+> >   pagefault_disable();
+> >   rc = copy_to_user(...);
+> >   pagefault_enable();
+> > 
+> > Whereby the caller wants do deal with failures.
 > 
-> diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
-> index 43e6ad424c7f..50830c9a2116 100644
-> --- a/arch/powerpc/include/asm/pgtable-ppc64.h
-> +++ b/arch/powerpc/include/asm/pgtable-ppc64.h
-> @@ -576,6 +576,10 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
->  extern void pmdp_splitting_flush(struct vm_area_struct *vma,
->  				 unsigned long address, pmd_t *pmdp);
->  
-> +#define __HAVE_ARCH_PMDP_COLLAPSE_FLUSH
-> +extern pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
-> +				 unsigned long address, pmd_t *pmdp);
-> +
->  #define __HAVE_ARCH_PGTABLE_DEPOSIT
->  extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
->  				       pgtable_t pgtable);
-> diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
-> index 59daa5eeec25..9171c1a37290 100644
-> --- a/arch/powerpc/mm/pgtable_64.c
-> +++ b/arch/powerpc/mm/pgtable_64.c
-> @@ -560,41 +560,47 @@ pmd_t pmdp_clear_flush(struct vm_area_struct *vma, unsigned long address,
->  	pmd_t pmd;
->  
->  	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-> -	if (pmd_trans_huge(*pmdp)) {
-> -		pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
-> -	} else {
-> -		/*
-> -		 * khugepaged calls this for normal pmd
-> -		 */
-> -		pmd = *pmdp;
-> -		pmd_clear(pmdp);
-> -		/*
-> -		 * Wait for all pending hash_page to finish. This is needed
-> -		 * in case of subpage collapse. When we collapse normal pages
-> -		 * to hugepage, we first clear the pmd, then invalidate all
-> -		 * the PTE entries. The assumption here is that any low level
-> -		 * page fault will see a none pmd and take the slow path that
-> -		 * will wait on mmap_sem. But we could very well be in a
-> -		 * hash_page with local ptep pointer value. Such a hash page
-> -		 * can result in adding new HPTE entries for normal subpages.
-> -		 * That means we could be modifying the page content as we
-> -		 * copy them to a huge page. So wait for parallel hash_page
-> -		 * to finish before invalidating HPTE entries. We can do this
-> -		 * by sending an IPI to all the cpus and executing a dummy
-> -		 * function there.
-> -		 */
-> -		kick_all_cpus_sync();
-> -		/*
-> -		 * Now invalidate the hpte entries in the range
-> -		 * covered by pmd. This make sure we take a
-> -		 * fault and will find the pmd as none, which will
-> -		 * result in a major fault which takes mmap_sem and
-> -		 * hence wait for collapse to complete. Without this
-> -		 * the __collapse_huge_page_copy can result in copying
-> -		 * the old content.
-> -		 */
-> -		flush_tlb_pmd_range(vma->vm_mm, &pmd, address);
-> -	}
-> +	VM_BUG_ON(!pmd_trans_huge(*pmdp));
-> +	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
-> +	return pmd;
+> hm, that was a significant screwup.  I wonder how many bugs we
+> subsequently added.
 
-The patches are in reverse order: you need to change pmdp_get_and_clear
-first otherwise you break bisectability.
-Or better merge patches together.
+So I'm wondering what the motivation was to allow things like:
 
-> +}
-> +
-> +pmd_t pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long address,
-> +			  pmd_t *pmdp)
-> +{
-> +	pmd_t pmd;
-> +
-> +	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-> +	VM_BUG_ON(pmd_trans_huge(*pmdp));
-> +
-> +	pmd = *pmdp;
-> +	pmd_clear(pmdp);
-> +	/*
-> +	 * Wait for all pending hash_page to finish. This is needed
-> +	 * in case of subpage collapse. When we collapse normal pages
-> +	 * to hugepage, we first clear the pmd, then invalidate all
-> +	 * the PTE entries. The assumption here is that any low level
-> +	 * page fault will see a none pmd and take the slow path that
-> +	 * will wait on mmap_sem. But we could very well be in a
-> +	 * hash_page with local ptep pointer value. Such a hash page
-> +	 * can result in adding new HPTE entries for normal subpages.
-> +	 * That means we could be modifying the page content as we
-> +	 * copy them to a huge page. So wait for parallel hash_page
-> +	 * to finish before invalidating HPTE entries. We can do this
-> +	 * by sending an IPI to all the cpus and executing a dummy
-> +	 * function there.
-> +	 */
-> +	kick_all_cpus_sync();
-> +	/*
-> +	 * Now invalidate the hpte entries in the range
-> +	 * covered by pmd. This make sure we take a
-> +	 * fault and will find the pmd as none, which will
-> +	 * result in a major fault which takes mmap_sem and
-> +	 * hence wait for collapse to complete. Without this
-> +	 * the __collapse_huge_page_copy can result in copying
-> +	 * the old content.
-> +	 */
-> +	flush_tlb_pmd_range(vma->vm_mm, &pmd, address);
->  	return pmd;
->  }
->  
-> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-> index 39f1d6a2b04d..80e6d415cd57 100644
-> --- a/include/asm-generic/pgtable.h
-> +++ b/include/asm-generic/pgtable.h
-> @@ -189,6 +189,25 @@ extern void pmdp_splitting_flush(struct vm_area_struct *vma,
->  				 unsigned long address, pmd_t *pmdp);
->  #endif
->  
-> +#ifndef __HAVE_ARCH_PMDP_COLLAPSE_FLUSH
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> +static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
-> +				       unsigned long address,
-> +				       pmd_t *pmdp)
-> +{
-> +	return pmdp_clear_flush(vma, address, pmdp);
-> +}
-> +#else
-> +static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
-> +				       unsigned long address,
-> +				       pmd_t *pmdp)
-> +{
-> +	BUILD_BUG();
-> +	return __pmd(0);
-> +}
-> +#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-> +#endif
-> +
->  #ifndef __HAVE_ARCH_PGTABLE_DEPOSIT
->  extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
->  				       pgtable_t pgtable);
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 078832cf3636..88f695a4e38b 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2499,7 +2499,7 @@ static void collapse_huge_page(struct mm_struct *mm,
->  	 * huge and small TLB entries for the same virtual address
->  	 * to avoid the risk of CPU bugs in that area.
->  	 */
-> -	_pmd = pmdp_clear_flush(vma, address, pmd);
-> +	_pmd = pmdp_collapse_flush(vma, address, pmd);
+   pagefault_disable();
+   rc = copy_to_user(...);
+   pagefault_enable();
 
-Why? pmdp_clear_flush() does kick_all_cpus_sync() already.
+and to declare it a false positive?
 
->  	spin_unlock(pmd_ptl);
->  	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
->  
-> -- 
-> 2.1.4
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+AFAICS most uses are indeed atomic:
 
--- 
- Kirill A. Shutemov
+        pagefault_disable();
+        ret = futex_atomic_cmpxchg_inatomic(curval, uaddr, uval, newval);
+        pagefault_enable();
+
+so why not make it explicitly atomic again?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
