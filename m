@@ -1,65 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 9448B6B0032
-	for <linux-mm@kvack.org>; Thu,  7 May 2015 09:42:40 -0400 (EDT)
-Received: by qkx62 with SMTP id 62so27338379qkx.0
-        for <linux-mm@kvack.org>; Thu, 07 May 2015 06:42:40 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n77si2016938qgn.64.2015.05.07.06.42.38
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C0056B0032
+	for <linux-mm@kvack.org>; Thu,  7 May 2015 10:04:12 -0400 (EDT)
+Received: by obfe9 with SMTP id e9so32051005obf.1
+        for <linux-mm@kvack.org>; Thu, 07 May 2015 07:04:12 -0700 (PDT)
+Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
+        by mx.google.com with ESMTPS id i8si1306261obe.19.2015.05.07.07.04.11
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 May 2015 06:42:39 -0700 (PDT)
-Date: Thu, 7 May 2015 15:42:36 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] UserfaultFD: Rename uffd_api.bits into .features
-Message-ID: <20150507134236.GB13098@redhat.com>
-References: <5509D342.7000403@parallels.com>
- <20150421120222.GC4481@redhat.com>
- <55389261.50105@parallels.com>
- <20150427211650.GC24035@redhat.com>
- <55425A74.3020604@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55425A74.3020604@parallels.com>
+        Thu, 07 May 2015 07:04:11 -0700 (PDT)
+Message-ID: <1431006304.23761.349.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v4 6/7] mtrr, x86: Clean up mtrr_type_lookup()
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Thu, 07 May 2015 07:45:04 -0600
+In-Reply-To: <20150507075210.GA6859@pd.tnic>
+References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
+	 <1427234921-19737-7-git-send-email-toshi.kani@hp.com>
+	 <20150506134127.GE22949@pd.tnic>
+	 <1430928030.23761.328.camel@misato.fc.hp.com>
+	 <20150506224931.GL22949@pd.tnic>
+	 <1430955730.23761.348.camel@misato.fc.hp.com>
+	 <20150507075210.GA6859@pd.tnic>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>
-Cc: Linux MM <linux-mm@kvack.org>
+To: Borislav Petkov <bp@alien8.de>
+Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
 
-Hi Pavel,
-
-On Thu, Apr 30, 2015 at 07:38:12PM +0300, Pavel Emelyanov wrote:
-> Hi,
+On Thu, 2015-05-07 at 09:52 +0200, Borislav Petkov wrote:
+> On Wed, May 06, 2015 at 05:42:10PM -0600, Toshi Kani wrote:
+> > Well, creating mtrr_type_lookup_fixed() is one of the comments I had in
+> > the previous code review.  Anyway, let me make sure if I understand your
+> > comment correctly.  Do the following changes look right to you?
+> > 
+> > 1) Change the caller responsible for the condition checks.
+> > 
+> >         if ((start < 0x100000) &&
+> >             (mtrr_state.have_fixed) &&
+> >             (mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED))
+> >                 return mtrr_type_lookup_fixed(start, end);
+> > 
+> > 2) Delete the checks with mtrr_state in mtrr_type_lookup_fixed() as they
+> > are done by the caller.  Keep the check with '(start >= 0x100000)' to
+> > assure that the code handles the range [0xC0000 - 0xFFFFF] correctly.
 > 
-> This is (seem to be) the minimal thing that is required to unblock
-> standard uffd usage from the non-cooperative one. Now more bits can
-> be added to the features field indicating e.g. UFFD_FEATURE_FORK and
-> others needed for the latter use-case.
+> That is a good defensive measure.
 > 
-> Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
+> > static u8 mtrr_type_lookup_fixed(u64 start, u64 end)
+> > {
+> >         int idx;
+> > 
+> >         if (start >= 0x100000)
+> >                  return MTRR_TYPE_INVALID;
+> >  
+> > -       if (!(mtrr_state.have_fixed) ||
+> > -           !(mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED))
+> > -               return MTRR_TYPE_INVALID;
+> 
+> Yeah, that's what I mean.
 
-Applied.
-
-http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=c2dee3384770a953cbad27b46854aa6fd13656c6
-http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=d0df59f21f2cde4c49879c00586ce3cb1e3860fe
-
-I was also asked if we could return the full address of the fault
-including the page offset. In the end I also implemented this
-incremental to your change:
-
-http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=c308fc81b0a9c53c11b33331ad00d8e5b9763e60
-
-Let me know if you're ok with it. The commit header explains more why
-I think the bits below PAGE_SHIFT of the fault address aren't
-interesting but why I did this change anyway.
-
-After reviewing this last change I think it's time to make a proper
-submit and it's polished enough for merging in -mm after proper review
-of the full patchset.
-
-Thanks,
-Andrea
+Thanks for the clarification! Will change accordingly.
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
