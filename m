@@ -1,47 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id C90776B0032
-	for <linux-mm@kvack.org>; Thu,  7 May 2015 19:02:37 -0400 (EDT)
-Received: by pabsx10 with SMTP id sx10so52361219pab.3
-        for <linux-mm@kvack.org>; Thu, 07 May 2015 16:02:37 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id qw7si4524992pbc.195.2015.05.07.16.02.35
+Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 99C1D6B0032
+	for <linux-mm@kvack.org>; Thu,  7 May 2015 19:24:18 -0400 (EDT)
+Received: by qkgx75 with SMTP id x75so38480459qkg.1
+        for <linux-mm@kvack.org>; Thu, 07 May 2015 16:24:18 -0700 (PDT)
+Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com. [209.85.216.182])
+        by mx.google.com with ESMTPS id de1si3645994qcb.44.2015.05.07.16.24.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 May 2015 16:02:36 -0700 (PDT)
-Date: Thu, 7 May 2015 16:02:34 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: meminit: Finish initialisation of struct pages
- before basic setup
-Message-Id: <20150507160234.9828aa1a2bff9366339dea90@linux-foundation.org>
-In-Reply-To: <20150507225226.GM2462@suse.de>
-References: <1430231830-7702-1-git-send-email-mgorman@suse.de>
-	<554030D1.8080509@hp.com>
-	<5543F802.9090504@hp.com>
-	<554415B1.2050702@hp.com>
-	<20150504143046.9404c572486caf71bdef0676@linux-foundation.org>
-	<20150505104514.GC2462@suse.de>
-	<20150505130255.49ff76bbf0a3b32d884ab2ce@linux-foundation.org>
-	<20150507072518.GL2462@suse.de>
-	<20150507150932.79e038167f70dd467c25d6ee@linux-foundation.org>
-	<20150507225226.GM2462@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Thu, 07 May 2015 16:24:17 -0700 (PDT)
+Received: by qcvo8 with SMTP id o8so5663664qcv.0
+        for <linux-mm@kvack.org>; Thu, 07 May 2015 16:24:17 -0700 (PDT)
+Message-ID: <554BF418.5080200@hurleysoftware.com>
+Date: Thu, 07 May 2015 19:24:08 -0400
+From: Peter Hurley <peter@hurleysoftware.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] devpts: If initialization failed, don't crash when opening
+ /dev/ptmx
+References: <20150507003547.GA6862@jtriplet-mobl1> <20150507155919.16ab7177e4956d8f47803750@linux-foundation.org>
+In-Reply-To: <20150507155919.16ab7177e4956d8f47803750@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Waiman Long <waiman.long@hp.com>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Josh Triplett <josh@joshtriplett.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, Iulia Manda <iulia.manda21@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Fabian Frederick <fabf@skynet.be>, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On Thu, 7 May 2015 23:52:26 +0100 Mel Gorman <mgorman@suse.de> wrote:
+On 05/07/2015 06:59 PM, Andrew Morton wrote:
+> On Wed, 6 May 2015 17:35:47 -0700 Josh Triplett <josh@joshtriplett.org> wrote:
+> 
+>> If devpts failed to initialize, it would store an ERR_PTR in the global
+>> devpts_mnt.  A subsequent open of /dev/ptmx would call devpts_new_index,
+>> which would dereference devpts_mnt and crash.
+>>
+>> Avoid storing invalid values in devpts_mnt; leave it NULL instead.
+>> Make both devpts_new_index and devpts_pty_new fail gracefully with
+>> ENODEV in that case, which then becomes the return value to the
+>> userspace open call on /dev/ptmx.
+> 
+> It looks like the system is pretty crippled if init_devptr_fs() fails. 
+> Can the user actually get access to consoles and do useful things in
+> this situation?  Maybe it would be better to just give up and panic?
 
->  As for the patch sequencing, I'm ok
-> with adding the patch on top if you are because that preserves the testing
-> history. If you're unhappy, I can shuffle it into a better place and resend
-> the full series that includes all the fixes so far.
+A single-user console is definitely reachable without devpts.
+>From there, one could fixup to a not-broken kernel.
 
-We'll survive.  Let's only do the reorganization if the patches need rework
-for other reasons.
+Regards,
+Peter Hurley
+
+PS - But I saw you already added these to -mm
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
