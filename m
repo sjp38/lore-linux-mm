@@ -1,194 +1,260 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BF3A6B006C
-	for <linux-mm@kvack.org>; Thu,  7 May 2015 03:23:41 -0400 (EDT)
-Received: by pacyx8 with SMTP id yx8so32614250pac.1
-        for <linux-mm@kvack.org>; Thu, 07 May 2015 00:23:41 -0700 (PDT)
-Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com. [122.248.162.9])
-        by mx.google.com with ESMTPS id rj10si1632121pdb.132.2015.05.07.00.23.39
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id DFF586B0070
+	for <linux-mm@kvack.org>; Thu,  7 May 2015 03:25:23 -0400 (EDT)
+Received: by wief7 with SMTP id f7so6806795wie.0
+        for <linux-mm@kvack.org>; Thu, 07 May 2015 00:25:23 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o3si6072494wic.109.2015.05.07.00.25.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 May 2015 00:23:40 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 7 May 2015 12:53:37 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 983263940048
-	for <linux-mm@kvack.org>; Thu,  7 May 2015 12:53:33 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay01.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t477NWvM45940908
-	for <linux-mm@kvack.org>; Thu, 7 May 2015 12:53:32 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t476nOGH003640
-	for <linux-mm@kvack.org>; Thu, 7 May 2015 12:19:25 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V2 1/2] mm/thp: Split out pmd collpase flush into a seperate functions
-Date: Thu,  7 May 2015 12:53:27 +0530
-Message-Id: <1430983408-24924-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 07 May 2015 00:25:22 -0700 (PDT)
+Date: Thu, 7 May 2015 08:25:18 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: meminit: Finish initialisation of struct pages before
+ basic setup
+Message-ID: <20150507072518.GL2462@suse.de>
+References: <1430231830-7702-1-git-send-email-mgorman@suse.de>
+ <554030D1.8080509@hp.com>
+ <5543F802.9090504@hp.com>
+ <554415B1.2050702@hp.com>
+ <20150504143046.9404c572486caf71bdef0676@linux-foundation.org>
+ <20150505104514.GC2462@suse.de>
+ <20150505130255.49ff76bbf0a3b32d884ab2ce@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20150505130255.49ff76bbf0a3b32d884ab2ce@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mpe@ellerman.id.au, paulus@samba.org, benh@kernel.crashing.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Waiman Long <waiman.long@hp.com>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-After this patch pmdp_* functions operate only on hugepage pte,
-and not on regular pmd_t values pointing to page table.
+Waiman Long reported that 24TB machines hit OOM during basic setup when
+struct page initialisation was deferred. One approach is to initialise memory
+on demand but it interferes with page allocator paths. This patch creates
+dedicated threads to initialise memory before basic setup. It then blocks
+on a rw_semaphore until completion as a wait_queue and counter is overkill.
+This may be slower to boot but it's simplier overall and also gets rid of a
+section mangling which existed so kswapd could do the initialisation.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- arch/powerpc/include/asm/pgtable-ppc64.h |  4 ++
- arch/powerpc/mm/pgtable_64.c             | 76 +++++++++++++++++---------------
- include/asm-generic/pgtable.h            | 19 ++++++++
- mm/huge_memory.c                         |  2 +-
- 4 files changed, 65 insertions(+), 36 deletions(-)
+ include/linux/gfp.h |  8 ++++++++
+ init/main.c         |  2 ++
+ mm/internal.h       | 24 ------------------------
+ mm/page_alloc.c     | 46 +++++++++++++++++++++++++++++++++++++---------
+ mm/vmscan.c         |  6 ++----
+ 5 files changed, 49 insertions(+), 37 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
-index 43e6ad424c7f..50830c9a2116 100644
---- a/arch/powerpc/include/asm/pgtable-ppc64.h
-+++ b/arch/powerpc/include/asm/pgtable-ppc64.h
-@@ -576,6 +576,10 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
- extern void pmdp_splitting_flush(struct vm_area_struct *vma,
- 				 unsigned long address, pmd_t *pmdp);
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 51bd1e72a917..28a3128d9e59 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -385,6 +385,14 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp);
+ void drain_all_pages(struct zone *zone);
+ void drain_local_pages(struct zone *zone);
  
-+#define __HAVE_ARCH_PMDP_COLLAPSE_FLUSH
-+extern pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
-+				 unsigned long address, pmd_t *pmdp);
-+
- #define __HAVE_ARCH_PGTABLE_DEPOSIT
- extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
- 				       pgtable_t pgtable);
-diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
-index 59daa5eeec25..9171c1a37290 100644
---- a/arch/powerpc/mm/pgtable_64.c
-+++ b/arch/powerpc/mm/pgtable_64.c
-@@ -560,41 +560,47 @@ pmd_t pmdp_clear_flush(struct vm_area_struct *vma, unsigned long address,
- 	pmd_t pmd;
- 
- 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
--	if (pmd_trans_huge(*pmdp)) {
--		pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
--	} else {
--		/*
--		 * khugepaged calls this for normal pmd
--		 */
--		pmd = *pmdp;
--		pmd_clear(pmdp);
--		/*
--		 * Wait for all pending hash_page to finish. This is needed
--		 * in case of subpage collapse. When we collapse normal pages
--		 * to hugepage, we first clear the pmd, then invalidate all
--		 * the PTE entries. The assumption here is that any low level
--		 * page fault will see a none pmd and take the slow path that
--		 * will wait on mmap_sem. But we could very well be in a
--		 * hash_page with local ptep pointer value. Such a hash page
--		 * can result in adding new HPTE entries for normal subpages.
--		 * That means we could be modifying the page content as we
--		 * copy them to a huge page. So wait for parallel hash_page
--		 * to finish before invalidating HPTE entries. We can do this
--		 * by sending an IPI to all the cpus and executing a dummy
--		 * function there.
--		 */
--		kick_all_cpus_sync();
--		/*
--		 * Now invalidate the hpte entries in the range
--		 * covered by pmd. This make sure we take a
--		 * fault and will find the pmd as none, which will
--		 * result in a major fault which takes mmap_sem and
--		 * hence wait for collapse to complete. Without this
--		 * the __collapse_huge_page_copy can result in copying
--		 * the old content.
--		 */
--		flush_tlb_pmd_range(vma->vm_mm, &pmd, address);
--	}
-+	VM_BUG_ON(!pmd_trans_huge(*pmdp));
-+	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
-+	return pmd;
-+}
-+
-+pmd_t pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long address,
-+			  pmd_t *pmdp)
-+{
-+	pmd_t pmd;
-+
-+	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG_ON(pmd_trans_huge(*pmdp));
-+
-+	pmd = *pmdp;
-+	pmd_clear(pmdp);
-+	/*
-+	 * Wait for all pending hash_page to finish. This is needed
-+	 * in case of subpage collapse. When we collapse normal pages
-+	 * to hugepage, we first clear the pmd, then invalidate all
-+	 * the PTE entries. The assumption here is that any low level
-+	 * page fault will see a none pmd and take the slow path that
-+	 * will wait on mmap_sem. But we could very well be in a
-+	 * hash_page with local ptep pointer value. Such a hash page
-+	 * can result in adding new HPTE entries for normal subpages.
-+	 * That means we could be modifying the page content as we
-+	 * copy them to a huge page. So wait for parallel hash_page
-+	 * to finish before invalidating HPTE entries. We can do this
-+	 * by sending an IPI to all the cpus and executing a dummy
-+	 * function there.
-+	 */
-+	kick_all_cpus_sync();
-+	/*
-+	 * Now invalidate the hpte entries in the range
-+	 * covered by pmd. This make sure we take a
-+	 * fault and will find the pmd as none, which will
-+	 * result in a major fault which takes mmap_sem and
-+	 * hence wait for collapse to complete. Without this
-+	 * the __collapse_huge_page_copy can result in copying
-+	 * the old content.
-+	 */
-+	flush_tlb_pmd_range(vma->vm_mm, &pmd, address);
- 	return pmd;
- }
- 
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 39f1d6a2b04d..80e6d415cd57 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -189,6 +189,25 @@ extern void pmdp_splitting_flush(struct vm_area_struct *vma,
- 				 unsigned long address, pmd_t *pmdp);
- #endif
- 
-+#ifndef __HAVE_ARCH_PMDP_COLLAPSE_FLUSH
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
-+				       unsigned long address,
-+				       pmd_t *pmdp)
-+{
-+	return pmdp_clear_flush(vma, address, pmdp);
-+}
++#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
++void page_alloc_init_late(void);
 +#else
-+static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
-+				       unsigned long address,
-+				       pmd_t *pmdp)
++static inline void page_alloc_init_late(void)
 +{
-+	BUILD_BUG();
-+	return __pmd(0);
 +}
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 +#endif
 +
- #ifndef __HAVE_ARCH_PGTABLE_DEPOSIT
- extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
- 				       pgtable_t pgtable);
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 078832cf3636..88f695a4e38b 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2499,7 +2499,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	 * huge and small TLB entries for the same virtual address
- 	 * to avoid the risk of CPU bugs in that area.
- 	 */
--	_pmd = pmdp_clear_flush(vma, address, pmd);
-+	_pmd = pmdp_collapse_flush(vma, address, pmd);
- 	spin_unlock(pmd_ptl);
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+ /*
+  * gfp_allowed_mask is set to GFP_BOOT_MASK during early boot to restrict what
+  * GFP flags are used before interrupts are enabled. Once interrupts are
+diff --git a/init/main.c b/init/main.c
+index 6f0f1c5ff8cc..9bef5f0c9864 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -995,6 +995,8 @@ static noinline void __init kernel_init_freeable(void)
+ 	smp_init();
+ 	sched_init_smp();
  
--- 
-2.1.4
++	page_alloc_init_late();
++
+ 	do_basic_setup();
+ 
+ 	/* Open the /dev/console on the rootfs, this should never fail */
+diff --git a/mm/internal.h b/mm/internal.h
+index 5c221ad41a29..5a7c7a531720 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -377,30 +377,6 @@ static inline void mminit_verify_zonelist(void)
+ }
+ #endif /* CONFIG_DEBUG_MEMORY_INIT */
+ 
+-/*
+- * Deferred struct page initialisation requires init functions that are freed
+- * before kswapd is available. Reuse the memory hotplug section annotation
+- * to mark the required code.
+- *
+- * __defermem_init is code that always exists but is annotated __meminit to
+- * 	avoid section warnings.
+- * __defer_init code gets marked __meminit when deferring struct page
+- *	initialistion but is otherwise in the init section.
+- */
+-#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+-#define __defermem_init __meminit
+-#define __defer_init    __meminit
+-
+-void deferred_init_memmap(int nid);
+-#else
+-#define __defermem_init
+-#define __defer_init __init
+-
+-static inline void deferred_init_memmap(int nid)
+-{
+-}
+-#endif
+-
+ /* mminit_validate_memmodel_limits is independent of CONFIG_DEBUG_MEMORY_INIT */
+ #if defined(CONFIG_SPARSEMEM)
+ extern void mminit_validate_memmodel_limits(unsigned long *start_pfn,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 598f78d6544c..7c257e37f2ce 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -61,6 +61,7 @@
+ #include <linux/hugetlb.h>
+ #include <linux/sched/rt.h>
+ #include <linux/page_owner.h>
++#include <linux/kthread.h>
+ 
+ #include <asm/sections.h>
+ #include <asm/tlbflush.h>
+@@ -242,7 +243,7 @@ static inline void reset_deferred_meminit(pg_data_t *pgdat)
+ }
+ 
+ /* Returns true if the struct page for the pfn is uninitialised */
+-static inline bool __defermem_init early_page_uninitialised(unsigned long pfn)
++static inline bool __meminit early_page_uninitialised(unsigned long pfn)
+ {
+ 	int nid = early_pfn_to_nid(pfn);
+ 
+@@ -972,7 +973,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 	local_irq_restore(flags);
+ }
+ 
+-static void __defer_init __free_pages_boot_core(struct page *page,
++static void __init __free_pages_boot_core(struct page *page,
+ 					unsigned long pfn, unsigned int order)
+ {
+ 	unsigned int nr_pages = 1 << order;
+@@ -1039,7 +1040,7 @@ static inline bool __meminit early_pfn_in_nid(unsigned long pfn, int node)
+ }
+ #endif
+ 
+-void __defer_init __free_pages_bootmem(struct page *page, unsigned long pfn,
++void __init __free_pages_bootmem(struct page *page, unsigned long pfn,
+ 							unsigned int order)
+ {
+ 	if (early_page_uninitialised(pfn))
+@@ -1048,7 +1049,7 @@ void __defer_init __free_pages_bootmem(struct page *page, unsigned long pfn,
+ }
+ 
+ #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+-static void __defermem_init deferred_free_range(struct page *page,
++static void __init deferred_free_range(struct page *page,
+ 					unsigned long pfn, int nr_pages)
+ {
+ 	int i;
+@@ -1068,20 +1069,30 @@ static void __defermem_init deferred_free_range(struct page *page,
+ 		__free_pages_boot_core(page, pfn, 0);
+ }
+ 
++static struct rw_semaphore __initdata pgdat_init_rwsem;
++
+ /* Initialise remaining memory on a node */
+-void __defermem_init deferred_init_memmap(int nid)
++static int __init deferred_init_memmap(void *data)
+ {
++	pg_data_t *pgdat = (pg_data_t *)data;
++	int nid = pgdat->node_id;
+ 	struct mminit_pfnnid_cache nid_init_state = { };
+ 	unsigned long start = jiffies;
+ 	unsigned long nr_pages = 0;
+ 	unsigned long walk_start, walk_end;
+ 	int i, zid;
+ 	struct zone *zone;
+-	pg_data_t *pgdat = NODE_DATA(nid);
+ 	unsigned long first_init_pfn = pgdat->first_deferred_pfn;
++	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
+ 
+-	if (first_init_pfn == ULONG_MAX)
+-		return;
++	if (first_init_pfn == ULONG_MAX) {
++		up_read(&pgdat_init_rwsem);
++		return 0;
++	}
++
++	/* Bound memory initialisation to a local node if possible */
++	if (!cpumask_empty(cpumask))
++		set_cpus_allowed_ptr(current, cpumask);
+ 
+ 	/* Sanity check boundaries */
+ 	BUG_ON(pgdat->first_deferred_pfn < pgdat->node_start_pfn);
+@@ -1173,8 +1184,25 @@ free_range:
+ 	/* Sanity check that the next zone really is unpopulated */
+ 	WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
+ 
+-	pr_info("kswapd %d initialised %lu pages in %ums\n", nid, nr_pages,
++	pr_info("node %d initialised, %lu pages in %ums\n", nid, nr_pages,
+ 					jiffies_to_msecs(jiffies - start));
++	up_read(&pgdat_init_rwsem);
++	return 0;
++}
++
++void __init page_alloc_init_late(void)
++{
++	int nid;
++
++	init_rwsem(&pgdat_init_rwsem);
++	for_each_node_state(nid, N_MEMORY) {
++		down_read(&pgdat_init_rwsem);
++		kthread_run(deferred_init_memmap, NODE_DATA(nid), "pgdatinit%d", nid);
++	}
++
++	/* Block until all are initialised */
++	down_write(&pgdat_init_rwsem);
++	up_write(&pgdat_init_rwsem);
+ }
+ #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index c4895d26d036..5e8eadd71bac 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3348,7 +3348,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
+  * If there are applications that are active memory-allocators
+  * (most normal use), this basically shouldn't matter.
+  */
+-static int __defermem_init kswapd(void *p)
++static int kswapd(void *p)
+ {
+ 	unsigned long order, new_order;
+ 	unsigned balanced_order;
+@@ -3383,8 +3383,6 @@ static int __defermem_init kswapd(void *p)
+ 	tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
+ 	set_freezable();
+ 
+-	deferred_init_memmap(pgdat->node_id);
+-
+ 	order = new_order = 0;
+ 	balanced_order = 0;
+ 	classzone_idx = new_classzone_idx = pgdat->nr_zones - 1;
+@@ -3540,7 +3538,7 @@ static int cpu_callback(struct notifier_block *nfb, unsigned long action,
+  * This kswapd start function will be called by init and node-hot-add.
+  * On node-hot-add, kswapd will moved to proper cpus if cpus are hot-added.
+  */
+-int __defermem_init kswapd_run(int nid)
++int kswapd_run(int nid)
+ {
+ 	pg_data_t *pgdat = NODE_DATA(nid);
+ 	int ret = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
