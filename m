@@ -1,47 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E5EA16B0032
-	for <linux-mm@kvack.org>; Thu,  7 May 2015 09:01:31 -0400 (EDT)
-Received: by igbyr2 with SMTP id yr2so158461294igb.0
-        for <linux-mm@kvack.org>; Thu, 07 May 2015 06:01:31 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0221.hostedemail.com. [216.40.44.221])
-        by mx.google.com with ESMTP id c101si1407922iod.46.2015.05.07.06.01.30
-        for <linux-mm@kvack.org>;
-        Thu, 07 May 2015 06:01:30 -0700 (PDT)
-Date: Thu, 7 May 2015 09:01:27 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v5 3/3] tracing: add trace event for memory-failure
-Message-ID: <20150507090127.34a7f93f@gandalf.local.home>
-In-Reply-To: <1430998681-24953-4-git-send-email-xiexiuqi@huawei.com>
-References: <1430998681-24953-1-git-send-email-xiexiuqi@huawei.com>
-	<1430998681-24953-4-git-send-email-xiexiuqi@huawei.com>
+Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 9448B6B0032
+	for <linux-mm@kvack.org>; Thu,  7 May 2015 09:42:40 -0400 (EDT)
+Received: by qkx62 with SMTP id 62so27338379qkx.0
+        for <linux-mm@kvack.org>; Thu, 07 May 2015 06:42:40 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n77si2016938qgn.64.2015.05.07.06.42.38
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 May 2015 06:42:39 -0700 (PDT)
+Date: Thu, 7 May 2015 15:42:36 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] UserfaultFD: Rename uffd_api.bits into .features
+Message-ID: <20150507134236.GB13098@redhat.com>
+References: <5509D342.7000403@parallels.com>
+ <20150421120222.GC4481@redhat.com>
+ <55389261.50105@parallels.com>
+ <20150427211650.GC24035@redhat.com>
+ <55425A74.3020604@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <55425A74.3020604@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xie XiuQi <xiexiuqi@huawei.com>
-Cc: n-horiguchi@ah.jp.nec.com, mingo@redhat.com, akpm@linux-foundation.org, gong.chen@linux.intel.com, bp@suse.de, tony.luck@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jingle.chen@huawei.com
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Linux MM <linux-mm@kvack.org>
 
-On Thu, 7 May 2015 19:38:01 +0800
-Xie XiuQi <xiexiuqi@huawei.com> wrote:
+Hi Pavel,
 
-> +	TP_printk("pfn %#lx: recovery action for %s: %s",
+On Thu, Apr 30, 2015 at 07:38:12PM +0300, Pavel Emelyanov wrote:
+> Hi,
+> 
+> This is (seem to be) the minimal thing that is required to unblock
+> standard uffd usage from the non-cooperative one. Now more bits can
+> be added to the features field indicating e.g. UFFD_FEATURE_FORK and
+> others needed for the latter use-case.
+> 
+> Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
 
-I checked the libtraceevent code, and %# is handled.
+Applied.
 
--- Steve
+http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=c2dee3384770a953cbad27b46854aa6fd13656c6
+http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=d0df59f21f2cde4c49879c00586ce3cb1e3860fe
 
-> +		__entry->pfn,
-> +		__print_symbolic(__entry->type, MF_PAGE_TYPE),
-> +		__print_symbolic(__entry->result, MF_ACTION_RESULT)
-> +	)
-> +);
-> +#endif /* CONFIG_MEMORY_FAILURE */
->  #endif /* _TRACE_HW_EVENT_MC_H */
->  
->  /* This part must be outside protection */
->
+I was also asked if we could return the full address of the fault
+including the page offset. In the end I also implemented this
+incremental to your change:
+
+http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=c308fc81b0a9c53c11b33331ad00d8e5b9763e60
+
+Let me know if you're ok with it. The commit header explains more why
+I think the bits below PAGE_SHIFT of the fault address aren't
+interesting but why I did this change anyway.
+
+After reviewing this last change I think it's time to make a proper
+submit and it's polished enough for merging in -mm after proper review
+of the full patchset.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
