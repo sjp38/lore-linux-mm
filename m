@@ -1,171 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
-	by kanga.kvack.org (Postfix) with ESMTP id DE5546B0038
-	for <linux-mm@kvack.org>; Wed,  6 May 2015 22:25:42 -0400 (EDT)
-Received: by qcyk17 with SMTP id k17so14763864qcy.1
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 19:25:42 -0700 (PDT)
-Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.230])
-        by mx.google.com with ESMTP id f199si709719qhc.20.2015.05.06.19.25.40
-        for <linux-mm@kvack.org>;
-        Wed, 06 May 2015 19:25:41 -0700 (PDT)
-Date: Wed, 6 May 2015 22:25:51 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v4 3/3] tracing: add trace event for memory-failure
-Message-ID: <20150506222551.56108f53@grimm.local.home>
-In-Reply-To: <1429519480-11687-4-git-send-email-xiexiuqi@huawei.com>
-References: <1429519480-11687-1-git-send-email-xiexiuqi@huawei.com>
-	<1429519480-11687-4-git-send-email-xiexiuqi@huawei.com>
+Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
+	by kanga.kvack.org (Postfix) with ESMTP id F197A6B0038
+	for <linux-mm@kvack.org>; Wed,  6 May 2015 22:37:34 -0400 (EDT)
+Received: by oift201 with SMTP id t201so23117201oif.3
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 19:37:34 -0700 (PDT)
+Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
+        by mx.google.com with ESMTPS id kv6si374751obb.70.2015.05.06.19.37.34
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 May 2015 19:37:34 -0700 (PDT)
+Message-ID: <554ACFE8.2050908@hp.com>
+Date: Wed, 06 May 2015 22:37:28 -0400
+From: Waiman Long <waiman.long@hp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
+References: <1430231830-7702-1-git-send-email-mgorman@suse.de> <554030D1.8080509@hp.com> <5543F802.9090504@hp.com> <554415B1.2050702@hp.com> <20150504143046.9404c572486caf71bdef0676@linux-foundation.org> <20150505104514.GC2462@suse.de> <20150505130255.49ff76bbf0a3b32d884ab2ce@linux-foundation.org> <20150505221329.GE2462@suse.de> <20150505152549.037679566fad8c593df176ed@linux-foundation.org> <20150506071246.GF2462@suse.de> <20150506102220.GH2462@suse.de> <554A5655.6060108@hp.com>
+In-Reply-To: <554A5655.6060108@hp.com>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xie XiuQi <xiexiuqi@huawei.com>
-Cc: n-horiguchi@ah.jp.nec.com, mingo@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, koct9i@gmail.com, hpa@linux.intel.com, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, luto@amacapital.net, nasa4836@gmail.com, gong.chen@linux.intel.com, bhelgaas@google.com, bp@suse.de, tony.luck@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jingle.chen@huawei.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 20 Apr 2015 16:44:40 +0800
-Xie XiuQi <xiexiuqi@huawei.com> wrote:
+On 05/06/2015 01:58 PM, Waiman Long wrote:
+> On 05/06/2015 06:22 AM, Mel Gorman wrote:
+>> On Wed, May 06, 2015 at 08:12:46AM +0100, Mel Gorman wrote:
+>>> On Tue, May 05, 2015 at 03:25:49PM -0700, Andrew Morton wrote:
+>>>> On Tue, 5 May 2015 23:13:29 +0100 Mel Gorman<mgorman@suse.de>  wrote:
+>>>>
+>>>>>> Alternatively, the page allocator can go off and synchronously
+>>>>>> initialize some pageframes itself.  Keep doing that until the
+>>>>>> allocation attempt succeeds.
+>>>>>>
+>>>>> That was rejected during review of earlier attempts at this 
+>>>>> feature on
+>>>>> the grounds that it impacted allocator fast paths.
+>>>> eh?  Changes are only needed on the allocation-attempt-failed path,
+>>>> which is slow-path.
+>>> We'd have to distinguish between falling back to other zones because 
+>>> the
+>>> high zone is artifically exhausted and normal ALLOC_BATCH 
+>>> exhaustion. We'd
+>>> also have to avoid falling back to remote nodes prematurely. While I 
+>>> have
+>>> not tried an implementation, I expected they would need to be in the 
+>>> fast
+>>> paths unless I used jump labels to get around it. I'm going to try 
+>>> altering
+>>> when we initialise instead so that it happens earlier.
+>>>
+>> Which looks as follows. Waiman, a test on the 24TB machine would be
+>> appreciated again. This patch should be applied instead of "mm: meminit:
+>> Take into account that large system caches scale linearly with memory"
+>>
+>> ---8<---
+>> mm: meminit: Finish initialisation of memory before basic setup
+>>
+>> Waiman Long reported that 24TB machines hit OOM during basic setup when
+>> struct page initialisation was deferred. One approach is to 
+>> initialise memory
+>> on demand but it interferes with page allocator paths. This patch 
+>> creates
+>> dedicated threads to initialise memory before basic setup. It then 
+>> blocks
+>> on a rw_semaphore until completion as a wait_queue and counter is 
+>> overkill.
+>> This may be slower to boot but it's simplier overall and also gets 
+>> rid of a
+>> lot of section mangling which existed so kswapd could do the 
+>> initialisation.
+>>
+>> Signed-off-by: Mel Gorman<mgorman@suse.de>
+>>
+>
+> This patch moves the deferred meminit from kswapd to its own kernel 
+> threads started after smp_init(). However, the hash table allocation 
+> was done earlier than that. It seems like it will still run out of 
+> memory in the 24TB machine that I tested on.
+>
+> I will certainly try it out, but I doubt it will solve the problem on 
+> its own.
 
-> --- a/include/ras/ras_event.h
-> +++ b/include/ras/ras_event.h
-> @@ -11,6 +11,7 @@
->  #include <linux/pci.h>
->  #include <linux/aer.h>
->  #include <linux/cper.h>
-> +#include <linux/mm.h>
->  
->  /*
->   * MCE Extended Error Log trace event
-> @@ -232,6 +233,90 @@ TRACE_EVENT(aer_event,
->  		__print_flags(__entry->status, "|", aer_uncorrectable_errors))
->  );
->  
-> +/*
-> + * memory-failure recovery action result event
-> + *
-> + * unsigned long pfn -	Page Frame Number of the corrupted page
-> + * int type	-	Page types of the corrupted page
-> + * int result	-	Result of recovery action
-> + */
-> +
-> +#ifdef CONFIG_MEMORY_FAILURE
-> +#define MF_ACTION_RESULT	\
-> +	EM ( MF_IGNORED, "Ignord" )	\
+It turns out that the two new patches did work on the 24-TB DragonHawk 
+without the "mm: meminit: Take into account that large system caches 
+scale linearly with memory" patch. The bootup time was 357s which was 
+just a few seconds slower than the other bootup times that I sent you 
+yesterday.
 
- "Ignored" ?
+BTW, do you want to change the following log message as kswapd will no 
+longer be the one doing deferred meminit?
 
-> +	EM ( MF_FAILED,  "Failed" )	\
-> +	EM ( MF_DELAYED, "Delayed" )	\
-> +	EMe ( MF_RECOVERED, "Recovered" )
-> +
-> +#define MF_PAGE_TYPE		\
-> +	EM ( MF_MSG_KERNEL, "reserved kernel page" )			\
-> +	EM ( MF_MSG_KERNEL_HIGH_ORDER, "high-order kernel page" )	\
-> +	EM ( MF_MSG_SLAB, "kernel slab page" )				\
-> +	EM ( MF_MSG_DIFFERENT_COMPOUND, "different compound page after locking" ) \
-> +	EM ( MF_MSG_POISONED_HUGE, "huge page already hardware poisoned" )	\
-> +	EM ( MF_MSG_HUGE, "huge page" )					\
-> +	EM ( MF_MSG_FREE_HUGE, "free huge page" )			\
-> +	EM ( MF_MSG_UNMAP_FAILED, "unmapping failed page" )		\
-> +	EM ( MF_MSG_DIRTY_SWAPCACHE, "dirty swapcache page" )		\
-> +	EM ( MF_MSG_CLEAN_SWAPCACHE, "clean swapcache page" )		\
-> +	EM ( MF_MSG_DIRTY_MLOCKED_LRU, "dirty mlocked LRU page" )	\
-> +	EM ( MF_MSG_CLEAN_MLOCKED_LRU, "clean mlocked LRU page" )	\
-> +	EM ( MF_MSG_DIRTY_UNEVICTABLE_LRU, "dirty unevictable LRU page" )	\
-> +	EM ( MF_MSG_CLEAN_UNEVICTABLE_LRU, "clean unevictable LRU page" )	\
-> +	EM ( MF_MSG_DIRTY_LRU, "dirty LRU page" )			\
-> +	EM ( MF_MSG_CLEAN_LRU, "clean LRU page" )			\
-> +	EM ( MF_MSG_TRUNCATED_LRU, "already truncated LRU page" )	\
-> +	EM ( MF_MSG_BUDDY, "free buddy page" )				\
-> +	EM ( MF_MSG_BUDDY_2ND, "free buddy page (2nd try)" )		\
-> +	EMe ( MF_MSG_UNKNOWN, "unknown page" )
-> +
-> +/*
-> + * First define the enums in MM_ACTION_RESULT to be exported to userspace
-> + * via TRACE_DEFINE_ENUM().
-> + */
-> +#undef EM
-> +#undef EMe
-> +#define EM(a,b) TRACE_DEFINE_ENUM(a);
-> +#define EMe(a,b)	TRACE_DEFINE_ENUM(a);
-> +
-> +MF_ACTION_RESULT
-> +MF_PAGE_TYPE
-> +
-> +/*
-> + * Now redefine the EM() and EMe() macros to map the enums to the strings
-> + * that will be printed in the output.
-> + */
-> +#undef EM
-> +#undef EMe
-> +#define EM(a,b)		{ a, b },
-> +#define EMe(a,b)	{ a, b }
-> +
-> +TRACE_EVENT(memory_failure_event,
-> +	TP_PROTO(unsigned long pfn,
-> +		 int type,
-> +		 int result),
-> +
-> +	TP_ARGS(pfn, type, result),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(unsigned long, pfn)
-> +		__field(int, type)
-> +		__field(int, result)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->pfn	= pfn;
-> +		__entry->type	= type;
-> +		__entry->result	= result;
-> +	),
-> +
-> +	TP_printk("pfn %#lx: recovery action for %s: %s",
+     kswapd 0 initialised 396098436 pages in 6024ms
 
-Hmm, "%#" is new to me. I'm not sure libtraceevent handles that.
-
-Not your problem, I need to make sure that it does, and if it does not,
-I need to fix it.
-
-I'm not even sure what %# does.
-
-Other than the typo,
-
-Acked-by: Steven Rostedt <rostedt@goodmis.org>
-
--- Steve
-
-
-> +		__entry->pfn,
-> +		__print_symbolic(__entry->type, MF_PAGE_TYPE),
-> +		__print_symbolic(__entry->result, MF_ACTION_RESULT)
-> +	)
-> +);
-> +#endif /* CONFIG_MEMORY_FAILURE */
->  #endif /* _TRACE_HW_EVENT_MC_H */
->  
->  /* This part must be outside protection */
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index f074f8e..42c5981 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -56,6 +56,7 @@
->  #include <linux/mm_inline.h>
->  #include <linux/kfifo.h>
->  #include "internal.h"
-> +#include "ras/ras_event.h"
->  
->  int sysctl_memory_failure_early_kill __read_mostly = 0;
->  
-> @@ -850,6 +851,8 @@ static struct page_state {
->  static void action_result(unsigned long pfn, enum mf_action_page_type type,
->  			  enum mf_result result)
->  {
-> +	trace_memory_failure_event(pfn, type, result);
-> +
->  	pr_err("MCE %#lx: recovery action for %s: %s\n",
->  		pfn, action_page_types[type], action_name[result]);
->  }
+Cheers,
+Longman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
