@@ -1,70 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 15EBB6B006C
-	for <linux-mm@kvack.org>; Thu,  7 May 2015 02:34:55 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so47474884wid.0
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 23:34:54 -0700 (PDT)
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
-        by mx.google.com with ESMTPS id fa18si2254650wid.123.2015.05.06.23.34.52
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 80BB86B0038
+	for <linux-mm@kvack.org>; Thu,  7 May 2015 02:35:59 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so229097351wid.0
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 23:35:59 -0700 (PDT)
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
+        by mx.google.com with ESMTPS id ba3si1725598wjc.86.2015.05.06.23.35.57
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 May 2015 23:34:52 -0700 (PDT)
-Received: by widdi4 with SMTP id di4so229069160wid.0
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 23:34:52 -0700 (PDT)
+        Wed, 06 May 2015 23:35:57 -0700 (PDT)
+Received: by wizk4 with SMTP id k4so229430494wiz.1
+        for <linux-mm@kvack.org>; Wed, 06 May 2015 23:35:57 -0700 (PDT)
 From: Anisse Astier <anisse@astier.eu>
-Subject: [PATCH v3 1/4] mm/page_alloc.c: cleanup obsolete KM_USER*
-Date: Thu,  7 May 2015 08:34:09 +0200
-Message-Id: <1430980452-2767-2-git-send-email-anisse@astier.eu>
+Subject: [PATCH v3 2/4] PM / Hibernate: prepare for SANITIZE_FREED_PAGES
+Date: Thu,  7 May 2015 08:34:10 +0200
+Message-Id: <1430980452-2767-3-git-send-email-anisse@astier.eu>
 In-Reply-To: <1430980452-2767-1-git-send-email-anisse@astier.eu>
 References: <1430980452-2767-1-git-send-email-anisse@astier.eu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 Cc: Anisse Astier <anisse@astier.eu>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, Andi Kleen <andi@firstfloor.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, linux-mm@kvack.org, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org
 
-It's been five years now that KM_* kmap flags have been removed and
-that we can call clear_highpage from any context. So we remove
-prep_zero_pages accordingly.
+SANITIZE_FREED_PAGES feature relies on having all pages going through
+the free_pages_prepare path in order to be cleared before being used. In
+the hibernate use case, pages will automagically appear in the system
+without being cleared.
+
+This patch will make sure free pages are cleared on resume; when we'll
+enable SANITIZE_FREED_PAGES. We free the pages just after resume because
+we can't do it later: going through any device resume code might
+allocate some memory and invalidate the free pages bitmap.
 
 Signed-off-by: Anisse Astier <anisse@astier.eu>
 ---
- mm/page_alloc.c | 17 ++---------------
- 1 file changed, 2 insertions(+), 15 deletions(-)
+ kernel/power/hibernate.c |  7 ++++++-
+ kernel/power/power.h     |  4 ++++
+ kernel/power/snapshot.c  | 21 +++++++++++++++++++++
+ 3 files changed, 31 insertions(+), 1 deletion(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ebffa0e..4d5ce6e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -380,20 +380,6 @@ void prep_compound_page(struct page *page, unsigned long order)
- 	}
+diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
+index 2329daa..3193b9a 100644
+--- a/kernel/power/hibernate.c
++++ b/kernel/power/hibernate.c
+@@ -305,9 +305,14 @@ static int create_image(int platform_mode)
+ 			error);
+ 	/* Restore control flow magically appears here */
+ 	restore_processor_state();
+-	if (!in_suspend)
++	if (!in_suspend) {
+ 		events_check_enabled = false;
+ 
++#ifdef CONFIG_SANITIZE_FREED_PAGES
++		clear_free_pages();
++		printk(KERN_INFO "PM: free pages cleared after restore\n");
++#endif
++	}
+ 	platform_leave(platform_mode);
+ 
+  Power_up:
+diff --git a/kernel/power/power.h b/kernel/power/power.h
+index ce9b832..26b2101 100644
+--- a/kernel/power/power.h
++++ b/kernel/power/power.h
+@@ -92,6 +92,10 @@ extern int create_basic_memory_bitmaps(void);
+ extern void free_basic_memory_bitmaps(void);
+ extern int hibernate_preallocate_memory(void);
+ 
++#ifdef CONFIG_SANITIZE_FREED_PAGES
++extern void clear_free_pages(void);
++#endif
++
+ /**
+  *	Auxiliary structure used for reading the snapshot image data and
+  *	metadata from and writing them to the list of page backup entries
+diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
+index 5235dd4..673ade1 100644
+--- a/kernel/power/snapshot.c
++++ b/kernel/power/snapshot.c
+@@ -1032,6 +1032,27 @@ void free_basic_memory_bitmaps(void)
+ 	pr_debug("PM: Basic memory bitmaps freed\n");
  }
  
--static inline void prep_zero_page(struct page *page, unsigned int order,
--							gfp_t gfp_flags)
--{
--	int i;
--
--	/*
--	 * clear_highpage() will use KM_USER0, so it's a bug to use __GFP_ZERO
--	 * and __GFP_HIGHMEM from hard or soft interrupt context.
--	 */
--	VM_BUG_ON((gfp_flags & __GFP_HIGHMEM) && in_interrupt());
--	for (i = 0; i < (1 << order); i++)
--		clear_highpage(page + i);
--}
--
- #ifdef CONFIG_DEBUG_PAGEALLOC
- unsigned int _debug_guardpage_minorder;
- bool _debug_pagealloc_enabled __read_mostly;
-@@ -975,7 +961,8 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
- 	kasan_alloc_pages(page, order);
- 
- 	if (gfp_flags & __GFP_ZERO)
--		prep_zero_page(page, order, gfp_flags);
-+		for (i = 0; i < (1 << order); i++)
-+			clear_highpage(page + i);
- 
- 	if (order && (gfp_flags & __GFP_COMP))
- 		prep_compound_page(page, order);
++#ifdef CONFIG_SANITIZE_FREED_PAGES
++void clear_free_pages(void)
++{
++	struct memory_bitmap *bm = free_pages_map;
++	unsigned long pfn;
++
++	if (WARN_ON(!(free_pages_map)))
++		return;
++
++	memory_bm_position_reset(bm);
++	pfn = memory_bm_next_pfn(bm);
++	while (pfn != BM_END_OF_MAP) {
++		if (pfn_valid(pfn))
++			clear_highpage(pfn_to_page(pfn));
++
++		pfn = memory_bm_next_pfn(bm);
++	}
++	memory_bm_position_reset(bm);
++}
++#endif /* SANITIZE_FREED_PAGES */
++
+ /**
+  *	snapshot_additional_pages - estimate the number of additional pages
+  *	be needed for setting up the suspend image data structures for given
 -- 
 1.9.3
 
