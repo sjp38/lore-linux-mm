@@ -1,54 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C4806B0038
-	for <linux-mm@kvack.org>; Thu,  7 May 2015 14:35:48 -0400 (EDT)
-Received: by pabtp1 with SMTP id tp1so47178875pab.2
-        for <linux-mm@kvack.org>; Thu, 07 May 2015 11:35:47 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id nb8si3822965pdb.122.2015.05.07.11.35.47
+Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DB596B0032
+	for <linux-mm@kvack.org>; Thu,  7 May 2015 15:26:25 -0400 (EDT)
+Received: by qku63 with SMTP id 63so34546907qku.3
+        for <linux-mm@kvack.org>; Thu, 07 May 2015 12:26:24 -0700 (PDT)
+Received: from relay4-d.mail.gandi.net (relay4-d.mail.gandi.net. [2001:4b98:c:538::196])
+        by mx.google.com with ESMTPS id f199si250529qhc.20.2015.05.07.12.26.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 May 2015 11:35:47 -0700 (PDT)
-Message-ID: <554BB07B.4020404@parallels.com>
-Date: Thu, 7 May 2015 21:35:39 +0300
-From: Pavel Emelyanov <xemul@parallels.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 07 May 2015 12:26:23 -0700 (PDT)
+Date: Thu, 7 May 2015 12:26:15 -0700
+From: Josh Triplett <josh@joshtriplett.org>
+Subject: [PATCHv2] devpts: If initialization failed, don't crash when opening
+ /dev/ptmx
+Message-ID: <20150507192615.GA16784@jtriplet-mobl1>
+References: <20150507003547.GA6862@jtriplet-mobl1>
 MIME-Version: 1.0
-Subject: Re: [PATCH] UserfaultFD: Rename uffd_api.bits into .features
-References: <20150421120222.GC4481@redhat.com> <55389261.50105@parallels.com> <20150427211650.GC24035@redhat.com> <55425A74.3020604@parallels.com> <20150507134236.GB13098@redhat.com> <554B769E.1040000@parallels.com> <20150507143343.GG13098@redhat.com> <554B79C0.5060807@parallels.com> <20150507151136.GH13098@redhat.com> <554B82D4.4060809@parallels.com> <20150507170802.GI13098@redhat.com>
-In-Reply-To: <20150507170802.GI13098@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150507003547.GA6862@jtriplet-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Linux MM <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, Iulia Manda <iulia.manda21@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Fabian Frederick <fabf@skynet.be>, Peter Hurley <peter@hurleysoftware.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On 05/07/2015 08:08 PM, Andrea Arcangeli wrote:
-> On Thu, May 07, 2015 at 06:20:52PM +0300, Pavel Emelyanov wrote:
->> Yes. Longer message (type + 3 u64-s) and the ability to request for extra
->> events is all I need. If you're OK with this being in the 0xAA API, then
-> 
-> This started from the request to get the full address (even if
-> personally I'm not convinced that the bits below PAGE_SHIFT can be
-> meaningful to userland) but I thought we could achieve both things and
-> hopefully this change is for the best.
+If devpts failed to initialize, it would store an ERR_PTR in the global
+devpts_mnt.  A subsequent open of /dev/ptmx would call devpts_new_index,
+which would dereference devpts_mnt and crash.
 
-:)
+Avoid storing invalid values in devpts_mnt; leave it NULL instead.
+Make both devpts_new_index and devpts_pty_new fail gracefully with
+ENODEV in that case, which then becomes the return value to the
+userspace open call on /dev/ptmx.
 
-> Can you have a look at this and let me know if it looks ok?
-> 
-> http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=d7ba2f23bb978820aa04f1e338789669eff33a7d
-> http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/tree/fs/userfaultfd.c?h=userfault&id=d7ba2f23bb978820aa04f1e338789669eff33a7d
-> http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/tree/include/uapi/linux/userfaultfd.h?h=userfault&id=d7ba2f23bb978820aa04f1e338789669eff33a7d
+Signed-off-by: Josh Triplett <josh@joshtriplett.org>
+Reviewed-by: Peter Hurley <peter@hurleysoftware.com>
+---
 
-Yup, this works for me, Now I can re-base my patches on it and check for the
-features to contain FORK, REMAP and MADVDONTNEED and provide more info in 
-the place now occupied with the uffd_msg.reserved fields. And all this w/o
-introducing new API :)
+v2: Fix copy-paste error caught by Peter Hurley.
 
-Thanks!
+As mentioned in v1, this is separate from fixing the bug that makes devpts fail
+to initialize in the first place, but this makes devpts fail gracefully rather
+than crashing.
 
--- Pavel
+ fs/devpts/inode.c | 30 +++++++++++++++++++++++-------
+ 1 file changed, 23 insertions(+), 7 deletions(-)
+
+diff --git a/fs/devpts/inode.c b/fs/devpts/inode.c
+index cfe8466..016687b 100644
+--- a/fs/devpts/inode.c
++++ b/fs/devpts/inode.c
+@@ -142,6 +142,8 @@ static inline struct super_block *pts_sb_from_inode(struct inode *inode)
+ 	if (inode->i_sb->s_magic == DEVPTS_SUPER_MAGIC)
+ 		return inode->i_sb;
+ #endif
++	if (!devpts_mnt)
++		return NULL;
+ 	return devpts_mnt->mnt_sb;
+ }
+ 
+@@ -525,10 +527,14 @@ static struct file_system_type devpts_fs_type = {
+ int devpts_new_index(struct inode *ptmx_inode)
+ {
+ 	struct super_block *sb = pts_sb_from_inode(ptmx_inode);
+-	struct pts_fs_info *fsi = DEVPTS_SB(sb);
++	struct pts_fs_info *fsi;
+ 	int index;
+ 	int ida_ret;
+ 
++	if (!sb)
++		return -ENODEV;
++
++	fsi = DEVPTS_SB(sb);
+ retry:
+ 	if (!ida_pre_get(&fsi->allocated_ptys, GFP_KERNEL))
+ 		return -ENOMEM;
+@@ -584,11 +590,18 @@ struct inode *devpts_pty_new(struct inode *ptmx_inode, dev_t device, int index,
+ 	struct dentry *dentry;
+ 	struct super_block *sb = pts_sb_from_inode(ptmx_inode);
+ 	struct inode *inode;
+-	struct dentry *root = sb->s_root;
+-	struct pts_fs_info *fsi = DEVPTS_SB(sb);
+-	struct pts_mount_opts *opts = &fsi->mount_opts;
++	struct dentry *root;
++	struct pts_fs_info *fsi;
++	struct pts_mount_opts *opts;
+ 	char s[12];
+ 
++	if (!sb)
++		return ERR_PTR(-ENODEV);
++
++	root = sb->s_root;
++	fsi = DEVPTS_SB(sb);
++	opts = &fsi->mount_opts;
++
+ 	inode = new_inode(sb);
+ 	if (!inode)
+ 		return ERR_PTR(-ENOMEM);
+@@ -676,12 +689,15 @@ static int __init init_devpts_fs(void)
+ 	struct ctl_table_header *table;
+ 
+ 	if (!err) {
++		struct vfsmount *mnt;
+ 		table = register_sysctl_table(pty_root_table);
+-		devpts_mnt = kern_mount(&devpts_fs_type);
+-		if (IS_ERR(devpts_mnt)) {
+-			err = PTR_ERR(devpts_mnt);
++		mnt = kern_mount(&devpts_fs_type);
++		if (IS_ERR(mnt)) {
++			err = PTR_ERR(mnt);
+ 			unregister_filesystem(&devpts_fs_type);
+ 			unregister_sysctl_table(table);
++		} else {
++			devpts_mnt = mnt;
+ 		}
+ 	}
+ 	return err;
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
