@@ -1,56 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BDB1B6B0038
-	for <linux-mm@kvack.org>; Thu,  7 May 2015 02:44:35 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so32677735pde.3
-        for <linux-mm@kvack.org>; Wed, 06 May 2015 23:44:35 -0700 (PDT)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id og9si1525523pbc.66.2015.05.06.23.44.34
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 883D76B0038
+	for <linux-mm@kvack.org>; Thu,  7 May 2015 03:22:06 -0400 (EDT)
+Received: by wgiu9 with SMTP id u9so34166263wgi.3
+        for <linux-mm@kvack.org>; Thu, 07 May 2015 00:22:06 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ek7si1872326wjd.96.2015.05.07.00.22.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 06 May 2015 23:44:34 -0700 (PDT)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0NNY00EWTW28CCA0@mailout2.samsung.com> for linux-mm@kvack.org;
- Thu, 07 May 2015 15:44:32 +0900 (KST)
-Date: Thu, 07 May 2015 15:45:57 +0900
-From: Kyungmin Park <kmpark@infradead.org>
-Subject: [RFC PATCH] PM, freezer: Don't thaw when it's intended frozen processes
-Message-id: <20150507064557.GA26928@july>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-disposition: inline
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 07 May 2015 00:22:04 -0700 (PDT)
+Date: Thu, 7 May 2015 08:21:59 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/13] Parallel struct page initialisation v4
+Message-ID: <20150507072159.GK2462@suse.de>
+References: <554415B1.2050702@hp.com>
+ <20150504143046.9404c572486caf71bdef0676@linux-foundation.org>
+ <20150505104514.GC2462@suse.de>
+ <20150505130255.49ff76bbf0a3b32d884ab2ce@linux-foundation.org>
+ <20150505221329.GE2462@suse.de>
+ <20150505152549.037679566fad8c593df176ed@linux-foundation.org>
+ <20150506071246.GF2462@suse.de>
+ <20150506102220.GH2462@suse.de>
+ <554A5655.6060108@hp.com>
+ <554ACFE8.2050908@hp.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <554ACFE8.2050908@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org
+To: Waiman Long <waiman.long@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-From: Kyungmin Park <kyungmin.park@samsung.com>
+On Wed, May 06, 2015 at 10:37:28PM -0400, Waiman Long wrote:
+> On 05/06/2015 01:58 PM, Waiman Long wrote:
+> >On 05/06/2015 06:22 AM, Mel Gorman wrote:
+> >>On Wed, May 06, 2015 at 08:12:46AM +0100, Mel Gorman wrote:
+> >>>On Tue, May 05, 2015 at 03:25:49PM -0700, Andrew Morton wrote:
+> >>>>On Tue, 5 May 2015 23:13:29 +0100 Mel Gorman<mgorman@suse.de>  wrote:
+> >>>>
+> >>>>>>Alternatively, the page allocator can go off and synchronously
+> >>>>>>initialize some pageframes itself.  Keep doing that until the
+> >>>>>>allocation attempt succeeds.
+> >>>>>>
+> >>>>>That was rejected during review of earlier attempts at
+> >>>>>this feature on
+> >>>>>the grounds that it impacted allocator fast paths.
+> >>>>eh?  Changes are only needed on the allocation-attempt-failed path,
+> >>>>which is slow-path.
+> >>>We'd have to distinguish between falling back to other zones
+> >>>because the
+> >>>high zone is artifically exhausted and normal ALLOC_BATCH
+> >>>exhaustion. We'd
+> >>>also have to avoid falling back to remote nodes prematurely.
+> >>>While I have
+> >>>not tried an implementation, I expected they would need to be
+> >>>in the fast
+> >>>paths unless I used jump labels to get around it. I'm going to
+> >>>try altering
+> >>>when we initialise instead so that it happens earlier.
+> >>>
+> >>Which looks as follows. Waiman, a test on the 24TB machine would be
+> >>appreciated again. This patch should be applied instead of "mm: meminit:
+> >>Take into account that large system caches scale linearly with memory"
+> >>
+> >>---8<---
+> >>mm: meminit: Finish initialisation of memory before basic setup
+> >>
+> >>Waiman Long reported that 24TB machines hit OOM during basic setup when
+> >>struct page initialisation was deferred. One approach is to
+> >>initialise memory
+> >>on demand but it interferes with page allocator paths. This
+> >>patch creates
+> >>dedicated threads to initialise memory before basic setup. It
+> >>then blocks
+> >>on a rw_semaphore until completion as a wait_queue and counter
+> >>is overkill.
+> >>This may be slower to boot but it's simplier overall and also
+> >>gets rid of a
+> >>lot of section mangling which existed so kswapd could do the
+> >>initialisation.
+> >>
+> >>Signed-off-by: Mel Gorman<mgorman@suse.de>
+> >>
+> >
+> >This patch moves the deferred meminit from kswapd to its own
+> >kernel threads started after smp_init(). However, the hash table
+> >allocation was done earlier than that. It seems like it will still
+> >run out of memory in the 24TB machine that I tested on.
+> >
+> >I will certainly try it out, but I doubt it will solve the problem
+> >on its own.
+> 
+> It turns out that the two new patches did work on the 24-TB
+> DragonHawk without the "mm: meminit: Take into account that large
+> system caches scale linearly with memory" patch. The bootup time was
+> 357s which was just a few seconds slower than the other bootup times
+> that I sent you yesterday.
+> 
 
-Some platform uses freezer cgroup for speicial purpose to schedule out some applications. but after suspend & resume, these processes are thawed and running. 
+Grand. This is what I expected because the previous failure was not the
+hash tables, it was later allocations and the parallel initialisation
+was early enough.
 
-but it's inteneded and don't need to thaw it.
+> BTW, do you want to change the following log message as kswapd will
+> no longer be the one doing deferred meminit?
+> 
+>     kswapd 0 initialised 396098436 pages in 6024ms
+> 
 
-To avoid it, does it possible to modify resume code and don't thaw it when resume? does it resonable?
+I will.
 
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
----
-diff --git a/kernel/power/process.c b/kernel/power/process.c
-index 564f786..6eed7df 100644
---- a/kernel/power/process.c
-+++ b/kernel/power/process.c
-@@ -202,7 +202,9 @@ void thaw_processes(void)
- 	for_each_process_thread(g, p) {
- 		/* No other threads should have PF_SUSPEND_TASK set */
- 		WARN_ON((p != curr) && (p->flags & PF_SUSPEND_TASK));
--		__thaw_task(p);
-+		/* Don't need to thaw when it's already frozen by userspace */
-+		if (!cgroup_freezing(p))
-+			__thaw_task(p);
- 	}
- 	read_unlock(&tasklist_lock);
- 
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
