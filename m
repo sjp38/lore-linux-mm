@@ -1,41 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 63DCA6B006E
-	for <linux-mm@kvack.org>; Thu,  7 May 2015 07:48:19 -0400 (EDT)
-Received: by wief7 with SMTP id f7so11892596wie.0
-        for <linux-mm@kvack.org>; Thu, 07 May 2015 04:48:19 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id j18si2852005wjr.158.2015.05.07.04.48.17
+Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id D312B6B0074
+	for <linux-mm@kvack.org>; Thu,  7 May 2015 07:48:53 -0400 (EDT)
+Received: by iecnq11 with SMTP id nq11so36879323iec.3
+        for <linux-mm@kvack.org>; Thu, 07 May 2015 04:48:53 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id zw6si3032846igc.11.2015.05.07.04.48.52
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 May 2015 04:48:18 -0700 (PDT)
-Date: Thu, 7 May 2015 13:48:04 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH RFC 01/15] uaccess: count pagefault_disable() levels in
- pagefault_disabled
-Message-ID: <20150507114804.GS21418@twins.programming.kicks-ass.net>
-References: <1430934639-2131-1-git-send-email-dahi@linux.vnet.ibm.com>
- <1430934639-2131-2-git-send-email-dahi@linux.vnet.ibm.com>
- <20150507102254.GE23123@twins.programming.kicks-ass.net>
- <20150507125053.5d2e8f0a@thinkpad-w530>
- <20150507111231.GF23123@twins.programming.kicks-ass.net>
- <20150507134030.137deeb2@thinkpad-w530>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 07 May 2015 04:48:53 -0700 (PDT)
+From: Xie XiuQi <xiexiuqi@huawei.com>
+Subject: [PATCH v5 0/3] tracing: add trace event for memory-failure
+Date: Thu, 7 May 2015 19:37:58 +0800
+Message-ID: <1430998681-24953-1-git-send-email-xiexiuqi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150507134030.137deeb2@thinkpad-w530>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <dahi@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, mingo@redhat.com, yang.shi@windriver.com, bigeasy@linutronix.de, benh@kernel.crashing.org, paulus@samba.org, akpm@linux-foundation.org, heiko.carstens@de.ibm.com, schwidefsky@de.ibm.com, borntraeger@de.ibm.com, mst@redhat.com, tglx@linutronix.de, David.Laight@ACULAB.COM, hughd@google.com, hocko@suse.cz, ralf@linux-mips.org, herbert@gondor.apana.org.au, linux@arm.linux.org.uk, airlied@linux.ie, daniel.vetter@intel.com, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: n-horiguchi@ah.jp.nec.com, rostedt@goodmis.org, mingo@redhat.com
+Cc: akpm@linux-foundation.org, gong.chen@linux.intel.com, bp@suse.de, tony.luck@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jingle.chen@huawei.com
 
-On Thu, May 07, 2015 at 01:40:30PM +0200, David Hildenbrand wrote:
-> I think a separate counter just makes sense, as we are dealing with two
-> different concepts and we don't want to lose the preempt_disable =^ NOP
-> for !CONFIG_PREEMPT.
+RAS user space tools like rasdaemon which base on trace event, could
+receive mce error event, but no memory recovery result event. So, I
+want to add this event to make this scenario complete.
 
-Right, let me try and get my head on straight -- I'm so used to
-PREEMPT=y being the 'hard' case :-)
+This patchset add a event at ras group for memory-failure.
+
+The output like below:
+#  tracer: nop
+#
+#  entries-in-buffer/entries-written: 2/2   #P:24
+#
+#                               _-----=> irqs-off
+#                              / _----=> need-resched
+#                             | / _---=> hardirq/softirq
+#                             || / _--=> preempt-depth
+#                             ||| /     delay
+#            TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION
+#               | |       |   ||||       |         |
+       mce-inject-13150 [001] ....   277.019359: memory_failure_event: pfn 0x19869: recovery action for free buddy page: Delayed
+
+--
+v4->v5:
+ - fix a typo
+ - rebase on top of latest mainline
+
+v3->v4:
+ - rebase on top of latest linux-next
+ - update comments as Naoya's suggestion
+ - add #ifdef CONFIG_MEMORY_FAILURE for this trace event
+ - change type of action_result's param 3 to enum
+
+v2->v3:
+ - rebase on top of linux-next
+ - based on Steven Rostedt's "tracing: Add TRACE_DEFINE_ENUM() macro
+   to map enums to their values" patch set v1.
+
+v1->v2:
+ - Comment update
+ - Just passing 'result' instead of 'action_name[result]',
+   suggested by Steve. And hard coded there because trace-cmd
+   and perf do not have a way to process enums.
+
+Xie XiuQi (3):
+  memory-failure: export page_type and action result
+  memory-failure: change type of action_result's param 3 to enum
+  tracing: add trace event for memory-failure
+
+ include/linux/mm.h      |  34 ++++++++++
+ include/ras/ras_event.h |  85 ++++++++++++++++++++++++
+ mm/memory-failure.c     | 172 ++++++++++++++++++++----------------------------
+ 3 files changed, 190 insertions(+), 101 deletions(-)
+
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
