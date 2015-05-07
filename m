@@ -1,51 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 483E66B006E
-	for <linux-mm@kvack.org>; Thu,  7 May 2015 10:33:48 -0400 (EDT)
-Received: by qcbgy10 with SMTP id gy10so21887416qcb.3
-        for <linux-mm@kvack.org>; Thu, 07 May 2015 07:33:48 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m46si2167922qgd.70.2015.05.07.07.33.46
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id A696E6B0038
+	for <linux-mm@kvack.org>; Thu,  7 May 2015 10:42:15 -0400 (EDT)
+Received: by pabtp1 with SMTP id tp1so41955928pab.2
+        for <linux-mm@kvack.org>; Thu, 07 May 2015 07:42:15 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id h4si3057490pdi.136.2015.05.07.07.42.14
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 May 2015 07:33:47 -0700 (PDT)
-Date: Thu, 7 May 2015 16:33:43 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] UserfaultFD: Rename uffd_api.bits into .features
-Message-ID: <20150507143343.GG13098@redhat.com>
-References: <5509D342.7000403@parallels.com>
- <20150421120222.GC4481@redhat.com>
- <55389261.50105@parallels.com>
- <20150427211650.GC24035@redhat.com>
- <55425A74.3020604@parallels.com>
- <20150507134236.GB13098@redhat.com>
- <554B769E.1040000@parallels.com>
+        Thu, 07 May 2015 07:42:14 -0700 (PDT)
+Message-ID: <554B79C0.5060807@parallels.com>
+Date: Thu, 7 May 2015 17:42:08 +0300
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <554B769E.1040000@parallels.com>
+Subject: Re: [PATCH] UserfaultFD: Rename uffd_api.bits into .features
+References: <5509D342.7000403@parallels.com> <20150421120222.GC4481@redhat.com> <55389261.50105@parallels.com> <20150427211650.GC24035@redhat.com> <55425A74.3020604@parallels.com> <20150507134236.GB13098@redhat.com> <554B769E.1040000@parallels.com> <20150507143343.GG13098@redhat.com>
+In-Reply-To: <20150507143343.GG13098@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Linux MM <linux-mm@kvack.org>
 
-On Thu, May 07, 2015 at 05:28:46PM +0300, Pavel Emelyanov wrote:
-> Yup, this is very close to what I did in my set -- introduced a message to
-> report back to the user-space on read. But my message is more than 8+2*1 bytes,
-> so we'll have one message for 0xAA API and another one for 0xAB (new) one :)
+On 05/07/2015 05:33 PM, Andrea Arcangeli wrote:
+> On Thu, May 07, 2015 at 05:28:46PM +0300, Pavel Emelyanov wrote:
+>> Yup, this is very close to what I did in my set -- introduced a message to
+>> report back to the user-space on read. But my message is more than 8+2*1 bytes,
+>> so we'll have one message for 0xAA API and another one for 0xAB (new) one :)
+> 
+> I slightly altered it to fix an issue with packet alignments so it'd
+> be 16bytes.
+> 
+> How big is your msg currently? Could we get to use the same API?
 
-I slightly altered it to fix an issue with packet alignments so it'd
-be 16bytes.
+Right now it's like this
 
-How big is your msg currently? Could we get to use the same API?
+struct uffd_event {
+        __u64 type;
+        union {
+                struct {
+                        __u64 addr;
+                } pagefault;
 
-UFFDIO_REGISTER_MODE_FORK
+                struct {
+                        __u32 ufd;
+                } fork;
 
-or 
+                struct {
+                        __u64 from;
+                        __u64 to;
+                        __u64 len;
+                } remap;
+        } arg;
+};
 
-UFFDIO_REGISTER_MODE_NON_COOPERATIVE would differentiate if you want
-to register for fork/mremap/dontneed events as well or only the
-default (UFFD_EVENT_PAGEFAULT).
+where .type is your uffd_msg.event and the rest is event-specific.
+
+> UFFDIO_REGISTER_MODE_FORK
+> 
+> or 
+> 
+> UFFDIO_REGISTER_MODE_NON_COOPERATIVE would differentiate if you want
+> to register for fork/mremap/dontneed events as well or only the
+> default (UFFD_EVENT_PAGEFAULT).
+
+I planned to use this in UFFDIO_API call -- the uffdio_api.features will
+be in-out argument denoting the bits user needs and reporting what kernel
+can.
+
+-- Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
