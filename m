@@ -1,298 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E2066B0070
-	for <linux-mm@kvack.org>; Fri,  8 May 2015 15:34:13 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so93316299pdb.1
-        for <linux-mm@kvack.org>; Fri, 08 May 2015 12:34:13 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
-        by mx.google.com with ESMTP id pe8si8280606pac.157.2015.05.08.12.34.11
-        for <linux-mm@kvack.org>;
-        Fri, 08 May 2015 12:34:11 -0700 (PDT)
-From: Eric B Munson <emunson@akamai.com>
-Subject: [PATCH 3/3] Add tests for lock on fault
-Date: Fri,  8 May 2015 15:33:46 -0400
-Message-Id: <1431113626-19153-4-git-send-email-emunson@akamai.com>
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 68A0A6B0038
+	for <linux-mm@kvack.org>; Fri,  8 May 2015 15:42:05 -0400 (EDT)
+Received: by pabtp1 with SMTP id tp1so57652849pab.2
+        for <linux-mm@kvack.org>; Fri, 08 May 2015 12:42:05 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id va8si8279733pac.211.2015.05.08.12.42.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 May 2015 12:42:04 -0700 (PDT)
+Date: Fri, 8 May 2015 12:42:03 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/3] Allow user to request memory to be locked on page
+ fault
+Message-Id: <20150508124203.6679b1d35ad9555425003929@linux-foundation.org>
 In-Reply-To: <1431113626-19153-1-git-send-email-emunson@akamai.com>
 References: <1431113626-19153-1-git-send-email-emunson@akamai.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric B Munson <emunson@akamai.com>, Shuah Khan <shuahkh@osg.samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+To: Eric B Munson <emunson@akamai.com>
+Cc: Shuah Khan <shuahkh@osg.samsung.com>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-Test the mmap() flag, the mlockall() flag, and ensure that mlock limits
-are respected.  Note that the limit test needs to be run a normal user.
+On Fri,  8 May 2015 15:33:43 -0400 Eric B Munson <emunson@akamai.com> wrote:
 
-Signed-off-by: Eric B Munson <emunson@akamai.com>
-Cc: Shuah Khan <shuahkh@osg.samsung.com>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-api@vger.kernel.org
----
- tools/testing/selftests/vm/Makefile         |   8 +-
- tools/testing/selftests/vm/lock-on-fault.c  | 145 ++++++++++++++++++++++++++++
- tools/testing/selftests/vm/on-fault-limit.c |  47 +++++++++
- tools/testing/selftests/vm/run_vmtests      |  23 +++++
- 4 files changed, 222 insertions(+), 1 deletion(-)
- create mode 100644 tools/testing/selftests/vm/lock-on-fault.c
- create mode 100644 tools/testing/selftests/vm/on-fault-limit.c
+> mlock() allows a user to control page out of program memory, but this
+> comes at the cost of faulting in the entire mapping when it is
+> allocated.  For large mappings where the entire area is not necessary
+> this is not ideal.
+> 
+> This series introduces new flags for mmap() and mlockall() that allow a
+> user to specify that the covered are should not be paged out, but only
+> after the memory has been used the first time.
 
-diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
-index a5ce953..32f3d20 100644
---- a/tools/testing/selftests/vm/Makefile
-+++ b/tools/testing/selftests/vm/Makefile
-@@ -1,7 +1,13 @@
- # Makefile for vm selftests
- 
- CFLAGS = -Wall
--BINARIES = hugepage-mmap hugepage-shm map_hugetlb thuge-gen hugetlbfstest
-+BINARIES = hugepage-mmap
-+BINARIES += hugepage-shm
-+BINARIES += hugetlbfstest
-+BINARIES += lock-on-fault
-+BINARIES += map_hugetlb
-+BINARIES += on-fault-limit
-+BINARIES += thuge-gen
- BINARIES += transhuge-stress
- 
- all: $(BINARIES)
-diff --git a/tools/testing/selftests/vm/lock-on-fault.c b/tools/testing/selftests/vm/lock-on-fault.c
-new file mode 100644
-index 0000000..e6a9688
---- /dev/null
-+++ b/tools/testing/selftests/vm/lock-on-fault.c
-@@ -0,0 +1,145 @@
-+#include <sys/mman.h>
-+#include <stdio.h>
-+#include <unistd.h>
-+#include <string.h>
-+#include <sys/time.h>
-+#include <sys/resource.h>
-+
-+#ifndef MCL_ON_FAULT
-+#define MCL_ON_FAULT 4
-+#endif
-+
-+#define PRESENT_BIT	0x8000000000000000
-+#define PFN_MASK	0x007FFFFFFFFFFFFF
-+#define UNEVICTABLE_BIT	(1UL << 18)
-+
-+static int check_pageflags(void *map)
-+{
-+	FILE *file;
-+	unsigned long pfn1;
-+	unsigned long pfn2;
-+	unsigned long offset1;
-+	unsigned long offset2;
-+	int ret = 1;
-+
-+	file = fopen("/proc/self/pagemap", "r");
-+	if (!file) {
-+		perror("fopen");
-+		return ret;
-+	}
-+	offset1 = (unsigned long)map / getpagesize() * sizeof(unsigned long);
-+	offset2 = ((unsigned long)map + getpagesize()) / getpagesize() * sizeof(unsigned long);
-+	if (fseek(file, offset1, SEEK_SET)) {
-+		perror("fseek");
-+		goto out;
-+	}
-+
-+	if (fread(&pfn1, sizeof(unsigned long), 1, file) != 1) {
-+		perror("fread");
-+		goto out;
-+	}
-+
-+	if (fseek(file, offset2, SEEK_SET)) {
-+		perror("fseek");
-+		goto out;
-+	}
-+
-+	if (fread(&pfn2, sizeof(unsigned long), 1, file) != 1) {
-+		perror("fread");
-+		goto out;
-+	}
-+
-+	/* pfn2 should not be present */
-+	if (pfn2 & PRESENT_BIT) {
-+		printf("page map says 0x%lx\n", pfn2);
-+		printf("present is    0x%lx\n", PRESENT_BIT);
-+		goto out;
-+	}
-+
-+	/* pfn1 should be present */
-+	if ((pfn1 & PRESENT_BIT) == 0) {
-+		printf("page map says 0x%lx\n", pfn1);
-+		printf("present is    0x%lx\n", PRESENT_BIT);
-+		goto out;
-+	}
-+
-+	pfn1 &= PFN_MASK;
-+	fclose(file);
-+	file = fopen("/proc/kpageflags", "r");
-+	if (!file) {
-+		perror("fopen");
-+		munmap(map, 2 * getpagesize());
-+		return ret;
-+	}
-+
-+	if (fseek(file, pfn1 * sizeof(unsigned long), SEEK_SET)) {
-+		perror("fseek");
-+		goto out;
-+	}
-+
-+	if (fread(&pfn2, sizeof(unsigned long), 1, file) != 1) {
-+		perror("fread");
-+		goto out;
-+	}
-+
-+	/* pfn2 now contains the entry from kpageflags for the first page, the
-+	 * unevictable bit should be set */
-+	if ((pfn2 & UNEVICTABLE_BIT) == 0) {
-+		printf("kpageflags says 0x%lx\n", pfn2);
-+		printf("unevictable is  0x%lx\n", UNEVICTABLE_BIT);
-+		goto out;
-+	}
-+
-+	ret = 0;
-+
-+out:
-+	fclose(file);
-+	return ret;
-+}
-+
-+static int test_mmap(int flags)
-+{
-+	int ret = 1;
-+	void *map;
-+
-+	map = mmap(NULL, 2 * getpagesize(), PROT_READ | PROT_WRITE, flags, 0, 0);
-+	if (map == MAP_FAILED) {
-+		perror("mmap()");
-+		return ret;
-+	}
-+
-+	/* Write something into the first page to ensure it is present */
-+	*(char *)map = 1;
-+
-+	ret = check_pageflags(map);
-+
-+	munmap(map, 2 * getpagesize());
-+	return ret;
-+}
-+
-+static int test_mlockall(void)
-+{
-+	int ret = 1;
-+
-+	if (mlockall(MCL_ON_FAULT)) {
-+		perror("mlockall");
-+		return ret;
-+	}
-+
-+	ret = test_mmap(MAP_PRIVATE | MAP_ANONYMOUS);
-+	munlockall();
-+	return ret;
-+}
-+
-+#ifndef MAP_LOCKONFAULT
-+#define MAP_LOCKONFAULT (MAP_HUGETLB << 1)
-+#endif
-+
-+int main(int argc, char **argv)
-+{
-+	int ret = 0;
-+
-+	ret += test_mmap(MAP_PRIVATE | MAP_ANONYMOUS | MAP_LOCKONFAULT);
-+	ret += test_mlockall();
-+	return ret;
-+}
-diff --git a/tools/testing/selftests/vm/on-fault-limit.c b/tools/testing/selftests/vm/on-fault-limit.c
-new file mode 100644
-index 0000000..bd70078
---- /dev/null
-+++ b/tools/testing/selftests/vm/on-fault-limit.c
-@@ -0,0 +1,47 @@
-+#include <sys/mman.h>
-+#include <stdio.h>
-+#include <unistd.h>
-+#include <string.h>
-+#include <sys/time.h>
-+#include <sys/resource.h>
-+
-+#ifndef MCL_ON_FAULT
-+#define MCL_ON_FAULT 4
-+#endif
-+
-+static int test_limit(void)
-+{
-+	int ret = 1;
-+	struct rlimit lims;
-+	void *map;
-+
-+	if (getrlimit(RLIMIT_MEMLOCK, &lims)) {
-+		perror("getrlimit");
-+		return ret;
-+	}
-+
-+	if (mlockall(MCL_ON_FAULT)) {
-+		perror("mlockall");
-+		return ret;
-+	}
-+
-+	map = mmap(NULL, 2 * lims.rlim_max, PROT_READ | PROT_WRITE,
-+		   MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE, 0, 0);
-+	if (map != MAP_FAILED)
-+		printf("mmap should have failed, but didn't\n");
-+	else {
-+		ret = 0;
-+		munmap(map, 2 * lims.rlim_max);
-+	}
-+
-+	munlockall();
-+	return ret;
-+}
-+
-+int main(int argc, char **argv)
-+{
-+	int ret = 0;
-+
-+	ret += test_limit();
-+	return ret;
-+}
-diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
-index c87b681..c1aecce 100755
---- a/tools/testing/selftests/vm/run_vmtests
-+++ b/tools/testing/selftests/vm/run_vmtests
-@@ -90,4 +90,27 @@ fi
- umount $mnt
- rm -rf $mnt
- echo $nr_hugepgs > /proc/sys/vm/nr_hugepages
-+
-+echo "--------------------"
-+echo "running lock-on-fault"
-+echo "--------------------"
-+./lock-on-fault
-+if [ $? -ne 0 ]; then
-+	echo "[FAIL]"
-+	exitcode=1
-+else
-+	echo "[PASS]"
-+fi
-+
-+echo "--------------------"
-+echo "running on-fault-limit"
-+echo "--------------------"
-+sudo -u nobody ./on-fault-limit
-+if [ $? -ne 0 ]; then
-+	echo "[FAIL]"
-+	exitcode=1
-+else
-+	echo "[PASS]"
-+fi
-+
- exit $exitcode
--- 
-1.9.1
+Please tell us much much more about the value of these changes: the use
+cases, the behavioural improvements and performance results which the
+patchset brings to those use cases, etc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
