@@ -1,189 +1,296 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id D38266B006E
-	for <linux-mm@kvack.org>; Fri,  8 May 2015 15:34:09 -0400 (EDT)
-Received: by pacyx8 with SMTP id yx8so57488816pac.1
-        for <linux-mm@kvack.org>; Fri, 08 May 2015 12:34:09 -0700 (PDT)
-Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
-        by mx.google.com with ESMTP id qu16si8258799pab.222.2015.05.08.12.34.07
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E2066B0070
+	for <linux-mm@kvack.org>; Fri,  8 May 2015 15:34:13 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so93316299pdb.1
+        for <linux-mm@kvack.org>; Fri, 08 May 2015 12:34:13 -0700 (PDT)
+Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
+        by mx.google.com with ESMTP id pe8si8280606pac.157.2015.05.08.12.34.11
         for <linux-mm@kvack.org>;
-        Fri, 08 May 2015 12:34:08 -0700 (PDT)
+        Fri, 08 May 2015 12:34:11 -0700 (PDT)
 From: Eric B Munson <emunson@akamai.com>
-Subject: [PATCH 2/3] Add mlockall flag for locking pages on fault
-Date: Fri,  8 May 2015 15:33:45 -0400
-Message-Id: <1431113626-19153-3-git-send-email-emunson@akamai.com>
+Subject: [PATCH 3/3] Add tests for lock on fault
+Date: Fri,  8 May 2015 15:33:46 -0400
+Message-Id: <1431113626-19153-4-git-send-email-emunson@akamai.com>
 In-Reply-To: <1431113626-19153-1-git-send-email-emunson@akamai.com>
 References: <1431113626-19153-1-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric B Munson <emunson@akamai.com>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org
+Cc: Eric B Munson <emunson@akamai.com>, Shuah Khan <shuahkh@osg.samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 
-Building on the previous patch, extend mlockall() to give a process a
-way to specify that pages should be locked when they are faulted in, but
-that pre-faulting is not needed.
+Test the mmap() flag, the mlockall() flag, and ensure that mlock limits
+are respected.  Note that the limit test needs to be run a normal user.
 
 Signed-off-by: Eric B Munson <emunson@akamai.com>
-Cc: linux-alpha@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mips@linux-mips.org
-Cc: linux-parisc@vger.kernel.org
-Cc: linuxppc-dev@lists.ozlabs.org
-Cc: sparclinux@vger.kernel.org
-Cc: linux-xtensa@linux-xtensa.org
-Cc: linux-arch@vger.kernel.org
-Cc: linux-api@vger.kernel.org
+Cc: Shuah Khan <shuahkh@osg.samsung.com>
 Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-api@vger.kernel.org
 ---
- arch/alpha/include/uapi/asm/mman.h   |  1 +
- arch/mips/include/uapi/asm/mman.h    |  1 +
- arch/parisc/include/uapi/asm/mman.h  |  1 +
- arch/powerpc/include/uapi/asm/mman.h |  1 +
- arch/sparc/include/uapi/asm/mman.h   |  1 +
- arch/tile/include/uapi/asm/mman.h    |  1 +
- arch/xtensa/include/uapi/asm/mman.h  |  1 +
- include/uapi/asm-generic/mman.h      |  1 +
- mm/mlock.c                           | 13 +++++++++----
- 9 files changed, 17 insertions(+), 4 deletions(-)
+ tools/testing/selftests/vm/Makefile         |   8 +-
+ tools/testing/selftests/vm/lock-on-fault.c  | 145 ++++++++++++++++++++++++++++
+ tools/testing/selftests/vm/on-fault-limit.c |  47 +++++++++
+ tools/testing/selftests/vm/run_vmtests      |  23 +++++
+ 4 files changed, 222 insertions(+), 1 deletion(-)
+ create mode 100644 tools/testing/selftests/vm/lock-on-fault.c
+ create mode 100644 tools/testing/selftests/vm/on-fault-limit.c
 
-diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
-index 15e96e1..3120dfb 100644
---- a/arch/alpha/include/uapi/asm/mman.h
-+++ b/arch/alpha/include/uapi/asm/mman.h
-@@ -38,6 +38,7 @@
+diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
+index a5ce953..32f3d20 100644
+--- a/tools/testing/selftests/vm/Makefile
++++ b/tools/testing/selftests/vm/Makefile
+@@ -1,7 +1,13 @@
+ # Makefile for vm selftests
  
- #define MCL_CURRENT	 8192		/* lock all currently mapped pages */
- #define MCL_FUTURE	16384		/* lock all additions to address space */
-+#define MCL_ON_FAULT	32768		/* lock all pages that are faulted in */
+ CFLAGS = -Wall
+-BINARIES = hugepage-mmap hugepage-shm map_hugetlb thuge-gen hugetlbfstest
++BINARIES = hugepage-mmap
++BINARIES += hugepage-shm
++BINARIES += hugetlbfstest
++BINARIES += lock-on-fault
++BINARIES += map_hugetlb
++BINARIES += on-fault-limit
++BINARIES += thuge-gen
+ BINARIES += transhuge-stress
  
- #define MADV_NORMAL	0		/* no further special treatment */
- #define MADV_RANDOM	1		/* expect random page references */
-diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
-index 47846a5..82aec3c 100644
---- a/arch/mips/include/uapi/asm/mman.h
-+++ b/arch/mips/include/uapi/asm/mman.h
-@@ -62,6 +62,7 @@
-  */
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-+#define MCL_ON_FAULT	4		/* lock all pages that are faulted in */
- 
- #define MADV_NORMAL	0		/* no further special treatment */
- #define MADV_RANDOM	1		/* expect random page references */
-diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
-index 1514cd7..f4601f3 100644
---- a/arch/parisc/include/uapi/asm/mman.h
-+++ b/arch/parisc/include/uapi/asm/mman.h
-@@ -32,6 +32,7 @@
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-+#define MCL_ON_FAULT	4		/* lock all pages that are faulted in */
- 
- #define MADV_NORMAL     0               /* no further special treatment */
- #define MADV_RANDOM     1               /* expect random page references */
-diff --git a/arch/powerpc/include/uapi/asm/mman.h b/arch/powerpc/include/uapi/asm/mman.h
-index fce74fe..0a28efc 100644
---- a/arch/powerpc/include/uapi/asm/mman.h
-+++ b/arch/powerpc/include/uapi/asm/mman.h
-@@ -22,6 +22,7 @@
- 
- #define MCL_CURRENT     0x2000          /* lock all currently mapped pages */
- #define MCL_FUTURE      0x4000          /* lock all additions to address space */
-+#define MCL_ON_FAULT	0x80000		/* lock all pages that are faulted in */
- 
- #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-diff --git a/arch/sparc/include/uapi/asm/mman.h b/arch/sparc/include/uapi/asm/mman.h
-index 12425d8..119be80 100644
---- a/arch/sparc/include/uapi/asm/mman.h
-+++ b/arch/sparc/include/uapi/asm/mman.h
-@@ -17,6 +17,7 @@
- 
- #define MCL_CURRENT     0x2000          /* lock all currently mapped pages */
- #define MCL_FUTURE      0x4000          /* lock all additions to address space */
-+#define MCL_ON_FAULT	0x80000		/* lock all pages that are faulted in */
- 
- #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-diff --git a/arch/tile/include/uapi/asm/mman.h b/arch/tile/include/uapi/asm/mman.h
-index ec04eaf..66ea935 100644
---- a/arch/tile/include/uapi/asm/mman.h
-+++ b/arch/tile/include/uapi/asm/mman.h
-@@ -37,6 +37,7 @@
-  */
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-+#define MCL_ON_FAULT	4		/* lock all pages that are faulted in */
- 
- 
- #endif /* _ASM_TILE_MMAN_H */
-diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
-index 42d43cc..9abcc29 100644
---- a/arch/xtensa/include/uapi/asm/mman.h
-+++ b/arch/xtensa/include/uapi/asm/mman.h
-@@ -75,6 +75,7 @@
-  */
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-+#define MCL_ON_FAULT	4		/* lock all pages that are faulted in */
- 
- #define MADV_NORMAL	0		/* no further special treatment */
- #define MADV_RANDOM	1		/* expect random page references */
-diff --git a/include/uapi/asm-generic/mman.h b/include/uapi/asm-generic/mman.h
-index fc4e586..6ac7a7b 100644
---- a/include/uapi/asm-generic/mman.h
-+++ b/include/uapi/asm-generic/mman.h
-@@ -18,5 +18,6 @@
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-+#define MCL_ON_FAULT	4		/* lock all pages that are faulted in */
- 
- #endif /* __ASM_GENERIC_MMAN_H */
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 6fd2cf1..1406835 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -579,7 +579,7 @@ static int do_mlock(unsigned long start, size_t len, int on)
- 
- 		/* Here we know that  vma->vm_start <= nstart < vma->vm_end. */
- 
--		newflags = vma->vm_flags & ~VM_LOCKED;
-+		newflags = vma->vm_flags & ~(VM_LOCKED | VM_LOCKONFAULT);
- 		if (on)
- 			newflags |= VM_LOCKED;
- 
-@@ -662,13 +662,17 @@ static int do_mlockall(int flags)
- 		current->mm->def_flags |= VM_LOCKED;
- 	else
- 		current->mm->def_flags &= ~VM_LOCKED;
--	if (flags == MCL_FUTURE)
-+	if (flags & MCL_ON_FAULT)
-+		current->mm->def_flags |= VM_LOCKONFAULT;
-+	else
-+		current->mm->def_flags &= ~VM_LOCKONFAULT;
-+	if (flags == MCL_FUTURE || flags == MCL_ON_FAULT)
- 		goto out;
- 
- 	for (vma = current->mm->mmap; vma ; vma = prev->vm_next) {
- 		vm_flags_t newflags;
- 
--		newflags = vma->vm_flags & ~VM_LOCKED;
-+		newflags = vma->vm_flags & ~(VM_LOCKED | VM_LOCKONFAULT);
- 		if (flags & MCL_CURRENT)
- 			newflags |= VM_LOCKED;
- 
-@@ -685,7 +689,8 @@ SYSCALL_DEFINE1(mlockall, int, flags)
- 	unsigned long lock_limit;
- 	int ret = -EINVAL;
- 
--	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE)))
-+	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE | MCL_ON_FAULT)) ||
-+	    ((flags & MCL_FUTURE) && (flags & MCL_ON_FAULT)))
- 		goto out;
- 
- 	ret = -EPERM;
+ all: $(BINARIES)
+diff --git a/tools/testing/selftests/vm/lock-on-fault.c b/tools/testing/selftests/vm/lock-on-fault.c
+new file mode 100644
+index 0000000..e6a9688
+--- /dev/null
++++ b/tools/testing/selftests/vm/lock-on-fault.c
+@@ -0,0 +1,145 @@
++#include <sys/mman.h>
++#include <stdio.h>
++#include <unistd.h>
++#include <string.h>
++#include <sys/time.h>
++#include <sys/resource.h>
++
++#ifndef MCL_ON_FAULT
++#define MCL_ON_FAULT 4
++#endif
++
++#define PRESENT_BIT	0x8000000000000000
++#define PFN_MASK	0x007FFFFFFFFFFFFF
++#define UNEVICTABLE_BIT	(1UL << 18)
++
++static int check_pageflags(void *map)
++{
++	FILE *file;
++	unsigned long pfn1;
++	unsigned long pfn2;
++	unsigned long offset1;
++	unsigned long offset2;
++	int ret = 1;
++
++	file = fopen("/proc/self/pagemap", "r");
++	if (!file) {
++		perror("fopen");
++		return ret;
++	}
++	offset1 = (unsigned long)map / getpagesize() * sizeof(unsigned long);
++	offset2 = ((unsigned long)map + getpagesize()) / getpagesize() * sizeof(unsigned long);
++	if (fseek(file, offset1, SEEK_SET)) {
++		perror("fseek");
++		goto out;
++	}
++
++	if (fread(&pfn1, sizeof(unsigned long), 1, file) != 1) {
++		perror("fread");
++		goto out;
++	}
++
++	if (fseek(file, offset2, SEEK_SET)) {
++		perror("fseek");
++		goto out;
++	}
++
++	if (fread(&pfn2, sizeof(unsigned long), 1, file) != 1) {
++		perror("fread");
++		goto out;
++	}
++
++	/* pfn2 should not be present */
++	if (pfn2 & PRESENT_BIT) {
++		printf("page map says 0x%lx\n", pfn2);
++		printf("present is    0x%lx\n", PRESENT_BIT);
++		goto out;
++	}
++
++	/* pfn1 should be present */
++	if ((pfn1 & PRESENT_BIT) == 0) {
++		printf("page map says 0x%lx\n", pfn1);
++		printf("present is    0x%lx\n", PRESENT_BIT);
++		goto out;
++	}
++
++	pfn1 &= PFN_MASK;
++	fclose(file);
++	file = fopen("/proc/kpageflags", "r");
++	if (!file) {
++		perror("fopen");
++		munmap(map, 2 * getpagesize());
++		return ret;
++	}
++
++	if (fseek(file, pfn1 * sizeof(unsigned long), SEEK_SET)) {
++		perror("fseek");
++		goto out;
++	}
++
++	if (fread(&pfn2, sizeof(unsigned long), 1, file) != 1) {
++		perror("fread");
++		goto out;
++	}
++
++	/* pfn2 now contains the entry from kpageflags for the first page, the
++	 * unevictable bit should be set */
++	if ((pfn2 & UNEVICTABLE_BIT) == 0) {
++		printf("kpageflags says 0x%lx\n", pfn2);
++		printf("unevictable is  0x%lx\n", UNEVICTABLE_BIT);
++		goto out;
++	}
++
++	ret = 0;
++
++out:
++	fclose(file);
++	return ret;
++}
++
++static int test_mmap(int flags)
++{
++	int ret = 1;
++	void *map;
++
++	map = mmap(NULL, 2 * getpagesize(), PROT_READ | PROT_WRITE, flags, 0, 0);
++	if (map == MAP_FAILED) {
++		perror("mmap()");
++		return ret;
++	}
++
++	/* Write something into the first page to ensure it is present */
++	*(char *)map = 1;
++
++	ret = check_pageflags(map);
++
++	munmap(map, 2 * getpagesize());
++	return ret;
++}
++
++static int test_mlockall(void)
++{
++	int ret = 1;
++
++	if (mlockall(MCL_ON_FAULT)) {
++		perror("mlockall");
++		return ret;
++	}
++
++	ret = test_mmap(MAP_PRIVATE | MAP_ANONYMOUS);
++	munlockall();
++	return ret;
++}
++
++#ifndef MAP_LOCKONFAULT
++#define MAP_LOCKONFAULT (MAP_HUGETLB << 1)
++#endif
++
++int main(int argc, char **argv)
++{
++	int ret = 0;
++
++	ret += test_mmap(MAP_PRIVATE | MAP_ANONYMOUS | MAP_LOCKONFAULT);
++	ret += test_mlockall();
++	return ret;
++}
+diff --git a/tools/testing/selftests/vm/on-fault-limit.c b/tools/testing/selftests/vm/on-fault-limit.c
+new file mode 100644
+index 0000000..bd70078
+--- /dev/null
++++ b/tools/testing/selftests/vm/on-fault-limit.c
+@@ -0,0 +1,47 @@
++#include <sys/mman.h>
++#include <stdio.h>
++#include <unistd.h>
++#include <string.h>
++#include <sys/time.h>
++#include <sys/resource.h>
++
++#ifndef MCL_ON_FAULT
++#define MCL_ON_FAULT 4
++#endif
++
++static int test_limit(void)
++{
++	int ret = 1;
++	struct rlimit lims;
++	void *map;
++
++	if (getrlimit(RLIMIT_MEMLOCK, &lims)) {
++		perror("getrlimit");
++		return ret;
++	}
++
++	if (mlockall(MCL_ON_FAULT)) {
++		perror("mlockall");
++		return ret;
++	}
++
++	map = mmap(NULL, 2 * lims.rlim_max, PROT_READ | PROT_WRITE,
++		   MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE, 0, 0);
++	if (map != MAP_FAILED)
++		printf("mmap should have failed, but didn't\n");
++	else {
++		ret = 0;
++		munmap(map, 2 * lims.rlim_max);
++	}
++
++	munlockall();
++	return ret;
++}
++
++int main(int argc, char **argv)
++{
++	int ret = 0;
++
++	ret += test_limit();
++	return ret;
++}
+diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
+index c87b681..c1aecce 100755
+--- a/tools/testing/selftests/vm/run_vmtests
++++ b/tools/testing/selftests/vm/run_vmtests
+@@ -90,4 +90,27 @@ fi
+ umount $mnt
+ rm -rf $mnt
+ echo $nr_hugepgs > /proc/sys/vm/nr_hugepages
++
++echo "--------------------"
++echo "running lock-on-fault"
++echo "--------------------"
++./lock-on-fault
++if [ $? -ne 0 ]; then
++	echo "[FAIL]"
++	exitcode=1
++else
++	echo "[PASS]"
++fi
++
++echo "--------------------"
++echo "running on-fault-limit"
++echo "--------------------"
++sudo -u nobody ./on-fault-limit
++if [ $? -ne 0 ]; then
++	echo "[FAIL]"
++	exitcode=1
++else
++	echo "[PASS]"
++fi
++
+ exit $exitcode
 -- 
 1.9.1
 
