@@ -1,54 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 99C1D6B0032
-	for <linux-mm@kvack.org>; Thu,  7 May 2015 19:24:18 -0400 (EDT)
-Received: by qkgx75 with SMTP id x75so38480459qkg.1
-        for <linux-mm@kvack.org>; Thu, 07 May 2015 16:24:18 -0700 (PDT)
-Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com. [209.85.216.182])
-        by mx.google.com with ESMTPS id de1si3645994qcb.44.2015.05.07.16.24.17
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BA6A6B0032
+	for <linux-mm@kvack.org>; Thu,  7 May 2015 20:04:28 -0400 (EDT)
+Received: by qgeb100 with SMTP id b100so29342616qge.3
+        for <linux-mm@kvack.org>; Thu, 07 May 2015 17:04:28 -0700 (PDT)
+Received: from mail-qk0-x22a.google.com (mail-qk0-x22a.google.com. [2607:f8b0:400d:c09::22a])
+        by mx.google.com with ESMTPS id f46si3759934qgd.11.2015.05.07.17.04.27
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 May 2015 16:24:17 -0700 (PDT)
-Received: by qcvo8 with SMTP id o8so5663664qcv.0
-        for <linux-mm@kvack.org>; Thu, 07 May 2015 16:24:17 -0700 (PDT)
-Message-ID: <554BF418.5080200@hurleysoftware.com>
-Date: Thu, 07 May 2015 19:24:08 -0400
-From: Peter Hurley <peter@hurleysoftware.com>
+        Thu, 07 May 2015 17:04:27 -0700 (PDT)
+Received: by qkhg7 with SMTP id g7so38864953qkh.2
+        for <linux-mm@kvack.org>; Thu, 07 May 2015 17:04:27 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] devpts: If initialization failed, don't crash when opening
- /dev/ptmx
-References: <20150507003547.GA6862@jtriplet-mobl1> <20150507155919.16ab7177e4956d8f47803750@linux-foundation.org>
-In-Reply-To: <20150507155919.16ab7177e4956d8f47803750@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20150507154212.GA12245@htj.duckdns.org>
+References: <20150507064557.GA26928@july>
+	<20150507154212.GA12245@htj.duckdns.org>
+Date: Fri, 8 May 2015 09:04:26 +0900
+Message-ID: <CAH9JG2UAVRgX0Mg0d7WgG0URpkgu4q_bbNMXyOOEh9WFPztppQ@mail.gmail.com>
+Subject: Re: [RFC PATCH] PM, freezer: Don't thaw when it's intended frozen processes
+From: Kyungmin Park <kmpark@infradead.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Josh Triplett <josh@joshtriplett.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, Iulia Manda <iulia.manda21@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Fabian Frederick <fabf@skynet.be>, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "\\Rafael J. Wysocki\\" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux PM list <linux-pm@vger.kernel.org>
 
-On 05/07/2015 06:59 PM, Andrew Morton wrote:
-> On Wed, 6 May 2015 17:35:47 -0700 Josh Triplett <josh@joshtriplett.org> wrote:
-> 
->> If devpts failed to initialize, it would store an ERR_PTR in the global
->> devpts_mnt.  A subsequent open of /dev/ptmx would call devpts_new_index,
->> which would dereference devpts_mnt and crash.
+On Fri, May 8, 2015 at 12:42 AM, Tejun Heo <tj@kernel.org> wrote:
+> Hello,
+>
+> On Thu, May 07, 2015 at 03:45:57PM +0900, Kyungmin Park wrote:
+>> From: Kyungmin Park <kyungmin.park@samsung.com>
 >>
->> Avoid storing invalid values in devpts_mnt; leave it NULL instead.
->> Make both devpts_new_index and devpts_pty_new fail gracefully with
->> ENODEV in that case, which then becomes the return value to the
->> userspace open call on /dev/ptmx.
-> 
-> It looks like the system is pretty crippled if init_devptr_fs() fails. 
-> Can the user actually get access to consoles and do useful things in
-> this situation?  Maybe it would be better to just give up and panic?
+>> Some platform uses freezer cgroup for speicial purpose to schedule out some applications. but after suspend & resume, these processes are thawed and running.
+>
+> They shouldn't be able to leave the freezer tho.  Resuming does wake
+> up all tasks but freezing() test would still evaulate to true for the
+> ones frozen by cgroup freezer and they will stay inside the freezer.
+>
+>> but it's inteneded and don't need to thaw it.
+>>
+>> To avoid it, does it possible to modify resume code and don't thaw it when resume? does it resonable?
+>
+> I need to think more about it but as an *optimization* we can add
+> freezing() test before actually waking tasks up during resume, but can
+> you please clarify what you're seeing?
 
-A single-user console is definitely reachable without devpts.
->From there, one could fixup to a not-broken kernel.
+The mobile application has life cycle and one of them is 'suspend'
+state. it's different from 'pause' or 'background'.
+if there are some application and enter go 'suspend' state. all
+behaviors are stopped and can't do anything. right it's suspended. but
+after system suspend & resume, these application is thawed and
+running. even though system know it's suspended.
 
-Regards,
-Peter Hurley
+We made some test application, print out some message within infinite
+loop. when it goes 'suspend' state. nothing is print out. but after
+system suspend & resume, it prints out again. that's not desired
+behavior. and want to address it.
 
-PS - But I saw you already added these to -mm
+frozen user processes should be remained as frozen while system
+suspend & resume.
+
+Thank you,
+Kyungmin Park
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
