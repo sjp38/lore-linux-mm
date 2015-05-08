@@ -1,66 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id B36F56B0038
-	for <linux-mm@kvack.org>; Fri,  8 May 2015 16:15:25 -0400 (EDT)
-Received: by pabtp1 with SMTP id tp1so58284138pab.2
-        for <linux-mm@kvack.org>; Fri, 08 May 2015 13:15:25 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id x10si8399179pdr.182.2015.05.08.13.15.24
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EB076B0038
+	for <linux-mm@kvack.org>; Fri,  8 May 2015 16:38:55 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so42995855wid.0
+        for <linux-mm@kvack.org>; Fri, 08 May 2015 13:38:55 -0700 (PDT)
+Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com. [2a00:1450:400c:c05::236])
+        by mx.google.com with ESMTPS id g2si478973wiy.66.2015.05.08.13.38.53
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 May 2015 13:15:24 -0700 (PDT)
-Date: Fri, 8 May 2015 13:15:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/3] Allow user to request memory to be locked on page
- fault
-Message-Id: <20150508131523.f970d13a213bca63bd6f2619@linux-foundation.org>
-In-Reply-To: <20150508200610.GB29933@akamai.com>
-References: <1431113626-19153-1-git-send-email-emunson@akamai.com>
-	<20150508124203.6679b1d35ad9555425003929@linux-foundation.org>
-	<20150508200610.GB29933@akamai.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 08 May 2015 13:38:54 -0700 (PDT)
+Received: by wicmx19 with SMTP id mx19so44368146wic.1
+        for <linux-mm@kvack.org>; Fri, 08 May 2015 13:38:53 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20150508130307.e9bfedcfc66cbe6e6b009f19@linux-foundation.org>
+References: <cover.1431103461.git.tony.luck@intel.com>
+	<20150508130307.e9bfedcfc66cbe6e6b009f19@linux-foundation.org>
+Date: Fri, 8 May 2015 13:38:52 -0700
+Message-ID: <CA+8MBbLNO5PdsdVtwweCuGohWkns2sCijkOCj4qHjo0HptEHFg@mail.gmail.com>
+Subject: Re: [PATCHv2 0/3] Find mirrored memory, use for boot time allocations
+From: Tony Luck <tony.luck@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>
-Cc: Shuah Khan <shuahkh@osg.samsung.com>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, 8 May 2015 16:06:10 -0400 Eric B Munson <emunson@akamai.com> wrote:
+On Fri, May 8, 2015 at 1:03 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> Looks good to me.  What happens to these patches while ZONE_MIRROR is
+> being worked on?
 
-> On Fri, 08 May 2015, Andrew Morton wrote:
-> 
-> > On Fri,  8 May 2015 15:33:43 -0400 Eric B Munson <emunson@akamai.com> wrote:
-> > 
-> > > mlock() allows a user to control page out of program memory, but this
-> > > comes at the cost of faulting in the entire mapping when it is
-> > > allocated.  For large mappings where the entire area is not necessary
-> > > this is not ideal.
-> > > 
-> > > This series introduces new flags for mmap() and mlockall() that allow a
-> > > user to specify that the covered are should not be paged out, but only
-> > > after the memory has been used the first time.
-> > 
-> > Please tell us much much more about the value of these changes: the use
-> > cases, the behavioural improvements and performance results which the
-> > patchset brings to those use cases, etc.
-> > 
-> 
-> The primary use case is for mmaping large files read only.  The process
-> knows that some of the data is necessary, but it is unlikely that the
-> entire file will be needed.  The developer only wants to pay the cost to
-> read the data in once.  Unfortunately developer must choose between
-> allowing the kernel to page in the memory as needed and guaranteeing
-> that the data will only be read from disk once.  The first option runs
-> the risk of having the memory reclaimed if the system is under memory
-> pressure, the second forces the memory usage and startup delay when
-> faulting in the entire file.
+I think these patches can go into the kernel now while I figure
+out the next phase - there is some value in just this part. We'll
+have all memory <4GB mirrored to cover the kernel code/data.
+Adding the boot time allocations mostly means the page structures
+(in terms of total amount of memory).
 
-Why can't the application mmap only those parts of the file which it
-wants and mlock those?
+> I'm wondering about phase II.  What does "select kernel allocations"
+> mean?  I assume we can't say "all kernel allocations" because that can
+> sometimes be "almost all memory".  How are you planning on implementing
+> this?  A new __GFP_foo flag, then sprinkle that into selected sites?
 
-> I am working on getting startup times with and without this change for
-> an application, I will post them as soon as I have them.
+Some of that is TBD - there are some clear places where we have bounded
+amounts of memory that we'd like to pull into the mirror area. E.g. loadable
+modules - on a specific machine an administrator can easily see which modules
+are loaded, tally up the sizes, and then adjust the amount of mirrored memory.
+I don't think we necessarily need to get to 100% ... if we can avoid 9/10
+errors crashing the machine - that moves the reliability needle enough to
+make a difference. Phase 2 may turn into phase 2a, 2b, 2c etc. as we
+pick on certain areas.
+
+Oh - they'll be some sysfs or debugfs stats too - so people can
+check that they have the right amount of mirror memory under application
+load. Too little and they'll be at risk because kernel allocations will
+fall back to non-mirrored. Too much, and they are wasting memory.
+
+> Will surplus ZONE_MIRROR memory be available for regular old movable
+> allocations?
+ZONE_MIRROR and ZONE_MOVABLE are pretty much opposites. We
+only want kernel allocations in mirror memory, and we can't allow any
+kernel allocations in movable (cause they'll pin it).
+
+> I suggest you run the design ideas by Mel before getting into
+> implementation.
+Good idea - when I have something fit to be seen, I'll share
+with Mel.
+
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
