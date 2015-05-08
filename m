@@ -1,64 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
-	by kanga.kvack.org (Postfix) with ESMTP id D90EF6B0032
-	for <linux-mm@kvack.org>; Fri,  8 May 2015 11:25:17 -0400 (EDT)
-Received: by qcyk17 with SMTP id k17so38746295qcy.1
-        for <linux-mm@kvack.org>; Fri, 08 May 2015 08:25:17 -0700 (PDT)
-Received: from mail-qk0-x230.google.com (mail-qk0-x230.google.com. [2607:f8b0:400d:c09::230])
-        by mx.google.com with ESMTPS id 4si5601998qgy.56.2015.05.08.08.25.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 May 2015 08:25:17 -0700 (PDT)
-Received: by qkhg7 with SMTP id g7so50150755qkh.2
-        for <linux-mm@kvack.org>; Fri, 08 May 2015 08:25:17 -0700 (PDT)
-Date: Fri, 8 May 2015 11:25:13 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH] PM, freezer: Don't thaw when it's intended frozen
- processes
-Message-ID: <20150508152513.GB28439@htj.duckdns.org>
-References: <20150507064557.GA26928@july>
- <20150507154212.GA12245@htj.duckdns.org>
- <CAH9JG2UAVRgX0Mg0d7WgG0URpkgu4q_bbNMXyOOEh9WFPztppQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAH9JG2UAVRgX0Mg0d7WgG0URpkgu4q_bbNMXyOOEh9WFPztppQ@mail.gmail.com>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 13C7E6B0032
+	for <linux-mm@kvack.org>; Fri,  8 May 2015 13:17:57 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so89447202pdb.1
+        for <linux-mm@kvack.org>; Fri, 08 May 2015 10:17:56 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id k9si7837403pbq.210.2015.05.08.10.17.44
+        for <linux-mm@kvack.org>;
+        Fri, 08 May 2015 10:17:44 -0700 (PDT)
+Message-Id: <cover.1431103461.git.tony.luck@intel.com>
+From: Tony Luck <tony.luck@intel.com>
+Date: Fri, 8 May 2015 09:44:21 -0700
+Subject: [PATCHv2 0/3] Find mirrored memory, use for boot time allocations
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kyungmin Park <kmpark@infradead.org>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "\\Rafael J. Wysocki\\" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux PM list <linux-pm@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello, Kyungmin.
+Some high end Intel Xeon systems report uncorrectable memory errors
+as a recoverable machine check. Linux has included code for some time
+to process these and just signal the affected processes (or even
+recover completely if the error was in a read only page that can be
+replaced by reading from disk).
 
-On Fri, May 08, 2015 at 09:04:26AM +0900, Kyungmin Park wrote:
-> > I need to think more about it but as an *optimization* we can add
-> > freezing() test before actually waking tasks up during resume, but can
-> > you please clarify what you're seeing?
-> 
-> The mobile application has life cycle and one of them is 'suspend'
-> state. it's different from 'pause' or 'background'.
-> if there are some application and enter go 'suspend' state. all
-> behaviors are stopped and can't do anything. right it's suspended. but
-> after system suspend & resume, these application is thawed and
-> running. even though system know it's suspended.
-> 
-> We made some test application, print out some message within infinite
-> loop. when it goes 'suspend' state. nothing is print out. but after
-> system suspend & resume, it prints out again. that's not desired
-> behavior. and want to address it.
-> 
-> frozen user processes should be remained as frozen while system
-> suspend & resume.
+But we have no recovery path for errors encountered during kernel
+code execution. Except for some very specific cases were are unlikely
+to ever be able to recover.
 
-Yes, they should and I'm not sure why what you're saying is happening
-because freezing() test done from the frozen tasks themselves should
-keep them in the freezer.  Which kernel version did you test?  Can you
-please verify it against a recent kernel?
+Enter memory mirroring. Actually 3rd generation of memory mirroing.
 
-Thanks.
+Gen1: All memory is mirrored
+	Pro: No s/w enabling - h/w just gets good data from other side of the mirror
+	Con: Halves effective memory capacity available to OS/applications
+Gen2: Partial memory mirror - just mirror memory begind some memory controllers
+	Pro: Keep more of the capacity
+	Con: Nightmare to enable. Have to choose between allocating from
+	     mirrored memory for safety vs. NUMA local memory for performance
+Gen3: Address range partial memory mirror - some mirror on each memory controller
+	Pro: Can tune the amount of mirror and keep NUMA performance
+	Con: I have to write memory management code to implement
+
+The current plan is just to use mirrored memory for kernel allocations. This
+has been broken into two phases:
+1) This patch series - find the mirrored memory, use it for boot time allocations
+2) Wade into mm/page_alloc.c and define a ZONE_MIRROR to pick up the unused
+   mirrored memory from mm/memblock.c and only give it out to select kernel
+   allocations (this is still being scoped because page_alloc.c is scary).
+
+Tony Luck (3):
+  mm/memblock: Add extra "flags" to memblock to allow selection of
+    memory based on attribute
+  mm/memblock: Allocate boot time data structures from mirrored memory
+  x86, mirror: x86 enabling - find mirrored memory ranges
+
+ arch/s390/kernel/crash_dump.c |   5 +-
+ arch/sparc/mm/init_64.c       |   6 ++-
+ arch/x86/kernel/check.c       |   3 +-
+ arch/x86/kernel/e820.c        |   3 +-
+ arch/x86/kernel/setup.c       |   3 ++
+ arch/x86/mm/init_32.c         |   2 +-
+ arch/x86/platform/efi/efi.c   |  21 ++++++++
+ include/linux/efi.h           |   3 ++
+ include/linux/memblock.h      |  49 +++++++++++------
+ mm/cma.c                      |   6 ++-
+ mm/memblock.c                 | 123 +++++++++++++++++++++++++++++++++---------
+ mm/memtest.c                  |   3 +-
+ mm/nobootmem.c                |  14 ++++-
+ 13 files changed, 188 insertions(+), 53 deletions(-)
 
 -- 
-tejun
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
