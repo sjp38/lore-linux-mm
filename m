@@ -1,97 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F2746B0085
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 11:53:21 -0400 (EDT)
-Received: by wicmc15 with SMTP id mc15so31494348wic.1
-        for <linux-mm@kvack.org>; Mon, 11 May 2015 08:53:20 -0700 (PDT)
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com. [195.75.94.106])
-        by mx.google.com with ESMTPS id mb19si405766wic.69.2015.05.11.08.53.00
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 May 2015 08:53:01 -0700 (PDT)
-Received: from /spool/local
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dahi@linux.vnet.ibm.com>;
-	Mon, 11 May 2015 16:53:00 +0100
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 661CD2190066
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 16:52:38 +0100 (BST)
-Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t4BFqu7E61276340
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 15:52:56 GMT
-Received: from d06av05.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t4BFqtpG015440
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 09:52:56 -0600
-From: David Hildenbrand <dahi@linux.vnet.ibm.com>
-Subject: [PATCH v1 15/15] uaccess: decouple preemption from the pagefault logic
-Date: Mon, 11 May 2015 17:52:20 +0200
-Message-Id: <1431359540-32227-16-git-send-email-dahi@linux.vnet.ibm.com>
-In-Reply-To: <1431359540-32227-1-git-send-email-dahi@linux.vnet.ibm.com>
-References: <1431359540-32227-1-git-send-email-dahi@linux.vnet.ibm.com>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 006916B0038
+	for <linux-mm@kvack.org>; Mon, 11 May 2015 14:06:33 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so152198272pdb.0
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 11:06:32 -0700 (PDT)
+Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
+        by mx.google.com with ESMTP id vr2si18893359pab.15.2015.05.11.11.06.31
+        for <linux-mm@kvack.org>;
+        Mon, 11 May 2015 11:06:32 -0700 (PDT)
+Date: Mon, 11 May 2015 14:06:31 -0400
+From: Eric B Munson <emunson@akamai.com>
+Subject: Re: [PATCH 0/3] Allow user to request memory to be locked on page
+ fault
+Message-ID: <20150511180631.GA1227@akamai.com>
+References: <1431113626-19153-1-git-send-email-emunson@akamai.com>
+ <20150508124203.6679b1d35ad9555425003929@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="+QahgC5+KEYLbs62"
+Content-Disposition: inline
+In-Reply-To: <20150508124203.6679b1d35ad9555425003929@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: mingo@redhat.com, yang.shi@windriver.com, bigeasy@linutronix.de, benh@kernel.crashing.org, paulus@samba.org, akpm@linux-foundation.org, heiko.carstens@de.ibm.com, schwidefsky@de.ibm.com, borntraeger@de.ibm.com, mst@redhat.com, tglx@linutronix.de, David.Laight@ACULAB.COM, hughd@google.com, hocko@suse.cz, ralf@linux-mips.org, herbert@gondor.apana.org.au, linux@arm.linux.org.uk, airlied@linux.ie, daniel.vetter@intel.com, linux-mm@kvack.org, linux-arch@vger.kernel.org, peterz@infradead.org, dahi@linux.vnet.ibm.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Shuah Khan <shuahkh@osg.samsung.com>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-As the fault handlers now all rely on the pagefault_disabled() checks
-and implicit preempt_disable() calls by pagefault_disable() have been
-made explicit, we can completely rely on the pagefault_disableD counter.
 
-So let's no longer touch the preempt count when disabling/enabling
-pagefaults. After a call to pagefault_disable(), pagefault_disabled()
-will return true, but in_atomic() won't.
+--+QahgC5+KEYLbs62
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Signed-off-by: David Hildenbrand <dahi@linux.vnet.ibm.com>
----
- include/linux/uaccess.h | 16 ++--------------
- 1 file changed, 2 insertions(+), 14 deletions(-)
+On Fri, 08 May 2015, Andrew Morton wrote:
 
-diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
-index 90786d2..ae572c1 100644
---- a/include/linux/uaccess.h
-+++ b/include/linux/uaccess.h
-@@ -1,7 +1,6 @@
- #ifndef __LINUX_UACCESS_H__
- #define __LINUX_UACCESS_H__
- 
--#include <linux/preempt.h>
- #include <linux/sched.h>
- #include <asm/uaccess.h>
- 
-@@ -20,17 +19,11 @@ static __always_inline void pagefault_disabled_dec(void)
-  * These routines enable/disable the pagefault handler. If disabled, it will
-  * not take any locks and go straight to the fixup table.
-  *
-- * We increase the preempt and the pagefault count, to be able to distinguish
-- * whether we run in simple atomic context or in a real pagefault_disable()
-- * context.
-- *
-- * For now, after pagefault_disabled() has been called, we run in atomic
-- * context. User access methods will not sleep.
-- *
-+ * User access methods will not sleep when called from a pagefault_disabled()
-+ * environment.
-  */
- static inline void pagefault_disable(void)
- {
--	preempt_count_inc();
- 	pagefault_disabled_inc();
- 	/*
- 	 * make sure to have issued the store before a pagefault
-@@ -47,11 +40,6 @@ static inline void pagefault_enable(void)
- 	 */
- 	barrier();
- 	pagefault_disabled_dec();
--#ifndef CONFIG_PREEMPT
--	preempt_count_dec();
--#else
--	preempt_enable();
--#endif
- }
- 
- /*
--- 
-2.1.4
+> On Fri,  8 May 2015 15:33:43 -0400 Eric B Munson <emunson@akamai.com> wro=
+te:
+>=20
+> > mlock() allows a user to control page out of program memory, but this
+> > comes at the cost of faulting in the entire mapping when it is
+> > allocated.  For large mappings where the entire area is not necessary
+> > this is not ideal.
+> >=20
+> > This series introduces new flags for mmap() and mlockall() that allow a
+> > user to specify that the covered are should not be paged out, but only
+> > after the memory has been used the first time.
+>=20
+> Please tell us much much more about the value of these changes: the use
+> cases, the behavioural improvements and performance results which the
+> patchset brings to those use cases, etc.
+>=20
+
+To illustrate the proposed use case I wrote a quick program that mmaps
+a 5GB file which is filled with random data and accesses 150,000 pages
+=66rom that mapping.  Setup and processing were timed separately to
+illustrate the differences between the three tested approaches.  the
+setup portion is simply the call to mmap, the processing is the
+accessing of the various locations in  that mapping.  The following
+values are in milliseconds and are the averages of 20 runs each with a
+call to echo 3 > /proc/sys/vm/drop_caches between each run.
+
+The first mapping was made with MAP_PRIVATE | MAP_LOCKED as a baseline:
+Startup average:    9476.506
+Processing average: 3.573
+
+The second mapping was simply MAP_PRIVATE but each page was passed to
+mlock() before being read:
+Startup average:    0.051
+Processing average: 721.859
+
+The final mapping was MAP_PRIVATE | MAP_LOCKONFAULT:
+Startup average:    0.084
+Processing average: 42.125
+
+
+
+--+QahgC5+KEYLbs62
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBAgAGBQJVUO+mAAoJELbVsDOpoOa9NTQP/2wouTuGwUNtVMFtzfwXaw9K
+VqgrTohALyWDKXY4YiEVXyru5Mi7BJvzwBzjXo2eNFNBHj5DwILwKk/9ONw1l7kC
+KCAMPqxGumpbM0dYJwaDYmYCsSmfTuFfv4G/Y/p7q43+mtfr6fCKAu+iIKvZpjve
+T374ZgnngXdn43b4lC7Abk4SakIEz7bj2gzX7B6WTRJ5/WZUDe/WkA4k+9bO58yQ
+M2GKbVNdCbFS2yL8awktB+NCUw5wmUreswog6c9E1h7HHTI0u0TzXa3E+NYZ4DGu
+rmsFzaojbtuNHvvuDIDLeBw1Dc6BlwdWTk+OgAUnseXrbTB+L7KKZS4on56W+zIi
+AIDTZ1oEvYsUZg06tPmKhLAgLA+FvpcsNYYjRwGlHEwjcwLL2LjF1gAMGZk1n8UP
+uTuhOR/Q0WtRRQks706KG47OkVs0glntwFRwpZ0/a5iACKMhQhIL6LJjDmR5jSFI
+cA70pVY49xmBKQ/vY2gMrKwGuHA00kvLaVVwUqga9AUgD0zisklvSPfzs3ihxkLL
+b61PtZJJ4rggU6HgH/aNVaKIsGiy8SnGZPgnkinlB0QQFrbrfmgk7/imIHT09pDQ
+K0o/U3KOitLxnvS1mSk6l4rCxYQ5037KrlGU15pqp5WIOuAiad6dpoUN4iLN/nuk
+RMNxTjQZKYW0XS2oLyRI
+=2v7D
+-----END PGP SIGNATURE-----
+
+--+QahgC5+KEYLbs62--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
