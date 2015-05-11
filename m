@@ -1,107 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id B32856B0038
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 16:01:38 -0400 (EDT)
-Received: by widdi4 with SMTP id di4so120621979wid.0
-        for <linux-mm@kvack.org>; Mon, 11 May 2015 13:01:38 -0700 (PDT)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.17.22])
-        by mx.google.com with ESMTPS id d5si1425226wie.74.2015.05.11.13.01.36
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 May 2015 13:01:37 -0700 (PDT)
-Date: Mon, 11 May 2015 22:01:27 +0200
-From: Helge Deller <deller@gmx.de>
-Subject: [PATCH] Fix crashes due to stack randomization on
- stack-grows-upwards architectures
-Message-ID: <20150511200127.GA2338@ls3530.box>
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 908036B0038
+	for <linux-mm@kvack.org>; Mon, 11 May 2015 16:18:36 -0400 (EDT)
+Received: by wizk4 with SMTP id k4so121333393wiz.1
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 13:18:36 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id x15si22226535wju.179.2015.05.11.13.18.34
+        for <linux-mm@kvack.org>;
+        Mon, 11 May 2015 13:18:35 -0700 (PDT)
+Date: Mon, 11 May 2015 22:18:27 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v4 7/7] mtrr, mm, x86: Enhance MTRR checks for KVA huge
+ page mapping
+Message-ID: <20150511201827.GI15636@pd.tnic>
+References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
+ <1427234921-19737-8-git-send-email-toshi.kani@hp.com>
+ <20150509090810.GB4452@pd.tnic>
+ <1431372316.23761.440.camel@misato.fc.hp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
+In-Reply-To: <1431372316.23761.440.camel@misato.fc.hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-parisc@vger.kernel.org, linux-kernel@vger.kernel.org, James Hogan <james.hogan@imgtec.com>, linux-metag@vger.kernel.org, linux-mm@kvack.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
 
-On architectures where the stack grows upwards (CONFIG_STACK_GROWSUP=y,
-currently parisc and metag only) stack randomization sometimes leads to crashes
-when the stack ulimit is set to lower values than STACK_RND_MASK (which is 8 MB
-by default if not defined in arch-specific headers).
+On Mon, May 11, 2015 at 01:25:16PM -0600, Toshi Kani wrote:
+> > > @@ -235,13 +240,19 @@ static u8 mtrr_type_lookup_variable(u64 start, u64 end, u64 *partial_end,
+> > >   * Return Values:
+> > >   * MTRR_TYPE_(type)  - The effective MTRR type for the region
+> > >   * MTRR_TYPE_INVALID - MTRR is disabled
+> > > + *
+> > > + * Output Argument:
+> > > + * uniform - Set to 1 when MTRR covers the region uniformly, i.e. the region
+> > > + *	     is fully covered by a single MTRR entry or the default type.
+> > 
+> > I'd call this "single_mtrr". "uniform" could also mean that the resulting
+> > type is uniform, i.e. of the same type but spanning multiple MTRRs.
+> 
+> Actually, that is the intend of "uniform" and the same type but spanning
+> multiple MTRRs should set "uniform" to 1.  The patch does not check such
 
-The problem is, that when the stack vm_area_struct is set up in fs/exec.c, the
-additional space needed for the stack randomization (as defined by the value of
-STACK_RND_MASK) was not taken into account yet and as such, when the stack
-randomization code added a random offset to the stack start, the stack
-effectively got smaller than what the user defined via rlimit_max(RLIMIT_STACK)
-which then sometimes leads to out-of-stack situations and crashes.
+So why does it say "is fully covered by a single MTRR entry or the
+default type." - the stress being on *single*
 
-This patch fixes it by adding the maximum possible amount of memory (based on
-STACK_RND_MASK) which theoretically could be added by the stack randomization
-code to the initial stack size. That way, the user-defined stack size is always
-guaranteed to be at minimum what is defined via rlimit_max(RLIMIT_STACK).
+You need to make up your mind.
 
-This bug is currently not visible on the metag architecture, because on metag
-STACK_RND_MASK is defined to 0 which effectively disables stack randomization.
+> We need to set "uniform" to 1 when MTRRs are disabled since there is no
+> type conflict with MTRRs.
 
-The changes to fs/exec.c are inside an "#ifdef CONFIG_STACK_GROWSUP"
-section, so it does not affect other platformws beside those where the
-stack grows upwards (parisc and metag).
+No, this is wrong.
 
-Signed-off-by: Helge Deller <deller@gmx.de>
-Cc: linux-parisc@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
-Cc: James Hogan <james.hogan@imgtec.com>
-Cc: linux-metag@vger.kernel.org
-Cc: linux-mm@kvack.org
+When we return an *error*, "uniform" should be *undefined* because MTRRs
+are disabled and callers should be checking whether it returned an error
+first and only *then* look at uniform.
 
-diffstat:
- arch/parisc/include/asm/elf.h   |    4 ++++
- arch/parisc/kernel/sys_parisc.c |    3 +++
- fs/exec.c                       |    3 +++
- 3 files changed, 10 insertions(+)
+> The warning was suggested by reviewers in the previous review so that
+> driver writers will notice the issue.
 
+No, we don't flood dmesg so that driver writers notice stuff. We better
+fix the callers.
 
-diff --git a/arch/parisc/include/asm/elf.h b/arch/parisc/include/asm/elf.h
-index 3391d06..78c9fd3 100644
---- a/arch/parisc/include/asm/elf.h
-+++ b/arch/parisc/include/asm/elf.h
-@@ -348,6 +348,10 @@ struct pt_regs;	/* forward declaration... */
- 
- #define ELF_HWCAP	0
- 
-+#define STACK_RND_MASK	(is_32bit_task() ? \
-+				0x7ff >> (PAGE_SHIFT - 12) : \
-+				0x3ffff >> (PAGE_SHIFT - 12))
-+
- struct mm_struct;
- extern unsigned long arch_randomize_brk(struct mm_struct *);
- #define arch_randomize_brk arch_randomize_brk
-diff --git a/arch/parisc/kernel/sys_parisc.c b/arch/parisc/kernel/sys_parisc.c
-index e1ffea2..5aba01a 100644
---- a/arch/parisc/kernel/sys_parisc.c
-+++ b/arch/parisc/kernel/sys_parisc.c
-@@ -77,6 +77,9 @@ static unsigned long mmap_upper_limit(void)
- 	if (stack_base > STACK_SIZE_MAX)
- 		stack_base = STACK_SIZE_MAX;
- 
-+	/* Add space for stack randomization. */
-+	stack_base += (STACK_RND_MASK << PAGE_SHIFT);
-+
- 	return PAGE_ALIGN(STACK_TOP - stack_base);
- }
- 
-diff --git a/fs/exec.c b/fs/exec.c
-index 49a1c61..1977c2a 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -659,6 +659,9 @@ int setup_arg_pages(struct linux_binprm *bprm,
- 	if (stack_base > STACK_SIZE_MAX)
- 		stack_base = STACK_SIZE_MAX;
- 
-+	/* Add space for stack randomization. */
-+	stack_base += (STACK_RND_MASK << PAGE_SHIFT);
-+
- 	/* Make sure we didn't let the argument array grow too large. */
- 	if (vma->vm_end - vma->vm_start > stack_base)
- 		return -ENOMEM;
+> Returning 0 here will lead
+> ioremap() to use 4KB mappings, but does not cause ioremap() to fail.
+
+I guess a pr_warn_once() should be better then. Flooding dmesg with
+error messages for which the user can't really do anything about doesn't
+bring us anything.
+
+-- 
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
