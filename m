@@ -1,72 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id B8E596B006C
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 03:47:15 -0400 (EDT)
-Received: by qgej70 with SMTP id j70so63863200qge.2
-        for <linux-mm@kvack.org>; Mon, 11 May 2015 00:47:15 -0700 (PDT)
-Received: from mail-qk0-x22f.google.com (mail-qk0-x22f.google.com. [2607:f8b0:400d:c09::22f])
-        by mx.google.com with ESMTPS id 194si6764702qhs.8.2015.05.11.00.47.15
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FB2F6B0038
+	for <linux-mm@kvack.org>; Mon, 11 May 2015 03:51:39 -0400 (EDT)
+Received: by pacwv17 with SMTP id wv17so103831859pac.0
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 00:51:39 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id rt8si8644595pbb.199.2015.05.11.00.51.38
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 May 2015 00:47:15 -0700 (PDT)
-Received: by qkgx75 with SMTP id x75so81860719qkg.1
-        for <linux-mm@kvack.org>; Mon, 11 May 2015 00:47:14 -0700 (PDT)
+        Mon, 11 May 2015 00:51:38 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [RFC] rmap: fix "race" between do_wp_page and shrink_active_list
+Date: Mon, 11 May 2015 10:51:17 +0300
+Message-ID: <1431330677-24476-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <CAH9JG2VROCekWCAa+1t6Giy2wHC171TD-AXQVxG2vTH-LPcoPA@mail.gmail.com>
-References: <20150507064557.GA26928@july>
-	<20150507154212.GA12245@htj.duckdns.org>
-	<CAH9JG2UAVRgX0Mg0d7WgG0URpkgu4q_bbNMXyOOEh9WFPztppQ@mail.gmail.com>
-	<20150508152513.GB28439@htj.duckdns.org>
-	<CAH9JG2VROCekWCAa+1t6Giy2wHC171TD-AXQVxG2vTH-LPcoPA@mail.gmail.com>
-Date: Mon, 11 May 2015 16:47:14 +0900
-Message-ID: <CAH9JG2W6pKi__g-v+9B+-y3HJ=AkdE+W0d0TxmtpBWrXddxL_g@mail.gmail.com>
-Subject: Re: [RFC PATCH] PM, freezer: Don't thaw when it's intended frozen processes
-From: Kyungmin Park <kmpark@infradead.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "\\Rafael J. Wysocki\\" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux PM list <linux-pm@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, May 11, 2015 at 1:28 PM, Kyungmin Park <kmpark@infradead.org> wrote:
-> On Sat, May 9, 2015 at 12:25 AM, Tejun Heo <tj@kernel.org> wrote:
->> Hello, Kyungmin.
->>
->> On Fri, May 08, 2015 at 09:04:26AM +0900, Kyungmin Park wrote:
->>> > I need to think more about it but as an *optimization* we can add
->>> > freezing() test before actually waking tasks up during resume, but can
->>> > you please clarify what you're seeing?
->>>
->>> The mobile application has life cycle and one of them is 'suspend'
->>> state. it's different from 'pause' or 'background'.
->>> if there are some application and enter go 'suspend' state. all
->>> behaviors are stopped and can't do anything. right it's suspended. but
->>> after system suspend & resume, these application is thawed and
->>> running. even though system know it's suspended.
->>>
->>> We made some test application, print out some message within infinite
->>> loop. when it goes 'suspend' state. nothing is print out. but after
->>> system suspend & resume, it prints out again. that's not desired
->>> behavior. and want to address it.
->>>
->>> frozen user processes should be remained as frozen while system
->>> suspend & resume.
->>
->> Yes, they should and I'm not sure why what you're saying is happening
->> because freezing() test done from the frozen tasks themselves should
->> keep them in the freezer.  Which kernel version did you test?  Can you
->> please verify it against a recent kernel?
->
-> The kernel 3.10 is not working as expected, but right the latest
-> kernel is working correctly.
+Hi,
 
-Please ignore it. test is wrong and it's not working, see Krzysztof Mail.
+I've been arguing with Minchan for a while about whether store-tearing
+is possible while setting page->mapping in __page_set_anon_rmap and
+friends, see
 
->
-> I see I'll check what's different and which are modified.
->
-> Thank you,
-> Kyungmin Park
+  http://thread.gmane.org/gmane.linux.kernel.mm/131949/focus=132132
+
+This patch is intended to draw attention to this discussion. It fixes a
+race that could happen if store-tearing were possible. The race is as
+follows.
+
+In do_wp_page() we can call page_move_anon_rmap(), which sets
+page->mapping as follows:
+
+        anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+        page->mapping = (struct address_space *) anon_vma;
+
+The page in question may be on an LRU list, because nowhere in
+do_wp_page() we remove it from the list, neither do we take any LRU
+related locks. Although the page is locked, shrink_active_list() can
+still call page_referenced() on it concurrently, because the latter does
+not require an anonymous page to be locked.
+
+If store tearing described in the thread were possible, we could face
+the following race resulting in kernel panic:
+
+  CPU0                          CPU1
+  ----                          ----
+  do_wp_page                    shrink_active_list
+   lock_page                     page_referenced
+                                  PageAnon->yes, so skip trylock_page
+   page_move_anon_rmap
+    page->mapping = anon_vma
+                                  rmap_walk
+                                   PageAnon->no
+                                   rmap_walk_file
+                                    BUG
+    page->mapping += PAGE_MAPPING_ANON
+
+This patch fixes this race by explicitly forbidding the compiler to
+split page->mapping store in __page_set_anon_rmap() and friends and load
+in PageAnon() with the aid of WRITE/READ_ONCE.
+
+Personally, I don't believe that this can ever happen on any sane
+compiler, because such an "optimization" would only result in two stores
+vs one (note, anon_vma is not a constant), but since I can be mistaken I
+would like to hear from synchronization experts what they think about
+it.
+
+Thanks,
+Vladimir
+---
+ include/linux/page-flags.h |    3 ++-
+ mm/rmap.c                  |    6 +++---
+ 2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 5e7c4f50a644..a529e0a35fe9 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -320,7 +320,8 @@ PAGEFLAG(Idle, idle)
+ 
+ static inline int PageAnon(struct page *page)
+ {
+-	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
++	return ((unsigned long)READ_ONCE(page->mapping) &
++		PAGE_MAPPING_ANON) != 0;
+ }
+ 
+ #ifdef CONFIG_KSM
+diff --git a/mm/rmap.c b/mm/rmap.c
+index eca7416f55d7..aa60c63704e6 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -958,7 +958,7 @@ void page_move_anon_rmap(struct page *page,
+ 	VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
+ 
+ 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+-	page->mapping = (struct address_space *) anon_vma;
++	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
+ }
+ 
+ /**
+@@ -987,7 +987,7 @@ static void __page_set_anon_rmap(struct page *page,
+ 		anon_vma = anon_vma->root;
+ 
+ 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+-	page->mapping = (struct address_space *) anon_vma;
++	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
+ 	page->index = linear_page_index(vma, address);
+ }
+ 
+@@ -1579,7 +1579,7 @@ static void __hugepage_set_anon_rmap(struct page *page,
+ 		anon_vma = anon_vma->root;
+ 
+ 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+-	page->mapping = (struct address_space *) anon_vma;
++	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
+ 	page->index = linear_page_index(vma, address);
+ }
+ 
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
