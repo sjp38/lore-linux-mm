@@ -1,134 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id F39C56B0074
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 10:36:14 -0400 (EDT)
-Received: by wiun10 with SMTP id n10so98904563wiu.1
-        for <linux-mm@kvack.org>; Mon, 11 May 2015 07:36:14 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wb11si39190wic.105.2015.05.11.07.36.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 11 May 2015 07:36:04 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC 4/4] mm, thp: wake up khugepaged when huge page is not available
-Date: Mon, 11 May 2015 16:35:40 +0200
-Message-Id: <1431354940-30740-5-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1431354940-30740-1-git-send-email-vbabka@suse.cz>
-References: <1431354940-30740-1-git-send-email-vbabka@suse.cz>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 32DCC6B0075
+	for <linux-mm@kvack.org>; Mon, 11 May 2015 10:36:21 -0400 (EDT)
+Received: by pabtp1 with SMTP id tp1so111533136pab.2
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 07:36:20 -0700 (PDT)
+Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
+        by mx.google.com with ESMTP id bz7si18232161pdb.16.2015.05.11.07.36.19
+        for <linux-mm@kvack.org>;
+        Mon, 11 May 2015 07:36:20 -0700 (PDT)
+Date: Mon, 11 May 2015 10:36:18 -0400
+From: Eric B Munson <emunson@akamai.com>
+Subject: Re: [PATCH 0/3] Allow user to request memory to be locked on page
+ fault
+Message-ID: <20150511143618.GA30570@akamai.com>
+References: <1431113626-19153-1-git-send-email-emunson@akamai.com>
+ <20150508124203.6679b1d35ad9555425003929@linux-foundation.org>
+ <20150508200610.GB29933@akamai.com>
+ <20150508131523.f970d13a213bca63bd6f2619@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="6TrnltStXW4iwmi0"
+Content-Disposition: inline
+In-Reply-To: <20150508131523.f970d13a213bca63bd6f2619@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Alex Thorlton <athorlton@sgi.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Shuah Khan <shuahkh@osg.samsung.com>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-After previous patch, THP page faults check the thp_avail_nodes nodemask to
-determine whether to attempt allocating hugepage or fallback immediately.
-The khugepaged task is responsible for attempting reclaim and compaction for
-nodes where hugepages are not available, and updating the nodemask as
-appropriate.
 
-To get faster reaction on THP allocation failures, we will wake up khugepaged
-whenever THP page fault has to fallback. This includes both situations when
-hugepage was supposed to be available, but allocation fails, and situations
-where hugepage is already marked as unavailable. In the latter case, khugepaged
-will not wait according to its alloc_sleep_millisecs parameter under /sys, but
-retry allocation immediately. This is done to scale the khugepaged activity
-with respect to THP demand, instead of a fixed tunable. Excessive compaction
-failures are still being prevented by the self-tuning deferred compaction
-mechanism in this case.  For this mechanism to work as intended, the check for
-deferred compaction should be done on each THP allocation attempt to bump the
-internal counter, and waiting full alloc_sleep_millisecs period could make the
-deferred periods excessively long.
+--6TrnltStXW4iwmi0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/huge_memory.c | 22 ++++++++++++++++++----
- mm/internal.h    |  5 +----
- 2 files changed, 19 insertions(+), 8 deletions(-)
+On Fri, 08 May 2015, Andrew Morton wrote:
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index d3081a7..b3d08a0 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -104,6 +104,15 @@ static struct khugepaged_scan khugepaged_scan = {
- };
- 
- nodemask_t thp_avail_nodes = NODE_MASK_ALL;
-+static bool khugepaged_thp_requested = false;
-+
-+void thp_avail_clear(int nid)
-+{
-+	node_clear(nid, thp_avail_nodes);
-+	khugepaged_thp_requested = true;
-+	wake_up_interruptible(&khugepaged_wait);
-+}
-+
- 
- static int set_recommended_min_free_kbytes(void)
- {
-@@ -2263,7 +2272,8 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
- 
- static void khugepaged_alloc_sleep(void)
- {
--	wait_event_freezable_timeout(khugepaged_wait, false,
-+	wait_event_freezable_timeout(khugepaged_wait,
-+			khugepaged_thp_requested,
- 			msecs_to_jiffies(khugepaged_alloc_sleep_millisecs));
- }
- 
-@@ -2381,6 +2391,8 @@ static bool khugepaged_check_nodes(struct page **hpage)
- 	struct page *newpage = NULL;
- 	gfp_t gfp = alloc_hugepage_gfpmask(khugepaged_defrag());
- 
-+	khugepaged_thp_requested = false;
-+
- 	for_each_online_node(nid) {
- 		if (node_isset(nid, thp_avail_nodes)) {
- 			ret = true;
-@@ -2780,13 +2792,15 @@ breakouterloop_mmap_sem:
- 
- static int khugepaged_has_work(void)
- {
--	return !list_empty(&khugepaged_scan.mm_head) &&
-+	return (khugepaged_thp_requested ||
-+			!list_empty(&khugepaged_scan.mm_head)) &&
- 		khugepaged_enabled();
- }
- 
- static int khugepaged_wait_event(void)
- {
--	return !list_empty(&khugepaged_scan.mm_head) ||
-+	return khugepaged_thp_requested ||
-+		!list_empty(&khugepaged_scan.mm_head) ||
- 		kthread_should_stop();
- }
- 
-@@ -2837,7 +2851,7 @@ static void khugepaged_wait_work(void)
- 			return;
- 
- 		wait_event_freezable_timeout(khugepaged_wait,
--					     kthread_should_stop(),
-+			khugepaged_thp_requested || kthread_should_stop(),
- 			msecs_to_jiffies(khugepaged_scan_sleep_millisecs));
- 		return;
- 	}
-diff --git a/mm/internal.h b/mm/internal.h
-index 6d9a711..5c37e4d 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -179,10 +179,7 @@ static inline void thp_avail_set(int nid)
- 	node_set(nid, thp_avail_nodes);
- }
- 
--static inline void thp_avail_clear(int nid)
--{
--	node_clear(nid, thp_avail_nodes);
--}
-+extern void thp_avail_clear(int nid);
- 
- #else
- 
--- 
-2.1.4
+> On Fri, 8 May 2015 16:06:10 -0400 Eric B Munson <emunson@akamai.com> wrot=
+e:
+>=20
+> > On Fri, 08 May 2015, Andrew Morton wrote:
+> >=20
+> > > On Fri,  8 May 2015 15:33:43 -0400 Eric B Munson <emunson@akamai.com>=
+ wrote:
+> > >=20
+> > > > mlock() allows a user to control page out of program memory, but th=
+is
+> > > > comes at the cost of faulting in the entire mapping when it is
+> > > > allocated.  For large mappings where the entire area is not necessa=
+ry
+> > > > this is not ideal.
+> > > >=20
+> > > > This series introduces new flags for mmap() and mlockall() that all=
+ow a
+> > > > user to specify that the covered are should not be paged out, but o=
+nly
+> > > > after the memory has been used the first time.
+> > >=20
+> > > Please tell us much much more about the value of these changes: the u=
+se
+> > > cases, the behavioural improvements and performance results which the
+> > > patchset brings to those use cases, etc.
+> > >=20
+> >=20
+> > The primary use case is for mmaping large files read only.  The process
+> > knows that some of the data is necessary, but it is unlikely that the
+> > entire file will be needed.  The developer only wants to pay the cost to
+> > read the data in once.  Unfortunately developer must choose between
+> > allowing the kernel to page in the memory as needed and guaranteeing
+> > that the data will only be read from disk once.  The first option runs
+> > the risk of having the memory reclaimed if the system is under memory
+> > pressure, the second forces the memory usage and startup delay when
+> > faulting in the entire file.
+>=20
+> Why can't the application mmap only those parts of the file which it
+> wants and mlock those?
+
+There are a number of problems with this approach.  The first is it
+presumes the program will know what portions are needed a head of time.
+In many cases this is simply not true.  The second problem is the number
+of syscalls required.  With my patches, a single mmap() or mlockall()
+call is needed to setup the required locking.  Without it, a separate
+mmap call must be made for each piece of data that is needed.  This also
+opens up problems for data that is arranged assuming it is contiguous in
+memory.  With the single mmap call, the user gets a contiguous VMA
+without having to know about it.  mmap() with MAP_FIXED could address
+the problem, but this introduces a new failure mode of your map
+colliding with another that was placed by the kernel.
+
+Another use case for the LOCKONFAULT flag is the security use of
+mlock().  If an application will be using data that cannot be written
+to swap, but the exact size is unknown until run time (all we have a
+build time is the maximum size the buffer can be).  The LOCKONFAULT flag
+allows the developer to create the buffer and guarantee that the
+contents are never written to swap without ever consuming more memory
+than is actually needed.
+
+>=20
+> > I am working on getting startup times with and without this change for
+> > an application, I will post them as soon as I have them.
+>=20
+
+--6TrnltStXW4iwmi0
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBAgAGBQJVUL5iAAoJELbVsDOpoOa9+rIP/AtdiaAVRSAXFkS8FoN053Gp
+X9V3dAR/tJhrcsK0YFQcYBdG/e2doGqbJq6ni9iHdiABQ/dWmC6LZIRugSGltzGw
+WN3WSPpzLAHLS6TbH5KPydvrbne32pCI02McxTCSJ+IKARHZvUz3JWaq0z1/Tuqa
+U6pKp0qOo+1CD/YYgew2vyVWTZozPG379QhIkolLAtd4/FnL1DL8tW9gwgP6/pSF
+lfKNZNc2RFTRBnONckDDctDVbV8MZJCzPbPk4lBvhqc8VS11GWPylocZFB76C/w4
+Jcj5+JRUXgqGuIb+hwnQcnv/jAn2yjXW//6vB8qG0r1oXfCF7QwAVQegbjV7VAyT
+iQj3785JaeFIWUy8WLIk+BqP8tTzB/hphDTiV4dqTeHDSZGYw1ioFbzXcqkrapdm
+Ycqq4oTBxl7OkqDW5UQvvAWv4q9YP/E1KJK7O/HccybRcofVNGyO4hH+lgeFazMw
+5Id9Ptd/+qLxHP7jX0G53facKx5M8xtUT1DfsHi/nmCLD/uFdFOueaHKzQiVVGcp
+C8SgvCWcBQrHtgcn/JOyKH211sKOszOHFxg3TkglDl6s3th5zd+SAjYGRjKYizPe
+FoZ1FWhjyvsuybV8KFs5LRZ6et3kD06bCZrGS8JMrNo6R4BA4z7o88EVUxkSXx+z
+s7IIi8UpQrCbKJra0ucm
+=R9vZ
+-----END PGP SIGNATURE-----
+
+--6TrnltStXW4iwmi0--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
