@@ -1,69 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EAA66B0038
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 06:55:29 -0400 (EDT)
-Received: by pdbqd1 with SMTP id qd1so143638746pdb.2
-        for <linux-mm@kvack.org>; Mon, 11 May 2015 03:55:29 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id f6si10378773pds.59.2015.05.11.03.55.28
-        for <linux-mm@kvack.org>;
-        Mon, 11 May 2015 03:55:28 -0700 (PDT)
-Date: Mon, 11 May 2015 11:55:24 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v2] kmemleak: record accurate early log buffer count and
- report when exceeded
-Message-ID: <20150511105524.GD18655@e104818-lin.cambridge.arm.com>
-References: <1431335021-117825-1-git-send-email-morgan.wang@huawei.com>
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id DD8536B0038
+	for <linux-mm@kvack.org>; Mon, 11 May 2015 07:18:00 -0400 (EDT)
+Received: by obblk2 with SMTP id lk2so97197738obb.0
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 04:18:00 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id xt18si6973488oeb.90.2015.05.11.04.18.00
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 May 2015 04:18:00 -0700 (PDT)
+Date: Mon, 11 May 2015 14:17:48 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+Subject: re: mm: memory-hotplug: enable memory hotplug to handle hugepage
+Message-ID: <20150511111748.GA20660@mwanda>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1431335021-117825-1-git-send-email-morgan.wang@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Kai <morgan.wang@huawei.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: n-horiguchi@ah.jp.nec.com
+Cc: linux-mm@kvack.org
 
-On Mon, May 11, 2015 at 10:03:41AM +0100, Wang Kai wrote:
-> In log_early function, crt_early_log should also count once when
-> 'crt_early_log >= ARRAY_SIZE(early_log)'. Otherwise the reported
-> count from kmemleak_init is one less than 'actual number'.
-> 
-> Then, in kmemleak_init, if early_log buffer size equal actual
-> number, kmemleak will init sucessful, so change warning condition
-> to 'crt_early_log > ARRAY_SIZE(early_log)'.
-> 
-> Signed-off-by: Wang Kai <morgan.wang@huawei.com>
-> ---
->  mm/kmemleak.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-> index 5405aff..6a07748 100644
-> --- a/mm/kmemleak.c
-> +++ b/mm/kmemleak.c
-> @@ -814,6 +814,7 @@ static void __init log_early(int op_type, const void *ptr, size_t size,
->  	}
->  
->  	if (crt_early_log >= ARRAY_SIZE(early_log)) {
-> +		crt_early_log++;
->  		kmemleak_disable();
->  		return;
->  	}
-> @@ -1829,7 +1830,7 @@ void __init kmemleak_init(void)
->  	object_cache = KMEM_CACHE(kmemleak_object, SLAB_NOLEAKTRACE);
->  	scan_area_cache = KMEM_CACHE(kmemleak_scan_area, SLAB_NOLEAKTRACE);
->  
-> -	if (crt_early_log >= ARRAY_SIZE(early_log))
-> +	if (crt_early_log > ARRAY_SIZE(early_log))
->  		pr_warning("Early log buffer exceeded (%d), please increase "
->  			   "DEBUG_KMEMLEAK_EARLY_LOG_SIZE\n", crt_early_log);
+Hello Naoya Horiguchi,
 
-It looks fine:
+The patch c8721bbbdd36: "mm: memory-hotplug: enable memory hotplug to
+handle hugepage" from Sep 11, 2013, leads to the following static
+checker warning:
 
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+	mm/hugetlb.c:1203 dissolve_free_huge_pages()
+	warn: potential right shift more than type allows '9,18,64'
 
-Thanks (I assume akpm will pick it up, otherwise I'll send it during the
-next merging window; it's not critical)
+mm/hugetlb.c
+  1189  void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+  1190  {
+  1191          unsigned int order = 8 * sizeof(void *);
+                                     ^^^^^^^^^^^^^^^^^^
+Let's say order is 64.
+
+  1192          unsigned long pfn;
+  1193          struct hstate *h;
+  1194  
+  1195          if (!hugepages_supported())
+  1196                  return;
+  1197  
+  1198          /* Set scan step to minimum hugepage size */
+  1199          for_each_hstate(h)
+  1200                  if (order > huge_page_order(h))
+  1201                          order = huge_page_order(h);
+  1202          VM_BUG_ON(!IS_ALIGNED(start_pfn, 1 << order));
+  1203          for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << order)
+                                                            ^^^^^^^^^^
+1 << 64 is undefined but let's say it's zero because that's normal for
+GCC.  This is an endless loop.
+
+  1204                  dissolve_free_huge_page(pfn_to_page(pfn));
+  1205  }
+
+regards,
+dan carpenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
