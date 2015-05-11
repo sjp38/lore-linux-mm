@@ -1,163 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 389B86B0038
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 10:29:43 -0400 (EDT)
-Received: by qcbgy10 with SMTP id gy10so69619168qcb.3
-        for <linux-mm@kvack.org>; Mon, 11 May 2015 07:29:43 -0700 (PDT)
-Received: from e39.co.us.ibm.com (e39.co.us.ibm.com. [32.97.110.160])
-        by mx.google.com with ESMTPS id r22si13113377qkh.86.2015.05.11.07.29.42
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 May 2015 07:29:42 -0700 (PDT)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Mon, 11 May 2015 08:29:41 -0600
-Received: from b03cxnp08027.gho.boulder.ibm.com (b03cxnp08027.gho.boulder.ibm.com [9.17.130.19])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 148213E4003B
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 08:29:37 -0600 (MDT)
-Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by b03cxnp08027.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t4BETaTc37290040
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 07:29:36 -0700
-Received: from d03av05.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t4BETZpb032025
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 08:29:36 -0600
-Date: Mon, 11 May 2015 07:24:02 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [RFC] rmap: fix "race" between do_wp_page and shrink_active_list
-Message-ID: <20150511142402.GJ6776@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1431330677-24476-1-git-send-email-vdavydov@parallels.com>
+Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 597B66B006E
+	for <linux-mm@kvack.org>; Mon, 11 May 2015 10:35:42 -0400 (EDT)
+Received: by iecmd7 with SMTP id md7so31604978iec.3
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 07:35:42 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTP id c101si9595239iod.46.2015.05.11.07.35.41
+        for <linux-mm@kvack.org>;
+        Mon, 11 May 2015 07:35:41 -0700 (PDT)
+Date: Mon, 11 May 2015 11:35:36 -0300
+From: Arnaldo Carvalho de Melo <acme@kernel.org>
+Subject: Re: [PATCH 4/6] perf kmem: Print gfp flags in human readable string
+Message-ID: <20150511143536.GP28183@kernel.org>
+References: <1429592107-1807-1-git-send-email-namhyung@kernel.org>
+ <1429592107-1807-5-git-send-email-namhyung@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1431330677-24476-1-git-send-email-vdavydov@parallels.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1429592107-1807-5-git-send-email-namhyung@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Namhyung Kim <namhyung@kernel.org>
+Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org
 
-On Mon, May 11, 2015 at 10:51:17AM +0300, Vladimir Davydov wrote:
-> Hi,
-> 
-> I've been arguing with Minchan for a while about whether store-tearing
-> is possible while setting page->mapping in __page_set_anon_rmap and
-> friends, see
-> 
->   http://thread.gmane.org/gmane.linux.kernel.mm/131949/focus=132132
-> 
-> This patch is intended to draw attention to this discussion. It fixes a
-> race that could happen if store-tearing were possible. The race is as
-> follows.
-> 
-> In do_wp_page() we can call page_move_anon_rmap(), which sets
-> page->mapping as follows:
-> 
->         anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
->         page->mapping = (struct address_space *) anon_vma;
-> 
-> The page in question may be on an LRU list, because nowhere in
-> do_wp_page() we remove it from the list, neither do we take any LRU
-> related locks. Although the page is locked, shrink_active_list() can
-> still call page_referenced() on it concurrently, because the latter does
-> not require an anonymous page to be locked.
-> 
-> If store tearing described in the thread were possible, we could face
-> the following race resulting in kernel panic:
-> 
->   CPU0                          CPU1
->   ----                          ----
->   do_wp_page                    shrink_active_list
->    lock_page                     page_referenced
->                                   PageAnon->yes, so skip trylock_page
->    page_move_anon_rmap
->     page->mapping = anon_vma
->                                   rmap_walk
->                                    PageAnon->no
->                                    rmap_walk_file
->                                     BUG
->     page->mapping += PAGE_MAPPING_ANON
-> 
-> This patch fixes this race by explicitly forbidding the compiler to
-> split page->mapping store in __page_set_anon_rmap() and friends and load
-> in PageAnon() with the aid of WRITE/READ_ONCE.
-> 
-> Personally, I don't believe that this can ever happen on any sane
-> compiler, because such an "optimization" would only result in two stores
-> vs one (note, anon_vma is not a constant), but since I can be mistaken I
-> would like to hear from synchronization experts what they think about
-> it.
+Em Tue, Apr 21, 2015 at 01:55:05PM +0900, Namhyung Kim escreveu:
+> Save libtraceevent output and print it in the header.
 
-An example "insane" compiler might notice that the value set cannot be
-safely observed without multiple CPUs accessing that variable at the
-same time.  A paper entitled "No Sane Compiler Would Optimize Atomics"
-has some examples:
+<SNIP>
 
-	http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4455.html
+> +static int parse_gfp_flags(struct perf_evsel *evsel, struct perf_sample *sample,
+> +			   unsigned int gfp_flags)
+> +{
+> +	struct pevent_record record = {
+> +		.cpu = sample->cpu,
+> +		.data = sample->raw_data,
+> +		.size = sample->raw_size,
+> +	};
+> +	struct trace_seq seq;
+> +	char *str, *pos;
+> +
+> +	if (nr_gfps) {
+> +		struct gfp_flag key = {
+> +			.flags = gfp_flags,
+> +		};
+> +
+> +		if (bsearch(&key, gfps, nr_gfps, sizeof(*gfps), gfpcmp))
+> +			return 0;
+> +	}
+> +
+> +	trace_seq_init(&seq);
+> +	pevent_event_info(&seq, evsel->tp_format, &record);
+> +
+> +	str = strtok_r(seq.buffer, " ", &pos);
 
-If this paper doesn't scare you, then you didn't read it carefully enough.
-And yes, I did give the author a very hard time about the need to suppress
-some of these optimizations in order to correctly compile old code, and
-will continue to do so.  However, a READ_ONCE() would be a most excellent
-and very cheap way to future-proof this code, and is highly recommended.
 
-							Thanx, Paul
+This introduced a problem I only now noticed, possibly because my
+compiler was upgraded:
 
-> Thanks,
-> Vladimir
-> ---
->  include/linux/page-flags.h |    3 ++-
->  mm/rmap.c                  |    6 +++---
->  2 files changed, 5 insertions(+), 4 deletions(-)
-> 
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 5e7c4f50a644..a529e0a35fe9 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -320,7 +320,8 @@ PAGEFLAG(Idle, idle)
-> 
->  static inline int PageAnon(struct page *page)
->  {
-> -	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
-> +	return ((unsigned long)READ_ONCE(page->mapping) &
-> +		PAGE_MAPPING_ANON) != 0;
->  }
-> 
->  #ifdef CONFIG_KSM
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index eca7416f55d7..aa60c63704e6 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -958,7 +958,7 @@ void page_move_anon_rmap(struct page *page,
->  	VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
-> 
->  	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-> -	page->mapping = (struct address_space *) anon_vma;
-> +	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
->  }
-> 
->  /**
-> @@ -987,7 +987,7 @@ static void __page_set_anon_rmap(struct page *page,
->  		anon_vma = anon_vma->root;
-> 
->  	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-> -	page->mapping = (struct address_space *) anon_vma;
-> +	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
->  	page->index = linear_page_index(vma, address);
->  }
-> 
-> @@ -1579,7 +1579,7 @@ static void __hugepage_set_anon_rmap(struct page *page,
->  		anon_vma = anon_vma->root;
-> 
->  	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-> -	page->mapping = (struct address_space *) anon_vma;
-> +	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
->  	page->index = linear_page_index(vma, address);
->  }
-> 
-> -- 
-> 1.7.10.4
-> 
+[acme@zoo linux]$ git bisect good 
+0e11115644b39ff9e986eb308b6c44ca75cd475f is the first bad commit
+commit 0e11115644b39ff9e986eb308b6c44ca75cd475f
+Author: Namhyung Kim <namhyung@kernel.org>
+Date:   Tue Apr 21 13:55:05 2015 +0900
+
+    perf kmem: Print gfp flags in human readable string
+    
+    Save libtraceevent output and print it in the header.
+
+-------------------------------------------------
+
+
+  GEN      /tmp/build/perf/common-cmds.h
+  PERF_VERSION = 4.1.rc2.ga20d87
+  CC       /tmp/build/perf/builtin-kmem.o
+builtin-kmem.c: In function a??perf_evsel__process_page_alloc_eventa??:
+builtin-kmem.c:743:427: error: a??posa?? may be used uninitialized in this
+function [-Werror=maybe-uninitialized]
+    new->human_readable = strdup(str + 10);
+                                                                                                                                                                                                                                                                                                                                                                                                                                           ^
+builtin-kmem.c:716:14: note: a??posa?? was declared here
+  char *str, *pos;
+              ^
+cc1: all warnings being treated as errors
+/home/git/linux/tools/build/Makefile.build:68: recipe for target
+'/tmp/build/perf/builtin-kmem.o' failed
+make[2]: *** [/tmp/build/perf/builtin-kmem.o] Error 1
+Makefile.perf:330: recipe for target '/tmp/build/perf/builtin-kmem.o'
+failed
+make[1]: *** [/tmp/build/perf/builtin-kmem.o] Error 2
+Makefile:87: recipe for target 'builtin-kmem.o' failed
+make: *** [builtin-kmem.o] Error 2
+make: Leaving directory '/home/git/linux/tools/perf'
+
+------
+
+Trying to fix it by initializing it to NULL.
+
+- Arnaldo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
