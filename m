@@ -1,129 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FB2F6B0038
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 03:51:39 -0400 (EDT)
-Received: by pacwv17 with SMTP id wv17so103831859pac.0
-        for <linux-mm@kvack.org>; Mon, 11 May 2015 00:51:39 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id rt8si8644595pbb.199.2015.05.11.00.51.38
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id BA5C56B0038
+	for <linux-mm@kvack.org>; Mon, 11 May 2015 03:59:45 -0400 (EDT)
+Received: by wiun10 with SMTP id n10so86318628wiu.1
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 00:59:45 -0700 (PDT)
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
+        by mx.google.com with ESMTPS id el3si10890413wib.24.2015.05.11.00.59.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 May 2015 00:51:38 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [RFC] rmap: fix "race" between do_wp_page and shrink_active_list
-Date: Mon, 11 May 2015 10:51:17 +0300
-Message-ID: <1431330677-24476-1-git-send-email-vdavydov@parallels.com>
+        Mon, 11 May 2015 00:59:44 -0700 (PDT)
+Received: by widdi4 with SMTP id di4so94794279wid.0
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 00:59:44 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20150509154455.GA32002@amd>
+References: <1430980452-2767-1-git-send-email-anisse@astier.eu>
+ <1430980452-2767-3-git-send-email-anisse@astier.eu> <20150509154455.GA32002@amd>
+From: Anisse Astier <anisse@astier.eu>
+Date: Mon, 11 May 2015 09:59:23 +0200
+Message-ID: <CALUN=q+OZFarqRoWMynRZy0ckv7qnsAQvWr9wkvdK_JmA=oomw@mail.gmail.com>
+Subject: Re: [PATCH v3 2/4] PM / Hibernate: prepare for SANITIZE_FREED_PAGES
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, Andi Kleen <andi@firstfloor.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Hi,
+Hi Pavel,
 
-I've been arguing with Minchan for a while about whether store-tearing
-is possible while setting page->mapping in __page_set_anon_rmap and
-friends, see
+Thanks a lot for taking the time to review this.
 
-  http://thread.gmane.org/gmane.linux.kernel.mm/131949/focus=132132
+On Sat, May 9, 2015 at 5:44 PM, Pavel Machek <pavel@ucw.cz> wrote:
+>> +#ifdef CONFIG_SANITIZE_FREED_PAGES
+>> +             clear_free_pages();
+>> +             printk(KERN_INFO "PM: free pages cleared after restore\n");
+>> +#endif
+>> +     }
+>>       platform_leave(platform_mode);
+>>
+>>   Power_up:
+>
+> Can you move the ifdef and the printk into the clear_free_pages?
 
-This patch is intended to draw attention to this discussion. It fixes a
-race that could happen if store-tearing were possible. The race is as
-follows.
+Sure. I put the printk out originally because i thought there might be
+other uses, but since this is the sole call site right now it
+shouldn't be an issue.
 
-In do_wp_page() we can call page_move_anon_rmap(), which sets
-page->mapping as follows:
+>
+> This is not performance critical in any way...
+>
+> Otherwise it looks good to me... if the sanitization is considered
+> useful. Did it catch some bugs in the past?
+>
 
-        anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-        page->mapping = (struct address_space *) anon_vma;
+I've read somewhere that users of grsecurity claim that it caught bugs
+in some drivers, but I haven't verified that personally; it's probably
+much less useful than kasan (or even the original grsec feature) as a
+bug-catcher since it doesn't clear freed slab buffers.
 
-The page in question may be on an LRU list, because nowhere in
-do_wp_page() we remove it from the list, neither do we take any LRU
-related locks. Although the page is locked, shrink_active_list() can
-still call page_referenced() on it concurrently, because the latter does
-not require an anonymous page to be locked.
+I'll wait a few more days for more reviews before sending the next
+version, particularly on the power management part, and in general on
+the usefulness of such feature.
 
-If store tearing described in the thread were possible, we could face
-the following race resulting in kernel panic:
+Regards,
 
-  CPU0                          CPU1
-  ----                          ----
-  do_wp_page                    shrink_active_list
-   lock_page                     page_referenced
-                                  PageAnon->yes, so skip trylock_page
-   page_move_anon_rmap
-    page->mapping = anon_vma
-                                  rmap_walk
-                                   PageAnon->no
-                                   rmap_walk_file
-                                    BUG
-    page->mapping += PAGE_MAPPING_ANON
-
-This patch fixes this race by explicitly forbidding the compiler to
-split page->mapping store in __page_set_anon_rmap() and friends and load
-in PageAnon() with the aid of WRITE/READ_ONCE.
-
-Personally, I don't believe that this can ever happen on any sane
-compiler, because such an "optimization" would only result in two stores
-vs one (note, anon_vma is not a constant), but since I can be mistaken I
-would like to hear from synchronization experts what they think about
-it.
-
-Thanks,
-Vladimir
----
- include/linux/page-flags.h |    3 ++-
- mm/rmap.c                  |    6 +++---
- 2 files changed, 5 insertions(+), 4 deletions(-)
-
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 5e7c4f50a644..a529e0a35fe9 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -320,7 +320,8 @@ PAGEFLAG(Idle, idle)
- 
- static inline int PageAnon(struct page *page)
- {
--	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
-+	return ((unsigned long)READ_ONCE(page->mapping) &
-+		PAGE_MAPPING_ANON) != 0;
- }
- 
- #ifdef CONFIG_KSM
-diff --git a/mm/rmap.c b/mm/rmap.c
-index eca7416f55d7..aa60c63704e6 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -958,7 +958,7 @@ void page_move_anon_rmap(struct page *page,
- 	VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
- 
- 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
--	page->mapping = (struct address_space *) anon_vma;
-+	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
- }
- 
- /**
-@@ -987,7 +987,7 @@ static void __page_set_anon_rmap(struct page *page,
- 		anon_vma = anon_vma->root;
- 
- 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
--	page->mapping = (struct address_space *) anon_vma;
-+	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
- 	page->index = linear_page_index(vma, address);
- }
- 
-@@ -1579,7 +1579,7 @@ static void __hugepage_set_anon_rmap(struct page *page,
- 		anon_vma = anon_vma->root;
- 
- 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
--	page->mapping = (struct address_space *) anon_vma;
-+	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
- 	page->index = linear_page_index(vma, address);
- }
- 
--- 
-1.7.10.4
+Anisse
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
