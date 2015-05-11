@@ -1,252 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 0809C6B0038
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 04:57:16 -0400 (EDT)
-Received: by pabtp1 with SMTP id tp1so105089160pab.2
-        for <linux-mm@kvack.org>; Mon, 11 May 2015 01:57:15 -0700 (PDT)
-Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com. [202.81.31.140])
-        by mx.google.com with ESMTPS id df1si11948308pad.84.2015.05.11.01.57.13
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 836946B0038
+	for <linux-mm@kvack.org>; Mon, 11 May 2015 04:59:28 -0400 (EDT)
+Received: by igbhj9 with SMTP id hj9so64570382igb.1
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 01:59:28 -0700 (PDT)
+Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com. [2607:f8b0:4001:c05::22b])
+        by mx.google.com with ESMTPS id b12si9347473icm.26.2015.05.11.01.59.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 May 2015 01:57:15 -0700 (PDT)
-Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 11 May 2015 18:57:09 +1000
-Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 203A13578048
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 18:57:06 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t4B8uwOJ48038028
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 18:57:06 +1000
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t4B8uX0S015059
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 18:56:33 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH V3] mm/thp: Split out pmd collpase flush into a separate functions
-In-Reply-To: <20150511080521.GB10974@node.dhcp.inet.fi>
-References: <1431326370-24247-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20150511080521.GB10974@node.dhcp.inet.fi>
-Date: Mon, 11 May 2015 14:26:06 +0530
-Message-ID: <87r3qn4hnd.fsf@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 May 2015 01:59:28 -0700 (PDT)
+Received: by igbsb11 with SMTP id sb11so64610560igb.0
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 01:59:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <1431330677-24476-1-git-send-email-vdavydov@parallels.com>
+References: <1431330677-24476-1-git-send-email-vdavydov@parallels.com>
+Date: Mon, 11 May 2015 16:59:27 +0800
+Message-ID: <CAFP4FLoPfisZib3SQeeW57U6NPxnpd=rNRgiv9OOsYDrFWd=6A@mail.gmail.com>
+Subject: Re: [RFC] rmap: fix "race" between do_wp_page and shrink_active_list
+From: yalin wang <yalin.wang2010@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, kirill.shutemov@linux.intel.com, aarcange@redhat.com, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-"Kirill A. Shutemov" <kirill@shutemov.name> writes:
-
-> On Mon, May 11, 2015 at 12:09:30PM +0530, Aneesh Kumar K.V wrote:
->> Architectures like ppc64 [1] need to do special things while clearing
->> pmd before a collapse. For them this operation is largely different
->> from a normal hugepage pte clear. Hence add a separate function
->> to clear pmd before collapse. After this patch pmdp_* functions
->> operate only on hugepage pte, and not on regular pmd_t values
->> pointing to page table.
->> 
->> [1] ppc64 needs to invalidate all the normal page pte mappings we
->> already have inserted in the hardware hash page table. But before
->> doing that we need to make sure there are no parallel hash page
->> table insert going on. So we need to do a kick_all_cpus_sync()
->> before flushing the older hash table entries. By moving this to
->> a separate function we capture these details and mention how it
->> is different from a hugepage pte clear.
->> 
->> This patch is a cleanup and only does code movement for clarity.
->> There should not be any change in functionality.
->> 
->> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->> ---
->> Changes from V2:
->> * Update commit message
->> * Address review feedback
->> 
->>  arch/powerpc/include/asm/pgtable-ppc64.h |  4 ++
->>  arch/powerpc/mm/pgtable_64.c             | 76 +++++++++++++++++---------------
->>  include/asm-generic/pgtable.h            | 19 ++++++++
->>  mm/huge_memory.c                         |  2 +-
->>  4 files changed, 65 insertions(+), 36 deletions(-)
->> 
->> diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
->> index 43e6ad424c7f..f5b98b2a45f0 100644
->> --- a/arch/powerpc/include/asm/pgtable-ppc64.h
->> +++ b/arch/powerpc/include/asm/pgtable-ppc64.h
->> @@ -576,6 +576,10 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
->>  extern void pmdp_splitting_flush(struct vm_area_struct *vma,
->>  				 unsigned long address, pmd_t *pmdp);
->>  
->> +#define pmd_collapse_flush pmd_collapse_flush
->> +extern pmd_t pmd_collapse_flush(struct vm_area_struct *vma,
->> +				unsigned long address, pmd_t *pmdp);
->> +
->>  #define __HAVE_ARCH_PGTABLE_DEPOSIT
->>  extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
->>  				       pgtable_t pgtable);
->> diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
->> index 59daa5eeec25..b651179ac4da 100644
->> --- a/arch/powerpc/mm/pgtable_64.c
->> +++ b/arch/powerpc/mm/pgtable_64.c
->> @@ -560,41 +560,47 @@ pmd_t pmdp_clear_flush(struct vm_area_struct *vma, unsigned long address,
->>  	pmd_t pmd;
->>  
->>  	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
->> -	if (pmd_trans_huge(*pmdp)) {
->> -		pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
->> -	} else {
->> -		/*
->> -		 * khugepaged calls this for normal pmd
->> -		 */
->> -		pmd = *pmdp;
->> -		pmd_clear(pmdp);
->> -		/*
->> -		 * Wait for all pending hash_page to finish. This is needed
->> -		 * in case of subpage collapse. When we collapse normal pages
->> -		 * to hugepage, we first clear the pmd, then invalidate all
->> -		 * the PTE entries. The assumption here is that any low level
->> -		 * page fault will see a none pmd and take the slow path that
->> -		 * will wait on mmap_sem. But we could very well be in a
->> -		 * hash_page with local ptep pointer value. Such a hash page
->> -		 * can result in adding new HPTE entries for normal subpages.
->> -		 * That means we could be modifying the page content as we
->> -		 * copy them to a huge page. So wait for parallel hash_page
->> -		 * to finish before invalidating HPTE entries. We can do this
->> -		 * by sending an IPI to all the cpus and executing a dummy
->> -		 * function there.
->> -		 */
->> -		kick_all_cpus_sync();
->> -		/*
->> -		 * Now invalidate the hpte entries in the range
->> -		 * covered by pmd. This make sure we take a
->> -		 * fault and will find the pmd as none, which will
->> -		 * result in a major fault which takes mmap_sem and
->> -		 * hence wait for collapse to complete. Without this
->> -		 * the __collapse_huge_page_copy can result in copying
->> -		 * the old content.
->> -		 */
->> -		flush_tlb_pmd_range(vma->vm_mm, &pmd, address);
->> -	}
->> +	VM_BUG_ON(!pmd_trans_huge(*pmdp));
->> +	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
->> +	return pmd;
+2015-05-11 15:51 GMT+08:00 Vladimir Davydov <vdavydov@parallels.com>:
+> Hi,
 >
-> Looks like with this cange you don't need Power-specific
-> pmdp_clear_flush() -- generic one would work for you.
-
-That is correct. Will update the series and do that as a follow up patch ?
-
+> I've been arguing with Minchan for a while about whether store-tearing
+> is possible while setting page->mapping in __page_set_anon_rmap and
+> friends, see
 >
-> It seems you want change semantics of pmdp_clear_flush(): it should be
-> called only for huge pmds. I'm fine with that. But we need at least
-> document that. And probably rename the helper to reflect semantics:
-> pmdp_huge_clear_flush()?
+>   http://thread.gmane.org/gmane.linux.kernel.mm/131949/focus=132132
 >
-
-So you are suggesting to callout _huge_ in the APIs. Will fix. Also will
-do a cleanup to update other functions ?
-
-> And we need  VM_BUG_ON(!pmd_trans_huge(*pmdp)) in generic helper too.
+> This patch is intended to draw attention to this discussion. It fixes a
+> race that could happen if store-tearing were possible. The race is as
+> follows.
 >
-> What about pmdp_clear_flush_young()? Should we change it the same way?
+> In do_wp_page() we can call page_move_anon_rmap(), which sets
+> page->mapping as follows:
 >
-
-ok
-
->> +}
->> +
->> +pmd_t pmd_collapse_flush(struct vm_area_struct *vma, unsigned long address,
->> +			 pmd_t *pmdp)
->> +{
->> +	pmd_t pmd;
->> +
->> +	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
->> +	VM_BUG_ON(pmd_trans_huge(*pmdp));
->> +
->> +	pmd = *pmdp;
->> +	pmd_clear(pmdp);
->> +	/*
->> +	 * Wait for all pending hash_page to finish. This is needed
->> +	 * in case of subpage collapse. When we collapse normal pages
->> +	 * to hugepage, we first clear the pmd, then invalidate all
->> +	 * the PTE entries. The assumption here is that any low level
->> +	 * page fault will see a none pmd and take the slow path that
->> +	 * will wait on mmap_sem. But we could very well be in a
->> +	 * hash_page with local ptep pointer value. Such a hash page
->> +	 * can result in adding new HPTE entries for normal subpages.
->> +	 * That means we could be modifying the page content as we
->> +	 * copy them to a huge page. So wait for parallel hash_page
->> +	 * to finish before invalidating HPTE entries. We can do this
->> +	 * by sending an IPI to all the cpus and executing a dummy
->> +	 * function there.
->> +	 */
->> +	kick_all_cpus_sync();
->> +	/*
->> +	 * Now invalidate the hpte entries in the range
->> +	 * covered by pmd. This make sure we take a
->> +	 * fault and will find the pmd as none, which will
->> +	 * result in a major fault which takes mmap_sem and
->> +	 * hence wait for collapse to complete. Without this
->> +	 * the __collapse_huge_page_copy can result in copying
->> +	 * the old content.
->> +	 */
->> +	flush_tlb_pmd_range(vma->vm_mm, &pmd, address);
->>  	return pmd;
->>  }
->>  
->> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
->> index 39f1d6a2b04d..edc90a2261f7 100644
->> --- a/include/asm-generic/pgtable.h
->> +++ b/include/asm-generic/pgtable.h
->> @@ -189,6 +189,25 @@ extern void pmdp_splitting_flush(struct vm_area_struct *vma,
->>  				 unsigned long address, pmd_t *pmdp);
->>  #endif
->>  
->> +#ifndef pmd_collapse_flush
->> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->> +static inline pmd_t pmd_collapse_flush(struct vm_area_struct *vma,
->> +				       unsigned long address,
->> +				       pmd_t *pmdp)
->> +{
->> +	return pmdp_clear_flush(vma, address, pmdp);
->> +}
->> +#else
->> +static inline pmd_t pmd_collapse_flush(struct vm_area_struct *vma,
->> +				       unsigned long address,
->> +				       pmd_t *pmdp)
->> +{
->> +	BUILD_BUG();
->> +	return __pmd(0);
->> +}
->> +#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->> +#endif
->> +
->>  #ifndef __HAVE_ARCH_PGTABLE_DEPOSIT
->>  extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
->>  				       pgtable_t pgtable);
->> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->> index 078832cf3636..009a5de619fd 100644
->> --- a/mm/huge_memory.c
->> +++ b/mm/huge_memory.c
->> @@ -2499,7 +2499,7 @@ static void collapse_huge_page(struct mm_struct *mm,
->>  	 * huge and small TLB entries for the same virtual address
->>  	 * to avoid the risk of CPU bugs in that area.
->>  	 */
->> -	_pmd = pmdp_clear_flush(vma, address, pmd);
->> +	_pmd = pmd_collapse_flush(vma, address, pmd);
+>         anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+>         page->mapping = (struct address_space *) anon_vma;
 >
-> Let's name it pmdp_collapse_flush().
-> We are not hugely consistent on pmd vs. pmdp, but we have
-> pmdp_splittitng_flush() counterpart.
+> The page in question may be on an LRU list, because nowhere in
+> do_wp_page() we remove it from the list, neither do we take any LRU
+> related locks. Although the page is locked, shrink_active_list() can
+> still call page_referenced() on it concurrently, because the latter does
+> not require an anonymous page to be locked.
 >
+> If store tearing described in the thread were possible, we could face
+> the following race resulting in kernel panic:
+>
+>   CPU0                          CPU1
+>   ----                          ----
+>   do_wp_page                    shrink_active_list
+>    lock_page                     page_referenced
+>                                   PageAnon->yes, so skip trylock_page
+>    page_move_anon_rmap
+>     page->mapping = anon_vma
+>                                   rmap_walk
+>                                    PageAnon->no
+>                                    rmap_walk_file
+>                                     BUG
+>     page->mapping += PAGE_MAPPING_ANON
+>
+> This patch fixes this race by explicitly forbidding the compiler to
+> split page->mapping store in __page_set_anon_rmap() and friends and load
+> in PageAnon() with the aid of WRITE/READ_ONCE.
+>
+> Personally, I don't believe that this can ever happen on any sane
+> compiler, because such an "optimization" would only result in two stores
+> vs one (note, anon_vma is not a constant), but since I can be mistaken I
+> would like to hear from synchronization experts what they think about
+> it.
+>
+> Thanks,
+> Vladimir
+> ---
+>  include/linux/page-flags.h |    3 ++-
+>  mm/rmap.c                  |    6 +++---
+>  2 files changed, 5 insertions(+), 4 deletions(-)
+>
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index 5e7c4f50a644..a529e0a35fe9 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -320,7 +320,8 @@ PAGEFLAG(Idle, idle)
+>
+>  static inline int PageAnon(struct page *page)
+>  {
+> -       return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
+> +       return ((unsigned long)READ_ONCE(page->mapping) &
+> +               PAGE_MAPPING_ANON) != 0;
+>  }
+>
+>  #ifdef CONFIG_KSM
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index eca7416f55d7..aa60c63704e6 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -958,7 +958,7 @@ void page_move_anon_rmap(struct page *page,
+>         VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
+>
+>         anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+> -       page->mapping = (struct address_space *) anon_vma;
+> +       WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
+>  }
+>
+>  /**
+> @@ -987,7 +987,7 @@ static void __page_set_anon_rmap(struct page *page,
+>                 anon_vma = anon_vma->root;
+>
+>         anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+> -       page->mapping = (struct address_space *) anon_vma;
+> +       WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
+>         page->index = linear_page_index(vma, address);
+>  }
+>
+> @@ -1579,7 +1579,7 @@ static void __hugepage_set_anon_rmap(struct page *page,
+>                 anon_vma = anon_vma->root;
+>
+>         anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+> -       page->mapping = (struct address_space *) anon_vma;
+> +       WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
+>         page->index = linear_page_index(vma, address);
+>  }
+>
+> --
+> 1.7.10.4
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-ok 
+i am confused about your analysis ,
+for the race stack:
 
+CPU0                          CPU1
 
->>  	spin_unlock(pmd_ptl);
->>  	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
->>  
+   ----                          ----
 
--aneesh
+   do_wp_page                    shrink_active_list
+
+    lock_page                     page_referenced
+
+                                   PageAnon->yes, so skip trylock_page
+
+    page_move_anon_rmap
+
+     page->mapping = anon_vma
+
+                                   rmap_walk
+
+                                    PageAnon->no
+
+                                    rmap_walk_file
+
+                                     BUG
+
+     page->mapping += PAGE_MAPPING_ANON
+
+the page should must change from PageAnon() to !PageAnon() when crash happened.
+but page_move_anon_rmap() is doing change a page from !PageAnon()
+(swapcache page)
+to PageAnon() , how does this race condition crash happened ?
+
+BRs,
+Yalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
