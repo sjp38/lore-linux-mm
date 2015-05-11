@@ -1,175 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 836946B0038
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 04:59:28 -0400 (EDT)
-Received: by igbhj9 with SMTP id hj9so64570382igb.1
-        for <linux-mm@kvack.org>; Mon, 11 May 2015 01:59:28 -0700 (PDT)
-Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com. [2607:f8b0:4001:c05::22b])
-        by mx.google.com with ESMTPS id b12si9347473icm.26.2015.05.11.01.59.27
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id BD1936B0038
+	for <linux-mm@kvack.org>; Mon, 11 May 2015 05:04:00 -0400 (EDT)
+Received: by obcus9 with SMTP id us9so65441382obc.2
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 02:04:00 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id h77si6870974oig.20.2015.05.11.02.03.59
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 May 2015 01:59:28 -0700 (PDT)
-Received: by igbsb11 with SMTP id sb11so64610560igb.0
-        for <linux-mm@kvack.org>; Mon, 11 May 2015 01:59:27 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 11 May 2015 02:04:00 -0700 (PDT)
+From: Wang Kai <morgan.wang@huawei.com>
+Subject: [PATCH v2] kmemleak: record accurate early log buffer count and report when exceeded
+Date: Mon, 11 May 2015 09:03:41 +0000
+Message-ID: <1431335021-117825-1-git-send-email-morgan.wang@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <1431330677-24476-1-git-send-email-vdavydov@parallels.com>
-References: <1431330677-24476-1-git-send-email-vdavydov@parallels.com>
-Date: Mon, 11 May 2015 16:59:27 +0800
-Message-ID: <CAFP4FLoPfisZib3SQeeW57U6NPxnpd=rNRgiv9OOsYDrFWd=6A@mail.gmail.com>
-Subject: Re: [RFC] rmap: fix "race" between do_wp_page and shrink_active_list
-From: yalin wang <yalin.wang2010@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: catalin.marinas@arm.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-2015-05-11 15:51 GMT+08:00 Vladimir Davydov <vdavydov@parallels.com>:
-> Hi,
->
-> I've been arguing with Minchan for a while about whether store-tearing
-> is possible while setting page->mapping in __page_set_anon_rmap and
-> friends, see
->
->   http://thread.gmane.org/gmane.linux.kernel.mm/131949/focus=132132
->
-> This patch is intended to draw attention to this discussion. It fixes a
-> race that could happen if store-tearing were possible. The race is as
-> follows.
->
-> In do_wp_page() we can call page_move_anon_rmap(), which sets
-> page->mapping as follows:
->
->         anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
->         page->mapping = (struct address_space *) anon_vma;
->
-> The page in question may be on an LRU list, because nowhere in
-> do_wp_page() we remove it from the list, neither do we take any LRU
-> related locks. Although the page is locked, shrink_active_list() can
-> still call page_referenced() on it concurrently, because the latter does
-> not require an anonymous page to be locked.
->
-> If store tearing described in the thread were possible, we could face
-> the following race resulting in kernel panic:
->
->   CPU0                          CPU1
->   ----                          ----
->   do_wp_page                    shrink_active_list
->    lock_page                     page_referenced
->                                   PageAnon->yes, so skip trylock_page
->    page_move_anon_rmap
->     page->mapping = anon_vma
->                                   rmap_walk
->                                    PageAnon->no
->                                    rmap_walk_file
->                                     BUG
->     page->mapping += PAGE_MAPPING_ANON
->
-> This patch fixes this race by explicitly forbidding the compiler to
-> split page->mapping store in __page_set_anon_rmap() and friends and load
-> in PageAnon() with the aid of WRITE/READ_ONCE.
->
-> Personally, I don't believe that this can ever happen on any sane
-> compiler, because such an "optimization" would only result in two stores
-> vs one (note, anon_vma is not a constant), but since I can be mistaken I
-> would like to hear from synchronization experts what they think about
-> it.
->
-> Thanks,
-> Vladimir
-> ---
->  include/linux/page-flags.h |    3 ++-
->  mm/rmap.c                  |    6 +++---
->  2 files changed, 5 insertions(+), 4 deletions(-)
->
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 5e7c4f50a644..a529e0a35fe9 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -320,7 +320,8 @@ PAGEFLAG(Idle, idle)
->
->  static inline int PageAnon(struct page *page)
->  {
-> -       return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
-> +       return ((unsigned long)READ_ONCE(page->mapping) &
-> +               PAGE_MAPPING_ANON) != 0;
->  }
->
->  #ifdef CONFIG_KSM
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index eca7416f55d7..aa60c63704e6 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -958,7 +958,7 @@ void page_move_anon_rmap(struct page *page,
->         VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
->
->         anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-> -       page->mapping = (struct address_space *) anon_vma;
-> +       WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
->  }
->
->  /**
-> @@ -987,7 +987,7 @@ static void __page_set_anon_rmap(struct page *page,
->                 anon_vma = anon_vma->root;
->
->         anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-> -       page->mapping = (struct address_space *) anon_vma;
-> +       WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
->         page->index = linear_page_index(vma, address);
->  }
->
-> @@ -1579,7 +1579,7 @@ static void __hugepage_set_anon_rmap(struct page *page,
->                 anon_vma = anon_vma->root;
->
->         anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-> -       page->mapping = (struct address_space *) anon_vma;
-> +       WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
->         page->index = linear_page_index(vma, address);
->  }
->
-> --
-> 1.7.10.4
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+In log_early function, crt_early_log should also count once when
+'crt_early_log >= ARRAY_SIZE(early_log)'. Otherwise the reported
+count from kmemleak_init is one less than 'actual number'.
 
-i am confused about your analysis ,
-for the race stack:
+Then, in kmemleak_init, if early_log buffer size equal actual
+number, kmemleak will init sucessful, so change warning condition
+to 'crt_early_log > ARRAY_SIZE(early_log)'.
 
-CPU0                          CPU1
+Signed-off-by: Wang Kai <morgan.wang@huawei.com>
+---
+ mm/kmemleak.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-   ----                          ----
-
-   do_wp_page                    shrink_active_list
-
-    lock_page                     page_referenced
-
-                                   PageAnon->yes, so skip trylock_page
-
-    page_move_anon_rmap
-
-     page->mapping = anon_vma
-
-                                   rmap_walk
-
-                                    PageAnon->no
-
-                                    rmap_walk_file
-
-                                     BUG
-
-     page->mapping += PAGE_MAPPING_ANON
-
-the page should must change from PageAnon() to !PageAnon() when crash happened.
-but page_move_anon_rmap() is doing change a page from !PageAnon()
-(swapcache page)
-to PageAnon() , how does this race condition crash happened ?
-
-BRs,
-Yalin
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 5405aff..6a07748 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -814,6 +814,7 @@ static void __init log_early(int op_type, const void *ptr, size_t size,
+ 	}
+ 
+ 	if (crt_early_log >= ARRAY_SIZE(early_log)) {
++		crt_early_log++;
+ 		kmemleak_disable();
+ 		return;
+ 	}
+@@ -1829,7 +1830,7 @@ void __init kmemleak_init(void)
+ 	object_cache = KMEM_CACHE(kmemleak_object, SLAB_NOLEAKTRACE);
+ 	scan_area_cache = KMEM_CACHE(kmemleak_scan_area, SLAB_NOLEAKTRACE);
+ 
+-	if (crt_early_log >= ARRAY_SIZE(early_log))
++	if (crt_early_log > ARRAY_SIZE(early_log))
+ 		pr_warning("Early log buffer exceeded (%d), please increase "
+ 			   "DEBUG_KMEMLEAK_EARLY_LOG_SIZE\n", crt_early_log);
+ 
+-- 
+1.8.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
