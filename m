@@ -1,58 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 418626B0038
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 03:46:50 -0400 (EDT)
-Received: by wiun10 with SMTP id n10so85960973wiu.1
-        for <linux-mm@kvack.org>; Mon, 11 May 2015 00:46:49 -0700 (PDT)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id bz5si10836224wib.38.2015.05.11.00.46.48
-        for <linux-mm@kvack.org>;
-        Mon, 11 May 2015 00:46:48 -0700 (PDT)
-Date: Mon, 11 May 2015 10:46:31 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH V3] powerpc/thp: Serialize pmd clear against a linux page
- table walk.
-Message-ID: <20150511074631.GA10974@node.dhcp.inet.fi>
-References: <1431325561-21396-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id B8E596B006C
+	for <linux-mm@kvack.org>; Mon, 11 May 2015 03:47:15 -0400 (EDT)
+Received: by qgej70 with SMTP id j70so63863200qge.2
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 00:47:15 -0700 (PDT)
+Received: from mail-qk0-x22f.google.com (mail-qk0-x22f.google.com. [2607:f8b0:400d:c09::22f])
+        by mx.google.com with ESMTPS id 194si6764702qhs.8.2015.05.11.00.47.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 May 2015 00:47:15 -0700 (PDT)
+Received: by qkgx75 with SMTP id x75so81860719qkg.1
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 00:47:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1431325561-21396-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <CAH9JG2VROCekWCAa+1t6Giy2wHC171TD-AXQVxG2vTH-LPcoPA@mail.gmail.com>
+References: <20150507064557.GA26928@july>
+	<20150507154212.GA12245@htj.duckdns.org>
+	<CAH9JG2UAVRgX0Mg0d7WgG0URpkgu4q_bbNMXyOOEh9WFPztppQ@mail.gmail.com>
+	<20150508152513.GB28439@htj.duckdns.org>
+	<CAH9JG2VROCekWCAa+1t6Giy2wHC171TD-AXQVxG2vTH-LPcoPA@mail.gmail.com>
+Date: Mon, 11 May 2015 16:47:14 +0900
+Message-ID: <CAH9JG2W6pKi__g-v+9B+-y3HJ=AkdE+W0d0TxmtpBWrXddxL_g@mail.gmail.com>
+Subject: Re: [RFC PATCH] PM, freezer: Don't thaw when it's intended frozen processes
+From: Kyungmin Park <kmpark@infradead.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, kirill.shutemov@linux.intel.com, aarcange@redhat.com, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "\\Rafael J. Wysocki\\" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux PM list <linux-pm@vger.kernel.org>
 
-On Mon, May 11, 2015 at 11:56:01AM +0530, Aneesh Kumar K.V wrote:
-> Serialize against find_linux_pte_or_hugepte which does lock-less
-> lookup in page tables with local interrupts disabled. For huge pages
-> it casts pmd_t to pte_t. Since format of pte_t is different from
-> pmd_t we want to prevent transit from pmd pointing to page table
-> to pmd pointing to huge page (and back) while interrupts are disabled.
-> We clear pmd to possibly replace it with page table pointer in
-> different code paths. So make sure we wait for the parallel
-> find_linux_pte_or_hugepage to finish.
-> 
-> Without this patch, a find_linux_pte_or_hugepte running in parallel to
-> __split_huge_zero_page_pmd or do_huge_pmd_wp_page_fallback or zap_huge_pmd
-> can run into the above issue. With __split_huge_zero_page_pmd and
-> do_huge_pmd_wp_page_fallback we clear the hugepage pte before inserting
-> the pmd entry with a regular pgtable address. Such a clear need to
-> wait for the parallel find_linux_pte_or_hugepte to finish.
-> 
-> With zap_huge_pmd, we can run into issues, with a hugepage pte
-> getting zapped due to a MADV_DONTNEED while other cpu fault it
-> in as small pages.
-> 
-> Reported-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+On Mon, May 11, 2015 at 1:28 PM, Kyungmin Park <kmpark@infradead.org> wrote:
+> On Sat, May 9, 2015 at 12:25 AM, Tejun Heo <tj@kernel.org> wrote:
+>> Hello, Kyungmin.
+>>
+>> On Fri, May 08, 2015 at 09:04:26AM +0900, Kyungmin Park wrote:
+>>> > I need to think more about it but as an *optimization* we can add
+>>> > freezing() test before actually waking tasks up during resume, but can
+>>> > you please clarify what you're seeing?
+>>>
+>>> The mobile application has life cycle and one of them is 'suspend'
+>>> state. it's different from 'pause' or 'background'.
+>>> if there are some application and enter go 'suspend' state. all
+>>> behaviors are stopped and can't do anything. right it's suspended. but
+>>> after system suspend & resume, these application is thawed and
+>>> running. even though system know it's suspended.
+>>>
+>>> We made some test application, print out some message within infinite
+>>> loop. when it goes 'suspend' state. nothing is print out. but after
+>>> system suspend & resume, it prints out again. that's not desired
+>>> behavior. and want to address it.
+>>>
+>>> frozen user processes should be remained as frozen while system
+>>> suspend & resume.
+>>
+>> Yes, they should and I'm not sure why what you're saying is happening
+>> because freezing() test done from the frozen tasks themselves should
+>> keep them in the freezer.  Which kernel version did you test?  Can you
+>> please verify it against a recent kernel?
+>
+> The kernel 3.10 is not working as expected, but right the latest
+> kernel is working correctly.
 
-Reviewed-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Please ignore it. test is wrong and it's not working, see Krzysztof Mail.
 
-CC: stable@ ?
-
--- 
- Kirill A. Shutemov
+>
+> I see I'll check what's different and which are modified.
+>
+> Thank you,
+> Kyungmin Park
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
