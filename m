@@ -1,106 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B8DC6B0038
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 18:28:52 -0400 (EDT)
-Received: by obbkp3 with SMTP id kp3so111017854obb.3
-        for <linux-mm@kvack.org>; Mon, 11 May 2015 15:28:52 -0700 (PDT)
-Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
-        by mx.google.com with ESMTPS id wz3si7822632obc.33.2015.05.11.15.28.51
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D69F6B0038
+	for <linux-mm@kvack.org>; Mon, 11 May 2015 18:40:18 -0400 (EDT)
+Received: by pabsx10 with SMTP id sx10so120763906pab.3
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 15:40:17 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id a3si19567167pbu.253.2015.05.11.15.40.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 May 2015 15:28:51 -0700 (PDT)
-Message-ID: <1431382179.24419.12.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v4 7/7] mtrr, mm, x86: Enhance MTRR checks for KVA huge
- page mapping
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 11 May 2015 16:09:39 -0600
-In-Reply-To: <20150511214244.GK15636@pd.tnic>
-References: <1427234921-19737-1-git-send-email-toshi.kani@hp.com>
-	 <1427234921-19737-8-git-send-email-toshi.kani@hp.com>
-	 <20150509090810.GB4452@pd.tnic>
-	 <1431372316.23761.440.camel@misato.fc.hp.com>
-	 <20150511201827.GI15636@pd.tnic>
-	 <1431376726.23761.471.camel@misato.fc.hp.com>
-	 <20150511214244.GK15636@pd.tnic>
-Content-Type: text/plain; charset="UTF-8"
+        Mon, 11 May 2015 15:40:17 -0700 (PDT)
+Date: Mon, 11 May 2015 15:40:15 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V3] mm/thp: Split out pmd collpase flush into a separate
+ functions
+Message-Id: <20150511154015.956459466f1ca96fc84723b7@linux-foundation.org>
+In-Reply-To: <1431326370-24247-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1431326370-24247-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, kirill.shutemov@linux.intel.com, aarcange@redhat.com, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 2015-05-11 at 23:42 +0200, Borislav Petkov wrote:
-> On Mon, May 11, 2015 at 02:38:46PM -0600, Toshi Kani wrote:
-> > MTRRs disabled is not an error case as it could be a normal
-> > configuration on some platforms / BIOS setups.
-> 
-> Normal how? PAT-only systems? Examples please...
+On Mon, 11 May 2015 12:09:30 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 
-BIOS initializes and enables MTRRs at POST.  While the most (if not all)
-BIOSes do it today, I do not think the x86 arch requires BIOS to enable
-them.
+> Architectures like ppc64 [1] need to do special things while clearing
+> pmd before a collapse. For them this operation is largely different
+> from a normal hugepage pte clear. Hence add a separate function
+> to clear pmd before collapse. After this patch pmdp_* functions
+> operate only on hugepage pte, and not on regular pmd_t values
+> pointing to page table.
+> 
+> [1] ppc64 needs to invalidate all the normal page pte mappings we
+> already have inserted in the hardware hash page table. But before
+> doing that we need to make sure there are no parallel hash page
+> table insert going on. So we need to do a kick_all_cpus_sync()
+> before flushing the older hash table entries. By moving this to
+> a separate function we capture these details and mention how it
+> is different from a hugepage pte clear.
+> 
+> This patch is a cleanup and only does code movement for clarity.
+> There should not be any change in functionality.
+> 
+> ...
+>
+> +#ifndef pmd_collapse_flush
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +static inline pmd_t pmd_collapse_flush(struct vm_area_struct *vma,
+> +				       unsigned long address,
+> +				       pmd_t *pmdp)
+> +{
+> +	return pmdp_clear_flush(vma, address, pmdp);
+> +}
+> +#else
+> +static inline pmd_t pmd_collapse_flush(struct vm_area_struct *vma,
+> +				       unsigned long address,
+> +				       pmd_t *pmdp)
+> +{
+> +	BUILD_BUG();
+> +	return __pmd(0);
+> +}
+> +#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
-Here is a quote from Intel SDM:
-===
-11.11.5 MTRR Initialization
+You want
 
-On a hardware reset, the P6 and more recent processors clear the valid
-flags in variable-range MTRRs and clear the E flag in the
-IA32_MTRR_DEF_TYPE MSR to disable all MTRRs. All other bits in the MTRRs
-are undefined.
+#define pmd_collapse_flush pmd_collapse_flush
 
-Prior to initializing the MTRRs, software (normally the system BIOS)
-must initialize all fixed-range and variablerange MTRR register fields
-to 0. Software can then initialize the MTRRs according to known types of
-memory, including memory on devices that it auto-configures.
-Initialization is expected to occur prior to booting the operating
-system.
-===
+here, just in case a later header file performs the same test.
 
-> > I clarified it in the above comment that uniform is set for any return
-> > value.
-> 
-> Hell no!
-> 
-> u8 mtrr_type_lookup(u64 start, u64 end, u8 *uniform)
-> {
-> 
-> 	...
-> 
->         *uniform = 1;
-> 
->         if (!mtrr_state_set)
->                 return MTRR_TYPE_INVALID;
-> 
->         if (!(mtrr_state.enabled & MTRR_STATE_MTRR_ENABLED))
->                 return MTRR_TYPE_INVALID;
-> 
-> 
-> This is wrong and the fact that I still need to persuade you about it
-> says a lot.
-> 
-> If you want to be able to state that a type is uniform even if MTRRs are
-> disabled, you need to define another retval which means exactly that.
-
-There may not be any type conflict with MTRR_TYPE_INVALID. 
-
-> Or add an inline function called mtrr_enabled() and call it in the
-> mtrr_type_lookup() callers.
-> 
-> Or whatever.
-> 
-> I don't want any confusing states with two return types and people
-> having to figure out what it exactly means and digging into the code
-> and scratching heads WTF is that supposed to mean.
-
-I will change the caller to check MTRR_TYPE_INVALID, and treat it as a
-uniform case.
-
-Thanks,
--Toshi
-
-
+> +#endif
+> +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
