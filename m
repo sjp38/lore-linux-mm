@@ -1,65 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 288C36B0070
-	for <linux-mm@kvack.org>; Mon, 11 May 2015 10:41:15 -0400 (EDT)
-Received: by iedfl3 with SMTP id fl3so122936341ied.1
-        for <linux-mm@kvack.org>; Mon, 11 May 2015 07:41:15 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id j15si9880255ich.52.2015.05.11.07.41.14
-        for <linux-mm@kvack.org>;
-        Mon, 11 May 2015 07:41:14 -0700 (PDT)
-Date: Mon, 11 May 2015 11:41:10 -0300
-From: Arnaldo Carvalho de Melo <acme@kernel.org>
-Subject: Re: [PATCH 4/6] perf kmem: Print gfp flags in human readable string
-Message-ID: <20150511144110.GR28183@kernel.org>
-References: <1429592107-1807-1-git-send-email-namhyung@kernel.org>
- <1429592107-1807-5-git-send-email-namhyung@kernel.org>
- <20150511143536.GP28183@kernel.org>
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 762F86B0070
+	for <linux-mm@kvack.org>; Mon, 11 May 2015 10:47:14 -0400 (EDT)
+Received: by wgbhc8 with SMTP id hc8so30378165wgb.2
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 07:47:13 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v3si124427wiw.60.2015.05.11.07.47.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 11 May 2015 07:47:12 -0700 (PDT)
+Date: Mon, 11 May 2015 15:47:07 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 2/9] mm: Provide new get_vaddr_frames() helper
+Message-ID: <20150511144707.GP2462@suse.de>
+References: <1430897296-5469-1-git-send-email-jack@suse.cz>
+ <1430897296-5469-3-git-send-email-jack@suse.cz>
+ <20150508144922.GO2462@suse.de>
+ <20150511140019.GD25034@quack.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20150511143536.GP28183@kernel.org>
+In-Reply-To: <20150511140019.GD25034@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Namhyung Kim <namhyung@kernel.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jiri Olsa <jolsa@redhat.com>, LKML <linux-kernel@vger.kernel.org>, David Ahern <dsahern@gmail.com>, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, linux-media@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, dri-devel@lists.freedesktop.org, Pawel Osciak <pawel@osciak.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-samsung-soc@vger.kernel.org
 
-Em Mon, May 11, 2015 at 11:35:36AM -0300, Arnaldo Carvalho de Melo escreveu:
-> Em Tue, Apr 21, 2015 at 01:55:05PM +0900, Namhyung Kim escreveu:
-> > Save libtraceevent output and print it in the header.
+On Mon, May 11, 2015 at 04:00:19PM +0200, Jan Kara wrote:
+> > > +int get_vaddr_frames(unsigned long start, unsigned int nr_frames,
+> > > +		     bool write, bool force, struct frame_vector *vec)
+> > > +{
+> > > +	struct mm_struct *mm = current->mm;
+> > > +	struct vm_area_struct *vma;
+> > > +	int ret = 0;
+> > > +	int err;
+> > > +	int locked = 1;
+> > > +
+> > 
+> > bool locked.
+>   It cannot be bool. It is passed to get_user_pages_locked() which expects
+> int *.
 > 
-> <SNIP>
+
+My bad.
+
+> > > +int frame_vector_to_pages(struct frame_vector *vec)
+> > > +{
+> > 
+> > I think it's probably best to make the relevant counters in frame_vector
+> > signed and limit the maximum possible size of it. It's still not putting
+> > any practical limit on the size of the frame_vector.
+>
+>   I don't see a reason why counters in frame_vector should be signed... Can
+> you share your reason?  I've added a check into frame_vector_create() to
+> limit number of frames to INT_MAX / sizeof(void *) / 2 to avoid arithmetics
+> overflow. Thanks for review!
 > 
-> > +static int parse_gfp_flags(struct perf_evsel *evsel, struct perf_sample *sample,
-> > +			   unsigned int gfp_flags)
-> > +{
-> > +	char *str, *pos;
 
-> > +	str = strtok_r(seq.buffer, " ", &pos);
-> 
-> builtin-kmem.c:743:427: error: a??posa?? may be used uninitialized in this
-> function [-Werror=maybe-uninitialized]
->     new->human_readable = strdup(str + 10);
->                                                                                                                                                                                                                                                                                                                                                                                                                                            ^
-> builtin-kmem.c:716:14: note: a??posa?? was declared here
->   char *str, *pos;
->               ^
+Only that the return value of frame_vector_to_pages() returns int where
+as the potential range that is converted is unsigned int. I don't think
+there are any mistakes dealing with signed/unsigned but I don't see any
+advantage of using unsigned either and limiting it to INT_MAX either.
+It's not a big deal.
 
-Emphasis on the "may", as according to strtok_r your code is ok, its
-just the compiler that needs to be told that no, it is not being
-accessed uninitialized:
-
-<quote man strtok>
-       On the first call to strtok_r(), str should point to the string
-to be parsed, and the value of saveptr is ignored.  In subsequent calls,
-str should be NULL, and saveptr should be unchanged since the previous
-call.
-</>
-
-So just setting it to NULL is enough.
-
-- Arnaldo
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
