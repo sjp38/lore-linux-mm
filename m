@@ -1,86 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 510916B0038
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 05:21:22 -0400 (EDT)
-Received: by pdbqd1 with SMTP id qd1so1890340pdb.2
-        for <linux-mm@kvack.org>; Tue, 12 May 2015 02:21:22 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id bv5si21690756pdb.125.2015.05.12.02.21.20
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 33F326B0038
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 05:28:13 -0400 (EDT)
+Received: by pacwv17 with SMTP id wv17so2231478pac.0
+        for <linux-mm@kvack.org>; Tue, 12 May 2015 02:28:12 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id y5si21656620pbt.39.2015.05.12.02.28.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 12 May 2015 02:21:21 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH] mm/hugetlb: initialize order with UINT_MAX in
- dissolve_free_huge_pages()
-Date: Tue, 12 May 2015 09:20:35 +0000
-Message-ID: <20150512092034.GF3068@hori1.linux.bs1.fc.nec.co.jp>
-References: <20150511111748.GA20660@mwanda>
- <20150511235443.GA8513@hori1.linux.bs1.fc.nec.co.jp>
- <20150512084339.GN16501@mwanda>
- <20150512090454.GD3068@hori1.linux.bs1.fc.nec.co.jp>
- <20150512091349.GO16501@mwanda>
- <20150512091640.GE3068@hori1.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20150512091640.GE3068@hori1.linux.bs1.fc.nec.co.jp>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <E5CAA6C325FD96449FA0FB4F6189A7FD@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 May 2015 02:28:12 -0700 (PDT)
+Date: Tue, 12 May 2015 12:27:47 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [RFC] rmap: fix "race" between do_wp_page and shrink_active_list
+Message-ID: <20150512092747.GC17628@esperanza>
+References: <1431330677-24476-1-git-send-email-vdavydov@parallels.com>
+ <20150511093652.GA11257@node.dhcp.inet.fi>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150511093652.GA11257@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Carpenter <dan.carpenter@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Currently the initial value of order in dissolve_free_huge_page is 64 or 32=
-,
-which leads to the following warning in static checker:
+On Mon, May 11, 2015 at 12:36:52PM +0300, Kirill A. Shutemov wrote:
+> On Mon, May 11, 2015 at 10:51:17AM +0300, Vladimir Davydov wrote:
+> > diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> > index 5e7c4f50a644..a529e0a35fe9 100644
+> > --- a/include/linux/page-flags.h
+> > +++ b/include/linux/page-flags.h
+> > @@ -320,7 +320,8 @@ PAGEFLAG(Idle, idle)
+> >  
+> >  static inline int PageAnon(struct page *page)
+> >  {
+> > -	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
+> > +	return ((unsigned long)READ_ONCE(page->mapping) &
+> > +		PAGE_MAPPING_ANON) != 0;
+> 
+> Why do we need this? Write side should be enough to get this
+> deterministic.
 
-  mm/hugetlb.c:1203 dissolve_free_huge_pages()
-  warn: potential right shift more than type allows '9,18,64'
+Yeah, this seems to be completely redundant, my bad.
 
-This is a potential risk of infinite loop, because 1 << order (=3D=3D 0) is=
- used
-in for-loop like this:
+> 
+> >  }
+> >  
+> >  #ifdef CONFIG_KSM
+> > diff --git a/mm/rmap.c b/mm/rmap.c
+> > index eca7416f55d7..aa60c63704e6 100644
+> > --- a/mm/rmap.c
+> > +++ b/mm/rmap.c
+> > @@ -958,7 +958,7 @@ void page_move_anon_rmap(struct page *page,
+> >  	VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
+> >  
+> >  	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+> > -	page->mapping = (struct address_space *) anon_vma;
+> > +	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
+> >  }
+> >  
+> >  /**
+> > @@ -987,7 +987,7 @@ static void __page_set_anon_rmap(struct page *page,
+> >  		anon_vma = anon_vma->root;
+> >  
+> >  	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+> > -	page->mapping = (struct address_space *) anon_vma;
+> > +	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
+> >  	page->index = linear_page_index(vma, address);
+> 
+> No need: we don't hit this code if page is already PageAnon().
 
-  for (pfn =3D start_pfn; pfn < end_pfn; pfn +=3D 1 << order)
-      ...
+Agree.
 
-So this patch simply avoids the risk by initializing with UINT_MAX.
+> 
+> >  }
+> >  
+> > @@ -1579,7 +1579,7 @@ static void __hugepage_set_anon_rmap(struct page *page,
+> >  		anon_vma = anon_vma->root;
+> >  
+> >  	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+> > -	page->mapping = (struct address_space *) anon_vma;
+> > +	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
+> 
+> Ditto.
 
-Fixes: c8721bbbdd36 ("mm: memory-hotplug: enable memory hotplug to handle h=
-ugepage")
-Reported-by: Dan Carpenter <dan.carpenter@oracle.com>
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- mm/hugetlb.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+Agree.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 271e4432734c..804437505a84 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1188,7 +1188,7 @@ static void dissolve_free_huge_page(struct page *page=
-)
-  */
- void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_p=
-fn)
- {
--	unsigned int order =3D 8 * sizeof(void *);
-+	unsigned int order =3D UINT_MAX;
- 	unsigned long pfn;
- 	struct hstate *h;
-=20
-@@ -1200,6 +1200,7 @@ void dissolve_free_huge_pages(unsigned long start_pfn=
-, unsigned long end_pfn)
- 		if (order > huge_page_order(h))
- 			order =3D huge_page_order(h);
- 	VM_BUG_ON(!IS_ALIGNED(start_pfn, 1 << order));
-+	VM_BUG_ON(order =3D=3D UINT_MAX);
- 	for (pfn =3D start_pfn; pfn < end_pfn; pfn +=3D 1 << order)
- 		dissolve_free_huge_page(pfn_to_page(pfn));
- }
---=20
-2.1.0
+So we do need this eventually, don't we? Frankly, I doubted that,
+because the fact that a compiler can do such wicked things really scares
+me :-/
+
+All right then, I'll resend the patch with your comments addressed.
+Thank you for spending your time reviewing it.
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
