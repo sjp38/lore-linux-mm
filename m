@@ -1,191 +1,288 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 57F2B6B0038
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 08:05:48 -0400 (EDT)
-Received: by lbbqq2 with SMTP id qq2so3943624lbb.3
-        for <linux-mm@kvack.org>; Tue, 12 May 2015 05:05:47 -0700 (PDT)
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com. [209.85.215.42])
-        by mx.google.com with ESMTPS id la8si10218533lac.141.2015.05.12.05.05.45
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 33F806B0038
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 09:34:39 -0400 (EDT)
+Received: by lbbqq2 with SMTP id qq2so5929882lbb.3
+        for <linux-mm@kvack.org>; Tue, 12 May 2015 06:34:38 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id p10si10396018laa.17.2015.05.12.06.34.35
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 May 2015 05:05:46 -0700 (PDT)
-Received: by labbd9 with SMTP id bd9so3943687lab.2
-        for <linux-mm@kvack.org>; Tue, 12 May 2015 05:05:45 -0700 (PDT)
+        Tue, 12 May 2015 06:34:36 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH v5 0/4] idle memory tracking
+Date: Tue, 12 May 2015 16:34:15 +0300
+Message-ID: <cover.1431437088.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <20150512094303.24768.10282.stgit@buzz>
-References: <20150512090156.24768.2521.stgit@buzz>
-	<20150512094303.24768.10282.stgit@buzz>
-Date: Tue, 12 May 2015 13:05:45 +0100
-Message-ID: <CAEVpBaLm9eicuFPmyRLa7GddLwtBJh3XzHT=fxj-h0YwwmXQOg@mail.gmail.com>
-Subject: Re: [PATCH v2 1/3] pagemap: add mmap-exclusive bit for marking pages
- mapped only here
-From: Mark Williamson <mwilliamson@undo-software.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, kernel list <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelyanov <xemul@parallels.com>, Linux API <linux-api@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Machek <pavel@ucw.cz>, Mark Seaborn <mseaborn@chromium.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, Daniel James <djames@undo-software.com>, Finn Grimwood <fgrimwood@undo-software.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hi Konstantin,
+Hi,
 
-I hope you won't mind me thinking out loud here on the idea of adding
-a flag to the v2 pagemap fields...  From a kernel PoV, I agree that
-this seems like the cleanest approach.  However, with my application
-developer hat on:
+This patch set introduces a new user API for tracking user memory pages
+that have not been used for a given period of time. The purpose of this
+is to provide the userspace with the means of tracking a workload's
+working set, i.e. the set of pages that are actively used by the
+workload. Knowing the working set size can be useful for partitioning
+the system more efficiently, e.g. by tuning memory cgroup limits
+appropriately, or for job placement within a compute cluster.
 
- 1. I was hoping we'd be able to backport a compatible fix to older
-kernels that might adopt the pagemap permissions change.  Using the V2
-format flags rules out doing this for kernels that are too old to have
-soft-dirty, I think.
- 2. From our software's PoV, I feel it's worth noting that it doesn't
-strictly fix ABI compatibility, though I realise that's probably not
-your primary concern here.  We'll need to modify our code to write the
-clear_refs file but that change is OK for us if it's the preferred
-solution.
+---- USE CASES ----
 
-In the patches I've been playing with, I was considering putting the
-Exclusive flag in the now-unused PFN field of the pagemap entries.
-Since we're specifically trying to work around for the lack of PFN
-information, would there be any appetite for mirroring this flag
-unconditionally into the now-empty PFN field (i.e. whether using v1 or
-v2 flags) when accessed by an unprivileged process?
+The unified cgroup hierarchy has memory.low and memory.high knobs, which
+are defined as the low and high boundaries for the workload working set
+size. However, the working set size of a workload may be unknown or
+change in time. With this patch set, one can periodically estimate the
+amount of memory unused by each cgroup and tune their memory.low and
+memory.high parameters accordingly, therefore optimizing the overall
+memory utilization.
 
-I realise it's ugly from a kernel PoV and I feel a little bad for
-suggesting it - but it would address points 1 and 2 for us (our
-existing code just looks for changes in the pagemap entry, so sticking
-the flag in there would cause it to do the right thing).
+Another use case is balancing workloads within a compute cluster.
+Knowing how much memory is not really used by a workload unit may help
+take a more optimal decision when considering migrating the unit to
+another node within the cluster.
 
-I'm sorry to raise application-specific issues at this point; I
-appreciate that your primary concern is to improve the kernel and
-technically I like the approach that you've taken!  I'll try and
-provide more code-oriented feedback once I've tried out the changes.
+Also, as noted by Minchan, this would be useful for per-process reclaim
+(https://lwn.net/Articles/545668/). With idle tracking, we could reclaim idle
+pages only by smart user memory manager.
+
+---- USER API ----
+
+The user API consists of two new proc files:
+
+ * /proc/kpageidle.  This file implements a bitmap where each bit corresponds
+   to a page, indexed by PFN. When the bit is set, the corresponding page is
+   idle. A page is considered idle if it has not been accessed since it was
+   marked idle. To mark a page idle one should set the bit corresponding to the
+   page by writing to the file. A value written to the file is OR-ed with the
+   current bitmap value. Only user memory pages can be marked idle, for other
+   page types input is silently ignored. Writing to this file beyond max PFN
+   results in the ENXIO error. Only available when CONFIG_IDLE_PAGE_TRACKING is
+   set.
+
+   This file can be used to estimate the amount of pages that are not
+   used by a particular workload as follows:
+
+   1. mark all pages of interest idle by setting corresponding bits in the
+      /proc/kpageidle bitmap
+   2. wait until the workload accesses its working set
+   3. read /proc/kpageidle and count the number of bits set
+
+ * /proc/kpagecgroup.  This file contains a 64-bit inode number of the
+   memory cgroup each page is charged to, indexed by PFN. Only available when
+   CONFIG_MEMCG is set.
+
+   This file can be used to find all pages (including unmapped file
+   pages) accounted to a particular cgroup. Using /proc/kpageidle, one
+   can then estimate the cgroup working set size.
+
+For an example of using these files for estimating the amount of unused
+memory pages per each memory cgroup, please see the script attached
+below.
+
+---- REASONING ----
+
+The reason to introduce the new user API instead of using
+/proc/PID/{clear_refs,smaps} is that the latter has two serious
+drawbacks:
+
+ - it does not count unmapped file pages
+ - it affects the reclaimer logic
+
+The new API attempts to overcome them both. For more details on how it
+is achieved, please see the comment to patch 3.
+
+---- CHANGE LOG ----
+
+Changes in v5:
+
+ - Fix possible race between kpageidle_clear_pte_refs() and
+   __page_set_anon_rmap() by checking that a page is on an LRU list
+   under zone->lru_lock (Minchan).
+ - Export idle flag via /proc/kpageflags (Minchan).
+ - Rebase on top of 4.1-rc3.
+
+Changes in v4:
+
+This iteration primarily addresses Minchan's comments to v3:
+
+ - Implement /proc/kpageidle as a bitmap instead of using u64 per each page,
+   because there does not seem to be any future uses for the other 63 bits.
+ - Do not double-increase pra->referenced in page_referenced_one() if the page
+   was young and referenced recently.
+ - Remove the pointless (page_count == 0) check from kpageidle_get_page().
+ - Rename kpageidle_clear_refs() to kpageidle_clear_pte_refs().
+ - Improve comments to kpageidle-related functions.
+ - Rebase on top of 4.1-rc2.
+
+Note it does not address Minchan's concern of possible __page_set_anon_rmap vs
+page_referenced race (see https://lkml.org/lkml/2015/5/3/220) since it is still
+unclear if this race can really happen (see https://lkml.org/lkml/2015/5/4/160)
+
+Changes in v3:
+
+ - Enable CONFIG_IDLE_PAGE_TRACKING for 32 bit. Since this feature
+   requires two extra page flags and there is no space for them on 32
+   bit, page ext is used (thanks to Minchan Kim).
+ - Minor code cleanups and comments improved.
+ - Rebase on top of 4.1-rc1.
+
+Changes in v2:
+
+ - The main difference from v1 is the API change. In v1 the user can
+   only set the idle flag for all pages at once, and for clearing the
+   Idle flag on pages accessed via page tables /proc/PID/clear_refs
+   should be used.
+   The main drawback of the v1 approach, as noted by Minchan, is that on
+   big machines setting the idle flag for each pages can result in CPU
+   bursts, which would be especially frustrating if the user only wanted
+   to estimate the amount of idle pages for a particular process or VMA.
+   With the new API a more fine-grained approach is possible: one can
+   read a process's /proc/PID/pagemap and set/check the Idle flag only
+   for those pages of the process's address space he or she is
+   interested in.
+   Another good point about the v2 API is that it is possible to limit
+   /proc/kpage* scanning rate when the user wants to estimate the total
+   number of idle pages, which is unachievable with the v1 approach.
+ - Make /proc/kpagecgroup return the ino of the closest online ancestor
+   in case the cgroup a page is charged to is offline.
+ - Fix /proc/PID/clear_refs not clearing Young page flag.
+ - Rebase on top of v4.0-rc6-mmotm-2015-04-01-14-54
+
+v4: https://lkml.org/lkml/2015/5/7/580
+v3: https://lkml.org/lkml/2015/4/28/224
+v2: https://lkml.org/lkml/2015/4/7/260
+v1: https://lkml.org/lkml/2015/3/18/794
+
+---- PATCH SET STRUCTURE ----
+
+The patch set is organized as follows:
+
+ - patch 1 adds page_cgroup_ino() helper for the sake of
+   /proc/kpagecgroup
+ - patch 2 adds /proc/kpagecgroup, which reports cgroup ino each page is
+   charged to
+ - patch 3 implements the idle page tracking feature, including the
+   userspace API, /proc/kpageidle
+ - patch 4 exports idle flag via /proc/kpageflags
+
+---- SIMILAR WORKS ----
+
+Originally, the patch for tracking idle memory was proposed back in 2011
+by Michel Lespinasse (see http://lwn.net/Articles/459269/). The main
+difference between Michel's patch and this one is that Michel
+implemented a kernel space daemon for estimating idle memory size per
+cgroup while this patch only provides the userspace with the minimal API
+for doing the job, leaving the rest up to the userspace. However, they
+both share the same idea of Idle/Young page flags to avoid affecting the
+reclaimer logic.
+
+---- SCRIPT FOR COUNTING IDLE PAGES PER CGROUP ----
+#! /usr/bin/python
+#
+
+import os
+import stat
+import errno
+import struct
+
+CGROUP_MOUNT = "/sys/fs/cgroup/memory"
+BUFSIZE = 8 * 1024  # must be multiple of 8
+
+
+def set_idle():
+    f = open("/proc/kpageidle", "wb", BUFSIZE)
+    while True:
+        try:
+            f.write(struct.pack("Q", pow(2, 64) - 1))
+        except IOError as err:
+            if err.errno == errno.ENXIO:
+                break
+            raise
+    f.close()
+
+
+def count_idle():
+    f_flags = open("/proc/kpageflags", "rb", BUFSIZE)
+    f_cgroup = open("/proc/kpagecgroup", "rb", BUFSIZE)
+    f_idle = open("/proc/kpageidle", "rb", BUFSIZE)
+
+    pfn = 0
+    nr_idle = {}
+    while True:
+        s = f_flags.read(8)
+        if not s:
+            break
+
+        flags, = struct.unpack('Q', s)
+        cgino, = struct.unpack('Q', f_cgroup.read(8))
+
+        bit = pfn % 64
+        if not bit:
+            idle_bitmap, = struct.unpack('Q', f_idle.read(8))
+
+        idle = idle_bitmap >> bit & 1
+        pfn += 1
+
+        unevictable = flags >> 18 & 1
+        huge = flags >> 22 & 1
+
+        if idle and not unevictable:
+            nr_idle[cgino] = nr_idle.get(cgino, 0) + (512 if huge else 1)
+
+    f_flags.close()
+    f_cgroup.close()
+    f_idle.close()
+    return nr_idle
+
+
+print "Setting the idle flag for each page..."
+set_idle()
+
+raw_input("Wait until the workload accesses its working set, then press Enter")
+
+print "Counting idle pages..."
+nr_idle = count_idle()
+
+for dir, subdirs, files in os.walk(CGROUP_MOUNT):
+    ino = os.stat(dir)[stat.ST_INO]
+    print dir + ": " + str(nr_idle.get(ino, 0) * 4) + " KB"
+---- END SCRIPT ----
+
+Comments are more than welcome.
 
 Thanks,
-Mark
 
-On Tue, May 12, 2015 at 10:43 AM, Konstantin Khlebnikov
-<khlebnikov@yandex-team.ru> wrote:
-> This patch sets bit 56 in pagemap if this page is mapped only once.
-> It allows to detect exclusively used pages without exposing PFN:
->
-> present file exclusive state
-> 0       0    0         non-present
-> 1       1    0         file page mapped somewhere else
-> 1       1    1         file page mapped only here
-> 1       0    0         anon non-CoWed page (shared with parent/child)
-> 1       0    1         anon CoWed page (or never forked)
->
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-> Link: lkml.kernel.org/r/CAEVpBa+_RyACkhODZrRvQLs80iy0sqpdrd0AaP_-tgnX3Y9yNQ@mail.gmail.com
->
-> ---
->
-> v2:
-> * handle transparent huge pages
-> * invert bit and rename shared -> exclusive (less confusing name)
-> ---
->  Documentation/vm/pagemap.txt |    3 ++-
->  fs/proc/task_mmu.c           |   10 ++++++++++
->  tools/vm/page-types.c        |   12 ++++++++++++
->  3 files changed, 24 insertions(+), 1 deletion(-)
->
-> diff --git a/Documentation/vm/pagemap.txt b/Documentation/vm/pagemap.txt
-> index 6bfbc172cdb9..3cfbbb333ea1 100644
-> --- a/Documentation/vm/pagemap.txt
-> +++ b/Documentation/vm/pagemap.txt
-> @@ -16,7 +16,8 @@ There are three components to pagemap:
->      * Bits 0-4   swap type if swapped
->      * Bits 5-54  swap offset if swapped
->      * Bit  55    pte is soft-dirty (see Documentation/vm/soft-dirty.txt)
-> -    * Bits 56-60 zero
-> +    * Bit  56    page exlusively mapped
-> +    * Bits 57-60 zero
->      * Bit  61    page is file-page or shared-anon
->      * Bit  62    page swapped
->      * Bit  63    page present
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 6dee68d013ff..29febec65de4 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -982,6 +982,7 @@ struct pagemapread {
->  #define PM_STATUS2(v2, x)   (__PM_PSHIFT(v2 ? x : PAGE_SHIFT))
->
->  #define __PM_SOFT_DIRTY      (1LL)
-> +#define __PM_MMAP_EXCLUSIVE  (2LL)
->  #define PM_PRESENT          PM_STATUS(4LL)
->  #define PM_SWAP             PM_STATUS(2LL)
->  #define PM_FILE             PM_STATUS(1LL)
-> @@ -1074,6 +1075,8 @@ static void pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
->
->         if (page && !PageAnon(page))
->                 flags |= PM_FILE;
-> +       if (page && page_mapcount(page) == 1)
-> +               flags2 |= __PM_MMAP_EXCLUSIVE;
->         if ((vma->vm_flags & VM_SOFTDIRTY))
->                 flags2 |= __PM_SOFT_DIRTY;
->
-> @@ -1119,6 +1122,13 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->                 else
->                         pmd_flags2 = 0;
->
-> +               if (pmd_present(*pmd)) {
-> +                       struct page *page = pmd_page(*pmd);
-> +
-> +                       if (page_mapcount(page) == 1)
-> +                               pmd_flags2 |= __PM_MMAP_EXCLUSIVE;
-> +               }
-> +
->                 for (; addr != end; addr += PAGE_SIZE) {
->                         unsigned long offset;
->                         pagemap_entry_t pme;
-> diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
-> index 8bdf16b8ba60..3a9f193526ee 100644
-> --- a/tools/vm/page-types.c
-> +++ b/tools/vm/page-types.c
-> @@ -70,9 +70,12 @@
->  #define PM_PFRAME(x)        ((x) & PM_PFRAME_MASK)
->
->  #define __PM_SOFT_DIRTY      (1LL)
-> +#define __PM_MMAP_EXCLUSIVE  (2LL)
->  #define PM_PRESENT          PM_STATUS(4LL)
->  #define PM_SWAP             PM_STATUS(2LL)
-> +#define PM_FILE             PM_STATUS(1LL)
->  #define PM_SOFT_DIRTY       __PM_PSHIFT(__PM_SOFT_DIRTY)
-> +#define PM_MMAP_EXCLUSIVE   __PM_PSHIFT(__PM_MMAP_EXCLUSIVE)
->
->
->  /*
-> @@ -100,6 +103,8 @@
->  #define KPF_SLOB_FREE          49
->  #define KPF_SLUB_FROZEN                50
->  #define KPF_SLUB_DEBUG         51
-> +#define KPF_FILE               62
-> +#define KPF_MMAP_EXCLUSIVE     63
->
->  #define KPF_ALL_BITS           ((uint64_t)~0ULL)
->  #define KPF_HACKERS_BITS       (0xffffULL << 32)
-> @@ -149,6 +154,9 @@ static const char * const page_flag_names[] = {
->         [KPF_SLOB_FREE]         = "P:slob_free",
->         [KPF_SLUB_FROZEN]       = "A:slub_frozen",
->         [KPF_SLUB_DEBUG]        = "E:slub_debug",
-> +
-> +       [KPF_FILE]              = "F:file",
-> +       [KPF_MMAP_EXCLUSIVE]    = "1:mmap_exclusive",
->  };
->
->
-> @@ -452,6 +460,10 @@ static uint64_t expand_overloaded_flags(uint64_t flags, uint64_t pme)
->
->         if (pme & PM_SOFT_DIRTY)
->                 flags |= BIT(SOFTDIRTY);
-> +       if (pme & PM_FILE)
-> +               flags |= BIT(FILE);
-> +       if (pme & PM_MMAP_EXCLUSIVE)
-> +               flags |= BIT(MMAP_EXCLUSIVE);
->
->         return flags;
->  }
->
+Vladimir Davydov (4):
+  memcg: add page_cgroup_ino helper
+  proc: add kpagecgroup file
+  proc: add kpageidle file
+  proc: export idle flag via kpageflags
+
+ Documentation/vm/pagemap.txt           |   22 ++-
+ fs/proc/Kconfig                        |    5 +-
+ fs/proc/page.c                         |  234 ++++++++++++++++++++++++++++++++
+ fs/proc/task_mmu.c                     |    4 +-
+ include/linux/memcontrol.h             |    8 +-
+ include/linux/mm.h                     |   88 ++++++++++++
+ include/linux/page-flags.h             |    9 ++
+ include/linux/page_ext.h               |    4 +
+ include/uapi/linux/kernel-page-flags.h |    1 +
+ mm/Kconfig                             |   12 ++
+ mm/debug.c                             |    4 +
+ mm/hwpoison-inject.c                   |    5 +-
+ mm/memcontrol.c                        |   73 +++++-----
+ mm/memory-failure.c                    |   16 +--
+ mm/page_ext.c                          |    3 +
+ mm/rmap.c                              |    8 ++
+ mm/swap.c                              |    2 +
+ 17 files changed, 434 insertions(+), 64 deletions(-)
+
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
