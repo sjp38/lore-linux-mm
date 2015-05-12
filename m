@@ -1,66 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id CFE366B0072
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 05:48:05 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so2978876pde.3
-        for <linux-mm@kvack.org>; Tue, 12 May 2015 02:48:05 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id uw10si16820022pac.163.2015.05.12.02.48.01
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C216C6B0038
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 06:18:53 -0400 (EDT)
+Received: by pacyx8 with SMTP id yx8so4315261pac.1
+        for <linux-mm@kvack.org>; Tue, 12 May 2015 03:18:53 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id mq6si5426550pbb.191.2015.05.12.03.18.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 12 May 2015 02:48:02 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 0/4] hwpoison fixes for v4.2
-Date: Tue, 12 May 2015 09:46:46 +0000
-Message-ID: <1431423998-1939-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 May 2015 03:18:52 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH v2] rmap: fix theoretical race between do_wp_page and shrink_active_list
+Date: Tue, 12 May 2015 13:18:39 +0300
+Message-ID: <1431425919-28057-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
-Cc: Tony Luck <tony.luck@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
-There are some long-standing issues on hwpoison, so this patchset mentions
-them. I explain details about each bug in individual patches. In summary:
+As noted by Paul the compiler is free to store a temporary result in a
+variable on stack, heap or global unless it is explicitly marked as
+volatile, see:
 
-Patch 1: fix the wrong behavior in failing thp split
+  http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4455.html#sample-optimizations
 
-Patch 2: fix inconsistent refcounting problem on thp tail pages
+This can result in a race between do_wp_page() and shrink_active_list()
+as follows.
 
-Patch 3: fix isolation in soft offlining with keeping refcount
+In do_wp_page() we can call page_move_anon_rmap(), which sets
+page->mapping as follows:
 
-Patch 4: potential fix for me_huge_page()
+  anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+  page->mapping = (struct address_space *) anon_vma;
 
-The user visible effects of patch 1 to 3 are kernel panic with BUG_ON,
-so I believe that this patchset helps hwpoison to be more reliable.
+The page in question may be on an LRU list, because nowhere in
+do_wp_page() we remove it from the list, neither do we take any LRU
+related locks. Although the page is locked, shrink_active_list() can
+still call page_referenced() on it concurrently, because the latter does
+not require an anonymous page to be locked:
 
-This series is based on v4.1-rc3 + Xie XiuQi's patch "memory-failure:
-export page_type and action result".
+  CPU0                          CPU1
+  ----                          ----
+  do_wp_page                    shrink_active_list
+   lock_page                     page_referenced
+                                  PageAnon->yes, so skip trylock_page
+   page_move_anon_rmap
+    page->mapping = anon_vma
+                                  rmap_walk
+                                   PageAnon->no
+                                   rmap_walk_file
+                                    BUG
+    page->mapping += PAGE_MAPPING_ANON
 
-Thanks,
-Naoya Horiguchi
+This patch fixes this race by explicitly forbidding the compiler to
+split page->mapping store in page_move_anon_rmap() with the aid of
+WRITE_ONCE.
+
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>
 ---
-Tree: https://github.com/Naoya-Horiguchi/linux/tree/v4.1-rc3/hwpoison_for_v=
-4.2
----
-Summary:
+Changes in v2:
+ - do not add READ_ONCE to PageAnon and WRITE_ONCE to
+   __page_set_anon_rmap and __hugepage_set_anon_rmap (Kirill)
 
-Naoya Horiguchi (4):
-      mm/memory-failure: split thp earlier in memory error handling
-      mm/memory-failure: introduce get_hwpoison_page() for consistent refco=
-unt handling
-      mm: soft-offline: don't free target page in successful page migration
-      mm/memory-failure: me_huge_page() does nothing for thp
+ mm/rmap.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
- include/linux/mm.h   |   1 +
- mm/hwpoison-inject.c |   4 +-
- mm/memory-failure.c  | 164 +++++++++++++++++++----------------------------=
-----
- mm/migrate.c         |   9 ++-
- mm/swap.c            |   2 -
- 5 files changed, 70 insertions(+), 110 deletions(-)=
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 24dd3f9fee27..8b18fd4227d1 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -950,7 +950,7 @@ void page_move_anon_rmap(struct page *page,
+ 	VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
+ 
+ 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+-	page->mapping = (struct address_space *) anon_vma;
++	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
+ }
+ 
+ /**
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
