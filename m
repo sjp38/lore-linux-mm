@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
-	by kanga.kvack.org (Postfix) with ESMTP id AFB026B006C
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 05:43:10 -0400 (EDT)
-Received: by lbbzk7 with SMTP id zk7so1328673lbb.0
-        for <linux-mm@kvack.org>; Tue, 12 May 2015 02:43:10 -0700 (PDT)
-Received: from forward-corp1m.cmail.yandex.net (forward-corp1m.cmail.yandex.net. [2a02:6b8:b030::69])
-        by mx.google.com with ESMTPS id rk9si9982922lbb.152.2015.05.12.02.43.08
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C3A86B006E
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 05:43:13 -0400 (EDT)
+Received: by lagv1 with SMTP id v1so1211151lag.3
+        for <linux-mm@kvack.org>; Tue, 12 May 2015 02:43:12 -0700 (PDT)
+Received: from forward-corp1f.mail.yandex.net (forward-corp1f.mail.yandex.net. [2a02:6b8:0:801::10])
+        by mx.google.com with ESMTPS id rs2si9992602lbb.106.2015.05.12.02.43.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 May 2015 02:43:08 -0700 (PDT)
-Subject: [PATCH v2 1/3] pagemap: add mmap-exclusive bit for marking pages
- mapped only here
+        Tue, 12 May 2015 02:43:09 -0700 (PDT)
+Subject: [PATCH v2 2/3] pagemap: hide physical addresses from non-privileged
+ users
 From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Date: Tue, 12 May 2015 12:43:03 +0300
-Message-ID: <20150512094303.24768.10282.stgit@buzz>
+Date: Tue, 12 May 2015 12:43:05 +0300
+Message-ID: <20150512094305.24768.51807.stgit@buzz>
 In-Reply-To: <20150512090156.24768.2521.stgit@buzz>
 References: <20150512090156.24768.2521.stgit@buzz>
 MIME-Version: 1.0
@@ -24,126 +24,109 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Mark Williamson <mwilliamson@undo-software.com>, Pavel Emelyanov <xemul@parallels.com>, linux-api@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Machek <pavel@ucw.cz>, Mark Seaborn <mseaborn@chromium.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, Daniel James <djames@undo-software.com>, Finn Grimwood <fgrimwood@undo-software.com>
 
-This patch sets bit 56 in pagemap if this page is mapped only once.
-It allows to detect exclusively used pages without exposing PFN:
-
-present file exclusive state
-0       0    0         non-present
-1       1    0         file page mapped somewhere else
-1       1    1         file page mapped only here
-1       0    0         anon non-CoWed page (shared with parent/child)
-1       0    1         anon CoWed page (or never forked)
+This patch makes pagemap readable for normal users back but hides physical
+addresses from them. For some use cases PFN isn't required at all: flags
+give information about presence, page type (anon/file/swap), soft-dirty mark,
+and hint about page mapcount state: exclusive(mapcount = 1) or (mapcount > 1).
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Link: lkml.kernel.org/r/CAEVpBa+_RyACkhODZrRvQLs80iy0sqpdrd0AaP_-tgnX3Y9yNQ@mail.gmail.com
-
+Fixes: ab676b7d6fbf ("pagemap: do not leak physical addresses to non-privileged userspace")
+Link: lkml.kernel.org/r/1425935472-17949-1-git-send-email-kirill@shutemov.name
 ---
+ fs/proc/task_mmu.c |   36 ++++++++++++++++++++++--------------
+ 1 file changed, 22 insertions(+), 14 deletions(-)
 
-v2:
-* handle transparent huge pages
-* invert bit and rename shared -> exclusive (less confusing name)
----
- Documentation/vm/pagemap.txt |    3 ++-
- fs/proc/task_mmu.c           |   10 ++++++++++
- tools/vm/page-types.c        |   12 ++++++++++++
- 3 files changed, 24 insertions(+), 1 deletion(-)
-
-diff --git a/Documentation/vm/pagemap.txt b/Documentation/vm/pagemap.txt
-index 6bfbc172cdb9..3cfbbb333ea1 100644
---- a/Documentation/vm/pagemap.txt
-+++ b/Documentation/vm/pagemap.txt
-@@ -16,7 +16,8 @@ There are three components to pagemap:
-     * Bits 0-4   swap type if swapped
-     * Bits 5-54  swap offset if swapped
-     * Bit  55    pte is soft-dirty (see Documentation/vm/soft-dirty.txt)
--    * Bits 56-60 zero
-+    * Bit  56    page exlusively mapped
-+    * Bits 57-60 zero
-     * Bit  61    page is file-page or shared-anon
-     * Bit  62    page swapped
-     * Bit  63    page present
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 6dee68d013ff..29febec65de4 100644
+index 29febec65de4..0b7a8ffec95f 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
-@@ -982,6 +982,7 @@ struct pagemapread {
- #define PM_STATUS2(v2, x)   (__PM_PSHIFT(v2 ? x : PAGE_SHIFT))
- 
- #define __PM_SOFT_DIRTY      (1LL)
-+#define __PM_MMAP_EXCLUSIVE  (2LL)
- #define PM_PRESENT          PM_STATUS(4LL)
- #define PM_SWAP             PM_STATUS(2LL)
- #define PM_FILE             PM_STATUS(1LL)
-@@ -1074,6 +1075,8 @@ static void pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
- 
- 	if (page && !PageAnon(page))
- 		flags |= PM_FILE;
-+	if (page && page_mapcount(page) == 1)
-+		flags2 |= __PM_MMAP_EXCLUSIVE;
- 	if ((vma->vm_flags & VM_SOFTDIRTY))
- 		flags2 |= __PM_SOFT_DIRTY;
- 
-@@ -1119,6 +1122,13 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 		else
- 			pmd_flags2 = 0;
- 
-+		if (pmd_present(*pmd)) {
-+			struct page *page = pmd_page(*pmd);
-+
-+			if (page_mapcount(page) == 1)
-+				pmd_flags2 |= __PM_MMAP_EXCLUSIVE;
-+		}
-+
- 		for (; addr != end; addr += PAGE_SIZE) {
- 			unsigned long offset;
- 			pagemap_entry_t pme;
-diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
-index 8bdf16b8ba60..3a9f193526ee 100644
---- a/tools/vm/page-types.c
-+++ b/tools/vm/page-types.c
-@@ -70,9 +70,12 @@
- #define PM_PFRAME(x)        ((x) & PM_PFRAME_MASK)
- 
- #define __PM_SOFT_DIRTY      (1LL)
-+#define __PM_MMAP_EXCLUSIVE  (2LL)
- #define PM_PRESENT          PM_STATUS(4LL)
- #define PM_SWAP             PM_STATUS(2LL)
-+#define PM_FILE             PM_STATUS(1LL)
- #define PM_SOFT_DIRTY       __PM_PSHIFT(__PM_SOFT_DIRTY)
-+#define PM_MMAP_EXCLUSIVE   __PM_PSHIFT(__PM_MMAP_EXCLUSIVE)
- 
- 
- /*
-@@ -100,6 +103,8 @@
- #define KPF_SLOB_FREE		49
- #define KPF_SLUB_FROZEN		50
- #define KPF_SLUB_DEBUG		51
-+#define KPF_FILE		62
-+#define KPF_MMAP_EXCLUSIVE	63
- 
- #define KPF_ALL_BITS		((uint64_t)~0ULL)
- #define KPF_HACKERS_BITS	(0xffffULL << 32)
-@@ -149,6 +154,9 @@ static const char * const page_flag_names[] = {
- 	[KPF_SLOB_FREE]		= "P:slob_free",
- 	[KPF_SLUB_FROZEN]	= "A:slub_frozen",
- 	[KPF_SLUB_DEBUG]	= "E:slub_debug",
-+
-+	[KPF_FILE]		= "F:file",
-+	[KPF_MMAP_EXCLUSIVE]	= "1:mmap_exclusive",
+@@ -962,6 +962,7 @@ struct pagemapread {
+ 	int pos, len;		/* units: PM_ENTRY_BYTES, not bytes */
+ 	pagemap_entry_t *buffer;
+ 	bool v2;
++	bool show_pfn;
  };
  
+ #define PAGEMAP_WALK_SIZE	(PMD_SIZE)
+@@ -1046,12 +1047,13 @@ out:
+ static void pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
+ 		struct vm_area_struct *vma, unsigned long addr, pte_t pte)
+ {
+-	u64 frame, flags;
++	u64 frame = 0, flags;
+ 	struct page *page = NULL;
+ 	int flags2 = 0;
  
-@@ -452,6 +460,10 @@ static uint64_t expand_overloaded_flags(uint64_t flags, uint64_t pme)
- 
- 	if (pme & PM_SOFT_DIRTY)
- 		flags |= BIT(SOFTDIRTY);
-+	if (pme & PM_FILE)
-+		flags |= BIT(FILE);
-+	if (pme & PM_MMAP_EXCLUSIVE)
-+		flags |= BIT(MMAP_EXCLUSIVE);
- 
- 	return flags;
+ 	if (pte_present(pte)) {
+-		frame = pte_pfn(pte);
++		if (pm->show_pfn)
++			frame = pte_pfn(pte);
+ 		flags = PM_PRESENT;
+ 		page = vm_normal_page(vma, addr, pte);
+ 		if (pte_soft_dirty(pte))
+@@ -1087,15 +1089,19 @@ static void pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
+ static void thp_pmd_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
+ 		pmd_t pmd, int offset, int pmd_flags2)
+ {
++	u64 frame = 0;
++
+ 	/*
+ 	 * Currently pmd for thp is always present because thp can not be
+ 	 * swapped-out, migrated, or HWPOISONed (split in such cases instead.)
+ 	 * This if-check is just to prepare for future implementation.
+ 	 */
+-	if (pmd_present(pmd))
+-		*pme = make_pme(PM_PFRAME(pmd_pfn(pmd) + offset)
+-				| PM_STATUS2(pm->v2, pmd_flags2) | PM_PRESENT);
+-	else
++	if (pmd_present(pmd)) {
++		if (pm->show_pfn)
++			frame = pmd_pfn(pmd) + offset;
++		*pme = make_pme(PM_PFRAME(frame) | PM_PRESENT |
++				PM_STATUS2(pm->v2, pmd_flags2));
++	} else
+ 		*pme = make_pme(PM_NOT_PRESENT(pm->v2) | PM_STATUS2(pm->v2, pmd_flags2));
  }
+ #else
+@@ -1171,11 +1177,14 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ static void huge_pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
+ 					pte_t pte, int offset, int flags2)
+ {
+-	if (pte_present(pte))
+-		*pme = make_pme(PM_PFRAME(pte_pfn(pte) + offset)	|
+-				PM_STATUS2(pm->v2, flags2)		|
+-				PM_PRESENT);
+-	else
++	u64 frame = 0;
++
++	if (pte_present(pte)) {
++		if (pm->show_pfn)
++			frame = pte_pfn(pte) + offset;
++		*pme = make_pme(PM_PFRAME(frame) | PM_PRESENT |
++				PM_STATUS2(pm->v2, flags2));
++	} else
+ 		*pme = make_pme(PM_NOT_PRESENT(pm->v2)			|
+ 				PM_STATUS2(pm->v2, flags2));
+ }
+@@ -1260,6 +1269,8 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+ 	if (!count)
+ 		goto out_task;
+ 
++	/* do not disclose physical addresses: attack vector */
++	pm.show_pfn = capable(CAP_SYS_ADMIN);
+ 	pm.v2 = soft_dirty_cleared;
+ 	pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
+ 	pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_TEMPORARY);
+@@ -1335,9 +1346,6 @@ out:
+ 
+ static int pagemap_open(struct inode *inode, struct file *file)
+ {
+-	/* do not disclose physical addresses: attack vector */
+-	if (!capable(CAP_SYS_ADMIN))
+-		return -EPERM;
+ 	pr_warn_once("Bits 55-60 of /proc/PID/pagemap entries are about "
+ 			"to stop being page-shift some time soon. See the "
+ 			"linux/Documentation/vm/pagemap.txt for details.\n");
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
