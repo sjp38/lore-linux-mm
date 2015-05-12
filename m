@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 33F806B0038
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 09:34:39 -0400 (EDT)
-Received: by lbbqq2 with SMTP id qq2so5929882lbb.3
-        for <linux-mm@kvack.org>; Tue, 12 May 2015 06:34:38 -0700 (PDT)
+Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
+	by kanga.kvack.org (Postfix) with ESMTP id BCF426B006C
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 09:34:41 -0400 (EDT)
+Received: by lbcga7 with SMTP id ga7so5986609lbc.1
+        for <linux-mm@kvack.org>; Tue, 12 May 2015 06:34:41 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id p10si10396018laa.17.2015.05.12.06.34.35
+        by mx.google.com with ESMTPS id m4si10391064lbc.59.2015.05.12.06.34.38
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 May 2015 06:34:36 -0700 (PDT)
+        Tue, 12 May 2015 06:34:39 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v5 0/4] idle memory tracking
-Date: Tue, 12 May 2015 16:34:15 +0300
-Message-ID: <cover.1431437088.git.vdavydov@parallels.com>
+Subject: [PATCH v5 1/4] memcg: add page_cgroup_ino helper
+Date: Tue, 12 May 2015 16:34:16 +0300
+Message-ID: <9dab2ac24eaa8e4d00b982ae0d74a83a2143365d.1431437088.git.vdavydov@parallels.com>
+In-Reply-To: <cover.1431437088.git.vdavydov@parallels.com>
+References: <cover.1431437088.git.vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -20,267 +22,229 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hi,
+Hwpoison allows to filter pages by memory cgroup ino. To ahieve that, it
+calls try_get_mem_cgroup_from_page(), then mem_cgroup_css(), and finally
+cgroup_ino() on the cgroup returned. This looks bulky. Since in the next
+patch I need to get the ino of the memory cgroup a page is charged to
+too, in this patch I introduce the page_cgroup_ino() helper.
 
-This patch set introduces a new user API for tracking user memory pages
-that have not been used for a given period of time. The purpose of this
-is to provide the userspace with the means of tracking a workload's
-working set, i.e. the set of pages that are actively used by the
-workload. Knowing the working set size can be useful for partitioning
-the system more efficiently, e.g. by tuning memory cgroup limits
-appropriately, or for job placement within a compute cluster.
+Note that page_cgroup_ino() only considers those pages that are charged
+to mem_cgroup->memory (i.e. page->mem_cgroup != NULL), and for others it
+returns 0, while try_get_mem_cgroup_page(), used by hwpoison before, may
+extract the cgroup from a swapcache readahead page too. Ignoring
+swapcache readahead pages allows to call page_cgroup_ino() on unlocked
+pages, which is nice. Hwpoison users will hardly see any difference.
 
----- USE CASES ----
+Another difference between try_get_mem_cgroup_page() and
+page_cgroup_ino() is that the latter works on pages charged to offline
+memory cgroups, returning the inode number of the closest online
+ancestor in this case, while the former does not, which is crucial for
+the next patch.
 
-The unified cgroup hierarchy has memory.low and memory.high knobs, which
-are defined as the low and high boundaries for the workload working set
-size. However, the working set size of a workload may be unknown or
-change in time. With this patch set, one can periodically estimate the
-amount of memory unused by each cgroup and tune their memory.low and
-memory.high parameters accordingly, therefore optimizing the overall
-memory utilization.
+Since try_get_mem_cgroup_page() is not used by anyone else, this patch
+removes this function. Also, it makes hwpoison memcg filter depend on
+CONFIG_MEMCG instead of CONFIG_MEMCG_SWAP (I've no idea why it was made
+dependant on CONFIG_MEMCG_SWAP initially).
 
-Another use case is balancing workloads within a compute cluster.
-Knowing how much memory is not really used by a workload unit may help
-take a more optimal decision when considering migrating the unit to
-another node within the cluster.
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ include/linux/memcontrol.h |    8 ++---
+ mm/hwpoison-inject.c       |    5 +--
+ mm/memcontrol.c            |   73 ++++++++++++++++++++++----------------------
+ mm/memory-failure.c        |   16 ++--------
+ 4 files changed, 42 insertions(+), 60 deletions(-)
 
-Also, as noted by Minchan, this would be useful for per-process reclaim
-(https://lwn.net/Articles/545668/). With idle tracking, we could reclaim idle
-pages only by smart user memory manager.
-
----- USER API ----
-
-The user API consists of two new proc files:
-
- * /proc/kpageidle.  This file implements a bitmap where each bit corresponds
-   to a page, indexed by PFN. When the bit is set, the corresponding page is
-   idle. A page is considered idle if it has not been accessed since it was
-   marked idle. To mark a page idle one should set the bit corresponding to the
-   page by writing to the file. A value written to the file is OR-ed with the
-   current bitmap value. Only user memory pages can be marked idle, for other
-   page types input is silently ignored. Writing to this file beyond max PFN
-   results in the ENXIO error. Only available when CONFIG_IDLE_PAGE_TRACKING is
-   set.
-
-   This file can be used to estimate the amount of pages that are not
-   used by a particular workload as follows:
-
-   1. mark all pages of interest idle by setting corresponding bits in the
-      /proc/kpageidle bitmap
-   2. wait until the workload accesses its working set
-   3. read /proc/kpageidle and count the number of bits set
-
- * /proc/kpagecgroup.  This file contains a 64-bit inode number of the
-   memory cgroup each page is charged to, indexed by PFN. Only available when
-   CONFIG_MEMCG is set.
-
-   This file can be used to find all pages (including unmapped file
-   pages) accounted to a particular cgroup. Using /proc/kpageidle, one
-   can then estimate the cgroup working set size.
-
-For an example of using these files for estimating the amount of unused
-memory pages per each memory cgroup, please see the script attached
-below.
-
----- REASONING ----
-
-The reason to introduce the new user API instead of using
-/proc/PID/{clear_refs,smaps} is that the latter has two serious
-drawbacks:
-
- - it does not count unmapped file pages
- - it affects the reclaimer logic
-
-The new API attempts to overcome them both. For more details on how it
-is achieved, please see the comment to patch 3.
-
----- CHANGE LOG ----
-
-Changes in v5:
-
- - Fix possible race between kpageidle_clear_pte_refs() and
-   __page_set_anon_rmap() by checking that a page is on an LRU list
-   under zone->lru_lock (Minchan).
- - Export idle flag via /proc/kpageflags (Minchan).
- - Rebase on top of 4.1-rc3.
-
-Changes in v4:
-
-This iteration primarily addresses Minchan's comments to v3:
-
- - Implement /proc/kpageidle as a bitmap instead of using u64 per each page,
-   because there does not seem to be any future uses for the other 63 bits.
- - Do not double-increase pra->referenced in page_referenced_one() if the page
-   was young and referenced recently.
- - Remove the pointless (page_count == 0) check from kpageidle_get_page().
- - Rename kpageidle_clear_refs() to kpageidle_clear_pte_refs().
- - Improve comments to kpageidle-related functions.
- - Rebase on top of 4.1-rc2.
-
-Note it does not address Minchan's concern of possible __page_set_anon_rmap vs
-page_referenced race (see https://lkml.org/lkml/2015/5/3/220) since it is still
-unclear if this race can really happen (see https://lkml.org/lkml/2015/5/4/160)
-
-Changes in v3:
-
- - Enable CONFIG_IDLE_PAGE_TRACKING for 32 bit. Since this feature
-   requires two extra page flags and there is no space for them on 32
-   bit, page ext is used (thanks to Minchan Kim).
- - Minor code cleanups and comments improved.
- - Rebase on top of 4.1-rc1.
-
-Changes in v2:
-
- - The main difference from v1 is the API change. In v1 the user can
-   only set the idle flag for all pages at once, and for clearing the
-   Idle flag on pages accessed via page tables /proc/PID/clear_refs
-   should be used.
-   The main drawback of the v1 approach, as noted by Minchan, is that on
-   big machines setting the idle flag for each pages can result in CPU
-   bursts, which would be especially frustrating if the user only wanted
-   to estimate the amount of idle pages for a particular process or VMA.
-   With the new API a more fine-grained approach is possible: one can
-   read a process's /proc/PID/pagemap and set/check the Idle flag only
-   for those pages of the process's address space he or she is
-   interested in.
-   Another good point about the v2 API is that it is possible to limit
-   /proc/kpage* scanning rate when the user wants to estimate the total
-   number of idle pages, which is unachievable with the v1 approach.
- - Make /proc/kpagecgroup return the ino of the closest online ancestor
-   in case the cgroup a page is charged to is offline.
- - Fix /proc/PID/clear_refs not clearing Young page flag.
- - Rebase on top of v4.0-rc6-mmotm-2015-04-01-14-54
-
-v4: https://lkml.org/lkml/2015/5/7/580
-v3: https://lkml.org/lkml/2015/4/28/224
-v2: https://lkml.org/lkml/2015/4/7/260
-v1: https://lkml.org/lkml/2015/3/18/794
-
----- PATCH SET STRUCTURE ----
-
-The patch set is organized as follows:
-
- - patch 1 adds page_cgroup_ino() helper for the sake of
-   /proc/kpagecgroup
- - patch 2 adds /proc/kpagecgroup, which reports cgroup ino each page is
-   charged to
- - patch 3 implements the idle page tracking feature, including the
-   userspace API, /proc/kpageidle
- - patch 4 exports idle flag via /proc/kpageflags
-
----- SIMILAR WORKS ----
-
-Originally, the patch for tracking idle memory was proposed back in 2011
-by Michel Lespinasse (see http://lwn.net/Articles/459269/). The main
-difference between Michel's patch and this one is that Michel
-implemented a kernel space daemon for estimating idle memory size per
-cgroup while this patch only provides the userspace with the minimal API
-for doing the job, leaving the rest up to the userspace. However, they
-both share the same idea of Idle/Young page flags to avoid affecting the
-reclaimer logic.
-
----- SCRIPT FOR COUNTING IDLE PAGES PER CGROUP ----
-#! /usr/bin/python
-#
-
-import os
-import stat
-import errno
-import struct
-
-CGROUP_MOUNT = "/sys/fs/cgroup/memory"
-BUFSIZE = 8 * 1024  # must be multiple of 8
-
-
-def set_idle():
-    f = open("/proc/kpageidle", "wb", BUFSIZE)
-    while True:
-        try:
-            f.write(struct.pack("Q", pow(2, 64) - 1))
-        except IOError as err:
-            if err.errno == errno.ENXIO:
-                break
-            raise
-    f.close()
-
-
-def count_idle():
-    f_flags = open("/proc/kpageflags", "rb", BUFSIZE)
-    f_cgroup = open("/proc/kpagecgroup", "rb", BUFSIZE)
-    f_idle = open("/proc/kpageidle", "rb", BUFSIZE)
-
-    pfn = 0
-    nr_idle = {}
-    while True:
-        s = f_flags.read(8)
-        if not s:
-            break
-
-        flags, = struct.unpack('Q', s)
-        cgino, = struct.unpack('Q', f_cgroup.read(8))
-
-        bit = pfn % 64
-        if not bit:
-            idle_bitmap, = struct.unpack('Q', f_idle.read(8))
-
-        idle = idle_bitmap >> bit & 1
-        pfn += 1
-
-        unevictable = flags >> 18 & 1
-        huge = flags >> 22 & 1
-
-        if idle and not unevictable:
-            nr_idle[cgino] = nr_idle.get(cgino, 0) + (512 if huge else 1)
-
-    f_flags.close()
-    f_cgroup.close()
-    f_idle.close()
-    return nr_idle
-
-
-print "Setting the idle flag for each page..."
-set_idle()
-
-raw_input("Wait until the workload accesses its working set, then press Enter")
-
-print "Counting idle pages..."
-nr_idle = count_idle()
-
-for dir, subdirs, files in os.walk(CGROUP_MOUNT):
-    ino = os.stat(dir)[stat.ST_INO]
-    print dir + ": " + str(nr_idle.get(ino, 0) * 4) + " KB"
----- END SCRIPT ----
-
-Comments are more than welcome.
-
-Thanks,
-
-Vladimir Davydov (4):
-  memcg: add page_cgroup_ino helper
-  proc: add kpagecgroup file
-  proc: add kpageidle file
-  proc: export idle flag via kpageflags
-
- Documentation/vm/pagemap.txt           |   22 ++-
- fs/proc/Kconfig                        |    5 +-
- fs/proc/page.c                         |  234 ++++++++++++++++++++++++++++++++
- fs/proc/task_mmu.c                     |    4 +-
- include/linux/memcontrol.h             |    8 +-
- include/linux/mm.h                     |   88 ++++++++++++
- include/linux/page-flags.h             |    9 ++
- include/linux/page_ext.h               |    4 +
- include/uapi/linux/kernel-page-flags.h |    1 +
- mm/Kconfig                             |   12 ++
- mm/debug.c                             |    4 +
- mm/hwpoison-inject.c                   |    5 +-
- mm/memcontrol.c                        |   73 +++++-----
- mm/memory-failure.c                    |   16 +--
- mm/page_ext.c                          |    3 +
- mm/rmap.c                              |    8 ++
- mm/swap.c                              |    2 +
- 17 files changed, 434 insertions(+), 64 deletions(-)
-
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 72dff5fb0d0c..9262a8407af7 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -91,7 +91,6 @@ bool mem_cgroup_is_descendant(struct mem_cgroup *memcg,
+ 			      struct mem_cgroup *root);
+ bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
+ 
+-extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+ 
+ extern struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
+@@ -192,6 +191,8 @@ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
+ void mem_cgroup_split_huge_fixup(struct page *head);
+ #endif
+ 
++unsigned long page_cgroup_ino(struct page *page);
++
+ #else /* CONFIG_MEMCG */
+ struct mem_cgroup;
+ 
+@@ -252,11 +253,6 @@ static inline struct lruvec *mem_cgroup_page_lruvec(struct page *page,
+ 	return &zone->lruvec;
+ }
+ 
+-static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+-{
+-	return NULL;
+-}
+-
+ static inline bool mm_match_cgroup(struct mm_struct *mm,
+ 		struct mem_cgroup *memcg)
+ {
+diff --git a/mm/hwpoison-inject.c b/mm/hwpoison-inject.c
+index 4ca5fe0042e1..d2facac0b01f 100644
+--- a/mm/hwpoison-inject.c
++++ b/mm/hwpoison-inject.c
+@@ -45,12 +45,9 @@ static int hwpoison_inject(void *data, u64 val)
+ 	/*
+ 	 * do a racy check with elevated page count, to make sure PG_hwpoison
+ 	 * will only be set for the targeted owner (or on a free page).
+-	 * We temporarily take page lock for try_get_mem_cgroup_from_page().
+ 	 * memory_failure() will redo the check reliably inside page lock.
+ 	 */
+-	lock_page(hpage);
+ 	err = hwpoison_filter(hpage);
+-	unlock_page(hpage);
+ 	if (err)
+ 		goto put_out;
+ 
+@@ -126,7 +123,7 @@ static int pfn_inject_init(void)
+ 	if (!dentry)
+ 		goto fail;
+ 
+-#ifdef CONFIG_MEMCG_SWAP
++#ifdef CONFIG_MEMCG
+ 	dentry = debugfs_create_u64("corrupt-filter-memcg", 0600,
+ 				    hwpoison_dir, &hwpoison_filter_memcg);
+ 	if (!dentry)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 14c2f2017e37..87c7f852d45b 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2349,40 +2349,6 @@ static void cancel_charge(struct mem_cgroup *memcg, unsigned int nr_pages)
+ 	css_put_many(&memcg->css, nr_pages);
+ }
+ 
+-/*
+- * try_get_mem_cgroup_from_page - look up page's memcg association
+- * @page: the page
+- *
+- * Look up, get a css reference, and return the memcg that owns @page.
+- *
+- * The page must be locked to prevent racing with swap-in and page
+- * cache charges.  If coming from an unlocked page table, the caller
+- * must ensure the page is on the LRU or this can race with charging.
+- */
+-struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+-{
+-	struct mem_cgroup *memcg;
+-	unsigned short id;
+-	swp_entry_t ent;
+-
+-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+-
+-	memcg = page->mem_cgroup;
+-	if (memcg) {
+-		if (!css_tryget_online(&memcg->css))
+-			memcg = NULL;
+-	} else if (PageSwapCache(page)) {
+-		ent.val = page_private(page);
+-		id = lookup_swap_cgroup_id(ent);
+-		rcu_read_lock();
+-		memcg = mem_cgroup_from_id(id);
+-		if (memcg && !css_tryget_online(&memcg->css))
+-			memcg = NULL;
+-		rcu_read_unlock();
+-	}
+-	return memcg;
+-}
+-
+ static void lock_page_lru(struct page *page, int *isolated)
+ {
+ 	struct zone *zone = page_zone(page);
+@@ -2774,6 +2740,31 @@ void mem_cgroup_split_huge_fixup(struct page *head)
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 
++/**
++ * page_cgroup_ino - return inode number of page's memcg
++ * @page: the page
++ *
++ * Look up the closest online ancestor of the memory cgroup @page is charged to
++ * and return its inode number. It is safe to call this function without taking
++ * a reference to the page.
++ */
++unsigned long page_cgroup_ino(struct page *page)
++{
++	struct mem_cgroup *memcg;
++	unsigned long ino = 0;
++
++	rcu_read_lock();
++	memcg = READ_ONCE(page->mem_cgroup);
++	while (memcg && !css_tryget_online(&memcg->css))
++		memcg = parent_mem_cgroup(memcg);
++	rcu_read_unlock();
++	if (memcg) {
++		ino = cgroup_ino(memcg->css.cgroup);
++		css_put(&memcg->css);
++	}
++	return ino;
++}
++
+ #ifdef CONFIG_MEMCG_SWAP
+ static void mem_cgroup_swap_statistics(struct mem_cgroup *memcg,
+ 					 bool charge)
+@@ -5482,8 +5473,18 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
+ 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+ 	}
+ 
+-	if (do_swap_account && PageSwapCache(page))
+-		memcg = try_get_mem_cgroup_from_page(page);
++	if (do_swap_account && PageSwapCache(page)) {
++		swp_entry_t ent = { .val = page_private(page), };
++		unsigned short id = lookup_swap_cgroup_id(ent);
++
++		VM_BUG_ON_PAGE(!PageLocked(page), page);
++
++		rcu_read_lock();
++		memcg = mem_cgroup_from_id(id);
++		if (memcg && !css_tryget_online(&memcg->css))
++			memcg = NULL;
++		rcu_read_unlock();
++	}
+ 	if (!memcg)
+ 		memcg = get_mem_cgroup_from_mm(mm);
+ 
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 501820c815b3..7166ad81b222 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -128,27 +128,15 @@ static int hwpoison_filter_flags(struct page *p)
+  * can only guarantee that the page either belongs to the memcg tasks, or is
+  * a freed page.
+  */
+-#ifdef	CONFIG_MEMCG_SWAP
++#ifdef CONFIG_MEMCG
+ u64 hwpoison_filter_memcg;
+ EXPORT_SYMBOL_GPL(hwpoison_filter_memcg);
+ static int hwpoison_filter_task(struct page *p)
+ {
+-	struct mem_cgroup *mem;
+-	struct cgroup_subsys_state *css;
+-	unsigned long ino;
+-
+ 	if (!hwpoison_filter_memcg)
+ 		return 0;
+ 
+-	mem = try_get_mem_cgroup_from_page(p);
+-	if (!mem)
+-		return -EINVAL;
+-
+-	css = mem_cgroup_css(mem);
+-	ino = cgroup_ino(css->cgroup);
+-	css_put(css);
+-
+-	if (ino != hwpoison_filter_memcg)
++	if (page_cgroup_ino(p) != hwpoison_filter_memcg)
+ 		return -EINVAL;
+ 
+ 	return 0;
 -- 
 1.7.10.4
 
