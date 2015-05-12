@@ -1,75 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id A9E2C6B0038
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 03:57:02 -0400 (EDT)
-Received: by wggj6 with SMTP id j6so18676770wgg.3
-        for <linux-mm@kvack.org>; Tue, 12 May 2015 00:57:02 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cn6si26099973wjb.209.2015.05.12.00.57.01
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id F379D6B0038
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 04:34:57 -0400 (EDT)
+Received: by pacyx8 with SMTP id yx8so131636pac.1
+        for <linux-mm@kvack.org>; Tue, 12 May 2015 01:34:57 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id b1si15395767pat.100.2015.05.12.01.34.56
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 12 May 2015 00:57:01 -0700 (PDT)
-Message-ID: <5551B24C.7080801@suse.cz>
-Date: Tue, 12 May 2015 09:57:00 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 May 2015 01:34:56 -0700 (PDT)
+Date: Tue, 12 May 2015 11:34:38 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [RFC] rmap: fix "race" between do_wp_page and shrink_active_list
+Message-ID: <20150512083438.GB17628@esperanza>
+References: <1431330677-24476-1-git-send-email-vdavydov@parallels.com>
+ <CAFP4FLoPfisZib3SQeeW57U6NPxnpd=rNRgiv9OOsYDrFWd=6A@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] mm/page_alloc: don't break highest order freepage
- if steal
-References: <1430119421-13536-1-git-send-email-iamjoonsoo.kim@lge.com> <20150427080850.GF2449@suse.de> <20150427084257.GA13790@js1304-P5Q-DELUXE>
-In-Reply-To: <20150427084257.GA13790@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <CAFP4FLoPfisZib3SQeeW57U6NPxnpd=rNRgiv9OOsYDrFWd=6A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
+To: yalin wang <yalin.wang2010@gmail.com>
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 04/27/2015 10:42 AM, Joonsoo Kim wrote:
-> On Mon, Apr 27, 2015 at 09:08:50AM +0100, Mel Gorman wrote:
->> On Mon, Apr 27, 2015 at 04:23:39PM +0900, Joonsoo Kim wrote:
->>> When we steal whole pageblock, we don't need to break highest order
->>> freepage. Perhaps, there is small order freepage so we can use it.
->>>
->>
->> The reason why the largest block is taken is to reduce the probability
->> there will be another fallback event in the near future. Early on, there
->> were a lot of tests conducted to measure the number of external fragmenting
->> events and take steps to reduce them. Stealing the largest highest order
->> freepage was one of those steps.
->
-> Hello, Mel.
->
-> Purpose of this patch is not "stop steal highest order freepage".
-> Currently, in case of that we steal all freepage including highest
-> order freepage in certain pageblock, we break highest order freepage and
-> return it even if we have low order freepage that we immediately steal.
->
-> For example,
->
-> Pageblock A has 5 freepage (4 * order 0, 1 * order 3) and
-> we try to steal all freepage on pageblock A.
->
-> Withouth this patch, we move all freepage to requested migratetype
-> buddy list and break order 3 freepage. Leftover is like as following.
->
-> (5 * order 0, 1 * order 1, 1* order 2)
->
-> With this patch, (3 * order 0, 1 * order 3) remains.
->
-> I think that this is better than before because we still have high order
-> page. Isn't it?
+On Mon, May 11, 2015 at 04:59:27PM +0800, yalin wang wrote:
+> i am confused about your analysis ,
+> for the race stack:
+> 
+> CPU0                          CPU1
+> 
+>    ----                          ----
+> 
+>    do_wp_page                    shrink_active_list
+> 
+>     lock_page                     page_referenced
+> 
+>                                    PageAnon->yes, so skip trylock_page
+> 
+>     page_move_anon_rmap
+> 
+>      page->mapping = anon_vma
+> 
+>                                    rmap_walk
+> 
+>                                     PageAnon->no
+> 
+>                                     rmap_walk_file
+> 
+>                                      BUG
+> 
+>      page->mapping += PAGE_MAPPING_ANON
+> 
+> the page should must change from PageAnon() to !PageAnon() when crash happened.
+> but page_move_anon_rmap() is doing change a page from !PageAnon()
+> (swapcache page) to PageAnon() ,
 
-I agree that this should be better in some cases and shouldn't be worse 
-in any case. Nice catch.
+A swapcache page is not necessarily !PageAnon. In do_wp_page() old_page
+*is* PageAnon. It may or may not be on the swapcache though, which does
+not really matter.
 
-> Thanks.
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+> how does this race condition crash happened ?
+
+It never happened. It might theoretically happen due to a compiler
+"optimization" I described above.
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
