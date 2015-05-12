@@ -1,49 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EA0D6B0038
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 10:39:41 -0400 (EDT)
-Received: by pdbnk13 with SMTP id nk13so15030779pdb.0
-        for <linux-mm@kvack.org>; Tue, 12 May 2015 07:39:41 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id b2si9243575pdf.235.2015.05.12.07.39.39
-        for <linux-mm@kvack.org>;
-        Tue, 12 May 2015 07:39:40 -0700 (PDT)
-Date: Tue, 12 May 2015 10:39:37 -0400 (EDT)
-Message-Id: <20150512.103937.434422170476918731.davem@davemloft.net>
-Subject: Re: [PATCH 00/10] Refactor netdev page frags and move them into mm/
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20150511133652.cd885d654213fe4161da0d87@linux-foundation.org>
-References: <20150507035558.1873.52664.stgit@ahduyck-vm-fedora22>
-	<20150510.191758.2130017622255857830.davem@davemloft.net>
-	<20150511133652.cd885d654213fe4161da0d87@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F8536B006C
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 10:40:37 -0400 (EDT)
+Received: by qgdy78 with SMTP id y78so5156393qgd.0
+        for <linux-mm@kvack.org>; Tue, 12 May 2015 07:40:37 -0700 (PDT)
+Received: from mail-qk0-x22d.google.com (mail-qk0-x22d.google.com. [2607:f8b0:400d:c09::22d])
+        by mx.google.com with ESMTPS id b123si16330216qka.20.2015.05.12.07.40.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 May 2015 07:40:36 -0700 (PDT)
+Received: by qku63 with SMTP id 63so6856098qku.3
+        for <linux-mm@kvack.org>; Tue, 12 May 2015 07:40:35 -0700 (PDT)
+Date: Tue, 12 May 2015 10:40:32 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH] PM, freezer: Don't thaw when it's intended frozen
+ processes
+Message-ID: <20150512144032.GN11388@htj.duckdns.org>
+References: <20150507064557.GA26928@july>
+ <20150507154212.GA12245@htj.duckdns.org>
+ <CAH9JG2UAVRgX0Mg0d7WgG0URpkgu4q_bbNMXyOOEh9WFPztppQ@mail.gmail.com>
+ <20150508152513.GB28439@htj.duckdns.org>
+ <CAJKOXPfmzvE_P15jTrkrXMDuWdqewj2uhM6N1vt=QBD2_ZFhrg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJKOXPfmzvE_P15jTrkrXMDuWdqewj2uhM6N1vt=QBD2_ZFhrg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: alexander.h.duyck@redhat.com, netdev@vger.kernel.org, linux-mm@kvack.org, eric.dumazet@gmail.com
+To: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Cc: Kyungmin Park <kmpark@infradead.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "\\Rafael J. Wysocki\\" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux PM list <linux-pm@vger.kernel.org>
 
-From: Andrew Morton <akpm@linux-foundation.org>
-Date: Mon, 11 May 2015 13:36:52 -0700
+On Mon, May 11, 2015 at 03:33:10PM +0900, Krzysztof Kozlowski wrote:
+> > Yes, they should and I'm not sure why what you're saying is happening
+> > because freezing() test done from the frozen tasks themselves should
+> > keep them in the freezer.  Which kernel version did you test?  Can you
+> > please verify it against a recent kernel?
+> 
+> I tested it on v4.1-rc3 and next-20150508.
+> 
+> Task was moved to frozen cgroup:
+> -----
+> root@localhost:/sys/fs/cgroup/freezer/frozen# grep . *
+> cgroup.clone_children:0
+> cgroup.procs:2750
+> freezer.parent_freezing:0
+> freezer.self_freezing:1
+> freezer.state:FROZEN
+> notify_on_release:0
+> tasks:2750
+> tasks:2773
+> -----
+> 
+> Unfortunately during system resume the process was woken up. The "if
+> (frozen(p))" check was true. Is it expected behaviour?
 
-> On Sun, 10 May 2015 19:17:58 -0400 (EDT) David Miller <davem@davemloft.net> wrote:
-> 
->> > 4.9%	build_skb		3.8%	__napi_alloc_skb
->> > 2.5%	__alloc_rx_skb
->> > 1.9%	__napi_alloc_skb
->> 
->> I like this series, but again I need to see feedback from some
->> mm folks before I can consider applying it.
-> 
-> The MM part looks OK to me - it's largely moving code out of net/ into
-> mm/.  It's a bit weird and it's unclear whether the code will gain
-> other callers, but putting it in mm/ increase the likelihood that some other
-> subsystem will use it.
-> 
-> Please merge it via a net tree when ready.
+It isn't optimal but doesn't break anything either.  Whether a task
+stays in the freezer or not is solely decided by freezing() test by
+the task itself.  Being woken up spuriously doesn't break anything.
 
-Ok, will do that now, thanks Andrew!
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
