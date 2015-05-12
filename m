@@ -1,102 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 698316B0038
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 18:00:20 -0400 (EDT)
-Received: by pacwv17 with SMTP id wv17so27817155pac.0
-        for <linux-mm@kvack.org>; Tue, 12 May 2015 15:00:20 -0700 (PDT)
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id E621F6B0038
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 18:28:42 -0400 (EDT)
+Received: by pacwv17 with SMTP id wv17so28520112pac.0
+        for <linux-mm@kvack.org>; Tue, 12 May 2015 15:28:42 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id po7si24220554pbc.6.2015.05.12.15.00.18
+        by mx.google.com with ESMTPS id d2si24225961pbu.190.2015.05.12.15.28.41
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 May 2015 15:00:19 -0700 (PDT)
-Date: Tue, 12 May 2015 15:00:17 -0700
+        Tue, 12 May 2015 15:28:41 -0700 (PDT)
+Date: Tue, 12 May 2015 15:28:40 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/4] mm/memory-failure: introduce get_hwpoison_page()
- for consistent refcount handling
-Message-Id: <20150512150017.4172e4b7bd549e16d8772753@linux-foundation.org>
-In-Reply-To: <1431423998-1939-3-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1431423998-1939-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1431423998-1939-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v2] rmap: fix theoretical race between do_wp_page and
+ shrink_active_list
+Message-Id: <20150512152840.20805775ae82c69b9a8f3028@linux-foundation.org>
+In-Reply-To: <1431425919-28057-1-git-send-email-vdavydov@parallels.com>
+References: <1431425919-28057-1-git-send-email-vdavydov@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
-On Tue, 12 May 2015 09:46:47 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On Tue, 12 May 2015 13:18:39 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
 
-> memory_failrue() can run in 2 different mode (specified by MF_COUNT_INCREASED)
-> in page refcount perspective. When MF_COUNT_INCREASED is set, memory_failrue()
-> assumes that the caller takes a refcount of the target page. And if cleared,
-> memory_failure() takes it in it's own.
+> As noted by Paul the compiler is free to store a temporary result in a
+> variable on stack, heap or global unless it is explicitly marked as
+> volatile, see:
 > 
-> In current code, however, refcounting is done differently in each caller. For
-> example, madvise_hwpoison() uses get_user_pages_fast() and hwpoison_inject()
-> uses get_page_unless_zero(). So this inconsistent refcounting causes refcount
-> failure especially for thp tail pages. Typical user visible effects are like
-> memory leak or VM_BUG_ON_PAGE(!page_count(page)) in isolate_lru_page().
+>   http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4455.html#sample-optimizations
 > 
-> To fix this refcounting issue, this patch introduces get_hwpoison_page() to
-> handle thp tail pages in the same manner for each caller of hwpoison code.
+> This can result in a race between do_wp_page() and shrink_active_list()
+> as follows.
 > 
-> There's a non-trivial change around unpoisoning, which now returns immediately
-> for thp with "MCE: Memory failure is now running on %#lx\n" message. This is
-> not right when split_huge_page() fails. So this patch also allows
-> unpoison_memory() to handle thp.
->
+> In do_wp_page() we can call page_move_anon_rmap(), which sets
+> page->mapping as follows:
+> 
+>   anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+>   page->mapping = (struct address_space *) anon_vma;
+> 
+> The page in question may be on an LRU list, because nowhere in
+> do_wp_page() we remove it from the list, neither do we take any LRU
+> related locks. Although the page is locked, shrink_active_list() can
+> still call page_referenced() on it concurrently, because the latter does
+> not require an anonymous page to be locked:
+> 
+>   CPU0                          CPU1
+>   ----                          ----
+>   do_wp_page                    shrink_active_list
+>    lock_page                     page_referenced
+>                                   PageAnon->yes, so skip trylock_page
+>    page_move_anon_rmap
+>     page->mapping = anon_vma
+>                                   rmap_walk
+>                                    PageAnon->no
+>                                    rmap_walk_file
+>                                     BUG
+>     page->mapping += PAGE_MAPPING_ANON
+> 
+> This patch fixes this race by explicitly forbidding the compiler to
+> split page->mapping store in page_move_anon_rmap() with the aid of
+> WRITE_ONCE.
+> 
 > ...
 >
->  /*
-> + * Get refcount for memory error handling:
-> + * - @page: raw page
-> + */
-> +inline int get_hwpoison_page(struct page *page)
-> +{
-> +	struct page *head = compound_head(page);
-> +
-> +	if (PageHuge(head))
-> +		return get_page_unless_zero(head);
-> +	else if (PageTransHuge(head))
-> +		if (get_page_unless_zero(head)) {
-> +			if (PageTail(page))
-> +				get_page(page);
-> +			return 1;
-> +		} else {
-> +			return 0;
-> +		}
-> +	else
-> +		return get_page_unless_zero(page);
-> +}
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -950,7 +950,7 @@ void page_move_anon_rmap(struct page *page,
+>  	VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
+>  
+>  	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+> -	page->mapping = (struct address_space *) anon_vma;
+> +	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
 
-This function is a bit weird.
+Please let's not put things like WRITE_ONCE() in there without
+documenting them - otherwise it's terribly hard for readers to work out
+why it was added.
 
-- The comment looks like kerneldoc but isn't kerneldoc
+How's this look?
 
-- Why the inline?  It isn't fastpath?
-
-- The layout is rather painful.  It could be
-
-	if (PageHuge(head))
-		return get_page_unless_zero(head);
-
-	if (PageTransHuge(head)) {
-		if (get_page_unless_zero(head)) {
-			if (PageTail(page))
-				get_page(page);
-			return 1;
-		} else {
-			return 0;
-		}
-	}
-
-	return get_page_unless_zero(page);
-
-- Some illuminating comments would be nice.  In particular that code
-  path where it grabs a ref on the tail page as well as on the head
-  page.  What's going on there?
-
+--- a/mm/rmap.c~rmap-fix-theoretical-race-between-do_wp_page-and-shrink_active_list-fix
++++ a/mm/rmap.c
+@@ -950,6 +950,11 @@ void page_move_anon_rmap(struct page *pa
+ 	VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
+ 
+ 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
++	/*
++	 * Ensure that anon_vma and the PAGE_MAPPING_ANON bit are written
++	 * simultaneously, so a concurrent reader (eg shrink_active_list) will
++	 * not see one without the other.
++	 */
+ 	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
+ }
+ 
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
