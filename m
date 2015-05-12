@@ -1,96 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BC686B0071
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 09:35:04 -0400 (EDT)
-Received: by lagv1 with SMTP id v1so5902880lag.3
-        for <linux-mm@kvack.org>; Tue, 12 May 2015 06:35:03 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id pf2si10401869lbc.2.2015.05.12.06.35.01
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 May 2015 06:35:02 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v5 4/4] proc: export idle flag via kpageflags
-Date: Tue, 12 May 2015 16:34:19 +0300
-Message-ID: <76ae306c6b6fc65ef5538e7b5771b6ca4104db00.1431437088.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1431437088.git.vdavydov@parallels.com>
-References: <cover.1431437088.git.vdavydov@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EA0D6B0038
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 10:39:41 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so15030779pdb.0
+        for <linux-mm@kvack.org>; Tue, 12 May 2015 07:39:41 -0700 (PDT)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
+        by mx.google.com with ESMTP id b2si9243575pdf.235.2015.05.12.07.39.39
+        for <linux-mm@kvack.org>;
+        Tue, 12 May 2015 07:39:40 -0700 (PDT)
+Date: Tue, 12 May 2015 10:39:37 -0400 (EDT)
+Message-Id: <20150512.103937.434422170476918731.davem@davemloft.net>
+Subject: Re: [PATCH 00/10] Refactor netdev page frags and move them into mm/
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20150511133652.cd885d654213fe4161da0d87@linux-foundation.org>
+References: <20150507035558.1873.52664.stgit@ahduyck-vm-fedora22>
+	<20150510.191758.2130017622255857830.davem@davemloft.net>
+	<20150511133652.cd885d654213fe4161da0d87@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: alexander.h.duyck@redhat.com, netdev@vger.kernel.org, linux-mm@kvack.org, eric.dumazet@gmail.com
 
-As noted by Minchan, a benefit of reading idle flag from
-/proc/kpageflags is that one can easily filter dirty and/or unevictable
-pages while estimating the size of unused memory.
+From: Andrew Morton <akpm@linux-foundation.org>
+Date: Mon, 11 May 2015 13:36:52 -0700
 
-Note that idle flag read from /proc/kpageflags may be stale in case the
-page was accessed via a PTE, because it would be too costly to iterate
-over all page mappings on each /proc/kpageflags read to provide an
-up-to-date value. To make sure the flag is up-to-date one has to read
-/proc/kpageidle first.
+> On Sun, 10 May 2015 19:17:58 -0400 (EDT) David Miller <davem@davemloft.net> wrote:
+> 
+>> > 4.9%	build_skb		3.8%	__napi_alloc_skb
+>> > 2.5%	__alloc_rx_skb
+>> > 1.9%	__napi_alloc_skb
+>> 
+>> I like this series, but again I need to see feedback from some
+>> mm folks before I can consider applying it.
+> 
+> The MM part looks OK to me - it's largely moving code out of net/ into
+> mm/.  It's a bit weird and it's unclear whether the code will gain
+> other callers, but putting it in mm/ increase the likelihood that some other
+> subsystem will use it.
+> 
+> Please merge it via a net tree when ready.
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
----
- Documentation/vm/pagemap.txt           |    6 ++++++
- fs/proc/page.c                         |    3 +++
- include/uapi/linux/kernel-page-flags.h |    1 +
- 3 files changed, 10 insertions(+)
-
-diff --git a/Documentation/vm/pagemap.txt b/Documentation/vm/pagemap.txt
-index c9266340852c..5896b7d7fd74 100644
---- a/Documentation/vm/pagemap.txt
-+++ b/Documentation/vm/pagemap.txt
-@@ -64,6 +64,7 @@ There are five components to pagemap:
-     22. THP
-     23. BALLOON
-     24. ZERO_PAGE
-+    25. IDLE
- 
-  * /proc/kpagecgroup.  This file contains a 64-bit inode number of the
-    memory cgroup each page is charged to, indexed by PFN. Only available when
-@@ -124,6 +125,11 @@ Short descriptions to the page flags:
- 24. ZERO_PAGE
-     zero page for pfn_zero or huge_zero page
- 
-+25. IDLE
-+    page has not been accessed since it was marked idle (see /proc/kpageidle)
-+    Note that this flag may be stale in case the page was accessed via a PTE.
-+    To make sure the flag is up-to-date one has to read /proc/kpageidle first.
-+
-     [IO related page flags]
-  1. ERROR     IO error occurred
-  3. UPTODATE  page has up-to-date data
-diff --git a/fs/proc/page.c b/fs/proc/page.c
-index f42ead08d346..24748be3dd65 100644
---- a/fs/proc/page.c
-+++ b/fs/proc/page.c
-@@ -148,6 +148,9 @@ u64 stable_page_flags(struct page *page)
- 	if (PageBalloon(page))
- 		u |= 1 << KPF_BALLOON;
- 
-+	if (page_is_idle(page))
-+		u |= 1 << KPF_IDLE;
-+
- 	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
- 
- 	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
-diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
-index a6c4962e5d46..5da5f8751ce7 100644
---- a/include/uapi/linux/kernel-page-flags.h
-+++ b/include/uapi/linux/kernel-page-flags.h
-@@ -33,6 +33,7 @@
- #define KPF_THP			22
- #define KPF_BALLOON		23
- #define KPF_ZERO_PAGE		24
-+#define KPF_IDLE		25
- 
- 
- #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
--- 
-1.7.10.4
+Ok, will do that now, thanks Andrew!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
