@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
-	by kanga.kvack.org (Postfix) with ESMTP id BCF426B006C
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 09:34:41 -0400 (EDT)
-Received: by lbcga7 with SMTP id ga7so5986609lbc.1
-        for <linux-mm@kvack.org>; Tue, 12 May 2015 06:34:41 -0700 (PDT)
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id AA3906B006E
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 09:34:48 -0400 (EDT)
+Received: by lbcga7 with SMTP id ga7so5989339lbc.1
+        for <linux-mm@kvack.org>; Tue, 12 May 2015 06:34:48 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id m4si10391064lbc.59.2015.05.12.06.34.38
+        by mx.google.com with ESMTPS id qa7si10399272lbc.18.2015.05.12.06.34.46
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 May 2015 06:34:39 -0700 (PDT)
+        Tue, 12 May 2015 06:34:46 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v5 1/4] memcg: add page_cgroup_ino helper
-Date: Tue, 12 May 2015 16:34:16 +0300
-Message-ID: <9dab2ac24eaa8e4d00b982ae0d74a83a2143365d.1431437088.git.vdavydov@parallels.com>
+Subject: [PATCH v5 2/4] proc: add kpagecgroup file
+Date: Tue, 12 May 2015 16:34:17 +0300
+Message-ID: <60773a1f18100cbec6bc3adfec7036b20d65d6c7.1431437088.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1431437088.git.vdavydov@parallels.com>
 References: <cover.1431437088.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,229 +22,131 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hwpoison allows to filter pages by memory cgroup ino. To ahieve that, it
-calls try_get_mem_cgroup_from_page(), then mem_cgroup_css(), and finally
-cgroup_ino() on the cgroup returned. This looks bulky. Since in the next
-patch I need to get the ino of the memory cgroup a page is charged to
-too, in this patch I introduce the page_cgroup_ino() helper.
+/proc/kpagecgroup contains a 64-bit inode number of the memory cgroup
+each page is charged to, indexed by PFN. Having this information is
+useful for estimating a cgroup working set size.
 
-Note that page_cgroup_ino() only considers those pages that are charged
-to mem_cgroup->memory (i.e. page->mem_cgroup != NULL), and for others it
-returns 0, while try_get_mem_cgroup_page(), used by hwpoison before, may
-extract the cgroup from a swapcache readahead page too. Ignoring
-swapcache readahead pages allows to call page_cgroup_ino() on unlocked
-pages, which is nice. Hwpoison users will hardly see any difference.
-
-Another difference between try_get_mem_cgroup_page() and
-page_cgroup_ino() is that the latter works on pages charged to offline
-memory cgroups, returning the inode number of the closest online
-ancestor in this case, while the former does not, which is crucial for
-the next patch.
-
-Since try_get_mem_cgroup_page() is not used by anyone else, this patch
-removes this function. Also, it makes hwpoison memcg filter depend on
-CONFIG_MEMCG instead of CONFIG_MEMCG_SWAP (I've no idea why it was made
-dependant on CONFIG_MEMCG_SWAP initially).
+The file is present if CONFIG_PROC_PAGE_MONITOR && CONFIG_MEMCG.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- include/linux/memcontrol.h |    8 ++---
- mm/hwpoison-inject.c       |    5 +--
- mm/memcontrol.c            |   73 ++++++++++++++++++++++----------------------
- mm/memory-failure.c        |   16 ++--------
- 4 files changed, 42 insertions(+), 60 deletions(-)
+ Documentation/vm/pagemap.txt |    6 ++++-
+ fs/proc/Kconfig              |    5 ++--
+ fs/proc/page.c               |   53 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 61 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 72dff5fb0d0c..9262a8407af7 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -91,7 +91,6 @@ bool mem_cgroup_is_descendant(struct mem_cgroup *memcg,
- 			      struct mem_cgroup *root);
- bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
+diff --git a/Documentation/vm/pagemap.txt b/Documentation/vm/pagemap.txt
+index 6bfbc172cdb9..a9b7afc8fbc6 100644
+--- a/Documentation/vm/pagemap.txt
++++ b/Documentation/vm/pagemap.txt
+@@ -5,7 +5,7 @@ pagemap is a new (as of 2.6.25) set of interfaces in the kernel that allow
+ userspace programs to examine the page tables and related information by
+ reading files in /proc.
  
--extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
- extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+-There are three components to pagemap:
++There are four components to pagemap:
  
- extern struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
-@@ -192,6 +191,8 @@ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
- void mem_cgroup_split_huge_fixup(struct page *head);
- #endif
+  * /proc/pid/pagemap.  This file lets a userspace process find out which
+    physical frame each virtual page is mapped to.  It contains one 64-bit
+@@ -65,6 +65,10 @@ There are three components to pagemap:
+     23. BALLOON
+     24. ZERO_PAGE
  
-+unsigned long page_cgroup_ino(struct page *page);
++ * /proc/kpagecgroup.  This file contains a 64-bit inode number of the
++   memory cgroup each page is charged to, indexed by PFN. Only available when
++   CONFIG_MEMCG is set.
 +
- #else /* CONFIG_MEMCG */
- struct mem_cgroup;
+ Short descriptions to the page flags:
  
-@@ -252,11 +253,6 @@ static inline struct lruvec *mem_cgroup_page_lruvec(struct page *page,
- 	return &zone->lruvec;
- }
+  0. LOCKED
+diff --git a/fs/proc/Kconfig b/fs/proc/Kconfig
+index 2183fcf41d59..5021a2935bb9 100644
+--- a/fs/proc/Kconfig
++++ b/fs/proc/Kconfig
+@@ -69,5 +69,6 @@ config PROC_PAGE_MONITOR
+  	help
+ 	  Various /proc files exist to monitor process memory utilization:
+ 	  /proc/pid/smaps, /proc/pid/clear_refs, /proc/pid/pagemap,
+-	  /proc/kpagecount, and /proc/kpageflags. Disabling these
+-          interfaces will reduce the size of the kernel by approximately 4kb.
++	  /proc/kpagecount, /proc/kpageflags, and /proc/kpagecgroup.
++	  Disabling these interfaces will reduce the size of the kernel
++	  by approximately 4kb.
+diff --git a/fs/proc/page.c b/fs/proc/page.c
+index 7eee2d8b97d9..70d23245dd43 100644
+--- a/fs/proc/page.c
++++ b/fs/proc/page.c
+@@ -9,6 +9,7 @@
+ #include <linux/proc_fs.h>
+ #include <linux/seq_file.h>
+ #include <linux/hugetlb.h>
++#include <linux/memcontrol.h>
+ #include <linux/kernel-page-flags.h>
+ #include <asm/uaccess.h>
+ #include "internal.h"
+@@ -225,10 +226,62 @@ static const struct file_operations proc_kpageflags_operations = {
+ 	.read = kpageflags_read,
+ };
  
--static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
--{
--	return NULL;
--}
--
- static inline bool mm_match_cgroup(struct mm_struct *mm,
- 		struct mem_cgroup *memcg)
- {
-diff --git a/mm/hwpoison-inject.c b/mm/hwpoison-inject.c
-index 4ca5fe0042e1..d2facac0b01f 100644
---- a/mm/hwpoison-inject.c
-+++ b/mm/hwpoison-inject.c
-@@ -45,12 +45,9 @@ static int hwpoison_inject(void *data, u64 val)
- 	/*
- 	 * do a racy check with elevated page count, to make sure PG_hwpoison
- 	 * will only be set for the targeted owner (or on a free page).
--	 * We temporarily take page lock for try_get_mem_cgroup_from_page().
- 	 * memory_failure() will redo the check reliably inside page lock.
- 	 */
--	lock_page(hpage);
- 	err = hwpoison_filter(hpage);
--	unlock_page(hpage);
- 	if (err)
- 		goto put_out;
- 
-@@ -126,7 +123,7 @@ static int pfn_inject_init(void)
- 	if (!dentry)
- 		goto fail;
- 
--#ifdef CONFIG_MEMCG_SWAP
 +#ifdef CONFIG_MEMCG
- 	dentry = debugfs_create_u64("corrupt-filter-memcg", 0600,
- 				    hwpoison_dir, &hwpoison_filter_memcg);
- 	if (!dentry)
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 14c2f2017e37..87c7f852d45b 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2349,40 +2349,6 @@ static void cancel_charge(struct mem_cgroup *memcg, unsigned int nr_pages)
- 	css_put_many(&memcg->css, nr_pages);
- }
- 
--/*
-- * try_get_mem_cgroup_from_page - look up page's memcg association
-- * @page: the page
-- *
-- * Look up, get a css reference, and return the memcg that owns @page.
-- *
-- * The page must be locked to prevent racing with swap-in and page
-- * cache charges.  If coming from an unlocked page table, the caller
-- * must ensure the page is on the LRU or this can race with charging.
-- */
--struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
--{
--	struct mem_cgroup *memcg;
--	unsigned short id;
--	swp_entry_t ent;
--
--	VM_BUG_ON_PAGE(!PageLocked(page), page);
--
--	memcg = page->mem_cgroup;
--	if (memcg) {
--		if (!css_tryget_online(&memcg->css))
--			memcg = NULL;
--	} else if (PageSwapCache(page)) {
--		ent.val = page_private(page);
--		id = lookup_swap_cgroup_id(ent);
--		rcu_read_lock();
--		memcg = mem_cgroup_from_id(id);
--		if (memcg && !css_tryget_online(&memcg->css))
--			memcg = NULL;
--		rcu_read_unlock();
--	}
--	return memcg;
--}
--
- static void lock_page_lru(struct page *page, int *isolated)
- {
- 	struct zone *zone = page_zone(page);
-@@ -2774,6 +2740,31 @@ void mem_cgroup_split_huge_fixup(struct page *head)
- }
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 
-+/**
-+ * page_cgroup_ino - return inode number of page's memcg
-+ * @page: the page
-+ *
-+ * Look up the closest online ancestor of the memory cgroup @page is charged to
-+ * and return its inode number. It is safe to call this function without taking
-+ * a reference to the page.
-+ */
-+unsigned long page_cgroup_ino(struct page *page)
++static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
++				size_t count, loff_t *ppos)
 +{
-+	struct mem_cgroup *memcg;
-+	unsigned long ino = 0;
++	u64 __user *out = (u64 __user *)buf;
++	struct page *ppage;
++	unsigned long src = *ppos;
++	unsigned long pfn;
++	ssize_t ret = 0;
++	u64 ino;
 +
-+	rcu_read_lock();
-+	memcg = READ_ONCE(page->mem_cgroup);
-+	while (memcg && !css_tryget_online(&memcg->css))
-+		memcg = parent_mem_cgroup(memcg);
-+	rcu_read_unlock();
-+	if (memcg) {
-+		ino = cgroup_ino(memcg->css.cgroup);
-+		css_put(&memcg->css);
++	pfn = src / KPMSIZE;
++	count = min_t(unsigned long, count, (max_pfn * KPMSIZE) - src);
++	if (src & KPMMASK || count & KPMMASK)
++		return -EINVAL;
++
++	while (count > 0) {
++		if (pfn_valid(pfn))
++			ppage = pfn_to_page(pfn);
++		else
++			ppage = NULL;
++
++		if (ppage)
++			ino = page_cgroup_ino(ppage);
++		else
++			ino = 0;
++
++		if (put_user(ino, out)) {
++			ret = -EFAULT;
++			break;
++		}
++
++		pfn++;
++		out++;
++		count -= KPMSIZE;
 +	}
-+	return ino;
++
++	*ppos += (char __user *)out - buf;
++	if (!ret)
++		ret = (char __user *)out - buf;
++	return ret;
 +}
 +
- #ifdef CONFIG_MEMCG_SWAP
- static void mem_cgroup_swap_statistics(struct mem_cgroup *memcg,
- 					 bool charge)
-@@ -5482,8 +5473,18 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
- 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
- 	}
- 
--	if (do_swap_account && PageSwapCache(page))
--		memcg = try_get_mem_cgroup_from_page(page);
-+	if (do_swap_account && PageSwapCache(page)) {
-+		swp_entry_t ent = { .val = page_private(page), };
-+		unsigned short id = lookup_swap_cgroup_id(ent);
++static const struct file_operations proc_kpagecgroup_operations = {
++	.llseek = mem_lseek,
++	.read = kpagecgroup_read,
++};
++#endif /* CONFIG_MEMCG */
 +
-+		VM_BUG_ON_PAGE(!PageLocked(page), page);
-+
-+		rcu_read_lock();
-+		memcg = mem_cgroup_from_id(id);
-+		if (memcg && !css_tryget_online(&memcg->css))
-+			memcg = NULL;
-+		rcu_read_unlock();
-+	}
- 	if (!memcg)
- 		memcg = get_mem_cgroup_from_mm(mm);
- 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 501820c815b3..7166ad81b222 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -128,27 +128,15 @@ static int hwpoison_filter_flags(struct page *p)
-  * can only guarantee that the page either belongs to the memcg tasks, or is
-  * a freed page.
-  */
--#ifdef	CONFIG_MEMCG_SWAP
-+#ifdef CONFIG_MEMCG
- u64 hwpoison_filter_memcg;
- EXPORT_SYMBOL_GPL(hwpoison_filter_memcg);
- static int hwpoison_filter_task(struct page *p)
+ static int __init proc_page_init(void)
  {
--	struct mem_cgroup *mem;
--	struct cgroup_subsys_state *css;
--	unsigned long ino;
--
- 	if (!hwpoison_filter_memcg)
- 		return 0;
- 
--	mem = try_get_mem_cgroup_from_page(p);
--	if (!mem)
--		return -EINVAL;
--
--	css = mem_cgroup_css(mem);
--	ino = cgroup_ino(css->cgroup);
--	css_put(css);
--
--	if (ino != hwpoison_filter_memcg)
-+	if (page_cgroup_ino(p) != hwpoison_filter_memcg)
- 		return -EINVAL;
- 
+ 	proc_create("kpagecount", S_IRUSR, NULL, &proc_kpagecount_operations);
+ 	proc_create("kpageflags", S_IRUSR, NULL, &proc_kpageflags_operations);
++#ifdef CONFIG_MEMCG
++	proc_create("kpagecgroup", S_IRUSR, NULL, &proc_kpagecgroup_operations);
++#endif
  	return 0;
+ }
+ fs_initcall(proc_page_init);
 -- 
 1.7.10.4
 
