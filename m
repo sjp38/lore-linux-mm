@@ -1,207 +1,440 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D75A6B0038
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 02:09:03 -0400 (EDT)
-Received: by pacyx8 with SMTP id yx8so134035482pac.1
-        for <linux-mm@kvack.org>; Mon, 11 May 2015 23:09:03 -0700 (PDT)
-Received: from e28smtp07.in.ibm.com (e28smtp07.in.ibm.com. [122.248.162.7])
-        by mx.google.com with ESMTPS id cf1si21046994pdb.112.2015.05.11.23.09.00
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id C59D56B006E
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 02:09:11 -0400 (EDT)
+Received: by pabtp1 with SMTP id tp1so134102921pab.2
+        for <linux-mm@kvack.org>; Mon, 11 May 2015 23:09:11 -0700 (PDT)
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
+        by mx.google.com with ESMTPS id b5si17194362pdk.61.2015.05.11.23.09.09
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 May 2015 23:09:02 -0700 (PDT)
+        Mon, 11 May 2015 23:09:10 -0700 (PDT)
 Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 12 May 2015 11:38:58 +0530
+	Tue, 12 May 2015 11:39:06 +0530
 Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 03602E004C
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 11:41:51 +0530 (IST)
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id A8CB7125805C
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 11:41:12 +0530 (IST)
 Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t4C68qdX51380272
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 11:38:53 +0530
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t4C691gX2294114
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 11:39:01 +0530
 Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t4C5WnJd018483
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t4C5WoIY018645
 	for <linux-mm@kvack.org>; Tue, 12 May 2015 11:02:50 +0530
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V4 1/3] mm/thp: Split out pmd collpase flush into a separate functions
-Date: Tue, 12 May 2015 11:38:32 +0530
-Message-Id: <1431410914-21102-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH V4 3/3] mm: Clarify that the function operateds on hugepage pte
+Date: Tue, 12 May 2015 11:38:34 +0530
+Message-Id: <1431410914-21102-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1431410914-21102-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1431410914-21102-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, kirill.shutemov@linux.intel.com, aarcange@redhat.com, akpm@linux-foundation.org
 Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Architectures like ppc64 [1] need to do special things while clearing
-pmd before a collapse. For them this operation is largely different
-from a normal hugepage pte clear. Hence add a separate function
-to clear pmd before collapse. After this patch pmdp_* functions
-operate only on hugepage pte, and not on regular pmd_t values
-pointing to page table.
+We have confusing functions to clear pmd, pmd_clear_* and pmd_clear.
+Add _huge_ to pmdp_clear functions so that we are clear that they
+operate on hugepage pte.
 
-[1] ppc64 needs to invalidate all the normal page pte mappings we
-already have inserted in the hardware hash page table. But before
-doing that we need to make sure there are no parallel hash page
-table insert going on. So we need to do a kick_all_cpus_sync()
-before flushing the older hash table entries. By moving this to
-a separate function we capture these details and mention how it
-is different from a hugepage pte clear.
-
-This patch is a cleanup and only does code movement for clarity.
-There should not be any change in functionality.
+We don't bother about other functions like pmdp_set_wrprotect,
+pmdp_clear_flush_young, because they operate on PTE bits and hence
+indicate they are operating on hugepage ptes
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/powerpc/include/asm/pgtable-ppc64.h |  4 ++
- arch/powerpc/mm/pgtable_64.c             | 76 +++++++++++++++++---------------
- include/asm-generic/pgtable.h            | 19 ++++++++
- mm/huge_memory.c                         |  2 +-
- 4 files changed, 65 insertions(+), 36 deletions(-)
+NOTE: Only tested on powerpc
 
+ arch/mips/include/asm/pgtable.h          |  8 ++++----
+ arch/powerpc/include/asm/pgtable-ppc64.h |  6 +++---
+ arch/powerpc/mm/pgtable_64.c             |  4 ++--
+ arch/s390/include/asm/pgtable.h          | 22 +++++++++++-----------
+ arch/sparc/include/asm/pgtable_64.h      |  8 ++++----
+ arch/tile/include/asm/pgtable.h          |  8 ++++----
+ arch/x86/include/asm/pgtable.h           |  4 ++--
+ include/asm-generic/pgtable.h            | 24 ++++++++++++++----------
+ include/linux/mmu_notifier.h             | 12 ++++++------
+ mm/huge_memory.c                         | 16 ++++++++--------
+ mm/migrate.c                             |  2 +-
+ mm/pgtable-generic.c                     |  8 ++++----
+ mm/rmap.c                                |  2 +-
+ 13 files changed, 64 insertions(+), 60 deletions(-)
+
+diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
+index 819af9d057a8..9d8106758142 100644
+--- a/arch/mips/include/asm/pgtable.h
++++ b/arch/mips/include/asm/pgtable.h
+@@ -568,12 +568,12 @@ static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+ }
+ 
+ /*
+- * The generic version pmdp_get_and_clear uses a version of pmd_clear() with a
++ * The generic version pmdp_huge_get_and_clear uses a version of pmd_clear() with a
+  * different prototype.
+  */
+-#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
+-static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+-				       unsigned long address, pmd_t *pmdp)
++#define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
++static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
++					    unsigned long address, pmd_t *pmdp)
+ {
+ 	pmd_t old = *pmdp;
+ 
 diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
-index 43e6ad424c7f..b8d99227a0ac 100644
+index 3d7e898d6b5e..88e916b507c2 100644
 --- a/arch/powerpc/include/asm/pgtable-ppc64.h
 +++ b/arch/powerpc/include/asm/pgtable-ppc64.h
-@@ -576,6 +576,10 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
- extern void pmdp_splitting_flush(struct vm_area_struct *vma,
- 				 unsigned long address, pmd_t *pmdp);
+@@ -553,9 +553,9 @@ extern int pmdp_test_and_clear_young(struct vm_area_struct *vma,
+ extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
+ 				  unsigned long address, pmd_t *pmdp);
  
-+#define pmdp_collapse_flush pmdp_collapse_flush
-+extern pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
-+				 unsigned long address, pmd_t *pmdp);
-+
- #define __HAVE_ARCH_PGTABLE_DEPOSIT
- extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
- 				       pgtable_t pgtable);
+-#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
+-extern pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+-				unsigned long addr, pmd_t *pmdp);
++#define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
++extern pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
++				     unsigned long addr, pmd_t *pmdp);
+ 
+ #define __HAVE_ARCH_PMDP_SET_WRPROTECT
+ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
-index 6bfadf1aa5cb..049d961802aa 100644
+index f7775193d745..876232d64126 100644
 --- a/arch/powerpc/mm/pgtable_64.c
 +++ b/arch/powerpc/mm/pgtable_64.c
-@@ -560,41 +560,47 @@ pmd_t pmdp_clear_flush(struct vm_area_struct *vma, unsigned long address,
- 	pmd_t pmd;
+@@ -812,8 +812,8 @@ void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
+ 	return;
+ }
  
- 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
--	if (pmd_trans_huge(*pmdp)) {
--		pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
--	} else {
--		/*
--		 * khugepaged calls this for normal pmd
--		 */
--		pmd = *pmdp;
--		pmd_clear(pmdp);
--		/*
--		 * Wait for all pending hash_page to finish. This is needed
--		 * in case of subpage collapse. When we collapse normal pages
--		 * to hugepage, we first clear the pmd, then invalidate all
--		 * the PTE entries. The assumption here is that any low level
--		 * page fault will see a none pmd and take the slow path that
--		 * will wait on mmap_sem. But we could very well be in a
--		 * hash_page with local ptep pointer value. Such a hash page
--		 * can result in adding new HPTE entries for normal subpages.
--		 * That means we could be modifying the page content as we
--		 * copy them to a huge page. So wait for parallel hash_page
--		 * to finish before invalidating HPTE entries. We can do this
--		 * by sending an IPI to all the cpus and executing a dummy
--		 * function there.
--		 */
--		kick_all_cpus_sync();
--		/*
--		 * Now invalidate the hpte entries in the range
--		 * covered by pmd. This make sure we take a
--		 * fault and will find the pmd as none, which will
--		 * result in a major fault which takes mmap_sem and
--		 * hence wait for collapse to complete. Without this
--		 * the __collapse_huge_page_copy can result in copying
--		 * the old content.
--		 */
--		flush_tlb_pmd_range(vma->vm_mm, &pmd, address);
--	}
-+	VM_BUG_ON(!pmd_trans_huge(*pmdp));
-+	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
-+	return pmd;
-+}
-+
-+pmd_t pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long address,
-+			  pmd_t *pmdp)
-+{
-+	pmd_t pmd;
-+
-+	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG_ON(pmd_trans_huge(*pmdp));
-+
-+	pmd = *pmdp;
-+	pmd_clear(pmdp);
-+	/*
-+	 * Wait for all pending hash_page to finish. This is needed
-+	 * in case of subpage collapse. When we collapse normal pages
-+	 * to hugepage, we first clear the pmd, then invalidate all
-+	 * the PTE entries. The assumption here is that any low level
-+	 * page fault will see a none pmd and take the slow path that
-+	 * will wait on mmap_sem. But we could very well be in a
-+	 * hash_page with local ptep pointer value. Such a hash page
-+	 * can result in adding new HPTE entries for normal subpages.
-+	 * That means we could be modifying the page content as we
-+	 * copy them to a huge page. So wait for parallel hash_page
-+	 * to finish before invalidating HPTE entries. We can do this
-+	 * by sending an IPI to all the cpus and executing a dummy
-+	 * function there.
-+	 */
-+	kick_all_cpus_sync();
-+	/*
-+	 * Now invalidate the hpte entries in the range
-+	 * covered by pmd. This make sure we take a
-+	 * fault and will find the pmd as none, which will
-+	 * result in a major fault which takes mmap_sem and
-+	 * hence wait for collapse to complete. Without this
-+	 * the __collapse_huge_page_copy can result in copying
-+	 * the old content.
-+	 */
-+	flush_tlb_pmd_range(vma->vm_mm, &pmd, address);
+-pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+-			 unsigned long addr, pmd_t *pmdp)
++pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
++			      unsigned long addr, pmd_t *pmdp)
+ {
+ 	pmd_t old_pmd;
+ 	pgtable_t pgtable;
+diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+index fc642399b489..4565b33ed94b 100644
+--- a/arch/s390/include/asm/pgtable.h
++++ b/arch/s390/include/asm/pgtable.h
+@@ -1498,9 +1498,9 @@ static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
+ 	return pmd_young(pmd);
+ }
+ 
+-#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
+-static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+-				       unsigned long address, pmd_t *pmdp)
++#define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
++static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
++					    unsigned long address, pmd_t *pmdp)
+ {
+ 	pmd_t pmd = *pmdp;
+ 
+@@ -1509,10 +1509,10 @@ static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
  	return pmd;
  }
  
+-#define __HAVE_ARCH_PMDP_GET_AND_CLEAR_FULL
+-static inline pmd_t pmdp_get_and_clear_full(struct mm_struct *mm,
+-					    unsigned long address,
+-					    pmd_t *pmdp, int full)
++#define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR_FULL
++static inline pmd_t pmdp_huge_get_and_clear_full(struct mm_struct *mm,
++						 unsigned long address,
++						 pmd_t *pmdp, int full)
+ {
+ 	pmd_t pmd = *pmdp;
+ 
+@@ -1522,11 +1522,11 @@ static inline pmd_t pmdp_get_and_clear_full(struct mm_struct *mm,
+ 	return pmd;
+ }
+ 
+-#define __HAVE_ARCH_PMDP_CLEAR_FLUSH
+-static inline pmd_t pmdp_clear_flush(struct vm_area_struct *vma,
+-				     unsigned long address, pmd_t *pmdp)
++#define __HAVE_ARCH_PMDP_HUGE_CLEAR_FLUSH
++static inline pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma,
++					  unsigned long address, pmd_t *pmdp)
+ {
+-	return pmdp_get_and_clear(vma->vm_mm, address, pmdp);
++	return pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
+ }
+ 
+ #define __HAVE_ARCH_PMDP_INVALIDATE
+diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
+index dc165ebdf05a..2b72f651f393 100644
+--- a/arch/sparc/include/asm/pgtable_64.h
++++ b/arch/sparc/include/asm/pgtable_64.h
+@@ -845,10 +845,10 @@ static inline unsigned long pud_pfn(pud_t pud)
+ void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
+ 		   pte_t *ptep, pte_t orig, int fullmm);
+ 
+-#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
+-static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+-				       unsigned long addr,
+-				       pmd_t *pmdp)
++#define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
++static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
++					    unsigned long addr,
++					    pmd_t *pmdp)
+ {
+ 	pmd_t pmd = *pmdp;
+ 	set_pmd_at(mm, addr, pmdp, __pmd(0UL));
+diff --git a/arch/tile/include/asm/pgtable.h b/arch/tile/include/asm/pgtable.h
+index 95a4f19d16c5..2b05ccbebed9 100644
+--- a/arch/tile/include/asm/pgtable.h
++++ b/arch/tile/include/asm/pgtable.h
+@@ -414,10 +414,10 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
+ }
+ 
+ 
+-#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
+-static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+-				       unsigned long address,
+-				       pmd_t *pmdp)
++#define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
++static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
++					    unsigned long address,
++					    pmd_t *pmdp)
+ {
+ 	return pte_pmd(ptep_get_and_clear(mm, address, pmdp_ptep(pmdp)));
+ }
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index fe57e7a98839..25add5e44f0a 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -799,8 +799,8 @@ static inline int pmd_write(pmd_t pmd)
+ 	return pmd_flags(pmd) & _PAGE_RW;
+ }
+ 
+-#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
+-static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm, unsigned long addr,
++#define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
++static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm, unsigned long addr,
+ 				       pmd_t *pmdp)
+ {
+ 	pmd_t pmd = native_pmdp_get_and_clear(pmdp);
 diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 39f1d6a2b04d..3e22b80d467a 100644
+index 3e22b80d467a..4cc539ec9f6d 100644
 --- a/include/asm-generic/pgtable.h
 +++ b/include/asm-generic/pgtable.h
-@@ -189,6 +189,25 @@ extern void pmdp_splitting_flush(struct vm_area_struct *vma,
- 				 unsigned long address, pmd_t *pmdp);
+@@ -96,11 +96,11 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
+ }
  #endif
  
-+#ifndef pmdp_collapse_flush
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
-+					unsigned long address,
-+					pmd_t *pmdp)
-+{
-+	return pmdp_clear_flush(vma, address, pmdp);
-+}
-+#else
-+static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
-+					unsigned long address,
-+					pmd_t *pmdp)
-+{
-+	BUILD_BUG();
-+	return __pmd(0);
-+}
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#endif
-+
- #ifndef __HAVE_ARCH_PGTABLE_DEPOSIT
- extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
- 				       pgtable_t pgtable);
+-#ifndef __HAVE_ARCH_PMDP_GET_AND_CLEAR
++#ifndef __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+-				       unsigned long address,
+-				       pmd_t *pmdp)
++static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
++					    unsigned long address,
++					    pmd_t *pmdp)
+ {
+ 	pmd_t pmd = *pmdp;
+ 	pmd_clear(pmdp);
+@@ -109,13 +109,13 @@ static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #endif
+ 
+-#ifndef __HAVE_ARCH_PMDP_GET_AND_CLEAR_FULL
++#ifndef __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR_FULL
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-static inline pmd_t pmdp_get_and_clear_full(struct mm_struct *mm,
++static inline pmd_t pmdp_huge_get_and_clear_full(struct mm_struct *mm,
+ 					    unsigned long address, pmd_t *pmdp,
+ 					    int full)
+ {
+-	return pmdp_get_and_clear(mm, address, pmdp);
++	return pmdp_huge_get_and_clear(mm, address, pmdp);
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #endif
+@@ -152,8 +152,8 @@ extern pte_t ptep_clear_flush(struct vm_area_struct *vma,
+ 			      pte_t *ptep);
+ #endif
+ 
+-#ifndef __HAVE_ARCH_PMDP_CLEAR_FLUSH
+-extern pmd_t pmdp_clear_flush(struct vm_area_struct *vma,
++#ifndef __HAVE_ARCH_PMDP_HUGE_CLEAR_FLUSH
++extern pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma,
+ 			      unsigned long address,
+ 			      pmd_t *pmdp);
+ #endif
+@@ -195,7 +195,11 @@ static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
+ 					unsigned long address,
+ 					pmd_t *pmdp)
+ {
+-	return pmdp_clear_flush(vma, address, pmdp);
++	/*
++	 * pmd and hugepage pte format are same. So we could
++	 * use the same function.
++	 */
++	return pmdp_huge_clear_flush(vma, address, pmdp);
+ }
+ #else
+ static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index 95243d28a0ee..61cd67f4d788 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -324,25 +324,25 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+ 	___pte;								\
+ })
+ 
+-#define pmdp_clear_flush_notify(__vma, __haddr, __pmd)			\
++#define pmdp_huge_clear_flush_notify(__vma, __haddr, __pmd)		\
+ ({									\
+ 	unsigned long ___haddr = __haddr & HPAGE_PMD_MASK;		\
+ 	struct mm_struct *___mm = (__vma)->vm_mm;			\
+ 	pmd_t ___pmd;							\
+ 									\
+-	___pmd = pmdp_clear_flush(__vma, __haddr, __pmd);		\
++	___pmd = pmdp_huge_clear_flush(__vma, __haddr, __pmd);		\
+ 	mmu_notifier_invalidate_range(___mm, ___haddr,			\
+ 				      ___haddr + HPAGE_PMD_SIZE);	\
+ 									\
+ 	___pmd;								\
+ })
+ 
+-#define pmdp_get_and_clear_notify(__mm, __haddr, __pmd)			\
++#define pmdp_huge_get_and_clear_notify(__mm, __haddr, __pmd)		\
+ ({									\
+ 	unsigned long ___haddr = __haddr & HPAGE_PMD_MASK;		\
+ 	pmd_t ___pmd;							\
+ 									\
+-	___pmd = pmdp_get_and_clear(__mm, __haddr, __pmd);		\
++	___pmd = pmdp_huge_get_and_clear(__mm, __haddr, __pmd);		\
+ 	mmu_notifier_invalidate_range(__mm, ___haddr,			\
+ 				      ___haddr + HPAGE_PMD_SIZE);	\
+ 									\
+@@ -428,8 +428,8 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+ #define ptep_clear_flush_young_notify ptep_clear_flush_young
+ #define pmdp_clear_flush_young_notify pmdp_clear_flush_young
+ #define	ptep_clear_flush_notify ptep_clear_flush
+-#define pmdp_clear_flush_notify pmdp_clear_flush
+-#define pmdp_get_and_clear_notify pmdp_get_and_clear
++#define pmdp_huge_clear_flush_notify pmdp_huge_clear_flush
++#define pmdp_huge_get_and_clear_notify pmdp_huge_get_and_clear
+ #define set_pte_at_notify set_pte_at
+ 
+ #endif /* CONFIG_MMU_NOTIFIER */
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 078832cf3636..88f695a4e38b 100644
+index 88f695a4e38b..c19adcb2c324 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -2499,7 +2499,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	 * huge and small TLB entries for the same virtual address
- 	 * to avoid the risk of CPU bugs in that area.
- 	 */
--	_pmd = pmdp_clear_flush(vma, address, pmd);
-+	_pmd = pmdp_collapse_flush(vma, address, pmd);
- 	spin_unlock(pmd_ptl);
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+@@ -1031,7 +1031,7 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
+ 		goto out_free_pages;
+ 	VM_BUG_ON_PAGE(!PageHead(page), page);
  
+-	pmdp_clear_flush_notify(vma, haddr, pmd);
++	pmdp_huge_clear_flush_notify(vma, haddr, pmd);
+ 	/* leave pmd empty until pte is filled */
+ 
+ 	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
+@@ -1174,7 +1174,7 @@ alloc:
+ 		pmd_t entry;
+ 		entry = mk_huge_pmd(new_page, vma->vm_page_prot);
+ 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+-		pmdp_clear_flush_notify(vma, haddr, pmd);
++		pmdp_huge_clear_flush_notify(vma, haddr, pmd);
+ 		page_add_new_anon_rmap(new_page, vma, haddr);
+ 		mem_cgroup_commit_charge(new_page, memcg, false);
+ 		lru_cache_add_active_or_unevictable(new_page, vma);
+@@ -1396,12 +1396,12 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		pmd_t orig_pmd;
+ 		/*
+ 		 * For architectures like ppc64 we look at deposited pgtable
+-		 * when calling pmdp_get_and_clear. So do the
++		 * when calling pmdp_huge_get_and_clear. So do the
+ 		 * pgtable_trans_huge_withdraw after finishing pmdp related
+ 		 * operations.
+ 		 */
+-		orig_pmd = pmdp_get_and_clear_full(tlb->mm, addr, pmd,
+-						   tlb->fullmm);
++		orig_pmd = pmdp_huge_get_and_clear_full(tlb->mm, addr, pmd,
++							tlb->fullmm);
+ 		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
+ 		pgtable = pgtable_trans_huge_withdraw(tlb->mm, pmd);
+ 		if (is_huge_zero_pmd(orig_pmd)) {
+@@ -1459,7 +1459,7 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
+ 		new_ptl = pmd_lockptr(mm, new_pmd);
+ 		if (new_ptl != old_ptl)
+ 			spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
+-		pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
++		pmd = pmdp_huge_get_and_clear(mm, old_addr, old_pmd);
+ 		VM_BUG_ON(!pmd_none(*new_pmd));
+ 
+ 		if (pmd_move_must_withdraw(new_ptl, old_ptl)) {
+@@ -1505,7 +1505,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 		}
+ 
+ 		if (!prot_numa || !pmd_protnone(*pmd)) {
+-			entry = pmdp_get_and_clear_notify(mm, addr, pmd);
++			entry = pmdp_huge_get_and_clear_notify(mm, addr, pmd);
+ 			entry = pmd_modify(entry, newprot);
+ 			if (preserve_write)
+ 				entry = pmd_mkwrite(entry);
+@@ -2865,7 +2865,7 @@ static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
+ 	pmd_t _pmd;
+ 	int i;
+ 
+-	pmdp_clear_flush_notify(vma, haddr, pmd);
++	pmdp_huge_clear_flush_notify(vma, haddr, pmd);
+ 	/* leave pmd empty until pte is filled */
+ 
+ 	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
+diff --git a/mm/migrate.c b/mm/migrate.c
+index f53838fe3dfe..c37d5772767b 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1796,7 +1796,7 @@ fail_putback:
+ 	 */
+ 	flush_cache_range(vma, mmun_start, mmun_end);
+ 	page_add_anon_rmap(new_page, vma, mmun_start);
+-	pmdp_clear_flush_notify(vma, mmun_start, pmd);
++	pmdp_huge_clear_flush_notify(vma, mmun_start, pmd);
+ 	set_pmd_at(mm, mmun_start, pmd, entry);
+ 	flush_tlb_range(vma, mmun_start, mmun_end);
+ 	update_mmu_cache_pmd(vma, address, &entry);
+diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
+index dd9d04f17749..af063ad47d55 100644
+--- a/mm/pgtable-generic.c
++++ b/mm/pgtable-generic.c
+@@ -119,15 +119,15 @@ pte_t ptep_clear_flush(struct vm_area_struct *vma, unsigned long address,
+ }
+ #endif
+ 
+-#ifndef __HAVE_ARCH_PMDP_CLEAR_FLUSH
++#ifndef __HAVE_ARCH_PMDP_HUGE_CLEAR_FLUSH
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-pmd_t pmdp_clear_flush(struct vm_area_struct *vma, unsigned long address,
+-		       pmd_t *pmdp)
++pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma, unsigned long address,
++			    pmd_t *pmdp)
+ {
+ 	pmd_t pmd;
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 	VM_BUG_ON(!pmd_trans_huge(*pmdp));
+-	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
++	pmd = pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
+ 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+ 	return pmd;
+ }
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 24dd3f9fee27..6f94e4502c49 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -625,7 +625,7 @@ pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address)
+ 
+ 	pmd = pmd_offset(pud, address);
+ 	/*
+-	 * Some THP functions use the sequence pmdp_clear_flush(), set_pmd_at()
++	 * Some THP functions use the sequence pmdp_huge_clear_flush(), set_pmd_at()
+ 	 * without holding anon_vma lock for write.  So when looking for a
+ 	 * genuine pmde (in which to find pte), test present and !THP together.
+ 	 */
 -- 
 2.1.4
 
