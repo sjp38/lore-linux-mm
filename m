@@ -1,101 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E621F6B0038
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 18:28:42 -0400 (EDT)
-Received: by pacwv17 with SMTP id wv17so28520112pac.0
-        for <linux-mm@kvack.org>; Tue, 12 May 2015 15:28:42 -0700 (PDT)
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 095246B0038
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 19:15:14 -0400 (EDT)
+Received: by pacyx8 with SMTP id yx8so29565674pac.1
+        for <linux-mm@kvack.org>; Tue, 12 May 2015 16:15:13 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d2si24225961pbu.190.2015.05.12.15.28.41
+        by mx.google.com with ESMTPS id da1si24493439pad.9.2015.05.12.16.15.12
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 May 2015 15:28:41 -0700 (PDT)
-Date: Tue, 12 May 2015 15:28:40 -0700
+        Tue, 12 May 2015 16:15:13 -0700 (PDT)
+Date: Tue, 12 May 2015 16:15:11 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] rmap: fix theoretical race between do_wp_page and
- shrink_active_list
-Message-Id: <20150512152840.20805775ae82c69b9a8f3028@linux-foundation.org>
-In-Reply-To: <1431425919-28057-1-git-send-email-vdavydov@parallels.com>
-References: <1431425919-28057-1-git-send-email-vdavydov@parallels.com>
+Subject: Re: [PATCH] mm/hugetlb: initialize order with UINT_MAX in
+ dissolve_free_huge_pages()
+Message-Id: <20150512161511.7967c400cae6c1d693b61d57@linux-foundation.org>
+In-Reply-To: <20150512092034.GF3068@hori1.linux.bs1.fc.nec.co.jp>
+References: <20150511111748.GA20660@mwanda>
+	<20150511235443.GA8513@hori1.linux.bs1.fc.nec.co.jp>
+	<20150512084339.GN16501@mwanda>
+	<20150512090454.GD3068@hori1.linux.bs1.fc.nec.co.jp>
+	<20150512091349.GO16501@mwanda>
+	<20150512091640.GE3068@hori1.linux.bs1.fc.nec.co.jp>
+	<20150512092034.GF3068@hori1.linux.bs1.fc.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Dan Carpenter <dan.carpenter@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, 12 May 2015 13:18:39 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
+On Tue, 12 May 2015 09:20:35 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-> As noted by Paul the compiler is free to store a temporary result in a
-> variable on stack, heap or global unless it is explicitly marked as
-> volatile, see:
+> Currently the initial value of order in dissolve_free_huge_page is 64 or 32,
+> which leads to the following warning in static checker:
 > 
->   http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4455.html#sample-optimizations
+>   mm/hugetlb.c:1203 dissolve_free_huge_pages()
+>   warn: potential right shift more than type allows '9,18,64'
 > 
-> This can result in a race between do_wp_page() and shrink_active_list()
-> as follows.
+> This is a potential risk of infinite loop, because 1 << order (== 0) is used
+> in for-loop like this:
 > 
-> In do_wp_page() we can call page_move_anon_rmap(), which sets
-> page->mapping as follows:
+>   for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << order)
+>       ...
 > 
->   anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
->   page->mapping = (struct address_space *) anon_vma;
+> So this patch simply avoids the risk by initializing with UINT_MAX.
 > 
-> The page in question may be on an LRU list, because nowhere in
-> do_wp_page() we remove it from the list, neither do we take any LRU
-> related locks. Although the page is locked, shrink_active_list() can
-> still call page_referenced() on it concurrently, because the latter does
-> not require an anonymous page to be locked:
-> 
->   CPU0                          CPU1
->   ----                          ----
->   do_wp_page                    shrink_active_list
->    lock_page                     page_referenced
->                                   PageAnon->yes, so skip trylock_page
->    page_move_anon_rmap
->     page->mapping = anon_vma
->                                   rmap_walk
->                                    PageAnon->no
->                                    rmap_walk_file
->                                     BUG
->     page->mapping += PAGE_MAPPING_ANON
-> 
-> This patch fixes this race by explicitly forbidding the compiler to
-> split page->mapping store in page_move_anon_rmap() with the aid of
-> WRITE_ONCE.
-> 
-> ...
+> ..
 >
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -950,7 +950,7 @@ void page_move_anon_rmap(struct page *page,
->  	VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1188,7 +1188,7 @@ static void dissolve_free_huge_page(struct page *page)
+>   */
+>  void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+>  {
+> -	unsigned int order = 8 * sizeof(void *);
+> +	unsigned int order = UINT_MAX;
+>  	unsigned long pfn;
+>  	struct hstate *h;
 >  
->  	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-> -	page->mapping = (struct address_space *) anon_vma;
-> +	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
+> @@ -1200,6 +1200,7 @@ void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+>  		if (order > huge_page_order(h))
+>  			order = huge_page_order(h);
+>  	VM_BUG_ON(!IS_ALIGNED(start_pfn, 1 << order));
+> +	VM_BUG_ON(order == UINT_MAX);
+>  	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << order)
+>  		dissolve_free_huge_page(pfn_to_page(pfn));
 
-Please let's not put things like WRITE_ONCE() in there without
-documenting them - otherwise it's terribly hard for readers to work out
-why it was added.
-
-How's this look?
-
---- a/mm/rmap.c~rmap-fix-theoretical-race-between-do_wp_page-and-shrink_active_list-fix
-+++ a/mm/rmap.c
-@@ -950,6 +950,11 @@ void page_move_anon_rmap(struct page *pa
- 	VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
- 
- 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-+	/*
-+	 * Ensure that anon_vma and the PAGE_MAPPING_ANON bit are written
-+	 * simultaneously, so a concurrent reader (eg shrink_active_list) will
-+	 * not see one without the other.
-+	 */
- 	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
- }
- 
-_
+Do we need to calculate this each time?  Can it be done in
+hugetlb_init_hstates(), save the result in a global?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
