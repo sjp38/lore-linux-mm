@@ -1,137 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DB266B0038
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 20:22:10 -0400 (EDT)
-Received: by pacwv17 with SMTP id wv17so31314805pac.0
-        for <linux-mm@kvack.org>; Tue, 12 May 2015 17:22:10 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id hu6si24629131pac.153.2015.05.12.17.22.08
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EA096B0038
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 20:42:49 -0400 (EDT)
+Received: by qcbgu10 with SMTP id gu10so14425983qcb.2
+        for <linux-mm@kvack.org>; Tue, 12 May 2015 17:42:49 -0700 (PDT)
+Received: from mail-qc0-x236.google.com (mail-qc0-x236.google.com. [2607:f8b0:400d:c01::236])
+        by mx.google.com with ESMTPS id 199si17839122qhe.36.2015.05.12.17.42.47
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 12 May 2015 17:22:09 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 2/4] mm/memory-failure: introduce get_hwpoison_page()
- for consistent refcount handling
-Date: Wed, 13 May 2015 00:11:41 +0000
-Message-ID: <20150513001141.GA14599@hori1.linux.bs1.fc.nec.co.jp>
-References: <1431423998-1939-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1431423998-1939-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20150512150017.4172e4b7bd549e16d8772753@linux-foundation.org>
-In-Reply-To: <20150512150017.4172e4b7bd549e16d8772753@linux-foundation.org>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <59FF06F49052484D961BCEF018E0B35D@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 May 2015 17:42:48 -0700 (PDT)
+Received: by qcyk17 with SMTP id k17so14505381qcy.1
+        for <linux-mm@kvack.org>; Tue, 12 May 2015 17:42:47 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20150512144313.GO11388@htj.duckdns.org>
+References: <20150507064557.GA26928@july>
+	<20150507154212.GA12245@htj.duckdns.org>
+	<CAH9JG2UAVRgX0Mg0d7WgG0URpkgu4q_bbNMXyOOEh9WFPztppQ@mail.gmail.com>
+	<20150508152513.GB28439@htj.duckdns.org>
+	<CAH9JG2VROCekWCAa+1t6Giy2wHC171TD-AXQVxG2vTH-LPcoPA@mail.gmail.com>
+	<CAH9JG2W6pKi__g-v+9B+-y3HJ=AkdE+W0d0TxmtpBWrXddxL_g@mail.gmail.com>
+	<20150512144313.GO11388@htj.duckdns.org>
+Date: Wed, 13 May 2015 09:42:47 +0900
+Message-ID: <CAH9JG2WffvJCB7v1peL3vWbJoJwZH=h8g-o0TmkmfUpsgVci0A@mail.gmail.com>
+Subject: Re: [RFC PATCH] PM, freezer: Don't thaw when it's intended frozen processes
+From: Kyungmin Park <kmpark@infradead.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "\\Rafael J. Wysocki\\" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux PM list <linux-pm@vger.kernel.org>
 
-On Tue, May 12, 2015 at 03:00:17PM -0700, Andrew Morton wrote:
-> On Tue, 12 May 2015 09:46:47 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec=
-.com> wrote:
->=20
-> > memory_failrue() can run in 2 different mode (specified by MF_COUNT_INC=
-REASED)
-> > in page refcount perspective. When MF_COUNT_INCREASED is set, memory_fa=
-ilrue()
-> > assumes that the caller takes a refcount of the target page. And if cle=
-ared,
-> > memory_failure() takes it in it's own.
-> >=20
-> > In current code, however, refcounting is done differently in each calle=
-r. For
-> > example, madvise_hwpoison() uses get_user_pages_fast() and hwpoison_inj=
-ect()
-> > uses get_page_unless_zero(). So this inconsistent refcounting causes re=
-fcount
-> > failure especially for thp tail pages. Typical user visible effects are=
- like
-> > memory leak or VM_BUG_ON_PAGE(!page_count(page)) in isolate_lru_page().
-> >=20
-> > To fix this refcounting issue, this patch introduces get_hwpoison_page(=
-) to
-> > handle thp tail pages in the same manner for each caller of hwpoison co=
-de.
-> >=20
-> > There's a non-trivial change around unpoisoning, which now returns imme=
-diately
-> > for thp with "MCE: Memory failure is now running on %#lx\n" message. Th=
-is is
-> > not right when split_huge_page() fails. So this patch also allows
-> > unpoison_memory() to handle thp.
-> >
-> > ...
-> >
-> >  /*
-> > + * Get refcount for memory error handling:
-> > + * - @page: raw page
-> > + */
-> > +inline int get_hwpoison_page(struct page *page)
-> > +{
-> > +	struct page *head =3D compound_head(page);
-> > +
-> > +	if (PageHuge(head))
-> > +		return get_page_unless_zero(head);
-> > +	else if (PageTransHuge(head))
-> > +		if (get_page_unless_zero(head)) {
-> > +			if (PageTail(page))
-> > +				get_page(page);
-> > +			return 1;
-> > +		} else {
-> > +			return 0;
-> > +		}
-> > +	else
-> > +		return get_page_unless_zero(page);
-> > +}
->=20
-> This function is a bit weird.
->=20
-> - The comment looks like kerneldoc but isn't kerneldoc
+On Tue, May 12, 2015 at 11:43 PM, Tejun Heo <tj@kernel.org> wrote:
+> Hello,
+>
+> On Mon, May 11, 2015 at 04:47:14PM +0900, Kyungmin Park wrote:
+>> > The kernel 3.10 is not working as expected, but right the latest
+>> > kernel is working correctly.
+>>
+>> Please ignore it. test is wrong and it's not working, see Krzysztof Mail.
+>
+> So, I just tested and it does work as expected.  What Krzysztof said
+> is the same thing that I said in the first reply.  The tasks will be
+> woken up but won't leave freezer.  Please re-test.
 
-OK, will fix it.
+Right, it's still in freezer, just one time scheduling is happened.
+and enter freeze state again.
 
-> - Why the inline?  It isn't fastpath?
+do you think can we avoid it or it's sub-optimal to do as patch?
 
-No, so I'll drop 'inline'.
-
-> - The layout is rather painful.  It could be
->=20
-> 	if (PageHuge(head))
-> 		return get_page_unless_zero(head);
->=20
-> 	if (PageTransHuge(head)) {
-> 		if (get_page_unless_zero(head)) {
-> 			if (PageTail(page))
-> 				get_page(page);
-> 			return 1;
-> 		} else {
-> 			return 0;
-> 		}
-> 	}
->=20
-> 	return get_page_unless_zero(page);
-
-OK, will do like this.
-
-> - Some illuminating comments would be nice.  In particular that code
->   path where it grabs a ref on the tail page as well as on the head
->   page.  What's going on there?
-
-We can't call get_page_unless_zero() directly for thp tail pages because
-that breaks thp's refcounting rule (refcount of tail pages is stored in
-->_mapcount.) This code intends to comply with the rule in hwpoison code to=
-o.
-So I'll comment the point.
-
-Hmm, I found just now that I forget to put_page(head) in if (PageTail) bloc=
-k,
-which leaks head page after thp split.
-So it'll be fixed in the next version.
-
-Thanks,
-Naoya Horiguchi=
+Thank you,
+Kyungmin Park
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
