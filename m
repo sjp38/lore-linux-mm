@@ -1,53 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 1988C6B0038
-	for <linux-mm@kvack.org>; Wed, 13 May 2015 09:54:44 -0400 (EDT)
-Received: by qcyk17 with SMTP id k17so22602790qcy.1
-        for <linux-mm@kvack.org>; Wed, 13 May 2015 06:54:43 -0700 (PDT)
-Received: from mail-qg0-x231.google.com (mail-qg0-x231.google.com. [2607:f8b0:400d:c04::231])
-        by mx.google.com with ESMTPS id g31si19447304qkh.66.2015.05.13.06.54.41
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F5B86B0038
+	for <linux-mm@kvack.org>; Wed, 13 May 2015 09:58:10 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so56939281wid.0
+        for <linux-mm@kvack.org>; Wed, 13 May 2015 06:58:09 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cg9si8441382wjc.205.2015.05.13.06.58.08
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 May 2015 06:54:42 -0700 (PDT)
-Received: by qgeb100 with SMTP id b100so21506248qge.3
-        for <linux-mm@kvack.org>; Wed, 13 May 2015 06:54:41 -0700 (PDT)
-Date: Wed, 13 May 2015 09:54:38 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH] PM, freezer: Don't thaw when it's intended frozen
- processes
-Message-ID: <20150513135438.GR11388@htj.duckdns.org>
-References: <20150507064557.GA26928@july>
- <20150507154212.GA12245@htj.duckdns.org>
- <CAH9JG2UAVRgX0Mg0d7WgG0URpkgu4q_bbNMXyOOEh9WFPztppQ@mail.gmail.com>
- <20150508152513.GB28439@htj.duckdns.org>
- <CAH9JG2VROCekWCAa+1t6Giy2wHC171TD-AXQVxG2vTH-LPcoPA@mail.gmail.com>
- <CAH9JG2W6pKi__g-v+9B+-y3HJ=AkdE+W0d0TxmtpBWrXddxL_g@mail.gmail.com>
- <20150512144313.GO11388@htj.duckdns.org>
- <CAH9JG2WffvJCB7v1peL3vWbJoJwZH=h8g-o0TmkmfUpsgVci0A@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 13 May 2015 06:58:08 -0700 (PDT)
+Date: Wed, 13 May 2015 15:58:05 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 0/3] Allow user to request memory to be locked on page
+ fault
+Message-ID: <20150513135805.GA17708@dhcp22.suse.cz>
+References: <1431113626-19153-1-git-send-email-emunson@akamai.com>
+ <20150508124203.6679b1d35ad9555425003929@linux-foundation.org>
+ <20150508200610.GB29933@akamai.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAH9JG2WffvJCB7v1peL3vWbJoJwZH=h8g-o0TmkmfUpsgVci0A@mail.gmail.com>
+In-Reply-To: <20150508200610.GB29933@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kyungmin Park <kmpark@infradead.org>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "\\Rafael J. Wysocki\\" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux PM list <linux-pm@vger.kernel.org>
+To: Eric B Munson <emunson@akamai.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Shuah Khan <shuahkh@osg.samsung.com>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On Wed, May 13, 2015 at 09:42:47AM +0900, Kyungmin Park wrote:
-> Right, it's still in freezer, just one time scheduling is happened.
-> and enter freeze state again.
+On Fri 08-05-15 16:06:10, Eric B Munson wrote:
+> On Fri, 08 May 2015, Andrew Morton wrote:
 > 
-> do you think can we avoid it or it's sub-optimal to do as patch?
+> > On Fri,  8 May 2015 15:33:43 -0400 Eric B Munson <emunson@akamai.com> wrote:
+> > 
+> > > mlock() allows a user to control page out of program memory, but this
+> > > comes at the cost of faulting in the entire mapping when it is
+> > > allocated.  For large mappings where the entire area is not necessary
+> > > this is not ideal.
+> > > 
+> > > This series introduces new flags for mmap() and mlockall() that allow a
+> > > user to specify that the covered are should not be paged out, but only
+> > > after the memory has been used the first time.
+> > 
+> > Please tell us much much more about the value of these changes: the use
+> > cases, the behavioural improvements and performance results which the
+> > patchset brings to those use cases, etc.
+> > 
+> 
+> The primary use case is for mmaping large files read only.  The process
+> knows that some of the data is necessary, but it is unlikely that the
+> entire file will be needed.  The developer only wants to pay the cost to
+> read the data in once.  Unfortunately developer must choose between
+> allowing the kernel to page in the memory as needed and guaranteeing
+> that the data will only be read from disk once.  The first option runs
+> the risk of having the memory reclaimed if the system is under memory
+> pressure, the second forces the memory usage and startup delay when
+> faulting in the entire file.
 
-I mean, it's suboptimal.  I'm not sure it actually matters tho.  If it
-matters, please feel free to submit a patch with proper rationale.
-Please just be careful so that we don't miss sending out wakeup in
-case we race against thawing.
-
-Thanks.
-
+Is there any reason you cannot do this from the userspace? Start by
+mmap(PROT_NONE) and do mmap(MAP_FIXED|MAP_LOCKED|MAP_READ|other_flags_you_need)
+from the SIGSEGV handler?
+You can generate a lot of vmas that way but you can mitigate that to a
+certain level by mapping larger than PAGE_SIZE chunks in the fault
+handler. Would that work in your usecase?
 -- 
-tejun
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
