@@ -1,55 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FAA76B0038
-	for <linux-mm@kvack.org>; Wed, 13 May 2015 04:08:44 -0400 (EDT)
-Received: by pdbnk13 with SMTP id nk13so43918247pdb.0
-        for <linux-mm@kvack.org>; Wed, 13 May 2015 01:08:43 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id fr13si26033230pdb.203.2015.05.13.01.08.43
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 294F36B0038
+	for <linux-mm@kvack.org>; Wed, 13 May 2015 04:10:58 -0400 (EDT)
+Received: by widdi4 with SMTP id di4so187126973wid.0
+        for <linux-mm@kvack.org>; Wed, 13 May 2015 01:10:57 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id kz7si31531083wjb.155.2015.05.13.01.10.55
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 May 2015 01:08:43 -0700 (PDT)
-Date: Wed, 13 May 2015 11:08:23 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH v2] rmap: fix theoretical race between do_wp_page and
- shrink_active_list
-Message-ID: <20150513080823.GH17628@esperanza>
-References: <1431425919-28057-1-git-send-email-vdavydov@parallels.com>
- <20150512152840.20805775ae82c69b9a8f3028@linux-foundation.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 13 May 2015 01:10:56 -0700 (PDT)
+Date: Wed, 13 May 2015 09:10:53 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm, numa: Really disable NUMA balancing by default on single
+ node machines
+Message-ID: <20150513081053.GQ2462@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20150512152840.20805775ae82c69b9a8f3028@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, May 12, 2015 at 03:28:40PM -0700, Andrew Morton wrote:
-> Please let's not put things like WRITE_ONCE() in there without
-> documenting them - otherwise it's terribly hard for readers to work out
-> why it was added.
-> 
-> How's this look?
-> 
-> --- a/mm/rmap.c~rmap-fix-theoretical-race-between-do_wp_page-and-shrink_active_list-fix
-> +++ a/mm/rmap.c
-> @@ -950,6 +950,11 @@ void page_move_anon_rmap(struct page *pa
->  	VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
->  
->  	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-> +	/*
-> +	 * Ensure that anon_vma and the PAGE_MAPPING_ANON bit are written
-> +	 * simultaneously, so a concurrent reader (eg shrink_active_list) will
-> +	 * not see one without the other.
-> +	 */
->  	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
->  }
+NUMA balancing is meant to be disabled by default on UMA machines but
+the check is using nr_node_ids (highest node) instead of num_online_nodes
+(online nodes). The consequences are that a UMA machine with a node ID of 1
+or higher will enable NUMA balancing. This will incur useless overhead due
+to minor faults with the impact depending on the workload. These are the
+impact on the stats when running a kernel build on a single node machine
+whose node ID happened to be 1;
 
-Looks good to me.
+			       vanilla     patched
+NUMA base PTE updates          5113158           0
+NUMA huge PMD updates              643           0
+NUMA page range updates        5442374           0
+NUMA hint faults               2109622           0
+NUMA hint local faults         2109622           0
+NUMA hint local percent            100         100
+NUMA pages migrated                  0           0
 
-Thanks,
-Vladimir
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Cc: <stable@vger.kernel.org> #v3.8+
+---
+ mm/mempolicy.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index ede26291d4aa..747743237d9f 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -2518,7 +2518,7 @@ static void __init check_numabalancing_enable(void)
+ 	if (numabalancing_override)
+ 		set_numabalancing_state(numabalancing_override == 1);
+ 
+-	if (nr_node_ids > 1 && !numabalancing_override) {
++	if (num_online_nodes() > 1 && !numabalancing_override) {
+ 		pr_info("%s automatic NUMA balancing. "
+ 			"Configure with numa_balancing= or the "
+ 			"kernel.numa_balancing sysctl",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
