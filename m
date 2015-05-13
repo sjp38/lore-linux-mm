@@ -1,150 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 4155F6B0038
-	for <linux-mm@kvack.org>; Tue, 12 May 2015 21:45:25 -0400 (EDT)
-Received: by iebpz10 with SMTP id pz10so19108948ieb.2
-        for <linux-mm@kvack.org>; Tue, 12 May 2015 18:45:25 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id q18si14049008ico.33.2015.05.12.18.45.24
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id E4A066B0038
+	for <linux-mm@kvack.org>; Tue, 12 May 2015 22:04:27 -0400 (EDT)
+Received: by wggj6 with SMTP id j6so28604876wgg.3
+        for <linux-mm@kvack.org>; Tue, 12 May 2015 19:04:27 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id cx3si5970789wib.115.2015.05.12.19.04.25
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 12 May 2015 18:45:24 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm/hugetlb: initialize order with UINT_MAX in
- dissolve_free_huge_pages()
-Date: Wed, 13 May 2015 01:44:22 +0000
-Message-ID: <20150513014418.GB14599@hori1.linux.bs1.fc.nec.co.jp>
-References: <20150511111748.GA20660@mwanda>
- <20150511235443.GA8513@hori1.linux.bs1.fc.nec.co.jp>
- <20150512084339.GN16501@mwanda>
- <20150512090454.GD3068@hori1.linux.bs1.fc.nec.co.jp>
- <20150512091349.GO16501@mwanda>
- <20150512091640.GE3068@hori1.linux.bs1.fc.nec.co.jp>
- <20150512092034.GF3068@hori1.linux.bs1.fc.nec.co.jp>
- <20150512161511.7967c400cae6c1d693b61d57@linux-foundation.org>
-In-Reply-To: <20150512161511.7967c400cae6c1d693b61d57@linux-foundation.org>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <11DD24838ACFC74087128A6C8855AC18@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 May 2015 19:04:26 -0700 (PDT)
+Message-ID: <5552B11C.7040304@redhat.com>
+Date: Tue, 12 May 2015 22:04:12 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH v2] rmap: fix theoretical race between do_wp_page and
+ shrink_active_list
+References: <20150513014352.GC8267@blaptop>
+In-Reply-To: <20150513014352.GC8267@blaptop>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Carpenter <dan.carpenter@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>
 
-On Tue, May 12, 2015 at 04:15:11PM -0700, Andrew Morton wrote:
-> On Tue, 12 May 2015 09:20:35 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec=
-.com> wrote:
->=20
-> > Currently the initial value of order in dissolve_free_huge_page is 64 o=
-r 32,
-> > which leads to the following warning in static checker:
-> >=20
-> >   mm/hugetlb.c:1203 dissolve_free_huge_pages()
-> >   warn: potential right shift more than type allows '9,18,64'
-> >=20
-> > This is a potential risk of infinite loop, because 1 << order (=3D=3D 0=
-) is used
-> > in for-loop like this:
-> >=20
-> >   for (pfn =3D start_pfn; pfn < end_pfn; pfn +=3D 1 << order)
-> >       ...
-> >=20
-> > So this patch simply avoids the risk by initializing with UINT_MAX.
-> >=20
-> > ..
-> >
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -1188,7 +1188,7 @@ static void dissolve_free_huge_page(struct page *=
-page)
-> >   */
-> >  void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long e=
-nd_pfn)
-> >  {
-> > -	unsigned int order =3D 8 * sizeof(void *);
-> > +	unsigned int order =3D UINT_MAX;
-> >  	unsigned long pfn;
-> >  	struct hstate *h;
-> > =20
-> > @@ -1200,6 +1200,7 @@ void dissolve_free_huge_pages(unsigned long start=
-_pfn, unsigned long end_pfn)
-> >  		if (order > huge_page_order(h))
-> >  			order =3D huge_page_order(h);
-> >  	VM_BUG_ON(!IS_ALIGNED(start_pfn, 1 << order));
-> > +	VM_BUG_ON(order =3D=3D UINT_MAX);
-> >  	for (pfn =3D start_pfn; pfn < end_pfn; pfn +=3D 1 << order)
-> >  		dissolve_free_huge_page(pfn_to_page(pfn));
->=20
-> Do we need to calculate this each time?  Can it be done in
-> hugetlb_init_hstates(), save the result in a global?
+On 05/12/2015 09:43 PM, Minchan Kim wrote:
+> Hi, Rik
+> 
+> I'd like to bring up the issue in this thread although I already gave
+> my Acked-by.
+> 
+> Below issue causes by no PG_locked page in page_referenced while
+> page_move_anon_rmap depends on PG_locked to prevent race with rmap code.
+> 
+> So, although this patch fixes below one example, we still have a problem
+> in rmap.
+> 
+> If page_referenced holds PG_locked for all of pages unconditionally,
+> we don't need this patch and might remove READ_ONCE introduced by
+> 80e148 and more than.
+> 
+> What do you think about?
 
-Yes, it should work. How about the following?
-This adds 4bytes to .data due to a new global variable, but reduces 47 byte=
-s
-.text size of code reduces, so it's a win in total.
+Maybe the reclaim code and page_referenced are fine.
 
-   text    data     bss     dec     hex filename                        =20
-  28313     469   84236  113018   1b97a mm/hugetlb.o (above patch)
-  28266     473   84236  112975   1b94f mm/hugetlb.o (below patch)
+However, I have seen one real world bug report of a page->mapping
+pointing to an anon_vma without the PAGE_MAPPING_ANON bit being
+set.
 
----
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 271e4432734c..fecb8bbfe11e 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -40,6 +40,7 @@ int hugepages_treat_as_movable;
- int hugetlb_max_hstate __read_mostly;
- unsigned int default_hstate_idx;
- struct hstate hstates[HUGE_MAX_HSTATE];
-+unsigned int minimum_order __read_mostly;
-=20
- __initdata LIST_HEAD(huge_boot_pages);
-=20
-@@ -1188,19 +1189,13 @@ static void dissolve_free_huge_page(struct page *pa=
-ge)
-  */
- void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_p=
-fn)
- {
--	unsigned int order =3D 8 * sizeof(void *);
- 	unsigned long pfn;
--	struct hstate *h;
-=20
- 	if (!hugepages_supported())
- 		return;
-=20
--	/* Set scan step to minimum hugepage size */
--	for_each_hstate(h)
--		if (order > huge_page_order(h))
--			order =3D huge_page_order(h);
--	VM_BUG_ON(!IS_ALIGNED(start_pfn, 1 << order));
--	for (pfn =3D start_pfn; pfn < end_pfn; pfn +=3D 1 << order)
-+	VM_BUG_ON(!IS_ALIGNED(start_pfn, 1 << minimum_order));
-+	for (pfn =3D start_pfn; pfn < end_pfn; pfn +=3D 1 << minimum_order)
- 		dissolve_free_huge_page(pfn_to_page(pfn));
- }
-=20
-@@ -1626,11 +1621,16 @@ static void __init hugetlb_init_hstates(void)
- {
- 	struct hstate *h;
-=20
-+	minimum_order =3D UINT_MAX;
- 	for_each_hstate(h) {
-+		if (minimum_order > huge_page_order(h))
-+			minimum_order =3D huge_page_order(h);
-+
- 		/* oversize hugepages were init'ed in early boot */
- 		if (!hstate_is_gigantic(h))
- 			hugetlb_hstate_alloc_pages(h);
- 	}
-+	VM_BUG_ON(minimum_order =3D=3D UINT_MAX);
- }
-=20
- static char * __init memfmt(char *buf, unsigned long n)
---=20
-2.1.0
+This is a pretty hard to hit race, so I have only ever heard of
+it happening once, and I do not remember the details of exactly
+what code blew up trying to follow the page->mapping pointer in
+the wrong way.
+
+I wish I remember what needs this patch, but I have a rather
+strong suspicion there is something that needs it...
+
+Acked-by: Rik van Riel <riel@redhat.com>
+
+> On Tue, May 12, 2015 at 01:18:39PM +0300, Vladimir Davydov wrote:
+>> As noted by Paul the compiler is free to store a temporary result in a
+>> variable on stack, heap or global unless it is explicitly marked as
+>> volatile, see:
+>>
+>>   http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4455.html#sample-optimizations
+>>
+>> This can result in a race between do_wp_page() and shrink_active_list()
+>> as follows.
+>>
+>> In do_wp_page() we can call page_move_anon_rmap(), which sets
+>> page->mapping as follows:
+>>
+>>   anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+>>   page->mapping = (struct address_space *) anon_vma;
+>>
+>> The page in question may be on an LRU list, because nowhere in
+>> do_wp_page() we remove it from the list, neither do we take any LRU
+>> related locks. Although the page is locked, shrink_active_list() can
+>> still call page_referenced() on it concurrently, because the latter does
+>> not require an anonymous page to be locked:
+>>
+>>   CPU0                          CPU1
+>>   ----                          ----
+>>   do_wp_page                    shrink_active_list
+>>    lock_page                     page_referenced
+>>                                   PageAnon->yes, so skip trylock_page
+>>    page_move_anon_rmap
+>>     page->mapping = anon_vma
+>>                                   rmap_walk
+>>                                    PageAnon->no
+>>                                    rmap_walk_file
+>>                                     BUG
+>>     page->mapping += PAGE_MAPPING_ANON
+>>
+>> This patch fixes this race by explicitly forbidding the compiler to
+>> split page->mapping store in page_move_anon_rmap() with the aid of
+>> WRITE_ONCE.
+>>
+>> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+>> Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+>> Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
+>> Cc: Rik van Riel <riel@redhat.com>
+>> Cc: Hugh Dickins <hughd@google.com>
+>> ---
+>> Changes in v2:
+>>  - do not add READ_ONCE to PageAnon and WRITE_ONCE to
+>>    __page_set_anon_rmap and __hugepage_set_anon_rmap (Kirill)
+>>
+>>  mm/rmap.c |    2 +-
+>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>>
+>> diff --git a/mm/rmap.c b/mm/rmap.c
+>> index 24dd3f9fee27..8b18fd4227d1 100644
+>> --- a/mm/rmap.c
+>> +++ b/mm/rmap.c
+>> @@ -950,7 +950,7 @@ void page_move_anon_rmap(struct page *page,
+>>  	VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
+>>  
+>>  	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+>> -	page->mapping = (struct address_space *) anon_vma;
+>> +	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
+>>  }
+>>  
+>>  /**
+>> -- 
+>> 1.7.10.4
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
