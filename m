@@ -1,51 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id D00096B0038
-	for <linux-mm@kvack.org>; Wed, 13 May 2015 12:32:03 -0400 (EDT)
-Received: by wgbhc8 with SMTP id hc8so15793263wgb.3
-        for <linux-mm@kvack.org>; Wed, 13 May 2015 09:32:03 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id qr7si9350813wic.24.2015.05.13.09.32.01
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id C37B56B0038
+	for <linux-mm@kvack.org>; Wed, 13 May 2015 16:55:58 -0400 (EDT)
+Received: by pabsx10 with SMTP id sx10so61661533pab.3
+        for <linux-mm@kvack.org>; Wed, 13 May 2015 13:55:58 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id bx10si28769940pdb.154.2015.05.13.13.55.57
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 13 May 2015 09:32:02 -0700 (PDT)
-Date: Wed, 13 May 2015 17:31:57 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: meminit: Finish initialisation of struct pages
- before basic setup
-Message-ID: <20150513163157.GR2462@suse.de>
-References: <1430231830-7702-1-git-send-email-mgorman@suse.de>
- <554030D1.8080509@hp.com>
- <5543F802.9090504@hp.com>
- <554415B1.2050702@hp.com>
- <20150504143046.9404c572486caf71bdef0676@linux-foundation.org>
- <20150505104514.GC2462@suse.de>
- <20150505130255.49ff76bbf0a3b32d884ab2ce@linux-foundation.org>
- <20150507072518.GL2462@suse.de>
- <20150507150932.79e038167f70dd467c25d6ee@linux-foundation.org>
- <5553737D.8080904@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <5553737D.8080904@sgi.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 May 2015 13:55:57 -0700 (PDT)
+Date: Wed, 13 May 2015 13:55:56 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/hugetlb: initialize order with UINT_MAX in
+ dissolve_free_huge_pages()
+Message-Id: <20150513135556.5d21cd52810f87460eb1f2a1@linux-foundation.org>
+In-Reply-To: <20150513014418.GB14599@hori1.linux.bs1.fc.nec.co.jp>
+References: <20150511111748.GA20660@mwanda>
+	<20150511235443.GA8513@hori1.linux.bs1.fc.nec.co.jp>
+	<20150512084339.GN16501@mwanda>
+	<20150512090454.GD3068@hori1.linux.bs1.fc.nec.co.jp>
+	<20150512091349.GO16501@mwanda>
+	<20150512091640.GE3068@hori1.linux.bs1.fc.nec.co.jp>
+	<20150512092034.GF3068@hori1.linux.bs1.fc.nec.co.jp>
+	<20150512161511.7967c400cae6c1d693b61d57@linux-foundation.org>
+	<20150513014418.GB14599@hori1.linux.bs1.fc.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: nzimmer <nzimmer@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Dan Carpenter <dan.carpenter@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, May 13, 2015 at 10:53:33AM -0500, nzimmer wrote:
-> I am just noticed a hang on my largest box.
-> I can only reproduce with large core counts, if I turn down the
-> number of cpus it doesn't have an issue.
+On Wed, 13 May 2015 01:44:22 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+
+> > >  			order = huge_page_order(h);
+> > >  	VM_BUG_ON(!IS_ALIGNED(start_pfn, 1 << order));
+> > > +	VM_BUG_ON(order == UINT_MAX);
+> > >  	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << order)
+> > >  		dissolve_free_huge_page(pfn_to_page(pfn));
+> > 
+> > Do we need to calculate this each time?  Can it be done in
+> > hugetlb_init_hstates(), save the result in a global?
 > 
+> Yes, it should work. How about the following?
+> This adds 4bytes to .data due to a new global variable, but reduces 47 bytes
+> .text size of code reduces, so it's a win in total.
+> 
+>    text    data     bss     dec     hex filename                         
+>   28313     469   84236  113018   1b97a mm/hugetlb.o (above patch)
+>   28266     473   84236  112975   1b94f mm/hugetlb.o (below patch)
 
-Odd. The number of core counts should make little a difference as only
-one CPU per node should be in use. Does sysrq+t give any indication how
-or where it is hanging?
+Looks good.  Please turn it into a real patch and send it over when
+convenient?
 
--- 
-Mel Gorman
-SUSE Labs
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -40,6 +40,7 @@ int hugepages_treat_as_movable;
+>  int hugetlb_max_hstate __read_mostly;
+>  unsigned int default_hstate_idx;
+>  struct hstate hstates[HUGE_MAX_HSTATE];
+> +unsigned int minimum_order __read_mostly;
+
+static.
+
+And a comment would be nice ;)
+
+>
+> ...
+>
+> @@ -1626,11 +1621,16 @@ static void __init hugetlb_init_hstates(void)
+>  {
+>  	struct hstate *h;
+>  
+> +	minimum_order = UINT_MAX;
+
+Do this at compile time.
+
+>  	for_each_hstate(h) {
+> +		if (minimum_order > huge_page_order(h))
+> +			minimum_order = huge_page_order(h);
+> +
+>  		/* oversize hugepages were init'ed in early boot */
+>  		if (!hstate_is_gigantic(h))
+>  			hugetlb_hstate_alloc_pages(h);
+>  	}
+> +	VM_BUG_ON(minimum_order == UINT_MAX);
+
+Is the system hopelessly screwed up when this happens, or will it still
+be able to boot up and do useful things?
+
+If the system is hopelessly broken then BUG_ON or, better, panic should
+be used here.  But if there's still potential to do useful things then
+I guess VM_BUG_ON is appropriate.
+
+
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
