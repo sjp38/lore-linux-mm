@@ -1,114 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 98F1E6B0038
-	for <linux-mm@kvack.org>; Wed, 13 May 2015 11:29:18 -0400 (EDT)
-Received: by qcvo8 with SMTP id o8so24375214qcv.0
-        for <linux-mm@kvack.org>; Wed, 13 May 2015 08:29:18 -0700 (PDT)
-Received: from mail.siteground.com (mail.siteground.com. [67.19.240.234])
-        by mx.google.com with ESMTPS id b107si19681615qgf.111.2015.05.13.08.29.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 May 2015 08:29:17 -0700 (PDT)
-Message-ID: <55536DC9.90200@kyup.com>
-Date: Wed, 13 May 2015 18:29:13 +0300
-From: Nikolay Borisov <kernel@kyup.com>
-MIME-Version: 1.0
-Subject: Possible bug - LTP failure for memcg
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 8940C6B0038
+	for <linux-mm@kvack.org>; Wed, 13 May 2015 11:37:00 -0400 (EDT)
+Received: by pabtp1 with SMTP id tp1so54259894pab.2
+        for <linux-mm@kvack.org>; Wed, 13 May 2015 08:37:00 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id zu5si27599689pac.183.2015.05.13.08.36.58
+        for <linux-mm@kvack.org>;
+        Wed, 13 May 2015 08:36:59 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] radix-tree: replace preallocated node array with linked list
+Date: Wed, 13 May 2015 18:36:54 +0300
+Message-Id: <1431531414-173802-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cgroups@vger.kernel.org
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hello,
+Currently we use per-cpu array to hold pointers to preallocated nodes.
+Let's replace it with linked list. On x86_64 it saves 256 bytes in
+per-cpu ELF section which may translate into freeing up 2MB of memory
+for NR_CPUS==8192.
 
-I'm running the ltp version 20150420 and stock kernel 4.0 and I've
-observed that the memcg_function test is failing. Here is a relevant
-snipped from the log:
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ lib/radix-tree.c | 27 ++++++++++++++++-----------
+ 1 file changed, 16 insertions(+), 11 deletions(-)
 
-
-memcg_function_test   14  TFAIL  :  ltpapicmd.c:190: process 5827 is not
-killed
-/opt/ltp/testcases/bin/memcg_lib.sh: line 210:  5843 Killed
-     $TEST_PATH/memcg_process $2 -s $3
-memcg_function_test   15  TPASS  :  process 5843 is killed
-/opt/ltp/testcases/bin/memcg_lib.sh: line 210:  5859 Killed
-     $TEST_PATH/memcg_process $2 -s $3
-memcg_function_test   16  TPASS  :  process 5859 is killed
-/opt/ltp/testcases/bin/memcg_lib.sh: line 210:  5877 Killed
-     $TEST_PATH/memcg_process $2 -s $3
-memcg_function_test   17  TPASS  :  process 5877 is killed
-/opt/ltp/testcases/bin/memcg_lib.sh: line 210:  5894 Killed
-     $TEST_PATH/memcg_process $2 -s $3
-memcg_function_test   18  TPASS  :  process 5894 is killed
-/opt/ltp/testcases/bin/memcg_lib.sh: line 210:  5911 Killed
-     $TEST_PATH/memcg_process $2 -s $3
-memcg_function_test   19  TPASS  :  process 5911 is killed
-/opt/ltp/testcases/bin/memcg_lib.sh: line 210:  5927 Killed
-     $TEST_PATH/memcg_process $2 -s $3
-memcg_function_test   20  TPASS  :  process 5927 is killed
-/opt/ltp/testcases/bin/memcg_lib.sh: line 210:  5942 Killed
-     $TEST_PATH/memcg_process $2 -s $3
-memcg_function_test   21  TPASS  :  process 5942 is killed
-memcg_function_test   22  TFAIL  :  ltpapicmd.c:190: input=4095,
-limit_in_bytes=0
-memcg_function_test   23  TFAIL  :  ltpapicmd.c:190: input=4097,
-limit_in_bytes=4096
-memcg_function_test   24  TFAIL  :  ltpapicmd.c:190: input=1,
-limit_in_bytes=0
-memcg_function_test   25  TPASS  :  return value is 0
-memcg_function_test   26  TPASS  :  return value is 1
-memcg_function_test   27  TPASS  :  return value is 1
-memcg_function_test   28  TPASS  :  return value is 1
-memcg_function_test   29  TPASS  :  force memory succeeded
-memcg_function_test   30  TFAIL  :  ltpapicmd.c:190: force memory should
-fail
-memcg_function_test   31  TPASS  :  return value is 0
-memcg_function_test   32  TPASS  :  return value is 0
-memcg_function_test   33  TPASS  :  return value is 0
-memcg_function_test   34  TPASS  :  return value is 0
-memcg_function_test   35  TPASS  :  return value is 1
-Running /opt/ltp/testcases/bin/memcg_process --mmap-anon -s 4096
-Warming up for test: 36, pid: 6128
-Process is still here after warm up: 6128
-memcg_function_test   36  TPASS  :  rss=4096/4096
-memcg_function_test   36  TPASS  :  rss=0/0
-Running /opt/ltp/testcases/bin/memcg_process --mmap-anon -s 4096
-Warming up for test: 37, pid: 6155
-Process is still here after warm up: 6155
-memcg_function_test   37  TPASS  :  rss=4096/4096
-memcg_function_test   37  TPASS  :  rss=0/0
-Running /opt/ltp/testcases/bin/memcg_process --mmap-anon -s 4096
-Warming up for test: 38, pid: 6182
-Process is still here after warm up: 6182
-memcg_function_test   38  TPASS  :  rss=4096/4096
-memcg_function_test   38  TPASS  :  rss=0/0
-<<<execution_status>>>
-initiation_status="ok"
-duration=135 termination_type=exited termination_id=5 corefile=no
-cutime=8 cstime=15
-<<<test_end>>>
-INFO: ltp-pan reported some tests FAIL
-LTP Version: 20150420
-
-According to the file at :
-https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/controllers/memcg/functional/memcg_function_test.sh
-
-
-The failing test cases 14, 22, 23, 24 and 30 test respectively:
-
-14: Hogging memory like so: mmap(NULL, memsize, PROT_WRITE | PROT_READ,
-MAP_PRIVATE | MAP_ANONYMOUS | MAP_LOCKED, 0, 0);
-
-# Case 22 - 24: Test limit_in_bytes will be aligned to PAGESIZE - The
-output clearly indicates that the limits in bytes is not being page
-aligned? Is this desired behavior, in which case ltp is broken or is it
-a genuine bug?
-
-30: Again, it locks memory with mmap and then tries to see if
-force_empty would succeed. Expecting it to fail, but in this particular
-case it succeeds?
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 3d2aa27b845b..1f58724a2f58 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -65,7 +65,8 @@ static struct kmem_cache *radix_tree_node_cachep;
+  */
+ struct radix_tree_preload {
+ 	int nr;
+-	struct radix_tree_node *nodes[RADIX_TREE_PRELOAD_SIZE];
++	/* nodes->private_data points to next prealocated node */
++	struct radix_tree_node *nodes;
+ };
+ static DEFINE_PER_CPU(struct radix_tree_preload, radix_tree_preloads) = { 0, };
+ 
+@@ -197,8 +198,9 @@ radix_tree_node_alloc(struct radix_tree_root *root)
+ 		 */
+ 		rtp = this_cpu_ptr(&radix_tree_preloads);
+ 		if (rtp->nr) {
+-			ret = rtp->nodes[rtp->nr - 1];
+-			rtp->nodes[rtp->nr - 1] = NULL;
++			ret = rtp->nodes;
++			rtp->nodes = ret->private_data;
++			ret->private_data = NULL;
+ 			rtp->nr--;
+ 		}
+ 		/*
+@@ -257,16 +259,18 @@ static int __radix_tree_preload(gfp_t gfp_mask)
+ 
+ 	preempt_disable();
+ 	rtp = this_cpu_ptr(&radix_tree_preloads);
+-	while (rtp->nr < ARRAY_SIZE(rtp->nodes)) {
++	while (rtp->nr < RADIX_TREE_PRELOAD_SIZE) {
+ 		preempt_enable();
+ 		node = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
+ 		if (node == NULL)
+ 			goto out;
+ 		preempt_disable();
+ 		rtp = this_cpu_ptr(&radix_tree_preloads);
+-		if (rtp->nr < ARRAY_SIZE(rtp->nodes))
+-			rtp->nodes[rtp->nr++] = node;
+-		else
++		if (rtp->nr < RADIX_TREE_PRELOAD_SIZE) {
++			node->private_data = rtp->nodes;
++			rtp->nodes = node;
++			rtp->nr++;
++		} else
+ 			kmem_cache_free(radix_tree_node_cachep, node);
+ 	}
+ 	ret = 0;
+@@ -1463,15 +1467,16 @@ static int radix_tree_callback(struct notifier_block *nfb,
+ {
+        int cpu = (long)hcpu;
+        struct radix_tree_preload *rtp;
++       struct radix_tree_node *node;
+ 
+        /* Free per-cpu pool of perloaded nodes */
+        if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
+                rtp = &per_cpu(radix_tree_preloads, cpu);
+                while (rtp->nr) {
+-                       kmem_cache_free(radix_tree_node_cachep,
+-                                       rtp->nodes[rtp->nr-1]);
+-                       rtp->nodes[rtp->nr-1] = NULL;
+-                       rtp->nr--;
++			node = rtp->nodes;
++			rtp->nodes = node->private_data;
++			kmem_cache_free(radix_tree_node_cachep, node);
++			rtp->nr--;
+                }
+        }
+        return NOTIFY_OK;
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
