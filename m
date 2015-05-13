@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id C18D16B0070
-	for <linux-mm@kvack.org>; Wed, 13 May 2015 09:08:32 -0400 (EDT)
-Received: by wicmx19 with SMTP id mx19so10417578wic.0
-        for <linux-mm@kvack.org>; Wed, 13 May 2015 06:08:31 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 358E66B0070
+	for <linux-mm@kvack.org>; Wed, 13 May 2015 09:08:35 -0400 (EDT)
+Received: by wizk4 with SMTP id k4so197913284wiz.1
+        for <linux-mm@kvack.org>; Wed, 13 May 2015 06:08:34 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f12si4579904wiv.59.2015.05.13.06.08.29
+        by mx.google.com with ESMTPS id dk3si653912wib.13.2015.05.13.06.08.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Wed, 13 May 2015 06:08:29 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 2/9] mm: Provide new get_vaddr_frames() helper
-Date: Wed, 13 May 2015 15:08:08 +0200
-Message-Id: <1431522495-4692-3-git-send-email-jack@suse.cz>
+Subject: [PATCH 1/9] [media] vb2: Push mmap_sem down to memops
+Date: Wed, 13 May 2015 15:08:07 +0200
+Message-Id: <1431522495-4692-2-git-send-email-jack@suse.cz>
 In-Reply-To: <1431522495-4692-1-git-send-email-jack@suse.cz>
 References: <1431522495-4692-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,331 +20,173 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-media@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, dri-devel@lists.freedesktop.org, Pawel Osciak <pawel@osciak.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, mgorman@suse.de, Marek Szyprowski <m.szyprowski@samsung.com>, linux-samsung-soc@vger.kernel.org, Jan Kara <jack@suse.cz>
 
-Provide new function get_vaddr_frames().  This function maps virtual
-addresses from given start and fills given array with page frame numbers of
-the corresponding pages. If given start belongs to a normal vma, the function
-grabs reference to each of the pages to pin them in memory. If start
-belongs to VM_IO | VM_PFNMAP vma, we don't touch page structures. Caller
-must make sure pfns aren't reused for anything else while he is using
-them.
+Currently vb2 core acquires mmap_sem just around call to
+__qbuf_userptr(). However since commit f035eb4e976ef5 (videobuf2: fix
+lockdep warning) it isn't necessary to acquire it so early as we no
+longer have to drop queue mutex before acquiring mmap_sem. So push
+acquisition of mmap_sem down into .get_userptr and .put_userptr memops
+so that the semaphore is acquired for a shorter time and it is clearer
+what it is needed for.
 
-This function is created for various drivers to simplify handling of
-their buffers.
-
-Acked-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- include/linux/mm.h |  44 +++++++++++
- mm/gup.c           | 226 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 270 insertions(+)
+ drivers/media/v4l2-core/videobuf2-core.c       | 2 --
+ drivers/media/v4l2-core/videobuf2-dma-contig.c | 7 +++++++
+ drivers/media/v4l2-core/videobuf2-dma-sg.c     | 6 ++++++
+ drivers/media/v4l2-core/videobuf2-vmalloc.c    | 6 +++++-
+ 4 files changed, 18 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0755b9fd03a7..dcd1f02a78e9 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -20,6 +20,7 @@
- #include <linux/shrinker.h>
- #include <linux/resource.h>
- #include <linux/page_ext.h>
-+#include <linux/err.h>
- 
- struct mempolicy;
- struct anon_vma;
-@@ -1197,6 +1198,49 @@ long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
- 		    int write, int force, struct page **pages);
- int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 			struct page **pages);
-+
-+/* Container for pinned pfns / pages */
-+struct frame_vector {
-+	unsigned int nr_allocated;	/* Number of frames we have space for */
-+	unsigned int nr_frames;	/* Number of frames stored in ptrs array */
-+	bool got_ref;		/* Did we pin pages by getting page ref? */
-+	bool is_pfns;		/* Does array contain pages or pfns? */
-+	void *ptrs[0];		/* Array of pinned pfns / pages. Use
-+				 * pfns_vector_pages() or pfns_vector_pfns()
-+				 * for access */
-+};
-+
-+struct frame_vector *frame_vector_create(unsigned int nr_frames);
-+void frame_vector_destroy(struct frame_vector *vec);
-+int get_vaddr_frames(unsigned long start, unsigned int nr_pfns,
-+		     bool write, bool force, struct frame_vector *vec);
-+void put_vaddr_frames(struct frame_vector *vec);
-+int frame_vector_to_pages(struct frame_vector *vec);
-+void frame_vector_to_pfns(struct frame_vector *vec);
-+
-+static inline unsigned int frame_vector_count(struct frame_vector *vec)
-+{
-+	return vec->nr_frames;
-+}
-+
-+static inline struct page **frame_vector_pages(struct frame_vector *vec)
-+{
-+	if (vec->is_pfns) {
-+		int err = frame_vector_to_pages(vec);
-+
-+		if (err)
-+			return ERR_PTR(err);
-+	}
-+	return (struct page **)(vec->ptrs);
-+}
-+
-+static inline unsigned long *frame_vector_pfns(struct frame_vector *vec)
-+{
-+	if (!vec->is_pfns)
-+		frame_vector_to_pfns(vec);
-+	return (unsigned long *)(vec->ptrs);
-+}
-+
- struct kvec;
- int get_kernel_pages(const struct kvec *iov, int nr_pages, int write,
- 			struct page **pages);
-diff --git a/mm/gup.c b/mm/gup.c
-index 6297f6bccfb1..9d7f4fde30cb 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -8,6 +8,7 @@
- #include <linux/rmap.h>
- #include <linux/swap.h>
- #include <linux/swapops.h>
-+#include <linux/vmalloc.h>
- 
- #include <linux/sched.h>
- #include <linux/rwsem.h>
-@@ -936,6 +937,231 @@ int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
- 	return ret;	/* 0 or negative error code */
+diff --git a/drivers/media/v4l2-core/videobuf2-core.c b/drivers/media/v4l2-core/videobuf2-core.c
+index 66ada01c796c..20cdbc0900ea 100644
+--- a/drivers/media/v4l2-core/videobuf2-core.c
++++ b/drivers/media/v4l2-core/videobuf2-core.c
+@@ -1657,9 +1657,7 @@ static int __buf_prepare(struct vb2_buffer *vb, const struct v4l2_buffer *b)
+ 		ret = __qbuf_mmap(vb, b);
+ 		break;
+ 	case V4L2_MEMORY_USERPTR:
+-		down_read(&current->mm->mmap_sem);
+ 		ret = __qbuf_userptr(vb, b);
+-		up_read(&current->mm->mmap_sem);
+ 		break;
+ 	case V4L2_MEMORY_DMABUF:
+ 		ret = __qbuf_dmabuf(vb, b);
+diff --git a/drivers/media/v4l2-core/videobuf2-dma-contig.c b/drivers/media/v4l2-core/videobuf2-dma-contig.c
+index 644dec73d220..620c4aa78881 100644
+--- a/drivers/media/v4l2-core/videobuf2-dma-contig.c
++++ b/drivers/media/v4l2-core/videobuf2-dma-contig.c
+@@ -532,7 +532,9 @@ static void vb2_dc_put_userptr(void *buf_priv)
+ 		sg_free_table(sgt);
+ 		kfree(sgt);
+ 	}
++	down_read(&current->mm->mmap_sem);
+ 	vb2_put_vma(buf->vma);
++	up_read(&current->mm->mmap_sem);
+ 	kfree(buf);
  }
  
-+/*
-+ * get_vaddr_frames() - map virtual addresses to pfns
-+ * @start:	starting user address
-+ * @nr_frames:	number of pages / pfns from start to map
-+ * @write:	whether pages will be written to by the caller
-+ * @force:	whether to force write access even if user mapping is
-+ *		readonly. See description of the same argument of
-+		get_user_pages().
-+ * @vec:	structure which receives pages / pfns of the addresses mapped.
-+ *		It should have space for at least nr_frames entries.
-+ *
-+ * This function maps virtual addresses from @start and fills @vec structure
-+ * with page frame numbers or page pointers to corresponding pages (choice
-+ * depends on the type of the vma underlying the virtual address). If @start
-+ * belongs to a normal vma, the function grabs reference to each of the pages
-+ * to pin them in memory. If @start belongs to VM_IO | VM_PFNMAP vma, we don't
-+ * touch page structures and the caller must make sure pfns aren't reused for
-+ * anything else while he is using them.
-+ *
-+ * The function returns number of pages mapped which may be less than
-+ * @nr_frames. In particular we stop mapping if there are more vmas of
-+ * different type underlying the specified range of virtual addresses.
-+ * When the function isn't able to map a single page, it returns error.
-+ *
-+ * This function takes care of grabbing mmap_sem as necessary.
-+ */
-+int get_vaddr_frames(unsigned long start, unsigned int nr_frames,
-+		     bool write, bool force, struct frame_vector *vec)
-+{
-+	struct mm_struct *mm = current->mm;
-+	struct vm_area_struct *vma;
-+	int ret = 0;
-+	int err;
-+	int locked;
-+
-+	if (nr_frames == 0)
-+		return 0;
-+
-+	if (WARN_ON_ONCE(nr_frames > vec->nr_allocated))
-+		nr_frames = vec->nr_allocated;
-+
-+	down_read(&mm->mmap_sem);
-+	locked = 1;
-+	vma = find_vma_intersection(mm, start, start + 1);
-+	if (!vma) {
-+		ret = -EFAULT;
-+		goto out;
-+	}
-+	if (!(vma->vm_flags & (VM_IO | VM_PFNMAP))) {
-+		vec->got_ref = true;
-+		vec->is_pfns = false;
-+		ret = get_user_pages_locked(current, mm, start, nr_frames,
-+			write, force, (struct page **)(vec->ptrs), &locked);
-+		goto out;
-+	}
-+
-+	vec->got_ref = false;
-+	vec->is_pfns = true;
-+	do {
-+		unsigned long *nums = frame_vector_pfns(vec);
-+
-+		while (ret < nr_frames && start + PAGE_SIZE <= vma->vm_end) {
-+			err = follow_pfn(vma, start, &nums[ret]);
-+			if (err) {
-+				if (ret == 0)
-+					ret = err;
-+				goto out;
-+			}
-+			start += PAGE_SIZE;
-+			ret++;
-+		}
-+		/*
-+		 * We stop if we have enough pages or if VMA doesn't completely
-+		 * cover the tail page.
-+		 */
-+		if (ret >= nr_frames || start < vma->vm_end)
-+			break;
-+		vma = find_vma_intersection(mm, start, start + 1);
-+	} while (vma && vma->vm_flags & (VM_IO | VM_PFNMAP));
-+out:
-+	if (locked)
-+		up_read(&mm->mmap_sem);
-+	if (!ret)
-+		ret = -EFAULT;
-+	if (ret > 0)
-+		vec->nr_frames = ret;
-+	return ret;
-+}
-+EXPORT_SYMBOL(get_vaddr_frames);
-+
-+/**
-+ * put_vaddr_frames() - drop references to pages if get_vaddr_frames() acquired
-+ *			them
-+ * @vec:	frame vector to put
-+ *
-+ * Drop references to pages if get_vaddr_frames() acquired them. We also
-+ * invalidate the frame vector so that it is prepared for the next call into
-+ * get_vaddr_frames().
-+ */
-+void put_vaddr_frames(struct frame_vector *vec)
-+{
-+	int i;
-+	struct page **pages;
-+
-+	if (!vec->got_ref)
-+		goto out;
-+	pages = frame_vector_pages(vec);
-+	/*
-+	 * frame_vector_pages() might needed to do a conversion when
-+	 * get_vaddr_frames() got pages but vec was later converted to pfns.
-+	 * But it shouldn't really fail to convert pfns back...
-+	 */
-+	if (WARN_ON(IS_ERR(pages)))
-+		goto out;
-+	for (i = 0; i < vec->nr_frames; i++)
-+		put_page(pages[i]);
-+	vec->got_ref = false;
-+out:
-+	vec->nr_frames = 0;
-+}
-+EXPORT_SYMBOL(put_vaddr_frames);
-+
-+/**
-+ * frame_vector_to_pages - convert frame vector to contain page pointers
-+ * @vec:	frame vector to convert
-+ *
-+ * Convert @vec to contain array of page pointers.  If the conversion is
-+ * successful, return 0. Otherwise return an error. Note that we do not grab
-+ * page references for the page structures.
-+ */
-+int frame_vector_to_pages(struct frame_vector *vec)
-+{
-+	int i;
-+	unsigned long *nums;
-+	struct page **pages;
-+
-+	if (!vec->is_pfns)
-+		return 0;
-+	nums = frame_vector_pfns(vec);
-+	for (i = 0; i < vec->nr_frames; i++)
-+		if (!pfn_valid(nums[i]))
-+			return -EINVAL;
-+	pages = (struct page **)nums;
-+	for (i = 0; i < vec->nr_frames; i++)
-+		pages[i] = pfn_to_page(nums[i]);
-+	vec->is_pfns = false;
-+	return 0;
-+}
-+EXPORT_SYMBOL(frame_vector_to_pages);
-+
-+/**
-+ * frame_vector_to_pfns - convert frame vector to contain pfns
-+ * @vec:	frame vector to convert
-+ *
-+ * Convert @vec to contain array of pfns.
-+ */
-+void frame_vector_to_pfns(struct frame_vector *vec)
-+{
-+	int i;
-+	unsigned long *nums;
-+	struct page **pages;
-+
-+	if (vec->is_pfns)
-+		return;
-+	pages = (struct page **)(vec->ptrs);
-+	nums = (unsigned long *)pages;
-+	for (i = 0; i < vec->nr_frames; i++)
-+		nums[i] = page_to_pfn(pages[i]);
-+	vec->is_pfns = true;
-+}
-+EXPORT_SYMBOL(frame_vector_to_pfns);
-+
-+/**
-+ * frame_vector_create() - allocate & initialize structure for pinned pfns
-+ * @nr_frames:	number of pfns slots we should reserve
-+ *
-+ * Allocate and initialize struct pinned_pfns to be able to hold @nr_pfns
-+ * pfns.
-+ */
-+struct frame_vector *frame_vector_create(unsigned int nr_frames)
-+{
-+	struct frame_vector *vec;
-+	int size = sizeof(struct frame_vector) + sizeof(void *) * nr_frames;
-+
-+	if (WARN_ON_ONCE(nr_frames == 0))
-+		return NULL;
-+	/*
-+	 * This is absurdly high. It's here just to avoid strange effects when
-+	 * arithmetics overflows.
-+	 */
-+	if (WARN_ON_ONCE(nr_frames > INT_MAX / sizeof(void *) / 2))
-+		return NULL;
-+	/*
-+	 * Avoid higher order allocations, use vmalloc instead. It should
-+	 * be rare anyway.
-+	 */
-+	if (size <= PAGE_SIZE)
-+		vec = kmalloc(size, GFP_KERNEL);
-+	else
-+		vec = vmalloc(size);
-+	if (!vec)
-+		return NULL;
-+	vec->nr_allocated = nr_frames;
-+	vec->nr_frames = 0;
-+	return vec;
-+}
-+EXPORT_SYMBOL(frame_vector_create);
-+
-+/**
-+ * frame_vector_destroy() - free memory allocated to carry frame vector
-+ * @vec:	Frame vector to free
-+ *
-+ * Free structure allocated by frame_vector_create() to carry frames.
-+ */
-+void frame_vector_destroy(struct frame_vector *vec)
-+{
-+	/* Make sure put_vaddr_frames() got called properly... */
-+	VM_BUG_ON(vec->nr_frames > 0);
-+	if (!is_vmalloc_addr(vec))
-+		kfree(vec);
-+	else
-+		vfree(vec);
-+}
-+EXPORT_SYMBOL(frame_vector_destroy);
-+
- /**
-  * get_dump_page() - pin user page in memory while writing it to core dump
-  * @addr: user address
+@@ -616,6 +618,7 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 		goto fail_buf;
+ 	}
+ 
++	down_read(&current->mm->mmap_sem);
+ 	/* current->mm->mmap_sem is taken by videobuf2 core */
+ 	vma = find_vma(current->mm, vaddr);
+ 	if (!vma) {
+@@ -642,6 +645,7 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 	if (ret) {
+ 		unsigned long pfn;
+ 		if (vb2_dc_get_user_pfn(start, n_pages, vma, &pfn) == 0) {
++			up_read(&current->mm->mmap_sem);
+ 			buf->dma_addr = vb2_dc_pfn_to_dma(buf->dev, pfn);
+ 			buf->size = size;
+ 			kfree(pages);
+@@ -651,6 +655,7 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 		pr_err("failed to get user pages\n");
+ 		goto fail_vma;
+ 	}
++	up_read(&current->mm->mmap_sem);
+ 
+ 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+ 	if (!sgt) {
+@@ -713,10 +718,12 @@ fail_get_user_pages:
+ 		while (n_pages)
+ 			put_page(pages[--n_pages]);
+ 
++	down_read(&current->mm->mmap_sem);
+ fail_vma:
+ 	vb2_put_vma(buf->vma);
+ 
+ fail_pages:
++	up_read(&current->mm->mmap_sem);
+ 	kfree(pages); /* kfree is NULL-proof */
+ 
+ fail_buf:
+diff --git a/drivers/media/v4l2-core/videobuf2-dma-sg.c b/drivers/media/v4l2-core/videobuf2-dma-sg.c
+index 45c708e463b9..afd4b514affc 100644
+--- a/drivers/media/v4l2-core/videobuf2-dma-sg.c
++++ b/drivers/media/v4l2-core/videobuf2-dma-sg.c
+@@ -263,6 +263,7 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 	if (!buf->pages)
+ 		goto userptr_fail_alloc_pages;
+ 
++	down_read(&current->mm->mmap_sem);
+ 	vma = find_vma(current->mm, vaddr);
+ 	if (!vma) {
+ 		dprintk(1, "no vma for address %lu\n", vaddr);
+@@ -301,6 +302,7 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 					     1, /* force */
+ 					     buf->pages,
+ 					     NULL);
++	up_read(&current->mm->mmap_sem);
+ 
+ 	if (num_pages_from_user != buf->num_pages)
+ 		goto userptr_fail_get_user_pages;
+@@ -328,8 +330,10 @@ userptr_fail_get_user_pages:
+ 	if (!vma_is_io(buf->vma))
+ 		while (--num_pages_from_user >= 0)
+ 			put_page(buf->pages[num_pages_from_user]);
++	down_read(&current->mm->mmap_sem);
+ 	vb2_put_vma(buf->vma);
+ userptr_fail_find_vma:
++	up_read(&current->mm->mmap_sem);
+ 	kfree(buf->pages);
+ userptr_fail_alloc_pages:
+ 	kfree(buf);
+@@ -362,7 +366,9 @@ static void vb2_dma_sg_put_userptr(void *buf_priv)
+ 			put_page(buf->pages[i]);
+ 	}
+ 	kfree(buf->pages);
++	down_read(&current->mm->mmap_sem);
+ 	vb2_put_vma(buf->vma);
++	up_read(&current->mm->mmap_sem);
+ 	kfree(buf);
+ }
+ 
+diff --git a/drivers/media/v4l2-core/videobuf2-vmalloc.c b/drivers/media/v4l2-core/videobuf2-vmalloc.c
+index 657ab302a5cf..0ba40be21ebd 100644
+--- a/drivers/media/v4l2-core/videobuf2-vmalloc.c
++++ b/drivers/media/v4l2-core/videobuf2-vmalloc.c
+@@ -89,7 +89,7 @@ static void *vb2_vmalloc_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 	offset = vaddr & ~PAGE_MASK;
+ 	buf->size = size;
+ 
+-
++	down_read(&current->mm->mmap_sem);
+ 	vma = find_vma(current->mm, vaddr);
+ 	if (vma && (vma->vm_flags & VM_PFNMAP) && (vma->vm_pgoff)) {
+ 		if (vb2_get_contig_userptr(vaddr, size, &vma, &physp))
+@@ -121,6 +121,7 @@ static void *vb2_vmalloc_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 		if (!buf->vaddr)
+ 			goto fail_get_user_pages;
+ 	}
++	up_read(&current->mm->mmap_sem);
+ 
+ 	buf->vaddr += offset;
+ 	return buf;
+@@ -133,6 +134,7 @@ fail_get_user_pages:
+ 	kfree(buf->pages);
+ 
+ fail_pages_array_alloc:
++	up_read(&current->mm->mmap_sem);
+ 	kfree(buf);
+ 
+ 	return NULL;
+@@ -144,6 +146,7 @@ static void vb2_vmalloc_put_userptr(void *buf_priv)
+ 	unsigned long vaddr = (unsigned long)buf->vaddr & PAGE_MASK;
+ 	unsigned int i;
+ 
++	down_read(&current->mm->mmap_sem);
+ 	if (buf->pages) {
+ 		if (vaddr)
+ 			vm_unmap_ram((void *)vaddr, buf->n_pages);
+@@ -157,6 +160,7 @@ static void vb2_vmalloc_put_userptr(void *buf_priv)
+ 		vb2_put_vma(buf->vma);
+ 		iounmap((__force void __iomem *)buf->vaddr);
+ 	}
++	up_read(&current->mm->mmap_sem);
+ 	kfree(buf);
+ }
+ 
 -- 
 2.1.4
 
