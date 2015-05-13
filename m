@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C83686B0072
-	for <linux-mm@kvack.org>; Wed, 13 May 2015 17:25:19 -0400 (EDT)
-Received: by oiko83 with SMTP id o83so41826446oik.1
-        for <linux-mm@kvack.org>; Wed, 13 May 2015 14:25:19 -0700 (PDT)
-Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
-        by mx.google.com with ESMTPS id k9si11322715oet.61.2015.05.13.14.25.19
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B2706B0073
+	for <linux-mm@kvack.org>; Wed, 13 May 2015 17:25:26 -0400 (EDT)
+Received: by obbkp3 with SMTP id kp3so39747597obb.3
+        for <linux-mm@kvack.org>; Wed, 13 May 2015 14:25:26 -0700 (PDT)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id vt3si11333707oeb.27.2015.05.13.14.25.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 May 2015 14:25:19 -0700 (PDT)
+        Wed, 13 May 2015 14:25:25 -0700 (PDT)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v9 2/10] x86, mm, pat: Change reserve_memtype() for WT
-Date: Wed, 13 May 2015 15:05:43 -0600
-Message-Id: <1431551151-19124-3-git-send-email-toshi.kani@hp.com>
+Subject: [PATCH v9 3/10] x86, asm: Change is_new_memtype_allowed() for WT
+Date: Wed, 13 May 2015 15:05:44 -0600
+Message-Id: <1431551151-19124-4-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1431551151-19124-1-git-send-email-toshi.kani@hp.com>
 References: <1431551151-19124-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,75 +20,46 @@ List-ID: <linux-mm.kvack.org>
 To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com, mcgrof@suse.com, hch@lst.de, Toshi Kani <toshi.kani@hp.com>
 
-This patch changes reserve_memtype() to support the WT cache mode
-with PAT.  When PAT is not enabled, WB and UC- are the only types
-supported.
+__ioremap_caller() calls reserve_memtype() to set new_pcm
+(existing map type if any), and then calls
+is_new_memtype_allowed() to verify if converting to new_pcm
+is allowed when pcm (request type) is different from new_pcm.
 
-When a target range is in RAM, reserve_ram_pages_type() verifies
-the requested type.  reserve_ram_pages_type() is changed to fail
-WT and WP requests with -EINVAL since set_page_memtype() is
-limited to handle three types, WB, WC and UC-.
+When WT is requested, the caller expects that writes are
+ordered and uncached.  Therefore, this patch changes
+is_new_memtype_allowed() to disallow the following cases.
+
+ - If the request is WT, mapping type cannot be WB
+ - If the request is WT, mapping type cannot be WC
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 ---
-Patch 7/10 enhances set_page_memtype() to support WT.
----
- arch/x86/mm/pat.c |   18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+ arch/x86/include/asm/pgtable.h |    8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index 1baa60d..d932b43 100644
---- a/arch/x86/mm/pat.c
-+++ b/arch/x86/mm/pat.c
-@@ -365,6 +365,8 @@ static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
- 
- /*
-  * For RAM pages, we use page flags to mark the pages with appropriate type.
-+ * The page flags are limited to three types, WB, WC and UC-.
-+ * WT and WP requests fail with -EINVAL, and UC gets redirected to UC-.
-  * Here we do two pass:
-  * - Find the memtype of all the pages in the range, look for any conflicts
-  * - In case of no conflicts, set the new memtype for pages in the range
-@@ -376,6 +378,13 @@ static int reserve_ram_pages_type(u64 start, u64 end,
- 	struct page *page;
- 	u64 pfn;
- 
-+	if ((req_type == _PAGE_CACHE_MODE_WT) ||
-+	    (req_type == _PAGE_CACHE_MODE_WP)) {
-+		if (new_type)
-+			*new_type = _PAGE_CACHE_MODE_UC_MINUS;
-+		return -EINVAL;
-+	}
-+
- 	if (req_type == _PAGE_CACHE_MODE_UC) {
- 		/* We do not support strong UC */
- 		WARN_ON_ONCE(1);
-@@ -425,6 +434,7 @@ static int free_ram_pages_type(u64 start, u64 end)
-  * - _PAGE_CACHE_MODE_WC
-  * - _PAGE_CACHE_MODE_UC_MINUS
-  * - _PAGE_CACHE_MODE_UC
-+ * - _PAGE_CACHE_MODE_WT
-  *
-  * If new_type is NULL, function will return an error if it cannot reserve the
-  * region with req_type. If new_type is non-NULL, function will return
-@@ -442,12 +452,12 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
- 	BUG_ON(start >= end); /* end is exclusive */
- 
- 	if (!pat_enabled) {
--		/* This is identical to page table setting without PAT */
-+		/* WB and UC- are the only types supported without PAT */
- 		if (new_type) {
--			if (req_type == _PAGE_CACHE_MODE_WC)
--				*new_type = _PAGE_CACHE_MODE_UC_MINUS;
-+			if (req_type == _PAGE_CACHE_MODE_WB)
-+				*new_type = _PAGE_CACHE_MODE_WB;
- 			else
--				*new_type = req_type;
-+				*new_type = _PAGE_CACHE_MODE_UC_MINUS;
- 		}
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index fe57e7a..2562e30 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -398,11 +398,17 @@ static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
+ 	 * requested memtype:
+ 	 * - request is uncached, return cannot be write-back
+ 	 * - request is write-combine, return cannot be write-back
++	 * - request is write-through, return cannot be write-back
++	 * - request is write-through, return cannot be write-combine
+ 	 */
+ 	if ((pcm == _PAGE_CACHE_MODE_UC_MINUS &&
+ 	     new_pcm == _PAGE_CACHE_MODE_WB) ||
+ 	    (pcm == _PAGE_CACHE_MODE_WC &&
+-	     new_pcm == _PAGE_CACHE_MODE_WB)) {
++	     new_pcm == _PAGE_CACHE_MODE_WB) ||
++	    (pcm == _PAGE_CACHE_MODE_WT &&
++	     new_pcm == _PAGE_CACHE_MODE_WB) ||
++	    (pcm == _PAGE_CACHE_MODE_WT &&
++	     new_pcm == _PAGE_CACHE_MODE_WC)) {
  		return 0;
  	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
