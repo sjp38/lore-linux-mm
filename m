@@ -1,53 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id A68026B006C
-	for <linux-mm@kvack.org>; Wed, 13 May 2015 10:38:26 -0400 (EDT)
-Received: by wicnf17 with SMTP id nf17so58694301wic.1
-        for <linux-mm@kvack.org>; Wed, 13 May 2015 07:38:26 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ym6si33148004wjc.130.2015.05.13.07.38.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 13 May 2015 07:38:23 -0700 (PDT)
-From: Michal Hocko <miso@dhcp22.suse.cz>
-Subject: [PATCH 2/2] mmap2: clarify MAP_POPULATE
-Date: Wed, 13 May 2015 16:38:12 +0200
-Message-Id: <1431527892-2996-3-git-send-email-miso@dhcp22.suse.cz>
-In-Reply-To: <1431527892-2996-1-git-send-email-miso@dhcp22.suse.cz>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D6806B0038
+	for <linux-mm@kvack.org>; Wed, 13 May 2015 10:45:08 -0400 (EDT)
+Received: by pabsx10 with SMTP id sx10so52802453pab.3
+        for <linux-mm@kvack.org>; Wed, 13 May 2015 07:45:08 -0700 (PDT)
+Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
+        by mx.google.com with ESMTP id u11si27327549pbs.163.2015.05.13.07.45.07
+        for <linux-mm@kvack.org>;
+        Wed, 13 May 2015 07:45:07 -0700 (PDT)
+Date: Wed, 13 May 2015 10:45:06 -0400
+From: Eric B Munson <emunson@akamai.com>
+Subject: Re: [PATCH 1/2] mmap.2: clarify MAP_LOCKED semantic
+Message-ID: <20150513144506.GD1227@akamai.com>
 References: <1431527892-2996-1-git-send-email-miso@dhcp22.suse.cz>
+ <1431527892-2996-2-git-send-email-miso@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="rz+pwK2yUstbofK6"
+Content-Disposition: inline
+In-Reply-To: <1431527892-2996-2-git-send-email-miso@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
+To: Michal Hocko <miso@dhcp22.suse.cz>
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
 
-From: Michal Hocko <mhocko@suse.cz>
 
-David Rientjes has noticed that MAP_POPULATE wording might promise much
-more than the kernel actually provides and intend to provide. The
-primary usage of the flag is to pre-fault the range. There is no
-guarantee that no major faults will happen later on. The pages might
-have been reclaimed by the time the process tries to access them.
+--rz+pwK2yUstbofK6
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
- man2/mmap.2 | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+On Wed, 13 May 2015, Michal Hocko wrote:
 
-diff --git a/man2/mmap.2 b/man2/mmap.2
-index 1486be2e96b3..dcf306f2f730 100644
---- a/man2/mmap.2
-+++ b/man2/mmap.2
-@@ -284,7 +284,7 @@ private writable mappings.
- .BR MAP_POPULATE " (since Linux 2.5.46)"
- Populate (prefault) page tables for a mapping.
- For a file mapping, this causes read-ahead on the file.
--Later accesses to the mapping will not be blocked by page faults.
-+This will help to reduce blocking on page faults later.
- .BR MAP_POPULATE
- is supported for private mappings only since Linux 2.6.23.
- .TP
--- 
-2.1.4
+> From: Michal Hocko <mhocko@suse.cz>
+>=20
+> MAP_LOCKED had a subtly different semantic from mmap(2)+mlock(2) since
+> it has been introduced.
+> mlock(2) fails if the memory range cannot get populated to guarantee
+> that no future major faults will happen on the range. mmap(MAP_LOCKED) on
+> the other hand silently succeeds even if the range was populated only
+> partially.
+>=20
+> Fixing this subtle difference in the kernel is rather awkward because
+> the memory population happens after mm locks have been dropped and so
+> the cleanup before returning failure (munlock) could operate on something
+> else than the originally mapped area.
+>=20
+> E.g. speculative userspace page fault handler catching SEGV and doing
+> mmap(fault_addr, MAP_FIXED|MAP_LOCKED) might discard portion of a racing
+> mmap and lead to lost data. Although it is not clear whether such a
+> usage would be valid, mmap page doesn't explicitly describe requirements
+> for threaded applications so we cannot exclude this possibility.
+>=20
+> This patch makes the semantic of MAP_LOCKED explicit and suggest using
+> mmap + mlock as the only way to guarantee no later major page faults.
+>=20
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+
+Does the problem still happend when MAP_POPULATE | MAP_LOCKED is used
+(AFAICT MAP_POPULATE will cause the mmap to fail if all the pages cannot
+be made present).
+
+Either way this is a good catch.
+
+Acked-by: Eric B Munson <emunson@akamai.com>
+
+
+--rz+pwK2yUstbofK6
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBAgAGBQJVU2NyAAoJELbVsDOpoOa9qrcQAL7qkobw8zBNPCW62SwMI8Gt
+HnilnO3Y42MDYOVSNzcPvmwDbETpqrS5mzK4cEpM5KQFLIz6XMvmZr2D/16BIOED
+3ieX+d2Eg7kw5O87/rq2MVrmLYfAXoDnni25d6SQEQBQihuAGEk7M45KBRaa8zcb
+aKElv4ov8xjMMcRwRzTdpdzaWogFjNz5TuRsm4Zu9Xj/MrPhmhzaCwoBpOqxGKp5
+kt9utHzVh4h6MDC0ZCZ4dfw9UCAMfA4wtEncS4JcEQ+a/LPN1n/ZG7LqqqwIL50x
+1miEgtCxIOVlaLXUUCHeCa0tfvSBPFznDfjpnnnGeowFKdG9HfoakbgrzeGTWFX+
++6MLsCzba/ODKwK4sALB0U9KUCLg+qjBFuTAX16mpaRJLjiaPvK1MHOWoD70yC+z
+fKAKjFlXRmebAM9nmpx0Q0uKUzUT8wK7WN0IFB9sJrqM7HoR+nzAweGtbXQrNKwm
+O5jA/jPChP7zshrllyfgp56rRiYF3ztsT1kGDA7147c8S17NIzW4oFGYCUG7s8ua
+XPsjaMQHgrPn33LVMq9dfX01kLMft1GKVYLil6xoGW+AfqBrNwbOLvVQfy0WrxM2
+XKNwGCa5G/V4RYVzQEKdzfvwKYslxbpr3iqmjR0PQNhjdZWFAgIHonrboQmc59PC
+fkrgPry07zHAVqVQVIDX
+=+Q1g
+-----END PGP SIGNATURE-----
+
+--rz+pwK2yUstbofK6--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
