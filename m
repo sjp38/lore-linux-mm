@@ -1,113 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 69AA36B0038
-	for <linux-mm@kvack.org>; Wed, 13 May 2015 11:00:38 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so54110106pde.3
-        for <linux-mm@kvack.org>; Wed, 13 May 2015 08:00:38 -0700 (PDT)
-Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
-        by mx.google.com with ESMTP id or3si27470975pdb.190.2015.05.13.08.00.37
-        for <linux-mm@kvack.org>;
-        Wed, 13 May 2015 08:00:37 -0700 (PDT)
-Date: Wed, 13 May 2015 11:00:36 -0400
-From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [PATCH 0/3] Allow user to request memory to be locked on page
- fault
-Message-ID: <20150513150036.GG1227@akamai.com>
-References: <1431113626-19153-1-git-send-email-emunson@akamai.com>
- <20150508124203.6679b1d35ad9555425003929@linux-foundation.org>
- <20150511180631.GA1227@akamai.com>
+Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 98F1E6B0038
+	for <linux-mm@kvack.org>; Wed, 13 May 2015 11:29:18 -0400 (EDT)
+Received: by qcvo8 with SMTP id o8so24375214qcv.0
+        for <linux-mm@kvack.org>; Wed, 13 May 2015 08:29:18 -0700 (PDT)
+Received: from mail.siteground.com (mail.siteground.com. [67.19.240.234])
+        by mx.google.com with ESMTPS id b107si19681615qgf.111.2015.05.13.08.29.17
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 May 2015 08:29:17 -0700 (PDT)
+Message-ID: <55536DC9.90200@kyup.com>
+Date: Wed, 13 May 2015 18:29:13 +0300
+From: Nikolay Borisov <kernel@kyup.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="df+09Je9rNq3P+GE"
-Content-Disposition: inline
-In-Reply-To: <20150511180631.GA1227@akamai.com>
+Subject: Possible bug - LTP failure for memcg
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Shuah Khan <shuahkh@osg.samsung.com>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: cgroups@vger.kernel.org
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, linux-mm@kvack.org
+
+Hello,
+
+I'm running the ltp version 20150420 and stock kernel 4.0 and I've
+observed that the memcg_function test is failing. Here is a relevant
+snipped from the log:
 
 
---df+09Je9rNq3P+GE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+memcg_function_test   14  TFAIL  :  ltpapicmd.c:190: process 5827 is not
+killed
+/opt/ltp/testcases/bin/memcg_lib.sh: line 210:  5843 Killed
+     $TEST_PATH/memcg_process $2 -s $3
+memcg_function_test   15  TPASS  :  process 5843 is killed
+/opt/ltp/testcases/bin/memcg_lib.sh: line 210:  5859 Killed
+     $TEST_PATH/memcg_process $2 -s $3
+memcg_function_test   16  TPASS  :  process 5859 is killed
+/opt/ltp/testcases/bin/memcg_lib.sh: line 210:  5877 Killed
+     $TEST_PATH/memcg_process $2 -s $3
+memcg_function_test   17  TPASS  :  process 5877 is killed
+/opt/ltp/testcases/bin/memcg_lib.sh: line 210:  5894 Killed
+     $TEST_PATH/memcg_process $2 -s $3
+memcg_function_test   18  TPASS  :  process 5894 is killed
+/opt/ltp/testcases/bin/memcg_lib.sh: line 210:  5911 Killed
+     $TEST_PATH/memcg_process $2 -s $3
+memcg_function_test   19  TPASS  :  process 5911 is killed
+/opt/ltp/testcases/bin/memcg_lib.sh: line 210:  5927 Killed
+     $TEST_PATH/memcg_process $2 -s $3
+memcg_function_test   20  TPASS  :  process 5927 is killed
+/opt/ltp/testcases/bin/memcg_lib.sh: line 210:  5942 Killed
+     $TEST_PATH/memcg_process $2 -s $3
+memcg_function_test   21  TPASS  :  process 5942 is killed
+memcg_function_test   22  TFAIL  :  ltpapicmd.c:190: input=4095,
+limit_in_bytes=0
+memcg_function_test   23  TFAIL  :  ltpapicmd.c:190: input=4097,
+limit_in_bytes=4096
+memcg_function_test   24  TFAIL  :  ltpapicmd.c:190: input=1,
+limit_in_bytes=0
+memcg_function_test   25  TPASS  :  return value is 0
+memcg_function_test   26  TPASS  :  return value is 1
+memcg_function_test   27  TPASS  :  return value is 1
+memcg_function_test   28  TPASS  :  return value is 1
+memcg_function_test   29  TPASS  :  force memory succeeded
+memcg_function_test   30  TFAIL  :  ltpapicmd.c:190: force memory should
+fail
+memcg_function_test   31  TPASS  :  return value is 0
+memcg_function_test   32  TPASS  :  return value is 0
+memcg_function_test   33  TPASS  :  return value is 0
+memcg_function_test   34  TPASS  :  return value is 0
+memcg_function_test   35  TPASS  :  return value is 1
+Running /opt/ltp/testcases/bin/memcg_process --mmap-anon -s 4096
+Warming up for test: 36, pid: 6128
+Process is still here after warm up: 6128
+memcg_function_test   36  TPASS  :  rss=4096/4096
+memcg_function_test   36  TPASS  :  rss=0/0
+Running /opt/ltp/testcases/bin/memcg_process --mmap-anon -s 4096
+Warming up for test: 37, pid: 6155
+Process is still here after warm up: 6155
+memcg_function_test   37  TPASS  :  rss=4096/4096
+memcg_function_test   37  TPASS  :  rss=0/0
+Running /opt/ltp/testcases/bin/memcg_process --mmap-anon -s 4096
+Warming up for test: 38, pid: 6182
+Process is still here after warm up: 6182
+memcg_function_test   38  TPASS  :  rss=4096/4096
+memcg_function_test   38  TPASS  :  rss=0/0
+<<<execution_status>>>
+initiation_status="ok"
+duration=135 termination_type=exited termination_id=5 corefile=no
+cutime=8 cstime=15
+<<<test_end>>>
+INFO: ltp-pan reported some tests FAIL
+LTP Version: 20150420
 
-On Mon, 11 May 2015, Eric B Munson wrote:
-
-> On Fri, 08 May 2015, Andrew Morton wrote:
->=20
-> > On Fri,  8 May 2015 15:33:43 -0400 Eric B Munson <emunson@akamai.com> w=
-rote:
-> >=20
-> > > mlock() allows a user to control page out of program memory, but this
-> > > comes at the cost of faulting in the entire mapping when it is
-> > > allocated.  For large mappings where the entire area is not necessary
-> > > this is not ideal.
-> > >=20
-> > > This series introduces new flags for mmap() and mlockall() that allow=
- a
-> > > user to specify that the covered are should not be paged out, but only
-> > > after the memory has been used the first time.
-> >=20
-> > Please tell us much much more about the value of these changes: the use
-> > cases, the behavioural improvements and performance results which the
-> > patchset brings to those use cases, etc.
-> >=20
->=20
-> To illustrate the proposed use case I wrote a quick program that mmaps
-> a 5GB file which is filled with random data and accesses 150,000 pages
-> from that mapping.  Setup and processing were timed separately to
-> illustrate the differences between the three tested approaches.  the
-> setup portion is simply the call to mmap, the processing is the
-> accessing of the various locations in  that mapping.  The following
-> values are in milliseconds and are the averages of 20 runs each with a
-> call to echo 3 > /proc/sys/vm/drop_caches between each run.
->=20
-> The first mapping was made with MAP_PRIVATE | MAP_LOCKED as a baseline:
-> Startup average:    9476.506
-> Processing average: 3.573
->=20
-> The second mapping was simply MAP_PRIVATE but each page was passed to
-> mlock() before being read:
-> Startup average:    0.051
-> Processing average: 721.859
->=20
-> The final mapping was MAP_PRIVATE | MAP_LOCKONFAULT:
-> Startup average:    0.084
-> Processing average: 42.125
->=20
-
-Michal's suggestion of changing protections and locking in a signal
-handler was better than the locking as needed, but still significantly
-more work required than the LOCKONFAULT case.
-
-Startup average:    0.047
-Processing average: 86.431
+According to the file at :
+https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/controllers/memcg/functional/memcg_function_test.sh
 
 
---df+09Je9rNq3P+GE
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+The failing test cases 14, 22, 23, 24 and 30 test respectively:
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
+14: Hogging memory like so: mmap(NULL, memsize, PROT_WRITE | PROT_READ,
+MAP_PRIVATE | MAP_ANONYMOUS | MAP_LOCKED, 0, 0);
 
-iQIcBAEBAgAGBQJVU2cUAAoJELbVsDOpoOa9baQQANJIi9hDC0B5PmZg1n740+8X
-5w7lzvAiDqRYi4/xYMjtx55l9M/YpTlnEuCPHUjEUvQvpxALWGSTYmcJ6cNx47Gh
-/BHWrTr4oedPg23icayje+QC/DKF10OT/qBx/ep/+J4nEEZnbBQmk5Ce2EbjVCDm
-4Xs3RjSeD9cWAOoHTsN2oqerZSM+DlqGU0Q2mWu10VM6usItc1oWk6U/gpD/26tE
-lfMslp8jsECGvLmd4Zkj44HifD36pI0InaSKeBLrUCAe8W6qvhCuIaKRdOn00lgZ
-CcUfQsK0c/7aYOZDm5CM4EUm+F8ee0mJV19qDMOm5rU9IrFZ4zj6rzRUHQ5OHcFH
-mLxWm6wtqxYSapbWkYhiMei6lzDeMi0aL9BHKnzktgABBO1rwgNwPTlmwIWZcyPz
-GWtxOw2oQZ6NqfGp9p3s677z2yicYQEJtEsvGrj5RVCUiXOwcRbQ0qNn8hF/6DrV
-Xpk/cL6Zr9g8Klh/tLSN1CTXkcvGU6Poc83MLqf7DWmoKB86izb6MLoV4l5ckfyQ
-s3nDQ6IJHOM3LaHIxeHj3FjHABx/lzwN22sKeRhsDduqiYUq3Y0i2J39ujXbZeUl
-VlZ37T447uyO+nDgvg27P4MVsQlYYqt/vMmZ/a1NJdDXkzQU5RYpEmIeX/Z1Rifz
-2Mean0e41gkDsd0BkxJb
-=mszX
------END PGP SIGNATURE-----
+# Case 22 - 24: Test limit_in_bytes will be aligned to PAGESIZE - The
+output clearly indicates that the limits in bytes is not being page
+aligned? Is this desired behavior, in which case ltp is broken or is it
+a genuine bug?
 
---df+09Je9rNq3P+GE--
+30: Again, it locks memory with mmap and then tries to see if
+force_empty would succeed. Expecting it to fail, but in this particular
+case it succeeds?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
