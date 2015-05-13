@@ -1,63 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id AC40A6B0071
-	for <linux-mm@kvack.org>; Wed, 13 May 2015 09:08:37 -0400 (EDT)
-Received: by wgic8 with SMTP id c8so42979984wgi.1
-        for <linux-mm@kvack.org>; Wed, 13 May 2015 06:08:37 -0700 (PDT)
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F67E6B0072
+	for <linux-mm@kvack.org>; Wed, 13 May 2015 09:08:40 -0400 (EDT)
+Received: by wgnd10 with SMTP id d10so40569005wgn.2
+        for <linux-mm@kvack.org>; Wed, 13 May 2015 06:08:39 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ch5si8427295wib.31.2015.05.13.06.08.29
+        by mx.google.com with ESMTPS id w6si8446059wiv.14.2015.05.13.06.08.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Wed, 13 May 2015 06:08:29 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 0/9 v5] Helper to abstract vma handling in media layer
-Date: Wed, 13 May 2015 15:08:06 +0200
-Message-Id: <1431522495-4692-1-git-send-email-jack@suse.cz>
+Subject: [PATCH 3/9] media: omap_vout: Convert omap_vout_uservirt_to_phys() to use get_vaddr_pfns()
+Date: Wed, 13 May 2015 15:08:09 +0200
+Message-Id: <1431522495-4692-4-git-send-email-jack@suse.cz>
+In-Reply-To: <1431522495-4692-1-git-send-email-jack@suse.cz>
+References: <1431522495-4692-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-media@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, dri-devel@lists.freedesktop.org, Pawel Osciak <pawel@osciak.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, mgorman@suse.de, Marek Szyprowski <m.szyprowski@samsung.com>, linux-samsung-soc@vger.kernel.org, Jan Kara <jack@suse.cz>
 
-  Hello,
+Convert omap_vout_uservirt_to_phys() to use get_vaddr_pfns() instead of
+hand made mapping of virtual address to physical address. Also the
+function leaked page reference from get_user_pages() so fix that by
+properly release the reference when omap_vout_buffer_release() is
+called.
 
-I'm sending the fifth version of my patch series to abstract vma handling
-from the various media drivers. The patches got some review from mm people and
-testing from device driver guys so unless someone objects, patches will be
-queued in media tree for the next merge window.
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ drivers/media/platform/omap/omap_vout.c | 67 +++++++++++++++------------------
+ 1 file changed, 31 insertions(+), 36 deletions(-)
 
-After this patch set drivers have to know much less details about vmas, their
-types, and locking. Also quite some code is removed from them. As a bonus
-drivers get automatically VM_FAULT_RETRY handling. The primary motivation for
-this series is to remove knowledge about mmap_sem locking from as many places a
-possible so that we can change it with reasonable effort.
-
-The core of the series is the new helper get_vaddr_frames() which is given a
-virtual address and it fills in PFNs / struct page pointers (depending on VMA
-type) into the provided array. If PFNs correspond to normal pages it also grabs
-references to these pages. The difference from get_user_pages() is that this
-function can also deal with pfnmap, and io mappings which is what the media
-drivers need.
-
-I have tested the patches with vivid driver so at least vb2 code got some
-exposure. Conversion of other drivers was just compile-tested (for x86 so e.g.
-exynos driver which is only for Samsung platform is completely untested).
-
-								Honza
-Changes since v4:
-* Minor cleanups and fixes pointed out by Mel and Vlasta
-* Added Acked-by tags
-
-Changes since v3:
-* Added include <linux/vmalloc.h> into mm/gup.c as it's needed for some archs
-* Fixed error path for exynos driver
-
-Changes since v2:
-* Renamed functions and structures as Mel suggested
-* Other minor changes suggested by Mel
-* Rebased on top of 4.1-rc2
-* Changed functions to get pointer to array of pages / pfns to perform
-  conversion if necessary. This fixes possible issue in the omap I may have
-  introduced in v2 and generally makes the API less errorprone.
+diff --git a/drivers/media/platform/omap/omap_vout.c b/drivers/media/platform/omap/omap_vout.c
+index 17b189a81ec5..0e4b3cfacc5d 100644
+--- a/drivers/media/platform/omap/omap_vout.c
++++ b/drivers/media/platform/omap/omap_vout.c
+@@ -195,46 +195,34 @@ static int omap_vout_try_format(struct v4l2_pix_format *pix)
+ }
+ 
+ /*
+- * omap_vout_uservirt_to_phys: This inline function is used to convert user
+- * space virtual address to physical address.
++ * omap_vout_get_userptr: Convert user space virtual address to physical
++ * address.
+  */
+-static unsigned long omap_vout_uservirt_to_phys(unsigned long virtp)
++static int omap_vout_get_userptr(struct videobuf_buffer *vb, u32 virtp,
++				 u32 *physp)
+ {
+-	unsigned long physp = 0;
+-	struct vm_area_struct *vma;
+-	struct mm_struct *mm = current->mm;
++	struct frame_vector *vec;
++	int ret;
+ 
+ 	/* For kernel direct-mapped memory, take the easy way */
+-	if (virtp >= PAGE_OFFSET)
+-		return virt_to_phys((void *) virtp);
+-
+-	down_read(&current->mm->mmap_sem);
+-	vma = find_vma(mm, virtp);
+-	if (vma && (vma->vm_flags & VM_IO) && vma->vm_pgoff) {
+-		/* this will catch, kernel-allocated, mmaped-to-usermode
+-		   addresses */
+-		physp = (vma->vm_pgoff << PAGE_SHIFT) + (virtp - vma->vm_start);
+-		up_read(&current->mm->mmap_sem);
+-	} else {
+-		/* otherwise, use get_user_pages() for general userland pages */
+-		int res, nr_pages = 1;
+-		struct page *pages;
++	if (virtp >= PAGE_OFFSET) {
++		*physp = virt_to_phys((void *)virtp);
++		return 0;
++	}
+ 
+-		res = get_user_pages(current, current->mm, virtp, nr_pages, 1,
+-				0, &pages, NULL);
+-		up_read(&current->mm->mmap_sem);
++	vec = frame_vector_create(1);
++	if (!vec)
++		return -ENOMEM;
+ 
+-		if (res == nr_pages) {
+-			physp =  __pa(page_address(&pages[0]) +
+-					(virtp & ~PAGE_MASK));
+-		} else {
+-			printk(KERN_WARNING VOUT_NAME
+-					"get_user_pages failed\n");
+-			return 0;
+-		}
++	ret = get_vaddr_frames(virtp, 1, true, false, vec);
++	if (ret != 1) {
++		frame_vector_destroy(vec);
++		return -EINVAL;
+ 	}
++	*physp = __pfn_to_phys(frame_vector_pfns(vec)[0]);
++	vb->priv = vec;
+ 
+-	return physp;
++	return 0;
+ }
+ 
+ /*
+@@ -788,11 +776,15 @@ static int omap_vout_buffer_prepare(struct videobuf_queue *q,
+ 	 * address of the buffer
+ 	 */
+ 	if (V4L2_MEMORY_USERPTR == vb->memory) {
++		int ret;
++
+ 		if (0 == vb->baddr)
+ 			return -EINVAL;
+ 		/* Physical address */
+-		vout->queued_buf_addr[vb->i] = (u8 *)
+-			omap_vout_uservirt_to_phys(vb->baddr);
++		ret = omap_vout_get_userptr(vb, vb->baddr,
++				(u32 *)&vout->queued_buf_addr[vb->i]);
++		if (ret < 0)
++			return ret;
+ 	} else {
+ 		unsigned long addr, dma_addr;
+ 		unsigned long size;
+@@ -841,9 +833,12 @@ static void omap_vout_buffer_release(struct videobuf_queue *q,
+ 	struct omap_vout_device *vout = q->priv_data;
+ 
+ 	vb->state = VIDEOBUF_NEEDS_INIT;
++	if (vb->memory == V4L2_MEMORY_USERPTR && vb->priv) {
++		struct frame_vector *vec = vb->priv;
+ 
+-	if (V4L2_MEMORY_MMAP != vout->memory)
+-		return;
++		put_vaddr_frames(vec);
++		frame_vector_destroy(vec);
++	}
+ }
+ 
+ /*
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
