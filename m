@@ -1,431 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 6093B6B0080
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 13:10:55 -0400 (EDT)
-Received: by pacwv17 with SMTP id wv17so91965592pac.0
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 10:10:55 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id hq6si33246448pbc.96.2015.05.14.10.10.46
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CAE26B0038
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 13:31:26 -0400 (EDT)
+Received: by qgfi89 with SMTP id i89so41056240qgf.1
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 10:31:26 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b107si23728628qgf.111.2015.05.14.10.31.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 May 2015 10:10:47 -0700 (PDT)
-From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [PATCH 11/11] mm: debug: use VM_BUG() to help with debug output
-Date: Thu, 14 May 2015 13:10:14 -0400
-Message-Id: <1431623414-1905-12-git-send-email-sasha.levin@oracle.com>
-In-Reply-To: <1431623414-1905-1-git-send-email-sasha.levin@oracle.com>
-References: <1431623414-1905-1-git-send-email-sasha.levin@oracle.com>
+        Thu, 14 May 2015 10:31:25 -0700 (PDT)
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH 03/23] userfaultfd: uAPI
+Date: Thu, 14 May 2015 19:31:00 +0200
+Message-Id: <1431624680-20153-4-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kirill@shutemov.name, Sasha Levin <sasha.levin@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org
+Cc: Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-This shows how we can use VM_BUG() to improve output in various
-common places.
+Defines the uAPI of the userfaultfd, notably the ioctl numbers and protocol.
 
-Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- arch/arm/mm/mmap.c               |    2 +-
- arch/frv/mm/elf-fdpic.c          |    4 ++--
- arch/mips/mm/gup.c               |    4 ++--
- arch/parisc/kernel/sys_parisc.c  |    2 +-
- arch/powerpc/mm/hugetlbpage.c    |    2 +-
- arch/powerpc/mm/pgtable_64.c     |    4 ++--
- arch/s390/mm/gup.c               |    2 +-
- arch/s390/mm/mmap.c              |    2 +-
- arch/s390/mm/pgtable.c           |    6 +++---
- arch/sh/mm/mmap.c                |    2 +-
- arch/sparc/kernel/sys_sparc_64.c |    4 ++--
- arch/sparc/mm/gup.c              |    2 +-
- arch/sparc/mm/hugetlbpage.c      |    4 ++--
- arch/tile/mm/hugetlbpage.c       |    2 +-
- arch/x86/kernel/sys_x86_64.c     |    2 +-
- arch/x86/mm/hugetlbpage.c        |    2 +-
- arch/x86/mm/pgtable.c            |    6 +++---
- mm/huge_memory.c                 |    4 ++--
- mm/mmap.c                        |    2 +-
- mm/pgtable-generic.c             |    8 ++++----
- 20 files changed, 33 insertions(+), 33 deletions(-)
+ Documentation/ioctl/ioctl-number.txt |  1 +
+ include/uapi/linux/Kbuild            |  1 +
+ include/uapi/linux/userfaultfd.h     | 81 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 83 insertions(+)
+ create mode 100644 include/uapi/linux/userfaultfd.h
 
-diff --git a/arch/arm/mm/mmap.c b/arch/arm/mm/mmap.c
-index 407dc78..6767df7 100644
---- a/arch/arm/mm/mmap.c
-+++ b/arch/arm/mm/mmap.c
-@@ -159,7 +159,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	 * allocations.
- 	 */
- 	if (addr & ~PAGE_MASK) {
--		VM_BUG_ON(addr != -ENOMEM);
-+		VM_BUG(addr != -ENOMEM, "addr = %lu\n", addr);
- 		info.flags = 0;
- 		info.low_limit = mm->mmap_base;
- 		info.high_limit = TASK_SIZE;
-diff --git a/arch/frv/mm/elf-fdpic.c b/arch/frv/mm/elf-fdpic.c
-index 836f147..6ae5497 100644
---- a/arch/frv/mm/elf-fdpic.c
-+++ b/arch/frv/mm/elf-fdpic.c
-@@ -88,7 +88,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
- 	addr = vm_unmapped_area(&info);
- 	if (!(addr & ~PAGE_MASK))
- 		goto success;
--	VM_BUG_ON(addr != -ENOMEM);
-+	VM_BUG(addr != -ENOMEM, "addr = %lu\n", addr);
- 
- 	/* search from just above the WorkRAM area to the top of memory */
- 	info.low_limit = PAGE_ALIGN(0x80000000);
-@@ -96,7 +96,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
- 	addr = vm_unmapped_area(&info);
- 	if (!(addr & ~PAGE_MASK))
- 		goto success;
--	VM_BUG_ON(addr != -ENOMEM);
-+	VM_BUG(addr != -ENOMEM, "addr = %lu\n", addr);
- 
- #if 0
- 	printk("[area] l=%lx (ENOMEM) f='%s'\n",
-diff --git a/arch/mips/mm/gup.c b/arch/mips/mm/gup.c
-index 349995d..364e27b 100644
---- a/arch/mips/mm/gup.c
-+++ b/arch/mips/mm/gup.c
-@@ -85,7 +85,7 @@ static int gup_huge_pmd(pmd_t pmd, unsigned long addr, unsigned long end,
- 	head = pte_page(pte);
- 	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
- 	do {
--		VM_BUG_ON(compound_head(page) != head);
-+		VM_BUG(compound_head(page) != head, "%pZp\n%pZp", page, head);
- 		pages[*nr] = page;
- 		if (PageTail(page))
- 			get_huge_page_tail(page);
-@@ -151,7 +151,7 @@ static int gup_huge_pud(pud_t pud, unsigned long addr, unsigned long end,
- 	head = pte_page(pte);
- 	page = head + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
- 	do {
--		VM_BUG_ON(compound_head(page) != head);
-+		VM_BUG(compound_head(page) != head, "%pZp\n%pZp", page, head);
- 		pages[*nr] = page;
- 		if (PageTail(page))
- 			get_huge_page_tail(page);
-diff --git a/arch/parisc/kernel/sys_parisc.c b/arch/parisc/kernel/sys_parisc.c
-index e1ffea2..845823c 100644
---- a/arch/parisc/kernel/sys_parisc.c
-+++ b/arch/parisc/kernel/sys_parisc.c
-@@ -187,7 +187,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	addr = vm_unmapped_area(&info);
- 	if (!(addr & ~PAGE_MASK))
- 		goto found_addr;
--	VM_BUG_ON(addr != -ENOMEM);
-+	VM_BUG(addr != -ENOMEM, "addr = %lu\n", addr);
- 
- 	/*
- 	 * A failed mmap() very likely causes application failure,
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index 1b88b1c..bf5117c 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -1067,7 +1067,7 @@ int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
- 	page = head + ((addr & (sz-1)) >> PAGE_SHIFT);
- 	tail = page;
- 	do {
--		VM_BUG_ON(compound_head(page) != head);
-+		VM_BUG(compound_head(page) != head, "%pZp\n%pZp", page, head);
- 		pages[*nr] = page;
- 		(*nr)++;
- 		page++;
-diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
-index 59daa5e..b33bc22 100644
---- a/arch/powerpc/mm/pgtable_64.c
-+++ b/arch/powerpc/mm/pgtable_64.c
-@@ -559,7 +559,7 @@ pmd_t pmdp_clear_flush(struct vm_area_struct *vma, unsigned long address,
- {
- 	pmd_t pmd;
- 
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG(address & ~HPAGE_PMD_MASK, "address = %lu\n", address);
- 	if (pmd_trans_huge(*pmdp)) {
- 		pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
- 	} else {
-@@ -627,7 +627,7 @@ void pmdp_splitting_flush(struct vm_area_struct *vma,
- {
- 	unsigned long old, tmp;
- 
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG(address & ~HPAGE_PMD_MASK, "address = %lu\n", address);
- 
- #ifdef CONFIG_DEBUG_VM
- 	WARN_ON(!pmd_trans_huge(*pmdp));
-diff --git a/arch/s390/mm/gup.c b/arch/s390/mm/gup.c
-index 1eb41bb..2ad6ba0 100644
---- a/arch/s390/mm/gup.c
-+++ b/arch/s390/mm/gup.c
-@@ -66,7 +66,7 @@ static inline int gup_huge_pmd(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
- 	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
- 	tail = page;
- 	do {
--		VM_BUG_ON(compound_head(page) != head);
-+		VM_BUG(compound_head(page) != head, "%pZp\n%pZp", page, head);
- 		pages[*nr] = page;
- 		(*nr)++;
- 		page++;
-diff --git a/arch/s390/mm/mmap.c b/arch/s390/mm/mmap.c
-index 6e552af..178eb32 100644
---- a/arch/s390/mm/mmap.c
-+++ b/arch/s390/mm/mmap.c
-@@ -167,7 +167,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	 * allocations.
- 	 */
- 	if (addr & ~PAGE_MASK) {
--		VM_BUG_ON(addr != -ENOMEM);
-+		VM_BUG(addr != -ENOMEM, "addr = %lu\n", addr);
- 		info.flags = 0;
- 		info.low_limit = TASK_UNMAPPED_BASE;
- 		info.high_limit = TASK_SIZE;
-diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
-index b33f661..d69fb62 100644
---- a/arch/s390/mm/pgtable.c
-+++ b/arch/s390/mm/pgtable.c
-@@ -1333,7 +1333,7 @@ EXPORT_SYMBOL_GPL(gmap_test_and_clear_dirty);
- int pmdp_clear_flush_young(struct vm_area_struct *vma, unsigned long address,
- 			   pmd_t *pmdp)
- {
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG(address & ~HPAGE_PMD_MASK, "address = %lu\n", address);
- 	/* No need to flush TLB
- 	 * On s390 reference bits are in storage key and never in TLB */
- 	return pmdp_test_and_clear_young(vma, address, pmdp);
-@@ -1343,7 +1343,7 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
- 			  unsigned long address, pmd_t *pmdp,
- 			  pmd_t entry, int dirty)
- {
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG(address & ~HPAGE_PMD_MASK, "address = %lu\n", address);
- 
- 	entry = pmd_mkyoung(entry);
- 	if (dirty)
-@@ -1363,7 +1363,7 @@ static void pmdp_splitting_flush_sync(void *arg)
- void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
- 			  pmd_t *pmdp)
- {
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG(address & ~HPAGE_PMD_MASK, "address = %lu\n", address);
- 	if (!test_and_set_bit(_SEGMENT_ENTRY_SPLIT_BIT,
- 			      (unsigned long *) pmdp)) {
- 		/* need to serialize against gup-fast (IRQ disabled) */
-diff --git a/arch/sh/mm/mmap.c b/arch/sh/mm/mmap.c
-index 6777177..f30fd96 100644
---- a/arch/sh/mm/mmap.c
-+++ b/arch/sh/mm/mmap.c
-@@ -132,7 +132,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	 * allocations.
- 	 */
- 	if (addr & ~PAGE_MASK) {
--		VM_BUG_ON(addr != -ENOMEM);
-+		VM_BUG(addr != -ENOMEM, "addr = %lu\n", addr);
- 		info.flags = 0;
- 		info.low_limit = TASK_UNMAPPED_BASE;
- 		info.high_limit = TASK_SIZE;
-diff --git a/arch/sparc/kernel/sys_sparc_64.c b/arch/sparc/kernel/sys_sparc_64.c
-index 30e7ddb..a77210d 100644
---- a/arch/sparc/kernel/sys_sparc_64.c
-+++ b/arch/sparc/kernel/sys_sparc_64.c
-@@ -131,7 +131,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
- 	addr = vm_unmapped_area(&info);
- 
- 	if ((addr & ~PAGE_MASK) && task_size > VA_EXCLUDE_END) {
--		VM_BUG_ON(addr != -ENOMEM);
-+		VM_BUG(addr != -ENOMEM, "addr = %lu\n", addr);
- 		info.low_limit = VA_EXCLUDE_END;
- 		info.high_limit = task_size;
- 		addr = vm_unmapped_area(&info);
-@@ -200,7 +200,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	 * allocations.
- 	 */
- 	if (addr & ~PAGE_MASK) {
--		VM_BUG_ON(addr != -ENOMEM);
-+		VM_BUG(addr != -ENOMEM, "addr = %lu\n", addr);
- 		info.flags = 0;
- 		info.low_limit = TASK_UNMAPPED_BASE;
- 		info.high_limit = STACK_TOP32;
-diff --git a/arch/sparc/mm/gup.c b/arch/sparc/mm/gup.c
-index 2e5c4fc..9d92335 100644
---- a/arch/sparc/mm/gup.c
-+++ b/arch/sparc/mm/gup.c
-@@ -84,7 +84,7 @@ static int gup_huge_pmd(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
- 	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
- 	tail = page;
- 	do {
--		VM_BUG_ON(compound_head(page) != head);
-+		VM_BUG(compound_head(page) != head, "%pZp\n%pZp", page, head);
- 		pages[*nr] = page;
- 		(*nr)++;
- 		page++;
-diff --git a/arch/sparc/mm/hugetlbpage.c b/arch/sparc/mm/hugetlbpage.c
-index 131eaf4..268fa24 100644
---- a/arch/sparc/mm/hugetlbpage.c
-+++ b/arch/sparc/mm/hugetlbpage.c
-@@ -42,7 +42,7 @@ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *filp,
- 	addr = vm_unmapped_area(&info);
- 
- 	if ((addr & ~PAGE_MASK) && task_size > VA_EXCLUDE_END) {
--		VM_BUG_ON(addr != -ENOMEM);
-+		VM_BUG(addr != -ENOMEM, "addr = %lu\n", addr);
- 		info.low_limit = VA_EXCLUDE_END;
- 		info.high_limit = task_size;
- 		addr = vm_unmapped_area(&info);
-@@ -79,7 +79,7 @@ hugetlb_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	 * allocations.
- 	 */
- 	if (addr & ~PAGE_MASK) {
--		VM_BUG_ON(addr != -ENOMEM);
-+		VM_BUG(addr != -ENOMEM, "addr = %lu\n", addr);
- 		info.flags = 0;
- 		info.low_limit = TASK_UNMAPPED_BASE;
- 		info.high_limit = STACK_TOP32;
-diff --git a/arch/tile/mm/hugetlbpage.c b/arch/tile/mm/hugetlbpage.c
-index c034dc3..a1dada8 100644
---- a/arch/tile/mm/hugetlbpage.c
-+++ b/arch/tile/mm/hugetlbpage.c
-@@ -200,7 +200,7 @@ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
- 	 * allocations.
- 	 */
- 	if (addr & ~PAGE_MASK) {
--		VM_BUG_ON(addr != -ENOMEM);
-+		VM_BUG(addr != -ENOMEM, "addr = %lu\n", addr);
- 		info.flags = 0;
- 		info.low_limit = TASK_UNMAPPED_BASE;
- 		info.high_limit = TASK_SIZE;
-diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
-index 10e0272..9737762 100644
---- a/arch/x86/kernel/sys_x86_64.c
-+++ b/arch/x86/kernel/sys_x86_64.c
-@@ -203,7 +203,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	addr = vm_unmapped_area(&info);
- 	if (!(addr & ~PAGE_MASK))
- 		return addr;
--	VM_BUG_ON(addr != -ENOMEM);
-+	VM_BUG(addr != -ENOMEM, "addr = %lu\n", addr);
- 
- bottomup:
- 	/*
-diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-index 42982b2..ae468ee 100644
---- a/arch/x86/mm/hugetlbpage.c
-+++ b/arch/x86/mm/hugetlbpage.c
-@@ -111,7 +111,7 @@ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
- 	 * allocations.
- 	 */
- 	if (addr & ~PAGE_MASK) {
--		VM_BUG_ON(addr != -ENOMEM);
-+		VM_BUG(addr != -ENOMEM, "addr = %lu\n", addr);
- 		info.flags = 0;
- 		info.low_limit = TASK_UNMAPPED_BASE;
- 		info.high_limit = TASK_SIZE;
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 3d6edea..7ec9841 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -427,7 +427,7 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
- {
- 	int changed = !pmd_same(*pmdp, entry);
- 
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG(address & ~HPAGE_PMD_MASK, "address = %lu\n", address);
- 
- 	if (changed && dirty) {
- 		*pmdp = entry;
-@@ -501,7 +501,7 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
- {
- 	int young;
- 
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG(address & ~HPAGE_PMD_MASK, "address = %lu\n", address);
- 
- 	young = pmdp_test_and_clear_young(vma, address, pmdp);
- 	if (young)
-@@ -514,7 +514,7 @@ void pmdp_splitting_flush(struct vm_area_struct *vma,
- 			  unsigned long address, pmd_t *pmdp)
- {
- 	int set;
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG(address & ~HPAGE_PMD_MASK, "address = %lu\n", address);
- 	set = !test_and_set_bit(_PAGE_BIT_SPLITTING,
- 				(unsigned long *)pmdp);
- 	if (set) {
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 3d6d6c5..a3fe87d 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2487,7 +2487,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	unsigned long mmun_end;		/* For mmu_notifiers */
- 	gfp_t gfp;
- 
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG(address & ~HPAGE_PMD_MASK, "address = %lu\n", address);
- 
- 	/* Only allocate from the target node */
- 	gfp = alloc_hugepage_gfpmask(khugepaged_defrag(), __GFP_OTHER_NODE) |
-@@ -2619,7 +2619,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 	int node = NUMA_NO_NODE;
- 	bool writable = false, referenced = false;
- 
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG(address & ~HPAGE_PMD_MASK, "address = %lu\n", address);
- 
- 	pmd = mm_find_pmd(mm, address);
- 	if (!pmd)
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 311a795..5439e8e 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1977,7 +1977,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	 * allocations.
- 	 */
- 	if (addr & ~PAGE_MASK) {
--		VM_BUG_ON(addr != -ENOMEM);
-+		VM_BUG(addr != -ENOMEM, "addr = %lu\n", addr);
- 		info.flags = 0;
- 		info.low_limit = TASK_UNMAPPED_BASE;
- 		info.high_limit = TASK_SIZE;
-diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
-index c25f94b..97327c3 100644
---- a/mm/pgtable-generic.c
-+++ b/mm/pgtable-generic.c
-@@ -64,7 +64,7 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
- {
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 	int changed = !pmd_same(*pmdp, entry);
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG(address & ~HPAGE_PMD_MASK, "address = %lu\n", address);
- 	if (changed) {
- 		set_pmd_at(vma->vm_mm, address, pmdp, entry);
- 		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-@@ -95,7 +95,7 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
- {
- 	int young;
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG(address & ~HPAGE_PMD_MASK, "address = %lu\n", address);
- #else
- 	BUG();
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-@@ -125,7 +125,7 @@ pmd_t pmdp_clear_flush(struct vm_area_struct *vma, unsigned long address,
- 		       pmd_t *pmdp)
- {
- 	pmd_t pmd;
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG(address & ~HPAGE_PMD_MASK, "address = %lu\n", address);
- 	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
- 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
- 	return pmd;
-@@ -139,7 +139,7 @@ void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
- 			  pmd_t *pmdp)
- {
- 	pmd_t pmd = pmd_mksplitting(*pmdp);
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	VM_BUG(address & ~HPAGE_PMD_MASK, "address = %lu\n", address);
- 	set_pmd_at(vma->vm_mm, address, pmdp, pmd);
- 	/* tlb flush only to serialize against gup-fast */
- 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
--- 
-1.7.10.4
+diff --git a/Documentation/ioctl/ioctl-number.txt b/Documentation/ioctl/ioctl-number.txt
+index ec7c81b..ed950ad 100644
+--- a/Documentation/ioctl/ioctl-number.txt
++++ b/Documentation/ioctl/ioctl-number.txt
+@@ -302,6 +302,7 @@ Code  Seq#(hex)	Include File		Comments
+ 0xA3	80-8F	Port ACL		in development:
+ 					<mailto:tlewis@mindspring.com>
+ 0xA3	90-9F	linux/dtlk.h
++0xAA	00-3F	linux/uapi/linux/userfaultfd.h
+ 0xAB	00-1F	linux/nbd.h
+ 0xAC	00-1F	linux/raw.h
+ 0xAD	00	Netfilter device	in development:
+diff --git a/include/uapi/linux/Kbuild b/include/uapi/linux/Kbuild
+index 4842a98..47547ea 100644
+--- a/include/uapi/linux/Kbuild
++++ b/include/uapi/linux/Kbuild
+@@ -452,3 +452,4 @@ header-y += xfrm.h
+ header-y += xilinx-v4l2-controls.h
+ header-y += zorro.h
+ header-y += zorro_ids.h
++header-y += userfaultfd.h
+diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
+new file mode 100644
+index 0000000..9a8cd56
+--- /dev/null
++++ b/include/uapi/linux/userfaultfd.h
+@@ -0,0 +1,81 @@
++/*
++ *  include/linux/userfaultfd.h
++ *
++ *  Copyright (C) 2007  Davide Libenzi <davidel@xmailserver.org>
++ *  Copyright (C) 2015  Red Hat, Inc.
++ *
++ */
++
++#ifndef _LINUX_USERFAULTFD_H
++#define _LINUX_USERFAULTFD_H
++
++#define UFFD_API ((__u64)0xAA)
++/* FIXME: add "|UFFD_BIT_WP" to UFFD_API_BITS after implementing it */
++#define UFFD_API_BITS (UFFD_BIT_WRITE)
++#define UFFD_API_IOCTLS				\
++	((__u64)1 << _UFFDIO_REGISTER |		\
++	 (__u64)1 << _UFFDIO_UNREGISTER |	\
++	 (__u64)1 << _UFFDIO_API)
++#define UFFD_API_RANGE_IOCTLS			\
++	((__u64)1 << _UFFDIO_WAKE)
++
++/*
++ * Valid ioctl command number range with this API is from 0x00 to
++ * 0x3F.  UFFDIO_API is the fixed number, everything else can be
++ * changed by implementing a different UFFD_API. If sticking to the
++ * same UFFD_API more ioctl can be added and userland will be aware of
++ * which ioctl the running kernel implements through the ioctl command
++ * bitmask written by the UFFDIO_API.
++ */
++#define _UFFDIO_REGISTER		(0x00)
++#define _UFFDIO_UNREGISTER		(0x01)
++#define _UFFDIO_WAKE			(0x02)
++#define _UFFDIO_API			(0x3F)
++
++/* userfaultfd ioctl ids */
++#define UFFDIO 0xAA
++#define UFFDIO_API		_IOWR(UFFDIO, _UFFDIO_API,	\
++				      struct uffdio_api)
++#define UFFDIO_REGISTER		_IOWR(UFFDIO, _UFFDIO_REGISTER, \
++				      struct uffdio_register)
++#define UFFDIO_UNREGISTER	_IOR(UFFDIO, _UFFDIO_UNREGISTER,	\
++				     struct uffdio_range)
++#define UFFDIO_WAKE		_IOR(UFFDIO, _UFFDIO_WAKE,	\
++				     struct uffdio_range)
++
++/*
++ * Valid bits below PAGE_SHIFT in the userfault address read through
++ * the read() syscall.
++ */
++#define UFFD_BIT_WRITE	(1<<0)	/* this was a write fault, MISSING or WP */
++#define UFFD_BIT_WP	(1<<1)	/* handle_userfault() reason VM_UFFD_WP */
++#define UFFD_BITS	2	/* two above bits used for UFFD_BIT_* mask */
++
++struct uffdio_api {
++	/* userland asks for an API number */
++	__u64 api;
++
++	/* kernel answers below with the available features for the API */
++	__u64 bits;
++	__u64 ioctls;
++};
++
++struct uffdio_range {
++	__u64 start;
++	__u64 len;
++};
++
++struct uffdio_register {
++	struct uffdio_range range;
++#define UFFDIO_REGISTER_MODE_MISSING	((__u64)1<<0)
++#define UFFDIO_REGISTER_MODE_WP		((__u64)1<<1)
++	__u64 mode;
++
++	/*
++	 * kernel answers which ioctl commands are available for the
++	 * range, keep at the end as the last 8 bytes aren't read.
++	 */
++	__u64 ioctls;
++};
++
++#endif /* _LINUX_USERFAULTFD_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
