@@ -1,44 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B4366B0038
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 08:09:29 -0400 (EDT)
-Received: by wgbhc8 with SMTP id hc8so39484420wgb.3
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 05:09:29 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 145436B006E
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 08:12:51 -0400 (EDT)
+Received: by wgin8 with SMTP id n8so73276541wgi.0
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 05:12:50 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w4si15960687wjx.25.2015.05.14.05.09.27
+        by mx.google.com with ESMTPS id e5si1800338wix.88.2015.05.14.05.12.49
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 14 May 2015 05:09:27 -0700 (PDT)
-Date: Thu, 14 May 2015 14:09:26 +0200
+        Thu, 14 May 2015 05:12:49 -0700 (PDT)
+Date: Thu, 14 May 2015 14:12:48 +0200
 From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: Possible bug - LTP failure for memcg
-Message-ID: <20150514120926.GF6799@dhcp22.suse.cz>
+Message-ID: <20150514121248.GG6799@dhcp22.suse.cz>
 References: <55536DC9.90200@kyup.com>
+ <20150514092145.GA6799@dhcp22.suse.cz>
+ <20150514103148.GA5066@rei.suse.de>
+ <20150514115641.GE6799@dhcp22.suse.cz>
+ <20150514120142.GG5066@rei.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <55536DC9.90200@kyup.com>
+In-Reply-To: <20150514120142.GG5066@rei.suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nikolay Borisov <kernel@kyup.com>
-Cc: cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
+To: Cyril Hrubis <chrubis@suse.cz>
+Cc: Nikolay Borisov <kernel@kyup.com>, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
 
-On Wed 13-05-15 18:29:13, Nikolay Borisov wrote:
-[...]
-> memcg_function_test   22  TFAIL  :  ltpapicmd.c:190: input=4095,
-> limit_in_bytes=0
-> memcg_function_test   23  TFAIL  :  ltpapicmd.c:190: input=4097,
-> limit_in_bytes=4096
-> memcg_function_test   24  TFAIL  :  ltpapicmd.c:190: input=1,
-> limit_in_bytes=0
+On Thu 14-05-15 14:01:42, Cyril Hrubis wrote:
+> Hi!
+> > > The previous testcases does exactly this but moves the process to the
+> > > parent with:
+> > > 
+> > > echo $pid > ../tasks
+> > > 
+> > > Before it tries the force_empty and expects it to succeed.
+> > > 
+> > > Was this some old implementation limitation that has been lifted
+> > > meanwhile?
+> > 
+> > OK, now I remember... f61c42a7d911 ("memcg: remove tasks/children test
+> > from mem_cgroup_force_empty()") which goes back to 3.16. So the test
+> > case is invalid.
+> 
+> Then please send a patch to remove the test.
 
-Before we go and fix these test cases. Do they make any sense at all?
-Why should anybody even care that the limit is in page units? I do not
-see anything like that mentioned in the documentation. Sure having
-the limit in page size units makes a lot of sense from the
-implementation POV but should userspace care? Would something break if
-we change internals and allow also !page_aligned values? I have hard
-time to imagine that.
+I think we can still fix both tescases and expect not to fail with
+regular mmap but fail it with unreclaimable memory (e.g. disallow
+swapout or use mlock).
 -- 
 Michal Hocko
 SUSE Labs
