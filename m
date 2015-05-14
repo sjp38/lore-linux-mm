@@ -1,52 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A8286B006C
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 13:49:06 -0400 (EDT)
-Received: by igbhj9 with SMTP id hj9so79474745igb.1
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 10:49:06 -0700 (PDT)
-Received: from mail-ie0-x22a.google.com (mail-ie0-x22a.google.com. [2607:f8b0:4001:c03::22a])
-        by mx.google.com with ESMTPS id u91si505607ioi.85.2015.05.14.10.49.06
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id D4C1A6B0072
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 14:40:33 -0400 (EDT)
+Received: by layy10 with SMTP id y10so80855907lay.0
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 11:40:33 -0700 (PDT)
+Received: from mail-la0-f45.google.com (mail-la0-f45.google.com. [209.85.215.45])
+        by mx.google.com with ESMTPS id dy7si15081739lbc.63.2015.05.14.11.40.30
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 May 2015 10:49:06 -0700 (PDT)
-Received: by iecmd7 with SMTP id md7so67074614iec.1
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 10:49:06 -0700 (PDT)
+        Thu, 14 May 2015 11:40:31 -0700 (PDT)
+Received: by layy10 with SMTP id y10so80853632lay.0
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 11:40:30 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1431624680-20153-11-git-send-email-aarcange@redhat.com>
-References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
-	<1431624680-20153-11-git-send-email-aarcange@redhat.com>
-Date: Thu, 14 May 2015 10:49:06 -0700
-Message-ID: <CA+55aFwCODeiXUPDR7-Y-=2xE2abmVuCnmVV=ezFqhO+JkaW=A@mail.gmail.com>
-Subject: Re: [PATCH 10/23] userfaultfd: add new syscall to provide memory externalization
-From: Linus Torvalds <torvalds@linux-foundation.org>
+In-Reply-To: <CAEVpBa+-wwf5Q3CwQAAad3V0pJ+uD50uaHKW=EnChLDLOLSAGg@mail.gmail.com>
+References: <20150512090156.24768.2521.stgit@buzz>
+	<CAEVpBa+-wwf5Q3CwQAAad3V0pJ+uD50uaHKW=EnChLDLOLSAGg@mail.gmail.com>
+Date: Thu, 14 May 2015 19:40:30 +0100
+Message-ID: <CAEVpBaLPDa8tacKKeHmcLMdmYZ86aZBfGqCnAcQ8R=JKSUoagQ@mail.gmail.com>
+Subject: Re: [PATCH RFC 0/3] pagemap: make useable for non-privilege users
+From: Mark Williamson <mwilliamson@undo-software.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, qemu-devel@nongnu.org, KVM list <kvm@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, kernel list <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelyanov <xemul@parallels.com>, Linux API <linux-api@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Machek <pavel@ucw.cz>, Mark Seaborn <mseaborn@chromium.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, Daniel James <djames@undo-software.com>, Finn Grimwood <fgrimwood@undo-software.com>
 
-On Thu, May 14, 2015 at 10:31 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> +static __always_inline void wake_userfault(struct userfaultfd_ctx *ctx,
-> +                                          struct userfaultfd_wake_range *range)
-> +{
-> +       if (waitqueue_active(&ctx->fault_wqh))
-> +               __wake_userfault(ctx, range);
-> +}
+Hi Konstantin,
 
-Pretty much every single time people use this "if
-(waitqueue_active())" model, it tends to be a bug, because it means
-that there is zero serialization with people who are just about to go
-to sleep. It's fundamentally racy against all the "wait_event()" loops
-that carefully do memory barriers between testing conditions and going
-to sleep, because the memory barriers now don't exist on the waking
-side.
+I modified our code to check for the map-exclusive flag where it used
+to compare pageframe numbers.  First tests look pretty promising, so
+this patch looks like a viable approach for us.
 
-So I'm making a new rule: if you use waitqueue_active(), I want an
-explanation for why it's not racy with the waiter. A big comment about
-the memory ordering, or about higher-level locks that are held by the
-caller, or something.
+Is there anything further we can do to help?
 
-                     Linus
+Thanks,
+Mark
+
+On Tue, May 12, 2015 at 12:13 PM, Mark Williamson
+<mwilliamson@undo-software.com> wrote:
+> Hi Konstantin,
+>
+> Thanks very much for continuing to look at this!  It's very much
+> appreciated.  I've been investigating from our end but got caught up
+> in some gnarly details of our pagemap-consuming code.
+>
+> I like the approach and it seems like the information you're exposing
+> will be useful for our application.  I'll test the patch and see if it
+> works for us as-is.
+>
+> Will follow up with any comments on the individual patches.
+>
+> Thanks,
+> Mark
+>
+> On Tue, May 12, 2015 at 10:43 AM, Konstantin Khlebnikov
+> <khlebnikov@yandex-team.ru> wrote:
+>> This patchset tries to make pagemap useable again in the safe way.
+>> First patch adds bit 'map-exlusive' which is set if page is mapped only here.
+>> Second patch restores access for non-privileged users but hides pfn if task
+>> has no capability CAP_SYS_ADMIN. Third patch removes page-shift bits and
+>> completes migration to the new pagemap format (flags soft-dirty and
+>> mmap-exlusive are available only in the new format).
+>>
+>> ---
+>>
+>> Konstantin Khlebnikov (3):
+>>       pagemap: add mmap-exclusive bit for marking pages mapped only here
+>>       pagemap: hide physical addresses from non-privileged users
+>>       pagemap: switch to the new format and do some cleanup
+>>
+>>
+>>  Documentation/vm/pagemap.txt |    3 -
+>>  fs/proc/task_mmu.c           |  178 +++++++++++++++++-------------------------
+>>  tools/vm/page-types.c        |   35 ++++----
+>>  3 files changed, 91 insertions(+), 125 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
