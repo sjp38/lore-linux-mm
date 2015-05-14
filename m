@@ -1,106 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 54D536B0070
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 10:19:59 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so243198740wiz.1
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 07:19:59 -0700 (PDT)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id bf4si9827351wib.67.2015.05.14.07.19.57
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B91E6B0071
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 10:20:01 -0400 (EDT)
+Received: by wguv19 with SMTP id v19so15099771wgu.1
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 07:20:01 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
+        by mx.google.com with ESMTPS id do5si4123177wib.50.2015.05.14.07.19.58
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 May 2015 07:19:57 -0700 (PDT)
-Received: by wicnf17 with SMTP id nf17so96362315wic.1
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 07:19:57 -0700 (PDT)
+        Thu, 14 May 2015 07:19:58 -0700 (PDT)
+Received: by wibt6 with SMTP id t6so17417349wib.0
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 07:19:58 -0700 (PDT)
 From: Anisse Astier <anisse@astier.eu>
-Subject: [PATCH v4 1/3] PM / Hibernate: prepare for SANITIZE_FREED_PAGES
-Date: Thu, 14 May 2015 16:19:46 +0200
-Message-Id: <1431613188-4511-2-git-send-email-anisse@astier.eu>
+Subject: [PATCH v4 2/3] mm/page_alloc.c: add config option to sanitize freed pages
+Date: Thu, 14 May 2015 16:19:47 +0200
+Message-Id: <1431613188-4511-3-git-send-email-anisse@astier.eu>
 In-Reply-To: <1431613188-4511-1-git-send-email-anisse@astier.eu>
 References: <1431613188-4511-1-git-send-email-anisse@astier.eu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 Cc: Anisse Astier <anisse@astier.eu>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, Andi Kleen <andi@firstfloor.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, linux-mm@kvack.org, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org
 
-SANITIZE_FREED_PAGES feature relies on having all pages going through
-the free_pages_prepare path in order to be cleared before being used. In
-the hibernate use case, free pages will automagically appear in the
-system without being cleared, left there by the loading kernel.
-
-This patch will make sure free pages are cleared on resume; when we'll
-enable SANITIZE_FREED_PAGES. We free the pages just after resume because
-we can't do it later: going through any device resume code might
-allocate some memory and invalidate the free pages bitmap.
+This new config option will sanitize all freed pages. This is a pretty
+low-level change useful to track some cases of use-after-free, help
+kernel same-page merging in VM environments, and counter a few info
+leaks.
 
 Signed-off-by: Anisse Astier <anisse@astier.eu>
 ---
- kernel/power/hibernate.c |  4 +++-
- kernel/power/power.h     |  2 ++
- kernel/power/snapshot.c  | 22 ++++++++++++++++++++++
- 3 files changed, 27 insertions(+), 1 deletion(-)
+ mm/Kconfig      | 12 ++++++++++++
+ mm/page_alloc.c | 12 ++++++++++++
+ 2 files changed, 24 insertions(+)
 
-diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
-index 2329daa..0a73126 100644
---- a/kernel/power/hibernate.c
-+++ b/kernel/power/hibernate.c
-@@ -305,9 +305,11 @@ static int create_image(int platform_mode)
- 			error);
- 	/* Restore control flow magically appears here */
- 	restore_processor_state();
--	if (!in_suspend)
-+	if (!in_suspend) {
- 		events_check_enabled = false;
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 390214d..e9fb3bd 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -635,3 +635,15 @@ config MAX_STACK_SIZE_MB
+ 	  changed to a smaller value in which case that is used.
  
-+		clear_free_pages();
-+	}
- 	platform_leave(platform_mode);
- 
-  Power_up:
-diff --git a/kernel/power/power.h b/kernel/power/power.h
-index ce9b832..6d2d7bf 100644
---- a/kernel/power/power.h
-+++ b/kernel/power/power.h
-@@ -92,6 +92,8 @@ extern int create_basic_memory_bitmaps(void);
- extern void free_basic_memory_bitmaps(void);
- extern int hibernate_preallocate_memory(void);
- 
-+extern void clear_free_pages(void);
+ 	  A sane initial value is 80 MB.
 +
- /**
-  *	Auxiliary structure used for reading the snapshot image data and
-  *	metadata from and writing them to the list of page backup entries
-diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
-index 5235dd4..2335130 100644
---- a/kernel/power/snapshot.c
-+++ b/kernel/power/snapshot.c
-@@ -1032,6 +1032,28 @@ void free_basic_memory_bitmaps(void)
- 	pr_debug("PM: Basic memory bitmaps freed\n");
- }
- 
-+void clear_free_pages(void)
-+{
++config SANITIZE_FREED_PAGES
++	bool "Sanitize memory pages after free"
++	default n
++	help
++	  This option is used to make sure all pages freed are zeroed. This is
++	  quite low-level and doesn't handle your slab buffers.
++	  It has various applications, from preventing some info leaks to
++	  helping kernel same-page merging in virtualised environments.
++	  Depending on your workload it will greatly reduce performance.
++
++	  If unsure, say N.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4d5ce6e..c29e3a0 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -795,6 +795,12 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+ 		debug_check_no_obj_freed(page_address(page),
+ 					   PAGE_SIZE << order);
+ 	}
++
 +#ifdef CONFIG_SANITIZE_FREED_PAGES
-+	struct memory_bitmap *bm = free_pages_map;
-+	unsigned long pfn;
++	for (i = 0; i < (1 << order); i++)
++		clear_highpage(page + i);
++#endif
 +
-+	if (WARN_ON(!(free_pages_map)))
-+		return;
-+
-+	memory_bm_position_reset(bm);
-+	pfn = memory_bm_next_pfn(bm);
-+	while (pfn != BM_END_OF_MAP) {
-+		if (pfn_valid(pfn))
-+			clear_highpage(pfn_to_page(pfn));
-+
-+		pfn = memory_bm_next_pfn(bm);
-+	}
-+	memory_bm_position_reset(bm);
-+	printk(KERN_INFO "PM: free pages cleared after restore\n");
-+#endif /* SANITIZE_FREED_PAGES */
-+}
-+
- /**
-  *	snapshot_additional_pages - estimate the number of additional pages
-  *	be needed for setting up the suspend image data structures for given
+ 	arch_free_page(page, order);
+ 	kernel_map_pages(page, 1 << order, 0);
+ 
+@@ -960,9 +966,15 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+ 	kernel_map_pages(page, 1 << order, 1);
+ 	kasan_alloc_pages(page, order);
+ 
++#ifndef CONFIG_SANITIZE_FREED_PAGES
++	/* SANITIZE_FREED_PAGES relies implicitly on the fact that pages are
++	 * cleared before use, so we don't need gfp zero in the default case
++	 * because all pages go through the free_pages_prepare code path when
++	 * switching from bootmem to the default allocator */
+ 	if (gfp_flags & __GFP_ZERO)
+ 		for (i = 0; i < (1 << order); i++)
+ 			clear_highpage(page + i);
++#endif
+ 
+ 	if (order && (gfp_flags & __GFP_COMP))
+ 		prep_compound_page(page, order);
 -- 
 1.9.3
 
