@@ -1,130 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F49B6B00AA
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 13:32:17 -0400 (EDT)
-Received: by qgfi89 with SMTP id i89so41068063qgf.1
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 10:32:17 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 82si3050072qhw.114.2015.05.14.10.31.51
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A8286B006C
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 13:49:06 -0400 (EDT)
+Received: by igbhj9 with SMTP id hj9so79474745igb.1
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 10:49:06 -0700 (PDT)
+Received: from mail-ie0-x22a.google.com (mail-ie0-x22a.google.com. [2607:f8b0:4001:c03::22a])
+        by mx.google.com with ESMTPS id u91si505607ioi.85.2015.05.14.10.49.06
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 May 2015 10:31:52 -0700 (PDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 16/23] userfaultfd: allocate the userfaultfd_ctx cacheline aligned
-Date: Thu, 14 May 2015 19:31:13 +0200
-Message-Id: <1431624680-20153-17-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+        Thu, 14 May 2015 10:49:06 -0700 (PDT)
+Received: by iecmd7 with SMTP id md7so67074614iec.1
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 10:49:06 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1431624680-20153-11-git-send-email-aarcange@redhat.com>
 References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+	<1431624680-20153-11-git-send-email-aarcange@redhat.com>
+Date: Thu, 14 May 2015 10:49:06 -0700
+Message-ID: <CA+55aFwCODeiXUPDR7-Y-=2xE2abmVuCnmVV=ezFqhO+JkaW=A@mail.gmail.com>
+Subject: Re: [PATCH 10/23] userfaultfd: add new syscall to provide memory externalization
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org
-Cc: Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, qemu-devel@nongnu.org, KVM list <kvm@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-Use proper slab to guarantee alignment.
+On Thu, May 14, 2015 at 10:31 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> +static __always_inline void wake_userfault(struct userfaultfd_ctx *ctx,
+> +                                          struct userfaultfd_wake_range *range)
+> +{
+> +       if (waitqueue_active(&ctx->fault_wqh))
+> +               __wake_userfault(ctx, range);
+> +}
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- fs/userfaultfd.c | 39 +++++++++++++++++++++++++++++++--------
- 1 file changed, 31 insertions(+), 8 deletions(-)
+Pretty much every single time people use this "if
+(waitqueue_active())" model, it tends to be a bug, because it means
+that there is zero serialization with people who are just about to go
+to sleep. It's fundamentally racy against all the "wait_event()" loops
+that carefully do memory barriers between testing conditions and going
+to sleep, because the memory barriers now don't exist on the waking
+side.
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index 3d26f41..5542fe7 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -27,20 +27,26 @@
- #include <linux/ioctl.h>
- #include <linux/security.h>
- 
-+static struct kmem_cache *userfaultfd_ctx_cachep __read_mostly;
-+
- enum userfaultfd_state {
- 	UFFD_STATE_WAIT_API,
- 	UFFD_STATE_RUNNING,
- };
- 
-+/*
-+ * Start with fault_pending_wqh and fault_wqh so they're more likely
-+ * to be in the same cacheline.
-+ */
- struct userfaultfd_ctx {
--	/* pseudo fd refcounting */
--	atomic_t refcount;
- 	/* waitqueue head for the pending (i.e. not read) userfaults */
- 	wait_queue_head_t fault_pending_wqh;
- 	/* waitqueue head for the userfaults */
- 	wait_queue_head_t fault_wqh;
- 	/* waitqueue head for the pseudo fd to wakeup poll/read */
- 	wait_queue_head_t fd_wqh;
-+	/* pseudo fd refcounting */
-+	atomic_t refcount;
- 	/* userfaultfd syscall flags */
- 	unsigned int flags;
- 	/* state machine */
-@@ -117,7 +123,7 @@ static void userfaultfd_ctx_put(struct userfaultfd_ctx *ctx)
- 		VM_BUG_ON(spin_is_locked(&ctx->fd_wqh.lock));
- 		VM_BUG_ON(waitqueue_active(&ctx->fd_wqh));
- 		mmput(ctx->mm);
--		kfree(ctx);
-+		kmem_cache_free(userfaultfd_ctx_cachep, ctx);
- 	}
- }
- 
-@@ -987,6 +993,15 @@ static const struct file_operations userfaultfd_fops = {
- 	.llseek		= noop_llseek,
- };
- 
-+static void init_once_userfaultfd_ctx(void *mem)
-+{
-+	struct userfaultfd_ctx *ctx = (struct userfaultfd_ctx *) mem;
-+
-+	init_waitqueue_head(&ctx->fault_pending_wqh);
-+	init_waitqueue_head(&ctx->fault_wqh);
-+	init_waitqueue_head(&ctx->fd_wqh);
-+}
-+
- /**
-  * userfaultfd_file_create - Creates an userfaultfd file pointer.
-  * @flags: Flags for the userfaultfd file.
-@@ -1017,14 +1032,11 @@ static struct file *userfaultfd_file_create(int flags)
- 		goto out;
- 
- 	file = ERR_PTR(-ENOMEM);
--	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
-+	ctx = kmem_cache_alloc(userfaultfd_ctx_cachep, GFP_KERNEL);
- 	if (!ctx)
- 		goto out;
- 
- 	atomic_set(&ctx->refcount, 1);
--	init_waitqueue_head(&ctx->fault_pending_wqh);
--	init_waitqueue_head(&ctx->fault_wqh);
--	init_waitqueue_head(&ctx->fd_wqh);
- 	ctx->flags = flags;
- 	ctx->state = UFFD_STATE_WAIT_API;
- 	ctx->released = false;
-@@ -1035,7 +1047,7 @@ static struct file *userfaultfd_file_create(int flags)
- 	file = anon_inode_getfile("[userfaultfd]", &userfaultfd_fops, ctx,
- 				  O_RDWR | (flags & UFFD_SHARED_FCNTL_FLAGS));
- 	if (IS_ERR(file))
--		kfree(ctx);
-+		kmem_cache_free(userfaultfd_ctx_cachep, ctx);
- out:
- 	return file;
- }
-@@ -1064,3 +1076,14 @@ err_put_unused_fd:
- 
- 	return error;
- }
-+
-+static int __init userfaultfd_init(void)
-+{
-+	userfaultfd_ctx_cachep = kmem_cache_create("userfaultfd_ctx_cache",
-+						sizeof(struct userfaultfd_ctx),
-+						0,
-+						SLAB_HWCACHE_ALIGN|SLAB_PANIC,
-+						init_once_userfaultfd_ctx);
-+	return 0;
-+}
-+__initcall(userfaultfd_init);
+So I'm making a new rule: if you use waitqueue_active(), I want an
+explanation for why it's not racy with the waiter. A big comment about
+the memory ordering, or about higher-level locks that are held by the
+caller, or something.
+
+                     Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
