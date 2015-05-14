@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com [209.85.220.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 11DFE6B008A
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 13:31:36 -0400 (EDT)
-Received: by qkgy4 with SMTP id y4so54080987qkg.2
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 10:31:35 -0700 (PDT)
+Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com [209.85.220.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 602616B008C
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 13:31:38 -0400 (EDT)
+Received: by qkgw4 with SMTP id w4so13796616qkg.3
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 10:31:38 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d7si23749343qka.121.2015.05.14.10.31.28
+        by mx.google.com with ESMTPS id l35si2439237qgd.62.2015.05.14.10.31.28
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 May 2015 10:31:28 -0700 (PDT)
+        Thu, 14 May 2015 10:31:29 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 21/23] userfaultfd: mcopy_atomic|mfill_zeropage: UFFDIO_COPY|UFFDIO_ZEROPAGE preparation
-Date: Thu, 14 May 2015 19:31:18 +0200
-Message-Id: <1431624680-20153-22-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 17/23] userfaultfd: solve the race between UFFDIO_COPY|ZEROPAGE and read
+Date: Thu, 14 May 2015 19:31:14 +0200
+Message-Id: <1431624680-20153-18-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
 References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,319 +20,199 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org
 Cc: Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-This implements mcopy_atomic and mfill_zeropage that are the lowlevel
-VM methods that are invoked respectively by the UFFDIO_COPY and
-UFFDIO_ZEROPAGE userfaultfd commands.
+Solve in-kernel the race between UFFDIO_COPY|ZEROPAGE and
+userfaultfd_read if they are run on different threads simultaneously.
+
+Until now qemu solved the race in userland: the race was explicitly
+and intentionally left for userland to solve. However we can also
+solve it in kernel.
+
+Requiring all users to solve this race if they use two threads (one
+for the background transfer and one for the userfault reads) isn't
+very attractive from an API prospective, furthermore this allows to
+remove a whole bunch of mutex and bitmap code from qemu, making it
+faster. The cost of __get_user_pages_fast should be insignificant
+considering it scales perfectly and the pagetables are already hot in
+the CPU cache, compared to the overhead in userland to maintain those
+structures.
+
+Applying this patch is backwards compatible with respect to the
+userfaultfd userland API, however reverting this change wouldn't be
+backwards compatible anymore.
+
+Without this patch qemu in the background transfer thread, has to read
+the old state, and do UFFDIO_WAKE if old_state is missing but it
+become REQUESTED by the time it tries to set it to RECEIVED (signaling
+the other side received an userfault).
+
+    vcpu                background_thr userfault_thr
+    -----               -----          -----
+    vcpu0 handle_mm_fault()
+
+			postcopy_place_page
+			read old_state -> MISSING
+ 			UFFDIO_COPY 0x7fb76a139000 (no wakeup, still pending)
+
+    vcpu0 fault at 0x7fb76a139000 enters handle_userfault
+    poll() is kicked
+
+ 					poll() -> POLLIN
+ 					read() -> 0x7fb76a139000
+ 					postcopy_pmi_change_state(MISSING, REQUESTED) -> REQUESTED
+
+ 			tmp_state = postcopy_pmi_change_state(old_state, RECEIVED) -> REQUESTED
+			/* check that no userfault raced with UFFDIO_COPY */
+			if (old_state == MISSING && tmp_state == REQUESTED)
+				UFFDIO_WAKE from background thread
+
+And a second case where a UFFDIO_WAKE would be needed is in the userfault thread:
+
+    vcpu                background_thr userfault_thr
+    -----               -----          -----
+    vcpu0 handle_mm_fault()
+
+			postcopy_place_page
+			read old_state -> MISSING
+ 			UFFDIO_COPY 0x7fb76a139000 (no wakeup, still pending)
+ 			tmp_state = postcopy_pmi_change_state(old_state, RECEIVED) -> RECEIVED
+
+    vcpu0 fault at 0x7fb76a139000 enters handle_userfault
+    poll() is kicked
+
+ 					poll() -> POLLIN
+ 					read() -> 0x7fb76a139000
+
+ 					if (postcopy_pmi_change_state(MISSING, REQUESTED) == RECEIVED)
+						UFFDIO_WAKE from userfault thread
+
+This patch removes the need of both UFFDIO_WAKE and of the associated
+per-page tristate as well.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/linux/userfaultfd_k.h |   6 +
- mm/Makefile                   |   1 +
- mm/userfaultfd.c              | 269 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 276 insertions(+)
- create mode 100644 mm/userfaultfd.c
+ fs/userfaultfd.c | 81 +++++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 66 insertions(+), 15 deletions(-)
 
-diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
-index e1e4360..587480a 100644
---- a/include/linux/userfaultfd_k.h
-+++ b/include/linux/userfaultfd_k.h
-@@ -30,6 +30,12 @@
- extern int handle_userfault(struct vm_area_struct *vma, unsigned long address,
- 			    unsigned int flags, unsigned long reason);
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 5542fe7..6772c22 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -167,6 +167,67 @@ static inline struct uffd_msg userfault_msg(unsigned long address,
+ }
  
-+extern ssize_t mcopy_atomic(struct mm_struct *dst_mm, unsigned long dst_start,
-+			    unsigned long src_start, unsigned long len);
-+extern ssize_t mfill_zeropage(struct mm_struct *dst_mm,
-+			      unsigned long dst_start,
-+			      unsigned long len);
-+
- /* mm helpers */
- static inline bool is_mergeable_vm_userfaultfd_ctx(struct vm_area_struct *vma,
- 					struct vm_userfaultfd_ctx vm_ctx)
-diff --git a/mm/Makefile b/mm/Makefile
-index 98c4eae..b424d5e 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -78,3 +78,4 @@ obj-$(CONFIG_CMA)	+= cma.o
- obj-$(CONFIG_MEMORY_BALLOON) += balloon_compaction.o
- obj-$(CONFIG_PAGE_EXTENSION) += page_ext.o
- obj-$(CONFIG_CMA_DEBUGFS) += cma_debug.o
-+obj-$(CONFIG_USERFAULTFD) += userfaultfd.o
-diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-new file mode 100644
-index 0000000..c54c761
---- /dev/null
-+++ b/mm/userfaultfd.c
-@@ -0,0 +1,269 @@
-+/*
-+ *  mm/userfaultfd.c
-+ *
-+ *  Copyright (C) 2015  Red Hat, Inc.
-+ *
-+ *  This work is licensed under the terms of the GNU GPL, version 2. See
-+ *  the COPYING file in the top-level directory.
+ /*
++ * Verify the pagetables are still not ok after having reigstered into
++ * the fault_pending_wqh to avoid userland having to UFFDIO_WAKE any
++ * userfault that has already been resolved, if userfaultfd_read and
++ * UFFDIO_COPY|ZEROPAGE are being run simultaneously on two different
++ * threads.
 + */
-+
-+#include <linux/mm.h>
-+#include <linux/pagemap.h>
-+#include <linux/rmap.h>
-+#include <linux/swap.h>
-+#include <linux/swapops.h>
-+#include <linux/userfaultfd_k.h>
-+#include <linux/mmu_notifier.h>
-+#include <asm/tlbflush.h>
-+#include "internal.h"
-+
-+static int mcopy_atomic_pte(struct mm_struct *dst_mm,
-+			    pmd_t *dst_pmd,
-+			    struct vm_area_struct *dst_vma,
-+			    unsigned long dst_addr,
-+			    unsigned long src_addr)
++static inline bool userfaultfd_must_wait(struct userfaultfd_ctx *ctx,
++					 unsigned long address,
++					 unsigned long flags,
++					 unsigned long reason)
 +{
-+	struct mem_cgroup *memcg;
-+	pte_t _dst_pte, *dst_pte;
-+	spinlock_t *ptl;
-+	struct page *page;
-+	void *page_kaddr;
-+	int ret;
-+
-+	ret = -ENOMEM;
-+	page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, dst_vma, dst_addr);
-+	if (!page)
-+		goto out;
-+
-+	page_kaddr = kmap(page);
-+	ret = -EFAULT;
-+	if (copy_from_user(page_kaddr, (const void __user *) src_addr,
-+			   PAGE_SIZE))
-+		goto out_kunmap_release;
-+	kunmap(page);
-+
-+	/*
-+	 * The memory barrier inside __SetPageUptodate makes sure that
-+	 * preceeding stores to the page contents become visible before
-+	 * the set_pte_at() write.
-+	 */
-+	__SetPageUptodate(page);
-+
-+	ret = -ENOMEM;
-+	if (mem_cgroup_try_charge(page, dst_mm, GFP_KERNEL, &memcg))
-+		goto out_release;
-+
-+	_dst_pte = mk_pte(page, dst_vma->vm_page_prot);
-+	if (dst_vma->vm_flags & VM_WRITE)
-+		_dst_pte = pte_mkwrite(pte_mkdirty(_dst_pte));
-+
-+	ret = -EEXIST;
-+	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
-+	if (!pte_none(*dst_pte))
-+		goto out_release_uncharge_unlock;
-+
-+	inc_mm_counter(dst_mm, MM_ANONPAGES);
-+	page_add_new_anon_rmap(page, dst_vma, dst_addr);
-+	mem_cgroup_commit_charge(page, memcg, false);
-+	lru_cache_add_active_or_unevictable(page, dst_vma);
-+
-+	set_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);
-+
-+	/* No need to invalidate - it was non-present before */
-+	update_mmu_cache(dst_vma, dst_addr, dst_pte);
-+
-+	pte_unmap_unlock(dst_pte, ptl);
-+	ret = 0;
-+out:
-+	return ret;
-+out_release_uncharge_unlock:
-+	pte_unmap_unlock(dst_pte, ptl);
-+	mem_cgroup_cancel_charge(page, memcg);
-+out_release:
-+	page_cache_release(page);
-+	goto out;
-+out_kunmap_release:
-+	kunmap(page);
-+	goto out_release;
-+}
-+
-+static int mfill_zeropage_pte(struct mm_struct *dst_mm,
-+			      pmd_t *dst_pmd,
-+			      struct vm_area_struct *dst_vma,
-+			      unsigned long dst_addr)
-+{
-+	pte_t _dst_pte, *dst_pte;
-+	spinlock_t *ptl;
-+	int ret;
-+
-+	_dst_pte = pte_mkspecial(pfn_pte(my_zero_pfn(dst_addr),
-+					 dst_vma->vm_page_prot));
-+	ret = -EEXIST;
-+	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
-+	if (!pte_none(*dst_pte))
-+		goto out_unlock;
-+	set_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);
-+	/* No need to invalidate - it was non-present before */
-+	update_mmu_cache(dst_vma, dst_addr, dst_pte);
-+	ret = 0;
-+out_unlock:
-+	pte_unmap_unlock(dst_pte, ptl);
-+	return ret;
-+}
-+
-+static pmd_t *mm_alloc_pmd(struct mm_struct *mm, unsigned long address)
-+{
++	struct mm_struct *mm = ctx->mm;
 +	pgd_t *pgd;
 +	pud_t *pud;
-+	pmd_t *pmd = NULL;
++	pmd_t *pmd, _pmd;
++	pte_t *pte;
++	bool ret = true;
++
++	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
 +
 +	pgd = pgd_offset(mm, address);
-+	pud = pud_alloc(mm, pgd, address);
-+	if (pud)
-+		/*
-+		 * Note that we didn't run this because the pmd was
-+		 * missing, the *pmd may be already established and in
-+		 * turn it may also be a trans_huge_pmd.
-+		 */
-+		pmd = pmd_alloc(mm, pud, address);
-+	return pmd;
-+}
-+
-+static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
-+					      unsigned long dst_start,
-+					      unsigned long src_start,
-+					      unsigned long len,
-+					      bool zeropage)
-+{
-+	struct vm_area_struct *dst_vma;
-+	ssize_t err;
-+	pmd_t *dst_pmd;
-+	unsigned long src_addr, dst_addr;
-+	long copied = 0;
-+
-+	/*
-+	 * Sanitize the command parameters:
-+	 */
-+	BUG_ON(dst_start & ~PAGE_MASK);
-+	BUG_ON(len & ~PAGE_MASK);
-+
-+	/* Does the address range wrap, or is the span zero-sized? */
-+	BUG_ON(src_start + len <= src_start);
-+	BUG_ON(dst_start + len <= dst_start);
-+
-+	down_read(&dst_mm->mmap_sem);
-+
-+	/*
-+	 * Make sure the vma is not shared, that the dst range is
-+	 * both valid and fully within a single existing vma.
-+	 */
-+	err = -EINVAL;
-+	dst_vma = find_vma(dst_mm, dst_start);
-+	if (!dst_vma || (dst_vma->vm_flags & VM_SHARED))
++	if (!pgd_present(*pgd))
 +		goto out;
-+	if (dst_start < dst_vma->vm_start ||
-+	    dst_start + len > dst_vma->vm_end)
++	pud = pud_offset(pgd, address);
++	if (!pud_present(*pud))
++		goto out;
++	pmd = pmd_offset(pud, address);
++	/*
++	 * READ_ONCE must function as a barrier with narrower scope
++	 * and it must be equivalent to:
++	 *	_pmd = *pmd; barrier();
++	 *
++	 * This is to deal with the instability (as in
++	 * pmd_trans_unstable) of the pmd.
++	 */
++	_pmd = READ_ONCE(*pmd);
++	if (!pmd_present(_pmd))
++		goto out;
++
++	ret = false;
++	if (pmd_trans_huge(_pmd))
 +		goto out;
 +
 +	/*
-+	 * Be strict and only allow __mcopy_atomic on userfaultfd
-+	 * registered ranges to prevent userland errors going
-+	 * unnoticed. As far as the VM consistency is concerned, it
-+	 * would be perfectly safe to remove this check, but there's
-+	 * no useful usage for __mcopy_atomic ouside of userfaultfd
-+	 * registered ranges. This is after all why these are ioctls
-+	 * belonging to the userfaultfd and not syscalls.
++	 * the pmd is stable (as in !pmd_trans_unstable) so we can re-read it
++	 * and use the standard pte_offset_map() instead of parsing _pmd.
 +	 */
-+	if (!dst_vma->vm_userfaultfd_ctx.ctx)
-+		goto out;
-+
++	pte = pte_offset_map(pmd, address);
 +	/*
-+	 * FIXME: only allow copying on anonymous vmas, tmpfs should
-+	 * be added.
++	 * Lockless access: we're in a wait_event so it's ok if it
++	 * changes under us.
 +	 */
-+	if (dst_vma->vm_ops)
-+		goto out;
-+
-+	/*
-+	 * Ensure the dst_vma has a anon_vma or this page
-+	 * would get a NULL anon_vma when moved in the
-+	 * dst_vma.
-+	 */
-+	err = -ENOMEM;
-+	if (unlikely(anon_vma_prepare(dst_vma)))
-+		goto out;
-+
-+	for (src_addr = src_start, dst_addr = dst_start;
-+	     src_addr < src_start + len; ) {
-+		pmd_t dst_pmdval;
-+		BUG_ON(dst_addr >= dst_start + len);
-+		dst_pmd = mm_alloc_pmd(dst_mm, dst_addr);
-+		if (unlikely(!dst_pmd)) {
-+			err = -ENOMEM;
-+			break;
-+		}
-+
-+		dst_pmdval = pmd_read_atomic(dst_pmd);
-+		/*
-+		 * If the dst_pmd is mapped as THP don't
-+		 * override it and just be strict.
-+		 */
-+		if (unlikely(pmd_trans_huge(dst_pmdval))) {
-+			err = -EEXIST;
-+			break;
-+		}
-+		if (unlikely(pmd_none(dst_pmdval)) &&
-+		    unlikely(__pte_alloc(dst_mm, dst_vma, dst_pmd,
-+					 dst_addr))) {
-+			err = -ENOMEM;
-+			break;
-+		}
-+		/* If an huge pmd materialized from under us fail */
-+		if (unlikely(pmd_trans_huge(*dst_pmd))) {
-+			err = -EFAULT;
-+			break;
-+		}
-+
-+		BUG_ON(pmd_none(*dst_pmd));
-+		BUG_ON(pmd_trans_huge(*dst_pmd));
-+
-+		if (!zeropage)
-+			err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
-+					       dst_addr, src_addr);
-+		else
-+			err = mfill_zeropage_pte(dst_mm, dst_pmd, dst_vma,
-+						 dst_addr);
-+
-+		cond_resched();
-+
-+		if (!err) {
-+			dst_addr += PAGE_SIZE;
-+			src_addr += PAGE_SIZE;
-+			copied += PAGE_SIZE;
-+
-+			if (fatal_signal_pending(current))
-+				err = -EINTR;
-+		}
-+		if (err)
-+			break;
-+	}
++	if (pte_none(*pte))
++		ret = true;
++	pte_unmap(pte);
 +
 +out:
-+	up_read(&dst_mm->mmap_sem);
-+	BUG_ON(copied < 0);
-+	BUG_ON(err > 0);
-+	BUG_ON(!copied && !err);
-+	return copied ? copied : err;
++	return ret;
 +}
 +
-+ssize_t mcopy_atomic(struct mm_struct *dst_mm, unsigned long dst_start,
-+		     unsigned long src_start, unsigned long len)
-+{
-+	return __mcopy_atomic(dst_mm, dst_start, src_start, len, false);
-+}
++/*
+  * The locking rules involved in returning VM_FAULT_RETRY depending on
+  * FAULT_FLAG_ALLOW_RETRY, FAULT_FLAG_RETRY_NOWAIT and
+  * FAULT_FLAG_KILLABLE are not straightforward. The "Caution"
+@@ -188,6 +249,7 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
+ 	struct userfaultfd_ctx *ctx;
+ 	struct userfaultfd_wait_queue uwq;
+ 	int ret;
++	bool must_wait;
+ 
+ 	BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
+ 
+@@ -247,9 +309,6 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
+ 	/* take the reference before dropping the mmap_sem */
+ 	userfaultfd_ctx_get(ctx);
+ 
+-	/* be gentle and immediately relinquish the mmap_sem */
+-	up_read(&mm->mmap_sem);
+-
+ 	init_waitqueue_func_entry(&uwq.wq, userfaultfd_wake_function);
+ 	uwq.wq.private = current;
+ 	uwq.msg = userfault_msg(address, flags, reason);
+@@ -269,7 +328,10 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
+ 	set_current_state(TASK_KILLABLE);
+ 	spin_unlock(&ctx->fault_pending_wqh.lock);
+ 
+-	if (likely(!ACCESS_ONCE(ctx->released) &&
++	must_wait = userfaultfd_must_wait(ctx, address, flags, reason);
++	up_read(&mm->mmap_sem);
 +
-+ssize_t mfill_zeropage(struct mm_struct *dst_mm, unsigned long start,
-+		       unsigned long len)
-+{
-+	return __mcopy_atomic(dst_mm, start, 0, len, true);
-+}
++	if (likely(must_wait && !ACCESS_ONCE(ctx->released) &&
+ 		   !fatal_signal_pending(current))) {
+ 		wake_up_poll(&ctx->fd_wqh, POLLIN);
+ 		schedule();
+@@ -845,17 +907,6 @@ out:
+ }
+ 
+ /*
+- * userfaultfd_wake is needed in case an userfault is in flight by the
+- * time a UFFDIO_COPY (or other ioctl variants) completes. The page
+- * may be well get mapped and the page fault if repeated wouldn't lead
+- * to a userfault anymore, but before scheduling in TASK_KILLABLE mode
+- * handle_userfault() doesn't recheck the pagetables and it doesn't
+- * serialize against UFFDO_COPY (or other ioctl variants). Ultimately
+- * the knowledge of which pages are mapped is left to userland who is
+- * responsible for handling the race between read() userfaults and
+- * background UFFDIO_COPY (or other ioctl variants), if done by
+- * separate concurrent threads.
+- *
+  * userfaultfd_wake may be used in combination with the
+  * UFFDIO_*_MODE_DONTWAKE to wakeup userfaults in batches.
+  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
