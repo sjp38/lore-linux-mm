@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 546FA6B00A2
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 13:32:07 -0400 (EDT)
-Received: by wguv19 with SMTP id v19so20875252wgu.1
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 10:32:07 -0700 (PDT)
+Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com [209.85.220.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 9560F6B00A4
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 13:32:09 -0400 (EDT)
+Received: by qkgy4 with SMTP id y4so54092124qkg.2
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 10:32:09 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q20si4654865wiv.60.2015.05.14.10.31.47
+        by mx.google.com with ESMTPS id 5si518489qkv.19.2015.05.14.10.31.47
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 14 May 2015 10:31:48 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 07/23] userfaultfd: call handle_userfault() for userfaultfd_missing() faults
-Date: Thu, 14 May 2015 19:31:04 +0200
-Message-Id: <1431624680-20153-8-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 01/23] userfaultfd: linux/Documentation/vm/userfaultfd.txt
+Date: Thu, 14 May 2015 19:30:58 +0200
+Message-Id: <1431624680-20153-2-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
 References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,230 +20,160 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org
 Cc: Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-This is where the page faults must be modified to call
-handle_userfault() if userfaultfd_missing() is true (so if the
-vma->vm_flags had VM_UFFD_MISSING set).
-
-handle_userfault() then takes care of blocking the page fault and
-delivering it to userland.
-
-The fault flags must also be passed as parameter so the "read|write"
-kind of fault can be passed to userland.
+Add documentation.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/huge_memory.c | 69 ++++++++++++++++++++++++++++++++++++++------------------
- mm/memory.c      | 16 +++++++++++++
- 2 files changed, 63 insertions(+), 22 deletions(-)
+ Documentation/vm/userfaultfd.txt | 140 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 140 insertions(+)
+ create mode 100644 Documentation/vm/userfaultfd.txt
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index cb8904c..c221be3 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -23,6 +23,7 @@
- #include <linux/pagemap.h>
- #include <linux/migrate.h>
- #include <linux/hashtable.h>
-+#include <linux/userfaultfd_k.h>
- 
- #include <asm/tlb.h>
- #include <asm/pgalloc.h>
-@@ -717,7 +718,8 @@ static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
- static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 					struct vm_area_struct *vma,
- 					unsigned long haddr, pmd_t *pmd,
--					struct page *page, gfp_t gfp)
-+					struct page *page, gfp_t gfp,
-+					unsigned int flags)
- {
- 	struct mem_cgroup *memcg;
- 	pgtable_t pgtable;
-@@ -725,12 +727,16 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 
- 	VM_BUG_ON_PAGE(!PageCompound(page), page);
- 
--	if (mem_cgroup_try_charge(page, mm, gfp, &memcg))
--		return VM_FAULT_OOM;
-+	if (mem_cgroup_try_charge(page, mm, gfp, &memcg)) {
-+		put_page(page);
-+		count_vm_event(THP_FAULT_FALLBACK);
-+		return VM_FAULT_FALLBACK;
-+	}
- 
- 	pgtable = pte_alloc_one(mm, haddr);
- 	if (unlikely(!pgtable)) {
- 		mem_cgroup_cancel_charge(page, memcg);
-+		put_page(page);
- 		return VM_FAULT_OOM;
- 	}
- 
-@@ -750,6 +756,21 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 		pte_free(mm, pgtable);
- 	} else {
- 		pmd_t entry;
+diff --git a/Documentation/vm/userfaultfd.txt b/Documentation/vm/userfaultfd.txt
+new file mode 100644
+index 0000000..c2f5145
+--- /dev/null
++++ b/Documentation/vm/userfaultfd.txt
+@@ -0,0 +1,140 @@
++= Userfaultfd =
 +
-+		/* Deliver the page fault to userland */
-+		if (userfaultfd_missing(vma)) {
-+			int ret;
++== Objective ==
 +
-+			spin_unlock(ptl);
-+			mem_cgroup_cancel_charge(page, memcg);
-+			put_page(page);
-+			pte_free(mm, pgtable);
-+			ret = handle_userfault(vma, haddr, flags,
-+					       VM_UFFD_MISSING);
-+			VM_BUG_ON(ret & VM_FAULT_FALLBACK);
-+			return ret;
-+		}
++Userfaults allow the implementation of on-demand paging from userland
++and more generally they allow userland to take control various memory
++page faults, something otherwise only the kernel code could do.
 +
- 		entry = mk_huge_pmd(page, vma->vm_page_prot);
- 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
- 		page_add_new_anon_rmap(page, vma, haddr);
-@@ -760,6 +781,7 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 		add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
- 		atomic_long_inc(&mm->nr_ptes);
- 		spin_unlock(ptl);
-+		count_vm_event(THP_FAULT_ALLOC);
- 	}
- 
- 	return 0;
-@@ -771,19 +793,16 @@ static inline gfp_t alloc_hugepage_gfpmask(int defrag, gfp_t extra_gfp)
- }
- 
- /* Caller must hold page table lock. */
--static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
-+static void set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
- 		struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd,
- 		struct page *zero_page)
- {
- 	pmd_t entry;
--	if (!pmd_none(*pmd))
--		return false;
- 	entry = mk_pmd(zero_page, vma->vm_page_prot);
- 	entry = pmd_mkhuge(entry);
- 	pgtable_trans_huge_deposit(mm, pmd, pgtable);
- 	set_pmd_at(mm, haddr, pmd, entry);
- 	atomic_long_inc(&mm->nr_ptes);
--	return true;
- }
- 
- int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
-@@ -806,6 +825,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		pgtable_t pgtable;
- 		struct page *zero_page;
- 		bool set;
-+		int ret;
- 		pgtable = pte_alloc_one(mm, haddr);
- 		if (unlikely(!pgtable))
- 			return VM_FAULT_OOM;
-@@ -816,14 +836,28 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			return VM_FAULT_FALLBACK;
- 		}
- 		ptl = pmd_lock(mm, pmd);
--		set = set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
--				zero_page);
--		spin_unlock(ptl);
-+		ret = 0;
-+		set = false;
-+		if (pmd_none(*pmd)) {
-+			if (userfaultfd_missing(vma)) {
-+				spin_unlock(ptl);
-+				ret = handle_userfault(vma, haddr, flags,
-+						       VM_UFFD_MISSING);
-+				VM_BUG_ON(ret & VM_FAULT_FALLBACK);
-+			} else {
-+				set_huge_zero_page(pgtable, mm, vma,
-+						   haddr, pmd,
-+						   zero_page);
-+				spin_unlock(ptl);
-+				set = true;
-+			}
-+		} else
-+			spin_unlock(ptl);
- 		if (!set) {
- 			pte_free(mm, pgtable);
- 			put_huge_zero_page();
- 		}
--		return 0;
-+		return ret;
- 	}
- 	gfp = alloc_hugepage_gfpmask(transparent_hugepage_defrag(vma), 0);
- 	page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
-@@ -831,14 +865,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		count_vm_event(THP_FAULT_FALLBACK);
- 		return VM_FAULT_FALLBACK;
- 	}
--	if (unlikely(__do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page, gfp))) {
--		put_page(page);
--		count_vm_event(THP_FAULT_FALLBACK);
--		return VM_FAULT_FALLBACK;
--	}
--
--	count_vm_event(THP_FAULT_ALLOC);
--	return 0;
-+	return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page, gfp, flags);
- }
- 
- int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-@@ -873,16 +900,14 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	 */
- 	if (is_huge_zero_pmd(pmd)) {
- 		struct page *zero_page;
--		bool set;
- 		/*
- 		 * get_huge_zero_page() will never allocate a new page here,
- 		 * since we already have a zero page to copy. It just takes a
- 		 * reference.
- 		 */
- 		zero_page = get_huge_zero_page();
--		set = set_huge_zero_page(pgtable, dst_mm, vma, addr, dst_pmd,
-+		set_huge_zero_page(pgtable, dst_mm, vma, addr, dst_pmd,
- 				zero_page);
--		BUG_ON(!set); /* unexpected !pmd_none(dst_pmd) */
- 		ret = 0;
- 		goto out_unlock;
- 	}
-diff --git a/mm/memory.c b/mm/memory.c
-index be9f075..790e6f7 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -61,6 +61,7 @@
- #include <linux/string.h>
- #include <linux/dma-debug.h>
- #include <linux/debugfs.h>
-+#include <linux/userfaultfd_k.h>
- 
- #include <asm/io.h>
- #include <asm/pgalloc.h>
-@@ -2680,6 +2681,12 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
- 		if (!pte_none(*page_table))
- 			goto unlock;
-+		/* Deliver the page fault to userland, check inside PT lock */
-+		if (userfaultfd_missing(vma)) {
-+			pte_unmap_unlock(page_table, ptl);
-+			return handle_userfault(vma, address, flags,
-+						VM_UFFD_MISSING);
-+		}
- 		goto setpte;
- 	}
- 
-@@ -2707,6 +2714,15 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (!pte_none(*page_table))
- 		goto release;
- 
-+	/* Deliver the page fault to userland, check inside PT lock */
-+	if (userfaultfd_missing(vma)) {
-+		pte_unmap_unlock(page_table, ptl);
-+		mem_cgroup_cancel_charge(page, memcg);
-+		page_cache_release(page);
-+		return handle_userfault(vma, address, flags,
-+					VM_UFFD_MISSING);
-+	}
++For example userfaults allows a proper and more optimal implementation
++of the PROT_NONE+SIGSEGV trick.
 +
- 	inc_mm_counter_fast(mm, MM_ANONPAGES);
- 	page_add_new_anon_rmap(page, vma, address);
- 	mem_cgroup_commit_charge(page, memcg, false);
++== Design ==
++
++Userfaults are delivered and resolved through the userfaultfd syscall.
++
++The userfaultfd (aside from registering and unregistering virtual
++memory ranges) provides two primary functionalities:
++
++1) read/POLLIN protocol to notify a userland thread of the faults
++   happening
++
++2) various UFFDIO_* ioctls that can manage the virtual memory regions
++   registered in the userfaultfd that allows userland to efficiently
++   resolve the userfaults it receives via 1) or to manage the virtual
++   memory in the background
++
++The real advantage of userfaults if compared to regular virtual memory
++management of mremap/mprotect is that the userfaults in all their
++operations never involve heavyweight structures like vmas (in fact the
++userfaultfd runtime load never takes the mmap_sem for writing).
++
++Vmas are not suitable for page- (or hugepage) granular fault tracking
++when dealing with virtual address spaces that could span
++Terabytes. Too many vmas would be needed for that.
++
++The userfaultfd once opened by invoking the syscall, can also be
++passed using unix domain sockets to a manager process, so the same
++manager process could handle the userfaults of a multitude of
++different processes without them being aware about what is going on
++(well of course unless they later try to use the userfaultfd
++themselves on the same region the manager is already tracking, which
++is a corner case that would currently return -EBUSY).
++
++== API ==
++
++When first opened the userfaultfd must be enabled invoking the
++UFFDIO_API ioctl specifying a uffdio_api.api value set to UFFD_API (or
++a later API version) which will specify the read/POLLIN protocol
++userland intends to speak on the UFFD. The UFFDIO_API ioctl if
++successful (i.e. if the requested uffdio_api.api is spoken also by the
++running kernel), will return into uffdio_api.features and
++uffdio_api.ioctls two 64bit bitmasks of respectively the activated
++feature of the read(2) protocol and the generic ioctl available.
++
++Once the userfaultfd has been enabled the UFFDIO_REGISTER ioctl should
++be invoked (if present in the returned uffdio_api.ioctls bitmask) to
++register a memory range in the userfaultfd by setting the
++uffdio_register structure accordingly. The uffdio_register.mode
++bitmask will specify to the kernel which kind of faults to track for
++the range (UFFDIO_REGISTER_MODE_MISSING would track missing
++pages). The UFFDIO_REGISTER ioctl will return the
++uffdio_register.ioctls bitmask of ioctls that are suitable to resolve
++userfaults on the range registered. Not all ioctls will necessarily be
++supported for all memory types depending on the underlying virtual
++memory backend (anonymous memory vs tmpfs vs real filebacked
++mappings).
++
++Userland can use the uffdio_register.ioctls to manage the virtual
++address space in the background (to add or potentially also remove
++memory from the userfaultfd registered range). This means a userfault
++could be triggering just before userland maps in the background the
++user-faulted page.
++
++The primary ioctl to resolve userfaults is UFFDIO_COPY. That
++atomically copies a page into the userfault registered range and wakes
++up the blocked userfaults (unless uffdio_copy.mode &
++UFFDIO_COPY_MODE_DONTWAKE is set). Other ioctl works similarly to
++UFFDIO_COPY.
++
++== QEMU/KVM ==
++
++QEMU/KVM is using the userfaultfd syscall to implement postcopy live
++migration. Postcopy live migration is one form of memory
++externalization consisting of a virtual machine running with part or
++all of its memory residing on a different node in the cloud. The
++userfaultfd abstraction is generic enough that not a single line of
++KVM kernel code had to be modified in order to add postcopy live
++migration to QEMU.
++
++Guest async page faults, FOLL_NOWAIT and all other GUP features work
++just fine in combination with userfaults. Userfaults trigger async
++page faults in the guest scheduler so those guest processes that
++aren't waiting for userfaults (i.e. network bound) can keep running in
++the guest vcpus.
++
++It is generally beneficial to run one pass of precopy live migration
++just before starting postcopy live migration, in order to avoid
++generating userfaults for readonly guest regions.
++
++The implementation of postcopy live migration currently uses one
++single bidirectional socket but in the future two different sockets
++will be used (to reduce the latency of the userfaults to the minimum
++possible without having to decrease /proc/sys/net/ipv4/tcp_wmem).
++
++The QEMU in the source node writes all pages that it knows are missing
++in the destination node, into the socket, and the migration thread of
++the QEMU running in the destination node runs UFFDIO_COPY|ZEROPAGE
++ioctls on the userfaultfd in order to map the received pages into the
++guest (UFFDIO_ZEROCOPY is used if the source page was a zero page).
++
++A different postcopy thread in the destination node listens with
++poll() to the userfaultfd in parallel. When a POLLIN event is
++generated after a userfault triggers, the postcopy thread read() from
++the userfaultfd and receives the fault address (or -EAGAIN in case the
++userfault was already resolved and waken by a UFFDIO_COPY|ZEROPAGE run
++by the parallel QEMU migration thread).
++
++After the QEMU postcopy thread (running in the destination node) gets
++the userfault address it writes the information about the missing page
++into the socket. The QEMU source node receives the information and
++roughly "seeks" to that page address and continues sending all
++remaining missing pages from that new page offset. Soon after that
++(just the time to flush the tcp_wmem queue through the network) the
++migration thread in the QEMU running in the destination node will
++receive the page that triggered the userfault and it'll map it as
++usual with the UFFDIO_COPY|ZEROPAGE (without actually knowing if it
++was spontaneously sent by the source or if it was an urgent page
++requested through an userfault).
++
++By the time the userfaults start, the QEMU in the destination node
++doesn't need to keep any per-page state bitmap relative to the live
++migration around and a single per-page bitmap has to be maintained in
++the QEMU running in the source node to know which pages are still
++missing in the destination node. The bitmap in the source node is
++checked to find which missing pages to send in round robin and we seek
++over it when receiving incoming userfaults. After sending each page of
++course the bitmap is updated accordingly. It's also useful to avoid
++sending the same page twice (in case the userfault is read by the
++postcopy thread just before UFFDIO_COPY|ZEROPAGE runs in the migration
++thread).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
