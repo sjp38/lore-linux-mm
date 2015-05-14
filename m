@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AB6E6B0038
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 10:49:52 -0400 (EDT)
-Received: by wgbhc8 with SMTP id hc8so44575968wgb.3
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 07:49:51 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 72EDE6B0038
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 11:28:23 -0400 (EDT)
+Received: by wicnf17 with SMTP id nf17so98948191wic.1
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 08:28:23 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v5si39022601wjr.212.2015.05.14.07.49.49
+        by mx.google.com with ESMTPS id y5si14920567wix.98.2015.05.14.08.28.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 14 May 2015 07:49:50 -0700 (PDT)
-Date: Thu, 14 May 2015 16:49:49 +0200
-From: Michal Hocko <mhocko@suse.cz>
+        Thu, 14 May 2015 08:28:21 -0700 (PDT)
+Date: Thu, 14 May 2015 17:27:49 +0200
+From: Cyril Hrubis <chrubis@suse.cz>
 Subject: Re: Possible bug - LTP failure for memcg
-Message-ID: <20150514144949.GJ6799@dhcp22.suse.cz>
+Message-ID: <20150514152749.GF12884@rei>
 References: <55536DC9.90200@kyup.com>
  <20150514092145.GA6799@dhcp22.suse.cz>
  <20150514103148.GA5066@rei.suse.de>
@@ -22,40 +22,34 @@ References: <55536DC9.90200@kyup.com>
  <20150514123816.GC6993@rei>
  <20150514143039.GI6799@dhcp22.suse.cz>
  <20150514144420.GA12884@rei>
+ <20150514144949.GJ6799@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150514144420.GA12884@rei>
+In-Reply-To: <20150514144949.GJ6799@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyril Hrubis <chrubis@suse.cz>
+To: Michal Hocko <mhocko@suse.cz>
 Cc: Nikolay Borisov <kernel@kyup.com>, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
 
-On Thu 14-05-15 16:44:20, Cyril Hrubis wrote:
-> Hi!
-> > Signed-off-by: Michal Hocko <miso@dhcp22.suse.cz>
+Hi!
+> testcase_29 and testcase_30 are no longer testing anything because
+> the kernel allows to use force_empty even for memcgs with active
+> tasks since f61c42a7d911 ("memcg: remove tasks/children test from
+> mem_cgroup_force_empty()) kernel commit.
 > 
->                                  ^
-> 			       forgotten git config user.email?
+> If we really want to test this functionality then just expect the
+> success for regular mmap and expect the failure when the charged
+> memory is mlocked.
 
-Dohh...
+Applied, thanks.
 
-> > ---
-> >  testcases/kernel/controllers/memcg/functional/memcg_function_test.sh | 4 ++--
-> >  1 file changed, 2 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/testcases/kernel/controllers/memcg/functional/memcg_function_test.sh b/testcases/kernel/controllers/memcg/functional/memcg_function_test.sh
-> > index cfc75fa730df..399c5614468a 100755
-> > --- a/testcases/kernel/controllers/memcg/functional/memcg_function_test.sh
-> > +++ b/testcases/kernel/controllers/memcg/functional/memcg_function_test.sh
-> > @@ -211,8 +211,8 @@ testcase_29()
-> >  	echo $pid > tasks
-> >  	kill -s USR1 $pid 2> /dev/null
-> >  	sleep 1
-> > -	echo $pid > ../tasks
-> 
-> This change breaks the testcase on older kernels:
+-- 
+Cyril Hrubis
+chrubis@suse.cz
 
-Yeah, my bad, I've started with this then changed it back but forgot to
-add it to the commit. Sorry about that. Hopefully the correct one:
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
