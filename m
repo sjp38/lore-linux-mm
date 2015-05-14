@@ -1,224 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com [209.85.220.177])
-	by kanga.kvack.org (Postfix) with ESMTP id D7B9C6B009A
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 13:31:54 -0400 (EDT)
-Received: by qkp63 with SMTP id 63so16722271qkp.0
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 10:31:54 -0700 (PDT)
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 78F0B6B009C
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 13:31:57 -0400 (EDT)
+Received: by wibt6 with SMTP id t6so23973651wib.0
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 10:31:57 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 184si283188qhy.54.2015.05.14.10.31.43
+        by mx.google.com with ESMTPS id fc9si39845246wjc.177.2015.05.14.10.31.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 14 May 2015 10:31:45 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 00/23] userfaultfd v4
-Date: Thu, 14 May 2015 19:30:57 +0200
-Message-Id: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 14/23] userfaultfd: wake pending userfaults
+Date: Thu, 14 May 2015 19:31:11 +0200
+Message-Id: <1431624680-20153-15-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org
 Cc: Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-Hello everyone,
+This is an optimization but it's a userland visible one and it affects
+the API.
 
-This is the latest userfaultfd patchset against mm-v4.1-rc3
-2015-05-14-10:04.
+The downside of this optimization is that if you call poll() and you
+get POLLIN, read(ufd) may still return -EAGAIN. The blocked userfault
+may be waken by a different thread, before read(ufd) comes
+around. This in short means that poll() isn't really usable if the
+userfaultfd is opened in blocking mode.
 
-The postcopy live migration feature on the qemu side is mostly ready
-to be merged and it entirely depends on the userfaultfd syscall to be
-merged as well. So it'd be great if this patchset could be reviewed
-for merging in -mm.
+userfaults won't wait in "pending" state to be read anymore and any
+UFFDIO_WAKE or similar operations that has the objective of waking
+userfaults after their resolution, will wake all blocked userfaults
+for the resolved range, including those that haven't been read() by
+userland yet.
 
-Userfaults allow to implement on demand paging from userland and more
-generally they allow userland to more efficiently take control of the
-behavior of page faults than what was available before
-(PROT_NONE + SIGSEGV trap).
+The behavior of poll() becomes not standard, but this obviates the
+need of "spurious" UFFDIO_WAKE and it lets the userland threads to
+restart immediately without requiring an UFFDIO_WAKE. This is even
+more significant in case of repeated faults on the same address from
+multiple threads.
 
-The use cases are:
+This optimization is justified by the measurement that the number of
+spurious UFFDIO_WAKE accounts for 5% and 10% of the total
+userfaults for heavy workloads, so it's worth optimizing those away.
 
-1) KVM postcopy live migration (one form of cloud memory
-   externalization).
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ fs/userfaultfd.c | 65 +++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 43 insertions(+), 22 deletions(-)
 
-   KVM postcopy live migration is the primary driver of this work:
-
-	http://blog.zhaw.ch/icclab/setting-up-post-copy-live-migration-in-openstack/
-	http://lists.gnu.org/archive/html/qemu-devel/2015-02/msg04873.html
-
-2) postcopy live migration of binaries inside linux containers:
-
-	http://thread.gmane.org/gmane.linux.kernel.mm/132662
-
-3) KVM postcopy live snapshotting (allowing to limit/throttle the
-   memory usage, unlike fork would, plus the avoidance of fork
-   overhead in the first place).
-
-   While the wrprotect tracking is not implemented yet, the syscall API is
-   already contemplating the wrprotect fault tracking and it's generic enough
-   to allow its later implementation in a backwards compatible fashion.
-
-4) KVM userfaults on shared memory. The UFFDIO_COPY lowlevel method
-   should be extended to work also on tmpfs and then the
-   uffdio_register.ioctls will notify userland that UFFDIO_COPY is
-   available even when the registered virtual memory range is tmpfs
-   backed.
-
-5) alternate mechanism to notify web browsers or apps on embedded
-   devices that volatile pages have been reclaimed. This basically
-   avoids the need to run a syscall before the app can access with the
-   CPU the virtual regions marked volatile. This depends on point 4)
-   to be fulfilled first, as volatile pages happily apply to tmpfs.
-
-Even though there wasn't a real use case requesting it yet, it also
-allows to implement distributed shared memory in a way that readonly
-shared mappings can exist simultaneously in different hosts and they
-can be become exclusive at the first wrprotect fault.
-
-The development version can also be cloned here:
-
-	git clone --reference linux -b userfault git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
-
-Slides from LSF-MM summit (but beware that they're not uptodate):
-
-	https://www.kernel.org/pub/linux/kernel/people/andrea/userfaultfd/userfaultfd-LSFMM-2015.pdf
-
-Comments welcome.
-
-Thanks,
-Andrea
-
-Changelog of the major changes since the last RFC v3:
-
-o The API has been slightly modified to avoid having to introduce a
-  second revision of the API, in order to support the non cooperative
-  usage.
-
-o Various mixed fixes thanks to the feedback from Dave Hansen and
-  David Gilbert.
-
-  The most notable one is the use of mm_users instead of mm_count to
-  pin the mm to avoid crashes that assumed the vma still existed (in
-  the userfaultfd_release method and in the various ioctl). exit_mmap
-  doesn't even set mm->mmap to NULL, so unless I introduce a
-  userfaultfd_exit to call in mmput, I have to pin the mm_users to be
-  safe. This is a visible change mainly for the non-cooperative usage.
-
-o userfaults are waken immediately even if they're not been "read"
-  yet, this can lead to POLLIN false positives (so I only allow poll
-  if the fd is open in nonblocking mode to be sure it won't hang).
-
-	http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=f222d9de0a5302dc8ac62d6fab53a84251098751
-
-o optimize read to return entries in O(1) and poll which was already
-  O(1) becomes lockless. This required to split the waitqueue in two,
-  one for pending faults and one for non pending faults, and the
-  faults are refiled across the two waitqueues when they're read. Both
-  waitqueues are protected by a single lock to be simpler and faster
-  at runtime (the fault_pending_wqh one).
-
-	http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=9aa033ed43a1134c2223dac8c5d9e02e0100fca1
-
-o Allocate the ctx with kmem_cache_alloc.
-
-	http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=f5a8db16d2876eed8906a4d36f1d0e06ca5490f6
-
-o Originally qemu had two bitflags for each page and kept 3 states (of
-  the 4 possible with two bits) for each page in order to deal with
-  the races that can happen if one thread is reading the userfaults
-  and another thread is calling the UFFDIO_COPY ioctl in the
-  background. This patch solves all races in the kernel so the two
-  bits per page can be dropped from qemu codebase. I started
-  documenting the races that can materialize by using 2 threads
-  (instead of running the workload single threaded with a single poll
-  event loop) and how userland had to solve them until I decided it
-  was simpler to fix the race in the kernel by running an ad-hoc
-  pagetable walk inside the wait_event()-kind-of-section. This
-  simplified qemu significantly (hundreds line of code involving a
-  mutex have been deleted and that mutex disappeared as well) and it
-  doesn't make the kernel much more complicated.
-
-	http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=41efeae4e93f0296436f2a9fc6b28b6b0158512a
-
-  After this patch the only reason to call UFFDIO_WAKE is to handle
-  the userfaults in batches in combination with the DONT_WAKE flag of
-  UFFDIO_COPY.
-
-o I removed the read recursion from mcopy_atomic. This avoids to
-  depend on the write-starvation behavior of rwsem to be safe. After
-  this change the rwsem is free to stop any further down_read if
-  there's a down_write waiting on the lock.
-
-	http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=b1e3a08acc9e3f6c2614e89fc3b8e338daa58e18
-
-o Extendeded the Documentation userfaultfd.txt file to explain how
-  QEMU/KVM uses userfaultfd to implement postcopy live migration.
-
-	http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=016f9523b7b2238851533736e84452cb00b2ddcd
-
-Andrea Arcangeli (22):
-  userfaultfd: linux/Documentation/vm/userfaultfd.txt
-  userfaultfd: waitqueue: add nr wake parameter to __wake_up_locked_key
-  userfaultfd: uAPI
-  userfaultfd: linux/userfaultfd_k.h
-  userfaultfd: add vm_userfaultfd_ctx to the vm_area_struct
-  userfaultfd: add VM_UFFD_MISSING and VM_UFFD_WP
-  userfaultfd: call handle_userfault() for userfaultfd_missing() faults
-  userfaultfd: teach vma_merge to merge across vma->vm_userfaultfd_ctx
-  userfaultfd: prevent khugepaged to merge if userfaultfd is armed
-  userfaultfd: add new syscall to provide memory externalization
-  userfaultfd: Rename uffd_api.bits into .features fixup
-  userfaultfd: change the read API to return a uffd_msg
-  userfaultfd: wake pending userfaults
-  userfaultfd: optimize read() and poll() to be O(1)
-  userfaultfd: allocate the userfaultfd_ctx cacheline aligned
-  userfaultfd: solve the race between UFFDIO_COPY|ZEROPAGE and read
-  userfaultfd: buildsystem activation
-  userfaultfd: activate syscall
-  userfaultfd: UFFDIO_COPY|UFFDIO_ZEROPAGE uAPI
-  userfaultfd: mcopy_atomic|mfill_zeropage: UFFDIO_COPY|UFFDIO_ZEROPAGE
-    preparation
-  userfaultfd: avoid mmap_sem read recursion in mcopy_atomic
-  userfaultfd: UFFDIO_COPY and UFFDIO_ZEROPAGE
-
-Pavel Emelyanov (1):
-  userfaultfd: Rename uffd_api.bits into .features
-
- Documentation/ioctl/ioctl-number.txt   |    1 +
- Documentation/vm/userfaultfd.txt       |  142 ++++
- arch/powerpc/include/asm/systbl.h      |    1 +
- arch/powerpc/include/uapi/asm/unistd.h |    1 +
- arch/x86/syscalls/syscall_32.tbl       |    1 +
- arch/x86/syscalls/syscall_64.tbl       |    1 +
- fs/Makefile                            |    1 +
- fs/proc/task_mmu.c                     |    2 +
- fs/userfaultfd.c                       | 1236 ++++++++++++++++++++++++++++++++
- include/linux/mm.h                     |    4 +-
- include/linux/mm_types.h               |   11 +
- include/linux/syscalls.h               |    1 +
- include/linux/userfaultfd_k.h          |   85 +++
- include/linux/wait.h                   |    5 +-
- include/uapi/linux/Kbuild              |    1 +
- include/uapi/linux/userfaultfd.h       |  161 +++++
- init/Kconfig                           |   11 +
- kernel/fork.c                          |    3 +-
- kernel/sched/wait.c                    |    7 +-
- kernel/sys_ni.c                        |    1 +
- mm/Makefile                            |    1 +
- mm/huge_memory.c                       |   75 +-
- mm/madvise.c                           |    3 +-
- mm/memory.c                            |   16 +
- mm/mempolicy.c                         |    4 +-
- mm/mlock.c                             |    3 +-
- mm/mmap.c                              |   40 +-
- mm/mprotect.c                          |    3 +-
- mm/userfaultfd.c                       |  309 ++++++++
- net/sunrpc/sched.c                     |    2 +-
- 30 files changed, 2082 insertions(+), 50 deletions(-)
- create mode 100644 Documentation/vm/userfaultfd.txt
- create mode 100644 fs/userfaultfd.c
- create mode 100644 include/linux/userfaultfd_k.h
- create mode 100644 include/uapi/linux/userfaultfd.h
- create mode 100644 mm/userfaultfd.c
-
-Credits: partially funded by the Orbit EU project.
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index b45cefe..50edbd8 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -52,6 +52,10 @@ struct userfaultfd_ctx {
+ struct userfaultfd_wait_queue {
+ 	struct uffd_msg msg;
+ 	wait_queue_t wq;
++	/*
++	 * Only relevant when queued in fault_wqh and only used by the
++	 * read operation to avoid reading the same userfault twice.
++	 */
+ 	bool pending;
+ 	struct userfaultfd_ctx *ctx;
+ };
+@@ -71,9 +75,6 @@ static int userfaultfd_wake_function(wait_queue_t *wq, unsigned mode,
+ 
+ 	uwq = container_of(wq, struct userfaultfd_wait_queue, wq);
+ 	ret = 0;
+-	/* don't wake the pending ones to avoid reads to block */
+-	if (uwq->pending && !ACCESS_ONCE(uwq->ctx->released))
+-		goto out;
+ 	/* len == 0 means wake all */
+ 	start = range->start;
+ 	len = range->len;
+@@ -183,12 +184,14 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	struct userfaultfd_ctx *ctx;
+ 	struct userfaultfd_wait_queue uwq;
++	int ret;
+ 
+ 	BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
+ 
++	ret = VM_FAULT_SIGBUS;
+ 	ctx = vma->vm_userfaultfd_ctx.ctx;
+ 	if (!ctx)
+-		return VM_FAULT_SIGBUS;
++		goto out;
+ 
+ 	BUG_ON(ctx->mm != mm);
+ 
+@@ -201,7 +204,7 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
+ 	 * caller of handle_userfault to release the mmap_sem.
+ 	 */
+ 	if (unlikely(ACCESS_ONCE(ctx->released)))
+-		return VM_FAULT_SIGBUS;
++		goto out;
+ 
+ 	/*
+ 	 * Check that we can return VM_FAULT_RETRY.
+@@ -227,15 +230,16 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
+ 			dump_stack();
+ 		}
+ #endif
+-		return VM_FAULT_SIGBUS;
++		goto out;
+ 	}
+ 
+ 	/*
+ 	 * Handle nowait, not much to do other than tell it to retry
+ 	 * and wait.
+ 	 */
++	ret = VM_FAULT_RETRY;
+ 	if (flags & FAULT_FLAG_RETRY_NOWAIT)
+-		return VM_FAULT_RETRY;
++		goto out;
+ 
+ 	/* take the reference before dropping the mmap_sem */
+ 	userfaultfd_ctx_get(ctx);
+@@ -255,21 +259,23 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
+ 	 * through poll/read().
+ 	 */
+ 	__add_wait_queue(&ctx->fault_wqh, &uwq.wq);
+-	for (;;) {
+-		set_current_state(TASK_KILLABLE);
+-		if (!uwq.pending || ACCESS_ONCE(ctx->released) ||
+-		    fatal_signal_pending(current))
+-			break;
+-		spin_unlock(&ctx->fault_wqh.lock);
++	set_current_state(TASK_KILLABLE);
++	spin_unlock(&ctx->fault_wqh.lock);
+ 
++	if (likely(!ACCESS_ONCE(ctx->released) &&
++		   !fatal_signal_pending(current))) {
+ 		wake_up_poll(&ctx->fd_wqh, POLLIN);
+ 		schedule();
++		ret |= VM_FAULT_MAJOR;
++	}
+ 
++	__set_current_state(TASK_RUNNING);
++	/* see finish_wait() comment for why list_empty_careful() */
++	if (!list_empty_careful(&uwq.wq.task_list)) {
+ 		spin_lock(&ctx->fault_wqh.lock);
++		list_del_init(&uwq.wq.task_list);
++		spin_unlock(&ctx->fault_wqh.lock);
+ 	}
+-	__remove_wait_queue(&ctx->fault_wqh, &uwq.wq);
+-	__set_current_state(TASK_RUNNING);
+-	spin_unlock(&ctx->fault_wqh.lock);
+ 
+ 	/*
+ 	 * ctx may go away after this if the userfault pseudo fd is
+@@ -277,7 +283,8 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
+ 	 */
+ 	userfaultfd_ctx_put(ctx);
+ 
+-	return VM_FAULT_RETRY;
++out:
++	return ret;
+ }
+ 
+ static int userfaultfd_release(struct inode *inode, struct file *file)
+@@ -391,6 +398,12 @@ static unsigned int userfaultfd_poll(struct file *file, poll_table *wait)
+ 	case UFFD_STATE_WAIT_API:
+ 		return POLLERR;
+ 	case UFFD_STATE_RUNNING:
++		/*
++		 * poll() never guarantees that read won't block.
++		 * userfaults can be waken before they're read().
++		 */
++		if (unlikely(!(file->f_flags & O_NONBLOCK)))
++			return POLLERR;
+ 		spin_lock(&ctx->fault_wqh.lock);
+ 		ret = find_userfault(ctx, NULL);
+ 		spin_unlock(&ctx->fault_wqh.lock);
+@@ -806,11 +819,19 @@ out:
+ }
+ 
+ /*
+- * This is mostly needed to re-wakeup those userfaults that were still
+- * pending when userland wake them up the first time. We don't wake
+- * the pending one to avoid blocking reads to block, or non blocking
+- * read to return -EAGAIN, if used with POLLIN, to avoid userland
+- * doubts on why POLLIN wasn't reliable.
++ * userfaultfd_wake is needed in case an userfault is in flight by the
++ * time a UFFDIO_COPY (or other ioctl variants) completes. The page
++ * may be well get mapped and the page fault if repeated wouldn't lead
++ * to a userfault anymore, but before scheduling in TASK_KILLABLE mode
++ * handle_userfault() doesn't recheck the pagetables and it doesn't
++ * serialize against UFFDO_COPY (or other ioctl variants). Ultimately
++ * the knowledge of which pages are mapped is left to userland who is
++ * responsible for handling the race between read() userfaults and
++ * background UFFDIO_COPY (or other ioctl variants), if done by
++ * separate concurrent threads.
++ *
++ * userfaultfd_wake may be used in combination with the
++ * UFFDIO_*_MODE_DONTWAKE to wakeup userfaults in batches.
+  */
+ static int userfaultfd_wake(struct userfaultfd_ctx *ctx,
+ 			    unsigned long arg)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
