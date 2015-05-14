@@ -1,90 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B3236B0038
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 09:36:16 -0400 (EDT)
-Received: by wgnd10 with SMTP id d10so73371816wgn.2
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 06:36:16 -0700 (PDT)
-Received: from mail-wg0-x22b.google.com (mail-wg0-x22b.google.com. [2a00:1450:400c:c00::22b])
-        by mx.google.com with ESMTPS id d8si38757761wjx.11.2015.05.14.06.36.14
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DB786B006C
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 09:36:20 -0400 (EDT)
+Received: by wicmx19 with SMTP id mx19so16994714wic.0
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 06:36:19 -0700 (PDT)
+Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com. [2a00:1450:400c:c05::236])
+        by mx.google.com with ESMTPS id k10si43511wjy.23.2015.05.14.06.36.18
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 May 2015 06:36:15 -0700 (PDT)
-Received: by wgbhc8 with SMTP id hc8so42194972wgb.3
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 06:36:14 -0700 (PDT)
-Message-ID: <5554A4C6.9030306@gmail.com>
-Date: Thu, 14 May 2015 15:36:06 +0200
+        Thu, 14 May 2015 06:36:18 -0700 (PDT)
+Received: by wicmx19 with SMTP id mx19so16993758wic.0
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 06:36:18 -0700 (PDT)
+Message-ID: <5554A4D0.1020405@gmail.com>
+Date: Thu, 14 May 2015 15:36:16 +0200
 From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mmap.2: clarify MAP_LOCKED semantic
-References: <1431527892-2996-1-git-send-email-miso@dhcp22.suse.cz> <1431527892-2996-2-git-send-email-miso@dhcp22.suse.cz>
-In-Reply-To: <1431527892-2996-2-git-send-email-miso@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/2] mmap2: clarify MAP_POPULATE
+References: <1431527892-2996-1-git-send-email-miso@dhcp22.suse.cz> <1431527892-2996-3-git-send-email-miso@dhcp22.suse.cz>
+In-Reply-To: <1431527892-2996-3-git-send-email-miso@dhcp22.suse.cz>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <miso@dhcp22.suse.cz>
-Cc: mtk.manpages@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Eric B Munson <emunson@akamai.com>
+Cc: mtk.manpages@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
 
 On 05/13/2015 04:38 PM, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.cz>
 > 
-> MAP_LOCKED had a subtly different semantic from mmap(2)+mlock(2) since
-> it has been introduced.
-> mlock(2) fails if the memory range cannot get populated to guarantee
-> that no future major faults will happen on the range. mmap(MAP_LOCKED) on
-> the other hand silently succeeds even if the range was populated only
-> partially.
-> 
-> Fixing this subtle difference in the kernel is rather awkward because
-> the memory population happens after mm locks have been dropped and so
-> the cleanup before returning failure (munlock) could operate on something
-> else than the originally mapped area.
-> 
-> E.g. speculative userspace page fault handler catching SEGV and doing
-> mmap(fault_addr, MAP_FIXED|MAP_LOCKED) might discard portion of a racing
-> mmap and lead to lost data. Although it is not clear whether such a
-> usage would be valid, mmap page doesn't explicitly describe requirements
-> for threaded applications so we cannot exclude this possibility.
-> 
-> This patch makes the semantic of MAP_LOCKED explicit and suggest using
-> mmap + mlock as the only way to guarantee no later major page faults.
+> David Rientjes has noticed that MAP_POPULATE wording might promise much
+> more than the kernel actually provides and intend to provide. The
+> primary usage of the flag is to pre-fault the range. There is no
+> guarantee that no major faults will happen later on. The pages might
+> have been reclaimed by the time the process tries to access them.
 
-Thanks, Michal. Applied, with Reviewed-by: from Eric added.
+Yes, thanks, Michal -- that's a good point to make clearer.
+Applied, with Reviewed-by: from Eric added.
 
 Cheers,
 
 Michael
 
-
 > Signed-off-by: Michal Hocko <mhocko@suse.cz>
 > ---
->  man2/mmap.2 | 13 ++++++++++++-
->  1 file changed, 12 insertions(+), 1 deletion(-)
+>  man2/mmap.2 | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
 > diff --git a/man2/mmap.2 b/man2/mmap.2
-> index 54d68cf87e9e..1486be2e96b3 100644
+> index 1486be2e96b3..dcf306f2f730 100644
 > --- a/man2/mmap.2
 > +++ b/man2/mmap.2
-> @@ -235,8 +235,19 @@ See the Linux kernel source file
->  for further information.
->  .TP
->  .BR MAP_LOCKED " (since Linux 2.5.37)"
-> -Lock the pages of the mapped region into memory in the manner of
-> +Mark the mmaped region to be locked in the same way as
->  .BR mlock (2).
-> +This implementation will try to populate (prefault) the whole range but
-> +the mmap call doesn't fail with
-> +.B ENOMEM
-> +if this fails. Therefore major faults might happen later on. So the semantic
-> +is not as strong as
-> +.BR mlock (2).
-> +.BR mmap (2)
-> ++
-> +.BR mlock (2)
-> +should be used when major faults are not acceptable after the initialization
-> +of the mapping.
->  This flag is ignored in older kernels.
->  .\" If set, the mapped pages will not be swapped out.
+> @@ -284,7 +284,7 @@ private writable mappings.
+>  .BR MAP_POPULATE " (since Linux 2.5.46)"
+>  Populate (prefault) page tables for a mapping.
+>  For a file mapping, this causes read-ahead on the file.
+> -Later accesses to the mapping will not be blocked by page faults.
+> +This will help to reduce blocking on page faults later.
+>  .BR MAP_POPULATE
+>  is supported for private mappings only since Linux 2.6.23.
 >  .TP
 > 
 
