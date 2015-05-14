@@ -1,107 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D09D6B0038
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 11:48:51 -0400 (EDT)
-Received: by lagv1 with SMTP id v1so73894531lag.3
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 08:48:50 -0700 (PDT)
-Received: from mail-la0-x22c.google.com (mail-la0-x22c.google.com. [2a00:1450:4010:c03::22c])
-        by mx.google.com with ESMTPS id jp4si14788866lab.155.2015.05.14.08.48.49
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CC486B0038
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 12:07:52 -0400 (EDT)
+Received: by wizk4 with SMTP id k4so247412226wiz.1
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 09:07:52 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ck4si15160276wib.31.2015.05.14.09.07.50
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 May 2015 08:48:49 -0700 (PDT)
-Received: by layy10 with SMTP id y10so73823490lay.0
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 08:48:49 -0700 (PDT)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 14 May 2015 09:07:50 -0700 (PDT)
+Message-ID: <5554C854.6020900@suse.cz>
+Date: Thu, 14 May 2015 18:07:48 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20150514093304.GS2462@suse.de>
-References: <CACgMoiK61mKYFpfhhK51uvkvFHK3k+Dz4peMnbeW7-npDu4XBQ@mail.gmail.com>
-	<20150514093304.GS2462@suse.de>
-Date: Thu, 14 May 2015 08:48:48 -0700
-Message-ID: <CACgMoiKzcDFTd7_howiH1KK2L-ky2S4x99-FTGS9pgO9Bqi0xg@mail.gmail.com>
-Subject: Re: mm: BUG_ON with NUMA_BALANCING (kernel BUG at include/linux/swapops.h:131!)
-From: Haren Myneni <hmyneni@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCHv5 02/28] rmap: add argument to charge compound page
+References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com> <1429823043-157133-3-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1429823043-157133-3-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Haren Myneni <hbabu@us.ibm.com>, aneesh.kumar@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 5/14/15, Mel Gorman <mgorman@suse.de> wrote:
-> On Wed, May 13, 2015 at 01:17:54AM -0700, Haren Myneni wrote:
->> Hi,
->>
->>  I am getting BUG_ON in migration_entry_to_page() with 4.1.0-rc2
->> kernel on powerpc system which has 512 CPUs (64 cores - 16 nodes) and
->> 1.6 TB memory. We can easily recreate this issue with kernel compile
->> (make -j500). But I could not reproduce with numa_balancing=disable.
->>
+On 04/23/2015 11:03 PM, Kirill A. Shutemov wrote:
+> We're going to allow mapping of individual 4k pages of THP compound
+> page. It means we cannot rely on PageTransHuge() check to decide if
+> map/unmap small page or THP.
 >
-> Is this patched in any way? I ask because line 134 on 4.1.0-rc2 does not
-> match up with a BUG_ON. It's close to a PageLocked check but I want to
-> be sure there are no other modifications.
-
-Mel, Thanks for your help. I added some printks and dump_page() to get
-the page struct and swp_entry information.
-
+> The patch adds new argument to rmap functions to indicate whether we want
+> to operate on whole compound page or only the small page.
 >
-> Otherwise, when was the last time this worked? Was 4.0 ok? As it can be
-> easily reproduced, can the problem be bisected please?
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Tested-by: Sasha Levin <sasha.levin@oracle.com>
 
-I did not try previous versions other than RHEL kernel (3.10.*). I
-will try with previous versions.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-In the failure case, also noticed pte and address values are matched
-in try_to_unmap_one() and remove_migration_pte(), but entry
-(swp_entry_t) value is different. So looks like page strut address in
-migration_entry_to_page() is not valid.
+But I wonder about one thing:
 
-try_to_unmap_one()
-{
+> -void page_remove_rmap(struct page *page)
+> +void page_remove_rmap(struct page *page, bool compound)
+>   {
+> +	int nr = compound ? hpage_nr_pages(page) : 1;
+> +
+>   	if (!PageAnon(page)) {
+> +		VM_BUG_ON_PAGE(compound && !PageHuge(page), page);
+>   		page_remove_file_rmap(page);
+>   		return;
+>   	}
 
-...
-        } else if (IS_ENABLED(CONFIG_MIGRATION)) {
-                        /*
-                         * Store the pfn of the page in a special migration
-                         * pte. do_swap_page() will wait until the migration
-                         * pte is removed and then restart fault handling.
-                         */
-                        BUG_ON(!(flags & TTU_MIGRATION));
-                        entry = make_migration_entry(page, pte_write(pteval));
-                }
-                swp_pte = swp_entry_to_pte(entry);
-                if (pte_soft_dirty(pteval))
-                        swp_pte = pte_swp_mksoft_dirty(swp_pte);
-                set_pte_at(mm, address, pte, swp_pte);
+The function continues by:
 
-                /*pte=0xb16b8d0f80000000 address=0x100008150000
-                page=0xf000000513f3e1e0  entry=0x3e0000000ec5ae34 */
-...
-}
+         /* page still mapped by someone else? */
+         if (!atomic_add_negative(-1, &page->_mapcount))
+                 return;
 
- remove_migration_pte()
-{
-...
-        /* address=0x100008150000 pte=0xb16b8d0f80000000
-        *old=0xf000000513f3e1e0 */
-        if (!is_migration_entry(entry) ||
-        migration_entry_to_page(entry) != old)
-        goto unlock;
-...
-}
+         /* Hugepages are not counted in NR_ANON_PAGES for now. */
+         if (unlikely(PageHuge(page)))
+                 return;
 
- migration_entry_to_page()  {
-        pte=0xb16b8d0f80000000  entry=0x3e00000002c5ae34
-        page=0xf0000000f3f3e1e0
-}
+The handling of compound parameter for PageHuge() pages feels just 
+weird. You use hpage_nr_pages() for them which tests PageTransHuge(). It 
+doesn't break anything and the value of nr is effectively ignored 
+anyway, but still...
+
+So I wonder, if all callers of page_remove_rmap() for PageHuge() pages 
+are the two in mm/hugetlb.c, why not just create a special case 
+function? Or are some callers elsewhere, not aware whether they are 
+calling this on a PageHuge()? So compound might be even false for those? 
+If that's all possible and legal, then maybe explain it in a comment to 
+reduce confusion of further readers. And move the 'nr' assignment to a 
+place where we are sure it's not a PageHuge(), i.e. right above the 
+place the value is used, perhaps?
 
 
-Thanks
-Haren
-
+> @@ -1181,11 +1191,12 @@ void page_remove_rmap(struct page *page)
+>   	 * these counters are not modified in interrupt context, and
+>   	 * pte lock(a spinlock) is held, which implies preemption disabled.
+>   	 */
+> -	if (PageTransHuge(page))
+> +	if (compound) {
+> +		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+>   		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
+> +	}
 >
-> --
-> Mel Gorman
-> SUSE Labs
+> -	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
+> -			      -hpage_nr_pages(page));
+> +	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
 >
+>   	if (unlikely(PageMlocked(page)))
+>   		clear_page_mlock(page);
+> @@ -1327,7 +1338,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>   		dec_mm_counter(mm, MM_FILEPAGES);
+>
+>   discard:
+> -	page_remove_rmap(page);
+> +	page_remove_rmap(page, false);
+>   	page_cache_release(page);
+>
+>   out_unmap:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
