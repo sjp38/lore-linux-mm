@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CF436B006C
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 06:41:27 -0400 (EDT)
-Received: by obcus9 with SMTP id us9so49904173obc.2
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 03:41:27 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id i6si3469034obw.90.2015.05.14.03.41.23
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id A26426B0070
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 06:41:29 -0400 (EDT)
+Received: by oign205 with SMTP id n205so52294921oig.2
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 03:41:29 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id a9si1687815oek.34.2015.05.14.03.41.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Thu, 14 May 2015 03:41:24 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v2 3/4] mm: soft-offline: don't free target page in
- successful page migration
-Date: Thu, 14 May 2015 10:39:13 +0000
-Message-ID: <1431599951-32545-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v2 1/4] mm/memory-failure: split thp earlier in memory error
+ handling
+Date: Thu, 14 May 2015 10:39:12 +0000
+Message-ID: <1431599951-32545-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1431599951-32545-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1431599951-32545-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Content-Language: ja-JP
@@ -25,204 +25,199 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
 Cc: Dean Nelson <dnelson@redhat.com>, Tony Luck <tony.luck@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Stress testing showed that soft offline events for a process iterating
-"mmap-pagefault-munmap" loop can trigger VM_BUG_ON(PAGE_FLAGS_CHECK_AT_PREP=
-)
-in __free_one_page():
+memory_failure() doesn't handle thp itself at this time and need to split
+it before doing isolation. Currently thp is split in the middle of
+hwpoison_user_mappings(), but there're corner cases where memory_failure()
+wrongly tries to handle thp without splitting.
+  1) "non anonymous" thp, which is not a normal operating mode of thp, but
+a memory error could hit a thp before anon_vma is initialized. In such case=
+,
+split_huge_page() fails and me_huge_page() (intended for hugetlb) is called
+for thp, which triggers BUG_ON in page_hstate().
+  2) !PageLRU case, where hwpoison_user_mappings() returns with SWAP_SUCCES=
+S
+and the result is the same as case 1.
 
-  [   14.025761] Soft offlining page 0x70fe1 at 0x70100008d000
-  [   14.029400] Soft offlining page 0x705fb at 0x70300008d000
-  [   14.030208] page:ffffea0001c3f840 count:0 mapcount:0 mapping:         =
- (null) index:0x2
-  [   14.031186] flags: 0x1fffff80800000(hwpoison)
-  [   14.031186] page dumped because: VM_BUG_ON_PAGE(page->flags & ((1 << 2=
-5) - 1))
-  [   14.031186] ------------[ cut here ]------------
-  [   14.031186] kernel BUG at /src/linux-dev/mm/page_alloc.c:585!
-  [   14.031186] invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC
-  [   14.031186] Modules linked in: cfg80211 rfkill crc32c_intel microcode =
-ppdev parport_pc pcspkr serio_raw virtio_balloon parport i2c_piix4 virtio_b=
-lk virtio_net ata_generic pata_acpi floppy
-  [   14.031186] CPU: 3 PID: 1779 Comm: test_base_madv_ Not tainted 4.0.0-v=
-4.0-150511-1451-00009-g82360a3730e6 #139
-  [   14.031186] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
-  [   14.031186] task: ffff88007d33bae0 ti: ffff88007a114000 task.ti: ffff8=
-8007a114000
-  [   14.031186] RIP: 0010:[<ffffffff811a806a>]  [<ffffffff811a806a>] free_=
-pcppages_bulk+0x52a/0x6f0
-  [   14.031186] RSP: 0018:ffff88007a117d28  EFLAGS: 00010096
-  [   14.031186] RAX: 0000000000000042 RBX: ffffea0001c3f860 RCX: 000000000=
-0000006
-  [   14.031186] RDX: 0000000000000007 RSI: 0000000000000000 RDI: ffff88011=
-f50d3d0
-  [   14.031186] RBP: ffff88007a117da8 R08: 000000000000000a R09: 00000000f=
-ffffffe
-  [   14.031186] R10: 0000000000001d3e R11: 0000000000000002 R12: 000000000=
-0070fe1
-  [   14.031186] R13: 0000000000000000 R14: 0000000000000000 R15: ffffea000=
-1c3f840
-  [   14.031186] FS:  00007f8a8e3e1740(0000) GS:ffff88011f500000(0000) knlG=
-S:0000000000000000
-  [   14.031186] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-  [   14.031186] CR2: 00007f78c7341258 CR3: 000000007bb08000 CR4: 000000000=
-00007e0
-  [   14.031186] Stack:
-  [   14.031186]  ffff88011f5189c8 ffff88011f5189b8 ffffea0001c3f840 ffff88=
-011f518998
-  [   14.031186]  ffffea0001d30cc0 0000001200000002 0000000200000012 000000=
-0000000003
-  [   14.031186]  ffff88007ffda6c0 000000000000000a ffff88007a117dd8 ffff88=
-011f518998
-  [   14.031186] Call Trace:
-  [   14.031186]  [<ffffffff811a8380>] ? page_alloc_cpu_notify+0x50/0x50
-  [   14.031186]  [<ffffffff811a82bd>] drain_pages_zone+0x3d/0x50
-  [   14.031186]  [<ffffffff811a839d>] drain_local_pages+0x1d/0x30
-  [   14.031186]  [<ffffffff81122a96>] on_each_cpu_mask+0x46/0x80
-  [   14.031186]  [<ffffffff811a5e8b>] drain_all_pages+0x14b/0x1e0
-  [   14.031186]  [<ffffffff812151a2>] soft_offline_page+0x432/0x6e0
-  [   14.031186]  [<ffffffff811e2dac>] SyS_madvise+0x73c/0x780
-  [   14.031186]  [<ffffffff810dcb3f>] ? put_prev_task_fair+0x2f/0x50
-  [   14.031186]  [<ffffffff81143f74>] ? __audit_syscall_entry+0xc4/0x120
-  [   14.031186]  [<ffffffff8105bdac>] ? do_audit_syscall_entry+0x6c/0x70
-  [   14.031186]  [<ffffffff8105cc63>] ? syscall_trace_enter_phase1+0x103/0=
-x170
-  [   14.031186]  [<ffffffff816f908e>] ? int_check_syscall_exit_work+0x34/0=
-x3d
-  [   14.031186]  [<ffffffff816f8e72>] system_call_fastpath+0x12/0x17
-  [   14.031186] Code: ff 89 45 b4 48 8b 45 c0 48 83 b8 a8 00 00 00 00 0f 8=
-5 e3 fb ff ff 0f 1f 00 0f 0b 48 8b 7d 90 48 c7 c6 e8 95 a6 81 e8 e6 32 02 0=
-0 <0f> 0b 8b 45 cc 49 89 47 30 41 8b 47 18 83 f8 ff 0f 85 10 ff ff
-  [   14.031186] RIP  [<ffffffff811a806a>] free_pcppages_bulk+0x52a/0x6f0
-  [   14.031186]  RSP <ffff88007a117d28>
-  [   14.031186] ---[ end trace 53926436e76d1f35 ]---
-
-When soft offline successfully migrates page, the source page is supposed t=
-o
-be freed. But there is a race condition where a source page looks isolated
-(i.e. the refcount is 0 and the PageHWPoison is set) but somewhat linked to
-pcplist. Then another soft offline event calls drain_all_pages() and tries =
-to
-free such hwpoisoned page, which is forbidden.
-
-This odd page state seems to happen due to the race between put_page() in
-putback_lru_page() and __pagevec_lru_add_fn(). But I don't want to play wit=
-h
-tweaking drain code as done in commit 9ab3b598d2df "mm: hwpoison: drop
-lru_add_drain_all() in __soft_offline_page()", or to change page freeing co=
-de
-for this soft offline's purpose.
-
-Instead, let's think about the difference between hard offline and soft off=
-line.
-There is an interesting difference in how to isolate the in-use page betwee=
-n
-these, that is, hard offline marks PageHWPoison of the target page at first=
-, and
-doesn't free it by keeping its refcount 1. OTOH, soft offline tries to free
-the target page then marks PageHWPoison. This difference might be the sourc=
-e
-of complexity and result in bugs like the above. So making soft offline iso=
-late
-with keeping refcount can be a solution for this problem.
-
-We can pass to page migration code the "reason" which shows the caller, so
-let's use this more to avoid calling putback_lru_page() when called from so=
-ft
-offline, which effectively does the isolation for soft offline. With this
-change, target pages of soft offline never be reused without changing
-migratetype, so this patch also removes the related code.
+memory_failure() can't avoid splitting, so let's split it more earlier, whi=
+ch
+also reduces code which are prepared for both of normal page and thp.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
- mm/memory-failure.c | 22 ----------------------
- mm/migrate.c        |  9 ++++++---
- 2 files changed, 6 insertions(+), 25 deletions(-)
+ChangeLog v1->v2:
+- s/pr_info/pr_err/ and add "\n"
+---
+ mm/memory-failure.c | 88 +++++++++++++++----------------------------------=
+----
+ 1 file changed, 25 insertions(+), 63 deletions(-)
 
 diff --git v4.1-rc3.orig/mm/memory-failure.c v4.1-rc3/mm/memory-failure.c
-index c9d788eed974..5e7795079c58 100644
+index 9e9d04843d52..bec5e9b11909 100644
 --- v4.1-rc3.orig/mm/memory-failure.c
 +++ v4.1-rc3/mm/memory-failure.c
-@@ -1665,20 +1665,7 @@ static int __soft_offline_page(struct page *page, in=
-t flags)
- 			if (ret > 0)
- 				ret =3D -EIO;
- 		} else {
--			/*
--			 * After page migration succeeds, the source page can
--			 * be trapped in pagevec and actual freeing is delayed.
--			 * Freeing code works differently based on PG_hwpoison,
--			 * so there's a race. We need to make sure that the
--			 * source page should be freed back to buddy before
--			 * setting PG_hwpoison.
--			 */
--			if (!is_free_buddy_page(page))
--				drain_all_pages(page_zone(page));
- 			SetPageHWPoison(page);
--			if (!is_free_buddy_page(page))
--				pr_info("soft offline: %#lx: page leaked\n",
--					pfn);
- 			atomic_long_inc(&num_poisoned_pages);
- 		}
- 	} else {
-@@ -1730,14 +1717,6 @@ int soft_offline_page(struct page *page, int flags)
+@@ -897,7 +897,6 @@ static int hwpoison_user_mappings(struct page *p, unsig=
+ned long pfn,
+ 	int ret;
+ 	int kill =3D 1, forcekill;
+ 	struct page *hpage =3D *hpagep;
+-	struct page *ppage;
 =20
- 	get_online_mems();
-=20
--	/*
--	 * Isolate the page, so that it doesn't get reallocated if it
--	 * was free. This flag should be kept set until the source page
--	 * is freed and PG_hwpoison on it is set.
--	 */
--	if (get_pageblock_migratetype(page) !=3D MIGRATE_ISOLATE)
--		set_migratetype_isolate(page, true);
--
- 	ret =3D get_any_page(page, pfn, flags);
- 	put_online_mems();
- 	if (ret > 0) { /* for in-use pages */
-@@ -1756,6 +1735,5 @@ int soft_offline_page(struct page *page, int flags)
- 				atomic_long_inc(&num_poisoned_pages);
- 		}
- 	}
--	unset_migratetype_isolate(page, MIGRATE_MOVABLE);
- 	return ret;
- }
-diff --git v4.1-rc3.orig/mm/migrate.c v4.1-rc3/mm/migrate.c
-index f53838fe3dfe..d4fe1f94120b 100644
---- v4.1-rc3.orig/mm/migrate.c
-+++ v4.1-rc3/mm/migrate.c
-@@ -918,7 +918,8 @@ static int __unmap_and_move(struct page *page, struct p=
-age *newpage,
- static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 				   free_page_t put_new_page,
- 				   unsigned long private, struct page *page,
--				   int force, enum migrate_mode mode)
-+				   int force, enum migrate_mode mode,
-+				   enum migrate_reason reason)
- {
- 	int rc =3D 0;
- 	int *result =3D NULL;
-@@ -949,7 +950,8 @@ static ICE_noinline int unmap_and_move(new_page_t get_n=
-ew_page,
- 		list_del(&page->lru);
- 		dec_zone_page_state(page, NR_ISOLATED_ANON +
- 				page_is_file_cache(page));
--		putback_lru_page(page);
-+		if (reason !=3D MR_MEMORY_FAILURE)
-+			putback_lru_page(page);
+ 	/*
+ 	 * Here we are interested only in user-mapped pages, so skip any
+@@ -947,59 +946,6 @@ static int hwpoison_user_mappings(struct page *p, unsi=
+gned long pfn,
  	}
 =20
  	/*
-@@ -1122,7 +1124,8 @@ int migrate_pages(struct list_head *from, new_page_t =
-get_new_page,
- 						pass > 2, mode);
- 			else
- 				rc =3D unmap_and_move(get_new_page, put_new_page,
--						private, page, pass > 2, mode);
-+						private, page, pass > 2, mode,
-+						reason);
+-	 * ppage: poisoned page
+-	 *   if p is regular page(4k page)
+-	 *        ppage =3D=3D real poisoned page;
+-	 *   else p is hugetlb or THP, ppage =3D=3D head page.
+-	 */
+-	ppage =3D hpage;
+-
+-	if (PageTransHuge(hpage)) {
+-		/*
+-		 * Verify that this isn't a hugetlbfs head page, the check for
+-		 * PageAnon is just for avoid tripping a split_huge_page
+-		 * internal debug check, as split_huge_page refuses to deal with
+-		 * anything that isn't an anon page. PageAnon can't go away fro
+-		 * under us because we hold a refcount on the hpage, without a
+-		 * refcount on the hpage. split_huge_page can't be safely called
+-		 * in the first place, having a refcount on the tail isn't
+-		 * enough * to be safe.
+-		 */
+-		if (!PageHuge(hpage) && PageAnon(hpage)) {
+-			if (unlikely(split_huge_page(hpage))) {
+-				/*
+-				 * FIXME: if splitting THP is failed, it is
+-				 * better to stop the following operation rather
+-				 * than causing panic by unmapping. System might
+-				 * survive if the page is freed later.
+-				 */
+-				printk(KERN_INFO
+-					"MCE %#lx: failed to split THP\n", pfn);
+-
+-				BUG_ON(!PageHWPoison(p));
+-				return SWAP_FAIL;
+-			}
+-			/*
+-			 * We pinned the head page for hwpoison handling,
+-			 * now we split the thp and we are interested in
+-			 * the hwpoisoned raw page, so move the refcount
+-			 * to it. Similarly, page lock is shifted.
+-			 */
+-			if (hpage !=3D p) {
+-				if (!(flags & MF_COUNT_INCREASED)) {
+-					put_page(hpage);
+-					get_page(p);
+-				}
+-				lock_page(p);
+-				unlock_page(hpage);
+-				*hpagep =3D p;
+-			}
+-			/* THP is split, so ppage should be the real poisoned page. */
+-			ppage =3D p;
+-		}
+-	}
+-
+-	/*
+ 	 * First collect all the processes that have the page
+ 	 * mapped in dirty form.  This has to be done before try_to_unmap,
+ 	 * because ttu takes the rmap data structures down.
+@@ -1008,12 +954,12 @@ static int hwpoison_user_mappings(struct page *p, un=
+signed long pfn,
+ 	 * there's nothing that can be done.
+ 	 */
+ 	if (kill)
+-		collect_procs(ppage, &tokill, flags & MF_ACTION_REQUIRED);
++		collect_procs(hpage, &tokill, flags & MF_ACTION_REQUIRED);
 =20
- 			switch(rc) {
- 			case -ENOMEM:
+-	ret =3D try_to_unmap(ppage, ttu);
++	ret =3D try_to_unmap(hpage, ttu);
+ 	if (ret !=3D SWAP_SUCCESS)
+ 		printk(KERN_ERR "MCE %#lx: failed to unmap page (mapcount=3D%d)\n",
+-				pfn, page_mapcount(ppage));
++				pfn, page_mapcount(hpage));
+=20
+ 	/*
+ 	 * Now that the dirty bit has been propagated to the
+@@ -1025,7 +971,7 @@ static int hwpoison_user_mappings(struct page *p, unsi=
+gned long pfn,
+ 	 * use a more force-full uncatchable kill to prevent
+ 	 * any accesses to the poisoned memory.
+ 	 */
+-	forcekill =3D PageDirty(ppage) || (flags & MF_MUST_KILL);
++	forcekill =3D PageDirty(hpage) || (flags & MF_MUST_KILL);
+ 	kill_procs(&tokill, forcekill, trapno,
+ 		      ret !=3D SWAP_SUCCESS, p, pfn, flags);
+=20
+@@ -1071,6 +1017,7 @@ int memory_failure(unsigned long pfn, int trapno, int=
+ flags)
+ 	struct page_state *ps;
+ 	struct page *p;
+ 	struct page *hpage;
++	struct page *orig_head;
+ 	int res;
+ 	unsigned int nr_pages;
+ 	unsigned long page_flags;
+@@ -1086,7 +1033,7 @@ int memory_failure(unsigned long pfn, int trapno, int=
+ flags)
+ 	}
+=20
+ 	p =3D pfn_to_page(pfn);
+-	hpage =3D compound_head(p);
++	orig_head =3D hpage =3D compound_head(p);
+ 	if (TestSetPageHWPoison(p)) {
+ 		printk(KERN_ERR "MCE %#lx: already hardware poisoned\n", pfn);
+ 		return 0;
+@@ -1149,6 +1096,21 @@ int memory_failure(unsigned long pfn, int trapno, in=
+t flags)
+ 		}
+ 	}
+=20
++	if (!PageHuge(p) && PageTransHuge(hpage)) {
++		if (!PageAnon(hpage)) {
++			pr_err("MCE: %#lx: non anonymous thp\n", pfn);
++			put_page(p);
++			return -EBUSY;
++		}
++		if (unlikely(split_huge_page(hpage))) {
++			pr_err("MCE: %#lx: thp split failed\n", pfn);
++			put_page(p);
++			return -EBUSY;
++		}
++		VM_BUG_ON_PAGE(!page_count(p), p);
++		hpage =3D compound_head(p);
++	}
++
+ 	/*
+ 	 * We ignore non-LRU pages for good reasons.
+ 	 * - PG_locked is only well defined for LRU pages and a few others
+@@ -1158,9 +1120,9 @@ int memory_failure(unsigned long pfn, int trapno, int=
+ flags)
+ 	 * walked by the page reclaim code, however that's not a big loss.
+ 	 */
+ 	if (!PageHuge(p)) {
+-		if (!PageLRU(hpage))
+-			shake_page(hpage, 0);
+-		if (!PageLRU(hpage)) {
++		if (!PageLRU(p))
++			shake_page(p, 0);
++		if (!PageLRU(p)) {
+ 			/*
+ 			 * shake_page could have turned it free.
+ 			 */
+@@ -1181,7 +1143,7 @@ int memory_failure(unsigned long pfn, int trapno, int=
+ flags)
+ 	 * The page could have changed compound pages during the locking.
+ 	 * If this happens just bail out.
+ 	 */
+-	if (compound_head(p) !=3D hpage) {
++	if (PageCompound(p) && compound_head(p) !=3D orig_head) {
+ 		action_result(pfn, MF_MSG_DIFFERENT_COMPOUND, MF_IGNORED);
+ 		res =3D -EBUSY;
+ 		goto out;
 --=20
 2.1.0
 
