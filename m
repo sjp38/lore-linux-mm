@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com [209.85.220.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 9560F6B00A4
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 13:32:09 -0400 (EDT)
-Received: by qkgy4 with SMTP id y4so54092124qkg.2
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 10:32:09 -0700 (PDT)
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E44A6B00A5
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 13:32:12 -0400 (EDT)
+Received: by wgbhc8 with SMTP id hc8so49359277wgb.3
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 10:32:11 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 5si518489qkv.19.2015.05.14.10.31.47
+        by mx.google.com with ESMTPS id fb7si1140190wid.20.2015.05.14.10.31.49
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 May 2015 10:31:48 -0700 (PDT)
+        Thu, 14 May 2015 10:31:50 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 01/23] userfaultfd: linux/Documentation/vm/userfaultfd.txt
-Date: Thu, 14 May 2015 19:30:58 +0200
-Message-Id: <1431624680-20153-2-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 23/23] userfaultfd: UFFDIO_COPY and UFFDIO_ZEROPAGE
+Date: Thu, 14 May 2015 19:31:20 +0200
+Message-Id: <1431624680-20153-24-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
 References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,160 +20,129 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org
 Cc: Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-Add documentation.
+These two ioctl allows to either atomically copy or to map zeropages
+into the virtual address space. This is used by the thread that opened
+the userfaultfd to resolve the userfaults.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- Documentation/vm/userfaultfd.txt | 140 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 140 insertions(+)
- create mode 100644 Documentation/vm/userfaultfd.txt
+ fs/userfaultfd.c | 96 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 96 insertions(+)
 
-diff --git a/Documentation/vm/userfaultfd.txt b/Documentation/vm/userfaultfd.txt
-new file mode 100644
-index 0000000..c2f5145
---- /dev/null
-+++ b/Documentation/vm/userfaultfd.txt
-@@ -0,0 +1,140 @@
-+= Userfaultfd =
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 6772c22..65704cb 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -942,6 +942,96 @@ out:
+ 	return ret;
+ }
+ 
++static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
++			    unsigned long arg)
++{
++	__s64 ret;
++	struct uffdio_copy uffdio_copy;
++	struct uffdio_copy __user *user_uffdio_copy;
++	struct userfaultfd_wake_range range;
 +
-+== Objective ==
++	user_uffdio_copy = (struct uffdio_copy __user *) arg;
 +
-+Userfaults allow the implementation of on-demand paging from userland
-+and more generally they allow userland to take control various memory
-+page faults, something otherwise only the kernel code could do.
++	ret = -EFAULT;
++	if (copy_from_user(&uffdio_copy, user_uffdio_copy,
++			   /* don't copy "copy" last field */
++			   sizeof(uffdio_copy)-sizeof(__s64)))
++		goto out;
 +
-+For example userfaults allows a proper and more optimal implementation
-+of the PROT_NONE+SIGSEGV trick.
++	ret = validate_range(ctx->mm, uffdio_copy.dst, uffdio_copy.len);
++	if (ret)
++		goto out;
++	/*
++	 * double check for wraparound just in case. copy_from_user()
++	 * will later check uffdio_copy.src + uffdio_copy.len to fit
++	 * in the userland range.
++	 */
++	ret = -EINVAL;
++	if (uffdio_copy.src + uffdio_copy.len <= uffdio_copy.src)
++		goto out;
++	if (uffdio_copy.mode & ~UFFDIO_COPY_MODE_DONTWAKE)
++		goto out;
 +
-+== Design ==
++	ret = mcopy_atomic(ctx->mm, uffdio_copy.dst, uffdio_copy.src,
++			   uffdio_copy.len);
++	if (unlikely(put_user(ret, &user_uffdio_copy->copy)))
++		return -EFAULT;
++	if (ret < 0)
++		goto out;
++	BUG_ON(!ret);
++	/* len == 0 would wake all */
++	range.len = ret;
++	if (!(uffdio_copy.mode & UFFDIO_COPY_MODE_DONTWAKE)) {
++		range.start = uffdio_copy.dst;
++		wake_userfault(ctx, &range);
++	}
++	ret = range.len == uffdio_copy.len ? 0 : -EAGAIN;
++out:
++	return ret;
++}
 +
-+Userfaults are delivered and resolved through the userfaultfd syscall.
++static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
++				unsigned long arg)
++{
++	__s64 ret;
++	struct uffdio_zeropage uffdio_zeropage;
++	struct uffdio_zeropage __user *user_uffdio_zeropage;
++	struct userfaultfd_wake_range range;
 +
-+The userfaultfd (aside from registering and unregistering virtual
-+memory ranges) provides two primary functionalities:
++	user_uffdio_zeropage = (struct uffdio_zeropage __user *) arg;
 +
-+1) read/POLLIN protocol to notify a userland thread of the faults
-+   happening
++	ret = -EFAULT;
++	if (copy_from_user(&uffdio_zeropage, user_uffdio_zeropage,
++			   /* don't copy "zeropage" last field */
++			   sizeof(uffdio_zeropage)-sizeof(__s64)))
++		goto out;
 +
-+2) various UFFDIO_* ioctls that can manage the virtual memory regions
-+   registered in the userfaultfd that allows userland to efficiently
-+   resolve the userfaults it receives via 1) or to manage the virtual
-+   memory in the background
++	ret = validate_range(ctx->mm, uffdio_zeropage.range.start,
++			     uffdio_zeropage.range.len);
++	if (ret)
++		goto out;
++	ret = -EINVAL;
++	if (uffdio_zeropage.mode & ~UFFDIO_ZEROPAGE_MODE_DONTWAKE)
++		goto out;
 +
-+The real advantage of userfaults if compared to regular virtual memory
-+management of mremap/mprotect is that the userfaults in all their
-+operations never involve heavyweight structures like vmas (in fact the
-+userfaultfd runtime load never takes the mmap_sem for writing).
++	ret = mfill_zeropage(ctx->mm, uffdio_zeropage.range.start,
++			     uffdio_zeropage.range.len);
++	if (unlikely(put_user(ret, &user_uffdio_zeropage->zeropage)))
++		return -EFAULT;
++	if (ret < 0)
++		goto out;
++	/* len == 0 would wake all */
++	BUG_ON(!ret);
++	range.len = ret;
++	if (!(uffdio_zeropage.mode & UFFDIO_ZEROPAGE_MODE_DONTWAKE)) {
++		range.start = uffdio_zeropage.range.start;
++		wake_userfault(ctx, &range);
++	}
++	ret = range.len == uffdio_zeropage.range.len ? 0 : -EAGAIN;
++out:
++	return ret;
++}
 +
-+Vmas are not suitable for page- (or hugepage) granular fault tracking
-+when dealing with virtual address spaces that could span
-+Terabytes. Too many vmas would be needed for that.
-+
-+The userfaultfd once opened by invoking the syscall, can also be
-+passed using unix domain sockets to a manager process, so the same
-+manager process could handle the userfaults of a multitude of
-+different processes without them being aware about what is going on
-+(well of course unless they later try to use the userfaultfd
-+themselves on the same region the manager is already tracking, which
-+is a corner case that would currently return -EBUSY).
-+
-+== API ==
-+
-+When first opened the userfaultfd must be enabled invoking the
-+UFFDIO_API ioctl specifying a uffdio_api.api value set to UFFD_API (or
-+a later API version) which will specify the read/POLLIN protocol
-+userland intends to speak on the UFFD. The UFFDIO_API ioctl if
-+successful (i.e. if the requested uffdio_api.api is spoken also by the
-+running kernel), will return into uffdio_api.features and
-+uffdio_api.ioctls two 64bit bitmasks of respectively the activated
-+feature of the read(2) protocol and the generic ioctl available.
-+
-+Once the userfaultfd has been enabled the UFFDIO_REGISTER ioctl should
-+be invoked (if present in the returned uffdio_api.ioctls bitmask) to
-+register a memory range in the userfaultfd by setting the
-+uffdio_register structure accordingly. The uffdio_register.mode
-+bitmask will specify to the kernel which kind of faults to track for
-+the range (UFFDIO_REGISTER_MODE_MISSING would track missing
-+pages). The UFFDIO_REGISTER ioctl will return the
-+uffdio_register.ioctls bitmask of ioctls that are suitable to resolve
-+userfaults on the range registered. Not all ioctls will necessarily be
-+supported for all memory types depending on the underlying virtual
-+memory backend (anonymous memory vs tmpfs vs real filebacked
-+mappings).
-+
-+Userland can use the uffdio_register.ioctls to manage the virtual
-+address space in the background (to add or potentially also remove
-+memory from the userfaultfd registered range). This means a userfault
-+could be triggering just before userland maps in the background the
-+user-faulted page.
-+
-+The primary ioctl to resolve userfaults is UFFDIO_COPY. That
-+atomically copies a page into the userfault registered range and wakes
-+up the blocked userfaults (unless uffdio_copy.mode &
-+UFFDIO_COPY_MODE_DONTWAKE is set). Other ioctl works similarly to
-+UFFDIO_COPY.
-+
-+== QEMU/KVM ==
-+
-+QEMU/KVM is using the userfaultfd syscall to implement postcopy live
-+migration. Postcopy live migration is one form of memory
-+externalization consisting of a virtual machine running with part or
-+all of its memory residing on a different node in the cloud. The
-+userfaultfd abstraction is generic enough that not a single line of
-+KVM kernel code had to be modified in order to add postcopy live
-+migration to QEMU.
-+
-+Guest async page faults, FOLL_NOWAIT and all other GUP features work
-+just fine in combination with userfaults. Userfaults trigger async
-+page faults in the guest scheduler so those guest processes that
-+aren't waiting for userfaults (i.e. network bound) can keep running in
-+the guest vcpus.
-+
-+It is generally beneficial to run one pass of precopy live migration
-+just before starting postcopy live migration, in order to avoid
-+generating userfaults for readonly guest regions.
-+
-+The implementation of postcopy live migration currently uses one
-+single bidirectional socket but in the future two different sockets
-+will be used (to reduce the latency of the userfaults to the minimum
-+possible without having to decrease /proc/sys/net/ipv4/tcp_wmem).
-+
-+The QEMU in the source node writes all pages that it knows are missing
-+in the destination node, into the socket, and the migration thread of
-+the QEMU running in the destination node runs UFFDIO_COPY|ZEROPAGE
-+ioctls on the userfaultfd in order to map the received pages into the
-+guest (UFFDIO_ZEROCOPY is used if the source page was a zero page).
-+
-+A different postcopy thread in the destination node listens with
-+poll() to the userfaultfd in parallel. When a POLLIN event is
-+generated after a userfault triggers, the postcopy thread read() from
-+the userfaultfd and receives the fault address (or -EAGAIN in case the
-+userfault was already resolved and waken by a UFFDIO_COPY|ZEROPAGE run
-+by the parallel QEMU migration thread).
-+
-+After the QEMU postcopy thread (running in the destination node) gets
-+the userfault address it writes the information about the missing page
-+into the socket. The QEMU source node receives the information and
-+roughly "seeks" to that page address and continues sending all
-+remaining missing pages from that new page offset. Soon after that
-+(just the time to flush the tcp_wmem queue through the network) the
-+migration thread in the QEMU running in the destination node will
-+receive the page that triggered the userfault and it'll map it as
-+usual with the UFFDIO_COPY|ZEROPAGE (without actually knowing if it
-+was spontaneously sent by the source or if it was an urgent page
-+requested through an userfault).
-+
-+By the time the userfaults start, the QEMU in the destination node
-+doesn't need to keep any per-page state bitmap relative to the live
-+migration around and a single per-page bitmap has to be maintained in
-+the QEMU running in the source node to know which pages are still
-+missing in the destination node. The bitmap in the source node is
-+checked to find which missing pages to send in round robin and we seek
-+over it when receiving incoming userfaults. After sending each page of
-+course the bitmap is updated accordingly. It's also useful to avoid
-+sending the same page twice (in case the userfault is read by the
-+postcopy thread just before UFFDIO_COPY|ZEROPAGE runs in the migration
-+thread).
+ /*
+  * userland asks for a certain API version and we return which bits
+  * and ioctl commands are implemented in this kernel for such API
+@@ -997,6 +1087,12 @@ static long userfaultfd_ioctl(struct file *file, unsigned cmd,
+ 	case UFFDIO_WAKE:
+ 		ret = userfaultfd_wake(ctx, arg);
+ 		break;
++	case UFFDIO_COPY:
++		ret = userfaultfd_copy(ctx, arg);
++		break;
++	case UFFDIO_ZEROPAGE:
++		ret = userfaultfd_zeropage(ctx, arg);
++		break;
+ 	}
+ 	return ret;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
