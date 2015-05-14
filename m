@@ -1,70 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 685176B0038
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 14:50:33 -0400 (EDT)
-Received: by laat2 with SMTP id t2so81257385laa.1
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 11:50:32 -0700 (PDT)
-Received: from mail-la0-f45.google.com (mail-la0-f45.google.com. [209.85.215.45])
-        by mx.google.com with ESMTPS id g10si15087467lam.78.2015.05.14.11.50.30
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id E19F86B0038
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 15:52:30 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so99456229pdb.0
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 12:52:30 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id pj8si22881186pdb.46.2015.05.14.12.52.29
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 May 2015 11:50:31 -0700 (PDT)
-Received: by laat2 with SMTP id t2so81255514laa.1
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 11:50:30 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <55532CB0.6070400@yandex-team.ru>
-References: <20150512090156.24768.2521.stgit@buzz>
-	<20150512094303.24768.10282.stgit@buzz>
-	<CAEVpBaLm9eicuFPmyRLa7GddLwtBJh3XzHT=fxj-h0YwwmXQOg@mail.gmail.com>
-	<55532CB0.6070400@yandex-team.ru>
-Date: Thu, 14 May 2015 19:50:30 +0100
-Message-ID: <CAEVpBa+r6AuB7hnCnTm8YKHzaj172q7Wy89yT=P_F6GQG-3-1A@mail.gmail.com>
-Subject: Re: [PATCH v2 1/3] pagemap: add mmap-exclusive bit for marking pages
- mapped only here
-From: Mark Williamson <mwilliamson@undo-software.com>
-Content-Type: text/plain; charset=UTF-8
+        Thu, 14 May 2015 12:52:29 -0700 (PDT)
+Date: Thu, 14 May 2015 12:52:28 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [mmotm:master 120/255] include/asm-generic/pgtable.h:206:2:
+ warning: (near initialization for '(anonymous).pmd')
+Message-Id: <20150514125228.4acd45b5576d7109de10fe17@linux-foundation.org>
+In-Reply-To: <201505141007.XJqGCdko%fengguang.wu@intel.com>
+References: <201505141007.XJqGCdko%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, kernel list <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelyanov <xemul@parallels.com>, Linux API <linux-api@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Machek <pavel@ucw.cz>, Mark Seaborn <mseaborn@chromium.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, Daniel James <djames@undo-software.com>, Finn Grimwood <fgrimwood@undo-software.com>
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-Hi Konstantin,
+On Thu, 14 May 2015 10:20:08 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 
-On Wed, May 13, 2015 at 11:51 AM, Konstantin Khlebnikov
-<khlebnikov@yandex-team.ru> wrote:
-> On 12.05.2015 15:05, Mark Williamson wrote:
-<snip>
->>   1. I was hoping we'd be able to backport a compatible fix to older
->> kernels that might adopt the pagemap permissions change.  Using the V2
->> format flags rules out doing this for kernels that are too old to have
->> soft-dirty, I think.
->>
->>   2. From our software's PoV, I feel it's worth noting that it doesn't
->> strictly fix ABI compatibility, though I realise that's probably not
->> your primary concern here.  We'll need to modify our code to write the
->> clear_refs file but that change is OK for us if it's the preferred
->> solution.
-<snip>
-> I prefer to backport v2 format (except soft-dirty bit and clear_refs)
-> into older kernels. Page-shift bits are barely used so nobody will see
-> the difference.
+> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> head:   e55a38145ac0946f090895afc5c8ba0717790908
+> commit: add8ee4dd125729fb48d5cc73b194f28f1a6eccb [120/255] mm/thp: split out pmd collapse/flush into separate functions
+> config: m68k-multi_defconfig (attached as .config)
+> reproduce:
+>   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+>   chmod +x ~/bin/make.cross
+>   git checkout add8ee4dd125729fb48d5cc73b194f28f1a6eccb
+>   # save the attached .config to linux build tree
+>   make.cross ARCH=m68k 
+> 
+> All warnings:
+> 
+>    In file included from arch/m68k/include/asm/pgtable_mm.h:172:0,
+>                     from arch/m68k/include/asm/pgtable.h:4,
+>                     from include/linux/mm.h:53,
+>                     from include/linux/scatterlist.h:6,
+>                     from include/linux/dmaengine.h:24,
+>                     from include/linux/netdevice.h:38,
+>                     from net/batman-adv/main.h:168,
+>                     from net/batman-adv/bat_iv_ogm.c:18:
+>    include/asm-generic/pgtable.h: In function 'pmdp_collapse_flush':
+>    include/asm-generic/pgtable.h:206:2: warning: missing braces around initializer [-Wmissing-braces]
+>      return __pmd(0);
 
-My concern was whether a change to format would be acceptable to
-include in the various -stable kernels; they are already including the
-additional protections on pagemap, so we're starting to need our
-fallback mode in distributions.  Do you think that such a patch would
-be acceptable there?
+hm, yes, there is no requirement for the architecture to implement
+__pmd() and it shouldn't be used in include/linux.
 
-(As an application vendor we're likely to be particularly stuck with
-what the commercial distributions decide to ship, which is why I'm
-trying to keep an eye on this)
+Will this work?
 
-I appreciate that this is a slightly administrative concern!  I
-definitely like the technical approach of this code and it seems to
-work fine for us.
-
-Thanks,
-Mark
+--- a/include/asm-generic/pgtable.h~mm-thp-split-out-pmd-collpase-flush-into-a-separate-functions-fix-2
++++ a/include/asm-generic/pgtable.h
+@@ -203,7 +203,7 @@ static inline pmd_t pmdp_collapse_flush(
+ 					pmd_t *pmdp)
+ {
+ 	BUILD_BUG();
+-	return __pmd(0);
++	return *pmdp;
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
