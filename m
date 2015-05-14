@@ -1,54 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f53.google.com (mail-oi0-f53.google.com [209.85.218.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DD3E6B0071
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 06:41:31 -0400 (EDT)
-Received: by oign205 with SMTP id n205so52295357oig.2
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 03:41:31 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id h10si12464262obx.63.2015.05.14.03.41.24
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 65F2F6B0038
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 06:51:27 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so82632589pde.3
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 03:51:27 -0700 (PDT)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id ow4si21102871pdb.113.2015.05.14.03.51.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 14 May 2015 03:41:25 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v2 0/4] hwpoison fixes for v4.2
-Date: Thu, 14 May 2015 10:39:12 +0000
-Message-ID: <1431599951-32545-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        Thu, 14 May 2015 03:51:26 -0700 (PDT)
+MIME-version: 1.0
+Content-type: text/plain; charset=UTF-8
+Received: from epcpsbgr1.samsung.com
+ (u141.gpu120.samsung.co.kr [203.254.230.141])
+ by mailout3.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
+ 64bit (built May  5 2014))
+ with ESMTP id <0NOC00KYK65NSN00@mailout3.samsung.com> for linux-mm@kvack.org;
+ Thu, 14 May 2015 19:51:23 +0900 (KST)
+Content-transfer-encoding: 8BIT
+Message-id: <55547E2B.6080307@samsung.com>
+Date: Thu, 14 May 2015 19:51:23 +0900
+From: Inki Dae <inki.dae@samsung.com>
+Subject: Re: [PATCH 9/9] drm/exynos: Convert g2d_userptr_get_dma_addr() to use
+ get_vaddr_frames()
+References: <1431522495-4692-1-git-send-email-jack@suse.cz>
+ <1431522495-4692-10-git-send-email-jack@suse.cz>
+In-reply-to: <1431522495-4692-10-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
-Cc: Dean Nelson <dnelson@redhat.com>, Tony Luck <tony.luck@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, linux-samsung-soc@vger.kernel.org, Pawel Osciak <pawel@osciak.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, dri-devel@lists.freedesktop.org, mgorman@suse.de, Marek Szyprowski <m.szyprowski@samsung.com>, linux-media@vger.kernel.org
 
-I updated the hwpoison fix patchset. Patch 2 has major changes and patch 1
-has a trivial change. The other patches has no change. Please see also ver.=
-1
-(http://thread.gmane.org/gmane.linux.kernel.mm/132586) for this patchset's
-general description.
+Hi,
+
+On 2015e?? 05i?? 13i? 1/4  22:08, Jan Kara wrote:
+> Convert g2d_userptr_get_dma_addr() to pin pages using get_vaddr_frames().
+> This removes the knowledge about vmas and mmap_sem locking from exynos
+> driver. Also it fixes a problem that the function has been mapping user
+> provided address without holding mmap_sem.
+> 
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> ---
+>  drivers/gpu/drm/exynos/exynos_drm_g2d.c | 89 ++++++++++--------------------
+>  drivers/gpu/drm/exynos/exynos_drm_gem.c | 97 ---------------------------------
+>  2 files changed, 29 insertions(+), 157 deletions(-)
+> 
+> diff --git a/drivers/gpu/drm/exynos/exynos_drm_g2d.c b/drivers/gpu/drm/exynos/exynos_drm_g2d.c
+> index 81a250830808..265519c0fe2d 100644
+> --- a/drivers/gpu/drm/exynos/exynos_drm_g2d.c
+> +++ b/drivers/gpu/drm/exynos/exynos_drm_g2d.c
+> @@ -190,10 +190,8 @@ struct g2d_cmdlist_userptr {
+>  	dma_addr_t		dma_addr;
+>  	unsigned long		userptr;
+>  	unsigned long		size;
+> -	struct page		**pages;
+> -	unsigned int		npages;
+> +	struct frame_vector	*vec;
+>  	struct sg_table		*sgt;
+> -	struct vm_area_struct	*vma;
+>  	atomic_t		refcount;
+>  	bool			in_pool;
+>  	bool			out_of_list;
+> @@ -363,6 +361,7 @@ static void g2d_userptr_put_dma_addr(struct drm_device *drm_dev,
+>  {
+>  	struct g2d_cmdlist_userptr *g2d_userptr =
+>  					(struct g2d_cmdlist_userptr *)obj;
+> +	struct page **pages;
+>  
+>  	if (!obj)
+>  		return;
+> @@ -382,19 +381,21 @@ out:
+>  	exynos_gem_unmap_sgt_from_dma(drm_dev, g2d_userptr->sgt,
+>  					DMA_BIDIRECTIONAL);
+>  
+> -	exynos_gem_put_pages_to_userptr(g2d_userptr->pages,
+> -					g2d_userptr->npages,
+> -					g2d_userptr->vma);
+> +	pages = frame_vector_pages(g2d_userptr->vec);
+> +	if (!IS_ERR(pages)) {
+> +		int i;
+>  
+> -	exynos_gem_put_vma(g2d_userptr->vma);
+> +		for (i = 0; i < frame_vector_count(g2d_userptr->vec); i++)
+> +			set_page_dirty_lock(pages[i]);
+> +	}
+> +	put_vaddr_frames(g2d_userptr->vec);
+> +	frame_vector_destroy(g2d_userptr->vec);
+>  
+>  	if (!g2d_userptr->out_of_list)
+>  		list_del_init(&g2d_userptr->list);
+>  
+>  	sg_free_table(g2d_userptr->sgt);
+>  	kfree(g2d_userptr->sgt);
+> -
+> -	drm_free_large(g2d_userptr->pages);
+>  	kfree(g2d_userptr);
+>  }
+>  
+> @@ -413,6 +414,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
+>  	struct vm_area_struct *vma;
+>  	unsigned long start, end;
+>  	unsigned int npages, offset;
+> +	struct frame_vector *vec;
+>  	int ret;
+>  
+>  	if (!size) {
+> @@ -456,65 +458,37 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
+>  		return ERR_PTR(-ENOMEM);
+>  
+>  	atomic_set(&g2d_userptr->refcount, 1);
+> +	g2d_userptr->size = size;
+>  
+>  	start = userptr & PAGE_MASK;
+>  	offset = userptr & ~PAGE_MASK;
+>  	end = PAGE_ALIGN(userptr + size);
+>  	npages = (end - start) >> PAGE_SHIFT;
+> -	g2d_userptr->npages = npages;
+> -
+> -	pages = drm_calloc_large(npages, sizeof(struct page *));
+
+The declaration to pages isn't needed anymore because you removed it.
+
+> -	if (!pages) {
+> -		DRM_ERROR("failed to allocate pages.\n");
+> -		ret = -ENOMEM;
+> +	vec = g2d_userptr->vec = frame_vector_create(npages);
+
+I think you can use g2d_userptr->vec so it seems that vec isn't needed.
+
+> +	if (!vec)
+>  		goto err_free;
+> -	}
+>  
+> -	down_read(&current->mm->mmap_sem);
+> -	vma = find_vma(current->mm, userptr);
+
+For vma, ditto.
 
 Thanks,
-Naoya Horiguchi
----
-Tree: https://github.com/Naoya-Horiguchi/linux/tree/v4.1-rc3/hwpoison_for_v=
-4.2.v2
----
-Summary:
+Inki Dae
 
-Naoya Horiguchi (4):
-      mm/memory-failure: split thp earlier in memory error handling
-      mm/memory-failure: introduce get_hwpoison_page() for consistent refco=
-unt handling
-      mm: soft-offline: don't free target page in successful page migration
-      mm/memory-failure: me_huge_page() does nothing for thp
-
- include/linux/mm.h   |   1 +
- mm/hwpoison-inject.c |   4 +-
- mm/memory-failure.c  | 163 +++++++++++++++++++++++------------------------=
-----
- mm/migrate.c         |   9 ++-
- 4 files changed, 82 insertions(+), 95 deletions(-)=
+[--SNIP--]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
