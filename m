@@ -1,98 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C5906B0038
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 09:31:20 -0400 (EDT)
-Received: by laat2 with SMTP id t2so67665084laa.1
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 06:31:19 -0700 (PDT)
-Received: from mail-la0-x22b.google.com (mail-la0-x22b.google.com. [2a00:1450:4010:c03::22b])
-        by mx.google.com with ESMTPS id rk8si14544074lac.100.2015.05.14.06.31.18
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B3236B0038
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 09:36:16 -0400 (EDT)
+Received: by wgnd10 with SMTP id d10so73371816wgn.2
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 06:36:16 -0700 (PDT)
+Received: from mail-wg0-x22b.google.com (mail-wg0-x22b.google.com. [2a00:1450:400c:c00::22b])
+        by mx.google.com with ESMTPS id d8si38757761wjx.11.2015.05.14.06.36.14
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 May 2015 06:31:18 -0700 (PDT)
-Received: by labbd9 with SMTP id bd9so67790981lab.2
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 06:31:18 -0700 (PDT)
+        Thu, 14 May 2015 06:36:15 -0700 (PDT)
+Received: by wgbhc8 with SMTP id hc8so42194972wgb.3
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 06:36:14 -0700 (PDT)
+Message-ID: <5554A4C6.9030306@gmail.com>
+Date: Thu, 14 May 2015 15:36:06 +0200
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <5554844F.4070709@suse.cz>
-References: <1427474441-17708-1-git-send-email-vbabka@suse.cz>
-	<1427474441-17708-4-git-send-email-vbabka@suse.cz>
-	<55158EB5.5040301@yandex-team.ru>
-	<5554844F.4070709@suse.cz>
-Date: Thu, 14 May 2015 16:31:17 +0300
-Message-ID: <CALYGNiOoNz0m_Eb36v2oMkRmAKzX97ZqhFM1kdMaF7bKVsuPHA@mail.gmail.com>
-Subject: Re: [PATCH v2 3/4] mm, shmem: Add shmem resident memory accounting
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 1/2] mmap.2: clarify MAP_LOCKED semantic
+References: <1431527892-2996-1-git-send-email-miso@dhcp22.suse.cz> <1431527892-2996-2-git-send-email-miso@dhcp22.suse.cz>
+In-Reply-To: <1431527892-2996-2-git-send-email-miso@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jerome Marchand <jmarchan@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-doc@vger.kernel.org, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>
+To: Michal Hocko <miso@dhcp22.suse.cz>
+Cc: mtk.manpages@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Eric B Munson <emunson@akamai.com>
 
-On Thu, May 14, 2015 at 2:17 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
-> On 03/27/2015 06:09 PM, Konstantin Khlebnikov wrote:
->>
->> On 27.03.2015 19:40, Vlastimil Babka wrote:
->>>
->>> From: Jerome Marchand <jmarchan@redhat.com>
->>>
->>> Currently looking at /proc/<pid>/status or statm, there is no way to
->>> distinguish shmem pages from pages mapped to a regular file (shmem
->>> pages are mapped to /dev/zero), even though their implication in
->>> actual memory use is quite different.
->>> This patch adds MM_SHMEMPAGES counter to mm_rss_stat to account for
->>> shmem pages instead of MM_FILEPAGES.
->>>
->>> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
->>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
->>> ---
->>
->>
->>
->>> --- a/include/linux/mm_types.h
->>> +++ b/include/linux/mm_types.h
->>> @@ -327,9 +327,12 @@ struct core_state {
->>>    };
->>>
->>>    enum {
->>> -       MM_FILEPAGES,
->>> -       MM_ANONPAGES,
->>> -       MM_SWAPENTS,
->>> +       MM_FILEPAGES,   /* Resident file mapping pages */
->>> +       MM_ANONPAGES,   /* Resident anonymous pages */
->>> +       MM_SWAPENTS,    /* Anonymous swap entries */
->>> +#ifdef CONFIG_SHMEM
->>> +       MM_SHMEMPAGES,  /* Resident shared memory pages */
->>> +#endif
->>
->>
->> I prefer to keep that counter unconditionally:
->> kernel has MM_SWAPENTS even without CONFIG_SWAP.
->
->
-> Hmm, so just for consistency? I don't see much reason to make life harder
-> for tiny systems, especially when it's not too much effort.
+On 05/13/2015 04:38 PM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.cz>
+> 
+> MAP_LOCKED had a subtly different semantic from mmap(2)+mlock(2) since
+> it has been introduced.
+> mlock(2) fails if the memory range cannot get populated to guarantee
+> that no future major faults will happen on the range. mmap(MAP_LOCKED) on
+> the other hand silently succeeds even if the range was populated only
+> partially.
+> 
+> Fixing this subtle difference in the kernel is rather awkward because
+> the memory population happens after mm locks have been dropped and so
+> the cleanup before returning failure (munlock) could operate on something
+> else than the originally mapped area.
+> 
+> E.g. speculative userspace page fault handler catching SEGV and doing
+> mmap(fault_addr, MAP_FIXED|MAP_LOCKED) might discard portion of a racing
+> mmap and lead to lost data. Although it is not clear whether such a
+> usage would be valid, mmap page doesn't explicitly describe requirements
+> for threaded applications so we cannot exclude this possibility.
+> 
+> This patch makes the semantic of MAP_LOCKED explicit and suggest using
+> mmap + mlock as the only way to guarantee no later major page faults.
 
-Profit is vague, I guess slab anyway will round size to the next
-cacheline or power-of-two.
-That conditional (non)existence just adds unneeded code lines.
+Thanks, Michal. Applied, with Reviewed-by: from Eric added.
 
->
->>
->>>         NR_MM_COUNTERS
->>>    };
->>>
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+Cheers,
+
+Michael
+
+
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  man2/mmap.2 | 13 ++++++++++++-
+>  1 file changed, 12 insertions(+), 1 deletion(-)
+> 
+> diff --git a/man2/mmap.2 b/man2/mmap.2
+> index 54d68cf87e9e..1486be2e96b3 100644
+> --- a/man2/mmap.2
+> +++ b/man2/mmap.2
+> @@ -235,8 +235,19 @@ See the Linux kernel source file
+>  for further information.
+>  .TP
+>  .BR MAP_LOCKED " (since Linux 2.5.37)"
+> -Lock the pages of the mapped region into memory in the manner of
+> +Mark the mmaped region to be locked in the same way as
+>  .BR mlock (2).
+> +This implementation will try to populate (prefault) the whole range but
+> +the mmap call doesn't fail with
+> +.B ENOMEM
+> +if this fails. Therefore major faults might happen later on. So the semantic
+> +is not as strong as
+> +.BR mlock (2).
+> +.BR mmap (2)
+> ++
+> +.BR mlock (2)
+> +should be used when major faults are not acceptable after the initialization
+> +of the mapping.
+>  This flag is ignored in older kernels.
+>  .\" If set, the mapped pages will not be swapped out.
+>  .TP
+> 
+
+
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
