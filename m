@@ -1,61 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 9472B6B0038
-	for <linux-mm@kvack.org>; Thu, 14 May 2015 06:36:16 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so235225695wiz.1
-        for <linux-mm@kvack.org>; Thu, 14 May 2015 03:36:16 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dg7si3072795wib.78.2015.05.14.03.36.14
+Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F2926B0038
+	for <linux-mm@kvack.org>; Thu, 14 May 2015 06:41:24 -0400 (EDT)
+Received: by obbkp3 with SMTP id kp3so49840374obb.3
+        for <linux-mm@kvack.org>; Thu, 14 May 2015 03:41:24 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id xs4si12464017obc.67.2015.05.14.03.41.23
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 14 May 2015 03:36:15 -0700 (PDT)
-Date: Thu, 14 May 2015 12:35:43 +0200
-From: Cyril Hrubis <chrubis@suse.cz>
-Subject: Re: Possible bug - LTP failure for memcg
-Message-ID: <20150514103542.GB5066@rei.suse.de>
-References: <55536DC9.90200@kyup.com>
- <20150514092145.GA6799@dhcp22.suse.cz>
- <20150514092301.GB6799@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 14 May 2015 03:41:23 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v2 4/4] mm/memory-failure: me_huge_page() does nothing for
+ thp
+Date: Thu, 14 May 2015 10:39:13 +0000
+Message-ID: <1431599951-32545-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1431599951-32545-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1431599951-32545-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150514092301.GB6799@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org, Nikolay Borisov <kernel@kyup.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
+Cc: Dean Nelson <dnelson@redhat.com>, Tony Luck <tony.luck@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Hi!
-> --- a/testcases/kernel/controllers/memcg/functional/memcg_function_test.sh
-> +++ b/testcases/kernel/controllers/memcg/functional/memcg_function_test.sh
-> @@ -158,17 +158,12 @@ testcase_21()
->  # Case 22 - 24: Test limit_in_bytes will be aligned to PAGESIZE
->  testcase_22()
->  {
-> -	test_limit_in_bytes $((PAGESIZE-1)) $PAGESIZE 0
-> +	test_limit_in_bytes $((PAGESIZE-1)) 0 0
->  }
->  
->  testcase_23()
->  {
-> -	test_limit_in_bytes $((PAGESIZE+1)) $((PAGESIZE*2)) 0
-> -}
-> -
-> -testcase_24()
-> -{
-> -	test_limit_in_bytes 1 $PAGESIZE 0
-> +	test_limit_in_bytes $((PAGESIZE+1)) $((PAGESIZE)) 0
->  }
+memory_failure() is supposed not to handle thp itself, but to split it. But
+if something were wrong and page_action() were called on thp, me_huge_page(=
+)
+(action routine for hugepages) should be better to take no action, rather
+than to take wrong action prepared for hugetlb (which triggers BUG_ON().)
 
-That would fail on older kernels without the patch, woudln't it?
+This change is for potential problems, but makes sense to me because thp is
+an actively developing feature and this code path can be open in the future=
+.
 
-If we are going to fix it, we should do that in backward compatible
-fashion. So either we modify the testcases to accept both rounding up
-and rounding down or choose what we expect based on kernel version.
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/memory-failure.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
--- 
-Cyril Hrubis
-chrubis@suse.cz
+diff --git v4.1-rc3.orig/mm/memory-failure.c v4.1-rc3/mm/memory-failure.c
+index 5e7795079c58..0e15fd39636a 100644
+--- v4.1-rc3.orig/mm/memory-failure.c
++++ v4.1-rc3/mm/memory-failure.c
+@@ -743,6 +743,10 @@ static int me_huge_page(struct page *p, unsigned long =
+pfn)
+ {
+ 	int res =3D 0;
+ 	struct page *hpage =3D compound_head(p);
++
++	if (!PageHuge(hpage))
++		return MF_DELAYED;
++
+ 	/*
+ 	 * We can safely recover from error on free or reserved (i.e.
+ 	 * not in-use) hugepage by dequeuing it from freelist.
+--=20
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
