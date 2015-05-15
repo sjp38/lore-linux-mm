@@ -1,113 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D8B186B006E
-	for <linux-mm@kvack.org>; Fri, 15 May 2015 05:15:04 -0400 (EDT)
-Received: by wgbhc8 with SMTP id hc8so72238870wgb.3
-        for <linux-mm@kvack.org>; Fri, 15 May 2015 02:15:04 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ei5si2631471wid.118.2015.05.15.02.15.02
+Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
+	by kanga.kvack.org (Postfix) with ESMTP id B9D8F6B006E
+	for <linux-mm@kvack.org>; Fri, 15 May 2015 05:39:10 -0400 (EDT)
+Received: by lagr1 with SMTP id r1so29293374lag.0
+        for <linux-mm@kvack.org>; Fri, 15 May 2015 02:39:09 -0700 (PDT)
+Received: from forward-corp1m.cmail.yandex.net (forward-corp1m.cmail.yandex.net. [2a02:6b8:b030::69])
+        by mx.google.com with ESMTPS id sc4si708481lbb.99.2015.05.15.02.39.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 15 May 2015 02:15:03 -0700 (PDT)
-Message-ID: <5555B914.8050800@suse.cz>
-Date: Fri, 15 May 2015 11:15:00 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 May 2015 02:39:08 -0700 (PDT)
+Message-ID: <5555BEB9.6000905@yandex-team.ru>
+Date: Fri, 15 May 2015 12:39:05 +0300
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 MIME-Version: 1.0
-Subject: Re: [PATCHv5 04/28] mm, thp: adjust conditions when we can reuse
- the page on WP fault
-References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com> <1429823043-157133-5-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1429823043-157133-5-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH v2 1/3] pagemap: add mmap-exclusive bit for marking pages
+ mapped only here
+References: <20150512090156.24768.2521.stgit@buzz>	<20150512094303.24768.10282.stgit@buzz>	<CAEVpBaLm9eicuFPmyRLa7GddLwtBJh3XzHT=fxj-h0YwwmXQOg@mail.gmail.com>	<55532CB0.6070400@yandex-team.ru> <CAEVpBa+r6AuB7hnCnTm8YKHzaj172q7Wy89yT=P_F6GQG-3-1A@mail.gmail.com>
+In-Reply-To: <CAEVpBa+r6AuB7hnCnTm8YKHzaj172q7Wy89yT=P_F6GQG-3-1A@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mark Williamson <mwilliamson@undo-software.com>
+Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, kernel list <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelyanov <xemul@parallels.com>, Linux API <linux-api@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Machek <pavel@ucw.cz>, Mark Seaborn <mseaborn@chromium.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, Daniel James <djames@undo-software.com>, Finn Grimwood <fgrimwood@undo-software.com>
 
-On 04/23/2015 11:03 PM, Kirill A. Shutemov wrote:
-> With new refcounting we will be able map the same compound page with
-> PTEs and PMDs. It requires adjustment to conditions when we can reuse
-> the page on write-protection fault.
+On 14.05.2015 21:50, Mark Williamson wrote:
+> Hi Konstantin,
 >
-> For PTE fault we can't reuse the page if it's part of huge page.
+> On Wed, May 13, 2015 at 11:51 AM, Konstantin Khlebnikov
+> <khlebnikov@yandex-team.ru> wrote:
+>> On 12.05.2015 15:05, Mark Williamson wrote:
+> <snip>
+>>>    1. I was hoping we'd be able to backport a compatible fix to older
+>>> kernels that might adopt the pagemap permissions change.  Using the V2
+>>> format flags rules out doing this for kernels that are too old to have
+>>> soft-dirty, I think.
+>>>
+>>>    2. From our software's PoV, I feel it's worth noting that it doesn't
+>>> strictly fix ABI compatibility, though I realise that's probably not
+>>> your primary concern here.  We'll need to modify our code to write the
+>>> clear_refs file but that change is OK for us if it's the preferred
+>>> solution.
+> <snip>
+>> I prefer to backport v2 format (except soft-dirty bit and clear_refs)
+>> into older kernels. Page-shift bits are barely used so nobody will see
+>> the difference.
 >
-> For PMD we can only reuse the page if nobody else maps the huge page or
-> it's part. We can do it by checking page_mapcount() on each sub-page,
-> but it's expensive.
+> My concern was whether a change to format would be acceptable to
+> include in the various -stable kernels; they are already including the
+> additional protections on pagemap, so we're starting to need our
+> fallback mode in distributions.  Do you think that such a patch would
+> be acceptable there?
 >
-> The cheaper way is to check page_count() to be equal 1: every mapcount
-> takes page reference, so this way we can guarantee, that the PMD is the
-> only mapping.
+> (As an application vendor we're likely to be particularly stuck with
+> what the commercial distributions decide to ship, which is why I'm
+> trying to keep an eye on this)
 >
-> This approach can give false negative if somebody pinned the page, but
-> that doesn't affect correctness.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Tested-by: Sasha Levin <sasha.levin@oracle.com>
+> I appreciate that this is a slightly administrative concern!  I
+> definitely like the technical approach of this code and it seems to
+> work fine for us.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+I cannot guarantee that v2 format will be accepted into stable kernels
+and into distributives. I'm not the gate keeper.
 
-So couldn't the same trick be used in Patch 1 to avoid counting 
-individual oder-0 pages?
+As a fallback probably you should invent some kind of suid helper
+which gives you access to required information without exposing pfn.
+For example: it gets pids and memory ranges as arguments and prints
+bitmap of CoWed pages into stdout.
 
-> ---
->   include/linux/swap.h |  3 ++-
->   mm/huge_memory.c     | 12 +++++++++++-
->   mm/swapfile.c        |  3 +++
->   3 files changed, 16 insertions(+), 2 deletions(-)
->
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 0428e4c84e1d..17cdd6b9456b 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -524,7 +524,8 @@ static inline int page_swapcount(struct page *page)
->   	return 0;
->   }
->
-> -#define reuse_swap_page(page)	(page_mapcount(page) == 1)
-> +#define reuse_swap_page(page) \
-> +	(!PageTransCompound(page) && page_mapcount(page) == 1)
->
->   static inline int try_to_free_swap(struct page *page)
->   {
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 534f353e12bf..fd8af5b9917f 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1103,7 +1103,17 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
->
->   	page = pmd_page(orig_pmd);
->   	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
-> -	if (page_mapcount(page) == 1) {
-> +	/*
-> +	 * We can only reuse the page if nobody else maps the huge page or it's
-> +	 * part. We can do it by checking page_mapcount() on each sub-page, but
-> +	 * it's expensive.
-> +	 * The cheaper way is to check page_count() to be equal 1: every
-> +	 * mapcount takes page reference reference, so this way we can
-> +	 * guarantee, that the PMD is the only mapping.
-> +	 * This can give false negative if somebody pinned the page, but that's
-> +	 * fine.
-> +	 */
-> +	if (page_mapcount(page) == 1 && page_count(page) == 1) {
->   		pmd_t entry;
->   		entry = pmd_mkyoung(orig_pmd);
->   		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 6dd365d1c488..3cd5f188b996 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -887,6 +887,9 @@ int reuse_swap_page(struct page *page)
->   	VM_BUG_ON_PAGE(!PageLocked(page), page);
->   	if (unlikely(PageKsm(page)))
->   		return 0;
-> +	/* The page is part of THP and cannot be reused */
-> +	if (PageTransCompound(page))
-> +		return 0;
->   	count = page_mapcount(page);
->   	if (count <= 1 && PageSwapCache(page)) {
->   		count += page_swapcount(page);
->
+-- 
+Konstantin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
