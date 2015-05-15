@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f53.google.com (mail-oi0-f53.google.com [209.85.218.53])
-	by kanga.kvack.org (Postfix) with ESMTP id D7FDF6B0074
-	for <linux-mm@kvack.org>; Fri, 15 May 2015 14:43:36 -0400 (EDT)
-Received: by oiko83 with SMTP id o83so89151633oik.1
-        for <linux-mm@kvack.org>; Fri, 15 May 2015 11:43:36 -0700 (PDT)
-Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
-        by mx.google.com with ESMTPS id wo6si1621304oeb.51.2015.05.15.11.43.35
+Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 9601B6B0075
+	for <linux-mm@kvack.org>; Fri, 15 May 2015 14:43:40 -0400 (EDT)
+Received: by oica37 with SMTP id a37so89127066oic.0
+        for <linux-mm@kvack.org>; Fri, 15 May 2015 11:43:40 -0700 (PDT)
+Received: from g1t5424.austin.hp.com (g1t5424.austin.hp.com. [15.216.225.54])
+        by mx.google.com with ESMTPS id e8si1625534obo.53.2015.05.15.11.43.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 May 2015 11:43:35 -0700 (PDT)
+        Fri, 15 May 2015 11:43:39 -0700 (PDT)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v5 5/6] mtrr, x86: Clean up mtrr_type_lookup()
-Date: Fri, 15 May 2015 12:23:56 -0600
-Message-Id: <1431714237-880-6-git-send-email-toshi.kani@hp.com>
+Subject: [PATCH v5 6/6] mtrr, mm, x86: Enhance MTRR checks for KVA huge page mapping
+Date: Fri, 15 May 2015 12:23:57 -0600
+Message-Id: <1431714237-880-7-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1431714237-880-1-git-send-email-toshi.kani@hp.com>
 References: <1431714237-880-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,225 +20,241 @@ List-ID: <linux-mm.kvack.org>
 To: bp@alien8.de, akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com
 Cc: linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl, mcgrof@suse.com, Toshi Kani <toshi.kani@hp.com>
 
-MTRRs contain fixed and variable entries.  mtrr_type_lookup()
-may repeatedly call __mtrr_type_lookup() to handle a request
-that overlaps with variable entries.  However,
-__mtrr_type_lookup() also handles the fixed entries, which
-do not have to be repeated.  Therefore, this patch creates
-separate functions, mtrr_type_lookup_fixed() and
-mtrr_type_lookup_variable(), to handle the fixed and variable
-ranges respectively.
+This patch adds an additional argument, 'uniform', to
+mtrr_type_lookup(), which returns 1 when a given range is
+covered uniformly by MTRRs, i.e. the range is fully covered
+by a single MTRR entry or the default type.
 
-The patch also updates the function headers to clarify the
-return values and output argument.  It updates comments to
-clarify that the repeating is necessary to handle overlaps
-with the default type, since overlaps with multiple entries
-alone can be handled without such repeating.
+pud_set_huge() and pmd_set_huge() are changed to check the
+new 'uniform' flag to see if it is safe to create a huge page
+mapping to the range.  This allows them to create a huge page
+mapping to a range covered by a single MTRR entry of any
+memory type.  It also detects a non-optimal request properly.
+They continue to check with the WB type since the WB type has
+no effect even if a request spans multiple MTRR entries.
 
-There is no functional change in this patch.
+pmd_set_huge() logs a warning message to a non-optimal request
+so that driver writers will be aware of such a case.  Drivers
+should make a mapping request aligned to a single MTRR entry
+when the range is covered by MTRRs.
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 ---
- arch/x86/kernel/cpu/mtrr/generic.c |  136 +++++++++++++++++++++++-------------
- 1 file changed, 85 insertions(+), 51 deletions(-)
+ arch/x86/include/asm/mtrr.h        |    4 ++--
+ arch/x86/kernel/cpu/mtrr/generic.c |   37 ++++++++++++++++++++++++++----------
+ arch/x86/mm/pat.c                  |    4 ++--
+ arch/x86/mm/pgtable.c              |   33 ++++++++++++++++++++------------
+ 4 files changed, 52 insertions(+), 26 deletions(-)
 
+diff --git a/arch/x86/include/asm/mtrr.h b/arch/x86/include/asm/mtrr.h
+index bb03a54..a31759e 100644
+--- a/arch/x86/include/asm/mtrr.h
++++ b/arch/x86/include/asm/mtrr.h
+@@ -31,7 +31,7 @@
+  * arch_phys_wc_add and arch_phys_wc_del.
+  */
+ # ifdef CONFIG_MTRR
+-extern u8 mtrr_type_lookup(u64 addr, u64 end);
++extern u8 mtrr_type_lookup(u64 addr, u64 end, u8 *uniform);
+ extern void mtrr_save_fixed_ranges(void *);
+ extern void mtrr_save_state(void);
+ extern int mtrr_add(unsigned long base, unsigned long size,
+@@ -50,7 +50,7 @@ extern int mtrr_trim_uncached_memory(unsigned long end_pfn);
+ extern int amd_special_default_mtrr(void);
+ extern int phys_wc_to_mtrr_index(int handle);
+ #  else
+-static inline u8 mtrr_type_lookup(u64 addr, u64 end)
++static inline u8 mtrr_type_lookup(u64 addr, u64 end, u8 *uniform)
+ {
+ 	/*
+ 	 * Return no-MTRRs:
 diff --git a/arch/x86/kernel/cpu/mtrr/generic.c b/arch/x86/kernel/cpu/mtrr/generic.c
-index 7b1491c..c7d5245 100644
+index c7d5245..7d347ac 100644
 --- a/arch/x86/kernel/cpu/mtrr/generic.c
 +++ b/arch/x86/kernel/cpu/mtrr/generic.c
-@@ -102,55 +102,67 @@ static int check_type_overlap(u8 *prev, u8 *curr)
- 	return 0;
- }
- 
--/*
-- * Error/Semi-error returns:
-- * MTRR_TYPE_INVALID - when MTRR is not enabled
-- * *repeat == 1 implies [start:end] spanned across MTRR range and type returned
-- *		corresponds only to [start:*partial_end].
-- *		Caller has to lookup again for [*partial_end:end].
-+/**
-+ * mtrr_type_lookup_fixed - look up memory type in MTRR fixed entries
-+ *
-+ * Return the MTRR fixed memory type of 'start'.
-+ *
-+ * MTRR fixed entries are divided into the following ways:
-+ *  0x00000 - 0x7FFFF : This range is divided into eight 64KB sub-ranges
-+ *  0x80000 - 0xBFFFF : This range is divided into sixteen 16KB sub-ranges
-+ *  0xC0000 - 0xFFFFF : This range is divided into sixty-four 4KB sub-ranges
-+ *
-+ * Return Values:
-+ * MTRR_TYPE_(type)  - Matched memory type
-+ * MTRR_TYPE_INVALID - Unmatched
+@@ -146,19 +146,22 @@ static u8 mtrr_type_lookup_fixed(u64 start, u64 end)
+  * Return Value:
+  * MTRR_TYPE_(type) - Matched memory type or default memory type (unmatched)
+  *
+- * Output Argument:
++ * Output Arguments:
+  * repeat - Set to 1 when [start:end] spanned across MTRR range and type
+  *	    returned corresponds only to [start:*partial_end].  Caller has
+  *	    to lookup again for [*partial_end:end].
++ * uniform - Set to 1 when MTRR covers the region uniformly, i.e. the region
++ *	     is fully covered by a single MTRR entry or the default type.
   */
--static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
-+static u8 mtrr_type_lookup_fixed(u64 start, u64 end)
-+{
-+	int idx;
-+
-+	if (start >= 0x100000)
-+		return MTRR_TYPE_INVALID;
-+
-+	if (start < 0x80000) {		/* 0x0 - 0x7FFFF */
-+		idx = 0;
-+		idx += (start >> 16);
-+		return mtrr_state.fixed_ranges[idx];
-+
-+	} else if (start < 0xC0000) {	/* 0x80000 - 0xBFFFF */
-+		idx = 1 * 8;
-+		idx += ((start - 0x80000) >> 14);
-+		return mtrr_state.fixed_ranges[idx];
-+	}
-+
-+	/* 0xC0000 - 0xFFFFF */
-+	idx = 3 * 8;
-+	idx += ((start - 0xC0000) >> 12);
-+	return mtrr_state.fixed_ranges[idx];
-+}
-+
-+/**
-+ * mtrr_type_lookup_variable - look up memory type in MTRR variable entries
-+ *
-+ * Return Value:
-+ * MTRR_TYPE_(type) - Matched memory type or default memory type (unmatched)
-+ *
-+ * Output Argument:
-+ * repeat - Set to 1 when [start:end] spanned across MTRR range and type
-+ *	    returned corresponds only to [start:*partial_end].  Caller has
-+ *	    to lookup again for [*partial_end:end].
-+ */
-+static u8 mtrr_type_lookup_variable(u64 start, u64 end, u64 *partial_end,
-+				    int *repeat)
+ static u8 mtrr_type_lookup_variable(u64 start, u64 end, u64 *partial_end,
+-				    int *repeat)
++				    int *repeat, u8 *uniform)
  {
  	int i;
  	u64 base, mask;
  	u8 prev_match, curr_match;
  
  	*repeat = 0;
--	if (!mtrr_state_set)
--		return MTRR_TYPE_INVALID;
--
--	if (!(mtrr_state.enabled & MTRR_STATE_MTRR_ENABLED))
--		return MTRR_TYPE_INVALID;
++	*uniform = 1;
  
  	/* Make end inclusive end, instead of exclusive */
  	end--;
+@@ -213,6 +216,7 @@ static u8 mtrr_type_lookup_variable(u64 start, u64 end, u64 *partial_end,
  
--	/* Look in fixed ranges. Just return the type as per start */
--	if ((start < 0x100000) &&
--	    (mtrr_state.have_fixed) &&
--	    (mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED)) {
--		int idx;
--
--		if (start < 0x80000) {
--			idx = 0;
--			idx += (start >> 16);
--			return mtrr_state.fixed_ranges[idx];
--		} else if (start < 0xC0000) {
--			idx = 1 * 8;
--			idx += ((start - 0x80000) >> 14);
--			return mtrr_state.fixed_ranges[idx];
--		} else {
--			idx = 3 * 8;
--			idx += ((start - 0xC0000) >> 12);
--			return mtrr_state.fixed_ranges[idx];
--		}
--	}
--
--	/*
--	 * Look in variable ranges
--	 * Look of multiple ranges matching this address and pick type
--	 * as per MTRR precedence
--	 */
- 	prev_match = MTRR_TYPE_INVALID;
- 	for (i = 0; i < num_var_ranges; ++i) {
- 		unsigned short start_state, end_state, inclusive;
-@@ -186,7 +198,8 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
- 			 * advised to lookup again after having adjusted start
- 			 * and end.
- 			 *
--			 * Note: This way we handle multiple overlaps as well.
-+			 * Note: This way we handle overlaps with multiple
-+			 * entries and the default type properly.
- 			 */
- 			if (start_state)
- 				*partial_end = base + get_mtrr_size(mask);
-@@ -215,21 +228,18 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
+ 			end = *partial_end - 1; /* end is inclusive */
+ 			*repeat = 1;
++			*uniform = 0;
+ 		}
+ 
+ 		if ((start & mask) != (base & mask))
+@@ -224,6 +228,7 @@ static u8 mtrr_type_lookup_variable(u64 start, u64 end, u64 *partial_end,
+ 			continue;
+ 		}
+ 
++		*uniform = 0;
+ 		if (check_type_overlap(&prev_match, &curr_match))
  			return curr_match;
  	}
- 
--	if (mtrr_tom2) {
--		if (start >= (1ULL<<32) && (end < mtrr_tom2))
--			return MTRR_TYPE_WRBACK;
--	}
--
- 	if (prev_match != MTRR_TYPE_INVALID)
- 		return prev_match;
- 
- 	return mtrr_state.def_type;
- }
- 
--/*
-- * Returns the effective MTRR type for the region
-- * Error return:
-- * MTRR_TYPE_INVALID - when MTRR is not enabled
-+/**
-+ * mtrr_type_lookup - look up memory type in MTRR
+@@ -240,10 +245,14 @@ static u8 mtrr_type_lookup_variable(u64 start, u64 end, u64 *partial_end,
+  * Return Values:
+  * MTRR_TYPE_(type)  - The effective MTRR type for the region
+  * MTRR_TYPE_INVALID - MTRR is disabled
 + *
-+ * Return Values:
-+ * MTRR_TYPE_(type)  - The effective MTRR type for the region
-+ * MTRR_TYPE_INVALID - MTRR is disabled
++ * Output Argument:
++ * uniform - Set to 1 when MTRR covers the region uniformly, i.e. the region
++ *	     is fully covered by a single MTRR entry or the default type.
   */
- u8 mtrr_type_lookup(u64 start, u64 end)
+-u8 mtrr_type_lookup(u64 start, u64 end)
++u8 mtrr_type_lookup(u64 start, u64 end, u8 *uniform)
  {
-@@ -237,22 +247,46 @@ u8 mtrr_type_lookup(u64 start, u64 end)
+-	u8 type, prev_type;
++	u8 type, prev_type, is_uniform = 1, dummy;
  	int repeat;
  	u64 partial_end;
  
--	type = __mtrr_type_lookup(start, end, &partial_end, &repeat);
-+	if (!mtrr_state_set)
-+		return MTRR_TYPE_INVALID;
-+
-+	if (!(mtrr_state.enabled & MTRR_STATE_MTRR_ENABLED))
-+		return MTRR_TYPE_INVALID;
-+
-+	/*
-+	 * Look up the fixed ranges first, which take priority over
-+	 * the variable ranges.
-+	 */
-+	if ((start < 0x100000) &&
-+	    (mtrr_state.have_fixed) &&
-+	    (mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED))
-+		return mtrr_type_lookup_fixed(start, end);
-+
-+	/*
-+	 * Look up the variable ranges.  Look of multiple ranges matching
-+	 * this address and pick type as per MTRR precedence.
-+	 */
-+	type = mtrr_type_lookup_variable(start, end, &partial_end, &repeat);
+@@ -259,14 +268,18 @@ u8 mtrr_type_lookup(u64 start, u64 end)
+ 	 */
+ 	if ((start < 0x100000) &&
+ 	    (mtrr_state.have_fixed) &&
+-	    (mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED))
+-		return mtrr_type_lookup_fixed(start, end);
++	    (mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED)) {
++		is_uniform = 0;
++		type = mtrr_type_lookup_fixed(start, end);
++		goto out;
++	}
+ 
+ 	/*
+ 	 * Look up the variable ranges.  Look of multiple ranges matching
+ 	 * this address and pick type as per MTRR precedence.
+ 	 */
+-	type = mtrr_type_lookup_variable(start, end, &partial_end, &repeat);
++	type = mtrr_type_lookup_variable(start, end, &partial_end,
++					 &repeat, &is_uniform);
  
  	/*
  	 * Common path is with repeat = 0.
- 	 * However, we can have cases where [start:end] spans across some
--	 * MTRR range. Do repeated lookups for that case here.
-+	 * MTRR ranges and/or the default type.  Do repeated lookups for
-+	 * that case here.
- 	 */
+@@ -277,16 +290,20 @@ u8 mtrr_type_lookup(u64 start, u64 end)
  	while (repeat) {
  		prev_type = type;
  		start = partial_end;
--		type = __mtrr_type_lookup(start, end, &partial_end, &repeat);
-+		type = mtrr_type_lookup_variable(start, end, &partial_end,
-+						 &repeat);
++		is_uniform = 0;
++
+ 		type = mtrr_type_lookup_variable(start, end, &partial_end,
+-						 &repeat);
++						 &repeat, &dummy);
  
  		if (check_type_overlap(&prev_type, &type))
- 			return type;
+-			return type;
++			goto out;
  	}
  
-+	if (mtrr_tom2 && (start >= (1ULL<<32)) && (end < mtrr_tom2))
-+		return MTRR_TYPE_WRBACK;
-+
+ 	if (mtrr_tom2 && (start >= (1ULL<<32)) && (end < mtrr_tom2))
+-		return MTRR_TYPE_WRBACK;
++		type = MTRR_TYPE_WRBACK;
+ 
++out:
++	*uniform = is_uniform;
  	return type;
  }
+ 
+diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+index 35af677..372ad42 100644
+--- a/arch/x86/mm/pat.c
++++ b/arch/x86/mm/pat.c
+@@ -267,9 +267,9 @@ static unsigned long pat_x_mtrr_type(u64 start, u64 end,
+ 	 * request is for WB.
+ 	 */
+ 	if (req_type == _PAGE_CACHE_MODE_WB) {
+-		u8 mtrr_type;
++		u8 mtrr_type, uniform;
+ 
+-		mtrr_type = mtrr_type_lookup(start, end);
++		mtrr_type = mtrr_type_lookup(start, end, &uniform);
+ 		if (mtrr_type != MTRR_TYPE_WRBACK)
+ 			return _PAGE_CACHE_MODE_UC_MINUS;
+ 
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index c30f981..3fa0eb9 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -567,18 +567,21 @@ void native_set_fixmap(enum fixed_addresses idx, phys_addr_t phys,
+  * pud_set_huge - setup kernel PUD mapping
+  *
+  * MTRR can override PAT memory types with 4KiB granularity.  Therefore,
+- * this function does not set up a huge page when the range is covered
+- * by a non-WB type of MTRR.  MTRR_TYPE_INVALID indicates that MTRR are
+- * disabled.
++ * this function only sets up a huge page in the following conditions.
++ *  - MTRR is disabled.
++ *  - The range is mapped uniformly by MTRR, i.e. the range is fully covered
++ *    by a single MTRR entry or the default type.
++ *  - The MTRR memory type is WB.
+  *
+  * Returns 1 on success and 0 on failure.
+  */
+ int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
+ {
+-	u8 mtrr;
++	u8 mtrr, uniform;
+ 
+-	mtrr = mtrr_type_lookup(addr, addr + PUD_SIZE);
+-	if ((mtrr != MTRR_TYPE_WRBACK) && (mtrr != MTRR_TYPE_INVALID))
++	mtrr = mtrr_type_lookup(addr, addr + PUD_SIZE, &uniform);
++	if ((mtrr != MTRR_TYPE_INVALID) && (!uniform) &&
++	    (mtrr != MTRR_TYPE_WRBACK))
+ 		return 0;
+ 
+ 	prot = pgprot_4k_2_large(prot);
+@@ -594,19 +597,25 @@ int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
+  * pmd_set_huge - setup kernel PMD mapping
+  *
+  * MTRR can override PAT memory types with 4KiB granularity.  Therefore,
+- * this function does not set up a huge page when the range is covered
+- * by a non-WB type of MTRR.  MTRR_TYPE_INVALID indicates that MTRR are
+- * disabled.
++ * this function only sets up a huge page in the following conditions.
++ *  - MTRR is disabled.
++ *  - The range is mapped uniformly by MTRR, i.e. the range is fully covered
++ *    by a single MTRR entry or the default type.
++ *  - The MTRR memory type is WB.
+  *
+  * Returns 1 on success and 0 on failure.
+  */
+ int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
+ {
+-	u8 mtrr;
++	u8 mtrr, uniform;
+ 
+-	mtrr = mtrr_type_lookup(addr, addr + PMD_SIZE);
+-	if ((mtrr != MTRR_TYPE_WRBACK) && (mtrr != MTRR_TYPE_INVALID))
++	mtrr = mtrr_type_lookup(addr, addr + PMD_SIZE, &uniform);
++	if ((mtrr != MTRR_TYPE_INVALID) && (!uniform) &&
++	    (mtrr != MTRR_TYPE_WRBACK)) {
++		pr_warn_once("pmd_set_huge: requesting [mem %#010llx-%#010llx], which spans more than a single MTRR entry\n",
++				addr, addr + PMD_SIZE);
+ 		return 0;
++	}
+ 
+ 	prot = pgprot_4k_2_large(prot);
  
 
 --
