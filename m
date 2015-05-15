@@ -1,100 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E44B6B006E
-	for <linux-mm@kvack.org>; Fri, 15 May 2015 08:17:48 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so284490693wiz.1
-        for <linux-mm@kvack.org>; Fri, 15 May 2015 05:17:47 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 079556B006E
+	for <linux-mm@kvack.org>; Fri, 15 May 2015 08:37:20 -0400 (EDT)
+Received: by wicnf17 with SMTP id nf17so135382619wic.1
+        for <linux-mm@kvack.org>; Fri, 15 May 2015 05:37:19 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id eu3si3384747wib.105.2015.05.15.05.17.46
+        by mx.google.com with ESMTPS id oz6si2593471wjb.53.2015.05.15.05.37.17
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 15 May 2015 05:17:46 -0700 (PDT)
-Message-ID: <5555E3E9.30009@suse.com>
-Date: Fri, 15 May 2015 14:17:45 +0200
-From: Juergen Gross <jgross@suse.com>
+        Fri, 15 May 2015 05:37:18 -0700 (PDT)
+Message-ID: <5555E87B.8070501@suse.cz>
+Date: Fri, 15 May 2015 14:37:15 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RESEND Patch V3 00/15] xen: support pv-domains larger than 512GB
-References: <1430727795-25133-1-git-send-email-jgross@suse.com>
-In-Reply-To: <1430727795-25133-1-git-send-email-jgross@suse.com>
+Subject: Re: [PATCHv5 01/28] mm, proc: adjust PSS calculation
+References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com> <1429823043-157133-2-git-send-email-kirill.shutemov@linux.intel.com> <5554AD4D.9040000@suse.cz> <20150515105621.GA6250@node.dhcp.inet.fi> <5555D98B.7010900@suse.cz> <20150515114314.GF6250@node.dhcp.inet.fi>
+In-Reply-To: <20150515114314.GF6250@node.dhcp.inet.fi>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Ping?
+On 05/15/2015 01:43 PM, Kirill A. Shutemov wrote:
+> On Fri, May 15, 2015 at 01:33:31PM +0200, Vlastimil Babka wrote:
+>> On 05/15/2015 12:56 PM, Kirill A. Shutemov wrote:
+>>> On Thu, May 14, 2015 at 04:12:29PM +0200, Vlastimil Babka wrote:
+>>>> On 04/23/2015 11:03 PM, Kirill A. Shutemov wrote:
+>>>>> With new refcounting all subpages of the compound page are not nessessary
+>>>>> have the same mapcount. We need to take into account mapcount of every
+>>>>> sub-page.
+>>>>>
+>>>>> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>>>>> Tested-by: Sasha Levin <sasha.levin@oracle.com>
+>>>>
+>>>> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+>>>>
+>>>> (some nitpicks below)
+>>>>
+>>>>> ---
+>>>>>   fs/proc/task_mmu.c | 43 ++++++++++++++++++++++---------------------
+>>>>>   1 file changed, 22 insertions(+), 21 deletions(-)
+>>>>>
+>>>>> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+>>>>> index 956b75d61809..95bc384ee3f7 100644
+>>>>> --- a/fs/proc/task_mmu.c
+>>>>> +++ b/fs/proc/task_mmu.c
+>>>>> @@ -449,9 +449,10 @@ struct mem_size_stats {
+>>>>>   };
+>>>>>
+>>>>>   static void smaps_account(struct mem_size_stats *mss, struct page *page,
+>>>>> -		unsigned long size, bool young, bool dirty)
+>>>>> +		bool compound, bool young, bool dirty)
+>>>>>   {
+>>>>> -	int mapcount;
+>>>>> +	int i, nr = compound ? hpage_nr_pages(page) : 1;
+>>>>
+>>>> Why not just HPAGE_PMD_NR instead of hpage_nr_pages(page)?
+>>>
+>>> Okay, makes sense. Compiler is smart enough to optimize away HPAGE_PMD_NR
+>>> for THP=n. (HPAGE_PMD_NR is BUILD_BUG() for THP=n)
+>>
+>> Ah, BUILD_BUG()... I'm not sure we can rely on optimization to avoid
+>> BUILD_BUG(), what if somebody compiles with all optimizations off?
+>
+> Kernel relies on dead-code elimination. You cannot build kernel with -O0.
 
-On 05/04/2015 10:23 AM, Juergen Gross wrote:
-> Support 64 bit pv-domains with more than 512GB of memory.
+Ah, OK.
+
+>> So why not replace BUILD_BUG() with "1", or create a variant of HPAGE_PMD_NR
+>> that does that, for this case and patch 3. Seems better than testing
+>> PageTransHuge everywhere...
 >
-> Tested with 64 bit dom0 on machines with 8GB and 1TB and 32 bit dom0 on a
-> 8GB machine. Conflicts between E820 map and different hypervisor populated
-> memory areas have been tested via a fake E820 map reserved area on the
-> 8GB machine.
->
-> Changes in V3:
-> - rename xen_chk_e820_reserved() to xen_is_e820_reserved() as requested by
->    David Vrabel
-> - add __initdata tag to global variables in patch 10
-> - move initrd conflict checking after reserving p2m memory (patch 11)
->
-> Changes in V2:
-> - some clarifications and better explanations in commit messages
-> - add header changes of include/xen/interface/xen.h (patch 01)
-> - add wmb() when incrementing p2m_generation (patch 02)
-> - add new patch 03 (don't build mfn tree if tools don't need it)
-> - add new patch 06 (split counting of extra memory pages from remapping)
-> - add new patch 07 (check memory area against e820 map)
-> - replace early_iounmap() with early_memunmap() (patch 07->patch 08)
-> - rework patch 09 (check for kernel memory conflicting with memory layout)
-> - rework patch 10 (check pre-allocated page tables for conflict with memory map)
-> - combine old patches 08 and 11 into patch 11
-> - add new patch 12 (provide early_memremap_ro to establish read-only mapping)
-> - rework old patch 12 (if p2m list located in to be remapped region delay
->    remapping) to copy p2m list in case of a conflict (now patch 13)
-> - correct Kconfig dependency (patch 13->14)
-> - don't limit dom0 to 512GB (patch 13->14)
-> - modify parameter parsing to work in very early boot (patch 13->14)
-> - add new patch 15 to do some cleanup
-> - remove old patch 05 (simplify xen_set_identity_and_remap() by using global
->    variables)
-> - remove old patch 08 (detect pre-allocated memory interfering with e820 map)
->
->
-> Juergen Gross (15):
->    xen: sync with xen headers
->    xen: save linear p2m list address in shared info structure
->    xen: don't build mfn tree if tools don't need it
->    xen: eliminate scalability issues from initial mapping setup
->    xen: move static e820 map to global scope
->    xen: split counting of extra memory pages from remapping
->    xen: check memory area against e820 map
->    xen: find unused contiguous memory area
->    xen: check for kernel memory conflicting with memory layout
->    xen: check pre-allocated page tables for conflict with memory map
->    xen: check for initrd conflicting with e820 map
->    mm: provide early_memremap_ro to establish read-only mapping
->    xen: move p2m list if conflicting with e820 map
->    xen: allow more than 512 GB of RAM for 64 bit pv-domains
->    xen: remove no longer needed p2m.h
->
->   Documentation/kernel-parameters.txt  |   7 +
->   arch/x86/include/asm/xen/interface.h |  96 +++++++-
->   arch/x86/include/asm/xen/page.h      |   8 +-
->   arch/x86/xen/Kconfig                 |  20 +-
->   arch/x86/xen/mmu.c                   | 367 +++++++++++++++++++++++++++++--
->   arch/x86/xen/p2m.c                   |  43 +++-
->   arch/x86/xen/p2m.h                   |  15 --
->   arch/x86/xen/setup.c                 | 414 ++++++++++++++++++++++++++---------
->   arch/x86/xen/xen-head.S              |   2 +
->   arch/x86/xen/xen-ops.h               |   6 +
->   include/asm-generic/early_ioremap.h  |   2 +
->   include/asm-generic/fixmap.h         |   3 +
->   include/xen/interface/xen.h          |  10 +-
->   mm/early_ioremap.c                   |  11 +
->   14 files changed, 822 insertions(+), 182 deletions(-)
->   delete mode 100644 arch/x86/xen/p2m.h
->
+> I think we could try to downgrade it BUG(). Although I found BUILD_BUG()
+> useful few times.
+
+BUILD_BUG() seems like a better match here. Better than pollute the code 
+for THP=n (in case of Patch 3 where it doesn't eliminate).
+
+> HPAGE_PMD_NR==1 would be just wrong. It would mean you can map order-0
+> page with PMD %-|
+
+That's why I suggested a different variant of the "variable".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
