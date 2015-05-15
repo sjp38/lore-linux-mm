@@ -1,46 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F1356B0032
-	for <linux-mm@kvack.org>; Fri, 15 May 2015 14:22:10 -0400 (EDT)
-Received: by iepk2 with SMTP id k2so123123781iep.3
-        for <linux-mm@kvack.org>; Fri, 15 May 2015 11:22:10 -0700 (PDT)
-Received: from mail-ie0-x231.google.com (mail-ie0-x231.google.com. [2607:f8b0:4001:c03::231])
-        by mx.google.com with ESMTPS id o20si2800070icm.2.2015.05.15.11.22.09
+Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
+	by kanga.kvack.org (Postfix) with ESMTP id B54B46B006E
+	for <linux-mm@kvack.org>; Fri, 15 May 2015 14:43:19 -0400 (EDT)
+Received: by obblk2 with SMTP id lk2so84569718obb.0
+        for <linux-mm@kvack.org>; Fri, 15 May 2015 11:43:19 -0700 (PDT)
+Received: from g1t5424.austin.hp.com (g1t5424.austin.hp.com. [15.216.225.54])
+        by mx.google.com with ESMTPS id e5si1621182oeu.50.2015.05.15.11.43.18
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 May 2015 11:22:09 -0700 (PDT)
-Received: by ieczm2 with SMTP id zm2so51194881iec.1
-        for <linux-mm@kvack.org>; Fri, 15 May 2015 11:22:09 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150515160426.GD19097@redhat.com>
-References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
-	<1431624680-20153-11-git-send-email-aarcange@redhat.com>
-	<CA+55aFwCODeiXUPDR7-Y-=2xE2abmVuCnmVV=ezFqhO+JkaW=A@mail.gmail.com>
-	<20150515160426.GD19097@redhat.com>
-Date: Fri, 15 May 2015 11:22:09 -0700
-Message-ID: <CA+55aFyPY9PtGLaK=TxBX_bU44MBCe53yLXDFzU43zJqbwzQ6Q@mail.gmail.com>
-Subject: Re: [PATCH 10/23] userfaultfd: add new syscall to provide memory externalization
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+        Fri, 15 May 2015 11:43:18 -0700 (PDT)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH v5 0/6] mtrr, mm, x86: Enhance MTRR checks for huge I/O mapping
+Date: Fri, 15 May 2015 12:23:51 -0600
+Message-Id: <1431714237-880-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, qemu-devel@nongnu.org, KVM list <kvm@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
+To: bp@alien8.de, akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com
+Cc: linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl, mcgrof@suse.com
 
-On Fri, May 15, 2015 at 9:04 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
->
-> To fix it I added this along a comment:
+This patchset enhances MTRR checks for the kernel huge I/O mapping.
 
-Ok, this looks good as a explanation/fix for the races (and also as an
-example of my worry about waitqueue_active() use in general).
+The following functional changes are made in patch 6/6.
+ - Allow pud_set_huge() and pmd_set_huge() to create a huge page mapping
+   when the range is covered by a single MTRR entry of any memory type.
+ - Log a pr_warn_once() message when a specified PMD map range spans more
+   than a single MTRR entry.  Drivers should make a mapping request aligned
+   to a single MTRR entry when the range is covered by MTRRs.
 
-However, it now makes me suspect that the optimistic "let's check if
-they are even active" may not be worth it any more. You're adding a
-"smp_mb()" in order to avoid taking the real lock. Although I guess
-there are two locks there (one for each wait-queue) so maybe it's
-worth it.
+Patch 1/6 simplifies the condition of HAVE_ARCH_HUGE_VMAP in Kconfig.
+Patch 2/6 - 5/6 are bug fix and clean up to mtrr_type_lookup().
 
-                    Linus
+The patchset is based on the tip tree.
+---
+v5:
+ - Separate Kconfig change and reordered/squashed the patchset. (Borislav
+   Petkov)
+ - Update logs, comments and functional structures. (Borislav Petkov)
+ - Move MTRR_STATE_MTRR_XXX definitions to kernel asm/mtrr.h.  (Borislav
+   Petkov)
+ - Change mtrr_type_lookup() not to set 'uniform' in case of MTRR_TYPE_INVALID.
+   (Borislav Petkov)
+ - Remove a patch accepted in the tip free from the series.
+
+v4:
+ - Update the change logs of patchset. (Ingo Molnar)
+ - Add patch 3/7 to make the wrong address fix as a separate patch.
+   (Ingo Molnar)
+ - Add patch 5/7 to define MTRR_TYPE_INVALID. (Ingo Molnar)
+ - Update patch 6/7 to document MTRR fixed ranges. (Ingo Molnar)
+
+v3:
+ - Add patch 3/5 to fix a bug in MTRR state checks.
+ - Update patch 4/5 to create separate functions for the fixed and
+   variable entries. (Ingo Molnar)
+
+v2:
+ - Update change logs and comments per review comments.
+   (Ingo Molnar)
+ - Add patch 3/4 to clean up mtrr_type_lookup(). (Ingo Molnar)
+
+---
+Toshi Kani (6):
+ 1/6 mm, x86: Simplify conditions of HAVE_ARCH_HUGE_VMAP
+ 2/6 mtrr, x86: Fix MTRR lookup to handle inclusive entry
+ 3/6 mtrr, x86: Fix MTRR state checks in mtrr_type_lookup()
+ 4/6 mtrr, x86: Define MTRR_TYPE_INVALID for mtrr_type_lookup()
+ 5/6 mtrr, x86: Clean up mtrr_type_lookup()
+ 6/6 mtrr, mm, x86: Enhance MTRR checks for KVA huge page mapping
+
+---
+ arch/x86/Kconfig                   |   2 +-
+ arch/x86/include/asm/mtrr.h        |  10 +-
+ arch/x86/include/uapi/asm/mtrr.h   |   8 +-
+ arch/x86/kernel/cpu/mtrr/cleanup.c |   3 +-
+ arch/x86/kernel/cpu/mtrr/generic.c | 200 ++++++++++++++++++++++++-------------
+ arch/x86/mm/pat.c                  |   4 +-
+ arch/x86/mm/pgtable.c              |  59 ++++++++---
+ 7 files changed, 194 insertions(+), 92 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
