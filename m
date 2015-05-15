@@ -1,88 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 079556B006E
-	for <linux-mm@kvack.org>; Fri, 15 May 2015 08:37:20 -0400 (EDT)
-Received: by wicnf17 with SMTP id nf17so135382619wic.1
-        for <linux-mm@kvack.org>; Fri, 15 May 2015 05:37:19 -0700 (PDT)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 289816B006E
+	for <linux-mm@kvack.org>; Fri, 15 May 2015 08:46:52 -0400 (EDT)
+Received: by wicnf17 with SMTP id nf17so135695708wic.1
+        for <linux-mm@kvack.org>; Fri, 15 May 2015 05:46:51 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id oz6si2593471wjb.53.2015.05.15.05.37.17
+        by mx.google.com with ESMTPS id on6si3582955wic.8.2015.05.15.05.46.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 15 May 2015 05:37:18 -0700 (PDT)
-Message-ID: <5555E87B.8070501@suse.cz>
-Date: Fri, 15 May 2015 14:37:15 +0200
+        Fri, 15 May 2015 05:46:50 -0700 (PDT)
+Message-ID: <5555EAB8.5060401@suse.cz>
+Date: Fri, 15 May 2015 14:46:48 +0200
 From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCHv5 01/28] mm, proc: adjust PSS calculation
-References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com> <1429823043-157133-2-git-send-email-kirill.shutemov@linux.intel.com> <5554AD4D.9040000@suse.cz> <20150515105621.GA6250@node.dhcp.inet.fi> <5555D98B.7010900@suse.cz> <20150515114314.GF6250@node.dhcp.inet.fi>
-In-Reply-To: <20150515114314.GF6250@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Subject: Re: [PATCHv5 06/28] mm: handle PTE-mapped tail pages in gerneric
+ fast gup implementaiton
+References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com> <1429823043-157133-7-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1429823043-157133-7-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 05/15/2015 01:43 PM, Kirill A. Shutemov wrote:
-> On Fri, May 15, 2015 at 01:33:31PM +0200, Vlastimil Babka wrote:
->> On 05/15/2015 12:56 PM, Kirill A. Shutemov wrote:
->>> On Thu, May 14, 2015 at 04:12:29PM +0200, Vlastimil Babka wrote:
->>>> On 04/23/2015 11:03 PM, Kirill A. Shutemov wrote:
->>>>> With new refcounting all subpages of the compound page are not nessessary
->>>>> have the same mapcount. We need to take into account mapcount of every
->>>>> sub-page.
->>>>>
->>>>> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->>>>> Tested-by: Sasha Levin <sasha.levin@oracle.com>
->>>>
->>>> Acked-by: Vlastimil Babka <vbabka@suse.cz>
->>>>
->>>> (some nitpicks below)
->>>>
->>>>> ---
->>>>>   fs/proc/task_mmu.c | 43 ++++++++++++++++++++++---------------------
->>>>>   1 file changed, 22 insertions(+), 21 deletions(-)
->>>>>
->>>>> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
->>>>> index 956b75d61809..95bc384ee3f7 100644
->>>>> --- a/fs/proc/task_mmu.c
->>>>> +++ b/fs/proc/task_mmu.c
->>>>> @@ -449,9 +449,10 @@ struct mem_size_stats {
->>>>>   };
->>>>>
->>>>>   static void smaps_account(struct mem_size_stats *mss, struct page *page,
->>>>> -		unsigned long size, bool young, bool dirty)
->>>>> +		bool compound, bool young, bool dirty)
->>>>>   {
->>>>> -	int mapcount;
->>>>> +	int i, nr = compound ? hpage_nr_pages(page) : 1;
->>>>
->>>> Why not just HPAGE_PMD_NR instead of hpage_nr_pages(page)?
->>>
->>> Okay, makes sense. Compiler is smart enough to optimize away HPAGE_PMD_NR
->>> for THP=n. (HPAGE_PMD_NR is BUILD_BUG() for THP=n)
->>
->> Ah, BUILD_BUG()... I'm not sure we can rely on optimization to avoid
->> BUILD_BUG(), what if somebody compiles with all optimizations off?
+On 04/23/2015 11:03 PM, Kirill A. Shutemov wrote:
+> With new refcounting we are going to see THP tail pages mapped with PTE.
+> Generic fast GUP rely on page_cache_get_speculative() to obtain
+> reference on page. page_cache_get_speculative() always fails on tail
+> pages, because ->_count on tail pages is always zero.
 >
-> Kernel relies on dead-code elimination. You cannot build kernel with -O0.
-
-Ah, OK.
-
->> So why not replace BUILD_BUG() with "1", or create a variant of HPAGE_PMD_NR
->> that does that, for this case and patch 3. Seems better than testing
->> PageTransHuge everywhere...
+> Let's handle tail pages in gup_pte_range().
 >
-> I think we could try to downgrade it BUG(). Although I found BUILD_BUG()
-> useful few times.
+> New split_huge_page() will rely on migration entries to freeze page's
+> counts. Recheck PTE value after page_cache_get_speculative() on head
+> page should be enough to serialize against split.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Tested-by: Sasha Levin <sasha.levin@oracle.com>
 
-BUILD_BUG() seems like a better match here. Better than pollute the code 
-for THP=n (in case of Patch 3 where it doesn't eliminate).
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-> HPAGE_PMD_NR==1 would be just wrong. It would mean you can map order-0
-> page with PMD %-|
-
-That's why I suggested a different variant of the "variable".
+> ---
+>   mm/gup.c | 8 +++++---
+>   1 file changed, 5 insertions(+), 3 deletions(-)
+>
+> diff --git a/mm/gup.c b/mm/gup.c
+> index ebdb39b3e820..eaeeae15006b 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -1051,7 +1051,7 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+>   		 * for an example see gup_get_pte in arch/x86/mm/gup.c
+>   		 */
+>   		pte_t pte = READ_ONCE(*ptep);
+> -		struct page *page;
+> +		struct page *head, *page;
+>
+>   		/*
+>   		 * Similar to the PMD case below, NUMA hinting must take slow
+> @@ -1063,15 +1063,17 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+>
+>   		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+>   		page = pte_page(pte);
+> +		head = compound_head(page);
+>
+> -		if (!page_cache_get_speculative(page))
+> +		if (!page_cache_get_speculative(head))
+>   			goto pte_unmap;
+>
+>   		if (unlikely(pte_val(pte) != pte_val(*ptep))) {
+> -			put_page(page);
+> +			put_page(head);
+>   			goto pte_unmap;
+>   		}
+>
+> +		VM_BUG_ON_PAGE(compound_head(page) != head, page);
+>   		pages[*nr] = page;
+>   		(*nr)++;
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
