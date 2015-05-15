@@ -1,91 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 393E56B006E
-	for <linux-mm@kvack.org>; Fri, 15 May 2015 07:14:54 -0400 (EDT)
-Received: by wicmx19 with SMTP id mx19so57718994wic.0
-        for <linux-mm@kvack.org>; Fri, 15 May 2015 04:14:53 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id g7si2171886wjy.213.2015.05.15.04.14.52
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B6896B006E
+	for <linux-mm@kvack.org>; Fri, 15 May 2015 07:18:39 -0400 (EDT)
+Received: by wgin8 with SMTP id n8so109318256wgi.0
+        for <linux-mm@kvack.org>; Fri, 15 May 2015 04:18:39 -0700 (PDT)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
+        by mx.google.com with ESMTP id ht7si2199598wjb.176.2015.05.15.04.18.37
         for <linux-mm@kvack.org>;
-        Fri, 15 May 2015 04:14:52 -0700 (PDT)
-Date: Fri, 15 May 2015 14:14:38 +0300
+        Fri, 15 May 2015 04:18:38 -0700 (PDT)
+Date: Fri, 15 May 2015 14:18:28 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv5 02/28] rmap: add argument to charge compound page
-Message-ID: <20150515111438.GB6250@node.dhcp.inet.fi>
+Subject: Re: [PATCHv5 03/28] memcg: adjust to support new THP refcounting
+Message-ID: <20150515111828.GC6250@node.dhcp.inet.fi>
 References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1429823043-157133-3-git-send-email-kirill.shutemov@linux.intel.com>
- <5554C854.6020900@suse.cz>
+ <1429823043-157133-4-git-send-email-kirill.shutemov@linux.intel.com>
+ <5555A3D1.3010108@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5554C854.6020900@suse.cz>
+In-Reply-To: <5555A3D1.3010108@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, May 14, 2015 at 06:07:48PM +0200, Vlastimil Babka wrote:
+On Fri, May 15, 2015 at 09:44:17AM +0200, Vlastimil Babka wrote:
 > On 04/23/2015 11:03 PM, Kirill A. Shutemov wrote:
-> >We're going to allow mapping of individual 4k pages of THP compound
-> >page. It means we cannot rely on PageTransHuge() check to decide if
-> >map/unmap small page or THP.
+> >As with rmap, with new refcounting we cannot rely on PageTransHuge() to
+> >check if we need to charge size of huge page form the cgroup. We need to
+> >get information from caller to know whether it was mapped with PMD or
+> >PTE.
 > >
-> >The patch adds new argument to rmap functions to indicate whether we want
-> >to operate on whole compound page or only the small page.
+> >We do uncharge when last reference on the page gone. At that point if we
+> >see PageTransHuge() it means we need to unchange whole huge page.
+> >
+> >The tricky part is partial unmap -- when we try to unmap part of huge
+> >page. We don't do a special handing of this situation, meaning we don't
+> >uncharge the part of huge page unless last user is gone or
+> >split_huge_page() is triggered. In case of cgroup memory pressure
+> >happens the partial unmapped page will be split through shrinker. This
+> >should be good enough.
 > >
 > >Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 > >Tested-by: Sasha Levin <sasha.levin@oracle.com>
 > 
 > Acked-by: Vlastimil Babka <vbabka@suse.cz>
 > 
-> But I wonder about one thing:
-> 
-> >-void page_remove_rmap(struct page *page)
-> >+void page_remove_rmap(struct page *page, bool compound)
-> >  {
-> >+	int nr = compound ? hpage_nr_pages(page) : 1;
-> >+
-> >  	if (!PageAnon(page)) {
-> >+		VM_BUG_ON_PAGE(compound && !PageHuge(page), page);
-> >  		page_remove_file_rmap(page);
-> >  		return;
-> >  	}
-> 
-> The function continues by:
-> 
->         /* page still mapped by someone else? */
->         if (!atomic_add_negative(-1, &page->_mapcount))
->                 return;
-> 
->         /* Hugepages are not counted in NR_ANON_PAGES for now. */
->         if (unlikely(PageHuge(page)))
->                 return;
-> 
-> The handling of compound parameter for PageHuge() pages feels just weird.
-> You use hpage_nr_pages() for them which tests PageTransHuge(). It doesn't
-> break anything and the value of nr is effectively ignored anyway, but
-> still...
-> 
-> So I wonder, if all callers of page_remove_rmap() for PageHuge() pages are
-> the two in mm/hugetlb.c, why not just create a special case function?
+> But same question about whether it should be using hpage_nr_pages() instead
+> of a constant.
 
-It's fair question. I think we shouldn't do this. It makes hugetlb even
-more special place, alien to rest of mm.
-
-And this is out of scope of the patchset in question.
-
-> Or are some callers elsewhere, not aware whether they are calling this
-> on a PageHuge()? So compound might be even false for those?
-
-Caller sets compound==true based on whether the page is mapped with
-PMD/PUD or not. It's nothing to do with what page type it is.
-
-> If that's all possible and legal, then maybe explain it in a comment to
-> reduce confusion of further readers. And move the 'nr' assignment to a
-> place where we are sure it's not a PageHuge(), i.e. right above the
-> place the value is used, perhaps?
-
-I'll rework code a bit in v6.
+No. Compiler woundn't be able to optimize HPAGE_PMD_NR away for THP=n,
+since compound value cross compilation unit barrier.
 
 -- 
  Kirill A. Shutemov
