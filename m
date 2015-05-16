@@ -1,50 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BB7C6B0073
-	for <linux-mm@kvack.org>; Sat, 16 May 2015 14:57:15 -0400 (EDT)
-Received: by wibt6 with SMTP id t6so27340515wib.0
-        for <linux-mm@kvack.org>; Sat, 16 May 2015 11:57:14 -0700 (PDT)
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com. [74.125.82.51])
-        by mx.google.com with ESMTPS id vf7si9212850wjc.127.2015.05.16.11.57.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 16 May 2015 11:57:13 -0700 (PDT)
-Received: by wgin8 with SMTP id n8so147912992wgi.0
-        for <linux-mm@kvack.org>; Sat, 16 May 2015 11:57:13 -0700 (PDT)
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id A80DD6B0075
+	for <linux-mm@kvack.org>; Sat, 16 May 2015 19:17:53 -0400 (EDT)
+Received: by wguv19 with SMTP id v19so89066018wgu.1
+        for <linux-mm@kvack.org>; Sat, 16 May 2015 16:17:53 -0700 (PDT)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
+        by mx.google.com with ESMTP id eh5si10042620wjd.174.2015.05.16.16.17.51
+        for <linux-mm@kvack.org>;
+        Sat, 16 May 2015 16:17:52 -0700 (PDT)
+Date: Sun, 17 May 2015 02:17:32 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv5 03/28] memcg: adjust to support new THP refcounting
+Message-ID: <20150516231732.GA13265@node.dhcp.inet.fi>
+References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1429823043-157133-4-git-send-email-kirill.shutemov@linux.intel.com>
+ <5555A3D1.3010108@suse.cz>
+ <20150515111828.GC6250@node.dhcp.inet.fi>
+ <55560963.30106@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1431796166.15709.81.camel@perches.com>
-References: <CALq1K=KSkPB9LY__rh04ic_rv2H0rGCLNfeKoY-+U2=EF32sBg@mail.gmail.com>
- <1431796166.15709.81.camel@perches.com>
-From: Leon Romanovsky <leon@leon.nu>
-Date: Sat, 16 May 2015 21:56:52 +0300
-Message-ID: <CALq1K=+X-Gk8xEaMVT0VWujz1pc45+6DsugWiaCPeF-zObozLg@mail.gmail.com>
-Subject: Re: [RFC] Refactor kenter/kleave/kdebug macros
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <55560963.30106@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: dhowells <dhowells@redhat.com>, Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-cachefs <linux-cachefs@redhat.com>, linux-afs <linux-afs@lists.infradead.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, May 16, 2015 at 8:09 PM, Joe Perches <joe@perches.com> wrote:
-> On Sat, 2015-05-16 at 20:01 +0300, Leon Romanovsky wrote:
-[]
->> My question is how we should handle such duplicated debug print code?
->> As possible solutions, I see five options:
->> 1. Leave it as is.
->> 2. Move it to general include file (for example linux/printk.h) and
->> commonize the output to be consistent between different kdebug users.
->> 3. Add CONFIG_*_DEBUG definition for every kdebug user.
->> 4. Move everything to "#if 0" construction.
->> 5. Move everything to "#if defined(__KDEBUG)" construction.
->
-> 6: delete the macros and uses
-Thank you, It is indeed possible option, since in last six years there
-were no attempts to "open" this code.
+On Fri, May 15, 2015 at 07:57:39AM -0700, Dave Hansen wrote:
+> On 05/15/2015 04:18 AM, Kirill A. Shutemov wrote:
+> >> > But same question about whether it should be using hpage_nr_pages() instead
+> >> > of a constant.
+> > No. Compiler woundn't be able to optimize HPAGE_PMD_NR away for THP=n,
+> > since compound value cross compilation unit barrier.
+> 
+> What code are you talking about here, specifically?  This?
+> 
+> static inline int hpage_nr_pages(struct page *page)
+> {
+>         if (unlikely(PageTransHuge(page)))
+>                 return HPAGE_PMD_NR;
+>         return 1;
+> }
 
+No. See for instance mem_cgroup_try_charge(). Vlastimil would like to
+replace hpage_nr_pages() call with plain HPAGE_PMD_NR.
 
 -- 
-Leon Romanovsky | Independent Linux Consultant
-        www.leon.nu | leon@leon.nu
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
