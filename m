@@ -1,122 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id F0B046B0032
-	for <linux-mm@kvack.org>; Fri, 15 May 2015 20:03:09 -0400 (EDT)
-Received: by wgin8 with SMTP id n8so130801090wgi.0
-        for <linux-mm@kvack.org>; Fri, 15 May 2015 17:03:09 -0700 (PDT)
-Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
-        by mx.google.com with SMTP id y2si5429118wjx.113.2015.05.15.17.03.07
-        for <linux-mm@kvack.org>;
-        Fri, 15 May 2015 17:03:08 -0700 (PDT)
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Subject: Re: [PATCH v4 1/3] PM / Hibernate: prepare for SANITIZE_FREED_PAGES
-Date: Sat, 16 May 2015 02:28:22 +0200
-Message-ID: <7216052.tCNGRiLFYJ@vostro.rjw.lan>
-In-Reply-To: <1431613188-4511-2-git-send-email-anisse@astier.eu>
-References: <1431613188-4511-1-git-send-email-anisse@astier.eu> <1431613188-4511-2-git-send-email-anisse@astier.eu>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id B8FC66B0032
+	for <linux-mm@kvack.org>; Sat, 16 May 2015 07:27:47 -0400 (EDT)
+Received: by wicnf17 with SMTP id nf17so19538272wic.1
+        for <linux-mm@kvack.org>; Sat, 16 May 2015 04:27:47 -0700 (PDT)
+Received: from lb3-smtp-cloud6.xs4all.net (lb3-smtp-cloud6.xs4all.net. [194.109.24.31])
+        by mx.google.com with ESMTPS id do5si2585044wib.50.2015.05.16.04.27.45
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 16 May 2015 04:27:46 -0700 (PDT)
+Message-ID: <1431775656.2341.10.camel@x220>
+Subject: Re: [PATCH v2 1/5] kasan, x86: move KASAN_SHADOW_OFFSET to the arch
+ Kconfig
+From: Paul Bolle <pebolle@tiscali.nl>
+Date: Sat, 16 May 2015 13:27:36 +0200
+In-Reply-To: <1431698344-28054-2-git-send-email-a.ryabinin@samsung.com>
+References: <1431698344-28054-1-git-send-email-a.ryabinin@samsung.com>
+	 <1431698344-28054-2-git-send-email-a.ryabinin@samsung.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anisse Astier <anisse@astier.eu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, Andi Kleen <andi@firstfloor.org>, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, linux-mm@kvack.org, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, David Keitel <dkeitel@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "maintainer:X86
+ ARCHITECTURE..." <x86@kernel.org>
 
-On Thursday, May 14, 2015 04:19:46 PM Anisse Astier wrote:
-> SANITIZE_FREED_PAGES feature relies on having all pages going through
-> the free_pages_prepare path in order to be cleared before being used. In
-> the hibernate use case, free pages will automagically appear in the
-> system without being cleared, left there by the loading kernel.
-> 
-> This patch will make sure free pages are cleared on resume; when we'll
-> enable SANITIZE_FREED_PAGES. We free the pages just after resume because
-> we can't do it later: going through any device resume code might
-> allocate some memory and invalidate the free pages bitmap.
-> 
-> Signed-off-by: Anisse Astier <anisse@astier.eu>
-> ---
->  kernel/power/hibernate.c |  4 +++-
->  kernel/power/power.h     |  2 ++
->  kernel/power/snapshot.c  | 22 ++++++++++++++++++++++
->  3 files changed, 27 insertions(+), 1 deletion(-)
-> 
-> diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
-> index 2329daa..0a73126 100644
-> --- a/kernel/power/hibernate.c
-> +++ b/kernel/power/hibernate.c
-> @@ -305,9 +305,11 @@ static int create_image(int platform_mode)
->  			error);
->  	/* Restore control flow magically appears here */
->  	restore_processor_state();
-> -	if (!in_suspend)
-> +	if (!in_suspend) {
->  		events_check_enabled = false;
->  
-> +		clear_free_pages();
+On Fri, 2015-05-15 at 16:59 +0300, Andrey Ryabinin wrote:
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
 
-Again, why don't you do that at the swsusp_free() time?
+> +config KASAN_SHADOW_OFFSET
+> +	hex
+> +	default 0xdffffc0000000000
 
-> +	}
->  	platform_leave(platform_mode);
->  
->   Power_up:
-> diff --git a/kernel/power/power.h b/kernel/power/power.h
-> index ce9b832..6d2d7bf 100644
-> --- a/kernel/power/power.h
-> +++ b/kernel/power/power.h
-> @@ -92,6 +92,8 @@ extern int create_basic_memory_bitmaps(void);
->  extern void free_basic_memory_bitmaps(void);
->  extern int hibernate_preallocate_memory(void);
->  
-> +extern void clear_free_pages(void);
-> +
->  /**
->   *	Auxiliary structure used for reading the snapshot image data and
->   *	metadata from and writing them to the list of page backup entries
-> diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
-> index 5235dd4..2335130 100644
-> --- a/kernel/power/snapshot.c
-> +++ b/kernel/power/snapshot.c
-> @@ -1032,6 +1032,28 @@ void free_basic_memory_bitmaps(void)
->  	pr_debug("PM: Basic memory bitmaps freed\n");
->  }
->  
-> +void clear_free_pages(void)
-> +{
-> +#ifdef CONFIG_SANITIZE_FREED_PAGES
-> +	struct memory_bitmap *bm = free_pages_map;
-> +	unsigned long pfn;
-> +
-> +	if (WARN_ON(!(free_pages_map)))
+This sets CONFIG_KASAN_SHADOW_OFFSET for _all_ X86 configurations,
+doesn't it?
 
-One paren too many.
+> --- a/lib/Kconfig.kasan
+> +++ b/lib/Kconfig.kasan
+ 
+> -config KASAN_SHADOW_OFFSET
+> -	hex
+> -	default 0xdffffc0000000000 if X86_64
 
-> +		return;
-> +
-> +	memory_bm_position_reset(bm);
-> +	pfn = memory_bm_next_pfn(bm);
-> +	while (pfn != BM_END_OF_MAP) {
-> +		if (pfn_valid(pfn))
-> +			clear_highpage(pfn_to_page(pfn));
+While here it used to depend, at least, on HAVE_ARCH_KASAN. But grepping
+the tree shows the two places where CONFIG_KASAN_SHADOW_OFFSET is
+currently used are guarded by #ifdef CONFIG_KASAN. So perhaps the
+default line should actually read
+	default 0xdffffc0000000000 if KASAN
 
-Is clear_highpage() also fine for non-highmem pages?
+after the move. Would that work?
 
-> +
-> +		pfn = memory_bm_next_pfn(bm);
-> +	}
-> +	memory_bm_position_reset(bm);
-> +	printk(KERN_INFO "PM: free pages cleared after restore\n");
-> +#endif /* SANITIZE_FREED_PAGES */
-> +}
-> +
->  /**
->   *	snapshot_additional_pages - estimate the number of additional pages
->   *	be needed for setting up the suspend image data structures for given
-> 
 
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+Paul Bolle
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
