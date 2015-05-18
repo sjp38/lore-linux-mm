@@ -1,50 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 738B06B009D
-	for <linux-mm@kvack.org>; Mon, 18 May 2015 13:42:45 -0400 (EDT)
-Received: by pacwv17 with SMTP id wv17so160791863pac.2
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 10:42:45 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id tz6si16952702pab.216.2015.05.18.10.42.44
-        for <linux-mm@kvack.org>;
-        Mon, 18 May 2015 10:42:44 -0700 (PDT)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [RFC 0/3] Mirrored memory support for boot time allocations
-Date: Mon, 18 May 2015 17:42:42 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F32A86CBC@ORSMSX114.amr.corp.intel.com>
-References: <cover.1423259664.git.tony.luck@intel.com>
- <55599BAA.20204@huawei.com>
-In-Reply-To: <55599BAA.20204@huawei.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 367626B0032
+	for <linux-mm@kvack.org>; Mon, 18 May 2015 13:50:13 -0400 (EDT)
+Received: by obbkp3 with SMTP id kp3so134184445obb.3
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 10:50:13 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id oe7si6894075obb.39.2015.05.18.10.50.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 May 2015 10:50:11 -0700 (PDT)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [PATCH 0/2] alloc_huge_page/hugetlb_reserve_pages race
+Date: Mon, 18 May 2015 10:49:07 -0700
+Message-Id: <1431971349-6668-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Xiexiuqi <xiexiuqi@huawei.com>, Linux MM <linux-mm@kvack.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-> Is it means that you will create a new zone to fill mirrored memory, like=
- the
-> movable zone, right?=20
+While working on hugetlbfs fallocate support, I noticed the following
+race in the existing code.  It is unlikely that this race is hit very
+often in the current code.  However, if more functionality to add and
+remove pages to hugetlbfs mappings (such as fallocate) is added the
+likelihood of hitting this race will increase.
 
-That's my general plan.
+alloc_huge_page and hugetlb_reserve_pages use information from the
+reserve map to determine if there are enough available huge pages to
+complete the operation, as well as adjust global reserve and subpool
+usage counts.  The order of operations is as follows:
+- call region_chg() to determine the expected change based on reserve map
+- determine if enough resources are available for this operation
+- adjust global counts based on the expected change
+- call region_add() to update the reserve map
+The issue is that reserve map could change between the call to region_chg
+and region_add.  In this case, the counters which were adjusted based on
+the output of region_chg will not be correct.
 
-> I think this will change a lot of code, why not create a new migrate type=
-?
-> such as CMA, e.g. MIGRATE_MIRROR
+In order to hit this race today, there must be an existing shared hugetlb
+mmap created with the MAP_NORESERVE flag.  A page fault to allocate a huge
+page via this mapping must occur at the same another task is mapping the
+same region without the MAP_NORESERVE flag.
 
-I'm still exploring options ... the idea is to use mirrored memory for kern=
-el allocations
-(because our machine check recovery code will always crash the system for e=
-rrors
-in kernel memory - while we can avoid the crash for errors in application m=
-emory).
-I'm not familiar with CMA ... can you explain a bit how it might let me dir=
-ect kernel
-allocations to specific areas of memory?
+The patch set does not prevent the race from happening.  Rather, it adds
+simple functionality to detect when the race has occurred.  If a race is
+detected, then the incorrect counts are adjusted.
 
--Tony
+Mike Kravetz (2):
+  mm/hugetlb: compute/return the number of regions added by region_add()
+  mm/hugetlb: handle races in alloc_huge_page and hugetlb_reserve_pages
+
+ mm/hugetlb.c | 56 ++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 48 insertions(+), 8 deletions(-)
+
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
