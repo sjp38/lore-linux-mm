@@ -1,72 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 16D8B6B0032
-	for <linux-mm@kvack.org>; Mon, 18 May 2015 14:36:21 -0400 (EDT)
-Received: by wicnf17 with SMTP id nf17so79276272wic.1
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 11:36:20 -0700 (PDT)
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com. [209.85.212.180])
-        by mx.google.com with ESMTPS id s1si14068100wiy.52.2015.05.18.11.36.19
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id D72336B0032
+	for <linux-mm@kvack.org>; Mon, 18 May 2015 14:42:12 -0400 (EDT)
+Received: by wicmc15 with SMTP id mc15so95032501wic.1
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 11:42:12 -0700 (PDT)
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com. [74.125.82.46])
+        by mx.google.com with ESMTPS id dg7si14068589wib.78.2015.05.18.11.42.10
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 May 2015 11:36:19 -0700 (PDT)
-Received: by wicmx19 with SMTP id mx19so89804353wic.0
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 11:36:19 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <28901.1431962436@warthog.procyon.org.uk>
-References: <CALq1K=KSkPB9LY__rh04ic_rv2H0rGCLNfeKoY-+U2=EF32sBg@mail.gmail.com>
- <7254.1431945085@warthog.procyon.org.uk> <CALq1K=J4iRqD5qiSr2S7m+jgr63K7=e1PmA-pX1s4MEDimsLbw@mail.gmail.com>
- <23799.1431955741@warthog.procyon.org.uk> <CALq1K=KTGd5Xdj88PmQM3H3aSpakLbUdG=usi+7g9zmN+Ms4Xw@mail.gmail.com>
- <28901.1431962436@warthog.procyon.org.uk>
+        Mon, 18 May 2015 11:42:11 -0700 (PDT)
+Received: by wguv19 with SMTP id v19so137679470wgu.1
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 11:42:10 -0700 (PDT)
 From: Leon Romanovsky <leon@leon.nu>
-Date: Mon, 18 May 2015 21:35:58 +0300
-Message-ID: <CALq1K=+DL3n1_GNCJYNBQ+n7gGhSzTzpJKxSJvRWn+pJMrvnrA@mail.gmail.com>
-Subject: Re: [RFC] Refactor kenter/kleave/kdebug macros
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH] mm: nommu: convert kenter/kleave/kdebug macros to use pr_devel()
+Date: Mon, 18 May 2015 21:42:06 +0300
+Message-Id: <1431974526-21788-1-git-send-email-leon@leon.nu>
+In-Reply-To: <n>
+References: <n>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-cachefs <linux-cachefs@redhat.com>, linux-afs <linux-afs@lists.infradead.org>
+To: dhowells@redhat.com, akpm@linux-foundation.org, aarcange@redhat.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Leon Romanovsky <leon@leon.nu>
 
-On Mon, May 18, 2015 at 6:20 PM, David Howells <dhowells@redhat.com> wrote:
-> Leon Romanovsky <leon@leon.nu> wrote:
->
->> >> Additionally, It looks like the output of these macros can be viewed by
->> >> ftrace mechanism.
->> >
->> > *blink* It can?
->> I was under strong impression that "function" and "function_graph"
->> tracers will give similar kenter/kleave information. Do I miss
->> anything important, except the difference in output format?
->>
->> >
->> >> Maybe we should delete them from mm/nommu.c as was pointed by Joe?
->> >
->> > Why?
->> If ftrace is sufficient to get the debug information, there will no
->> need to duplicate it.
->
-> It isn't sufficient.  It doesn't store the parameters or the return value, it
-> doesn't distinguish the return path in a function when there's more than one,
-> eg.:
->
->                 kleave(" = %d [val]", ret);
->
-> vs:
->
->         kleave(" = %lx", result);
->
-> in do_mmap_pgoff() and it doesn't permit you to retrieve data from where the
-> argument pointers that you don't have pointed to, eg.:
->
->         kenter("%p{%d}", region, region->vm_usage);
->
-> David
-Thanks you for explanation, I'll send the patch in near future.
+kenter/kleave/kdebug are wrapper macros to print functions flow and debug
+information. This set was written before pr_devel() was introduced, so
+it was controlled by "#if 0" construction.
 
+This patch refactors the current macros to use general pr_devel()
+functions which won't be compiled in if "#define DEBUG" is not declared
+prior to that macros.
 
+Signed-off-by: Leon Romanovsky <leon@leon.nu>
+---
+ mm/nommu.c |   18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/mm/nommu.c b/mm/nommu.c
+index e544508..7e5986b6 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -42,21 +42,15 @@
+ #include <asm/mmu_context.h>
+ #include "internal.h"
+ 
+-#if 0
+-#define kenter(FMT, ...) \
+-	printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
+-#define kleave(FMT, ...) \
+-	printk(KERN_DEBUG "<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
+-#define kdebug(FMT, ...) \
+-	printk(KERN_DEBUG "xxx" FMT"yyy\n", ##__VA_ARGS__)
+-#else
++/*
++ * Relies on "#define DEBUG" construction to print them
++ */
+ #define kenter(FMT, ...) \
+-	no_printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
++	pr_devel("==> %s("FMT")\n", __func__, ##__VA_ARGS__)
+ #define kleave(FMT, ...) \
+-	no_printk(KERN_DEBUG "<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
++	pr_devel("<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
+ #define kdebug(FMT, ...) \
+-	no_printk(KERN_DEBUG FMT"\n", ##__VA_ARGS__)
+-#endif
++	pr_devel("xxx" FMT"yyy\n", ##__VA_ARGS__)
+ 
+ void *high_memory;
+ EXPORT_SYMBOL(high_memory);
 -- 
-Leon Romanovsky | Independent Linux Consultant
-        www.leon.nu | leon@leon.nu
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
