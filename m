@@ -1,58 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 875D46B00BE
-	for <linux-mm@kvack.org>; Mon, 18 May 2015 09:52:36 -0400 (EDT)
-Received: by wicmc15 with SMTP id mc15so89703945wic.1
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 06:52:36 -0700 (PDT)
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
-        by mx.google.com with ESMTPS id ht6si12784721wib.102.2015.05.18.06.52.34
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id AA4736B00C0
+	for <linux-mm@kvack.org>; Mon, 18 May 2015 10:25:01 -0400 (EDT)
+Received: by lagv1 with SMTP id v1so222661134lag.3
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 07:25:01 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id bo7si2672005lbb.108.2015.05.18.07.24.59
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 May 2015 06:52:35 -0700 (PDT)
-Received: by wizk4 with SMTP id k4so80320436wiz.1
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 06:52:34 -0700 (PDT)
+        Mon, 18 May 2015 07:24:59 -0700 (PDT)
+Message-ID: <5559F61A.2020206@parallels.com>
+Date: Mon, 18 May 2015 17:24:26 +0300
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <23799.1431955741@warthog.procyon.org.uk>
-References: <CALq1K=KSkPB9LY__rh04ic_rv2H0rGCLNfeKoY-+U2=EF32sBg@mail.gmail.com>
- <7254.1431945085@warthog.procyon.org.uk> <CALq1K=J4iRqD5qiSr2S7m+jgr63K7=e1PmA-pX1s4MEDimsLbw@mail.gmail.com>
- <23799.1431955741@warthog.procyon.org.uk>
-From: Leon Romanovsky <leon@leon.nu>
-Date: Mon, 18 May 2015 16:52:13 +0300
-Message-ID: <CALq1K=KTGd5Xdj88PmQM3H3aSpakLbUdG=usi+7g9zmN+Ms4Xw@mail.gmail.com>
-Subject: Re: [RFC] Refactor kenter/kleave/kdebug macros
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 00/23] userfaultfd v4
+References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-cachefs <linux-cachefs@redhat.com>, linux-afs <linux-afs@lists.infradead.org>
+To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org
+Cc: Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-On Mon, May 18, 2015 at 4:29 PM, David Howells <dhowells@redhat.com> wrote:
-> Leon Romanovsky <leon@leon.nu> wrote:
->
->> Blind conversion to pr_debug will blow the code because it will be always
->> compiled in.
->
-> No, it won't.
-Sorry, you are right.
+On 05/14/2015 08:30 PM, Andrea Arcangeli wrote:
+> Hello everyone,
+> 
+> This is the latest userfaultfd patchset against mm-v4.1-rc3
+> 2015-05-14-10:04.
+> 
+> The postcopy live migration feature on the qemu side is mostly ready
+> to be merged and it entirely depends on the userfaultfd syscall to be
+> merged as well. So it'd be great if this patchset could be reviewed
+> for merging in -mm.
+> 
+> Userfaults allow to implement on demand paging from userland and more
+> generally they allow userland to more efficiently take control of the
+> behavior of page faults than what was available before
+> (PROT_NONE + SIGSEGV trap).
 
->
->> Additionally, It looks like the output of these macros can be viewed by ftrace
->> mechanism.
->
-> *blink* It can?
-I was under strong impression that "function" and "function_graph"
-tracers will give similar kenter/kleave information. Do I miss
-anything important, except the difference in output format?
+Not to spam with 23 e-mails, all patches are
 
->
->> Maybe we should delete them from mm/nommu.c as was pointed by Joe?
->
-> Why?
-If ftrace is sufficient to get the debug information, there will no
-need to duplicate it.
+Acked-by: Pavel Emelyanov <xemul@parallels.com>
 
->
-> David
+Thanks!
+
+-- Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
