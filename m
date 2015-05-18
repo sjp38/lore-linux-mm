@@ -1,51 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id AA4736B00C0
-	for <linux-mm@kvack.org>; Mon, 18 May 2015 10:25:01 -0400 (EDT)
-Received: by lagv1 with SMTP id v1so222661134lag.3
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 07:25:01 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id bo7si2672005lbb.108.2015.05.18.07.24.59
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id B33556B00C1
+	for <linux-mm@kvack.org>; Mon, 18 May 2015 10:32:26 -0400 (EDT)
+Received: by wicnf17 with SMTP id nf17so72031562wic.1
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 07:32:26 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dj8si11317677wib.80.2015.05.18.07.32.24
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 May 2015 07:24:59 -0700 (PDT)
-Message-ID: <5559F61A.2020206@parallels.com>
-Date: Mon, 18 May 2015 17:24:26 +0300
-From: Pavel Emelyanov <xemul@parallels.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 18 May 2015 07:32:25 -0700 (PDT)
+Message-ID: <5559F7F6.7060801@suse.cz>
+Date: Mon, 18 May 2015 16:32:22 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/23] userfaultfd v4
-References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCHv5 19/28] mm: store mapcount for compound page separately
+References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com> <1429823043-157133-20-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1429823043-157133-20-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org
-Cc: Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 05/14/2015 08:30 PM, Andrea Arcangeli wrote:
-> Hello everyone,
-> 
-> This is the latest userfaultfd patchset against mm-v4.1-rc3
-> 2015-05-14-10:04.
-> 
-> The postcopy live migration feature on the qemu side is mostly ready
-> to be merged and it entirely depends on the userfaultfd syscall to be
-> merged as well. So it'd be great if this patchset could be reviewed
-> for merging in -mm.
-> 
-> Userfaults allow to implement on demand paging from userland and more
-> generally they allow userland to more efficiently take control of the
-> behavior of page faults than what was available before
-> (PROT_NONE + SIGSEGV trap).
+On 04/23/2015 11:03 PM, Kirill A. Shutemov wrote:
+> We're going to allow mapping of individual 4k pages of THP compound and
+> we need a cheap way to find out how many time the compound page is
+> mapped with PMD -- compound_mapcount() does this.
+>
+> We use the same approach as with compound page destructor and compound
+> order: use space in first tail page, ->mapping this time.
+>
+> page_mapcount() counts both: PTE and PMD mappings of the page.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Tested-by: Sasha Levin <sasha.levin@oracle.com>
+> ---
+>   include/linux/mm.h       | 25 ++++++++++++--
+>   include/linux/mm_types.h |  1 +
+>   include/linux/rmap.h     |  4 +--
+>   mm/debug.c               |  5 ++-
+>   mm/huge_memory.c         |  2 +-
+>   mm/hugetlb.c             |  4 +--
+>   mm/memory.c              |  2 +-
+>   mm/migrate.c             |  2 +-
+>   mm/page_alloc.c          | 14 ++++++--
+>   mm/rmap.c                | 87 +++++++++++++++++++++++++++++++++++++-----------
+>   10 files changed, 114 insertions(+), 32 deletions(-)
+>
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index dad667d99304..33cb3aa647a6 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -393,6 +393,19 @@ static inline int is_vmalloc_or_module_addr(const void *x)
+>
+>   extern void kvfree(const void *addr);
+>
+> +static inline atomic_t *compound_mapcount_ptr(struct page *page)
+> +{
+> +	return &page[1].compound_mapcount;
+> +}
+> +
+> +static inline int compound_mapcount(struct page *page)
+> +{
+> +	if (!PageCompound(page))
+> +		return 0;
+> +	page = compound_head(page);
+> +	return atomic_read(compound_mapcount_ptr(page)) + 1;
+> +}
+> +
+>   /*
+>    * The atomic page->_mapcount, starts from -1: so that transitions
+>    * both from it and to it can be tracked, using atomic_inc_and_test
 
-Not to spam with 23 e-mails, all patches are
+What's not shown here is the implementation of page_mapcount_reset() 
+that's unchanged... is that correct from all callers?
 
-Acked-by: Pavel Emelyanov <xemul@parallels.com>
+> @@ -405,8 +418,16 @@ static inline void page_mapcount_reset(struct page *page)
+>
+>   static inline int page_mapcount(struct page *page)
+>   {
+> +	int ret;
+>   	VM_BUG_ON_PAGE(PageSlab(page), page);
+> -	return atomic_read(&page->_mapcount) + 1;
+> +	ret = atomic_read(&page->_mapcount) + 1;
+> +	/*
+> +	 * Positive compound_mapcount() offsets ->_mapcount in every page by
+> +	 * one. Let's substract it here.
+> +	 */
 
-Thanks!
+This could use some more detailed explanation, or at least pointers to 
+the relevant rmap functions. Also in commit message.
 
--- Pavel
+> +	if (compound_mapcount(page))
+> +	       ret += compound_mapcount(page) - 1;
+
+This looks like it could uselessly duplicate-inline the code for 
+compound_mapcount(). It has atomics and smp_rmb() so I'm not sure if the 
+compiler can just "squash it".
+
+On the other hand, a simple atomic read that was page_mapcount() has 
+turned into multiple atomic reads and flag checks. What about the 
+stability of the whole result? Are all callers ok? (maybe a later page 
+deals with it).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
