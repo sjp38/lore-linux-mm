@@ -1,38 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 84AD96B00B2
-	for <linux-mm@kvack.org>; Mon, 18 May 2015 09:04:23 -0400 (EDT)
-Received: by laat2 with SMTP id t2so218467929laa.1
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 06:04:23 -0700 (PDT)
-Received: from mail-la0-f50.google.com (mail-la0-f50.google.com. [209.85.215.50])
-        by mx.google.com with ESMTPS id qh5si6671108lbb.28.2015.05.18.06.04.21
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 6608E6B00B4
+	for <linux-mm@kvack.org>; Mon, 18 May 2015 09:04:46 -0400 (EDT)
+Received: by padbw4 with SMTP id bw4so151561492pad.0
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 06:04:46 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id sa6si15903537pbb.125.2015.05.18.06.04.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 May 2015 06:04:22 -0700 (PDT)
-Received: by labbd9 with SMTP id bd9so219045809lab.2
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 06:04:21 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150518130213.GA771@amd>
-References: <1431613188-4511-1-git-send-email-anisse@astier.eu>
- <1431613188-4511-3-git-send-email-anisse@astier.eu> <20150518112152.GA16999@amd>
- <CALUN=qLHfz5DnSKfaRf833eewOM65FNtxybY9Xw9sp1=qq+Zqw@mail.gmail.com> <20150518130213.GA771@amd>
-From: Anisse Astier <anisse@astier.eu>
-Date: Mon, 18 May 2015 15:04:00 +0200
-Message-ID: <CALUN=q+VyQgQ+F1HudumDSjFk1PFyEXdwxPNrM_VqKjDKHTfbw@mail.gmail.com>
-Subject: Re: [PATCH v4 2/3] mm/page_alloc.c: add config option to sanitize
- freed pages
-Content-Type: text/plain; charset=UTF-8
+        Mon, 18 May 2015 06:04:44 -0700 (PDT)
+Message-ID: <1431954250.3322.0.camel@twins>
+Subject: Re: [PATCH v1 00/15] decouple pagefault_disable() from
+ preempt_disable()
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Mon, 18 May 2015 15:04:10 +0200
+In-Reply-To: <20150518144624.3fb3fa46@thinkpad-w530>
+References: <1431359540-32227-1-git-send-email-dahi@linux.vnet.ibm.com>
+	 <alpine.DEB.2.11.1505151620390.4225@nanos>
+	 <20150518144624.3fb3fa46@thinkpad-w530>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, Andi Kleen <andi@firstfloor.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: David Hildenbrand <dahi@linux.vnet.ibm.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, mingo@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, yang.shi@windriver.com, bigeasy@linutronix.de, benh@kernel.crashing.org, paulus@samba.org, heiko.carstens@de.ibm.com, schwidefsky@de.ibm.com, borntraeger@de.ibm.com, mst@redhat.com, David.Laight@ACULAB.COM, hughd@google.com, hocko@suse.cz, ralf@linux-mips.org, herbert@gondor.apana.org.au, linux@arm.linux.org.uk, airlied@linux.ie, daniel.vetter@intel.com, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-On Mon, May 18, 2015 at 3:02 PM, Pavel Machek <pavel@ucw.cz> wrote:
->
-> Ok. So there is class of errors where this helps, but you are not
-> aware of any such errors in kernel, so you can't fix them... Right?
+On Mon, 2015-05-18 at 14:46 +0200, David Hildenbrand wrote:
+> > Thanks for picking that up (again)!
+> >=20
+> > We've pulled the lot into RT and unsurprisingly it works like a charm :=
+)
+> >=20
+> > Works on !RT as well.=20
+> >=20
+> > Reviewed-and-tested-by: Thomas Gleixner <tglx@linutronix.de>
+> >=20
+>=20
+> Thanks a lot Thomas!
+>=20
+> @Ingo, @Andrew, nothing changed during the review of this version and Tho=
+mas
+> gave it a review + test.
+>=20
+> Any of you willing to pick this up to give it a shot? Or should I resend =
+it with
+> Thomas' tags added.
 
-Correct.
+I've got it queued.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
