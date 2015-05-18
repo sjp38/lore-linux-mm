@@ -1,120 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D3616B0082
-	for <linux-mm@kvack.org>; Mon, 18 May 2015 03:32:32 -0400 (EDT)
-Received: by laat2 with SMTP id t2so205859632laa.1
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 00:32:31 -0700 (PDT)
-Received: from mail-la0-x22b.google.com (mail-la0-x22b.google.com. [2a00:1450:4010:c03::22b])
-        by mx.google.com with ESMTPS id yj8si6144281lab.53.2015.05.18.00.32.29
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C77446B0085
+	for <linux-mm@kvack.org>; Mon, 18 May 2015 03:43:36 -0400 (EDT)
+Received: by pacwv17 with SMTP id wv17so140961682pac.2
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 00:43:36 -0700 (PDT)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id hx10si14734514pbc.131.2015.05.18.00.43.35
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 May 2015 00:32:30 -0700 (PDT)
-Received: by labbd9 with SMTP id bd9so206372633lab.2
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 00:32:29 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CACgMoiKzcDFTd7_howiH1KK2L-ky2S4x99-FTGS9pgO9Bqi0xg@mail.gmail.com>
-References: <CACgMoiK61mKYFpfhhK51uvkvFHK3k+Dz4peMnbeW7-npDu4XBQ@mail.gmail.com>
-	<20150514093304.GS2462@suse.de>
-	<CACgMoiKzcDFTd7_howiH1KK2L-ky2S4x99-FTGS9pgO9Bqi0xg@mail.gmail.com>
-Date: Mon, 18 May 2015 00:32:29 -0700
-Message-ID: <CACgMoiKOQQXfnYK_QVLMQxy9R6rJtbHPNN+w4KrnoKYRiQDPEg@mail.gmail.com>
-Subject: Re: mm: BUG_ON with NUMA_BALANCING (kernel BUG at include/linux/swapops.h:131!)
-From: Haren Myneni <hmyneni@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 18 May 2015 00:43:35 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0NOJ007AKC4J4S60@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 18 May 2015 08:43:31 +0100 (BST)
+Message-id: <55599821.40409@samsung.com>
+Date: Mon, 18 May 2015 10:43:29 +0300
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH v2 1/5] kasan, x86: move KASAN_SHADOW_OFFSET to the arch
+ Kconfig
+References: <1431698344-28054-1-git-send-email-a.ryabinin@samsung.com>
+ <1431698344-28054-2-git-send-email-a.ryabinin@samsung.com>
+ <1431775656.2341.10.camel@x220>
+In-reply-to: <1431775656.2341.10.camel@x220>
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Haren Myneni <hbabu@us.ibm.com>, aneesh.kumar@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com
+To: Paul Bolle <pebolle@tiscali.nl>
+Cc: linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, David Keitel <dkeitel@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "maintainer:X86 ARCHITECTURE..." <x86@kernel.org>
 
-Mel,
-    I am hitting this issue with 4.0 kernel and even with 3.19 and
-3.17 kernels. I will also try with previous versions. Please let me
-know any suggestions on the debugging.
+On 05/16/2015 02:27 PM, Paul Bolle wrote:
+> On Fri, 2015-05-15 at 16:59 +0300, Andrey Ryabinin wrote:
+>> --- a/arch/x86/Kconfig
+>> +++ b/arch/x86/Kconfig
+> 
+>> +config KASAN_SHADOW_OFFSET
+>> +	hex
+>> +	default 0xdffffc0000000000
+> 
+> This sets CONFIG_KASAN_SHADOW_OFFSET for _all_ X86 configurations,
+> doesn't it?
+> 
 
-Thanks
-Haren
+Right.
 
-On 5/14/15, Haren Myneni <hmyneni@gmail.com> wrote:
-> On 5/14/15, Mel Gorman <mgorman@suse.de> wrote:
->> On Wed, May 13, 2015 at 01:17:54AM -0700, Haren Myneni wrote:
->>> Hi,
->>>
->>>  I am getting BUG_ON in migration_entry_to_page() with 4.1.0-rc2
->>> kernel on powerpc system which has 512 CPUs (64 cores - 16 nodes) and
->>> 1.6 TB memory. We can easily recreate this issue with kernel compile
->>> (make -j500). But I could not reproduce with numa_balancing=disable.
->>>
->>
->> Is this patched in any way? I ask because line 134 on 4.1.0-rc2 does not
->> match up with a BUG_ON. It's close to a PageLocked check but I want to
->> be sure there are no other modifications.
->
-> Mel, Thanks for your help. I added some printks and dump_page() to get
-> the page struct and swp_entry information.
->
->>
->> Otherwise, when was the last time this worked? Was 4.0 ok? As it can be
->> easily reproduced, can the problem be bisected please?
->
-> I did not try previous versions other than RHEL kernel (3.10.*). I
-> will try with previous versions.
->
-> In the failure case, also noticed pte and address values are matched
-> in try_to_unmap_one() and remove_migration_pte(), but entry
-> (swp_entry_t) value is different. So looks like page strut address in
-> migration_entry_to_page() is not valid.
->
-> try_to_unmap_one()
-> {
->
-> ...
->         } else if (IS_ENABLED(CONFIG_MIGRATION)) {
->                         /*
->                          * Store the pfn of the page in a special migration
->                          * pte. do_swap_page() will wait until the
-> migration
->                          * pte is removed and then restart fault handling.
->                          */
->                         BUG_ON(!(flags & TTU_MIGRATION));
->                         entry = make_migration_entry(page,
-> pte_write(pteval));
->                 }
->                 swp_pte = swp_entry_to_pte(entry);
->                 if (pte_soft_dirty(pteval))
->                         swp_pte = pte_swp_mksoft_dirty(swp_pte);
->                 set_pte_at(mm, address, pte, swp_pte);
->
->                 /*pte=0xb16b8d0f80000000 address=0x100008150000
->                 page=0xf000000513f3e1e0  entry=0x3e0000000ec5ae34 */
-> ...
-> }
->
->  remove_migration_pte()
-> {
-> ...
->         /* address=0x100008150000 pte=0xb16b8d0f80000000
->         *old=0xf000000513f3e1e0 */
->         if (!is_migration_entry(entry) ||
->         migration_entry_to_page(entry) != old)
->         goto unlock;
-> ...
-> }
->
->  migration_entry_to_page()  {
->         pte=0xb16b8d0f80000000  entry=0x3e00000002c5ae34
->         page=0xf0000000f3f3e1e0
-> }
->
->
-> Thanks
-> Haren
->
->>
->> --
->> Mel Gorman
->> SUSE Labs
->>
->
+>> --- a/lib/Kconfig.kasan
+>> +++ b/lib/Kconfig.kasan
+>  
+>> -config KASAN_SHADOW_OFFSET
+>> -	hex
+>> -	default 0xdffffc0000000000 if X86_64
+> 
+> While here it used to depend, at least, on HAVE_ARCH_KASAN. But grepping
+> the tree shows the two places where CONFIG_KASAN_SHADOW_OFFSET is
+> currently used are guarded by #ifdef CONFIG_KASAN. So perhaps the
+> default line should actually read
+> 	default 0xdffffc0000000000 if KASAN
+> 
+> after the move. Would that work?
+> 
+
+Yes, but I would rather add "depends on KASAN".
+
+> 
+> Paul Bolle
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
