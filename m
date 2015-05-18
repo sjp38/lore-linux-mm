@@ -1,113 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8776E6B009E
-	for <linux-mm@kvack.org>; Mon, 18 May 2015 06:23:22 -0400 (EDT)
-Received: by wgfl8 with SMTP id l8so30440812wgf.2
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 03:23:21 -0700 (PDT)
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com. [209.85.212.176])
-        by mx.google.com with ESMTPS id l9si11925337wia.121.2015.05.18.03.23.21
+Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AFF26B00A0
+	for <linux-mm@kvack.org>; Mon, 18 May 2015 06:31:36 -0400 (EDT)
+Received: by qcvo8 with SMTP id o8so86908375qcv.0
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 03:31:36 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f136si6355335qka.63.2015.05.18.03.31.34
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 May 2015 03:23:21 -0700 (PDT)
-Received: by wibt6 with SMTP id t6so63927963wib.0
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 03:23:20 -0700 (PDT)
+        Mon, 18 May 2015 03:31:36 -0700 (PDT)
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <CALq1K=KSkPB9LY__rh04ic_rv2H0rGCLNfeKoY-+U2=EF32sBg@mail.gmail.com>
+References: <CALq1K=KSkPB9LY__rh04ic_rv2H0rGCLNfeKoY-+U2=EF32sBg@mail.gmail.com>
+Subject: Re: [RFC] Refactor kenter/kleave/kdebug macros
 MIME-Version: 1.0
-In-Reply-To: <7216052.tCNGRiLFYJ@vostro.rjw.lan>
-References: <1431613188-4511-1-git-send-email-anisse@astier.eu>
- <1431613188-4511-2-git-send-email-anisse@astier.eu> <7216052.tCNGRiLFYJ@vostro.rjw.lan>
-From: Anisse Astier <anisse@astier.eu>
-Date: Mon, 18 May 2015 12:23:00 +0200
-Message-ID: <CALUN=qLrXryb-aZTjXqoUhzjz68fvOae1bDxitYcJ3jBn_1EDg@mail.gmail.com>
-Subject: Re: [PATCH v4 1/3] PM / Hibernate: prepare for SANITIZE_FREED_PAGES
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <7253.1431945085.1@warthog.procyon.org.uk>
+Date: Mon, 18 May 2015 11:31:25 +0100
+Message-ID: <7254.1431945085@warthog.procyon.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, Andi Kleen <andi@firstfloor.org>, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Leon Romanovsky <leon@leon.nu>
+Cc: dhowells@redhat.com, Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-cachefs@redhat.com, linux-afs@lists.infradead.org
 
-Hi Rafael,
+Leon Romanovsky <leon@leon.nu> wrote:
 
-Thanks for taking the time to review this.
+> During my work on NOMMU system (mm/nommu.c), I saw definition and
+> usage of kenter/kleave/kdebug macros. These macros are compiled as
+> empty because of "#if 0" construction.
 
-On Sat, May 16, 2015 at 2:28 AM, Rafael J. Wysocki <rjw@rjwysocki.net> wrote:
-> On Thursday, May 14, 2015 04:19:46 PM Anisse Astier wrote:
->> SANITIZE_FREED_PAGES feature relies on having all pages going through
->> the free_pages_prepare path in order to be cleared before being used. In
->> the hibernate use case, free pages will automagically appear in the
->> system without being cleared, left there by the loading kernel.
->>
->> This patch will make sure free pages are cleared on resume; when we'll
->> enable SANITIZE_FREED_PAGES. We free the pages just after resume because
->> we can't do it later: going through any device resume code might
->> allocate some memory and invalidate the free pages bitmap.
->>
->> Signed-off-by: Anisse Astier <anisse@astier.eu>
->> ---
->>  kernel/power/hibernate.c |  4 +++-
->>  kernel/power/power.h     |  2 ++
->>  kernel/power/snapshot.c  | 22 ++++++++++++++++++++++
->>  3 files changed, 27 insertions(+), 1 deletion(-)
->>
->> diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
->> index 2329daa..0a73126 100644
->> --- a/kernel/power/hibernate.c
->> +++ b/kernel/power/hibernate.c
->> @@ -305,9 +305,11 @@ static int create_image(int platform_mode)
->>                       error);
->>       /* Restore control flow magically appears here */
->>       restore_processor_state();
->> -     if (!in_suspend)
->> +     if (!in_suspend) {
->>               events_check_enabled = false;
->>
->> +             clear_free_pages();
->
-> Again, why don't you do that at the swsusp_free() time?
+Because you only need them if you're debugging.  They shouldn't, generally, be
+turned on upstream.
 
-Because it's too late, the kernel has already been through device
-resume code, and the free pages bitmap isn't valid anymore; device
-resume code might allocate memory, and we'd be clearing those pages as
-well.
+> This code was changed in 2009 [1] and similar definitions can be found
+> in 9 other files [2]. The protection of these definitions is slightly
+> different. There are places with "#if 0" protection and others with
+> "#if defined(__KDEBUG)" protection. __KDEBUG is supposed to be
+> inserted by GCC.
 
+I can turn on all the macros in a file just be #defining __KDEBUG at the top.
+When I first did this, pr_xxx() didn't exist.
 
->> diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
->> index 5235dd4..2335130 100644
->> --- a/kernel/power/snapshot.c
->> +++ b/kernel/power/snapshot.c
->> @@ -1032,6 +1032,28 @@ void free_basic_memory_bitmaps(void)
->>       pr_debug("PM: Basic memory bitmaps freed\n");
->>  }
->>
->> +void clear_free_pages(void)
->> +{
->> +#ifdef CONFIG_SANITIZE_FREED_PAGES
->> +     struct memory_bitmap *bm = free_pages_map;
->> +     unsigned long pfn;
->> +
->> +     if (WARN_ON(!(free_pages_map)))
->
-> One paren too many.
+Note that the macros in afs, cachefiles, fscache and rxrpc are more complex
+than a grep tells you.  There are _enter(), _leave() and _debug() macros which
+are conditional via a module parameter.  These are trivially individually
+enableable during debugging by changing the initial underscore to a 'k'.  They
+are otherwise enableable by module parameter (macros are individually
+selectable) or enableably by file __KDEBUG.  These are well used.  Note that
+just turning them all into pr_devel() would represent a loss of useful
+function.
 
-Thanks, will be fixed.
+The ones in the keys directory are also very well used, though they aren't
+externally selectable.  I've added functionality to the debugging, but haven't
+necessarily needed to backport it to earlier variants.
 
->
->> +             return;
->> +
->> +     memory_bm_position_reset(bm);
->> +     pfn = memory_bm_next_pfn(bm);
->> +     while (pfn != BM_END_OF_MAP) {
->> +             if (pfn_valid(pfn))
->> +                     clear_highpage(pfn_to_page(pfn));
->
-> Is clear_highpage() also fine for non-highmem pages?
->
+For the mn10300 macros, I would just recommend leaving them as is.
 
-Yes, it works fine for low memory too because kmap_atomic will just
-return the page address if it's already mapped.
+For the nommu macros, you could convert them to pr_devel() - but putting all
+the information in the kenter/kleave/kdebug macro into each pr_devel macro
+would be more intrusive in the code since you'd have to move the stuff out of
+there macro definition into each caller.  You could also reexpress the macros
+in terms of pr_devel and get rid of the conditional.  OTOH, there's not that
+much in the nommu code, so you could probably slim down a lot of what's
+printed.
 
-Regards,
+For the cred macro, just convert to pr_devel() or pr_debug() and make pr_fmt
+insert current->comm and current->pid.
 
-Anisse
+> 2. Move it to general include file (for example linux/printk.h) and
+> commonize the output to be consistent between different kdebug users.
+
+I would quite like to see kenter() and kleave() be moved to printk.h,
+expressed in a similar way to pr_devel() or pr_debug() (and perhaps renamed
+pr_enter() and pr_leave()) but separately so they can be enabled separately.
+OTOH, possibly they should be enableable by compilation block rather than by
+macro set.
+
+The main thing I like out of the ones in afs, cachefiles, fscache and rxrpc is
+the ability to just turn on a few across a bunch of files so as not to get
+overwhelmed by data.
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
