@@ -1,87 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 69E476B0032
-	for <linux-mm@kvack.org>; Mon, 18 May 2015 14:45:40 -0400 (EDT)
-Received: by wgbgq6 with SMTP id gq6so24542921wgb.3
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 11:45:39 -0700 (PDT)
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com. [209.85.212.169])
-        by mx.google.com with ESMTPS id 2si19171384wjq.85.2015.05.18.11.45.38
+Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 961516B0032
+	for <linux-mm@kvack.org>; Mon, 18 May 2015 15:50:00 -0400 (EDT)
+Received: by qcbgu10 with SMTP id gu10so94453359qcb.2
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 12:50:00 -0700 (PDT)
+Received: from mail-qk0-x233.google.com (mail-qk0-x233.google.com. [2607:f8b0:400d:c09::233])
+        by mx.google.com with ESMTPS id x8si8810117qkx.126.2015.05.18.12.49.59
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 May 2015 11:45:38 -0700 (PDT)
-Received: by wizk4 with SMTP id k4so90173486wiz.1
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 11:45:38 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1431974526-21788-1-git-send-email-leon@leon.nu>
-References: <1431974526-21788-1-git-send-email-leon@leon.nu>
-From: Leon Romanovsky <leon@leon.nu>
-Date: Mon, 18 May 2015 21:45:15 +0300
-Message-ID: <CALq1K=LMtN-sqyD9WWCMJSCakAgw+bTG=cs=fSa8b9NYfWukLQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: nommu: convert kenter/kleave/kdebug macros to use pr_devel()
-Content-Type: text/plain; charset=UTF-8
+        Mon, 18 May 2015 12:49:59 -0700 (PDT)
+Received: by qkgx75 with SMTP id x75so116735757qkg.1
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 12:49:59 -0700 (PDT)
+From: Tejun Heo <tj@kernel.org>
+Subject: [PATCHSET cgroup/for-4.2] cgroup: make multi-process migration atomic
+Date: Mon, 18 May 2015 15:49:48 -0400
+Message-Id: <1431978595-12176-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dhowells <dhowells@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, aarcange <aarcange@redhat.com>
-Cc: Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Leon Romanovsky <leon@leon.nu>
+To: lizefan@huawei.com
+Cc: cgroups@vger.kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-mm@kvack.org
 
-Sorry for this multiple resend, my mail client hid from me part of
-subject line :(
+Hello,
 
-On Mon, May 18, 2015 at 9:42 PM, Leon Romanovsky <leon@leon.nu> wrote:
-> kenter/kleave/kdebug are wrapper macros to print functions flow and debug
-> information. This set was written before pr_devel() was introduced, so
-> it was controlled by "#if 0" construction.
->
-> This patch refactors the current macros to use general pr_devel()
-> functions which won't be compiled in if "#define DEBUG" is not declared
-> prior to that macros.
->
-> Signed-off-by: Leon Romanovsky <leon@leon.nu>
-> ---
->  mm/nommu.c |   18 ++++++------------
->  1 file changed, 6 insertions(+), 12 deletions(-)
->
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index e544508..7e5986b6 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -42,21 +42,15 @@
->  #include <asm/mmu_context.h>
->  #include "internal.h"
->
-> -#if 0
-> -#define kenter(FMT, ...) \
-> -       printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
-> -#define kleave(FMT, ...) \
-> -       printk(KERN_DEBUG "<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
-> -#define kdebug(FMT, ...) \
-> -       printk(KERN_DEBUG "xxx" FMT"yyy\n", ##__VA_ARGS__)
-> -#else
-> +/*
-> + * Relies on "#define DEBUG" construction to print them
-> + */
->  #define kenter(FMT, ...) \
-> -       no_printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
-> +       pr_devel("==> %s("FMT")\n", __func__, ##__VA_ARGS__)
->  #define kleave(FMT, ...) \
-> -       no_printk(KERN_DEBUG "<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
-> +       pr_devel("<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
->  #define kdebug(FMT, ...) \
-> -       no_printk(KERN_DEBUG FMT"\n", ##__VA_ARGS__)
-> -#endif
-> +       pr_devel("xxx" FMT"yyy\n", ##__VA_ARGS__)
->
->  void *high_memory;
->  EXPORT_SYMBOL(high_memory);
-> --
-> 1.7.9.5
->
+When a controller is enabled or disabled on the unified hierarchy, the
+effective css changes for all processes in the sub-hierarchy which
+virtually is multi-process migration.  This is implemented in
+cgroup_update_dfl_csses() as process-by-process migration - all the
+target source css_sets are first chained to the target list and
+processes are drained from them one-by-one.
 
+If a process gets rejected by a controller after some are successfully
+migrated, the recovery action is tricky.  The changes which have
+happened upto this point have to be rolled back but there's nothing
+guaranteeing such rollback would be successful either.
 
+The unified hierarchy didn't need to deal with this issue because
+organizational operations were expected to always succeed;
+unfortunately, it turned out that such policy doesn't work too well
+for certain type of resources and unified hierarchy would need to
+allow migration failures for some restrictied cases.
 
--- 
-Leon Romanovsky | Independent Linux Consultant
-        www.leon.nu | leon@leon.nu
+This patch updates multi-process migration in
+cgroup_update_dfl_csses() atomic so that ->can_attach() can fail the
+whole transaction.  It's consisted of the following seven patches.
+
+ 0001-cpuset-migrate-memory-only-for-threadgroup-leaders.patch
+ 0002-memcg-restructure-mem_cgroup_can_attach.patch
+ 0003-memcg-immigrate-charges-only-when-a-threadgroup-lead.patch
+ 0004-cgroup-memcg-cpuset-implement-cgroup_taskset_for_eac.patch
+ 0005-reorder-cgroup_migrate-s-parameters.patch
+ 0006-cgroup-separate-out-taskset-operations-from-cgroup_m.patch
+ 0007-cgroup-make-cgroup_update_dfl_csses-migrate-all-targ.patch
+
+0001-0004 prepare cpuset and memcg.  Note that 0001 and 0003 do cause
+behavioral changes in that mm is now always tied to the threadgroup
+leader.  Avoiding this change isn't too difficult but both the code
+and behavior are saner this way and I don't think the change is likely
+to cause breakage.
+
+0005-0007 prepare and implement atomic multi-process migration.
+
+This patchset is on top of the following patches.
+
+ cgroup/for-4.2 d0f702e648dc ("cgroup: fix some comment typos")
+ + [1] [PATCH] cgroup: separate out include/linux/cgroup-defs.h
+ + [2] [PATCH] cgroup: reorganize include/linux/cgroup.h
+ + [3] [PATCHSET] cgroup, sched: restructure threadgroup locking and replace it with a percpu_rwsem
+
+and available in the following git branch.
+
+ git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git review-multi-process-migration
+
+diffstat follows.  Thanks.
+
+ include/linux/cgroup.h |   22 +++
+ kernel/cgroup.c        |  278 ++++++++++++++++++++++++-------------------------
+ kernel/cpuset.c        |   41 +++----
+ mm/memcontrol.c        |   74 +++++++------
+ 4 files changed, 228 insertions(+), 187 deletions(-)
+
+--
+tejun
+
+[1] http://lkml.kernel.org/g/20150513193840.GC11388@htj.duckdns.org
+[2] http://lkml.kernel.org/g/20150513202416.GE11388@htj.duckdns.org
+[3] http://lkml.kernel.org/g/1431549318-16756-1-git-send-email-tj@kernel.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
