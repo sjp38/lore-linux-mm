@@ -1,57 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DD466B00AA
-	for <linux-mm@kvack.org>; Mon, 18 May 2015 08:41:43 -0400 (EDT)
-Received: by laat2 with SMTP id t2so217427641laa.1
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 05:41:42 -0700 (PDT)
-Received: from mail-la0-f51.google.com (mail-la0-f51.google.com. [209.85.215.51])
-        by mx.google.com with ESMTPS id p5si6611966laj.137.2015.05.18.05.41.40
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 999C76B00AC
+	for <linux-mm@kvack.org>; Mon, 18 May 2015 08:46:35 -0400 (EDT)
+Received: by wicmx19 with SMTP id mx19so77707640wic.0
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 05:46:35 -0700 (PDT)
+Received: from e06smtp16.uk.ibm.com (e06smtp16.uk.ibm.com. [195.75.94.112])
+        by mx.google.com with ESMTPS id wn9si17608549wjb.52.2015.05.18.05.46.33
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 May 2015 05:41:41 -0700 (PDT)
-Received: by lagr1 with SMTP id r1so136147226lag.0
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 05:41:40 -0700 (PDT)
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Mon, 18 May 2015 05:46:34 -0700 (PDT)
+Received: from /spool/local
+	by e06smtp16.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dahi@linux.vnet.ibm.com>;
+	Mon, 18 May 2015 13:46:33 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id D8DEA1B0805F
+	for <linux-mm@kvack.org>; Mon, 18 May 2015 13:47:18 +0100 (BST)
+Received: from d06av12.portsmouth.uk.ibm.com (d06av12.portsmouth.uk.ibm.com [9.149.37.247])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t4ICkU1411862406
+	for <linux-mm@kvack.org>; Mon, 18 May 2015 12:46:30 GMT
+Received: from d06av12.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av12.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t4ICkR5w014689
+	for <linux-mm@kvack.org>; Mon, 18 May 2015 06:46:30 -0600
+Date: Mon, 18 May 2015 14:46:24 +0200
+From: David Hildenbrand <dahi@linux.vnet.ibm.com>
+Subject: Re: [PATCH v1 00/15] decouple pagefault_disable() from
+ preempt_disable()
+Message-ID: <20150518144624.3fb3fa46@thinkpad-w530>
+In-Reply-To: <alpine.DEB.2.11.1505151620390.4225@nanos>
+References: <1431359540-32227-1-git-send-email-dahi@linux.vnet.ibm.com>
+	<alpine.DEB.2.11.1505151620390.4225@nanos>
 MIME-Version: 1.0
-In-Reply-To: <20150518112152.GA16999@amd>
-References: <1431613188-4511-1-git-send-email-anisse@astier.eu>
- <1431613188-4511-3-git-send-email-anisse@astier.eu> <20150518112152.GA16999@amd>
-From: Anisse Astier <anisse@astier.eu>
-Date: Mon, 18 May 2015 14:41:19 +0200
-Message-ID: <CALUN=qLHfz5DnSKfaRf833eewOM65FNtxybY9Xw9sp1=qq+Zqw@mail.gmail.com>
-Subject: Re: [PATCH v4 2/3] mm/page_alloc.c: add config option to sanitize
- freed pages
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, Andi Kleen <andi@firstfloor.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Thomas Gleixner <tglx@linutronix.de>, mingo@redhat.com, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, yang.shi@windriver.com, bigeasy@linutronix.de, benh@kernel.crashing.org, paulus@samba.org, heiko.carstens@de.ibm.com, schwidefsky@de.ibm.com, borntraeger@de.ibm.com, mst@redhat.com, David.Laight@ACULAB.COM, hughd@google.com, hocko@suse.cz, ralf@linux-mips.org, herbert@gondor.apana.org.au, linux@arm.linux.org.uk, airlied@linux.ie, daniel.vetter@intel.com, linux-mm@kvack.org, linux-arch@vger.kernel.org, peterz@infradead.org
 
-On Mon, May 18, 2015 at 1:21 PM, Pavel Machek <pavel@ucw.cz> wrote:
-> On Thu 2015-05-14 16:19:47, Anisse Astier wrote:
->> This new config option will sanitize all freed pages. This is a pretty
->> low-level change useful to track some cases of use-after-free, help
->> kernel same-page merging in VM environments, and counter a few info
->> leaks.
->
-> Could you document the "few info leaks"? We may want to fix them for
-> !SANTIZE_FREED_PAGES case, too...
->
+> Thanks for picking that up (again)!
+> 
+> We've pulled the lot into RT and unsurprisingly it works like a charm :)
+> 
+> Works on !RT as well. 
+> 
+> Reviewed-and-tested-by: Thomas Gleixner <tglx@linutronix.de>
+> 
 
-I wish I could; I'd be sending patches for those info leaks, too.
+Thanks a lot Thomas!
 
-What I meant is that this feature can also be used as a general
-protection mechanism against a certain class of info leaks; for
-example, some drivers allocating pages that were previously used by
-other subsystems, and then sending structures to userspace that
-contain padding or uninitialized fields, leaking kernel pointers.
-Having all pages cleared unconditionally can help a bit in some cases
-(hence "a few"), but it's of course not an end-all solution.
+@Ingo, @Andrew, nothing changed during the review of this version and Thomas
+gave it a review + test.
 
-I'll edit the commit and kconfig messages to be more precise.
+Any of you willing to pick this up to give it a shot? Or should I resend it with
+Thomas' tags added.
 
-Regards,
+Thanks!
 
-Anisse
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
