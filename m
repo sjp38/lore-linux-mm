@@ -1,61 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 289456B00C6
-	for <linux-mm@kvack.org>; Mon, 18 May 2015 11:20:49 -0400 (EDT)
-Received: by qkgw4 with SMTP id w4so71174292qkg.3
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 08:20:49 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d7si8514425qka.121.2015.05.18.08.20.47
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C90B6B00C8
+	for <linux-mm@kvack.org>; Mon, 18 May 2015 11:35:20 -0400 (EDT)
+Received: by wicnf17 with SMTP id nf17so74267536wic.1
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 08:35:20 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fa5si16151213wjc.199.2015.05.18.08.35.18
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 May 2015 08:20:48 -0700 (PDT)
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <CALq1K=KTGd5Xdj88PmQM3H3aSpakLbUdG=usi+7g9zmN+Ms4Xw@mail.gmail.com>
-References: <CALq1K=KTGd5Xdj88PmQM3H3aSpakLbUdG=usi+7g9zmN+Ms4Xw@mail.gmail.com> <CALq1K=KSkPB9LY__rh04ic_rv2H0rGCLNfeKoY-+U2=EF32sBg@mail.gmail.com> <7254.1431945085@warthog.procyon.org.uk> <CALq1K=J4iRqD5qiSr2S7m+jgr63K7=e1PmA-pX1s4MEDimsLbw@mail.gmail.com> <23799.1431955741@warthog.procyon.org.uk>
-Subject: Re: [RFC] Refactor kenter/kleave/kdebug macros
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 18 May 2015 08:35:19 -0700 (PDT)
+Message-ID: <555A06B4.2000706@suse.cz>
+Date: Mon, 18 May 2015 17:35:16 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <28900.1431962436.1@warthog.procyon.org.uk>
-Date: Mon, 18 May 2015 16:20:36 +0100
-Message-ID: <28901.1431962436@warthog.procyon.org.uk>
+Subject: Re: [PATCHv5 20/28] mm: differentiate page_mapped() from page_mapcount()
+ for compound pages
+References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com> <1429823043-157133-21-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1429823043-157133-21-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Leon Romanovsky <leon@leon.nu>
-Cc: dhowells@redhat.com, Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-cachefs <linux-cachefs@redhat.com>, linux-afs <linux-afs@lists.infradead.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Leon Romanovsky <leon@leon.nu> wrote:
+On 04/23/2015 11:03 PM, Kirill A. Shutemov wrote:
+> Let's define page_mapped() to be true for compound pages if any
+> sub-pages of the compound page is mapped (with PMD or PTE).
+>
+> On other hand page_mapcount() return mapcount for this particular small
+> page.
+>
+> This will make cases like page_get_anon_vma() behave correctly once we
+> allow huge pages to be mapped with PTE.
+>
+> Most users outside core-mm should use page_mapcount() instead of
+> page_mapped().
 
-> >> Additionally, It looks like the output of these macros can be viewed by
-> >> ftrace mechanism.
-> >
-> > *blink* It can?
-> I was under strong impression that "function" and "function_graph"
-> tracers will give similar kenter/kleave information. Do I miss
-> anything important, except the difference in output format?
-> 
-> >
-> >> Maybe we should delete them from mm/nommu.c as was pointed by Joe?
-> >
-> > Why?
-> If ftrace is sufficient to get the debug information, there will no
-> need to duplicate it.
+Does "should" mean that they do that now, or just that you would like 
+them to? Should there be a warning before the function then?
 
-It isn't sufficient.  It doesn't store the parameters or the return value, it
-doesn't distinguish the return path in a function when there's more than one,
-eg.:
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Tested-by: Sasha Levin <sasha.levin@oracle.com>
 
-		kleave(" = %d [val]", ret);
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -909,7 +909,16 @@ static inline pgoff_t page_file_index(struct page *page)
 
-vs:
+(not shown in the diff)
 
-	kleave(" = %lx", result);
+  * Return true if this page is mapped into pagetables.
+>    */
 
-in do_mmap_pgoff() and it doesn't permit you to retrieve data from where the
-argument pointers that you don't have pointed to, eg.:
+Expand the comment? Especially if you put compound_head() there.
 
-	kenter("%p{%d}", region, region->vm_usage);
+>   static inline int page_mapped(struct page *page)
 
-David
+Convert to proper bool while at it?
+
+>   {
+> -	return atomic_read(&(page)->_mapcount) + compound_mapcount(page) >= 0;
+> +	int i;
+> +	if (likely(!PageCompound(page)))
+> +		return atomic_read(&page->_mapcount) >= 0;
+> +	if (compound_mapcount(page))
+> +		return 1;
+> +	for (i = 0; i < hpage_nr_pages(page); i++) {
+> +		if (atomic_read(&page[i]._mapcount) >= 0)
+> +			return 1;
+> +	}
+> +	return 0;
+>   }
+>
+>   /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
