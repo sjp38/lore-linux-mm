@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 8741A6B0032
-	for <linux-mm@kvack.org>; Mon, 18 May 2015 14:29:03 -0400 (EDT)
-Received: by wgjc11 with SMTP id c11so36803377wgj.0
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 11:29:02 -0700 (PDT)
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
-        by mx.google.com with ESMTPS id b20si19102949wjx.55.2015.05.18.11.29.01
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CE386B0032
+	for <linux-mm@kvack.org>; Mon, 18 May 2015 14:32:38 -0400 (EDT)
+Received: by wguv19 with SMTP id v19so137417205wgu.1
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 11:32:38 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
+        by mx.google.com with ESMTPS id cj9si19154681wjb.14.2015.05.18.11.32.36
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 May 2015 11:29:01 -0700 (PDT)
-Received: by wibt6 with SMTP id t6so79134486wib.0
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 11:29:01 -0700 (PDT)
+        Mon, 18 May 2015 11:32:37 -0700 (PDT)
+Received: by wicmx19 with SMTP id mx19so94867923wic.0
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 11:32:36 -0700 (PDT)
 From: Leon Romanovsky <leon@leon.nu>
-Subject: mm: nommu: convert kenter/kleave/kdebug macros to use pr_devel()
-Date: Mon, 18 May 2015 21:28:56 +0300
-Message-Id: <1431973736-21395-1-git-send-email-leon@leon.nu>
+Subject: [PATCH] mm: nommu: convert kenter/kleave/kdebug macros to use pr_devel()
+Date: Mon, 18 May 2015 21:32:33 +0300
+Message-Id: <1431973953-21604-1-git-send-email-leon@leon.nu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dhowells@redhat.com, akpm@linux-foundation.org, aarcange@redhat.com
