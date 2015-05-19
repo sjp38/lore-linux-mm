@@ -1,64 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DDB56B00BF
-	for <linux-mm@kvack.org>; Tue, 19 May 2015 10:37:30 -0400 (EDT)
-Received: by wibt6 with SMTP id t6so25277683wib.0
-        for <linux-mm@kvack.org>; Tue, 19 May 2015 07:37:29 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 40A5E6B00C2
+	for <linux-mm@kvack.org>; Tue, 19 May 2015 10:43:51 -0400 (EDT)
+Received: by wizk4 with SMTP id k4so120805157wiz.1
+        for <linux-mm@kvack.org>; Tue, 19 May 2015 07:43:50 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id eq3si4847688wjd.142.2015.05.19.07.37.28
+        by mx.google.com with ESMTPS id cj1si16452620wib.5.2015.05.19.07.43.48
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 19 May 2015 07:37:28 -0700 (PDT)
-Message-ID: <555B4AA5.7000504@suse.cz>
-Date: Tue, 19 May 2015 16:37:25 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        Tue, 19 May 2015 07:43:49 -0700 (PDT)
+Date: Tue, 19 May 2015 15:43:45 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm, memcg: Optionally disable memcg by default using
+ Kconfig
+Message-ID: <20150519144345.GF2462@suse.de>
+References: <20150519104057.GC2462@suse.de>
+ <20150519141807.GA9788@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCHv5 07/28] thp, mlock: do not allow huge pages in mlocked
- area
-References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com> <1429823043-157133-8-git-send-email-kirill.shutemov@linux.intel.com> <5555ED0A.5010702@suse.cz> <20150515134103.GC6625@node.dhcp.inet.fi>
-In-Reply-To: <20150515134103.GC6625@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20150519141807.GA9788@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org
 
-On 05/15/2015 03:41 PM, Kirill A. Shutemov wrote:
-> On Fri, May 15, 2015 at 02:56:42PM +0200, Vlastimil Babka wrote:
->> On 04/23/2015 11:03 PM, Kirill A. Shutemov wrote:
->>> With new refcounting THP can belong to several VMAs. This makes tricky
->>> to track THP pages, when they partially mlocked. It can lead to leaking
->>> mlocked pages to non-VM_LOCKED vmas and other problems.
->>> With this patch we will split all pages on mlock and avoid
->>> fault-in/collapse new THP in VM_LOCKED vmas.
->>>
->>> I've tried alternative approach: do not mark THP pages mlocked and keep
->>> them on normal LRUs. This way vmscan could try to split huge pages on
->>> memory pressure and free up subpages which doesn't belong to VM_LOCKED
->>> vmas.  But this is user-visible change: we screw up Mlocked accouting
->>> reported in meminfo, so I had to leave this approach aside.
->>>
->>> We can bring something better later, but this should be good enough for
->>> now.
->>
->> I can imagine people won't be happy about losing benefits of THP's when they
->> mlock().
->> How difficult would it be to support mlocked THP pages without splitting
->> until something actually tries to do a partial (un)mapping, and only then do
->> the split? That will support the most common case, no?
->
-> Yes, it will.
->
-> But what will we do if we fail to split huge page on munmap()? Fail
-> munmap() with -EBUSY?
+On Tue, May 19, 2015 at 10:18:07AM -0400, Johannes Weiner wrote:
+> CC'ing Tejun and cgroups for the generic cgroup interface part
+> 
+> On Tue, May 19, 2015 at 11:40:57AM +0100, Mel Gorman wrote:
+> > memcg was reported years ago to have significant overhead when unused. It
+> > has improved but it's still the case that users that have no knowledge of
+> > memcg pay a performance penalty.
+> > 
+> > This patch adds a Kconfig that controls whether memcg is enabled by default
+> > and a kernel parameter cgroup_enable= to enable it if desired. Anyone using
+> > oldconfig will get the historical behaviour. It is not an option for most
+> > distributions to simply disable MEMCG as there are users that require it
+> > but they should also be knowledgable enough to use cgroup_enable=.
+> > 
+> > This was evaluated using aim9, a page fault microbenchmark and ebizzy
+> > but I'll focus on the page fault microbenchmark. It can be reproduced
+> > using pft from mmtests (https://github.com/gormanm/mmtests).  Edit
+> > configs/config-global-dhp__pagealloc-performance and update MMTESTS to
+> > only contain pft. This is the relevant part of the profile summary
+> > 
+> > /usr/src/linux-4.0-vanilla/mm/memcontrol.c                           6.6441   395842
+> >   mem_cgroup_try_charge                                                        2.950%   175781
+> 
+> Ouch.  Do you have a way to get the per-instruction breakdown of this?
 
-We could just unmlock the whole THP page and if we could make the 
-deferred split done ASAP, and not waiting for memory pressure, the 
-window with NR_MLOCK being undercounted would be minimized. Since the 
-RLIMIT_MEMLOCK is tracked independently from NR_MLOCK, there should be 
-no danger wrt breaching the limit due to undercounting here?
+Not that I can upload in a reasonable amount of time. An annotated profile
+and vmlinux image for decoding addresses is not small. My expectation is
+that it'd be trivially reproducible.
 
+> This function really isn't doing much.  I'll try to reproduce it here
+> too, I haven't seen such high costs with pft in the past.
+> 
+
+I don't believe it's the machine that is being particularly stupid. It's
+a fairly bog-standard desktop class box.
+
+> >   __mem_cgroup_count_vm_event                                                  1.431%    85239
+> >   mem_cgroup_page_lruvec                                                       0.456%    27156
+> >   mem_cgroup_commit_charge                                                     0.392%    23342
+> >   uncharge_list                                                                0.323%    19256
+> >   mem_cgroup_update_lru_size                                                   0.278%    16538
+> >   memcg_check_events                                                           0.216%    12858
+> >   mem_cgroup_charge_statistics.isra.22                                         0.188%    11172
+> >   try_charge                                                                   0.150%     8928
+> >   commit_charge                                                                0.141%     8388
+> >   get_mem_cgroup_from_mm                                                       0.121%     7184
+> > 
+> > It's showing 6.64% overhead in memcontrol.c when no memcgs are in
+> > use. Applying the patch and disabling memcg reduces this to 0.48%
+> 
+> The frustrating part is that 4.5% of that is not even coming from the
+> main accounting and tracking work.  I'm looking into getting this
+> fixed regardless of what happens with this patch.
+> 
+> > /usr/src/linux-4.0-nomemcg-v1r1/mm/memcontrol.c                      0.4834    27511
+> >   mem_cgroup_page_lruvec                                                       0.161%     9172
+> >   mem_cgroup_update_lru_size                                                   0.154%     8794
+> >   mem_cgroup_try_charge                                                        0.126%     7194
+> >   mem_cgroup_commit_charge                                                     0.041%     2351
+> > 
+> > Note that it's not very visible from headline performance figures
+> > 
+> > pft faults
+> >                                        4.0.0                  4.0.0
+> >                                      vanilla             nomemcg-v1
+> > Hmean    faults/cpu-1 1443258.1051 (  0.00%) 1530574.6033 (  6.05%)
+> > Hmean    faults/cpu-3 1340385.9270 (  0.00%) 1375156.5834 (  2.59%)
+> > Hmean    faults/cpu-5  875599.0222 (  0.00%)  876217.9211 (  0.07%)
+> > Hmean    faults/cpu-7  601146.6726 (  0.00%)  599068.4360 ( -0.35%)
+> > Hmean    faults/cpu-8  510728.2754 (  0.00%)  509887.9960 ( -0.16%)
+> > Hmean    faults/sec-1 1432084.7845 (  0.00%) 1518566.3541 (  6.04%)
+> > Hmean    faults/sec-3 3943818.1437 (  0.00%) 4036918.0217 (  2.36%)
+> > Hmean    faults/sec-5 3877573.5867 (  0.00%) 3922745.9207 (  1.16%)
+> > Hmean    faults/sec-7 3991832.0418 (  0.00%) 3990670.8481 ( -0.03%)
+> > Hmean    faults/sec-8 3987189.8167 (  0.00%) 3978842.8107 ( -0.21%)
+> > 
+> > Low thread counts get a boost but it's within noise as memcg overhead does
+> > not dominate.  It's not obvious at all at higher thread counts as other
+> > factors cause more problems. The overall breakdown of CPU usage looks like
+> > 
+> >                4.0.0       4.0.0
+> >              vanilla  nomemcg-v1
+> > User           41.45       41.11
+> > System        410.19      404.76
+> > Elapsed       130.33      126.30
+> > 
+> > Despite the relative unimportance, there is at least some justification
+> > for disabling memcg by default.
+> 
+> I guess so.  The only thing I don't like about this is that it changes
+> the default of a single controller.  While there is some justification
+> from an overhead standpoint, it's a little weird in terms of interface
+> when you boot, say, a distribution kernel and it has cgroups with all
+> but one resource controller available.
+> 
+> Would it make more sense to provide a Kconfig option that disables all
+> resource controllers per default?  There is still value in having only
+> the generic cgroup part for grouped process monitoring and control.
+> 
+
+A config option per controller seems overkill because AFAIK the other
+controllers are harmless in terms of overhead. All enabled or all
+disabled has other consequences because AFAIK systemd requires some
+controllers to function correctly -- e.g.
+https://bugs.freedesktop.org/show_bug.cgi?id=74589
+
+After I wrote the patch, I spotted that Debian apparently already
+does something like this and by coincidence they matched the
+parameter name and values. See the memory controller instructions on
+https://wiki.debian.org/LXC#Prepare_the_host . So in this case at least
+upstream would match something that at least one distro in the field
+already uses.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
