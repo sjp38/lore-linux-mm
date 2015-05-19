@@ -1,77 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 610E66B007B
-	for <linux-mm@kvack.org>; Tue, 19 May 2015 00:00:48 -0400 (EDT)
-Received: by wicmx19 with SMTP id mx19so101317578wic.0
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 21:00:48 -0700 (PDT)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id w13si16486188wjq.111.2015.05.18.21.00.46
-        for <linux-mm@kvack.org>;
-        Mon, 18 May 2015 21:00:47 -0700 (PDT)
-Date: Tue, 19 May 2015 07:00:32 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv5 20/28] mm: differentiate page_mapped() from
- page_mapcount() for compound pages
-Message-ID: <20150519040032.GB5795@node.dhcp.inet.fi>
-References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1429823043-157133-21-git-send-email-kirill.shutemov@linux.intel.com>
- <555A06B4.2000706@suse.cz>
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FB1B6B0080
+	for <linux-mm@kvack.org>; Tue, 19 May 2015 00:40:45 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so6843322pde.2
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 21:40:44 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id op8si19137284pac.123.2015.05.18.21.40.43
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 May 2015 21:40:43 -0700 (PDT)
+Message-ID: <555ABEBB.6060203@infradead.org>
+Date: Mon, 18 May 2015 21:40:27 -0700
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <555A06B4.2000706@suse.cz>
+Subject: Re: linux-next: Tree for May 18 (mm/memory-failure.c)
+References: <20150518185226.23154d47@canb.auug.org.au> <555A0327.9060709@infradead.org> <20150519024933.GA1614@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20150519024933.GA1614@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Steven Rostedt <rostedt@goodmis.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Davis <jim.epost@gmail.com>, Chen Gong <gong.chen@linux.intel.com>
 
-On Mon, May 18, 2015 at 05:35:16PM +0200, Vlastimil Babka wrote:
-> On 04/23/2015 11:03 PM, Kirill A. Shutemov wrote:
-> >Let's define page_mapped() to be true for compound pages if any
-> >sub-pages of the compound page is mapped (with PMD or PTE).
-> >
-> >On other hand page_mapcount() return mapcount for this particular small
-> >page.
-> >
-> >This will make cases like page_get_anon_vma() behave correctly once we
-> >allow huge pages to be mapped with PTE.
-> >
-> >Most users outside core-mm should use page_mapcount() instead of
-> >page_mapped().
+On 05/18/15 19:49, Naoya Horiguchi wrote:
+> On Mon, May 18, 2015 at 08:20:07AM -0700, Randy Dunlap wrote:
+>> On 05/18/15 01:52, Stephen Rothwell wrote:
+>>> Hi all,
+>>>
+>>> Changes since 20150515:
+>>>
+>>
+>> on i386:
+>>
+>> mm/built-in.o: In function `action_result':
+>> memory-failure.c:(.text+0x344a5): undefined reference to `__tracepoint_memory_failure_event'
+>> memory-failure.c:(.text+0x344d5): undefined reference to `__tracepoint_memory_failure_event'
+>> memory-failure.c:(.text+0x3450c): undefined reference to `__tracepoint_memory_failure_event'
 > 
-> Does "should" mean that they do that now, or just that you would like them
-> to?
-
-I would like them to.
-
-> Should there be a warning before the function then?
-
-Ok.
-
-> >Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >Tested-by: Sasha Levin <sasha.levin@oracle.com>
+> Thanks for the reporting, Randy.
+> Here is a patch for this problem, could you try it?
 > 
-> >--- a/include/linux/mm.h
-> >+++ b/include/linux/mm.h
-> >@@ -909,7 +909,16 @@ static inline pgoff_t page_file_index(struct page *page)
+> Thanks,
+> Naoya
+> ---
+> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Subject: [PATCH] ras: hwpoison: fix build failure around
+>  trace_memory_failure_event
 > 
-> (not shown in the diff)
+> next-20150515 fails to build on i386 with the following error:
 > 
->  * Return true if this page is mapped into pagetables.
-> >   */
+>   mm/built-in.o: In function `action_result':
+>   memory-failure.c:(.text+0x344a5): undefined reference to `__tracepoint_memory_failure_event'
+>   memory-failure.c:(.text+0x344d5): undefined reference to `__tracepoint_memory_failure_event'
+>   memory-failure.c:(.text+0x3450c): undefined reference to `__tracepoint_memory_failure_event'
 > 
-> Expand the comment? Especially if you put compound_head() there.
+> Defining CREATE_TRACE_POINTS and TRACE_INCLUDE_PATH fixes it.
+> 
+> Reported-by: Randy Dunlap <rdunlap@infradead.org>
+> Reported-by: Jim Davis <jim.epost@gmail.com>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Ok.
+Acked-by: Randy Dunlap <rdunlap@infradead.org>
 
-> >  static inline int page_mapped(struct page *page)
-> 
-> Convert to proper bool while at it?
+Thanks.
 
-Ok.
+> ---
+>  drivers/ras/ras.c       | 1 -
+>  include/ras/ras_event.h | 2 ++
+>  mm/memory-failure.c     | 1 +
+>  3 files changed, 3 insertions(+), 1 deletion(-)
+
 
 -- 
- Kirill A. Shutemov
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
