@@ -1,69 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DA4F6B00E1
-	for <linux-mm@kvack.org>; Tue, 19 May 2015 17:01:18 -0400 (EDT)
-Received: by lagr1 with SMTP id r1so43742073lag.0
-        for <linux-mm@kvack.org>; Tue, 19 May 2015 14:01:17 -0700 (PDT)
-Received: from r00tworld.com (r00tworld.com. [212.85.137.150])
-        by mx.google.com with ESMTPS id i3si9841277lbv.74.2015.05.19.14.01.15
+Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
+	by kanga.kvack.org (Postfix) with ESMTP id D1BC06B00E4
+	for <linux-mm@kvack.org>; Tue, 19 May 2015 17:27:57 -0400 (EDT)
+Received: by qcir1 with SMTP id r1so14406966qci.3
+        for <linux-mm@kvack.org>; Tue, 19 May 2015 14:27:57 -0700 (PDT)
+Received: from mail-qg0-x22a.google.com (mail-qg0-x22a.google.com. [2607:f8b0:400d:c04::22a])
+        by mx.google.com with ESMTPS id i38si11018123qkh.110.2015.05.19.14.27.57
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 19 May 2015 14:01:16 -0700 (PDT)
-From: "PaX Team" <pageexec@freemail.hu>
-Date: Tue, 19 May 2015 22:59:16 +0200
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 May 2015 14:27:57 -0700 (PDT)
+Received: by qget53 with SMTP id t53so14597401qge.3
+        for <linux-mm@kvack.org>; Tue, 19 May 2015 14:27:56 -0700 (PDT)
+Date: Tue, 19 May 2015 17:27:54 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 3/7] memcg: immigrate charges only when a threadgroup
+ leader is moved
+Message-ID: <20150519212754.GO24861@htj.duckdns.org>
+References: <1431978595-12176-1-git-send-email-tj@kernel.org>
+ <1431978595-12176-4-git-send-email-tj@kernel.org>
+ <20150519121321.GB6203@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 0/3] Sanitizing freed pages
-Reply-to: pageexec@freemail.hu
-Message-ID: <555BA424.2410.2365DFC8@pageexec.freemail.hu>
-In-reply-to: <20150519124644.GD2462@suse.de>
-References: <1431613188-4511-1-git-send-email-anisse@astier.eu>, <20150519124644.GD2462@suse.de>
-Content-type: text/plain; charset=US-ASCII
-Content-transfer-encoding: 7BIT
-Content-description: Mail message body
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150519121321.GB6203@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anisse Astier <anisse@astier.eu>, Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, Andi Kleen <andi@firstfloor.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, linux-mm@kvack.org, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: lizefan@huawei.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
 
-On 19 May 2015 at 13:46, Mel Gorman wrote:
+Hello, Michal.
 
-> On Thu, May 14, 2015 at 04:19:45PM +0200, Anisse Astier wrote:
-> > Hi,
-> > 
-> > I'm trying revive an old debate here[1], though with a simpler approach than
-> > was previously tried. This patch series implements a new option to sanitize
-> > freed pages, a (very) small subset of what is done in PaX/grsecurity[3],
-> > inspired by a previous submission [4].
-> > 
-> > There are a few different uses that this can cover:
-> >  - some cases of use-after-free could be detected (crashes), although this not
-> >    as efficient as KAsan/kmemcheck
+On Tue, May 19, 2015 at 02:13:21PM +0200, Michal Hocko wrote:
+> This is not true. We have:
+>                 mm = get_task_mm(p);
+>                 if (!mm)
+>                         return 0;
+>                 /* We move charges only when we move a owner of the mm */
+>                 if (mm->owner == p) {
+
+Ah, missed that part.
+
+> So we are ignoring threads which are not owner of the mm struct and that
+> should be the thread group leader AFAICS.
 > 
-> They're not detected, they're hidden.
-
-this is a qualitative argument that cuts both ways. namely, you could say
-that uninitialized memory does *not* trigger any bad behaviour exactly
-because the previous content acts as valid data (say, a valid pointer)
-whereas a null dereference would pretty much always crash (both in userland
-and the kernel). not to mention that a kernel null deref is no longer an
-exploitable bug in many/most situations which can't be said of arbitrary
-uninitialized (read: potentially attacker controlled) values.
-
-that said, i always considered this aspect of page sanitization as a
-(potentially useful) side effect, not the design goal.
-
-> >  - finally, it can reduce infoleaks, although this is hard to measure.
-> > 
+> mm_update_next_owner is rather complex (maybe too much and it would
+> deserve some attention) so there might really be some corner cases but
+> the whole memcg code relies on mm->owner rather than thread group leader
+> so I would keep the same logic here.
 > 
-> It obscures them.
+> > Let's tie memory operations to the threadgroup leader so
+> > that memory is migrated only when the leader is migrated.
+> 
+> This would lead to another strange behavior when the group leader is not
+> owner (if that is possible at all) and the memory wouldn't get migrated
+> at all.
 
-i don't understand, what is being obscured exactly? maybe the term 'infoleaks'
-is ambiguous, in case of page sanitization it refers to the reduction of data
-lifetime (mostly userland anonymous memory, as per the original design). if
-you were thinking of kernel->userland kind of leaks then i'd say that page
-sanitization has little effect there because all the bugs i can think of were
-not leaking from freed memory (where sanitization would have prevented the
-leak).
+Hmmm... is it guaranteed that if a threadgroup owns a mm, the mm's
+owner would be the threadgroup leader?  If not, the current code is
+broken too as it always takes the first member which is the
+threadgroup leader and if that's not the mm owner we may skip
+immigration while migrating the whole process.
+
+I suppose the right thing to do here is iterating the taskset and find
+the mm owner?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
