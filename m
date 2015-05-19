@@ -1,81 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id DF1E66B00BA
-	for <linux-mm@kvack.org>; Tue, 19 May 2015 09:56:12 -0400 (EDT)
-Received: by lagr1 with SMTP id r1so25291199lag.0
-        for <linux-mm@kvack.org>; Tue, 19 May 2015 06:56:12 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id db5si4965523wib.72.2015.05.19.06.56.08
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B2D06B00BC
+	for <linux-mm@kvack.org>; Tue, 19 May 2015 10:06:33 -0400 (EDT)
+Received: by obfe9 with SMTP id e9so12878184obf.1
+        for <linux-mm@kvack.org>; Tue, 19 May 2015 07:06:33 -0700 (PDT)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id o132si8636370oia.63.2015.05.19.07.06.32
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 19 May 2015 06:56:08 -0700 (PDT)
-Date: Tue, 19 May 2015 14:56:04 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v4 0/3] Sanitizing freed pages
-Message-ID: <20150519135604.GE2462@suse.de>
-References: <1431613188-4511-1-git-send-email-anisse@astier.eu>
- <20150519124644.GD2462@suse.de>
- <20150519143540.70410b94@lxorguk.ukuu.org.uk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20150519143540.70410b94@lxorguk.ukuu.org.uk>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 May 2015 07:06:32 -0700 (PDT)
+Message-ID: <1432043228.25898.0.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v5 6/6] mtrr, mm, x86: Enhance MTRR checks for KVA huge
+ page mapping
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Tue, 19 May 2015 07:47:08 -0600
+In-Reply-To: <20150519132307.GG4641@pd.tnic>
+References: <1431714237-880-7-git-send-email-toshi.kani@hp.com>
+	 <20150518133348.GA23618@pd.tnic>
+	 <1431969759.19889.5.camel@misato.fc.hp.com>
+	 <20150518190150.GC23618@pd.tnic>
+	 <1431977519.20569.15.camel@misato.fc.hp.com>
+	 <20150518200114.GE23618@pd.tnic>
+	 <1431980468.21019.11.camel@misato.fc.hp.com>
+	 <20150518205123.GI23618@pd.tnic>
+	 <1431985994.21526.12.camel@misato.fc.hp.com>
+	 <20150519114437.GF4641@pd.tnic> <20150519132307.GG4641@pd.tnic>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>
-Cc: Anisse Astier <anisse@astier.eu>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, Andi Kleen <andi@firstfloor.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, linux-mm@kvack.org, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl, mcgrof@suse.com
 
-On Tue, May 19, 2015 at 02:35:40PM +0100, One Thousand Gnomes wrote:
-> > may be some benefits in some cases, I think it's a weak justification for
-> > always zeroing pages on free.
-> 
-> There are much better reasons for zero on free, including the improved
-> latency when pages are faulted in.
-
-Not necessarily. Not all pages are currently zero'd on allocation so we're
-trading sometimes zeroing a page at with always zeroing a page on freee. It
-might look good on a benchmark that measures the fault cost and not the
-free but it's not a universal win.
-
-> For virtualisation there are two
-> interfaces that would probably make more sense
-> 
-> 1.	'This page is of no further interest, you may fault it back in
-> as random data'
-> 
-> 2.	'This page is discardable, if I touch it *and* you have
-> discarded it then please serve me an exception, if you've not discarded
-> it them give it me back"
-> 
-> If I remember my 390 bits the S/390 goes further including the ability to
-> say "if I think this page is in memory but in fact the hypervisor is
-> going to page it off disc then throw me an exception so I can do clever
-> things with the delay time"
-> 
-
-I think it's also used to grant another VM the page while it's not in
-use. Overall though, there are better ideas for shrinking VM memory usage
-than zeroing everything and depending on KSM to detect it.
-
-> > >  - finally, it can reduce infoleaks, although this is hard to measure.
+On Tue, 2015-05-19 at 15:23 +0200, Borislav Petkov wrote:
+> On Tue, May 19, 2015 at 01:44:37PM +0200, Borislav Petkov wrote:
+> > > Try with a smaller page size.
 > > > 
-> > It obscures them.
+> > > The callers, pud_set_huge() and pmd_set_huge(), check if the given range
+> > > is safe with MTRRs for creating a huge page mapping.  If not, they fail
+> > > the request, which leads their callers, ioremap_pud_range() and
+> > > ioremap_pmd_range(), to retry with a smaller page size, i.e. 1GB -> 2MB
+> > > -> 4KB.  4KB may not have overlap with MTRRs (hence no checking is
+> > > necessary), which will succeed as before.
 > 
-> Actually not. If you are doing debug work you zero on free and check for
-> mysterious non zeroing before reusing the page. Without that its a win in
-> the sense it wipes material (but crypto does that anyway), but it
-> replaces that with the risk of a zeroed page being scibbled upon by the
-> kernel and leaking kernel scribbles into allocated user pages.
-> 
+> Scratch that, I think I have it now. And I even have a good feeling
+> about it :-)
 
-Ok, I see now that we just crash differently. Previously the zero
-on allocation would prevent a leak. With this applied the __GFP_ZERO is
-ignored and so different classes of bugs can be detected. Not necessarily
-better but I accept my point was wrong.
+Looks good. Thanks for the update!
+-Toshi
 
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
