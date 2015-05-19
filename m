@@ -1,66 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 685C26B0085
-	for <linux-mm@kvack.org>; Tue, 19 May 2015 01:20:40 -0400 (EDT)
-Received: by wgbgq6 with SMTP id gq6so4095419wgb.3
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 22:20:39 -0700 (PDT)
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
-        by mx.google.com with ESMTPS id v8si16298082wiz.39.2015.05.18.22.20.37
+Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 614196B0088
+	for <linux-mm@kvack.org>; Tue, 19 May 2015 02:39:44 -0400 (EDT)
+Received: by obblk2 with SMTP id lk2so4933115obb.0
+        for <linux-mm@kvack.org>; Mon, 18 May 2015 23:39:44 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id x74si7901541oia.134.2015.05.18.23.39.40
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 May 2015 22:20:38 -0700 (PDT)
-Received: by wicmc15 with SMTP id mc15so103896766wic.1
-        for <linux-mm@kvack.org>; Mon, 18 May 2015 22:20:37 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 18 May 2015 23:39:43 -0700 (PDT)
+Message-ID: <555ADA36.6060507@huawei.com>
+Date: Tue, 19 May 2015 14:37:42 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20150518152723.769799cced031e71582bfa74@linux-foundation.org>
-References: <1431974526-21788-1-git-send-email-leon@leon.nu> <20150518152723.769799cced031e71582bfa74@linux-foundation.org>
-From: Leon Romanovsky <leon@leon.nu>
-Date: Tue, 19 May 2015 08:20:12 +0300
-Message-ID: <CALq1K=+Yb11MtNz7sszSLKu0+c8tOGEW8cihsP6t1bFU5JiTbA@mail.gmail.com>
-Subject: Re: [PATCH] mm: nommu: convert kenter/kleave/kdebug macros to use pr_devel()
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCHv2 0/3] Find mirrored memory, use for boot time allocations
+References: <cover.1431103461.git.tony.luck@intel.com> <555AA782.2070603@huawei.com> <CA+8MBbKo=zgyftrrcLcB7D3T7npT7JvpBTj9txEr+ZumgsGuxQ@mail.gmail.com>
+In-Reply-To: <CA+8MBbKo=zgyftrrcLcB7D3T7npT7JvpBTj9txEr+ZumgsGuxQ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: dhowells <dhowells@redhat.com>, aarcange <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Tony Luck <tony.luck@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hanjun Guo <guohanjun@huawei.com>, Xiexiuqi <xiexiuqi@huawei.com>
 
-On Tue, May 19, 2015 at 1:27 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Mon, 18 May 2015 21:42:06 +0300 Leon Romanovsky <leon@leon.nu> wrote:
->
->> kenter/kleave/kdebug are wrapper macros to print functions flow and debug
->> information. This set was written before pr_devel() was introduced, so
->> it was controlled by "#if 0" construction.
+On 2015/5/19 12:48, Tony Luck wrote:
+
+> On Mon, May 18, 2015 at 8:01 PM, Xishi Qiu <qiuxishi@huawei.com> wrote:
+>> In part2, does it means the memory allocated from kernel should use mirrored memory?
+> 
+> Yes. I want to use mirrored memory for all (or as many as
+> possible) kernel allocations.
+> 
+>> I have heard of this feature(address range mirroring) before, and I changed some
+>> code to test it(implement memory allocations in specific physical areas).
 >>
->> This patch refactors the current macros to use general pr_devel()
->> functions which won't be compiled in if "#define DEBUG" is not declared
->> prior to that macros.
->
-> I doubt if anyone has used these in a decade and only a tenth of the
-> mm/nommu.c code is actually wired up to use the macros.
+>> In my opinion, add a new zone(ZONE_MIRROR) to fill the mirrored memory is not a good
+>> idea. If there are XX discontiguous mirrored areas in one numa node, there should be
+>> XX ZONE_MIRROR zones in one pgdat, it is impossible, right?
+> 
+> With current h/w implementations XX is at most 2, and is possibly only 1
+> on most nodes.  But we shouldn't depend on that.
+> 
+>> I think add a new migrate type(MIGRATE_MIRROR) will be better, the following print
+>> is from my changed kernel.
+> 
+> This sounds interesting.
+> 
+>> [root@localhost ~]# cat /proc/pagetypeinfo
+>> Page block order: 9
+>> Pages per block:  512
+>>
+>> Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
+> ...
+>> Node    0, zone      DMA, type       Mirror      0      0      0      0      0      0      0      0      0      0      0
+> ...
+>> Node    0, zone    DMA32, type       Mirror      0      0      0      0      0      0      0      0      0      0      0
+> 
+> I see all zero counts here ... which is fine.  I expect that systems
+> will mirror all memory below 4GB ... but we should probably
+> ignore the attribute for this range because we want to make
 
-A couple of days before, the question "how to handle such code" [1]
-was raised by me. Later, Joe Perches suggested to add into
-consideration the "delete option" [2].
+Hi Tony,
 
-> I'd suggest just removing it all.  If someone later has a need, they
-> can add their own pr_devel() calls.
-My patch followed the preference of initial author (David Howells [3] and [4]).
+I think 0-4G will be all mirrored, so I change nothing, just ignore
+the mirror flag.(e.g. 4 socket machine, every socket has 32G memory,
+then node0: 0-4G, 4-8G mirrored, node1: 32-36G mirrored, node2:64-68G
+mirrored, node3: 96-100G mirrored)
 
-Please advise how should I proceed with it.
+> sure that the memory is still available for users that depend
+> on getting memory that legacy devices can access. On systems
+> that support address range mirror the <4GB area is <2% of even
+> a small system (128GB seems to be the minimum rational configuration
+> for a 4 socket machine ... you end up with that much if you populate
+> every channel with just one 4GB DIMM). On a big system (in the TB
+> range) <4GB area is a trivial rounding error.
+> 
+>> Also I add a new flag(GFP_MIRROR), then we can use the mirrored form both
+>> kernel-space and user-space. If there is no mirrored memory, we will allocate
+>> other types memory.
+> 
+> But I *think* I want all kernel and no users to allocate mirror
+> memory.  I'd like to not have to touch every place that allocates
+> memory to add/clear this flag.
+> 
 
-[1] [RFC] Refactor kenter/kleave/kdebug macros -
-https://lkml.org/lkml/2015/5/16/279
-[2] https://lkml.org/lkml/2015/5/16/280
-[3] https://lkml.org/lkml/2015/5/18/199
-[4] https://lkml.org/lkml/2015/5/18/457
+If only want kernel to use the mirrored memory, it is much easier.
+I have some patches, but it's a little ugly and implement both user 
+and kernel.
 
-Thanks.
+>> 1) kernel-space(pcp, page buddy, slab/slub ...):
+>>         -> use mirrored memory(e.g. /proc/sys/vm/mirrorable)
+>>                 -> __alloc_pages_nodemask()
+>>                         ->gfpflags_to_migratetype()
+>>                                 -> use MIGRATE_MIRROR list
+> 
+> I think you are telling me that we can do this, but I don't understand
+> how the code would look.
+> 
+>> 2) user-space(syscall, madvise, mmap ...):
+>>         -> add VM_MIRROR flag in the vma
+>>                 -> add GFP_MIRROR when page fault in the vma
+>>                         -> __alloc_pages_nodemask()
+>>                                 -> use MIGRATE_MIRROR list
+> 
+> If we do let users have access to mirrored memory, then
+> madvise/mmap seem a plausible way to allow it.  Not sure
+> what access privileges are appropriate to allow it. I expect
+> mirrored memory to be in short supply (the whole point of
+
+I think allocations from some key process(e.g. date base) are
+as important as kernel, and in most cases MCE just kill them
+if memory failure, so let user can access the mirrored memory
+may be a good way to solve the problem. 
+
+> address range mirror is to make do with a minimal amount
+> of mirrored memory ... if you expect to want/have lots of
+> mirrored memory, then just take the 50% hit in capacity
+> and mirror everything and ignore all the s/w complexity).
+> 
+> Are your patches ready to be shared?
+
+I'll rewrite and send them soon.
+
+Thanks,
+Xishi Qiu
+
+> 
+> -Tony
+> 
+> .
+> 
 
 
--- 
-Leon Romanovsky | Independent Linux Consultant
-        www.leon.nu | leon@leon.nu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
