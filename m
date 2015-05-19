@@ -1,134 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id D26CC6B00B1
-	for <linux-mm@kvack.org>; Tue, 19 May 2015 09:46:40 -0400 (EDT)
-Received: by igbpi8 with SMTP id pi8so75782405igb.1
-        for <linux-mm@kvack.org>; Tue, 19 May 2015 06:46:40 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0077.hostedemail.com. [216.40.44.77])
-        by mx.google.com with ESMTP id im9si210611igb.59.2015.05.19.06.46.39
-        for <linux-mm@kvack.org>;
-        Tue, 19 May 2015 06:46:40 -0700 (PDT)
-Date: Tue, 19 May 2015 09:46:36 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: linux-next: Tree for May 18 (mm/memory-failure.c)
-Message-ID: <20150519094636.67c9a4a3@gandalf.local.home>
-In-Reply-To: <20150519024933.GA1614@hori1.linux.bs1.fc.nec.co.jp>
-References: <20150518185226.23154d47@canb.auug.org.au>
-	<555A0327.9060709@infradead.org>
-	<20150519024933.GA1614@hori1.linux.bs1.fc.nec.co.jp>
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id BA5E96B00B3
+	for <linux-mm@kvack.org>; Tue, 19 May 2015 09:54:49 -0400 (EDT)
+Received: by wgbgq6 with SMTP id gq6so18891205wgb.3
+        for <linux-mm@kvack.org>; Tue, 19 May 2015 06:54:49 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id eh5si23599964wjd.174.2015.05.19.06.54.47
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 19 May 2015 06:54:48 -0700 (PDT)
+Message-ID: <555B40A4.8000109@suse.cz>
+Date: Tue, 19 May 2015 15:54:44 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: Re: [PATCHv5 26/28] thp: introduce deferred_split_huge_page()
+References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com> <1429823043-157133-27-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1429823043-157133-27-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Randy Dunlap <rdunlap@infradead.org>, Stephen Rothwell <sfr@canb.auug.org.au>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Davis <jim.epost@gmail.com>, Chen Gong <gong.chen@linux.intel.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 19 May 2015 02:49:34 +0000
-Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On 04/23/2015 11:04 PM, Kirill A. Shutemov wrote:
+> Currently we don't split huge page on partial unmap. It's not an ideal
+> situation. It can lead to memory overhead.
+>
+> Furtunately, we can detect partial unmap on page_remove_rmap(). But we
+> cannot call split_huge_page() from there due to locking context.
+>
+> It's also counterproductive to do directly from munmap() codepath: in
+> many cases we will hit this from exit(2) and splitting the huge page
+> just to free it up in small pages is not what we really want.
+>
+> The patch introduce deferred_split_huge_page() which put the huge page
+> into queue for splitting. The splitting itself will happen when we get
+> memory pressure via shrinker interface. The page will be dropped from
+> list on freeing through compound page destructor.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Tested-by: Sasha Levin <sasha.levin@oracle.com>
 
-> On Mon, May 18, 2015 at 08:20:07AM -0700, Randy Dunlap wrote:
-> > On 05/18/15 01:52, Stephen Rothwell wrote:
-> > > Hi all,
-> > > 
-> > > Changes since 20150515:
-> > > 
-> > 
-> > on i386:
-> > 
-> > mm/built-in.o: In function `action_result':
-> > memory-failure.c:(.text+0x344a5): undefined reference to `__tracepoint_memory_failure_event'
-> > memory-failure.c:(.text+0x344d5): undefined reference to `__tracepoint_memory_failure_event'
-> > memory-failure.c:(.text+0x3450c): undefined reference to `__tracepoint_memory_failure_event'
-> 
-> Thanks for the reporting, Randy.
-> Here is a patch for this problem, could you try it?
-> 
-> Thanks,
-> Naoya
-> ---
-> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Subject: [PATCH] ras: hwpoison: fix build failure around
->  trace_memory_failure_event
-> 
-> next-20150515 fails to build on i386 with the following error:
-> 
->   mm/built-in.o: In function `action_result':
->   memory-failure.c:(.text+0x344a5): undefined reference to `__tracepoint_memory_failure_event'
->   memory-failure.c:(.text+0x344d5): undefined reference to `__tracepoint_memory_failure_event'
->   memory-failure.c:(.text+0x3450c): undefined reference to `__tracepoint_memory_failure_event'
-> 
-> Defining CREATE_TRACE_POINTS and TRACE_INCLUDE_PATH fixes it.
-> 
-> Reported-by: Randy Dunlap <rdunlap@infradead.org>
-> Reported-by: Jim Davis <jim.epost@gmail.com>
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
->  drivers/ras/ras.c       | 1 -
->  include/ras/ras_event.h | 2 ++
->  mm/memory-failure.c     | 1 +
->  3 files changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/drivers/ras/ras.c b/drivers/ras/ras.c
-> index b67dd362b7b6..3e2745d8e221 100644
-> --- a/drivers/ras/ras.c
-> +++ b/drivers/ras/ras.c
-> @@ -9,7 +9,6 @@
->  #include <linux/ras.h>
->  
->  #define CREATE_TRACE_POINTS
-> -#define TRACE_INCLUDE_PATH ../../include/ras
->  #include <ras/ras_event.h>
->  
->  static int __init ras_init(void)
-> diff --git a/include/ras/ras_event.h b/include/ras/ras_event.h
-> index 1443d79e4fe6..43054c0fcf65 100644
-> --- a/include/ras/ras_event.h
-> +++ b/include/ras/ras_event.h
-> @@ -1,6 +1,8 @@
->  #undef TRACE_SYSTEM
->  #define TRACE_SYSTEM ras
->  #define TRACE_INCLUDE_FILE ras_event
-> +#undef TRACE_INCLUDE_PATH
-> +#define TRACE_INCLUDE_PATH ../../include/ras
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Note, ideally, you want:
+> @@ -715,6 +726,12 @@ static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
+>   	return entry;
+>   }
+>
+> +void prep_transhuge_page(struct page *page)
+> +{
+> +	INIT_LIST_HEAD(&page[2].lru);
 
-#define TRACE_INCLUDE_PATH .
+Wouldn't hurt to mention that you use page[2] because lru in page 1 
+would collide with the dtor (right?).
 
-and change the Makefile to have:
-
-CFLAGS_ras.o := -I$(src)
-
-...
-
-
->  
->  #if !defined(_TRACE_HW_EVENT_MC_H) || defined(TRACE_HEADER_MULTI_READ)
->  #define _TRACE_HW_EVENT_MC_H
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 8cbe23ac1056..e88e14d87571 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -57,6 +57,7 @@
->  #include <linux/mm_inline.h>
->  #include <linux/kfifo.h>
->  #include "internal.h"
-> +#define CREATE_TRACE_POINTS
->  #include "ras/ras_event.h"
-
-Um, you can only define CREATE_TRACE_POINTS for a single instance.
-Otherwise you will be making duplicate functions with the same name and
-same variables.
-
-That is, you must either pick CREATE_TRACE_POINTS for ras_event.h in
-mm/memory-failure.c or drivers/ras/ras.c. Not both.
-
--- Steve
-
-
->  
->  int sysctl_memory_failure_early_kill __read_mostly = 0;
+> +	set_compound_page_dtor(page, free_transhuge_page);
+> +}
+> +
+>   static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
+>   					struct vm_area_struct *vma,
+>   					unsigned long haddr, pmd_t *pmd,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
