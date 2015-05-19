@@ -1,126 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 04C546B00DD
-	for <linux-mm@kvack.org>; Tue, 19 May 2015 15:32:42 -0400 (EDT)
-Received: by wgjc11 with SMTP id c11so29490374wgj.0
-        for <linux-mm@kvack.org>; Tue, 19 May 2015 12:32:41 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cl7si4567027wjb.210.2015.05.19.12.32.39
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 19 May 2015 12:32:40 -0700 (PDT)
-Date: Tue, 19 May 2015 20:32:36 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm, memcg: Optionally disable memcg by default using
- Kconfig
-Message-ID: <20150519193236.GM2462@suse.de>
-References: <20150519104057.GC2462@suse.de>
- <20150519141807.GA9788@cmpxchg.org>
- <20150519145340.GI6203@dhcp22.suse.cz>
- <20150519151302.GG2462@suse.de>
- <20150519152710.GK6203@dhcp22.suse.cz>
- <20150519154119.GI2462@suse.de>
- <20150519160404.GJ2462@suse.de>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 489FC6B00E0
+	for <linux-mm@kvack.org>; Tue, 19 May 2015 16:30:08 -0400 (EDT)
+Received: by pdbnk13 with SMTP id nk13so39748569pdb.1
+        for <linux-mm@kvack.org>; Tue, 19 May 2015 13:30:08 -0700 (PDT)
+Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
+        by mx.google.com with ESMTP id tk1si22937707pbc.71.2015.05.19.13.30.06
+        for <linux-mm@kvack.org>;
+        Tue, 19 May 2015 13:30:07 -0700 (PDT)
+Date: Tue, 19 May 2015 16:30:05 -0400
+From: Eric B Munson <emunson@akamai.com>
+Subject: Re: [PATCH 0/3] Allow user to request memory to be locked on page
+ fault
+Message-ID: <20150519203005.GB2454@akamai.com>
+References: <1431113626-19153-1-git-send-email-emunson@akamai.com>
+ <20150508124203.6679b1d35ad9555425003929@linux-foundation.org>
+ <20150511180631.GA1227@akamai.com>
+ <20150513150036.GG1227@akamai.com>
+ <20150514080812.GC6433@dhcp22.suse.cz>
+ <20150515153550.GA2454@akamai.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="pvezYHf7grwyp3Bc"
 Content-Disposition: inline
-In-Reply-To: <20150519160404.GJ2462@suse.de>
+In-Reply-To: <20150515153550.GA2454@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Shuah Khan <shuahkh@osg.samsung.com>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On Tue, May 19, 2015 at 05:04:04PM +0100, Mel Gorman wrote:
-> On Tue, May 19, 2015 at 04:41:19PM +0100, Mel Gorman wrote:
-> > On Tue, May 19, 2015 at 05:27:10PM +0200, Michal Hocko wrote:
-> > > On Tue 19-05-15 16:13:02, Mel Gorman wrote:
-> > > [...]
-> > > >                :ffffffff811c160f:       je     ffffffff811c1630 <mem_cgroup_try_charge+0x40>
-> > > >                :ffffffff811c1611:       xor    %eax,%eax
-> > > >                :ffffffff811c1613:       xor    %ebx,%ebx
-> > > >      1 1.7e-05 :ffffffff811c1615:       mov    %rbx,(%r12)
-> > > >      7 1.2e-04 :ffffffff811c1619:       add    $0x10,%rsp
-> > > >   1211  0.0203 :ffffffff811c161d:       pop    %rbx
-> > > >      5 8.4e-05 :ffffffff811c161e:       pop    %r12
-> > > >      5 8.4e-05 :ffffffff811c1620:       pop    %r13
-> > > >   1249  0.0210 :ffffffff811c1622:       pop    %r14
-> > > >      7 1.2e-04 :ffffffff811c1624:       pop    %rbp
-> > > >      5 8.4e-05 :ffffffff811c1625:       retq   
-> > > >                :ffffffff811c1626:       nopw   %cs:0x0(%rax,%rax,1)
-> > > >    295  0.0050 :ffffffff811c1630:       mov    (%rdi),%rax
-> > > > 160703  2.6973 :ffffffff811c1633:       mov    %edx,%r13d
-> > > 
-> > > Huh, what? Even if this was off by one and the preceding instruction has
-> > > consumed the time. This would be reading from page->flags but the page
-> > > should be hot by the time we got here, no?
-> > > 
-> > 
-> > I would have expected so but it's not the first time I've seen cases where
-> > examining the flags was a costly instruction. I suspect it's due to an
-> > ordering issue or more likely, a frequent branch mispredict that is being
-> > accounted for against this instruction.
-> > 
-> 
-> Which is plausible as forward branches are statically predicted false but
-> in this particular load that could be a close to a 100% mispredict.
-> 
 
-Plausible but wrong. The responsible instruction was too far away so it
-looks more like an ordering issue where the PageSwapCache check must be
-ordered against the setting of page up to date. __SetPageUptodate is a
-barrier that is necessary before the PTE is established and visible but it
-does not have to be ordered against the memcg charging. In fact it makes
-sense to do it afterwards in case the charge fails and the page is never
-visible. Just adjusting that reduces the cost to
+--pvezYHf7grwyp3Bc
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-/usr/src/linux-4.0-chargefirst-v1r1/mm/memcontrol.c                  3.8547   228233
-  __mem_cgroup_count_vm_event                                                  1.172%    69393
-  mem_cgroup_page_lruvec                                                       0.464%    27456
-  mem_cgroup_commit_charge                                                     0.390%    23072
-  uncharge_list                                                                0.327%    19370
-  mem_cgroup_update_lru_size                                                   0.284%    16831
-  get_mem_cgroup_from_mm                                                       0.262%    15523
-  mem_cgroup_try_charge                                                        0.256%    15147
-  memcg_check_events                                                           0.222%    13120
-  mem_cgroup_charge_statistics.isra.22                                         0.194%    11470
-  commit_charge                                                                0.145%     8615
-  try_charge                                                                   0.139%     8236
+On Fri, 15 May 2015, Eric B Munson wrote:
 
-Big sinner there is updating per-cpu stats -- root cgroup stats I assume? To
-refresh, a complete disable looks like
+> On Thu, 14 May 2015, Michal Hocko wrote:
+>=20
+> > On Wed 13-05-15 11:00:36, Eric B Munson wrote:
+> > > On Mon, 11 May 2015, Eric B Munson wrote:
+> > >=20
+> > > > On Fri, 08 May 2015, Andrew Morton wrote:
+> > > >=20
+> > > > > On Fri,  8 May 2015 15:33:43 -0400 Eric B Munson <emunson@akamai.=
+com> wrote:
+> > > > >=20
+> > > > > > mlock() allows a user to control page out of program memory, bu=
+t this
+> > > > > > comes at the cost of faulting in the entire mapping when it is
+> > > > > > allocated.  For large mappings where the entire area is not nec=
+essary
+> > > > > > this is not ideal.
+> > > > > >=20
+> > > > > > This series introduces new flags for mmap() and mlockall() that=
+ allow a
+> > > > > > user to specify that the covered are should not be paged out, b=
+ut only
+> > > > > > after the memory has been used the first time.
+> > > > >=20
+> > > > > Please tell us much much more about the value of these changes: t=
+he use
+> > > > > cases, the behavioural improvements and performance results which=
+ the
+> > > > > patchset brings to those use cases, etc.
+> > > > >=20
+> > > >=20
+> > > > To illustrate the proposed use case I wrote a quick program that mm=
+aps
+> > > > a 5GB file which is filled with random data and accesses 150,000 pa=
+ges
+> > > > from that mapping.  Setup and processing were timed separately to
+> > > > illustrate the differences between the three tested approaches.  the
+> > > > setup portion is simply the call to mmap, the processing is the
+> > > > accessing of the various locations in  that mapping.  The following
+> > > > values are in milliseconds and are the averages of 20 runs each wit=
+h a
+> > > > call to echo 3 > /proc/sys/vm/drop_caches between each run.
+> > > >=20
+> > > > The first mapping was made with MAP_PRIVATE | MAP_LOCKED as a basel=
+ine:
+> > > > Startup average:    9476.506
+> > > > Processing average: 3.573
+> > > >=20
+> > > > The second mapping was simply MAP_PRIVATE but each page was passed =
+to
+> > > > mlock() before being read:
+> > > > Startup average:    0.051
+> > > > Processing average: 721.859
+> > > >=20
+> > > > The final mapping was MAP_PRIVATE | MAP_LOCKONFAULT:
+> > > > Startup average:    0.084
+> > > > Processing average: 42.125
+> > > >=20
+> > >=20
+> > > Michal's suggestion of changing protections and locking in a signal
+> > > handler was better than the locking as needed, but still significantly
+> > > more work required than the LOCKONFAULT case.
+> > >=20
+> > > Startup average:    0.047
+> > > Processing average: 86.431
+> >=20
+> > Have you played with batching? Has it helped? Anyway it is to be
+> > expected that the overhead will be higher than a single mmap call. The
+> > question is whether you can live with it because adding a new semantic
+> > to mlock sounds trickier and MAP_LOCKED is tricky enough already...
+> >=20
+>=20
+> I reworked the experiment to better cover the batching solution.  The
+> same 5GB data file is used, however instead of 150,000 accesses at
+> regular intervals, the test program now does 15,000,000 accesses to
+> random pages in the mapping.  The rest of the setup remains the same.
+>=20
+> mmap with MAP_LOCKED:
+> Setup avg:      11821.193
+> Processing avg: 3404.286
+>=20
+> mmap with mlock() before each access:
+> Setup avg:      0.054
+> Processing avg: 34263.201
+>=20
+> mmap with PROT_NONE and signal handler and batch size of 1 page:
+> With the default value in max_map_count, this gets ENOMEM as I attempt
+> to change the permissions, after upping the sysctl significantly I get:
+> Setup avg:      0.050
+> Processing avg: 67690.625
+>=20
+> mmap with PROT_NONE and signal handler and batch size of 8 pages:
+> Setup avg:      0.098
+> Processing avg: 37344.197
+>=20
+> mmap with PROT_NONE and signal handler and batch size of 16 pages:
+> Setup avg:      0.0548
+> Processing avg: 29295.669
+>=20
+> mmap with MAP_LOCKONFAULT:
+> Setup avg:      0.073
+> Processing avg: 18392.136
+>=20
+> The signal handler in the batch cases faulted in memory in two steps to
+> avoid having to know the start and end of the faulting mapping.  The
+> first step covers the page that caused the fault as we know that it will
+> be possible to lock.  The second step speculatively tries to mlock and
+> mprotect the batch size - 1 pages that follow.  There may be a clever
+> way to avoid this without having the program track each mapping to be
+> covered by this handeler in a globally accessible structure, but I could
+> not find it.
+>=20
+> These results show that if the developer knows that a majority of the
+> mapping will be used, it is better to try and fault it in at once,
+> otherwise MAP_LOCKONFAULT is significantly faster.
+>=20
+> Eric
 
-/usr/src/linux-4.0-nomemcg-v1r1/mm/memcontrol.c                      0.4834    27511
-  mem_cgroup_page_lruvec                                                       0.161%     9172
-  mem_cgroup_update_lru_size                                                   0.154%     8794
-  mem_cgroup_try_charge                                                        0.126%     7194
-  mem_cgroup_commit_charge                                                     0.041%     2351
+Is there anything else I can add to the discussion here?
 
-Still, 6.64% down to 3.85% is better than a kick in the head. Unprofiled
-performance looks like
 
-pft faults
-                                       4.0.0                  4.0.0                 4.0.0
-                                     vanilla             nomemcg-v1        chargefirst-v1
-Hmean    faults/cpu-1 1443258.1051 (  0.00%) 1530574.6033 (  6.05%) 1487623.0037 (  3.07%)
-Hmean    faults/cpu-3 1340385.9270 (  0.00%) 1375156.5834 (  2.59%) 1351401.2578 (  0.82%)
-Hmean    faults/cpu-5  875599.0222 (  0.00%)  876217.9211 (  0.07%)  876122.6489 (  0.06%)
-Hmean    faults/cpu-7  601146.6726 (  0.00%)  599068.4360 ( -0.35%)  600944.9229 ( -0.03%)
-Hmean    faults/cpu-8  510728.2754 (  0.00%)  509887.9960 ( -0.16%)  510906.3818 (  0.03%)
-Hmean    faults/sec-1 1432084.7845 (  0.00%) 1518566.3541 (  6.04%) 1475994.2194 (  3.07%)
-Hmean    faults/sec-3 3943818.1437 (  0.00%) 4036918.0217 (  2.36%) 3973070.2159 (  0.74%)
-Hmean    faults/sec-5 3877573.5867 (  0.00%) 3922745.9207 (  1.16%) 3891705.1749 (  0.36%)
-Hmean    faults/sec-7 3991832.0418 (  0.00%) 3990670.8481 ( -0.03%) 3989110.4674 ( -0.07%)
-Hmean    faults/sec-8 3987189.8167 (  0.00%) 3978842.8107 ( -0.21%) 3981011.2936 ( -0.15%)
+--pvezYHf7grwyp3Bc
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
 
-Very minor boost. The same reordering looks like it would also suit
-do_wp_page. I'll do that, retest, put some lipstick on the patches and
-post them tomorrow the day after. The reordering one probably makes sense
-anyway, the default disabling of memcg still has merit but maybe if that
-charging of the root group can be eliminated then it'd be pointless.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
 
--- 
-Mel Gorman
-SUSE Labs
+iQIcBAEBAgAGBQJVW51NAAoJELbVsDOpoOa9PQIQAJYsWV/aTxT1NeePEHXXzgc2
+mZLqLo0f1XF66qBn4eFO8mSy3CD+MKTqxMxF5dtRJhHkelz7s6JJqwRjfQgr6IT6
+bsGSERcshD3rpNdJQnfkGd3mTmq6FmfvTeaUYPopZrN1zkZU/SmrAvm6GpPhjnH2
+TrXEVm2MEcESl3Q7mNZfNDeduI1sKSw03BaBj2uSVMY7EllwpnvlO4pujmAC9ZBY
+fb+lNttd0wTErNUHvHrUtBT7dCqLuOjAqANT78k+aXROCuIIkmnHjJctVRjRz9Bh
+KFCY9JQTTZ3llNFdO6w/EYGD+u8qVN+8NnGYlR31rQUgVQ9EkLkaoCTdWVl/4dlF
+GklDSDyG7ICUly7lTRSE59Zbph+8SiLPAd9YnGI/Tv5QUTrKRtv2sBD7ahU39eF0
+XLFB02ZX9nzOTTYxKp4UO8iFcRhIkVrefIB467HeW1k15jOoY9Js8Wv1DMcGuUcb
+6iETzFsnYhi/+vQq27rUGNq8MVN0dEsqlI80hfUdmhuSZeeHefmWSPIA7fsROdYk
+zx11IRSbEVzSkcLTKn3Y15futwTl6oAHg3uKcfehxSiY3HmLm7w1EWJ64XKLpWry
+5Dr4G78pWTLTm+Z9TqpBtg5sAcPPnMZwzJybMGHBaNAJqB6ZW83oDM5ght/kStpT
+n6kIODdplDv+SdRLA+3k
+=Cgdc
+-----END PGP SIGNATURE-----
+
+--pvezYHf7grwyp3Bc--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
