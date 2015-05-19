@@ -1,73 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
-	by kanga.kvack.org (Postfix) with ESMTP id D1BC06B00E4
-	for <linux-mm@kvack.org>; Tue, 19 May 2015 17:27:57 -0400 (EDT)
-Received: by qcir1 with SMTP id r1so14406966qci.3
-        for <linux-mm@kvack.org>; Tue, 19 May 2015 14:27:57 -0700 (PDT)
-Received: from mail-qg0-x22a.google.com (mail-qg0-x22a.google.com. [2607:f8b0:400d:c04::22a])
-        by mx.google.com with ESMTPS id i38si11018123qkh.110.2015.05.19.14.27.57
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F5CC6B00E6
+	for <linux-mm@kvack.org>; Tue, 19 May 2015 17:38:04 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so41654496pdb.0
+        for <linux-mm@kvack.org>; Tue, 19 May 2015 14:38:04 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d4si23255124pdj.10.2015.05.19.14.38.03
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 May 2015 14:27:57 -0700 (PDT)
-Received: by qget53 with SMTP id t53so14597401qge.3
-        for <linux-mm@kvack.org>; Tue, 19 May 2015 14:27:56 -0700 (PDT)
-Date: Tue, 19 May 2015 17:27:54 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 3/7] memcg: immigrate charges only when a threadgroup
- leader is moved
-Message-ID: <20150519212754.GO24861@htj.duckdns.org>
-References: <1431978595-12176-1-git-send-email-tj@kernel.org>
- <1431978595-12176-4-git-send-email-tj@kernel.org>
- <20150519121321.GB6203@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150519121321.GB6203@dhcp22.suse.cz>
+        Tue, 19 May 2015 14:38:03 -0700 (PDT)
+Date: Tue, 19 May 2015 14:38:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 00/23] userfaultfd v4
+Message-Id: <20150519143801.8ba477c3813e93a2637c19cf@linux-foundation.org>
+In-Reply-To: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: lizefan@huawei.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-Hello, Michal.
+On Thu, 14 May 2015 19:30:57 +0200 Andrea Arcangeli <aarcange@redhat.com> wrote:
 
-On Tue, May 19, 2015 at 02:13:21PM +0200, Michal Hocko wrote:
-> This is not true. We have:
->                 mm = get_task_mm(p);
->                 if (!mm)
->                         return 0;
->                 /* We move charges only when we move a owner of the mm */
->                 if (mm->owner == p) {
+> This is the latest userfaultfd patchset against mm-v4.1-rc3
+> 2015-05-14-10:04.
 
-Ah, missed that part.
+It would be useful to have some userfaultfd testcases in
+tools/testing/selftests/.  Partly as an aid to arch maintainers when
+enabling this.  And also as a standalone thing to give people a
+practical way of exercising this interface.
 
-> So we are ignoring threads which are not owner of the mm struct and that
-> should be the thread group leader AFAICS.
-> 
-> mm_update_next_owner is rather complex (maybe too much and it would
-> deserve some attention) so there might really be some corner cases but
-> the whole memcg code relies on mm->owner rather than thread group leader
-> so I would keep the same logic here.
-> 
-> > Let's tie memory operations to the threadgroup leader so
-> > that memory is migrated only when the leader is migrated.
-> 
-> This would lead to another strange behavior when the group leader is not
-> owner (if that is possible at all) and the memory wouldn't get migrated
-> at all.
+What are your thoughts on enabling userfaultfd for other architectures,
+btw?  Are there good use cases, are people working on it, etc?
 
-Hmmm... is it guaranteed that if a threadgroup owns a mm, the mm's
-owner would be the threadgroup leader?  If not, the current code is
-broken too as it always takes the first member which is the
-threadgroup leader and if that's not the mm owner we may skip
-immigration while migrating the whole process.
 
-I suppose the right thing to do here is iterating the taskset and find
-the mm owner?
-
-Thanks.
-
--- 
-tejun
+Also, I assume a manpage is in the works?  Sooner rather than later
+would be good - Michael's review of proposed kernel interfaces has
+often been valuable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
