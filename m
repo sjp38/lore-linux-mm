@@ -1,39 +1,60 @@
-From: yalin wang <yalin.wang2010@gmail.com>
-Subject: Re: [PATCH v4 2/3] mm/page_alloc.c: add config option to sanitize
- freed pages
-Date: Tue, 19 May 2015 09:58:01 +0800
-Message-ID: <CAFP4FLo9Lrr=pQzwLhj6EfiN5LgRTDMj_hBhQW58UQkC55mYHA@mail.gmail.com>
-References: <1431613188-4511-1-git-send-email-anisse@astier.eu>
-	<1431613188-4511-3-git-send-email-anisse@astier.eu>
-	<20150518112152.GA16999@amd>
-	<CALUN=qLHfz5DnSKfaRf833eewOM65FNtxybY9Xw9sp1=qq+Zqw@mail.gmail.com>
-	<20150518130213.GA771@amd>
-	<CALUN=q+VyQgQ+F1HudumDSjFk1PFyEXdwxPNrM_VqKjDKHTfbw@mail.gmail.com>
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v5 6/6] mtrr, mm, x86: Enhance MTRR checks for KVA huge
+ page mapping
+Date: Tue, 19 May 2015 13:44:37 +0200
+Message-ID: <20150519114437.GF4641@pd.tnic>
+References: <1431714237-880-1-git-send-email-toshi.kani@hp.com>
+ <1431714237-880-7-git-send-email-toshi.kani@hp.com>
+ <20150518133348.GA23618@pd.tnic>
+ <1431969759.19889.5.camel@misato.fc.hp.com>
+ <20150518190150.GC23618@pd.tnic>
+ <1431977519.20569.15.camel@misato.fc.hp.com>
+ <20150518200114.GE23618@pd.tnic>
+ <1431980468.21019.11.camel@misato.fc.hp.com>
+ <20150518205123.GI23618@pd.tnic>
+ <1431985994.21526.12.camel@misato.fc.hp.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Return-path: <linux-pm-owner@vger.kernel.org>
-In-Reply-To: <CALUN=q+VyQgQ+F1HudumDSjFk1PFyEXdwxPNrM_VqKjDKHTfbw@mail.gmail.com>
-Sender: linux-pm-owner@vger.kernel.org
-To: Anisse Astier <anisse@astier.eu>
-Cc: Pavel Machek <pavel@ucw.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, Andi Kleen <andi@firstfloor.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset=utf-8
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Content-Disposition: inline
+In-Reply-To: <1431985994.21526.12.camel@misato.fc.hp.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl, mcgrof@suse.com
 List-Id: linux-mm.kvack.org
 
-2015-05-18 21:04 GMT+08:00 Anisse Astier <anisse@astier.eu>:
-> On Mon, May 18, 2015 at 3:02 PM, Pavel Machek <pavel@ucw.cz> wrote:
->>
->> Ok. So there is class of errors where this helps, but you are not
->> aware of any such errors in kernel, so you can't fix them... Right?
->
-> Correct.
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-i feel your patch is the same as CONFIG_DEBUG_PAGEALLOC ,
-the difference is that CONFIG_DEBUG_PAGEALLOC  will clear
-page to a magic number, while your patch will
-clear to zero,
-do we really need this duplicated function ?
+On Mon, May 18, 2015 at 03:53:14PM -0600, Toshi Kani wrote:
+> On Mon, 2015-05-18 at 22:51 +0200, Borislav Petkov wrote:
+> > On Mon, May 18, 2015 at 02:21:08PM -0600, Toshi Kani wrote:
+> > > The caller is the one who makes the condition checks necessary to create
+> > > a huge page mapping.
+> > 
+> > How? It would go and change MTRRs configuration and ranges and their
+> > memory types so that a huge mapping succeeds?
+> > 
+> > Or go and try a different range?
+> 
+> Try with a smaller page size.
+> 
+> The callers, pud_set_huge() and pmd_set_huge(), check if the given range
+> is safe with MTRRs for creating a huge page mapping.  If not, they fail
+> the request, which leads their callers, ioremap_pud_range() and
+> ioremap_pmd_range(), to retry with a smaller page size, i.e. 1GB -> 2MB
+> -> 4KB.  4KB may not have overlap with MTRRs (hence no checking is
+> necessary), which will succeed as before.
 
-Thanks
+Ok, now *this* should be in the form of a comment over the KVA helpers,
+not the MTRR aspect. Callers of those functions would have to know that
+- they shouldn't care about MTRR setup.
+
+The MTRR aspect with the 3 conditions should be only over
+mtrr_type_lookup().
+
+I'll integrate it into the patch.
+
+-- 
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
+--
