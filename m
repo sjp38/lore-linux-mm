@@ -1,155 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B31D6B0092
-	for <linux-mm@kvack.org>; Tue, 19 May 2015 03:17:41 -0400 (EDT)
-Received: by qcir1 with SMTP id r1so2793134qci.3
-        for <linux-mm@kvack.org>; Tue, 19 May 2015 00:17:40 -0700 (PDT)
-Received: from mail.siteground.com (mail.siteground.com. [67.19.240.234])
-        by mx.google.com with ESMTPS id n186si9266563qhb.116.2015.05.19.00.17.39
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 May 2015 00:17:40 -0700 (PDT)
-Message-ID: <555AE391.20806@kyup.com>
-Date: Tue, 19 May 2015 10:17:37 +0300
-From: Nikolay Borisov <kernel@kyup.com>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E42A6B0095
+	for <linux-mm@kvack.org>; Tue, 19 May 2015 03:43:50 -0400 (EDT)
+Received: by pabru16 with SMTP id ru16so12567206pab.1
+        for <linux-mm@kvack.org>; Tue, 19 May 2015 00:43:49 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id c6si13515469pbu.220.2015.05.19.00.43.47
+        for <linux-mm@kvack.org>;
+        Tue, 19 May 2015 00:43:49 -0700 (PDT)
+Date: Tue, 19 May 2015 16:44:12 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 1/3] mm/page_alloc: don't break highest order freepage if
+ steal
+Message-ID: <20150519074411.GB12092@js1304-P5Q-DELUXE>
+References: <1430119421-13536-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <5551B11C.4080000@suse.cz>
 MIME-Version: 1.0
-Subject: [Ext4][Bug] Deadlock in ext4 with memcg enabled.
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5551B11C.4080000@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: tytso@mit.edu
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 
-Hello,
+On Tue, May 12, 2015 at 09:51:56AM +0200, Vlastimil Babka wrote:
+> On 04/27/2015 09:23 AM, Joonsoo Kim wrote:
+> >When we steal whole pageblock, we don't need to break highest order
+> >freepage. Perhaps, there is small order freepage so we can use it.
+> >
+> >This also gives us some code size reduction because expand() which
+> >is used in __rmqueue_fallback() and inlined into __rmqueue_fallback()
+> >is removed.
+> >
+> >    text    data     bss     dec     hex filename
+> >   37413    1440     624   39477    9a35 mm/page_alloc.o
+> >   37249    1440     624   39313    9991 mm/page_alloc.o
+> >
+> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >---
+> >  mm/page_alloc.c | 40 +++++++++++++++++++++-------------------
+> >  1 file changed, 21 insertions(+), 19 deletions(-)
+> >
+> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >index ed0f1c6..044f16c 100644
+> >--- a/mm/page_alloc.c
+> >+++ b/mm/page_alloc.c
+> >@@ -1239,14 +1239,14 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
+> >  }
+> >
+> >  /* Remove an element from the buddy allocator from the fallback list */
+> 
+> This is no longer accurate description.
 
-On one of our servers we are observing deadlocks when fsync running. The
-kernel version in question is: 3.12.28
+Okay. Will fix.
 
-We've managed to acquire a backtrace from one of the hanging processes:
+> 
+> >-static inline struct page *
+> >+static inline bool
+> >  __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+> >  {
+> >  	struct free_area *area;
+> >  	unsigned int current_order;
+> >  	struct page *page;
+> >  	int fallback_mt;
+> >-	bool can_steal;
+> >+	bool can_steal_pageblock;
+> >
+> >  	/* Find the largest possible block of pages in the other list */
+> >  	for (current_order = MAX_ORDER-1;
+> >@@ -1254,26 +1254,24 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+> >  				--current_order) {
+> >  		area = &(zone->free_area[current_order]);
+> >  		fallback_mt = find_suitable_fallback(area, current_order,
+> >-				start_migratetype, false, &can_steal);
+> >+						start_migratetype, false,
+> >+						&can_steal_pageblock);
+> >  		if (fallback_mt == -1)
+> >  			continue;
+> >
+> >  		page = list_entry(area->free_list[fallback_mt].next,
+> >  						struct page, lru);
+> 
+> >-		if (can_steal)
+> >+		BUG_ON(!page);
+> 
+> Please no new BUG_ON. VM_BUG_ON maybe for debugging, otherwise just
+> let it panic on null pointer exception accessing page->lru later on.
 
-PID: 21575  TASK: ffff883f482ac200  CPU: 24  COMMAND: "exim"
- #0 [ffff8824be1ab0e8] __schedule at ffffffff8158718f
- #1 [ffff8824be1ab180] schedule at ffffffff81587634
- #2 [ffff8824be1ab190] io_schedule at ffffffff81587707
- #3 [ffff8824be1ab1b0] sleep_on_page at ffffffff810f50d9
- #4 [ffff8824be1ab1c0] __wait_on_bit at ffffffff8158536a
- #5 [ffff8824be1ab210] wait_on_page_bit at ffffffff810f52f2
- #6 [ffff8824be1ab270] shrink_page_list at ffffffff81105fd5
- #7 [ffff8824be1ab3b0] shrink_inactive_list at ffffffff81106b18
- #8 [ffff8824be1ab4b0] shrink_lruvec at ffffffff8110716d
- #9 [ffff8824be1ab5d0] shrink_zone at ffffffff811074ae
-#10 [ffff8824be1ab650] do_try_to_free_pages at ffffffff811076bb
-#11 [ffff8824be1ab6f0] try_to_free_mem_cgroup_pages at ffffffff81107bc6
-#12 [ffff8824be1ab770] mem_cgroup_reclaim at ffffffff811483e6
-#13 [ffff8824be1ab7c0] __mem_cgroup_try_charge at ffffffff8114cd6c
-#14 [ffff8824be1ab8e0] mem_cgroup_charge_common at ffffffff8114d742
-#15 [ffff8824be1ab920] mem_cgroup_cache_charge at ffffffff8114d82d
-#16 [ffff8824be1ab960] add_to_page_cache_locked at ffffffff810f5521
-#17 [ffff8824be1ab9a0] add_to_page_cache_lru at ffffffff810f562d
-#18 [ffff8824be1ab9c0] find_or_create_page at ffffffff810f6003
-#19 [ffff8824be1aba10] __getblk at ffffffff81181554
-#20 [ffff8824be1aba80] __read_extent_tree_block at ffffffff8120a05b
-#21 [ffff8824be1abad0] ext4_ext_find_extent at ffffffff8120a7c8
-#22 [ffff8824be1abb40] ext4_ext_map_blocks at ffffffff8120d176
-#23 [ffff8824be1abc30] ext4_map_blocks at ffffffff811eec6e
-#24 [ffff8824be1abcd0] ext4_writepages at ffffffff811f388b
-#25 [ffff8824be1abe40] do_writepages at ffffffff8110025b
-#26 [ffff8824be1abe50] __filemap_fdatawrite_range at ffffffff810f5881
-#27 [ffff8824be1abe90] filemap_write_and_wait_range at ffffffff810f590a
-#28 [ffff8824be1abec0] ext4_sync_file at ffffffff811ea2ac
-#29 [ffff8824be1abf00] vfs_fsync_range at ffffffff8117e573
-#30 [ffff8824be1abf10] vfs_fsync at ffffffff8117e597
-#31 [ffff8824be1abf20] do_fsync at ffffffff8117e7cc
-#32 [ffff8824be1abf70] sys_fdatasync at ffffffff8117e80e
-#33 [ffff8824be1abf80] system_call_fastpath at ffffffff81589ae2
-    RIP: 00002b0fde9246c0  RSP: 00007fffe7f8d080  RFLAGS: 00010202
-    RAX: 000000000000004b  RBX: ffffffff81589ae2  RCX: 00000000000000c6
-    RDX: 0000000001e226d8  RSI: 0000000001dd39e0  RDI: 0000000000000008
-    RBP: 0000000001dd39e0   R8: 0000000000001000   R9: 0000000000000000
-    R10: 00007fffe7f8cc30  R11: 0000000000000246  R12: ffffffff8117e80e
-    R13: ffff8824be1abf78  R14: 0000000000000064  R15: 0000000001dd41b0
-    ORIG_RAX: 000000000000004b  CS: 0033  SS: 002b
+Okay. I will remove it.
 
-
-The conclusion that I've drawn looking from the code and some offline
-discussions is that when fsync is requested ext4 starts marking pages
-for writeback (ext4_writepages). I think some heavy inlining is
-happening and ext4_map_blocks is being called from:
-
- ext4_writepages->mpage_map_and_submit_extent -> mpage_map_one_extent ->
-ext4_map_blocks
-
-which in turn when trying to write the pages exceeds the memory cgroup
-limit which triggers the memory freeing logic. This, in turn, executes
-the wait_on_page_writeback(page) in shrink_page_list. E.g. the the memcg
-sees a page as being marked for writeback (presumably this is the same
-page which caused the OOM) so it sleeps to wait for the page to be
-written back, but since it is the writeback path that executed the page
-shrinking it causes a deadlock.
-
-This deadlock then causes other processes on the system to enter D
-state, waiting on trying to acquire a certain inode->i_mutex.
-
-Here are example backtraces from such processes:
-
-PID: 57416  TASK: ffff88230e5cb180  CPU: 19  COMMAND: "licd"
- #0 [ffff882378f93bf8] __schedule at ffffffff8158718f
- #1 [ffff882378f93c90] schedule at ffffffff81587634
- #2 [ffff882378f93ca0] schedule_preempt_disabled at ffffffff81587919
- #3 [ffff882378f93cb0] __mutex_lock_slowpath at ffffffff8158613f
- #4 [ffff882378f93d30] mutex_lock at ffffffff815861f6
- #5 [ffff882378f93d50] generic_file_aio_write at ffffffff810f73cc
- #6 [ffff882378f93da0] ext4_file_write at ffffffff811e975c
- #7 [ffff882378f93e50] do_sync_write at ffffffff8115324b
- #8 [ffff882378f93ee0] vfs_write at ffffffff81153788
- #9 [ffff882378f93f20] sys_write at ffffffff81153d6a
-#10 [ffff882378f93f80] system_call_fastpath at ffffffff81589ae2
-    RIP: 00002b01bbc22520  RSP: 00007ffff4772888  RFLAGS: 00000246
-    RAX: 0000000000000001  RBX: ffffffff81589ae2  RCX: ffffffffffffffff
-    RDX: 0000000000000033  RSI: 0000000001c052a0  RDI: 0000000000000003
-    RBP: 00002b01bb329588   R8: 0000000000000001   R9: 00000000004059e8
-    R10: 00007ffff4772800  R11: 0000000000000246  R12: 00007ffff4773380
-    R13: 00007ffff4773310  R14: 0000000000000003  R15: 0000000001c052a0
-    ORIG_RAX: 0000000000000001  CS: 0033  SS: 002b
+> >+
+> >+		if (can_steal_pageblock)
+> >  			steal_suitable_fallback(zone, page, start_migratetype);
+> >
+> >-		/* Remove the page from the freelists */
+> >-		area->nr_free--;
+> >-		list_del(&page->lru);
+> >-		rmv_page_order(page);
+> >+		list_move(&page->lru, &area->free_list[start_migratetype]);
+> 
+> This list_move is redundant if we are stealing whole pageblock,
+> right? Just put it in an else of the if above, and explain in
+> comment?
 
 
-and
+I tried to put list_move() in an else of the if above and I got a
+panic problem due to failure of stealing whole pageblock. In that
+time, I didn't want to deep dive into the problem so used a simple
+solution like as above. But, now I find the reason why steal sometimes
+fail so I can fix it. I will fix it on next spin.
 
-PID: 55775  TASK: ffff8801aba4e300  CPU: 29  COMMAND: "crond"
- #0 [ffff880893a8bbf8] __schedule at ffffffff8158718f
- #1 [ffff880893a8bc90] schedule at ffffffff81587634
- #2 [ffff880893a8bca0] schedule_preempt_disabled at ffffffff81587919
- #3 [ffff880893a8bcb0] __mutex_lock_slowpath at ffffffff8158613f
- #4 [ffff880893a8bd30] mutex_lock at ffffffff815861f6
- #5 [ffff880893a8bd50] generic_file_aio_write at ffffffff810f73cc
- #6 [ffff880893a8bda0] ext4_file_write at ffffffff811e975c
- #7 [ffff880893a8be50] do_sync_write at ffffffff8115324b
- #8 [ffff880893a8bee0] vfs_write at ffffffff81153788
- #9 [ffff880893a8bf20] sys_write at ffffffff81153d6a
-#10 [ffff880893a8bf80] system_call_fastpath at ffffffff81589ae2
-    RIP: 00002b4aad8ad520  RSP: 00007fff96b0c7b8  RFLAGS: 00010202
-    RAX: 0000000000000001  RBX: ffffffff81589ae2  RCX: 0000000096b0cd47
-    RDX: 0000000000000074  RSI: 0000000000bcbd30  RDI: 0000000000000004
-    RBP: 00007fff96b0d110   R8: 0000000000bcbd30   R9: 2f6c61636f6c2f72
-    R10: 6c2f7261762f6831  R11: 0000000000000246  R12: 0000000000000000
-    R13: 0000000000000000  R14: 00007fff96b0f100  R15: 0000000000402500
-    ORIG_RAX: 0000000000000001  CS: 0033  SS: 002b
+> 
+> >-		expand(zone, page, order, current_order, area,
+> >-					start_migratetype);
+> >  		/*
+> >  		 * The freepage_migratetype may differ from pageblock's
+> >  		 * migratetype depending on the decisions in
+> >-		 * try_to_steal_freepages(). This is OK as long as it
+> >+		 * find_suitable_fallback(). This is OK as long as it
+> >  		 * does not differ for MIGRATE_CMA pageblocks. For CMA
+> >  		 * we need to make sure unallocated pages flushed from
+> >  		 * pcp lists are returned to the correct freelist.
+> 
+> The whole thing with set_freepage_migratetype(page,
+> start_migratetype); below this comment is now redundant, as
+> rmqueue_smallest will do it too.
+> The comment itself became outdated and misplaced too. I guess
+> MIGRATE_CMA is now handled just by the fact that is is not set as
+> fallback in the fallbacks array?
 
+Okay. All comment seems to be redundant. I will remove it.
 
-I had initially sent this to linux-ext4
-(http://www.spinics.net/lists/linux-ext4/msg48012.html) and got a
-response from Thedore Ts'o that the likely culprit could be in
-grow_dev_pages (called from __getblk -> __getblk_slow -> grow_buffer ->
-grow_dev_pages) since in it the __GFP_NOFS flag is explicitly cleared. I
-can see that in newer kernel (4.0) there is now a _gfp version of the
-api which takes into consideration the user-passed gfp mask which would
-fix this case. I've yet to test whether the same problem is exhibited on
-newer kernel.
-
-
-Regards,
-Nikolay
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
