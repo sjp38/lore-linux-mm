@@ -1,185 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 489FC6B00E0
-	for <linux-mm@kvack.org>; Tue, 19 May 2015 16:30:08 -0400 (EDT)
-Received: by pdbnk13 with SMTP id nk13so39748569pdb.1
-        for <linux-mm@kvack.org>; Tue, 19 May 2015 13:30:08 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
-        by mx.google.com with ESMTP id tk1si22937707pbc.71.2015.05.19.13.30.06
-        for <linux-mm@kvack.org>;
-        Tue, 19 May 2015 13:30:07 -0700 (PDT)
-Date: Tue, 19 May 2015 16:30:05 -0400
-From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [PATCH 0/3] Allow user to request memory to be locked on page
- fault
-Message-ID: <20150519203005.GB2454@akamai.com>
-References: <1431113626-19153-1-git-send-email-emunson@akamai.com>
- <20150508124203.6679b1d35ad9555425003929@linux-foundation.org>
- <20150511180631.GA1227@akamai.com>
- <20150513150036.GG1227@akamai.com>
- <20150514080812.GC6433@dhcp22.suse.cz>
- <20150515153550.GA2454@akamai.com>
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DA4F6B00E1
+	for <linux-mm@kvack.org>; Tue, 19 May 2015 17:01:18 -0400 (EDT)
+Received: by lagr1 with SMTP id r1so43742073lag.0
+        for <linux-mm@kvack.org>; Tue, 19 May 2015 14:01:17 -0700 (PDT)
+Received: from r00tworld.com (r00tworld.com. [212.85.137.150])
+        by mx.google.com with ESMTPS id i3si9841277lbv.74.2015.05.19.14.01.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 19 May 2015 14:01:16 -0700 (PDT)
+From: "PaX Team" <pageexec@freemail.hu>
+Date: Tue, 19 May 2015 22:59:16 +0200
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="pvezYHf7grwyp3Bc"
-Content-Disposition: inline
-In-Reply-To: <20150515153550.GA2454@akamai.com>
+Subject: Re: [PATCH v4 0/3] Sanitizing freed pages
+Reply-to: pageexec@freemail.hu
+Message-ID: <555BA424.2410.2365DFC8@pageexec.freemail.hu>
+In-reply-to: <20150519124644.GD2462@suse.de>
+References: <1431613188-4511-1-git-send-email-anisse@astier.eu>, <20150519124644.GD2462@suse.de>
+Content-type: text/plain; charset=US-ASCII
+Content-transfer-encoding: 7BIT
+Content-description: Mail message body
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Shuah Khan <shuahkh@osg.samsung.com>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: Anisse Astier <anisse@astier.eu>, Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, Andi Kleen <andi@firstfloor.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, linux-mm@kvack.org, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org
 
+On 19 May 2015 at 13:46, Mel Gorman wrote:
 
---pvezYHf7grwyp3Bc
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+> On Thu, May 14, 2015 at 04:19:45PM +0200, Anisse Astier wrote:
+> > Hi,
+> > 
+> > I'm trying revive an old debate here[1], though with a simpler approach than
+> > was previously tried. This patch series implements a new option to sanitize
+> > freed pages, a (very) small subset of what is done in PaX/grsecurity[3],
+> > inspired by a previous submission [4].
+> > 
+> > There are a few different uses that this can cover:
+> >  - some cases of use-after-free could be detected (crashes), although this not
+> >    as efficient as KAsan/kmemcheck
+> 
+> They're not detected, they're hidden.
 
-On Fri, 15 May 2015, Eric B Munson wrote:
+this is a qualitative argument that cuts both ways. namely, you could say
+that uninitialized memory does *not* trigger any bad behaviour exactly
+because the previous content acts as valid data (say, a valid pointer)
+whereas a null dereference would pretty much always crash (both in userland
+and the kernel). not to mention that a kernel null deref is no longer an
+exploitable bug in many/most situations which can't be said of arbitrary
+uninitialized (read: potentially attacker controlled) values.
 
-> On Thu, 14 May 2015, Michal Hocko wrote:
->=20
-> > On Wed 13-05-15 11:00:36, Eric B Munson wrote:
-> > > On Mon, 11 May 2015, Eric B Munson wrote:
-> > >=20
-> > > > On Fri, 08 May 2015, Andrew Morton wrote:
-> > > >=20
-> > > > > On Fri,  8 May 2015 15:33:43 -0400 Eric B Munson <emunson@akamai.=
-com> wrote:
-> > > > >=20
-> > > > > > mlock() allows a user to control page out of program memory, bu=
-t this
-> > > > > > comes at the cost of faulting in the entire mapping when it is
-> > > > > > allocated.  For large mappings where the entire area is not nec=
-essary
-> > > > > > this is not ideal.
-> > > > > >=20
-> > > > > > This series introduces new flags for mmap() and mlockall() that=
- allow a
-> > > > > > user to specify that the covered are should not be paged out, b=
-ut only
-> > > > > > after the memory has been used the first time.
-> > > > >=20
-> > > > > Please tell us much much more about the value of these changes: t=
-he use
-> > > > > cases, the behavioural improvements and performance results which=
- the
-> > > > > patchset brings to those use cases, etc.
-> > > > >=20
-> > > >=20
-> > > > To illustrate the proposed use case I wrote a quick program that mm=
-aps
-> > > > a 5GB file which is filled with random data and accesses 150,000 pa=
-ges
-> > > > from that mapping.  Setup and processing were timed separately to
-> > > > illustrate the differences between the three tested approaches.  the
-> > > > setup portion is simply the call to mmap, the processing is the
-> > > > accessing of the various locations in  that mapping.  The following
-> > > > values are in milliseconds and are the averages of 20 runs each wit=
-h a
-> > > > call to echo 3 > /proc/sys/vm/drop_caches between each run.
-> > > >=20
-> > > > The first mapping was made with MAP_PRIVATE | MAP_LOCKED as a basel=
-ine:
-> > > > Startup average:    9476.506
-> > > > Processing average: 3.573
-> > > >=20
-> > > > The second mapping was simply MAP_PRIVATE but each page was passed =
-to
-> > > > mlock() before being read:
-> > > > Startup average:    0.051
-> > > > Processing average: 721.859
-> > > >=20
-> > > > The final mapping was MAP_PRIVATE | MAP_LOCKONFAULT:
-> > > > Startup average:    0.084
-> > > > Processing average: 42.125
-> > > >=20
-> > >=20
-> > > Michal's suggestion of changing protections and locking in a signal
-> > > handler was better than the locking as needed, but still significantly
-> > > more work required than the LOCKONFAULT case.
-> > >=20
-> > > Startup average:    0.047
-> > > Processing average: 86.431
-> >=20
-> > Have you played with batching? Has it helped? Anyway it is to be
-> > expected that the overhead will be higher than a single mmap call. The
-> > question is whether you can live with it because adding a new semantic
-> > to mlock sounds trickier and MAP_LOCKED is tricky enough already...
-> >=20
->=20
-> I reworked the experiment to better cover the batching solution.  The
-> same 5GB data file is used, however instead of 150,000 accesses at
-> regular intervals, the test program now does 15,000,000 accesses to
-> random pages in the mapping.  The rest of the setup remains the same.
->=20
-> mmap with MAP_LOCKED:
-> Setup avg:      11821.193
-> Processing avg: 3404.286
->=20
-> mmap with mlock() before each access:
-> Setup avg:      0.054
-> Processing avg: 34263.201
->=20
-> mmap with PROT_NONE and signal handler and batch size of 1 page:
-> With the default value in max_map_count, this gets ENOMEM as I attempt
-> to change the permissions, after upping the sysctl significantly I get:
-> Setup avg:      0.050
-> Processing avg: 67690.625
->=20
-> mmap with PROT_NONE and signal handler and batch size of 8 pages:
-> Setup avg:      0.098
-> Processing avg: 37344.197
->=20
-> mmap with PROT_NONE and signal handler and batch size of 16 pages:
-> Setup avg:      0.0548
-> Processing avg: 29295.669
->=20
-> mmap with MAP_LOCKONFAULT:
-> Setup avg:      0.073
-> Processing avg: 18392.136
->=20
-> The signal handler in the batch cases faulted in memory in two steps to
-> avoid having to know the start and end of the faulting mapping.  The
-> first step covers the page that caused the fault as we know that it will
-> be possible to lock.  The second step speculatively tries to mlock and
-> mprotect the batch size - 1 pages that follow.  There may be a clever
-> way to avoid this without having the program track each mapping to be
-> covered by this handeler in a globally accessible structure, but I could
-> not find it.
->=20
-> These results show that if the developer knows that a majority of the
-> mapping will be used, it is better to try and fault it in at once,
-> otherwise MAP_LOCKONFAULT is significantly faster.
->=20
-> Eric
+that said, i always considered this aspect of page sanitization as a
+(potentially useful) side effect, not the design goal.
 
-Is there anything else I can add to the discussion here?
+> >  - finally, it can reduce infoleaks, although this is hard to measure.
+> > 
+> 
+> It obscures them.
 
-
---pvezYHf7grwyp3Bc
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQIcBAEBAgAGBQJVW51NAAoJELbVsDOpoOa9PQIQAJYsWV/aTxT1NeePEHXXzgc2
-mZLqLo0f1XF66qBn4eFO8mSy3CD+MKTqxMxF5dtRJhHkelz7s6JJqwRjfQgr6IT6
-bsGSERcshD3rpNdJQnfkGd3mTmq6FmfvTeaUYPopZrN1zkZU/SmrAvm6GpPhjnH2
-TrXEVm2MEcESl3Q7mNZfNDeduI1sKSw03BaBj2uSVMY7EllwpnvlO4pujmAC9ZBY
-fb+lNttd0wTErNUHvHrUtBT7dCqLuOjAqANT78k+aXROCuIIkmnHjJctVRjRz9Bh
-KFCY9JQTTZ3llNFdO6w/EYGD+u8qVN+8NnGYlR31rQUgVQ9EkLkaoCTdWVl/4dlF
-GklDSDyG7ICUly7lTRSE59Zbph+8SiLPAd9YnGI/Tv5QUTrKRtv2sBD7ahU39eF0
-XLFB02ZX9nzOTTYxKp4UO8iFcRhIkVrefIB467HeW1k15jOoY9Js8Wv1DMcGuUcb
-6iETzFsnYhi/+vQq27rUGNq8MVN0dEsqlI80hfUdmhuSZeeHefmWSPIA7fsROdYk
-zx11IRSbEVzSkcLTKn3Y15futwTl6oAHg3uKcfehxSiY3HmLm7w1EWJ64XKLpWry
-5Dr4G78pWTLTm+Z9TqpBtg5sAcPPnMZwzJybMGHBaNAJqB6ZW83oDM5ght/kStpT
-n6kIODdplDv+SdRLA+3k
-=Cgdc
------END PGP SIGNATURE-----
-
---pvezYHf7grwyp3Bc--
+i don't understand, what is being obscured exactly? maybe the term 'infoleaks'
+is ambiguous, in case of page sanitization it refers to the reduction of data
+lifetime (mostly userland anonymous memory, as per the original design). if
+you were thinking of kernel->userland kind of leaks then i'd say that page
+sanitization has little effect there because all the bugs i can think of were
+not leaking from freed memory (where sanitization would have prevented the
+leak).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
