@@ -1,113 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
-	by kanga.kvack.org (Postfix) with ESMTP id AC9306B0129
-	for <linux-mm@kvack.org>; Wed, 20 May 2015 11:21:47 -0400 (EDT)
-Received: by obbea2 with SMTP id ea2so4577046obb.3
-        for <linux-mm@kvack.org>; Wed, 20 May 2015 08:21:47 -0700 (PDT)
-Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
-        by mx.google.com with ESMTPS id l1si10873845obn.71.2015.05.20.08.21.47
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A9036B012B
+	for <linux-mm@kvack.org>; Wed, 20 May 2015 11:29:41 -0400 (EDT)
+Received: by wicmx19 with SMTP id mx19so159268889wic.0
+        for <linux-mm@kvack.org>; Wed, 20 May 2015 08:29:40 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id kb7si29969275wjc.13.2015.05.20.08.29.38
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 May 2015 08:21:47 -0700 (PDT)
-Message-ID: <1432134143.908.12.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v5 6/6] mtrr, mm, x86: Enhance MTRR checks for KVA huge
- page mapping
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 20 May 2015 09:02:23 -0600
-In-Reply-To: <20150520150114.GA19161@gmail.com>
-References: <20150518190150.GC23618@pd.tnic>
-	 <1431977519.20569.15.camel@misato.fc.hp.com>
-	 <20150518200114.GE23618@pd.tnic>
-	 <1431980468.21019.11.camel@misato.fc.hp.com>
-	 <20150518205123.GI23618@pd.tnic>
-	 <1431985994.21526.12.camel@misato.fc.hp.com>
-	 <20150519114437.GF4641@pd.tnic> <20150519132307.GG4641@pd.tnic>
-	 <20150520115509.GA3489@gmail.com> <1432132451.700.4.camel@misato.fc.hp.com>
-	 <20150520150114.GA19161@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Wed, 20 May 2015 08:29:39 -0700 (PDT)
+Date: Wed, 20 May 2015 11:29:23 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/2] mm, memcg: Try charging a page before setting page
+ up to date
+Message-ID: <20150520152923.GA2874@cmpxchg.org>
+References: <1432126245-10908-1-git-send-email-mgorman@suse.de>
+ <1432126245-10908-2-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1432126245-10908-2-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Borislav Petkov <bp@alien8.de>, akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl, mcgrof@suse.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Linux-CGroups <cgroups@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 2015-05-20 at 17:01 +0200, Ingo Molnar wrote:
-> * Toshi Kani <toshi.kani@hp.com> wrote:
+On Wed, May 20, 2015 at 01:50:44PM +0100, Mel Gorman wrote:
+> Historically memcg overhead was high even if memcg was unused. This has
+> improved a lot but it still showed up in a profile summary as being a
+> problem.
 > 
-> > On Wed, 2015-05-20 at 13:55 +0200, Ingo Molnar wrote:
-> > > * Borislav Petkov <bp@alien8.de> wrote:
-> > > 
-> > > > --- a/arch/x86/mm/pgtable.c
-> > > > +++ b/arch/x86/mm/pgtable.c
-> > > > @@ -566,19 +566,28 @@ void native_set_fixmap(enum fixed_addresses idx, phys_addr_t phys,
-> > > >  /**
-> > > >   * pud_set_huge - setup kernel PUD mapping
-> > > >   *
-> > > > - * MTRR can override PAT memory types with 4KiB granularity.  Therefore,
-> > > > - * this function does not set up a huge page when the range is covered
-> > > > - * by a non-WB type of MTRR.  MTRR_TYPE_INVALID indicates that MTRR are
-> > > > - * disabled.
-> > > > + * MTRRs can override PAT memory types with 4KiB granularity. Therefore, this
-> > > > + * function sets up a huge page only if any of the following conditions are met:
-> > > > + *
-> > > > + * - MTRRs are disabled, or
-> > > > + *
-> > > > + * - MTRRs are enabled and the range is completely covered by a single MTRR, or
-> > > > + *
-> > > > + * - MTRRs are enabled and the range is not completely covered by a single MTRR
-> > > > + *   but the memory type of the range is WB, even if covered by multiple MTRRs.
-> > > > + *
-> > > > + * Callers should try to decrease page size (1GB -> 2MB -> 4K) if the bigger
-> > > > + * page mapping attempt fails.
-> > > 
-> > > This comment should explain why it's ok in the WB case.
-> > > 
-> > > Also, the phrase 'the memory type of the range' is ambiguous: it might 
-> > > mean the partial MTRR's, or the memory type specified via PAT by the 
-> > > huge-pmd entry.
-> > 
-> > Agreed.  How about this sentence?
-> > 
-> >  - MTRRs are enabled and the corresponding MTRR memory type is WB, which
-> > has no effect to the requested PAT memory type.
+> /usr/src/linux-4.0-vanilla/mm/memcontrol.c                           6.6441   395842
+>   mem_cgroup_try_charge                                                        2.950%   175781
+>   __mem_cgroup_count_vm_event                                                  1.431%    85239
+>   mem_cgroup_page_lruvec                                                       0.456%    27156
+>   mem_cgroup_commit_charge                                                     0.392%    23342
+>   uncharge_list                                                                0.323%    19256
+>   mem_cgroup_update_lru_size                                                   0.278%    16538
+>   memcg_check_events                                                           0.216%    12858
+>   mem_cgroup_charge_statistics.isra.22                                         0.188%    11172
+>   try_charge                                                                   0.150%     8928
+>   commit_charge                                                                0.141%     8388
+>   get_mem_cgroup_from_mm                                                       0.121%     7184
 > 
-> s/effect to/effect on
+> That is showing that 6.64% of system CPU cycles were in memcontrol.c and
+> dominated by mem_cgroup_try_charge. The annotation shows that the bulk of
+> the cost was checking PageSwapCache which is expected to be cache hot but is
+> very expensive. The problem appears to be that __SetPageUptodate is called
+> just before the check which is a write barrier. It is required to make sure
+> struct page and page data is written before the PTE is updated and the data
+> visible to userspace. memcg charging does not require or need the barrier
+> but gets unfairly hit with the cost so this patch attempts the charging
+> before the barrier.  Aside from the accidental cost to memcg there is the
+> added benefit that the barrier is avoided if the page cannot be charged.
+> When applied the relevant profile summary is as follows.
 > 
-> sounds good otherwise!
+> /usr/src/linux-4.0-chargefirst-v2r1/mm/memcontrol.c                  3.7907   223277
+>   __mem_cgroup_count_vm_event                                                  1.143%    67312
 
-Great!
+Out of curiosity, I'm still consistently reading this function at
+around 0.7%.  Are you profiling this single-threadedly or for the
+entire run?  For profiling 80 single-threaded iterations, I get:
 
-Boris, can you update the patch, or do you want me to send you a patch
-for this update?
++    1.31%     0.59%              pft  [kernel.kallsyms]            [k] mem_cgroup_try_charge
++    0.72%     0.44%              pft  [kernel.kallsyms]            [k] mem_cgroup_commit_charge
++    0.67%     0.67%              pft  [kernel.kallsyms]            [k] __mem_cgroup_count_vm_event
++    0.57%     0.57%              pft  [kernel.kallsyms]            [k] get_mem_cgroup_from_mm
++    0.32%     0.01%              pft  [kernel.kallsyms]            [k] mem_cgroup_uncharge_list
++    0.42%     0.42%              pft  [kernel.kallsyms]            [k] mem_cgroup_page_lruvec
++    0.31%     0.30%              pft  [kernel.kallsyms]            [k] uncharge_list
++    0.28%     0.28%              pft  [kernel.kallsyms]            [k] try_charge
++    0.21%     0.21%              pft  [kernel.kallsyms]            [k] mem_cgroup_charge_statistics.isra.26
++    0.20%     0.20%              pft  [kernel.kallsyms]            [k] mem_cgroup_update_lru_size
++    0.13%     0.13%              pft  [kernel.kallsyms]            [k] commit_charge
++    0.10%     0.09%              pft  [kernel.kallsyms]            [k] memcg_check_events
 
-> Btw., if WB MTRR entries can never have an effect on Linux PAT 
-> specified attributes, why do we allow them to be created? I don't 
-> think we ever call into real mode for this to matter?
+Adding up the recursive profile (first column) for the entry functions
+(try_charge, commit, pgfault accounting, uncharge), this yields 3.02%.
 
-MTRRs have the default memory type, which is used when the given range
-is not covered by any MTRR entries.  There are two types of BIOS setup:
+>   mem_cgroup_page_lruvec                                                       0.465%    27403
+>   mem_cgroup_commit_charge                                                     0.381%    22452
+>   uncharge_list                                                                0.332%    19543
+>   mem_cgroup_update_lru_size                                                   0.284%    16704
+>   get_mem_cgroup_from_mm                                                       0.271%    15952
+>   mem_cgroup_try_charge                                                        0.237%    13982
+>   memcg_check_events                                                           0.222%    13058
+>   mem_cgroup_charge_statistics.isra.22                                         0.185%    10920
+>   commit_charge                                                                0.140%     8235
+>   try_charge                                                                   0.131%     7716
+> 
+> That brings the overhead down to 3.79% and leaves the memcg fault accounting
+> to the root cgroup but it's an improvement. The difference in headline
+> performance of the page fault microbench is marginal as memcg is such a
+> small component of it.
+> 
+> pft faults
+>                                        4.0.0                  4.0.0
+>                                      vanilla            chargefirst
+> Hmean    faults/cpu-1 1443258.1051 (  0.00%) 1509075.7561 (  4.56%)
+> Hmean    faults/cpu-3 1340385.9270 (  0.00%) 1339160.7113 ( -0.09%)
+> Hmean    faults/cpu-5  875599.0222 (  0.00%)  874174.1255 ( -0.16%)
+> Hmean    faults/cpu-7  601146.6726 (  0.00%)  601370.9977 (  0.04%)
+> Hmean    faults/cpu-8  510728.2754 (  0.00%)  510598.8214 ( -0.03%)
+> Hmean    faults/sec-1 1432084.7845 (  0.00%) 1497935.5274 (  4.60%)
+> Hmean    faults/sec-3 3943818.1437 (  0.00%) 3941920.1520 ( -0.05%)
+> Hmean    faults/sec-5 3877573.5867 (  0.00%) 3869385.7553 ( -0.21%)
+> Hmean    faults/sec-7 3991832.0418 (  0.00%) 3992181.4189 (  0.01%)
+> Hmean    faults/sec-8 3987189.8167 (  0.00%) 3986452.2204 ( -0.02%)
+> 
+> It's only visible at single threaded. The overhead is there for higher
+> threads but other factors dominate.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-1) Default UC
- - BIOS sets the default type to UC, and covers all WB accessible ranges
-with MTRR entries of WB.
+Awesome analysis, thank you Mel.
 
-2) Default WB
- - BIOS sets the default type to WB, and covers non-WB accessible range
-with MTRR entries of other memory types, such as UC.
-
-In both cases, WB type can be returned.  In case of 1), the requested
-range may overlap with multiple MTRR entries of WB type, which is still
-safe.
-
-Thanks,
--Toshi
-
-
-Thanks,
--Toshi
-
-
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
