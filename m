@@ -1,76 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 47BCF6B0116
-	for <linux-mm@kvack.org>; Wed, 20 May 2015 09:23:47 -0400 (EDT)
-Received: by qcir1 with SMTP id r1so22920398qci.3
-        for <linux-mm@kvack.org>; Wed, 20 May 2015 06:23:47 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 199si2723625qhe.36.2015.05.20.06.23.45
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id E78986B0118
+	for <linux-mm@kvack.org>; Wed, 20 May 2015 09:48:02 -0400 (EDT)
+Received: by wicmx19 with SMTP id mx19so155641044wic.0
+        for <linux-mm@kvack.org>; Wed, 20 May 2015 06:48:02 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gh11si2162288wjc.11.2015.05.20.06.48.00
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 May 2015 06:23:46 -0700 (PDT)
-Date: Wed, 20 May 2015 15:23:19 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 00/23] userfaultfd v4
-Message-ID: <20150520132319.GN19097@redhat.com>
-References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
- <20150519143801.8ba477c3813e93a2637c19cf@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150519143801.8ba477c3813e93a2637c19cf@linux-foundation.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 20 May 2015 06:48:00 -0700 (PDT)
+Message-ID: <1432129666.15239.22.camel@stgolabs.net>
+Subject: Re: [PATCH 2/2] mm, memcg: Optionally disable memcg by default
+ using Kconfig
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Wed, 20 May 2015 06:47:46 -0700
+In-Reply-To: <1432126245-10908-3-git-send-email-mgorman@suse.de>
+References: <1432126245-10908-1-git-send-email-mgorman@suse.de>
+	 <1432126245-10908-3-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Linux-CGroups <cgroups@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Andrew,
+On Wed, 2015-05-20 at 13:50 +0100, Mel Gorman wrote:
+> +config MEMCG_DEFAULT_ENABLED
+> +	bool "Automatically enable memory resource controller"
+> +	default y
+> +	depends on MEMCG
+> +	help
+> +	  The memory controller has some overhead even if idle as resource
+> +	  usage must be tracked in case a group is created and a process
+> +	  migrated. As users may not be aware of this and the cgroup_disable=
+> +	  option, this config option controls whether it is enabled by
+> +	  default. It is assumed that someone that requires the controller
+> +	  can find the cgroup_enable= switch.
+> +
+> +	  Say N if unsure. This is default Y to preserve oldconfig and
+> +	  historical behaviour.
 
-On Tue, May 19, 2015 at 02:38:01PM -0700, Andrew Morton wrote:
-> On Thu, 14 May 2015 19:30:57 +0200 Andrea Arcangeli <aarcange@redhat.com> wrote:
-> 
-> > This is the latest userfaultfd patchset against mm-v4.1-rc3
-> > 2015-05-14-10:04.
-> 
-> It would be useful to have some userfaultfd testcases in
-> tools/testing/selftests/.  Partly as an aid to arch maintainers when
-> enabling this.  And also as a standalone thing to give people a
-> practical way of exercising this interface.
+Out of curiosity, how do you expect distros to handle this? I mean, this
+is a pretty general functionality and customers won't want to be
+changing kernels (they may or may not use memcg). iow, will this ever be
+disabled?
 
-Agreed.
-
-I was also thinking about writing a trinity module for it, I wrote it
-for an older version but it was much easier to do that back then
-before we had ioctls, now it's more tricky because the ioctls requires
-the fd open first etc... it's not enough to just call a syscall with a
-flood of supervised-random params anymore.
-
-> What are your thoughts on enabling userfaultfd for other architectures,
-> btw?  Are there good use cases, are people working on it, etc?
-
-powerpc should be enabled and functional already. There's not much
-arch dependent code in it, so in theory if the postcopy live migration
-patchset is applied to qemu, it should work on powerpc out of the
-box. Nobody tested it yet but I don't expect trouble on the kernel side.
-
-Adding support for all other archs is just a few liner patch that
-defines the syscall number. I didn't do that out of tree because every
-time a new syscall materialized I would get more rejects during
-rebase.
-
-> Also, I assume a manpage is in the works?  Sooner rather than later
-> would be good - Michael's review of proposed kernel interfaces has
-> often been valuable.
-
-Yes, the manpage was certainly planned. It would require updates as we
-keep adding features (like the wrprotect tracking, the non-cooperative
-usage, and extending the availability of the ioctls to tmpfs). We can
-definitely write a manpage with the current features.
-
-Ok, so I'll continue working on the testcase and on the manpage.
-
-Thanks!!
-Andrea
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
