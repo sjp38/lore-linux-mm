@@ -1,67 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id E98806B013E
-	for <linux-mm@kvack.org>; Wed, 20 May 2015 15:44:30 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so80076498pde.2
-        for <linux-mm@kvack.org>; Wed, 20 May 2015 12:44:30 -0700 (PDT)
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 113806B013F
+	for <linux-mm@kvack.org>; Wed, 20 May 2015 16:03:23 -0400 (EDT)
+Received: by pdfh10 with SMTP id h10so80561834pdf.3
+        for <linux-mm@kvack.org>; Wed, 20 May 2015 13:03:22 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id gi11si27810274pbd.206.2015.05.20.12.44.29
+        by mx.google.com with ESMTPS id w13si5548077pbt.221.2015.05.20.13.03.21
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 May 2015 12:44:29 -0700 (PDT)
-Date: Wed, 20 May 2015 12:44:28 -0700
+        Wed, 20 May 2015 13:03:22 -0700 (PDT)
+Date: Wed, 20 May 2015 13:03:20 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V5 2/3] powerpc/mm: Use generic version of
- pmdp_clear_flush
-Message-Id: <20150520124428.9bab9007d7d589ec4b615ee6@linux-foundation.org>
-In-Reply-To: <1431704550-19937-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1431704550-19937-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<1431704550-19937-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: linux-next: Tree for May 18 (mm/memory-failure.c)
+Message-Id: <20150520130320.1fc1bd7b1c26dae15c5946c5@linux-foundation.org>
+In-Reply-To: <555C1EA5.3080700@huawei.com>
+References: <20150518185226.23154d47@canb.auug.org.au>
+	<555A0327.9060709@infradead.org>
+	<20150519024933.GA1614@hori1.linux.bs1.fc.nec.co.jp>
+	<555C1EA5.3080700@huawei.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, kirill.shutemov@linux.intel.com, aarcange@redhat.com, schwidefsky@de.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: Xie XiuQi <xiexiuqi@huawei.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Randy Dunlap <rdunlap@infradead.org>, Stephen Rothwell <sfr@canb.auug.org.au>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Steven Rostedt <rostedt@goodmis.org>, Jim Davis <jim.epost@gmail.com>, Chen Gong <gong.chen@linux.intel.com>
 
-On Fri, 15 May 2015 21:12:29 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+On Wed, 20 May 2015 13:41:57 +0800 Xie XiuQi <xiexiuqi@huawei.com> wrote:
 
-> Also move the pmd_trans_huge check to generic code.
+> On 2015/5/19 10:49, Naoya Horiguchi wrote:
+> > On Mon, May 18, 2015 at 08:20:07AM -0700, Randy Dunlap wrote:
+> >> On 05/18/15 01:52, Stephen Rothwell wrote:
+> >>> Hi all,
+> >>>
+> >>> Changes since 20150515:
+> >>>
+> >>
+> >> on i386:
+> >>
+> >> mm/built-in.o: In function `action_result':
+> >> memory-failure.c:(.text+0x344a5): undefined reference to `__tracepoint_memory_failure_event'
+> >> memory-failure.c:(.text+0x344d5): undefined reference to `__tracepoint_memory_failure_event'
+> >> memory-failure.c:(.text+0x3450c): undefined reference to `__tracepoint_memory_failure_event'
+> > 
+> > Thanks for the reporting, Randy.
+> > Here is a patch for this problem, could you try it?
 > 
-> ...
->
-> --- a/include/asm-generic/pgtable.h
-> +++ b/include/asm-generic/pgtable.h
-> @@ -196,7 +196,12 @@ static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
->  					unsigned long address,
->  					pmd_t *pmdp)
->  {
-> -	return pmdp_clear_flush(vma, address, pmdp);
-> +	pmd_t pmd;
-> +	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-> +	VM_BUG_ON(pmd_trans_huge(*pmdp));
-> +	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
-> +	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-> +	return pmd;
->  }
+> Hi Naoya,
+> 
+> This patch will introduce another build error with attched config file.
+> 
+> drivers/built-in.o:(__tracepoints+0x500): multiple definition of `__tracepoint_aer_event'
+> mm/built-in.o:(__tracepoints+0x398): first defined here
+> drivers/built-in.o:(__tracepoints+0x4ec): multiple definition of `__tracepoint_memory_failure_event'
+> mm/built-in.o:(__tracepoints+0x384): first defined here
+> drivers/built-in.o:(__tracepoints+0x514): multiple definition of `__tracepoint_mc_event'
+> mm/built-in.o:(__tracepoints+0x3ac): first defined here
+> drivers/built-in.o:(__tracepoints+0x528): multiple definition of `__tracepoint_extlog_mem_event'
+> mm/built-in.o:(__tracepoints+0x3c0): first defined here
+> make: *** [vmlinux] Error 1
+> 
+> Is this one better?
 
-x86_64 allmodconfig:
+I'm lost.
 
-In file included from ./arch/x86/include/asm/pgtable.h:878,
-                 from include/linux/mm.h:53,
-                 from include/linux/suspend.h:8,
-                 from arch/x86/kernel/asm-offsets.c:12:
-include/asm-generic/pgtable.h: In function 'pmdp_collapse_flush':
-include/asm-generic/pgtable.h:199: error: 'HPAGE_PMD_MASK' undeclared (first use in this function)
-include/asm-generic/pgtable.h:199: error: (Each undeclared identifier is reported only once
-include/asm-generic/pgtable.h:199: error: for each function it appears in.)
-include/asm-generic/pgtable.h:202: error: implicit declaration of function 'flush_tlb_range'
-include/asm-generic/pgtable.h:202: error: 'HPAGE_PMD_SIZE' undeclared (first use in this function)
+I dropped
 
+memory-failure-export-page_type-and-action-result.patch
+memory-failure-change-type-of-action_results-param-3-to-enum.patch
+tracing-add-trace-event-for-memory-failure.patch
 
-Including linux/huge_mm.h doesn't work.  A suitable fix would be to
-move this into a .c file.
+Let's start again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
