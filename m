@@ -1,71 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C4BE6B011E
-	for <linux-mm@kvack.org>; Wed, 20 May 2015 10:13:58 -0400 (EDT)
-Received: by wichy4 with SMTP id hy4so61733460wic.1
-        for <linux-mm@kvack.org>; Wed, 20 May 2015 07:13:57 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id by11si3986886wib.105.2015.05.20.07.13.55
+Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 685196B0120
+	for <linux-mm@kvack.org>; Wed, 20 May 2015 10:17:36 -0400 (EDT)
+Received: by qkgx75 with SMTP id x75so32481340qkg.1
+        for <linux-mm@kvack.org>; Wed, 20 May 2015 07:17:36 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z71si6584560qkz.34.2015.05.20.07.17.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 20 May 2015 07:13:56 -0700 (PDT)
-Date: Wed, 20 May 2015 15:13:52 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/2] mm, memcg: Optionally disable memcg by default using
- Kconfig
-Message-ID: <20150520141352.GQ2462@suse.de>
-References: <1432126245-10908-1-git-send-email-mgorman@suse.de>
- <1432126245-10908-3-git-send-email-mgorman@suse.de>
- <1432129666.15239.22.camel@stgolabs.net>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 May 2015 07:17:35 -0700 (PDT)
+Date: Wed, 20 May 2015 16:17:30 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 00/23] userfaultfd v4
+Message-ID: <20150520141730.GO19097@redhat.com>
+References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+ <20150519143801.8ba477c3813e93a2637c19cf@linux-foundation.org>
+ <CAFLxGvwGGZH1bbMw+qReZFMK+dc6zoOTCNsuOMdp+xw_jPzPDg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1432129666.15239.22.camel@stgolabs.net>
+In-Reply-To: <CAFLxGvwGGZH1bbMw+qReZFMK+dc6zoOTCNsuOMdp+xw_jPzPDg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Linux-CGroups <cgroups@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Richard Weinberger <richard.weinberger@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, qemu-devel@nongnu.org, kvm <kvm@vger.kernel.org>, "open list:ABI/API" <linux-api@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-On Wed, May 20, 2015 at 06:47:46AM -0700, Davidlohr Bueso wrote:
-> On Wed, 2015-05-20 at 13:50 +0100, Mel Gorman wrote:
-> > +config MEMCG_DEFAULT_ENABLED
-> > +	bool "Automatically enable memory resource controller"
-> > +	default y
-> > +	depends on MEMCG
-> > +	help
-> > +	  The memory controller has some overhead even if idle as resource
-> > +	  usage must be tracked in case a group is created and a process
-> > +	  migrated. As users may not be aware of this and the cgroup_disable=
-> > +	  option, this config option controls whether it is enabled by
-> > +	  default. It is assumed that someone that requires the controller
-> > +	  can find the cgroup_enable= switch.
-> > +
-> > +	  Say N if unsure. This is default Y to preserve oldconfig and
-> > +	  historical behaviour.
+Hello Richard,
+
+On Tue, May 19, 2015 at 11:59:42PM +0200, Richard Weinberger wrote:
+> On Tue, May 19, 2015 at 11:38 PM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+> > On Thu, 14 May 2015 19:30:57 +0200 Andrea Arcangeli <aarcange@redhat.com> wrote:
+> >
+> >> This is the latest userfaultfd patchset against mm-v4.1-rc3
+> >> 2015-05-14-10:04.
+> >
+> > It would be useful to have some userfaultfd testcases in
+> > tools/testing/selftests/.  Partly as an aid to arch maintainers when
+> > enabling this.  And also as a standalone thing to give people a
+> > practical way of exercising this interface.
+> >
+> > What are your thoughts on enabling userfaultfd for other architectures,
+> > btw?  Are there good use cases, are people working on it, etc?
 > 
-> Out of curiosity, how do you expect distros to handle this?
-
-Ideally, distros would have been able to leave this disabled by default and
-have the user explicitly enable it if it was required. This would have made
-a lot of sense when memcg had unconditional memory overhead to go with it.
-
-For distros that wanted to make the change, it would be fine to leave it
-disabled on fresh installs. However, if upgrading then the installer would
-have to also add the kernel parameter to prevent any possible regressions
-for the user.
-
-> I mean, this
-> is a pretty general functionality and customers won't want to be
-> changing kernels (they may or may not use memcg). iow, will this ever be
-> disabled?
+> UML is using SIGSEGV for page faults.
+> i.e. the UML processes receives a SIGSEGV, learns the faulting address
+> from the mcontext
+> and resolves the fault by installing a new mapping.
 > 
+> If userfaultfd is faster that the SIGSEGV notification it could speed
+> up UML a bit.
+> For UML I'm only interested in the notification, not the resolving
+> part. The "missing"
+> data is present, only a new mapping is needed. No copy of data.
+> 
+> Andrea, what do you think?
 
-It's not that general. It takes explicit user or sysadmin action before
-it's used AFAIK.
+I think you need some kind of UFFDIO_MPROTECT ioctl that is the same
+ioctl wrprotect tracking also needs. At the moment we focused the
+future plans mostly on wrprotection tracking but it could be extended
+to protnone tracking, either with the same feature flag as
+wrprotection (with a generic UFFDIO_MPROTECT) or with two separate
+feature flags and two separate ioctl.
 
--- 
-Mel Gorman
-SUSE Labs
+Your pages are not missing, like in the postcopy live snapshotting
+case the pages are not missing. The userfaultfd memory protection
+ioctl will not modify the VMA, but it'll just selectively mark
+pte/trans_huge_pmd wrprotected/protnone in order to get the faults. In
+the case of postcopy live snapshotting a single ioctl call will mark
+the entire guest address space readonly.
+
+For live snapshotting the fault resolution is a no brainer: when you
+get the fault the page is still readable and it just needs to be
+copied off by the live snapshotting thread to a different location,
+and then the UFFDIO_MPROTECT will be called again to make the page
+writable and wake the blocked fault.
+
+For the protnone, you need to modify the page before waking the
+blocked userfault, you can't just remove the protnone or other threads
+could modify it (if there are other threads). You'd need a further
+ioctl to copy the page off to a different place by using its kernel
+address (the userland address is not mapped) and copy it back to
+overwrite the original page.
+
+Alternatively once we extend the handle_userfault to tmpfs you could
+map the page in two virtual mappings and track the faults in one
+mapping (where the tracked app runs) and read/write the page contents
+in the other mapping that isn't tracked by the userfault.
+
+These are the first thoughts that comes to mind without knowing
+exactly what you need to do after you get the fault address, and
+without knowing exactly why you need to mark the region PROT_NONE.
+
+There will be some complications in adding the wrprotection/protnone
+feature: if faults could already happen when the wrprotect/protnone is
+armed, the handle_userfault() could be invoked in a retry-fault, that
+is not ok without allowing the userfault to return VM_FAULT_RETRY even
+during a refault (i.e. FAULT_FLAG_TRIED set but FAULT_FLAG_ALLOW_RETRY
+not set). The invariants of vma->vm_page_prot and pte/trans_huge_pmd
+permissions must also not break anywhere. These are the two main
+reasons why these features that requires to flip protection bits are
+left implemented later and made visible later with uffdio_api.feature
+flags and/or through uffdio_register.ioctl during UFFDIO_REGISTER.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
