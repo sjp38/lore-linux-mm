@@ -1,155 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F1346B0119
-	for <linux-mm@kvack.org>; Wed, 20 May 2015 10:03:56 -0400 (EDT)
-Received: by wghq2 with SMTP id q2so54095591wgh.1
-        for <linux-mm@kvack.org>; Wed, 20 May 2015 07:03:56 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id BB4446B011C
+	for <linux-mm@kvack.org>; Wed, 20 May 2015 10:12:19 -0400 (EDT)
+Received: by wibt6 with SMTP id t6so61700214wib.0
+        for <linux-mm@kvack.org>; Wed, 20 May 2015 07:12:19 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i6si946526wiv.86.2015.05.20.07.03.54
+        by mx.google.com with ESMTPS id lg1si9857323wjc.136.2015.05.20.07.12.17
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 20 May 2015 07:03:54 -0700 (PDT)
-Date: Wed, 20 May 2015 16:03:53 +0200
+        Wed, 20 May 2015 07:12:18 -0700 (PDT)
+Date: Wed, 20 May 2015 16:12:17 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] mm, memcg: Try charging a page before setting page
- up to date
-Message-ID: <20150520140353.GC28678@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/2] mm, memcg: Optionally disable memcg by default using
+ Kconfig
+Message-ID: <20150520141216.GD28678@dhcp22.suse.cz>
 References: <1432126245-10908-1-git-send-email-mgorman@suse.de>
- <1432126245-10908-2-git-send-email-mgorman@suse.de>
+ <1432126245-10908-3-git-send-email-mgorman@suse.de>
+ <1432129666.15239.22.camel@stgolabs.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1432126245-10908-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1432129666.15239.22.camel@stgolabs.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Linux-CGroups <cgroups@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Linux-CGroups <cgroups@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ben Hutchings <ben@decadent.org.uk>
 
-On Wed 20-05-15 13:50:44, Mel Gorman wrote:
-> Historically memcg overhead was high even if memcg was unused. This has
-> improved a lot but it still showed up in a profile summary as being a
-> problem.
-> 
-> /usr/src/linux-4.0-vanilla/mm/memcontrol.c                           6.6441   395842
->   mem_cgroup_try_charge                                                        2.950%   175781
->   __mem_cgroup_count_vm_event                                                  1.431%    85239
->   mem_cgroup_page_lruvec                                                       0.456%    27156
->   mem_cgroup_commit_charge                                                     0.392%    23342
->   uncharge_list                                                                0.323%    19256
->   mem_cgroup_update_lru_size                                                   0.278%    16538
->   memcg_check_events                                                           0.216%    12858
->   mem_cgroup_charge_statistics.isra.22                                         0.188%    11172
->   try_charge                                                                   0.150%     8928
->   commit_charge                                                                0.141%     8388
->   get_mem_cgroup_from_mm                                                       0.121%     7184
-> 
-> That is showing that 6.64% of system CPU cycles were in memcontrol.c and
-> dominated by mem_cgroup_try_charge. The annotation shows that the bulk of
-> the cost was checking PageSwapCache which is expected to be cache hot but is
-> very expensive. The problem appears to be that __SetPageUptodate is called
-> just before the check which is a write barrier. It is required to make sure
-> struct page and page data is written before the PTE is updated and the data
-> visible to userspace. memcg charging does not require or need the barrier
-> but gets unfairly hit with the cost so this patch attempts the charging
-> before the barrier.  Aside from the accidental cost to memcg there is the
-> added benefit that the barrier is avoided if the page cannot be charged.
-> When applied the relevant profile summary is as follows.
-> 
-> /usr/src/linux-4.0-chargefirst-v2r1/mm/memcontrol.c                  3.7907   223277
->   __mem_cgroup_count_vm_event                                                  1.143%    67312
->   mem_cgroup_page_lruvec                                                       0.465%    27403
->   mem_cgroup_commit_charge                                                     0.381%    22452
->   uncharge_list                                                                0.332%    19543
->   mem_cgroup_update_lru_size                                                   0.284%    16704
->   get_mem_cgroup_from_mm                                                       0.271%    15952
->   mem_cgroup_try_charge                                                        0.237%    13982
->   memcg_check_events                                                           0.222%    13058
->   mem_cgroup_charge_statistics.isra.22                                         0.185%    10920
->   commit_charge                                                                0.140%     8235
->   try_charge                                                                   0.131%     7716
-> 
-> That brings the overhead down to 3.79% and leaves the memcg fault accounting
-> to the root cgroup but it's an improvement. The difference in headline
-> performance of the page fault microbench is marginal as memcg is such a
-> small component of it.
-> 
-> pft faults
->                                        4.0.0                  4.0.0
->                                      vanilla            chargefirst
-> Hmean    faults/cpu-1 1443258.1051 (  0.00%) 1509075.7561 (  4.56%)
-> Hmean    faults/cpu-3 1340385.9270 (  0.00%) 1339160.7113 ( -0.09%)
-> Hmean    faults/cpu-5  875599.0222 (  0.00%)  874174.1255 ( -0.16%)
-> Hmean    faults/cpu-7  601146.6726 (  0.00%)  601370.9977 (  0.04%)
-> Hmean    faults/cpu-8  510728.2754 (  0.00%)  510598.8214 ( -0.03%)
-> Hmean    faults/sec-1 1432084.7845 (  0.00%) 1497935.5274 (  4.60%)
-> Hmean    faults/sec-3 3943818.1437 (  0.00%) 3941920.1520 ( -0.05%)
-> Hmean    faults/sec-5 3877573.5867 (  0.00%) 3869385.7553 ( -0.21%)
-> Hmean    faults/sec-7 3991832.0418 (  0.00%) 3992181.4189 (  0.01%)
-> Hmean    faults/sec-8 3987189.8167 (  0.00%) 3986452.2204 ( -0.02%)
-> 
-> It's only visible at single threaded. The overhead is there for higher
-> threads but other factors dominate.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+[It seems Ben hasn't made it into the CC list - the thread starts here:
+http://article.gmane.org/gmane.linux.kernel.cgroups/13345]
 
-Very well spotted and I wouldn't have figured that out from the profiles
-posted previously!
-
-The patch makes sense. I am wondering why do we still have both
-__SetPageUptodate and SetPageUptodate when they are same. Historically
-they were slightly different but this is no longer the case.
-
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-Thanks!
-
-> ---
->  mm/memory.c | 10 ++++++----
->  1 file changed, 6 insertions(+), 4 deletions(-)
+On Wed 20-05-15 06:47:46, Davidlohr Bueso wrote:
+> On Wed, 2015-05-20 at 13:50 +0100, Mel Gorman wrote:
+> > +config MEMCG_DEFAULT_ENABLED
+> > +	bool "Automatically enable memory resource controller"
+> > +	default y
+> > +	depends on MEMCG
+> > +	help
+> > +	  The memory controller has some overhead even if idle as resource
+> > +	  usage must be tracked in case a group is created and a process
+> > +	  migrated. As users may not be aware of this and the cgroup_disable=
+> > +	  option, this config option controls whether it is enabled by
+> > +	  default. It is assumed that someone that requires the controller
+> > +	  can find the cgroup_enable= switch.
+> > +
+> > +	  Say N if unsure. This is default Y to preserve oldconfig and
+> > +	  historical behaviour.
 > 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 97839f5c8c30..80a03628bd77 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2158,11 +2158,12 @@ gotten:
->  			goto oom;
->  		cow_user_page(new_page, old_page, address, vma);
->  	}
-> -	__SetPageUptodate(new_page);
->  
->  	if (mem_cgroup_try_charge(new_page, mm, GFP_KERNEL, &memcg))
->  		goto oom_free_new;
->  
-> +	__SetPageUptodate(new_page);
-> +
->  	mmun_start  = address & PAGE_MASK;
->  	mmun_end    = mmun_start + PAGE_SIZE;
->  	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
-> @@ -2594,6 +2595,10 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	page = alloc_zeroed_user_highpage_movable(vma, address);
->  	if (!page)
->  		goto oom;
-> +
-> +	if (mem_cgroup_try_charge(page, mm, GFP_KERNEL, &memcg))
-> +		goto oom_free_page;
-> +
->  	/*
->  	 * The memory barrier inside __SetPageUptodate makes sure that
->  	 * preceeding stores to the page contents become visible before
-> @@ -2601,9 +2606,6 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	 */
->  	__SetPageUptodate(page);
->  
-> -	if (mem_cgroup_try_charge(page, mm, GFP_KERNEL, &memcg))
-> -		goto oom_free_page;
-> -
->  	entry = mk_pte(page, vma->vm_page_prot);
->  	if (vma->vm_flags & VM_WRITE)
->  		entry = pte_mkwrite(pte_mkdirty(entry));
-> -- 
-> 2.3.5
-> 
+> Out of curiosity, how do you expect distros to handle this? I mean, this
+> is a pretty general functionality and customers won't want to be
+> changing kernels (they may or may not use memcg). iow, will this ever be
+> disabled?
 
+This was exactly my question during the previous iteration. Only those
+distribution which either haven't enabled CONFIG_MEMCG at all and want
+to start or those which have enabled it but have it runtime disabled
+(e.g. Debian) would benefit from such a change. Ben has shown interest
+in such a patch because he could drop Debian specific patch. But I am
+not sure it still makes sense when the overal runtime overhead is quite
+low even for microbenchmarks.
+
+I would personally prefer to not take the patch because we have quite
+some config options already but if Debian and potentially others insist
+on their current (runtime disabled) policy then it has some merit
+to merge it. The interface could be better I guess because cgroups
+doesn't allow to enable/disable any other controllers so something like
+swapaccount= (e.g. memcgaccount) would be more appropriate.
 -- 
 Michal Hocko
 SUSE Labs
