@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id E6C596B0139
-	for <linux-mm@kvack.org>; Wed, 20 May 2015 15:14:04 -0400 (EDT)
-Received: by qkdn188 with SMTP id n188so33701666qkd.2
-        for <linux-mm@kvack.org>; Wed, 20 May 2015 12:14:04 -0700 (PDT)
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 015D36B013B
+	for <linux-mm@kvack.org>; Wed, 20 May 2015 15:14:11 -0400 (EDT)
+Received: by wgbgq6 with SMTP id gq6so63061720wgb.3
+        for <linux-mm@kvack.org>; Wed, 20 May 2015 12:14:10 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h38si56891qga.34.2015.05.20.12.14.03
+        by mx.google.com with ESMTPS id r1si5511572wic.9.2015.05.20.12.14.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 May 2015 12:14:03 -0700 (PDT)
+        Wed, 20 May 2015 12:14:09 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 2/2] userfaultfd: fs/userfaultfd.c add more comments
-Date: Wed, 20 May 2015 21:13:59 +0200
-Message-Id: <1432149239-21760-3-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 1/2] userfaultfd: documentation update
+Date: Wed, 20 May 2015 21:13:58 +0200
+Message-Id: <1432149239-21760-2-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1432149239-21760-1-git-send-email-aarcange@redhat.com>
 References: <1432149239-21760-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,59 +20,52 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org
 
-Add more commentary.
-
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- fs/userfaultfd.c | 28 +++++++++++++++++++++++++++-
- 1 file changed, 27 insertions(+), 1 deletion(-)
+ Documentation/vm/userfaultfd.txt | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index f601f27..a519f74 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -86,7 +86,20 @@ static int userfaultfd_wake_function(wait_queue_t *wq, unsigned mode,
- 		goto out;
- 	ret = wake_up_state(wq->private, mode);
- 	if (ret)
--		/* wake only once, autoremove behavior */
-+		/*
-+		 * Wake only once, autoremove behavior.
-+		 *
-+		 * After the effect of list_del_init is visible to the
-+		 * other CPUs, the waitqueue may disappear from under
-+		 * us, see the !list_empty_careful() in
-+		 * handle_userfault(). try_to_wake_up() has an
-+		 * implicit smp_mb__before_spinlock, and the
-+		 * wq->private is read before calling the extern
-+		 * function "wake_up_state" (which in turns calls
-+		 * try_to_wake_up). While the spin_lock;spin_unlock;
-+		 * wouldn't be enough, the smp_mb__before_spinlock is
-+		 * enough to avoid an explicit smp_mb() here.
-+		 */
- 		list_del_init(&wq->task_list);
- out:
- 	return ret;
-@@ -511,6 +524,19 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
- 			 * Refile this userfault from
- 			 * fault_pending_wqh to fault_wqh, it's not
- 			 * pending anymore after we read it.
-+			 *
-+			 * Use list_del() by hand (as
-+			 * userfaultfd_wake_function also uses
-+			 * list_del_init() by hand) to be sure nobody
-+			 * changes __remove_wait_queue() to use
-+			 * list_del_init() in turn breaking the
-+			 * !list_empty_careful() check in
-+			 * handle_userfault(). The uwq->wq.task_list
-+			 * must never be empty at any time during the
-+			 * refile, or the waitqueue could disappear
-+			 * from under us. The "wait_queue_head_t"
-+			 * parameter of __remove_wait_queue() is unused
-+			 * anyway.
- 			 */
- 			list_del(&uwq->wq.task_list);
- 			__add_wait_queue(&ctx->fault_wqh, &uwq->wq);
+diff --git a/Documentation/vm/userfaultfd.txt b/Documentation/vm/userfaultfd.txt
+index 3557edd..70a3c94 100644
+--- a/Documentation/vm/userfaultfd.txt
++++ b/Documentation/vm/userfaultfd.txt
+@@ -3,8 +3,8 @@
+ == Objective ==
+ 
+ Userfaults allow the implementation of on-demand paging from userland
+-and more generally they allow userland to take control various memory
+-page faults, something otherwise only the kernel code could do.
++and more generally they allow userland to take control of various
++memory page faults, something otherwise only the kernel code could do.
+ 
+ For example userfaults allows a proper and more optimal implementation
+ of the PROT_NONE+SIGSEGV trick.
+@@ -47,10 +47,10 @@ When first opened the userfaultfd must be enabled invoking the
+ UFFDIO_API ioctl specifying a uffdio_api.api value set to UFFD_API (or
+ a later API version) which will specify the read/POLLIN protocol
+ userland intends to speak on the UFFD and the uffdio_api.features
+-userland needs to be enabled. The UFFDIO_API ioctl if successful
+-(i.e. if the requested uffdio_api.api is spoken also by the running
+-kernel and the requested features are going to be enabled) will return
+-into uffdio_api.features and uffdio_api.ioctls two 64bit bitmasks of
++userland requires. The UFFDIO_API ioctl if successful (i.e. if the
++requested uffdio_api.api is spoken also by the running kernel and the
++requested features are going to be enabled) will return into
++uffdio_api.features and uffdio_api.ioctls two 64bit bitmasks of
+ respectively all the available features of the read(2) protocol and
+ the generic ioctl available.
+ 
+@@ -77,7 +77,9 @@ The primary ioctl to resolve userfaults is UFFDIO_COPY. That
+ atomically copies a page into the userfault registered range and wakes
+ up the blocked userfaults (unless uffdio_copy.mode &
+ UFFDIO_COPY_MODE_DONTWAKE is set). Other ioctl works similarly to
+-UFFDIO_COPY.
++UFFDIO_COPY. They're atomic as in guaranteeing that nothing can see an
++half copied page since it'll keep userfaulting until the copy has
++finished.
+ 
+ == QEMU/KVM ==
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
