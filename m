@@ -1,91 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 686E86B00EC
-	for <linux-mm@kvack.org>; Tue, 19 May 2015 19:20:46 -0400 (EDT)
-Received: by wicmx19 with SMTP id mx19so132878915wic.0
-        for <linux-mm@kvack.org>; Tue, 19 May 2015 16:20:46 -0700 (PDT)
-Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
-        by mx.google.com with SMTP id cb3si22666447wjc.44.2015.05.19.16.20.44
-        for <linux-mm@kvack.org>;
-        Tue, 19 May 2015 16:20:45 -0700 (PDT)
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Subject: Re: [PATCH v4 1/3] PM / Hibernate: prepare for SANITIZE_FREED_PAGES
-Date: Wed, 20 May 2015 01:46:05 +0200
-Message-ID: <1526358.9aMpXL2Hv2@vostro.rjw.lan>
-In-Reply-To: <CALUN=qLrXryb-aZTjXqoUhzjz68fvOae1bDxitYcJ3jBn_1EDg@mail.gmail.com>
-References: <1431613188-4511-1-git-send-email-anisse@astier.eu> <7216052.tCNGRiLFYJ@vostro.rjw.lan> <CALUN=qLrXryb-aZTjXqoUhzjz68fvOae1bDxitYcJ3jBn_1EDg@mail.gmail.com>
+Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 395AB6B00ED
+	for <linux-mm@kvack.org>; Wed, 20 May 2015 01:46:32 -0400 (EDT)
+Received: by obfe9 with SMTP id e9so29019897obf.1
+        for <linux-mm@kvack.org>; Tue, 19 May 2015 22:46:32 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id tf18si9990559oeb.20.2015.05.19.22.46.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 19 May 2015 22:46:31 -0700 (PDT)
+Message-ID: <555C1EA5.3080700@huawei.com>
+Date: Wed, 20 May 2015 13:41:57 +0800
+From: Xie XiuQi <xiexiuqi@huawei.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Subject: Re: linux-next: Tree for May 18 (mm/memory-failure.c)
+References: <20150518185226.23154d47@canb.auug.org.au> <555A0327.9060709@infradead.org> <20150519024933.GA1614@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20150519024933.GA1614@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: multipart/mixed;
+	boundary="------------090406060907010003060408"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anisse Astier <anisse@astier.eu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, Andi Kleen <andi@firstfloor.org>, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Randy Dunlap <rdunlap@infradead.org>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Steven Rostedt <rostedt@goodmis.org>, Andrew Morton <akpm@linux-foundation.org>, Jim Davis <jim.epost@gmail.com>, Chen Gong <gong.chen@linux.intel.com>
 
-On Monday, May 18, 2015 12:23:00 PM Anisse Astier wrote:
-> Hi Rafael,
+--------------090406060907010003060408
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-Transfer-Encoding: 7bit
+
+On 2015/5/19 10:49, Naoya Horiguchi wrote:
+> On Mon, May 18, 2015 at 08:20:07AM -0700, Randy Dunlap wrote:
+>> On 05/18/15 01:52, Stephen Rothwell wrote:
+>>> Hi all,
+>>>
+>>> Changes since 20150515:
+>>>
+>>
+>> on i386:
+>>
+>> mm/built-in.o: In function `action_result':
+>> memory-failure.c:(.text+0x344a5): undefined reference to `__tracepoint_memory_failure_event'
+>> memory-failure.c:(.text+0x344d5): undefined reference to `__tracepoint_memory_failure_event'
+>> memory-failure.c:(.text+0x3450c): undefined reference to `__tracepoint_memory_failure_event'
 > 
-> Thanks for taking the time to review this.
-> 
-> On Sat, May 16, 2015 at 2:28 AM, Rafael J. Wysocki <rjw@rjwysocki.net> wrote:
-> > On Thursday, May 14, 2015 04:19:46 PM Anisse Astier wrote:
-> >> SANITIZE_FREED_PAGES feature relies on having all pages going through
-> >> the free_pages_prepare path in order to be cleared before being used. In
-> >> the hibernate use case, free pages will automagically appear in the
-> >> system without being cleared, left there by the loading kernel.
-> >>
-> >> This patch will make sure free pages are cleared on resume; when we'll
-> >> enable SANITIZE_FREED_PAGES. We free the pages just after resume because
-> >> we can't do it later: going through any device resume code might
-> >> allocate some memory and invalidate the free pages bitmap.
-> >>
-> >> Signed-off-by: Anisse Astier <anisse@astier.eu>
-> >> ---
-> >>  kernel/power/hibernate.c |  4 +++-
-> >>  kernel/power/power.h     |  2 ++
-> >>  kernel/power/snapshot.c  | 22 ++++++++++++++++++++++
-> >>  3 files changed, 27 insertions(+), 1 deletion(-)
-> >>
-> >> diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
-> >> index 2329daa..0a73126 100644
-> >> --- a/kernel/power/hibernate.c
-> >> +++ b/kernel/power/hibernate.c
-> >> @@ -305,9 +305,11 @@ static int create_image(int platform_mode)
-> >>                       error);
-> >>       /* Restore control flow magically appears here */
-> >>       restore_processor_state();
-> >> -     if (!in_suspend)
-> >> +     if (!in_suspend) {
-> >>               events_check_enabled = false;
-> >>
-> >> +             clear_free_pages();
-> >
-> > Again, why don't you do that at the swsusp_free() time?
-> 
-> Because it's too late, the kernel has already been through device
-> resume code, and the free pages bitmap isn't valid anymore; device
-> resume code might allocate memory, and we'd be clearing those pages as
-> well.
+> Thanks for the reporting, Randy.
+> Here is a patch for this problem, could you try it?
 
-Are we both talking about the same thing?
+Hi Naoya,
 
-swsusp_free() is *the* function that, well, frees all the pages allocated
-by the hibernate core, so how isn't the free pages bitmap valid when it is
-called?
+This patch will introduce another build error with attched config file.
 
-Why don't you add the clearing in there, right at the spot when the pages
-are actually freed?
+drivers/built-in.o:(__tracepoints+0x500): multiple definition of `__tracepoint_aer_event'
+mm/built-in.o:(__tracepoints+0x398): first defined here
+drivers/built-in.o:(__tracepoints+0x4ec): multiple definition of `__tracepoint_memory_failure_event'
+mm/built-in.o:(__tracepoints+0x384): first defined here
+drivers/built-in.o:(__tracepoints+0x514): multiple definition of `__tracepoint_mc_event'
+mm/built-in.o:(__tracepoints+0x3ac): first defined here
+drivers/built-in.o:(__tracepoints+0x528): multiple definition of `__tracepoint_extlog_mem_event'
+mm/built-in.o:(__tracepoints+0x3c0): first defined here
+make: *** [vmlinux] Error 1
 
-Moreover, why is the resume code path the only one where freed pages need to
-be sanitized? 
-
-
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Is this one better?
+---
+--------------090406060907010003060408--
