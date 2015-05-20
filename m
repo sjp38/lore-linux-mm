@@ -1,92 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 771366B0123
-	for <linux-mm@kvack.org>; Wed, 20 May 2015 10:38:59 -0400 (EDT)
-Received: by wgbgq6 with SMTP id gq6so55262864wgb.3
-        for <linux-mm@kvack.org>; Wed, 20 May 2015 07:38:58 -0700 (PDT)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.195])
-        by mx.google.com with ESMTP id vf7si29673781wjc.127.2015.05.20.07.38.57
-        for <linux-mm@kvack.org>;
-        Wed, 20 May 2015 07:38:57 -0700 (PDT)
-Date: Wed, 20 May 2015 17:38:43 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv5 22/28] thp: implement split_huge_pmd()
-Message-ID: <20150520143843.GB13921@node.dhcp.inet.fi>
-References: <1429823043-157133-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1429823043-157133-23-git-send-email-kirill.shutemov@linux.intel.com>
- <555AF37A.2060709@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <555AF37A.2060709@suse.cz>
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id DC26B6B0126
+	for <linux-mm@kvack.org>; Wed, 20 May 2015 10:53:40 -0400 (EDT)
+Received: by obfe9 with SMTP id e9so38482634obf.1
+        for <linux-mm@kvack.org>; Wed, 20 May 2015 07:53:40 -0700 (PDT)
+Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
+        by mx.google.com with ESMTPS id pm5si10793485oec.87.2015.05.20.07.53.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 May 2015 07:53:40 -0700 (PDT)
+Message-ID: <1432132451.700.4.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v5 6/6] mtrr, mm, x86: Enhance MTRR checks for KVA huge
+ page mapping
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 20 May 2015 08:34:11 -0600
+In-Reply-To: <20150520115509.GA3489@gmail.com>
+References: <20150518133348.GA23618@pd.tnic>
+	 <1431969759.19889.5.camel@misato.fc.hp.com>
+	 <20150518190150.GC23618@pd.tnic>
+	 <1431977519.20569.15.camel@misato.fc.hp.com>
+	 <20150518200114.GE23618@pd.tnic>
+	 <1431980468.21019.11.camel@misato.fc.hp.com>
+	 <20150518205123.GI23618@pd.tnic>
+	 <1431985994.21526.12.camel@misato.fc.hp.com>
+	 <20150519114437.GF4641@pd.tnic> <20150519132307.GG4641@pd.tnic>
+	 <20150520115509.GA3489@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Borislav Petkov <bp@alien8.de>, akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl, mcgrof@suse.com
 
-On Tue, May 19, 2015 at 10:25:30AM +0200, Vlastimil Babka wrote:
-> On 04/23/2015 11:03 PM, Kirill A. Shutemov wrote:
-> >Original split_huge_page() combined two operations: splitting PMDs into
-> >tables of PTEs and splitting underlying compound page. This patch
-> >implements split_huge_pmd() which split given PMD without splitting
-> >other PMDs this page mapped with or underlying compound page.
-> >
-> >Without tail page refcounting, implementation of split_huge_pmd() is
-> >pretty straight-forward.
-> >
-> >Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >Tested-by: Sasha Levin <sasha.levin@oracle.com>
-> >---
-> >  include/linux/huge_mm.h |  11 ++++-
-> >  mm/huge_memory.c        | 108 ++++++++++++++++++++++++++++++++++++++++++++++++
-> >  2 files changed, 118 insertions(+), 1 deletion(-)
-> >
-> >diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> >index 0382230b490f..b7844c73b7db 100644
-> >--- a/include/linux/huge_mm.h
-> >+++ b/include/linux/huge_mm.h
-> >@@ -94,7 +94,16 @@ extern unsigned long transparent_hugepage_flags;
-> >
-> >  #define split_huge_page_to_list(page, list) BUILD_BUG()
-> >  #define split_huge_page(page) BUILD_BUG()
-> >-#define split_huge_pmd(__vma, __pmd, __address) BUILD_BUG()
-> >+
-> >+void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-> >+		unsigned long address);
-> >+
-> >+#define split_huge_pmd(__vma, __pmd, __address)				\
-> >+	do {								\
-> >+		pmd_t *____pmd = (__pmd);				\
-> >+		if (unlikely(pmd_trans_huge(*____pmd)))			\
+On Wed, 2015-05-20 at 13:55 +0200, Ingo Molnar wrote:
+> * Borislav Petkov <bp@alien8.de> wrote:
 > 
-> Given that most of calls to split_huge_pmd() appear to be in
-> if (pmd_trans_huge(...)) branches, this unlikely() seems counter-productive.
-
-Fair enough.
-
-> >+void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-> >+		unsigned long address)
-> >+{
-> >+	spinlock_t *ptl;
-> >+	struct mm_struct *mm = vma->vm_mm;
-> >+	unsigned long haddr = address & HPAGE_PMD_MASK;
-> >+
-> >+	mmu_notifier_invalidate_range_start(mm, haddr, haddr + HPAGE_PMD_SIZE);
-> >+	ptl = pmd_lock(mm, pmd);
-> >+	if (likely(pmd_trans_huge(*pmd)))
+> > --- a/arch/x86/mm/pgtable.c
+> > +++ b/arch/x86/mm/pgtable.c
+> > @@ -566,19 +566,28 @@ void native_set_fixmap(enum fixed_addresses idx, phys_addr_t phys,
+> >  /**
+> >   * pud_set_huge - setup kernel PUD mapping
+> >   *
+> > - * MTRR can override PAT memory types with 4KiB granularity.  Therefore,
+> > - * this function does not set up a huge page when the range is covered
+> > - * by a non-WB type of MTRR.  MTRR_TYPE_INVALID indicates that MTRR are
+> > - * disabled.
+> > + * MTRRs can override PAT memory types with 4KiB granularity. Therefore, this
+> > + * function sets up a huge page only if any of the following conditions are met:
+> > + *
+> > + * - MTRRs are disabled, or
+> > + *
+> > + * - MTRRs are enabled and the range is completely covered by a single MTRR, or
+> > + *
+> > + * - MTRRs are enabled and the range is not completely covered by a single MTRR
+> > + *   but the memory type of the range is WB, even if covered by multiple MTRRs.
+> > + *
+> > + * Callers should try to decrease page size (1GB -> 2MB -> 4K) if the bigger
+> > + * page mapping attempt fails.
 > 
-> This likely is likely useless :)
- 
-No, it's not. We check the pmd with pmd_trans_huge() under ptl for the
-first time. And __split_huge_pmd_locked() assumes pmd is huge.
+> This comment should explain why it's ok in the WB case.
+> 
+> Also, the phrase 'the memory type of the range' is ambiguous: it might 
+> mean the partial MTRR's, or the memory type specified via PAT by the 
+> huge-pmd entry.
 
-> >+		__split_huge_pmd_locked(vma, pmd, haddr);
-> >+	spin_unlock(ptl);
-> >+	mmu_notifier_invalidate_range_end(mm, haddr, haddr + HPAGE_PMD_SIZE);
-> >+}
-> >+
--- 
- Kirill A. Shutemov
+Agreed.  How about this sentence?
+
+ - MTRRs are enabled and the corresponding MTRR memory type is WB, which
+has no effect to the requested PAT memory type.
+
+Thanks,
+-Toshi
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
