@@ -1,71 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 015D36B013B
-	for <linux-mm@kvack.org>; Wed, 20 May 2015 15:14:11 -0400 (EDT)
-Received: by wgbgq6 with SMTP id gq6so63061720wgb.3
-        for <linux-mm@kvack.org>; Wed, 20 May 2015 12:14:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r1si5511572wic.9.2015.05.20.12.14.08
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id E98806B013E
+	for <linux-mm@kvack.org>; Wed, 20 May 2015 15:44:30 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so80076498pde.2
+        for <linux-mm@kvack.org>; Wed, 20 May 2015 12:44:30 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id gi11si27810274pbd.206.2015.05.20.12.44.29
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 May 2015 12:14:09 -0700 (PDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 1/2] userfaultfd: documentation update
-Date: Wed, 20 May 2015 21:13:58 +0200
-Message-Id: <1432149239-21760-2-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1432149239-21760-1-git-send-email-aarcange@redhat.com>
-References: <1432149239-21760-1-git-send-email-aarcange@redhat.com>
+        Wed, 20 May 2015 12:44:29 -0700 (PDT)
+Date: Wed, 20 May 2015 12:44:28 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V5 2/3] powerpc/mm: Use generic version of
+ pmdp_clear_flush
+Message-Id: <20150520124428.9bab9007d7d589ec4b615ee6@linux-foundation.org>
+In-Reply-To: <1431704550-19937-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1431704550-19937-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	<1431704550-19937-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, kirill.shutemov@linux.intel.com, aarcange@redhat.com, schwidefsky@de.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- Documentation/vm/userfaultfd.txt | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+On Fri, 15 May 2015 21:12:29 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 
-diff --git a/Documentation/vm/userfaultfd.txt b/Documentation/vm/userfaultfd.txt
-index 3557edd..70a3c94 100644
---- a/Documentation/vm/userfaultfd.txt
-+++ b/Documentation/vm/userfaultfd.txt
-@@ -3,8 +3,8 @@
- == Objective ==
- 
- Userfaults allow the implementation of on-demand paging from userland
--and more generally they allow userland to take control various memory
--page faults, something otherwise only the kernel code could do.
-+and more generally they allow userland to take control of various
-+memory page faults, something otherwise only the kernel code could do.
- 
- For example userfaults allows a proper and more optimal implementation
- of the PROT_NONE+SIGSEGV trick.
-@@ -47,10 +47,10 @@ When first opened the userfaultfd must be enabled invoking the
- UFFDIO_API ioctl specifying a uffdio_api.api value set to UFFD_API (or
- a later API version) which will specify the read/POLLIN protocol
- userland intends to speak on the UFFD and the uffdio_api.features
--userland needs to be enabled. The UFFDIO_API ioctl if successful
--(i.e. if the requested uffdio_api.api is spoken also by the running
--kernel and the requested features are going to be enabled) will return
--into uffdio_api.features and uffdio_api.ioctls two 64bit bitmasks of
-+userland requires. The UFFDIO_API ioctl if successful (i.e. if the
-+requested uffdio_api.api is spoken also by the running kernel and the
-+requested features are going to be enabled) will return into
-+uffdio_api.features and uffdio_api.ioctls two 64bit bitmasks of
- respectively all the available features of the read(2) protocol and
- the generic ioctl available.
- 
-@@ -77,7 +77,9 @@ The primary ioctl to resolve userfaults is UFFDIO_COPY. That
- atomically copies a page into the userfault registered range and wakes
- up the blocked userfaults (unless uffdio_copy.mode &
- UFFDIO_COPY_MODE_DONTWAKE is set). Other ioctl works similarly to
--UFFDIO_COPY.
-+UFFDIO_COPY. They're atomic as in guaranteeing that nothing can see an
-+half copied page since it'll keep userfaulting until the copy has
-+finished.
- 
- == QEMU/KVM ==
- 
+> Also move the pmd_trans_huge check to generic code.
+> 
+> ...
+>
+> --- a/include/asm-generic/pgtable.h
+> +++ b/include/asm-generic/pgtable.h
+> @@ -196,7 +196,12 @@ static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
+>  					unsigned long address,
+>  					pmd_t *pmdp)
+>  {
+> -	return pmdp_clear_flush(vma, address, pmdp);
+> +	pmd_t pmd;
+> +	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+> +	VM_BUG_ON(pmd_trans_huge(*pmdp));
+> +	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
+> +	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+> +	return pmd;
+>  }
+
+x86_64 allmodconfig:
+
+In file included from ./arch/x86/include/asm/pgtable.h:878,
+                 from include/linux/mm.h:53,
+                 from include/linux/suspend.h:8,
+                 from arch/x86/kernel/asm-offsets.c:12:
+include/asm-generic/pgtable.h: In function 'pmdp_collapse_flush':
+include/asm-generic/pgtable.h:199: error: 'HPAGE_PMD_MASK' undeclared (first use in this function)
+include/asm-generic/pgtable.h:199: error: (Each undeclared identifier is reported only once
+include/asm-generic/pgtable.h:199: error: for each function it appears in.)
+include/asm-generic/pgtable.h:202: error: implicit declaration of function 'flush_tlb_range'
+include/asm-generic/pgtable.h:202: error: 'HPAGE_PMD_SIZE' undeclared (first use in this function)
+
+
+Including linux/huge_mm.h doesn't work.  A suitable fix would be to
+move this into a .c file.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
