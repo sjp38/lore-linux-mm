@@ -1,60 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 74F876B0114
-	for <linux-mm@kvack.org>; Wed, 20 May 2015 09:22:01 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so155028302wiz.1
-        for <linux-mm@kvack.org>; Wed, 20 May 2015 06:22:01 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bd7si5307472wjb.192.2015.05.20.06.21.59
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 47BCF6B0116
+	for <linux-mm@kvack.org>; Wed, 20 May 2015 09:23:47 -0400 (EDT)
+Received: by qcir1 with SMTP id r1so22920398qci.3
+        for <linux-mm@kvack.org>; Wed, 20 May 2015 06:23:47 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 199si2723625qhe.36.2015.05.20.06.23.45
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 20 May 2015 06:22:00 -0700 (PDT)
-Date: Wed, 20 May 2015 15:21:58 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/7] memcg: immigrate charges only when a threadgroup
- leader is moved
-Message-ID: <20150520132158.GB28678@dhcp22.suse.cz>
-References: <1431978595-12176-1-git-send-email-tj@kernel.org>
- <1431978595-12176-4-git-send-email-tj@kernel.org>
- <20150519121321.GB6203@dhcp22.suse.cz>
- <20150519212754.GO24861@htj.duckdns.org>
- <20150520131044.GA28678@dhcp22.suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 May 2015 06:23:46 -0700 (PDT)
+Date: Wed, 20 May 2015 15:23:19 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 00/23] userfaultfd v4
+Message-ID: <20150520132319.GN19097@redhat.com>
+References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+ <20150519143801.8ba477c3813e93a2637c19cf@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150520131044.GA28678@dhcp22.suse.cz>
+In-Reply-To: <20150519143801.8ba477c3813e93a2637c19cf@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: lizefan@huawei.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org, Oleg Nesterov <oleg@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-On Wed 20-05-15 15:10:44, Michal Hocko wrote:
-[...]
-> But I am completely lost in the exit code paths. E.g. what happens
-> when the thread group leader exits and the other threads are still
-> alive? I would expect another thread would be chosen as a new leader and
-> siblings would be updated. But I cannot find that code. Maybe the
-> original leader just waits for all other threads to terminate and stay
-> in the linked lists.
+Hi Andrew,
 
-I've tried a simple test where the main thread (group leader) calls
-pthread_exit after it creates another thread. The other thread continues
-to run and the leader is marked as Zombie:
-$ ./t &
-Main pid:2432 tid:2432
-Exiting main thread
-Secondary pid:2432 tid:2433......
+On Tue, May 19, 2015 at 02:38:01PM -0700, Andrew Morton wrote:
+> On Thu, 14 May 2015 19:30:57 +0200 Andrea Arcangeli <aarcange@redhat.com> wrote:
+> 
+> > This is the latest userfaultfd patchset against mm-v4.1-rc3
+> > 2015-05-14-10:04.
+> 
+> It would be useful to have some userfaultfd testcases in
+> tools/testing/selftests/.  Partly as an aid to arch maintainers when
+> enabling this.  And also as a standalone thing to give people a
+> practical way of exercising this interface.
 
-$ ps ax | grep 2432
- 2432 pts/3    Zl+    0:00 [t] <defunct>
+Agreed.
 
-So I assume the leader simply waits for its threads to finish and it
-stays in the sibling list. __unhash_process seems like it does the final
-cleanup and unlinks the leader from the lists. Which means that
-mm_update_next_owner never sees !group_leader. Is that correct Oleg?
--- 
-Michal Hocko
-SUSE Labs
+I was also thinking about writing a trinity module for it, I wrote it
+for an older version but it was much easier to do that back then
+before we had ioctls, now it's more tricky because the ioctls requires
+the fd open first etc... it's not enough to just call a syscall with a
+flood of supervised-random params anymore.
+
+> What are your thoughts on enabling userfaultfd for other architectures,
+> btw?  Are there good use cases, are people working on it, etc?
+
+powerpc should be enabled and functional already. There's not much
+arch dependent code in it, so in theory if the postcopy live migration
+patchset is applied to qemu, it should work on powerpc out of the
+box. Nobody tested it yet but I don't expect trouble on the kernel side.
+
+Adding support for all other archs is just a few liner patch that
+defines the syscall number. I didn't do that out of tree because every
+time a new syscall materialized I would get more rejects during
+rebase.
+
+> Also, I assume a manpage is in the works?  Sooner rather than later
+> would be good - Michael's review of proposed kernel interfaces has
+> often been valuable.
+
+Yes, the manpage was certainly planned. It would require updates as we
+keep adding features (like the wrprotect tracking, the non-cooperative
+usage, and extending the availability of the ioctls to tmpfs). We can
+definitely write a manpage with the current features.
+
+Ok, so I'll continue working on the testcase and on the manpage.
+
+Thanks!!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
