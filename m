@@ -1,90 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id BC3606B0162
-	for <linux-mm@kvack.org>; Thu, 21 May 2015 09:52:47 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so15685553wiz.1
-        for <linux-mm@kvack.org>; Thu, 21 May 2015 06:52:47 -0700 (PDT)
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 615C76B0163
+	for <linux-mm@kvack.org>; Thu, 21 May 2015 10:12:30 -0400 (EDT)
+Received: by wichy4 with SMTP id hy4so15488438wic.1
+        for <linux-mm@kvack.org>; Thu, 21 May 2015 07:12:29 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o9si2810893wib.9.2015.05.21.06.52.45
+        by mx.google.com with ESMTPS id fr8si1420196wib.3.2015.05.21.07.12.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 21 May 2015 06:52:45 -0700 (PDT)
-Date: Thu, 21 May 2015 14:52:42 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] hugetlb: Do not account hugetlb pages as NR_FILE_PAGES
-Message-ID: <20150521135242.GY2462@suse.de>
-References: <1432214842-22730-1-git-send-email-mhocko@suse.cz>
+        Thu, 21 May 2015 07:12:28 -0700 (PDT)
+Date: Thu, 21 May 2015 16:12:26 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/7] memcg: immigrate charges only when a threadgroup
+ leader is moved
+Message-ID: <20150521141225.GB14475@dhcp22.suse.cz>
+References: <1431978595-12176-1-git-send-email-tj@kernel.org>
+ <1431978595-12176-4-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1432214842-22730-1-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1431978595-12176-4-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: lizefan@huawei.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
 
-On Thu, May 21, 2015 at 03:27:22PM +0200, Michal Hocko wrote:
-> hugetlb pages uses add_to_page_cache to track shared mappings. This
-> is OK from the data structure point of view but it is less so from the
-> NR_FILE_PAGES accounting:
-> 	- huge pages are accounted as 4k which is clearly wrong
-> 	- this counter is used as the amount of the reclaimable page
-> 	  cache which is incorrect as well because hugetlb pages are
-> 	  special and not reclaimable
-> 	- the counter is then exported to userspace via /proc/meminfo
-> 	  (in Cached:), /proc/vmstat and /proc/zoneinfo as
-> 	  nr_file_pages which is confusing at least:
-> 	  Cached:          8883504 kB
-> 	  HugePages_Free:     8348
-> 	  ...
-> 	  Cached:          8916048 kB
-> 	  HugePages_Free:      156
-> 	  ...
-> 	  thats 8192 huge pages allocated which is ~16G accounted as 32M
+On Mon 18-05-15 15:49:51, Tejun Heo wrote:
+> If move_charge flag is set, memcg tries to move memory charges to the
+> destnation css.  The current implementation migrates memory whenever
+> any thread of a process is migrated making the behavior somewhat
+> arbitrary.  Let's tie memory operations to the threadgroup leader so
+> that memory is migrated only when the leader is migrated.
 > 
-> There are usually not that many huge pages in the system for this to
-> make any visible difference e.g. by fooling __vm_enough_memory or
-> zone_pagecache_reclaimable.
+> While this is a behavior change, given the inherent fuziness, this
+> change is not too likely to be noticed and allows us to clearly define
+> who owns the memory (always the leader) and helps the planned atomic
+> multi-process migration.
 > 
-> Fix this by special casing huge pages in both __delete_from_page_cache
-> and __add_to_page_cache_locked. replace_page_cache_page is currently
-> only used by fuse and that shouldn't touch hugetlb pages AFAICS but it
-> is more robust to check for special casing there as well.
-> 
-> Hugetlb pages shouldn't get to any other paths where we do accounting:
-> 	- migration - we have a special handling via
-> 	  hugetlbfs_migrate_page
-> 	- shmem - doesn't handle hugetlb pages directly even for
-> 	  SHM_HUGETLB resp. MAP_HUGETLB
-> 	- swapcache - hugetlb is not swapable
-> 
-> This has a user visible effect but I believe it is reasonable because
-> the previously exported number is simply bogus.
-> 
-> An alternative would be to account hugetlb pages with their real size
-> and treat them similar to shmem. But this has some drawbacks.
-> 
-> First we would have to special case in kernel users of NR_FILE_PAGES and
-> considering how hugetlb is special we would have to do it everywhere. We
-> do not want Cached exported by /proc/meminfo to include it because the
-> value would be even more misleading.
-> __vm_enough_memory and zone_pagecache_reclaimable would have to do
-> the same thing because those pages are simply not reclaimable. The
-> correction is even not trivial because we would have to consider all
-> active hugetlb page sizes properly. Users of the counter outside of the
-> kernel would have to do the same.
-> So the question is why to account something that needs to be basically
-> excluded for each reasonable usage. This doesn't make much sense to me.
-> 
-> It seems that this has been broken since hugetlb was introduced but I
-> haven't checked the whole history.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+OK, I guess the discussion with Oleg confirmed that the patch is not
+really needed because mm_struct->owner check implies thread group
+leader. This should be sufficient for your purpose Tejun, right?
+
+> ---
+>  mm/memcontrol.c | 3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index b1b834d..74fcea3 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5014,6 +5014,9 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
+>  		return 0;
+>  
+>  	p = cgroup_taskset_first(tset);
+> +	if (!thread_group_leader(p))
+> +		return 0;
+> +
+>  	from = mem_cgroup_from_task(p);
+>  
+>  	VM_BUG_ON(from == memcg);
+> -- 
+> 2.4.0
+> 
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
