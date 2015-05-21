@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A578A6B0177
-	for <linux-mm@kvack.org>; Thu, 21 May 2015 11:49:03 -0400 (EDT)
-Received: by pabru16 with SMTP id ru16so109452256pab.1
-        for <linux-mm@kvack.org>; Thu, 21 May 2015 08:49:03 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id eu7si1510785pad.59.2015.05.21.08.49.01
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 22D556B0179
+	for <linux-mm@kvack.org>; Thu, 21 May 2015 11:49:07 -0400 (EDT)
+Received: by padbw4 with SMTP id bw4so109461944pad.0
+        for <linux-mm@kvack.org>; Thu, 21 May 2015 08:49:06 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id jm12si32147476pbd.250.2015.05.21.08.49.05
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 May 2015 08:49:02 -0700 (PDT)
+        Thu, 21 May 2015 08:49:06 -0700 (PDT)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [RFC v3 PATCH 08/10] mm/hugetlb: vma_has_reserves() needs to handle fallocate hole punch
-Date: Thu, 21 May 2015 08:47:42 -0700
-Message-Id: <1432223264-4414-9-git-send-email-mike.kravetz@oracle.com>
+Subject: [RFC v3 PATCH 10/10] mm: madvise allow remove operation for hugetlbfs
+Date: Thu, 21 May 2015 08:47:44 -0700
+Message-Id: <1432223264-4414-11-git-send-email-mike.kravetz@oracle.com>
 In-Reply-To: <1432223264-4414-1-git-send-email-mike.kravetz@oracle.com>
 References: <1432223264-4414-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,46 +20,28 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-In vma_has_reserves(), the current assumption is that reserves are
-always present for shared mappings.  However, will not be the case
-with fallocate hole punch.  When punching a hole, the present page
-will be deleted as well as the region/reserve map entry (and hence
-any reservation).  vma_has_reserves is passed "chg" which indicates
-whether or not a region/reserve map is present.  Use this to determine
-if reserves are actually present or were removed via hole punch.
+Now that we have hole punching support for hugetlbfs, we can
+also support the MADV_REMOVE interface to it.
 
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- mm/hugetlb.c | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ mm/madvise.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 449cf5f..94c6154 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -559,9 +559,19 @@ static int vma_has_reserves(struct vm_area_struct *vma, long chg)
- 			return 0;
- 	}
+diff --git a/mm/madvise.c b/mm/madvise.c
+index d551475..c4a1027 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -299,7 +299,7 @@ static long madvise_remove(struct vm_area_struct *vma,
  
--	/* Shared mappings always use reserves */
--	if (vma->vm_flags & VM_MAYSHARE)
--		return 1;
-+	if (vma->vm_flags & VM_MAYSHARE) {
-+		/*
-+		 * We know VM_NORESERVE is not set.  Therefore, there SHOULD
-+		 * be a region map for all pages.  The only situation where
-+		 * there is no region map is if a hole was punched via
-+		 * fallocate.  In this case, there really are no reverves to
-+		 * use.  This situation is indicated if chg != 0.
-+		 */
-+		if (chg)
-+			return 0;
-+		else
-+			return 1;
-+	}
+ 	*prev = NULL;	/* tell sys_madvise we drop mmap_sem */
  
- 	/*
- 	 * Only the process that called mmap() has reserves for
+-	if (vma->vm_flags & (VM_LOCKED | VM_HUGETLB))
++	if (vma->vm_flags & VM_LOCKED)
+ 		return -EINVAL;
+ 
+ 	f = vma->vm_file;
 -- 
 2.1.0
 
