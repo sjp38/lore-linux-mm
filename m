@@ -1,97 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f53.google.com (mail-oi0-f53.google.com [209.85.218.53])
-	by kanga.kvack.org (Postfix) with ESMTP id E05A082966
-	for <linux-mm@kvack.org>; Thu, 21 May 2015 19:29:21 -0400 (EDT)
-Received: by oiww2 with SMTP id w2so2068813oiw.0
-        for <linux-mm@kvack.org>; Thu, 21 May 2015 16:29:21 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id j5si176733oef.53.2015.05.21.16.29.20
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 7312082966
+	for <linux-mm@kvack.org>; Thu, 21 May 2015 19:30:29 -0400 (EDT)
+Received: by pabru16 with SMTP id ru16so3087383pab.1
+        for <linux-mm@kvack.org>; Thu, 21 May 2015 16:30:29 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id gl1si523710pbd.2.2015.05.21.16.30.28
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 21 May 2015 16:29:21 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v6 0/5] tracing: add trace event for memory-failure
-Date: Thu, 21 May 2015 23:28:22 +0000
-Message-ID: <20150521232821.GA5502@hori1.linux.bs1.fc.nec.co.jp>
-References: <1432179685-11369-1-git-send-email-xiexiuqi@huawei.com>
-In-Reply-To: <1432179685-11369-1-git-send-email-xiexiuqi@huawei.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <ACCB6EEEDDBEBD4EA57581AE87C8E9C2@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 May 2015 16:30:28 -0700 (PDT)
+Date: Thu, 21 May 2015 16:30:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] mm/hugetlb: compute/return the number of regions
+ added by region_add()
+Message-Id: <20150521163027.566f3f0fd82801f2140a420d@linux-foundation.org>
+In-Reply-To: <1431971349-6668-2-git-send-email-mike.kravetz@oracle.com>
+References: <1431971349-6668-1-git-send-email-mike.kravetz@oracle.com>
+	<1431971349-6668-2-git-send-email-mike.kravetz@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xie XiuQi <xiexiuqi@huawei.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "rostedt@goodmis.org" <rostedt@goodmis.org>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "mingo@redhat.com" <mingo@redhat.com>, "bp@suse.de" <bp@suse.de>, "tony.luck@intel.com" <tony.luck@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jingle.chen@huawei.com" <jingle.chen@huawei.com>, "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>, "rdunlap@infradead.org" <rdunlap@infradead.org>, "jim.epost@gmail.com" <jim.epost@gmail.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>
 
-On Thu, May 21, 2015 at 11:41:20AM +0800, Xie XiuQi wrote:
-> RAS user space tools like rasdaemon which base on trace event, could
-> receive mce error event, but no memory recovery result event. So, I
-> want to add this event to make this scenario complete.
->=20
-> This patchset add a event at ras group for memory-failure.
->=20
-> The output like below:
-> #  tracer: nop
-> #
-> #  entries-in-buffer/entries-written: 2/2   #P:24
-> #
-> #                               _-----=3D> irqs-off
-> #                              / _----=3D> need-resched
-> #                             | / _---=3D> hardirq/softirq
-> #                             || / _--=3D> preempt-depth
-> #                             ||| /     delay
-> #            TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION
-> #               | |       |   ||||       |         |
->        mce-inject-13150 [001] ....   277.019359: memory_failure_event: pf=
-n 0x19869: recovery action for free buddy page: Delayed
->=20
-> --
-> v5->v6:
->  - fix a build error
->  - move ras_event.h under include/trace/events
->  - rebase on top of latest mainline
->=20
-> v4->v5:
->  - fix a typo
->  - rebase on top of latest mainline
->=20
-> v3->v4:
->  - rebase on top of latest linux-next
->  - update comments as Naoya's suggestion
->  - add #ifdef CONFIG_MEMORY_FAILURE for this trace event
->  - change type of action_result's param 3 to enum
->=20
-> v2->v3:
->  - rebase on top of linux-next
->  - based on Steven Rostedt's "tracing: Add TRACE_DEFINE_ENUM() macro
->    to map enums to their values" patch set v1.
->=20
-> v1->v2:
->  - Comment update
->  - Just passing 'result' instead of 'action_name[result]',
->    suggested by Steve. And hard coded there because trace-cmd
->    and perf do not have a way to process enums.
->=20
-> Naoya Horiguchi (1):
->   trace, ras: move ras_event.h under include/trace/events
+On Mon, 18 May 2015 10:49:08 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 
-I withdraw this patch because my assumption was wrong.
+> Modify region_add() to keep track of regions(pages) added to the
+> reserve map and return this value.  The return value can be
+> compared to the return value of region_chg() to determine if the
+> map was modified between calls.  Make vma_commit_reservation()
+> also pass along the return value of region_add().  The special
+> case return values of vma_needs_reservation() should also be
+> taken into account when determining the return value of
+> vma_commit_reservation().
 
-> Xie XiuQi (4):
->   memory-failure: export page_type and action result
->   memory-failure: change type of action_result's param 3 to enum
->   tracing: add trace event for memory-failure
->   tracing: fix build error in mm/memory-failure.c
+Could we please get this code slightly documented while it's hot in
+your mind?
 
-This patchset depends on TRACE_DEFINE_ENUM patches, so base kernel version =
-need
-to be v4.1-rc1 or later. So please do the rebasing before merging this seri=
-es.
+- One has to do an extraordinary amount of reading to discover that
+  the units of file_region.from and .to are "multiples of
+  1<<huge_page_order(h)" (where "h" is imponderable).
 
-Thanks,
-Naoya Horiguchi=
+  Let's get this written down?
+
+- Is file_region.to inclusive or exclusive?
+
+- What are they called "from" and "to" anyway?  We usually use
+  "start" and "end" for such things.
+
+
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -156,6 +156,7 @@ static long region_add(struct resv_map *resv, long f, long t)
+>  {
+>  	struct list_head *head = &resv->regions;
+>  	struct file_region *rg, *nrg, *trg;
+> +	long chg = 0;
+>  
+>  	spin_lock(&resv->lock);
+>  	/* Locate the region we are either in or before. */
+> @@ -181,14 +182,17 @@ static long region_add(struct resv_map *resv, long f, long t)
+>  		if (rg->to > t)
+>  			t = rg->to;
+>  		if (rg != nrg) {
+> +			chg -= (rg->to - rg->from);
+>  			list_del(&rg->link);
+>  			kfree(rg);
+>  		}
+>  	}
+> +	chg += (nrg->from - f);
+>  	nrg->from = f;
+> +	chg += t - nrg->to;
+>  	nrg->to = t;
+>  	spin_unlock(&resv->lock);
+> -	return 0;
+> +	return chg;
+>  }
+
+Let's document the return value.  It appears that this function is
+designed to return a negative number (units?) on a successful addition.
+Why, and what does that number represent.
+
+
+>  static long region_chg(struct resv_map *resv, long f, long t)
+> @@ -1349,18 +1353,25 @@ static long vma_needs_reservation(struct hstate *h,
+>  	else
+>  		return chg < 0 ? chg : 0;
+>  }
+> -static void vma_commit_reservation(struct hstate *h,
+> +
+> +static long vma_commit_reservation(struct hstate *h,
+>  			struct vm_area_struct *vma, unsigned long addr)
+>  {
+>  	struct resv_map *resv;
+>  	pgoff_t idx;
+> +	long add;
+>  
+>  	resv = vma_resv_map(vma);
+>  	if (!resv)
+> -		return;
+> +		return 1;
+>  
+>  	idx = vma_hugecache_offset(h, vma, addr);
+> -	region_add(resv, idx, idx + 1);
+> +	add = region_add(resv, idx, idx + 1);
+> +
+> +	if (vma->vm_flags & VM_MAYSHARE)
+> +		return add;
+> +	else
+> +		return 0;
+>  }
+
+Let's document the return value here as well please.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
