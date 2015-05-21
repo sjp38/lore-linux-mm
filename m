@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 76F91900015
-	for <linux-mm@kvack.org>; Thu, 21 May 2015 15:33:54 -0400 (EDT)
-Received: by qkgv12 with SMTP id v12so64242599qkg.0
-        for <linux-mm@kvack.org>; Thu, 21 May 2015 12:33:54 -0700 (PDT)
-Received: from mail-qk0-x234.google.com (mail-qk0-x234.google.com. [2607:f8b0:400d:c09::234])
-        by mx.google.com with ESMTPS id b69si5677471qgb.50.2015.05.21.12.33.53
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D6795900015
+	for <linux-mm@kvack.org>; Thu, 21 May 2015 15:33:57 -0400 (EDT)
+Received: by qgfa63 with SMTP id a63so27667610qgf.0
+        for <linux-mm@kvack.org>; Thu, 21 May 2015 12:33:57 -0700 (PDT)
+Received: from mail-qg0-x236.google.com (mail-qg0-x236.google.com. [2607:f8b0:400d:c04::236])
+        by mx.google.com with ESMTPS id 12si5831041qhx.61.2015.05.21.12.33.57
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 May 2015 12:33:53 -0700 (PDT)
-Received: by qkdn188 with SMTP id n188so59391347qkd.2
-        for <linux-mm@kvack.org>; Thu, 21 May 2015 12:33:53 -0700 (PDT)
+        Thu, 21 May 2015 12:33:57 -0700 (PDT)
+Received: by qgez61 with SMTP id z61so43345399qge.1
+        for <linux-mm@kvack.org>; Thu, 21 May 2015 12:33:57 -0700 (PDT)
 From: j.glisse@gmail.com
-Subject: [PATCH 11/36] HMM: add discard range helper (to clear and free resources for a range).
-Date: Thu, 21 May 2015 15:31:20 -0400
-Message-Id: <1432236705-4209-12-git-send-email-j.glisse@gmail.com>
+Subject: [PATCH 12/36] HMM: add dirty range helper (to toggle dirty bit inside mirror page table).
+Date: Thu, 21 May 2015 15:31:21 -0400
+Message-Id: <1432236705-4209-13-git-send-email-j.glisse@gmail.com>
 In-Reply-To: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
 References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
 MIME-Version: 1.0
@@ -27,65 +27,84 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@l
 
 From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-A common use case is for device driver to stop caring for a range of address
-long before said range is munmapped by userspace program. To avoid keeping
-track of such range provide an helper function that will free HMM resources
-for a range of address.
-
-NOTE THAT DEVICE DRIVER MUST MAKE SURE THE HARDWARE WILL NO LONGER ACCESS THE
-RANGE BECAUSE CALLING THIS HELPER !
+Device driver must properly toggle the dirty inside the mirror page table so
+dirtyness is properly accounted when core mm code needs to know. Provide a
+simple helper to toggle that bit for a range of address.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 ---
  include/linux/hmm.h |  3 +++
- mm/hmm.c            | 24 ++++++++++++++++++++++++
- 2 files changed, 27 insertions(+)
+ mm/hmm.c            | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+)
 
 diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index fdb1975..ec05df8 100644
+index ec05df8..186f497 100644
 --- a/include/linux/hmm.h
 +++ b/include/linux/hmm.h
-@@ -250,6 +250,9 @@ struct hmm_mirror {
- int hmm_mirror_register(struct hmm_mirror *mirror);
- void hmm_mirror_unregister(struct hmm_mirror *mirror);
- int hmm_mirror_fault(struct hmm_mirror *mirror, struct hmm_event *event);
-+void hmm_mirror_range_discard(struct hmm_mirror *mirror,
-+			      unsigned long start,
-+			      unsigned long end);
+@@ -253,6 +253,9 @@ int hmm_mirror_fault(struct hmm_mirror *mirror, struct hmm_event *event);
+ void hmm_mirror_range_discard(struct hmm_mirror *mirror,
+ 			      unsigned long start,
+ 			      unsigned long end);
++void hmm_mirror_range_dirty(struct hmm_mirror *mirror,
++			    unsigned long start,
++			    unsigned long end);
  
  
  #endif /* CONFIG_HMM */
 diff --git a/mm/hmm.c b/mm/hmm.c
-index 8ec9ffa..4cab3f2 100644
+index 4cab3f2..21fda9f 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -916,6 +916,30 @@ out:
+@@ -940,6 +940,53 @@ void hmm_mirror_range_discard(struct hmm_mirror *mirror,
  }
- EXPORT_SYMBOL(hmm_mirror_fault);
+ EXPORT_SYMBOL(hmm_mirror_range_discard);
  
-+/* hmm_mirror_range_discard() - discard a range of address.
++/* hmm_mirror_range_dirty() - toggle dirty bit for a range of address.
 + *
 + * @mirror: The mirror struct.
 + * @start: Start address of the range to discard (inclusive).
 + * @end: End address of the range to discard (exclusive).
 + *
-+ * Call when device driver want to stop mirroring a range of address and free
-+ * any HMM resources associated with that range (including dma mapping if any).
++ * Call when device driver want to toggle the dirty bit for a range of address.
++ * Usefull when the device driver just want to toggle the bit for whole range
++ * without walking the mirror page table itself.
 + *
-+ * THIS FUNCTION ASSUME THAT DRIVER ALREADY STOPPED USING THE RANGE OF ADDRESS
-+ * AND THUS DO NOT PERFORM ANY SYNCHRONIZATION OR UPDATE WITH THE DRIVER TO
-+ * INVALIDATE SAID RANGE.
++ * Note this function does not directly dirty the page behind an address, but
++ * this will happen once address is invalidated or discard by device driver or
++ * core mm code.
 + */
-+void hmm_mirror_range_discard(struct hmm_mirror *mirror,
-+			      unsigned long start,
-+			      unsigned long end)
++void hmm_mirror_range_dirty(struct hmm_mirror *mirror,
++			    unsigned long start,
++			    unsigned long end)
 +{
-+	struct hmm_event event;
++	struct hmm_pt_iter iter;
++	unsigned long addr;
 +
-+	hmm_event_init(&event, mirror->hmm, start, end, HMM_MUNMAP);
-+	hmm_mirror_update_pt(mirror, &event, NULL);
++	hmm_pt_iter_init(&iter);
++	for (addr = start; addr != end;) {
++		unsigned long cend, next;
++		dma_addr_t *hmm_pte;
++
++		hmm_pte = hmm_pt_iter_update(&iter, &mirror->pt, addr);
++		if (!hmm_pte) {
++			addr = hmm_pt_iter_next(&iter, &mirror->pt,
++						addr, end);
++			continue;
++		}
++		cend = hmm_pt_level_next(&mirror->pt, addr, end,
++					 mirror->pt.llevel - 1);
++		do {
++			next = hmm_pt_level_next(&mirror->pt, addr, cend,
++						 mirror->pt.llevel);
++			if (!hmm_pte_test_valid_pfn(hmm_pte) ||
++			    !hmm_pte_test_write(hmm_pte))
++				continue;
++			hmm_pte_set_dirty(hmm_pte);
++		} while (addr = next, hmm_pte++, addr != cend);
++	}
++	hmm_pt_iter_fini(&iter, &mirror->pt);
 +}
-+EXPORT_SYMBOL(hmm_mirror_range_discard);
++EXPORT_SYMBOL(hmm_mirror_range_dirty);
 +
  /* hmm_mirror_register() - register mirror against current process for a device.
   *
