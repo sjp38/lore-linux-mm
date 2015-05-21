@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id C3F066B01A3
-	for <linux-mm@kvack.org>; Thu, 21 May 2015 16:24:05 -0400 (EDT)
-Received: by wgfl8 with SMTP id l8so96885630wgf.2
-        for <linux-mm@kvack.org>; Thu, 21 May 2015 13:24:05 -0700 (PDT)
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 042016B01A5
+	for <linux-mm@kvack.org>; Thu, 21 May 2015 16:24:09 -0400 (EDT)
+Received: by qkx62 with SMTP id 62so18638780qkx.3
+        for <linux-mm@kvack.org>; Thu, 21 May 2015 13:24:08 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c8si5220673wjw.93.2015.05.21.13.24.01
+        by mx.google.com with ESMTPS id f199si3355620qhc.20.2015.05.21.13.24.07
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 May 2015 13:24:02 -0700 (PDT)
+        Thu, 21 May 2015 13:24:08 -0700 (PDT)
 From: jglisse@redhat.com
-Subject: [PATCH 22/36] HMM: add new callback for copying memory from and to device memory.
-Date: Thu, 21 May 2015 16:22:58 -0400
-Message-Id: <1432239792-5002-3-git-send-email-jglisse@redhat.com>
+Subject: [PATCH 24/36] HMM: split DMA mapping function in two.
+Date: Thu, 21 May 2015 16:23:00 -0400
+Message-Id: <1432239792-5002-5-git-send-email-jglisse@redhat.com>
 In-Reply-To: <1432239792-5002-1-git-send-email-jglisse@redhat.com>
 References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
  <1432239792-5002-1-git-send-email-jglisse@redhat.com>
@@ -22,158 +22,170 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, Jerome Glisse <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-From: Jerome Glisse <jglisse@redhat.com>
+From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-This patch only adds the new callback device driver must implement
-to copy memory from and to device memory.
+To be able to reuse the DMA mapping logic, split it in two functions.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
-Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
-Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-Signed-off-by: Jatin Kumar <jakumar@nvidia.com>
 ---
- include/linux/hmm.h | 103 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/hmm.c            |   2 +
- 2 files changed, 105 insertions(+)
+ mm/hmm.c | 125 +++++++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 66 insertions(+), 59 deletions(-)
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index f243eb5..eb30418 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -66,6 +66,8 @@ enum hmm_etype {
- 	HMM_DEVICE_RFAULT,
- 	HMM_DEVICE_WFAULT,
- 	HMM_WRITE_PROTECT,
-+	HMM_COPY_FROM_DEVICE,
-+	HMM_COPY_TO_DEVICE,
- };
- 
- /* struct hmm_event - memory event information.
-@@ -157,6 +159,107 @@ struct hmm_device_ops {
- 	 * All other return value trigger warning and are transformed to -EIO.
- 	 */
- 	int (*update)(struct hmm_mirror *mirror,const struct hmm_event *event);
-+
-+	/* copy_from_device() - copy from device memory to system memory.
-+	 *
-+	 * @mirror: The mirror that link process address space with the device.
-+	 * @event: The event that triggered the copy.
-+	 * @dst: Array containing hmm_pte of destination memory.
-+	 * @start: Start address of the range (sub-range of event) to copy.
-+	 * @end: End address of the range (sub-range of event) to copy.
-+	 * Returns: 0 on success, error code otherwise {-ENOMEM, -EIO}.
-+	 *
-+	 * Called when migrating memory from device memory to system memory.
-+	 * The dst array contains valid DMA address for the device of the page
-+	 * to copy to (or pfn of page if hmm_device.device == NULL).
-+	 *
-+	 * If event.etype == HMM_FORK then device driver only need to schedule
-+	 * a copy to the system pages given in the dst hmm_pte array. Do not
-+	 * update the device page, and do not pause/stop the device threads
-+	 * that are using this address space. Just copy memory.
-+	 *
-+	 * If event.type == HMM_COPY_FROM_DEVICE then device driver must first
-+	 * write protect the range then schedule the copy, then update its page
-+	 * table to use the new system memory given the dst array. Some device
-+	 * can perform all this in an atomic fashion from device point of view.
-+	 * The device driver must also free the device memory once the copy is
-+	 * done.
-+	 *
-+	 * Device driver must not fail lightly, any failure result in device
-+	 * process being kill and CPU page table set to HWPOISON entry.
-+	 *
-+	 * Note that device driver must clear the valid bit of the dst entry it
-+	 * failed to copy.
-+	 *
-+	 * On failure the mirror will be kill by HMM which will do a HMM_MUNMAP
-+	 * invalidation of all the memory when this happen the device driver
-+	 * can free the device memory.
-+	 *
-+	 * Note also that there can be hole in the range being copied ie some
-+	 * entry of dst array will not have the valid bit set, device driver
-+	 * must simply ignore non valid entry.
-+	 *
-+	 * Finaly device driver must set the dirty bit for each page that was
-+	 * modified since it was copied inside the device memory. This must be
-+	 * conservative ie if device can not determine that with certainty then
-+	 * it must set the dirty bit unconditionally.
-+	 *
-+	 * Return 0 on success, error value otherwise :
-+	 * -ENOMEM Not enough memory for performing the operation.
-+	 * -EIO    Some input/output error with the device.
-+	 *
-+	 * All other return value trigger warning and are transformed to -EIO.
-+	 */
-+	int (*copy_from_device)(struct hmm_mirror *mirror,
-+				const struct hmm_event *event,
-+				dma_addr_t *dst,
-+				unsigned long start,
-+				unsigned long end);
-+
-+	/* copy_to_device() - copy to device memory from system memory.
-+	 *
-+	 * @mirror: The mirror that link process address space with the device.
-+	 * @event: The event that triggered the copy.
-+	 * @dst: Array containing hmm_pte of destination memory.
-+	 * @start: Start address of the range (sub-range of event) to copy.
-+	 * @end: End address of the range (sub-range of event) to copy.
-+	 * Returns: 0 on success, error code otherwise {-ENOMEM, -EIO}.
-+	 *
-+	 * Called when migrating memory from system memory to device memory.
-+	 * The dst array is empty, all of its entry are equal to zero. Device
-+	 * driver must allocate the device memory and populate each entry using
-+	 * hmm_pte_from_device_pfn() only the valid device bit and hardware
-+	 * specific bit will be preserve (write and dirty will be taken from
-+	 * the original entry inside the mirror page table). It is advice to
-+	 * set the device pfn to match the physical address of device memory
-+	 * being use. The event.etype will be equals to HMM_COPY_TO_DEVICE.
-+	 *
-+	 * Device driver that can atomically copy a page and update its page
-+	 * table entry to point to the device memory can do that. Partial
-+	 * failure is allowed, entry that have not been migrated must have
-+	 * the HMM_PTE_VALID_DEV bit clear inside the dst array. HMM will
-+	 * update the CPU page table of failed entry to point back to the
-+	 * system page.
-+	 *
-+	 * Note that device driver is responsible for allocating and freeing
-+	 * the device memory and properly updating to dst array entry with
-+	 * the allocated device memory.
-+	 *
-+	 * Return 0 on success, error value otherwise :
-+	 * -ENOMEM Not enough memory for performing the operation.
-+	 * -EIO    Some input/output error with the device.
-+	 *
-+	 * All other return value trigger warning and are transformed to -EIO.
-+	 * Errors means that the migration is aborted. So in case of partial
-+	 * failure if device do not want to fully abort it must return 0.
-+	 * Device driver can update device page table only if it knows it will
-+	 * not return failure.
-+	 */
-+	int (*copy_to_device)(struct hmm_mirror *mirror,
-+			      const struct hmm_event *event,
-+			      dma_addr_t *dst,
-+			      unsigned long start,
-+			      unsigned long end);
- };
- 
- 
 diff --git a/mm/hmm.c b/mm/hmm.c
-index e4585b7..9dbb1e43 100644
+index 9dbb1e43..b8807b2 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -87,6 +87,8 @@ static inline int hmm_event_init(struct hmm_event *event,
- 	case HMM_ISDIRTY:
- 	case HMM_DEVICE_RFAULT:
- 	case HMM_DEVICE_WFAULT:
-+	case HMM_COPY_TO_DEVICE:
-+	case HMM_COPY_FROM_DEVICE:
- 		break;
- 	case HMM_FORK:
- 	case HMM_WRITE_PROTECT:
+@@ -853,82 +853,89 @@ static int hmm_mirror_fault_pmd(pmd_t *pmdp,
+ 	return ret;
+ }
+ 
++static int hmm_mirror_dma_map_range(struct hmm_mirror *mirror,
++				    dma_addr_t *hmm_pte,
++				    spinlock_t *lock,
++				    unsigned long npages)
++{
++	struct device *dev = mirror->device->dev;
++	unsigned long i;
++	int ret = 0;
++
++	for (i = 0; i < npages; i++) {
++		dma_addr_t dma_addr, pte;
++		struct page *page;
++
++again:
++		pte = ACCESS_ONCE(hmm_pte[i]);
++		if (!hmm_pte_test_valid_pfn(&pte) || !hmm_pte_test_select(&pte))
++			continue;
++
++		page = pfn_to_page(hmm_pte_pfn(pte));
++		VM_BUG_ON(!page);
++		dma_addr = dma_map_page(dev, page, 0, PAGE_SIZE,
++					DMA_BIDIRECTIONAL);
++		if (dma_mapping_error(dev, dma_addr)) {
++			ret = -ENOMEM;
++			break;
++		}
++
++		/*
++		 * Make sure we transfer the dirty bit. Note that there
++		 * might still be a window for another thread to set
++		 * the dirty bit before we check for pte equality. This
++		 * will just lead to a useless retry so it is not the
++		 * end of the world here.
++		 */
++		if (lock)
++			spin_lock(lock);
++		if (hmm_pte_test_dirty(&hmm_pte[i]))
++			hmm_pte_set_dirty(&pte);
++		if (ACCESS_ONCE(hmm_pte[i]) != pte) {
++				if (lock)
++					spin_unlock(lock);
++				dma_unmap_page(dev, dma_addr, PAGE_SIZE,
++					       DMA_BIDIRECTIONAL);
++				if (hmm_pte_test_valid_pfn(&hmm_pte[i]))
++					goto again;
++				continue;
++		}
++		hmm_pte[i] = hmm_pte_from_dma_addr(dma_addr);
++		if (hmm_pte_test_write(&pte))
++			hmm_pte_set_write(&hmm_pte[i]);
++		if (hmm_pte_test_dirty(&pte))
++			hmm_pte_set_dirty(&hmm_pte[i]);
++		if (lock)
++			spin_unlock(lock);
++	}
++
++	return ret;
++}
+ 
+ static int hmm_mirror_dma_map(struct hmm_mirror *mirror,
+ 			      struct hmm_pt_iter *iter,
+ 			      unsigned long start,
+ 			      unsigned long end)
+ {
+-	struct device *dev = mirror->device->dev;
+ 	unsigned long addr;
+ 	int ret;
+ 
+ 	for (ret = 0, addr = start; !ret && addr < end;) {
+-		unsigned long i = 0, hmm_end, next;
++		unsigned long next, npages;
+ 		dma_addr_t *hmm_pte;
++		spinlock_t *lock;
+ 
+ 		hmm_pte = hmm_pt_iter_fault(iter, &mirror->pt, addr);
+ 		if (!hmm_pte)
+ 			return -ENOENT;
+ 
+-		hmm_end = hmm_pt_level_next(&mirror->pt, addr, end,
+-					    mirror->pt.llevel - 1);
+-		do {
+-			dma_addr_t dma_addr, pte;
+-			struct page *page;
+-
+-			next = hmm_pt_level_next(&mirror->pt, addr, hmm_end,
+-						 mirror->pt.llevel);
+-
+-again:
+-			pte = ACCESS_ONCE(hmm_pte[i]);
+-			if (!hmm_pte_test_valid_pfn(&pte) ||
+-			    !hmm_pte_test_select(&pte)) {
+-				if (!hmm_pte_test_valid_dma(&pte)) {
+-					ret = -ENOENT;
+-					break;
+-				}
+-				continue;
+-			}
+-
+-			page = pfn_to_page(hmm_pte_pfn(pte));
+-			VM_BUG_ON(!page);
+-			dma_addr = dma_map_page(dev, page, 0, PAGE_SIZE,
+-						DMA_BIDIRECTIONAL);
+-			if (dma_mapping_error(dev, dma_addr)) {
+-				ret = -ENOMEM;
+-				break;
+-			}
++		next = hmm_pt_level_next(&mirror->pt, addr, end,
++					 mirror->pt.llevel - 1);
+ 
+-			hmm_pt_iter_directory_lock(iter, &mirror->pt);
+-			/*
+-			 * Make sure we transfer the dirty bit. Note that there
+-			 * might still be a window for another thread to set
+-			 * the dirty bit before we check for pte equality. This
+-			 * will just lead to a useless retry so it is not the
+-			 * end of the world here.
+-			 */
+-			if (hmm_pte_test_dirty(&hmm_pte[i]))
+-				hmm_pte_set_dirty(&pte);
+-			if (ACCESS_ONCE(hmm_pte[i]) != pte) {
+-				hmm_pt_iter_directory_unlock(iter,&mirror->pt);
+-				dma_unmap_page(dev, dma_addr, PAGE_SIZE,
+-					       DMA_BIDIRECTIONAL);
+-				if (hmm_pte_test_valid_pfn(&pte))
+-					goto again;
+-				if (!hmm_pte_test_valid_dma(&pte)) {
+-					ret = -ENOENT;
+-					break;
+-				}
+-			} else {
+-				hmm_pte[i] = hmm_pte_from_dma_addr(dma_addr);
+-				if (hmm_pte_test_write(&pte))
+-					hmm_pte_set_write(&hmm_pte[i]);
+-				if (hmm_pte_test_dirty(&pte))
+-					hmm_pte_set_dirty(&hmm_pte[i]);
+-				hmm_pt_iter_directory_unlock(iter, &mirror->pt);
+-			}
+-		} while (addr = next, i++, addr != hmm_end && !ret);
++		npages = (next - addr) >> PAGE_SHIFT;
++		lock = hmm_pt_iter_directory_lock_ptr(iter, &mirror->pt);
++		ret = hmm_mirror_dma_map_range(mirror, hmm_pte, lock, npages);
++		addr = next;
+ 	}
+ 
+ 	return ret;
 -- 
 1.9.3
 
