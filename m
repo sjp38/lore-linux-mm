@@ -1,93 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B8836B0188
-	for <linux-mm@kvack.org>; Thu, 21 May 2015 13:09:25 -0400 (EDT)
-Received: by wibt6 with SMTP id t6so21239599wib.0
-        for <linux-mm@kvack.org>; Thu, 21 May 2015 10:09:25 -0700 (PDT)
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id C0BFA6B0189
+	for <linux-mm@kvack.org>; Thu, 21 May 2015 13:22:41 -0400 (EDT)
+Received: by wgfl8 with SMTP id l8so92575713wgf.2
+        for <linux-mm@kvack.org>; Thu, 21 May 2015 10:22:41 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id ga6si3884937wib.68.2015.05.21.10.09.23
+        by mx.google.com with ESMTPS id he9si36369551wjc.173.2015.05.21.10.22.38
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 May 2015 10:09:23 -0700 (PDT)
-Date: Thu, 21 May 2015 13:09:09 -0400
+        Thu, 21 May 2015 10:22:39 -0700 (PDT)
+Date: Thu, 21 May 2015 13:22:17 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] hugetlb: Do not account hugetlb pages as NR_FILE_PAGES
-Message-ID: <20150521170909.GA12800@cmpxchg.org>
-References: <1432214842-22730-1-git-send-email-mhocko@suse.cz>
+Subject: Re: [PATCH 3/7] memcg: immigrate charges only when a threadgroup
+ leader is moved
+Message-ID: <20150521172217.GB12800@cmpxchg.org>
+References: <1431978595-12176-1-git-send-email-tj@kernel.org>
+ <1431978595-12176-4-git-send-email-tj@kernel.org>
+ <20150519121321.GB6203@dhcp22.suse.cz>
+ <20150519212754.GO24861@htj.duckdns.org>
+ <20150520131044.GA28678@dhcp22.suse.cz>
+ <20150520132158.GB28678@dhcp22.suse.cz>
+ <20150520175302.GA7287@redhat.com>
+ <20150520202221.GD14256@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1432214842-22730-1-git-send-email-mhocko@suse.cz>
+In-Reply-To: <20150520202221.GD14256@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, May 21, 2015 at 03:27:22PM +0200, Michal Hocko wrote:
-> hugetlb pages uses add_to_page_cache to track shared mappings. This
-> is OK from the data structure point of view but it is less so from the
-> NR_FILE_PAGES accounting:
-> 	- huge pages are accounted as 4k which is clearly wrong
-> 	- this counter is used as the amount of the reclaimable page
-> 	  cache which is incorrect as well because hugetlb pages are
-> 	  special and not reclaimable
-> 	- the counter is then exported to userspace via /proc/meminfo
-> 	  (in Cached:), /proc/vmstat and /proc/zoneinfo as
-> 	  nr_file_pages which is confusing at least:
-> 	  Cached:          8883504 kB
-> 	  HugePages_Free:     8348
-> 	  ...
-> 	  Cached:          8916048 kB
-> 	  HugePages_Free:      156
-> 	  ...
-> 	  thats 8192 huge pages allocated which is ~16G accounted as 32M
+On Wed, May 20, 2015 at 10:22:21PM +0200, Michal Hocko wrote:
+> On Wed 20-05-15 19:53:02, Oleg Nesterov wrote:
+> > On 05/20, Michal Hocko wrote:
+> > >
+> > > So I assume the leader simply waits for its threads to finish and it
+> > > stays in the sibling list. __unhash_process seems like it does the final
+> > > cleanup and unlinks the leader from the lists. Which means that
+> > > mm_update_next_owner never sees !group_leader. Is that correct Oleg?
+> > 
+> > Yes, yes, the group leader can't go away until the whole thread-group dies.
 > 
-> There are usually not that many huge pages in the system for this to
-> make any visible difference e.g. by fooling __vm_enough_memory or
-> zone_pagecache_reclaimable.
+> OK, then we should have a guarantee that mm->owner is always thread
+> group leader, right?
 > 
-> Fix this by special casing huge pages in both __delete_from_page_cache
-> and __add_to_page_cache_locked. replace_page_cache_page is currently
-> only used by fuse and that shouldn't touch hugetlb pages AFAICS but it
-> is more robust to check for special casing there as well.
+> > But can't we kill mm->owner somehow?
 > 
-> Hugetlb pages shouldn't get to any other paths where we do accounting:
-> 	- migration - we have a special handling via
-> 	  hugetlbfs_migrate_page
-> 	- shmem - doesn't handle hugetlb pages directly even for
-> 	  SHM_HUGETLB resp. MAP_HUGETLB
-> 	- swapcache - hugetlb is not swapable
+> I would be happy about that. But it is not that simple.
 > 
-> This has a user visible effect but I believe it is reasonable because
-> the previously exported number is simply bogus.
+> > I mean, turn it into something else,
+> > ideally into "struct mem_cgroup *" although I doubt this is possible.
 > 
-> An alternative would be to account hugetlb pages with their real size
-> and treat them similar to shmem. But this has some drawbacks.
-> 
-> First we would have to special case in kernel users of NR_FILE_PAGES and
-> considering how hugetlb is special we would have to do it everywhere. We
-> do not want Cached exported by /proc/meminfo to include it because the
-> value would be even more misleading.
-> __vm_enough_memory and zone_pagecache_reclaimable would have to do
-> the same thing because those pages are simply not reclaimable. The
-> correction is even not trivial because we would have to consider all
-> active hugetlb page sizes properly. Users of the counter outside of the
-> kernel would have to do the same.
-> So the question is why to account something that needs to be basically
-> excluded for each reasonable usage. This doesn't make much sense to me.
-> 
-> It seems that this has been broken since hugetlb was introduced but I
-> haven't checked the whole history.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Sounds like a good idea but... it duplicates the cgroup tracking into
+> two places and that asks for troubles. On the other hand we are doing
+> that already because mm->owner might be in a different cgroup than the
+> current. However, this is an inherent problem because CLONE_VM doesn't
+> imply CLONE_THREAD. So in the end it doesn't look much worse IMO.
+> We will loose the "this task is in charge" aspect and that would
+> be a user space visible change but I am not sure how much it is a
+> problem. Maybe somebody is (ab)using this to workaround the restriction
+> that all threads are in the same cgroup.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+If mm->owner is currently always the threadgroup leader, it should be
+fairly straight forward to maintain mm->memcg on all events that move
+any threadgroup leader between cgroups, without having mm->owner, no?
 
-This makes a lot of sense to me.  The only thing I worry about is the
-proliferation of PageHuge(), a function call, in relatively hot paths.
-
-Naoya-san, would there be a strong reason to make this function a
-static inline in the header?
+It would have a lot of benefits for sure.  The code would be simpler,
+but it would also reduce some of the cost that Mel is observing inside
+__mem_cgroup_count_vm_event(), by reducing one level of indirection.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
