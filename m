@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com [209.85.220.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 24DB182966
-	for <linux-mm@kvack.org>; Thu, 21 May 2015 15:34:19 -0400 (EDT)
-Received: by qkdn188 with SMTP id n188so59402428qkd.2
-        for <linux-mm@kvack.org>; Thu, 21 May 2015 12:34:18 -0700 (PDT)
-Received: from mail-qk0-x232.google.com (mail-qk0-x232.google.com. [2607:f8b0:400d:c09::232])
-        by mx.google.com with ESMTPS id o5si1113751qko.11.2015.05.21.12.34.18
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 569E282966
+	for <linux-mm@kvack.org>; Thu, 21 May 2015 15:34:22 -0400 (EDT)
+Received: by qgez61 with SMTP id z61so43353406qge.1
+        for <linux-mm@kvack.org>; Thu, 21 May 2015 12:34:22 -0700 (PDT)
+Received: from mail-qk0-x22e.google.com (mail-qk0-x22e.google.com. [2607:f8b0:400d:c09::22e])
+        by mx.google.com with ESMTPS id n40si17729747qkh.89.2015.05.21.12.34.21
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 May 2015 12:34:18 -0700 (PDT)
-Received: by qkdn188 with SMTP id n188so59402077qkd.2
-        for <linux-mm@kvack.org>; Thu, 21 May 2015 12:34:18 -0700 (PDT)
+        Thu, 21 May 2015 12:34:21 -0700 (PDT)
+Received: by qkdn188 with SMTP id n188so59403629qkd.2
+        for <linux-mm@kvack.org>; Thu, 21 May 2015 12:34:21 -0700 (PDT)
 From: j.glisse@gmail.com
-Subject: [PATCH 18/36] HMM: add new HMM page table flag (select flag).
-Date: Thu, 21 May 2015 15:31:27 -0400
-Message-Id: <1432236705-4209-19-git-send-email-j.glisse@gmail.com>
+Subject: [PATCH 19/36] HMM: handle HMM device page table entry on mirror page table fault and update.
+Date: Thu, 21 May 2015 15:31:28 -0400
+Message-Id: <1432236705-4209-20-git-send-email-j.glisse@gmail.com>
 In-Reply-To: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
 References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
 MIME-Version: 1.0
@@ -27,70 +27,46 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@l
 
 From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-When migrating memory the same array for HMM page table entry might be
-use with several different devices. Add a new select flag so current
-device driver callback can know which entry are selected for the device.
+When faulting or updating the device page table properly handle the case of device
+memory entry.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 ---
- include/linux/hmm_pt.h | 6 ++++--
- mm/hmm.c               | 5 ++++-
- 2 files changed, 8 insertions(+), 3 deletions(-)
+ mm/hmm.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
 
-diff --git a/include/linux/hmm_pt.h b/include/linux/hmm_pt.h
-index 26cfe5e..36f7e00 100644
---- a/include/linux/hmm_pt.h
-+++ b/include/linux/hmm_pt.h
-@@ -77,8 +77,9 @@ static inline unsigned long hmm_pde_pfn(dma_addr_t pde)
- #define HMM_PTE_VALID_DEV_BIT	0
- #define HMM_PTE_VALID_DMA_BIT	1
- #define HMM_PTE_VALID_PFN_BIT	2
--#define HMM_PTE_WRITE_BIT	3
--#define HMM_PTE_DIRTY_BIT	4
-+#define HMM_PTE_SELECT		3
-+#define HMM_PTE_WRITE_BIT	4
-+#define HMM_PTE_DIRTY_BIT	5
- /*
-  * Reserve some bits for device driver private flags. Note that thus can only
-  * be manipulated using the hmm_pte_*_bit() sets of helpers.
-@@ -170,6 +171,7 @@ static inline bool hmm_pte_test_and_set_bit(dma_addr_t *ptep,
- HMM_PTE_BIT_HELPER(valid_dev, HMM_PTE_VALID_DEV_BIT)
- HMM_PTE_BIT_HELPER(valid_dma, HMM_PTE_VALID_DMA_BIT)
- HMM_PTE_BIT_HELPER(valid_pfn, HMM_PTE_VALID_PFN_BIT)
-+HMM_PTE_BIT_HELPER(select, HMM_PTE_SELECT)
- HMM_PTE_BIT_HELPER(dirty, HMM_PTE_DIRTY_BIT)
- HMM_PTE_BIT_HELPER(write, HMM_PTE_WRITE_BIT)
- 
 diff --git a/mm/hmm.c b/mm/hmm.c
-index 2143a58..761905a 100644
+index 761905a..e4585b7 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -757,6 +757,7 @@ static int hmm_mirror_fault_hpmd(struct hmm_mirror *mirror,
- 			hmm_pte[i] = hmm_pte_from_pfn(pfn);
- 			if (pmd_write(*pmdp))
- 				hmm_pte_set_write(&hmm_pte[i]);
-+			hmm_pte_set_select(&hmm_pte[i]);
- 		} while (addr = next, pfn++, i++, addr != hmm_end);
- 		hmm_pt_iter_directory_unlock(iter, &mirror->pt);
- 		mirror_fault->addr = addr;
-@@ -826,6 +827,7 @@ static int hmm_mirror_fault_pmd(pmd_t *pmdp,
- 			hmm_pte[i] = hmm_pte_from_pfn(pte_pfn(*ptep));
- 			if (pte_write(*ptep))
- 				hmm_pte_set_write(&hmm_pte[i]);
-+			hmm_pte_set_select(&hmm_pte[i]);
- 		} while (addr = next, ptep++, i++, addr != hmm_end);
- 		hmm_pt_iter_directory_unlock(iter, &mirror->pt);
- 		pte_unmap(ptep - 1);
-@@ -864,7 +866,8 @@ static int hmm_mirror_dma_map(struct hmm_mirror *mirror,
+@@ -613,6 +613,13 @@ static void hmm_mirror_update_pte(struct hmm_mirror *mirror,
+ 		goto out;
+ 	}
  
- again:
- 			pte = ACCESS_ONCE(hmm_pte[i]);
--			if (!hmm_pte_test_valid_pfn(&pte)) {
-+			if (!hmm_pte_test_valid_pfn(&pte) ||
-+			    !hmm_pte_test_select(&pte)) {
- 				if (!hmm_pte_test_valid_dma(&pte)) {
- 					ret = -ENOENT;
- 					break;
++	if (hmm_pte_test_valid_dev(hmm_pte)) {
++		*hmm_pte &= event->pte_mask;
++		if (!hmm_pte_test_valid_dev(hmm_pte))
++			hmm_pt_iter_directory_unref(iter, mirror->pt.llevel);
++		return;
++	}
++
+ 	if (!hmm_pte_test_valid_dma(hmm_pte))
+ 		return;
+ 
+@@ -813,6 +820,13 @@ static int hmm_mirror_fault_pmd(pmd_t *pmdp,
+ 		do {
+ 			next = hmm_pt_level_next(&mirror->pt, addr, hmm_end,
+ 						 mirror->pt.llevel);
++
++			if (hmm_pte_test_valid_dev(&hmm_pte[i])) {
++				if (write)
++					hmm_pte_set_write(&hmm_pte[i]);
++				continue;
++			}
++
+ 			if (!pte_present(*ptep) || (write && !pte_write(*ptep))) {
+ 				ret = -ENOENT;
+ 				ptep++;
 -- 
 1.9.3
 
