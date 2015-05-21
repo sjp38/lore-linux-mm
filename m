@@ -1,63 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 5688F82966
-	for <linux-mm@kvack.org>; Thu, 21 May 2015 18:09:12 -0400 (EDT)
-Received: by qcblr10 with SMTP id lr10so566281qcb.0
-        for <linux-mm@kvack.org>; Thu, 21 May 2015 15:09:12 -0700 (PDT)
-Received: from mail-qg0-x230.google.com (mail-qg0-x230.google.com. [2607:f8b0:400d:c04::230])
-        by mx.google.com with ESMTPS id g17si206009qhc.64.2015.05.21.15.09.11
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 089E782966
+	for <linux-mm@kvack.org>; Thu, 21 May 2015 19:10:42 -0400 (EDT)
+Received: by ieczm2 with SMTP id zm2so19758163iec.1
+        for <linux-mm@kvack.org>; Thu, 21 May 2015 16:10:41 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id s66si247968ioi.60.2015.05.21.16.10.40
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 May 2015 15:09:11 -0700 (PDT)
-Received: by qgew3 with SMTP id w3so536060qge.2
-        for <linux-mm@kvack.org>; Thu, 21 May 2015 15:09:11 -0700 (PDT)
-Date: Thu, 21 May 2015 18:09:08 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 3/7] memcg: immigrate charges only when a threadgroup
- leader is moved
-Message-ID: <20150521220908.GJ4914@htj.duckdns.org>
-References: <1431978595-12176-1-git-send-email-tj@kernel.org>
- <1431978595-12176-4-git-send-email-tj@kernel.org>
- <20150521141225.GB14475@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 21 May 2015 16:10:41 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v6 5/5] trace, ras: move ras_event.h under
+ include/trace/events
+Date: Thu, 21 May 2015 23:00:24 +0000
+Message-ID: <20150521230024.GA4052@hori1.linux.bs1.fc.nec.co.jp>
+References: <1432179685-11369-1-git-send-email-xiexiuqi@huawei.com>
+ <1432179685-11369-6-git-send-email-xiexiuqi@huawei.com>
+ <20150521092437.GA3841@nazgul.tnic>
+ <20150521090152.182a46ef@gandalf.local.home>
+In-Reply-To: <20150521090152.182a46ef@gandalf.local.home>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <E83D26A8CB802349A5B043AF7DFC3DA0@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150521141225.GB14475@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: lizefan@huawei.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Borislav Petkov <bp@suse.de>, Xie XiuQi <xiexiuqi@huawei.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "mingo@redhat.com" <mingo@redhat.com>, "tony.luck@intel.com" <tony.luck@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jingle.chen@huawei.com" <jingle.chen@huawei.com>, "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>, "rdunlap@infradead.org" <rdunlap@infradead.org>, "jim.epost@gmail.com" <jim.epost@gmail.com>
 
-On Thu, May 21, 2015 at 04:12:26PM +0200, Michal Hocko wrote:
-> On Mon 18-05-15 15:49:51, Tejun Heo wrote:
-> > If move_charge flag is set, memcg tries to move memory charges to the
-> > destnation css.  The current implementation migrates memory whenever
-> > any thread of a process is migrated making the behavior somewhat
-> > arbitrary.  Let's tie memory operations to the threadgroup leader so
-> > that memory is migrated only when the leader is migrated.
-> > 
-> > While this is a behavior change, given the inherent fuziness, this
-> > change is not too likely to be noticed and allows us to clearly define
-> > who owns the memory (always the leader) and helps the planned atomic
-> > multi-process migration.
-> > 
-> > Signed-off-by: Tejun Heo <tj@kernel.org>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Michal Hocko <mhocko@suse.cz>
-> 
-> OK, I guess the discussion with Oleg confirmed that the patch is not
-> really needed because mm_struct->owner check implies thread group
-> leader. This should be sufficient for your purpose Tejun, right?
+On Thu, May 21, 2015 at 09:01:52AM -0400, Steven Rostedt wrote:
+> On Thu, 21 May 2015 11:24:37 +0200
+> Borislav Petkov <bp@suse.de> wrote:
+>=20
+> > On Thu, May 21, 2015 at 11:41:25AM +0800, Xie XiuQi wrote:
+> > > From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > >=20
+> > > Most of header files for tracepoints are located to include/trace/eve=
+nts or
+> > > their relevant subdirectories under drivers/. One exception is
+> >=20
+> > That's simply not true.
+> >=20
+> > > include/ras/ras_events.h, which looks inconsistent. So let's move it =
+to the
+> > > default places for such headers.
+> >=20
+> > No thanks - ras TPs can live just fine in include/ras/.
+> >=20
+>=20
+> I agree with Boris, the solution is not to move it. It's not
+> inconsistent, lots of places use it. Just do a git grep -l TRACE_EVENT
+> to see.
 
-Hmmm... we still need to update so that it actually iterates leaders
-to find the owner as first in taskset == leader assumption is going
-away but yeah this patch in itself can go away.  I'll update the next
-patch accordingly.
+My bad, I withdraw this patch.
 
-Thanks.
-
--- 
-tejun
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
