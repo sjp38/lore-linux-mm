@@ -1,78 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id AADF96B0144
-	for <linux-mm@kvack.org>; Wed, 20 May 2015 20:18:00 -0400 (EDT)
-Received: by pdfh10 with SMTP id h10so87209516pdf.3
-        for <linux-mm@kvack.org>; Wed, 20 May 2015 17:18:00 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id wt10si28746739pab.236.2015.05.20.17.17.57
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 May 2015 17:17:58 -0700 (PDT)
-Date: Thu, 21 May 2015 10:17:48 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: linux-next: Tree for May 18 (mm/memory-failure.c)
-Message-ID: <20150521101748.2ff2fb9e@canb.auug.org.au>
-In-Reply-To: <20150520130320.1fc1bd7b1c26dae15c5946c5@linux-foundation.org>
-References: <20150518185226.23154d47@canb.auug.org.au>
-	<555A0327.9060709@infradead.org>
-	<20150519024933.GA1614@hori1.linux.bs1.fc.nec.co.jp>
-	<555C1EA5.3080700@huawei.com>
-	<20150520130320.1fc1bd7b1c26dae15c5946c5@linux-foundation.org>
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D39DA6B0145
+	for <linux-mm@kvack.org>; Wed, 20 May 2015 20:45:51 -0400 (EDT)
+Received: by wghq2 with SMTP id q2so69453137wgh.1
+        for <linux-mm@kvack.org>; Wed, 20 May 2015 17:45:51 -0700 (PDT)
+Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
+        by mx.google.com with SMTP id ha1si103265wib.100.2015.05.20.17.45.49
+        for <linux-mm@kvack.org>;
+        Wed, 20 May 2015 17:45:50 -0700 (PDT)
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Subject: Re: [PATCH v4 1/3] PM / Hibernate: prepare for SANITIZE_FREED_PAGES
+Date: Thu, 21 May 2015 03:11:12 +0200
+Message-ID: <4282804.3atZjAcjTt@vostro.rjw.lan>
+In-Reply-To: <CALUN=q+0mUTeJKE0OV8Bkny33M2Psdp4U5dF3vBcyo+mxNb-Nw@mail.gmail.com>
+References: <1431613188-4511-1-git-send-email-anisse@astier.eu> <555C73E7.23237.269170A5@pageexec.freemail.hu> <CALUN=q+0mUTeJKE0OV8Bkny33M2Psdp4U5dF3vBcyo+mxNb-Nw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
- boundary="Sig_/gEcqDV543fE+GRdr8+N58q."; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Xie XiuQi <xiexiuqi@huawei.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Randy Dunlap <rdunlap@infradead.org>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Steven Rostedt <rostedt@goodmis.org>, Jim Davis <jim.epost@gmail.com>, Chen Gong <gong.chen@linux.intel.com>
+To: Anisse Astier <anisse@astier.eu>
+Cc: PaX Team <pageexec@freemail.hu>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Brad Spengler <spender@grsecurity.net>, Kees Cook <keescook@chromium.org>, Andi Kleen <andi@firstfloor.org>, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
---Sig_/gEcqDV543fE+GRdr8+N58q.
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+On Wednesday, May 20, 2015 02:07:36 PM Anisse Astier wrote:
+> On Wed, May 20, 2015 at 1:45 PM, PaX Team <pageexec@freemail.hu> wrote:
+> >
+> >> Moreover, why is the resume code path the only one where freed pages need to
+> >> be sanitized?
+> >
+> > ... i had a bug report before (http://marc.info/?l=linux-pm&m=132871433416256)
+> > which is why i asked Anisse to figure this out before upstreaming the feature.
+> > i've also asked him already to explain why his approach is the proper fix for
+> > the problem (which should include the description of the root cause as a start)
+> > but he hasn't answered that yet.
+> >
+> > anyway, the big question is how there can be free memory pages after resume
+> > which are not sanitized. now i have no idea about the hibernation logic but
+> > i assume that it doesn't save/restore free pages so the question is how the
+> > kernel gets to learn about these free pages during resume and whether there's
+> > a path where __free_page() or some other wrapper around free_pages_prepare()
+> > doesn't get called at all.
+> 
+> In my opinion the free pages left are those used by the loading kernel.
 
-Hi Andrew,
+Well, that is not a matter of opinion really, but it's actually correct.
 
-On Wed, 20 May 2015 13:03:20 -0700 Andrew Morton <akpm@linux-foundation.org=
-> wrote:
->
-> I dropped
->=20
-> memory-failure-export-page_type-and-action-result.patch
-> memory-failure-change-type-of-action_results-param-3-to-enum.patch
-> tracing-add-trace-event-for-memory-failure.patch
+> If I understand correctly, a suspend (hibernate) image contains *all*
+> the memory necessary for the OS to work; so when you restore it, you
+> restore it all, page tables, and kernel code section included. So when
+> the kernel does a hibernate restoration, it loads it all the pages
+> into memory, then architecture-specific code will jump into the new
+> "resumed" kernel by restoring page table entries and CPU context. When
+> it does that, it leaves the "loader" kernel memory hanging; this
+> memory is seen as free pages by the resumed kernel, but it isn't
+> cleared.
 
-OK, I have dropped them from linux-next as well (on the way fixing up
-"mm/memory-failure: split thp earlier in memory error handling" and
-"mm/memory-failure: me_huge_page() does nothing for thp").
+Correct, except that some of the boot kernel's memory will be overwritten
+by the image kernel and all.
 
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
+> Rafael, am I getting something wrong on the hibernation resume process
+> ? What do you think of this analysis ?
 
---Sig_/gEcqDV543fE+GRdr8+N58q.
-Content-Type: application/pgp-signature
-Content-Description: OpenPGP digital signature
+That's more-or-less what's happening.  IOW, after hibernation and resume you
+may see stuff in pages that were previously all zeros as long as they are
+regarded as free by the image kernel.  The stuff in there is all garbage from
+its perspective though.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
 
-iQIcBAEBCAAGBQJVXSQxAAoJEMDTa8Ir7ZwVnHwP/0EZ3nLyJXhcDHRCDS7XBPDD
-zPra6g1qEUW1xaPqF5sQhXE4WvmQ+yK1pL/6wbLaQ6jnCESv/C4QqbI3INnLycrR
-V1f1g0qzMzmHn1iygudDcCqbRE1aj/6g5BjM4qGBbb+JbwrAX3ixloZZTmyWjm+Y
-mGt19qU5IcmLU/OgOw1A+4IBFUHGVEjbCzanJ9g7p0KBTk+SWa6qYXmmJzz/cyi2
-WfYkcHWSzJI0Ih1TZ3f+chENxiFpX7zhw1fUhkRZFZTlPA4DYFRqAH3o6Tq0bvYg
-tqg3nzxtqVD3HzbQWVNuBPv23qFgW0PFr6GKvUsqsKyC2GZxamhA9QIZ/UFIz3q8
-h6TxNhrh7wQwRaiPwlZrtO+8LwIQnJfDfVuJlT9QJnWZeWkJjkihTjKxZ/fwqyTH
-tSlon+aAnf67AgaVeopQn9C33ZAWTLir1nkYjQGpfVIwr3rRWg1GMCK2tc/aJQsD
-UKoGR1fgbHXi4/d6e6/3vqNh86D/zDGQH+CPY4KzOVlpooTbt5TxemF5At+C/3fl
-hLK/9WWsQsN6tL2GtZcvtPUl6Q04vgZtea92+a17gwRrWGmHJE4m6EAJfPmOUMbQ
-pQqN+q9IiOsO3BRpyIYv9crcNtNcqby8e1S1vutUK+PVa/lLQnROC1b3BKNUwQp5
-M6TX4NStR6s1Ie9zfAe7
-=1VMK
------END PGP SIGNATURE-----
-
---Sig_/gEcqDV543fE+GRdr8+N58q.--
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
