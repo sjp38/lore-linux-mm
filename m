@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 21E246B014B
-	for <linux-mm@kvack.org>; Wed, 20 May 2015 23:50:26 -0400 (EDT)
-Received: by obblk2 with SMTP id lk2so51881449obb.0
-        for <linux-mm@kvack.org>; Wed, 20 May 2015 20:50:25 -0700 (PDT)
+Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 1963E6B014D
+	for <linux-mm@kvack.org>; Wed, 20 May 2015 23:50:28 -0400 (EDT)
+Received: by oiko83 with SMTP id o83so51644678oik.1
+        for <linux-mm@kvack.org>; Wed, 20 May 2015 20:50:27 -0700 (PDT)
 Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id p84si5353528oig.43.2015.05.20.20.50.22
+        by mx.google.com with ESMTPS id i67si11913637oid.10.2015.05.20.20.50.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Wed, 20 May 2015 20:50:23 -0700 (PDT)
 From: Xie XiuQi <xiexiuqi@huawei.com>
-Subject: [PATCH v6 3/5] tracing: add trace event for memory-failure
-Date: Thu, 21 May 2015 11:41:23 +0800
-Message-ID: <1432179685-11369-4-git-send-email-xiexiuqi@huawei.com>
+Subject: [PATCH v6 4/5] tracing: fix build error in mm/memory-failure.c
+Date: Thu, 21 May 2015 11:41:24 +0800
+Message-ID: <1432179685-11369-5-git-send-email-xiexiuqi@huawei.com>
 In-Reply-To: <1432179685-11369-1-git-send-email-xiexiuqi@huawei.com>
 References: <1432179685-11369-1-git-send-email-xiexiuqi@huawei.com>
 MIME-Version: 1.0
@@ -22,159 +22,38 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com
 Cc: rostedt@goodmis.org, gong.chen@linux.intel.com, mingo@redhat.com, bp@suse.de, tony.luck@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jingle.chen@huawei.com, sfr@canb.auug.org.au, rdunlap@infradead.org, jim.epost@gmail.com
 
-RAS user space tools like rasdaemon which base on trace event, could
-receive mce error event, but no memory recovery result event. So, I
-want to add this event to make this scenario complete.
+next-20150515 fails to build on i386 with the following error:
 
-This patch add a event at ras group for memory-failure.
+mm/built-in.o: In function `action_result':
+memory-failure.c:(.text+0x344a5): undefined reference to `__tracepoint_memory_failure_event'
+memory-failure.c:(.text+0x344d5): undefined reference to `__tracepoint_memory_failure_event'
+memory-failure.c:(.text+0x3450c): undefined reference to `__tracepoint_memory_failure_event'
 
-The output like below:
-#  tracer: nop
-#
-#  entries-in-buffer/entries-written: 2/2   #P:24
-#
-#                               _-----=> irqs-off
-#                              / _----=> need-resched
-#                             | / _---=> hardirq/softirq
-#                             || / _--=> preempt-depth
-#                             ||| /     delay
-#            TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION
-#               | |       |   ||||       |         |
-       mce-inject-13150 [001] ....   277.019359: memory_failure_event: pfn 0x19869: recovery action for free buddy page: Delayed
+trace_memory_failure_event depends on CONFIG_RAS,
+so add 'select RAS' in mm/Kconfig to avoid this error.
 
-Cc: Tony Luck <tony.luck@intel.com>
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Acked-by: Steven Rostedt <rostedt@goodmis.org>
+Reported-by: Randy Dunlap <rdunlap@infradead.org>
+Reported-by: Jim Davis <jim.epost@gmail.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>
+Cc: Chen Gong <gong.chen@linux.intel.com>
+Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Xie XiuQi <xiexiuqi@huawei.com>
 ---
- include/ras/ras_event.h |   85 +++++++++++++++++++++++++++++++++++++++++++++++
- mm/memory-failure.c     |    3 ++
- 2 files changed, 88 insertions(+), 0 deletions(-)
+ mm/Kconfig |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
 
-diff --git a/include/ras/ras_event.h b/include/ras/ras_event.h
-index 79abb9c..1443d79 100644
---- a/include/ras/ras_event.h
-+++ b/include/ras/ras_event.h
-@@ -11,6 +11,7 @@
- #include <linux/pci.h>
- #include <linux/aer.h>
- #include <linux/cper.h>
-+#include <linux/mm.h>
- 
- /*
-  * MCE Extended Error Log trace event
-@@ -232,6 +233,90 @@ TRACE_EVENT(aer_event,
- 		__print_flags(__entry->status, "|", aer_uncorrectable_errors))
- );
- 
-+/*
-+ * memory-failure recovery action result event
-+ *
-+ * unsigned long pfn -	Page Frame Number of the corrupted page
-+ * int type	-	Page types of the corrupted page
-+ * int result	-	Result of recovery action
-+ */
-+
-+#ifdef CONFIG_MEMORY_FAILURE
-+#define MF_ACTION_RESULT	\
-+	EM ( MF_IGNORED, "Ignored" )	\
-+	EM ( MF_FAILED,  "Failed" )	\
-+	EM ( MF_DELAYED, "Delayed" )	\
-+	EMe ( MF_RECOVERED, "Recovered" )
-+
-+#define MF_PAGE_TYPE		\
-+	EM ( MF_MSG_KERNEL, "reserved kernel page" )			\
-+	EM ( MF_MSG_KERNEL_HIGH_ORDER, "high-order kernel page" )	\
-+	EM ( MF_MSG_SLAB, "kernel slab page" )				\
-+	EM ( MF_MSG_DIFFERENT_COMPOUND, "different compound page after locking" ) \
-+	EM ( MF_MSG_POISONED_HUGE, "huge page already hardware poisoned" )	\
-+	EM ( MF_MSG_HUGE, "huge page" )					\
-+	EM ( MF_MSG_FREE_HUGE, "free huge page" )			\
-+	EM ( MF_MSG_UNMAP_FAILED, "unmapping failed page" )		\
-+	EM ( MF_MSG_DIRTY_SWAPCACHE, "dirty swapcache page" )		\
-+	EM ( MF_MSG_CLEAN_SWAPCACHE, "clean swapcache page" )		\
-+	EM ( MF_MSG_DIRTY_MLOCKED_LRU, "dirty mlocked LRU page" )	\
-+	EM ( MF_MSG_CLEAN_MLOCKED_LRU, "clean mlocked LRU page" )	\
-+	EM ( MF_MSG_DIRTY_UNEVICTABLE_LRU, "dirty unevictable LRU page" )	\
-+	EM ( MF_MSG_CLEAN_UNEVICTABLE_LRU, "clean unevictable LRU page" )	\
-+	EM ( MF_MSG_DIRTY_LRU, "dirty LRU page" )			\
-+	EM ( MF_MSG_CLEAN_LRU, "clean LRU page" )			\
-+	EM ( MF_MSG_TRUNCATED_LRU, "already truncated LRU page" )	\
-+	EM ( MF_MSG_BUDDY, "free buddy page" )				\
-+	EM ( MF_MSG_BUDDY_2ND, "free buddy page (2nd try)" )		\
-+	EMe ( MF_MSG_UNKNOWN, "unknown page" )
-+
-+/*
-+ * First define the enums in MM_ACTION_RESULT to be exported to userspace
-+ * via TRACE_DEFINE_ENUM().
-+ */
-+#undef EM
-+#undef EMe
-+#define EM(a, b) TRACE_DEFINE_ENUM(a);
-+#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
-+
-+MF_ACTION_RESULT
-+MF_PAGE_TYPE
-+
-+/*
-+ * Now redefine the EM() and EMe() macros to map the enums to the strings
-+ * that will be printed in the output.
-+ */
-+#undef EM
-+#undef EMe
-+#define EM(a, b)		{ a, b },
-+#define EMe(a, b)	{ a, b }
-+
-+TRACE_EVENT(memory_failure_event,
-+	TP_PROTO(unsigned long pfn,
-+		 int type,
-+		 int result),
-+
-+	TP_ARGS(pfn, type, result),
-+
-+	TP_STRUCT__entry(
-+		__field(unsigned long, pfn)
-+		__field(int, type)
-+		__field(int, result)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->pfn	= pfn;
-+		__entry->type	= type;
-+		__entry->result	= result;
-+	),
-+
-+	TP_printk("pfn %#lx: recovery action for %s: %s",
-+		__entry->pfn,
-+		__print_symbolic(__entry->type, MF_PAGE_TYPE),
-+		__print_symbolic(__entry->result, MF_ACTION_RESULT)
-+	)
-+);
-+#endif /* CONFIG_MEMORY_FAILURE */
- #endif /* _TRACE_HW_EVENT_MC_H */
- 
- /* This part must be outside protection */
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index a3f7ea2..9e9d048 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -56,6 +56,7 @@
- #include <linux/mm_inline.h>
- #include <linux/kfifo.h>
- #include "internal.h"
-+#include "ras/ras_event.h"
- 
- int sysctl_memory_failure_early_kill __read_mostly = 0;
- 
-@@ -850,6 +851,8 @@ static struct page_state {
- static void action_result(unsigned long pfn, enum mf_action_page_type type,
- 			  enum mf_result result)
- {
-+	trace_memory_failure_event(pfn, type, result);
-+
- 	pr_err("MCE %#lx: recovery action for %s: %s\n",
- 		pfn, action_page_types[type], action_name[result]);
- }
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 390214d..c180af8 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -368,6 +368,7 @@ config MEMORY_FAILURE
+ 	depends on ARCH_SUPPORTS_MEMORY_FAILURE
+ 	bool "Enable recovery from hardware memory errors"
+ 	select MEMORY_ISOLATION
++	select RAS
+ 	help
+ 	  Enables code to recover from some memory failures on systems
+ 	  with MCA recovery. This allows a system to continue running
 -- 
 1.7.1
 
