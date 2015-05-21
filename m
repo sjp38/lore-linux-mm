@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E54D900015
-	for <linux-mm@kvack.org>; Thu, 21 May 2015 15:33:47 -0400 (EDT)
-Received: by qkgx75 with SMTP id x75so64204382qkg.1
-        for <linux-mm@kvack.org>; Thu, 21 May 2015 12:33:47 -0700 (PDT)
-Received: from mail-qg0-x235.google.com (mail-qg0-x235.google.com. [2607:f8b0:400d:c04::235])
-        by mx.google.com with ESMTPS id 81si1957356qgx.77.2015.05.21.12.33.46
+Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com [209.85.220.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 89840900015
+	for <linux-mm@kvack.org>; Thu, 21 May 2015 15:33:51 -0400 (EDT)
+Received: by qkdn188 with SMTP id n188so59390370qkd.2
+        for <linux-mm@kvack.org>; Thu, 21 May 2015 12:33:51 -0700 (PDT)
+Received: from mail-qk0-x22a.google.com (mail-qk0-x22a.google.com. [2607:f8b0:400d:c09::22a])
+        by mx.google.com with ESMTPS id 93si1516136qkw.104.2015.05.21.12.33.50
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 May 2015 12:33:46 -0700 (PDT)
-Received: by qgfa63 with SMTP id a63so27663863qgf.0
-        for <linux-mm@kvack.org>; Thu, 21 May 2015 12:33:46 -0700 (PDT)
+        Thu, 21 May 2015 12:33:50 -0700 (PDT)
+Received: by qkgv12 with SMTP id v12so64240727qkg.0
+        for <linux-mm@kvack.org>; Thu, 21 May 2015 12:33:50 -0700 (PDT)
 From: j.glisse@gmail.com
-Subject: [PATCH 09/36] HMM: add mm page table iterator helpers.
-Date: Thu, 21 May 2015 15:31:18 -0400
-Message-Id: <1432236705-4209-10-git-send-email-j.glisse@gmail.com>
+Subject: [PATCH 10/36] HMM: use CPU page table during invalidation.
+Date: Thu, 21 May 2015 15:31:19 -0400
+Message-Id: <1432236705-4209-11-git-send-email-j.glisse@gmail.com>
 In-Reply-To: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
 References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
 MIME-Version: 1.0
@@ -23,135 +23,161 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, Jerome Glisse <jglisse@redhat.com>
 
-From: JA(C)rA'me Glisse <jglisse@redhat.com>
+From: Jerome Glisse <jglisse@redhat.com>
 
-Because inside the mmu_notifier callback we do not have access to the
-vma nor do we know which lock we are holding (the mmap semaphore or
-the i_mmap_lock) we can not rely on the regular page table walk (nor
-do we want as we have to be carefull to not split huge page).
-
-So this patch introduce an helper to iterate of the cpu page table
-content in an efficient way for the situation we are in. Which is we
-know that none of the page table entry might vanish from below us
-and thus it is safe to walk the page table.
-
-The only added value of the iterator is that it keeps the page table
-entry level map accross call which fit well with the HMM mirror page
-table update code.
+Once we store the dma mapping inside the secondary page table we can
+no longer easily find back the page backing an address. Instead use
+the cpu page table which still has the proper informations, except for
+the invalidate_page() case which is handled by using the page passed
+by the mmu_notifier layer.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 ---
- mm/hmm.c | 95 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 95 insertions(+)
+ mm/hmm.c | 51 ++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 34 insertions(+), 17 deletions(-)
 
 diff --git a/mm/hmm.c b/mm/hmm.c
-index e1aa6ca..93d6f5e 100644
+index 93d6f5e..8ec9ffa 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -410,6 +410,101 @@ static struct mmu_notifier_ops hmm_notifier_ops = {
- };
+@@ -50,9 +50,11 @@ static inline struct hmm_mirror *hmm_mirror_ref(struct hmm_mirror *mirror);
+ static inline void hmm_mirror_unref(struct hmm_mirror **mirror);
+ static void hmm_mirror_kill(struct hmm_mirror *mirror);
+ static inline int hmm_mirror_update(struct hmm_mirror *mirror,
+-				    struct hmm_event *event);
++				    struct hmm_event *event,
++				    struct page *page);
+ static void hmm_mirror_update_pt(struct hmm_mirror *mirror,
+-				 struct hmm_event *event);
++				 struct hmm_event *event,
++				 struct page *page);
  
  
-+struct mm_pt_iter {
-+	struct mm_struct	*mm;
-+	pte_t			*ptep;
-+	unsigned long		addr;
-+};
-+
-+static void mm_pt_iter_init(struct mm_pt_iter *pt_iter, struct mm_struct *mm)
-+{
-+	pt_iter->mm = mm;
-+	pt_iter->ptep = NULL;
-+	pt_iter->addr = -1UL;
+ /* hmm_event - use to track information relating to an event.
+@@ -232,7 +234,9 @@ again:
+ 	}
+ }
+ 
+-static void hmm_update(struct hmm *hmm, struct hmm_event *event)
++static void hmm_update(struct hmm *hmm,
++		       struct hmm_event *event,
++		       struct page *page)
+ {
+ 	struct hmm_mirror *mirror;
+ 
+@@ -245,7 +249,7 @@ static void hmm_update(struct hmm *hmm, struct hmm_event *event)
+ again:
+ 	down_read(&hmm->rwsem);
+ 	hlist_for_each_entry(mirror, &hmm->mirrors, mlist)
+-		if (hmm_mirror_update(mirror, event)) {
++		if (hmm_mirror_update(mirror, event, page)) {
+ 			mirror = hmm_mirror_ref(mirror);
+ 			up_read(&hmm->rwsem);
+ 			hmm_mirror_kill(mirror);
+@@ -343,9 +347,10 @@ static void hmm_mmu_mprot_to_etype(struct mm_struct *mm,
+ 	*etype = HMM_NONE;
+ }
+ 
+-static void hmm_notifier_invalidate_range_start(struct mmu_notifier *mn,
+-						struct mm_struct *mm,
+-						const struct mmu_notifier_range *range)
++static void hmm_notifier_invalidate(struct mmu_notifier *mn,
++				    struct mm_struct *mm,
++				    struct page *page,
++				    const struct mmu_notifier_range *range)
+ {
+ 	struct hmm_event event;
+ 	unsigned long start = range->start, end = range->end;
+@@ -386,7 +391,14 @@ static void hmm_notifier_invalidate_range_start(struct mmu_notifier *mn,
+ 
+ 	hmm_event_init(&event, hmm, start, end, event.etype);
+ 
+-	hmm_update(hmm, &event);
++	hmm_update(hmm, &event, page);
 +}
 +
-+static void mm_pt_iter_fini(struct mm_pt_iter *pt_iter)
++static void hmm_notifier_invalidate_range_start(struct mmu_notifier *mn,
++						struct mm_struct *mm,
++						const struct mmu_notifier_range *range)
 +{
-+	pte_unmap(pt_iter->ptep);
-+	pt_iter->ptep = NULL;
-+	pt_iter->addr = -1UL;
-+	pt_iter->mm = NULL;
-+}
-+
-+static inline bool mm_pt_iter_in_range(struct mm_pt_iter *pt_iter,
-+				       unsigned long addr)
-+{
-+	return (addr >= pt_iter->addr && addr < (pt_iter->addr + PMD_SIZE));
-+}
-+
-+static struct page *mm_pt_iter_page(struct mm_pt_iter *pt_iter,
-+				    unsigned long addr)
-+{
-+	pgd_t *pgdp;
-+	pud_t *pudp;
-+	pmd_t *pmdp;
-+
-+again:
-+	/*
-+	 * What we are doing here is only valid if we old either the mmap
-+	 * semaphore or the i_mmap_lock of vma->address_space the address
-+	 * belongs to. Sadly because we can not easily get the vma struct
-+	 * we can not sanity test that either of those lock is taken.
-+	 *
-+	 * We have to rely on people using this code knowing what they do.
-+	 */
-+	if (mm_pt_iter_in_range(pt_iter, addr) && likely(pt_iter->ptep)) {
-+		pte_t pte = *(pt_iter->ptep + pte_index(addr));
-+		unsigned long pfn;
-+
-+		if (pte_none(pte) || !pte_present(pte))
-+			return NULL;
-+		if (unlikely(pte_special(pte)))
-+			return NULL;
-+
-+		pfn = pte_pfn(pte);
-+		if (is_zero_pfn(pfn))
-+			return NULL;
-+		return pfn_to_page(pfn);
-+	}
-+
-+	if (pt_iter->ptep) {
-+		pte_unmap(pt_iter->ptep);
-+		pt_iter->ptep = NULL;
-+		pt_iter->addr = -1UL;
-+	}
-+
-+	pgdp = pgd_offset(pt_iter->mm, addr);
-+	if (pgd_none_or_clear_bad(pgdp))
-+		return NULL;
-+	pudp = pud_offset(pgdp, addr);
-+	if (pud_none_or_clear_bad(pudp))
-+		return NULL;
-+	pmdp = pmd_offset(pudp, addr);
-+	/*
-+	 * Because we either have the mmap semaphore or the i_mmap_lock we know
-+	 * that pmd can not vanish from under us, thus if pmd exist then it is
-+	 * either a huge page or a valid pmd. It might also be in the splitting
-+	 * transitory state.
-+	 */
-+	if (pmd_none(*pmdp) || unlikely(pmd_bad(*pmdp)))
-+		return NULL;
-+	if (pmd_trans_splitting(*pmdp))
-+		/*
-+		 * FIXME idealy we would wait but we have no easy mean to get a
-+		 * hold of the vma. So for now busy loop until the splitting is
-+		 * done.
-+		 */
-+		goto again;
-+	if (pmd_huge(*pmdp))
-+		return pmd_page(*pmdp) + pte_index(addr);
-+	/* Regular pmd and it can not morph. */
-+	pt_iter->ptep = pte_offset_map(pmdp, addr & PMD_MASK);
-+	pt_iter->addr = addr & PMD_MASK;
-+	goto again;
-+}
-+
-+
- /* hmm_mirror - per device mirroring functions.
-  *
-  * Each device that mirror a process has a uniq hmm_mirror struct. A process
++	hmm_notifier_invalidate(mn, mm, NULL, range);
+ }
+ 
+ static void hmm_notifier_invalidate_page(struct mmu_notifier *mn,
+@@ -400,7 +412,7 @@ static void hmm_notifier_invalidate_page(struct mmu_notifier *mn,
+ 	range.start = addr & PAGE_MASK;
+ 	range.end = range.start + PAGE_SIZE;
+ 	range.event = mmu_event;
+-	hmm_notifier_invalidate_range_start(mn, mm, &range);
++	hmm_notifier_invalidate(mn, mm, page, &range);
+ }
+ 
+ static struct mmu_notifier_ops hmm_notifier_ops = {
+@@ -551,23 +563,27 @@ static inline void hmm_mirror_unref(struct hmm_mirror **mirror)
+ }
+ 
+ static inline int hmm_mirror_update(struct hmm_mirror *mirror,
+-				    struct hmm_event *event)
++				    struct hmm_event *event,
++				    struct page *page)
+ {
+ 	struct hmm_device *device = mirror->device;
+ 	int ret = 0;
+ 
+ 	ret = device->ops->update(mirror, event);
+-	hmm_mirror_update_pt(mirror, event);
++	hmm_mirror_update_pt(mirror, event, page);
+ 	return ret;
+ }
+ 
+ static void hmm_mirror_update_pt(struct hmm_mirror *mirror,
+-				 struct hmm_event *event)
++				 struct hmm_event *event,
++				 struct page *page)
+ {
+ 	unsigned long addr;
+ 	struct hmm_pt_iter iter;
++	struct mm_pt_iter mm_iter;
+ 
+ 	hmm_pt_iter_init(&iter);
++	mm_pt_iter_init(&mm_iter, mirror->hmm->mm);
+ 	for (addr = event->start; addr != event->end;) {
+ 		unsigned long end, next;
+ 		dma_addr_t *hmm_pte;
+@@ -593,10 +609,10 @@ static void hmm_mirror_update_pt(struct hmm_mirror *mirror,
+ 				continue;
+ 			if (hmm_pte_test_and_clear_dirty(hmm_pte) &&
+ 			    hmm_pte_test_write(hmm_pte)) {
+-				struct page *page;
+-
+-				page = pfn_to_page(hmm_pte_pfn(*hmm_pte));
+-				set_page_dirty(page);
++				page = page ? : mm_pt_iter_page(&mm_iter, addr);
++				if (page)
++					set_page_dirty(page);
++				page = NULL;
+ 			}
+ 			*hmm_pte &= event->pte_mask;
+ 			if (hmm_pte_test_valid_pfn(hmm_pte))
+@@ -606,6 +622,7 @@ static void hmm_mirror_update_pt(struct hmm_mirror *mirror,
+ 		hmm_pt_iter_directory_unlock(&iter, &mirror->pt);
+ 	}
+ 	hmm_pt_iter_fini(&iter, &mirror->pt);
++	mm_pt_iter_fini(&mm_iter);
+ }
+ 
+ static inline bool hmm_mirror_is_dead(struct hmm_mirror *mirror)
+@@ -988,7 +1005,7 @@ static void hmm_mirror_kill(struct hmm_mirror *mirror)
+ 
+ 	/* Make sure everything is unmapped. */
+ 	hmm_event_init(&event, mirror->hmm, 0, -1UL, HMM_MUNMAP);
+-	hmm_mirror_update(mirror, &event);
++	hmm_mirror_update(mirror, &event, NULL);
+ 
+ 	down_write(&mirror->hmm->rwsem);
+ 	if (!hlist_unhashed(&mirror->mlist)) {
 -- 
 1.9.3
 
