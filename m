@@ -1,792 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 314BE6B0151
-	for <linux-mm@kvack.org>; Wed, 20 May 2015 23:50:32 -0400 (EDT)
-Received: by obblk2 with SMTP id lk2so51882516obb.0
-        for <linux-mm@kvack.org>; Wed, 20 May 2015 20:50:32 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id w15si3595781oif.127.2015.05.20.20.50.29
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ED236B0154
+	for <linux-mm@kvack.org>; Thu, 21 May 2015 03:03:19 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so98030713pdb.0
+        for <linux-mm@kvack.org>; Thu, 21 May 2015 00:03:18 -0700 (PDT)
+Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com. [202.81.31.142])
+        by mx.google.com with ESMTPS id rf2si30099577pbc.225.2015.05.21.00.03.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 20 May 2015 20:50:31 -0700 (PDT)
-From: Xie XiuQi <xiexiuqi@huawei.com>
-Subject: [PATCH v6 5/5] trace, ras: move ras_event.h under include/trace/events
-Date: Thu, 21 May 2015 11:41:25 +0800
-Message-ID: <1432179685-11369-6-git-send-email-xiexiuqi@huawei.com>
-In-Reply-To: <1432179685-11369-1-git-send-email-xiexiuqi@huawei.com>
-References: <1432179685-11369-1-git-send-email-xiexiuqi@huawei.com>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 May 2015 00:03:17 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 21 May 2015 17:02:37 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id B14E02CE8040
+	for <linux-mm@kvack.org>; Thu, 21 May 2015 17:02:33 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t4L72O0619267742
+	for <linux-mm@kvack.org>; Thu, 21 May 2015 17:02:33 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t4L7209A026318
+	for <linux-mm@kvack.org>; Thu, 21 May 2015 17:02:00 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH V5 2/3] powerpc/mm: Use generic version of pmdp_clear_flush
+In-Reply-To: <20150520124428.9bab9007d7d589ec4b615ee6@linux-foundation.org>
+References: <1431704550-19937-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1431704550-19937-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20150520124428.9bab9007d7d589ec4b615ee6@linux-foundation.org>
+Date: Thu, 21 May 2015 12:31:31 +0530
+Message-ID: <87382q5s8k.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com
-Cc: rostedt@goodmis.org, gong.chen@linux.intel.com, mingo@redhat.com, bp@suse.de, tony.luck@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jingle.chen@huawei.com, sfr@canb.auug.org.au, rdunlap@infradead.org, jim.epost@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, kirill.shutemov@linux.intel.com, aarcange@redhat.com, schwidefsky@de.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-Most of header files for tracepoints are located to include/trace/events or
-their relevant subdirectories under drivers/. One exception is
-include/ras/ras_events.h, which looks inconsistent. So let's move it to the
-default places for such headers.
+> On Fri, 15 May 2015 21:12:29 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+>
+>> Also move the pmd_trans_huge check to generic code.
+>> 
+>> ...
+>>
+>> --- a/include/asm-generic/pgtable.h
+>> +++ b/include/asm-generic/pgtable.h
+>> @@ -196,7 +196,12 @@ static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
+>>  					unsigned long address,
+>>  					pmd_t *pmdp)
+>>  {
+>> -	return pmdp_clear_flush(vma, address, pmdp);
+>> +	pmd_t pmd;
+>> +	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+>> +	VM_BUG_ON(pmd_trans_huge(*pmdp));
+>> +	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
+>> +	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+>> +	return pmd;
+>>  }
+>
+> x86_64 allmodconfig:
+>
+> In file included from ./arch/x86/include/asm/pgtable.h:878,
+>                  from include/linux/mm.h:53,
+>                  from include/linux/suspend.h:8,
+>                  from arch/x86/kernel/asm-offsets.c:12:
+> include/asm-generic/pgtable.h: In function 'pmdp_collapse_flush':
+> include/asm-generic/pgtable.h:199: error: 'HPAGE_PMD_MASK' undeclared (first use in this function)
+> include/asm-generic/pgtable.h:199: error: (Each undeclared identifier is reported only once
+> include/asm-generic/pgtable.h:199: error: for each function it appears in.)
+> include/asm-generic/pgtable.h:202: error: implicit declaration of function 'flush_tlb_range'
+> include/asm-generic/pgtable.h:202: error: 'HPAGE_PMD_SIZE' undeclared (first use in this function)
+>
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Randy Dunlap <rdunlap@infradead.org>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jim Davis <jim.epost@gmail.com>
-Cc: Chen, Gong <gong.chen@linux.intel.com>
-Signed-off-by: Xie XiuQi <xiexiuqi@huawei.com>
----
- drivers/acpi/acpi_extlog.c             |    2 +-
- drivers/edac/edac_mc.c                 |    2 +-
- drivers/edac/ghes_edac.c               |    2 +-
- drivers/pci/pcie/aer/aerdrv_errprint.c |    2 +-
- drivers/ras/ras.c                      |    3 +-
- include/ras/ras_event.h                |  323 --------------------------------
- include/trace/events/ras.h             |  322 +++++++++++++++++++++++++++++++
- mm/memory-failure.c                    |    2 +-
- 8 files changed, 328 insertions(+), 330 deletions(-)
- delete mode 100644 include/ras/ras_event.h
- create mode 100644 include/trace/events/ras.h
+Sorry for the build break. I was mostly focusing on the ppc64 build with
+different platforms and was hoping that will include all thp/enable
+disable configs. Unfortunately, we needed a config that is thp enabled and
+use generic pgtable.h. Will make sure that I test build and boot test on
+x86 before sending patch next time.
 
-diff --git a/drivers/acpi/acpi_extlog.c b/drivers/acpi/acpi_extlog.c
-index b3842ff..b04bfd9 100644
---- a/drivers/acpi/acpi_extlog.c
-+++ b/drivers/acpi/acpi_extlog.c
-@@ -17,7 +17,7 @@
- #include <asm/mce.h>
+
+>
+> Including linux/huge_mm.h doesn't work.  A suitable fix would be to
+> move this into a .c file.
+
+
+that helped.
+
+commit 3ef98ff8092789f7b58f3662297a80eff8d757ea
+Author: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Date:   Mon May 11 15:53:21 2015 +0530
+
+    powerpc/mm: Use generic version of pmdp_clear_flush
+    
+    Also move the pmd_trans_huge check to generic code.
+    
+    Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+    Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+
+diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
+index 129c67ebc81a..55f06a381dd7 100644
+--- a/arch/powerpc/include/asm/pgtable-ppc64.h
++++ b/arch/powerpc/include/asm/pgtable-ppc64.h
+@@ -557,10 +557,6 @@ extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
+ extern pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+ 				unsigned long addr, pmd_t *pmdp);
  
- #include "apei/apei-internal.h"
--#include <ras/ras_event.h>
-+#include <trace/events/ras.h>
+-#define __HAVE_ARCH_PMDP_CLEAR_FLUSH
+-extern pmd_t pmdp_clear_flush(struct vm_area_struct *vma, unsigned long address,
+-			      pmd_t *pmdp);
+-
+ #define __HAVE_ARCH_PMDP_SET_WRPROTECT
+ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+ 				      pmd_t *pmdp)
+diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
+index 9171c1a37290..d37b9d1a1813 100644
+--- a/arch/powerpc/mm/pgtable_64.c
++++ b/arch/powerpc/mm/pgtable_64.c
+@@ -554,17 +554,6 @@ unsigned long pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,
+ 	return old;
+ }
  
- #define EXT_ELOG_ENTRY_MASK	GENMASK_ULL(51, 0) /* elog entry address mask */
- 
-diff --git a/drivers/edac/edac_mc.c b/drivers/edac/edac_mc.c
-index af3be19..c95ecb7 100644
---- a/drivers/edac/edac_mc.c
-+++ b/drivers/edac/edac_mc.c
-@@ -33,7 +33,7 @@
- #include <asm/edac.h>
- #include "edac_core.h"
- #include "edac_module.h"
--#include <ras/ras_event.h>
-+#include <trace/events/ras.h>
- 
- /* lock to memory controller's control array */
- static DEFINE_MUTEX(mem_ctls_mutex);
-diff --git a/drivers/edac/ghes_edac.c b/drivers/edac/ghes_edac.c
-index b246819..2230057 100644
---- a/drivers/edac/ghes_edac.c
-+++ b/drivers/edac/ghes_edac.c
-@@ -15,7 +15,7 @@
- #include <linux/edac.h>
- #include <linux/dmi.h>
- #include "edac_core.h"
--#include <ras/ras_event.h>
-+#include <trace/events/ras.h>
- 
- #define GHES_EDAC_REVISION " Ver: 1.0.0"
- 
-diff --git a/drivers/pci/pcie/aer/aerdrv_errprint.c b/drivers/pci/pcie/aer/aerdrv_errprint.c
-index 167fe41..b5d4c0d 100644
---- a/drivers/pci/pcie/aer/aerdrv_errprint.c
-+++ b/drivers/pci/pcie/aer/aerdrv_errprint.c
-@@ -22,7 +22,7 @@
- #include <linux/cper.h>
- 
- #include "aerdrv.h"
--#include <ras/ras_event.h>
-+#include <trace/events/ras.h>
- 
- #define AER_AGENT_RECEIVER		0
- #define AER_AGENT_REQUESTER		1
-diff --git a/drivers/ras/ras.c b/drivers/ras/ras.c
-index b67dd36..d155768 100644
---- a/drivers/ras/ras.c
-+++ b/drivers/ras/ras.c
-@@ -9,8 +9,7 @@
- #include <linux/ras.h>
- 
- #define CREATE_TRACE_POINTS
--#define TRACE_INCLUDE_PATH ../../include/ras
--#include <ras/ras_event.h>
-+#include <trace/events/ras.h>
- 
- static int __init ras_init(void)
+-pmd_t pmdp_clear_flush(struct vm_area_struct *vma, unsigned long address,
+-		       pmd_t *pmdp)
+-{
+-	pmd_t pmd;
+-
+-	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+-	VM_BUG_ON(!pmd_trans_huge(*pmdp));
+-	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
+-	return pmd;
+-}
+-
+ pmd_t pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long address,
+ 			  pmd_t *pmdp)
  {
-diff --git a/include/ras/ras_event.h b/include/ras/ras_event.h
-deleted file mode 100644
-index 1443d79..0000000
---- a/include/ras/ras_event.h
-+++ /dev/null
-@@ -1,323 +0,0 @@
--#undef TRACE_SYSTEM
--#define TRACE_SYSTEM ras
--#define TRACE_INCLUDE_FILE ras_event
--
--#if !defined(_TRACE_HW_EVENT_MC_H) || defined(TRACE_HEADER_MULTI_READ)
--#define _TRACE_HW_EVENT_MC_H
--
--#include <linux/tracepoint.h>
--#include <linux/edac.h>
--#include <linux/ktime.h>
--#include <linux/pci.h>
--#include <linux/aer.h>
--#include <linux/cper.h>
--#include <linux/mm.h>
--
--/*
-- * MCE Extended Error Log trace event
-- *
-- * These events are generated when hardware detects a corrected or
-- * uncorrected event.
-- */
--
--/* memory trace event */
--
--#if defined(CONFIG_ACPI_EXTLOG) || defined(CONFIG_ACPI_EXTLOG_MODULE)
--TRACE_EVENT(extlog_mem_event,
--	TP_PROTO(struct cper_sec_mem_err *mem,
--		 u32 err_seq,
--		 const uuid_le *fru_id,
--		 const char *fru_text,
--		 u8 sev),
--
--	TP_ARGS(mem, err_seq, fru_id, fru_text, sev),
--
--	TP_STRUCT__entry(
--		__field(u32, err_seq)
--		__field(u8, etype)
--		__field(u8, sev)
--		__field(u64, pa)
--		__field(u8, pa_mask_lsb)
--		__field_struct(uuid_le, fru_id)
--		__string(fru_text, fru_text)
--		__field_struct(struct cper_mem_err_compact, data)
--	),
--
--	TP_fast_assign(
--		__entry->err_seq = err_seq;
--		if (mem->validation_bits & CPER_MEM_VALID_ERROR_TYPE)
--			__entry->etype = mem->error_type;
--		else
--			__entry->etype = ~0;
--		__entry->sev = sev;
--		if (mem->validation_bits & CPER_MEM_VALID_PA)
--			__entry->pa = mem->physical_addr;
--		else
--			__entry->pa = ~0ull;
--
--		if (mem->validation_bits & CPER_MEM_VALID_PA_MASK)
--			__entry->pa_mask_lsb = (u8)__ffs64(mem->physical_addr_mask);
--		else
--			__entry->pa_mask_lsb = ~0;
--		__entry->fru_id = *fru_id;
--		__assign_str(fru_text, fru_text);
--		cper_mem_err_pack(mem, &__entry->data);
--	),
--
--	TP_printk("{%d} %s error: %s physical addr: %016llx (mask lsb: %x) %sFRU: %pUl %.20s",
--		  __entry->err_seq,
--		  cper_severity_str(__entry->sev),
--		  cper_mem_err_type_str(__entry->etype),
--		  __entry->pa,
--		  __entry->pa_mask_lsb,
--		  cper_mem_err_unpack(p, &__entry->data),
--		  &__entry->fru_id,
--		  __get_str(fru_text))
--);
--#endif
--
--/*
-- * Hardware Events Report
-- *
-- * Those events are generated when hardware detected a corrected or
-- * uncorrected event, and are meant to replace the current API to report
-- * errors defined on both EDAC and MCE subsystems.
-- *
-- * FIXME: Add events for handling memory errors originated from the
-- *        MCE subsystem.
-- */
--
--/*
-- * Hardware-independent Memory Controller specific events
-- */
--
--/*
-- * Default error mechanisms for Memory Controller errors (CE and UE)
-- */
--TRACE_EVENT(mc_event,
--
--	TP_PROTO(const unsigned int err_type,
--		 const char *error_msg,
--		 const char *label,
--		 const int error_count,
--		 const u8 mc_index,
--		 const s8 top_layer,
--		 const s8 mid_layer,
--		 const s8 low_layer,
--		 unsigned long address,
--		 const u8 grain_bits,
--		 unsigned long syndrome,
--		 const char *driver_detail),
--
--	TP_ARGS(err_type, error_msg, label, error_count, mc_index,
--		top_layer, mid_layer, low_layer, address, grain_bits,
--		syndrome, driver_detail),
--
--	TP_STRUCT__entry(
--		__field(	unsigned int,	error_type		)
--		__string(	msg,		error_msg		)
--		__string(	label,		label			)
--		__field(	u16,		error_count		)
--		__field(	u8,		mc_index		)
--		__field(	s8,		top_layer		)
--		__field(	s8,		middle_layer		)
--		__field(	s8,		lower_layer		)
--		__field(	long,		address			)
--		__field(	u8,		grain_bits		)
--		__field(	long,		syndrome		)
--		__string(	driver_detail,	driver_detail		)
--	),
--
--	TP_fast_assign(
--		__entry->error_type		= err_type;
--		__assign_str(msg, error_msg);
--		__assign_str(label, label);
--		__entry->error_count		= error_count;
--		__entry->mc_index		= mc_index;
--		__entry->top_layer		= top_layer;
--		__entry->middle_layer		= mid_layer;
--		__entry->lower_layer		= low_layer;
--		__entry->address		= address;
--		__entry->grain_bits		= grain_bits;
--		__entry->syndrome		= syndrome;
--		__assign_str(driver_detail, driver_detail);
--	),
--
--	TP_printk("%d %s error%s:%s%s on %s (mc:%d location:%d:%d:%d address:0x%08lx grain:%d syndrome:0x%08lx%s%s)",
--		  __entry->error_count,
--		  mc_event_error_type(__entry->error_type),
--		  __entry->error_count > 1 ? "s" : "",
--		  ((char *)__get_str(msg))[0] ? " " : "",
--		  __get_str(msg),
--		  __get_str(label),
--		  __entry->mc_index,
--		  __entry->top_layer,
--		  __entry->middle_layer,
--		  __entry->lower_layer,
--		  __entry->address,
--		  1 << __entry->grain_bits,
--		  __entry->syndrome,
--		  ((char *)__get_str(driver_detail))[0] ? " " : "",
--		  __get_str(driver_detail))
--);
--
--/*
-- * PCIe AER Trace event
-- *
-- * These events are generated when hardware detects a corrected or
-- * uncorrected event on a PCIe device. The event report has
-- * the following structure:
-- *
-- * char * dev_name -	The name of the slot where the device resides
-- *			([domain:]bus:device.function).
-- * u32 status -		Either the correctable or uncorrectable register
-- *			indicating what error or errors have been seen
-- * u8 severity -	error severity 0:NONFATAL 1:FATAL 2:CORRECTED
-- */
--
--#define aer_correctable_errors					\
--	{PCI_ERR_COR_RCVR,	"Receiver Error"},		\
--	{PCI_ERR_COR_BAD_TLP,	"Bad TLP"},			\
--	{PCI_ERR_COR_BAD_DLLP,	"Bad DLLP"},			\
--	{PCI_ERR_COR_REP_ROLL,	"RELAY_NUM Rollover"},		\
--	{PCI_ERR_COR_REP_TIMER,	"Replay Timer Timeout"},	\
--	{PCI_ERR_COR_ADV_NFAT,	"Advisory Non-Fatal Error"},	\
--	{PCI_ERR_COR_INTERNAL,	"Corrected Internal Error"},	\
--	{PCI_ERR_COR_LOG_OVER,	"Header Log Overflow"}
--
--#define aer_uncorrectable_errors				\
--	{PCI_ERR_UNC_UND,	"Undefined"},			\
--	{PCI_ERR_UNC_DLP,	"Data Link Protocol Error"},	\
--	{PCI_ERR_UNC_SURPDN,	"Surprise Down Error"},		\
--	{PCI_ERR_UNC_POISON_TLP,"Poisoned TLP"},		\
--	{PCI_ERR_UNC_FCP,	"Flow Control Protocol Error"},	\
--	{PCI_ERR_UNC_COMP_TIME,	"Completion Timeout"},		\
--	{PCI_ERR_UNC_COMP_ABORT,"Completer Abort"},		\
--	{PCI_ERR_UNC_UNX_COMP,	"Unexpected Completion"},	\
--	{PCI_ERR_UNC_RX_OVER,	"Receiver Overflow"},		\
--	{PCI_ERR_UNC_MALF_TLP,	"Malformed TLP"},		\
--	{PCI_ERR_UNC_ECRC,	"ECRC Error"},			\
--	{PCI_ERR_UNC_UNSUP,	"Unsupported Request Error"},	\
--	{PCI_ERR_UNC_ACSV,	"ACS Violation"},		\
--	{PCI_ERR_UNC_INTN,	"Uncorrectable Internal Error"},\
--	{PCI_ERR_UNC_MCBTLP,	"MC Blocked TLP"},		\
--	{PCI_ERR_UNC_ATOMEG,	"AtomicOp Egress Blocked"},	\
--	{PCI_ERR_UNC_TLPPRE,	"TLP Prefix Blocked Error"}
--
--TRACE_EVENT(aer_event,
--	TP_PROTO(const char *dev_name,
--		 const u32 status,
--		 const u8 severity),
--
--	TP_ARGS(dev_name, status, severity),
--
--	TP_STRUCT__entry(
--		__string(	dev_name,	dev_name	)
--		__field(	u32,		status		)
--		__field(	u8,		severity	)
--	),
--
--	TP_fast_assign(
--		__assign_str(dev_name, dev_name);
--		__entry->status		= status;
--		__entry->severity	= severity;
--	),
--
--	TP_printk("%s PCIe Bus Error: severity=%s, %s\n",
--		__get_str(dev_name),
--		__entry->severity == AER_CORRECTABLE ? "Corrected" :
--			__entry->severity == AER_FATAL ?
--			"Fatal" : "Uncorrected, non-fatal",
--		__entry->severity == AER_CORRECTABLE ?
--		__print_flags(__entry->status, "|", aer_correctable_errors) :
--		__print_flags(__entry->status, "|", aer_uncorrectable_errors))
--);
--
--/*
-- * memory-failure recovery action result event
-- *
-- * unsigned long pfn -	Page Frame Number of the corrupted page
-- * int type	-	Page types of the corrupted page
-- * int result	-	Result of recovery action
-- */
--
--#ifdef CONFIG_MEMORY_FAILURE
--#define MF_ACTION_RESULT	\
--	EM ( MF_IGNORED, "Ignored" )	\
--	EM ( MF_FAILED,  "Failed" )	\
--	EM ( MF_DELAYED, "Delayed" )	\
--	EMe ( MF_RECOVERED, "Recovered" )
--
--#define MF_PAGE_TYPE		\
--	EM ( MF_MSG_KERNEL, "reserved kernel page" )			\
--	EM ( MF_MSG_KERNEL_HIGH_ORDER, "high-order kernel page" )	\
--	EM ( MF_MSG_SLAB, "kernel slab page" )				\
--	EM ( MF_MSG_DIFFERENT_COMPOUND, "different compound page after locking" ) \
--	EM ( MF_MSG_POISONED_HUGE, "huge page already hardware poisoned" )	\
--	EM ( MF_MSG_HUGE, "huge page" )					\
--	EM ( MF_MSG_FREE_HUGE, "free huge page" )			\
--	EM ( MF_MSG_UNMAP_FAILED, "unmapping failed page" )		\
--	EM ( MF_MSG_DIRTY_SWAPCACHE, "dirty swapcache page" )		\
--	EM ( MF_MSG_CLEAN_SWAPCACHE, "clean swapcache page" )		\
--	EM ( MF_MSG_DIRTY_MLOCKED_LRU, "dirty mlocked LRU page" )	\
--	EM ( MF_MSG_CLEAN_MLOCKED_LRU, "clean mlocked LRU page" )	\
--	EM ( MF_MSG_DIRTY_UNEVICTABLE_LRU, "dirty unevictable LRU page" )	\
--	EM ( MF_MSG_CLEAN_UNEVICTABLE_LRU, "clean unevictable LRU page" )	\
--	EM ( MF_MSG_DIRTY_LRU, "dirty LRU page" )			\
--	EM ( MF_MSG_CLEAN_LRU, "clean LRU page" )			\
--	EM ( MF_MSG_TRUNCATED_LRU, "already truncated LRU page" )	\
--	EM ( MF_MSG_BUDDY, "free buddy page" )				\
--	EM ( MF_MSG_BUDDY_2ND, "free buddy page (2nd try)" )		\
--	EMe ( MF_MSG_UNKNOWN, "unknown page" )
--
--/*
-- * First define the enums in MM_ACTION_RESULT to be exported to userspace
-- * via TRACE_DEFINE_ENUM().
-- */
--#undef EM
--#undef EMe
--#define EM(a, b) TRACE_DEFINE_ENUM(a);
--#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
--
--MF_ACTION_RESULT
--MF_PAGE_TYPE
--
--/*
-- * Now redefine the EM() and EMe() macros to map the enums to the strings
-- * that will be printed in the output.
-- */
--#undef EM
--#undef EMe
--#define EM(a, b)		{ a, b },
--#define EMe(a, b)	{ a, b }
--
--TRACE_EVENT(memory_failure_event,
--	TP_PROTO(unsigned long pfn,
--		 int type,
--		 int result),
--
--	TP_ARGS(pfn, type, result),
--
--	TP_STRUCT__entry(
--		__field(unsigned long, pfn)
--		__field(int, type)
--		__field(int, result)
--	),
--
--	TP_fast_assign(
--		__entry->pfn	= pfn;
--		__entry->type	= type;
--		__entry->result	= result;
--	),
--
--	TP_printk("pfn %#lx: recovery action for %s: %s",
--		__entry->pfn,
--		__print_symbolic(__entry->type, MF_PAGE_TYPE),
--		__print_symbolic(__entry->result, MF_ACTION_RESULT)
--	)
--);
--#endif /* CONFIG_MEMORY_FAILURE */
--#endif /* _TRACE_HW_EVENT_MC_H */
--
--/* This part must be outside protection */
--#include <trace/define_trace.h>
-diff --git a/include/trace/events/ras.h b/include/trace/events/ras.h
-new file mode 100644
-index 0000000..e5cf762
---- /dev/null
-+++ b/include/trace/events/ras.h
-@@ -0,0 +1,322 @@
-+#undef TRACE_SYSTEM
-+#define TRACE_SYSTEM ras
+diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+index fc642399b489..17627f73a032 100644
+--- a/arch/s390/include/asm/pgtable.h
++++ b/arch/s390/include/asm/pgtable.h
+@@ -1548,6 +1548,14 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
+ 	}
+ }
+ 
++static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
++					unsigned long address,
++					pmd_t *pmdp)
++{
++	return pmdp_get_and_clear(vma->vm_mm, address, pmdp);
++}
++#define pmdp_collapse_flush pmdp_collapse_flush
 +
-+#if !defined(_TRACE_HW_EVENT_MC_H) || defined(TRACE_HEADER_MULTI_READ)
-+#define _TRACE_HW_EVENT_MC_H
+ #define pfn_pmd(pfn, pgprot)	mk_pmd_phys(__pa((pfn) << PAGE_SHIFT), (pgprot))
+ #define mk_pmd(page, pgprot)	pfn_pmd(page_to_pfn(page), (pgprot))
+ 
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 2c3ca89e9aee..3b5a89ab4103 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -191,13 +191,8 @@ extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+ 
+ #ifndef pmdp_collapse_flush
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
+-					unsigned long address,
+-					pmd_t *pmdp)
+-{
+-	return pmdp_clear_flush(vma, address, pmdp);
+-}
+-#define pmdp_collapse_flush pmdp_collapse_flush
++extern pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
++				 unsigned long address, pmd_t *pmdp);
+ #else
+ static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
+ 					unsigned long address,
+diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
+index c25f94b33811..7f2314f9e16f 100644
+--- a/mm/pgtable-generic.c
++++ b/mm/pgtable-generic.c
+@@ -126,6 +126,7 @@ pmd_t pmdp_clear_flush(struct vm_area_struct *vma, unsigned long address,
+ {
+ 	pmd_t pmd;
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
++	VM_BUG_ON(!pmd_trans_huge(*pmdp));
+ 	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
+ 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+ 	return pmd;
+@@ -198,3 +199,18 @@ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #endif
 +
-+#include <linux/tracepoint.h>
-+#include <linux/edac.h>
-+#include <linux/ktime.h>
-+#include <linux/pci.h>
-+#include <linux/aer.h>
-+#include <linux/cper.h>
-+#include <linux/mm.h>
-+
-+/*
-+ * MCE Extended Error Log trace event
-+ *
-+ * These events are generated when hardware detects a corrected or
-+ * uncorrected event.
-+ */
-+
-+/* memory trace event */
-+
-+#if defined(CONFIG_ACPI_EXTLOG) || defined(CONFIG_ACPI_EXTLOG_MODULE)
-+TRACE_EVENT(extlog_mem_event,
-+	TP_PROTO(struct cper_sec_mem_err *mem,
-+		 u32 err_seq,
-+		 const uuid_le *fru_id,
-+		 const char *fru_text,
-+		 u8 sev),
-+
-+	TP_ARGS(mem, err_seq, fru_id, fru_text, sev),
-+
-+	TP_STRUCT__entry(
-+		__field(u32, err_seq)
-+		__field(u8, etype)
-+		__field(u8, sev)
-+		__field(u64, pa)
-+		__field(u8, pa_mask_lsb)
-+		__field_struct(uuid_le, fru_id)
-+		__string(fru_text, fru_text)
-+		__field_struct(struct cper_mem_err_compact, data)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->err_seq = err_seq;
-+		if (mem->validation_bits & CPER_MEM_VALID_ERROR_TYPE)
-+			__entry->etype = mem->error_type;
-+		else
-+			__entry->etype = ~0;
-+		__entry->sev = sev;
-+		if (mem->validation_bits & CPER_MEM_VALID_PA)
-+			__entry->pa = mem->physical_addr;
-+		else
-+			__entry->pa = ~0ull;
-+
-+		if (mem->validation_bits & CPER_MEM_VALID_PA_MASK)
-+			__entry->pa_mask_lsb = (u8)__ffs64(mem->physical_addr_mask);
-+		else
-+			__entry->pa_mask_lsb = ~0;
-+		__entry->fru_id = *fru_id;
-+		__assign_str(fru_text, fru_text);
-+		cper_mem_err_pack(mem, &__entry->data);
-+	),
-+
-+	TP_printk("{%d} %s error: %s physical addr: %016llx (mask lsb: %x) %sFRU: %pUl %.20s",
-+		  __entry->err_seq,
-+		  cper_severity_str(__entry->sev),
-+		  cper_mem_err_type_str(__entry->etype),
-+		  __entry->pa,
-+		  __entry->pa_mask_lsb,
-+		  cper_mem_err_unpack(p, &__entry->data),
-+		  &__entry->fru_id,
-+		  __get_str(fru_text))
-+);
++#ifndef pmdp_collapse_flush
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++pmd_t pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long address,
++			  pmd_t *pmdp)
++{
++	pmd_t pmd;
++	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
++	VM_BUG_ON(pmd_trans_huge(*pmdp));
++	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
++	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
++	return pmd;
++}
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 +#endif
-+
-+/*
-+ * Hardware Events Report
-+ *
-+ * Those events are generated when hardware detected a corrected or
-+ * uncorrected event, and are meant to replace the current API to report
-+ * errors defined on both EDAC and MCE subsystems.
-+ *
-+ * FIXME: Add events for handling memory errors originated from the
-+ *        MCE subsystem.
-+ */
-+
-+/*
-+ * Hardware-independent Memory Controller specific events
-+ */
-+
-+/*
-+ * Default error mechanisms for Memory Controller errors (CE and UE)
-+ */
-+TRACE_EVENT(mc_event,
-+
-+	TP_PROTO(const unsigned int err_type,
-+		 const char *error_msg,
-+		 const char *label,
-+		 const int error_count,
-+		 const u8 mc_index,
-+		 const s8 top_layer,
-+		 const s8 mid_layer,
-+		 const s8 low_layer,
-+		 unsigned long address,
-+		 const u8 grain_bits,
-+		 unsigned long syndrome,
-+		 const char *driver_detail),
-+
-+	TP_ARGS(err_type, error_msg, label, error_count, mc_index,
-+		top_layer, mid_layer, low_layer, address, grain_bits,
-+		syndrome, driver_detail),
-+
-+	TP_STRUCT__entry(
-+		__field(	unsigned int,	error_type		)
-+		__string(	msg,		error_msg		)
-+		__string(	label,		label			)
-+		__field(	u16,		error_count		)
-+		__field(	u8,		mc_index		)
-+		__field(	s8,		top_layer		)
-+		__field(	s8,		middle_layer		)
-+		__field(	s8,		lower_layer		)
-+		__field(	long,		address			)
-+		__field(	u8,		grain_bits		)
-+		__field(	long,		syndrome		)
-+		__string(	driver_detail,	driver_detail		)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->error_type		= err_type;
-+		__assign_str(msg, error_msg);
-+		__assign_str(label, label);
-+		__entry->error_count		= error_count;
-+		__entry->mc_index		= mc_index;
-+		__entry->top_layer		= top_layer;
-+		__entry->middle_layer		= mid_layer;
-+		__entry->lower_layer		= low_layer;
-+		__entry->address		= address;
-+		__entry->grain_bits		= grain_bits;
-+		__entry->syndrome		= syndrome;
-+		__assign_str(driver_detail, driver_detail);
-+	),
-+
-+	TP_printk("%d %s error%s:%s%s on %s (mc:%d location:%d:%d:%d address:0x%08lx grain:%d syndrome:0x%08lx%s%s)",
-+		  __entry->error_count,
-+		  mc_event_error_type(__entry->error_type),
-+		  __entry->error_count > 1 ? "s" : "",
-+		  ((char *)__get_str(msg))[0] ? " " : "",
-+		  __get_str(msg),
-+		  __get_str(label),
-+		  __entry->mc_index,
-+		  __entry->top_layer,
-+		  __entry->middle_layer,
-+		  __entry->lower_layer,
-+		  __entry->address,
-+		  1 << __entry->grain_bits,
-+		  __entry->syndrome,
-+		  ((char *)__get_str(driver_detail))[0] ? " " : "",
-+		  __get_str(driver_detail))
-+);
-+
-+/*
-+ * PCIe AER Trace event
-+ *
-+ * These events are generated when hardware detects a corrected or
-+ * uncorrected event on a PCIe device. The event report has
-+ * the following structure:
-+ *
-+ * char * dev_name -	The name of the slot where the device resides
-+ *			([domain:]bus:device.function).
-+ * u32 status -		Either the correctable or uncorrectable register
-+ *			indicating what error or errors have been seen
-+ * u8 severity -	error severity 0:NONFATAL 1:FATAL 2:CORRECTED
-+ */
-+
-+#define aer_correctable_errors					\
-+	{PCI_ERR_COR_RCVR,	"Receiver Error"},		\
-+	{PCI_ERR_COR_BAD_TLP,	"Bad TLP"},			\
-+	{PCI_ERR_COR_BAD_DLLP,	"Bad DLLP"},			\
-+	{PCI_ERR_COR_REP_ROLL,	"RELAY_NUM Rollover"},		\
-+	{PCI_ERR_COR_REP_TIMER,	"Replay Timer Timeout"},	\
-+	{PCI_ERR_COR_ADV_NFAT,	"Advisory Non-Fatal Error"},	\
-+	{PCI_ERR_COR_INTERNAL,	"Corrected Internal Error"},	\
-+	{PCI_ERR_COR_LOG_OVER,	"Header Log Overflow"}
-+
-+#define aer_uncorrectable_errors				\
-+	{PCI_ERR_UNC_UND,	"Undefined"},			\
-+	{PCI_ERR_UNC_DLP,	"Data Link Protocol Error"},	\
-+	{PCI_ERR_UNC_SURPDN,	"Surprise Down Error"},		\
-+	{PCI_ERR_UNC_POISON_TLP,"Poisoned TLP"},		\
-+	{PCI_ERR_UNC_FCP,	"Flow Control Protocol Error"},	\
-+	{PCI_ERR_UNC_COMP_TIME,	"Completion Timeout"},		\
-+	{PCI_ERR_UNC_COMP_ABORT,"Completer Abort"},		\
-+	{PCI_ERR_UNC_UNX_COMP,	"Unexpected Completion"},	\
-+	{PCI_ERR_UNC_RX_OVER,	"Receiver Overflow"},		\
-+	{PCI_ERR_UNC_MALF_TLP,	"Malformed TLP"},		\
-+	{PCI_ERR_UNC_ECRC,	"ECRC Error"},			\
-+	{PCI_ERR_UNC_UNSUP,	"Unsupported Request Error"},	\
-+	{PCI_ERR_UNC_ACSV,	"ACS Violation"},		\
-+	{PCI_ERR_UNC_INTN,	"Uncorrectable Internal Error"},\
-+	{PCI_ERR_UNC_MCBTLP,	"MC Blocked TLP"},		\
-+	{PCI_ERR_UNC_ATOMEG,	"AtomicOp Egress Blocked"},	\
-+	{PCI_ERR_UNC_TLPPRE,	"TLP Prefix Blocked Error"}
-+
-+TRACE_EVENT(aer_event,
-+	TP_PROTO(const char *dev_name,
-+		 const u32 status,
-+		 const u8 severity),
-+
-+	TP_ARGS(dev_name, status, severity),
-+
-+	TP_STRUCT__entry(
-+		__string(	dev_name,	dev_name	)
-+		__field(	u32,		status		)
-+		__field(	u8,		severity	)
-+	),
-+
-+	TP_fast_assign(
-+		__assign_str(dev_name, dev_name);
-+		__entry->status		= status;
-+		__entry->severity	= severity;
-+	),
-+
-+	TP_printk("%s PCIe Bus Error: severity=%s, %s\n",
-+		__get_str(dev_name),
-+		__entry->severity == AER_CORRECTABLE ? "Corrected" :
-+			__entry->severity == AER_FATAL ?
-+			"Fatal" : "Uncorrected, non-fatal",
-+		__entry->severity == AER_CORRECTABLE ?
-+		__print_flags(__entry->status, "|", aer_correctable_errors) :
-+		__print_flags(__entry->status, "|", aer_uncorrectable_errors))
-+);
-+
-+/*
-+ * memory-failure recovery action result event
-+ *
-+ * unsigned long pfn -	Page Frame Number of the corrupted page
-+ * int type	-	Page types of the corrupted page
-+ * int result	-	Result of recovery action
-+ */
-+
-+#ifdef CONFIG_MEMORY_FAILURE
-+#define MF_ACTION_RESULT	\
-+	EM ( MF_IGNORED, "Ignored" )	\
-+	EM ( MF_FAILED,  "Failed" )	\
-+	EM ( MF_DELAYED, "Delayed" )	\
-+	EMe ( MF_RECOVERED, "Recovered" )
-+
-+#define MF_PAGE_TYPE		\
-+	EM ( MF_MSG_KERNEL, "reserved kernel page" )			\
-+	EM ( MF_MSG_KERNEL_HIGH_ORDER, "high-order kernel page" )	\
-+	EM ( MF_MSG_SLAB, "kernel slab page" )				\
-+	EM ( MF_MSG_DIFFERENT_COMPOUND, "different compound page after locking" ) \
-+	EM ( MF_MSG_POISONED_HUGE, "huge page already hardware poisoned" )	\
-+	EM ( MF_MSG_HUGE, "huge page" )					\
-+	EM ( MF_MSG_FREE_HUGE, "free huge page" )			\
-+	EM ( MF_MSG_UNMAP_FAILED, "unmapping failed page" )		\
-+	EM ( MF_MSG_DIRTY_SWAPCACHE, "dirty swapcache page" )		\
-+	EM ( MF_MSG_CLEAN_SWAPCACHE, "clean swapcache page" )		\
-+	EM ( MF_MSG_DIRTY_MLOCKED_LRU, "dirty mlocked LRU page" )	\
-+	EM ( MF_MSG_CLEAN_MLOCKED_LRU, "clean mlocked LRU page" )	\
-+	EM ( MF_MSG_DIRTY_UNEVICTABLE_LRU, "dirty unevictable LRU page" )	\
-+	EM ( MF_MSG_CLEAN_UNEVICTABLE_LRU, "clean unevictable LRU page" )	\
-+	EM ( MF_MSG_DIRTY_LRU, "dirty LRU page" )			\
-+	EM ( MF_MSG_CLEAN_LRU, "clean LRU page" )			\
-+	EM ( MF_MSG_TRUNCATED_LRU, "already truncated LRU page" )	\
-+	EM ( MF_MSG_BUDDY, "free buddy page" )				\
-+	EM ( MF_MSG_BUDDY_2ND, "free buddy page (2nd try)" )		\
-+	EMe ( MF_MSG_UNKNOWN, "unknown page" )
-+
-+/*
-+ * First define the enums in MM_ACTION_RESULT to be exported to userspace
-+ * via TRACE_DEFINE_ENUM().
-+ */
-+#undef EM
-+#undef EMe
-+#define EM(a, b) TRACE_DEFINE_ENUM(a);
-+#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
-+
-+MF_ACTION_RESULT
-+MF_PAGE_TYPE
-+
-+/*
-+ * Now redefine the EM() and EMe() macros to map the enums to the strings
-+ * that will be printed in the output.
-+ */
-+#undef EM
-+#undef EMe
-+#define EM(a, b)		{ a, b },
-+#define EMe(a, b)	{ a, b }
-+
-+TRACE_EVENT(memory_failure_event,
-+	TP_PROTO(unsigned long pfn,
-+		 int type,
-+		 int result),
-+
-+	TP_ARGS(pfn, type, result),
-+
-+	TP_STRUCT__entry(
-+		__field(unsigned long, pfn)
-+		__field(int, type)
-+		__field(int, result)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->pfn	= pfn;
-+		__entry->type	= type;
-+		__entry->result	= result;
-+	),
-+
-+	TP_printk("pfn %#lx: recovery action for %s: %s",
-+		__entry->pfn,
-+		__print_symbolic(__entry->type, MF_PAGE_TYPE),
-+		__print_symbolic(__entry->result, MF_ACTION_RESULT)
-+	)
-+);
-+#endif /* CONFIG_MEMORY_FAILURE */
-+#endif /* _TRACE_HW_EVENT_MC_H */
-+
-+/* This part must be outside protection */
-+#include <trace/define_trace.h>
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 9e9d048..2d998a0 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -56,7 +56,7 @@
- #include <linux/mm_inline.h>
- #include <linux/kfifo.h>
- #include "internal.h"
--#include "ras/ras_event.h"
-+#include <trace/events/ras.h>
- 
- int sysctl_memory_failure_early_kill __read_mostly = 0;
- 
--- 
-1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
