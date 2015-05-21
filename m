@@ -1,83 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id E2D456B0142
-	for <linux-mm@kvack.org>; Wed, 20 May 2015 16:22:24 -0400 (EDT)
-Received: by wibt6 with SMTP id t6so72771862wib.0
-        for <linux-mm@kvack.org>; Wed, 20 May 2015 13:22:24 -0700 (PDT)
-Received: from mail-wg0-x235.google.com (mail-wg0-x235.google.com. [2a00:1450:400c:c00::235])
-        by mx.google.com with ESMTPS id o9si5826471wib.9.2015.05.20.13.22.22
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id AADF96B0144
+	for <linux-mm@kvack.org>; Wed, 20 May 2015 20:18:00 -0400 (EDT)
+Received: by pdfh10 with SMTP id h10so87209516pdf.3
+        for <linux-mm@kvack.org>; Wed, 20 May 2015 17:18:00 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id wt10si28746739pab.236.2015.05.20.17.17.57
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 May 2015 13:22:23 -0700 (PDT)
-Received: by wgfl8 with SMTP id l8so64692160wgf.2
-        for <linux-mm@kvack.org>; Wed, 20 May 2015 13:22:22 -0700 (PDT)
-Date: Wed, 20 May 2015 22:22:21 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/7] memcg: immigrate charges only when a threadgroup
- leader is moved
-Message-ID: <20150520202221.GD14256@dhcp22.suse.cz>
-References: <1431978595-12176-1-git-send-email-tj@kernel.org>
- <1431978595-12176-4-git-send-email-tj@kernel.org>
- <20150519121321.GB6203@dhcp22.suse.cz>
- <20150519212754.GO24861@htj.duckdns.org>
- <20150520131044.GA28678@dhcp22.suse.cz>
- <20150520132158.GB28678@dhcp22.suse.cz>
- <20150520175302.GA7287@redhat.com>
+        Wed, 20 May 2015 17:17:58 -0700 (PDT)
+Date: Thu, 21 May 2015 10:17:48 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: linux-next: Tree for May 18 (mm/memory-failure.c)
+Message-ID: <20150521101748.2ff2fb9e@canb.auug.org.au>
+In-Reply-To: <20150520130320.1fc1bd7b1c26dae15c5946c5@linux-foundation.org>
+References: <20150518185226.23154d47@canb.auug.org.au>
+	<555A0327.9060709@infradead.org>
+	<20150519024933.GA1614@hori1.linux.bs1.fc.nec.co.jp>
+	<555C1EA5.3080700@huawei.com>
+	<20150520130320.1fc1bd7b1c26dae15c5946c5@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150520175302.GA7287@redhat.com>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/gEcqDV543fE+GRdr8+N58q."; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Tejun Heo <tj@kernel.org>, lizefan@huawei.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Xie XiuQi <xiexiuqi@huawei.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Randy Dunlap <rdunlap@infradead.org>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Steven Rostedt <rostedt@goodmis.org>, Jim Davis <jim.epost@gmail.com>, Chen Gong <gong.chen@linux.intel.com>
 
-On Wed 20-05-15 19:53:02, Oleg Nesterov wrote:
-> On 05/20, Michal Hocko wrote:
-> >
-> > So I assume the leader simply waits for its threads to finish and it
-> > stays in the sibling list. __unhash_process seems like it does the final
-> > cleanup and unlinks the leader from the lists. Which means that
-> > mm_update_next_owner never sees !group_leader. Is that correct Oleg?
-> 
-> Yes, yes, the group leader can't go away until the whole thread-group dies.
+--Sig_/gEcqDV543fE+GRdr8+N58q.
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-OK, then we should have a guarantee that mm->owner is always thread
-group leader, right?
+Hi Andrew,
 
-> But can't we kill mm->owner somehow?
+On Wed, 20 May 2015 13:03:20 -0700 Andrew Morton <akpm@linux-foundation.org=
+> wrote:
+>
+> I dropped
+>=20
+> memory-failure-export-page_type-and-action-result.patch
+> memory-failure-change-type-of-action_results-param-3-to-enum.patch
+> tracing-add-trace-event-for-memory-failure.patch
 
-I would be happy about that. But it is not that simple.
+OK, I have dropped them from linux-next as well (on the way fixing up
+"mm/memory-failure: split thp earlier in memory error handling" and
+"mm/memory-failure: me_huge_page() does nothing for thp").
 
-> I mean, turn it into something else,
-> ideally into "struct mem_cgroup *" although I doubt this is possible.
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
 
-Sounds like a good idea but... it duplicates the cgroup tracking into
-two places and that asks for troubles. On the other hand we are doing
-that already because mm->owner might be in a different cgroup than the
-current. However, this is an inherent problem because CLONE_VM doesn't
-imply CLONE_THREAD. So in the end it doesn't look much worse IMO.
-We will loose the "this task is in charge" aspect and that would
-be a user space visible change but I am not sure how much it is a
-problem. Maybe somebody is (ab)using this to workaround the restriction
-that all threads are in the same cgroup.
+--Sig_/gEcqDV543fE+GRdr8+N58q.
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
 
->From the implementation POV it even looks easier because we just have to
-hook to fork (pin the memcg on dup_mm), to attach to change the memcg 
-and to mmput to unpin the memcg.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
 
-I will think about that some more.
+iQIcBAEBCAAGBQJVXSQxAAoJEMDTa8Ir7ZwVnHwP/0EZ3nLyJXhcDHRCDS7XBPDD
+zPra6g1qEUW1xaPqF5sQhXE4WvmQ+yK1pL/6wbLaQ6jnCESv/C4QqbI3INnLycrR
+V1f1g0qzMzmHn1iygudDcCqbRE1aj/6g5BjM4qGBbb+JbwrAX3ixloZZTmyWjm+Y
+mGt19qU5IcmLU/OgOw1A+4IBFUHGVEjbCzanJ9g7p0KBTk+SWa6qYXmmJzz/cyi2
+WfYkcHWSzJI0Ih1TZ3f+chENxiFpX7zhw1fUhkRZFZTlPA4DYFRqAH3o6Tq0bvYg
+tqg3nzxtqVD3HzbQWVNuBPv23qFgW0PFr6GKvUsqsKyC2GZxamhA9QIZ/UFIz3q8
+h6TxNhrh7wQwRaiPwlZrtO+8LwIQnJfDfVuJlT9QJnWZeWkJjkihTjKxZ/fwqyTH
+tSlon+aAnf67AgaVeopQn9C33ZAWTLir1nkYjQGpfVIwr3rRWg1GMCK2tc/aJQsD
+UKoGR1fgbHXi4/d6e6/3vqNh86D/zDGQH+CPY4KzOVlpooTbt5TxemF5At+C/3fl
+hLK/9WWsQsN6tL2GtZcvtPUl6Q04vgZtea92+a17gwRrWGmHJE4m6EAJfPmOUMbQ
+pQqN+q9IiOsO3BRpyIYv9crcNtNcqby8e1S1vutUK+PVa/lLQnROC1b3BKNUwQp5
+M6TX4NStR6s1Ie9zfAe7
+=1VMK
+-----END PGP SIGNATURE-----
 
-> It would be nice to kill mm_update_next_owner()/etc, this looks really
-> ugly. We only need it for mem_cgroup_from_task(), and it would be much
-> more clean to have mem_cgroup_from_mm(struct mm_struct *mm), imho.
-> 
-> Oleg.
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+--Sig_/gEcqDV543fE+GRdr8+N58q.--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
