@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 44C646B014F
-	for <linux-mm@kvack.org>; Wed, 20 May 2015 23:50:30 -0400 (EDT)
-Received: by oiww2 with SMTP id w2so2037725oiw.0
-        for <linux-mm@kvack.org>; Wed, 20 May 2015 20:50:30 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id dh3si11891310oeb.1.2015.05.20.20.50.22
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 314BE6B0151
+	for <linux-mm@kvack.org>; Wed, 20 May 2015 23:50:32 -0400 (EDT)
+Received: by obblk2 with SMTP id lk2so51882516obb.0
+        for <linux-mm@kvack.org>; Wed, 20 May 2015 20:50:32 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id w15si3595781oif.127.2015.05.20.20.50.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 20 May 2015 20:50:24 -0700 (PDT)
+        Wed, 20 May 2015 20:50:31 -0700 (PDT)
 From: Xie XiuQi <xiexiuqi@huawei.com>
-Subject: [PATCH v6 1/5] memory-failure: export page_type and action result
-Date: Thu, 21 May 2015 11:41:21 +0800
-Message-ID: <1432179685-11369-2-git-send-email-xiexiuqi@huawei.com>
+Subject: [PATCH v6 5/5] trace, ras: move ras_event.h under include/trace/events
+Date: Thu, 21 May 2015 11:41:25 +0800
+Message-ID: <1432179685-11369-6-git-send-email-xiexiuqi@huawei.com>
 In-Reply-To: <1432179685-11369-1-git-send-email-xiexiuqi@huawei.com>
 References: <1432179685-11369-1-git-send-email-xiexiuqi@huawei.com>
 MIME-Version: 1.0
@@ -22,427 +22,769 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com
 Cc: rostedt@goodmis.org, gong.chen@linux.intel.com, mingo@redhat.com, bp@suse.de, tony.luck@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jingle.chen@huawei.com, sfr@canb.auug.org.au, rdunlap@infradead.org, jim.epost@gmail.com
 
-Export 'outcome' and 'action_page_type' to mm.h, so we could use
-this emnus outside.
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-This patch is preparation for adding trace events for memory-failure
-recovery action.
+Most of header files for tracepoints are located to include/trace/events or
+their relevant subdirectories under drivers/. One exception is
+include/ras/ras_events.h, which looks inconsistent. So let's move it to the
+default places for such headers.
 
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jim Davis <jim.epost@gmail.com>
+Cc: Chen, Gong <gong.chen@linux.intel.com>
 Signed-off-by: Xie XiuQi <xiexiuqi@huawei.com>
 ---
- include/linux/mm.h  |   34 ++++++++++
- mm/memory-failure.c |  168 ++++++++++++++++++++------------------------------
- 2 files changed, 101 insertions(+), 101 deletions(-)
+ drivers/acpi/acpi_extlog.c             |    2 +-
+ drivers/edac/edac_mc.c                 |    2 +-
+ drivers/edac/ghes_edac.c               |    2 +-
+ drivers/pci/pcie/aer/aerdrv_errprint.c |    2 +-
+ drivers/ras/ras.c                      |    3 +-
+ include/ras/ras_event.h                |  323 --------------------------------
+ include/trace/events/ras.h             |  322 +++++++++++++++++++++++++++++++
+ mm/memory-failure.c                    |    2 +-
+ 8 files changed, 328 insertions(+), 330 deletions(-)
+ delete mode 100644 include/ras/ras_event.h
+ create mode 100644 include/trace/events/ras.h
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0755b9f..3abf13c 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2152,6 +2152,40 @@ extern void shake_page(struct page *p, int access);
- extern atomic_long_t num_poisoned_pages;
- extern int soft_offline_page(struct page *page, int flags);
+diff --git a/drivers/acpi/acpi_extlog.c b/drivers/acpi/acpi_extlog.c
+index b3842ff..b04bfd9 100644
+--- a/drivers/acpi/acpi_extlog.c
++++ b/drivers/acpi/acpi_extlog.c
+@@ -17,7 +17,7 @@
+ #include <asm/mce.h>
  
-+
-+/*
-+ * Error handlers for various types of pages.
-+ */
-+enum mf_outcome {
-+	MF_IGNORED,	/* Error: cannot be handled */
-+	MF_FAILED,	/* Error: handling failed */
-+	MF_DELAYED,	/* Will be handled later */
-+	MF_RECOVERED,	/* Successfully recovered */
-+};
-+
-+enum mf_action_page_type {
-+	MF_MSG_KERNEL,
-+	MF_MSG_KERNEL_HIGH_ORDER,
-+	MF_MSG_SLAB,
-+	MF_MSG_DIFFERENT_COMPOUND,
-+	MF_MSG_POISONED_HUGE,
-+	MF_MSG_HUGE,
-+	MF_MSG_FREE_HUGE,
-+	MF_MSG_UNMAP_FAILED,
-+	MF_MSG_DIRTY_SWAPCACHE,
-+	MF_MSG_CLEAN_SWAPCACHE,
-+	MF_MSG_DIRTY_MLOCKED_LRU,
-+	MF_MSG_CLEAN_MLOCKED_LRU,
-+	MF_MSG_DIRTY_UNEVICTABLE_LRU,
-+	MF_MSG_CLEAN_UNEVICTABLE_LRU,
-+	MF_MSG_DIRTY_LRU,
-+	MF_MSG_CLEAN_LRU,
-+	MF_MSG_TRUNCATED_LRU,
-+	MF_MSG_BUDDY,
-+	MF_MSG_BUDDY_2ND,
-+	MF_MSG_UNKNOWN,
-+};
-+
- #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
- extern void clear_huge_page(struct page *page,
- 			    unsigned long addr,
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 501820c..5650dec 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -503,68 +503,34 @@ static void collect_procs(struct page *page, struct list_head *tokill,
- 	kfree(tk);
- }
+ #include "apei/apei-internal.h"
+-#include <ras/ras_event.h>
++#include <trace/events/ras.h>
  
+ #define EXT_ELOG_ENTRY_MASK	GENMASK_ULL(51, 0) /* elog entry address mask */
+ 
+diff --git a/drivers/edac/edac_mc.c b/drivers/edac/edac_mc.c
+index af3be19..c95ecb7 100644
+--- a/drivers/edac/edac_mc.c
++++ b/drivers/edac/edac_mc.c
+@@ -33,7 +33,7 @@
+ #include <asm/edac.h>
+ #include "edac_core.h"
+ #include "edac_module.h"
+-#include <ras/ras_event.h>
++#include <trace/events/ras.h>
+ 
+ /* lock to memory controller's control array */
+ static DEFINE_MUTEX(mem_ctls_mutex);
+diff --git a/drivers/edac/ghes_edac.c b/drivers/edac/ghes_edac.c
+index b246819..2230057 100644
+--- a/drivers/edac/ghes_edac.c
++++ b/drivers/edac/ghes_edac.c
+@@ -15,7 +15,7 @@
+ #include <linux/edac.h>
+ #include <linux/dmi.h>
+ #include "edac_core.h"
+-#include <ras/ras_event.h>
++#include <trace/events/ras.h>
+ 
+ #define GHES_EDAC_REVISION " Ver: 1.0.0"
+ 
+diff --git a/drivers/pci/pcie/aer/aerdrv_errprint.c b/drivers/pci/pcie/aer/aerdrv_errprint.c
+index 167fe41..b5d4c0d 100644
+--- a/drivers/pci/pcie/aer/aerdrv_errprint.c
++++ b/drivers/pci/pcie/aer/aerdrv_errprint.c
+@@ -22,7 +22,7 @@
+ #include <linux/cper.h>
+ 
+ #include "aerdrv.h"
+-#include <ras/ras_event.h>
++#include <trace/events/ras.h>
+ 
+ #define AER_AGENT_RECEIVER		0
+ #define AER_AGENT_REQUESTER		1
+diff --git a/drivers/ras/ras.c b/drivers/ras/ras.c
+index b67dd36..d155768 100644
+--- a/drivers/ras/ras.c
++++ b/drivers/ras/ras.c
+@@ -9,8 +9,7 @@
+ #include <linux/ras.h>
+ 
+ #define CREATE_TRACE_POINTS
+-#define TRACE_INCLUDE_PATH ../../include/ras
+-#include <ras/ras_event.h>
++#include <trace/events/ras.h>
+ 
+ static int __init ras_init(void)
+ {
+diff --git a/include/ras/ras_event.h b/include/ras/ras_event.h
+deleted file mode 100644
+index 1443d79..0000000
+--- a/include/ras/ras_event.h
++++ /dev/null
+@@ -1,323 +0,0 @@
+-#undef TRACE_SYSTEM
+-#define TRACE_SYSTEM ras
+-#define TRACE_INCLUDE_FILE ras_event
+-
+-#if !defined(_TRACE_HW_EVENT_MC_H) || defined(TRACE_HEADER_MULTI_READ)
+-#define _TRACE_HW_EVENT_MC_H
+-
+-#include <linux/tracepoint.h>
+-#include <linux/edac.h>
+-#include <linux/ktime.h>
+-#include <linux/pci.h>
+-#include <linux/aer.h>
+-#include <linux/cper.h>
+-#include <linux/mm.h>
+-
 -/*
-- * Error handlers for various types of pages.
+- * MCE Extended Error Log trace event
+- *
+- * These events are generated when hardware detects a corrected or
+- * uncorrected event.
 - */
 -
--enum outcome {
--	IGNORED,	/* Error: cannot be handled */
--	FAILED,		/* Error: handling failed */
--	DELAYED,	/* Will be handled later */
--	RECOVERED,	/* Successfully recovered */
--};
+-/* memory trace event */
 -
- static const char *action_name[] = {
--	[IGNORED] = "Ignored",
--	[FAILED] = "Failed",
--	[DELAYED] = "Delayed",
--	[RECOVERED] = "Recovered",
--};
+-#if defined(CONFIG_ACPI_EXTLOG) || defined(CONFIG_ACPI_EXTLOG_MODULE)
+-TRACE_EVENT(extlog_mem_event,
+-	TP_PROTO(struct cper_sec_mem_err *mem,
+-		 u32 err_seq,
+-		 const uuid_le *fru_id,
+-		 const char *fru_text,
+-		 u8 sev),
 -
--enum action_page_type {
--	MSG_KERNEL,
--	MSG_KERNEL_HIGH_ORDER,
--	MSG_SLAB,
--	MSG_DIFFERENT_COMPOUND,
--	MSG_POISONED_HUGE,
--	MSG_HUGE,
--	MSG_FREE_HUGE,
--	MSG_UNMAP_FAILED,
--	MSG_DIRTY_SWAPCACHE,
--	MSG_CLEAN_SWAPCACHE,
--	MSG_DIRTY_MLOCKED_LRU,
--	MSG_CLEAN_MLOCKED_LRU,
--	MSG_DIRTY_UNEVICTABLE_LRU,
--	MSG_CLEAN_UNEVICTABLE_LRU,
--	MSG_DIRTY_LRU,
--	MSG_CLEAN_LRU,
--	MSG_TRUNCATED_LRU,
--	MSG_BUDDY,
--	MSG_BUDDY_2ND,
--	MSG_UNKNOWN,
-+	[MF_IGNORED] = "Ignored",
-+	[MF_FAILED] = "Failed",
-+	[MF_DELAYED] = "Delayed",
-+	[MF_RECOVERED] = "Recovered",
- };
+-	TP_ARGS(mem, err_seq, fru_id, fru_text, sev),
+-
+-	TP_STRUCT__entry(
+-		__field(u32, err_seq)
+-		__field(u8, etype)
+-		__field(u8, sev)
+-		__field(u64, pa)
+-		__field(u8, pa_mask_lsb)
+-		__field_struct(uuid_le, fru_id)
+-		__string(fru_text, fru_text)
+-		__field_struct(struct cper_mem_err_compact, data)
+-	),
+-
+-	TP_fast_assign(
+-		__entry->err_seq = err_seq;
+-		if (mem->validation_bits & CPER_MEM_VALID_ERROR_TYPE)
+-			__entry->etype = mem->error_type;
+-		else
+-			__entry->etype = ~0;
+-		__entry->sev = sev;
+-		if (mem->validation_bits & CPER_MEM_VALID_PA)
+-			__entry->pa = mem->physical_addr;
+-		else
+-			__entry->pa = ~0ull;
+-
+-		if (mem->validation_bits & CPER_MEM_VALID_PA_MASK)
+-			__entry->pa_mask_lsb = (u8)__ffs64(mem->physical_addr_mask);
+-		else
+-			__entry->pa_mask_lsb = ~0;
+-		__entry->fru_id = *fru_id;
+-		__assign_str(fru_text, fru_text);
+-		cper_mem_err_pack(mem, &__entry->data);
+-	),
+-
+-	TP_printk("{%d} %s error: %s physical addr: %016llx (mask lsb: %x) %sFRU: %pUl %.20s",
+-		  __entry->err_seq,
+-		  cper_severity_str(__entry->sev),
+-		  cper_mem_err_type_str(__entry->etype),
+-		  __entry->pa,
+-		  __entry->pa_mask_lsb,
+-		  cper_mem_err_unpack(p, &__entry->data),
+-		  &__entry->fru_id,
+-		  __get_str(fru_text))
+-);
+-#endif
+-
+-/*
+- * Hardware Events Report
+- *
+- * Those events are generated when hardware detected a corrected or
+- * uncorrected event, and are meant to replace the current API to report
+- * errors defined on both EDAC and MCE subsystems.
+- *
+- * FIXME: Add events for handling memory errors originated from the
+- *        MCE subsystem.
+- */
+-
+-/*
+- * Hardware-independent Memory Controller specific events
+- */
+-
+-/*
+- * Default error mechanisms for Memory Controller errors (CE and UE)
+- */
+-TRACE_EVENT(mc_event,
+-
+-	TP_PROTO(const unsigned int err_type,
+-		 const char *error_msg,
+-		 const char *label,
+-		 const int error_count,
+-		 const u8 mc_index,
+-		 const s8 top_layer,
+-		 const s8 mid_layer,
+-		 const s8 low_layer,
+-		 unsigned long address,
+-		 const u8 grain_bits,
+-		 unsigned long syndrome,
+-		 const char *driver_detail),
+-
+-	TP_ARGS(err_type, error_msg, label, error_count, mc_index,
+-		top_layer, mid_layer, low_layer, address, grain_bits,
+-		syndrome, driver_detail),
+-
+-	TP_STRUCT__entry(
+-		__field(	unsigned int,	error_type		)
+-		__string(	msg,		error_msg		)
+-		__string(	label,		label			)
+-		__field(	u16,		error_count		)
+-		__field(	u8,		mc_index		)
+-		__field(	s8,		top_layer		)
+-		__field(	s8,		middle_layer		)
+-		__field(	s8,		lower_layer		)
+-		__field(	long,		address			)
+-		__field(	u8,		grain_bits		)
+-		__field(	long,		syndrome		)
+-		__string(	driver_detail,	driver_detail		)
+-	),
+-
+-	TP_fast_assign(
+-		__entry->error_type		= err_type;
+-		__assign_str(msg, error_msg);
+-		__assign_str(label, label);
+-		__entry->error_count		= error_count;
+-		__entry->mc_index		= mc_index;
+-		__entry->top_layer		= top_layer;
+-		__entry->middle_layer		= mid_layer;
+-		__entry->lower_layer		= low_layer;
+-		__entry->address		= address;
+-		__entry->grain_bits		= grain_bits;
+-		__entry->syndrome		= syndrome;
+-		__assign_str(driver_detail, driver_detail);
+-	),
+-
+-	TP_printk("%d %s error%s:%s%s on %s (mc:%d location:%d:%d:%d address:0x%08lx grain:%d syndrome:0x%08lx%s%s)",
+-		  __entry->error_count,
+-		  mc_event_error_type(__entry->error_type),
+-		  __entry->error_count > 1 ? "s" : "",
+-		  ((char *)__get_str(msg))[0] ? " " : "",
+-		  __get_str(msg),
+-		  __get_str(label),
+-		  __entry->mc_index,
+-		  __entry->top_layer,
+-		  __entry->middle_layer,
+-		  __entry->lower_layer,
+-		  __entry->address,
+-		  1 << __entry->grain_bits,
+-		  __entry->syndrome,
+-		  ((char *)__get_str(driver_detail))[0] ? " " : "",
+-		  __get_str(driver_detail))
+-);
+-
+-/*
+- * PCIe AER Trace event
+- *
+- * These events are generated when hardware detects a corrected or
+- * uncorrected event on a PCIe device. The event report has
+- * the following structure:
+- *
+- * char * dev_name -	The name of the slot where the device resides
+- *			([domain:]bus:device.function).
+- * u32 status -		Either the correctable or uncorrectable register
+- *			indicating what error or errors have been seen
+- * u8 severity -	error severity 0:NONFATAL 1:FATAL 2:CORRECTED
+- */
+-
+-#define aer_correctable_errors					\
+-	{PCI_ERR_COR_RCVR,	"Receiver Error"},		\
+-	{PCI_ERR_COR_BAD_TLP,	"Bad TLP"},			\
+-	{PCI_ERR_COR_BAD_DLLP,	"Bad DLLP"},			\
+-	{PCI_ERR_COR_REP_ROLL,	"RELAY_NUM Rollover"},		\
+-	{PCI_ERR_COR_REP_TIMER,	"Replay Timer Timeout"},	\
+-	{PCI_ERR_COR_ADV_NFAT,	"Advisory Non-Fatal Error"},	\
+-	{PCI_ERR_COR_INTERNAL,	"Corrected Internal Error"},	\
+-	{PCI_ERR_COR_LOG_OVER,	"Header Log Overflow"}
+-
+-#define aer_uncorrectable_errors				\
+-	{PCI_ERR_UNC_UND,	"Undefined"},			\
+-	{PCI_ERR_UNC_DLP,	"Data Link Protocol Error"},	\
+-	{PCI_ERR_UNC_SURPDN,	"Surprise Down Error"},		\
+-	{PCI_ERR_UNC_POISON_TLP,"Poisoned TLP"},		\
+-	{PCI_ERR_UNC_FCP,	"Flow Control Protocol Error"},	\
+-	{PCI_ERR_UNC_COMP_TIME,	"Completion Timeout"},		\
+-	{PCI_ERR_UNC_COMP_ABORT,"Completer Abort"},		\
+-	{PCI_ERR_UNC_UNX_COMP,	"Unexpected Completion"},	\
+-	{PCI_ERR_UNC_RX_OVER,	"Receiver Overflow"},		\
+-	{PCI_ERR_UNC_MALF_TLP,	"Malformed TLP"},		\
+-	{PCI_ERR_UNC_ECRC,	"ECRC Error"},			\
+-	{PCI_ERR_UNC_UNSUP,	"Unsupported Request Error"},	\
+-	{PCI_ERR_UNC_ACSV,	"ACS Violation"},		\
+-	{PCI_ERR_UNC_INTN,	"Uncorrectable Internal Error"},\
+-	{PCI_ERR_UNC_MCBTLP,	"MC Blocked TLP"},		\
+-	{PCI_ERR_UNC_ATOMEG,	"AtomicOp Egress Blocked"},	\
+-	{PCI_ERR_UNC_TLPPRE,	"TLP Prefix Blocked Error"}
+-
+-TRACE_EVENT(aer_event,
+-	TP_PROTO(const char *dev_name,
+-		 const u32 status,
+-		 const u8 severity),
+-
+-	TP_ARGS(dev_name, status, severity),
+-
+-	TP_STRUCT__entry(
+-		__string(	dev_name,	dev_name	)
+-		__field(	u32,		status		)
+-		__field(	u8,		severity	)
+-	),
+-
+-	TP_fast_assign(
+-		__assign_str(dev_name, dev_name);
+-		__entry->status		= status;
+-		__entry->severity	= severity;
+-	),
+-
+-	TP_printk("%s PCIe Bus Error: severity=%s, %s\n",
+-		__get_str(dev_name),
+-		__entry->severity == AER_CORRECTABLE ? "Corrected" :
+-			__entry->severity == AER_FATAL ?
+-			"Fatal" : "Uncorrected, non-fatal",
+-		__entry->severity == AER_CORRECTABLE ?
+-		__print_flags(__entry->status, "|", aer_correctable_errors) :
+-		__print_flags(__entry->status, "|", aer_uncorrectable_errors))
+-);
+-
+-/*
+- * memory-failure recovery action result event
+- *
+- * unsigned long pfn -	Page Frame Number of the corrupted page
+- * int type	-	Page types of the corrupted page
+- * int result	-	Result of recovery action
+- */
+-
+-#ifdef CONFIG_MEMORY_FAILURE
+-#define MF_ACTION_RESULT	\
+-	EM ( MF_IGNORED, "Ignored" )	\
+-	EM ( MF_FAILED,  "Failed" )	\
+-	EM ( MF_DELAYED, "Delayed" )	\
+-	EMe ( MF_RECOVERED, "Recovered" )
+-
+-#define MF_PAGE_TYPE		\
+-	EM ( MF_MSG_KERNEL, "reserved kernel page" )			\
+-	EM ( MF_MSG_KERNEL_HIGH_ORDER, "high-order kernel page" )	\
+-	EM ( MF_MSG_SLAB, "kernel slab page" )				\
+-	EM ( MF_MSG_DIFFERENT_COMPOUND, "different compound page after locking" ) \
+-	EM ( MF_MSG_POISONED_HUGE, "huge page already hardware poisoned" )	\
+-	EM ( MF_MSG_HUGE, "huge page" )					\
+-	EM ( MF_MSG_FREE_HUGE, "free huge page" )			\
+-	EM ( MF_MSG_UNMAP_FAILED, "unmapping failed page" )		\
+-	EM ( MF_MSG_DIRTY_SWAPCACHE, "dirty swapcache page" )		\
+-	EM ( MF_MSG_CLEAN_SWAPCACHE, "clean swapcache page" )		\
+-	EM ( MF_MSG_DIRTY_MLOCKED_LRU, "dirty mlocked LRU page" )	\
+-	EM ( MF_MSG_CLEAN_MLOCKED_LRU, "clean mlocked LRU page" )	\
+-	EM ( MF_MSG_DIRTY_UNEVICTABLE_LRU, "dirty unevictable LRU page" )	\
+-	EM ( MF_MSG_CLEAN_UNEVICTABLE_LRU, "clean unevictable LRU page" )	\
+-	EM ( MF_MSG_DIRTY_LRU, "dirty LRU page" )			\
+-	EM ( MF_MSG_CLEAN_LRU, "clean LRU page" )			\
+-	EM ( MF_MSG_TRUNCATED_LRU, "already truncated LRU page" )	\
+-	EM ( MF_MSG_BUDDY, "free buddy page" )				\
+-	EM ( MF_MSG_BUDDY_2ND, "free buddy page (2nd try)" )		\
+-	EMe ( MF_MSG_UNKNOWN, "unknown page" )
+-
+-/*
+- * First define the enums in MM_ACTION_RESULT to be exported to userspace
+- * via TRACE_DEFINE_ENUM().
+- */
+-#undef EM
+-#undef EMe
+-#define EM(a, b) TRACE_DEFINE_ENUM(a);
+-#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
+-
+-MF_ACTION_RESULT
+-MF_PAGE_TYPE
+-
+-/*
+- * Now redefine the EM() and EMe() macros to map the enums to the strings
+- * that will be printed in the output.
+- */
+-#undef EM
+-#undef EMe
+-#define EM(a, b)		{ a, b },
+-#define EMe(a, b)	{ a, b }
+-
+-TRACE_EVENT(memory_failure_event,
+-	TP_PROTO(unsigned long pfn,
+-		 int type,
+-		 int result),
+-
+-	TP_ARGS(pfn, type, result),
+-
+-	TP_STRUCT__entry(
+-		__field(unsigned long, pfn)
+-		__field(int, type)
+-		__field(int, result)
+-	),
+-
+-	TP_fast_assign(
+-		__entry->pfn	= pfn;
+-		__entry->type	= type;
+-		__entry->result	= result;
+-	),
+-
+-	TP_printk("pfn %#lx: recovery action for %s: %s",
+-		__entry->pfn,
+-		__print_symbolic(__entry->type, MF_PAGE_TYPE),
+-		__print_symbolic(__entry->result, MF_ACTION_RESULT)
+-	)
+-);
+-#endif /* CONFIG_MEMORY_FAILURE */
+-#endif /* _TRACE_HW_EVENT_MC_H */
+-
+-/* This part must be outside protection */
+-#include <trace/define_trace.h>
+diff --git a/include/trace/events/ras.h b/include/trace/events/ras.h
+new file mode 100644
+index 0000000..e5cf762
+--- /dev/null
++++ b/include/trace/events/ras.h
+@@ -0,0 +1,322 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM ras
++
++#if !defined(_TRACE_HW_EVENT_MC_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_HW_EVENT_MC_H
++
++#include <linux/tracepoint.h>
++#include <linux/edac.h>
++#include <linux/ktime.h>
++#include <linux/pci.h>
++#include <linux/aer.h>
++#include <linux/cper.h>
++#include <linux/mm.h>
++
++/*
++ * MCE Extended Error Log trace event
++ *
++ * These events are generated when hardware detects a corrected or
++ * uncorrected event.
++ */
++
++/* memory trace event */
++
++#if defined(CONFIG_ACPI_EXTLOG) || defined(CONFIG_ACPI_EXTLOG_MODULE)
++TRACE_EVENT(extlog_mem_event,
++	TP_PROTO(struct cper_sec_mem_err *mem,
++		 u32 err_seq,
++		 const uuid_le *fru_id,
++		 const char *fru_text,
++		 u8 sev),
++
++	TP_ARGS(mem, err_seq, fru_id, fru_text, sev),
++
++	TP_STRUCT__entry(
++		__field(u32, err_seq)
++		__field(u8, etype)
++		__field(u8, sev)
++		__field(u64, pa)
++		__field(u8, pa_mask_lsb)
++		__field_struct(uuid_le, fru_id)
++		__string(fru_text, fru_text)
++		__field_struct(struct cper_mem_err_compact, data)
++	),
++
++	TP_fast_assign(
++		__entry->err_seq = err_seq;
++		if (mem->validation_bits & CPER_MEM_VALID_ERROR_TYPE)
++			__entry->etype = mem->error_type;
++		else
++			__entry->etype = ~0;
++		__entry->sev = sev;
++		if (mem->validation_bits & CPER_MEM_VALID_PA)
++			__entry->pa = mem->physical_addr;
++		else
++			__entry->pa = ~0ull;
++
++		if (mem->validation_bits & CPER_MEM_VALID_PA_MASK)
++			__entry->pa_mask_lsb = (u8)__ffs64(mem->physical_addr_mask);
++		else
++			__entry->pa_mask_lsb = ~0;
++		__entry->fru_id = *fru_id;
++		__assign_str(fru_text, fru_text);
++		cper_mem_err_pack(mem, &__entry->data);
++	),
++
++	TP_printk("{%d} %s error: %s physical addr: %016llx (mask lsb: %x) %sFRU: %pUl %.20s",
++		  __entry->err_seq,
++		  cper_severity_str(__entry->sev),
++		  cper_mem_err_type_str(__entry->etype),
++		  __entry->pa,
++		  __entry->pa_mask_lsb,
++		  cper_mem_err_unpack(p, &__entry->data),
++		  &__entry->fru_id,
++		  __get_str(fru_text))
++);
++#endif
++
++/*
++ * Hardware Events Report
++ *
++ * Those events are generated when hardware detected a corrected or
++ * uncorrected event, and are meant to replace the current API to report
++ * errors defined on both EDAC and MCE subsystems.
++ *
++ * FIXME: Add events for handling memory errors originated from the
++ *        MCE subsystem.
++ */
++
++/*
++ * Hardware-independent Memory Controller specific events
++ */
++
++/*
++ * Default error mechanisms for Memory Controller errors (CE and UE)
++ */
++TRACE_EVENT(mc_event,
++
++	TP_PROTO(const unsigned int err_type,
++		 const char *error_msg,
++		 const char *label,
++		 const int error_count,
++		 const u8 mc_index,
++		 const s8 top_layer,
++		 const s8 mid_layer,
++		 const s8 low_layer,
++		 unsigned long address,
++		 const u8 grain_bits,
++		 unsigned long syndrome,
++		 const char *driver_detail),
++
++	TP_ARGS(err_type, error_msg, label, error_count, mc_index,
++		top_layer, mid_layer, low_layer, address, grain_bits,
++		syndrome, driver_detail),
++
++	TP_STRUCT__entry(
++		__field(	unsigned int,	error_type		)
++		__string(	msg,		error_msg		)
++		__string(	label,		label			)
++		__field(	u16,		error_count		)
++		__field(	u8,		mc_index		)
++		__field(	s8,		top_layer		)
++		__field(	s8,		middle_layer		)
++		__field(	s8,		lower_layer		)
++		__field(	long,		address			)
++		__field(	u8,		grain_bits		)
++		__field(	long,		syndrome		)
++		__string(	driver_detail,	driver_detail		)
++	),
++
++	TP_fast_assign(
++		__entry->error_type		= err_type;
++		__assign_str(msg, error_msg);
++		__assign_str(label, label);
++		__entry->error_count		= error_count;
++		__entry->mc_index		= mc_index;
++		__entry->top_layer		= top_layer;
++		__entry->middle_layer		= mid_layer;
++		__entry->lower_layer		= low_layer;
++		__entry->address		= address;
++		__entry->grain_bits		= grain_bits;
++		__entry->syndrome		= syndrome;
++		__assign_str(driver_detail, driver_detail);
++	),
++
++	TP_printk("%d %s error%s:%s%s on %s (mc:%d location:%d:%d:%d address:0x%08lx grain:%d syndrome:0x%08lx%s%s)",
++		  __entry->error_count,
++		  mc_event_error_type(__entry->error_type),
++		  __entry->error_count > 1 ? "s" : "",
++		  ((char *)__get_str(msg))[0] ? " " : "",
++		  __get_str(msg),
++		  __get_str(label),
++		  __entry->mc_index,
++		  __entry->top_layer,
++		  __entry->middle_layer,
++		  __entry->lower_layer,
++		  __entry->address,
++		  1 << __entry->grain_bits,
++		  __entry->syndrome,
++		  ((char *)__get_str(driver_detail))[0] ? " " : "",
++		  __get_str(driver_detail))
++);
++
++/*
++ * PCIe AER Trace event
++ *
++ * These events are generated when hardware detects a corrected or
++ * uncorrected event on a PCIe device. The event report has
++ * the following structure:
++ *
++ * char * dev_name -	The name of the slot where the device resides
++ *			([domain:]bus:device.function).
++ * u32 status -		Either the correctable or uncorrectable register
++ *			indicating what error or errors have been seen
++ * u8 severity -	error severity 0:NONFATAL 1:FATAL 2:CORRECTED
++ */
++
++#define aer_correctable_errors					\
++	{PCI_ERR_COR_RCVR,	"Receiver Error"},		\
++	{PCI_ERR_COR_BAD_TLP,	"Bad TLP"},			\
++	{PCI_ERR_COR_BAD_DLLP,	"Bad DLLP"},			\
++	{PCI_ERR_COR_REP_ROLL,	"RELAY_NUM Rollover"},		\
++	{PCI_ERR_COR_REP_TIMER,	"Replay Timer Timeout"},	\
++	{PCI_ERR_COR_ADV_NFAT,	"Advisory Non-Fatal Error"},	\
++	{PCI_ERR_COR_INTERNAL,	"Corrected Internal Error"},	\
++	{PCI_ERR_COR_LOG_OVER,	"Header Log Overflow"}
++
++#define aer_uncorrectable_errors				\
++	{PCI_ERR_UNC_UND,	"Undefined"},			\
++	{PCI_ERR_UNC_DLP,	"Data Link Protocol Error"},	\
++	{PCI_ERR_UNC_SURPDN,	"Surprise Down Error"},		\
++	{PCI_ERR_UNC_POISON_TLP,"Poisoned TLP"},		\
++	{PCI_ERR_UNC_FCP,	"Flow Control Protocol Error"},	\
++	{PCI_ERR_UNC_COMP_TIME,	"Completion Timeout"},		\
++	{PCI_ERR_UNC_COMP_ABORT,"Completer Abort"},		\
++	{PCI_ERR_UNC_UNX_COMP,	"Unexpected Completion"},	\
++	{PCI_ERR_UNC_RX_OVER,	"Receiver Overflow"},		\
++	{PCI_ERR_UNC_MALF_TLP,	"Malformed TLP"},		\
++	{PCI_ERR_UNC_ECRC,	"ECRC Error"},			\
++	{PCI_ERR_UNC_UNSUP,	"Unsupported Request Error"},	\
++	{PCI_ERR_UNC_ACSV,	"ACS Violation"},		\
++	{PCI_ERR_UNC_INTN,	"Uncorrectable Internal Error"},\
++	{PCI_ERR_UNC_MCBTLP,	"MC Blocked TLP"},		\
++	{PCI_ERR_UNC_ATOMEG,	"AtomicOp Egress Blocked"},	\
++	{PCI_ERR_UNC_TLPPRE,	"TLP Prefix Blocked Error"}
++
++TRACE_EVENT(aer_event,
++	TP_PROTO(const char *dev_name,
++		 const u32 status,
++		 const u8 severity),
++
++	TP_ARGS(dev_name, status, severity),
++
++	TP_STRUCT__entry(
++		__string(	dev_name,	dev_name	)
++		__field(	u32,		status		)
++		__field(	u8,		severity	)
++	),
++
++	TP_fast_assign(
++		__assign_str(dev_name, dev_name);
++		__entry->status		= status;
++		__entry->severity	= severity;
++	),
++
++	TP_printk("%s PCIe Bus Error: severity=%s, %s\n",
++		__get_str(dev_name),
++		__entry->severity == AER_CORRECTABLE ? "Corrected" :
++			__entry->severity == AER_FATAL ?
++			"Fatal" : "Uncorrected, non-fatal",
++		__entry->severity == AER_CORRECTABLE ?
++		__print_flags(__entry->status, "|", aer_correctable_errors) :
++		__print_flags(__entry->status, "|", aer_uncorrectable_errors))
++);
++
++/*
++ * memory-failure recovery action result event
++ *
++ * unsigned long pfn -	Page Frame Number of the corrupted page
++ * int type	-	Page types of the corrupted page
++ * int result	-	Result of recovery action
++ */
++
++#ifdef CONFIG_MEMORY_FAILURE
++#define MF_ACTION_RESULT	\
++	EM ( MF_IGNORED, "Ignored" )	\
++	EM ( MF_FAILED,  "Failed" )	\
++	EM ( MF_DELAYED, "Delayed" )	\
++	EMe ( MF_RECOVERED, "Recovered" )
++
++#define MF_PAGE_TYPE		\
++	EM ( MF_MSG_KERNEL, "reserved kernel page" )			\
++	EM ( MF_MSG_KERNEL_HIGH_ORDER, "high-order kernel page" )	\
++	EM ( MF_MSG_SLAB, "kernel slab page" )				\
++	EM ( MF_MSG_DIFFERENT_COMPOUND, "different compound page after locking" ) \
++	EM ( MF_MSG_POISONED_HUGE, "huge page already hardware poisoned" )	\
++	EM ( MF_MSG_HUGE, "huge page" )					\
++	EM ( MF_MSG_FREE_HUGE, "free huge page" )			\
++	EM ( MF_MSG_UNMAP_FAILED, "unmapping failed page" )		\
++	EM ( MF_MSG_DIRTY_SWAPCACHE, "dirty swapcache page" )		\
++	EM ( MF_MSG_CLEAN_SWAPCACHE, "clean swapcache page" )		\
++	EM ( MF_MSG_DIRTY_MLOCKED_LRU, "dirty mlocked LRU page" )	\
++	EM ( MF_MSG_CLEAN_MLOCKED_LRU, "clean mlocked LRU page" )	\
++	EM ( MF_MSG_DIRTY_UNEVICTABLE_LRU, "dirty unevictable LRU page" )	\
++	EM ( MF_MSG_CLEAN_UNEVICTABLE_LRU, "clean unevictable LRU page" )	\
++	EM ( MF_MSG_DIRTY_LRU, "dirty LRU page" )			\
++	EM ( MF_MSG_CLEAN_LRU, "clean LRU page" )			\
++	EM ( MF_MSG_TRUNCATED_LRU, "already truncated LRU page" )	\
++	EM ( MF_MSG_BUDDY, "free buddy page" )				\
++	EM ( MF_MSG_BUDDY_2ND, "free buddy page (2nd try)" )		\
++	EMe ( MF_MSG_UNKNOWN, "unknown page" )
++
++/*
++ * First define the enums in MM_ACTION_RESULT to be exported to userspace
++ * via TRACE_DEFINE_ENUM().
++ */
++#undef EM
++#undef EMe
++#define EM(a, b) TRACE_DEFINE_ENUM(a);
++#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
++
++MF_ACTION_RESULT
++MF_PAGE_TYPE
++
++/*
++ * Now redefine the EM() and EMe() macros to map the enums to the strings
++ * that will be printed in the output.
++ */
++#undef EM
++#undef EMe
++#define EM(a, b)		{ a, b },
++#define EMe(a, b)	{ a, b }
++
++TRACE_EVENT(memory_failure_event,
++	TP_PROTO(unsigned long pfn,
++		 int type,
++		 int result),
++
++	TP_ARGS(pfn, type, result),
++
++	TP_STRUCT__entry(
++		__field(unsigned long, pfn)
++		__field(int, type)
++		__field(int, result)
++	),
++
++	TP_fast_assign(
++		__entry->pfn	= pfn;
++		__entry->type	= type;
++		__entry->result	= result;
++	),
++
++	TP_printk("pfn %#lx: recovery action for %s: %s",
++		__entry->pfn,
++		__print_symbolic(__entry->type, MF_PAGE_TYPE),
++		__print_symbolic(__entry->result, MF_ACTION_RESULT)
++	)
++);
++#endif /* CONFIG_MEMORY_FAILURE */
++#endif /* _TRACE_HW_EVENT_MC_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 9e9d048..2d998a0 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -56,7 +56,7 @@
+ #include <linux/mm_inline.h>
+ #include <linux/kfifo.h>
+ #include "internal.h"
+-#include "ras/ras_event.h"
++#include <trace/events/ras.h>
  
- static const char * const action_page_types[] = {
--	[MSG_KERNEL]			= "reserved kernel page",
--	[MSG_KERNEL_HIGH_ORDER]		= "high-order kernel page",
--	[MSG_SLAB]			= "kernel slab page",
--	[MSG_DIFFERENT_COMPOUND]	= "different compound page after locking",
--	[MSG_POISONED_HUGE]		= "huge page already hardware poisoned",
--	[MSG_HUGE]			= "huge page",
--	[MSG_FREE_HUGE]			= "free huge page",
--	[MSG_UNMAP_FAILED]		= "unmapping failed page",
--	[MSG_DIRTY_SWAPCACHE]		= "dirty swapcache page",
--	[MSG_CLEAN_SWAPCACHE]		= "clean swapcache page",
--	[MSG_DIRTY_MLOCKED_LRU]		= "dirty mlocked LRU page",
--	[MSG_CLEAN_MLOCKED_LRU]		= "clean mlocked LRU page",
--	[MSG_DIRTY_UNEVICTABLE_LRU]	= "dirty unevictable LRU page",
--	[MSG_CLEAN_UNEVICTABLE_LRU]	= "clean unevictable LRU page",
--	[MSG_DIRTY_LRU]			= "dirty LRU page",
--	[MSG_CLEAN_LRU]			= "clean LRU page",
--	[MSG_TRUNCATED_LRU]		= "already truncated LRU page",
--	[MSG_BUDDY]			= "free buddy page",
--	[MSG_BUDDY_2ND]			= "free buddy page (2nd try)",
--	[MSG_UNKNOWN]			= "unknown page",
-+	[MF_MSG_KERNEL]			= "reserved kernel page",
-+	[MF_MSG_KERNEL_HIGH_ORDER]	= "high-order kernel page",
-+	[MF_MSG_SLAB]			= "kernel slab page",
-+	[MF_MSG_DIFFERENT_COMPOUND]	= "different compound page after locking",
-+	[MF_MSG_POISONED_HUGE]		= "huge page already hardware poisoned",
-+	[MF_MSG_HUGE]			= "huge page",
-+	[MF_MSG_FREE_HUGE]		= "free huge page",
-+	[MF_MSG_UNMAP_FAILED]		= "unmapping failed page",
-+	[MF_MSG_DIRTY_SWAPCACHE]	= "dirty swapcache page",
-+	[MF_MSG_CLEAN_SWAPCACHE]	= "clean swapcache page",
-+	[MF_MSG_DIRTY_MLOCKED_LRU]	= "dirty mlocked LRU page",
-+	[MF_MSG_CLEAN_MLOCKED_LRU]	= "clean mlocked LRU page",
-+	[MF_MSG_DIRTY_UNEVICTABLE_LRU]	= "dirty unevictable LRU page",
-+	[MF_MSG_CLEAN_UNEVICTABLE_LRU]	= "clean unevictable LRU page",
-+	[MF_MSG_DIRTY_LRU]		= "dirty LRU page",
-+	[MF_MSG_CLEAN_LRU]		= "clean LRU page",
-+	[MF_MSG_TRUNCATED_LRU]		= "already truncated LRU page",
-+	[MF_MSG_BUDDY]			= "free buddy page",
-+	[MF_MSG_BUDDY_2ND]		= "free buddy page (2nd try)",
-+	[MF_MSG_UNKNOWN]		= "unknown page",
- };
+ int sysctl_memory_failure_early_kill __read_mostly = 0;
  
- /*
-@@ -598,7 +564,7 @@ static int delete_from_lru_cache(struct page *p)
-  */
- static int me_kernel(struct page *p, unsigned long pfn)
- {
--	return IGNORED;
-+	return MF_IGNORED;
- }
- 
- /*
-@@ -607,7 +573,7 @@ static int me_kernel(struct page *p, unsigned long pfn)
- static int me_unknown(struct page *p, unsigned long pfn)
- {
- 	printk(KERN_ERR "MCE %#lx: Unknown page state\n", pfn);
--	return FAILED;
-+	return MF_FAILED;
- }
- 
- /*
-@@ -616,7 +582,7 @@ static int me_unknown(struct page *p, unsigned long pfn)
- static int me_pagecache_clean(struct page *p, unsigned long pfn)
- {
- 	int err;
--	int ret = FAILED;
-+	int ret = MF_FAILED;
- 	struct address_space *mapping;
- 
- 	delete_from_lru_cache(p);
-@@ -626,7 +592,7 @@ static int me_pagecache_clean(struct page *p, unsigned long pfn)
- 	 * should be the one m_f() holds.
- 	 */
- 	if (PageAnon(p))
--		return RECOVERED;
-+		return MF_RECOVERED;
- 
- 	/*
- 	 * Now truncate the page in the page cache. This is really
-@@ -640,7 +606,7 @@ static int me_pagecache_clean(struct page *p, unsigned long pfn)
- 		/*
- 		 * Page has been teared down in the meanwhile
- 		 */
--		return FAILED;
-+		return MF_FAILED;
- 	}
- 
- 	/*
-@@ -657,7 +623,7 @@ static int me_pagecache_clean(struct page *p, unsigned long pfn)
- 				!try_to_release_page(p, GFP_NOIO)) {
- 			pr_info("MCE %#lx: failed to release buffers\n", pfn);
- 		} else {
--			ret = RECOVERED;
-+			ret = MF_RECOVERED;
- 		}
- 	} else {
- 		/*
-@@ -665,7 +631,7 @@ static int me_pagecache_clean(struct page *p, unsigned long pfn)
- 		 * This fails on dirty or anything with private pages
- 		 */
- 		if (invalidate_inode_page(p))
--			ret = RECOVERED;
-+			ret = MF_RECOVERED;
- 		else
- 			printk(KERN_INFO "MCE %#lx: Failed to invalidate\n",
- 				pfn);
-@@ -751,9 +717,9 @@ static int me_swapcache_dirty(struct page *p, unsigned long pfn)
- 	ClearPageUptodate(p);
- 
- 	if (!delete_from_lru_cache(p))
--		return DELAYED;
-+		return MF_DELAYED;
- 	else
--		return FAILED;
-+		return MF_FAILED;
- }
- 
- static int me_swapcache_clean(struct page *p, unsigned long pfn)
-@@ -761,9 +727,9 @@ static int me_swapcache_clean(struct page *p, unsigned long pfn)
- 	delete_from_swap_cache(p);
- 
- 	if (!delete_from_lru_cache(p))
--		return RECOVERED;
-+		return MF_RECOVERED;
- 	else
--		return FAILED;
-+		return MF_FAILED;
- }
- 
- /*
-@@ -789,9 +755,9 @@ static int me_huge_page(struct page *p, unsigned long pfn)
- 	if (!(page_mapping(hpage) || PageAnon(hpage))) {
- 		res = dequeue_hwpoisoned_huge_page(hpage);
- 		if (!res)
--			return RECOVERED;
-+			return MF_RECOVERED;
- 	}
--	return DELAYED;
-+	return MF_DELAYED;
- }
- 
- /*
-@@ -823,10 +789,10 @@ static int me_huge_page(struct page *p, unsigned long pfn)
- static struct page_state {
- 	unsigned long mask;
- 	unsigned long res;
--	enum action_page_type type;
-+	enum mf_action_page_type type;
- 	int (*action)(struct page *p, unsigned long pfn);
- } error_states[] = {
--	{ reserved,	reserved,	MSG_KERNEL,	me_kernel },
-+	{ reserved,	reserved,	MF_MSG_KERNEL,	me_kernel },
- 	/*
- 	 * free pages are specially detected outside this table:
- 	 * PG_buddy pages only make a small fraction of all free pages.
-@@ -837,31 +803,31 @@ static struct page_state {
- 	 * currently unused objects without touching them. But just
- 	 * treat it as standard kernel for now.
- 	 */
--	{ slab,		slab,		MSG_SLAB,	me_kernel },
-+	{ slab,		slab,		MF_MSG_SLAB,	me_kernel },
- 
- #ifdef CONFIG_PAGEFLAGS_EXTENDED
--	{ head,		head,		MSG_HUGE,		me_huge_page },
--	{ tail,		tail,		MSG_HUGE,		me_huge_page },
-+	{ head,		head,		MF_MSG_HUGE,		me_huge_page },
-+	{ tail,		tail,		MF_MSG_HUGE,		me_huge_page },
- #else
--	{ compound,	compound,	MSG_HUGE,		me_huge_page },
-+	{ compound,	compound,	MF_MSG_HUGE,		me_huge_page },
- #endif
- 
--	{ sc|dirty,	sc|dirty,	MSG_DIRTY_SWAPCACHE,	me_swapcache_dirty },
--	{ sc|dirty,	sc,		MSG_CLEAN_SWAPCACHE,	me_swapcache_clean },
-+	{ sc|dirty,	sc|dirty,	MF_MSG_DIRTY_SWAPCACHE,	me_swapcache_dirty },
-+	{ sc|dirty,	sc,		MF_MSG_CLEAN_SWAPCACHE,	me_swapcache_clean },
- 
--	{ mlock|dirty,	mlock|dirty,	MSG_DIRTY_MLOCKED_LRU,	me_pagecache_dirty },
--	{ mlock|dirty,	mlock,		MSG_CLEAN_MLOCKED_LRU,	me_pagecache_clean },
-+	{ mlock|dirty,	mlock|dirty,	MF_MSG_DIRTY_MLOCKED_LRU,	me_pagecache_dirty },
-+	{ mlock|dirty,	mlock,		MF_MSG_CLEAN_MLOCKED_LRU,	me_pagecache_clean },
- 
--	{ unevict|dirty, unevict|dirty,	MSG_DIRTY_UNEVICTABLE_LRU,	me_pagecache_dirty },
--	{ unevict|dirty, unevict,	MSG_CLEAN_UNEVICTABLE_LRU,	me_pagecache_clean },
-+	{ unevict|dirty, unevict|dirty,	MF_MSG_DIRTY_UNEVICTABLE_LRU,	me_pagecache_dirty },
-+	{ unevict|dirty, unevict,	MF_MSG_CLEAN_UNEVICTABLE_LRU,	me_pagecache_clean },
- 
--	{ lru|dirty,	lru|dirty,	MSG_DIRTY_LRU,	me_pagecache_dirty },
--	{ lru|dirty,	lru,		MSG_CLEAN_LRU,	me_pagecache_clean },
-+	{ lru|dirty,	lru|dirty,	MF_MSG_DIRTY_LRU,	me_pagecache_dirty },
-+	{ lru|dirty,	lru,		MF_MSG_CLEAN_LRU,	me_pagecache_clean },
- 
- 	/*
- 	 * Catchall entry: must be at end.
- 	 */
--	{ 0,		0,		MSG_UNKNOWN,	me_unknown },
-+	{ 0,		0,		MF_MSG_UNKNOWN,	me_unknown },
- };
- 
- #undef dirty
-@@ -881,7 +847,7 @@ static struct page_state {
-  * "Dirty/Clean" indication is not 100% accurate due to the possibility of
-  * setting PG_dirty outside page lock. See also comment above set_page_dirty().
-  */
--static void action_result(unsigned long pfn, enum action_page_type type, int result)
-+static void action_result(unsigned long pfn, enum mf_action_page_type type, int result)
- {
- 	pr_err("MCE %#lx: recovery action for %s: %s\n",
- 		pfn, action_page_types[type], action_name[result]);
-@@ -896,13 +862,13 @@ static int page_action(struct page_state *ps, struct page *p,
- 	result = ps->action(p, pfn);
- 
- 	count = page_count(p) - 1;
--	if (ps->action == me_swapcache_dirty && result == DELAYED)
-+	if (ps->action == me_swapcache_dirty && result == MF_DELAYED)
- 		count--;
- 	if (count != 0) {
- 		printk(KERN_ERR
- 		       "MCE %#lx: %s still referenced by %d users\n",
- 		       pfn, action_page_types[ps->type], count);
--		result = FAILED;
-+		result = MF_FAILED;
- 	}
- 	action_result(pfn, ps->type, result);
- 
-@@ -911,7 +877,7 @@ static int page_action(struct page_state *ps, struct page *p,
- 	 * Could adjust zone counters here to correct for the missing page.
- 	 */
- 
--	return (result == RECOVERED || result == DELAYED) ? 0 : -EBUSY;
-+	return (result == MF_RECOVERED || result == MF_DELAYED) ? 0 : -EBUSY;
- }
- 
- /*
-@@ -1152,7 +1118,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 	if (!(flags & MF_COUNT_INCREASED) &&
- 		!get_page_unless_zero(hpage)) {
- 		if (is_free_buddy_page(p)) {
--			action_result(pfn, MSG_BUDDY, DELAYED);
-+			action_result(pfn, MF_MSG_BUDDY, MF_DELAYED);
- 			return 0;
- 		} else if (PageHuge(hpage)) {
- 			/*
-@@ -1169,12 +1135,12 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 			}
- 			set_page_hwpoison_huge_page(hpage);
- 			res = dequeue_hwpoisoned_huge_page(hpage);
--			action_result(pfn, MSG_FREE_HUGE,
--				      res ? IGNORED : DELAYED);
-+			action_result(pfn, MF_MSG_FREE_HUGE,
-+				      res ? MF_IGNORED : MF_DELAYED);
- 			unlock_page(hpage);
- 			return res;
- 		} else {
--			action_result(pfn, MSG_KERNEL_HIGH_ORDER, IGNORED);
-+			action_result(pfn, MF_MSG_KERNEL_HIGH_ORDER, MF_IGNORED);
- 			return -EBUSY;
- 		}
- 	}
-@@ -1196,10 +1162,10 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 			 */
- 			if (is_free_buddy_page(p)) {
- 				if (flags & MF_COUNT_INCREASED)
--					action_result(pfn, MSG_BUDDY, DELAYED);
-+					action_result(pfn, MF_MSG_BUDDY, MF_DELAYED);
- 				else
--					action_result(pfn, MSG_BUDDY_2ND,
--						      DELAYED);
-+					action_result(pfn, MF_MSG_BUDDY_2ND,
-+						      MF_DELAYED);
- 				return 0;
- 			}
- 		}
-@@ -1212,7 +1178,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 	 * If this happens just bail out.
- 	 */
- 	if (compound_head(p) != hpage) {
--		action_result(pfn, MSG_DIFFERENT_COMPOUND, IGNORED);
-+		action_result(pfn, MF_MSG_DIFFERENT_COMPOUND, MF_IGNORED);
- 		res = -EBUSY;
- 		goto out;
- 	}
-@@ -1252,7 +1218,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 	 * on the head page to show that the hugepage is hwpoisoned
- 	 */
- 	if (PageHuge(p) && PageTail(p) && TestSetPageHWPoison(hpage)) {
--		action_result(pfn, MSG_POISONED_HUGE, IGNORED);
-+		action_result(pfn, MF_MSG_POISONED_HUGE, MF_IGNORED);
- 		unlock_page(hpage);
- 		put_page(hpage);
- 		return 0;
-@@ -1281,7 +1247,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 	 */
- 	if (hwpoison_user_mappings(p, pfn, trapno, flags, &hpage)
- 	    != SWAP_SUCCESS) {
--		action_result(pfn, MSG_UNMAP_FAILED, IGNORED);
-+		action_result(pfn, MF_MSG_UNMAP_FAILED, MF_IGNORED);
- 		res = -EBUSY;
- 		goto out;
- 	}
-@@ -1290,7 +1256,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 	 * Torn down by someone else?
- 	 */
- 	if (PageLRU(p) && !PageSwapCache(p) && p->mapping == NULL) {
--		action_result(pfn, MSG_TRUNCATED_LRU, IGNORED);
-+		action_result(pfn, MF_MSG_TRUNCATED_LRU, MF_IGNORED);
- 		res = -EBUSY;
- 		goto out;
- 	}
 -- 
 1.7.1
 
