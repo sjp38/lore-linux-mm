@@ -1,59 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
-	by kanga.kvack.org (Postfix) with ESMTP id AFA74829C8
-	for <linux-mm@kvack.org>; Fri, 22 May 2015 14:31:31 -0400 (EDT)
-Received: by qkgv12 with SMTP id v12so18565524qkg.0
-        for <linux-mm@kvack.org>; Fri, 22 May 2015 11:31:31 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 107si3214898qge.122.2015.05.22.11.31.30
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id A742C829A8
+	for <linux-mm@kvack.org>; Fri, 22 May 2015 16:18:24 -0400 (EDT)
+Received: by pdfh10 with SMTP id h10so27428773pdf.3
+        for <linux-mm@kvack.org>; Fri, 22 May 2015 13:18:24 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id tt6si4914574pac.36.2015.05.22.13.18.23
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 May 2015 11:31:31 -0700 (PDT)
-Date: Fri, 22 May 2015 20:30:42 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 3/7] memcg: immigrate charges only when a threadgroup
-	leader is moved
-Message-ID: <20150522183042.GF26770@redhat.com>
-References: <20150519121321.GB6203@dhcp22.suse.cz> <20150519212754.GO24861@htj.duckdns.org> <20150520131044.GA28678@dhcp22.suse.cz> <20150520132158.GB28678@dhcp22.suse.cz> <20150520175302.GA7287@redhat.com> <20150520202221.GD14256@dhcp22.suse.cz> <20150521192716.GA21304@redhat.com> <20150522093639.GE5109@dhcp22.suse.cz> <20150522162900.GA8955@redhat.com> <20150522165734.GH5109@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150522165734.GH5109@dhcp22.suse.cz>
+        Fri, 22 May 2015 13:18:23 -0700 (PDT)
+Date: Fri, 22 May 2015 13:18:22 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 22/23] userfaultfd: avoid mmap_sem read recursion in
+ mcopy_atomic
+Message-Id: <20150522131822.74f374dd5a75a0285577c714@linux-foundation.org>
+In-Reply-To: <1431624680-20153-23-git-send-email-aarcange@redhat.com>
+References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+	<1431624680-20153-23-git-send-email-aarcange@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Tejun Heo <tj@kernel.org>, lizefan@huawei.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-On 05/22, Michal Hocko wrote:
+On Thu, 14 May 2015 19:31:19 +0200 Andrea Arcangeli <aarcange@redhat.com> wrote:
+
+> If the rwsem starves writers it wasn't strictly a bug but lockdep
+> doesn't like it and this avoids depending on lowlevel implementation
+> details of the lock.
+> 
+> ...
 >
-> On Fri 22-05-15 18:29:00, Oleg Nesterov wrote:
-> >
-> > In the likely case (if CLONE_VM without CLONE_THREAD was not used) the
-> > last for_each_process() in mm_update_next_owner() will find another thread
-> > from the same group.
->
-> My understanding was that for_each_process will iterate only over
-> processes (represented by the thread group leaders).
+> @@ -229,13 +246,33 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+>  
+>  		if (!zeropage)
+>  			err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
+> -					       dst_addr, src_addr);
+> +					       dst_addr, src_addr, &page);
+>  		else
+>  			err = mfill_zeropage_pte(dst_mm, dst_pmd, dst_vma,
+>  						 dst_addr);
+>  
+>  		cond_resched();
+>  
+> +		if (unlikely(err == -EFAULT)) {
+> +			void *page_kaddr;
+> +
+> +			BUILD_BUG_ON(zeropage);
 
-Yes. But note the inner for_each_thread() loop. And note that we
-we need this loop exactly because the leader can be zombie.
+I'm not sure what this is trying to do.  BUILD_BUG_ON(local_variable)?
 
-> How would we get
-> !group_leader from p->{real_parent->}sibling
+It goes bang in my build.  I'll just delete it.
 
-As for children/siblings we can't get !group_leader, yes. And this is
-actually not right ;) See the (self-nacked) 2/3 I just sent.
-
-> > Oh. I think mm_update_next_owner() needs some cleanups. Perhaps I'll send
-> > the patch today.
->
-> Please hold on, I have a patch to get rid of the owner altogether. I
-> will post it sometimes next week. Let's see whether this is a viable
-> option. If not then we can clean this up.
-
-Great. Please ignore 1-3 I already sent.
-
-Oleg.
+> +			up_read(&dst_mm->mmap_sem);
+> +			BUG_ON(!page);
+> +
+> +			page_kaddr = kmap(page);
+> +			err = copy_from_user(page_kaddr,
+> +					     (const void __user *) src_addr,
+> +					     PAGE_SIZE);
+> +			kunmap(page);
+> +			if (unlikely(err)) {
+> +				err = -EFAULT;
+> +				goto out;
+> +			}
+> +			goto retry;
+> +		} else
+> +			BUG_ON(page);
+> +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
