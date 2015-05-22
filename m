@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EF1282997
-	for <linux-mm@kvack.org>; Fri, 22 May 2015 03:01:34 -0400 (EDT)
-Received: by wgbgq6 with SMTP id gq6so8650038wgb.3
-        for <linux-mm@kvack.org>; Fri, 22 May 2015 00:01:33 -0700 (PDT)
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 09BD382997
+	for <linux-mm@kvack.org>; Fri, 22 May 2015 03:02:38 -0400 (EDT)
+Received: by wibt6 with SMTP id t6so37141582wib.0
+        for <linux-mm@kvack.org>; Fri, 22 May 2015 00:02:37 -0700 (PDT)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id fk5si5930059wib.21.2015.05.22.00.01.32
+        by mx.google.com with ESMTPS id bo1si2205548wjb.27.2015.05.22.00.02.36
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 22 May 2015 00:01:32 -0700 (PDT)
-Date: Fri, 22 May 2015 09:01:34 +0200 (CEST)
+        Fri, 22 May 2015 00:02:36 -0700 (PDT)
+Date: Fri, 22 May 2015 09:02:39 +0200 (CEST)
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v9 2/10] x86, mm, pat: Change reserve_memtype() for WT
-In-Reply-To: <1431551151-19124-3-git-send-email-toshi.kani@hp.com>
-Message-ID: <alpine.DEB.2.11.1505220901210.5457@nanos>
-References: <1431551151-19124-1-git-send-email-toshi.kani@hp.com> <1431551151-19124-3-git-send-email-toshi.kani@hp.com>
+Subject: Re: [PATCH v9 3/10] x86, asm: Change is_new_memtype_allowed() for
+ WT
+In-Reply-To: <1431551151-19124-4-git-send-email-toshi.kani@hp.com>
+Message-ID: <alpine.DEB.2.11.1505220901380.5457@nanos>
+References: <1431551151-19124-1-git-send-email-toshi.kani@hp.com> <1431551151-19124-4-git-send-email-toshi.kani@hp.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -24,17 +25,19 @@ Cc: hpa@zytor.com, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, l
 
 On Wed, 13 May 2015, Toshi Kani wrote:
 
-> This patch changes reserve_memtype() to support the WT cache mode
-> with PAT.  When PAT is not enabled, WB and UC- are the only types
-> supported.
+> __ioremap_caller() calls reserve_memtype() to set new_pcm
+> (existing map type if any), and then calls
+> is_new_memtype_allowed() to verify if converting to new_pcm
+> is allowed when pcm (request type) is different from new_pcm.
 > 
-> When a target range is in RAM, reserve_ram_pages_type() verifies
-> the requested type.  reserve_ram_pages_type() is changed to fail
-> WT and WP requests with -EINVAL since set_page_memtype() is
-> limited to handle three types, WB, WC and UC-.
+> When WT is requested, the caller expects that writes are
+> ordered and uncached.  Therefore, this patch changes
+> is_new_memtype_allowed() to disallow the following cases.
+> 
+>  - If the request is WT, mapping type cannot be WB
+>  - If the request is WT, mapping type cannot be WC
 > 
 > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-> Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 
