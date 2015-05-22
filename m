@@ -1,39 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id D4927829CE
-	for <linux-mm@kvack.org>; Fri, 22 May 2015 17:18:32 -0400 (EDT)
-Received: by paza2 with SMTP id a2so19564826paz.3
-        for <linux-mm@kvack.org>; Fri, 22 May 2015 14:18:32 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id mo9si5093138pbc.22.2015.05.22.14.18.31
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A2A3829CE
+	for <linux-mm@kvack.org>; Fri, 22 May 2015 17:44:03 -0400 (EDT)
+Received: by wgfl8 with SMTP id l8so28846535wgf.2
+        for <linux-mm@kvack.org>; Fri, 22 May 2015 14:44:03 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l17si93047wiv.77.2015.05.22.14.44.01
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 May 2015 14:18:32 -0700 (PDT)
-Date: Fri, 22 May 2015 14:18:30 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 22/23] userfaultfd: avoid mmap_sem read recursion in
- mcopy_atomic
-Message-Id: <20150522141830.f969b285ad072a23bb28f196@linux-foundation.org>
-In-Reply-To: <20150522204809.GB4251@redhat.com>
-References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
-	<1431624680-20153-23-git-send-email-aarcange@redhat.com>
-	<20150522131822.74f374dd5a75a0285577c714@linux-foundation.org>
-	<20150522204809.GB4251@redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 22 May 2015 14:44:01 -0700 (PDT)
+Message-ID: <1432331020.2185.8.camel@stgolabs.net>
+Subject: Re: [PATCH] mm: meminit: Finish initialisation of struct pages
+ before basic setup
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Fri, 22 May 2015 14:43:40 -0700
+In-Reply-To: <555F6404.4010905@hp.com>
+References: <1431597783.26797.1@cpanel21.proisp.no>
+	 <1432276201.11133.1@cpanel21.proisp.no> <20150522093313.GZ2462@suse.de>
+	 <555F6404.4010905@hp.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
+To: Waiman Long <waiman.long@hp.com>
+Cc: Mel Gorman <mgorman@suse.de>, Daniel J Blueman <daniel@numascale.com>, Andrew Morton <akpm@linux-foundation.org>, nzimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Steffen Persvold <sp@numascale.com>
 
+On Fri, 2015-05-22 at 13:14 -0400, Waiman Long wrote:
+> I think the non-temporal patch benefits mainly AMD systems. I have tried 
+> the patch on both DragonHawk and it actually made it boot up a little 
+> bit slower. I think the Intel optimized "rep stosb" instruction (used in 
+> memset) is performing well. I had done similar test on zero page code 
+> and the performance gain was non-conclusive.
 
-There's a more serious failure with i386 allmodconfig:
+fwiw I did some experiments with similar conclusions a while ago
+(inconclusive with intel hw, maybe it was even the same machine ;)
+Now, this was for optimizing clear_hugepage by using movnti, but I never
+got to run it on an AMD box.
 
-fs/userfaultfd.c:145:2: note: in expansion of macro 'BUILD_BUG_ON'
-  BUILD_BUG_ON(sizeof(struct uffd_msg) != 32);
-
-I'm surprised the feature is even reachable on i386 builds?
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
