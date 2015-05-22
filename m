@@ -1,82 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E6733829A8
-	for <linux-mm@kvack.org>; Fri, 22 May 2015 12:57:37 -0400 (EDT)
-Received: by wichy4 with SMTP id hy4so53500423wic.1
-        for <linux-mm@kvack.org>; Fri, 22 May 2015 09:57:37 -0700 (PDT)
-Received: from mail-wg0-x230.google.com (mail-wg0-x230.google.com. [2a00:1450:400c:c00::230])
-        by mx.google.com with ESMTPS id x4si4671541wjr.105.2015.05.22.09.57.35
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DEC0829A8
+	for <linux-mm@kvack.org>; Fri, 22 May 2015 13:01:38 -0400 (EDT)
+Received: by wizk4 with SMTP id k4so53684889wiz.1
+        for <linux-mm@kvack.org>; Fri, 22 May 2015 10:01:38 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id wd8si4671037wjc.143.2015.05.22.10.01.36
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 May 2015 09:57:36 -0700 (PDT)
-Received: by wgfl8 with SMTP id l8so23355042wgf.2
-        for <linux-mm@kvack.org>; Fri, 22 May 2015 09:57:35 -0700 (PDT)
-Date: Fri, 22 May 2015 18:57:34 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/7] memcg: immigrate charges only when a threadgroup
- leader is moved
-Message-ID: <20150522165734.GH5109@dhcp22.suse.cz>
-References: <1431978595-12176-4-git-send-email-tj@kernel.org>
- <20150519121321.GB6203@dhcp22.suse.cz>
- <20150519212754.GO24861@htj.duckdns.org>
- <20150520131044.GA28678@dhcp22.suse.cz>
- <20150520132158.GB28678@dhcp22.suse.cz>
- <20150520175302.GA7287@redhat.com>
- <20150520202221.GD14256@dhcp22.suse.cz>
- <20150521192716.GA21304@redhat.com>
- <20150522093639.GE5109@dhcp22.suse.cz>
- <20150522162900.GA8955@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150522162900.GA8955@redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 22 May 2015 10:01:36 -0700 (PDT)
+Message-ID: <1432314077.2185.4.camel@stgolabs.net>
+Subject: Re: [RFC v3 PATCH 04/10] mm/hugetlb: expose hugetlb fault mutex for
+ use by fallocate
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Fri, 22 May 2015 10:01:17 -0700
+In-Reply-To: <1432223264-4414-5-git-send-email-mike.kravetz@oracle.com>
+References: <1432223264-4414-1-git-send-email-mike.kravetz@oracle.com>
+	 <1432223264-4414-5-git-send-email-mike.kravetz@oracle.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Tejun Heo <tj@kernel.org>, lizefan@huawei.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>
 
-On Fri 22-05-15 18:29:00, Oleg Nesterov wrote:
-> On 05/22, Michal Hocko wrote:
-> >
-> > On Thu 21-05-15 21:27:16, Oleg Nesterov wrote:
-> > > On 05/20, Michal Hocko wrote:
-> > > >
-> > > > On Wed 20-05-15 19:53:02, Oleg Nesterov wrote:
-> > > > >
-> > > > > Yes, yes, the group leader can't go away until the whole thread-group dies.
-> > > >
-> > > > OK, then we should have a guarantee that mm->owner is always thread
-> > > > group leader, right?
-> > >
-> > > No, please note that the exiting leader does exit_mm()->mm_update_next_owner()
-> > > and this changes mm->owner.
-> >
-> > I am confused now. Yeah it changes the owner but the new one will be
-> > again the thread group leader, right?
-> 
-> Why?
-> 
-> In the likely case (if CLONE_VM without CLONE_THREAD was not used) the
-> last for_each_process() in mm_update_next_owner() will find another thread
-> from the same group.
+On Thu, 2015-05-21 at 08:47 -0700, Mike Kravetz wrote:
+> +/*
+> + * Interfaces to the fault mutex routines for use by hugetlbfs
+> + * fallocate code.  Faults must be synchronized with page adds or
+> + * deletes by fallocate.  fallocate only deals with shared mappings.
+> + */
+> +u32 hugetlb_fault_mutex_shared_hash(struct address_space *mapping, pgoff_t idx)
+> +{
+> +	return fault_mutex_hash(NULL, NULL, NULL, mapping, idx, 0);
+> +}
+> +
+> +void hugetlb_fault_mutex_lock(u32 hash)
+> +{
+> +	mutex_lock(&htlb_fault_mutex_table[hash]);
+> +}
+> +
+> +void hugetlb_fault_mutex_unlock(u32 hash)
+> +{
+> +	mutex_unlock(&htlb_fault_mutex_table[hash]);
+> +}+
 
-My understanding was that for_each_process will iterate only over
-processes (represented by the thread group leaders). That was the reason
-I was asking about thread group leader exiting before other threads.
-I am sorry to ask again, but let me ask again. How would we get
-!group_leader from p->{real_parent->}sibling or from for_each_process?
+These should really be inlined -- maybe add them to hugetlb.h along with
+the mutex hashtable bits.
 
-> Oh. I think mm_update_next_owner() needs some cleanups. Perhaps I'll send
-> the patch today.
-
-Please hold on, I have a patch to get rid of the owner altogether. I
-will post it sometimes next week. Let's see whether this is a viable
-option. If not then we can clean this up.
-
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
