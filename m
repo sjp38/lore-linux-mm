@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id C6CDA829CE
-	for <linux-mm@kvack.org>; Fri, 22 May 2015 17:15:02 -0400 (EDT)
-Received: by qget53 with SMTP id t53so16184927qge.3
-        for <linux-mm@kvack.org>; Fri, 22 May 2015 14:15:02 -0700 (PDT)
-Received: from mail-qg0-x22d.google.com (mail-qg0-x22d.google.com. [2607:f8b0:400d:c04::22d])
-        by mx.google.com with ESMTPS id h76si3676775qgd.108.2015.05.22.14.15.02
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id A1F5D829CE
+	for <linux-mm@kvack.org>; Fri, 22 May 2015 17:15:04 -0400 (EDT)
+Received: by qget53 with SMTP id t53so16185390qge.3
+        for <linux-mm@kvack.org>; Fri, 22 May 2015 14:15:04 -0700 (PDT)
+Received: from mail-qk0-x22f.google.com (mail-qk0-x22f.google.com. [2607:f8b0:400d:c09::22f])
+        by mx.google.com with ESMTPS id f8si281802qkh.5.2015.05.22.14.15.03
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 May 2015 14:15:02 -0700 (PDT)
-Received: by qgez61 with SMTP id z61so16254431qge.1
-        for <linux-mm@kvack.org>; Fri, 22 May 2015 14:15:01 -0700 (PDT)
+        Fri, 22 May 2015 14:15:04 -0700 (PDT)
+Received: by qkgv12 with SMTP id v12so22226743qkg.0
+        for <linux-mm@kvack.org>; Fri, 22 May 2015 14:15:03 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 24/51] writeback, blkcg: associate each blkcg_gq with the corresponding bdi_writeback_congested
-Date: Fri, 22 May 2015 17:13:38 -0400
-Message-Id: <1432329245-5844-25-git-send-email-tj@kernel.org>
+Subject: [PATCH 25/51] writeback: attribute stats to the matching per-cgroup bdi_writeback
+Date: Fri, 22 May 2015 17:13:39 -0400
+Message-Id: <1432329245-5844-26-git-send-email-tj@kernel.org>
 In-Reply-To: <1432329245-5844-1-git-send-email-tj@kernel.org>
 References: <1432329245-5844-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,106 +22,102 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
 Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru, Tejun Heo <tj@kernel.org>
 
-A blkg (blkcg_gq) can be congested and decongested independently from
-other blkgs on the same request_queue.  Accordingly, for cgroup
-writeback support, the congestion status at bdi (backing_dev_info)
-should be split and updated separately from matching blkg's.
+Until now, all WB_* stats were accounted against the root wb
+(bdi_writeback), now that multiple wb (bdi_writeback) support is in
+place, let's attributes the stats to the respective per-cgroup wb's.
 
-This patch prepares by adding blkg->wb_congested and associating a
-blkg with its matching per-blkcg bdi_writeback_congested on creation.
+As no filesystem has FS_CGROUP_WRITEBACK yet, this doesn't lead to
+visible behavior differences.
 
-v2: Updated to associate bdi_writeback_congested instead of
-    bdi_writeback.
+v2: Updated for per-inode wb association.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 Cc: Jens Axboe <axboe@kernel.dk>
 Cc: Jan Kara <jack@suse.cz>
-Cc: Vivek Goyal <vgoyal@redhat.com>
 ---
- block/blk-cgroup.c         | 17 +++++++++++++++--
- include/linux/blk-cgroup.h |  6 ++++++
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ mm/page-writeback.c | 24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)
 
-diff --git a/block/blk-cgroup.c b/block/blk-cgroup.c
-index 979cfdb..31610ae 100644
---- a/block/blk-cgroup.c
-+++ b/block/blk-cgroup.c
-@@ -182,6 +182,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
- 				    struct blkcg_gq *new_blkg)
- {
- 	struct blkcg_gq *blkg;
-+	struct bdi_writeback_congested *wb_congested;
- 	int i, ret;
- 
- 	WARN_ON_ONCE(!rcu_read_lock_held());
-@@ -193,22 +194,30 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
- 		goto err_free_blkg;
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 9b95cf8..4d0a9da 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2130,7 +2130,7 @@ void account_page_cleaned(struct page *page, struct address_space *mapping,
+ 	if (mapping_cap_account_dirty(mapping)) {
+ 		mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_DIRTY);
+ 		dec_zone_page_state(page, NR_FILE_DIRTY);
+-		dec_wb_stat(&inode_to_bdi(mapping->host)->wb, WB_RECLAIMABLE);
++		dec_wb_stat(inode_to_wb(mapping->host), WB_RECLAIMABLE);
+ 		task_io_account_cancelled_write(PAGE_CACHE_SIZE);
  	}
- 
-+	wb_congested = wb_congested_get_create(&q->backing_dev_info,
-+					       blkcg->css.id, GFP_ATOMIC);
-+	if (!wb_congested) {
-+		ret = -ENOMEM;
-+		goto err_put_css;
-+	}
-+
- 	/* allocate */
- 	if (!new_blkg) {
- 		new_blkg = blkg_alloc(blkcg, q, GFP_ATOMIC);
- 		if (unlikely(!new_blkg)) {
- 			ret = -ENOMEM;
--			goto err_put_css;
-+			goto err_put_congested;
- 		}
- 	}
- 	blkg = new_blkg;
-+	blkg->wb_congested = wb_congested;
- 
- 	/* link parent */
- 	if (blkcg_parent(blkcg)) {
- 		blkg->parent = __blkg_lookup(blkcg_parent(blkcg), q, false);
- 		if (WARN_ON_ONCE(!blkg->parent)) {
- 			ret = -EINVAL;
--			goto err_put_css;
-+			goto err_put_congested;
- 		}
- 		blkg_get(blkg->parent);
- 	}
-@@ -245,6 +254,8 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
- 	blkg_put(blkg);
- 	return ERR_PTR(ret);
- 
-+err_put_congested:
-+	wb_congested_put(wb_congested);
- err_put_css:
- 	css_put(&blkcg->css);
- err_free_blkg:
-@@ -391,6 +402,8 @@ void __blkg_release_rcu(struct rcu_head *rcu_head)
- 	if (blkg->parent)
- 		blkg_put(blkg->parent);
- 
-+	wb_congested_put(blkg->wb_congested);
-+
- 	blkg_free(blkg);
  }
- EXPORT_SYMBOL_GPL(__blkg_release_rcu);
-diff --git a/include/linux/blk-cgroup.h b/include/linux/blk-cgroup.h
-index 3033eb1..07a32b8 100644
---- a/include/linux/blk-cgroup.h
-+++ b/include/linux/blk-cgroup.h
-@@ -99,6 +99,12 @@ struct blkcg_gq {
- 	struct hlist_node		blkcg_node;
- 	struct blkcg			*blkcg;
- 
-+	/*
-+	 * Each blkg gets congested separately and the congestion state is
-+	 * propagated to the matching bdi_writeback_congested.
-+	 */
-+	struct bdi_writeback_congested	*wb_congested;
+@@ -2191,10 +2191,13 @@ EXPORT_SYMBOL(__set_page_dirty_nobuffers);
+ void account_page_redirty(struct page *page)
+ {
+ 	struct address_space *mapping = page->mapping;
 +
- 	/* all non-root blkcg_gq's are guaranteed to have access to parent */
- 	struct blkcg_gq			*parent;
+ 	if (mapping && mapping_cap_account_dirty(mapping)) {
++		struct bdi_writeback *wb = inode_to_wb(mapping->host);
++
+ 		current->nr_dirtied--;
+ 		dec_zone_page_state(page, NR_DIRTIED);
+-		dec_wb_stat(&inode_to_bdi(mapping->host)->wb, WB_DIRTIED);
++		dec_wb_stat(wb, WB_DIRTIED);
+ 	}
+ }
+ EXPORT_SYMBOL(account_page_redirty);
+@@ -2373,8 +2376,7 @@ int clear_page_dirty_for_io(struct page *page)
+ 		if (TestClearPageDirty(page)) {
+ 			mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_DIRTY);
+ 			dec_zone_page_state(page, NR_FILE_DIRTY);
+-			dec_wb_stat(&inode_to_bdi(mapping->host)->wb,
+-				    WB_RECLAIMABLE);
++			dec_wb_stat(inode_to_wb(mapping->host), WB_RECLAIMABLE);
+ 			ret = 1;
+ 		}
+ 		mem_cgroup_end_page_stat(memcg);
+@@ -2392,7 +2394,8 @@ int test_clear_page_writeback(struct page *page)
  
+ 	memcg = mem_cgroup_begin_page_stat(page);
+ 	if (mapping) {
+-		struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
++		struct inode *inode = mapping->host;
++		struct backing_dev_info *bdi = inode_to_bdi(inode);
+ 		unsigned long flags;
+ 
+ 		spin_lock_irqsave(&mapping->tree_lock, flags);
+@@ -2402,8 +2405,10 @@ int test_clear_page_writeback(struct page *page)
+ 						page_index(page),
+ 						PAGECACHE_TAG_WRITEBACK);
+ 			if (bdi_cap_account_writeback(bdi)) {
+-				__dec_wb_stat(&bdi->wb, WB_WRITEBACK);
+-				__wb_writeout_inc(&bdi->wb);
++				struct bdi_writeback *wb = inode_to_wb(inode);
++
++				__dec_wb_stat(wb, WB_WRITEBACK);
++				__wb_writeout_inc(wb);
+ 			}
+ 		}
+ 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+@@ -2427,7 +2432,8 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
+ 
+ 	memcg = mem_cgroup_begin_page_stat(page);
+ 	if (mapping) {
+-		struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
++		struct inode *inode = mapping->host;
++		struct backing_dev_info *bdi = inode_to_bdi(inode);
+ 		unsigned long flags;
+ 
+ 		spin_lock_irqsave(&mapping->tree_lock, flags);
+@@ -2437,7 +2443,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
+ 						page_index(page),
+ 						PAGECACHE_TAG_WRITEBACK);
+ 			if (bdi_cap_account_writeback(bdi))
+-				__inc_wb_stat(&bdi->wb, WB_WRITEBACK);
++				__inc_wb_stat(inode_to_wb(inode), WB_WRITEBACK);
+ 		}
+ 		if (!PageDirty(page))
+ 			radix_tree_tag_clear(&mapping->page_tree,
 -- 
 2.4.0
 
