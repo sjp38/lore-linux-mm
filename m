@@ -1,57 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
-	by kanga.kvack.org (Postfix) with ESMTP id BB270829CE
-	for <linux-mm@kvack.org>; Fri, 22 May 2015 17:15:58 -0400 (EDT)
-Received: by qkx62 with SMTP id 62so22162440qkx.3
-        for <linux-mm@kvack.org>; Fri, 22 May 2015 14:15:58 -0700 (PDT)
-Received: from mail-qg0-x22c.google.com (mail-qg0-x22c.google.com. [2607:f8b0:400d:c04::22c])
-        by mx.google.com with ESMTPS id l5si3691134qkh.99.2015.05.22.14.15.57
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id D4927829CE
+	for <linux-mm@kvack.org>; Fri, 22 May 2015 17:18:32 -0400 (EDT)
+Received: by paza2 with SMTP id a2so19564826paz.3
+        for <linux-mm@kvack.org>; Fri, 22 May 2015 14:18:32 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id mo9si5093138pbc.22.2015.05.22.14.18.31
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 May 2015 14:15:58 -0700 (PDT)
-Received: by qgez61 with SMTP id z61so16267873qge.1
-        for <linux-mm@kvack.org>; Fri, 22 May 2015 14:15:57 -0700 (PDT)
-From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 51/51] ext2: enable cgroup writeback support
-Date: Fri, 22 May 2015 17:14:05 -0400
-Message-Id: <1432329245-5844-52-git-send-email-tj@kernel.org>
-In-Reply-To: <1432329245-5844-1-git-send-email-tj@kernel.org>
-References: <1432329245-5844-1-git-send-email-tj@kernel.org>
+        Fri, 22 May 2015 14:18:32 -0700 (PDT)
+Date: Fri, 22 May 2015 14:18:30 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 22/23] userfaultfd: avoid mmap_sem read recursion in
+ mcopy_atomic
+Message-Id: <20150522141830.f969b285ad072a23bb28f196@linux-foundation.org>
+In-Reply-To: <20150522204809.GB4251@redhat.com>
+References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+	<1431624680-20153-23-git-send-email-aarcange@redhat.com>
+	<20150522131822.74f374dd5a75a0285577c714@linux-foundation.org>
+	<20150522204809.GB4251@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: axboe@kernel.dk
-Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru, Tejun Heo <tj@kernel.org>, linux-ext4@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-Writeback now supports cgroup writeback and the generic writeback,
-buffer, libfs, and mpage helpers that ext2 uses are all updated to
-work with cgroup writeback.
 
-This patch enables cgroup writeback for ext2 by adding
-FS_CGROUP_WRITEBACK to its ->fs_flags.
+There's a more serious failure with i386 allmodconfig:
 
-Signed-off-by: Tejun Heo <tj@kernel.org>
-Cc: Jens Axboe <axboe@kernel.dk>
-Cc: Jan Kara <jack@suse.cz>
-Cc: linux-ext4@vger.kernel.org
----
- fs/ext2/super.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+fs/userfaultfd.c:145:2: note: in expansion of macro 'BUILD_BUG_ON'
+  BUILD_BUG_ON(sizeof(struct uffd_msg) != 32);
 
-diff --git a/fs/ext2/super.c b/fs/ext2/super.c
-index d0e746e..549219d 100644
---- a/fs/ext2/super.c
-+++ b/fs/ext2/super.c
-@@ -1543,7 +1543,7 @@ static struct file_system_type ext2_fs_type = {
- 	.name		= "ext2",
- 	.mount		= ext2_mount,
- 	.kill_sb	= kill_block_super,
--	.fs_flags	= FS_REQUIRES_DEV,
-+	.fs_flags	= FS_REQUIRES_DEV | FS_CGROUP_WRITEBACK,
- };
- MODULE_ALIAS_FS("ext2");
- 
--- 
-2.4.0
+I'm surprised the feature is even reachable on i386 builds?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
