@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id A0726829CE
-	for <linux-mm@kvack.org>; Fri, 22 May 2015 17:15:27 -0400 (EDT)
-Received: by qkgv12 with SMTP id v12so22234469qkg.0
-        for <linux-mm@kvack.org>; Fri, 22 May 2015 14:15:27 -0700 (PDT)
-Received: from mail-qg0-x22a.google.com (mail-qg0-x22a.google.com. [2607:f8b0:400d:c04::22a])
-        by mx.google.com with ESMTPS id e109si1947609qgf.118.2015.05.22.14.15.26
+Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com [209.85.220.180])
+	by kanga.kvack.org (Postfix) with ESMTP id AB974829CE
+	for <linux-mm@kvack.org>; Fri, 22 May 2015 17:15:29 -0400 (EDT)
+Received: by qkdn188 with SMTP id n188so22251737qkd.2
+        for <linux-mm@kvack.org>; Fri, 22 May 2015 14:15:29 -0700 (PDT)
+Received: from mail-qg0-x236.google.com (mail-qg0-x236.google.com. [2607:f8b0:400d:c04::236])
+        by mx.google.com with ESMTPS id b5si3691819qkh.96.2015.05.22.14.15.28
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 May 2015 14:15:27 -0700 (PDT)
-Received: by qget53 with SMTP id t53so16190737qge.3
-        for <linux-mm@kvack.org>; Fri, 22 May 2015 14:15:26 -0700 (PDT)
+        Fri, 22 May 2015 14:15:29 -0700 (PDT)
+Received: by qgez61 with SMTP id z61so16261036qge.1
+        for <linux-mm@kvack.org>; Fri, 22 May 2015 14:15:28 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 36/51] writeback: implement bdi_for_each_wb()
-Date: Fri, 22 May 2015 17:13:50 -0400
-Message-Id: <1432329245-5844-37-git-send-email-tj@kernel.org>
+Subject: [PATCH 37/51] writeback: remove bdi_start_writeback()
+Date: Fri, 22 May 2015 17:13:51 -0400
+Message-Id: <1432329245-5844-38-git-send-email-tj@kernel.org>
 In-Reply-To: <1432329245-5844-1-git-send-email-tj@kernel.org>
 References: <1432329245-5844-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,97 +22,148 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
 Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru, Tejun Heo <tj@kernel.org>
 
-This will be used to implement bdi-wide operations which should be
-distributed across all its cgroup bdi_writebacks.
+bdi_start_writeback() is a thin wrapper on top of
+__wb_start_writeback() which is used only by laptop_mode_timer_fn().
+This patches removes bdi_start_writeback(), renames
+__wb_start_writeback() to wb_start_writeback() and makes
+laptop_mode_timer_fn() use it instead.
+
+This doesn't cause any functional difference and will ease making
+laptop_mode_timer_fn() cgroup writeback aware.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 Cc: Jens Axboe <axboe@kernel.dk>
 Cc: Jan Kara <jack@suse.cz>
 ---
- include/linux/backing-dev.h | 63 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 63 insertions(+)
+ fs/fs-writeback.c           | 68 +++++++++++++++++----------------------------
+ include/linux/backing-dev.h |  4 +--
+ mm/page-writeback.c         |  4 +--
+ 3 files changed, 29 insertions(+), 47 deletions(-)
 
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index 0839e44..c797980 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -383,6 +383,61 @@ static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
- 	return inode->i_wb;
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 921a9e4..79f11af 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -184,33 +184,6 @@ static void wb_queue_work(struct bdi_writeback *wb,
+ 	spin_unlock_bh(&wb->work_lock);
  }
  
-+struct wb_iter {
-+	int			start_blkcg_id;
-+	struct radix_tree_iter	tree_iter;
-+	void			**slot;
-+};
+-static void __wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
+-				 bool range_cyclic, enum wb_reason reason)
+-{
+-	struct wb_writeback_work *work;
+-
+-	if (!wb_has_dirty_io(wb))
+-		return;
+-
+-	/*
+-	 * This is WB_SYNC_NONE writeback, so if allocation fails just
+-	 * wakeup the thread for old dirty data writeback
+-	 */
+-	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+-	if (!work) {
+-		trace_writeback_nowork(wb->bdi);
+-		wb_wakeup(wb);
+-		return;
+-	}
+-
+-	work->sync_mode	= WB_SYNC_NONE;
+-	work->nr_pages	= nr_pages;
+-	work->range_cyclic = range_cyclic;
+-	work->reason	= reason;
+-
+-	wb_queue_work(wb, work);
+-}
+-
+ #ifdef CONFIG_CGROUP_WRITEBACK
+ 
+ /**
+@@ -240,22 +213,31 @@ EXPORT_SYMBOL_GPL(inode_congested);
+ 
+ #endif	/* CONFIG_CGROUP_WRITEBACK */
+ 
+-/**
+- * bdi_start_writeback - start writeback
+- * @bdi: the backing device to write from
+- * @nr_pages: the number of pages to write
+- * @reason: reason why some writeback work was initiated
+- *
+- * Description:
+- *   This does WB_SYNC_NONE opportunistic writeback. The IO is only
+- *   started when this function returns, we make no guarantees on
+- *   completion. Caller need not hold sb s_umount semaphore.
+- *
+- */
+-void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
+-			enum wb_reason reason)
++void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
++			bool range_cyclic, enum wb_reason reason)
+ {
+-	__wb_start_writeback(&bdi->wb, nr_pages, true, reason);
++	struct wb_writeback_work *work;
 +
-+static inline struct bdi_writeback *__wb_iter_next(struct wb_iter *iter,
-+						   struct backing_dev_info *bdi)
-+{
-+	struct radix_tree_iter *titer = &iter->tree_iter;
++	if (!wb_has_dirty_io(wb))
++		return;
 +
-+	WARN_ON_ONCE(!rcu_read_lock_held());
-+
-+	if (iter->start_blkcg_id >= 0) {
-+		iter->slot = radix_tree_iter_init(titer, iter->start_blkcg_id);
-+		iter->start_blkcg_id = -1;
-+	} else {
-+		iter->slot = radix_tree_next_slot(iter->slot, titer, 0);
++	/*
++	 * This is WB_SYNC_NONE writeback, so if allocation fails just
++	 * wakeup the thread for old dirty data writeback
++	 */
++	work = kzalloc(sizeof(*work), GFP_ATOMIC);
++	if (!work) {
++		trace_writeback_nowork(wb->bdi);
++		wb_wakeup(wb);
++		return;
 +	}
 +
-+	if (!iter->slot)
-+		iter->slot = radix_tree_next_chunk(&bdi->cgwb_tree, titer, 0);
-+	if (iter->slot)
-+		return *iter->slot;
-+	return NULL;
-+}
++	work->sync_mode	= WB_SYNC_NONE;
++	work->nr_pages	= nr_pages;
++	work->range_cyclic = range_cyclic;
++	work->reason	= reason;
 +
-+static inline struct bdi_writeback *__wb_iter_init(struct wb_iter *iter,
-+						   struct backing_dev_info *bdi,
-+						   int start_blkcg_id)
-+{
-+	iter->start_blkcg_id = start_blkcg_id;
-+
-+	if (start_blkcg_id)
-+		return __wb_iter_next(iter, bdi);
-+	else
-+		return &bdi->wb;
-+}
-+
-+/**
-+ * bdi_for_each_wb - walk all wb's of a bdi in ascending blkcg ID order
-+ * @wb_cur: cursor struct bdi_writeback pointer
-+ * @bdi: bdi to walk wb's of
-+ * @iter: pointer to struct wb_iter to be used as iteration buffer
-+ * @start_blkcg_id: blkcg ID to start iteration from
-+ *
-+ * Iterate @wb_cur through the wb's (bdi_writeback's) of @bdi in ascending
-+ * blkcg ID order starting from @start_blkcg_id.  @iter is struct wb_iter
-+ * to be used as temp storage during iteration.  rcu_read_lock() must be
-+ * held throughout iteration.
-+ */
-+#define bdi_for_each_wb(wb_cur, bdi, iter, start_blkcg_id)		\
-+	for ((wb_cur) = __wb_iter_init(iter, bdi, start_blkcg_id);	\
-+	     (wb_cur); (wb_cur) = __wb_iter_next(iter, bdi))
-+
- #else	/* CONFIG_CGROUP_WRITEBACK */
- 
- static inline bool inode_cgwb_enabled(struct inode *inode)
-@@ -445,6 +500,14 @@ static inline void wb_blkcg_offline(struct blkcg *blkcg)
- {
++	wb_queue_work(wb, work);
  }
  
-+struct wb_iter {
-+	int		next_id;
-+};
-+
-+#define bdi_for_each_wb(wb_cur, bdi, iter, start_blkcg_id)		\
-+	for ((iter)->next_id = (start_blkcg_id);			\
-+	     ({	(wb_cur) = !(iter)->next_id++ ? &(bdi)->wb : NULL; }); )
-+
- static inline int inode_congested(struct inode *inode, int cong_bits)
- {
- 	return wb_congested(&inode_to_bdi(inode)->wb, cong_bits);
+ /**
+@@ -1219,7 +1201,7 @@ void wakeup_flusher_threads(long nr_pages, enum wb_reason reason)
+ 
+ 	rcu_read_lock();
+ 	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list)
+-		__wb_start_writeback(&bdi->wb, nr_pages, false, reason);
++		wb_start_writeback(&bdi->wb, nr_pages, false, reason);
+ 	rcu_read_unlock();
+ }
+ 
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index c797980..0ff40c2 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -25,8 +25,8 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
+ int bdi_register_dev(struct backing_dev_info *bdi, dev_t dev);
+ void bdi_unregister(struct backing_dev_info *bdi);
+ int __must_check bdi_setup_and_register(struct backing_dev_info *, char *);
+-void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
+-			enum wb_reason reason);
++void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
++			bool range_cyclic, enum wb_reason reason);
+ void bdi_start_background_writeback(struct backing_dev_info *bdi);
+ void wb_workfn(struct work_struct *work);
+ void wb_wakeup_delayed(struct bdi_writeback *wb);
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 9b55f12..6301af2 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1729,8 +1729,8 @@ void laptop_mode_timer_fn(unsigned long data)
+ 	 * threshold
+ 	 */
+ 	if (bdi_has_dirty_io(&q->backing_dev_info))
+-		bdi_start_writeback(&q->backing_dev_info, nr_pages,
+-					WB_REASON_LAPTOP_TIMER);
++		wb_start_writeback(&q->backing_dev_info.wb, nr_pages, true,
++				   WB_REASON_LAPTOP_TIMER);
+ }
+ 
+ /*
 -- 
 2.4.0
 
