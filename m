@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
-	by kanga.kvack.org (Postfix) with ESMTP id B06136B02B3
-	for <linux-mm@kvack.org>; Fri, 22 May 2015 18:36:31 -0400 (EDT)
-Received: by qkgx75 with SMTP id x75so23573514qkg.1
-        for <linux-mm@kvack.org>; Fri, 22 May 2015 15:36:31 -0700 (PDT)
-Received: from mail-qk0-x229.google.com (mail-qk0-x229.google.com. [2607:f8b0:400d:c09::229])
-        by mx.google.com with ESMTPS id i111si3681362qgi.6.2015.05.22.15.36.30
+Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id BC3D46B02B5
+	for <linux-mm@kvack.org>; Fri, 22 May 2015 18:36:33 -0400 (EDT)
+Received: by qkgx75 with SMTP id x75so23574014qkg.1
+        for <linux-mm@kvack.org>; Fri, 22 May 2015 15:36:33 -0700 (PDT)
+Received: from mail-qg0-x22e.google.com (mail-qg0-x22e.google.com. [2607:f8b0:400d:c04::22e])
+        by mx.google.com with ESMTPS id i206si1266772qhc.13.2015.05.22.15.36.32
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 May 2015 15:36:31 -0700 (PDT)
-Received: by qkdn188 with SMTP id n188so23604840qkd.2
-        for <linux-mm@kvack.org>; Fri, 22 May 2015 15:36:30 -0700 (PDT)
+        Fri, 22 May 2015 15:36:33 -0700 (PDT)
+Received: by qgew3 with SMTP id w3so17203597qge.2
+        for <linux-mm@kvack.org>; Fri, 22 May 2015 15:36:32 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 2/9] writeback: make writeback_control track the inode being written back
-Date: Fri, 22 May 2015 18:36:16 -0400
-Message-Id: <1432334183-6324-3-git-send-email-tj@kernel.org>
+Subject: [PATCH 3/9] writeback: implement foreign cgroup inode detection
+Date: Fri, 22 May 2015 18:36:17 -0400
+Message-Id: <1432334183-6324-4-git-send-email-tj@kernel.org>
 In-Reply-To: <1432334183-6324-1-git-send-email-tj@kernel.org>
 References: <1432334183-6324-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,28 +22,34 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
 Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru, Tejun Heo <tj@kernel.org>
 
-Currently, for cgroup writeback, the IO submission paths directly
-associate the bio's with the blkcg from inode_to_wb_blkcg_css();
-however, it'd be necessary to keep more writeback context to implement
-foreign inode writeback detection.  wbc (writeback_control) is the
-natural fit for the extra context - it persists throughout the
-writeback of each inode and is passed all the way down to IO
-submission paths.
+As concurrent write sharing of an inode is expected to be very rare
+and memcg only tracks page ownership on first-use basis severely
+confining the usefulness of such sharing, cgroup writeback tracks
+ownership per-inode.  While the support for concurrent write sharing
+of an inode is deemed unnecessary, an inode being written to by
+different cgroups at different points in time is a lot more common,
+and, more importantly, charging only by first-use can too readily lead
+to grossly incorrect behaviors (single foreign page can lead to
+gigabytes of writeback to be incorrectly attributed).
 
-This patch adds wbc_attach_and_unlock_inode(), wbc_detach_inode(), and
-wbc_attach_fdatawrite_inode() which are used to associate wbc with the
-inode being written back.  IO submission paths now use wbc_init_bio()
-instead of directly associating bio's with blkcg themselves.  This
-leaves inode_to_wb_blkcg_css() w/o any user.  The function is removed.
+To resolve this issue, cgroup writeback detects the majority dirtier
+of an inode and will transfer the ownership to it.  To avoid
+unnnecessary oscillation, the detection mechanism keeps track of
+history and gives out the switch verdict only if the foreign usage
+pattern is stable over a certain amount of time and/or writeback
+attempts.
 
-wbc currently only tracks the associated wb (bdi_writeback).  Future
-patches will add more for foreign inode detection.  The association is
-established under i_lock which will be depended upon when migrating
-foreign inodes to other wb's.
+The detection mechanism has fairly low space and computation overhead.
+It adds 8 bytes to struct inode (one int and two u16's) and minimal
+amount of calculation per IO.  The detection mechanism converges to
+the correct answer usually in several seconds of IO time when there's
+a clear majority dirtier.  Even when there isn't, it can reach an
+acceptable answer fairly quickly under most circumstances.
 
-As currently, once established, inode to wb association never changes,
-going through wbc when initializing bio's doesn't cause any behavior
-changes.
+Please see wb_detach_inode() for more details.
+
+This patch only implements detection.  Following patches will
+implement actual switching.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 Cc: Jens Axboe <axboe@kernel.dk>
@@ -51,319 +57,300 @@ Cc: Jan Kara <jack@suse.cz>
 Cc: Wu Fengguang <fengguang.wu@intel.com>
 Cc: Greg Thelen <gthelen@google.com>
 ---
- fs/buffer.c                 | 24 ++++++++----------
- fs/fs-writeback.c           | 37 +++++++++++++++++++++++++--
- fs/mpage.c                  |  2 +-
- include/linux/backing-dev.h | 12 ---------
- include/linux/writeback.h   | 61 +++++++++++++++++++++++++++++++++++++++++++++
- mm/filemap.c                |  2 ++
- 6 files changed, 110 insertions(+), 28 deletions(-)
+ fs/buffer.c               |   4 +-
+ fs/fs-writeback.c         | 168 +++++++++++++++++++++++++++++++++++++++++++++-
+ fs/mpage.c                |   1 +
+ include/linux/fs.h        |   5 ++
+ include/linux/writeback.h |  16 +++++
+ 5 files changed, 191 insertions(+), 3 deletions(-)
 
 diff --git a/fs/buffer.c b/fs/buffer.c
-index 18cd378..8140923 100644
+index 8140923..32d33b7 100644
 --- a/fs/buffer.c
 +++ b/fs/buffer.c
-@@ -45,9 +45,9 @@
- #include <trace/events/block.h>
- 
- static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
--static int submit_bh_blkcg(int rw, struct buffer_head *bh,
--			   unsigned long bio_flags,
--			   struct cgroup_subsys_state *blkcg_css);
-+static int submit_bh_wbc(int rw, struct buffer_head *bh,
-+			 unsigned long bio_flags,
-+			 struct writeback_control *wbc);
- 
- #define BH_ENTRY(list) list_entry((list), struct buffer_head, b_assoc_buffers)
- 
-@@ -1709,7 +1709,6 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
- 	unsigned int blocksize, bbits;
- 	int nr_underway = 0;
- 	int write_op = (wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : WRITE);
--	struct cgroup_subsys_state *blkcg_css = inode_to_wb_blkcg_css(inode);
- 
- 	head = create_page_buffers(page, inode,
- 					(1 << BH_Dirty)|(1 << BH_Uptodate));
-@@ -1798,7 +1797,7 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
- 	do {
- 		struct buffer_head *next = bh->b_this_page;
- 		if (buffer_async_write(bh)) {
--			submit_bh_blkcg(write_op, bh, 0, blkcg_css);
-+			submit_bh_wbc(write_op, bh, 0, wbc);
- 			nr_underway++;
- 		}
- 		bh = next;
-@@ -1852,7 +1851,7 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
- 		struct buffer_head *next = bh->b_this_page;
- 		if (buffer_async_write(bh)) {
- 			clear_buffer_dirty(bh);
--			submit_bh_blkcg(write_op, bh, 0, blkcg_css);
-+			submit_bh_wbc(write_op, bh, 0, wbc);
- 			nr_underway++;
- 		}
- 		bh = next;
-@@ -3017,9 +3016,8 @@ void guard_bio_eod(int rw, struct bio *bio)
- 	}
- }
- 
--static int submit_bh_blkcg(int rw, struct buffer_head *bh,
--			   unsigned long bio_flags,
--			   struct cgroup_subsys_state *blkcg_css)
-+static int submit_bh_wbc(int rw, struct buffer_head *bh,
-+			 unsigned long bio_flags, struct writeback_control *wbc)
- {
- 	struct bio *bio;
- 	int ret = 0;
-@@ -3042,8 +3040,8 @@ static int submit_bh_blkcg(int rw, struct buffer_head *bh,
+@@ -3040,8 +3040,10 @@ static int submit_bh_wbc(int rw, struct buffer_head *bh,
  	 */
  	bio = bio_alloc(GFP_NOIO, 1);
  
--	if (blkcg_css)
--		bio_associate_blkcg(bio, blkcg_css);
-+	if (wbc)
-+		wbc_init_bio(wbc, bio);
+-	if (wbc)
++	if (wbc) {
+ 		wbc_init_bio(wbc, bio);
++		wbc_account_io(wbc, bh->b_page, bh->b_size);
++	}
  
  	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
  	bio->bi_bdev = bh->b_bdev;
-@@ -3072,13 +3070,13 @@ static int submit_bh_blkcg(int rw, struct buffer_head *bh,
- 
- int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
- {
--	return submit_bh_blkcg(rw, bh, bio_flags, NULL);
-+	return submit_bh_wbc(rw, bh, bio_flags, NULL);
- }
- EXPORT_SYMBOL_GPL(_submit_bh);
- 
- int submit_bh(int rw, struct buffer_head *bh)
- {
--	return submit_bh_blkcg(rw, bh, 0, NULL);
-+	return submit_bh_wbc(rw, bh, 0, NULL);
- }
- EXPORT_SYMBOL(submit_bh);
- 
 diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index cf6ccfb..755e8ef 100644
+index 755e8ef..8fb5edd 100644
 --- a/fs/fs-writeback.c
 +++ b/fs/fs-writeback.c
-@@ -245,6 +245,37 @@ void __inode_attach_wb(struct inode *inode, struct page *page)
+@@ -214,6 +214,20 @@ static void wb_wait_for_completion(struct backing_dev_info *bdi,
+ 
+ #ifdef CONFIG_CGROUP_WRITEBACK
+ 
++/* parameters for foreign inode detection, see wb_detach_inode() */
++#define WB_FRN_TIME_SHIFT	13	/* 1s = 2^13, upto 8 secs w/ 16bit */
++#define WB_FRN_TIME_AVG_SHIFT	3	/* avg = avg * 7/8 + new * 1/8 */
++#define WB_FRN_TIME_CUT_DIV	2	/* ignore rounds < avg / 2 */
++#define WB_FRN_TIME_PERIOD	(2 * (1 << WB_FRN_TIME_SHIFT))	/* 2s */
++
++#define WB_FRN_HIST_SLOTS	16	/* inode->i_wb_frn_history is 16bit */
++#define WB_FRN_HIST_UNIT	(WB_FRN_TIME_PERIOD / WB_FRN_HIST_SLOTS)
++					/* each slot's duration is 2s / 16 */
++#define WB_FRN_HIST_THR_SLOTS	(WB_FRN_HIST_SLOTS / 2)
++					/* if foreign slots >= 8, switch */
++#define WB_FRN_HIST_MAX_SLOTS	(WB_FRN_HIST_THR_SLOTS / 2 + 1)
++					/* one round can affect upto 5 slots */
++
+ void __inode_attach_wb(struct inode *inode, struct page *page)
+ {
+ 	struct backing_dev_info *bdi = inode_to_bdi(inode);
+@@ -258,24 +272,174 @@ void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
+ 				 struct inode *inode)
+ {
+ 	wbc->wb = inode_to_wb(inode);
++	wbc->inode = inode;
++
++	wbc->wb_id = wbc->wb->memcg_css->id;
++	wbc->wb_lcand_id = inode->i_wb_frn_winner;
++	wbc->wb_tcand_id = 0;
++	wbc->wb_bytes = 0;
++	wbc->wb_lcand_bytes = 0;
++	wbc->wb_tcand_bytes = 0;
++
+ 	wb_get(wbc->wb);
+ 	spin_unlock(&inode->i_lock);
  }
  
  /**
-+ * wbc_attach_and_unlock_inode - associate wbc with target inode and unlock it
-+ * @wbc: writeback_control of interest
-+ * @inode: target inode
+- * wbc_detach_inode - disassociate wbc from its target inode
+- * @wbc: writeback_control of interest
++ * wbc_detach_inode - disassociate wbc from inode and perform foreign detection
++ * @wbc: writeback_control of the just finished writeback
+  *
+  * To be called after a writeback attempt of an inode finishes and undoes
+  * wbc_attach_and_unlock_inode().  Can be called under any context.
 + *
-+ * @inode is locked and about to be written back under the control of @wbc.
-+ * Record @inode's writeback context into @wbc and unlock the i_lock.  On
-+ * writeback completion, wbc_detach_inode() should be called.  This is used
-+ * to track the cgroup writeback context.
-+ */
-+void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
-+				 struct inode *inode)
-+{
-+	wbc->wb = inode_to_wb(inode);
-+	wb_get(wbc->wb);
-+	spin_unlock(&inode->i_lock);
-+}
++ * As concurrent write sharing of an inode is expected to be very rare and
++ * memcg only tracks page ownership on first-use basis severely confining
++ * the usefulness of such sharing, cgroup writeback tracks ownership
++ * per-inode.  While the support for concurrent write sharing of an inode
++ * is deemed unnecessary, an inode being written to by different cgroups at
++ * different points in time is a lot more common, and, more importantly,
++ * charging only by first-use can too readily lead to grossly incorrect
++ * behaviors (single foreign page can lead to gigabytes of writeback to be
++ * incorrectly attributed).
++ *
++ * To resolve this issue, cgroup writeback detects the majority dirtier of
++ * an inode and transfers the ownership to it.  To avoid unnnecessary
++ * oscillation, the detection mechanism keeps track of history and gives
++ * out the switch verdict only if the foreign usage pattern is stable over
++ * a certain amount of time and/or writeback attempts.
++ *
++ * On each writeback attempt, @wbc tries to detect the majority writer
++ * using Boyer-Moore majority vote algorithm.  In addition to the byte
++ * count from the majority voting, it also counts the bytes written for the
++ * current wb and the last round's winner wb (max of last round's current
++ * wb, the winner from two rounds ago, and the last round's majority
++ * candidate).  Keeping track of the historical winner helps the algorithm
++ * to semi-reliably detect the most active writer even when it's not the
++ * absolute majority.
++ *
++ * Once the winner of the round is determined, whether the winner is
++ * foreign or not and how much IO time the round consumed is recorded in
++ * inode->i_wb_frn_history.  If the amount of recorded foreign IO time is
++ * over a certain threshold, the switch verdict is given.
+  */
+ void wbc_detach_inode(struct writeback_control *wbc)
+ {
++	struct bdi_writeback *wb = wbc->wb;
++	struct inode *inode = wbc->inode;
++	u16 history = inode->i_wb_frn_history;
++	unsigned long avg_time = inode->i_wb_frn_avg_time;
++	unsigned long max_bytes, max_time;
++	int max_id;
 +
-+/**
-+ * wbc_detach_inode - disassociate wbc from its target inode
-+ * @wbc: writeback_control of interest
++	/* pick the winner of this round */
++	if (wbc->wb_bytes >= wbc->wb_lcand_bytes &&
++	    wbc->wb_bytes >= wbc->wb_tcand_bytes) {
++		max_id = wbc->wb_id;
++		max_bytes = wbc->wb_bytes;
++	} else if (wbc->wb_lcand_bytes >= wbc->wb_tcand_bytes) {
++		max_id = wbc->wb_lcand_id;
++		max_bytes = wbc->wb_lcand_bytes;
++	} else {
++		max_id = wbc->wb_tcand_id;
++		max_bytes = wbc->wb_tcand_bytes;
++	}
++
++	/*
++	 * Calculate the amount of IO time the winner consumed and fold it
++	 * into the running average kept per inode.  If the consumed IO
++	 * time is lower than avag / WB_FRN_TIME_CUT_DIV, ignore it for
++	 * deciding whether to switch or not.  This is to prevent one-off
++	 * small dirtiers from skewing the verdict.
++	 */
++	max_time = DIV_ROUND_UP((max_bytes >> PAGE_SHIFT) << WB_FRN_TIME_SHIFT,
++				wb->avg_write_bandwidth);
++	if (avg_time)
++		avg_time += (max_time >> WB_FRN_TIME_AVG_SHIFT) -
++			    (avg_time >> WB_FRN_TIME_AVG_SHIFT);
++	else
++		avg_time = max_time;	/* immediate catch up on first run */
++
++	if (max_time >= avg_time / WB_FRN_TIME_CUT_DIV) {
++		int slots;
++
++		/*
++		 * The switch verdict is reached if foreign wb's consume
++		 * more than a certain proportion of IO time in a
++		 * WB_FRN_TIME_PERIOD.  This is loosely tracked by 16 slot
++		 * history mask where each bit represents one sixteenth of
++		 * the period.  Determine the number of slots to shift into
++		 * history from @max_time.
++		 */
++		slots = min(DIV_ROUND_UP(max_time, WB_FRN_HIST_UNIT),
++			    (unsigned long)WB_FRN_HIST_MAX_SLOTS);
++		history <<= slots;
++		if (wbc->wb_id != max_id)
++			history |= (1U << slots) - 1;
++
++		/*
++		 * Switch if the current wb isn't the consistent winner.
++		 * If there are multiple closely competing dirtiers, the
++		 * inode may switch across them repeatedly over time, which
++		 * is okay.  The main goal is avoiding keeping an inode on
++		 * the wrong wb for an extended period of time.
++		 */
++		if (hweight32(history) > WB_FRN_HIST_THR_SLOTS) {
++			/* switch */
++			max_id = 0;
++			avg_time = 0;
++			history = 0;
++		}
++	}
++
++	/*
++	 * Multiple instances of this function may race to update the
++	 * following fields but we don't mind occassional inaccuracies.
++	 */
++	inode->i_wb_frn_winner = max_id;
++	inode->i_wb_frn_avg_time = min(avg_time, (unsigned long)U16_MAX);
++	inode->i_wb_frn_history = history;
++
+ 	wb_put(wbc->wb);
+ 	wbc->wb = NULL;
+ }
+ 
+ /**
++ * wbc_account_io - account IO issued during writeback
++ * @wbc: writeback_control of the writeback in progress
++ * @page: page being written out
++ * @bytes: number of bytes being written out
 + *
-+ * To be called after a writeback attempt of an inode finishes and undoes
-+ * wbc_attach_and_unlock_inode().  Can be called under any context.
++ * @bytes from @page are about to written out during the writeback
++ * controlled by @wbc.  Keep the book for foreign inode detection.  See
++ * wbc_detach_inode().
 + */
-+void wbc_detach_inode(struct writeback_control *wbc)
++void wbc_account_io(struct writeback_control *wbc, struct page *page,
++		    size_t bytes)
 +{
-+	wb_put(wbc->wb);
-+	wbc->wb = NULL;
++	int id;
++
++	rcu_read_lock();
++	id = mem_cgroup_css_from_page(page)->id;
++	rcu_read_unlock();
++
++	if (id == wbc->wb_id) {
++		wbc->wb_bytes += bytes;
++		return;
++	}
++
++	if (id == wbc->wb_lcand_id)
++		wbc->wb_lcand_bytes += bytes;
++
++	/* Boyer-Moore majority vote algorithm */
++	if (!wbc->wb_tcand_bytes)
++		wbc->wb_tcand_id = id;
++	if (id == wbc->wb_tcand_id)
++		wbc->wb_tcand_bytes += bytes;
++	else
++		wbc->wb_tcand_bytes -= min(bytes, wbc->wb_tcand_bytes);
 +}
 +
 +/**
   * inode_congested - test whether an inode is congested
   * @inode: inode to test for congestion
   * @cong_bits: mask of WB_[a]sync_congested bits to test
-@@ -877,10 +908,11 @@ writeback_single_inode(struct inode *inode, struct bdi_writeback *wb,
- 	     !mapping_tagged(inode->i_mapping, PAGECACHE_TAG_WRITEBACK)))
- 		goto out;
- 	inode->i_state |= I_SYNC;
--	spin_unlock(&inode->i_lock);
-+	wbc_attach_and_unlock_inode(wbc, inode);
- 
- 	ret = __writeback_single_inode(inode, wbc);
- 
-+	wbc_detach_inode(wbc);
- 	spin_lock(&wb->list_lock);
- 	spin_lock(&inode->i_lock);
- 	/*
-@@ -1013,7 +1045,7 @@ static long writeback_sb_inodes(struct super_block *sb,
- 			continue;
- 		}
- 		inode->i_state |= I_SYNC;
--		spin_unlock(&inode->i_lock);
-+		wbc_attach_and_unlock_inode(&wbc, inode);
- 
- 		write_chunk = writeback_chunk_size(wb, work);
- 		wbc.nr_to_write = write_chunk;
-@@ -1025,6 +1057,7 @@ static long writeback_sb_inodes(struct super_block *sb,
- 		 */
- 		__writeback_single_inode(inode, &wbc);
- 
-+		wbc_detach_inode(&wbc);
- 		work->nr_pages -= write_chunk - wbc.nr_to_write;
- 		wrote += write_chunk - wbc.nr_to_write;
- 		spin_lock(&wb->list_lock);
 diff --git a/fs/mpage.c b/fs/mpage.c
-index a3ccb0b..388fde6 100644
+index 388fde6..ca0244b 100644
 --- a/fs/mpage.c
 +++ b/fs/mpage.c
-@@ -606,7 +606,7 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
- 		if (bio == NULL)
- 			goto confused;
- 
--		bio_associate_blkcg(bio, inode_to_wb_blkcg_css(inode));
-+		wbc_init_bio(wbc, bio);
- 	}
- 
- 	/*
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index 5c978a9..b1d2489 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -332,12 +332,6 @@ static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
- 	return inode->i_wb;
- }
- 
--static inline struct cgroup_subsys_state *
--inode_to_wb_blkcg_css(struct inode *inode)
--{
--	return inode_to_wb(inode)->blkcg_css;
--}
--
- struct wb_iter {
- 	int			start_blkcg_id;
- 	struct radix_tree_iter	tree_iter;
-@@ -434,12 +428,6 @@ static inline void wb_blkcg_offline(struct blkcg *blkcg)
- {
- }
- 
--static inline struct cgroup_subsys_state *
--inode_to_wb_blkcg_css(struct inode *inode)
--{
--	return blkcg_root_css;
--}
--
- struct wb_iter {
- 	int		next_id;
- };
+@@ -614,6 +614,7 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
+ 	 * the confused fail path above (OOM) will be very confused when
+ 	 * it finds all bh marked clean (i.e. it will not write anything)
+ 	 */
++	wbc_account_io(wbc, page, PAGE_SIZE);
+ 	length = first_unmapped << blkbits;
+ 	if (bio_add_page(bio, page, length, 0) < length) {
+ 		bio = mpage_bio_submit(WRITE, bio);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 67a42ec..740126d 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -638,6 +638,11 @@ struct inode {
+ 	struct list_head	i_wb_list;	/* backing dev IO list */
+ #ifdef CONFIG_CGROUP_WRITEBACK
+ 	struct bdi_writeback	*i_wb;		/* the associated cgroup wb */
++
++	/* foreign inode detection, see wbc_detach_inode() */
++	int			i_wb_frn_winner;
++	u16			i_wb_frn_avg_time;
++	u16			i_wb_frn_history;
+ #endif
+ 	struct list_head	i_lru;		/* inode LRU list */
+ 	struct list_head	i_sb_list;
 diff --git a/include/linux/writeback.h b/include/linux/writeback.h
-index 6726b7e..dfef29e 100644
+index dfef29e..250c26f 100644
 --- a/include/linux/writeback.h
 +++ b/include/linux/writeback.h
-@@ -86,6 +86,9 @@ struct writeback_control {
- 	unsigned for_reclaim:1;		/* Invoked from the page allocator */
- 	unsigned range_cyclic:1;	/* range_start is cyclic */
+@@ -88,6 +88,15 @@ struct writeback_control {
  	unsigned for_sync:1;		/* sync(2) WB_SYNC_ALL writeback */
-+#ifdef CONFIG_CGROUP_WRITEBACK
-+	struct bdi_writeback *wb;	/* wb this writeback is issued under */
-+#endif
+ #ifdef CONFIG_CGROUP_WRITEBACK
+ 	struct bdi_writeback *wb;	/* wb this writeback is issued under */
++	struct inode *inode;		/* inode being written out */
++
++	/* foreign inode detection, see wbc_detach_inode() */
++	int wb_id;			/* current wb id */
++	int wb_lcand_id;		/* last foreign candidate wb id */
++	int wb_tcand_id;		/* this foreign candidate wb id */
++	size_t wb_bytes;		/* bytes written by current wb */
++	size_t wb_lcand_bytes;		/* bytes written by last candidate */
++	size_t wb_tcand_bytes;		/* bytes written by this candidate */
+ #endif
  };
  
- /*
-@@ -176,7 +179,14 @@ static inline void wait_on_inode(struct inode *inode)
- 
- #ifdef CONFIG_CGROUP_WRITEBACK
- 
-+#include <linux/cgroup.h>
-+#include <linux/bio.h>
-+
- void __inode_attach_wb(struct inode *inode, struct page *page);
-+void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
-+				 struct inode *inode)
-+	__releases(&inode->i_lock);
-+void wbc_detach_inode(struct writeback_control *wbc);
+@@ -187,6 +196,8 @@ void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
+ 				 struct inode *inode)
+ 	__releases(&inode->i_lock);
+ void wbc_detach_inode(struct writeback_control *wbc);
++void wbc_account_io(struct writeback_control *wbc, struct page *page,
++		    size_t bytes);
  
  /**
   * inode_attach_wb - associate an inode with its wb
-@@ -207,6 +217,37 @@ static inline void inode_detach_wb(struct inode *inode)
- 	}
- }
- 
-+/**
-+ * wbc_attach_fdatawrite_inode - associate wbc and inode for fdatawrite
-+ * @wbc: writeback_control of interest
-+ * @inode: target inode
-+ *
-+ * This function is to be used by __filemap_fdatawrite_range(), which is an
-+ * alternative entry point into writeback code, and first ensures @inode is
-+ * associated with a bdi_writeback and attaches it to @wbc.
-+ */
-+static inline void wbc_attach_fdatawrite_inode(struct writeback_control *wbc,
-+					       struct inode *inode)
-+{
-+	spin_lock(&inode->i_lock);
-+	inode_attach_wb(inode, NULL);
-+	wbc_attach_and_unlock_inode(wbc, inode);
-+}
-+
-+/**
-+ * wbc_init_bio - writeback specific initializtion of bio
-+ * @wbc: writeback_control for the writeback in progress
-+ * @bio: bio to be initialized
-+ *
-+ * @bio is a part of the writeback in progress controlled by @wbc.  Perform
-+ * writeback specific initialization.  This is used to apply the cgroup
-+ * writeback context.
-+ */
-+static inline void wbc_init_bio(struct writeback_control *wbc, struct bio *bio)
-+{
-+	bio_associate_blkcg(bio, wbc->wb->blkcg_css);
-+}
-+
- #else	/* CONFIG_CGROUP_WRITEBACK */
- 
- static inline void inode_attach_wb(struct inode *inode, struct page *page)
-@@ -217,6 +258,26 @@ static inline void inode_detach_wb(struct inode *inode)
+@@ -278,6 +289,11 @@ static inline void wbc_init_bio(struct writeback_control *wbc, struct bio *bio)
  {
  }
  
-+static inline void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
-+					       struct inode *inode)
-+	__releases(&inode->i_lock)
-+{
-+	spin_unlock(&inode->i_lock);
-+}
-+
-+static inline void wbc_attach_fdatawrite_inode(struct writeback_control *wbc,
-+					       struct inode *inode)
-+{
-+}
-+
-+static inline void wbc_detach_inode(struct writeback_control *wbc)
-+{
-+}
-+
-+static inline void wbc_init_bio(struct writeback_control *wbc, struct bio *bio)
++static inline void wbc_account_io(struct writeback_control *wbc,
++				  struct page *page, size_t bytes)
 +{
 +}
 +
  #endif	/* CONFIG_CGROUP_WRITEBACK */
  
  /*
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 7b1443d..2f065b1 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -290,7 +290,9 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
- 	if (!mapping_cap_writeback_dirty(mapping))
- 		return 0;
- 
-+	wbc_attach_fdatawrite_inode(&wbc, mapping->host);
- 	ret = do_writepages(mapping, &wbc);
-+	wbc_detach_inode(&wbc);
- 	return ret;
- }
- 
 -- 
 2.4.0
 
