@@ -1,150 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 5943F829BA
-	for <linux-mm@kvack.org>; Fri, 22 May 2015 12:46:53 -0400 (EDT)
-Received: by oihd6 with SMTP id d6so18118452oih.2
-        for <linux-mm@kvack.org>; Fri, 22 May 2015 09:46:53 -0700 (PDT)
-Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
-        by mx.google.com with ESMTPS id df7si1646365obb.97.2015.05.22.09.46.52
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id AD350829BA
+	for <linux-mm@kvack.org>; Fri, 22 May 2015 12:49:12 -0400 (EDT)
+Received: by obcus9 with SMTP id us9so17165671obc.2
+        for <linux-mm@kvack.org>; Fri, 22 May 2015 09:49:12 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id g14si1653964oes.60.2015.05.22.09.49.11
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 May 2015 09:46:52 -0700 (PDT)
-Message-ID: <1432312047.1428.34.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v9 9/10] x86, mm, pat: Refactor !pat_enabled handling
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 22 May 2015 10:27:27 -0600
-In-Reply-To: <alpine.DEB.2.11.1505220958050.5457@nanos>
-References: <1431551151-19124-1-git-send-email-toshi.kani@hp.com>
-	 <1431551151-19124-10-git-send-email-toshi.kani@hp.com>
-	 <alpine.DEB.2.11.1505220958050.5457@nanos>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Fri, 22 May 2015 09:49:11 -0700 (PDT)
+Message-ID: <555F5DE3.6000100@oracle.com>
+Date: Fri, 22 May 2015 09:48:35 -0700
+From: Mike Kravetz <mike.kravetz@oracle.com>
+MIME-Version: 1.0
+Subject: Re: [RFC v3 PATCH 03/10] mm/hugetlb: add region_del() to delete a
+ specific range of entries
+References: <1432223264-4414-1-git-send-email-mike.kravetz@oracle.com> <1432223264-4414-4-git-send-email-mike.kravetz@oracle.com> <20150522062151.GA21526@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20150522062151.GA21526@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: hpa@zytor.com, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-nvdimm@ml01.01.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com, mcgrof@suse.com, hch@lst.de
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>
 
-On Fri, 2015-05-22 at 10:34 +0200, Thomas Gleixner wrote:
-> On Wed, 13 May 2015, Toshi Kani wrote:
+On 05/21/2015 11:21 PM, Naoya Horiguchi wrote:
+> On Thu, May 21, 2015 at 08:47:37AM -0700, Mike Kravetz wrote:
+>> fallocate hole punch will want to remove a specific range of pages.
+>> The existing region_truncate() routine deletes all region/reserve
+>> map entries after a specified offset.  region_del() will provide
+>> this same functionality if the end of region is specified as -1.
+>> Hence, region_del() can replace region_truncate().
+>>
+>> Unlike region_truncate(), region_del() can return an error in the
+>> rare case where it can not allocate memory for a region descriptor.
+>> This ONLY happens in the case where an existing region must be split.
+>> Current callers passing -1 as end of range will never experience
+>> this error and do not need to deal with error handling.  Future
+>> callers of region_del() (such as fallocate hole punch) will need to
+>> handle this error.  A routine hugetlb_fix_reserve_counts() is added
+>> to assist in cleaning up if fallocate hole punch experiences this
+>> type of error in region_del().
+>>
+>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+>> ---
+>>   include/linux/hugetlb.h |  1 +
+>>   mm/hugetlb.c            | 99 ++++++++++++++++++++++++++++++++++++++-----------
+>>   2 files changed, 79 insertions(+), 21 deletions(-)
+>>
+>> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+>> index 7b57850..fd337f2 100644
+>> --- a/include/linux/hugetlb.h
+>> +++ b/include/linux/hugetlb.h
+>> @@ -81,6 +81,7 @@ bool isolate_huge_page(struct page *page, struct list_head *list);
+>>   void putback_active_hugepage(struct page *page);
+>>   bool is_hugepage_active(struct page *page);
+>>   void free_huge_page(struct page *page);
+>> +void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve);
 > 
-> > --- a/arch/x86/mm/pat.c
-> > +++ b/arch/x86/mm/pat.c
-> > @@ -182,7 +182,11 @@ void pat_init_cache_modes(void)
-> >  	char pat_msg[33];
-> >  	u64 pat;
-> >  
-> > -	rdmsrl(MSR_IA32_CR_PAT, pat);
-> > +	if (pat_enabled)
-> > +		rdmsrl(MSR_IA32_CR_PAT, pat);
-> > +	else
-> > +		pat = boot_pat_state;
+> This function is used in patch 6/10 for the first time,
+> so is it better to move the definition to that patch?
+> (this temporarily introduces "defined but not used" warning...)
+
+Yes, I do think it would be better to move it to patch 6.  The existing
+callers/users of region_del() will never encounter an error return value.
+As you mention, it is only the new use case in patch 6/10 that needs
+to deal with the error.  So, it makes sense to move it there.
+
+>>   #ifdef CONFIG_ARCH_WANT_HUGE_PMD_SHARE
+>>   pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud);
+>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> index 63f6d43..620cc9e 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -261,38 +261,74 @@ out_nrg:
+>>   	return chg;
+>>   }
+>>   
+>> -static long region_truncate(struct resv_map *resv, long end)
+>> +static long region_del(struct resv_map *resv, long f, long t)
+>>   {
+>>   	struct list_head *head = &resv->regions;
+>>   	struct file_region *rg, *trg;
+>> +	struct file_region *nrg = NULL;
+>>   	long chg = 0;
+>>   
+>> +	/*
+>> +	 * Locate segments we overlap and etiher split, remove or
+>> +	 * trim the existing regions.  The end of region (t) == -1
+>> +	 * indicates all remaining regions.  Special case t == -1 as
+>> +	 * all comparisons are signed.  Also, when t == -1 it is not
+>> +	 * possible to return an error (-ENOMEM) as this only happens
+>> +	 * when splitting a region.  Callers take advantage of this
+>> +	 * when calling with -1.
+>> +	 */
+>> +	if (t == -1)
+>> +		t = LONG_MAX;
+>> +retry:
+>>   	spin_lock(&resv->lock);
+>> -	/* Locate the region we are either in or before. */
+>> -	list_for_each_entry(rg, head, link)
+>> -		if (end <= rg->to)
+>> +	list_for_each_entry_safe(rg, trg, head, link) {
+>> +		if (rg->to <= f)
+>> +			continue;
+>> +		if (rg->from >= t)
+>>   			break;
+>> -	if (&rg->link == head)
+>> -		goto out;
+>>   
+>> -	/* If we are in the middle of a region then adjust it. */
+>> -	if (end > rg->from) {
+>> -		chg = rg->to - end;
+>> -		rg->to = end;
+>> -		rg = list_entry(rg->link.next, typeof(*rg), link);
+>> -	}
+>> +		if (f > rg->from && t < rg->to) { /* must split region */
+>> +			if (!nrg) {
+>> +				spin_unlock(&resv->lock);
+>> +				nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+>> +				if (!nrg)
+>> +					return -ENOMEM;
+>> +				goto retry;
+>> +			}
+>>   
+>> -	/* Drop any remaining regions. */
+>> -	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
+>> -		if (&rg->link == head)
+>> +			chg += t - f;
+>> +
+>> +			/* new entry for end of split region */
+>> +			nrg->from = t;
+>> +			nrg->to = rg->to;
+>> +			INIT_LIST_HEAD(&nrg->link);
+>> +
+>> +			/* original entry is trimmed */
+>> +			rg->to = f;
+>> +
+>> +			list_add(&nrg->link, &rg->link);
+>> +			nrg = NULL;
+>>   			break;
+>> -		chg += rg->to - rg->from;
+>> -		list_del(&rg->link);
+>> -		kfree(rg);
+>> +		}
+>> +
+>> +		if (f <= rg->from && t >= rg->to) { /* remove entire region */
+>> +			chg += rg->to - rg->from;
+>> +			list_del(&rg->link);
+>> +			kfree(rg);
+>> +			continue;
+>> +		}
+>> +
+>> +		if (f <= rg->from) {	/* trim beginning of region */
+>> +			chg += t - rg->from;
+>> +			rg->from = t;
+>> +		} else {		/* trim end of region */
+>> +			chg += rg->to - f;
+>> +			rg->to = f;
 > 
-> boot_pat_state is 0 if pat is disabled, but this boot_pat_state multi
-> purpose usage is really horrible. We do 5 things at once with it and
-> of course all of it completely undocumented.
+> Is it better to put "break" here?
 
-boot_pat_state is set even if pat is disabled so that this case can be
-handled in the same framework.
+Yes, I think a break would be appropriate.  At this point we know the
+range to be deleted will not intersect any other regions in the map.
+So, the break is appropriate as we do not need to examine the remaining
+regions.
 
-	:
-  if (!pat_enabled) {
-	/*
-	 * No PAT. Emulate the PAT table that corresponds to the two
-	:
-	pat = PAT(0, WB) | PAT(1, WT) | PAT(2, UC_MINUS) | PAT(3, UC) |
-	      PAT(4, WB) | PAT(5, WT) | PAT(6, UC_MINUS) | PAT(7, UC);
-	if (!boot_pat_state)
-		boot_pat_state = pat;
-	:
+I'll add these change as well as more documentation for region_del in
+the next version of this patch set.
 
-That said, yes, I agree that the use of boot_pat_state is overloaded.
+-- 
+Mike Kravetz
 
->   	pat_msg[32] = 0;
-> >  	for (i = 7; i >= 0; i--) {
-> >  		cache = pat_get_cache_mode((pat >> (i * 8)) & 7,
-> > @@ -200,28 +204,58 @@ void pat_init(void)
-> >  	bool boot_cpu = !boot_pat_state;
-> 
-> The crap starts here and this really wants to be distangled.
-
-Agreed.
-
-> void pat_init(void)
-> {
-> 	static bool boot_done;
-> 
-> 	if (!boot_done) {
-> 	   	if (!cpu_has_pat)
->   			pat_disable("PAT not supported by CPU.");
-> 
-> 		if (pat_enabled) {
-> 		   	rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
-> 			if (!boot_pat_state)
-> 				pat_disable("PAT read returns always zero, disabled.");
-> 		}
-> 	} else if (!cpu_has_pat && pat_enabled) {
-> 		/*
-> 		 * If this happens we are on a secondary CPU, but
-> 		 * switched to PAT on the boot CPU. We have no way to
-> 		 * undo PAT.
-> 		 */
-> 		pr_err("PAT enabled but not supported by secondary CPU\n");
-> 		BUG();
-> 	}
-> 
-> 	
-> 	if (!pat_enabled) {
-> 	   .....
-> 	} else {
-> 	   .....	
-> 	}
-> 
-> 	if (!boot_done) {
-> 	    ....
-> 	    boot_done = true;	
-> 	}
-> }
-> 
-> And this cleanup wants to be done as a seperate patch before you do
-> this other stuff.
-
-Yes, this looks much better!  Will add a patch for this clean up.
-
-> > @@ -275,16 +309,8 @@ void pat_init(void)
-> >  		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, WT);
-> >  	}
-> >  
-> > -	/* Boot CPU check */
-> > -	if (!boot_pat_state) {
-> > -		rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
-> > -		if (!boot_pat_state) {
-> > -			pat_disable("PAT read returns always zero, disabled.");
-> > -			return;
-> > -		}
-> > -	}
-> > -
-> > -	wrmsrl(MSR_IA32_CR_PAT, pat);
-> > +	if (pat_enabled)
-> > +		wrmsrl(MSR_IA32_CR_PAT, pat);
-> 
-> Sigh.
-
-Yeah...
-
-> 
-> 	if (!pat_enabled) {
-> 	   ....
-> 	} else {
-> 	   ....
-> 	}
-> 	
-> +	if (pat_enabled)
 > 
 > Thanks,
-
-Thanks a lot!
--Toshi
+> Naoya Horiguchi
+> 
+>> +		}
+>>   	}
+>>   
+>> -out:
+>>   	spin_unlock(&resv->lock);
+>> +	kfree(nrg);
+>>   	return chg;
+>>   }
+>>   
+>> @@ -324,6 +360,27 @@ static long region_count(struct resv_map *resv, long f, long t)
+>>   }
+>>   
+>>   /*
+>> + * A rare out of memory error was encountered which prevented removal of
+>> + * the reserve map region for a page.  The huge page itself was free''ed
+>> + * and removed from the page cache.  This routine will adjust the global
+>> + * reserve count if needed, and the subpool usage count.  By incrementing
+>> + * these counts, the reserve map entry which could not be deleted will
+>> + * appear as a "reserved" entry instead of simply dangling with incorrect
+>> + * counts.
+>> + */
+>> +void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve)
+>> +{
+>> +	struct hugepage_subpool *spool = subpool_inode(inode);
+>> +
+>> +	if (restore_reserve) {
+>> +		struct hstate *h = hstate_inode(inode);
+>> +
+>> +		h->resv_huge_pages++;
+>> +	}
+>> +	hugepage_subpool_get_pages(spool, 1);
+>> +}
+>> +
+>> +/*
+>>    * Convert the address within this vma to the page offset within
+>>    * the mapping, in pagecache page units; huge pages here.
+>>    */
+>> @@ -427,7 +484,7 @@ void resv_map_release(struct kref *ref)
+>>   	struct resv_map *resv_map = container_of(ref, struct resv_map, refs);
+>>   
+>>   	/* Clear out any active regions before we release the map. */
+>> -	region_truncate(resv_map, 0);
+>> +	region_del(resv_map, 0, -1);
+>>   	kfree(resv_map);
+>>   }
+>>   
+>> @@ -3558,7 +3615,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
+>>   	struct hugepage_subpool *spool = subpool_inode(inode);
+>>   
+>>   	if (resv_map)
+>> -		chg = region_truncate(resv_map, offset);
+>> +		chg = region_del(resv_map, offset, -1);
+>>   	spin_lock(&inode->i_lock);
+>>   	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
+>>   	spin_unlock(&inode->i_lock);
+>> -- 
+>> 2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
