@@ -1,91 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id EEFDF6B00E8
-	for <linux-mm@kvack.org>; Fri, 22 May 2015 01:10:16 -0400 (EDT)
-Received: by pabru16 with SMTP id ru16so10033481pab.1
-        for <linux-mm@kvack.org>; Thu, 21 May 2015 22:10:16 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id lj8si1715108pbc.11.2015.05.21.22.10.15
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 06C3F6B00EB
+	for <linux-mm@kvack.org>; Fri, 22 May 2015 01:18:50 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so10418661pdb.0
+        for <linux-mm@kvack.org>; Thu, 21 May 2015 22:18:49 -0700 (PDT)
+Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com. [202.81.31.144])
+        by mx.google.com with ESMTPS id mp9si1697233pbc.124.2015.05.21.22.18.47
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 21 May 2015 22:10:16 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] hugetlb: Do not account hugetlb pages as NR_FILE_PAGES
-Date: Fri, 22 May 2015 05:09:34 +0000
-Message-ID: <20150522050934.GA24376@hori1.linux.bs1.fc.nec.co.jp>
-References: <1432214842-22730-1-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1432214842-22730-1-git-send-email-mhocko@suse.cz>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <CCCFAEB1E21EAA45827647CA8F057533@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 May 2015 22:18:48 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 22 May 2015 15:18:43 +1000
+Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 623813578056
+	for <linux-mm@kvack.org>; Fri, 22 May 2015 15:18:42 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t4M5IY0621627030
+	for <linux-mm@kvack.org>; Fri, 22 May 2015 15:18:42 +1000
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t4M5I9RK023550
+	for <linux-mm@kvack.org>; Fri, 22 May 2015 15:18:09 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH V6 2/3] powerpc/mm: Use generic version of pmdp_clear_flush
+Date: Fri, 22 May 2015 10:47:31 +0530
+Message-Id: <1432271852-12949-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1432271852-12949-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1432271852-12949-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, kirill.shutemov@linux.intel.com, aarcange@redhat.com, schwidefsky@de.ibm.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Thu, May 21, 2015 at 03:27:22PM +0200, Michal Hocko wrote:
-> hugetlb pages uses add_to_page_cache to track shared mappings. This
-> is OK from the data structure point of view but it is less so from the
-> NR_FILE_PAGES accounting:
-> 	- huge pages are accounted as 4k which is clearly wrong
-> 	- this counter is used as the amount of the reclaimable page
-> 	  cache which is incorrect as well because hugetlb pages are
-> 	  special and not reclaimable
-> 	- the counter is then exported to userspace via /proc/meminfo
-> 	  (in Cached:), /proc/vmstat and /proc/zoneinfo as
-> 	  nr_file_pages which is confusing at least:
-> 	  Cached:          8883504 kB
-> 	  HugePages_Free:     8348
-> 	  ...
-> 	  Cached:          8916048 kB
-> 	  HugePages_Free:      156
-> 	  ...
-> 	  thats 8192 huge pages allocated which is ~16G accounted as 32M
->=20
-> There are usually not that many huge pages in the system for this to
-> make any visible difference e.g. by fooling __vm_enough_memory or
-> zone_pagecache_reclaimable.
->=20
-> Fix this by special casing huge pages in both __delete_from_page_cache
-> and __add_to_page_cache_locked. replace_page_cache_page is currently
-> only used by fuse and that shouldn't touch hugetlb pages AFAICS but it
-> is more robust to check for special casing there as well.
->=20
-> Hugetlb pages shouldn't get to any other paths where we do accounting:
-> 	- migration - we have a special handling via
-> 	  hugetlbfs_migrate_page
-> 	- shmem - doesn't handle hugetlb pages directly even for
-> 	  SHM_HUGETLB resp. MAP_HUGETLB
-> 	- swapcache - hugetlb is not swapable
->=20
-> This has a user visible effect but I believe it is reasonable because
-> the previously exported number is simply bogus.
->=20
-> An alternative would be to account hugetlb pages with their real size
-> and treat them similar to shmem. But this has some drawbacks.
->=20
-> First we would have to special case in kernel users of NR_FILE_PAGES and
-> considering how hugetlb is special we would have to do it everywhere. We
-> do not want Cached exported by /proc/meminfo to include it because the
-> value would be even more misleading.
-> __vm_enough_memory and zone_pagecache_reclaimable would have to do
-> the same thing because those pages are simply not reclaimable. The
-> correction is even not trivial because we would have to consider all
-> active hugetlb page sizes properly. Users of the counter outside of the
-> kernel would have to do the same.
-> So the question is why to account something that needs to be basically
-> excluded for each reasonable usage. This doesn't make much sense to me.
->=20
-> It seems that this has been broken since hugetlb was introduced but I
-> haven't checked the whole history.
->=20
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Also move the pmd_trans_huge check to generic code.
 
-looks good to me,
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ arch/powerpc/include/asm/pgtable-ppc64.h |  4 ----
+ arch/powerpc/mm/pgtable_64.c             | 11 -----------
+ arch/s390/include/asm/pgtable.h          |  8 ++++++++
+ include/asm-generic/pgtable.h            |  9 ++-------
+ mm/pgtable-generic.c                     | 17 +++++++++++++++++
+ 5 files changed, 27 insertions(+), 22 deletions(-)
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>=
+diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
+index 129c67ebc81a..55f06a381dd7 100644
+--- a/arch/powerpc/include/asm/pgtable-ppc64.h
++++ b/arch/powerpc/include/asm/pgtable-ppc64.h
+@@ -557,10 +557,6 @@ extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
+ extern pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+ 				unsigned long addr, pmd_t *pmdp);
+ 
+-#define __HAVE_ARCH_PMDP_CLEAR_FLUSH
+-extern pmd_t pmdp_clear_flush(struct vm_area_struct *vma, unsigned long address,
+-			      pmd_t *pmdp);
+-
+ #define __HAVE_ARCH_PMDP_SET_WRPROTECT
+ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+ 				      pmd_t *pmdp)
+diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
+index 9171c1a37290..d37b9d1a1813 100644
+--- a/arch/powerpc/mm/pgtable_64.c
++++ b/arch/powerpc/mm/pgtable_64.c
+@@ -554,17 +554,6 @@ unsigned long pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,
+ 	return old;
+ }
+ 
+-pmd_t pmdp_clear_flush(struct vm_area_struct *vma, unsigned long address,
+-		       pmd_t *pmdp)
+-{
+-	pmd_t pmd;
+-
+-	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+-	VM_BUG_ON(!pmd_trans_huge(*pmdp));
+-	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
+-	return pmd;
+-}
+-
+ pmd_t pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long address,
+ 			  pmd_t *pmdp)
+ {
+diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+index fc642399b489..17627f73a032 100644
+--- a/arch/s390/include/asm/pgtable.h
++++ b/arch/s390/include/asm/pgtable.h
+@@ -1548,6 +1548,14 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
+ 	}
+ }
+ 
++static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
++					unsigned long address,
++					pmd_t *pmdp)
++{
++	return pmdp_get_and_clear(vma->vm_mm, address, pmdp);
++}
++#define pmdp_collapse_flush pmdp_collapse_flush
++
+ #define pfn_pmd(pfn, pgprot)	mk_pmd_phys(__pa((pfn) << PAGE_SHIFT), (pgprot))
+ #define mk_pmd(page, pgprot)	pfn_pmd(page_to_pfn(page), (pgprot))
+ 
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 2c3ca89e9aee..3b5a89ab4103 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -191,13 +191,8 @@ extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+ 
+ #ifndef pmdp_collapse_flush
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
+-					unsigned long address,
+-					pmd_t *pmdp)
+-{
+-	return pmdp_clear_flush(vma, address, pmdp);
+-}
+-#define pmdp_collapse_flush pmdp_collapse_flush
++extern pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
++				 unsigned long address, pmd_t *pmdp);
+ #else
+ static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
+ 					unsigned long address,
+diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
+index c25f94b33811..f21dc5fbc6cd 100644
+--- a/mm/pgtable-generic.c
++++ b/mm/pgtable-generic.c
+@@ -126,6 +126,7 @@ pmd_t pmdp_clear_flush(struct vm_area_struct *vma, unsigned long address,
+ {
+ 	pmd_t pmd;
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
++	VM_BUG_ON(!pmd_trans_huge(*pmdp));
+ 	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
+ 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+ 	return pmd;
+@@ -198,3 +199,19 @@ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #endif
++
++#ifndef pmdp_collapse_flush
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++pmd_t pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long address,
++			  pmd_t *pmdp)
++{
++	pmd_t pmd;
++
++	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
++	VM_BUG_ON(pmd_trans_huge(*pmdp));
++	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
++	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
++	return pmd;
++}
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
++#endif
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
