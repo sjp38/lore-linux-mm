@@ -1,94 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 0094F82A1F
-	for <linux-mm@kvack.org>; Sat, 23 May 2015 05:01:29 -0400 (EDT)
-Received: by wicmx19 with SMTP id mx19so8399737wic.0
-        for <linux-mm@kvack.org>; Sat, 23 May 2015 02:01:29 -0700 (PDT)
-Received: from mail1.protonmail.ch (mail1.protonmail.ch. [185.70.40.18])
-        by mx.google.com with ESMTPS id hn8si4825070wjb.19.2015.05.23.02.01.27
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 1031882A1F
+	for <linux-mm@kvack.org>; Sat, 23 May 2015 06:54:33 -0400 (EDT)
+Received: by wicmx19 with SMTP id mx19so9925770wic.0
+        for <linux-mm@kvack.org>; Sat, 23 May 2015 03:54:32 -0700 (PDT)
+Received: from mail-wi0-x230.google.com (mail-wi0-x230.google.com. [2a00:1450:400c:c05::230])
+        by mx.google.com with ESMTPS id ha2si2715876wib.48.2015.05.23.03.54.31
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 23 May 2015 02:01:28 -0700 (PDT)
-Subject: Re: RAM encryption and key storing in CPU
-Date: Sat, 23 May 2015 05:01:26 -0400
-From: ngabor <ngabor@protonmail.ch>
-Reply-To: ngabor <ngabor@protonmail.ch>
-Message-ID: <edd20e0d3264b01523d2a9b97a5cdf53@protonmail.ch>
+        Sat, 23 May 2015 03:54:31 -0700 (PDT)
+Received: by wichy4 with SMTP id hy4so10129939wic.1
+        for <linux-mm@kvack.org>; Sat, 23 May 2015 03:54:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="b1_edd20e0d3264b01523d2a9b97a5cdf53"
+Reply-To: sedat.dilek@gmail.com
+In-Reply-To: <555fa43a.O+VvdA70yRRjg8LR%akpm@linux-foundation.org>
+References: <555fa43a.O+VvdA70yRRjg8LR%akpm@linux-foundation.org>
+Date: Sat, 23 May 2015 12:54:30 +0200
+Message-ID: <CA+icZUXRs0ShGqn1232kdwvwpsX1UWzocKhshhV=AC1gPedu5Q@mail.gmail.com>
+Subject: Re: mmotm 2015-05-22-14-48 uploaded
+From: Sedat Dilek <sedat.dilek@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "bp@alien8.de" <bp@alien8.de>, "lizefan@huawei.com" <lizefan@huawei.com>, "tj@kernel.org" <tj@kernel.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: mm-commits@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-next <linux-next@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Michal Hocko <mhocko@suse.cz>
 
-This is a multi-part message in MIME format.
+On Fri, May 22, 2015 at 11:48 PM,  <akpm@linux-foundation.org> wrote:
+[...]
+> You will need quilt to apply these patches to the latest Linus release (3.x
+> or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+> http://ozlabs.org/~akpm/mmotm/series
+>
+[...]
 
---b1_edd20e0d3264b01523d2a9b97a5cdf53
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Should be updated to "4.x" and "4.x-rcY".
 
-QW55IGNvbW1lbnRzPwoKCi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS0KClN1Ympl
-Y3Q6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUKClRpbWUgKEdNVCk6IE1h
-eSAyMSAyMDE1IDEwOjE3OjI1CgpGcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaAoKVG86IGxpbnV4
-LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5l
-bC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnCgoKCkhlbGxvLAoKCgo9PT09PT09PT09CgpQ
-cm9ibGVtOgoKCgpFdmVyeXRoaW5nIGlzIHN0b3JlZCBpbiBwbGFpbnRleHQgaW4gdGhlIE1lbW9y
-eS4KCgoKU28gaWYgYWx0aG91Z2ggZnVsbCBkaXNjIGVuY3J5cHRpb24gaXMgdXNlZCBvbiBhIExp
-bnV4IERlc2t0b3AsIGl0IGlzIHBvc3NpYmxlIHRvIGNvcHkgdGhlIGNvbnRlbnQgb2YgdGhlIG1l
-bW9yeSwgd2hpbGUgdGhlIG5vdGVib29rIHdhcyBvbiBzdXNwZW5kIG9yIGl0IHdhcyBydW5uaW5n
-OgoKCgpodHRwczovL2NpdHAucHJpbmNldG9uLmVkdS9yZXNlYXJjaC9tZW1vcnkvbWVkaWEvCgoK
-Cj09PT09PT09PT0KClNvbHV0aW9uOgoKCgpDYW4gd2UgKG9wdGlvbmFsbHkqKSBlbmNyeXB0IHRo
-ZSBjb250ZW50IG9mIHRoZSBtZW1vcnkgYW5kIHN0b3JlIHRoZSBrZXkgZm9yIGRlY3J5cHRpb24g
-aW4gdGhlIENQVSB0byBhdm9pZCBpbiBnZW5lcmFsIHRoZXNlIGtpbmQgb2YgYXR0YWNrcz8KCgoK
-aHR0cHM6Ly93d3cxLmluZm9ybWF0aWsudW5pLWVybGFuZ2VuLmRlL3RyZXNvcgoKCgpJcyB0aGlz
-IHNvbHV0aW9uIGFscmVhZHkgaW4gdGhlIExpbnV4IGtlcm5lbD8gSWYgeWVzLCBob3cgY2FuIGEg
-TGludXggZW5kdXNlciB0dXJuIGl0IG9uPyBJZiBubywgaG93IGNhbiB3ZSBnZXQgdGhlIGNvZGUv
-aWRlYSBpbiB0aGUgbWFpbmxpbmU/IFdoYXQgYXJlIHRoZSBhcmd1bWVudHMgYWdhaW5zdCBpdD8K
-CgoKKmlmIHNvbWVvbmUgd291bGQgd2FudCB0byBoYXJkZW4gaXQncyBMaW51eCBEZXNrdG9wIChz
-aW5jZSBub3RlYm9va3MgY291bGQgYmUgc3RvbGVuLi4pIGl0IGNvdWxkIHR1cm4gb24gdGhpcyBm
-ZWF0dXJlIHRvIGF2b2lkIGEgcG9saWN5IHRvIGFsd2F5cyB0dXJuIG9mZiB0aGUgbm90ZWJvb2sg
-d2hpbGUgbm90IHVzaW5nIGl0LgoKCgpUaGFuayB5b3UgZm9yIHlvdXIgY29tbWVudHMu
-
-
---b1_edd20e0d3264b01523d2a9b97a5cdf53
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: base64
-
-PGRpdj5BbnkgY29tbWVudHM/IDxicj48L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0tLS0tLS0tIE9y
-aWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBSQU0gZW5jcnlw
-dGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVPGJyPjwvZGl2PjxkaXY+VGltZSAoR01UKTogTWF5
-IDIxIDIwMTUgMTA6MTc6MjU8YnI+PC9kaXY+PGRpdj5Gcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5j
-aDxicj48L2Rpdj48ZGl2PlRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6
-ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9yZzxi
-cj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkhlbGxvLCA8YnI+PC9kaXY+PGRpdj48YnI+PC9k
-aXY+PGRpdj49PT09PT09PT09PGJyPjwvZGl2PjxkaXY+PGI+UHJvYmxlbTwvYj46IDxicj48L2Rp
-dj48ZGl2Pjxicj48L2Rpdj48ZGl2PkV2ZXJ5dGhpbmcgaXMgc3RvcmVkIGluIHBsYWludGV4dCBp
-biB0aGUgTWVtb3J5LiA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5TbyBpZiBhbHRob3Vn
-aCBmdWxsIGRpc2MgZW5jcnlwdGlvbiBpcyB1c2VkIG9uIGEgTGludXggRGVza3RvcCwgaXQgaXMg
-cG9zc2libGUgdG8gY29weSB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5LCB3aGlsZSB0aGUgbm90
-ZWJvb2sgd2FzIG9uIHN1c3BlbmQgb3IgaXQgd2FzIHJ1bm5pbmc6IDxicj48L2Rpdj48ZGl2Pjxi
-cj48L2Rpdj48ZGl2PjxhIGhyZWY9Imh0dHBzOi8vY2l0cC5wcmluY2V0b24uZWR1L3Jlc2VhcmNo
-L21lbW9yeS9tZWRpYS8iPmh0dHBzOi8vY2l0cC5wcmluY2V0b24uZWR1L3Jlc2VhcmNoL21lbW9y
-eS9tZWRpYS88L2E+PGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+PT09PT09PT09PTxicj48
-L2Rpdj48ZGl2PjxiPlNvbHV0aW9uPC9iPjogPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+
-Q2FuIHdlIChvcHRpb25hbGx5KikgZW5jcnlwdCB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5IGFu
-ZCBzdG9yZSB0aGUga2V5IGZvciBkZWNyeXB0aW9uIGluIHRoZSBDUFUgdG8gYXZvaWQgaW4gZ2Vu
-ZXJhbCB0aGVzZSBraW5kIG9mIGF0dGFja3M/IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2
-PjxhIGhyZWY9Imh0dHBzOi8vd3d3MS5pbmZvcm1hdGlrLnVuaS1lcmxhbmdlbi5kZS90cmVzb3Ii
-Pmh0dHBzOi8vd3d3MS5pbmZvcm1hdGlrLnVuaS1lcmxhbmdlbi5kZS90cmVzb3I8L2E+PGJyPjwv
-ZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+SXMgdGhpcyBzb2x1dGlvbiBhbHJlYWR5IGluIHRoZSBM
-aW51eCBrZXJuZWw/IElmIHllcywgaG93IGNhbiBhIExpbnV4IGVuZHVzZXIgdHVybiBpdCBvbj8g
-SWYgbm8sIGhvdyBjYW4gd2UgZ2V0IHRoZSBjb2RlL2lkZWEgaW4gdGhlIG1haW5saW5lPyBXaGF0
-IGFyZSB0aGUgYXJndW1lbnRzIGFnYWluc3QgaXQ/IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48
-ZGl2PippZiBzb21lb25lIHdvdWxkIHdhbnQgdG8gaGFyZGVuIGl0J3MgTGludXggRGVza3RvcCAo
-c2luY2Ugbm90ZWJvb2tzIGNvdWxkIGJlIHN0b2xlbi4uKSBpdCBjb3VsZCB0dXJuIG9uIHRoaXMg
-ZmVhdHVyZSB0byBhdm9pZCBhIHBvbGljeSB0byBhbHdheXMgdHVybiBvZmYgdGhlIG5vdGVib29r
-IHdoaWxlIG5vdCB1c2luZyBpdC4gPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+VGhhbmsg
-eW91IGZvciB5b3VyIGNvbW1lbnRzLiA8YnI+PC9kaXY+PC9ibG9ja3F1b3RlPg==
-
-
-
---b1_edd20e0d3264b01523d2a9b97a5cdf53--
+- Sedat -
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
