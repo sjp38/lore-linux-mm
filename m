@@ -1,117 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
-	by kanga.kvack.org (Postfix) with ESMTP id CFC3B82A17
-	for <linux-mm@kvack.org>; Fri, 22 May 2015 23:49:53 -0400 (EDT)
-Received: by lami4 with SMTP id i4so23570717lam.0
-        for <linux-mm@kvack.org>; Fri, 22 May 2015 20:49:53 -0700 (PDT)
-Received: from numascale.com (numascale.com. [213.162.240.84])
-        by mx.google.com with ESMTPS id yr11si2830726lab.125.2015.05.22.20.49.51
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 126E5829A8
+	for <linux-mm@kvack.org>; Sat, 23 May 2015 00:00:14 -0400 (EDT)
+Received: by obbnx5 with SMTP id nx5so25461668obb.0
+        for <linux-mm@kvack.org>; Fri, 22 May 2015 21:00:13 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id s204si2536055oia.32.2015.05.22.21.00.12
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 May 2015 20:49:51 -0700 (PDT)
-Date: Sat, 23 May 2015 11:49:33 +0800
-From: Daniel J Blueman <daniel@numascale.com>
-Subject: Re: [PATCH] mm: meminit: Finish initialisation of struct pages
- before basic setup
-Message-Id: <1432352973.6359.2@cpanel21.proisp.no>
-In-Reply-To: <555F6404.4010905@hp.com>
-References: <555F6404.4010905@hp.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
+        Fri, 22 May 2015 21:00:13 -0700 (PDT)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [PATCH v2 0/2] alloc_huge_page/hugetlb_reserve_pages race
+Date: Fri, 22 May 2015 20:55:02 -0700
+Message-Id: <1432353304-12767-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <waiman.long@hp.com>, Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, nzimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Steffen Persvold <sp@numascale.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
+This updated patch set includes new documentation for the region/
+reserve map routines.  Since I am not the original author of this
+code, comments would be appreciated.
 
+While working on hugetlbfs fallocate support, I noticed the following
+race in the existing code.  It is unlikely that this race is hit very
+often in the current code.  However, if more functionality to add and
+remove pages to hugetlbfs mappings (such as fallocate) is added the
+likelihood of hitting this race will increase.
+
+alloc_huge_page and hugetlb_reserve_pages use information from the
+reserve map to determine if there are enough available huge pages to
+complete the operation, as well as adjust global reserve and subpool
+usage counts.  The order of operations is as follows:
+- call region_chg() to determine the expected change based on reserve map
+- determine if enough resources are available for this operation
+- adjust global counts based on the expected change
+- call region_add() to update the reserve map
+The issue is that reserve map could change between the call to region_chg
+and region_add.  In this case, the counters which were adjusted based on
+the output of region_chg will not be correct.
+
+In order to hit this race today, there must be an existing shared hugetlb
+mmap created with the MAP_NORESERVE flag.  A page fault to allocate a huge
+page via this mapping must occur at the same another task is mapping the
+same region without the MAP_NORESERVE flag.
+
+The patch set does not prevent the race from happening.  Rather, it adds
+simple functionality to detect when the race has occurred.  If a race is
+detected, then the incorrect counts are adjusted.
+
+v2:
+  Added documentation for the region/reserve map routines
+  Created common routine for vma_commit_reservation and
+    vma_commit_reservation to help prevent them from drifting
+    apart in the future.
+
+Mike Kravetz (2):
+  mm/hugetlb: compute/return the number of regions added by region_add()
+  mm/hugetlb: handle races in alloc_huge_page and hugetlb_reserve_pages
+
+ mm/hugetlb.c | 154 +++++++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 124 insertions(+), 30 deletions(-)
 
 -- 
-Daniel J Blueman
-Principal Software Engineer, Numascale
-
-On Sat, May 23, 2015 at 1:14 AM, Waiman Long <waiman.long@hp.com> wrote:
-> On 05/22/2015 05:33 AM, Mel Gorman wrote:
->> On Fri, May 22, 2015 at 02:30:01PM +0800, Daniel J Blueman wrote:
->>> On Thu, May 14, 2015 at 6:03 PM, Daniel J Blueman
->>> <daniel@numascale.com>  wrote:
->>>> On Thu, May 14, 2015 at 12:31 AM, Mel Gorman<mgorman@suse.de>  
->>>> wrote:
->>>>> On Wed, May 13, 2015 at 10:53:33AM -0500, nzimmer wrote:
->>>>>> I am just noticed a hang on my largest box.
->>>>>> I can only reproduce with large core counts, if I turn down the
->>>>>> number of cpus it doesn't have an issue.
->>>>>> 
->>>>> Odd. The number of core counts should make little a difference
->>>>> as only
->>>>> one CPU per node should be in use. Does sysrq+t give any
->>>>> indication how
->>>>> or where it is hanging?
->>>> I was seeing the same behaviour of 1000ms increasing to 5500ms
->>>> [1]; this suggests either lock contention or O(n) behaviour.
->>>> 
->>>> Nathan, can you check with this ordering of patches from Andrew's
->>>> cache [2]? I was getting hanging until I a found them all.
->>>> 
->>>> I'll follow up with timing data.
->>> 7TB over 216 NUMA nodes, 1728 cores, from kernel 4.0.4 load to 
->>> login:
->>> 
->>> 1. 2086s with patches 01-19 [1]
->>> 
->>> 2. 2026s adding "Take into account that large system caches scale
->>> linearly with memory", which has:
->>> min(2UL<<  (30 - PAGE_SHIFT), (pgdat->node_spanned_pages>>  3));
->>> 
->>> 3. 2442s fixing to:
->>> max(2UL<<  (30 - PAGE_SHIFT), (pgdat->node_spanned_pages>>  3));
->>> 
->>> 4. 2064s adjusting minimum and shift to:
->>> max(512UL<<  (20 - PAGE_SHIFT), (pgdat->node_spanned_pages>>  8));
->>> 
->>> 5. 1934s adjusting minimum and shift to:
->>> max(128UL<<  (20 - PAGE_SHIFT), (pgdat->node_spanned_pages>>  8));
->>> 
->>> 6. 930s #5 with the non-temporal PMD init patch I had earlier
->>> proposed (I'll pursue separately)
->>> 
->>> The scaling patch isn't in -mm.
->> That patch was superceded by "mm: meminit: finish
->> initialisation of struct pages before basic setup" and
->> "mm-meminit-finish-initialisation-of-struct-pages-before-basic-setup-fix"
->> so that's ok.
->> 
->> FWIW, I think you should still go ahead with the non-temporal 
->> patches because
->> there is potential benefit there other than the initialisation.  If 
->> there
->> was an arch-optional implementation of a non-termporal clear then it 
->> would
->> also be worth considering if __GFP_ZERO should use non-temporal 
->> stores.
->> At a greater stretch it would be worth considering if kswapd freeing 
->> should
->> zero pages to avoid a zero on the allocation side in the general 
->> case as
->> it would be more generally useful and a stepping stone towards what 
->> the
->> series "Sanitizing freed pages" attempts.
-
-Good tip Mel; I'll take a look when time allows and get some data, 
-though I guess it'll only be a win where the clearing is on a different 
-node than the allocation.
-
-> I think the non-temporal patch benefits mainly AMD systems. I have 
-> tried the patch on both DragonHawk and it actually made it boot up a 
-> little bit slower. I think the Intel optimized "rep stosb" 
-> instruction (used in memset) is performing well. I had done similar 
-> test on zero page code and the performance gain was non-conclusive.
-
-I suspect 'rep stosb' on modern Intel hardware can write whole 
-cachelines atomically, avoiding the RMW, or that the read part of the 
-RMW is optimally prefetched. Open-coding it just can't reach the same 
-level of pipeline saturation that the microcode can.
-
-Daniel
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
