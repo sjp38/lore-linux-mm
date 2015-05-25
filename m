@@ -1,78 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 55D7E6B00D5
-	for <linux-mm@kvack.org>; Mon, 25 May 2015 10:33:34 -0400 (EDT)
-Received: by pdfh10 with SMTP id h10so70840426pdf.3
-        for <linux-mm@kvack.org>; Mon, 25 May 2015 07:33:34 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id py8si16439110pdb.157.2015.05.25.07.33.32
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 5115D6B00D5
+	for <linux-mm@kvack.org>; Mon, 25 May 2015 10:40:54 -0400 (EDT)
+Received: by pabru16 with SMTP id ru16so72480463pab.1
+        for <linux-mm@kvack.org>; Mon, 25 May 2015 07:40:54 -0700 (PDT)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id z14si16506270pas.56.2015.05.25.07.40.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 25 May 2015 07:33:33 -0700 (PDT)
-Received: from fsav301.sakura.ne.jp (fsav301.sakura.ne.jp [153.120.85.132])
-	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id t4PEXUUm010392
-	for <linux-mm@kvack.org>; Mon, 25 May 2015 23:33:30 +0900 (JST)
-	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
-Received: from AQUA (softbank126227184186.bbtec.net [126.227.184.186])
-	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id t4PEXUoV010389
-	for <linux-mm@kvack.org>; Mon, 25 May 2015 23:33:30 +0900 (JST)
-	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
-Subject: [PATCH] mm/oom: Suppress unnecessary "sharing same memory" message.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-Id: <201505252333.FJG56590.OOFSHQMOJtFFVL@I-love.SAKURA.ne.jp>
-Date: Mon, 25 May 2015 23:33:31 +0900
-Mime-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 May 2015 07:40:53 -0700 (PDT)
+Received: by pacwv17 with SMTP id wv17so72416909pac.2
+        for <linux-mm@kvack.org>; Mon, 25 May 2015 07:40:53 -0700 (PDT)
+Date: Mon, 25 May 2015 23:40:45 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC PATCH 2/2] arm64: Implement vmalloc based thread_info
+ allocator
+Message-ID: <20150525144045.GE14922@blaptop>
+References: <1432483340-23157-1-git-send-email-jungseoklee85@gmail.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1432483340-23157-1-git-send-email-jungseoklee85@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Jungseok Lee <jungseoklee85@gmail.com>
+Cc: linux-arm-kernel@lists.infradead.org, barami97@gmail.com, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
->From 3728807fe66ebc24a8a28455593754b9532bbe74 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Mon, 25 May 2015 22:26:07 +0900
-Subject: [PATCH] mm/oom: Suppress unnecessary "sharing same memory" message.
+Hello Jungseok,
 
-If the mm struct which the OOM victim is using is shared by e.g. 1000
-threads, and the lock dependency prevents all threads except the OOM
-victim thread from terminating until they get TIF_MEMDIE flag, the OOM
-killer will be invoked for 1000 times on this mm struct. As a result,
-the kernel would emit
+On Mon, May 25, 2015 at 01:02:20AM +0900, Jungseok Lee wrote:
+> Fork-routine sometimes fails to get a physically contiguous region for
+> thread_info on 4KB page system although free memory is enough. That is,
+> a physically contiguous region, which is currently 16KB, is not available
+> since system memory is fragmented.
 
-  "Kill process %d (%s) sharing same memory\n"
+Order less than PAGE_ALLOC_COSTLY_ORDER should not fail in current
+mm implementation. If you saw the order-2,3 high-order allocation fail
+maybe your application received SIGKILL by someone. LMK?
 
-line for 1000 * 1000 / 2 times. But once these threads got pending SIGKILL,
-emitting this information is nothing but noise. This patch filters them.
+> 
+> This patch tries to solve the problem as allocating thread_info memory
+> from vmalloc space, not 1:1 mapping one. The downside is one additional
+> page allocation in case of vmalloc. However, vmalloc space is large enough,
 
-Similarly,
+The size you want to allocate is 16KB in here but additional 4K?
+It increases 25% memory footprint, which is huge downside.
 
-  "[%5d] %5d %5d %8lu %8lu %7ld %7ld %8lu         %5hd %s\n"
+> around 240GB, under a combination of 39-bit VA and 4KB page. Thus, it is
+> not a big tradeoff for fork-routine service.
+> 
+> Suggested-by: Sungjinn Chung <barami97@gmail.com>
+> Signed-off-by: Jungseok Lee <jungseoklee85@gmail.com>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> ---
+>  arch/arm64/Kconfig                   | 12 ++++++++++++
+>  arch/arm64/include/asm/thread_info.h |  9 +++++++++
+>  arch/arm64/kernel/process.c          |  7 +++++++
+>  3 files changed, 28 insertions(+)
+> 
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index 99930cf..93c236a 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -536,6 +536,18 @@ config ARCH_SELECT_MEMORY_MODEL
+>  config HAVE_ARCH_PFN_VALID
+>  	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
+>  
+> +config ARCH_THREAD_INFO_ALLOCATOR
+> +	bool "Enable vmalloc based thread_info allocator (EXPERIMENTAL)"
+> +	depends on ARM64_4K_PAGES
+> +	default n
+> +	help
+> +	  This feature enables vmalloc based thread_info allocator. It
+> +	  prevents fork-routine from begin failed to obtain physically
+> +	  contiguour region due to memory fragmentation on low system
+> +	  memory platforms.
+> +
+> +	  If unsure, say N
+> +
+>  config HW_PERF_EVENTS
+>  	bool "Enable hardware performance counter support for perf events"
+>  	depends on PERF_EVENTS
+> diff --git a/arch/arm64/include/asm/thread_info.h b/arch/arm64/include/asm/thread_info.h
+> index dcd06d1..e753e59 100644
+> --- a/arch/arm64/include/asm/thread_info.h
+> +++ b/arch/arm64/include/asm/thread_info.h
+> @@ -61,6 +61,15 @@ struct thread_info {
+>  #define init_thread_info	(init_thread_union.thread_info)
+>  #define init_stack		(init_thread_union.stack)
+>  
+> +#ifdef CONFIG_ARCH_THREAD_INFO_ALLOCATOR
+> +#define alloc_thread_info_node(tsk, node)				\
+> +({									\
+> +	__vmalloc_node_range(THREAD_SIZE, THREAD_SIZE, VMALLOC_START,	\
+> +			VMALLOC_END, GFP_KERNEL, PAGE_KERNEL, 0,	\
+> +			NUMA_NO_NODE, __builtin_return_address(0));	\
+> +})
+> +#define free_thread_info(ti)	vfree(ti)
+> +#endif
+>  /*
+>   * how to get the current stack pointer from C
+>   */
+> diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
+> index c506bee..c4b6aae 100644
+> --- a/arch/arm64/kernel/process.c
+> +++ b/arch/arm64/kernel/process.c
+> @@ -238,6 +238,13 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
+>  	return 0;
+>  }
+>  
+> +#ifdef CONFIG_ARCH_THREAD_INFO_ALLOCATOR
+> +struct page *arch_thread_info_to_page(struct thread_info *ti)
+> +{
+> +	return vmalloc_to_page(ti);
+> +}
+> +#endif
+> +
+>  asmlinkage void ret_from_fork(void) asm("ret_from_fork");
+>  
+>  int copy_thread(unsigned long clone_flags, unsigned long stack_start,
+> -- 
+> 1.9.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-lines in dump_task() might be sufficient for once per each mm struct. But
-this patch does not filter them because we want a marker field in the mm
-struct and a lock for protecting the marker if we want to eliminate
-duplication.
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- mm/oom_kill.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 5cfda39..d0eccbb 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -583,6 +583,8 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 		    !(p->flags & PF_KTHREAD)) {
- 			if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
- 				continue;
-+			if (fatal_signal_pending(p))
-+				continue;
- 
- 			task_lock(p);	/* Protect ->comm from prctl() */
- 			pr_err("Kill process %d (%s) sharing same memory\n",
 -- 
-1.8.3.1
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
