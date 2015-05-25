@@ -1,51 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id ED2ED6B00D5
-	for <linux-mm@kvack.org>; Mon, 25 May 2015 11:24:32 -0400 (EDT)
-Received: by wgbgq6 with SMTP id gq6so75514803wgb.3
-        for <linux-mm@kvack.org>; Mon, 25 May 2015 08:24:32 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s2si18727938wjw.208.2015.05.25.08.24.30
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id BB1DA6B00D5
+	for <linux-mm@kvack.org>; Mon, 25 May 2015 11:54:36 -0400 (EDT)
+Received: by wgbgq6 with SMTP id gq6so76063443wgb.3
+        for <linux-mm@kvack.org>; Mon, 25 May 2015 08:54:36 -0700 (PDT)
+Received: from mail-wg0-x22d.google.com (mail-wg0-x22d.google.com. [2a00:1450:400c:c00::22d])
+        by mx.google.com with ESMTPS id ym6si18895620wjc.130.2015.05.25.08.54.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 25 May 2015 08:24:31 -0700 (PDT)
-Message-ID: <55633EAC.8060702@suse.cz>
-Date: Mon, 25 May 2015 17:24:28 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 May 2015 08:54:35 -0700 (PDT)
+Received: by wgme6 with SMTP id e6so7555581wgm.2
+        for <linux-mm@kvack.org>; Mon, 25 May 2015 08:54:34 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH] mm:cma - Fix for typos in comments.
+In-Reply-To: <1432357847-4434-1-git-send-email-shailendra.capricorn@gmail.com>
+References: <1432357847-4434-1-git-send-email-shailendra.capricorn@gmail.com>
+Date: Mon, 25 May 2015 17:54:31 +0200
+Message-ID: <xa1tr3q4ps94.fsf@mina86.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] hugetlb: Do not account hugetlb pages as NR_FILE_PAGES
-References: <1432214842-22730-1-git-send-email-mhocko@suse.cz> <20150521170909.GA12800@cmpxchg.org> <20150522142143.GF5109@dhcp22.suse.cz> <20150522143558.GA2462@suse.de>
-In-Reply-To: <20150522143558.GA2462@suse.de>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Shailendra Verma <shailendra.capricorn@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>, Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 
-On 05/22/2015 04:35 PM, Mel Gorman wrote:
->> 
->> Thanks!
->> 
->> > This makes a lot of sense to me.  The only thing I worry about is the
->> > proliferation of PageHuge(), a function call, in relatively hot paths.
->> 
->> I've tried that (see the patch below) but it enlarged the code by almost
->> 1k
->>    text    data     bss     dec     hex filename
->>  510323   74273   44440  629036   9992c mm/built-in.o.before
->>  511248   74273   44440  629961   99cc9 mm/built-in.o.after
->> 
->> I am not sure the code size increase is worth it. Maybe we can reduce
->> the check to only PageCompound(page) as huge pages are no in the page
->> cache (yet).
->> 
-> 
-> That would be a more sensible route because it also avoids exposing the
-> hugetlbfs destructor unnecessarily.
+On Sat, May 23 2015, Shailendra Verma wrote:
+> Signed-off-by: Shailendra Verma <shailendra.capricorn@gmail.com>
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
 
-You could maybe do test such as (PageCompound(page) && PageHuge(page)) to
-short-circuit the call while remaining future-proof.
+> ---
+>  mm/cma.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/cma.c b/mm/cma.c
+> index 3a7a67b..6612780 100644
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -182,7 +182,7 @@ int __init cma_init_reserved_mem(phys_addr_t base, ph=
+ys_addr_t size,
+>  	if (!size || !memblock_is_region_reserved(base, size))
+>  		return -EINVAL;
+>=20=20
+> -	/* ensure minimal alignment requied by mm core */
+> +	/* ensure minimal alignment required by mm core */
+>  	alignment =3D PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
+>=20=20
+>  	/* alignment should be aligned with order_per_bit */
+> @@ -238,7 +238,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
+>  	/*
+>  	 * high_memory isn't direct mapped memory so retrieving its physical
+>  	 * address isn't appropriate.  But it would be useful to check the
+> -	 * physical address of the highmem boundary so it's justfiable to get
+> +	 * physical address of the highmem boundary so it's justifiable to get
+>  	 * the physical address from it.  On x86 there is a validation check for
+>  	 * this case, so the following workaround is needed to avoid it.
+>  	 */
+> --=20
+> 1.7.9.5
+>
+
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
