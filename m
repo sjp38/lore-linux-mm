@@ -1,70 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 578B66B00D5
-	for <linux-mm@kvack.org>; Mon, 25 May 2015 13:06:48 -0400 (EDT)
-Received: by qgez61 with SMTP id z61so48173479qge.1
-        for <linux-mm@kvack.org>; Mon, 25 May 2015 10:06:48 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f31si6265174qkh.15.2015.05.25.10.06.47
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 641956B0131
+	for <linux-mm@kvack.org>; Mon, 25 May 2015 15:58:31 -0400 (EDT)
+Received: by wgme6 with SMTP id e6so11458246wgm.2
+        for <linux-mm@kvack.org>; Mon, 25 May 2015 12:58:30 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r1si14151486wic.112.2015.05.25.12.58.28
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 May 2015 10:06:47 -0700 (PDT)
-Date: Mon, 25 May 2015 19:06:01 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 3/7] memcg: immigrate charges only when a threadgroup
-	leader is moved
-Message-ID: <20150525170601.GA438@redhat.com>
-References: <20150520131044.GA28678@dhcp22.suse.cz> <20150520132158.GB28678@dhcp22.suse.cz> <20150520175302.GA7287@redhat.com> <20150520202221.GD14256@dhcp22.suse.cz> <20150521192716.GA21304@redhat.com> <20150522093639.GE5109@dhcp22.suse.cz> <20150522162900.GA8955@redhat.com> <20150522165734.GH5109@dhcp22.suse.cz> <20150522183042.GF26770@redhat.com> <20150525160626.GC19389@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150525160626.GC19389@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 25 May 2015 12:58:29 -0700 (PDT)
+Message-ID: <1432583887.2185.53.camel@stgolabs.net>
+Subject: Re: [PATCH v2 0/2] alloc_huge_page/hugetlb_reserve_pages race
+From: Davidlohr Bueso <dave@stgolabs.net>
+In-Reply-To: <1432353304-12767-1-git-send-email-mike.kravetz@oracle.com>
+References: <1432353304-12767-1-git-send-email-mike.kravetz@oracle.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 25 May 2015 12:58:07 -0700
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Tejun Heo <tj@kernel.org>, lizefan@huawei.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 05/25, Michal Hocko wrote:
->
-> On Fri 22-05-15 20:30:42, Oleg Nesterov wrote:
-> > On 05/22, Michal Hocko wrote:
-> > >
-> > > On Fri 22-05-15 18:29:00, Oleg Nesterov wrote:
-> > > >
-> > > > In the likely case (if CLONE_VM without CLONE_THREAD was not used) the
-> > > > last for_each_process() in mm_update_next_owner() will find another thread
-> > > > from the same group.
-> > >
-> > > My understanding was that for_each_process will iterate only over
-> > > processes (represented by the thread group leaders).
-> >
-> > Yes. But note the inner for_each_thread() loop. And note that we
-> > we need this loop exactly because the leader can be zombie.
->
-> I was too vague, sorry about that.
+On Fri, 2015-05-22 at 20:55 -0700, Mike Kravetz wrote:
+> This updated patch set includes new documentation for the region/
+> reserve map routines.  Since I am not the original author of this
+> code, comments would be appreciated.
+> 
+> While working on hugetlbfs fallocate support, I noticed the following
+> race in the existing code.  It is unlikely that this race is hit very
+> often in the current code.
 
-Looks like, we confused each other somehow ;) Not sure I understand your
-concerns...
+Have you actually run into this issue? Can you produce a testcase?
 
-But,
+>   However, if more functionality to add and
+> remove pages to hugetlbfs mappings (such as fallocate) is added the
+> likelihood of hitting this race will increase.
+> 
+> alloc_huge_page and hugetlb_reserve_pages use information from the
+> reserve map to determine if there are enough available huge pages to
+> complete the operation, as well as adjust global reserve and subpool
+> usage counts.  The order of operations is as follows:
+> - call region_chg() to determine the expected change based on reserve map
+> - determine if enough resources are available for this operation
+> - adjust global counts based on the expected change
+> - call region_add() to update the reserve map
+> The issue is that reserve map could change between the call to region_chg
+> and region_add.  In this case, the counters which were adjusted based on
+> the output of region_chg will not be correct.
+> 
+> In order to hit this race today, there must be an existing shared hugetlb
+> mmap created with the MAP_NORESERVE flag.  A page fault to allocate a huge
+> page via this mapping must occur at the same another task is mapping the
+> same region without the MAP_NORESERVE flag.
 
-> What I meant was that
-> for_each_process would pick up a group leader
+In the past file regions were serialized by either mmap_sem (exclusive)
+or the hugetlb instantiation mutex (when mmap_sem was shared). With
+finer grained locking, however, we now rely on the resv_map->lock. So I
+guess you are referring to something like this, no?
 
-Yes. In the case above it will find the caller (current) too,
+CPU0 (via vma_[needs/commit]_reservation)  CPU1
+hugetlb_fault				
+  mutex_lock(hash_A)			  
+  hugetlb_no_page			
+    alloc_huge_page			shm_get  
+       region_chg			  hugetlb_file_setup
+       <accounting updates>		    hugetlb_reserve_pages
+					      region_chg
+       region_add			      <accounting updates>
+					      region_add
 
-> and the inner
-> for_each_thread will return it as the first element in the list.
+Couldn't this race also occur upon concurrent faults on two different
+hashes backed by the same vma?
 
-Yes, and this will be "current" task. But current->mm == NULL, so
-for_each_thread() will continue and find another thread which becomes
-the new mm->owner.
+Anyway, it's memorial day, so I'll take a closer look during the week,
+but you seem to be correct. An alternative could be to continue holding
+the spinlock until the after region_add, but I like your "fixup"
+approach.
 
-Just in case, note the BUG_ON(c == p). I think that BUG_ON(p->mm) at
-the start will look much better. This is what mm_update_next_owner()
-actually assumes.
+> The patch set does not prevent the race from happening.  Rather, it adds
+> simple functionality to detect when the race has occurred.  If a race is
+> detected, then the incorrect counts are adjusted.
+> 
+> v2:
+>   Added documentation for the region/reserve map routines
 
-Oleg.
+Thanks for doing this, as akpm mentioned, it is much needed. However,
+this should be a new, separate patch.
+
+>   Created common routine for vma_commit_reservation and
+>     vma_commit_reservation to help prevent them from drifting
+>     apart in the future.
+> 
+> Mike Kravetz (2):
+>   mm/hugetlb: compute/return the number of regions added by region_add()
+>   mm/hugetlb: handle races in alloc_huge_page and hugetlb_reserve_pages
+
+Ah, so these two patches are duplicates from your fallocate series,
+right? You should drop those from that patchset then, as bugfixes should
+be separate.
+
+Could you rename patch 2 to something more meaningful? ie:
+
+mm/hugetlb: account for races between region_chg and region_add
+
+Also, gosh those function names are nasty and unclear -- I would change
+them to region_prepare and region_commit, or something like that where
+the purpose is more obvious.
+
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
