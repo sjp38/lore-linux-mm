@@ -1,62 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D4306B0098
-	for <linux-mm@kvack.org>; Mon, 25 May 2015 12:06:30 -0400 (EDT)
-Received: by wicmc15 with SMTP id mc15so43834361wic.1
-        for <linux-mm@kvack.org>; Mon, 25 May 2015 09:06:30 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a14si13273942wib.49.2015.05.25.09.06.28
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D27F6B0098
+	for <linux-mm@kvack.org>; Mon, 25 May 2015 12:39:07 -0400 (EDT)
+Received: by pabru16 with SMTP id ru16so74025965pab.1
+        for <linux-mm@kvack.org>; Mon, 25 May 2015 09:39:07 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id pv10si16825903pbc.93.2015.05.25.09.39.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 25 May 2015 09:06:28 -0700 (PDT)
-Date: Mon, 25 May 2015 18:06:26 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/7] memcg: immigrate charges only when a threadgroup
- leader is moved
-Message-ID: <20150525160626.GC19389@dhcp22.suse.cz>
-References: <20150519212754.GO24861@htj.duckdns.org>
- <20150520131044.GA28678@dhcp22.suse.cz>
- <20150520132158.GB28678@dhcp22.suse.cz>
- <20150520175302.GA7287@redhat.com>
- <20150520202221.GD14256@dhcp22.suse.cz>
- <20150521192716.GA21304@redhat.com>
- <20150522093639.GE5109@dhcp22.suse.cz>
- <20150522162900.GA8955@redhat.com>
- <20150522165734.GH5109@dhcp22.suse.cz>
- <20150522183042.GF26770@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150522183042.GF26770@redhat.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 May 2015 09:39:06 -0700 (PDT)
+Received: by padbw4 with SMTP id bw4so74025363pad.0
+        for <linux-mm@kvack.org>; Mon, 25 May 2015 09:39:06 -0700 (PDT)
+From: Shailendra Verma <shailendra.capricorn@gmail.com>
+Subject: [PATCH] mm:vmscan - Fix for typo in comment in function __remove_mapping().
+Date: Mon, 25 May 2015 22:08:51 +0530
+Message-Id: <1432571931-2789-1-git-send-email-shailendra.capricorn@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Tejun Heo <tj@kernel.org>, lizefan@huawei.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Suleiman Souhlal <suleiman@google.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Shailendra Verma <shailendra.capricorn@gmail.com>
 
-On Fri 22-05-15 20:30:42, Oleg Nesterov wrote:
-> On 05/22, Michal Hocko wrote:
-> >
-> > On Fri 22-05-15 18:29:00, Oleg Nesterov wrote:
-> > >
-> > > In the likely case (if CLONE_VM without CLONE_THREAD was not used) the
-> > > last for_each_process() in mm_update_next_owner() will find another thread
-> > > from the same group.
-> >
-> > My understanding was that for_each_process will iterate only over
-> > processes (represented by the thread group leaders).
-> 
-> Yes. But note the inner for_each_thread() loop. And note that we
-> we need this loop exactly because the leader can be zombie.
 
-I was too vague, sorry about that. What I meant was that
-for_each_process would pick up a group leader and the inner
-for_each_thread will return it as the first element in the list. As the
-leader waits for other threads then it should stay on the thread_node
-list as well. But I might be easily wrong here because the whole thing
-is really quite confusing to be honest.
+Signed-off-by: Shailendra Verma <shailendra.capricorn@gmail.com>
+---
+ mm/vmscan.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 5e8eadd..68a0d04 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -632,7 +632,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
+ 		 * order to detect refaults, thus thrashing, later on.
+ 		 *
+ 		 * But don't store shadows in an address space that is
+-		 * already exiting.  This is not just an optizimation,
++		 * already exiting.  This is not just an optimization,
+ 		 * inode reclaim needs to empty out the radix tree or
+ 		 * the nodes are lost.  Don't plant shadows behind its
+ 		 * back.
 -- 
-Michal Hocko
-SUSE Labs
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
