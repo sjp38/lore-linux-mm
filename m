@@ -1,71 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id BB1DA6B00D5
-	for <linux-mm@kvack.org>; Mon, 25 May 2015 11:54:36 -0400 (EDT)
-Received: by wgbgq6 with SMTP id gq6so76063443wgb.3
-        for <linux-mm@kvack.org>; Mon, 25 May 2015 08:54:36 -0700 (PDT)
-Received: from mail-wg0-x22d.google.com (mail-wg0-x22d.google.com. [2a00:1450:400c:c00::22d])
-        by mx.google.com with ESMTPS id ym6si18895620wjc.130.2015.05.25.08.54.34
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D4306B0098
+	for <linux-mm@kvack.org>; Mon, 25 May 2015 12:06:30 -0400 (EDT)
+Received: by wicmc15 with SMTP id mc15so43834361wic.1
+        for <linux-mm@kvack.org>; Mon, 25 May 2015 09:06:30 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a14si13273942wib.49.2015.05.25.09.06.28
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 May 2015 08:54:35 -0700 (PDT)
-Received: by wgme6 with SMTP id e6so7555581wgm.2
-        for <linux-mm@kvack.org>; Mon, 25 May 2015 08:54:34 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH] mm:cma - Fix for typos in comments.
-In-Reply-To: <1432357847-4434-1-git-send-email-shailendra.capricorn@gmail.com>
-References: <1432357847-4434-1-git-send-email-shailendra.capricorn@gmail.com>
-Date: Mon, 25 May 2015 17:54:31 +0200
-Message-ID: <xa1tr3q4ps94.fsf@mina86.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 25 May 2015 09:06:28 -0700 (PDT)
+Date: Mon, 25 May 2015 18:06:26 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/7] memcg: immigrate charges only when a threadgroup
+ leader is moved
+Message-ID: <20150525160626.GC19389@dhcp22.suse.cz>
+References: <20150519212754.GO24861@htj.duckdns.org>
+ <20150520131044.GA28678@dhcp22.suse.cz>
+ <20150520132158.GB28678@dhcp22.suse.cz>
+ <20150520175302.GA7287@redhat.com>
+ <20150520202221.GD14256@dhcp22.suse.cz>
+ <20150521192716.GA21304@redhat.com>
+ <20150522093639.GE5109@dhcp22.suse.cz>
+ <20150522162900.GA8955@redhat.com>
+ <20150522165734.GH5109@dhcp22.suse.cz>
+ <20150522183042.GF26770@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150522183042.GF26770@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shailendra Verma <shailendra.capricorn@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>, Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Tejun Heo <tj@kernel.org>, lizefan@huawei.com, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
 
-On Sat, May 23 2015, Shailendra Verma wrote:
-> Signed-off-by: Shailendra Verma <shailendra.capricorn@gmail.com>
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+On Fri 22-05-15 20:30:42, Oleg Nesterov wrote:
+> On 05/22, Michal Hocko wrote:
+> >
+> > On Fri 22-05-15 18:29:00, Oleg Nesterov wrote:
+> > >
+> > > In the likely case (if CLONE_VM without CLONE_THREAD was not used) the
+> > > last for_each_process() in mm_update_next_owner() will find another thread
+> > > from the same group.
+> >
+> > My understanding was that for_each_process will iterate only over
+> > processes (represented by the thread group leaders).
+> 
+> Yes. But note the inner for_each_thread() loop. And note that we
+> we need this loop exactly because the leader can be zombie.
 
-> ---
->  mm/cma.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/cma.c b/mm/cma.c
-> index 3a7a67b..6612780 100644
-> --- a/mm/cma.c
-> +++ b/mm/cma.c
-> @@ -182,7 +182,7 @@ int __init cma_init_reserved_mem(phys_addr_t base, ph=
-ys_addr_t size,
->  	if (!size || !memblock_is_region_reserved(base, size))
->  		return -EINVAL;
->=20=20
-> -	/* ensure minimal alignment requied by mm core */
-> +	/* ensure minimal alignment required by mm core */
->  	alignment =3D PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
->=20=20
->  	/* alignment should be aligned with order_per_bit */
-> @@ -238,7 +238,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
->  	/*
->  	 * high_memory isn't direct mapped memory so retrieving its physical
->  	 * address isn't appropriate.  But it would be useful to check the
-> -	 * physical address of the highmem boundary so it's justfiable to get
-> +	 * physical address of the highmem boundary so it's justifiable to get
->  	 * the physical address from it.  On x86 there is a validation check for
->  	 * this case, so the following workaround is needed to avoid it.
->  	 */
-> --=20
-> 1.7.9.5
->
-
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+I was too vague, sorry about that. What I meant was that
+for_each_process would pick up a group leader and the inner
+for_each_thread will return it as the first element in the list. As the
+leader waits for other threads then it should stay on the thread_node
+list as well. But I might be easily wrong here because the whole thing
+is really quite confusing to be honest.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
