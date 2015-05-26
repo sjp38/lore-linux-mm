@@ -1,43 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 72AEF6B012C
-	for <linux-mm@kvack.org>; Tue, 26 May 2015 06:58:04 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so88342531pdb.0
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 03:58:04 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id px1si20347416pbb.240.2015.05.26.03.58.03
-        for <linux-mm@kvack.org>;
-        Tue, 26 May 2015 03:58:03 -0700 (PDT)
-Message-ID: <556451B6.6080303@arm.com>
-Date: Tue, 26 May 2015 11:57:58 +0100
-From: Marc Zyngier <marc.zyngier@arm.com>
-MIME-Version: 1.0
-Subject: Re: [BUG] Read-Only THP causes stalls (commit 10359213d)
-References: <20150524193404.GD16910@cbox> <20150525141525.GB26958@redhat.com> <20150526080848.GA27075@cbox>
-In-Reply-To: <20150526080848.GA27075@cbox>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id A11CD6B0158
+	for <linux-mm@kvack.org>; Tue, 26 May 2015 07:30:06 -0400 (EDT)
+Received: by padbw4 with SMTP id bw4so90779157pad.0
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 04:30:06 -0700 (PDT)
+Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
+        by mx.google.com with ESMTPS id bn12si20533063pdb.202.2015.05.26.04.30.05
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 May 2015 04:30:05 -0700 (PDT)
+Received: by pdfh10 with SMTP id h10so88791995pdf.3
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 04:30:05 -0700 (PDT)
+Subject: Re: [RFC PATCH 2/2] arm64: Implement vmalloc based thread_info allocator
+Mime-Version: 1.0 (Apple Message framework v1283)
+Content-Type: text/plain; charset=us-ascii
+From: Jungseok Lee <jungseoklee85@gmail.com>
+In-Reply-To: <20150525144045.GE14922@blaptop>
+Date: Tue, 26 May 2015 20:29:59 +0900
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <D5CD4D44-77BC-4817-B9A7-60C0F4AE444F@gmail.com>
+References: <1432483340-23157-1-git-send-email-jungseoklee85@gmail.com> <20150525144045.GE14922@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoffer Dall <christoffer.dall@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "ebru.akagunduz@gmail.com" <ebru.akagunduz@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "zhangyanfei@cn.fujitsu.com" <zhangyanfei@cn.fujitsu.com>, Will Deacon <Will.Deacon@arm.com>, Andre Przywara <Andre.Przywara@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-arm-kernel@lists.infradead.org, barami97@gmail.com, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 26/05/15 09:08, Christoffer Dall wrote:
+On May 25, 2015, at 11:40 PM, Minchan Kim wrote:
+> Hello Jungseok,
 
-[...]
+Hi, Minchan,
 
->> Then push the system into swap with some memhog -r1000 xG.
-> 
-> what is memhog?  I couldn't find the utility in Google...
+> On Mon, May 25, 2015 at 01:02:20AM +0900, Jungseok Lee wrote:
+>> Fork-routine sometimes fails to get a physically contiguous region =
+for
+>> thread_info on 4KB page system although free memory is enough. That =
+is,
+>> a physically contiguous region, which is currently 16KB, is not =
+available
+>> since system memory is fragmented.
+>=20
+> Order less than PAGE_ALLOC_COSTLY_ORDER should not fail in current
+> mm implementation. If you saw the order-2,3 high-order allocation fail
+> maybe your application received SIGKILL by someone. LMK?
 
-This looks to be part of the numactl suite, though Debian doesn't seem
-to include it in its numactl package...
+Exactly right. The allocation is failed via the following path.
 
-Thanks,
+if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+	goto nopage;
 
-	M.
--- 
-Jazz is not dead. It just smells funny...
+IMHO, a reclaim operation would be not needed in this context if memory =
+is
+allocated from vmalloc space. It means there is no need to traverse =
+shrinker list.=20
+
+>> This patch tries to solve the problem as allocating thread_info =
+memory
+>> from vmalloc space, not 1:1 mapping one. The downside is one =
+additional
+>> page allocation in case of vmalloc. However, vmalloc space is large =
+enough,
+>=20
+> The size you want to allocate is 16KB in here but additional 4K?
+> It increases 25% memory footprint, which is huge downside.
+
+I agree with the point, and most people who try to use vmalloc might =
+know the number.
+However, an interoperation on the number depends on a point of view.
+
+Vmalloc is large enough and not fully utilized in case of ARM64.
+With the considerations, there is a room to do math as follows.
+
+4KB / 240GB =3D 1.5e-8 (4KB page + 3 level combo)
+
+It would be not a huge downside if fork-routine is not damaged due to =
+fragmentation.
+
+However, this is one of reasons to add "RFC" prefix in the patch set. =
+How is the
+additional 4KB interpreted and considered?
+
+Best Regards
+Jungseok Lee=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
