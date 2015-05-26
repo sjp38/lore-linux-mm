@@ -1,107 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 83DB06B0087
-	for <linux-mm@kvack.org>; Tue, 26 May 2015 13:22:37 -0400 (EDT)
-Received: by wgme6 with SMTP id e6so34939159wgm.2
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 10:22:37 -0700 (PDT)
-Received: from mail-wg0-x22e.google.com (mail-wg0-x22e.google.com. [2a00:1450:400c:c00::22e])
-        by mx.google.com with ESMTPS id ce7si24960277wjc.102.2015.05.26.10.22.36
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BA896B0087
+	for <linux-mm@kvack.org>; Tue, 26 May 2015 13:39:22 -0400 (EDT)
+Received: by wichy4 with SMTP id hy4so90653628wic.1
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 10:39:21 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id os5si19515563wjc.179.2015.05.26.10.39.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 May 2015 10:22:36 -0700 (PDT)
-Received: by wgbgq6 with SMTP id gq6so103505903wgb.3
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 10:22:35 -0700 (PDT)
-Date: Tue, 26 May 2015 19:22:34 +0200
-From: Michal Hocko <mhocko@suse.cz>
+        Tue, 26 May 2015 10:39:20 -0700 (PDT)
+Date: Tue, 26 May 2015 19:38:22 +0200
+From: Oleg Nesterov <oleg@redhat.com>
 Subject: Re: [RFC 3/3] memcg: get rid of mm_struct::owner
-Message-ID: <20150526172234.GK14681@dhcp22.suse.cz>
-References: <1432641006-8025-1-git-send-email-mhocko@suse.cz>
- <1432641006-8025-4-git-send-email-mhocko@suse.cz>
- <20150526163646.GA29968@redhat.com>
+Message-ID: <20150526173822.GA31777@redhat.com>
+References: <1432641006-8025-1-git-send-email-mhocko@suse.cz> <1432641006-8025-4-git-send-email-mhocko@suse.cz> <20150526163646.GA29968@redhat.com> <20150526172234.GK14681@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150526163646.GA29968@redhat.com>
+In-Reply-To: <20150526172234.GK14681@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>
 Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 26-05-15 18:36:46, Oleg Nesterov wrote:
-> On 05/26, Michal Hocko wrote:
+On 05/26, Michal Hocko wrote:
+>
+> On Tue 26-05-15 18:36:46, Oleg Nesterov wrote:
 > >
-> > @@ -426,17 +426,7 @@ struct mm_struct {
-> >  	struct kioctx_table __rcu	*ioctx_table;
-> >  #endif
-> >  #ifdef CONFIG_MEMCG
-> > -	/*
-> > -	 * "owner" points to a task that is regarded as the canonical
-> > -	 * user/owner of this mm. All of the following must be true in
-> > -	 * order for it to be changed:
-> > -	 *
-> > -	 * current == mm->owner
-> > -	 * current->mm != mm
-> > -	 * new_owner->mm == mm
-> > -	 * new_owner->alloc_lock is held
-> > -	 */
-> > -	struct task_struct __rcu *owner;
-> > +	struct mem_cgroup __rcu *memcg;
-> 
-> Yes, thanks, this is what I tried to suggest ;)
-> 
-> But I can't review this series. Simply because I know nothing about
-> memcs. I don't even know how to use it.
-> 
-> Just one question,
-> 
-> > +static struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
-> > +{
-> > +	if (!p->mm)
-> > +		return NULL;
-> > +	return rcu_dereference(p->mm->memcg);
-> > +}
-> 
-> Probably I missed something, but it seems that the callers do not
-> expect it can return NULL.
+> > > +static struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
+> > > +{
+> > > +	if (!p->mm)
+> > > +		return NULL;
+> > > +	return rcu_dereference(p->mm->memcg);
+> > > +}
+> >
+> > Probably I missed something, but it seems that the callers do not
+> > expect it can return NULL.
+>
+> This hasn't changed by this patch. mem_cgroup_from_task was allowed to
+> return NULL even before. I've just made it static because it doesn't
+> have any external users anymore.
 
-This hasn't changed by this patch. mem_cgroup_from_task was allowed to
-return NULL even before. I've just made it static because it doesn't
-have any external users anymore. I will double check whether we can ever
-get NULL there in the real life. We have this code like that for quite
-some time. Maybe this is just a heritage from the past...
+I see, but it could only return NULL if mem_cgroup_from_css() returns
+NULL. Now it returns NULL for sure if the caller is task_in_mem_cgroup(),
 
-> Perhaps sock_update_memcg() is fine, but
-> task_in_mem_cgroup() calls it when find_lock_task_mm() fails, and in
-> this case ->mm is NULL.
-> 
-> And in fact I can't understand what mem_cgroup_from_task() actually
-> means, with or without these changes.
+	// called when task->mm == NULL
 
-It performs task_struct->mem_cgroup mapping. We cannot use cgroup
-mapping here because the charges are bound to mm_struct rather than
-task.
+	task_memcg = mem_cgroup_from_task(task);
+	css_get(&task_memcg->css);
 
-> And another question. I can't understand what happens when a task
-> execs... IOW, could you confirm that exec_mmap() does not need
-> mm_set_memcg(mm, oldmm->memcg) ?
+and this css_get() doesn't look nice if task_memcg == NULL ;)
 
-Right you are! Fixed thanks!
----
-diff --git a/fs/exec.c b/fs/exec.c
-index 2cd4def4b1d6..ea00d5a47aad 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -867,6 +867,7 @@ static int exec_mmap(struct mm_struct *mm)
- 		up_read(&old_mm->mmap_sem);
- 		BUG_ON(active_mm != old_mm);
- 		setmax_mm_hiwater_rss(&tsk->signal->maxrss, old_mm);
-+		mm_set_memcg(mm, old_mm->memcg);
- 		mmput(old_mm);
- 		return 0;
- 	}
--- 
-Michal Hocko
-SUSE Labs
+> I will double check
+
+Yes, please. Perhaps I missed something.
+
+> > And in fact I can't understand what mem_cgroup_from_task() actually
+> > means, with or without these changes.
+>
+> It performs task_struct->mem_cgroup mapping. We cannot use cgroup
+> mapping here because the charges are bound to mm_struct rather than
+> task.
+
+Sure, this is what I can understand. I meant... OK, lets ignore
+"without these changes", because without these changes there are
+much more oddities ;) With these changes only ->mm == NULL case
+looks unclear.
+
+And btw,
+
+	if (!p->mm)
+		return NULL;
+	return rcu_dereference(p->mm->memcg);
+
+perhaps this needs a comment. It is not clear what protects ->mm.
+But. After this series "p" is always current (if ->mm != NULL), so
+this is fine.
+
+Nevermind. Please forget. I feel this needs a bit of cleanup, but
+we can always do this later.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
