@@ -1,57 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id E988F6B00C8
-	for <linux-mm@kvack.org>; Tue, 26 May 2015 11:34:12 -0400 (EDT)
-Received: by wichy4 with SMTP id hy4so86579122wic.1
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 08:34:12 -0700 (PDT)
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 803556B0087
+	for <linux-mm@kvack.org>; Tue, 26 May 2015 12:37:46 -0400 (EDT)
+Received: by wghq2 with SMTP id q2so102380065wgh.1
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 09:37:45 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e3si24428471wjw.125.2015.05.26.08.34.10
+        by mx.google.com with ESMTPS id bn2si19104663wib.0.2015.05.26.09.37.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 May 2015 08:34:11 -0700 (PDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH] userfaultfd: cleanup superfluous _irq locking
-Date: Tue, 26 May 2015 17:34:01 +0200
-Message-Id: <1432654441-28023-2-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1432654441-28023-1-git-send-email-aarcange@redhat.com>
-References: <1432654441-28023-1-git-send-email-aarcange@redhat.com>
+        Tue, 26 May 2015 09:37:44 -0700 (PDT)
+Date: Tue, 26 May 2015 18:36:46 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [RFC 3/3] memcg: get rid of mm_struct::owner
+Message-ID: <20150526163646.GA29968@redhat.com>
+References: <1432641006-8025-1-git-send-email-mhocko@suse.cz> <1432641006-8025-4-git-send-email-mhocko@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1432641006-8025-4-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-This leftover shouldn't have caused any malfunction because the loop
-either schedules or it re-enables irqs immediately and schedule()
-doesn't seem to BUG_ON(irqs_disabled()). However lately we've been
-using the non blocking model so the schedule isn't really exercised
-here. Regardless of the side effects this must be fixed as it's not ok
-to enter schedule with irq disabled and it's not beneficial to toggle
-irqs in the first place.
+On 05/26, Michal Hocko wrote:
+>
+> @@ -426,17 +426,7 @@ struct mm_struct {
+>  	struct kioctx_table __rcu	*ioctx_table;
+>  #endif
+>  #ifdef CONFIG_MEMCG
+> -	/*
+> -	 * "owner" points to a task that is regarded as the canonical
+> -	 * user/owner of this mm. All of the following must be true in
+> -	 * order for it to be changed:
+> -	 *
+> -	 * current == mm->owner
+> -	 * current->mm != mm
+> -	 * new_owner->mm == mm
+> -	 * new_owner->alloc_lock is held
+> -	 */
+> -	struct task_struct __rcu *owner;
+> +	struct mem_cgroup __rcu *memcg;
 
-Reported-by: Dan Carpenter <dan.carpenter@oracle.com>
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- fs/userfaultfd.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+Yes, thanks, this is what I tried to suggest ;)
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index a519f74..5f11678 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -558,11 +558,11 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
- 		}
- 		spin_unlock(&ctx->fd_wqh.lock);
- 		schedule();
--		spin_lock_irq(&ctx->fd_wqh.lock);
-+		spin_lock(&ctx->fd_wqh.lock);
- 	}
- 	__remove_wait_queue(&ctx->fd_wqh, &wait);
- 	__set_current_state(TASK_RUNNING);
--	spin_unlock_irq(&ctx->fd_wqh.lock);
-+	spin_unlock(&ctx->fd_wqh.lock);
- 
- 	return ret;
- }
+But I can't review this series. Simply because I know nothing about
+memcs. I don't even know how to use it.
+
+Just one question,
+
+> +static struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
+> +{
+> +	if (!p->mm)
+> +		return NULL;
+> +	return rcu_dereference(p->mm->memcg);
+> +}
+
+Probably I missed something, but it seems that the callers do not
+expect it can return NULL. Perhaps sock_update_memcg() is fine, but
+task_in_mem_cgroup() calls it when find_lock_task_mm() fails, and in
+this case ->mm is NULL.
+
+And in fact I can't understand what mem_cgroup_from_task() actually
+means, with or without these changes.
+
+And another question. I can't understand what happens when a task
+execs... IOW, could you confirm that exec_mmap() does not need
+mm_set_memcg(mm, oldmm->memcg) ?
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
