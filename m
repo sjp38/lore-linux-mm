@@ -1,37 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 693566B0073
-	for <linux-mm@kvack.org>; Tue, 26 May 2015 11:34:06 -0400 (EDT)
-Received: by qkx62 with SMTP id 62so91974586qkx.3
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 08:34:06 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id E988F6B00C8
+	for <linux-mm@kvack.org>; Tue, 26 May 2015 11:34:12 -0400 (EDT)
+Received: by wichy4 with SMTP id hy4so86579122wic.1
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 08:34:12 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c41si14346656qkh.28.2015.05.26.08.34.05
+        by mx.google.com with ESMTPS id e3si24428471wjw.125.2015.05.26.08.34.10
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 May 2015 08:34:05 -0700 (PDT)
+        Tue, 26 May 2015 08:34:11 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH] userfaultfdv4.2 update for -mm
-Date: Tue, 26 May 2015 17:34:00 +0200
-Message-Id: <1432654441-28023-1-git-send-email-aarcange@redhat.com>
+Subject: [PATCH] userfaultfd: cleanup superfluous _irq locking
+Date: Tue, 26 May 2015 17:34:01 +0200
+Message-Id: <1432654441-28023-2-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1432654441-28023-1-git-send-email-aarcange@redhat.com>
+References: <1432654441-28023-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org
 
-Oops there was a leftover _irq, now I also checked there's no other
-irq leftover, the word "irq" disappeared from the file.
+This leftover shouldn't have caused any malfunction because the loop
+either schedules or it re-enables irqs immediately and schedule()
+doesn't seem to BUG_ON(irqs_disabled()). However lately we've been
+using the non blocking model so the schedule isn't really exercised
+here. Regardless of the side effects this must be fixed as it's not ok
+to enter schedule with irq disabled and it's not beneficial to toggle
+irqs in the first place.
 
-The patch applies at the end but ideally should be moved earlier
-(anywhere before the patch that activates the syscall).
-
-Thanks,
-Andrea
-
-Andrea Arcangeli (1):
-  userfaultfd: cleanup superfluous _irq locking
-
+Reported-by: Dan Carpenter <dan.carpenter@oracle.com>
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
  fs/userfaultfd.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index a519f74..5f11678 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -558,11 +558,11 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
+ 		}
+ 		spin_unlock(&ctx->fd_wqh.lock);
+ 		schedule();
+-		spin_lock_irq(&ctx->fd_wqh.lock);
++		spin_lock(&ctx->fd_wqh.lock);
+ 	}
+ 	__remove_wait_queue(&ctx->fd_wqh, &wait);
+ 	__set_current_state(TASK_RUNNING);
+-	spin_unlock_irq(&ctx->fd_wqh.lock);
++	spin_unlock(&ctx->fd_wqh.lock);
+ 
+ 	return ret;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
