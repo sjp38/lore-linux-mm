@@ -1,75 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EE386B012C
-	for <linux-mm@kvack.org>; Tue, 26 May 2015 06:22:27 -0400 (EDT)
-Received: by wizk4 with SMTP id k4so71923282wiz.1
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 03:22:26 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id pz10si23037236wjc.109.2015.05.26.03.22.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 26 May 2015 03:22:25 -0700 (PDT)
-Date: Tue, 26 May 2015 11:22:19 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 03/13] mm: meminit: Only set page reserved in the
- memblock region
-Message-ID: <20150526102219.GB13750@suse.de>
-References: <1430231830-7702-1-git-send-email-mgorman@suse.de>
- <1430231830-7702-4-git-send-email-mgorman@suse.de>
- <CA+8MBb+BJSdo6bPFYw1S_ej1-Sp7AEOWVp1V6eXch63B4fG59g@mail.gmail.com>
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 72AEF6B012C
+	for <linux-mm@kvack.org>; Tue, 26 May 2015 06:58:04 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so88342531pdb.0
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 03:58:04 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id px1si20347416pbb.240.2015.05.26.03.58.03
+        for <linux-mm@kvack.org>;
+        Tue, 26 May 2015 03:58:03 -0700 (PDT)
+Message-ID: <556451B6.6080303@arm.com>
+Date: Tue, 26 May 2015 11:57:58 +0100
+From: Marc Zyngier <marc.zyngier@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <CA+8MBb+BJSdo6bPFYw1S_ej1-Sp7AEOWVp1V6eXch63B4fG59g@mail.gmail.com>
+Subject: Re: [BUG] Read-Only THP causes stalls (commit 10359213d)
+References: <20150524193404.GD16910@cbox> <20150525141525.GB26958@redhat.com> <20150526080848.GA27075@cbox>
+In-Reply-To: <20150526080848.GA27075@cbox>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nathan Zimmer <nzimmer@sgi.com>, Dave Hansen <dave.hansen@intel.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoffer Dall <christoffer.dall@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "ebru.akagunduz@gmail.com" <ebru.akagunduz@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "zhangyanfei@cn.fujitsu.com" <zhangyanfei@cn.fujitsu.com>, Will Deacon <Will.Deacon@arm.com>, Andre Przywara <Andre.Przywara@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Fri, May 22, 2015 at 01:31:55PM -0700, Tony Luck wrote:
-> On Tue, Apr 28, 2015 at 7:37 AM, Mel Gorman <mgorman@suse.de> wrote:
-> > Currently each page struct is set as reserved upon initialization.
-> > This patch leaves the reserved bit clear and only sets the reserved bit
-> > when it is known the memory was allocated by the bootmem allocator. This
-> > makes it easier to distinguish between uninitialised struct pages and
-> > reserved struct pages in later patches.
-> 
-> On ia64 my linux-next builds now report a bunch of messages like this:
-> 
-> put_kernel_page: page at 0xe000000005588000 not in reserved memory
-> put_kernel_page: page at 0xe000000005588000 not in reserved memory
-> put_kernel_page: page at 0xe000000005580000 not in reserved memory
-> put_kernel_page: page at 0xe000000005580000 not in reserved memory
-> put_kernel_page: page at 0xe000000005580000 not in reserved memory
-> put_kernel_page: page at 0xe000000005580000 not in reserved memory
-> 
-> the two different pages match up with two objects from the loaded kernel
-> that get mapped by arch/ia64/mm/init.c:setup_gate()
-> 
-> a000000101588000 D __start_gate_section
-> a000000101580000 D empty_zero_page
-> 
-> Should I look for a place to set the reserved bit on page structures for these
-> addresses?
+On 26/05/15 09:08, Christoffer Dall wrote:
 
-That would be preferred.
+[...]
 
-> Or just remove the test and message in put_kernel_page()
-> [I added a debug "else" clause here - every caller passes in a page that is
-> not reserved]
+>> Then push the system into swap with some memhog -r1000 xG.
 > 
->         if (!PageReserved(page))
->                 printk(KERN_ERR "put_kernel_page: page at 0x%p not in
-> reserved memory\n",
->                        page_address(page));
-> 
+> what is memhog?  I couldn't find the utility in Google...
 
-But as it's a debugging check that is ia-64 specific I think either
-should be fine.
+This looks to be part of the numactl suite, though Debian doesn't seem
+to include it in its numactl package...
 
+Thanks,
+
+	M.
 -- 
-Mel Gorman
-SUSE Labs
+Jazz is not dead. It just smells funny...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
