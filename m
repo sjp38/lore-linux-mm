@@ -1,130 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id CE15F6B0073
-	for <linux-mm@kvack.org>; Tue, 26 May 2015 10:35:20 -0400 (EDT)
-Received: by lbbzk7 with SMTP id zk7so72076692lbb.0
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 07:35:20 -0700 (PDT)
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com. [209.85.217.175])
-        by mx.google.com with ESMTPS id wm10si11093029lbb.149.2015.05.26.07.35.18
+Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com [209.85.220.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 565E96B0073
+	for <linux-mm@kvack.org>; Tue, 26 May 2015 10:42:52 -0400 (EDT)
+Received: by qkgx75 with SMTP id x75so90569424qkg.1
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 07:42:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 30si9270642qks.30.2015.05.26.07.42.50
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 May 2015 07:35:19 -0700 (PDT)
-Received: by lbbqq2 with SMTP id qq2so71846659lbb.3
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 07:35:18 -0700 (PDT)
-Date: Tue, 26 May 2015 16:35:47 +0200
-From: Christoffer Dall <christoffer.dall@linaro.org>
+        Tue, 26 May 2015 07:42:51 -0700 (PDT)
+Date: Tue, 26 May 2015 16:42:47 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [BUG] Read-Only THP causes stalls (commit 10359213d)
-Message-ID: <20150526143547.GA22363@cbox>
+Message-ID: <20150526144247.GJ26958@redhat.com>
 References: <20150524193404.GD16910@cbox>
  <20150525141525.GB26958@redhat.com>
  <20150526080848.GA27075@cbox>
- <CAPvkgC3kTgP720CawpfvLbm90FCs9UGNP3WOAamOD=UEgKoQCw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPvkgC3kTgP720CawpfvLbm90FCs9UGNP3WOAamOD=UEgKoQCw@mail.gmail.com>
+In-Reply-To: <20150526080848.GA27075@cbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@linaro.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, ebru.akagunduz@gmail.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kirill.shutemov@linux.intel.com, Rik van Riel <riel@redhat.com>, vbabka@suse.cz, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Will Deacon <will.deacon@arm.com>, Andre Przywara <andre.przywara@arm.com>, Marc Zyngier <marc.zyngier@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Christoffer Dall <christoffer.dall@linaro.org>
+Cc: linux-mm@kvack.org, ebru.akagunduz@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, riel@redhat.com, vbabka@suse.cz, zhangyanfei@cn.fujitsu.com, Will Deacon <will.deacon@arm.com>, Andre Przywara <andre.przywara@arm.com>, Marc Zyngier <marc.zyngier@arm.com>, linux-arm-kernel@lists.infradead.org
 
-Hi Steve,
-
-On Tue, May 26, 2015 at 03:24:20PM +0100, Steve Capper wrote:
-> >> On Sun, May 24, 2015 at 09:34:04PM +0200, Christoffer Dall wrote:
-> >> > Hi all,
-> >> >
-> >> > I noticed a regression on my arm64 APM X-Gene system a couple
-> >> > of weeks back.  I would occassionally see the system lock up and see RCU
-> >> > stalls during the caching phase of kernbench.  I then wrote a small
-> >> > script that does nothing but cache the files
-> >> > (http://paste.ubuntu.com/11324767/) and ran that in a loop.  On a known
-> >> > bad commit (v4.1-rc2), out of 25 boots, I never saw it get past 21
-> >> > iterations of the loop.  I have since tried to run a bisect from v3.19 to
-> >> > v4.0 using 100 iterations as my criteria for a good commit.
-> >> >
-> >> > This resulted in the following first bad commit:
-> >> >
-> >> > 10359213d05acf804558bda7cc9b8422a828d1cd
-> >> > (mm: incorporate read-only pages into transparent huge pages, 2015-02-11)
-> >> >
-> >> > Indeed, running the workload on v4.1-rc4 still produced the behavior,
-> >> > but reverting the above commit gets me through 100 iterations of the
-> >> > loop.
-> >> >
-> >> > I have not tried to reproduce on an x86 system.  Turning on a bunch
-> >> > of kernel debugging features *seems* to hide the problem.  My config for
-> >> > the XGene system is defconfig + CONFIG_BRIDGE and
-> >> > CONFIG_POWER_RESET_XGENE.
-> >> >
-> >> > Please let me know if I can help test patches or other things I can
-> >> > do to help.  I'm afraid that by simply reading the patch I didn't see
-> >> > anything obviously wrong with it which would cause this behavior.
-> >>
-> >> As further confirmation, could you try:
-> >>
-> >> echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/pages_to_scan
-> >
-> > this returns -EINVAL.
-> >
-> > But I'm trying now with:
-> >
-> > echo never > /sys/kernel/mm/transparent_hugepage/enabled
-> >
-> >>
-> >> and verify the problem goes away without having to revert the patch?
-> >
-> > will let you know, so far so good...
-> >
-> >>
-> >> Accordingly you should reproduce much eaiser this way (setting
-> >> $largevalue to 8192 or something, it doesn't matter).
-> >>
-> >> echo $largevalue > /sys/kernel/mm/transparent_hugepage/khugepaged/pages_to_scan
-> >> echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/alloc_sleep_millisecs
-> >> echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
-> >>
-> >> Then push the system into swap with some memhog -r1000 xG.
-> >
-> > what is memhog?  I couldn't find the utility in Google...
-> >
-> > I did try with the above settings and just push a bunch of data into
-> > ramfs and tmpfs and indeed the sytem died very quickly (on v4.0-rc4).
-> >
-> >>
-> >> The patch just allows readonly anon pages to be collapsed along with
-> >> read-write ones, the vma permissions allows it, so they have to be
-> >> swapcache pages, this is why swap shall be required.
-> >>
-> >> Perhaps there's some arch detail that needs fixing but it'll be easier
-> >> to track it down once you have a way to reproduce fast.
-> >>
-> > Yes, would be great to be able to reproduce quickly.
-> >
-
-> I'm trying to reproduce this on hardware here; but have been unable to
-> thus far with 4.1-rc2 on a Xgene and Seattle systems.
-
-Really?  That's concerning.  I think Andre mentioned he could
-reproduce...
-
-How many iterations have you run the caching loop for?
-
-Are you using defconfig?  I noticed that turning on debugging features
-was hiding the problem.
-
-> Also, I tried the memhog + pages_to_scan suggestion from Andrea.
-
-Any chance you could send me the memhog tool?
-
+On Tue, May 26, 2015 at 10:08:48AM +0200, Christoffer Dall wrote:
+> > echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/pages_to_scan
 > 
-> Maybe a silly question, where is your root filesystem located? Is
-> there anything network mounted?
+> this returns -EINVAL.
 > 
-It's a regular ext4 on the local SATA disk.  Ubuntu Trusty.
+
+Oops sorry, I haven't re-read the code, pages_to_scan 0 does not make
+sense, it would only be useful for debugging purposes because it
+doesn't shut off khugepaged entirely, so it is ok that it returns
+-EINVAL, just it won't allow this debug tweak...
+
+> But I'm trying now with:
+> 
+> echo never > /sys/kernel/mm/transparent_hugepage/enabled
+> 
+> > 
+> > and verify the problem goes away without having to revert the patch?
+> 
+> will let you know, so far so good...
+
+I only intended to disable khugepaged, to validate the theory it was
+that patch that made the difference.
+
+Increasing the sleep time is equivalent to set pages_to_scan to 0, so
+you can use this instead:
+
+echo 3600000 >/sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
+echo 3600000 >/sys/kernel/mm/transparent_hugepage/khugepaged/alloc_sleep_millisecs
+
+In addition to knowing if it still happens with THP disables, it's
+interesting to know also if it happens with THP enabled but khugepaged
+disabled.
+
+> what is memhog?  I couldn't find the utility in Google...
+
+Somebody answered, yes it's from numactl.
+
+> I did try with the above settings and just push a bunch of data into
+> ramfs and tmpfs and indeed the sytem died very quickly (on v4.0-rc4).
+
+That's fine, memhog just was a way to hit swap. tmpfs pages aren't
+candidate for khugepaged THP collapsing, so it'd be perhaps quicker to
+reproduce with something like memhog that uses anonymous memory but it
+still happens, as long as you hit swap it's ok.
+
+If other arm don't exhibit this problem, perhaps it has to do with
+some difference in THP, I recall there were two models for arm.
 
 Thanks,
--Christoffer
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
