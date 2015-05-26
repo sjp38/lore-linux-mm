@@ -1,236 +1,295 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 73ECE6B00A5
-	for <linux-mm@kvack.org>; Tue, 26 May 2015 12:39:56 -0400 (EDT)
-Received: by pdfh10 with SMTP id h10so94508353pdf.3
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 09:39:56 -0700 (PDT)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id my5si11661902pbc.131.2015.05.26.09.39.54
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id A9CB36B00A8
+	for <linux-mm@kvack.org>; Tue, 26 May 2015 12:40:14 -0400 (EDT)
+Received: by obew15 with SMTP id w15so17372108obe.1
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 09:40:14 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id sa7si9073947oeb.3.2015.05.26.09.40.13
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 26 May 2015 09:39:55 -0700 (PDT)
-MIME-version: 1.0
-Content-type: text/plain; charset=UTF-8
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout3.w1.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0NOY00JSRUAE5E80@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 26 May 2015 17:39:50 +0100 (BST)
-Content-transfer-encoding: 8BIT
-Message-id: <5564A1D4.4040309@samsung.com>
-Date: Tue, 26 May 2015 18:39:48 +0200
-From: Beata Michalska <b.michalska@samsung.com>
-Subject: Re: [RFC v2 1/4] fs: Add generic file system event notifications
-References: <1430135504-24334-2-git-send-email-b.michalska@samsung.com>
- <20150427142421.GB21942@kroah.com> <553E50EB.3000402@samsung.com>
- <20150427153711.GA23428@kroah.com> <20150428135653.GD9955@quack.suse.cz>
- <20150428140936.GA13406@kroah.com> <553F9D56.6030301@samsung.com>
- <20150428173900.GA16708@kroah.com> <5540822C.10000@samsung.com>
- <20150429074259.GA31089@quack.suse.cz> <20150429091303.GA4090@kroah.com>
- <5548B4BB.7050503@samsung.com> <554B5329.8040907@samsung.com>
-In-reply-to: <554B5329.8040907@samsung.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 May 2015 09:40:13 -0700 (PDT)
+Message-ID: <55649F9F.9090401@oracle.com>
+Date: Tue, 26 May 2015 09:30:23 -0700
+From: Mike Kravetz <mike.kravetz@oracle.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 1/2] mm/hugetlb: compute/return the number of regions
+ added by region_add()
+References: <1432353304-12767-1-git-send-email-mike.kravetz@oracle.com> <1432353304-12767-2-git-send-email-mike.kravetz@oracle.com> <20150525061922.GA3751@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20150525061922.GA3751@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <greg@kroah.com>
-Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Hi,
+On 05/24/2015 11:19 PM, Naoya Horiguchi wrote:
+> On Fri, May 22, 2015 at 08:55:03PM -0700, Mike Kravetz wrote:
+>> Modify region_add() to keep track of regions(pages) added to the
+>> reserve map and return this value.  The return value can be
+>> compared to the return value of region_chg() to determine if the
+>> map was modified between calls.
+>>
+>> Add documentation to the reserve/region map routines.
+>>
+>> Make vma_commit_reservation() also pass along the return value of
+>> region_add().  In the normal case, we want vma_commit_reservation
+>> to return the same value as the preceding call to vma_needs_reservation.
+>> Create a common __vma_reservation_common routine to help keep the
+>> special case return values in sync
+>>
+>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+>> ---
+>>   mm/hugetlb.c | 120 ++++++++++++++++++++++++++++++++++++++++++++++-------------
+>>   1 file changed, 94 insertions(+), 26 deletions(-)
+>>
+>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> index 54f129d..3855889 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -212,8 +212,16 @@ static inline struct hugepage_subpool *subpool_vma(struct vm_area_struct *vma)
+>>    * Region tracking -- allows tracking of reservations and instantiated pages
+>>    *                    across the pages in a mapping.
+>>    *
+>> - * The region data structures are embedded into a resv_map and
+>> - * protected by a resv_map's lock
+>> + * The region data structures are embedded into a resv_map and protected
+>> + * by a resv_map's lock.  The set of regions within the resv_map represent
+>> + * reservations for huge pages, or huge pages that have already been
+>> + * instantiated within the map.
+> 
+>>   The from and to elements are huge page
+>> + * indicies into the associated mapping.  from indicates the starting index
+>> + * of the region.  to represents the first index past the end of  the region.
+>> + * For example, a file region structure with from == 0 and to == 4 represents
+>> + * four huge pages in a mapping.  It is important to note that the to element
+>> + * represents the first element past the end of the region. This is used in
+>> + * arithmetic as 4(to) - 0(from) = 4 huge pages in the region.
+> 
+> How about just saying "[from, to)", which implies "from" is inclusive and "to"
+> is exclusive. I hope this mathematical notation is widely accepted among kernel
+> developers.
 
-On 05/07/2015 01:57 PM, Beata Michalska wrote:
-> Hi,
+OK, I'll add the mathematical notation.  But, I think the more explicit
+description and example might help those who would not recognize the
+notation.
+
+>>    */
+>>   struct file_region {
+>>   	struct list_head link;
+>> @@ -221,10 +229,23 @@ struct file_region {
+>>   	long to;
+>>   };
+>>   
+>> +/*
+>> + * Add the huge page range represented by indicies f (from)
+>> + * and t (to) to the reserve map.  Existing regions will be
+>> + * expanded to accommodate the specified range.  We know only
+>> + * existing regions need to be expanded, because region_add
+>> + * is only called after region_chg(with the same range).  If
+>> + * a new file_region structure must be allocated, it is done
+>> + * in region_chg.
+>> + *
+>> + * Return the number of new huge pages added to the map.  This
+>> + * number is greater than or equal to zero.
+>> + */
+>>   static long region_add(struct resv_map *resv, long f, long t)
+>>   {
+>>   	struct list_head *head = &resv->regions;
+>>   	struct file_region *rg, *nrg, *trg;
+>> +	long add = 0;
+>>   
+>>   	spin_lock(&resv->lock);
+>>   	/* Locate the region we are either in or before. */
+>> @@ -250,16 +271,44 @@ static long region_add(struct resv_map *resv, long f, long t)
+>>   		if (rg->to > t)
+>>   			t = rg->to;
+>>   		if (rg != nrg) {
+>> +			/* Decrement return value by the deleted range.
+>> +			 * Another range will span this area so that by
+>> +			 * end of routine add will be >= zero
+>> +			 */
+>> +			add -= (rg->to - rg->from);
 > 
-> On 05/05/2015 02:16 PM, Beata Michalska wrote:
->> Hi again,
->>
->> On 04/29/2015 11:13 AM, Greg KH wrote:
->>> On Wed, Apr 29, 2015 at 09:42:59AM +0200, Jan Kara wrote:
->>>> On Wed 29-04-15 09:03:08, Beata Michalska wrote:
->>>>> On 04/28/2015 07:39 PM, Greg KH wrote:
->>>>>> On Tue, Apr 28, 2015 at 04:46:46PM +0200, Beata Michalska wrote:
->>>>>>> On 04/28/2015 04:09 PM, Greg KH wrote:
->>>>>>>> On Tue, Apr 28, 2015 at 03:56:53PM +0200, Jan Kara wrote:
->>>>>>>>> On Mon 27-04-15 17:37:11, Greg KH wrote:
->>>>>>>>>> On Mon, Apr 27, 2015 at 05:08:27PM +0200, Beata Michalska wrote:
->>>>>>>>>>> On 04/27/2015 04:24 PM, Greg KH wrote:
->>>>>>>>>>>> On Mon, Apr 27, 2015 at 01:51:41PM +0200, Beata Michalska wrote:
->>>>>>>>>>>>> Introduce configurable generic interface for file
->>>>>>>>>>>>> system-wide event notifications, to provide file
->>>>>>>>>>>>> systems with a common way of reporting any potential
->>>>>>>>>>>>> issues as they emerge.
->>>>>>>>>>>>>
->>>>>>>>>>>>> The notifications are to be issued through generic
->>>>>>>>>>>>> netlink interface by newly introduced multicast group.
->>>>>>>>>>>>>
->>>>>>>>>>>>> Threshold notifications have been included, allowing
->>>>>>>>>>>>> triggering an event whenever the amount of free space drops
->>>>>>>>>>>>> below a certain level - or levels to be more precise as two
->>>>>>>>>>>>> of them are being supported: the lower and the upper range.
->>>>>>>>>>>>> The notifications work both ways: once the threshold level
->>>>>>>>>>>>> has been reached, an event shall be generated whenever
->>>>>>>>>>>>> the number of available blocks goes up again re-activating
->>>>>>>>>>>>> the threshold.
->>>>>>>>>>>>>
->>>>>>>>>>>>> The interface has been exposed through a vfs. Once mounted,
->>>>>>>>>>>>> it serves as an entry point for the set-up where one can
->>>>>>>>>>>>> register for particular file system events.
->>>>>>>>>>>>>
->>>>>>>>>>>>> Signed-off-by: Beata Michalska <b.michalska@samsung.com>
->>>>>>>>>>>>> ---
->>>>>>>>>>>>>  Documentation/filesystems/events.txt |  231 ++++++++++
->>>>>>>>>>>>>  fs/Makefile                          |    1 +
->>>>>>>>>>>>>  fs/events/Makefile                   |    6 +
->>>>>>>>>>>>>  fs/events/fs_event.c                 |  770 ++++++++++++++++++++++++++++++++++
->>>>>>>>>>>>>  fs/events/fs_event.h                 |   25 ++
->>>>>>>>>>>>>  fs/events/fs_event_netlink.c         |   99 +++++
->>>>>>>>>>>>>  fs/namespace.c                       |    1 +
->>>>>>>>>>>>>  include/linux/fs.h                   |    6 +-
->>>>>>>>>>>>>  include/linux/fs_event.h             |   58 +++
->>>>>>>>>>>>>  include/uapi/linux/fs_event.h        |   54 +++
->>>>>>>>>>>>>  include/uapi/linux/genetlink.h       |    1 +
->>>>>>>>>>>>>  net/netlink/genetlink.c              |    7 +-
->>>>>>>>>>>>>  12 files changed, 1257 insertions(+), 2 deletions(-)
->>>>>>>>>>>>>  create mode 100644 Documentation/filesystems/events.txt
->>>>>>>>>>>>>  create mode 100644 fs/events/Makefile
->>>>>>>>>>>>>  create mode 100644 fs/events/fs_event.c
->>>>>>>>>>>>>  create mode 100644 fs/events/fs_event.h
->>>>>>>>>>>>>  create mode 100644 fs/events/fs_event_netlink.c
->>>>>>>>>>>>>  create mode 100644 include/linux/fs_event.h
->>>>>>>>>>>>>  create mode 100644 include/uapi/linux/fs_event.h
->>>>>>>>>>>>
->>>>>>>>>>>> Any reason why you just don't do uevents for the block devices today,
->>>>>>>>>>>> and not create a new type of netlink message and userspace tool required
->>>>>>>>>>>> to read these?
->>>>>>>>>>>
->>>>>>>>>>> The idea here is to have support for filesystems with no backing device as well.
->>>>>>>>>>> Parsing the message with libnl is really simple and requires few lines of code
->>>>>>>>>>> (sample application has been presented in the initial version of this RFC)
->>>>>>>>>>
->>>>>>>>>> I'm not saying it's not "simple" to parse, just that now you are doing
->>>>>>>>>> something that requires a different tool.  If you have a block device,
->>>>>>>>>> you should be able to emit uevents for it, you don't need a backing
->>>>>>>>>> device, we handle virtual filesystems in /sys/block/ just fine :)
->>>>>>>>>>
->>>>>>>>>> People already have tools that listen to libudev for system monitoring
->>>>>>>>>> and management, why require them to hook up to yet-another-library?  And
->>>>>>>>>> what is going to provide the ability for multiple userspace tools to
->>>>>>>>>> listen to these netlink messages in case you have more than one program
->>>>>>>>>> that wants to watch for these things (i.e. multiple desktop filesystem
->>>>>>>>>> monitoring tools, system-health checkers, etc.)?
->>>>>>>>>   As much as I understand your concerns I'm not convinced uevent interface
->>>>>>>>> is a good fit. There are filesystems that don't have underlying block
->>>>>>>>> device - think of e.g. tmpfs or filesystems working directly on top of
->>>>>>>>> flash devices.  These still want to send notification to userspace (one of
->>>>>>>>> primary motivation for this interfaces was so that tmpfs can notify about
->>>>>>>>> something). And creating some fake nodes in /sys/block for tmpfs and
->>>>>>>>> similar filesystems seems like doing more harm than good to me...
->>>>>>>>
->>>>>>>> If these are "fake" block devices, what's going to be present in the
->>>>>>>> block major/minor fields of the netlink message?  For some reason I
->>>>>>>> thought it was a required field, and because of that, I thought we had a
->>>>>>>> "real" filesystem somewhere to refer to, otherwise how would userspace
->>>>>>>> know what filesystem was creating these events?
->>>>>>>>
->>>>>>>> What am I missing here?
->>>>>>>>
->>>>>>>> confused,
->>>>>>>>
->>>>>>>> greg k-h
->>>>>>>>
->>>>>>>
->>>>>>> For those 'fake' block devs, upon mount, get_anon_bdev will assign
->>>>>>> the major:minor numbers. Userspace might get those through stat.
->>>>>>
->>>>>> How can userspace do the mapping backwards from this "anonymous"
->>>>>> major:minor number for these types of filesystems in such a way that
->>>>>> they can "know" how to report the block device that is causing the
->>>>>> event?
->>>>>>
->>>>>> thanks,
->>>>>>
->>>>>> greg k-h
->>>>>>
->>>>>
->>>>> It needs to be done internally by the app but is doable.
->>>>> The app knows what it is watching, so it can maintain the mappings.
->>>>> So prior to activating the notifications it can call 'stat' on the mount point.
->>>>> Stat struct gives the 'st_dev' which is the device id. Same will be reported
->>>>> within the message payload (through major:minor numbers). So having this,
->>>>> the app is able to get any other information it needs. 
->>>>> Note that the events refer to the file system as a whole and they may not
->>>>> necessarily have anything to do with the actual block device. 
->>>
->>> How are you going to show an event for a filesystem that is made up of
->>> multiple block devices?
->>>
->>>>   Or you can use /proc/self/mountinfo for the mapping. There you can see
->>>> device numbers, real device names if applicable and mountpoints. This has
->>>> the advantage that it works even if filesystem mountpoints change.
->>>
->>> Ok, then that brings up my next question, how does this handle
->>> namespaces?  What namespace is the event being sent in?  block devices
->>> aren't namespaced, but the mount points are, is that going to cause
->>> problems?
->>>
->>> thanks,
->>>
->>> greg k-h
->>>
->>
->> Getting back to the namespaces ... 
->> In the current state the notifications will be sent to the init network namespace,
->> which means that processes belonging to a different net namespace will not
->> be able to receive them. To be more precise, those processes will not be 
->> able to subscribe to the multicast group, though this can be easily changed.
->> Furthermore, the notifications might also be sent to specific namespace.
->> In this case, the one, with which the trace for the mount point has been registered,
->> which as I believe would be the best approach.
->>
->> As for the mount namespaces, reading the config file needs to be slightly tweaked, 
->> to hide away all the registered mount points which does not belong to the current
->> mount namespace.
->>
->> Still, there is one possible 'issue' - the private/slave mount points. 
->> As the notifications will be sent to all the listeners (within the same netns),
->> the events might be visible to processes outside the given mount ns.
->> This should be limited to only those listeners that share the mount namespace,
->> to which such private/slave mount points belong. As using the generic netlink
->> to filter the outgoing messages is doable (with small changes to current
->> implementation), the filters themselves seem rather cumbersome, as they would require
->> finding the socketa??s owner mount namespace, which just doesn't seems right.
->> On the other hand, identifying the file system, which generated the event, will
->> not be possible for processes outside such namespace, as device major:minor
->> numbers are not bound to any namespace (afaict) so they will not provide any
->> valid information. They will remain unresolved.
->>
->> The best way out here though, is to leave it to userspace to properly setup new namespaces:
->> the mount namespace with possible private/slave mounts should have a separate 
->> network namespace to isolate the potential fs events, if required.
->>
->>
->> BR
->> Beata
->>
->>
->>
-> 
-> I'm not really sure where we are with this RFC now (?).
-> Just wanted to let You know I won't be available for the next two weeks,
-> in case this comes around.
-> 
-> Best Regards
-> Beata
-> 
+> I can't say how, but if file_region data were broken for some reason (mainly
+> due to bug,) this could return negative value, so how about asserting add >=0
+> with VM_BUG_ON() at the end of this function?
 > 
 
-Things has gone a bit quiet thread wise ...
-As I believe I've managed to snap back to reality, I was hoping we could continue with this?
-I'm not sure if we've got everything cleared up or ... have we reached a dead end?
-Please let me know if we can move to the next stage? Or, if there are any showstoppers?
+Sure, that should not be a problem.
 
-Thank You,
+>>   			list_del(&rg->link);
+>>   			kfree(rg);
+>>   		}
+>>   	}
+>> +
+>> +	add += (nrg->from - f);		/* Added to beginning of region */
+>>   	nrg->from = f;
+>> +	add += t - nrg->to;		/* Added to end of region */
+>>   	nrg->to = t;
+>> +
+>>   	spin_unlock(&resv->lock);
+>> -	return 0;
+>> +	return add;
+>>   }
+>>   
+>> +/*
+>> + * Examine the existing reserve map and determine how many
+>> + * huge pages in the specified range (f, t) are NOT currently
+> 
+> "[f, t)" would be better.
+> 
 
-Best Regards
-Beata
+Yes, my plan is to use the mathematical notation throughout with a
+more detailed explanation the first time it is used.
+
+>> + * represented.  This routine is called before a subsequent
+>> + * call to region_add that will actually modify the reserve
+>> + * map to add the specified range (f, t).  region_chg does
+>> + * not change the number of huge pages represented by the
+>> + * map.  However, if the existing regions in the map can not
+>> + * be expanded to represent the new range, a new file_region
+>> + * structure is added to the map as a placeholder.  This is
+>> + * so that the subsequent region_add call will have all
+>> + * regions it needs and will not fail.
+>> + *
+>> + * Returns the number of huge pages that need to be added
+>> + * to the existing reservation map for the range (f, t).
+>> + * This number is greater or equal to zero.  -ENOMEM is
+>> + * returned if a new  file_region structure can not be
+>> + * allocated.
+>> + */
+>>   static long region_chg(struct resv_map *resv, long f, long t)
+>>   {
+>>   	struct list_head *head = &resv->regions;
+>> @@ -326,6 +375,11 @@ out_nrg:
+>>   	return chg;
+>>   }
+>>   
+>> +/*
+>> + * Truncate the reserve map at index 'end'.  Modify/truncate any
+>> + * region which contains end.  Delete any regions past end.
+>> + * Return the number of huge pages removed from the map.
+>> + */
+>>   static long region_truncate(struct resv_map *resv, long end)
+>>   {
+>>   	struct list_head *head = &resv->regions;
+>> @@ -361,6 +415,10 @@ out:
+>>   	return chg;
+>>   }
+>>   
+>> +/*
+>> + * Count and return the number of huge pages in the reserve map
+>> + * that intersect with the range (f, t).
+>> + */
+>>   static long region_count(struct resv_map *resv, long f, long t)
+>>   {
+>>   	struct list_head *head = &resv->regions;
+>> @@ -1424,46 +1482,56 @@ static void return_unused_surplus_pages(struct hstate *h,
+>>   }
+>>   
+>>   /*
+>> - * Determine if the huge page at addr within the vma has an associated
+>> - * reservation.  Where it does not we will need to logically increase
+>> - * reservation and actually increase subpool usage before an allocation
+>> - * can occur.  Where any new reservation would be required the
+>> - * reservation change is prepared, but not committed.  Once the page
+>> - * has been allocated from the subpool and instantiated the change should
+>> - * be committed via vma_commit_reservation.  No action is required on
+>> - * failure.
+>> + * vma_needs_reservation and vma_commit_reservation are used by the huge
+>> + * page allocation routines to manage reservations.
+>> + *
+>> + * vma_needs_reservation is called to determine if the huge page at addr
+>> + * within the vma has an associated reservation.  If a reservation is
+>> + * needed, the value 1 is returned.  The caller is then responsible for
+>> + * managing the global reservation and subpool usage counts.  After
+>> + * the huge page has been allocated, vma_commit_reservation is called
+>> + * to add the page to the reservation map.
+>> + *
+>> + * In the normal case, vma_commit_reservation should return the same value
+>> + * as the preceding vma_needs_reservation call.  The only time this is
+>> + * not the case is if a reserve map was changed between calls.  It is the
+>> + * responsibility of the caller to notice the difference and take appropriate
+>> + * action.
+>>    */
+>> -static long vma_needs_reservation(struct hstate *h,
+>> -			struct vm_area_struct *vma, unsigned long addr)
+>> +static long __vma_reservation_common(struct hstate *h,
+>> +				struct vm_area_struct *vma, unsigned long addr,
+>> +				bool needs)
+>>   {
+>>   	struct resv_map *resv;
+>>   	pgoff_t idx;
+>> -	long chg;
+>> +	long ret;
+>>   
+>>   	resv = vma_resv_map(vma);
+>>   	if (!resv)
+>>   		return 1;
+>>   
+>>   	idx = vma_hugecache_offset(h, vma, addr);
+>> -	chg = region_chg(resv, idx, idx + 1);
+>> +	if (needs)
+>> +		ret = region_chg(resv, idx, idx + 1);
+>> +	else
+>> +		ret = region_add(resv, idx, idx + 1);
+> 
+> This code sharing is OK, but the name "needs" looks a bit unclear to me.
+> I feel that it's more readable if we name "commit" (or "commits") to the bool
+> parameter and call region_add() if "commit" is true.
+> 
+
+Agree.  And Davidlor suggested renaming "needs" in the routine name
+to prepare.  If renamed prepare, I think it would more clear.
+
+>>   
+>>   	if (vma->vm_flags & VM_MAYSHARE)
+>> -		return chg;
+>> +		return ret;
+>>   	else
+>> -		return chg < 0 ? chg : 0;
+>> +		return ret < 0 ? ret : 0;
+>>   }
+>> -static void vma_commit_reservation(struct hstate *h,
+>> +
+>> +static long vma_needs_reservation(struct hstate *h,
+>>   			struct vm_area_struct *vma, unsigned long addr)
+>>   {
+>> -	struct resv_map *resv;
+>> -	pgoff_t idx;
+>> -
+>> -	resv = vma_resv_map(vma);
+>> -	if (!resv)
+>> -		return;
+>> +	return __vma_reservation_common(h, vma, addr, (bool)1);
+> 
+> You can simply use literal "true"?
+
+Yes.
+
+Thank you for the review and comments.
+-- 
+Mike Kravetz
+
+> 
+> Thanks,
+> Naoya Horiguchi
+> 
+>> +}
+>>   
+>> -	idx = vma_hugecache_offset(h, vma, addr);
+>> -	region_add(resv, idx, idx + 1);
+>> +static long vma_commit_reservation(struct hstate *h,
+>> +			struct vm_area_struct *vma, unsigned long addr)
+>> +{
+>> +	return __vma_reservation_common(h, vma, addr, (bool)0);
+>>   }
+>>   
+>>   static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>> -- 
+>> 2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
