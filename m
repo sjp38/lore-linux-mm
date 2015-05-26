@@ -1,57 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 069716B0121
-	for <linux-mm@kvack.org>; Tue, 26 May 2015 10:22:19 -0400 (EDT)
-Received: by pdfh10 with SMTP id h10so91884886pdf.3
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 07:22:18 -0700 (PDT)
-Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
-        by mx.google.com with ESMTPS id fe7si21225170pab.94.2015.05.26.07.22.17
+Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D4696B0121
+	for <linux-mm@kvack.org>; Tue, 26 May 2015 10:24:21 -0400 (EDT)
+Received: by iebgx4 with SMTP id gx4so93058093ieb.0
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 07:24:21 -0700 (PDT)
+Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com. [209.85.223.179])
+        by mx.google.com with ESMTPS id sb9si8643087igb.22.2015.05.26.07.24.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 26 May 2015 07:22:18 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout1.w1.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0NOY00L2WNX1L160@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 26 May 2015 15:22:13 +0100 (BST)
-Message-id: <55648193.3030003@samsung.com>
-Date: Tue, 26 May 2015 17:22:11 +0300
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH v2 5/5] arm64: add KASan support
-References: <1431698344-28054-1-git-send-email-a.ryabinin@samsung.com>
- <1431698344-28054-6-git-send-email-a.ryabinin@samsung.com>
- <CACRpkda3Pe9L14_iyKEfeCx1F3XJSLbz_OVHLxX0Lzy9Gt9t9Q@mail.gmail.com>
- <55647F57.8010008@samsung.com>
-In-reply-to: <55647F57.8010008@samsung.com>
-Content-type: text/plain; charset=utf-8
-Content-transfer-encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 May 2015 07:24:21 -0700 (PDT)
+Received: by iesa3 with SMTP id a3so93194754ies.2
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 07:24:21 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20150526080848.GA27075@cbox>
+References: <20150524193404.GD16910@cbox>
+	<20150525141525.GB26958@redhat.com>
+	<20150526080848.GA27075@cbox>
+Date: Tue, 26 May 2015 15:24:20 +0100
+Message-ID: <CAPvkgC3kTgP720CawpfvLbm90FCs9UGNP3WOAamOD=UEgKoQCw@mail.gmail.com>
+Subject: Re: [BUG] Read-Only THP causes stalls (commit 10359213d)
+From: Steve Capper <steve.capper@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Walleij <linus.walleij@linaro.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, David Keitel <dkeitel@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-mm@kvack.org
+To: Christoffer Dall <christoffer.dall@linaro.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, ebru.akagunduz@gmail.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kirill.shutemov@linux.intel.com, Rik van Riel <riel@redhat.com>, vbabka@suse.cz, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Will Deacon <will.deacon@arm.com>, Andre Przywara <andre.przywara@arm.com>, Marc Zyngier <marc.zyngier@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On 05/26/2015 05:12 PM, Andrey Ryabinin wrote:
-> On 05/26/2015 04:35 PM, Linus Walleij wrote:
->> I wonder were the problem lies, any hints where to start looking
->> to fix this?
+On 26 May 2015 at 09:08, Christoffer Dall <christoffer.dall@linaro.org> wrote:
+> Hi Andrea,
+>
+> On Mon, May 25, 2015 at 04:15:25PM +0200, Andrea Arcangeli wrote:
+>> Hello Christoffer,
 >>
-> 
-> I suspect that your compiler lack -fsantize=kernel-address support.
-> It seems that GCC 4.9.2 doesn't supports -fsanitize=address/kernel-address on aarch64.
-> 
+>> On Sun, May 24, 2015 at 09:34:04PM +0200, Christoffer Dall wrote:
+>> > Hi all,
+>> >
+>> > I noticed a regression on my arm64 APM X-Gene system a couple
+>> > of weeks back.  I would occassionally see the system lock up and see RCU
+>> > stalls during the caching phase of kernbench.  I then wrote a small
+>> > script that does nothing but cache the files
+>> > (http://paste.ubuntu.com/11324767/) and ran that in a loop.  On a known
+>> > bad commit (v4.1-rc2), out of 25 boots, I never saw it get past 21
+>> > iterations of the loop.  I have since tried to run a bisect from v3.19 to
+>> > v4.0 using 100 iterations as my criteria for a good commit.
+>> >
+>> > This resulted in the following first bad commit:
+>> >
+>> > 10359213d05acf804558bda7cc9b8422a828d1cd
+>> > (mm: incorporate read-only pages into transparent huge pages, 2015-02-11)
+>> >
+>> > Indeed, running the workload on v4.1-rc4 still produced the behavior,
+>> > but reverting the above commit gets me through 100 iterations of the
+>> > loop.
+>> >
+>> > I have not tried to reproduce on an x86 system.  Turning on a bunch
+>> > of kernel debugging features *seems* to hide the problem.  My config for
+>> > the XGene system is defconfig + CONFIG_BRIDGE and
+>> > CONFIG_POWER_RESET_XGENE.
+>> >
+>> > Please let me know if I can help test patches or other things I can
+>> > do to help.  I'm afraid that by simply reading the patch I didn't see
+>> > anything obviously wrong with it which would cause this behavior.
+>>
+>> As further confirmation, could you try:
+>>
+>> echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/pages_to_scan
+>
+> this returns -EINVAL.
+>
+> But I'm trying now with:
+>
+> echo never > /sys/kernel/mm/transparent_hugepage/enabled
+>
+>>
+>> and verify the problem goes away without having to revert the patch?
+>
+> will let you know, so far so good...
+>
+>>
+>> Accordingly you should reproduce much eaiser this way (setting
+>> $largevalue to 8192 or something, it doesn't matter).
+>>
+>> echo $largevalue > /sys/kernel/mm/transparent_hugepage/khugepaged/pages_to_scan
+>> echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/alloc_sleep_millisecs
+>> echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
+>>
+>> Then push the system into swap with some memhog -r1000 xG.
+>
+> what is memhog?  I couldn't find the utility in Google...
+>
+> I did try with the above settings and just push a bunch of data into
+> ramfs and tmpfs and indeed the sytem died very quickly (on v4.0-rc4).
+>
+>>
+>> The patch just allows readonly anon pages to be collapsed along with
+>> read-write ones, the vma permissions allows it, so they have to be
+>> swapcache pages, this is why swap shall be required.
+>>
+>> Perhaps there's some arch detail that needs fixing but it'll be easier
+>> to track it down once you have a way to reproduce fast.
+>>
+> Yes, would be great to be able to reproduce quickly.
+>
+> Thanks,
+> -Christoffer
+>
 
-In that case you should get something like this, during kernel build:
-	scripts/Makefile.kasan:17: Cannot use CONFIG_KASAN: -fsanitize=kernel-address is not supported by compiler
+Hi Christoffer,
+I'm trying to reproduce this on hardware here; but have been unable to
+thus far with 4.1-rc2 on a Xgene and Seattle systems.
+Also, I tried the memhog + pages_to_scan suggestion from Andrea.
 
+Maybe a silly question, where is your root filesystem located? Is
+there anything network mounted?
 
-Also you may check you gcc by compiling simple program:
-$ cat test.c
-void main(void) {
-}
-
-$ gcc -fsanitize=kernel-address test.c
-
+Cheers,
+--
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
