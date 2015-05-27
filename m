@@ -1,86 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id B549B6B009D
-	for <linux-mm@kvack.org>; Wed, 27 May 2015 03:32:01 -0400 (EDT)
-Received: by wifw1 with SMTP id w1so10920714wif.0
-        for <linux-mm@kvack.org>; Wed, 27 May 2015 00:32:01 -0700 (PDT)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.187])
-        by mx.google.com with ESMTPS id s1si22409686wiy.52.2015.05.27.00.31.59
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 419B06B00AC
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 05:43:57 -0400 (EDT)
+Received: by wgez8 with SMTP id z8so4436787wge.0
+        for <linux-mm@kvack.org>; Wed, 27 May 2015 02:43:56 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o2si3084668wic.59.2015.05.27.02.43.54
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 May 2015 00:32:00 -0700 (PDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [RFC PATCH 2/2] arm64: Implement vmalloc based thread_info allocator
-Date: Wed, 27 May 2015 09:31:26 +0200
-Message-ID: <3176422.FWpfrlzXOV@wuerfel>
-In-Reply-To: <20150527062250.GD3928@swordfish>
-References: <1432483340-23157-1-git-send-email-jungseoklee85@gmail.com> <20150527041015.GB11609@blaptop> <20150527062250.GD3928@swordfish>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 27 May 2015 02:43:55 -0700 (PDT)
+Date: Wed, 27 May 2015 11:43:52 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 3/3] memcg: get rid of mm_struct::owner
+Message-ID: <20150527094352.GB27348@dhcp22.suse.cz>
+References: <1432641006-8025-1-git-send-email-mhocko@suse.cz>
+ <1432641006-8025-4-git-send-email-mhocko@suse.cz>
+ <20150526163646.GA29968@redhat.com>
+ <20150526172234.GK14681@dhcp22.suse.cz>
+ <20150526173822.GA31777@redhat.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150526173822.GA31777@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Jungseok Lee <jungseoklee85@gmail.com>, Catalin Marinas <catalin.marinas@arm.com>, barami97@gmail.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wednesday 27 May 2015 15:22:50 Sergey Senozhatsky wrote:
-> On (05/27/15 13:10), Minchan Kim wrote:
-> > On Tue, May 26, 2015 at 08:29:59PM +0900, Jungseok Lee wrote:
-> > > 
-> > > if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
-> > >     goto nopage;
-> > > 
-> > > IMHO, a reclaim operation would be not needed in this context if memory is
-> > > allocated from vmalloc space. It means there is no need to traverse shrinker list. 
-> > 
-> > For making fork successful with using vmalloc, it's bandaid.
+On Tue 26-05-15 19:38:22, Oleg Nesterov wrote:
+> On 05/26, Michal Hocko wrote:
+> >
+> > On Tue 26-05-15 18:36:46, Oleg Nesterov wrote:
+> > >
+> > > > +static struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
+> > > > +{
+> > > > +	if (!p->mm)
+> > > > +		return NULL;
+> > > > +	return rcu_dereference(p->mm->memcg);
+> > > > +}
+> > >
+> > > Probably I missed something, but it seems that the callers do not
+> > > expect it can return NULL.
+> >
+> > This hasn't changed by this patch. mem_cgroup_from_task was allowed to
+> > return NULL even before. I've just made it static because it doesn't
+> > have any external users anymore.
+> 
+> I see, but it could only return NULL if mem_cgroup_from_css() returns
+> NULL. Now it returns NULL for sure if the caller is task_in_mem_cgroup(),
+> 
+> 	// called when task->mm == NULL
+> 
+> 	task_memcg = mem_cgroup_from_task(task);
+> 	css_get(&task_memcg->css);
+> 
+> and this css_get() doesn't look nice if task_memcg == NULL ;)
 
-Right.
+You are right of course. mem_cgroup_from_task is indeed weird. I will
+add the diff below to the original patch and try to get rid of this
+weird interface in a follow up patch.
 
-> > > >> This patch tries to solve the problem as allocating thread_info memory
-> > > >> from vmalloc space, not 1:1 mapping one. The downside is one additional
-> > > >> page allocation in case of vmalloc. However, vmalloc space is large enough,
-> > > > 
-> > > > The size you want to allocate is 16KB in here but additional 4K?
-> > > > It increases 25% memory footprint, which is huge downside.
-> > > 
-> > > I agree with the point, and most people who try to use vmalloc might know the number.
-> > > However, an interoperation on the number depends on a point of view.
-> > > 
-> > > Vmalloc is large enough and not fully utilized in case of ARM64.
-> > > With the considerations, there is a room to do math as follows.
-> > > 
-> > > 4KB / 240GB = 1.5e-8 (4KB page + 3 level combo)
-> > > 
-> > > It would be not a huge downside if fork-routine is not damaged due to fragmentation.
-> > 
-> > Okay, address size point of view, it wouldn't be significant problem.
-> > Then, let's see it performance as point of view.
-> > 
-> > If we use vmalloc, it needs additional data structure for vmalloc
-> > management, several additional allocation request, page table hanlding
-> > and TLB flush.
+> > I will double check
+> 
+> Yes, please. Perhaps I missed something.
+> 
+> > > And in fact I can't understand what mem_cgroup_from_task() actually
+> > > means, with or without these changes.
+> >
+> > It performs task_struct->mem_cgroup mapping. We cannot use cgroup
+> > mapping here because the charges are bound to mm_struct rather than
+> > task.
+> 
+> Sure, this is what I can understand. I meant... OK, lets ignore
+> "without these changes", because without these changes there are
+> much more oddities ;) With these changes only ->mm == NULL case
+> looks unclear.
+> 
+> And btw,
+> 
+> 	if (!p->mm)
+> 		return NULL;
+> 	return rcu_dereference(p->mm->memcg);
+> 
+> perhaps this needs a comment. It is not clear what protects ->mm.
+> But. After this series "p" is always current (if ->mm != NULL), so
+> this is fine.
+> 
+> Nevermind. Please forget. I feel this needs a bit of cleanup, but
+> we can always do this later.
 
-One upside of it is that we could in theory make THREAD_SIZE 12KB or
-20KB instead of 16KB if we wanted to, as vmalloc does not have the
-power-of-two requirement.
+Yes I will rather do that in a separate patch. Thanks!
 
-The downsides of vmalloc that you list are probably much stronger.
-
-Another one is that /proc/vmallocinfo would become completely unreadable
-on systems with lots of threads.
-
-Finally, accessing data in vmalloc memory requires 4KB TLBs, while the
-linear mapping usually uses hugepages, so we get extra page table walks
-in the kernel for accessing the kernel stack, or for any kernel code
-that looks at the thread_info of another thread.
-
-> plus a guard page. I don't see VM_NO_GUARD being passed.
-
-That's only a virtual page, which is virtually free here, it does not
-consume any real memory.
-
-	Arnd
+This will go into to patch because I have indeed change the semantic of
+this function and I haven't realized the subtle difference.
+---
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index aa85d5dfbe0e..ab00b6ae84e2 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -471,9 +471,14 @@ static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
+ 
+ static struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
+ {
+-	if (!p->mm)
+-		return NULL;
+-	return rcu_dereference(p->mm->memcg);
++	if (p->mm)
++		return rcu_dereference(p->mm->memcg);
++
++	/*
++	 * If the process doesn't have mm struct anymore we have to fallback
++	 * to the task_css.
++	 */
++	return mem_cgroup_from_css(task_css(p, memory_cgrp_id));
+ }
+ 
+ void mm_set_memcg(struct mm_struct *mm, struct mem_cgroup *memcg)
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
