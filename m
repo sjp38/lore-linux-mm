@@ -1,92 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 122B76B0120
-	for <linux-mm@kvack.org>; Wed, 27 May 2015 00:10:24 -0400 (EDT)
-Received: by pdfh10 with SMTP id h10so107573087pdf.3
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 21:10:23 -0700 (PDT)
-Received: from mail-pd0-x234.google.com (mail-pd0-x234.google.com. [2607:f8b0:400e:c02::234])
-        by mx.google.com with ESMTPS id l15si23918888pbq.72.2015.05.26.21.10.22
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 728B06B0120
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 00:24:25 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so108093778pde.2
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 21:24:25 -0700 (PDT)
+Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
+        by mx.google.com with ESMTPS id o5si24060251pap.50.2015.05.26.21.24.24
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 May 2015 21:10:23 -0700 (PDT)
-Received: by pdea3 with SMTP id a3so107627791pde.2
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 21:10:22 -0700 (PDT)
-Date: Wed, 27 May 2015 13:10:15 +0900
+        Tue, 26 May 2015 21:24:24 -0700 (PDT)
+Received: by pdfh10 with SMTP id h10so108039282pdf.3
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 21:24:24 -0700 (PDT)
+Date: Wed, 27 May 2015 13:24:16 +0900
 From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [RFC PATCH 2/2] arm64: Implement vmalloc based thread_info
  allocator
-Message-ID: <20150527041015.GB11609@blaptop>
+Message-ID: <20150527042416.GC11609@blaptop>
 References: <1432483340-23157-1-git-send-email-jungseoklee85@gmail.com>
- <20150525144045.GE14922@blaptop>
- <D5CD4D44-77BC-4817-B9A7-60C0F4AE444F@gmail.com>
+ <5992243.NYDGjLH37z@wuerfel>
+ <B873B881-4972-4524-B1D9-4BB05D7248A4@gmail.com>
+ <20150525145857.GF14922@blaptop>
+ <BA18E3D0-A487-4E74-8DCA-49F36A4F08E2@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <D5CD4D44-77BC-4817-B9A7-60C0F4AE444F@gmail.com>
+In-Reply-To: <BA18E3D0-A487-4E74-8DCA-49F36A4F08E2@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jungseok Lee <jungseoklee85@gmail.com>
-Cc: linux-arm-kernel@lists.infradead.org, barami97@gmail.com, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Arnd Bergmann <arnd@arndb.de>, linux-arm-kernel@lists.infradead.org, Catalin Marinas <catalin.marinas@arm.com>, barami97@gmail.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello Jungseok,
-
-On Tue, May 26, 2015 at 08:29:59PM +0900, Jungseok Lee wrote:
-> On May 25, 2015, at 11:40 PM, Minchan Kim wrote:
-> > Hello Jungseok,
-> 
-> Hi, Minchan,
-> 
-> > On Mon, May 25, 2015 at 01:02:20AM +0900, Jungseok Lee wrote:
-> >> Fork-routine sometimes fails to get a physically contiguous region for
-> >> thread_info on 4KB page system although free memory is enough. That is,
-> >> a physically contiguous region, which is currently 16KB, is not available
-> >> since system memory is fragmented.
+On Tue, May 26, 2015 at 09:10:11PM +0900, Jungseok Lee wrote:
+> On May 25, 2015, at 11:58 PM, Minchan Kim wrote:
+> > On Mon, May 25, 2015 at 07:01:33PM +0900, Jungseok Lee wrote:
+> >> On May 25, 2015, at 2:49 AM, Arnd Bergmann wrote:
+> >>> On Monday 25 May 2015 01:02:20 Jungseok Lee wrote:
+> >>>> Fork-routine sometimes fails to get a physically contiguous region for
+> >>>> thread_info on 4KB page system although free memory is enough. That is,
+> >>>> a physically contiguous region, which is currently 16KB, is not available
+> >>>> since system memory is fragmented.
+> >>>> 
+> >>>> This patch tries to solve the problem as allocating thread_info memory
+> >>>> from vmalloc space, not 1:1 mapping one. The downside is one additional
+> >>>> page allocation in case of vmalloc. However, vmalloc space is large enough,
+> >>>> around 240GB, under a combination of 39-bit VA and 4KB page. Thus, it is
+> >>>> not a big tradeoff for fork-routine service.
+> >>> 
+> >>> vmalloc has a rather large runtime cost. I'd argue that failing to allocate
+> >>> thread_info structures means something has gone very wrong.
+> >> 
+> >> That is why the feature is marked "N" by default.
+> >> I focused on fork-routine stability rather than performance.
 > > 
-> > Order less than PAGE_ALLOC_COSTLY_ORDER should not fail in current
-> > mm implementation. If you saw the order-2,3 high-order allocation fail
-> > maybe your application received SIGKILL by someone. LMK?
+> > If VM has trouble with order-2 allocation, your system would be
+> > trouble soon although fork at the moment manages to be successful
+> > because such small high-order(ex, order <= PAGE_ALLOC_COSTLY_ORDER)
+> > allocation is common in the kernel so VM should handle it smoothly.
+> > If VM didn't, it means we should fix VM itself, not a specific
+> > allocation site. Fork is one of victim by that.
 > 
-> Exactly right. The allocation is failed via the following path.
+> A problem I observed is an user space, not a kernel side. As user applications
+> fail to create threads in order to distribute their jobs properly, they are getting
+> in trouble slowly and then gone.
 > 
-> if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
-> 	goto nopage;
-> 
-> IMHO, a reclaim operation would be not needed in this context if memory is
-> allocated from vmalloc space. It means there is no need to traverse shrinker list. 
+> Yes, fork is one of victim, but damages user applications seriously.
+> At this snapshot, free memory is enough.
 
-For making fork successful with using vmalloc, it's bandaid.
+Yes, it's the one you found.
+
+        *Free memory is enough but why forking was failed*
+
+You should find the exact reason for it rather than papering over by
+hiding forking fail.
+
+1. Investigate how many of movable/unmovable page ratio at the moment
+2. Investigate why compaction doesn't work
+3. Investigate why reclaim couldn't make order-2 page
+
 
 > 
-> >> This patch tries to solve the problem as allocating thread_info memory
-> >> from vmalloc space, not 1:1 mapping one. The downside is one additional
-> >> page allocation in case of vmalloc. However, vmalloc space is large enough,
+> >> Could you give me an idea how to evaluate performance degradation?
+> >> Running some benchmarks would be helpful, but I would like to try to
+> >> gather data based on meaningful methodology.
+> >> 
+> >>> Can you describe the scenario that leads to fragmentation this bad?
+> >> 
+> >> Android, but I could not describe an exact reproduction procedure step
+> >> by step since it's behaved and reproduced randomly. As reading the following
+> >> thread from mm mailing list, a similar symptom is observed on other systems. 
+> >> 
+> >> https://lkml.org/lkml/2015/4/28/59
+> >> 
+> >> Although I do not know the details of a system mentioned in the thread,
+> >> even order-2 page allocation is not smoothly operated due to fragmentation on
+> >> low memory system.
 > > 
-> > The size you want to allocate is 16KB in here but additional 4K?
-> > It increases 25% memory footprint, which is huge downside.
+> > What Joonsoo have tackle is generic fragmentation problem, not *a* fork fail,
+> > which is more right approach to handle small high-order allocation problem.
 > 
-> I agree with the point, and most people who try to use vmalloc might know the number.
-> However, an interoperation on the number depends on a point of view.
+> I totally agree with that point. One of the best ways is to figure out a generic
+> anti-fragmentation with VM system improvement. Reducing the stack size to 8KB is also
+> a really great approach. My intention is not to overlook them or figure out a workaround.
 > 
-> Vmalloc is large enough and not fully utilized in case of ARM64.
-> With the considerations, there is a room to do math as follows.
+> IMHO, vmalloc would be a different option in case of ARM64 on low memory systems since
+> *fork failure from fragmentation* is a nontrivial issue.
 > 
-> 4KB / 240GB = 1.5e-8 (4KB page + 3 level combo)
-> 
-> It would be not a huge downside if fork-routine is not damaged due to fragmentation.
+> Do you think the patch set doesn't need to be considered?
 
-Okay, address size point of view, it wouldn't be significant problem.
-Then, let's see it performance as point of view.
+I don't know because the changelog doesn't have full description
+about your problem. You just wrote "forking was failed so we want
+to avoid that by vmalloc because forking is important".
+It seems to me it is just bandaid.
 
-If we use vmalloc, it needs additional data structure for vmalloc
-management, several additional allocation request, page table hanlding
-and TLB flush.
+What you should provide for description is
 
-Normally, forking is very frequent operation so we shouldn't do
-make it slow and memory consumption bigger if there isn't big reason.
+" Forking was failed although there were lots of free pages
+  so I investigated it and found root causes in somewhere
+  so this patch fixes the problem"
 
-> 
-> However, this is one of reasons to add "RFC" prefix in the patch set. How is the
-> additional 4KB interpreted and considered?
+Thanks.
+
+
 > 
 > Best Regards
 > Jungseok Lee
