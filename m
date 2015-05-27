@@ -1,169 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 448C16B0082
-	for <linux-mm@kvack.org>; Wed, 27 May 2015 14:00:15 -0400 (EDT)
-Received: by obbnx5 with SMTP id nx5so13782563obb.0
-        for <linux-mm@kvack.org>; Wed, 27 May 2015 11:00:15 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id d74si11435313oig.64.2015.05.27.11.00.14
+Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 06F416B0073
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 14:05:36 -0400 (EDT)
+Received: by lbcue7 with SMTP id ue7so12958553lbc.0
+        for <linux-mm@kvack.org>; Wed, 27 May 2015 11:05:35 -0700 (PDT)
+Received: from mail-la0-x22a.google.com (mail-la0-x22a.google.com. [2a00:1450:4010:c03::22a])
+        by mx.google.com with ESMTPS id lk1si14188947lac.109.2015.05.27.11.05.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 May 2015 11:00:14 -0700 (PDT)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH v3 2/3] mm/hugetlb: compute/return the number of regions added by region_add()
-Date: Wed, 27 May 2015 10:56:10 -0700
-Message-Id: <1432749371-32220-3-git-send-email-mike.kravetz@oracle.com>
-In-Reply-To: <1432749371-32220-1-git-send-email-mike.kravetz@oracle.com>
-References: <1432749371-32220-1-git-send-email-mike.kravetz@oracle.com>
+        Wed, 27 May 2015 11:05:34 -0700 (PDT)
+Received: by labko7 with SMTP id ko7so9821583lab.2
+        for <linux-mm@kvack.org>; Wed, 27 May 2015 11:05:33 -0700 (PDT)
+MIME-Version: 1.0
+Date: Wed, 27 May 2015 11:05:33 -0700
+Message-ID: <CABPcSq+uMcDSBU1xt7oRqPXn-89ZpJmxK+C46M7rX7+Y7-x7iQ@mail.gmail.com>
+Subject: kernel bug(VM_BUG_ON_PAGE) with 3.18.13 in mm/migrate.c
+From: Jovi Zhangwei <jovi@cloudflare.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: linux-kernel@vger.kernel.org, mgorman@suse.de, sasha.levin@oracle.com, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, hughd@google.com, linux-mm@kvack.org, vbabka@suse.cz, rientjes@google.com
 
-Modify region_add() to keep track of regions(pages) added to the
-reserve map and return this value.  The return value can be
-compared to the return value of region_chg() to determine if the
-map was modified between calls.
+Hi,
 
-Make vma_commit_reservation() also pass along the return value of
-region_add().  In the normal case, we want vma_commit_reservation
-to return the same value as the preceding call to vma_needs_reservation.
-Create a common __vma_reservation_common routine to help keep the
-special case return values in sync
+I got below kernel bug error in our 3.18.13 stable kernel.
+"kernel BUG at mm/migrate.c:1661!"
 
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- mm/hugetlb.c | 72 ++++++++++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 48 insertions(+), 24 deletions(-)
+Source code:
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index ad2c628..b3d3d59 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -240,11 +240,15 @@ struct file_region {
-  * expanded, because region_add is only called after region_chg
-  * with the same range.  If a new file_region structure must
-  * be allocated, it is done in region_chg.
-+ *
-+ * Return the number of new huge pages added to the map.  This
-+ * number is greater than or equal to zero.
-  */
- static long region_add(struct resv_map *resv, long f, long t)
- {
- 	struct list_head *head = &resv->regions;
- 	struct file_region *rg, *nrg, *trg;
-+	long add = 0;
- 
- 	spin_lock(&resv->lock);
- 	/* Locate the region we are either in or before. */
-@@ -270,14 +274,24 @@ static long region_add(struct resv_map *resv, long f, long t)
- 		if (rg->to > t)
- 			t = rg->to;
- 		if (rg != nrg) {
-+			/* Decrement return value by the deleted range.
-+			 * Another range will span this area so that by
-+			 * end of routine add will be >= zero
-+			 */
-+			add -= (rg->to - rg->from);
- 			list_del(&rg->link);
- 			kfree(rg);
- 		}
- 	}
-+
-+	add += (nrg->from - f);		/* Added to beginning of region */
- 	nrg->from = f;
-+	add += t - nrg->to;		/* Added to end of region */
- 	nrg->to = t;
-+
- 	spin_unlock(&resv->lock);
--	return 0;
-+	VM_BUG_ON(add < 0);
-+	return add;
- }
- 
- /*
-@@ -1472,46 +1486,56 @@ static void return_unused_surplus_pages(struct hstate *h,
- }
- 
- /*
-- * Determine if the huge page at addr within the vma has an associated
-- * reservation.  Where it does not we will need to logically increase
-- * reservation and actually increase subpool usage before an allocation
-- * can occur.  Where any new reservation would be required the
-- * reservation change is prepared, but not committed.  Once the page
-- * has been allocated from the subpool and instantiated the change should
-- * be committed via vma_commit_reservation.  No action is required on
-- * failure.
-+ * vma_needs_reservation and vma_commit_reservation are used by the huge
-+ * page allocation routines to manage reservations.
-+ *
-+ * vma_needs_reservation is called to determine if the huge page at addr
-+ * within the vma has an associated reservation.  If a reservation is
-+ * needed, the value 1 is returned.  The caller is then responsible for
-+ * managing the global reservation and subpool usage counts.  After
-+ * the huge page has been allocated, vma_commit_reservation is called
-+ * to add the page to the reservation map.
-+ *
-+ * In the normal case, vma_commit_reservation returns the same value
-+ * as the preceding vma_needs_reservation call.  The only time this
-+ * is not the case is if a reserve map was changed between calls.  It
-+ * is the responsibility of the caller to notice the difference and
-+ * take appropriate action.
-  */
--static long vma_needs_reservation(struct hstate *h,
--			struct vm_area_struct *vma, unsigned long addr)
-+static long __vma_reservation_common(struct hstate *h,
-+				struct vm_area_struct *vma, unsigned long addr,
-+				bool commit)
- {
- 	struct resv_map *resv;
- 	pgoff_t idx;
--	long chg;
-+	long ret;
- 
- 	resv = vma_resv_map(vma);
- 	if (!resv)
- 		return 1;
- 
- 	idx = vma_hugecache_offset(h, vma, addr);
--	chg = region_chg(resv, idx, idx + 1);
-+	if (commit)
-+		ret = region_add(resv, idx, idx + 1);
-+	else
-+		ret = region_chg(resv, idx, idx + 1);
- 
- 	if (vma->vm_flags & VM_MAYSHARE)
--		return chg;
-+		return ret;
- 	else
--		return chg < 0 ? chg : 0;
-+		return ret < 0 ? ret : 0;
- }
--static void vma_commit_reservation(struct hstate *h,
-+
-+static long vma_needs_reservation(struct hstate *h,
- 			struct vm_area_struct *vma, unsigned long addr)
- {
--	struct resv_map *resv;
--	pgoff_t idx;
--
--	resv = vma_resv_map(vma);
--	if (!resv)
--		return;
-+	return __vma_reservation_common(h, vma, addr, false);
-+}
- 
--	idx = vma_hugecache_offset(h, vma, addr);
--	region_add(resv, idx, idx + 1);
-+static long vma_commit_reservation(struct hstate *h,
-+			struct vm_area_struct *vma, unsigned long addr)
-+{
-+	return __vma_reservation_common(h, vma, addr, true);
- }
- 
- static struct page *alloc_huge_page(struct vm_area_struct *vma,
--- 
-2.1.0
+1657    static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
+1658   {
+1659            int page_lru;
+1660
+1661           VM_BUG_ON_PAGE(compound_order(page) &&
+!PageTransHuge(page), page);
+
+It's easy to trigger the error by run tcpdump in our system.(not sure
+it will easily be reproduced in another system)
+"sudo tcpdump -i bond0.100 'tcp port 4242' -c 100000000000 -w 4242.pcap"
+
+Any comments for this bug would be great appreciated. thanks.
+
+-----------------------------------------------------------------
+dmesg:
+
+[Mon May 25 05:29:33 2015] page:ffffea0015414000 count:66 mapcount:1
+mapping:          (null) index:0x0
+[Mon May 25 05:29:33 2015] flags: 0x20047580004000(head)
+[Mon May 25 05:29:33 2015] page dumped because:
+VM_BUG_ON_PAGE(compound_order(page) && !PageTransHuge(page))
+[Mon May 25 05:29:33 2015] ------------[ cut here ]------------
+[Mon May 25 05:29:33 2015] kernel BUG at mm/migrate.c:1661!
+[Mon May 25 05:29:33 2015] invalid opcode: 0000 [#1] SMP
+[Mon May 25 05:29:33 2015] Modules linked in: veth xt_comment xt_CT
+iptable_raw xt_addrtype ipt_MASQUERADE nf_nat_masquerade_ipv4
+iptable_nat nf_nat_ipv4 nf_nat bridge overlay tcp_cubic binfmt_misc
+nf_conntrack_ipv6 nf_defrag_ipv6 xt_tcpudp ip6table_filter ip6_tables
+nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack
+xt_multiport iptable_filter ip_tables x_tables rpcsec_gss_krb5
+auth_rpcgss oid_registry nfsv4 nfs lockd grace sunrpc fscache ses
+enclosure 8021q garp stp llc bonding ext4 crc16 jbd2 mbcache sg sd_mod
+ipmi_watchdog x86_pkg_temp_thermal coretemp kvm_intel iTCO_wdt evdev
+kvm crc32c_intel aesni_intel aes_x86_64 lrw gf128mul glue_helper
+ablk_helper cryptd ahci libahci ehci_pci mpt3sas raid_class ehci_hcd
+ixgbe libata igb scsi_transport_sas mdio usbcore ptp lpc_ich i2c_i801
+mfd_core i2c_algo_bit
+[Mon May 25 05:29:33 2015]  pps_core usb_common scsi_mod dca i2c_core
+wmi acpi_pad acpi_cpufreq md_mod processor thermal_sys button ipmi_si
+ipmi_poweroff ipmi_devintf ipmi_msghandler autofs4
+[Mon May 25 05:29:33 2015] CPU: 8 PID: 25835 Comm: tcpdump Not tainted
+3.18.13-cloudflare #1
+[Mon May 25 05:29:33 2015] Hardware name: Quanta Computer Inc D51B-2U
+(dual 1G LoM)/S2B-MB (dual 1G LoM), BIOS S2B_3A17 11/07/2014
+[Mon May 25 05:29:34 2015] task: ffff880fb4605580 ti: ffff880f7ca54000
+task.ti: ffff880f7ca54000
+[Mon May 25 05:29:34 2015] RIP: 0010:[<ffffffff8112346c>]
+[<ffffffff8112346c>] migrate_misplaced_page+0xeb/0x2a1
+[Mon May 25 05:29:34 2015] RSP: 0000:ffff880f7ca57d28  EFLAGS: 00010246
+[Mon May 25 05:29:34 2015] RAX: 0000000000000000 RBX: ffffea0015414000
+RCX: 0000000000000000
+[Mon May 25 05:29:34 2015] RDX: 0000000000000000 RSI: ffff88207fc0c1a8
+RDI: 0000000000000540
+[Mon May 25 05:29:34 2015] RBP: ffff88207ffd7000 R08: 0000000000000000
+R09: 0000000000000000
+[Mon May 25 05:29:34 2015] R10: ffffffff81678b40 R11: ffff88207ff9aa00
+R12: ffff880f7ca57d38
+[Mon May 25 05:29:34 2015] R13: 0000000000000001 R14: 0000000000000000
+R15: 0000000000000000
+[Mon May 25 05:29:34 2015] FS:  00007fcb89855700(0000)
+GS:ffff88207fc00000(0000) knlGS:0000000000000000
+[Mon May 25 05:29:34 2015] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[Mon May 25 05:29:34 2015] CR2: 00007fcb88859008 CR3: 0000000f6a3f9000
+CR4: 00000000001407e0
+[Mon May 25 05:29:34 2015] Stack:
+[Mon May 25 05:29:34 2015]  0000000000000000 ffffea0015414000
+ffff880f7ca57d38 ffff880f7ca57d38
+[Mon May 25 05:29:34 2015]  0000000000000001 ffff880f6a3b8450
+ffffea003fa43330 0000000000000001
+[Mon May 25 05:29:34 2015]  ffffea0015414000 0000000000000000
+0000000000000000 ffffffff81100c85
+[Mon May 25 05:29:34 2015] Call Trace:
+[Mon May 25 05:29:34 2015]  [<ffffffff81100c85>] ? handle_mm_fault+0x945/0xa62
+[Mon May 25 05:29:34 2015]  [<ffffffff81105bc6>] ? change_protection+0x12a/0x580
+[Mon May 25 05:29:34 2015]  [<ffffffff81034502>] ? __do_page_fault+0x2bf/0x395
+[Mon May 25 05:29:34 2015]  [<ffffffff8112dcf6>] ? new_sync_write+0x6a/0x8e
+[Mon May 25 05:29:34 2015]  [<ffffffff81158cfe>] ? fsnotify+0x276/0x2bf
+[Mon May 25 05:29:34 2015]  [<ffffffff81061467>] ? vtime_account_user+0x35/0x40
+[Mon May 25 05:29:34 2015]  [<ffffffff8103460f>] ? do_page_fault+0x37/0x58
+[Mon May 25 05:29:34 2015]  [<ffffffff81491082>] ? page_fault+0x22/0x30
+[Mon May 25 05:29:34 2015] Code: a5 00 00 00 48 ff c0 48 89 85 b8 5f
+02 00 48 8b 03 f6 c4 40 74 17 83 7b 68 00 74 11 48 c7 c6 79 71 7f 81
+48 89 df e8 b1 86 fd ff <0f> 0b 48 8b 03 31 c9 f6 c4 40 74 03 8b 4b 68
+8b 85 40 5f 02 00
+[Mon May 25 05:29:34 2015] RIP  [<ffffffff8112346c>]
+migrate_misplaced_page+0xeb/0x2a1
+[Mon May 25 05:29:34 2015]  RSP <ffff880f7ca57d28>
+[Mon May 25 05:29:34 2015] ---[ end trace 83fa2f6761648dbd ]---
+[Mon May 25 05:29:34 2015] device bond0.100 left promiscuous mode
+[Mon May 25 05:29:34 2015] device bond0 left promiscuous mode
+[Mon May 25 05:29:34 2015] device eth2 left promiscuous mode
+[Mon May 25 05:29:34 2015] device eth3 left promiscuous mode
+[Mon May 25 05:29:46 2015] device bond0.100 entered promiscuous mode
+[Mon May 25 05:29:46 2015] device bond0 entered promiscuous mode
+[Mon May 25 05:29:46 2015] device eth2 entered promiscuous mode
+[Mon May 25 05:29:46 2015] device eth3 entered promiscuous mode
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
