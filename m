@@ -1,33 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id BA4E16B0120
-	for <linux-mm@kvack.org>; Wed, 27 May 2015 01:09:33 -0400 (EDT)
-Received: by pdbki1 with SMTP id ki1so68010993pdb.1
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 22:09:33 -0700 (PDT)
-Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
-        by mx.google.com with ESMTPS id sw10si24208510pab.71.2015.05.26.22.09.31
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 380A36B0120
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 01:19:00 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so68324040pdb.1
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 22:18:59 -0700 (PDT)
+Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com. [202.81.31.143])
+        by mx.google.com with ESMTPS id eh1si24251201pac.45.2015.05.26.22.18.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 May 2015 22:09:32 -0700 (PDT)
+        Tue, 26 May 2015 22:18:59 -0700 (PDT)
 Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 27 May 2015 10:39:29 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 283E6125804F
-	for <linux-mm@kvack.org>; Wed, 27 May 2015 10:41:46 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay02.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t4R59Onw61210820
-	for <linux-mm@kvack.org>; Wed, 27 May 2015 10:39:25 +0530
-Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t4R59NV8007017
-	for <linux-mm@kvack.org>; Wed, 27 May 2015 10:39:24 +0530
+	Wed, 27 May 2015 15:18:54 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id BA1AF3578055
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 15:18:49 +1000 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t4R5Ifrt23724090
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 15:18:49 +1000
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t4R5IGZr016869
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 15:18:16 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 02/36] mmu_notifier: keep track of active invalidation ranges v3
-In-Reply-To: <1432236705-4209-3-git-send-email-j.glisse@gmail.com>
-References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com> <1432236705-4209-3-git-send-email-j.glisse@gmail.com>
-Date: Wed, 27 May 2015 10:39:23 +0530
-Message-ID: <871ti2mwsc.fsf@linux.vnet.ibm.com>
+Subject: Re: [PATCH 03/36] mmu_notifier: pass page pointer to mmu_notifier_invalidate_page()
+In-Reply-To: <1432236705-4209-4-git-send-email-j.glisse@gmail.com>
+References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com> <1432236705-4209-4-git-send-email-j.glisse@gmail.com>
+Date: Wed, 27 May 2015 10:47:44 +0530
+Message-ID: <87wpzulhtz.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
@@ -40,51 +40,29 @@ j.glisse@gmail.com writes:
 
 > From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
 >
-> The mmu_notifier_invalidate_range_start() and mmu_notifier_invalidate_ran=
-ge_end()
-> can be considered as forming an "atomic" section for the cpu page table u=
-pdate
-> point of view. Between this two function the cpu page table content is un=
-reliable
-> for the address range being invalidated.
->
-> Current user such as kvm need to know when they can trust the content of =
-the cpu
-> page table. This becomes even more important to new users of the mmu_noti=
-fier
-> api (such as HMM or ODP).
+> Listener of mm event might not have easy way to get the struct page
+> behind and address invalidated with mmu_notifier_invalidate_page()
+> function as this happens after the cpu page table have been clear/
+> updated. This happens for instance if the listener is storing a dma
+> mapping inside its secondary page table. To avoid complex reverse
+> dma mapping lookup just pass along a pointer to the page being
+> invalidated.
 
-I don't see kvm using the new APIs in this patch. Also what is that HMM use=
- this
-for, to protect walking of mirror page table ?. I am sure you are
-covering that in the later patches. May be you may want to mention
-the details here too.=20
+.....
 
->
-> This patch use a structure define at all call site to invalidate_range_st=
-art()
-> that is added to a list for the duration of the invalidation. It adds two=
- new
-> helpers to allow querying if a range is being invalidated or to wait for =
-a range
-> to become valid.
->
-> For proper synchronization, user must block new range invalidation from i=
-nside
-> there invalidate_range_start() callback, before calling the helper functi=
-ons.
-> Otherwise there is no garanty that a new range invalidation will not be a=
-dded
-> after the call to the helper function to query for existing range.
->
-> Changed since v1:
->   - Fix a possible deadlock in mmu_notifier_range_wait_valid()
->
-> Changed since v2:
->   - Add the range to invalid range list before calling ->range_start().
->   - Del the range from invalid range list after calling ->range_end().
->   - Remove useless list initialization.
->
+> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+> index ada3ed1..283ad26 100644
+> --- a/include/linux/mmu_notifier.h
+> +++ b/include/linux/mmu_notifier.h
+> @@ -172,6 +172,7 @@ struct mmu_notifier_ops {
+>  	void (*invalidate_page)(struct mmu_notifier *mn,
+>  				struct mm_struct *mm,
+>  				unsigned long address,
+> +				struct page *page,
+>  				enum mmu_event event);
+>=20=20
+
+How do we handle this w.r.t invalidate_range ?=20
 
 -aneesh
 
