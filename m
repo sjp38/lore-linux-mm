@@ -1,61 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id ACC576B00F8
-	for <linux-mm@kvack.org>; Wed, 27 May 2015 09:32:44 -0400 (EDT)
-Received: by pdbki1 with SMTP id ki1so15394412pdb.1
-        for <linux-mm@kvack.org>; Wed, 27 May 2015 06:32:44 -0700 (PDT)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id c7si25977955pdn.193.2015.05.27.06.32.43
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C3436B0102
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 10:18:51 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so17057125pde.2
+        for <linux-mm@kvack.org>; Wed, 27 May 2015 07:18:51 -0700 (PDT)
+Received: from terminus.zytor.com (terminus.zytor.com. [2001:1868:205::10])
+        by mx.google.com with ESMTPS id ge6si26080231pbc.181.2015.05.27.07.18.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 27 May 2015 06:32:43 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0NP0009PCGAF1E20@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 27 May 2015 14:32:39 +0100 (BST)
-Message-id: <5565C768.6030906@samsung.com>
-Date: Wed, 27 May 2015 15:32:24 +0200
-From: Beata Michalska <b.michalska@samsung.com>
-MIME-version: 1.0
-Subject: Re: [RFC v2 1/4] fs: Add generic file system event notifications
-References: <20150428135653.GD9955@quack.suse.cz>
- <20150428140936.GA13406@kroah.com> <553F9D56.6030301@samsung.com>
- <20150428173900.GA16708@kroah.com> <5540822C.10000@samsung.com>
- <20150429074259.GA31089@quack.suse.cz> <20150429091303.GA4090@kroah.com>
- <5548B4BB.7050503@samsung.com> <554B5329.8040907@samsung.com>
- <5564A1D4.4040309@samsung.com> <20150527023412.GA20070@kroah.com>
-In-reply-to: <20150527023412.GA20070@kroah.com>
-Content-type: text/plain; charset=ISO-8859-1
-Content-transfer-encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 May 2015 07:18:50 -0700 (PDT)
+Date: Wed, 27 May 2015 07:17:56 -0700
+From: tip-bot for Toshi Kani <tipbot@zytor.com>
+Message-ID: <tip-10455f64aff0d715dcdfb09b02393df168fe267e@git.kernel.org>
+Reply-To: bp@alien8.de, akpm@linux-foundation.org, dvlasenk@redhat.com,
+        torvalds@linux-foundation.org, toshi.kani@hp.com, hpa@zytor.com,
+        linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linutronix.de,
+        peterz@infradead.org, mingo@kernel.org, bp@suse.de, brgerst@gmail.com,
+        luto@amacapital.net, mcgrof@suse.com
+In-Reply-To: <1432628901-18044-2-git-send-email-bp@alien8.de>
+References: <1431714237-880-2-git-send-email-toshi.kani@hp.com>
+	<1432628901-18044-2-git-send-email-bp@alien8.de>
+Subject: [tip:x86/mm] x86/mm/kconfig:
+  Simplify conditions for HAVE_ARCH_HUGE_VMAP
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <greg@kroah.com>
-Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
+To: linux-tip-commits@vger.kernel.org
+Cc: dvlasenk@redhat.com, torvalds@linux-foundation.org, hpa@zytor.com, toshi.kani@hp.com, bp@alien8.de, akpm@linux-foundation.org, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bp@suse.de, mingo@kernel.org, peterz@infradead.org, mcgrof@suse.com, brgerst@gmail.com, luto@amacapital.net
 
-On 05/27/2015 04:34 AM, Greg KH wrote:
-> On Tue, May 26, 2015 at 06:39:48PM +0200, Beata Michalska wrote:
->> Hi,
->>
->> Things has gone a bit quiet thread wise ...
->> As I believe I've managed to snap back to reality, I was hoping we could continue with this?
->> I'm not sure if we've got everything cleared up or ... have we reached a dead end?
->> Please let me know if we can move to the next stage? Or, if there are any showstoppers?
-> 
-> Please resend if you think it's ready and you have addressed the issues
-> raised so far.
-> 
-> thanks,
-> 
-> greg k-h
-> 
+Commit-ID:  10455f64aff0d715dcdfb09b02393df168fe267e
+Gitweb:     http://git.kernel.org/tip/10455f64aff0d715dcdfb09b02393df168fe267e
+Author:     Toshi Kani <toshi.kani@hp.com>
+AuthorDate: Tue, 26 May 2015 10:28:04 +0200
+Committer:  Ingo Molnar <mingo@kernel.org>
+CommitDate: Wed, 27 May 2015 14:40:55 +0200
 
-Alright.
-I'm still running some tests so I'll resend it most probably tomorrow
-or on Friday.
+x86/mm/kconfig: Simplify conditions for HAVE_ARCH_HUGE_VMAP
 
-Best Regards
-Beata
+Simplify the conditions selecting HAVE_ARCH_HUGE_VMAP since
+X86_PAE depends on X86_32 already.
+
+Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+Signed-off-by: Borislav Petkov <bp@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: Elliott@hp.com
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Luis R. Rodriguez <mcgrof@suse.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: dave.hansen@intel.com
+Cc: linux-mm <linux-mm@kvack.org>
+Cc: pebolle@tiscali.nl
+Link: http://lkml.kernel.org/r/1431714237-880-2-git-send-email-toshi.kani@hp.com
+Link: http://lkml.kernel.org/r/1432628901-18044-2-git-send-email-bp@alien8.de
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+---
+ arch/x86/Kconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 226d569..4eb0b0f 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -100,7 +100,7 @@ config X86
+ 	select IRQ_FORCED_THREADING
+ 	select HAVE_BPF_JIT if X86_64
+ 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+-	select HAVE_ARCH_HUGE_VMAP if X86_64 || (X86_32 && X86_PAE)
++	select HAVE_ARCH_HUGE_VMAP if X86_64 || X86_PAE
+ 	select ARCH_HAS_SG_CHAIN
+ 	select CLKEVT_I8253
+ 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
