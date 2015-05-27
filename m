@@ -1,65 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id C1C026B0103
-	for <linux-mm@kvack.org>; Wed, 27 May 2015 08:59:35 -0400 (EDT)
-Received: by wgv5 with SMTP id 5so8812185wgv.1
-        for <linux-mm@kvack.org>; Wed, 27 May 2015 05:59:35 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id o4si23800815wiv.40.2015.05.27.05.59.33
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id ACC576B00F8
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 09:32:44 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so15394412pdb.1
+        for <linux-mm@kvack.org>; Wed, 27 May 2015 06:32:44 -0700 (PDT)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id c7si25977955pdn.193.2015.05.27.06.32.43
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 May 2015 05:59:34 -0700 (PDT)
-Date: Wed, 27 May 2015 08:58:42 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 11/51] memcg: implement mem_cgroup_css_from_page()
-Message-ID: <20150527125842.GA19856@cmpxchg.org>
-References: <1432329245-5844-1-git-send-email-tj@kernel.org>
- <1432329245-5844-12-git-send-email-tj@kernel.org>
- <20150522232831.GB6485@cmpxchg.org>
- <20150524212440.GD7099@htj.duckdns.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150524212440.GD7099@htj.duckdns.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 27 May 2015 06:32:43 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0NP0009PCGAF1E20@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 27 May 2015 14:32:39 +0100 (BST)
+Message-id: <5565C768.6030906@samsung.com>
+Date: Wed, 27 May 2015 15:32:24 +0200
+From: Beata Michalska <b.michalska@samsung.com>
+MIME-version: 1.0
+Subject: Re: [RFC v2 1/4] fs: Add generic file system event notifications
+References: <20150428135653.GD9955@quack.suse.cz>
+ <20150428140936.GA13406@kroah.com> <553F9D56.6030301@samsung.com>
+ <20150428173900.GA16708@kroah.com> <5540822C.10000@samsung.com>
+ <20150429074259.GA31089@quack.suse.cz> <20150429091303.GA4090@kroah.com>
+ <5548B4BB.7050503@samsung.com> <554B5329.8040907@samsung.com>
+ <5564A1D4.4040309@samsung.com> <20150527023412.GA20070@kroah.com>
+In-reply-to: <20150527023412.GA20070@kroah.com>
+Content-type: text/plain; charset=ISO-8859-1
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
+To: Greg KH <greg@kroah.com>
+Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
-On Sun, May 24, 2015 at 05:24:40PM -0400, Tejun Heo wrote:
-> Hello,
+On 05/27/2015 04:34 AM, Greg KH wrote:
+> On Tue, May 26, 2015 at 06:39:48PM +0200, Beata Michalska wrote:
+>> Hi,
+>>
+>> Things has gone a bit quiet thread wise ...
+>> As I believe I've managed to snap back to reality, I was hoping we could continue with this?
+>> I'm not sure if we've got everything cleared up or ... have we reached a dead end?
+>> Please let me know if we can move to the next stage? Or, if there are any showstoppers?
 > 
-> On Fri, May 22, 2015 at 07:28:31PM -0400, Johannes Weiner wrote:
-> > replace_page_cache() can clear page->mem_cgroup even when the page
-> > still has references, so unfortunately you must hold the page lock
-> > when calling this function.
-> > 
-> > I haven't checked how you use this - chances are you always have the
-> > page locked anyways - but it probably needs a comment.
+> Please resend if you think it's ready and you have addressed the issues
+> raised so far.
 > 
-> Hmmm... as replace_page_cache_page() is used only by fuse and fuse's
-> bdi doesn't go through the usual writeback accounting which is
-> necessary for cgroup writeback support anyway, so I don't think this
-> presents an actual problem.  I'll add a warning in
-> replace_page_cache_page() which triggers when it's used on a bdi which
-> has cgroup writeback enabled and add comments explaining what's going
-> on.
+> thanks,
+> 
+> greg k-h
+> 
 
-Okay, so that's no problem then as long as it's documented.
+Alright.
+I'm still running some tests so I'll resend it most probably tomorrow
+or on Friday.
 
-In the long term, it would probably still be a good idea to restore
-the invariant that page->mem_cgroup never changes on live pages.  For
-the old interface that ship has sailed as live pages can move around
-different cgroups; in unified hierarchy, however, we currently only
-move charges when migrating pages between page frames.  That can be
-switched to duplicating the charge instead and leaving the old page
-alone until the final put - which is expected to occur soon after.
-
-Accounting the same page twice for a short period during migration
-should be an acceptable trade-off when considering how much simpler it
-makes the synchronization rules.  We only have to make sure to clearly
-mark interfaces and functions that are only safe for use with unified
-hierarchy code.
+Best Regards
+Beata
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
