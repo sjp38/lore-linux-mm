@@ -1,62 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 3274E6B0120
-	for <linux-mm@kvack.org>; Tue, 26 May 2015 23:40:19 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so106638416pde.2
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 20:40:18 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id fn10si23883192pab.103.2015.05.26.20.40.16
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F4716B0122
+	for <linux-mm@kvack.org>; Tue, 26 May 2015 23:49:25 -0400 (EDT)
+Received: by qchk10 with SMTP id k10so11557768qch.2
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 20:49:25 -0700 (PDT)
+Received: from mail-qk0-x22c.google.com (mail-qk0-x22c.google.com. [2607:f8b0:400d:c09::22c])
+        by mx.google.com with ESMTPS id 23si16754932qhc.26.2015.05.26.20.49.24
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 May 2015 20:40:18 -0700 (PDT)
-Message-ID: <55653A6C.3060707@oracle.com>
-Date: Tue, 26 May 2015 20:30:52 -0700
-From: Mike Kravetz <mike.kravetz@oracle.com>
+        Tue, 26 May 2015 20:49:24 -0700 (PDT)
+Received: by qkx62 with SMTP id 62so105379520qkx.3
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 20:49:24 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/hugetlb: document the reserve map/region tracking
- routines
-References: <1432675630-7623-1-git-send-email-mike.kravetz@oracle.com> <20150526160900.0c0868b73e40995d3d65c616@linux-foundation.org>
-In-Reply-To: <20150526160900.0c0868b73e40995d3d65c616@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1432483292-23109-1-git-send-email-jungseoklee85@gmail.com>
+References: <1432483292-23109-1-git-send-email-jungseoklee85@gmail.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Tue, 26 May 2015 23:49:03 -0400
+Message-ID: <CAHGf_=oMDPscgJ0bdr+QrV24n3KL3BC5qe8KGa=dePxg4tc4Zg@mail.gmail.com>
+Subject: Re: [RFC PATCH 1/2] kernel/fork.c: add a function to calculate page
+ address from thread_info
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>
+To: Jungseok Lee <jungseoklee85@gmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, barami97@gmail.com, linux-arm-kernel@lists.infradead.org
 
-On 05/26/2015 04:09 PM, Andrew Morton wrote:
-> On Tue, 26 May 2015 14:27:10 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+On Sun, May 24, 2015 at 12:01 PM, Jungseok Lee <jungseoklee85@gmail.com> wrote:
+> A current implementation assumes thread_info address is always correctly
+> calculated via virt_to_page. It restricts a different approach, such as
+> thread_info allocation from vmalloc space.
 >
->> This is a documentation only patch and does not modify any code.
->> Descriptions of the routines used for reserve map/region tracking
->> are added.
+> This patch, thus, introduces an independent function to calculate page
+> address from thread_info one.
 >
-> Confused.  This adds comments which are similar to the ones which were
-> added by
-> mm-hugetlb-compute-return-the-number-of-regions-added-by-region_add-v2.patch
-> and
-> mm-hugetlb-handle-races-in-alloc_huge_page-and-hugetlb_reserve_pages-v2.patch.
-> But the comments are a bit different.  And this patch madly conflicts
-> with the two abovementioned patches.
->
-> Maybe the thing to do is to start again, with a three-patch series:
->
-> mm-hugetlb-document-the-reserve-map-region-tracking-routines.patch
-> mm-hugetlb-compute-return-the-number-of-regions-added-by-region_add-v3.patch
-> mm-hugetlb-handle-races-in-alloc_huge_page-and-hugetlb_reserve_pages-v3.patch
->
-> while resolving the differences in the new code comments?
->
+> Suggested-by: Sungjinn Chung <barami97@gmail.com>
+> Signed-off-by: Jungseok Lee <jungseoklee85@gmail.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: linux-arm-kernel@lists.infradead.org
+> ---
+>  kernel/fork.c | 7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
 
-Sorry for the confusion.  Naoya and Davidlohr suggested changes to
-the documentation and code.  One suggestion was to create a separate
-documentation only patch.
-
-
-I will create a new series as you suggest above.
-
--- 
-Mike Kravetz
+I haven't receive a path [2/2] and haven't review whole patches. But
+this patch itself is OK to me.
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
