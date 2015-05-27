@@ -1,141 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id CBA9D6B0092
-	for <linux-mm@kvack.org>; Wed, 27 May 2015 10:48:30 -0400 (EDT)
-Received: by wgbgq6 with SMTP id gq6so11779005wgb.3
-        for <linux-mm@kvack.org>; Wed, 27 May 2015 07:48:30 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r2si24281572wiz.73.2015.05.27.07.48.28
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 473C06B00D1
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 11:19:51 -0400 (EDT)
+Received: by padbw4 with SMTP id bw4so181899pad.0
+        for <linux-mm@kvack.org>; Wed, 27 May 2015 08:19:50 -0700 (PDT)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id f7si26431406pdk.95.2015.05.27.08.19.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 27 May 2015 07:48:29 -0700 (PDT)
-Date: Wed, 27 May 2015 16:48:27 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC 3/3] memcg: get rid of mm_struct::owner
-Message-ID: <20150527144827.GC27348@dhcp22.suse.cz>
-References: <1432641006-8025-1-git-send-email-mhocko@suse.cz>
- <1432641006-8025-4-git-send-email-mhocko@suse.cz>
- <20150526141011.GA11065@cmpxchg.org>
- <20150526151149.GJ14681@dhcp22.suse.cz>
- <20150526172019.GA12926@cmpxchg.org>
-MIME-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 May 2015 08:19:50 -0700 (PDT)
+Received: by pabru16 with SMTP id ru16so181589pab.1
+        for <linux-mm@kvack.org>; Wed, 27 May 2015 08:19:49 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/2] kernel/fork.c: add a function to calculate page address from thread_info
+Mime-Version: 1.0 (Apple Message framework v1283)
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150526172019.GA12926@cmpxchg.org>
+From: Jungseok Lee <jungseoklee85@gmail.com>
+In-Reply-To: <CAHGf_=oMDPscgJ0bdr+QrV24n3KL3BC5qe8KGa=dePxg4tc4Zg@mail.gmail.com>
+Date: Thu, 28 May 2015 00:19:44 +0900
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <A747CC27-C3AB-4322-827D-FBC10A69A5D2@gmail.com>
+References: <1432483292-23109-1-git-send-email-jungseoklee85@gmail.com> <CAHGf_=oMDPscgJ0bdr+QrV24n3KL3BC5qe8KGa=dePxg4tc4Zg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Greg Thelen <gthelen@google.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, barami97@gmail.com, linux-arm-kernel@lists.infradead.org
 
-On Tue 26-05-15 13:20:19, Johannes Weiner wrote:
-> On Tue, May 26, 2015 at 05:11:49PM +0200, Michal Hocko wrote:
-> > On Tue 26-05-15 10:10:11, Johannes Weiner wrote:
-> > > On Tue, May 26, 2015 at 01:50:06PM +0200, Michal Hocko wrote:
-> > > > @@ -104,7 +105,12 @@ static inline bool mm_match_cgroup(struct mm_struct *mm,
-> > > >  	bool match = false;
-> > > >  
-> > > >  	rcu_read_lock();
-> > > > -	task_memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
-> > > > +	/*
-> > > > +	 * rcu_dereference would be better but mem_cgroup is not a complete
-> > > > +	 * type here
-> > > > +	 */
-> > > > +	task_memcg = READ_ONCE(mm->memcg);
-> > > > +	smp_read_barrier_depends();
-> > > >  	if (task_memcg)
-> > > >  		match = mem_cgroup_is_descendant(task_memcg, memcg);
-> > > >  	rcu_read_unlock();
-> > > 
-> > > This function has only one user in rmap.  If you inline it there, you
-> > > can use rcu_dereference() and get rid of the specialness & comment.
-> > 
-> > I am not sure I understand. struct mem_cgroup is defined in
-> > mm/memcontrol.c so mm/rmap.c will not see it. Or do you suggest pulling
-> > struct mem_cgroup out into a header with all the dependencies?
-> 
-> Yes, I think that would be preferrable.  It's weird that we have such
-> a major data structure that is used all over the mm-code but only in
-> the shape of pointers to an incomplete type.  It forces a bad style of
-> code that uses uninlinable callbacks and accessors for even the most
-> basic things.  There are a few functions in memcontrol.c that could
-> instead be static inlines or should even be implemented as part of the
-> code that is using them, such as
+On May 27, 2015, at 12:49 PM, KOSAKI Motohiro wrote:
 
-Fair enough. I was afraid of dependencies between networking and memcg
-header files but it seems that only struct cg_proto is really needed for
-tcp kmem controller and that one doesn't depend on any socket specific
-stuff. So we are good here. 
+Hello, KOSAKI,
 
-> mem_cgroup_get_lru_size(),
-> mem_cgroup_is_descendant, mem_cgroup_inactive_anon_is_low(),
-> mem_cgroup_lruvec_online(), mem_cgroup_swappiness(),
-> mem_cgroup_select_victim_node(), mem_cgroup_update_page_stat(), and
-> mem_cgroup_events().  Your new functions fall into the same category.
+> On Sun, May 24, 2015 at 12:01 PM, Jungseok Lee =
+<jungseoklee85@gmail.com> wrote:
+>> A current implementation assumes thread_info address is always =
+correctly
+>> calculated via virt_to_page. It restricts a different approach, such =
+as
+>> thread_info allocation from vmalloc space.
+>>=20
+>> This patch, thus, introduces an independent function to calculate =
+page
+>> address from thread_info one.
+>>=20
+>> Suggested-by: Sungjinn Chung <barami97@gmail.com>
+>> Signed-off-by: Jungseok Lee <jungseoklee85@gmail.com>
+>> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> Cc: linux-arm-kernel@lists.infradead.org
+>> ---
+>> kernel/fork.c | 7 ++++++-
+>> 1 file changed, 6 insertions(+), 1 deletion(-)
+>=20
+> I haven't receive a path [2/2] and haven't review whole patches. But
+> this patch itself is OK to me.
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@fujitsu.com>
 
-Let me try how this will end up. Hopefully the code will not grow too
-much.
+Thanks!
 
-> > @@ -486,29 +486,13 @@ void mm_set_memcg(struct mm_struct *mm, struct mem_cgroup *memcg)
-> >  void mm_drop_memcg(struct mm_struct *mm)
-> >  {
-> >  	/*
-> > -	 * This is the last reference to mm so nobody can see
-> > -	 * this memcg
-> > +	 * We could reset mm->memcg, but the mm goes away as this is the
-> > +	 * last reference.
-> >  	 */
-> >  	if (mm->memcg)
-> >  		css_put(&mm->memcg->css);
-> >  }
-> 
-> This function is supposed to be an API call to disassociate a mm from
-> its memcg, but it actually doesn't do that and will leave a dangling
-> pointer based on assumptions it makes about how and when the caller
-> invokes it.  That's bad.  It's a subtle optimization with dependencies
-> spread across two moving parts.  The result is very fragile code which
-> will break things in non-obvious ways when the caller changes later on.
+I didn't add you to Cc list since [PATCH 2/2] is architecture specific.
+According to the feedbacks, it is needed to figure out fundamental =
+solutions:
+1) reduce stack size and 2) focus on a generic anti-fragmentation logic.
 
-Fair point. The optimization is not really worth it and I will add
-explicit NULLing because I would prefer to keep the function as well as
-mm_set_memcg because this is easier to track and at least mm_set_memcg
-needs to be called from two places (as pointed out by Oleg) and I would
-really like prevent from duplication.
+Please refer to https://lkml.org/lkml/2015/5/24/121 for [PATCH 2/2].
 
-> And what's left standing is silly too: a memcg-specific API to call
-> css_put(), even though struct cgroup_subsys_state and css_put() are
-> public API already.
-> 
-> Both these things are a negative side effect of struct mem_cgroup
-> being semi-private.  Memcg pointers are everywhere, yet we need a
-> public interface indirection for every simple dereference.
-> 
-> > @@ -5252,10 +5236,15 @@ static void mem_cgroup_move_task(struct cgroup_subsys_state *css,
-> >  
-> >  	if (mm) {
-> >  		/*
-> > -		 * Commit to a new memcg. mc.to points to the destination
-> > -		 * memcg even when the current charges are not moved.
-> > +		 * Commit to the target memcg even when we do not move
-> > +		 * charges.
-> >  		 */
-> > -		mm_move_memcg(mm, mc.to);
-> > +		struct mem_cgroup *old_memcg = READ_ONCE(mm->memcg);
-> > +		struct mem_cgroup *new_memcg = mem_cgroup_from_css(css);
-> > +
-> > +		mm_set_memcg(mm, new_memcg);
-> > +		if (old_memcg)
-> > +			css_put(&old_memcg->css);
-> 
-> "Commit" is a problematic choice of words because of its existing
-> meaning in memcg of associating a page with a pre-reserved charge.
-> 
-> I'm not sure a comment is actually necessary here.  Reassigning
-> mm->memcg when moving a process pretty straight forward IMO.
-
-OK, will remove it.
--- 
-Michal Hocko
-SUSE Labs
+Best Regards
+Jungseok Lee=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
