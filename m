@@ -1,404 +1,278 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B2226B00D9
-	for <linux-mm@kvack.org>; Tue, 26 May 2015 19:44:24 -0400 (EDT)
-Received: by lagv1 with SMTP id v1so78444014lag.3
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 16:44:23 -0700 (PDT)
-Received: from mail-lb0-x22c.google.com (mail-lb0-x22c.google.com. [2a00:1450:4010:c04::22c])
-        by mx.google.com with ESMTPS id s8si5375536lbr.137.2015.05.26.16.44.21
+Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 42BB36B007B
+	for <linux-mm@kvack.org>; Tue, 26 May 2015 21:29:41 -0400 (EDT)
+Received: by oihd6 with SMTP id d6so91734162oih.2
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 18:29:41 -0700 (PDT)
+Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com. [209.85.218.43])
+        by mx.google.com with ESMTPS id y11si9810558oep.41.2015.05.26.18.29.40
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 May 2015 16:44:21 -0700 (PDT)
-Received: by lbbuc2 with SMTP id uc2so81485112lbb.2
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 16:44:21 -0700 (PDT)
+        Tue, 26 May 2015 18:29:40 -0700 (PDT)
+Received: by oiww2 with SMTP id w2so91778073oiw.0
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 18:29:39 -0700 (PDT)
+Date: Tue, 26 May 2015 21:29:29 -0400
+From: Jeff Layton <jeff.layton@primarydata.com>
+Subject: Re: swap: nfs: Sleeping function called from an rcu read section in
+ nfs_swap_activate
+Message-ID: <20150526212929.71b28344@synchrony.poochiereds.net>
+In-Reply-To: <20150526095614.5b3d0e84@synchrony.poochiereds.net>
+References: <5564732E.4090607@redhat.com>
+	<20150526095614.5b3d0e84@synchrony.poochiereds.net>
 MIME-Version: 1.0
-Date: Tue, 26 May 2015 16:44:20 -0700
-Message-ID: <CABPcSqKFW4fJpWkcEeMA9-N_dCWqm7f_Yhrk-omXX2MToUWGzw@mail.gmail.com>
-Subject: kernel bug(VM_BUG_ON_PAGE) with 3.18.13 in mm/migrate.c
-From: Jovi Zhangwei <jovi@cloudflare.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/=.VGjj8jvUxtzFjGLNXJ=.b"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, mgorman@suse.de, sasha.levin@oracle.com, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, hughd@google.com, linux-mm@kvack.org, vbabka@suse.cz, rientjes@google.com
+To: Jerome Marchand <jmarchan@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Jeff Layton <jlayton@primarydata.com>, 'Linux-MM' <linux-mm@kvack.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>
 
-Hi,
+--Sig_/=.VGjj8jvUxtzFjGLNXJ=.b
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-I got below kernel bug error in our 3.18.13 stable kernel.
-"kernel BUG at mm/migrate.c:1661!"
+On Tue, 26 May 2015 09:56:14 -0400
+Jeff Layton <jeff.layton@primarydata.com> wrote:
 
-Source code:
+> On Tue, 26 May 2015 15:20:46 +0200
+> Jerome Marchand <jmarchan@redhat.com> wrote:
+>=20
+> >=20
+> > Commit dad2b015 added an rcu read lock around the call to xs_swapper()
+> > in nfs_activate()/deactivate(), which can sleep, thus raising a bug at
+> > each swapon and swapoff over NFS.
+> > I'm not sure if this is related or not, but swapoff also triggers the
+> > WARN_ON(sk->sk_forward_alloc) in sk_clear_memalloc().
+> >=20
+> > [  243.668067] =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> > [  243.668665] [ INFO: suspicious RCU usage. ]
+> > [  243.669293] 4.1.0-rc1-lock_stat-dbg-next-20150430+ #235 Not tainted
+> > [  243.670301] -------------------------------
+> > [  243.670905] include/linux/rcupdate.h:570 Illegal context switch in R=
+CU read-side critical section!
+> > [  243.672163]=20
+> > other info that might help us debug this:
+> >=20
+> > [  243.673025]=20
+> > rcu_scheduler_active =3D 1, debug_locks =3D 0
+> > [  243.673565] 2 locks held by swapon/1176:
+> > [  243.673893]  #0:  (&sb->s_type->i_mutex_key#17){+.+.+.}, at: [<fffff=
+fff812385e0>] SyS_swapon+0x2b0/0x1000
+> > [  243.674758]  #1:  (rcu_read_lock){......}, at: [<ffffffffa036fd75>] =
+nfs_swap_activate+0x5/0x180 [nfs]
+> > [  243.675591]=20
+> > stack backtrace:
+> > [  243.675957] CPU: 0 PID: 1176 Comm: swapon Not tainted 4.1.0-rc1-lock=
+_stat-dbg-next-20150430+ #235
+> > [  243.676687] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+> > [  243.677179]  0000000000000000 00000000ef88d841 ffff88003327bcd8 ffff=
+ffff818861f0
+> > [  243.677854]  0000000000000000 ffff880078e38000 ffff88003327bd08 ffff=
+ffff8110d237
+> > [  243.678514]  0000000000000000 ffffffff81c650e4 0000000000000268 ffff=
+880078e38000
+> > [  243.679171] Call Trace:
+> > [  243.679383]  [<ffffffff818861f0>] dump_stack+0x4c/0x65
+> > [  243.679811]  [<ffffffff8110d237>] lockdep_rcu_suspicious+0xe7/0x120
+> > [  243.680348]  [<ffffffff810df1bf>] ___might_sleep+0xaf/0x250
+> > [  243.680815]  [<ffffffff810df3ad>] __might_sleep+0x4d/0x90
+> > [  243.681279]  [<ffffffff8188bc17>] mutex_lock_nested+0x47/0x430
+> > [  243.681762]  [<ffffffff811e409c>] static_key_slow_inc+0x7c/0xc0
+> > [  243.682264]  [<ffffffff8171afa7>] sk_set_memalloc+0x27/0x30
+> > [  243.682736]  [<ffffffffa012f824>] xs_swapper+0x54/0x60 [sunrpc]
+> > [  243.683238]  [<ffffffffa036fe03>] nfs_swap_activate+0x93/0x180 [nfs]
+> > [  243.683760]  [<ffffffffa036fd75>] ? nfs_swap_activate+0x5/0x180 [nfs]
+> > [  243.684316]  [<ffffffff81238e04>] SyS_swapon+0xad4/0x1000
+> > [  243.684766]  [<ffffffff818911b0>] ? syscall_return+0x16/0x59
+> > [  243.685245]  [<ffffffff81890f6e>] system_call_fastpath+0x12/0x76
+> > [  243.685743] BUG: sleeping function called from invalid context at ke=
+rnel/locking/mutex.c:616
+> > [  243.686439] in_atomic(): 1, irqs_disabled(): 0, pid: 1176, name: swa=
+pon
+> > [  243.687053] INFO: lockdep is turned off.
+> > [  243.687429] CPU: 0 PID: 1176 Comm: swapon Not tainted 4.1.0-rc1-lock=
+_stat-dbg-next-20150430+ #235
+> > [  243.688313] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+> > [  243.688845]  0000000000000000 00000000ef88d841 ffff88003327bd08 ffff=
+ffff818861f0
+> > [  243.689570]  0000000000000000 ffff880078e38000 ffff88003327bd38 ffff=
+ffff810df29c
+> > [  243.690353]  ffff880000000001 ffffffff81c650e4 0000000000000268 0000=
+000000000000
+> > [  243.691057] Call Trace:
+> > [  243.691315]  [<ffffffff818861f0>] dump_stack+0x4c/0x65
+> > [  243.691785]  [<ffffffff810df29c>] ___might_sleep+0x18c/0x250
+> > [  243.692306]  [<ffffffff810df3ad>] __might_sleep+0x4d/0x90
+> > [  243.692807]  [<ffffffff8188bc17>] mutex_lock_nested+0x47/0x430
+> > [  243.693346]  [<ffffffff811e409c>] static_key_slow_inc+0x7c/0xc0
+> > [  243.693887]  [<ffffffff8171afa7>] sk_set_memalloc+0x27/0x30
+> > [  243.694416]  [<ffffffffa012f824>] xs_swapper+0x54/0x60 [sunrpc]
+> > [  243.694959]  [<ffffffffa036fe03>] nfs_swap_activate+0x93/0x180 [nfs]
+> > [  243.695535]  [<ffffffffa036fd75>] ? nfs_swap_activate+0x5/0x180 [nfs]
+> > [  243.696193]  [<ffffffff81238e04>] SyS_swapon+0xad4/0x1000
+> > [  243.696699]  [<ffffffff818911b0>] ? syscall_return+0x16/0x59
+> > [  243.697299]  [<ffffffff81890f6e>] system_call_fastpath+0x12/0x76
+> > [  243.702101] Adding 524284k swap on /mnt/swapfile512.  Priority:-2 ex=
+tents:1 across:524284k FS
+> > [  325.151350] BUG: sleeping function called from invalid context at ke=
+rnel/locking/mutex.c:616
+> > [  325.152688] in_atomic(): 1, irqs_disabled(): 0, pid: 1199, name: swa=
+poff
+> > [  325.153737] INFO: lockdep is turned off.
+> > [  325.154457] CPU: 1 PID: 1199 Comm: swapoff Not tainted 4.1.0-rc1-loc=
+k_stat-dbg-next-20150430+ #235
+> > [  325.156204] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+> > [  325.157120]  0000000000000000 00000000a7682b83 ffff88007ac3fce8 ffff=
+ffff818861f0
+> > [  325.158361]  0000000000000000 ffff880032434c00 ffff88007ac3fd18 ffff=
+ffff810df29c
+> > [  325.159592]  0000000000000000 ffffffff81c650e4 0000000000000268 0000=
+000000000000
+> > [  325.160798] Call Trace:
+> > [  325.161251]  [<ffffffff818861f0>] dump_stack+0x4c/0x65
+> > [  325.162071]  [<ffffffff810df29c>] ___might_sleep+0x18c/0x250
+> > [  325.163073]  [<ffffffff810df3ad>] __might_sleep+0x4d/0x90
+> > [  325.163934]  [<ffffffff8188bc17>] mutex_lock_nested+0x47/0x430
+> > [  325.164927]  [<ffffffff8110a00f>] atomic_dec_and_mutex_lock+0x4f/0x70
+> > [  325.166020]  [<ffffffff811e4107>] __static_key_slow_dec+0x27/0xc0
+> > [  325.166942]  [<ffffffff811e41c6>] static_key_slow_dec+0x26/0x50
+> > [  325.167955]  [<ffffffff8171db3f>] sk_clear_memalloc+0x2f/0x80
+> > [  325.169075]  [<ffffffffa012f811>] xs_swapper+0x41/0x60 [sunrpc]
+> > [  325.170241]  [<ffffffffa0370447>] nfs_swap_deactivate+0x87/0x170 [nf=
+s]
+> > [  325.171276]  [<ffffffffa03703c5>] ? nfs_swap_deactivate+0x5/0x170 [n=
+fs]
+> > [  325.172349]  [<ffffffff81237547>] destroy_swap_extents+0x77/0x90
+> > [  325.173754]  [<ffffffff8123b225>] SyS_swapoff+0x215/0x600
+> > [  325.174726]  [<ffffffff81434deb>] ? trace_hardirqs_on_thunk+0x17/0x19
+> > [  325.175971]  [<ffffffff81890f6e>] system_call_fastpath+0x12/0x76
+> > [  325.178052] ------------[ cut here ]------------
+> > [  325.178892] WARNING: CPU: 1 PID: 1199 at net/core/sock.c:364 sk_clea=
+r_memalloc+0x51/0x80()
+> > [  325.180363] Modules linked in: rpcsec_gss_krb5 nfsv4 dns_resolver nf=
+s fscache ip6t_rpfilter ip6t_REJECT nf_reject_ipv6 xt_conntrack ebtable_nat=
+ ebtable_broute bridge stp llc ebtable_filter ebtables ip6table_nat nf_conn=
+track_ipv6 nf_defrag_ipv6 nf_nat_ipv6 ip6table_mangle ip6table_security ip6=
+table_raw ip6table_filter ip6_tables iptable_nat nf_conntrack_ipv4 nf_defra=
+g_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_mangle iptable_security ipta=
+ble_raw iosf_mbi crct10dif_pclmul crc32_pclmul crc32c_intel ppdev ghash_clm=
+ulni_intel joydev nfsd parport_pc pcspkr virtio_console serio_raw virtio_ba=
+lloon parport pvpanic i2c_piix4 acpi_cpufreq auth_rpcgss nfs_acl lockd grac=
+e sunrpc virtio_blk qxl virtio_net drm_kms_helper ttm drm virtio_pci virtio=
+_ring virtio ata_generic pata_acpi floppy
+> > [  325.192279] CPU: 1 PID: 1199 Comm: swapoff Not tainted 4.1.0-rc1-loc=
+k_stat-dbg-next-20150430+ #235
+> > [  325.193605] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+> > [  325.194491]  0000000000000000 00000000a7682b83 ffff88007ac3fdf8 ffff=
+ffff818861f0
+> > [  325.195692]  0000000000000000 0000000000000000 ffff88007ac3fe38 ffff=
+ffff810af5ca
+> > [  325.196891]  ffff88007ac3fe78 ffff88007b068000 ffff88007b484a00 ffff=
+88007b484aa8
+> > [  325.198119] Call Trace:
+> > [  325.198555]  [<ffffffff818861f0>] dump_stack+0x4c/0x65
+> > [  325.199380]  [<ffffffff810af5ca>] warn_slowpath_common+0x8a/0xc0
+> > [  325.200601]  [<ffffffff810af6fa>] warn_slowpath_null+0x1a/0x20
+> > [  325.201536]  [<ffffffff8171db61>] sk_clear_memalloc+0x51/0x80
+> > [  325.202468]  [<ffffffffa012f811>] xs_swapper+0x41/0x60 [sunrpc]
+> > [  325.203398]  [<ffffffffa0370447>] nfs_swap_deactivate+0x87/0x170 [nf=
+s]
+> > [  325.204426]  [<ffffffffa03703c5>] ? nfs_swap_deactivate+0x5/0x170 [n=
+fs]
+> > [  325.205456]  [<ffffffff81237547>] destroy_swap_extents+0x77/0x90
+> > [  325.206406]  [<ffffffff8123b225>] SyS_swapoff+0x215/0x600
+> > [  325.207287]  [<ffffffff81434deb>] ? trace_hardirqs_on_thunk+0x17/0x19
+> > [  325.208300]  [<ffffffff81890f6e>] system_call_fastpath+0x12/0x76
+> > [  325.209248] ---[ end trace 13f1014b56e5e711 ]---
+> >=20
+>=20
+> Ok. What I think we need to do here is take a reference to the cl_xprt
+> while holding the rcu_read_lock, and simply put it after we're done.
+>=20
+> That said...what happens if this xprt is switched out from under the
+> clnt while we're swapping over it? It seems like
+> rpc_switch_client_transport ought to be swap deactivating the old one
+> and swap activating the new?
+>=20
+> Mel, any thoughts?=20
+>=20
 
-1657    static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
-1658   {
-1659            int page_lru;
-1660
-1661           VM_BUG_ON_PAGE(compound_order(page) &&
-!PageTransHuge(page), page);
+Ok, I had a look at this code and this looks a little suspicious to me:
 
-It's easy to trigger the error by run tcpdump in our system.(not sure
-it will easily be reproduced in another system)
-"sudo tcpdump -i bond0.100 'tcp port 4242' -c 100000000000 -w 4242.pcap"
+------------------[snip]--------------------
+int xs_swapper(struct rpc_xprt *xprt, int enable)
+{
+        struct sock_xprt *transport =3D container_of(xprt, struct sock_xprt,
+                        xprt);
+        int err =3D 0;
 
-Any comments for this bug would be great appreciated. thanks.
+        if (enable) {
+                xprt->swapper++;
+                xs_set_memalloc(xprt);
+        } else if (xprt->swapper) {
+                xprt->swapper--;
+                sk_clear_memalloc(transport->inet);
+        }
 
+        return err;
+}
+------------------[snip]--------------------
 
-dmesg:
+There are a number of problems here, I think...
 
-[Mon May 25 05:29:33 2015] page:ffffea0015414000 count:66 mapcount:1
-mapping:          (null) index:0x0
-[Mon May 25 05:29:33 2015] flags: 0x20047580004000(head)
-[Mon May 25 05:29:33 2015] page dumped because:
-VM_BUG_ON_PAGE(compound_order(page) && !PageTransHuge(page))
-[Mon May 25 05:29:33 2015] ------------[ cut here ]------------
-[Mon May 25 05:29:33 2015] kernel BUG at mm/migrate.c:1661!
-[Mon May 25 05:29:33 2015] invalid opcode: 0000 [#1] SMP
-[Mon May 25 05:29:33 2015] Modules linked in: veth xt_comment xt_CT
-iptable_raw xt_addrtype ipt_MASQUERADE nf_nat_masquerade_ipv4
-iptable_nat nf_nat_ipv4 nf_nat bridge overlay tcp_cubic binfmt_misc
-nf_conntrack_ipv6 nf_defrag_ipv6 xt_tcpudp ip6table_filter ip6_tables
-nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack
-xt_multiport iptable_filter ip_tables x_tables rpcsec_gss_krb5
-auth_rpcgss oid_registry nfsv4 nfs lockd grace sunrpc fscache ses
-enclosure 8021q garp stp llc bonding ext4 crc16 jbd2 mbcache sg sd_mod
-ipmi_watchdog x86_pkg_temp_thermal coretemp kvm_intel iTCO_wdt evdev
-kvm crc32c_intel aesni_intel aes_x86_64 lrw gf128mul glue_helper
-ablk_helper cryptd ahci libahci ehci_pci mpt3sas raid_class ehci_hcd
-ixgbe libata igb scsi_transport_sas mdio usbcore ptp lpc_ich i2c_i801
-mfd_core i2c_algo_bit
-[Mon May 25 05:29:33 2015]  pps_core usb_common scsi_mod dca i2c_core
-wmi acpi_pad acpi_cpufreq md_mod processor thermal_sys button ipmi_si
-ipmi_poweroff ipmi_devintf ipmi_msghandler autofs4
-[Mon May 25 05:29:33 2015] CPU: 8 PID: 25835 Comm: tcpdump Not tainted
-3.18.13-cloudflare #1
-[Mon May 25 05:29:33 2015] Hardware name: Quanta Computer Inc D51B-2U
-(dual 1G LoM)/S2B-MB (dual 1G LoM), BIOS S2B_3A17 11/07/2014
-[Mon May 25 05:29:34 2015] task: ffff880fb4605580 ti: ffff880f7ca54000
-task.ti: ffff880f7ca54000
-[Mon May 25 05:29:34 2015] RIP: 0010:[<ffffffff8112346c>]
-[<ffffffff8112346c>] migrate_misplaced_page+0xeb/0x2a1
-[Mon May 25 05:29:34 2015] RSP: 0000:ffff880f7ca57d28  EFLAGS: 00010246
-[Mon May 25 05:29:34 2015] RAX: 0000000000000000 RBX: ffffea0015414000
-RCX: 0000000000000000
-[Mon May 25 05:29:34 2015] RDX: 0000000000000000 RSI: ffff88207fc0c1a8
-RDI: 0000000000000540
-[Mon May 25 05:29:34 2015] RBP: ffff88207ffd7000 R08: 0000000000000000
-R09: 0000000000000000
-[Mon May 25 05:29:34 2015] R10: ffffffff81678b40 R11: ffff88207ff9aa00
-R12: ffff880f7ca57d38
-[Mon May 25 05:29:34 2015] R13: 0000000000000001 R14: 0000000000000000
-R15: 0000000000000000
-[Mon May 25 05:29:34 2015] FS:  00007fcb89855700(0000)
-GS:ffff88207fc00000(0000) knlGS:0000000000000000
-[Mon May 25 05:29:34 2015] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[Mon May 25 05:29:34 2015] CR2: 00007fcb88859008 CR3: 0000000f6a3f9000
-CR4: 00000000001407e0
-[Mon May 25 05:29:34 2015] Stack:
-[Mon May 25 05:29:34 2015]  0000000000000000 ffffea0015414000
-ffff880f7ca57d38 ffff880f7ca57d38
-[Mon May 25 05:29:34 2015]  0000000000000001 ffff880f6a3b8450
-ffffea003fa43330 0000000000000001
-[Mon May 25 05:29:34 2015]  ffffea0015414000 0000000000000000
-0000000000000000 ffffffff81100c85
-[Mon May 25 05:29:34 2015] Call Trace:
-[Mon May 25 05:29:34 2015]  [<ffffffff81100c85>] ? handle_mm_fault+0x945/0xa62
-[Mon May 25 05:29:34 2015]  [<ffffffff81105bc6>] ? change_protection+0x12a/0x580
-[Mon May 25 05:29:34 2015]  [<ffffffff81034502>] ? __do_page_fault+0x2bf/0x395
-[Mon May 25 05:29:34 2015]  [<ffffffff8112dcf6>] ? new_sync_write+0x6a/0x8e
-[Mon May 25 05:29:34 2015]  [<ffffffff81158cfe>] ? fsnotify+0x276/0x2bf
-[Mon May 25 05:29:34 2015]  [<ffffffff81061467>] ? vtime_account_user+0x35/0x40
-[Mon May 25 05:29:34 2015]  [<ffffffff8103460f>] ? do_page_fault+0x37/0x58
-[Mon May 25 05:29:34 2015]  [<ffffffff81491082>] ? page_fault+0x22/0x30
-[Mon May 25 05:29:34 2015] Code: a5 00 00 00 48 ff c0 48 89 85 b8 5f
-02 00 48 8b 03 f6 c4 40 74 17 83 7b 68 00 74 11 48 c7 c6 79 71 7f 81
-48 89 df e8 b1 86 fd ff <0f> 0b 48 8b 03 31 c9 f6 c4 40 74 03 8b 4b 68
-8b 85 40 5f 02 00
-[Mon May 25 05:29:34 2015] RIP  [<ffffffff8112346c>]
-migrate_misplaced_page+0xeb/0x2a1
-[Mon May 25 05:29:34 2015]  RSP <ffff880f7ca57d28>
-[Mon May 25 05:29:34 2015] ---[ end trace 83fa2f6761648dbd ]---
-[Mon May 25 05:29:34 2015] device bond0.100 left promiscuous mode
-[Mon May 25 05:29:34 2015] device bond0 left promiscuous mode
-[Mon May 25 05:29:34 2015] device eth2 left promiscuous mode
-[Mon May 25 05:29:34 2015] device eth3 left promiscuous mode
-[Mon May 25 05:29:46 2015] device bond0.100 entered promiscuous mode
-[Mon May 25 05:29:46 2015] device bond0 entered promiscuous mode
-[Mon May 25 05:29:46 2015] device eth2 entered promiscuous mode
-[Mon May 25 05:29:46 2015] device eth3 entered promiscuous mode
-[Mon May 25 05:29:49 2015] page:ffffea00190d3000 count:66 mapcount:1
-mapping:          (null) index:0x0
-[Mon May 25 05:29:49 2015] flags: 0x20050100004000(head)
-[Mon May 25 05:29:49 2015] page dumped because:
-VM_BUG_ON_PAGE(compound_order(page) && !PageTransHuge(page))
-[Mon May 25 05:29:49 2015] ------------[ cut here ]------------
-[Mon May 25 05:29:49 2015] kernel BUG at mm/migrate.c:1661!
-[Mon May 25 05:29:49 2015] invalid opcode: 0000 [#2] SMP
-[Mon May 25 05:29:49 2015] Modules linked in: veth xt_comment xt_CT
-iptable_raw xt_addrtype ipt_MASQUERADE nf_nat_masquerade_ipv4
-iptable_nat nf_nat_ipv4 nf_nat bridge overlay tcp_cubic binfmt_misc
-nf_conntrack_ipv6 nf_defrag_ipv6 xt_tcpudp ip6table_filter ip6_tables
-nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack
-xt_multiport iptable_filter ip_tables x_tables rpcsec_gss_krb5
-auth_rpcgss oid_registry nfsv4 nfs lockd grace sunrpc fscache ses
-enclosure 8021q garp stp llc bonding ext4 crc16 jbd2 mbcache sg sd_mod
-ipmi_watchdog x86_pkg_temp_thermal coretemp kvm_intel iTCO_wdt evdev
-kvm crc32c_intel aesni_intel aes_x86_64 lrw gf128mul glue_helper
-ablk_helper cryptd ahci libahci ehci_pci mpt3sas raid_class ehci_hcd
-ixgbe libata igb scsi_transport_sas mdio usbcore ptp lpc_ich i2c_i801
-mfd_core i2c_algo_bit
-[Mon May 25 05:29:49 2015]  pps_core usb_common scsi_mod dca i2c_core
-wmi acpi_pad acpi_cpufreq md_mod processor thermal_sys button ipmi_si
-ipmi_poweroff ipmi_devintf ipmi_msghandler autofs4
-[Mon May 25 05:29:49 2015] CPU: 10 PID: 25858 Comm: tcpdump Tainted: G
-     D        3.18.13-cloudflare #1
-[Mon May 25 05:29:49 2015] Hardware name: Quanta Computer Inc D51B-2U
-(dual 1G LoM)/S2B-MB (dual 1G LoM), BIOS S2B_3A17 11/07/2014
-[Mon May 25 05:29:49 2015] task: ffff880fb4600e40 ti: ffff8805520ec000
-task.ti: ffff8805520ec000
-[Mon May 25 05:29:49 2015] RIP: 0010:[<ffffffff8112346c>]
-[<ffffffff8112346c>] migrate_misplaced_page+0xeb/0x2a1
-[Mon May 25 05:29:49 2015] RSP: 0000:ffff8805520efd28  EFLAGS: 00010246
-[Mon May 25 05:29:49 2015] RAX: 0000000000000000 RBX: ffffea00190d3000
-RCX: 000000000000649e
-[Mon May 25 05:29:49 2015] RDX: 0000000000000000 RSI: 0000000000000296
-RDI: 0000000000000900
-[Mon May 25 05:29:49 2015] RBP: ffff88207ffd7000 R08: 0000000000000000
-R09: 0000000000000000
-[Mon May 25 05:29:49 2015] R10: 000000000000b4d0 R11: ffff88207ff9bad0
-R12: ffff8805520efd38
-[Mon May 25 05:29:49 2015] R13: 0000000000000001 R14: 0000000000000000
-R15: 0000000000000000
-[Mon May 25 05:29:49 2015] FS:  00007fd334ecd700(0000)
-GS:ffff88207fc40000(0000) knlGS:0000000000000000
-[Mon May 25 05:29:49 2015] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[Mon May 25 05:29:49 2015] CR2: 00007fd334051008 CR3: 0000000f6810a000
-CR4: 00000000001407e0
-[Mon May 25 05:29:49 2015] Stack:
-[Mon May 25 05:29:49 2015]  0000000000000000 ffffea00190d3000
-ffff8805520efd38 ffff8805520efd38
-[Mon May 25 05:29:49 2015]  0000000000000001 ffff8805a875bd78
-ffffea003daa4cf0 0000000000000001
-[Mon May 25 05:29:49 2015]  ffffea00190d3000 0000000000000000
-0000000000000000 ffffffff81100c85
-[Mon May 25 05:29:49 2015] Call Trace:
-[Mon May 25 05:29:49 2015]  [<ffffffff81100c85>] ? handle_mm_fault+0x945/0xa62
-[Mon May 25 05:29:49 2015]  [<ffffffff81105bc6>] ? change_protection+0x12a/0x580
-[Mon May 25 05:29:49 2015]  [<ffffffff81034502>] ? __do_page_fault+0x2bf/0x395
-[Mon May 25 05:29:49 2015]  [<ffffffff8112dcf6>] ? new_sync_write+0x6a/0x8e
-[Mon May 25 05:29:49 2015]  [<ffffffff81158cfe>] ? fsnotify+0x276/0x2bf
-[Mon May 25 05:29:49 2015]  [<ffffffff81061467>] ? vtime_account_user+0x35/0x40
-[Mon May 25 05:29:49 2015]  [<ffffffff8103460f>] ? do_page_fault+0x37/0x58
-[Mon May 25 05:29:49 2015]  [<ffffffff81491082>] ? page_fault+0x22/0x30
-[Mon May 25 05:29:49 2015] Code: a5 00 00 00 48 ff c0 48 89 85 b8 5f
-02 00 48 8b 03 f6 c4 40 74 17 83 7b 68 00 74 11 48 c7 c6 79 71 7f 81
-48 89 df e8 b1 86 fd ff <0f> 0b 48 8b 03 31 c9 f6 c4 40 74 03 8b 4b 68
-8b 85 40 5f 02 00
-[Mon May 25 05:29:49 2015] RIP  [<ffffffff8112346c>]
-migrate_misplaced_page+0xeb/0x2a1
-[Mon May 25 05:29:49 2015]  RSP <ffff8805520efd28>
-[Mon May 25 05:29:49 2015] ---[ end trace 83fa2f6761648dbe ]---
-[Mon May 25 05:29:49 2015] device bond0.100 left promiscuous mode
-[Mon May 25 05:29:49 2015] device bond0 left promiscuous mode
-[Mon May 25 05:29:49 2015] device eth2 left promiscuous mode
-[Mon May 25 05:29:49 2015] device eth3 left promiscuous mode
-[Mon May 25 05:30:07 2015] device bond0.100 entered promiscuous mode
-[Mon May 25 05:30:07 2015] device bond0 entered promiscuous mode
-[Mon May 25 05:30:07 2015] device eth2 entered promiscuous mode
-[Mon May 25 05:30:07 2015] device eth3 entered promiscuous mode
-[Mon May 25 05:30:42 2015] page:ffffea00153cf000 count:66 mapcount:1
-mapping:          (null) index:0x0
-[Mon May 25 05:30:42 2015] flags: 0x20050c80004000(head)
-[Mon May 25 05:30:42 2015] page dumped because:
-VM_BUG_ON_PAGE(compound_order(page) && !PageTransHuge(page))
-[Mon May 25 05:30:42 2015] ------------[ cut here ]------------
-[Mon May 25 05:30:42 2015] kernel BUG at mm/migrate.c:1661!
-[Mon May 25 05:30:42 2015] invalid opcode: 0000 [#3]
-[Mon May 25 05:30:42 2015] SMP
+1) this is not done under a lock, so the non-atomic ++/-- is racy if
+there are multiple swapons/swapoffs running concurrently on the same
+xprt. Shouldn't those use an atomic?
 
-[Mon May 25 05:30:42 2015] Modules linked in:
-[Mon May 25 05:30:42 2015]  veth
-[Mon May 25 05:30:42 2015]  xt_comment
-[Mon May 25 05:30:42 2015]  xt_CT
-[Mon May 25 05:30:42 2015]  iptable_raw
-[Mon May 25 05:30:42 2015]  xt_addrtype
-[Mon May 25 05:30:42 2015]  ipt_MASQUERADE
-[Mon May 25 05:30:42 2015]  nf_nat_masquerade_ipv4
-[Mon May 25 05:30:42 2015]  iptable_nat
-[Mon May 25 05:30:42 2015]  nf_nat_ipv4
-[Mon May 25 05:30:42 2015]  nf_nat
-[Mon May 25 05:30:42 2015]  bridge
-[Mon May 25 05:30:42 2015]  overlay
-[Mon May 25 05:30:42 2015]  tcp_cubic
-[Mon May 25 05:30:42 2015]  binfmt_misc
-[Mon May 25 05:30:42 2015]  nf_conntrack_ipv6
-[Mon May 25 05:30:42 2015]  nf_defrag_ipv6
-[Mon May 25 05:30:42 2015]  xt_tcpudp
-[Mon May 25 05:30:42 2015]  ip6table_filter
-[Mon May 25 05:30:42 2015]  ip6_tables
-[Mon May 25 05:30:42 2015]  nf_conntrack_ipv4
-[Mon May 25 05:30:42 2015]  nf_defrag_ipv4
-[Mon May 25 05:30:42 2015]  xt_conntrack
-[Mon May 25 05:30:42 2015]  nf_conntrack
-[Mon May 25 05:30:42 2015]  xt_multiport
-[Mon May 25 05:30:42 2015]  iptable_filter
-[Mon May 25 05:30:42 2015]  ip_tables
-[Mon May 25 05:30:42 2015]  x_tables
-[Mon May 25 05:30:42 2015]  rpcsec_gss_krb5
-[Mon May 25 05:30:42 2015]  auth_rpcgss
-[Mon May 25 05:30:42 2015]  oid_registry
-[Mon May 25 05:30:42 2015]  nfsv4
-[Mon May 25 05:30:42 2015]  nfs
-[Mon May 25 05:30:42 2015]  lockd
-[Mon May 25 05:30:42 2015]  grace
-[Mon May 25 05:30:42 2015]  sunrpc
-[Mon May 25 05:30:42 2015]  fscache
-[Mon May 25 05:30:42 2015]  ses
-[Mon May 25 05:30:42 2015]  enclosure
-[Mon May 25 05:30:42 2015]  8021q
-[Mon May 25 05:30:42 2015]  garp
-[Mon May 25 05:30:42 2015]  stp
-[Mon May 25 05:30:42 2015]  llc
-[Mon May 25 05:30:42 2015]  bonding
-[Mon May 25 05:30:42 2015]  ext4
-[Mon May 25 05:30:42 2015]  crc16
-[Mon May 25 05:30:42 2015]  jbd2
-[Mon May 25 05:30:42 2015]  mbcache
-[Mon May 25 05:30:42 2015]  sg
-[Mon May 25 05:30:42 2015]  sd_mod
-[Mon May 25 05:30:42 2015]  ipmi_watchdog
-[Mon May 25 05:30:42 2015]  x86_pkg_temp_thermal
-[Mon May 25 05:30:42 2015]  coretemp kvm_intel iTCO_wdt evdev kvm
-crc32c_intel aesni_intel aes_x86_64 lrw gf128mul glue_helper
-ablk_helper cryptd ahci libahci ehci_pci mpt3sas raid_class ehci_hcd
-ixgbe libata igb scsi_transport_sas mdio usbcore ptp lpc_ich i2c_i801
-mfd_core i2c_algo_bit pps_core usb_common scsi_mod dca i2c_core wmi
-acpi_pad acpi_cpufreq md_mod processor thermal_sys button ipmi_si
-ipmi_poweroff ipmi_devintf ipmi_msghandler autofs4
-[Mon May 25 05:30:42 2015] CPU: 10 PID: 25881 Comm: tcpdump Tainted: G
-     D        3.18.13-cloudflare #1
-[Mon May 25 05:30:42 2015] Hardware name: Quanta Computer Inc D51B-2U
-(dual 1G LoM)/S2B-MB (dual 1G LoM), BIOS S2B_3A17 11/07/2014
-[Mon May 25 05:30:42 2015] task: ffff880fb4601c80 ti: ffff880d790fc000
-task.ti: ffff880d790fc000
-[Mon May 25 05:30:42 2015] RIP: 0010:[<ffffffff8112346c>]
-[<ffffffff8112346c>] migrate_misplaced_page+0xeb/0x2a1
-[Mon May 25 05:30:42 2015] RSP: 0000:ffff880d790ffd28  EFLAGS: 00010246
-[Mon May 25 05:30:42 2015] RAX: 0000000000000000 RBX: ffffea00153cf000
-RCX: 000000000000670d
-[Mon May 25 05:30:42 2015] RDX: 0000000000000000 RSI: 0000000000000296
-RDI: 0000000000000520
-[Mon May 25 05:30:42 2015] RBP: ffff88207ffd7000 R08: 0000000000000000
-R09: 0000000000000000
-[Mon May 25 05:30:42 2015] R10: 0000000000000000 R11: ffff88207ff9cb0c
-R12: ffff880d790ffd38
-[Mon May 25 05:30:42 2015] R13: 0000000000000001 R14: 0000000000000000
-R15: 0000000000000000
-[Mon May 25 05:30:42 2015] FS:  00007f9fa7c98700(0000)
-GS:ffff88207fc40000(0000) knlGS:0000000000000000
-[Mon May 25 05:30:42 2015] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[Mon May 25 05:30:42 2015] CR2: 00007f9fa6ddc008 CR3: 0000000fe9391000
-CR4: 00000000001407e0
-[Mon May 25 05:30:42 2015] Stack:
-[Mon May 25 05:30:42 2015]  0000000000000001 ffffea00153cf000
-ffff880d790ffd38 ffff880d790ffd38
-[Mon May 25 05:30:42 2015]  ffffea00153cefc0 ffff880f89deeb80
-ffffea003da83f70 0000000000000001
-[Mon May 25 05:30:42 2015]  ffffea00153cf000 0000000000000000
-0000000000000000 ffffffff81100c85
-[Mon May 25 05:30:42 2015] Call Trace:
-[Mon May 25 05:30:42 2015]  [<ffffffff81100c85>] ? handle_mm_fault+0x945/0xa62
-[Mon May 25 05:30:42 2015]  [<ffffffff81034502>] ? __do_page_fault+0x2bf/0x395
-[Mon May 25 05:30:42 2015]  [<ffffffff8112dcf6>] ? new_sync_write+0x6a/0x8e
-[Mon May 25 05:30:42 2015]  [<ffffffff81158cfe>] ? fsnotify+0x276/0x2bf
-[Mon May 25 05:30:42 2015]  [<ffffffff81061467>] ? vtime_account_user+0x35/0x40
-[Mon May 25 05:30:42 2015]  [<ffffffff8103460f>] ? do_page_fault+0x37/0x58
-[Mon May 25 05:30:42 2015]  [<ffffffff81491082>] ? page_fault+0x22/0x30
-[Mon May 25 05:30:42 2015] Code: a5 00 00 00 48 ff c0 48 89 85 b8 5f
-02 00 48 8b 03 f6 c4 40 74 17 83 7b 68 00 74 11 48 c7 c6 79 71 7f 81
-48 89 df e8 b1 86 fd ff <0f> 0b 48 8b 03 31 c9 f6 c4 40 74 03 8b 4b 68
-8b 85 40 5f 02 00
-[Mon May 25 05:30:42 2015] RIP  [<ffffffff8112346c>]
-migrate_misplaced_page+0xeb/0x2a1
-[Mon May 25 05:30:42 2015]  RSP <ffff880d790ffd28>
-[Mon May 25 05:30:42 2015] ---[ end trace 83fa2f6761648dbf ]---
-[Mon May 25 05:30:42 2015] device bond0.100 left promiscuous mode
-[Mon May 25 05:30:42 2015] device bond0 left promiscuous mode
-[Mon May 25 05:30:42 2015] device eth2 left promiscuous mode
-[Mon May 25 05:30:42 2015] device eth3 left promiscuous mode
-[Mon May 25 05:32:03 2015] device bond0.100 entered promiscuous mode
-[Mon May 25 05:32:03 2015] device bond0 entered promiscuous mode
-[Mon May 25 05:32:03 2015] device eth2 entered promiscuous mode
-[Mon May 25 05:32:03 2015] device eth3 entered promiscuous mode
-[Mon May 25 05:32:29 2015] page:ffffea006c581000 count:66 mapcount:1
-mapping:          (null) index:0x0
-[Mon May 25 05:32:29 2015] flags: 0x6002ba00004000(head)
-[Mon May 25 05:32:29 2015] page dumped because:
-VM_BUG_ON_PAGE(compound_order(page) && !PageTransHuge(page))
-[Mon May 25 05:32:29 2015] ------------[ cut here ]------------
-[Mon May 25 05:32:29 2015] kernel BUG at mm/migrate.c:1661!
-[Mon May 25 05:32:29 2015] invalid opcode: 0000 [#4] SMP
-[Mon May 25 05:32:29 2015] Modules linked in: veth xt_comment xt_CT
-iptable_raw xt_addrtype ipt_MASQUERADE nf_nat_masquerade_ipv4
-iptable_nat nf_nat_ipv4 nf_nat bridge overlay tcp_cubic binfmt_misc
-nf_conntrack_ipv6 nf_defrag_ipv6 xt_tcpudp ip6table_filter ip6_tables
-nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack
-xt_multiport iptable_filter ip_tables x_tables rpcsec_gss_krb5
-auth_rpcgss oid_registry nfsv4 nfs lockd grace sunrpc fscache ses
-enclosure 8021q garp stp llc bonding ext4 crc16 jbd2 mbcache sg sd_mod
-ipmi_watchdog x86_pkg_temp_thermal coretemp kvm_intel iTCO_wdt evdev
-kvm crc32c_intel aesni_intel aes_x86_64 lrw gf128mul glue_helper
-ablk_helper cryptd ahci libahci ehci_pci mpt3sas raid_class ehci_hcd
-ixgbe libata igb scsi_transport_sas mdio usbcore ptp lpc_ich i2c_i801
-mfd_core i2c_algo_bit
-[Mon May 25 05:32:29 2015]  pps_core usb_common scsi_mod dca i2c_core
-wmi acpi_pad acpi_cpufreq md_mod processor thermal_sys button ipmi_si
-ipmi_poweroff ipmi_devintf ipmi_msghandler autofs4
-[Mon May 25 05:32:29 2015] CPU: 5 PID: 25972 Comm: tcpdump Tainted: G
-    D        3.18.13-cloudflare #1
-[Mon May 25 05:32:29 2015] Hardware name: Quanta Computer Inc D51B-2U
-(dual 1G LoM)/S2B-MB (dual 1G LoM), BIOS S2B_3A17 11/07/2014
-[Mon May 25 05:32:29 2015] task: ffff881dee014740 ti: ffff881d5eb3c000
-task.ti: ffff881d5eb3c000
-[Mon May 25 05:32:29 2015] RIP: 0010:[<ffffffff8112346c>]
-[<ffffffff8112346c>] migrate_misplaced_page+0xeb/0x2a1
-[Mon May 25 05:32:29 2015] RSP: 0000:ffff881d5eb3fd28  EFLAGS: 00010246
-[Mon May 25 05:32:29 2015] RAX: 0000000000000000 RBX: ffffea006c581000
-RCX: 0000000000006b84
-[Mon May 25 05:32:29 2015] RDX: 0000000000000000 RSI: 0000000000000296
-RDI: 0000000000000c40
-[Mon May 25 05:32:29 2015] RBP: ffff88107ffda000 R08: 0000000000000000
-R09: 0000000000000000
-[Mon May 25 05:32:29 2015] R10: 000000000000bb40 R11: ffff88207ff9de94
-R12: ffff881d5eb3fd38
-[Mon May 25 05:32:29 2015] R13: 0000000000000000 R14: 0000000000000001
-R15: 0000000000000000
-[Mon May 25 05:32:29 2015] FS:  00007f31bdaf0700(0000)
-GS:ffff88103fca0000(0000) knlGS:0000000000000000
-[Mon May 25 05:32:29 2015] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[Mon May 25 05:32:29 2015] CR2: 00007f31bcc74008 CR3: 0000001d74b8c000
-CR4: 00000000001407e0
-[Mon May 25 05:32:29 2015] Stack:
-[Mon May 25 05:32:29 2015]  0000000000000001 ffffea006c581000
-ffff881d5eb3fd38 ffff881d5eb3fd38
-[Mon May 25 05:32:29 2015]  ffffffffffffffff ffff880fe2332228
-ffffea00757aadf0 0000000000000000
-[Mon May 25 05:32:29 2015]  ffffea006c581000 0000000000000001
-0000000000000000 ffffffff81100c85
-[Mon May 25 05:32:29 2015] Call Trace:
-[Mon May 25 05:32:29 2015]  [<ffffffff81100c85>] ? handle_mm_fault+0x945/0xa62
-[Mon May 25 05:32:29 2015]  [<ffffffff81038cbc>] ? flush_tlb_mm_range+0xb5/0xdb
-[Mon May 25 05:32:29 2015]  [<ffffffff81105bc6>] ? change_protection+0x12a/0x580
-[Mon May 25 05:32:29 2015]  [<ffffffff81034502>] ? __do_page_fault+0x2bf/0x395
-[Mon May 25 05:32:29 2015]  [<ffffffff81061467>] ? vtime_account_user+0x35/0x40
-[Mon May 25 05:32:29 2015]  [<ffffffff8103460f>] ? do_page_fault+0x37/0x58
-[Mon May 25 05:32:29 2015]  [<ffffffff81491082>] ? page_fault+0x22/0x30
-[Mon May 25 05:32:29 2015] Code: a5 00 00 00 48 ff c0 48 89 85 b8 5f
-02 00 48 8b 03 f6 c4 40 74 17 83 7b 68 00 74 11 48 c7 c6 79 71 7f 81
-48 89 df e8 b1 86 fd ff <0f> 0b 48 8b 03 31 c9 f6 c4 40 74 03 8b 4b 68
-8b 85 40 5f 02 00
-[Mon May 25 05:32:29 2015] RIP  [<ffffffff8112346c>]
-migrate_misplaced_page+0xeb/0x2a1
-[Mon May 25 05:32:29 2015]  RSP <ffff881d5eb3fd28>
-[Mon May 25 05:32:29 2015] ---[ end trace 83fa2f6761648dc0 ]---
+2) on enable, "swapper" is incremented and memalloc is set on the
+socket. Do we need to do xs_set_memalloc every time swapon is called,
+or only on a 0->1 swapper transition.
+
+3) the !enable case also looks wrong. We decrement "swapper" and
+then call sk_clear_memalloc, what if there are multiple swapfiles on
+this xprt? Shouldn't that only be done when "swapper" goes to 0?
+
+...and aside from that, there's no handling for rpc_clnt_set_transport.
+When a rpc_clnt's xprt is replaced, we ought to ensure that the new one
+is also set up for swapping. The "swapper" refcount is tied to the xprt
+though, which is...tricky.
+
+It's possible for the xprt to be associated with multiple clnts, each
+of which might have different numbers of swapfiles. That information is
+lost though since we're tracking the swapper count on a per-xprt basis.
+
+I think we need to keep a refcount in the rpc_clnt too. The clnt's
+swapper count would track the number of swapons/swapoffs, and the
+xprt's refcount would keep track of clients that have active swapfiles.
+
+Am I missing something in the above?
+--=20
+Jeff Layton <jlayton@primarydata.com>
+
+--Sig_/=.VGjj8jvUxtzFjGLNXJ=.b
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJVZR35AAoJEAAOaEEZVoIVTHgP/0+ZzJH9aVEqz+DjI27BLkIz
+b/BLgAb11VwcyBAcBuu8PqFxXwehLJCNQQH6+LXkFoPzMkDPTEWoecCTo5bhDbx0
+WfNf06x6LaonAok0Fs0cSF5ab6NNZf0n5eeHNuqODh3+yYctKTo034940tReZRRI
+p/0A1erixuFrBooJqjWpdxSxtQed21gO2kqsPA4pRiUkoojwsiNEdwiPqeWM9sWd
+3zsKxmh24Z21/M2IbKLPBu0qdRreJHMt2m1uSrzARFApaJjhUSEbOYZashkGjNmz
+6A99CNcMkKMbvuqUiM1DI7ADy27ljVs2pFqPPHYqEZY+8teLYksx42rJcVF2Pm7+
+UtGggM6r+H5+pDXUjMoOD2UieaSGU+Nv/ZUSch4LCdblHjpEQ24vcvOZhRI33CH6
+C6kM9vHxWbT9RqlxIf1O4mF9GAs/qdY03/0DiM0HEr4ikGcioegDyERTVklanvIQ
++a5tErmIeRW+Y4Bzu06nt0vIErQHrasbvY77VoRQI8mJpyuM/jCWpltubcPYTV6Z
+7lUrxNgtXN6QQmZCvIo56fyeje+ChcxtuEJd+/W2fFIftutVePW06NDAQDhVxf+G
+7T6QP93z43T+mU7b3SE+6OeQrICHf5NPfOOYYmaDYqkBAm9OHjx36pWSdo7lj3M9
+d23m3gDKFt1557lHYiI/
+=wxwY
+-----END PGP SIGNATURE-----
+
+--Sig_/=.VGjj8jvUxtzFjGLNXJ=.b--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
