@@ -1,141 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 95ECD6B006E
-	for <linux-mm@kvack.org>; Wed, 27 May 2015 14:42:50 -0400 (EDT)
-Received: by laat2 with SMTP id t2so14264726laa.1
-        for <linux-mm@kvack.org>; Wed, 27 May 2015 11:42:49 -0700 (PDT)
-Received: from mail-la0-x229.google.com (mail-la0-x229.google.com. [2a00:1450:4010:c03::229])
-        by mx.google.com with ESMTPS id o5si14177844lae.1.2015.05.27.11.42.47
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id D04D86B006E
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 17:59:33 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so26420897pdb.1
+        for <linux-mm@kvack.org>; Wed, 27 May 2015 14:59:33 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id cm6si387110pdb.94.2015.05.27.14.59.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 May 2015 11:42:48 -0700 (PDT)
-Received: by labpy14 with SMTP id py14so2448267lab.0
-        for <linux-mm@kvack.org>; Wed, 27 May 2015 11:42:47 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CABPcSq+uMcDSBU1xt7oRqPXn-89ZpJmxK+C46M7rX7+Y7-x7iQ@mail.gmail.com>
-References: <CABPcSq+uMcDSBU1xt7oRqPXn-89ZpJmxK+C46M7rX7+Y7-x7iQ@mail.gmail.com>
-Date: Wed, 27 May 2015 11:42:47 -0700
-Message-ID: <CABPcSqK+bfX+oPhCF2a9WQs0=+sQ8pde8r6dH-JQamsrCcJ8gg@mail.gmail.com>
-Subject: Re: kernel bug(VM_BUG_ON_PAGE) with 3.18.13 in mm/migrate.c
-From: Jovi Zhangwei <jovi@cloudflare.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 27 May 2015 14:59:32 -0700 (PDT)
+Subject: Re: [PATCH] mm/oom: Suppress unnecessary "sharing same memory" message.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201505252333.FJG56590.OOFSHQMOJtFFVL@I-love.SAKURA.ne.jp>
+	<20150526170213.GB14955@dhcp22.suse.cz>
+	<201505270639.JCF57366.OFVOQSFFHtJOML@I-love.SAKURA.ne.jp>
+	<20150527164505.GD27348@dhcp22.suse.cz>
+In-Reply-To: <20150527164505.GD27348@dhcp22.suse.cz>
+Message-Id: <201505280659.HBE69765.SOtQMJLVFHFFOO@I-love.SAKURA.ne.jp>
+Date: Thu, 28 May 2015 06:59:32 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, sasha.levin@oracle.com, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, vbabka@suse.cz, rientjes@google.com
+To: mhocko@suse.cz
+Cc: linux-mm@kvack.org
 
-On Wed, May 27, 2015 at 11:05 AM, Jovi Zhangwei <jovi@cloudflare.com> wrote:
-> Hi,
->
-> I got below kernel bug error in our 3.18.13 stable kernel.
-> "kernel BUG at mm/migrate.c:1661!"
->
-> Source code:
->
-> 1657    static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
-> 1658   {
-> 1659            int page_lru;
-> 1660
-> 1661           VM_BUG_ON_PAGE(compound_order(page) &&
-> !PageTransHuge(page), page);
->
-> It's easy to trigger the error by run tcpdump in our system.(not sure
-> it will easily be reproduced in another system)
-> "sudo tcpdump -i bond0.100 'tcp port 4242' -c 100000000000 -w 4242.pcap"
->
-> Any comments for this bug would be great appreciated. thanks.
->
-> -----------------------------------------------------------------
-> dmesg:
->
-> [Mon May 25 05:29:33 2015] page:ffffea0015414000 count:66 mapcount:1
-> mapping:          (null) index:0x0
-> [Mon May 25 05:29:33 2015] flags: 0x20047580004000(head)
-> [Mon May 25 05:29:33 2015] page dumped because:
-> VM_BUG_ON_PAGE(compound_order(page) && !PageTransHuge(page))
-> [Mon May 25 05:29:33 2015] ------------[ cut here ]------------
-> [Mon May 25 05:29:33 2015] kernel BUG at mm/migrate.c:1661!
-> [Mon May 25 05:29:33 2015] invalid opcode: 0000 [#1] SMP
-> [Mon May 25 05:29:33 2015] Modules linked in: veth xt_comment xt_CT
-> iptable_raw xt_addrtype ipt_MASQUERADE nf_nat_masquerade_ipv4
-> iptable_nat nf_nat_ipv4 nf_nat bridge overlay tcp_cubic binfmt_misc
-> nf_conntrack_ipv6 nf_defrag_ipv6 xt_tcpudp ip6table_filter ip6_tables
-> nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack
-> xt_multiport iptable_filter ip_tables x_tables rpcsec_gss_krb5
-> auth_rpcgss oid_registry nfsv4 nfs lockd grace sunrpc fscache ses
-> enclosure 8021q garp stp llc bonding ext4 crc16 jbd2 mbcache sg sd_mod
-> ipmi_watchdog x86_pkg_temp_thermal coretemp kvm_intel iTCO_wdt evdev
-> kvm crc32c_intel aesni_intel aes_x86_64 lrw gf128mul glue_helper
-> ablk_helper cryptd ahci libahci ehci_pci mpt3sas raid_class ehci_hcd
-> ixgbe libata igb scsi_transport_sas mdio usbcore ptp lpc_ich i2c_i801
-> mfd_core i2c_algo_bit
-> [Mon May 25 05:29:33 2015]  pps_core usb_common scsi_mod dca i2c_core
-> wmi acpi_pad acpi_cpufreq md_mod processor thermal_sys button ipmi_si
-> ipmi_poweroff ipmi_devintf ipmi_msghandler autofs4
-> [Mon May 25 05:29:33 2015] CPU: 8 PID: 25835 Comm: tcpdump Not tainted
-> 3.18.13-cloudflare #1
-> [Mon May 25 05:29:33 2015] Hardware name: Quanta Computer Inc D51B-2U
-> (dual 1G LoM)/S2B-MB (dual 1G LoM), BIOS S2B_3A17 11/07/2014
-> [Mon May 25 05:29:34 2015] task: ffff880fb4605580 ti: ffff880f7ca54000
-> task.ti: ffff880f7ca54000
-> [Mon May 25 05:29:34 2015] RIP: 0010:[<ffffffff8112346c>]
-> [<ffffffff8112346c>] migrate_misplaced_page+0xeb/0x2a1
-> [Mon May 25 05:29:34 2015] RSP: 0000:ffff880f7ca57d28  EFLAGS: 00010246
-> [Mon May 25 05:29:34 2015] RAX: 0000000000000000 RBX: ffffea0015414000
-> RCX: 0000000000000000
-> [Mon May 25 05:29:34 2015] RDX: 0000000000000000 RSI: ffff88207fc0c1a8
-> RDI: 0000000000000540
-> [Mon May 25 05:29:34 2015] RBP: ffff88207ffd7000 R08: 0000000000000000
-> R09: 0000000000000000
-> [Mon May 25 05:29:34 2015] R10: ffffffff81678b40 R11: ffff88207ff9aa00
-> R12: ffff880f7ca57d38
-> [Mon May 25 05:29:34 2015] R13: 0000000000000001 R14: 0000000000000000
-> R15: 0000000000000000
-> [Mon May 25 05:29:34 2015] FS:  00007fcb89855700(0000)
-> GS:ffff88207fc00000(0000) knlGS:0000000000000000
-> [Mon May 25 05:29:34 2015] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [Mon May 25 05:29:34 2015] CR2: 00007fcb88859008 CR3: 0000000f6a3f9000
-> CR4: 00000000001407e0
-> [Mon May 25 05:29:34 2015] Stack:
-> [Mon May 25 05:29:34 2015]  0000000000000000 ffffea0015414000
-> ffff880f7ca57d38 ffff880f7ca57d38
-> [Mon May 25 05:29:34 2015]  0000000000000001 ffff880f6a3b8450
-> ffffea003fa43330 0000000000000001
-> [Mon May 25 05:29:34 2015]  ffffea0015414000 0000000000000000
-> 0000000000000000 ffffffff81100c85
-> [Mon May 25 05:29:34 2015] Call Trace:
-> [Mon May 25 05:29:34 2015]  [<ffffffff81100c85>] ? handle_mm_fault+0x945/0xa62
-> [Mon May 25 05:29:34 2015]  [<ffffffff81105bc6>] ? change_protection+0x12a/0x580
-> [Mon May 25 05:29:34 2015]  [<ffffffff81034502>] ? __do_page_fault+0x2bf/0x395
-> [Mon May 25 05:29:34 2015]  [<ffffffff8112dcf6>] ? new_sync_write+0x6a/0x8e
-> [Mon May 25 05:29:34 2015]  [<ffffffff81158cfe>] ? fsnotify+0x276/0x2bf
-> [Mon May 25 05:29:34 2015]  [<ffffffff81061467>] ? vtime_account_user+0x35/0x40
-> [Mon May 25 05:29:34 2015]  [<ffffffff8103460f>] ? do_page_fault+0x37/0x58
-> [Mon May 25 05:29:34 2015]  [<ffffffff81491082>] ? page_fault+0x22/0x30
-> [Mon May 25 05:29:34 2015] Code: a5 00 00 00 48 ff c0 48 89 85 b8 5f
-> 02 00 48 8b 03 f6 c4 40 74 17 83 7b 68 00 74 11 48 c7 c6 79 71 7f 81
-> 48 89 df e8 b1 86 fd ff <0f> 0b 48 8b 03 31 c9 f6 c4 40 74 03 8b 4b 68
-> 8b 85 40 5f 02 00
-> [Mon May 25 05:29:34 2015] RIP  [<ffffffff8112346c>]
-> migrate_misplaced_page+0xeb/0x2a1
-> [Mon May 25 05:29:34 2015]  RSP <ffff880f7ca57d28>
-> [Mon May 25 05:29:34 2015] ---[ end trace 83fa2f6761648dbd ]---
-> [Mon May 25 05:29:34 2015] device bond0.100 left promiscuous mode
-> [Mon May 25 05:29:34 2015] device bond0 left promiscuous mode
-> [Mon May 25 05:29:34 2015] device eth2 left promiscuous mode
-> [Mon May 25 05:29:34 2015] device eth3 left promiscuous mode
-> [Mon May 25 05:29:46 2015] device bond0.100 entered promiscuous mode
-> [Mon May 25 05:29:46 2015] device bond0 entered promiscuous mode
-> [Mon May 25 05:29:46 2015] device eth2 entered promiscuous mode
-> [Mon May 25 05:29:46 2015] device eth3 entered promiscuous mode
->
-> Thanks.
+Michal Hocko wrote:
+> On Wed 27-05-15 06:39:42, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > On Mon 25-05-15 23:33:31, Tetsuo Handa wrote:
+> > > > >From 3728807fe66ebc24a8a28455593754b9532bbe74 Mon Sep 17 00:00:00 2001
+> > > > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > > > Date: Mon, 25 May 2015 22:26:07 +0900
+> > > > Subject: [PATCH] mm/oom: Suppress unnecessary "sharing same memory" message.
+> > > > 
+> > > > If the mm struct which the OOM victim is using is shared by e.g. 1000
+> > > > threads, and the lock dependency prevents all threads except the OOM
+> > > > victim thread from terminating until they get TIF_MEMDIE flag, the OOM
+> > > > killer will be invoked for 1000 times on this mm struct. As a result,
+> > > > the kernel would emit
+> > > > 
+> > > >   "Kill process %d (%s) sharing same memory\n"
+> > > > 
+> > > > line for 1000 * 1000 / 2 times. But once these threads got pending SIGKILL,
+> > > > emitting this information is nothing but noise. This patch filters them.
+> > > 
+> > > OK, I can see this might be really annoying. But reducing this message
+> > > will not help much because it is the dump_header which generates a lot
+> > > of output. And there is clearly no reason to treat the selected victim
+> > > any differently than the current so why not simply do the following
+> > > instead?
+> > > ---
+> > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > > index 5cfda39b3268..a67ce18b4b35 100644
+> > > --- a/mm/oom_kill.c
+> > > +++ b/mm/oom_kill.c
+> > > @@ -505,7 +505,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+> > >  	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+> > >  	 */
+> > >  	task_lock(p);
+> > > -	if (p->mm && task_will_free_mem(p)) {
+> > > +	if (p->mm && (fatal_signal_pending(p) || task_will_free_mem(p))) {
+> > >  		mark_oom_victim(p);
+> > >  		task_unlock(p);
+> > >  		put_task_struct(p);
+> > > 
+> > 
+> > I don't think this is good, for this will omit sending SIGKILL to threads
+> > sharing p->mm ("Kill all user processes sharing victim->mm in other thread
+> > groups, if any.")
+> 
+> threads? The whole thread group will die when the fatal signal is
+> send to the group leader no? This mm sharing handling is about
+> processes which are sharing mm but they are not in the same thread group
 
-Hi Mel,
+OK. I should say "omit sending SIGKILL to processes which are sharing mm
+but they are not in the same thread group".
 
-Would you please give me some hints on this bug? it seems very wried
-that the page is compounded but is not hugepage.
+> (aka CLONE_VM without CLONE_SIGHAND resp. CLONE_THREAD).
 
-Thanks.
+clone(CLONE_SIGHAND | CLONE_VM) ?
+
+> 
+> > when p already has pending SIGKILL.
+> 
+> yes we can select a task which has SIGKILL already pending and then
+> we wouldn't kill other processes which share the same mm but does it
+> matter?  I do not think so. Because if this is really the case and the
+> OOM condition continues even after p exits (which is very probable but
+> p alone might release some resources and free memory) we will find a
+> process with the same mm in the next round.
+
+I think it matters because p cannot call do_exit() when p is blocked by
+processes which are sharing mm but they are not in the same thread group.
+
+> 
+> > By the way, if p with p->mm && task_will_free_mem(p) can get stuck due to
+> > memory allocation deadlock, is it OK that currently we are not sending SIGKILL
+> > to threads sharing p->mm ?
+> 
+> I am not sure I understand the question. Threads will die automatically
+> because we are sending group signal.
+
+I just imagined a case where p is blocked at down_read() in acct_collect() from
+do_exit() when p is sharing mm with other processes, and other process is doing
+blocking operation with mm->mmap_sem held for writing. Is such case impossible?
+
+do_exit() {
+  exit_signals(tsk);  /* sets PF_EXITING */
+  acct_collect(code, group_dead) {
+    if (group_dead && current->mm) {
+      down_read(&current->mm->mmap_sem);
+      up_read(&current->mm->mmap_sem);
+    }
+  }
+  exit_mm(tsk) {
+     down_read(&mm->mmap_sem);
+     tsk->mm = NULL;
+     up_read(&mm->mmap_sem);
+  }
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
