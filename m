@@ -1,54 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B9AE6B0120
-	for <linux-mm@kvack.org>; Tue, 26 May 2015 22:34:18 -0400 (EDT)
-Received: by pdfh10 with SMTP id h10so104411972pdf.3
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 19:34:17 -0700 (PDT)
-Received: from out5-smtp.messagingengine.com (out5-smtp.messagingengine.com. [66.111.4.29])
-        by mx.google.com with ESMTPS id np6si23510459pbc.250.2015.05.26.19.34.16
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 3274E6B0120
+	for <linux-mm@kvack.org>; Tue, 26 May 2015 23:40:19 -0400 (EDT)
+Received: by pdea3 with SMTP id a3so106638416pde.2
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 20:40:18 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id fn10si23883192pab.103.2015.05.26.20.40.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 May 2015 19:34:17 -0700 (PDT)
-Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id 57C0C20A44
-	for <linux-mm@kvack.org>; Tue, 26 May 2015 22:34:14 -0400 (EDT)
-Date: Tue, 26 May 2015 19:34:12 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: [RFC v2 1/4] fs: Add generic file system event notifications
-Message-ID: <20150527023412.GA20070@kroah.com>
-References: <20150428135653.GD9955@quack.suse.cz>
- <20150428140936.GA13406@kroah.com>
- <553F9D56.6030301@samsung.com>
- <20150428173900.GA16708@kroah.com>
- <5540822C.10000@samsung.com>
- <20150429074259.GA31089@quack.suse.cz>
- <20150429091303.GA4090@kroah.com>
- <5548B4BB.7050503@samsung.com>
- <554B5329.8040907@samsung.com>
- <5564A1D4.4040309@samsung.com>
+        Tue, 26 May 2015 20:40:18 -0700 (PDT)
+Message-ID: <55653A6C.3060707@oracle.com>
+Date: Tue, 26 May 2015 20:30:52 -0700
+From: Mike Kravetz <mike.kravetz@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5564A1D4.4040309@samsung.com>
+Subject: Re: [PATCH] mm/hugetlb: document the reserve map/region tracking
+ routines
+References: <1432675630-7623-1-git-send-email-mike.kravetz@oracle.com> <20150526160900.0c0868b73e40995d3d65c616@linux-foundation.org>
+In-Reply-To: <20150526160900.0c0868b73e40995d3d65c616@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Beata Michalska <b.michalska@samsung.com>
-Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>
 
-On Tue, May 26, 2015 at 06:39:48PM +0200, Beata Michalska wrote:
-> Hi,
-> 
-> Things has gone a bit quiet thread wise ...
-> As I believe I've managed to snap back to reality, I was hoping we could continue with this?
-> I'm not sure if we've got everything cleared up or ... have we reached a dead end?
-> Please let me know if we can move to the next stage? Or, if there are any showstoppers?
+On 05/26/2015 04:09 PM, Andrew Morton wrote:
+> On Tue, 26 May 2015 14:27:10 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+>
+>> This is a documentation only patch and does not modify any code.
+>> Descriptions of the routines used for reserve map/region tracking
+>> are added.
+>
+> Confused.  This adds comments which are similar to the ones which were
+> added by
+> mm-hugetlb-compute-return-the-number-of-regions-added-by-region_add-v2.patch
+> and
+> mm-hugetlb-handle-races-in-alloc_huge_page-and-hugetlb_reserve_pages-v2.patch.
+> But the comments are a bit different.  And this patch madly conflicts
+> with the two abovementioned patches.
+>
+> Maybe the thing to do is to start again, with a three-patch series:
+>
+> mm-hugetlb-document-the-reserve-map-region-tracking-routines.patch
+> mm-hugetlb-compute-return-the-number-of-regions-added-by-region_add-v3.patch
+> mm-hugetlb-handle-races-in-alloc_huge_page-and-hugetlb_reserve_pages-v3.patch
+>
+> while resolving the differences in the new code comments?
+>
 
-Please resend if you think it's ready and you have addressed the issues
-raised so far.
+Sorry for the confusion.  Naoya and Davidlohr suggested changes to
+the documentation and code.  One suggestion was to create a separate
+documentation only patch.
 
-thanks,
 
-greg k-h
+I will create a new series as you suggest above.
+
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
