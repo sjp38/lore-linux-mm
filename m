@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C08A6B0073
-	for <linux-mm@kvack.org>; Wed, 27 May 2015 13:59:20 -0400 (EDT)
-Received: by oifu123 with SMTP id u123so13686067oif.1
-        for <linux-mm@kvack.org>; Wed, 27 May 2015 10:59:19 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id z9si13136oey.5.2015.05.27.10.59.18
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 970406B0074
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 14:00:14 -0400 (EDT)
+Received: by obbnx5 with SMTP id nx5so13782317obb.0
+        for <linux-mm@kvack.org>; Wed, 27 May 2015 11:00:14 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id tc6si31770oec.45.2015.05.27.11.00.13
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 May 2015 10:59:18 -0700 (PDT)
+        Wed, 27 May 2015 11:00:13 -0700 (PDT)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH v3 3/3] mm/hugetlb: handle races in alloc_huge_page and hugetlb_reserve_pages
-Date: Wed, 27 May 2015 10:56:11 -0700
-Message-Id: <1432749371-32220-4-git-send-email-mike.kravetz@oracle.com>
+Subject: [PATCH v3 1/3] mm/hugetlb: document the reserve map/region tracking routines
+Date: Wed, 27 May 2015 10:56:09 -0700
+Message-Id: <1432749371-32220-2-git-send-email-mike.kravetz@oracle.com>
 In-Reply-To: <1432749371-32220-1-git-send-email-mike.kravetz@oracle.com>
 References: <1432749371-32220-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,82 +20,106 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-alloc_huge_page and hugetlb_reserve_pages use region_chg to
-calculate the number of pages which will be added to the reserve
-map.  Subpool and global reserve counts are adjusted based on
-the output of region_chg.  Before the pages are actually added
-to the reserve map, these routines could race and add fewer
-pages than expected.  If this happens, the subpool and global
-reserve counts are not correct.
-
-Compare the number of pages actually added (region_add) to those
-expected to added (region_chg).  If fewer pages are actually added,
-this indicates a race and adjust counters accordingly.
+This is a documentation only patch and does not modify any code.
+Descriptions of the routines used for reserve map/region tracking
+are added.
 
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- mm/hugetlb.c | 34 ++++++++++++++++++++++++++++++----
- 1 file changed, 30 insertions(+), 4 deletions(-)
+ mm/hugetlb.c | 52 ++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 50 insertions(+), 2 deletions(-)
 
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index b3d3d59..038c84e 100644
+index 54f129d..ad2c628 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -1544,7 +1544,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	struct hugepage_subpool *spool = subpool_vma(vma);
- 	struct hstate *h = hstate_vma(vma);
- 	struct page *page;
--	long chg;
-+	long chg, commit;
- 	int ret, idx;
- 	struct hugetlb_cgroup *h_cg;
+@@ -212,8 +212,20 @@ static inline struct hugepage_subpool *subpool_vma(struct vm_area_struct *vma)
+  * Region tracking -- allows tracking of reservations and instantiated pages
+  *                    across the pages in a mapping.
+  *
+- * The region data structures are embedded into a resv_map and
+- * protected by a resv_map's lock
++ * The region data structures are embedded into a resv_map and protected
++ * by a resv_map's lock.  The set of regions within the resv_map represent
++ * reservations for huge pages, or huge pages that have already been
++ * instantiated within the map.  The from and to elements are huge page
++ * indicies into the associated mapping.  from indicates the starting index
++ * of the region.  to represents the first index past the end of  the region.
++ *
++ * For example, a file region structure with from == 0 and to == 4 represents
++ * four huge pages in a mapping.  It is important to note that the to element
++ * represents the first element past the end of the region. This is used in
++ * arithmetic as 4(to) - 0(from) = 4 huge pages in the region.
++ *
++ * Interval notation of the form [from, to) will be used to indicate that
++ * the endpoint from is inclusive and to is exclusive.
+  */
+ struct file_region {
+ 	struct list_head link;
+@@ -221,6 +233,14 @@ struct file_region {
+ 	long to;
+ };
  
-@@ -1585,7 +1585,20 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 
- 	set_page_private(page, (unsigned long)spool);
- 
--	vma_commit_reservation(h, vma, addr);
-+	commit = vma_commit_reservation(h, vma, addr);
-+	if (unlikely(chg > commit)) {
-+		/*
-+		 * The page was added to the reservation map between
-+		 * vma_needs_reservation and vma_commit_reservation.
-+		 * This indicates a race with hugetlb_reserve_pages.
-+		 * Adjust for the subpool count incremented above AND
-+		 * in hugetlb_reserve_pages for the same page.  Also,
-+		 * the reservation count added in hugetlb_reserve_pages
-+		 * no longer applies.
-+		 */
-+		hugepage_subpool_put_pages(spool, 1);
-+		hugetlb_acct_memory(h, -1);
-+	}
- 	return page;
- 
- out_uncharge_cgroup:
-@@ -3699,8 +3712,21 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	 * consumed reservations are stored in the map. Hence, nothing
- 	 * else has to be done for private mappings here
- 	 */
--	if (!vma || vma->vm_flags & VM_MAYSHARE)
--		region_add(resv_map, from, to);
-+	if (!vma || vma->vm_flags & VM_MAYSHARE) {
-+		long add = region_add(resv_map, from, to);
-+
-+		if (unlikely(chg > add)) {
-+			/*
-+			 * pages in this range were added to the reserve
-+			 * map between region_chg and region_add.  This
-+			 * indicates a race with alloc_huge_page.  Adjust
-+			 * the subpool and reserve counts modified above
-+			 * based on the difference.
-+			 */
-+			hugepage_subpool_put_pages(spool, chg - add);
-+			hugetlb_acct_memory(h, -(chg - ret));
-+		}
-+	}
++/*
++ * Add the huge page range represented by [f, t) to the reserve
++ * map.  Existing regions will be expanded to accommodate the
++ * specified range.  We know only existing regions need to be
++ * expanded, because region_add is only called after region_chg
++ * with the same range.  If a new file_region structure must
++ * be allocated, it is done in region_chg.
++ */
+ static long region_add(struct resv_map *resv, long f, long t)
+ {
+ 	struct list_head *head = &resv->regions;
+@@ -260,6 +280,25 @@ static long region_add(struct resv_map *resv, long f, long t)
  	return 0;
- out_err:
- 	if (vma && is_vma_resv_set(vma, HPAGE_RESV_OWNER))
+ }
+ 
++/*
++ * Examine the existing reserve map and determine how many
++ * huge pages in the specified range [f, t) are NOT currently
++ * represented.  This routine is called before a subsequent
++ * call to region_add that will actually modify the reserve
++ * map to add the specified range [f, t).  region_chg does
++ * not change the number of huge pages represented by the
++ * map.  However, if the existing regions in the map can not
++ * be expanded to represent the new range, a new file_region
++ * structure is added to the map as a placeholder.  This is
++ * so that the subsequent region_add call will have all the
++ * regions it needs and will not fail.
++ *
++ * Returns the number of huge pages that need to be added
++ * to the existing reservation map for the range [f, t).
++ * This number is greater or equal to zero.  -ENOMEM is
++ * returned if a new file_region structure is needed and can
++ * not be allocated.
++ */
+ static long region_chg(struct resv_map *resv, long f, long t)
+ {
+ 	struct list_head *head = &resv->regions;
+@@ -326,6 +365,11 @@ out_nrg:
+ 	return chg;
+ }
+ 
++/*
++ * Truncate the reserve map at index 'end'.  Modify/truncate any
++ * region which contains end.  Delete any regions past end.
++ * Return the number of huge pages removed from the map.
++ */
+ static long region_truncate(struct resv_map *resv, long end)
+ {
+ 	struct list_head *head = &resv->regions;
+@@ -361,6 +405,10 @@ out:
+ 	return chg;
+ }
+ 
++/*
++ * Count and return the number of huge pages in the reserve map
++ * that intersect with the range [f, t).
++ */
+ static long region_count(struct resv_map *resv, long f, long t)
+ {
+ 	struct list_head *head = &resv->regions;
 -- 
 2.1.0
 
