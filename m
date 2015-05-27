@@ -1,61 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 15B716B0092
-	for <linux-mm@kvack.org>; Wed, 27 May 2015 10:38:29 -0400 (EDT)
-Received: by qkhg32 with SMTP id g32so6638725qkh.0
-        for <linux-mm@kvack.org>; Wed, 27 May 2015 07:38:28 -0700 (PDT)
-Received: from mail-qk0-x229.google.com (mail-qk0-x229.google.com. [2607:f8b0:400d:c09::229])
-        by mx.google.com with ESMTPS id 145si11373135qhb.22.2015.05.27.07.38.27
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id CBA9D6B0092
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 10:48:30 -0400 (EDT)
+Received: by wgbgq6 with SMTP id gq6so11779005wgb.3
+        for <linux-mm@kvack.org>; Wed, 27 May 2015 07:48:30 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r2si24281572wiz.73.2015.05.27.07.48.28
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 May 2015 07:38:28 -0700 (PDT)
-Received: by qkdn188 with SMTP id n188so6609735qkd.2
-        for <linux-mm@kvack.org>; Wed, 27 May 2015 07:38:27 -0700 (PDT)
-Date: Wed, 27 May 2015 10:38:22 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH 05/36] HMM: introduce heterogeneous memory management v3.
-Message-ID: <20150527143821.GC1948@gmail.com>
-References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
- <1432236705-4209-6-git-send-email-j.glisse@gmail.com>
- <87twuylgc2.fsf@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 27 May 2015 07:48:29 -0700 (PDT)
+Date: Wed, 27 May 2015 16:48:27 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 3/3] memcg: get rid of mm_struct::owner
+Message-ID: <20150527144827.GC27348@dhcp22.suse.cz>
+References: <1432641006-8025-1-git-send-email-mhocko@suse.cz>
+ <1432641006-8025-4-git-send-email-mhocko@suse.cz>
+ <20150526141011.GA11065@cmpxchg.org>
+ <20150526151149.GJ14681@dhcp22.suse.cz>
+ <20150526172019.GA12926@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <87twuylgc2.fsf@linux.vnet.ibm.com>
+In-Reply-To: <20150526172019.GA12926@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>, linux-rdma@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Greg Thelen <gthelen@google.com>
 
-On Wed, May 27, 2015 at 11:20:05AM +0530, Aneesh Kumar K.V wrote:
-> j.glisse@gmail.com writes:
-
-Noted your grammar fixes.
-
-> > diff --git a/mm/Kconfig b/mm/Kconfig
-> > index 52ffb86..189e48f 100644
-> > --- a/mm/Kconfig
-> > +++ b/mm/Kconfig
-> > @@ -653,3 +653,18 @@ config DEFERRED_STRUCT_PAGE_INIT
-> >  	  when kswapd starts. This has a potential performance impact on
-> >  	  processes running early in the lifetime of the systemm until kswapd
-> >  	  finishes the initialisation.
-> > +
-> > +if STAGING
-> > +config HMM
-> > +	bool "Enable heterogeneous memory management (HMM)"
-> > +	depends on MMU
-> > +	select MMU_NOTIFIER
-> > +	select GENERIC_PAGE_TABLE
+On Tue 26-05-15 13:20:19, Johannes Weiner wrote:
+> On Tue, May 26, 2015 at 05:11:49PM +0200, Michal Hocko wrote:
+> > On Tue 26-05-15 10:10:11, Johannes Weiner wrote:
+> > > On Tue, May 26, 2015 at 01:50:06PM +0200, Michal Hocko wrote:
+> > > > @@ -104,7 +105,12 @@ static inline bool mm_match_cgroup(struct mm_struct *mm,
+> > > >  	bool match = false;
+> > > >  
+> > > >  	rcu_read_lock();
+> > > > -	task_memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
+> > > > +	/*
+> > > > +	 * rcu_dereference would be better but mem_cgroup is not a complete
+> > > > +	 * type here
+> > > > +	 */
+> > > > +	task_memcg = READ_ONCE(mm->memcg);
+> > > > +	smp_read_barrier_depends();
+> > > >  	if (task_memcg)
+> > > >  		match = mem_cgroup_is_descendant(task_memcg, memcg);
+> > > >  	rcu_read_unlock();
+> > > 
+> > > This function has only one user in rmap.  If you inline it there, you
+> > > can use rcu_dereference() and get rid of the specialness & comment.
+> > 
+> > I am not sure I understand. struct mem_cgroup is defined in
+> > mm/memcontrol.c so mm/rmap.c will not see it. Or do you suggest pulling
+> > struct mem_cgroup out into a header with all the dependencies?
 > 
-> What is GENERIC_PAGE_TABLE ?
+> Yes, I think that would be preferrable.  It's weird that we have such
+> a major data structure that is used all over the mm-code but only in
+> the shape of pointers to an incomplete type.  It forces a bad style of
+> code that uses uninlinable callbacks and accessors for even the most
+> basic things.  There are a few functions in memcontrol.c that could
+> instead be static inlines or should even be implemented as part of the
+> code that is using them, such as
 
-Let over of when patch 0006 what a seperate feature that was introduced
-before this patch. I failed to remove that chunk. Just ignore it.
+Fair enough. I was afraid of dependencies between networking and memcg
+header files but it seems that only struct cg_proto is really needed for
+tcp kmem controller and that one doesn't depend on any socket specific
+stuff. So we are good here. 
 
-Cheers,
-Jerome
+> mem_cgroup_get_lru_size(),
+> mem_cgroup_is_descendant, mem_cgroup_inactive_anon_is_low(),
+> mem_cgroup_lruvec_online(), mem_cgroup_swappiness(),
+> mem_cgroup_select_victim_node(), mem_cgroup_update_page_stat(), and
+> mem_cgroup_events().  Your new functions fall into the same category.
+
+Let me try how this will end up. Hopefully the code will not grow too
+much.
+
+> > @@ -486,29 +486,13 @@ void mm_set_memcg(struct mm_struct *mm, struct mem_cgroup *memcg)
+> >  void mm_drop_memcg(struct mm_struct *mm)
+> >  {
+> >  	/*
+> > -	 * This is the last reference to mm so nobody can see
+> > -	 * this memcg
+> > +	 * We could reset mm->memcg, but the mm goes away as this is the
+> > +	 * last reference.
+> >  	 */
+> >  	if (mm->memcg)
+> >  		css_put(&mm->memcg->css);
+> >  }
+> 
+> This function is supposed to be an API call to disassociate a mm from
+> its memcg, but it actually doesn't do that and will leave a dangling
+> pointer based on assumptions it makes about how and when the caller
+> invokes it.  That's bad.  It's a subtle optimization with dependencies
+> spread across two moving parts.  The result is very fragile code which
+> will break things in non-obvious ways when the caller changes later on.
+
+Fair point. The optimization is not really worth it and I will add
+explicit NULLing because I would prefer to keep the function as well as
+mm_set_memcg because this is easier to track and at least mm_set_memcg
+needs to be called from two places (as pointed out by Oleg) and I would
+really like prevent from duplication.
+
+> And what's left standing is silly too: a memcg-specific API to call
+> css_put(), even though struct cgroup_subsys_state and css_put() are
+> public API already.
+> 
+> Both these things are a negative side effect of struct mem_cgroup
+> being semi-private.  Memcg pointers are everywhere, yet we need a
+> public interface indirection for every simple dereference.
+> 
+> > @@ -5252,10 +5236,15 @@ static void mem_cgroup_move_task(struct cgroup_subsys_state *css,
+> >  
+> >  	if (mm) {
+> >  		/*
+> > -		 * Commit to a new memcg. mc.to points to the destination
+> > -		 * memcg even when the current charges are not moved.
+> > +		 * Commit to the target memcg even when we do not move
+> > +		 * charges.
+> >  		 */
+> > -		mm_move_memcg(mm, mc.to);
+> > +		struct mem_cgroup *old_memcg = READ_ONCE(mm->memcg);
+> > +		struct mem_cgroup *new_memcg = mem_cgroup_from_css(css);
+> > +
+> > +		mm_set_memcg(mm, new_memcg);
+> > +		if (old_memcg)
+> > +			css_put(&old_memcg->css);
+> 
+> "Commit" is a problematic choice of words because of its existing
+> meaning in memcg of associating a page with a pre-reserved charge.
+> 
+> I'm not sure a comment is actually necessary here.  Reassigning
+> mm->memcg when moving a process pretty straight forward IMO.
+
+OK, will remove it.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
