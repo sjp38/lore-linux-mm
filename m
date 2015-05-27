@@ -1,133 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 728B06B0120
-	for <linux-mm@kvack.org>; Wed, 27 May 2015 00:24:25 -0400 (EDT)
-Received: by pdea3 with SMTP id a3so108093778pde.2
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 21:24:25 -0700 (PDT)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id o5si24060251pap.50.2015.05.26.21.24.24
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id BA4E16B0120
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 01:09:33 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so68010993pdb.1
+        for <linux-mm@kvack.org>; Tue, 26 May 2015 22:09:33 -0700 (PDT)
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
+        by mx.google.com with ESMTPS id sw10si24208510pab.71.2015.05.26.22.09.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 May 2015 21:24:24 -0700 (PDT)
-Received: by pdfh10 with SMTP id h10so108039282pdf.3
-        for <linux-mm@kvack.org>; Tue, 26 May 2015 21:24:24 -0700 (PDT)
-Date: Wed, 27 May 2015 13:24:16 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC PATCH 2/2] arm64: Implement vmalloc based thread_info
- allocator
-Message-ID: <20150527042416.GC11609@blaptop>
-References: <1432483340-23157-1-git-send-email-jungseoklee85@gmail.com>
- <5992243.NYDGjLH37z@wuerfel>
- <B873B881-4972-4524-B1D9-4BB05D7248A4@gmail.com>
- <20150525145857.GF14922@blaptop>
- <BA18E3D0-A487-4E74-8DCA-49F36A4F08E2@gmail.com>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 May 2015 22:09:32 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 27 May 2015 10:39:29 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 283E6125804F
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 10:41:46 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t4R59Onw61210820
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 10:39:25 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t4R59NV8007017
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 10:39:24 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 02/36] mmu_notifier: keep track of active invalidation ranges v3
+In-Reply-To: <1432236705-4209-3-git-send-email-j.glisse@gmail.com>
+References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com> <1432236705-4209-3-git-send-email-j.glisse@gmail.com>
+Date: Wed, 27 May 2015 10:39:23 +0530
+Message-ID: <871ti2mwsc.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <BA18E3D0-A487-4E74-8DCA-49F36A4F08E2@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jungseok Lee <jungseoklee85@gmail.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, linux-arm-kernel@lists.infradead.org, Catalin Marinas <catalin.marinas@arm.com>, barami97@gmail.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: j.glisse@gmail.com, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>
 
-On Tue, May 26, 2015 at 09:10:11PM +0900, Jungseok Lee wrote:
-> On May 25, 2015, at 11:58 PM, Minchan Kim wrote:
-> > On Mon, May 25, 2015 at 07:01:33PM +0900, Jungseok Lee wrote:
-> >> On May 25, 2015, at 2:49 AM, Arnd Bergmann wrote:
-> >>> On Monday 25 May 2015 01:02:20 Jungseok Lee wrote:
-> >>>> Fork-routine sometimes fails to get a physically contiguous region for
-> >>>> thread_info on 4KB page system although free memory is enough. That is,
-> >>>> a physically contiguous region, which is currently 16KB, is not available
-> >>>> since system memory is fragmented.
-> >>>> 
-> >>>> This patch tries to solve the problem as allocating thread_info memory
-> >>>> from vmalloc space, not 1:1 mapping one. The downside is one additional
-> >>>> page allocation in case of vmalloc. However, vmalloc space is large enough,
-> >>>> around 240GB, under a combination of 39-bit VA and 4KB page. Thus, it is
-> >>>> not a big tradeoff for fork-routine service.
-> >>> 
-> >>> vmalloc has a rather large runtime cost. I'd argue that failing to allocate
-> >>> thread_info structures means something has gone very wrong.
-> >> 
-> >> That is why the feature is marked "N" by default.
-> >> I focused on fork-routine stability rather than performance.
-> > 
-> > If VM has trouble with order-2 allocation, your system would be
-> > trouble soon although fork at the moment manages to be successful
-> > because such small high-order(ex, order <= PAGE_ALLOC_COSTLY_ORDER)
-> > allocation is common in the kernel so VM should handle it smoothly.
-> > If VM didn't, it means we should fix VM itself, not a specific
-> > allocation site. Fork is one of victim by that.
-> 
-> A problem I observed is an user space, not a kernel side. As user applications
-> fail to create threads in order to distribute their jobs properly, they are getting
-> in trouble slowly and then gone.
-> 
-> Yes, fork is one of victim, but damages user applications seriously.
-> At this snapshot, free memory is enough.
+j.glisse@gmail.com writes:
 
-Yes, it's the one you found.
+> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>
+> The mmu_notifier_invalidate_range_start() and mmu_notifier_invalidate_ran=
+ge_end()
+> can be considered as forming an "atomic" section for the cpu page table u=
+pdate
+> point of view. Between this two function the cpu page table content is un=
+reliable
+> for the address range being invalidated.
+>
+> Current user such as kvm need to know when they can trust the content of =
+the cpu
+> page table. This becomes even more important to new users of the mmu_noti=
+fier
+> api (such as HMM or ODP).
 
-        *Free memory is enough but why forking was failed*
+I don't see kvm using the new APIs in this patch. Also what is that HMM use=
+ this
+for, to protect walking of mirror page table ?. I am sure you are
+covering that in the later patches. May be you may want to mention
+the details here too.=20
 
-You should find the exact reason for it rather than papering over by
-hiding forking fail.
+>
+> This patch use a structure define at all call site to invalidate_range_st=
+art()
+> that is added to a list for the duration of the invalidation. It adds two=
+ new
+> helpers to allow querying if a range is being invalidated or to wait for =
+a range
+> to become valid.
+>
+> For proper synchronization, user must block new range invalidation from i=
+nside
+> there invalidate_range_start() callback, before calling the helper functi=
+ons.
+> Otherwise there is no garanty that a new range invalidation will not be a=
+dded
+> after the call to the helper function to query for existing range.
+>
+> Changed since v1:
+>   - Fix a possible deadlock in mmu_notifier_range_wait_valid()
+>
+> Changed since v2:
+>   - Add the range to invalid range list before calling ->range_start().
+>   - Del the range from invalid range list after calling ->range_end().
+>   - Remove useless list initialization.
+>
 
-1. Investigate how many of movable/unmovable page ratio at the moment
-2. Investigate why compaction doesn't work
-3. Investigate why reclaim couldn't make order-2 page
-
-
-> 
-> >> Could you give me an idea how to evaluate performance degradation?
-> >> Running some benchmarks would be helpful, but I would like to try to
-> >> gather data based on meaningful methodology.
-> >> 
-> >>> Can you describe the scenario that leads to fragmentation this bad?
-> >> 
-> >> Android, but I could not describe an exact reproduction procedure step
-> >> by step since it's behaved and reproduced randomly. As reading the following
-> >> thread from mm mailing list, a similar symptom is observed on other systems. 
-> >> 
-> >> https://lkml.org/lkml/2015/4/28/59
-> >> 
-> >> Although I do not know the details of a system mentioned in the thread,
-> >> even order-2 page allocation is not smoothly operated due to fragmentation on
-> >> low memory system.
-> > 
-> > What Joonsoo have tackle is generic fragmentation problem, not *a* fork fail,
-> > which is more right approach to handle small high-order allocation problem.
-> 
-> I totally agree with that point. One of the best ways is to figure out a generic
-> anti-fragmentation with VM system improvement. Reducing the stack size to 8KB is also
-> a really great approach. My intention is not to overlook them or figure out a workaround.
-> 
-> IMHO, vmalloc would be a different option in case of ARM64 on low memory systems since
-> *fork failure from fragmentation* is a nontrivial issue.
-> 
-> Do you think the patch set doesn't need to be considered?
-
-I don't know because the changelog doesn't have full description
-about your problem. You just wrote "forking was failed so we want
-to avoid that by vmalloc because forking is important".
-It seems to me it is just bandaid.
-
-What you should provide for description is
-
-" Forking was failed although there were lots of free pages
-  so I investigated it and found root causes in somewhere
-  so this patch fixes the problem"
-
-Thanks.
-
-
-> 
-> Best Regards
-> Jungseok Lee
-
--- 
-Kind regards,
-Minchan Kim
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
