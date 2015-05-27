@@ -1,125 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id D04D86B006E
-	for <linux-mm@kvack.org>; Wed, 27 May 2015 17:59:33 -0400 (EDT)
-Received: by pdbki1 with SMTP id ki1so26420897pdb.1
-        for <linux-mm@kvack.org>; Wed, 27 May 2015 14:59:33 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id cm6si387110pdb.94.2015.05.27.14.59.31
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id D1DF16B0070
+	for <linux-mm@kvack.org>; Wed, 27 May 2015 19:52:33 -0400 (EDT)
+Received: by wgme6 with SMTP id e6so22501001wgm.2
+        for <linux-mm@kvack.org>; Wed, 27 May 2015 16:52:33 -0700 (PDT)
+Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com. [2a00:1450:400c:c05::22c])
+        by mx.google.com with ESMTPS id cl7si763542wjb.210.2015.05.27.16.52.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 27 May 2015 14:59:32 -0700 (PDT)
-Subject: Re: [PATCH] mm/oom: Suppress unnecessary "sharing same memory" message.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201505252333.FJG56590.OOFSHQMOJtFFVL@I-love.SAKURA.ne.jp>
-	<20150526170213.GB14955@dhcp22.suse.cz>
-	<201505270639.JCF57366.OFVOQSFFHtJOML@I-love.SAKURA.ne.jp>
-	<20150527164505.GD27348@dhcp22.suse.cz>
-In-Reply-To: <20150527164505.GD27348@dhcp22.suse.cz>
-Message-Id: <201505280659.HBE69765.SOtQMJLVFHFFOO@I-love.SAKURA.ne.jp>
-Date: Thu, 28 May 2015 06:59:32 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 May 2015 16:52:32 -0700 (PDT)
+Received: by wizo1 with SMTP id o1so41395662wiz.1
+        for <linux-mm@kvack.org>; Wed, 27 May 2015 16:52:31 -0700 (PDT)
+MIME-Version: 1.0
+Date: Wed, 27 May 2015 16:52:31 -0700
+Message-ID: <CAGdX0WH9YbrZ0xN0HKwBmRJ3LNt_JPA4nmDLNV9CypwQRKQpQw@mail.gmail.com>
+Subject: [PATCH] mm/migrate: Avoid migrate mmaped compound pages
+From: Jovi Zhangwei <jovi.zhangwei@gmail.com>
+Content-Type: multipart/alternative; boundary=f46d043c7b0cb484a5051718ef6d
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: linux-mm@kvack.org
+To: inux-kernel@vger.kernel.org, mgorman@suse.de, Sasha Levin <sasha.levin@oracle.com>, n-horiguchi@ah.jp.nec.com, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-mm@kvack.org, vbabka@suse.cz, rientjes@google.com
 
-Michal Hocko wrote:
-> On Wed 27-05-15 06:39:42, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Mon 25-05-15 23:33:31, Tetsuo Handa wrote:
-> > > > >From 3728807fe66ebc24a8a28455593754b9532bbe74 Mon Sep 17 00:00:00 2001
-> > > > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > > > Date: Mon, 25 May 2015 22:26:07 +0900
-> > > > Subject: [PATCH] mm/oom: Suppress unnecessary "sharing same memory" message.
-> > > > 
-> > > > If the mm struct which the OOM victim is using is shared by e.g. 1000
-> > > > threads, and the lock dependency prevents all threads except the OOM
-> > > > victim thread from terminating until they get TIF_MEMDIE flag, the OOM
-> > > > killer will be invoked for 1000 times on this mm struct. As a result,
-> > > > the kernel would emit
-> > > > 
-> > > >   "Kill process %d (%s) sharing same memory\n"
-> > > > 
-> > > > line for 1000 * 1000 / 2 times. But once these threads got pending SIGKILL,
-> > > > emitting this information is nothing but noise. This patch filters them.
-> > > 
-> > > OK, I can see this might be really annoying. But reducing this message
-> > > will not help much because it is the dump_header which generates a lot
-> > > of output. And there is clearly no reason to treat the selected victim
-> > > any differently than the current so why not simply do the following
-> > > instead?
-> > > ---
-> > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > > index 5cfda39b3268..a67ce18b4b35 100644
-> > > --- a/mm/oom_kill.c
-> > > +++ b/mm/oom_kill.c
-> > > @@ -505,7 +505,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
-> > >  	 * its children or threads, just set TIF_MEMDIE so it can die quickly
-> > >  	 */
-> > >  	task_lock(p);
-> > > -	if (p->mm && task_will_free_mem(p)) {
-> > > +	if (p->mm && (fatal_signal_pending(p) || task_will_free_mem(p))) {
-> > >  		mark_oom_victim(p);
-> > >  		task_unlock(p);
-> > >  		put_task_struct(p);
-> > > 
-> > 
-> > I don't think this is good, for this will omit sending SIGKILL to threads
-> > sharing p->mm ("Kill all user processes sharing victim->mm in other thread
-> > groups, if any.")
-> 
-> threads? The whole thread group will die when the fatal signal is
-> send to the group leader no? This mm sharing handling is about
-> processes which are sharing mm but they are not in the same thread group
+--f46d043c7b0cb484a5051718ef6d
+Content-Type: text/plain; charset=UTF-8
 
-OK. I should say "omit sending SIGKILL to processes which are sharing mm
-but they are not in the same thread group".
+Below kernel vm bug can be triggered by tcpdump which mmaped a lot of pages
+with GFP_COMP flag.
 
-> (aka CLONE_VM without CLONE_SIGHAND resp. CLONE_THREAD).
+[Mon May 25 05:29:33 2015] page:ffffea0015414000 count:66 mapcount:1
+mapping:          (null) index:0x0
+[Mon May 25 05:29:33 2015] flags: 0x20047580004000(head)
+[Mon May 25 05:29:33 2015] page dumped because:
+VM_BUG_ON_PAGE(compound_order(page) && !PageTransHuge(page))
+[Mon May 25 05:29:33 2015] ------------[ cut here ]------------
+[Mon May 25 05:29:33 2015] kernel BUG at mm/migrate.c:1661!
+[Mon May 25 05:29:33 2015] invalid opcode: 0000 [#1] SMP
 
-clone(CLONE_SIGHAND | CLONE_VM) ?
+The fix is simply disallow migrate mmaped compound pages, return 0 instead
+of
+report vm bug.
 
-> 
-> > when p already has pending SIGKILL.
-> 
-> yes we can select a task which has SIGKILL already pending and then
-> we wouldn't kill other processes which share the same mm but does it
-> matter?  I do not think so. Because if this is really the case and the
-> OOM condition continues even after p exits (which is very probable but
-> p alone might release some resources and free memory) we will find a
-> process with the same mm in the next round.
+Signed-off-by: Jovi Zhangwei <jovi.zhangwei@gmail.com>
+---
+ mm/migrate.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-I think it matters because p cannot call do_exit() when p is blocked by
-processes which are sharing mm but they are not in the same thread group.
+diff --git a/mm/migrate.c b/mm/migrate.c
+index f53838f..839adef 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1606,7 +1606,8 @@ static int numamigrate_isolate_page(pg_data_t *pgdat,
+struct page *page)
+ {
+  int page_lru;
 
-> 
-> > By the way, if p with p->mm && task_will_free_mem(p) can get stuck due to
-> > memory allocation deadlock, is it OK that currently we are not sending SIGKILL
-> > to threads sharing p->mm ?
-> 
-> I am not sure I understand the question. Threads will die automatically
-> because we are sending group signal.
+- VM_BUG_ON_PAGE(compound_order(page) && !PageTransHuge(page), page);
++ if (compound_order(page) && !PageTransHuge(page))
++ return 0;
 
-I just imagined a case where p is blocked at down_read() in acct_collect() from
-do_exit() when p is sharing mm with other processes, and other process is doing
-blocking operation with mm->mmap_sem held for writing. Is such case impossible?
+  /* Avoid migrating to a node that is nearly full */
+  if (!migrate_balanced_pgdat(pgdat, 1UL << compound_order(page)))
+-- 
+1.9.1
 
-do_exit() {
-  exit_signals(tsk);  /* sets PF_EXITING */
-  acct_collect(code, group_dead) {
-    if (group_dead && current->mm) {
-      down_read(&current->mm->mmap_sem);
-      up_read(&current->mm->mmap_sem);
-    }
-  }
-  exit_mm(tsk) {
-     down_read(&mm->mmap_sem);
-     tsk->mm = NULL;
-     up_read(&mm->mmap_sem);
-  }
-}
+--f46d043c7b0cb484a5051718ef6d
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div>Below kernel vm bug can be triggered by tcpdump which=
+ mmaped a lot of pages with GFP_COMP flag.<br></div><div><br></div><div>[Mo=
+n May 25 05:29:33 2015] page:ffffea0015414000 count:66 mapcount:1 mapping: =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0(null) index:0x0</div><div>[Mon May 25 05=
+:29:33 2015] flags: 0x20047580004000(head)</div><div>[Mon May 25 05:29:33 2=
+015] page dumped because: VM_BUG_ON_PAGE(compound_order(page) &amp;&amp; !P=
+ageTransHuge(page))</div><div>[Mon May 25 05:29:33 2015] ------------[ cut =
+here ]------------</div><div>[Mon May 25 05:29:33 2015] kernel BUG at mm/mi=
+grate.c:1661!</div><div>[Mon May 25 05:29:33 2015] invalid opcode: 0000 [#1=
+] SMP</div><div><br></div><div>The fix is simply disallow migrate mmaped co=
+mpound pages, return 0 instead of</div><div>report vm bug.</div><div><br></=
+div><div>Signed-off-by: Jovi Zhangwei &lt;<a href=3D"mailto:jovi.zhangwei@g=
+mail.com">jovi.zhangwei@gmail.com</a>&gt;</div><div>---</div><div>=C2=A0mm/=
+migrate.c | 3 ++-</div><div>=C2=A01 file changed, 2 insertions(+), 1 deleti=
+on(-)</div><div><br></div><div>diff --git a/mm/migrate.c b/mm/migrate.c</di=
+v><div>index f53838f..839adef 100644</div><div>--- a/mm/migrate.c</div><div=
+>+++ b/mm/migrate.c</div><div>@@ -1606,7 +1606,8 @@ static int numamigrate_=
+isolate_page(pg_data_t *pgdat, struct page *page)</div><div>=C2=A0{</div><d=
+iv>=C2=A0<span class=3D"" style=3D"white-space:pre">	</span>int page_lru;</=
+div><div>=C2=A0</div><div>-<span class=3D"" style=3D"white-space:pre">	</sp=
+an>VM_BUG_ON_PAGE(compound_order(page) &amp;&amp; !PageTransHuge(page), pag=
+e);</div><div>+<span class=3D"" style=3D"white-space:pre">	</span>if (compo=
+und_order(page) &amp;&amp; !PageTransHuge(page))</div><div>+<span class=3D"=
+" style=3D"white-space:pre">		</span>return 0;</div><div>=C2=A0</div><div>=
+=C2=A0<span class=3D"" style=3D"white-space:pre">	</span>/* Avoid migrating=
+ to a node that is nearly full */</div><div>=C2=A0<span class=3D"" style=3D=
+"white-space:pre">	</span>if (!migrate_balanced_pgdat(pgdat, 1UL &lt;&lt; c=
+ompound_order(page)))</div><div>--=C2=A0</div><div>1.9.1</div><div><br></di=
+v></div>
+
+--f46d043c7b0cb484a5051718ef6d--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
