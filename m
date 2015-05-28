@@ -1,120 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id A5A276B006C
-	for <linux-mm@kvack.org>; Thu, 28 May 2015 10:01:23 -0400 (EDT)
-Received: by wgbgq6 with SMTP id gq6so37393034wgb.3
-        for <linux-mm@kvack.org>; Thu, 28 May 2015 07:01:23 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cq9si4117575wjc.42.2015.05.28.07.01.20
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 301B76B0070
+	for <linux-mm@kvack.org>; Thu, 28 May 2015 10:21:00 -0400 (EDT)
+Received: by qgf2 with SMTP id 2so17183621qgf.3
+        for <linux-mm@kvack.org>; Thu, 28 May 2015 07:20:59 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b29si2474923qkb.125.2015.05.28.07.20.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 28 May 2015 07:01:21 -0700 (PDT)
-Message-ID: <1432821670.13915.3.camel@stgolabs.net>
-Subject: Re: [PATCH v3 3/3] mm/hugetlb: handle races in alloc_huge_page and
- hugetlb_reserve_pages
-From: Davidlohr Bueso <dave@stgolabs.net>
-Date: Thu, 28 May 2015 07:01:10 -0700
-In-Reply-To: <1432749371-32220-4-git-send-email-mike.kravetz@oracle.com>
-References: <1432749371-32220-1-git-send-email-mike.kravetz@oracle.com>
-	 <1432749371-32220-4-git-send-email-mike.kravetz@oracle.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 May 2015 07:20:58 -0700 (PDT)
+Message-ID: <55672441.4040700@redhat.com>
+Date: Thu, 28 May 2015 16:20:49 +0200
+From: Jerome Marchand <jmarchan@redhat.com>
+MIME-Version: 1.0
+Subject: Re: swap: nfs: Sleeping function called from an rcu read section
+ in nfs_swap_activate
+References: <5564732E.4090607@redhat.com> <20150528075332.6945fd09@synchrony.poochiereds.net>
+In-Reply-To: <20150528075332.6945fd09@synchrony.poochiereds.net>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="6PEaP8DQc21ccMoPccSRMfNInLo6X7IiV"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Jeff Layton <jeff.layton@primarydata.com>
+Cc: Mel Gorman <mgorman@suse.de>, Jeff Layton <jlayton@primarydata.com>, 'Linux-MM' <linux-mm@kvack.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>, trond.myklebust@primarydata.com, linux-nfs@vger.kernel.org
 
-On Wed, 2015-05-27 at 10:56 -0700, Mike Kravetz wrote:
-> alloc_huge_page and hugetlb_reserve_pages use region_chg to
-> calculate the number of pages which will be added to the reserve
-> map.  Subpool and global reserve counts are adjusted based on
-> the output of region_chg.  Before the pages are actually added
-> to the reserve map, these routines could race and add fewer
-> pages than expected.  If this happens, the subpool and global
-> reserve counts are not correct.
-> 
-> Compare the number of pages actually added (region_add) to those
-> expected to added (region_chg).  If fewer pages are actually added,
-> this indicates a race and adjust counters accordingly.
-> 
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--6PEaP8DQc21ccMoPccSRMfNInLo6X7IiV
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 
-Reviewed-by: Davidlohr Bueso <dave@stgolabs.net>
+On 05/28/2015 01:53 PM, Jeff Layton wrote:
+> On Tue, 26 May 2015 15:20:46 +0200
+> Jerome Marchand <jmarchan@redhat.com> wrote:
+>=20
+>>
+>> Commit dad2b015 added an rcu read lock around the call to xs_swapper()=
 
-With one nit below.
+>> in nfs_activate()/deactivate(), which can sleep, thus raising a bug at=
 
-> ---
->  mm/hugetlb.c | 34 ++++++++++++++++++++++++++++++----
->  1 file changed, 30 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index b3d3d59..038c84e 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1544,7 +1544,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->  	struct hugepage_subpool *spool = subpool_vma(vma);
->  	struct hstate *h = hstate_vma(vma);
->  	struct page *page;
-> -	long chg;
-> +	long chg, commit;
->  	int ret, idx;
->  	struct hugetlb_cgroup *h_cg;
->  
-> @@ -1585,7 +1585,20 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->  
->  	set_page_private(page, (unsigned long)spool);
->  
-> -	vma_commit_reservation(h, vma, addr);
-> +	commit = vma_commit_reservation(h, vma, addr);
-> +	if (unlikely(chg > commit)) {
-> +		/*
-> +		 * The page was added to the reservation map between
-> +		 * vma_needs_reservation and vma_commit_reservation.
-> +		 * This indicates a race with hugetlb_reserve_pages.
-> +		 * Adjust for the subpool count incremented above AND
-> +		 * in hugetlb_reserve_pages for the same page.  Also,
-> +		 * the reservation count added in hugetlb_reserve_pages
-> +		 * no longer applies.
-> +		 */
-> +		hugepage_subpool_put_pages(spool, 1);
-> +		hugetlb_acct_memory(h, -1);
+>> each swapon and swapoff over NFS.
+>> I'm not sure if this is related or not, but swapoff also triggers the
+>> WARN_ON(sk->sk_forward_alloc) in sk_clear_memalloc().
+>>
+>> [  243.668067] =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+>> [  243.668665] [ INFO: suspicious RCU usage. ]
+>> [  243.669293] 4.1.0-rc1-lock_stat-dbg-next-20150430+ #235 Not tainted=
 
-Should these fixups be encapsulated in a helper? The comment is the same
-for both alloc_huge_page and hugetlb_reserve_pages.
+>> [  243.670301] -------------------------------
+>> [  243.670905] include/linux/rcupdate.h:570 Illegal context switch in =
+RCU read-side critical section!
+>> [  243.672163]=20
+>> other info that might help us debug this:
+>>
+>> [  243.673025]=20
+>> rcu_scheduler_active =3D 1, debug_locks =3D 0
+>> [  243.673565] 2 locks held by swapon/1176:
+>> [  243.673893]  #0:  (&sb->s_type->i_mutex_key#17){+.+.+.}, at: [<ffff=
+ffff812385e0>] SyS_swapon+0x2b0/0x1000
+>> [  243.674758]  #1:  (rcu_read_lock){......}, at: [<ffffffffa036fd75>]=
+ nfs_swap_activate+0x5/0x180 [nfs]
+>> [  243.675591]=20
+>> stack backtrace:
+>> [  243.675957] CPU: 0 PID: 1176 Comm: swapon Not tainted 4.1.0-rc1-loc=
+k_stat-dbg-next-20150430+ #235
+>> [  243.676687] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+>> [  243.677179]  0000000000000000 00000000ef88d841 ffff88003327bcd8 fff=
+fffff818861f0
+>> [  243.677854]  0000000000000000 ffff880078e38000 ffff88003327bd08 fff=
+fffff8110d237
+>> [  243.678514]  0000000000000000 ffffffff81c650e4 0000000000000268 fff=
+f880078e38000
+>> [  243.679171] Call Trace:
+>> [  243.679383]  [<ffffffff818861f0>] dump_stack+0x4c/0x65
+>> [  243.679811]  [<ffffffff8110d237>] lockdep_rcu_suspicious+0xe7/0x120=
 
-Thanks,
-Davidlohr
+>> [  243.680348]  [<ffffffff810df1bf>] ___might_sleep+0xaf/0x250
+>> [  243.680815]  [<ffffffff810df3ad>] __might_sleep+0x4d/0x90
+>> [  243.681279]  [<ffffffff8188bc17>] mutex_lock_nested+0x47/0x430
+>> [  243.681762]  [<ffffffff811e409c>] static_key_slow_inc+0x7c/0xc0
+>> [  243.682264]  [<ffffffff8171afa7>] sk_set_memalloc+0x27/0x30
+>> [  243.682736]  [<ffffffffa012f824>] xs_swapper+0x54/0x60 [sunrpc]
+>> [  243.683238]  [<ffffffffa036fe03>] nfs_swap_activate+0x93/0x180 [nfs=
+]
+>> [  243.683760]  [<ffffffffa036fd75>] ? nfs_swap_activate+0x5/0x180 [nf=
+s]
+>> [  243.684316]  [<ffffffff81238e04>] SyS_swapon+0xad4/0x1000
+>> [  243.684766]  [<ffffffff818911b0>] ? syscall_return+0x16/0x59
+>> [  243.685245]  [<ffffffff81890f6e>] system_call_fastpath+0x12/0x76
+>> [  243.685743] BUG: sleeping function called from invalid context at k=
+ernel/locking/mutex.c:616
+>> [  243.686439] in_atomic(): 1, irqs_disabled(): 0, pid: 1176, name: sw=
+apon
+>> [  243.687053] INFO: lockdep is turned off.
+>> [  243.687429] CPU: 0 PID: 1176 Comm: swapon Not tainted 4.1.0-rc1-loc=
+k_stat-dbg-next-20150430+ #235
+>> [  243.688313] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+>> [  243.688845]  0000000000000000 00000000ef88d841 ffff88003327bd08 fff=
+fffff818861f0
+>> [  243.689570]  0000000000000000 ffff880078e38000 ffff88003327bd38 fff=
+fffff810df29c
+>> [  243.690353]  ffff880000000001 ffffffff81c650e4 0000000000000268 000=
+0000000000000
+>> [  243.691057] Call Trace:
+>> [  243.691315]  [<ffffffff818861f0>] dump_stack+0x4c/0x65
+>> [  243.691785]  [<ffffffff810df29c>] ___might_sleep+0x18c/0x250
+>> [  243.692306]  [<ffffffff810df3ad>] __might_sleep+0x4d/0x90
+>> [  243.692807]  [<ffffffff8188bc17>] mutex_lock_nested+0x47/0x430
+>> [  243.693346]  [<ffffffff811e409c>] static_key_slow_inc+0x7c/0xc0
+>> [  243.693887]  [<ffffffff8171afa7>] sk_set_memalloc+0x27/0x30
+>> [  243.694416]  [<ffffffffa012f824>] xs_swapper+0x54/0x60 [sunrpc]
+>> [  243.694959]  [<ffffffffa036fe03>] nfs_swap_activate+0x93/0x180 [nfs=
+]
+>> [  243.695535]  [<ffffffffa036fd75>] ? nfs_swap_activate+0x5/0x180 [nf=
+s]
+>> [  243.696193]  [<ffffffff81238e04>] SyS_swapon+0xad4/0x1000
+>> [  243.696699]  [<ffffffff818911b0>] ? syscall_return+0x16/0x59
+>> [  243.697299]  [<ffffffff81890f6e>] system_call_fastpath+0x12/0x76
+>> [  243.702101] Adding 524284k swap on /mnt/swapfile512.  Priority:-2 e=
+xtents:1 across:524284k FS
+>> [  325.151350] BUG: sleeping function called from invalid context at k=
+ernel/locking/mutex.c:616
+>> [  325.152688] in_atomic(): 1, irqs_disabled(): 0, pid: 1199, name: sw=
+apoff
+>> [  325.153737] INFO: lockdep is turned off.
+>> [  325.154457] CPU: 1 PID: 1199 Comm: swapoff Not tainted 4.1.0-rc1-lo=
+ck_stat-dbg-next-20150430+ #235
+>> [  325.156204] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+>> [  325.157120]  0000000000000000 00000000a7682b83 ffff88007ac3fce8 fff=
+fffff818861f0
+>> [  325.158361]  0000000000000000 ffff880032434c00 ffff88007ac3fd18 fff=
+fffff810df29c
+>> [  325.159592]  0000000000000000 ffffffff81c650e4 0000000000000268 000=
+0000000000000
+>> [  325.160798] Call Trace:
+>> [  325.161251]  [<ffffffff818861f0>] dump_stack+0x4c/0x65
+>> [  325.162071]  [<ffffffff810df29c>] ___might_sleep+0x18c/0x250
+>> [  325.163073]  [<ffffffff810df3ad>] __might_sleep+0x4d/0x90
+>> [  325.163934]  [<ffffffff8188bc17>] mutex_lock_nested+0x47/0x430
+>> [  325.164927]  [<ffffffff8110a00f>] atomic_dec_and_mutex_lock+0x4f/0x=
+70
+>> [  325.166020]  [<ffffffff811e4107>] __static_key_slow_dec+0x27/0xc0
+>> [  325.166942]  [<ffffffff811e41c6>] static_key_slow_dec+0x26/0x50
+>> [  325.167955]  [<ffffffff8171db3f>] sk_clear_memalloc+0x2f/0x80
+>> [  325.169075]  [<ffffffffa012f811>] xs_swapper+0x41/0x60 [sunrpc]
+>> [  325.170241]  [<ffffffffa0370447>] nfs_swap_deactivate+0x87/0x170 [n=
+fs]
+>> [  325.171276]  [<ffffffffa03703c5>] ? nfs_swap_deactivate+0x5/0x170 [=
+nfs]
+>> [  325.172349]  [<ffffffff81237547>] destroy_swap_extents+0x77/0x90
+>> [  325.173754]  [<ffffffff8123b225>] SyS_swapoff+0x215/0x600
+>> [  325.174726]  [<ffffffff81434deb>] ? trace_hardirqs_on_thunk+0x17/0x=
+19
+>> [  325.175971]  [<ffffffff81890f6e>] system_call_fastpath+0x12/0x76
+>> [  325.178052] ------------[ cut here ]------------
+>> [  325.178892] WARNING: CPU: 1 PID: 1199 at net/core/sock.c:364 sk_cle=
+ar_memalloc+0x51/0x80()
+>> [  325.180363] Modules linked in: rpcsec_gss_krb5 nfsv4 dns_resolver n=
+fs fscache ip6t_rpfilter ip6t_REJECT nf_reject_ipv6 xt_conntrack ebtable_=
+nat ebtable_broute bridge stp llc ebtable_filter ebtables ip6table_nat nf=
+_conntrack_ipv6 nf_defrag_ipv6 nf_nat_ipv6 ip6table_mangle ip6table_secur=
+ity ip6table_raw ip6table_filter ip6_tables iptable_nat nf_conntrack_ipv4=
+ nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_mangle iptable_se=
+curity iptable_raw iosf_mbi crct10dif_pclmul crc32_pclmul crc32c_intel pp=
+dev ghash_clmulni_intel joydev nfsd parport_pc pcspkr virtio_console seri=
+o_raw virtio_balloon parport pvpanic i2c_piix4 acpi_cpufreq auth_rpcgss n=
+fs_acl lockd grace sunrpc virtio_blk qxl virtio_net drm_kms_helper ttm dr=
+m virtio_pci virtio_ring virtio ata_generic pata_acpi floppy
+>> [  325.192279] CPU: 1 PID: 1199 Comm: swapoff Not tainted 4.1.0-rc1-lo=
+ck_stat-dbg-next-20150430+ #235
+>> [  325.193605] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+>> [  325.194491]  0000000000000000 00000000a7682b83 ffff88007ac3fdf8 fff=
+fffff818861f0
+>> [  325.195692]  0000000000000000 0000000000000000 ffff88007ac3fe38 fff=
+fffff810af5ca
+>> [  325.196891]  ffff88007ac3fe78 ffff88007b068000 ffff88007b484a00 fff=
+f88007b484aa8
+>> [  325.198119] Call Trace:
+>> [  325.198555]  [<ffffffff818861f0>] dump_stack+0x4c/0x65
+>> [  325.199380]  [<ffffffff810af5ca>] warn_slowpath_common+0x8a/0xc0
+>> [  325.200601]  [<ffffffff810af6fa>] warn_slowpath_null+0x1a/0x20
+>> [  325.201536]  [<ffffffff8171db61>] sk_clear_memalloc+0x51/0x80
+>> [  325.202468]  [<ffffffffa012f811>] xs_swapper+0x41/0x60 [sunrpc]
+>> [  325.203398]  [<ffffffffa0370447>] nfs_swap_deactivate+0x87/0x170 [n=
+fs]
+>> [  325.204426]  [<ffffffffa03703c5>] ? nfs_swap_deactivate+0x5/0x170 [=
+nfs]
+>> [  325.205456]  [<ffffffff81237547>] destroy_swap_extents+0x77/0x90
+>> [  325.206406]  [<ffffffff8123b225>] SyS_swapoff+0x215/0x600
+>> [  325.207287]  [<ffffffff81434deb>] ? trace_hardirqs_on_thunk+0x17/0x=
+19
+>> [  325.208300]  [<ffffffff81890f6e>] system_call_fastpath+0x12/0x76
+>> [  325.209248] ---[ end trace 13f1014b56e5e711 ]---
+>>
+>=20
+> Jerome,
+>=20
+> Can you test the attached patch and let me know if this fixes the
+> problem? If so, then I'll send it on "officially" to Trond.
+>=20
+> Thanks,
+>=20
 
-> +	}
->  	return page;
->  
->  out_uncharge_cgroup:
-> @@ -3699,8 +3712,21 @@ int hugetlb_reserve_pages(struct inode *inode,
->  	 * consumed reservations are stored in the map. Hence, nothing
->  	 * else has to be done for private mappings here
->  	 */
-> -	if (!vma || vma->vm_flags & VM_MAYSHARE)
-> -		region_add(resv_map, from, to);
-> +	if (!vma || vma->vm_flags & VM_MAYSHARE) {
-> +		long add = region_add(resv_map, from, to);
-> +
-> +		if (unlikely(chg > add)) {
-> +			/*
-> +			 * pages in this range were added to the reserve
-> +			 * map between region_chg and region_add.  This
-> +			 * indicates a race with alloc_huge_page.  Adjust
-> +			 * the subpool and reserve counts modified above
-> +			 * based on the difference.
-> +			 */
-> +			hugepage_subpool_put_pages(spool, chg - add);
-> +			hugetlb_acct_memory(h, -(chg - ret));
-> +		}
-> +	}
->  	return 0;
->  out_err:
->  	if (vma && is_vma_resv_set(vma, HPAGE_RESV_OWNER))
+It doesn't build: xprt_put() is not exported.
 
+Jerome
+
+
+--6PEaP8DQc21ccMoPccSRMfNInLo6X7IiV
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAEBCAAGBQJVZyRFAAoJEHTzHJCtsuoCC0oIAIwP/lb6s9BfBRrMm8Oe11Es
+NSlOsuA+NJeyvA8VbdPeF3Us64gWcm+9L7ZPfFEPaLfjYuZN06jroBjbjRSLw3sj
+YrwJ0ZLzWBdPWrjN+TbbyOM9iMQWBBWxMhvecEprwTWU829jLv9AxoJAdxcPOSMq
+9oPndecddgnbFCC9MsWIqmwnUcahgSZ9QIClbluiPx8QAWYUU8aFVCj+HdSpS1TI
+2FpW+U0IrMuZodIel4n32T3Ybm6ouHOHCYe3gc5BP+2egvo9BFSx/10ktsrKYoEN
+HvrNguRe1X6MKs8Vn24SMB/8YHukLgAJ9zffY4PiGbPR+d8I6z6r14Zi6iaBLpg=
+=kUjZ
+-----END PGP SIGNATURE-----
+
+--6PEaP8DQc21ccMoPccSRMfNInLo6X7IiV--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
