@@ -1,64 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D3F16B0038
-	for <linux-mm@kvack.org>; Thu, 28 May 2015 17:07:47 -0400 (EDT)
-Received: by qgg60 with SMTP id 60so21961376qgg.2
-        for <linux-mm@kvack.org>; Thu, 28 May 2015 14:07:47 -0700 (PDT)
-Received: from mail-qk0-x234.google.com (mail-qk0-x234.google.com. [2607:f8b0:400d:c09::234])
-        by mx.google.com with ESMTPS id f86si3696238qkh.19.2015.05.28.14.07.46
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B1356B0038
+	for <linux-mm@kvack.org>; Thu, 28 May 2015 17:09:23 -0400 (EDT)
+Received: by pacwv17 with SMTP id wv17so32178367pac.2
+        for <linux-mm@kvack.org>; Thu, 28 May 2015 14:09:23 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id sj10si5262686pac.198.2015.05.28.14.09.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 May 2015 14:07:46 -0700 (PDT)
-Received: by qkhg32 with SMTP id g32so34039418qkh.0
-        for <linux-mm@kvack.org>; Thu, 28 May 2015 14:07:46 -0700 (PDT)
-Date: Thu, 28 May 2015 17:07:42 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC 3/3] memcg: get rid of mm_struct::owner
-Message-ID: <20150528210742.GF27479@htj.duckdns.org>
-References: <1432641006-8025-1-git-send-email-mhocko@suse.cz>
- <1432641006-8025-4-git-send-email-mhocko@suse.cz>
- <20150526141011.GA11065@cmpxchg.org>
+        Thu, 28 May 2015 14:09:22 -0700 (PDT)
+Message-ID: <556781DE.5070300@oracle.com>
+Date: Thu, 28 May 2015 14:00:14 -0700
+From: Mike Kravetz <mike.kravetz@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150526141011.GA11065@cmpxchg.org>
+Subject: Re: [PATCH v3 3/3] mm/hugetlb: handle races in alloc_huge_page and
+ hugetlb_reserve_pages
+References: <1432749371-32220-1-git-send-email-mike.kravetz@oracle.com>	 <1432749371-32220-4-git-send-email-mike.kravetz@oracle.com> <1432821670.13915.3.camel@stgolabs.net>
+In-Reply-To: <1432821670.13915.3.camel@stgolabs.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Hello, Johannes, Michal.
+On 05/28/2015 07:01 AM, Davidlohr Bueso wrote:
+> On Wed, 2015-05-27 at 10:56 -0700, Mike Kravetz wrote:
+>> alloc_huge_page and hugetlb_reserve_pages use region_chg to
+>> calculate the number of pages which will be added to the reserve
+>> map.  Subpool and global reserve counts are adjusted based on
+>> the output of region_chg.  Before the pages are actually added
+>> to the reserve map, these routines could race and add fewer
+>> pages than expected.  If this happens, the subpool and global
+>> reserve counts are not correct.
+>>
+>> Compare the number of pages actually added (region_add) to those
+>> expected to added (region_chg).  If fewer pages are actually added,
+>> this indicates a race and adjust counters accordingly.
+>>
+>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+>
+> Reviewed-by: Davidlohr Bueso <dave@stgolabs.net>
+>
+> With one nit below.
+>
+>> ---
+>>   mm/hugetlb.c | 34 ++++++++++++++++++++++++++++++----
+>>   1 file changed, 30 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> index b3d3d59..038c84e 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -1544,7 +1544,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>>   	struct hugepage_subpool *spool = subpool_vma(vma);
+>>   	struct hstate *h = hstate_vma(vma);
+>>   	struct page *page;
+>> -	long chg;
+>> +	long chg, commit;
+>>   	int ret, idx;
+>>   	struct hugetlb_cgroup *h_cg;
+>>
+>> @@ -1585,7 +1585,20 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>>
+>>   	set_page_private(page, (unsigned long)spool);
+>>
+>> -	vma_commit_reservation(h, vma, addr);
+>> +	commit = vma_commit_reservation(h, vma, addr);
+>> +	if (unlikely(chg > commit)) {
+>> +		/*
+>> +		 * The page was added to the reservation map between
+>> +		 * vma_needs_reservation and vma_commit_reservation.
+>> +		 * This indicates a race with hugetlb_reserve_pages.
+>> +		 * Adjust for the subpool count incremented above AND
+>> +		 * in hugetlb_reserve_pages for the same page.  Also,
+>> +		 * the reservation count added in hugetlb_reserve_pages
+>> +		 * no longer applies.
+>> +		 */
+>> +		hugepage_subpool_put_pages(spool, 1);
+>> +		hugetlb_acct_memory(h, -1);
+>
+> Should these fixups be encapsulated in a helper? The comment is the same
+> for both alloc_huge_page and hugetlb_reserve_pages.
 
-On Tue, May 26, 2015 at 10:10:11AM -0400, Johannes Weiner wrote:
-> On Tue, May 26, 2015 at 01:50:06PM +0200, Michal Hocko wrote:
-> > Please note that this patch introduces a USER VISIBLE CHANGE OF BEHAVIOR.
-> > Without mm->owner _all_ tasks associated with the mm_struct would
-> > initiate memcg migration while previously only owner of the mm_struct
-> > could do that. The original behavior was awkward though because the user
-> > task didn't have any means to find out the current owner (esp. after
-> > mm_update_next_owner) so the migration behavior was not well defined
-> > in general.
-> > New cgroup API (unified hierarchy) will discontinue tasks file which
-> > means that migrating threads will no longer be possible. In such a case
-> > having CLONE_VM without CLONE_THREAD could emulate the thread behavior
-> > but this patch prevents from isolating memcg controllers from others.
-> > Nevertheless I am not convinced such a use case would really deserve
-> > complications on the memcg code side.
-> 
-> I think such a change is okay.  The memcg semantics of moving threads
-> with the same mm into separate groups have always been arbitrary.  No
-> reasonable behavior can be expected of this, so what sane real life
-> usecase would rely on it?
+I would like to leave things as they are right now.  It makes it
+pretty explicit what fixup is needed and performed.
 
-I suppose that making mm always follow the threadgroup leader should
-be fine, right?  While this wouldn't make any difference in the
-unified hierarchy, I think this would make more sense for traditional
-hierarchies.
+As you know, discovery of this bug came out of my hugetlbfs fallocate
+work.  In that patchset, I created a race fixup routine.  If fallocate
+moves forward, I'll reexamine the above fixups and look into helpers.
 
-Thanks.
-
+Thanks for the review,
 -- 
-tejun
+Mike Kravetz
+
+>
+> Thanks,
+> Davidlohr
+>
+>> +	}
+>>   	return page;
+>>
+>>   out_uncharge_cgroup:
+>> @@ -3699,8 +3712,21 @@ int hugetlb_reserve_pages(struct inode *inode,
+>>   	 * consumed reservations are stored in the map. Hence, nothing
+>>   	 * else has to be done for private mappings here
+>>   	 */
+>> -	if (!vma || vma->vm_flags & VM_MAYSHARE)
+>> -		region_add(resv_map, from, to);
+>> +	if (!vma || vma->vm_flags & VM_MAYSHARE) {
+>> +		long add = region_add(resv_map, from, to);
+>> +
+>> +		if (unlikely(chg > add)) {
+>> +			/*
+>> +			 * pages in this range were added to the reserve
+>> +			 * map between region_chg and region_add.  This
+>> +			 * indicates a race with alloc_huge_page.  Adjust
+>> +			 * the subpool and reserve counts modified above
+>> +			 * based on the difference.
+>> +			 */
+>> +			hugepage_subpool_put_pages(spool, chg - add);
+>> +			hugetlb_acct_memory(h, -(chg - ret));
+>> +		}
+>> +	}
+>>   	return 0;
+>>   out_err:
+>>   	if (vma && is_vma_resv_set(vma, HPAGE_RESV_OWNER))
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
