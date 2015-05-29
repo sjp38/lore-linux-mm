@@ -1,116 +1,288 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id AF46D6B0082
-	for <linux-mm@kvack.org>; Fri, 29 May 2015 07:57:39 -0400 (EDT)
-Received: by wivl4 with SMTP id l4so14967392wiv.1
-        for <linux-mm@kvack.org>; Fri, 29 May 2015 04:57:39 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B3DE6B0083
+	for <linux-mm@kvack.org>; Fri, 29 May 2015 07:57:40 -0400 (EDT)
+Received: by wicmx19 with SMTP id mx19so13943130wic.0
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 04:57:40 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dm2si3186959wib.6.2015.05.29.04.57.37
+        by mx.google.com with ESMTPS id cq9si9245090wjc.42.2015.05.29.04.57.37
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Fri, 29 May 2015 04:57:37 -0700 (PDT)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: [RFC 0/7 -v2] memcg cleanups + get rid of mm_struct::owner
-Date: Fri, 29 May 2015 13:57:18 +0200
-Message-Id: <1432900645-8856-1-git-send-email-mhocko@suse.cz>
+Subject: [RFC -v2 3/7] memcg, mm: move mem_cgroup_select_victim_node into vmscan
+Date: Fri, 29 May 2015 13:57:21 +0200
+Message-Id: <1432900645-8856-4-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1432900645-8856-1-git-send-email-mhocko@suse.cz>
+References: <1432900645-8856-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Hi,
-this is the second version of the RFC. The previous version was posted
-here: http://marc.info/?l=linux-mm&m=143264102317318&w=2. It has grown
-the number of patches based on the previous feedback.
+We currently have only one caller of mem_cgroup_select_victim_node which
+is sitting in mm/vmscan.c and which is already wrapped by CONFIG_MEMCG
+ifdef. Now that we have struct mem_cgroup visible outside of
+mm/memcontrol.c we can move the function and its dependencies there.
+This even shrinks the code size by few bytes:
 
-Johannes has suggested to export struct mem_cgroup because some other
-things will become easier. So even though this is not directly related
-to the patchset I have posted it together because there are some
-dependencies. First two patches are doing this move.
+   text    data     bss     dec     hex filename
+ 478509   65806   26384  570699   8b54b mm/built-in.o.before
+ 478445   65806   26384  570635   8b50b mm/built-in.o.after
 
-The third patch simply cleans up some extern declarations in memcontrol.h
-because we are not consistent in that regard.
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+---
+ include/linux/memcontrol.h |  6 ++-
+ mm/memcontrol.c            | 99 +---------------------------------------------
+ mm/vmscan.c                | 96 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 101 insertions(+), 100 deletions(-)
 
-The fourth patch is the same one from Tejun which cleans up
-mem_cgroup_can_attach a bit and the follow up patches depend on it.
-
-The fifth patch is preparatory and it's touching sock_update_memcg which
-doesn't check for cg_proto == NULL. It doesn't have to do it currently
-because mem_cgroup_from_task always return non-NULL but the code is awkward
-and this will no longer be true with the follow up patch.
-
-All these can go without the rest IMO.
-
-The patch number 6 is the core one and it gets rid of mm_struct::owner
-in favor of mm_struct::memcg. The rationale is described in the patch
-so I will not repeat it here again. The changes since the last post
-are
-	- added Suggested-by Oleg has it was him who kicked me into doing
-	  it
-	- exec_mmap association was missing [Oleg]
-	- mem_cgroup_from_task cannot return NULL anymore [Oleg]
-        - mm_match_cgroup doesn't have to play games and it can use
-          rcu_dereference after mm_struct is exported [Johannes]
-	- drop mm_move_memcg as it has only one user in memcontrol.c
-	  so it can be opencoded [Johannes]
-	- functions to associate and drop mm->memcg association have
-	  to be static inline for !CONFIG_MEMCG [Johannes]
-	- drop synchronize_rcu nonsense during memcg move [Johannes]
-	- drop "memcg: Use mc.moving_task as the indication for charge
-	  moving" patch because we can get the target task from css
-	  easily [Johannes]
-	- rename css_set_memcg renamed to css_inherit_memcg because the
-	  name better suits its usage
-	- dropped css_get(&from->css) during move because it is pinned
-	  already by the mm. We just have to be careful and do not drop
-	  it before we are really done during migration.
-
-I have tried to compile test this with my usual configs battery +
-randconfigs and nothing blown up.
-
-I have also runtime tested that charges end up in a proper memcg
-and migration between two memcgs as fast as possible. Except for
-pre-existing races no regressions seemed to be introduced.
-
-I was worried about the user visible change this patch introduces but
-Johannes seems to be OK with that. The changelog states that a potential
-usecase is not really worth all the troubles the implementation exposes
-to the memcg behavior. I am still posting this as an RFC so that we give
-more time to others.
-
-The last patch gets rid of mem_cgroup_from_task because this is a really
-weird interface (see more in the changelog). After mm->owner is gone
-we have only 2 more callers remaining and both of them can be changed
-to not use it. So better get rid of this before we get new callers.
-
-Shortlog says:
-Michal Hocko (6):
-      memcg: export struct mem_cgroup
-      memcg: get rid of extern for functions in memcontrol.h
-      memcg, mm: move mem_cgroup_select_victim_node into vmscan
-      memcg, tcp_kmem: check for cg_proto in sock_update_memcg
-      memcg: get rid of mm_struct::owner
-      memcg: get rid of mem_cgroup_from_task
-
-Tejun Heo (1):
-      memcg: restructure mem_cgroup_can_attach()
-
-And diffstat looks promissing as well.
- fs/exec.c                  |   2 +-
- include/linux/memcontrol.h | 437 +++++++++++++++++++++++++++++++++----
- include/linux/mm_types.h   |  12 +-
- include/linux/swap.h       |  10 +-
- include/net/sock.h         |  28 ---
- kernel/exit.c              |  89 --------
- kernel/fork.c              |  10 +-
- mm/debug.c                 |   4 +-
- mm/memcontrol.c            | 527 ++++++---------------------------------------
- mm/memory-failure.c        |   2 +-
- mm/slab_common.c           |   2 +-
- mm/vmscan.c                |  96 +++++++++
- 12 files changed, 577 insertions(+), 642 deletions(-)
-
-Thanks
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index c3993b1728f7..820067ae462e 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -349,11 +349,13 @@ static inline bool mem_cgroup_disabled(void)
+ /*
+  * For memory reclaim.
+  */
+-int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
+-
+ void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
+ 		int nr_pages);
+ 
++unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
++						  int nid,
++						  unsigned int lru_mask);
++
+ static inline bool mem_cgroup_lruvec_online(struct lruvec *lruvec)
+ {
+ 	struct mem_cgroup_per_zone *mz;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 198ce919911d..54600a6d23bc 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -673,7 +673,7 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
+ 	__this_cpu_add(memcg->stat->nr_page_events, nr_pages);
+ }
+ 
+-static unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
++unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
+ 						  int nid,
+ 						  unsigned int lru_mask)
+ {
+@@ -1331,103 +1331,6 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	mutex_unlock(&oom_lock);
+ }
+ 
+-#if MAX_NUMNODES > 1
+-
+-/**
+- * test_mem_cgroup_node_reclaimable
+- * @memcg: the target memcg
+- * @nid: the node ID to be checked.
+- * @noswap : specify true here if the user wants flle only information.
+- *
+- * This function returns whether the specified memcg contains any
+- * reclaimable pages on a node. Returns true if there are any reclaimable
+- * pages in the node.
+- */
+-static bool test_mem_cgroup_node_reclaimable(struct mem_cgroup *memcg,
+-		int nid, bool noswap)
+-{
+-	if (mem_cgroup_node_nr_lru_pages(memcg, nid, LRU_ALL_FILE))
+-		return true;
+-	if (noswap || !total_swap_pages)
+-		return false;
+-	if (mem_cgroup_node_nr_lru_pages(memcg, nid, LRU_ALL_ANON))
+-		return true;
+-	return false;
+-
+-}
+-
+-/*
+- * Always updating the nodemask is not very good - even if we have an empty
+- * list or the wrong list here, we can start from some node and traverse all
+- * nodes based on the zonelist. So update the list loosely once per 10 secs.
+- *
+- */
+-static void mem_cgroup_may_update_nodemask(struct mem_cgroup *memcg)
+-{
+-	int nid;
+-	/*
+-	 * numainfo_events > 0 means there was at least NUMAINFO_EVENTS_TARGET
+-	 * pagein/pageout changes since the last update.
+-	 */
+-	if (!atomic_read(&memcg->numainfo_events))
+-		return;
+-	if (atomic_inc_return(&memcg->numainfo_updating) > 1)
+-		return;
+-
+-	/* make a nodemask where this memcg uses memory from */
+-	memcg->scan_nodes = node_states[N_MEMORY];
+-
+-	for_each_node_mask(nid, node_states[N_MEMORY]) {
+-
+-		if (!test_mem_cgroup_node_reclaimable(memcg, nid, false))
+-			node_clear(nid, memcg->scan_nodes);
+-	}
+-
+-	atomic_set(&memcg->numainfo_events, 0);
+-	atomic_set(&memcg->numainfo_updating, 0);
+-}
+-
+-/*
+- * Selecting a node where we start reclaim from. Because what we need is just
+- * reducing usage counter, start from anywhere is O,K. Considering
+- * memory reclaim from current node, there are pros. and cons.
+- *
+- * Freeing memory from current node means freeing memory from a node which
+- * we'll use or we've used. So, it may make LRU bad. And if several threads
+- * hit limits, it will see a contention on a node. But freeing from remote
+- * node means more costs for memory reclaim because of memory latency.
+- *
+- * Now, we use round-robin. Better algorithm is welcomed.
+- */
+-int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
+-{
+-	int node;
+-
+-	mem_cgroup_may_update_nodemask(memcg);
+-	node = memcg->last_scanned_node;
+-
+-	node = next_node(node, memcg->scan_nodes);
+-	if (node == MAX_NUMNODES)
+-		node = first_node(memcg->scan_nodes);
+-	/*
+-	 * We call this when we hit limit, not when pages are added to LRU.
+-	 * No LRU may hold pages because all pages are UNEVICTABLE or
+-	 * memcg is too small and all pages are not on LRU. In that case,
+-	 * we use curret node.
+-	 */
+-	if (unlikely(node == MAX_NUMNODES))
+-		node = numa_node_id();
+-
+-	memcg->last_scanned_node = node;
+-	return node;
+-}
+-#else
+-int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
+-{
+-	return 0;
+-}
+-#endif
+-
+ static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,
+ 				   struct zone *zone,
+ 				   gfp_t gfp_mask,
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 37e90db1520b..3b6e61ef5183 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2886,6 +2886,102 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *memcg,
+ 	return sc.nr_reclaimed;
+ }
+ 
++#if MAX_NUMNODES > 1
++
++/**
++ * test_mem_cgroup_node_reclaimable
++ * @memcg: the target memcg
++ * @nid: the node ID to be checked.
++ * @noswap : specify true here if the user wants flle only information.
++ *
++ * This function returns whether the specified memcg contains any
++ * reclaimable pages on a node. Returns true if there are any reclaimable
++ * pages in the node.
++ */
++static bool test_mem_cgroup_node_reclaimable(struct mem_cgroup *memcg,
++		int nid, bool noswap)
++{
++	if (mem_cgroup_node_nr_lru_pages(memcg, nid, LRU_ALL_FILE))
++		return true;
++	if (noswap || !total_swap_pages)
++		return false;
++	if (mem_cgroup_node_nr_lru_pages(memcg, nid, LRU_ALL_ANON))
++		return true;
++	return false;
++
++}
++/*
++ * Always updating the nodemask is not very good - even if we have an empty
++ * list or the wrong list here, we can start from some node and traverse all
++ * nodes based on the zonelist. So update the list loosely once per 10 secs.
++ *
++ */
++static void mem_cgroup_may_update_nodemask(struct mem_cgroup *memcg)
++{
++	int nid;
++	/*
++	 * numainfo_events > 0 means there was at least NUMAINFO_EVENTS_TARGET
++	 * pagein/pageout changes since the last update.
++	 */
++	if (!atomic_read(&memcg->numainfo_events))
++		return;
++	if (atomic_inc_return(&memcg->numainfo_updating) > 1)
++		return;
++
++	/* make a nodemask where this memcg uses memory from */
++	memcg->scan_nodes = node_states[N_MEMORY];
++
++	for_each_node_mask(nid, node_states[N_MEMORY]) {
++
++		if (!test_mem_cgroup_node_reclaimable(memcg, nid, false))
++			node_clear(nid, memcg->scan_nodes);
++	}
++
++	atomic_set(&memcg->numainfo_events, 0);
++	atomic_set(&memcg->numainfo_updating, 0);
++}
++
++/*
++ * Selecting a node where we start reclaim from. Because what we need is just
++ * reducing usage counter, start from anywhere is O,K. Considering
++ * memory reclaim from current node, there are pros. and cons.
++ *
++ * Freeing memory from current node means freeing memory from a node which
++ * we'll use or we've used. So, it may make LRU bad. And if several threads
++ * hit limits, it will see a contention on a node. But freeing from remote
++ * node means more costs for memory reclaim because of memory latency.
++ *
++ * Now, we use round-robin. Better algorithm is welcomed.
++ */
++static int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
++{
++	int node;
++
++	mem_cgroup_may_update_nodemask(memcg);
++	node = memcg->last_scanned_node;
++
++	node = next_node(node, memcg->scan_nodes);
++	if (node == MAX_NUMNODES)
++		node = first_node(memcg->scan_nodes);
++	/*
++	 * We call this when we hit limit, not when pages are added to LRU.
++	 * No LRU may hold pages because all pages are UNEVICTABLE or
++	 * memcg is too small and all pages are not on LRU. In that case,
++	 * we use curret node.
++	 */
++	if (unlikely(node == MAX_NUMNODES))
++		node = numa_node_id();
++
++	memcg->last_scanned_node = node;
++	return node;
++}
++#else
++static int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
++{
++	return 0;
++}
++#endif
++
+ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 					   unsigned long nr_pages,
+ 					   gfp_t gfp_mask,
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
