@@ -1,86 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 652976B0073
-	for <linux-mm@kvack.org>; Fri, 29 May 2015 10:57:43 -0400 (EDT)
-Received: by wicmx19 with SMTP id mx19so18438696wic.0
-        for <linux-mm@kvack.org>; Fri, 29 May 2015 07:57:43 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id vf7si9994696wjc.127.2015.05.29.07.57.41
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 27CCB6B0075
+	for <linux-mm@kvack.org>; Fri, 29 May 2015 11:06:03 -0400 (EDT)
+Received: by padbw4 with SMTP id bw4so62555420pad.0
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 08:06:02 -0700 (PDT)
+Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com. [2607:f8b0:400e:c02::231])
+        by mx.google.com with ESMTPS id ex2si8787272pbc.106.2015.05.29.08.06.01
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 29 May 2015 07:57:41 -0700 (PDT)
-Date: Fri, 29 May 2015 16:57:39 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC 3/3] memcg: get rid of mm_struct::owner
-Message-ID: <20150529145739.GF22728@dhcp22.suse.cz>
-References: <1432641006-8025-1-git-send-email-mhocko@suse.cz>
- <1432641006-8025-4-git-send-email-mhocko@suse.cz>
- <20150526141011.GA11065@cmpxchg.org>
- <20150528210742.GF27479@htj.duckdns.org>
- <20150529120838.GC22728@dhcp22.suse.cz>
- <20150529131055.GH27479@htj.duckdns.org>
- <20150529134553.GD22728@dhcp22.suse.cz>
- <20150529140737.GK27479@htj.duckdns.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150529140737.GK27479@htj.duckdns.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 May 2015 08:06:02 -0700 (PDT)
+Received: by pdbqa5 with SMTP id qa5so55625134pdb.0
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 08:06:01 -0700 (PDT)
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: [RFC][PATCH 00/10] zsmalloc auto-compaction
+Date: Sat, 30 May 2015 00:05:18 +0900
+Message-Id: <1432911928-14654-1-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Fri 29-05-15 10:07:37, Tejun Heo wrote:
-> Hello,
-> 
-> On Fri, May 29, 2015 at 03:45:53PM +0200, Michal Hocko wrote:
-> > Sure but we are talking about processes here. They just happen to share
-> > mm. And this is exactly the behavior change I am talking about... With
-> 
-> Are we talking about CLONE_VM w/o CLONE_THREAD?  ie. two threadgroups
-> sharing the same VM?
+Hello,
 
-yes.
+RFC
 
-> > the owner you could emulate "threads" with this patch you cannot
-> > anymore. IMO we shouldn't allow for that but just reading the original
-> > commit message (cf475ad28ac35) which has added mm->owner:
-> > "
-> > It also allows several control groups that are virtually grouped by
-> > mm_struct, to exist independent of the memory controller i.e., without
-> > adding mem_cgroup's for each controller, to mm_struct.
-> > "
-> > suggests it might have been intentional. That being said, I think it was
-> 
-> I think he's talking about implmenting different controllers which may
-> want to add their own css pointer in mm_struct now wouldn't need to as
-> the mm is tagged with the owning task from which membership of all
-> controllers can be derived.  I don't think that's something we need to
-> worry about.  We haven't seen even a suggestion for such a controller
-> and even if that happens we'd be better off adding a separate field
-> for the new controller.
+this is 4.3 material, but I wanted to publish it sooner to gain
+responses and to settle it down before 4.3 merge window opens.
 
-Maybe I've just misunderstood. My understandig was that tasks sharing
-the mm could live in different cgroups while the memory would be bound
-by a shared memcg.
+in short, this series tweaks zsmalloc's compaction and adds
+auto-compaction support. auto-compaction is not aimed to replace
+manual compaction, intead it's supposed to be good enough. yet
+it surely slows down zsmalloc in some scenarious. whilst simple
+un-tar test didn't show any significant performance difference
 
-> > a mistake back at the time and we should move on to a saner model. But I
-> > also believe we should be really vocal when the user visible behavior
-> > changes. If somebody really asks for the previous behavior I would
-> > insist on a _strong_ usecase.
-> 
-> I'm a bit lost on what's cleared defined is actually changing.  It's
-> not like userland had firm control over mm->owner.  It was already a
-> crapshoot, no?
 
-OK so you creat a task A (leader) which clones several tasks Pn with
-CLONE_VM without CLONE_THREAD. Moving A around would control memcg
-membership while Pn could be moved around freely to control membership
-in other controllers (e.g. cpu to control shares). So it is something
-like moving threads separately.
+quote from commit 0007:
+
+this test copies a 1.3G linux kernel tar to mounted zram disk,
+and extracts it.
+
+w/auto-compaction:
+
+cat /sys/block/zram0/mm_stat
+ 1171456    26006    86016        0    86016    32781        0
+
+time tar xf linux-3.10.tar.gz -C linux
+
+real    0m16.970s
+user    0m15.247s
+sys     0m8.477s
+
+du -sh linux
+2.0G    linux
+
+cat /sys/block/zram0/mm_stat
+3547353088 2993384270 3011088384        0 3011088384    24310      108
+
+=====================================================================
+
+w/o auto compaction:
+
+cat /sys/block/zram0/mm_stat
+ 1171456    26000    81920        0    81920    32781        0
+
+time tar xf linux-3.10.tar.gz -C linux
+
+real    0m16.983s
+user    0m15.267s
+sys     0m8.417s
+
+du -sh linux
+2.0G    linux
+
+cat /sys/block/zram0/mm_stat
+3548917760 2993566924 3011317760        0 3011317760    23928        0
+
+
+
+Sergey Senozhatsky (10):
+  zsmalloc: drop unused variable `nr_to_migrate'
+  zsmalloc: always keep per-class stats
+  zsmalloc: introduce zs_can_compact() function
+  zsmalloc: cosmetic compaction code adjustments
+  zsmalloc: add `num_migrated' to zs_pool
+  zsmalloc: move compaction functions
+  zsmalloc: introduce auto-compact support
+  zsmalloc: export zs_pool `num_migrated'
+  zram: remove `num_migrated' from zram_stats
+  zsmalloc: lower ZS_ALMOST_FULL waterline
+
+ drivers/block/zram/zram_drv.c |  12 +-
+ drivers/block/zram/zram_drv.h |   1 -
+ include/linux/zsmalloc.h      |   1 +
+ mm/zsmalloc.c                 | 578 +++++++++++++++++++++---------------------
+ 4 files changed, 296 insertions(+), 296 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.4.2.337.gfae46aa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
