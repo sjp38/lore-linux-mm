@@ -1,104 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 32B696B006E
-	for <linux-mm@kvack.org>; Fri, 29 May 2015 10:46:41 -0400 (EDT)
-Received: by obew15 with SMTP id w15so59240349obe.1
-        for <linux-mm@kvack.org>; Fri, 29 May 2015 07:46:40 -0700 (PDT)
-Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
-        by mx.google.com with ESMTPS id u14si3702191oie.102.2015.05.29.07.46.40
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id F34D86B0071
+	for <linux-mm@kvack.org>; Fri, 29 May 2015 10:49:25 -0400 (EDT)
+Received: by wizo1 with SMTP id o1so26902943wiz.1
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 07:49:25 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id km4si9964915wjc.108.2015.05.29.07.49.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 May 2015 07:46:40 -0700 (PDT)
-Message-ID: <1432909628.23540.40.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v10 11/12] x86, mm, pat: Refactor !pat_enabled handling
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 29 May 2015 08:27:08 -0600
-In-Reply-To: <20150529085842.GA31435@pd.tnic>
-References: <1432739944-22633-1-git-send-email-toshi.kani@hp.com>
-	 <1432739944-22633-12-git-send-email-toshi.kani@hp.com>
-	 <20150529085842.GA31435@pd.tnic>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 29 May 2015 07:49:23 -0700 (PDT)
+Date: Fri, 29 May 2015 16:49:22 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm/oom: Suppress unnecessary "sharing same
+ memory"message.
+Message-ID: <20150529144922.GE22728@dhcp22.suse.cz>
+References: <20150526170213.GB14955@dhcp22.suse.cz>
+ <201505270639.JCF57366.OFVOQSFFHtJOML@I-love.SAKURA.ne.jp>
+ <20150527164505.GD27348@dhcp22.suse.cz>
+ <201505280659.HBE69765.SOtQMJLVFHFFOO@I-love.SAKURA.ne.jp>
+ <20150528180524.GB2321@dhcp22.suse.cz>
+ <201505292140.JHE18273.SFFMJFHOtQLOVO@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201505292140.JHE18273.SFFMJFHOtQLOVO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com, mcgrof@suse.com, hch@lst.de
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org
 
-On Fri, 2015-05-29 at 10:58 +0200, Borislav Petkov wrote:
-> On Wed, May 27, 2015 at 09:19:03AM -0600, Toshi Kani wrote:
-> > This patch refactors the !pat_enabled code paths and integrates
+On Fri 29-05-15 21:40:47, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Thu 28-05-15 06:59:32, Tetsuo Handa wrote:
+> > > I just imagined a case where p is blocked at down_read() in acct_collect() from
+> > > do_exit() when p is sharing mm with other processes, and other process is doing
+> > > blocking operation with mm->mmap_sem held for writing. Is such case impossible?
+> > 
+> > It is very much possible and I have missed this case when proposing
+> > my alternative. The other process could be doing an address space
+> > operation e.g. mmap which requires an allocation.
 > 
-> Please refrain from using such empty phrases like "This patch does this
-> and that" in your commit messages - it is implicitly obvious that it is
-> "this patch" when one reads it.
-> 
-> > them into the PAT abstraction code.  The PAT table is emulated by
-> > corresponding to the two cache attribute bits, PWT (Write Through)
-> > and PCD (Cache Disable).  The emulated PAT table is the same as the
-> > BIOS default setup when the system has PAT but the "nopat" boot
-> > option is specified.  The emulated PAT table is also used when
-> > MSR_IA32_CR_PAT returns 0 (9d34cfdf4).
-> 
-> 9d34cfdf4 - what is that thing? A commit message? If so, we quote them
-> like this:
-> 
->   9d34cfdf4796 ("x86: Don't rely on VMWare emulating PAT MSR correctly")
-> 
-> note the 12 chars length of the commit id.
+> Are there locations that do memory allocations with mm->mmap_sem held for
+> writing?
 
-Yes, it refers the commit message above.
+Yes, I've written that in my previous email.
 
-> > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-> > Reviewed-by: Juergen Gross <jgross@suse.com>
-> > ---
-> >  arch/x86/mm/init.c     |    6 ++--
-> >  arch/x86/mm/iomap_32.c |   12 ++++---
-> >  arch/x86/mm/ioremap.c  |   10 +-----
-> >  arch/x86/mm/pageattr.c |    6 ----
-> >  arch/x86/mm/pat.c      |   77 +++++++++++++++++++++++++++++-------------------
-> >  5 files changed, 57 insertions(+), 54 deletions(-)
-> 
-> So I started applying your pile and everything was ok-ish until I came
-> about this trainwreck. You have a lot of changes in here, the commit
-> message is certainly lacking sufficient explanation as to why and this
-> patch is changing stuff which the previous one adds.
+> Is it possible that thread1 is doing memory allocation between
+> down_write(&current->mm->mmap_sem) and up_write(&current->mm->mmap_sem),
+> thread2 sharing the same mm is waiting at down_read(&current->mm->mmap_sem),
+> and the OOM killer invoked by thread3 chooses thread2 as the OOM victim and
+> sets TIF_MEMDIE to thread2?
 
-This !pat_enabled path cleanup was suggested during review and is
-independent from the WT enablement.  So, I thought it'd be better to
-place it as an additional change on top of the WT set, so that it'd be
-easier to bisect when there is any issue found in the !pat_enabled path.
+Your usage of thread is confusing. Threads are of no concerns because
+those get killed when the group leader is killed. If you refer to
+processes then this is exactly what is handled by:
+        for_each_process(p)
+                if (p->mm == mm && !same_thread_group(p, victim) &&
+                    !(p->flags & PF_KTHREAD)) {
+                        if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+                                continue;
 
-> So a lot of unnecesary code movement.
->
-> Then you have stuff like this:
-> 
-> 	+       } else if (!cpu_has_pat && pat_enabled) {
-> 
-> How can a CPU not have PAT but have it enabled?!?
+                        task_lock(p);   /* Protect ->comm from prctl() */
+                        pr_err("Kill process %d (%s) sharing same memory\n",
+                                task_pid_nr(p), p->comm);
+                        task_unlock(p);
+                        do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+                }
+[...]
+> Maybe we can use "struct mm_struct"->"bool chosen_by_oom_killer" and checking
+> for (current->mm && current->mm->chosen_by_oom_killer) than
+> test_thread_flag(TIF_MEMDIE) inside the memory allocator?
 
-This simply preserves the original error check in the code.  This error
-check makes sure that all CPUs have the PAT feature supported when PAT
-is enabled.  This error can only happen when heterogeneous CPUs are
-installed/emulated on the system/guest.  This check may be paranoid, but
-this cleanup is not meant to modify such an error check.
+Bool is not sufficient because killing some of the processes might be
+sufficient to resolve the OOM condition and the rest can survive. This
+is quite unlikely, all right, but not impossible. And then you would
+have a dangling chosen_by_oom_killer. So this should be a counter.
 
-> So this is not how we do patchsets.
-> 
-> Please do the cleanups *first*. Do them in small, self-contained changes
-> explaining *why* you're doing them.
-> 
-> *Then* add the new functionality, .i.e. the WT.
+So I think, but I have to think more about this, a proper way to handle
+this would be something like the following. The patch is obviously
+incomplete because memcg OOM killer would need the same treatment which
+calls for a common helper etc...
 
-Can you consider the patch 10/12-11/12 as a separate patchset from the
-WT series?  If that is OK, I will resubmit 10/12 (BUG->panic) and 11/12
-(commit log update). 
-
-> Oh, and when you do your next version, do the patches against tip/master
-> because there are a bunch of changes in the PAT code already.
-
-Thanks,
--Toshi
+But this is a real corner case. It would have to be current to trigger
+OOM killer and the userspace would have to be able to send the signal
+at the right moment... So I am even not sure this needs fixing. Are you
+able to trigger it?
+---
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 5cfda39b3268..14128575fe86 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -428,6 +428,8 @@ void mark_oom_victim(struct task_struct *tsk)
+ 	 */
+ 	__thaw_task(tsk);
+ 	atomic_inc(&oom_victims);
++
++	atomic_inc(tsk->mm->under_oom);
+ }
+ 
+ /**
+@@ -436,6 +438,7 @@ void mark_oom_victim(struct task_struct *tsk)
+ void exit_oom_victim(void)
+ {
+ 	clear_thread_flag(TIF_MEMDIE);
++	atomic_dec(current->active_mm->under_oom)
+ 
+ 	if (!atomic_dec_return(&oom_victims))
+ 		wake_up_all(&oom_victims_wait);
+@@ -681,6 +684,16 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 	}
+ 
+ 	/*
++	 * Processes which are sharing mm should die together. If one of them
++	 * was OOM killed already we should shoot others as well.
++	 */
++	if (current->mm && atomic_read(current->mm->under_oom)) {
++		mark_oom_victim(current);
++		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, current, true);
++		goto out;
++	}
++
++	/*
+ 	 * Check if there were limitations on the allocation (only relevant for
+ 	 * NUMA) that may require different handling.
+ 	 */
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
