@@ -1,132 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id F34D86B0071
-	for <linux-mm@kvack.org>; Fri, 29 May 2015 10:49:25 -0400 (EDT)
-Received: by wizo1 with SMTP id o1so26902943wiz.1
-        for <linux-mm@kvack.org>; Fri, 29 May 2015 07:49:25 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id km4si9964915wjc.108.2015.05.29.07.49.23
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id A80A66B0073
+	for <linux-mm@kvack.org>; Fri, 29 May 2015 10:54:28 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so55410462pdb.1
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 07:54:28 -0700 (PDT)
+Received: from mail-pd0-x22c.google.com (mail-pd0-x22c.google.com. [2607:f8b0:400e:c02::22c])
+        by mx.google.com with ESMTPS id fl4si8767831pab.108.2015.05.29.07.54.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 29 May 2015 07:49:23 -0700 (PDT)
-Date: Fri, 29 May 2015 16:49:22 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm/oom: Suppress unnecessary "sharing same
- memory"message.
-Message-ID: <20150529144922.GE22728@dhcp22.suse.cz>
-References: <20150526170213.GB14955@dhcp22.suse.cz>
- <201505270639.JCF57366.OFVOQSFFHtJOML@I-love.SAKURA.ne.jp>
- <20150527164505.GD27348@dhcp22.suse.cz>
- <201505280659.HBE69765.SOtQMJLVFHFFOO@I-love.SAKURA.ne.jp>
- <20150528180524.GB2321@dhcp22.suse.cz>
- <201505292140.JHE18273.SFFMJFHOtQLOVO@I-love.SAKURA.ne.jp>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 May 2015 07:54:27 -0700 (PDT)
+Received: by pdea3 with SMTP id a3so55253410pde.2
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 07:54:27 -0700 (PDT)
+Date: Fri, 29 May 2015 23:54:19 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] zram: clear disk io accounting when reset zram device
+Message-ID: <20150529145418.GG11609@blaptop>
+References: <"000001d099be$fae6cc90$f0b465b0$@yang"@samsung.com>
+ <20150529034141.GA1157@swordfish>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201505292140.JHE18273.SFFMJFHOtQLOVO@I-love.SAKURA.ne.jp>
+In-Reply-To: <20150529034141.GA1157@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Weijie Yang <weijie.yang@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, ngupta@vflare.org, 'Weijie Yang' <weijie.yang.kh@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 29-05-15 21:40:47, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Thu 28-05-15 06:59:32, Tetsuo Handa wrote:
-> > > I just imagined a case where p is blocked at down_read() in acct_collect() from
-> > > do_exit() when p is sharing mm with other processes, and other process is doing
-> > > blocking operation with mm->mmap_sem held for writing. Is such case impossible?
+Hello guys,
+
+On Fri, May 29, 2015 at 12:41:41PM +0900, Sergey Senozhatsky wrote:
+> On (05/29/15 11:23), Weijie Yang wrote:
+> > This patch clears zram disk io accounting when reset the zram device,
+> > if don't do this, the residual io accounting stat will affect the
+> > diskstat in the next zram active cycle.
+
+Thanks for the fix.
+
 > > 
-> > It is very much possible and I have missed this case when proposing
-> > my alternative. The other process could be doing an address space
-> > operation e.g. mmap which requires an allocation.
 > 
-> Are there locations that do memory allocations with mm->mmap_sem held for
-> writing?
+> thanks. my bad.
+> 
+> Acked-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-Yes, I've written that in my previous email.
+I give my acked-by because it's surely fix so there is no reason to
+hesitate.
 
-> Is it possible that thread1 is doing memory allocation between
-> down_write(&current->mm->mmap_sem) and up_write(&current->mm->mmap_sem),
-> thread2 sharing the same mm is waiting at down_read(&current->mm->mmap_sem),
-> and the OOM killer invoked by thread3 chooses thread2 as the OOM victim and
-> sets TIF_MEMDIE to thread2?
+In future, I hope to change it like below.
 
-Your usage of thread is confusing. Threads are of no concerns because
-those get killed when the group leader is killed. If you refer to
-processes then this is exactly what is handled by:
-        for_each_process(p)
-                if (p->mm == mm && !same_thread_group(p, victim) &&
-                    !(p->flags & PF_KTHREAD)) {
-                        if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-                                continue;
+I think the problem is caused from weired feature "reset" of zram.
+Until a while ago, we didn't have hot_add/del feature so we should
+use custom reset function but now we have hot/add feature.
+So reset is logically same feature(ie, reset = hot_remove+hot_add
+but remains same device id).
 
-                        task_lock(p);   /* Protect ->comm from prctl() */
-                        pr_err("Kill process %d (%s) sharing same memory\n",
-                                task_pid_nr(p), p->comm);
-                        task_unlock(p);
-                        do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
-                }
-[...]
-> Maybe we can use "struct mm_struct"->"bool chosen_by_oom_killer" and checking
-> for (current->mm && current->mm->chosen_by_oom_killer) than
-> test_thread_flag(TIF_MEMDIE) inside the memory allocator?
+If we reuse zram_remove/add for reset, finally it calls del_gendisk
+which will do part_stat_set_all for us so we didn't have this kinds
+of problems.
 
-Bool is not sufficient because killing some of the processes might be
-sufficient to resolve the OOM condition and the rest can survive. This
-is quite unlikely, all right, but not impossible. And then you would
-have a dangling chosen_by_oom_killer. So this should be a counter.
+It needs more churns and some tweaks of zram_[remove|add] but
+it's more clean and consistent between reset and hot_remove.
 
-So I think, but I have to think more about this, a proper way to handle
-this would be something like the following. The patch is obviously
-incomplete because memcg OOM killer would need the same treatment which
-calls for a common helper etc...
+Just my two cents.
 
-But this is a real corner case. It would have to be current to trigger
-OOM killer and the userspace would have to be able to send the signal
-at the right moment... So I am even not sure this needs fixing. Are you
-able to trigger it?
----
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 5cfda39b3268..14128575fe86 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -428,6 +428,8 @@ void mark_oom_victim(struct task_struct *tsk)
- 	 */
- 	__thaw_task(tsk);
- 	atomic_inc(&oom_victims);
-+
-+	atomic_inc(tsk->mm->under_oom);
- }
- 
- /**
-@@ -436,6 +438,7 @@ void mark_oom_victim(struct task_struct *tsk)
- void exit_oom_victim(void)
- {
- 	clear_thread_flag(TIF_MEMDIE);
-+	atomic_dec(current->active_mm->under_oom)
- 
- 	if (!atomic_dec_return(&oom_victims))
- 		wake_up_all(&oom_victims_wait);
-@@ -681,6 +684,16 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 	}
- 
- 	/*
-+	 * Processes which are sharing mm should die together. If one of them
-+	 * was OOM killed already we should shoot others as well.
-+	 */
-+	if (current->mm && atomic_read(current->mm->under_oom)) {
-+		mark_oom_victim(current);
-+		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, current, true);
-+		goto out;
-+	}
-+
-+	/*
- 	 * Check if there were limitations on the allocation (only relevant for
- 	 * NUMA) that may require different handling.
- 	 */
+> 
+> 	-ss
+> 
+> > Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+> > ---
+> >  drivers/block/zram/zram_drv.c |    2 ++
+> >  1 file changed, 2 insertions(+)
+> > 
+> > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> > index 8dcbced..6e134f4 100644
+> > --- a/drivers/block/zram/zram_drv.c
+> > +++ b/drivers/block/zram/zram_drv.c
+> > @@ -805,7 +805,9 @@ static void zram_reset_device(struct zram *zram)
+> >  	memset(&zram->stats, 0, sizeof(zram->stats));
+> >  	zram->disksize = 0;
+> >  	zram->max_comp_streams = 1;
+> > +
+> >  	set_capacity(zram->disk, 0);
+> > +	part_stat_set_all(&zram->disk->part0, 0);
+> >  
+> >  	up_write(&zram->init_lock);
+> >  	/* I/O operation under all of CPU are done so let's free */
+> > -- 
+> > 1.7.10.4
+> > 
+> > 
+
 -- 
-Michal Hocko
-SUSE Labs
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
