@@ -1,75 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id A01976B008A
-	for <linux-mm@kvack.org>; Fri, 29 May 2015 15:21:16 -0400 (EDT)
-Received: by iesa3 with SMTP id a3so70447814ies.2
-        for <linux-mm@kvack.org>; Fri, 29 May 2015 12:21:16 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0213.hostedemail.com. [216.40.44.213])
-        by mx.google.com with ESMTP id v103si1549778iov.51.2015.05.29.12.21.16
-        for <linux-mm@kvack.org>;
-        Fri, 29 May 2015 12:21:16 -0700 (PDT)
-Date: Fri, 29 May 2015 15:21:12 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [RFC] mm: change irqs_disabled() test to spin_is_locked() in
- mem_cgroup_swapout
-Message-ID: <20150529152112.2e8cfdb3@gandalf.local.home>
-In-Reply-To: <20150529191159.GA29078@cmpxchg.org>
-References: <20150529104815.2d2e880c@sluggy>
-	<20150529191159.GA29078@cmpxchg.org>
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 014446B0095
+	for <linux-mm@kvack.org>; Fri, 29 May 2015 15:32:32 -0400 (EDT)
+Received: by wgbgq6 with SMTP id gq6so70886433wgb.3
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 12:32:31 -0700 (PDT)
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com. [74.125.82.54])
+        by mx.google.com with ESMTPS id f8si5260503wiy.57.2015.05.29.12.32.29
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 May 2015 12:32:30 -0700 (PDT)
+Received: by wgez8 with SMTP id z8so70810729wge.0
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 12:32:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CALCETrXXfujebOemesBtgKCkmRTOQFGjdcxjFDF+_P_tv+C0bw@mail.gmail.com>
+References: <1432739944-22633-1-git-send-email-toshi.kani@hp.com>
+	<1432739944-22633-13-git-send-email-toshi.kani@hp.com>
+	<20150529091129.GC31435@pd.tnic>
+	<CAPcyv4jHbrUP7bDpw2Cja5x0eMQZBLmmzFXbotQWSEkAiL1s7Q@mail.gmail.com>
+	<1432911782.23540.55.camel@misato.fc.hp.com>
+	<CAPcyv4g+zYFkEYpa0HCh0Q+2C3wWNr6v3ZU143h52OKf=U=Qvw@mail.gmail.com>
+	<CALCETrXXfujebOemesBtgKCkmRTOQFGjdcxjFDF+_P_tv+C0bw@mail.gmail.com>
+Date: Fri, 29 May 2015 12:32:29 -0700
+Message-ID: <CAPcyv4imF0aY5D04419uP8ZoRp8OsWgv-eeYPj818sUiUCpt+w@mail.gmail.com>
+Subject: Re: [PATCH v10 12/12] drivers/block/pmem: Map NVDIMM with ioremap_wt()
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Clark Williams <williams@redhat.com>, Thomas Gleixner <tglx@glx-um.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, RT <linux-rt-users@vger.kernel.org>, Fernando Lopez-Lezcano <nando@ccrma.Stanford.EDU>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Toshi Kani <toshi.kani@hp.com>, Borislav Petkov <bp@alien8.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Yigal Korman <yigal@plexistor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "Elliott, Robert (Server Storage)" <Elliott@hp.com>, Luis Rodriguez <mcgrof@suse.com>, Christoph Hellwig <hch@lst.de>, Matthew Wilcox <willy@linux.intel.com>
 
-On Fri, 29 May 2015 15:11:59 -0400
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Fri, May 29, 2015 at 11:34 AM, Andy Lutomirski <luto@amacapital.net> wrote:
+> On Fri, May 29, 2015 at 11:19 AM, Dan Williams <dan.j.williams@intel.com> wrote:
+>> On Fri, May 29, 2015 at 8:03 AM, Toshi Kani <toshi.kani@hp.com> wrote:
+>>> On Fri, 2015-05-29 at 07:43 -0700, Dan Williams wrote:
+>>>> On Fri, May 29, 2015 at 2:11 AM, Borislav Petkov <bp@alien8.de> wrote:
+>>>> > On Wed, May 27, 2015 at 09:19:04AM -0600, Toshi Kani wrote:
+>>>> >> The pmem driver maps NVDIMM with ioremap_nocache() as we cannot
+>>>> >> write back the contents of the CPU caches in case of a crash.
+>>>> >>
+>>>> >> This patch changes to use ioremap_wt(), which provides uncached
+>>>> >> writes but cached reads, for improving read performance.
+>>>> >>
+>>>> >> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+>>>> >> ---
+>>>> >>  drivers/block/pmem.c |    4 ++--
+>>>> >>  1 file changed, 2 insertions(+), 2 deletions(-)
+>>>> >>
+>>>> >> diff --git a/drivers/block/pmem.c b/drivers/block/pmem.c
+>>>> >> index eabf4a8..095dfaa 100644
+>>>> >> --- a/drivers/block/pmem.c
+>>>> >> +++ b/drivers/block/pmem.c
+>>>> >> @@ -139,11 +139,11 @@ static struct pmem_device *pmem_alloc(struct device *dev, struct resource *res)
+>>>> >>       }
+>>>> >>
+>>>> >>       /*
+>>>> >> -      * Map the memory as non-cachable, as we can't write back the contents
+>>>> >> +      * Map the memory as write-through, as we can't write back the contents
+>>>> >>        * of the CPU caches in case of a crash.
+>>>> >>        */
+>>>> >>       err = -ENOMEM;
+>>>> >> -     pmem->virt_addr = ioremap_nocache(pmem->phys_addr, pmem->size);
+>>>> >> +     pmem->virt_addr = ioremap_wt(pmem->phys_addr, pmem->size);
+>>>> >>       if (!pmem->virt_addr)
+>>>> >>               goto out_release_region;
+>>>> >
+>>>> > Dan, Ross, what about this one?
+>>>> >
+>>>> > ACK to pick it up as a temporary solution?
+>>>>
+>>>> I see that is_new_memtype_allowed() is updated to disallow some
+>>>> combinations, but the manual seems to imply any mixing of memory types
+>>>> is unsupported.  Which worries me even in the current code where we
+>>>> have uncached mappings in the driver, and potentially cached DAX
+>>>> mappings handed out to userspace.
+>>>
+>>> is_new_memtype_allowed() is not to allow some combinations of mixing of
+>>> memory types.  When it is allowed, the requested type of ioremap_xxx()
+>>> is changed to match with the existing map type, so that mixing of memory
+>>> types does not happen.
+>>
+>> Yes, but now if the caller was expecting one memory type and gets
+>> another one that is something I think the driver would want to know.
+>> At a minimum I don't think we want to get emails about pmem driver
+>> performance problems when someone's platform is silently degrading WB
+>> to UC for example.
+>>
+>>> DAX uses vm_insert_mixed(), which does not even check the existing map
+>>> type to the physical address.
+>>
+>> Right, I think that's a problem...
+>>
+>>>> A general quibble separate from this patch is that we don't have a way
+>>>> of knowing if ioremap() will reject or change our requested memory
+>>>> type.  Shouldn't the driver be explicitly requesting a known valid
+>>>> type in advance?
+>>>
+>>> I agree we need a solution here.
+>>>
+>>>> Lastly we now have the PMEM API patches from Ross out for review where
+>>>> he is assuming cached mappings with non-temporal writes:
+>>>> https://lists.01.org/pipermail/linux-nvdimm/2015-May/000929.html.
+>>>> This gives us WC semantics on writes which I believe has the nice
+>>>> property of reducing the number of write transactions to memory.
+>>>> Also, the numbers in the paper seem to be assuming DAX operation, but
+>>>> this ioremap_wt() is in the driver and typically behind a file system.
+>>>> Are the numbers relevant to that usage mode?
+>>>
+>>> I have not looked into the Ross's changes yet, but they do not seem to
+>>> replace the use of ioremap_nocache().  If his changes can use WB type
+>>> reliably, yes, we do not need a temporary solution of using ioremap_wt()
+>>> in this driver.
+>>
+>> Hmm, yes you're right, it seems those patches did not change the
+>> implementation to use ioremap_cache()... which happens to not be
+>> implemented on all architectures.  I'll take a look.
+>
+> Whoa, there!  Why would we use non-temporal stores to WB memory to
+> access persistent memory?  I can see two reasons not to:
+>
+> 1. As far as I understand it, non-temporal stores to WT should have
+> almost identical performance.
+>
+> 2. Is there any actual architectural guarantee that it's safe to have
+> a WB mapping that we use like that?  By my reading of the manual,
+> MOVNTDQA (as a write to pmem); SFENCE; PCOMMIT; SFENCE on uncached
+> memory should be guaranteed to do a durable write.  On the other hand,
+> it's considerably less clear to me that the same sequence to WB memory
+> is safe -- aren't we supposed to stick a CLWB or CLFLUSHOPT in there,
+> too, on WB memory?  In other words, is there any case in which
+> MOVNTDQA or similar acting on a WB mapping could result in a dirty
+> cache line?
 
-> Hi Clark,
-> 
-> On Fri, May 29, 2015 at 10:48:15AM -0500, Clark Williams wrote:
-> > @@ -5845,7 +5845,7 @@ void mem_cgroup_swapout(struct page *page,
-> > swp_entry_t entry) page_counter_uncharge(&memcg->memory, 1);
-> >  
-> >  	/* XXX: caller holds IRQ-safe mapping->tree_lock */
-> > -	VM_BUG_ON(!irqs_disabled());
-> > +	VM_BUG_ON(!spin_is_locked(&page_mapping(page)->tree_lock));
-> >  
-> >  	mem_cgroup_charge_statistics(memcg, page, -1);
-> 
-> It's not about the lock, it's about preemption.  The charge statistics
-
-OK, I just lost my bet with Clark. He said it was about preemption, and
-I said it was about the lock ;-)
-
-> use __this_cpu operations and they're updated from process context and
-> interrupt context both.
-> 
-> This function really should do a local_irq_save().  I only added the
-> VM_BUG_ON() to document that we know the caller is holding an IRQ-safe
-> lock and so we don't need to bother with another level of IRQ saving.
-> 
-> So how does this translate to RT?  I don't know.  But if switching to
-> explicit IRQ toggling would help you guys out we can do that.  It is
-> in the swapout path after all, the optimization isn't that important.
-
-You only need to prevent this from preempting with other users here,
-right? RT provides a "local_lock_irqsave(var)" which on vanilla linux
-will do a local_irq_save(), but more importantly, it provides
-documentation of what that local_irq_save is about (the var).
-
-On -rt, that turns into a migrate disable, plus grabbing of the
-rt_mutex(var). Thus, the process wont migrate from that CPU, but may be
-preempted. If another process (or interrupt thread, as in -rt
-interrupts run as preemptable threads) tries to do a local_lock(var) on
-the same var, it will block.
-
-Basically, you get the same serialization in both, but you don't cause
-latencies in -rt.
-
--- Steve
+Depends, see the note in 10.4.6.2, "Some older CPU implementations
+(e.g., Pentium M) allowed addresses being written with a non-temporal
+store instruction to be updated in-place if the memory type was not WC
+and line was already in the cache."  The expectation is that
+boot_cpu_has(X86_FEATURE_PCOMMIT) is false on such a cpu so we'll
+fallback to not using non-temporal stores.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
