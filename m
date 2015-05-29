@@ -1,52 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FED66B0073
-	for <linux-mm@kvack.org>; Thu, 28 May 2015 21:58:03 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so54647024pdb.0
-        for <linux-mm@kvack.org>; Thu, 28 May 2015 18:58:03 -0700 (PDT)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id ca1si6126935pbb.169.2015.05.28.18.58.01
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 4992A6B0075
+	for <linux-mm@kvack.org>; Thu, 28 May 2015 23:24:36 -0400 (EDT)
+Received: by pacwv17 with SMTP id wv17so39131332pac.2
+        for <linux-mm@kvack.org>; Thu, 28 May 2015 20:24:36 -0700 (PDT)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id l14si6465076pdn.60.2015.05.28.20.24.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 28 May 2015 18:58:02 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp ([10.7.69.202])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t4T1w0uG009202
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Fri, 29 May 2015 10:58:00 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v3 3/3] mm/hugetlb: handle races in alloc_huge_page and
- hugetlb_reserve_pages
-Date: Fri, 29 May 2015 01:49:46 +0000
-Message-ID: <20150529014946.GB2986@hori1.linux.bs1.fc.nec.co.jp>
-References: <1432749371-32220-1-git-send-email-mike.kravetz@oracle.com>
- <1432749371-32220-4-git-send-email-mike.kravetz@oracle.com>
-In-Reply-To: <1432749371-32220-4-git-send-email-mike.kravetz@oracle.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <9B72803D6418AD4CAF397CFAD047CE89@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        Thu, 28 May 2015 20:24:35 -0700 (PDT)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout3.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0NP300B6MDGWOH70@mailout3.samsung.com> for linux-mm@kvack.org;
+ Fri, 29 May 2015 12:24:32 +0900 (KST)
+From: Weijie Yang <weijie.yang@samsung.com>
+Subject: [PATCH] zram: clear disk io accounting when reset zram device
+Date: Fri, 29 May 2015 11:23:24 +0800
+Message-id: <"000001d099be$fae6cc90$f0b465b0$@yang"@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=UTF-8
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: 'Minchan Kim' <minchan@kernel.org>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, sergey.senozhatsky.work@gmail.com, ngupta@vflare.org, 'Weijie Yang' <weijie.yang.kh@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, May 27, 2015 at 10:56:11AM -0700, Mike Kravetz wrote:
-> alloc_huge_page and hugetlb_reserve_pages use region_chg to
-> calculate the number of pages which will be added to the reserve
-> map.  Subpool and global reserve counts are adjusted based on
-> the output of region_chg.  Before the pages are actually added
-> to the reserve map, these routines could race and add fewer
-> pages than expected.  If this happens, the subpool and global
-> reserve counts are not correct.
->=20
-> Compare the number of pages actually added (region_add) to those
-> expected to added (region_chg).  If fewer pages are actually added,
-> this indicates a race and adjust counters accordingly.
->=20
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+This patch clears zram disk io accounting when reset the zram device,
+if don't do this, the residual io accounting stat will affect the
+diskstat in the next zram active cycle.
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>=
+Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+---
+ drivers/block/zram/zram_drv.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 8dcbced..6e134f4 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -805,7 +805,9 @@ static void zram_reset_device(struct zram *zram)
+ 	memset(&zram->stats, 0, sizeof(zram->stats));
+ 	zram->disksize = 0;
+ 	zram->max_comp_streams = 1;
++
+ 	set_capacity(zram->disk, 0);
++	part_stat_set_all(&zram->disk->part0, 0);
+ 
+ 	up_write(&zram->init_lock);
+ 	/* I/O operation under all of CPU are done so let's free */
+-- 
+1.7.10.4
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
