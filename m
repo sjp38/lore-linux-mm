@@ -1,283 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 41AF06B00A9
-	for <linux-mm@kvack.org>; Fri, 29 May 2015 18:07:08 -0400 (EDT)
-Received: by padj3 with SMTP id j3so2005539pad.0
-        for <linux-mm@kvack.org>; Fri, 29 May 2015 15:07:08 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ku2si10151702pbc.235.2015.05.29.15.07.06
+Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 86CF16B00AC
+	for <linux-mm@kvack.org>; Fri, 29 May 2015 18:26:48 -0400 (EDT)
+Received: by obbea2 with SMTP id ea2so67896910obb.3
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 15:26:48 -0700 (PDT)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id jr3si4337524oeb.86.2015.05.29.15.26.46
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 May 2015 15:07:07 -0700 (PDT)
-Date: Fri, 29 May 2015 15:07:05 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] frontswap: allow multiple backends
-Message-Id: <20150529150705.5fd6b7c1545ef5829f7ace93@linux-foundation.org>
-In-Reply-To: <1432844917-27531-1-git-send-email-ddstreet@ieee.org>
-References: <1432844917-27531-1-git-send-email-ddstreet@ieee.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 29 May 2015 15:26:47 -0700 (PDT)
+From: "Elliott, Robert (Server Storage)" <Elliott@hp.com>
+Subject: RE: [PATCH v10 12/12] drivers/block/pmem: Map NVDIMM with
+ ioremap_wt()
+Date: Fri, 29 May 2015 22:24:57 +0000
+Message-ID: <94D0CD8314A33A4D9D801C0FE68B40295A92F4EF@G9W0745.americas.hpqcorp.net>
+References: <1432739944-22633-1-git-send-email-toshi.kani@hp.com>
+ <1432739944-22633-13-git-send-email-toshi.kani@hp.com>
+ <20150529091129.GC31435@pd.tnic>
+ <CAPcyv4jHbrUP7bDpw2Cja5x0eMQZBLmmzFXbotQWSEkAiL1s7Q@mail.gmail.com>
+ <1432911782.23540.55.camel@misato.fc.hp.com>
+ <CAPcyv4g+zYFkEYpa0HCh0Q+2C3wWNr6v3ZU143h52OKf=U=Qvw@mail.gmail.com>
+ <CALCETrXXfujebOemesBtgKCkmRTOQFGjdcxjFDF+_P_tv+C0bw@mail.gmail.com>
+ <94D0CD8314A33A4D9D801C0FE68B40295A92F392@G9W0745.americas.hpqcorp.net>
+ <CALCETrXhNsk9yX=gerxqHCR6+CLdCGrjt9pDk98yeF0L7yyPvg@mail.gmail.com>
+In-Reply-To: <CALCETrXhNsk9yX=gerxqHCR6+CLdCGrjt9pDk98yeF0L7yyPvg@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Dan Williams <dan.j.williams@intel.com>, "Kani, Toshimitsu" <toshi.kani@hp.com>, Borislav Petkov <bp@alien8.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas
+ Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Henrique de
+ Moraes Holschuh <hmh@hmh.eng.br>, Yigal Korman <yigal@plexistor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Luis Rodriguez <mcgrof@suse.com>, Christoph Hellwig <hch@lst.de>, Matthew Wilcox <willy@linux.intel.com>
 
-On Thu, 28 May 2015 16:28:37 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
-
-> Change frontswap single pointer to a singly linked list of frontswap
-> implementations.  Update Xen tmem implementation as register no longer
-> returns anything.
-> 
-> Frontswap only keeps track of a single implementation; any implementation
-> that registers second (or later) will replace the previously registered
-> implementation, and gets a pointer to the previous implementation that
-> the new implementation is expected to pass all frontswap functions to
-> if it can't handle the function itself.  However that method doesn't
-> really make much sense, as passing that work on to every implementation
-> adds unnecessary work to implementations; instead, frontswap should
-> simply keep a list of all registered implementations and try each
-> implementation for any function.  Most importantly, neither of the
-> two currently existing frontswap implementations in the kernel actually
-> do anything with any previous frontswap implementation that they
-> replace when registering.
-> 
-> This allows frontswap to successfully manage multiple implementations
-> by keeping a list of them all.
-
-Looks OK to me.  The "you can never deregister" thing makes life
-simpler.
-
-But we need to have a fight over style issues.  Just because you *can*
-do something doesn't mean you should.  Don't make you poor readers sit
-there going crosseyed at elaborate `for' statements.  Try to keep the
-code as simple and straightforward as possible.
-
-> ...
->
->  /*
-> - * Register operations for frontswap, returning previous thus allowing
-> - * detection of multiple backends and possible nesting.
-> + * Register operations for frontswap
->   */
-> -struct frontswap_ops *frontswap_register_ops(struct frontswap_ops *ops)
-> +void frontswap_register_ops(struct frontswap_ops *ops)
->  {
-> -	struct frontswap_ops *old = frontswap_ops;
-> -	int i;
-> -
-> -	for (i = 0; i < MAX_SWAPFILES; i++) {
-> -		if (test_and_clear_bit(i, need_init)) {
-> -			struct swap_info_struct *sis = swap_info[i];
-> -			/* __frontswap_init _should_ have set it! */
-> -			if (!sis->frontswap_map)
-> -				return ERR_PTR(-EINVAL);
-> -			ops->init(i);
-> +	DECLARE_BITMAP(a, MAX_SWAPFILES);
-> +	DECLARE_BITMAP(b, MAX_SWAPFILES);
-> +	struct swap_info_struct *si;
-> +	unsigned int i;
-> +
-> +	spin_lock(&swap_lock);
-> +	plist_for_each_entry(si, &swap_active_head, list) {
-> +		if (!WARN_ON(!si->frontswap_map))
-> +			set_bit(si->type, a);
-> +	}
-> +	spin_unlock(&swap_lock);
-> +
-> +	for (i = find_first_bit(a, MAX_SWAPFILES);
-> +	     i < MAX_SWAPFILES;
-> +	     i = find_next_bit(a, MAX_SWAPFILES, i + 1))
-> +		ops->init(i);
-
-	i = find_first_bit(a, MAX_SWAPFILES);
-	while (i < MAX_SWAPFILES) {
-		ops->init(i);
-		i = find_next_bit(a, MAX_SWAPFILES, i + 1);
-	}
-
-> +	do {
-> +		ops->next = frontswap_ops;
-> +	} while (cmpxchg(&frontswap_ops, ops->next, ops) != ops->next);
-> +
-> +	spin_lock(&swap_lock);
-> +	plist_for_each_entry(si, &swap_active_head, list) {
-> +		if (si->frontswap_map)
-> +			set_bit(si->type, b);
-> +	}
-> +	spin_unlock(&swap_lock);
-> +
-> +	if (!bitmap_equal(a, b, MAX_SWAPFILES)) {
-> +		for (i = 0; i < MAX_SWAPFILES; i++) {
-> +			if (!test_bit(i, a) && test_bit(i, b))
-> +				ops->init(i);
-> +			else if (test_bit(i, a) && !test_bit(i, b))
-> +				ops->invalidate_area(i);
->  		}
-> ...
->
-> @@ -215,24 +216,25 @@ static inline void __frontswap_clear(struct swap_info_struct *sis,
->   */
->  int __frontswap_store(struct page *page)
->  {
-> -	int ret = -1, dup = 0;
-> +	int ret, dup;
->  	swp_entry_t entry = { .val = page_private(page), };
->  	int type = swp_type(entry);
->  	struct swap_info_struct *sis = swap_info[type];
->  	pgoff_t offset = swp_offset(entry);
-> +	struct frontswap_ops *ops;
->  
->  	/*
->  	 * Return if no backend registed.
->  	 * Don't need to inc frontswap_failed_stores here.
->  	 */
->  	if (!frontswap_ops)
-> -		return ret;
-> +		return -1;
->  
->  	BUG_ON(!PageLocked(page));
->  	BUG_ON(sis == NULL);
-> -	if (__frontswap_test(sis, offset))
-> -		dup = 1;
-> -	ret = frontswap_ops->store(type, offset, page);
-> +	dup = __frontswap_test(sis, offset);
-> +	for (ops = frontswap_ops, ret = -1; ops && ret; ops = ops->next)
-> +		ret = ops->store(type, offset, page);
-
-	ret = -1;
-	for (ops = frontswap_ops; ops; ops = ops->next) {
-		ret = ops->store(type, offset, page);
-		if (!ret)
-			break;
-	}
-
-One advantage of doing it this way is that it leaves room for comments.
-And this code would benefit from a comment above the "if (!ret)". 
-What's going on here?  What could cause ->store to return zero and is
-this an error?  We should explain this somewhere;  `struct
-frontswap_ops' is cheerily undocumented, so where?
-
-
-Is the `ret = -1' really needed?  Can this function ever be called if
-there aren't any registered frontswap_ops?
-
-
-Also, __frontswap_store() disturbs me:
-
-: int __frontswap_store(struct page *page)
-: {
-: 	int ret, dup;
-: 	swp_entry_t entry = { .val = page_private(page), };
-: 	int type = swp_type(entry);
-: 	struct swap_info_struct *sis = swap_info[type];
-: 	pgoff_t offset = swp_offset(entry);
-: 	struct frontswap_ops *ops;
-: 
-: 	/*
-: 	 * Return if no backend registed.
-: 	 * Don't need to inc frontswap_failed_stores here.
-: 	 */
-: 	if (!frontswap_ops)
-: 		return -1;
-: 
-: 	BUG_ON(!PageLocked(page));
-: 	BUG_ON(sis == NULL);
-: 	dup = __frontswap_test(sis, offset);
-: 	ret = -1;
-: 	for (ops = frontswap_ops; ops; ops = ops->next) {
-: 		ret = ops->store(type, offset, page);
-: 		if (!ret)
-: 			break;
-: 	}
-
-Here we've just iterated through all the registered operations.
-
-: 	if (ret == 0) {
-: 		set_bit(offset, sis->frontswap_map);
-: 		inc_frontswap_succ_stores();
-: 		if (!dup)
-: 			atomic_inc(&sis->frontswap_pages);
-: 	} else {
-: 		/*
-: 		  failed dup always results in automatic invalidate of
-: 		  the (older) page from frontswap
-: 		 */
-: 		inc_frontswap_failed_stores();
-: 		if (dup) {
-: 			__frontswap_clear(sis, offset);
-: 			frontswap_ops->invalidate_page(type, offset);
-
-But here we call ->invalidate_page on just one of teh registered
-operations.  Seems wrong.
-
-Maybe some careful code commentary would clear this up.
-
-: 		}
-: 	}
-: 	if (frontswap_writethrough_enabled)
-: 		/* report failure so swap also writes to swap device */
-: 		ret = -1;
-: 	return ret;
-: }
-
-Please review:
-
---- a/mm/frontswap.c~frontswap-allow-multiple-backends-fix
-+++ a/mm/frontswap.c
-@@ -97,7 +97,7 @@ static inline void inc_frontswap_invalid
-  *
-  * Obviously the opposite (unloading the backend) must be done after all
-  * the frontswap_[store|load|invalidate_area|invalidate_page] start
-- * ignorning or failing the requests.  However, there is currently no way
-+ * ignoring or failing the requests.  However, there is currently no way
-  * to unload a backend once it is registered.
-  */
- 
-@@ -118,10 +118,11 @@ void frontswap_register_ops(struct front
- 	}
- 	spin_unlock(&swap_lock);
- 
--	for (i = find_first_bit(a, MAX_SWAPFILES);
--	     i < MAX_SWAPFILES;
--	     i = find_next_bit(a, MAX_SWAPFILES, i + 1))
-+	i = find_first_bit(a, MAX_SWAPFILES);
-+	while (i < MAX_SWAPFILES) {
- 		ops->init(i);
-+		i = find_next_bit(a, MAX_SWAPFILES, i + 1);
-+	}
- 
- 	do {
- 		ops->next = frontswap_ops;
-@@ -233,8 +234,12 @@ int __frontswap_store(struct page *page)
- 	BUG_ON(!PageLocked(page));
- 	BUG_ON(sis == NULL);
- 	dup = __frontswap_test(sis, offset);
--	for (ops = frontswap_ops, ret = -1; ops && ret; ops = ops->next)
-+	ret = -1;
-+	for (ops = frontswap_ops; ops; ops = ops->next) {
- 		ret = ops->store(type, offset, page);
-+		if (!ret)
-+			break;
-+	}
- 	if (ret == 0) {
- 		set_bit(offset, sis->frontswap_map);
- 		inc_frontswap_succ_stores();
-@@ -279,8 +284,12 @@ int __frontswap_load(struct page *page)
- 	BUG_ON(sis == NULL);
- 	if (!__frontswap_test(sis, offset))
- 		return -1;
--	for (ops = frontswap_ops, ret = -1; ops && ret; ops = ops->next)
-+	ret = -1;
-+	for (ops = frontswap_ops; ops; ops = ops->next) {
- 		ret = ops->load(type, offset, page);
-+		if (!ret)
-+			break;
-+	}
- 	if (ret == 0) {
- 		inc_frontswap_loads();
- 		if (frontswap_tmem_exclusive_gets_enabled) {
-_
+DQoNCi0tLQ0KUm9iZXJ0IEVsbGlvdHQsIEhQIFNlcnZlciBTdG9yYWdlDQoNCj4gLS0tLS1Pcmln
+aW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogQW5keSBMdXRvbWlyc2tpIFttYWlsdG86bHV0b0Bh
+bWFjYXBpdGFsLm5ldF0NCj4gU2VudDogRnJpZGF5LCBNYXkgMjksIDIwMTUgNDo0NiBQTQ0KPiBU
+bzogRWxsaW90dCwgUm9iZXJ0IChTZXJ2ZXIgU3RvcmFnZSkNCj4gQ2M6IERhbiBXaWxsaWFtczsg
+S2FuaSwgVG9zaGltaXRzdTsgQm9yaXNsYXYgUGV0a292OyBSb3NzIFp3aXNsZXI7DQo+IEguIFBl
+dGVyIEFudmluOyBUaG9tYXMgR2xlaXhuZXI7IEluZ28gTW9sbmFyOyBBbmRyZXcgTW9ydG9uOyBB
+cm5kDQo+IEJlcmdtYW5uOyBsaW51eC1tbUBrdmFjay5vcmc7IGxpbnV4LWtlcm5lbEB2Z2VyLmtl
+cm5lbC5vcmc7IFg4NiBNTDsNCj4gbGludXgtbnZkaW1tQGxpc3RzLjAxLm9yZzsgSnVlcmdlbiBH
+cm9zczsgU3RlZmFuIEJhZGVyOyBIZW5yaXF1ZSBkZQ0KPiBNb3JhZXMgSG9sc2NodWg7IFlpZ2Fs
+IEtvcm1hbjsgS29ucmFkIFJ6ZXN6dXRlayBXaWxrOyBMdWlzDQo+IFJvZHJpZ3VlejsgQ2hyaXN0
+b3BoIEhlbGx3aWc7IE1hdHRoZXcgV2lsY294DQo+IFN1YmplY3Q6IFJlOiBbUEFUQ0ggdjEwIDEy
+LzEyXSBkcml2ZXJzL2Jsb2NrL3BtZW06IE1hcCBOVkRJTU0gd2l0aA0KPiBpb3JlbWFwX3d0KCkN
+Cj4gDQo+IE9uIEZyaSwgTWF5IDI5LCAyMDE1IGF0IDI6MjkgUE0sIEVsbGlvdHQsIFJvYmVydCAo
+U2VydmVyIFN0b3JhZ2UpDQo+IDxFbGxpb3R0QGhwLmNvbT4gd3JvdGU6DQo+ID4+IC0tLS0tT3Jp
+Z2luYWwgTWVzc2FnZS0tLS0tDQo+ID4+IEZyb206IEFuZHkgTHV0b21pcnNraSBbbWFpbHRvOmx1
+dG9AYW1hY2FwaXRhbC5uZXRdDQo+ID4+IFNlbnQ6IEZyaWRheSwgTWF5IDI5LCAyMDE1IDE6MzUg
+UE0NCj4gPiAuLi4NCj4gPj4gV2hvYSwgdGhlcmUhICBXaHkgd291bGQgd2UgdXNlIG5vbi10ZW1w
+b3JhbCBzdG9yZXMgdG8gV0IgbWVtb3J5DQo+IHRvDQo+ID4+IGFjY2VzcyBwZXJzaXN0ZW50IG1l
+bW9yeT8gIEkgY2FuIHNlZSB0d28gcmVhc29ucyBub3QgdG86DQo+ID4NCj4gPiBEYXRhIHdyaXR0
+ZW4gdG8gYSBibG9jayBzdG9yYWdlIGRldmljZSAoaGVyZSwgdGhlIE5WRElNTSkgaXMNCj4gdW5s
+aWtlbHkNCj4gPiB0byBiZSByZWFkIG9yIHdyaXR0ZW4gYWdhaW4gYW55IHRpbWUgc29vbi4gIEl0
+J3Mgbm90IGxpa2UgdGhlIGNvZGUNCj4gPiBhbmQgZGF0YSB0aGF0IGEgcHJvZ3JhbSBoYXMgaW4g
+bWVtb3J5LCB3aGVyZSB0aGVyZSBtaWdodCBiZSBhIGxvb3ANCj4gPiBhY2Nlc3NpbmcgdGhlIGxv
+Y2F0aW9uIGV2ZXJ5IENQVSBjbG9jazsgaXQncyBzdG9yYWdlIEkvTyB0bw0KPiA+IGhpc3Rvcmlj
+YWxseSB2ZXJ5IHNsb3cgKHJlbGF0aXZlIHRvIHRoZSBDUFUgY2xvY2sgc3BlZWQpIGRldmljZXMu
+DQo+ID4gVGhlIHNvdXJjZSBidWZmZXIgZm9yIHRoYXQgZGF0YSBtaWdodCBiZSBmcmVxdWVudGx5
+IGFjY2Vzc2VkLA0KPiA+IGJ1dCBub3QgdGhlIE5WRElNTSBzdG9yYWdlIGl0c2VsZi4NCj4gPg0K
+PiA+IE5vbi10ZW1wb3JhbCBzdG9yZXMgYXZvaWQgd2FzdGluZyBjYWNoZSBzcGFjZSBvbiB0aGVz
+ZSAib25lLXRpbWUiDQo+ID4gYWNjZXNzZXMuICBUaGUgc2FtZSBhcHBsaWVzIGZvciByZWFkcyBh
+bmQgbm9uLXRlbXBvcmFsIGxvYWRzLg0KPiA+IEtlZXAgdGhlIENQVSBkYXRhIGNhY2hlIGxpbmVz
+IGZyZWUgZm9yIHRoZSBhcHBsaWNhdGlvbi4NCj4gPg0KPiA+IERBWCBhbmQgbW1hcCgpIGRvIGNo
+YW5nZSB0aGF0OyB0aGUgYXBwbGljYXRpb24gaXMgbm93IGZyZWUgdG8NCj4gPiBzdG9yZSBmcmVx
+dWVudGx5IGFjY2Vzc2VkIGRhdGEgc3RydWN0dXJlcyBkaXJlY3RseSBpbiBwZXJzaXN0ZW50DQo+
+ID4gbWVtb3J5LiAgQnV0LCB0aGF0J3Mgbm90IGF2YWlsYWJsZSBpZiBidHQgaXMgdXNlZCwgYW5k
+DQo+ID4gYXBwbGljYXRpb24gbG9hZHMgYW5kIHN0b3JlcyB3b24ndCBnbyB0aHJvdWdoIHRoZSBt
+ZW1jcHkoKQ0KPiA+IGNhbGxzIGluc2lkZSBwbWVtIGFueXdheS4gIFRoZSBub24tdGVtcG9yYWwg
+aW5zdHJ1Y3Rpb25zIGFyZQ0KPiA+IGNhY2hlIGNvaGVyZW50LCBzbyBkYXRhIGludGVncml0eSB3
+b24ndCBnZXQgY29uZnVzZWQgYnkgdGhlbQ0KPiA+IGlmIEkvTyBnb2luZyB0aHJvdWdoIHBtZW0n
+cyBibG9jayBzdG9yYWdlIEFQSXMgaGFwcGVucw0KPiA+IHRvIG92ZXJsYXAgd2l0aCB0aGUgYXBw
+bGljYXRpb24ncyBtbWFwKCkgcmVnaW9ucy4NCj4gPg0KPiANCj4gWW91IGFuc3dlcmVkIHRoZSB3
+cm9uZyBxdWVzdGlvbi4gOikgIEkgdW5kZXJzdGFuZCB0aGUgcG9pbnQgb2YgdGhlDQo+IG5vbi10
+ZW1wb3JhbCBzdG9yZXMgLS0gSSBkb24ndCB1bmRlcnN0YW5kIHRoZSBwb2ludCBvZiB1c2luZw0K
+PiBub24tdGVtcG9yYWwgc3RvcmVzIHRvICpXQiBtZW1vcnkqLiAgSSB0aGluayB3ZSBzaG91bGQg
+YmUgb2theSB3aXRoDQo+IGhhdmluZyB0aGUga2VybmVsIG1hcHBpbmcgdXNlIFdUIGluc3RlYWQu
+DQoNClRoZSBjYWNoZSB0eXBlIHRoYXQgdGhlIGFwcGxpY2F0aW9uIGNob29zZXMgZm9yIGl0cyBt
+bWFwKCkNCnZpZXcgaGFzIHRvIGJlIGNvbXBhdGlibGUgd2l0aCB0aGF0IGFscmVhZHkgc2VsZWN0
+ZWQgYnkgdGhlIA0Ka2VybmVsLCBvciB3ZSBydW4gaW50bzoNCg0KSW50ZWwgU0RNIDExLjEyLjQg
+UHJvZ3JhbW1pbmcgdGhlIFBBVA0KLi4uDQoiVGhlIFBBVCBhbGxvd3MgYW55IG1lbW9yeSB0eXBl
+IHRvIGJlIHNwZWNpZmllZCBpbiB0aGUgcGFnZSB0YWJsZXMsDQphbmQgdGhlcmVmb3JlIGl0IGlz
+IHBvc3NpYmxlIHRvIGhhdmUgYSBzaW5nbGUgcGh5c2ljYWwgcGFnZSBtYXBwZWQNCnRvIHR3byBv
+ciBtb3JlIGRpZmZlcmVudCBsaW5lYXIgYWRkcmVzc2VzLCBlYWNoIHdpdGggZGlmZmVyZW50DQpt
+ZW1vcnkgdHlwZXMuIEludGVsIGRvZXMgbm90IHN1cHBvcnQgdGhpcyBwcmFjdGljZSBiZWNhdXNl
+IGl0IG1heQ0KbGVhZCB0byB1bmRlZmluZWQgb3BlcmF0aW9ucyB0aGF0IGNhbiByZXN1bHQgaW4g
+YSBzeXN0ZW0gZmFpbHVyZS4gDQpJbiBwYXJ0aWN1bGFyLCBhIFdDIHBhZ2UgbXVzdCBuZXZlciBi
+ZSBhbGlhc2VkIHRvIGEgY2FjaGVhYmxlIHBhZ2UNCmJlY2F1c2UgV0Mgd3JpdGVzIG1heSBub3Qg
+Y2hlY2sgdGhlIHByb2Nlc3NvciBjYWNoZXMuIg0KDQpSaWdodCBub3csIGFwcGxpY2F0aW9uIG1l
+bW9yeSBpcyBhbHdheXMgV0IsIHNvIFdCIGlzIHRoZQ0Kb25seSBzYWZlIGNob2ljZSBmcm9tIHRo
+aXMgcGVyc3BlY3RpdmUgKHRoZSBzeXN0ZW0gbXVzdCBoYXZlDQpBRFIgZm9yIHNhZmV0eSBmcm9t
+IG90aGVyIHBlcnNwZWN0aXZlcykuIFRoYXQgbWlnaHQgbm90IGJlIA0KdGhlIGJlc3QgY2hvaWNl
+IGZvciBhbGwgYXBwbGljYXRpb25zLCB0aG91Z2g7IHNvbWUgYXBwbGljYXRpb25zDQptaWdodCBu
+b3Qgd2FudCBDUFUgY2FjaGluZyBhbGwgdGhlIGRhdGEgdGhleSBydW4gdGhyb3VnaCBoZXJlIA0K
+YW5kIHByZWZlciBXQy4gIE9uIGEgbm9uLUFEUiBzeXN0ZW0sIFdUIG1pZ2h0IGJlIHRoZSBvbmx5
+IA0Kc2FmZSBjaG9pY2UuDQoNClNob3VsZCB0aGVyZSBiZSBhIHdheSBmb3IgdGhlIGFwcGxpY2F0
+aW9uIHRvIHNwZWNpZnkgYSBjYWNoZQ0KdHlwZSBpbiBpdHMgbW1hcCgpIGNhbGw/IFRoZSB0eXBl
+IGFscmVhZHkgc2VsZWN0ZWQgYnkgdGhlDQprZXJuZWwgZHJpdmVyIGNvdWxkIChjYXJlZnVsbHkp
+IGJlIGNoYW5nZWQgb24gdGhlIGZseSBpZiANCml0J3MgZGlmZmVyZW50Lg0KDQpOb24tdGVtcG9y
+YWwgc3RvcmUgcGVyZm9ybWFuY2UgaXMgZXhjZWxsZW50IHVuZGVyIFdCLCBXQywgYW5kIFdUOw0K
+aWYgYW55dGhpbmcsIEkgdGhpbmsgV0MgZWRnZXMgYWhlYWQgYmVjYXVzZSBpdCBuZWVkIG5vdCBz
+bm9vcA0KdGhlIGNhY2hlLiBJdCdzIHN0aWxsIHBvb3IgdW5kZXIgVUMuDQoNCg0KDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
