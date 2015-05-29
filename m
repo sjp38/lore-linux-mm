@@ -1,108 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id F33166B009A
-	for <linux-mm@kvack.org>; Fri, 29 May 2015 11:09:58 -0400 (EDT)
-Received: by igbjd9 with SMTP id jd9so16549165igb.1
-        for <linux-mm@kvack.org>; Fri, 29 May 2015 08:09:58 -0700 (PDT)
-Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com. [2607:f8b0:4001:c03::233])
-        by mx.google.com with ESMTPS id mp20si4408288icb.12.2015.05.29.08.09.58
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 8083B6B009D
+	for <linux-mm@kvack.org>; Fri, 29 May 2015 11:12:30 -0400 (EDT)
+Received: by igbyr2 with SMTP id yr2so16535899igb.0
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 08:12:30 -0700 (PDT)
+Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com. [2607:f8b0:4001:c05::233])
+        by mx.google.com with ESMTPS id l10si1772968igx.31.2015.05.29.08.12.30
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 May 2015 08:09:58 -0700 (PDT)
-Received: by iesa3 with SMTP id a3so65105794ies.2
-        for <linux-mm@kvack.org>; Fri, 29 May 2015 08:09:58 -0700 (PDT)
+        Fri, 29 May 2015 08:12:30 -0700 (PDT)
+Received: by igbhj9 with SMTP id hj9so17093302igb.1
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 08:12:29 -0700 (PDT)
 From: Dan Streetman <ddstreet@ieee.org>
-Subject: [PATCH] zpool: add EXPORT_SYMBOL for functions
-Date: Fri, 29 May 2015 11:09:32 -0400
-Message-Id: <1432912172-16591-1-git-send-email-ddstreet@ieee.org>
+Subject: [PATCH] zpool: add zpool_has_pool()
+Date: Fri, 29 May 2015 11:12:18 -0400
+Message-Id: <1432912338-16775-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, Ganesh Mahendran <opensource.ganesh@gmail.com>, Kees Cook <keescook@chromium.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Streetman <ddstreet@ieee.org>
+Cc: Ganesh Mahendran <opensource.ganesh@gmail.com>, Minchan Kim <minchan@kernel.org>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Streetman <ddstreet@ieee.org>
 
-Export the zpool functions that should be exported.
+Add zpool_has_pool() function, indicating if the specified type of zpool
+is available (i.e. zsmalloc or zbud).  This allows checking if a pool is
+available, without actually trying to allocate it, similar to
+crypto_has_alg().
 
 Signed-off-by: Dan Streetman <ddstreet@ieee.org>
 ---
- mm/zpool.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ include/linux/zpool.h |  2 ++
+ mm/zpool.c            | 25 +++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+)
 
+diff --git a/include/linux/zpool.h b/include/linux/zpool.h
+index 56529b3..31b79e2 100644
+--- a/include/linux/zpool.h
++++ b/include/linux/zpool.h
+@@ -36,6 +36,8 @@ enum zpool_mapmode {
+ 	ZPOOL_MM_DEFAULT = ZPOOL_MM_RW
+ };
+ 
++bool zpool_has_pool(char *type);
++
+ struct zpool *zpool_create_pool(char *type, char *name,
+ 			gfp_t gfp, struct zpool_ops *ops);
+ 
 diff --git a/mm/zpool.c b/mm/zpool.c
-index 6b1f103..884659d 100644
+index 884659d..bff40ce 100644
 --- a/mm/zpool.c
 +++ b/mm/zpool.c
-@@ -188,6 +188,7 @@ struct zpool *zpool_create_pool(char *type, char *name, gfp_t gfp,
- 
- 	return zpool;
+@@ -127,6 +127,31 @@ static void zpool_put_driver(struct zpool_driver *driver)
  }
-+EXPORT_SYMBOL(zpool_create_pool);
  
  /**
-  * zpool_destroy_pool() - Destroy a zpool
-@@ -211,6 +212,7 @@ void zpool_destroy_pool(struct zpool *zpool)
- 	zpool_put_driver(zpool->driver);
- 	kfree(zpool);
- }
-+EXPORT_SYMBOL(zpool_destroy_pool);
- 
- /**
-  * zpool_get_type() - Get the type of the zpool
-@@ -226,6 +228,7 @@ char *zpool_get_type(struct zpool *zpool)
- {
- 	return zpool->type;
- }
-+EXPORT_SYMBOL(zpool_get_type);
- 
- /**
-  * zpool_malloc() - Allocate memory
-@@ -248,6 +251,7 @@ int zpool_malloc(struct zpool *zpool, size_t size, gfp_t gfp,
- {
- 	return zpool->driver->malloc(zpool->pool, size, gfp, handle);
- }
-+EXPORT_SYMBOL(zpool_malloc);
- 
- /**
-  * zpool_free() - Free previously allocated memory
-@@ -267,6 +271,7 @@ void zpool_free(struct zpool *zpool, unsigned long handle)
- {
- 	zpool->driver->free(zpool->pool, handle);
- }
-+EXPORT_SYMBOL(zpool_free);
- 
- /**
-  * zpool_shrink() - Shrink the pool size
-@@ -290,6 +295,7 @@ int zpool_shrink(struct zpool *zpool, unsigned int pages,
- {
- 	return zpool->driver->shrink(zpool->pool, pages, reclaimed);
- }
-+EXPORT_SYMBOL(zpool_shrink);
- 
- /**
-  * zpool_map_handle() - Map a previously allocated handle into memory
-@@ -318,6 +324,7 @@ void *zpool_map_handle(struct zpool *zpool, unsigned long handle,
- {
- 	return zpool->driver->map(zpool->pool, handle, mapmode);
- }
-+EXPORT_SYMBOL(zpool_map_handle);
- 
- /**
-  * zpool_unmap_handle() - Unmap a previously mapped handle
-@@ -333,6 +340,7 @@ void zpool_unmap_handle(struct zpool *zpool, unsigned long handle)
- {
- 	zpool->driver->unmap(zpool->pool, handle);
- }
-+EXPORT_SYMBOL(zpool_unmap_handle);
- 
- /**
-  * zpool_get_total_size() - The total size of the pool
-@@ -346,6 +354,7 @@ u64 zpool_get_total_size(struct zpool *zpool)
- {
- 	return zpool->driver->total_size(zpool->pool);
- }
-+EXPORT_SYMBOL(zpool_get_total_size);
- 
- static int __init init_zpool(void)
- {
++ * zpool_has_pool() - Check if the pool driver is available
++ * @type	The type of the zpool to check (e.g. zbud, zsmalloc)
++ *
++ * This checks if the @type pool driver is available.
++ *
++ * Returns: true if @type pool is available, false if not
++ */
++bool zpool_has_pool(char *type)
++{
++	struct zpool_driver *driver = zpool_get_driver(type);
++
++	if (!driver) {
++		request_module("zpool-%s", type);
++		driver = zpool_get_driver(type);
++	}
++
++	if (!driver)
++		return false;
++
++	zpool_put_driver(driver);
++	return true;
++}
++EXPORT_SYMBOL(zpool_has_pool);
++
++/**
+  * zpool_create_pool() - Create a new zpool
+  * @type	The type of the zpool to create (e.g. zbud, zsmalloc)
+  * @name	The name of the zpool (e.g. zram0, zswap)
 -- 
 2.1.0
 
