@@ -1,61 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 37D4A6B009C
-	for <linux-mm@kvack.org>; Fri, 29 May 2015 16:32:54 -0400 (EDT)
-Received: by pabru16 with SMTP id ru16so68105379pab.1
-        for <linux-mm@kvack.org>; Fri, 29 May 2015 13:32:54 -0700 (PDT)
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 851CC6B009E
+	for <linux-mm@kvack.org>; Fri, 29 May 2015 17:26:17 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so62204206pdb.1
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 14:26:17 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id cq9si9993120pad.1.2015.05.29.13.32.53
+        by mx.google.com with ESMTPS id b2si10156792pdj.13.2015.05.29.14.26.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 May 2015 13:32:53 -0700 (PDT)
-Date: Fri, 29 May 2015 13:32:52 -0700
+        Fri, 29 May 2015 14:26:16 -0700 (PDT)
+Date: Fri, 29 May 2015 14:26:14 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [next:master 7235/7555] mm/page_alloc.c:654:121: warning:
- comparison of distinct pointer types lacks a cast
-Message-Id: <20150529133252.b0fa852381a501ff9df2ffdc@linux-foundation.org>
-In-Reply-To: <201505300112.mcr8MSyM%fengguang.wu@intel.com>
-References: <201505300112.mcr8MSyM%fengguang.wu@intel.com>
+Subject: Re: [RFC] mm: change irqs_disabled() test to spin_is_locked() in
+ mem_cgroup_swapout
+Message-Id: <20150529142614.37792b9ff867626dcf5e0f08@linux-foundation.org>
+In-Reply-To: <20150529104815.2d2e880c@sluggy>
+References: <20150529104815.2d2e880c@sluggy>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Dominik Dingel <dingel@linux.vnet.ibm.com>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Clark Williams <williams@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@glx-um.de>, linux-mm@kvack.org, RT <linux-rt-users@vger.kernel.org>, Fernando Lopez-Lezcano <nando@ccrma.Stanford.EDU>, Steven Rostedt <rostedt@goodmis.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-On Sat, 30 May 2015 01:48:20 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+On Fri, 29 May 2015 10:48:15 -0500 Clark Williams <williams@redhat.com> wrote:
 
-> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> head:   7732a9817fb01002bde7615066e86c156fb5a31b
-> commit: 0491d0d6aac97c5b8df17851db525f3758de26e6 [7235/7555] s390/mm: make hugepages_supported a boot time decision
-> config: s390-defconfig (attached as .config)
-> reproduce:
->   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
->   chmod +x ~/bin/make.cross
->   git checkout 0491d0d6aac97c5b8df17851db525f3758de26e6
->   # save the attached .config to linux build tree
->   make.cross ARCH=s390 
-> 
-> All warnings:
-> 
->    mm/page_alloc.c: In function '__free_one_page':
-> >> mm/page_alloc.c:654:121: warning: comparison of distinct pointer types lacks a cast
->       max_order = min(MAX_ORDER, pageblock_order + 1);
->                                                                                                                             ^
-> --
->    mm/cma.c: In function 'cma_init_reserved_mem':
-> >> mm/cma.c:186:137: warning: comparison of distinct pointer types lacks a cast
->      alignment = PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
+> The irqs_disabled() check in mem_cgroup_swapout() fails on the latest
+> RT kernel because RT mutexes do not disable interrupts when held. Change
+> the test for the lock being held to use spin_is_locked.
+>
+> ...
+>
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5845,7 +5845,7 @@ void mem_cgroup_swapout(struct page *page,
+> swp_entry_t entry) page_counter_uncharge(&memcg->memory, 1);
+>  
+>  	/* XXX: caller holds IRQ-safe mapping->tree_lock */
+> -	VM_BUG_ON(!irqs_disabled());
+> +	VM_BUG_ON(!spin_is_locked(&page_mapping(page)->tree_lock));
+>  
+>  	mem_cgroup_charge_statistics(memcg, page, -1);
+>  	memcg_check_events(memcg, page);
 
-Dominik's patch has somehow managed to change the type of
-pageblock_order.  Before the patch, pageblock_order expands to "(20 -
-12)".  After the patch, pageblock_order expands to "(HPAGE_SHIFT -
-12)".
+spin_is_locked() returns zero on uniprocessor builds.  The results will
+be unhappy.  
 
-And on s390, HPAGE_SHIFT is unsigned int.  On x86 HPAGE_SHIFT has type
-int.  I suggest the fix here is to make s390's HPAGE_SHIFT have type
-int as well.
+I suggest just deleting the check.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
