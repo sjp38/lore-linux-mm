@@ -1,298 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 284496B0070
-	for <linux-mm@kvack.org>; Fri, 29 May 2015 10:13:50 -0400 (EDT)
-Received: by pacux9 with SMTP id ux9so19460173pac.3
-        for <linux-mm@kvack.org>; Fri, 29 May 2015 07:13:49 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
-        by mx.google.com with ESMTP id zz4si8551151pbc.211.2015.05.29.07.13.48
-        for <linux-mm@kvack.org>;
-        Fri, 29 May 2015 07:13:48 -0700 (PDT)
-From: Eric B Munson <emunson@akamai.com>
-Subject: [RESEND PATCH 3/3] Add tests for lock on fault
-Date: Fri, 29 May 2015 10:13:28 -0400
-Message-Id: <1432908808-31150-4-git-send-email-emunson@akamai.com>
-In-Reply-To: <1432908808-31150-1-git-send-email-emunson@akamai.com>
-References: <1432908808-31150-1-git-send-email-emunson@akamai.com>
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B2CB6B0032
+	for <linux-mm@kvack.org>; Fri, 29 May 2015 10:43:57 -0400 (EDT)
+Received: by wifw1 with SMTP id w1so26773297wif.0
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 07:43:56 -0700 (PDT)
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com. [74.125.82.51])
+        by mx.google.com with ESMTPS id ed5si3872396wib.67.2015.05.29.07.43.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 May 2015 07:43:55 -0700 (PDT)
+Received: by wgme6 with SMTP id e6so64623328wgm.2
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 07:43:54 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20150529091129.GC31435@pd.tnic>
+References: <1432739944-22633-1-git-send-email-toshi.kani@hp.com>
+	<1432739944-22633-13-git-send-email-toshi.kani@hp.com>
+	<20150529091129.GC31435@pd.tnic>
+Date: Fri, 29 May 2015 07:43:54 -0700
+Message-ID: <CAPcyv4jHbrUP7bDpw2Cja5x0eMQZBLmmzFXbotQWSEkAiL1s7Q@mail.gmail.com>
+Subject: Re: [PATCH v10 12/12] drivers/block/pmem: Map NVDIMM with ioremap_wt()
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric B Munson <emunson@akamai.com>, Shuah Khan <shuahkh@osg.samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: Toshi Kani <toshi.kani@hp.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, jgross@suse.com, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, hmh@hmh.eng.br, yigal@plexistor.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "Elliott, Robert (Server Storage)" <Elliott@hp.com>, mcgrof@suse.com, Christoph Hellwig <hch@lst.de>, Matthew Wilcox <willy@linux.intel.com>
 
-Test the mmap() flag, the mlockall() flag, and ensure that mlock limits
-are respected.  Note that the limit test needs to be run a normal user.
+On Fri, May 29, 2015 at 2:11 AM, Borislav Petkov <bp@alien8.de> wrote:
+> On Wed, May 27, 2015 at 09:19:04AM -0600, Toshi Kani wrote:
+>> The pmem driver maps NVDIMM with ioremap_nocache() as we cannot
+>> write back the contents of the CPU caches in case of a crash.
+>>
+>> This patch changes to use ioremap_wt(), which provides uncached
+>> writes but cached reads, for improving read performance.
+>>
+>> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+>> ---
+>>  drivers/block/pmem.c |    4 ++--
+>>  1 file changed, 2 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/drivers/block/pmem.c b/drivers/block/pmem.c
+>> index eabf4a8..095dfaa 100644
+>> --- a/drivers/block/pmem.c
+>> +++ b/drivers/block/pmem.c
+>> @@ -139,11 +139,11 @@ static struct pmem_device *pmem_alloc(struct device *dev, struct resource *res)
+>>       }
+>>
+>>       /*
+>> -      * Map the memory as non-cachable, as we can't write back the contents
+>> +      * Map the memory as write-through, as we can't write back the contents
+>>        * of the CPU caches in case of a crash.
+>>        */
+>>       err = -ENOMEM;
+>> -     pmem->virt_addr = ioremap_nocache(pmem->phys_addr, pmem->size);
+>> +     pmem->virt_addr = ioremap_wt(pmem->phys_addr, pmem->size);
+>>       if (!pmem->virt_addr)
+>>               goto out_release_region;
+>
+> Dan, Ross, what about this one?
+>
+> ACK to pick it up as a temporary solution?
 
-Signed-off-by: Eric B Munson <emunson@akamai.com>
-Cc: Shuah Khan <shuahkh@osg.samsung.com>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-api@vger.kernel.org
----
- tools/testing/selftests/vm/Makefile         |   8 +-
- tools/testing/selftests/vm/lock-on-fault.c  | 145 ++++++++++++++++++++++++++++
- tools/testing/selftests/vm/on-fault-limit.c |  47 +++++++++
- tools/testing/selftests/vm/run_vmtests      |  23 +++++
- 4 files changed, 222 insertions(+), 1 deletion(-)
- create mode 100644 tools/testing/selftests/vm/lock-on-fault.c
- create mode 100644 tools/testing/selftests/vm/on-fault-limit.c
+I see that is_new_memtype_allowed() is updated to disallow some
+combinations, but the manual seems to imply any mixing of memory types
+is unsupported.  Which worries me even in the current code where we
+have uncached mappings in the driver, and potentially cached DAX
+mappings handed out to userspace.
 
-diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
-index a5ce953..32f3d20 100644
---- a/tools/testing/selftests/vm/Makefile
-+++ b/tools/testing/selftests/vm/Makefile
-@@ -1,7 +1,13 @@
- # Makefile for vm selftests
- 
- CFLAGS = -Wall
--BINARIES = hugepage-mmap hugepage-shm map_hugetlb thuge-gen hugetlbfstest
-+BINARIES = hugepage-mmap
-+BINARIES += hugepage-shm
-+BINARIES += hugetlbfstest
-+BINARIES += lock-on-fault
-+BINARIES += map_hugetlb
-+BINARIES += on-fault-limit
-+BINARIES += thuge-gen
- BINARIES += transhuge-stress
- 
- all: $(BINARIES)
-diff --git a/tools/testing/selftests/vm/lock-on-fault.c b/tools/testing/selftests/vm/lock-on-fault.c
-new file mode 100644
-index 0000000..e6a9688
---- /dev/null
-+++ b/tools/testing/selftests/vm/lock-on-fault.c
-@@ -0,0 +1,145 @@
-+#include <sys/mman.h>
-+#include <stdio.h>
-+#include <unistd.h>
-+#include <string.h>
-+#include <sys/time.h>
-+#include <sys/resource.h>
-+
-+#ifndef MCL_ON_FAULT
-+#define MCL_ON_FAULT 4
-+#endif
-+
-+#define PRESENT_BIT	0x8000000000000000
-+#define PFN_MASK	0x007FFFFFFFFFFFFF
-+#define UNEVICTABLE_BIT	(1UL << 18)
-+
-+static int check_pageflags(void *map)
-+{
-+	FILE *file;
-+	unsigned long pfn1;
-+	unsigned long pfn2;
-+	unsigned long offset1;
-+	unsigned long offset2;
-+	int ret = 1;
-+
-+	file = fopen("/proc/self/pagemap", "r");
-+	if (!file) {
-+		perror("fopen");
-+		return ret;
-+	}
-+	offset1 = (unsigned long)map / getpagesize() * sizeof(unsigned long);
-+	offset2 = ((unsigned long)map + getpagesize()) / getpagesize() * sizeof(unsigned long);
-+	if (fseek(file, offset1, SEEK_SET)) {
-+		perror("fseek");
-+		goto out;
-+	}
-+
-+	if (fread(&pfn1, sizeof(unsigned long), 1, file) != 1) {
-+		perror("fread");
-+		goto out;
-+	}
-+
-+	if (fseek(file, offset2, SEEK_SET)) {
-+		perror("fseek");
-+		goto out;
-+	}
-+
-+	if (fread(&pfn2, sizeof(unsigned long), 1, file) != 1) {
-+		perror("fread");
-+		goto out;
-+	}
-+
-+	/* pfn2 should not be present */
-+	if (pfn2 & PRESENT_BIT) {
-+		printf("page map says 0x%lx\n", pfn2);
-+		printf("present is    0x%lx\n", PRESENT_BIT);
-+		goto out;
-+	}
-+
-+	/* pfn1 should be present */
-+	if ((pfn1 & PRESENT_BIT) == 0) {
-+		printf("page map says 0x%lx\n", pfn1);
-+		printf("present is    0x%lx\n", PRESENT_BIT);
-+		goto out;
-+	}
-+
-+	pfn1 &= PFN_MASK;
-+	fclose(file);
-+	file = fopen("/proc/kpageflags", "r");
-+	if (!file) {
-+		perror("fopen");
-+		munmap(map, 2 * getpagesize());
-+		return ret;
-+	}
-+
-+	if (fseek(file, pfn1 * sizeof(unsigned long), SEEK_SET)) {
-+		perror("fseek");
-+		goto out;
-+	}
-+
-+	if (fread(&pfn2, sizeof(unsigned long), 1, file) != 1) {
-+		perror("fread");
-+		goto out;
-+	}
-+
-+	/* pfn2 now contains the entry from kpageflags for the first page, the
-+	 * unevictable bit should be set */
-+	if ((pfn2 & UNEVICTABLE_BIT) == 0) {
-+		printf("kpageflags says 0x%lx\n", pfn2);
-+		printf("unevictable is  0x%lx\n", UNEVICTABLE_BIT);
-+		goto out;
-+	}
-+
-+	ret = 0;
-+
-+out:
-+	fclose(file);
-+	return ret;
-+}
-+
-+static int test_mmap(int flags)
-+{
-+	int ret = 1;
-+	void *map;
-+
-+	map = mmap(NULL, 2 * getpagesize(), PROT_READ | PROT_WRITE, flags, 0, 0);
-+	if (map == MAP_FAILED) {
-+		perror("mmap()");
-+		return ret;
-+	}
-+
-+	/* Write something into the first page to ensure it is present */
-+	*(char *)map = 1;
-+
-+	ret = check_pageflags(map);
-+
-+	munmap(map, 2 * getpagesize());
-+	return ret;
-+}
-+
-+static int test_mlockall(void)
-+{
-+	int ret = 1;
-+
-+	if (mlockall(MCL_ON_FAULT)) {
-+		perror("mlockall");
-+		return ret;
-+	}
-+
-+	ret = test_mmap(MAP_PRIVATE | MAP_ANONYMOUS);
-+	munlockall();
-+	return ret;
-+}
-+
-+#ifndef MAP_LOCKONFAULT
-+#define MAP_LOCKONFAULT (MAP_HUGETLB << 1)
-+#endif
-+
-+int main(int argc, char **argv)
-+{
-+	int ret = 0;
-+
-+	ret += test_mmap(MAP_PRIVATE | MAP_ANONYMOUS | MAP_LOCKONFAULT);
-+	ret += test_mlockall();
-+	return ret;
-+}
-diff --git a/tools/testing/selftests/vm/on-fault-limit.c b/tools/testing/selftests/vm/on-fault-limit.c
-new file mode 100644
-index 0000000..bd70078
---- /dev/null
-+++ b/tools/testing/selftests/vm/on-fault-limit.c
-@@ -0,0 +1,47 @@
-+#include <sys/mman.h>
-+#include <stdio.h>
-+#include <unistd.h>
-+#include <string.h>
-+#include <sys/time.h>
-+#include <sys/resource.h>
-+
-+#ifndef MCL_ON_FAULT
-+#define MCL_ON_FAULT 4
-+#endif
-+
-+static int test_limit(void)
-+{
-+	int ret = 1;
-+	struct rlimit lims;
-+	void *map;
-+
-+	if (getrlimit(RLIMIT_MEMLOCK, &lims)) {
-+		perror("getrlimit");
-+		return ret;
-+	}
-+
-+	if (mlockall(MCL_ON_FAULT)) {
-+		perror("mlockall");
-+		return ret;
-+	}
-+
-+	map = mmap(NULL, 2 * lims.rlim_max, PROT_READ | PROT_WRITE,
-+		   MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE, 0, 0);
-+	if (map != MAP_FAILED)
-+		printf("mmap should have failed, but didn't\n");
-+	else {
-+		ret = 0;
-+		munmap(map, 2 * lims.rlim_max);
-+	}
-+
-+	munlockall();
-+	return ret;
-+}
-+
-+int main(int argc, char **argv)
-+{
-+	int ret = 0;
-+
-+	ret += test_limit();
-+	return ret;
-+}
-diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
-index c87b681..c1aecce 100755
---- a/tools/testing/selftests/vm/run_vmtests
-+++ b/tools/testing/selftests/vm/run_vmtests
-@@ -90,4 +90,27 @@ fi
- umount $mnt
- rm -rf $mnt
- echo $nr_hugepgs > /proc/sys/vm/nr_hugepages
-+
-+echo "--------------------"
-+echo "running lock-on-fault"
-+echo "--------------------"
-+./lock-on-fault
-+if [ $? -ne 0 ]; then
-+	echo "[FAIL]"
-+	exitcode=1
-+else
-+	echo "[PASS]"
-+fi
-+
-+echo "--------------------"
-+echo "running on-fault-limit"
-+echo "--------------------"
-+sudo -u nobody ./on-fault-limit
-+if [ $? -ne 0 ]; then
-+	echo "[FAIL]"
-+	exitcode=1
-+else
-+	echo "[PASS]"
-+fi
-+
- exit $exitcode
--- 
-1.9.1
+A general quibble separate from this patch is that we don't have a way
+of knowing if ioremap() will reject or change our requested memory
+type.  Shouldn't the driver be explicitly requesting a known valid
+type in advance?
+
+Lastly we now have the PMEM API patches from Ross out for review where
+he is assuming cached mappings with non-temporal writes:
+https://lists.01.org/pipermail/linux-nvdimm/2015-May/000929.html.
+This gives us WC semantics on writes which I believe has the nice
+property of reducing the number of write transactions to memory.
+Also, the numbers in the paper seem to be assuming DAX operation, but
+this ioremap_wt() is in the driver and typically behind a file system.
+Are the numbers relevant to that usage mode?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
