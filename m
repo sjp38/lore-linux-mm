@@ -1,109 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D70F6B0085
-	for <linux-mm@kvack.org>; Fri, 29 May 2015 14:51:55 -0400 (EDT)
-Received: by obcnx10 with SMTP id nx10so58826669obc.2
-        for <linux-mm@kvack.org>; Fri, 29 May 2015 11:51:55 -0700 (PDT)
-Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
-        by mx.google.com with ESMTPS id h5si4073653oer.59.2015.05.29.11.51.54
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 296906B0087
+	for <linux-mm@kvack.org>; Fri, 29 May 2015 15:12:18 -0400 (EDT)
+Received: by wicmx19 with SMTP id mx19so23963465wic.0
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 12:12:17 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id cy1si5156885wib.89.2015.05.29.12.12.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 May 2015 11:51:54 -0700 (PDT)
-Message-ID: <1432924340.23540.78.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v10 12/12] drivers/block/pmem: Map NVDIMM with
- ioremap_wt()
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 29 May 2015 12:32:20 -0600
-In-Reply-To: <CAPcyv4g+zYFkEYpa0HCh0Q+2C3wWNr6v3ZU143h52OKf=U=Qvw@mail.gmail.com>
-References: <1432739944-22633-1-git-send-email-toshi.kani@hp.com>
-	 <1432739944-22633-13-git-send-email-toshi.kani@hp.com>
-	 <20150529091129.GC31435@pd.tnic>
-	 <CAPcyv4jHbrUP7bDpw2Cja5x0eMQZBLmmzFXbotQWSEkAiL1s7Q@mail.gmail.com>
-	 <1432911782.23540.55.camel@misato.fc.hp.com>
-	 <CAPcyv4g+zYFkEYpa0HCh0Q+2C3wWNr6v3ZU143h52OKf=U=Qvw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Fri, 29 May 2015 12:12:16 -0700 (PDT)
+Date: Fri, 29 May 2015 15:11:59 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC] mm: change irqs_disabled() test to spin_is_locked() in
+ mem_cgroup_swapout
+Message-ID: <20150529191159.GA29078@cmpxchg.org>
+References: <20150529104815.2d2e880c@sluggy>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150529104815.2d2e880c@sluggy>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Borislav Petkov <bp@alien8.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, jgross@suse.com, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, hmh@hmh.eng.br, yigal@plexistor.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "Elliott, Robert (Server
- Storage)" <Elliott@hp.com>, mcgrof@suse.com, Christoph Hellwig <hch@lst.de>, Matthew Wilcox <willy@linux.intel.com>
+To: Clark Williams <williams@redhat.com>
+Cc: Thomas Gleixner <tglx@glx-um.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, RT <linux-rt-users@vger.kernel.org>, Fernando Lopez-Lezcano <nando@ccrma.Stanford.EDU>, Steven Rostedt <rostedt@goodmis.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-On Fri, 2015-05-29 at 11:19 -0700, Dan Williams wrote:
-> On Fri, May 29, 2015 at 8:03 AM, Toshi Kani <toshi.kani@hp.com> wrote:
-> > On Fri, 2015-05-29 at 07:43 -0700, Dan Williams wrote:
-> >> On Fri, May 29, 2015 at 2:11 AM, Borislav Petkov <bp@alien8.de> wrote:
-> >> > On Wed, May 27, 2015 at 09:19:04AM -0600, Toshi Kani wrote:
-> >> >> The pmem driver maps NVDIMM with ioremap_nocache() as we cannot
- :
-> >> >> -     pmem->virt_addr = ioremap_nocache(pmem->phys_addr, pmem->size);
-> >> >> +     pmem->virt_addr = ioremap_wt(pmem->phys_addr, pmem->size);
-> >> >>       if (!pmem->virt_addr)
-> >> >>               goto out_release_region;
-> >> >
-> >> > Dan, Ross, what about this one?
-> >> >
-> >> > ACK to pick it up as a temporary solution?
-> >>
-> >> I see that is_new_memtype_allowed() is updated to disallow some
-> >> combinations, but the manual seems to imply any mixing of memory types
-> >> is unsupported.  Which worries me even in the current code where we
-> >> have uncached mappings in the driver, and potentially cached DAX
-> >> mappings handed out to userspace.
-> >
-> > is_new_memtype_allowed() is not to allow some combinations of mixing of
-> > memory types.  When it is allowed, the requested type of ioremap_xxx()
-> > is changed to match with the existing map type, so that mixing of memory
-> > types does not happen.
-> 
-> Yes, but now if the caller was expecting one memory type and gets
-> another one that is something I think the driver would want to know.
-> At a minimum I don't think we want to get emails about pmem driver
-> performance problems when someone's platform is silently degrading WB
-> to UC for example.
+Hi Clark,
 
-The pmem driver creates an ioremap map to an NVDIMM range first.  So,
-there will be no conflict at this point, unless there is a conflicting
-driver claiming the same NVDIMM range.
+On Fri, May 29, 2015 at 10:48:15AM -0500, Clark Williams wrote:
+> @@ -5845,7 +5845,7 @@ void mem_cgroup_swapout(struct page *page,
+> swp_entry_t entry) page_counter_uncharge(&memcg->memory, 1);
+>  
+>  	/* XXX: caller holds IRQ-safe mapping->tree_lock */
+> -	VM_BUG_ON(!irqs_disabled());
+> +	VM_BUG_ON(!spin_is_locked(&page_mapping(page)->tree_lock));
+>  
+>  	mem_cgroup_charge_statistics(memcg, page, -1);
 
-DAX then uses the pmem driver (or other byte-addressable driver) to
-mount a file system and creates a separate user-space mapping for
-mmap().  So, a (silent) map-type conflict will happen at this point,
-which may not be protected by the ioremap itself.
+It's not about the lock, it's about preemption.  The charge statistics
+use __this_cpu operations and they're updated from process context and
+interrupt context both.
 
-> > DAX uses vm_insert_mixed(), which does not even check the existing map
-> > type to the physical address.
-> 
-> Right, I think that's a problem...
-> 
-> >> A general quibble separate from this patch is that we don't have a way
-> >> of knowing if ioremap() will reject or change our requested memory
-> >> type.  Shouldn't the driver be explicitly requesting a known valid
-> >> type in advance?
-> >
-> > I agree we need a solution here.
-> >
-> >> Lastly we now have the PMEM API patches from Ross out for review where
-> >> he is assuming cached mappings with non-temporal writes:
-> >> https://lists.01.org/pipermail/linux-nvdimm/2015-May/000929.html.
-> >> This gives us WC semantics on writes which I believe has the nice
-> >> property of reducing the number of write transactions to memory.
-> >> Also, the numbers in the paper seem to be assuming DAX operation, but
-> >> this ioremap_wt() is in the driver and typically behind a file system.
-> >> Are the numbers relevant to that usage mode?
-> >
-> > I have not looked into the Ross's changes yet, but they do not seem to
-> > replace the use of ioremap_nocache().  If his changes can use WB type
-> > reliably, yes, we do not need a temporary solution of using ioremap_wt()
-> > in this driver.
-> 
-> Hmm, yes you're right, it seems those patches did not change the
-> implementation to use ioremap_cache()... which happens to not be
-> implemented on all architectures.  I'll take a look.
+This function really should do a local_irq_save().  I only added the
+VM_BUG_ON() to document that we know the caller is holding an IRQ-safe
+lock and so we don't need to bother with another level of IRQ saving.
 
-Thanks,
--Toshi
+So how does this translate to RT?  I don't know.  But if switching to
+explicit IRQ toggling would help you guys out we can do that.  It is
+in the swapout path after all, the optimization isn't that important.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
