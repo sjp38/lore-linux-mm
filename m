@@ -1,18 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FF806B0071
-	for <linux-mm@kvack.org>; Sat, 30 May 2015 15:02:22 -0400 (EDT)
-Received: by pdfh10 with SMTP id h10so77080016pdf.3
-        for <linux-mm@kvack.org>; Sat, 30 May 2015 12:02:21 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id pm11si14020774pdb.55.2015.05.30.12.02.20
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E54A6B0072
+	for <linux-mm@kvack.org>; Sat, 30 May 2015 15:02:25 -0400 (EDT)
+Received: by padj3 with SMTP id j3so14545813pad.0
+        for <linux-mm@kvack.org>; Sat, 30 May 2015 12:02:24 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id kd9si13961727pbc.109.2015.05.30.12.02.23
         for <linux-mm@kvack.org>;
-        Sat, 30 May 2015 12:02:21 -0700 (PDT)
-Subject: [PATCH v2 4/4] arch,
- x86: cache management apis for persistent memory
+        Sat, 30 May 2015 12:02:24 -0700 (PDT)
+Subject: [PATCH v2 2/4] devm: fix ioremap_cache() usage
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Sat, 30 May 2015 14:59:40 -0400
-Message-ID: <20150530185940.32590.37804.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Sat, 30 May 2015 14:59:29 -0400
+Message-ID: <20150530185929.32590.22873.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <20150530185425.32590.3190.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <20150530185425.32590.3190.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -23,326 +22,123 @@ List-ID: <linux-mm.kvack.org>
 To: arnd@arndb.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org
 Cc: jgross@suse.com, x86@kernel.org, toshi.kani@hp.com, linux-nvdimm@lists.01.org, mcgrof@suse.com, konrad.wilk@oracle.com, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, geert@linux-m68k.org, hmh@hmh.eng.br, tj@kernel.org, hch@lst.de
 
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Provide devm_ioremap_cache() and fix up devm_ioremap_resource() to
+actually provide cacheable mappings.  On archs that implement
+ioremap_cache() devm_ioremap_resource() is always silently falling back
+to uncached when IORESOURCE_CACHEABLE is specified.
 
-Based on an original patch by Ross Zwisler [1].
-
-Writes to persistent memory have the potential to be posted to cpu
-cache, cpu write buffers, and platform write buffers (memory controller)
-before being committed to persistent media.  Provide apis
-(persistent_copy() and persistent_sync()) to copy data and assert that
-it is durable in PMEM (a persistent linear address range).
-
-[1]: https://lists.01.org/pipermail/linux-nvdimm/2015-May/000932.html
-
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-[djbw: s/arch_persistent_flush()/io_flush_cache_range()/]
+Cc: Toshi Kani <toshi.kani@hp.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/x86/Kconfig                  |    1 
- arch/x86/include/asm/cacheflush.h |   24 ++++++++++
- arch/x86/include/asm/io.h         |    6 ++
- drivers/block/pmem.c              |   58 ++++++++++++++++++++++-
- include/linux/pmem.h              |   93 +++++++++++++++++++++++++++++++++++++
- lib/Kconfig                       |    3 +
- 6 files changed, 183 insertions(+), 2 deletions(-)
- create mode 100644 include/linux/pmem.h
+ include/linux/io.h |    2 ++
+ lib/devres.c       |   48 +++++++++++++++++++++---------------------------
+ 2 files changed, 23 insertions(+), 27 deletions(-)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 73a4d0330ad0..6412d92e6f1e 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -102,6 +102,7 @@ config X86
- 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
- 	select HAVE_ARCH_HUGE_VMAP if X86_64 || X86_PAE
- 	select ARCH_HAS_SG_CHAIN
-+	select ARCH_HAS_PMEM_API
- 	select CLKEVT_I8253
- 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
- 	select GENERIC_IOMAP
-diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
-index b6f7457d12e4..6b8bd5c43bf6 100644
---- a/arch/x86/include/asm/cacheflush.h
-+++ b/arch/x86/include/asm/cacheflush.h
-@@ -4,6 +4,7 @@
- /* Caches aren't brain-dead on the intel. */
- #include <asm-generic/cacheflush.h>
- #include <asm/special_insns.h>
-+#include <asm/uaccess.h>
+diff --git a/include/linux/io.h b/include/linux/io.h
+index 04cce4da3685..1c9ad4c6d485 100644
+--- a/include/linux/io.h
++++ b/include/linux/io.h
+@@ -70,6 +70,8 @@ static inline void devm_ioport_unmap(struct device *dev, void __iomem *addr)
  
- /*
-  * The set_memory_* API can be used to change various attributes of a virtual
-@@ -108,4 +109,27 @@ static inline int rodata_test(void)
- }
- #endif
- 
-+static inline void arch_persistent_copy(void *dst, const void *src, size_t n)
-+{
-+	/*
-+	 * We are copying between two kernel buffers, if
-+	 * __copy_from_user_inatomic_nocache() returns an error (page
-+	 * fault) we would have already taken an unhandled fault before
-+	 * the BUG_ON.  The BUG_ON is simply here to satisfy
-+	 * __must_check and allow reuse of the common non-temporal store
-+	 * implementation for persistent_copy().
-+	 */
-+	BUG_ON(__copy_from_user_inatomic_nocache(dst, src, n));
-+}
-+
-+static inline void arch_persistent_sync(void)
-+{
-+	wmb();
-+	pcommit_sfence();
-+}
-+
-+static inline bool __arch_has_persistent_sync(void)
-+{
-+	return boot_cpu_has(X86_FEATURE_PCOMMIT);
-+}
- #endif /* _ASM_X86_CACHEFLUSH_H */
-diff --git a/arch/x86/include/asm/io.h b/arch/x86/include/asm/io.h
-index 956f2768bdc1..f3c32bb207cf 100644
---- a/arch/x86/include/asm/io.h
-+++ b/arch/x86/include/asm/io.h
-@@ -250,6 +250,12 @@ static inline void flush_write_buffers(void)
- #endif
+ void __iomem *devm_ioremap(struct device *dev, resource_size_t offset,
+ 			   resource_size_t size);
++void __iomem *devm_ioremap_cache(struct device *dev, resource_size_t offset,
++			   resource_size_t size);
+ void __iomem *devm_ioremap_nocache(struct device *dev, resource_size_t offset,
+ 				   resource_size_t size);
+ void __iomem *devm_ioremap_wc(struct device *dev, resource_size_t offset,
+diff --git a/lib/devres.c b/lib/devres.c
+index fbe2aac522e6..c8e75cdaf816 100644
+--- a/lib/devres.c
++++ b/lib/devres.c
+@@ -14,6 +14,8 @@ static int devm_ioremap_match(struct device *dev, void *res, void *match_data)
+ 	return *(void **)res == match_data;
  }
  
-+static inline void *arch_persistent_remap(resource_size_t offset,
-+	unsigned long size)
-+{
-+	return (void __force *) ioremap_cache(offset, size);
-+}
++typedef void __iomem *(*ioremap_fn)(resource_size_t offset, unsigned long size);
 +
- #endif /* __KERNEL__ */
+ /**
+  * devm_ioremap - Managed ioremap()
+  * @dev: Generic device to remap IO address for
+@@ -22,8 +24,9 @@ static int devm_ioremap_match(struct device *dev, void *res, void *match_data)
+  *
+  * Managed ioremap().  Map is automatically unmapped on driver detach.
+  */
+-void __iomem *devm_ioremap(struct device *dev, resource_size_t offset,
+-			   resource_size_t size)
++static void __iomem *devm_ioremap_type(struct device *dev,
++		resource_size_t offset, resource_size_t size,
++		ioremap_fn ioremap_type)
+ {
+ 	void __iomem **ptr, *addr;
  
- extern void native_io_delay(void);
-diff --git a/drivers/block/pmem.c b/drivers/block/pmem.c
-index 799acff6bd7c..10cbe557165c 100644
---- a/drivers/block/pmem.c
-+++ b/drivers/block/pmem.c
-@@ -23,9 +23,16 @@
- #include <linux/module.h>
- #include <linux/moduleparam.h>
- #include <linux/slab.h>
-+#include <linux/pmem.h>
+@@ -31,7 +34,7 @@ void __iomem *devm_ioremap(struct device *dev, resource_size_t offset,
+ 	if (!ptr)
+ 		return NULL;
  
- #define PMEM_MINORS		16
+-	addr = ioremap(offset, size);
++	addr = ioremap_type(offset, size);
+ 	if (addr) {
+ 		*ptr = addr;
+ 		devres_add(dev, ptr);
+@@ -40,34 +43,25 @@ void __iomem *devm_ioremap(struct device *dev, resource_size_t offset,
  
-+struct pmem_ops {
-+	void *(*remap)(resource_size_t offset, unsigned long size);
-+	void (*copy)(void *dst, const void *src, size_t size);
-+	void (*sync)(void);
-+};
+ 	return addr;
+ }
 +
- struct pmem_device {
- 	struct request_queue	*pmem_queue;
- 	struct gendisk		*pmem_disk;
-@@ -34,11 +41,54 @@ struct pmem_device {
- 	phys_addr_t		phys_addr;
- 	void			*virt_addr;
- 	size_t			size;
-+	struct pmem_ops		ops;
- };
++void __iomem *devm_ioremap(struct device *dev, resource_size_t offset,
++			   resource_size_t size)
++{
++	return devm_ioremap_type(dev, offset, size, ioremap);
++}
+ EXPORT_SYMBOL(devm_ioremap);
  
- static int pmem_major;
- static atomic_t pmem_index;
+-/**
+- * devm_ioremap_nocache - Managed ioremap_nocache()
+- * @dev: Generic device to remap IO address for
+- * @offset: BUS offset to map
+- * @size: Size of map
+- *
+- * Managed ioremap_nocache().  Map is automatically unmapped on driver
+- * detach.
+- */
++void __iomem *devm_ioremap_cache(struct device *dev, resource_size_t offset,
++			   resource_size_t size)
++{
++	return devm_ioremap_type(dev, offset, size, ioremap_cache);
++}
++EXPORT_SYMBOL(devm_ioremap_cache);
++
+ void __iomem *devm_ioremap_nocache(struct device *dev, resource_size_t offset,
+ 				   resource_size_t size)
+ {
+-	void __iomem **ptr, *addr;
+-
+-	ptr = devres_alloc(devm_ioremap_release, sizeof(*ptr), GFP_KERNEL);
+-	if (!ptr)
+-		return NULL;
+-
+-	addr = ioremap_nocache(offset, size);
+-	if (addr) {
+-		*ptr = addr;
+-		devres_add(dev, ptr);
+-	} else
+-		devres_free(ptr);
+-
+-	return addr;
++	return devm_ioremap_type(dev, offset, size, ioremap_nocache);
+ }
+ EXPORT_SYMBOL(devm_ioremap_nocache);
  
-+static void default_pmem_sync(void)
-+{
-+	wmb();
-+}
-+
-+static void default_pmem_copy(void *dst, const void *src, size_t size)
-+{
-+	memcpy(dst, src, size);
-+}
-+
-+static void pmem_ops_default_init(struct pmem_device *pmem)
-+{
-+	/*
-+	 * These defaults seek to offer decent performance and minimize
-+	 * the window between i/o completion and writes being durable on
-+	 * media.  However, it is undefined / architecture specific
-+	 * whether acknowledged data may be lost in transit if a power
-+	 * fail occurs after bio_endio().
-+	 */
-+	pmem->ops.remap = memremap_wt;
-+	pmem->ops.copy = default_pmem_copy;
-+	pmem->ops.sync = default_pmem_sync;
-+}
-+
-+static bool pmem_ops_init(struct pmem_device *pmem)
-+{
-+	if (IS_ENABLED(CONFIG_ARCH_HAS_PMEM_API) &&
-+			arch_has_persistent_sync()) {
-+		/*
-+		 * This arch + cpu guarantees that bio_endio() == data
-+		 * durable on media.
-+		 */
-+		pmem->ops.remap = persistent_remap;
-+		pmem->ops.copy = persistent_copy;
-+		pmem->ops.sync = persistent_sync;
-+		return true;
-+	}
-+
-+	pmem_ops_default_init(pmem);
-+	return false;
-+}
-+
- static void pmem_do_bvec(struct pmem_device *pmem, struct page *page,
- 			unsigned int len, unsigned int off, int rw,
- 			sector_t sector)
-@@ -51,7 +101,7 @@ static void pmem_do_bvec(struct pmem_device *pmem, struct page *page,
- 		flush_dcache_page(page);
- 	} else {
- 		flush_dcache_page(page);
--		memcpy(pmem->virt_addr + pmem_off, mem + off, len);
-+		pmem->ops.copy(pmem->virt_addr + pmem_off, mem + off, len);
+@@ -154,7 +148,7 @@ void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res)
  	}
  
- 	kunmap_atomic(mem);
-@@ -82,6 +132,8 @@ static void pmem_make_request(struct request_queue *q, struct bio *bio)
- 		sector += bvec.bv_len >> 9;
- 	}
+ 	if (res->flags & IORESOURCE_CACHEABLE)
+-		dest_ptr = devm_ioremap(dev, res->start, size);
++		dest_ptr = devm_ioremap_cache(dev, res->start, size);
+ 	else
+ 		dest_ptr = devm_ioremap_nocache(dev, res->start, size);
  
-+	if (rw)
-+		pmem->ops.sync();
- out:
- 	bio_endio(bio, err);
- }
-@@ -131,6 +183,8 @@ static struct pmem_device *pmem_alloc(struct device *dev, struct resource *res)
- 
- 	pmem->phys_addr = res->start;
- 	pmem->size = resource_size(res);
-+	if (!pmem_ops_init(pmem))
-+		dev_warn(dev, "unable to guarantee persistence of writes\n");
- 
- 	err = -EINVAL;
- 	if (!request_mem_region(pmem->phys_addr, pmem->size, "pmem")) {
-@@ -143,7 +197,7 @@ static struct pmem_device *pmem_alloc(struct device *dev, struct resource *res)
- 	 * of the CPU caches in case of a crash.
- 	 */
- 	err = -ENOMEM;
--	pmem->virt_addr = memremap_wt(pmem->phys_addr, pmem->size);
-+	pmem->virt_addr = pmem->ops.remap(pmem->phys_addr, pmem->size);
- 	if (!pmem->virt_addr)
- 		goto out_release_region;
- 
-diff --git a/include/linux/pmem.h b/include/linux/pmem.h
-new file mode 100644
-index 000000000000..e9a63ee1d361
---- /dev/null
-+++ b/include/linux/pmem.h
-@@ -0,0 +1,93 @@
-+/*
-+ * Copyright(c) 2015 Intel Corporation. All rights reserved.
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of version 2 of the GNU General Public License as
-+ * published by the Free Software Foundation.
-+ *
-+ * This program is distributed in the hope that it will be useful, but
-+ * WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+ * General Public License for more details.
-+ */
-+#ifndef __PMEM_H__
-+#define __PMEM_H__
-+
-+#include <linux/io.h>
-+#include <asm/cacheflush.h>
-+
-+/*
-+ * Architectures that define ARCH_HAS_PMEM_API must provide
-+ * implementations for arch_persistent_remap(), arch_persistent_copy(),
-+ * arch_persistent_sync(), and __arch_has_persistent_sync().
-+ */
-+
-+#ifdef CONFIG_ARCH_HAS_PMEM_API
-+/**
-+ * persistent_remap - map physical persistent memory for pmem api
-+ * @offset: physical address of persistent memory
-+ * @size: size of the mapping
-+ *
-+ * Establish a mapping of the architecture specific memory type expected
-+ * by persistent_copy() and persistent_sync().  For example, it may be
-+ * the case that an uncacheable or writethrough mapping is sufficient,
-+ * or a writeback mapping provided persistent_copy() and
-+ * persistent_sync() arrange for the data to be written through the
-+ * cache to persistent media.
-+ */
-+static inline void *persistent_remap(resource_size_t offset, unsigned long size)
-+{
-+	return arch_persistent_remap(offset, size);
-+}
-+
-+/**
-+ * persistent_copy - copy data to persistent memory
-+ * @dst: destination buffer for the copy
-+ * @src: source buffer for the copy
-+ * @n: length of the copy in bytes
-+ *
-+ * Perform a memory copy that results in the destination of the copy
-+ * being effectively evicted from, or never written to, the processor
-+ * cache hierarchy after the copy completes.  After persistent_copy()
-+ * data may still reside in cpu or platform buffers, so this operation
-+ * must be followed by a persistent_sync().
-+ */
-+static inline void persistent_copy(void *dst, const void *src, size_t n)
-+{
-+	arch_persistent_copy(dst, src, n);
-+}
-+
-+/**
-+ * persistent_sync - synchronize writes to persistent memory
-+ *
-+ * After a series of persistent_copy() operations this drains data from
-+ * cpu write buffers and any platform (memory controller) buffers to
-+ * ensure that written data is durable on persistent memory media.
-+ */
-+static inline void persistent_sync(void)
-+{
-+	arch_persistent_sync();
-+}
-+
-+/**
-+ * arch_has_persistent_sync - true if persistent_sync() ensures durability
-+ *
-+ * For a given cpu implementation within an architecture it is possible
-+ * that persistent_sync() resolves to a nop.  In the case this returns
-+ * false, pmem api users are unable to ensure durabilty and may want to
-+ * fall back to a different data consistency model, or otherwise notify
-+ * the user.
-+ */
-+static inline bool arch_has_persistent_sync(void)
-+{
-+	return __arch_has_persistent_sync();
-+}
-+#else
-+/* undefined symbols */
-+extern void *persistent_remap(resource_size_t offet, unsigned long size);
-+extern void persistent_copy(void *dst, const void *src, size_t n);
-+extern void persistent_sync(void);
-+extern bool arch_has_persistent_sync(void);
-+#endif /* CONFIG_ARCH_HAS_PMEM_API */
-+
-+#endif /* __PMEM_H__ */
-diff --git a/lib/Kconfig b/lib/Kconfig
-index 601965a948e8..e6a3c892d514 100644
---- a/lib/Kconfig
-+++ b/lib/Kconfig
-@@ -522,4 +522,7 @@ source "lib/fonts/Kconfig"
- config ARCH_HAS_SG_CHAIN
- 	def_bool n
- 
-+config ARCH_HAS_PMEM_API
-+	def_bool n
-+
- endmenu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
