@@ -1,81 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 75DD86B0032
-	for <linux-mm@kvack.org>; Sat, 30 May 2015 05:18:28 -0400 (EDT)
-Received: by obbnx5 with SMTP id nx5so73385057obb.0
-        for <linux-mm@kvack.org>; Sat, 30 May 2015 02:18:28 -0700 (PDT)
-Received: from mail-ob0-x231.google.com (mail-ob0-x231.google.com. [2607:f8b0:4003:c01::231])
-        by mx.google.com with ESMTPS id y10si5128814obw.9.2015.05.30.02.18.26
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 42DAD6B0032
+	for <linux-mm@kvack.org>; Sat, 30 May 2015 08:03:35 -0400 (EDT)
+Received: by wicmx19 with SMTP id mx19so34990510wic.0
+        for <linux-mm@kvack.org>; Sat, 30 May 2015 05:03:34 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
+        by mx.google.com with ESMTPS id cr5si13697362wjb.214.2015.05.30.05.03.31
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 May 2015 02:18:26 -0700 (PDT)
-Received: by obbea2 with SMTP id ea2so73591271obb.3
-        for <linux-mm@kvack.org>; Sat, 30 May 2015 02:18:26 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1432940350-1802-7-git-send-email-toshi.kani@hp.com>
-References: <1432940350-1802-1-git-send-email-toshi.kani@hp.com>
-	<1432940350-1802-7-git-send-email-toshi.kani@hp.com>
-Date: Sat, 30 May 2015 11:18:26 +0200
-Message-ID: <CAMuHMdWLMUr9ggkhbOiDSsc_eq04En3L5oX5pL=9gHuR6JDb+w@mail.gmail.com>
-Subject: Re: [PATCH v11 6/12] x86, mm, asm-gen: Add ioremap_wt() for WT
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Content-Type: text/plain; charset=UTF-8
+        Sat, 30 May 2015 05:03:31 -0700 (PDT)
+Received: by wivl4 with SMTP id l4so38535661wiv.1
+        for <linux-mm@kvack.org>; Sat, 30 May 2015 05:03:31 -0700 (PDT)
+From: Jeff Layton <jlayton@poochiereds.net>
+Subject: [PATCH 0/4] sunrpc: clean up "swapper" xprt handling
+Date: Sat, 30 May 2015 08:03:09 -0400
+Message-Id: <1432987393-15604-1-git-send-email-jeff.layton@primarydata.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, Andy Lutomirski <luto@amacapital.net>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, yigal@plexistor.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Elliott@hp.com, "Luis R. Rodriguez" <mcgrof@suse.com>, Christoph Hellwig <hch@lst.de>
+To: trond.myklebust@primarydata.com
+Cc: linux-nfs@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Jerome Marchand <jmarchan@redhat.com>
 
-On Sat, May 30, 2015 at 12:59 AM, Toshi Kani <toshi.kani@hp.com> wrote:
-> --- a/include/asm-generic/io.h
-> +++ b/include/asm-generic/io.h
-> @@ -785,8 +785,17 @@ static inline void __iomem *ioremap_wc(phys_addr_t offset, size_t size)
->  }
->  #endif
->
-> +#ifndef ioremap_wt
-> +#define ioremap_wt ioremap_wt
-> +static inline void __iomem *ioremap_wt(phys_addr_t offset, size_t size)
-> +{
-> +       return ioremap_nocache(offset, size);
-> +}
-> +#endif
-> +
->  #ifndef iounmap
->  #define iounmap iounmap
-> +
->  static inline void iounmap(void __iomem *addr)
->  {
->  }
-> diff --git a/include/asm-generic/iomap.h b/include/asm-generic/iomap.h
-> index 1b41011..d8f8622 100644
-> --- a/include/asm-generic/iomap.h
-> +++ b/include/asm-generic/iomap.h
-> @@ -66,6 +66,10 @@ extern void ioport_unmap(void __iomem *);
->  #define ioremap_wc ioremap_nocache
->  #endif
->
-> +#ifndef ARCH_HAS_IOREMAP_WT
-> +#define ioremap_wt ioremap_nocache
-> +#endif
+This series is a (small) overhaul of the swap-over-NFS code. The main
+impetus is to fix the problem reported by Jerome Marchand. We currently
+hold the rcu_read_lock when calling xs_swapper and that's just plain
+wrong. The first patch in this series should fix that problem, and also
+clean up a bit of a layering violation.
 
-Defining ioremap_wt in two different places in asm-generic looks fishy to me.
+The other focus of this set is to change how the swapper refcounting
+works. Right now, it's only tracked in the rpc_xprt, and there seem to
+be some gaps in its coverage -- places where we should taking or
+dropping references but aren't. This changes it so that the clnt tracks
+the number of swapfiles that it has, and the xprt tracks the number of
+"swappable" clients.
 
-If <asm/io.h> already provides it (either through asm-generic/io.h or
-arch/<arch>/include/asm/io.h), why does asm-generic/iomap.h need to define
-its own version?
+It also ensures that we only call sk_set_memalloc once per socket. I
+believe that's the correct thing to do as the main reason for the
+memalloc_socks counter is to track whether we have _any_
+memalloc-enabled sockets.
 
-I see this pattern already exists for ioremap_wc...
+There is still some work to be done here as I think there remains some
+potential for races between swapon/swapoff, and reconnect or migration
+events. That will take some careful thought that I haven't the time to
+spend on at the moment. I don't think this set will make those races
+any worse though.
 
-Gr{oetje,eeting}s,
+Jeff Layton (4):
+  sunrpc: keep a count of swapfiles associated with the rpc_clnt
+  sunrpc: make xprt->swapper an atomic_t
+  sunrpc: if we're closing down a socket, clear memalloc on it first
+  sunrpc: lock xprt before trying to set memalloc on the sockets
 
-                        Geert
+ fs/nfs/file.c                | 11 ++------
+ include/linux/sunrpc/clnt.h  |  1 +
+ include/linux/sunrpc/sched.h | 16 +++++++++++
+ include/linux/sunrpc/xprt.h  |  5 ++--
+ net/sunrpc/clnt.c            | 67 ++++++++++++++++++++++++++++++++++++++------
+ net/sunrpc/xprtsock.c        | 59 +++++++++++++++++++++++++++++---------
+ 6 files changed, 125 insertions(+), 34 deletions(-)
 
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+-- 
+2.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
