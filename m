@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E4206B0032
-	for <linux-mm@kvack.org>; Sat, 30 May 2015 17:16:31 -0400 (EDT)
-Received: by wizo1 with SMTP id o1so61797907wiz.1
-        for <linux-mm@kvack.org>; Sat, 30 May 2015 14:16:31 -0700 (PDT)
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com. [74.125.82.44])
-        by mx.google.com with ESMTPS id g4si16747938wjs.106.2015.05.30.14.16.29
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 3507F6B0032
+	for <linux-mm@kvack.org>; Sat, 30 May 2015 17:39:51 -0400 (EDT)
+Received: by wibut5 with SMTP id ut5so8990342wib.1
+        for <linux-mm@kvack.org>; Sat, 30 May 2015 14:39:50 -0700 (PDT)
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
+        by mx.google.com with ESMTPS id p2si10775726wij.21.2015.05.30.14.39.48
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 May 2015 14:16:29 -0700 (PDT)
-Received: by wgme6 with SMTP id e6so86782943wgm.2
-        for <linux-mm@kvack.org>; Sat, 30 May 2015 14:16:29 -0700 (PDT)
+        Sat, 30 May 2015 14:39:49 -0700 (PDT)
+Received: by wizo1 with SMTP id o1so62112088wiz.1
+        for <linux-mm@kvack.org>; Sat, 30 May 2015 14:39:48 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <201505302252.19647.arnd@arndb.de>
+In-Reply-To: <201505302300.10950.arnd@arndb.de>
 References: <20150530185425.32590.3190.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<20150530185929.32590.22873.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<201505302252.19647.arnd@arndb.de>
-Date: Sat, 30 May 2015 14:16:28 -0700
-Message-ID: <CAPcyv4g30QqO2+vmhfFi6Mw3pku=BkEmvUbzxMme4nm8SkHyrQ@mail.gmail.com>
-Subject: Re: [PATCH v2 2/4] devm: fix ioremap_cache() usage
+	<20150530185935.32590.95416.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<201505302300.10950.arnd@arndb.de>
+Date: Sat, 30 May 2015 14:39:48 -0700
+Message-ID: <CAPcyv4hqQaabcOsOZA9emT5f+UF9GgD-PiYupng4HYwymcvYmQ@mail.gmail.com>
+Subject: Re: [PATCH v2 3/4] arch: introduce memremap()
 From: Dan Williams <dan.j.williams@intel.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -26,25 +26,61 @@ List-ID: <linux-mm.kvack.org>
 To: Arnd Bergmann <arnd@arndb.de>
 Cc: Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, geert@linux-m68k.org, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Tejun Heo <tj@kernel.org>, Christoph Hellwig <hch@lst.de>
 
-On Sat, May 30, 2015 at 1:52 PM, Arnd Bergmann <arnd@arndb.de> wrote:
+On Sat, May 30, 2015 at 2:00 PM, Arnd Bergmann <arnd@arndb.de> wrote:
 > On Saturday 30 May 2015, Dan Williams wrote:
->> @@ -154,7 +148,7 @@ void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res)
->>         }
 >>
->>         if (res->flags & IORESOURCE_CACHEABLE)
->> -               dest_ptr = devm_ioremap(dev, res->start, size);
->> +               dest_ptr = devm_ioremap_cache(dev, res->start, size);
->>         else
->>                 dest_ptr = devm_ioremap_nocache(dev, res->start, size);
+>> +/*
+>> + * memremap() is "ioremap" for cases where it is known that the resource
+>> + * being mapped does not have i/o side effects and the __iomem
+>> + * annotation is not applicable.
+>> + */
+>> +
+>> +static inline void *memremap(resource_size_t offset, size_t size)
+>> +{
+>> +       return (void __force *) ioremap(offset, size);
+>> +}
+>> +
+>> +static inline void *memremap_nocache(resource_size_t offset, size_t size)
+>> +{
+>> +       return (void __force *) ioremap_nocache(offset, size);
+>> +}
+>> +
+>> +static inline void *memremap_cache(resource_size_t offset, size_t size)
+>> +{
+>> +       return (void __force *) ioremap_cache(offset, size);
+>> +}
+>> +
 >
-> I think the existing uses of IORESOURCE_CACHEABLE are mostly bugs, so changing
-> the behavior here may cause more problems than it solves.
+> There are architectures on which the result of ioremap is not necessarily
+> a pointer, but instead indicates that the access is to be done through
+> some other indirect access, or require special instructions. I think implementing
+> the memremap() interfaces is generally helpful, but don't rely on the
+> ioremap implementation.
+
+Is it enough to detect the archs where ioremap() does return an
+otherwise usable pointer and set ARCH_HAS_MEMREMAP, in the first take
+of this introduction?  Regardless, it seems that drivers should have
+Kconfig dependency checks for archs where ioremap can not be used in
+this manner.
+
+> Adding both cached an uncached versions is also dangerous, because you
+> typically get either undefined behavior or a system checkstop when a
+> single page is mapped both cached and uncached at the same time. This
+> means that doing memremap() or memremap_nocache() on something that
+> may be part of the linear kernel mapping is a bug, and we should probably
+> check for that here.
+
+Part of the reason for relying on ioremap() was to borrow its internal
+checks to fail attempts that try to remap ranges that are already in
+the kernel linear map.  Hmm, that's a guarantee x86 ioremap gives, but
+maybe that's not universal?
+
+> We can probably avoid having both memremap() and memremap_nocache(),
+> as all architectures define ioremap() and ioremap_nocache() to be the
+> same thing.
 >
 
-Ok, but that effectively makes devm_ioremap_resource() unusable for
-the cached case.  How about introducing devm_ioremap_cache_resource(),
-and cleaning up devm_ioremap_resource() to stop pretending that it is
-honoring the memory type of the resource?
+Ok
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
