@@ -1,71 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id AB6196B0070
-	for <linux-mm@kvack.org>; Sat, 30 May 2015 00:16:17 -0400 (EDT)
-Received: by padj3 with SMTP id j3so6114692pad.0
-        for <linux-mm@kvack.org>; Fri, 29 May 2015 21:16:17 -0700 (PDT)
-Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com. [2607:f8b0:400e:c02::235])
-        by mx.google.com with ESMTPS id iv3si11261547pbb.202.2015.05.29.21.16.16
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 75DD86B0032
+	for <linux-mm@kvack.org>; Sat, 30 May 2015 05:18:28 -0400 (EDT)
+Received: by obbnx5 with SMTP id nx5so73385057obb.0
+        for <linux-mm@kvack.org>; Sat, 30 May 2015 02:18:28 -0700 (PDT)
+Received: from mail-ob0-x231.google.com (mail-ob0-x231.google.com. [2607:f8b0:4003:c01::231])
+        by mx.google.com with ESMTPS id y10si5128814obw.9.2015.05.30.02.18.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 May 2015 21:16:16 -0700 (PDT)
-Received: by pdbki1 with SMTP id ki1so67344924pdb.1
-        for <linux-mm@kvack.org>; Fri, 29 May 2015 21:16:16 -0700 (PDT)
-Date: Sat, 30 May 2015 13:16:38 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] zram: clear disk io accounting when reset zram device
-Message-ID: <20150530041638.GA525@swordfish>
-References: <"000001d099be$fae6cc90$f0b465b0$@yang"@samsung.com>
- <20150529034141.GA1157@swordfish>
- <20150529145418.GG11609@blaptop>
+        Sat, 30 May 2015 02:18:26 -0700 (PDT)
+Received: by obbea2 with SMTP id ea2so73591271obb.3
+        for <linux-mm@kvack.org>; Sat, 30 May 2015 02:18:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150529145418.GG11609@blaptop>
+In-Reply-To: <1432940350-1802-7-git-send-email-toshi.kani@hp.com>
+References: <1432940350-1802-1-git-send-email-toshi.kani@hp.com>
+	<1432940350-1802-7-git-send-email-toshi.kani@hp.com>
+Date: Sat, 30 May 2015 11:18:26 +0200
+Message-ID: <CAMuHMdWLMUr9ggkhbOiDSsc_eq04En3L5oX5pL=9gHuR6JDb+w@mail.gmail.com>
+Subject: Re: [PATCH v11 6/12] x86, mm, asm-gen: Add ioremap_wt() for WT
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Weijie Yang <weijie.yang@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, ngupta@vflare.org, 'Weijie Yang' <weijie.yang.kh@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, Andy Lutomirski <luto@amacapital.net>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, yigal@plexistor.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Elliott@hp.com, "Luis R. Rodriguez" <mcgrof@suse.com>, Christoph Hellwig <hch@lst.de>
 
-On (05/29/15 23:54), Minchan Kim wrote:
-> I think the problem is caused from weired feature "reset" of zram.
+On Sat, May 30, 2015 at 12:59 AM, Toshi Kani <toshi.kani@hp.com> wrote:
+> --- a/include/asm-generic/io.h
+> +++ b/include/asm-generic/io.h
+> @@ -785,8 +785,17 @@ static inline void __iomem *ioremap_wc(phys_addr_t offset, size_t size)
+>  }
+>  #endif
+>
+> +#ifndef ioremap_wt
+> +#define ioremap_wt ioremap_wt
+> +static inline void __iomem *ioremap_wt(phys_addr_t offset, size_t size)
+> +{
+> +       return ioremap_nocache(offset, size);
+> +}
+> +#endif
+> +
+>  #ifndef iounmap
+>  #define iounmap iounmap
+> +
+>  static inline void iounmap(void __iomem *addr)
+>  {
+>  }
+> diff --git a/include/asm-generic/iomap.h b/include/asm-generic/iomap.h
+> index 1b41011..d8f8622 100644
+> --- a/include/asm-generic/iomap.h
+> +++ b/include/asm-generic/iomap.h
+> @@ -66,6 +66,10 @@ extern void ioport_unmap(void __iomem *);
+>  #define ioremap_wc ioremap_nocache
+>  #endif
+>
+> +#ifndef ARCH_HAS_IOREMAP_WT
+> +#define ioremap_wt ioremap_nocache
+> +#endif
 
-agree.
+Defining ioremap_wt in two different places in asm-generic looks fishy to me.
 
-> Until a while ago, we didn't have hot_add/del feature so we should
-> use custom reset function but now we have hot/add feature.
-> So reset is logically same feature(ie, reset = hot_remove+hot_add
-> but remains same device id).
-> 
+If <asm/io.h> already provides it (either through asm-generic/io.h or
+arch/<arch>/include/asm/io.h), why does asm-generic/iomap.h need to define
+its own version?
 
-hm, sounds interesting, but I think it will end up being tricky.
+I see this pattern already exists for ioremap_wc...
 
-zram_remove() will be called from device's sysfs node (now we call it from
-zram_control sysfs class node, makes a huge difference). sysfs locks the node
-until node's read/write handler returns back, so zram_remove() will be called
-with lock(s_active#XXX) being locked (we had a lockdep splat with these locks
-recently), while zram_remove()->sysfs_remove_group() will once again attempt
-to lock this node (the very same lock(s_active#XXX)). in other words, we cannot
-fully remove zram device from its sysfs attr. and I don't want to add any bool
-flags to zram_remove() and zram_add() indicating that this is a "partial" device
-remove: don't delete device's sysfs group in remove() and don't create it in add().
+Gr{oetje,eeting}s,
 
+                        Geert
 
-doing reset from zram_control is easy, for sure:
-	lock idr mutex,
-	do zram_remove() and zram_add()
-	unlock idr lock.
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
 
-`echo ID > /sys/.../zram_control/reset`
-
-no need to modify remove()/add() -- idr will pick up just released idx,
-so device_id will be preserved. but it'll be hard to drop the per-device
-`reset` attr and to make it a zram_control attr. things would have been
-much simpler if all of zram users were also zramctl users. zramctl, from
-this point of view, lets us change zram interfaces easily -- we merely need
-to teach/modify zramctl, the rest is transparent.
-
-	-ss
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
