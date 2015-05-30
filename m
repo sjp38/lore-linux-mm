@@ -1,56 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E77F6B0083
-	for <linux-mm@kvack.org>; Fri, 29 May 2015 19:19:17 -0400 (EDT)
-Received: by oiww2 with SMTP id w2so67598303oiw.0
-        for <linux-mm@kvack.org>; Fri, 29 May 2015 16:19:16 -0700 (PDT)
-Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
-        by mx.google.com with ESMTPS id he3si4407730obb.78.2015.05.29.16.19.12
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id D30386B0032
+	for <linux-mm@kvack.org>; Fri, 29 May 2015 21:18:55 -0400 (EDT)
+Received: by wifw1 with SMTP id w1so43034437wif.0
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 18:18:55 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
+        by mx.google.com with ESMTPS id op3si6564157wic.73.2015.05.29.18.18.53
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 May 2015 16:19:13 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v11 12/12] drivers/block/pmem: Map NVDIMM with ioremap_wt()
-Date: Fri, 29 May 2015 16:59:10 -0600
-Message-Id: <1432940350-1802-13-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1432940350-1802-1-git-send-email-toshi.kani@hp.com>
+        Fri, 29 May 2015 18:18:53 -0700 (PDT)
+Received: by wizo1 with SMTP id o1so42927784wiz.1
+        for <linux-mm@kvack.org>; Fri, 29 May 2015 18:18:53 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1432940350-1802-13-git-send-email-toshi.kani@hp.com>
 References: <1432940350-1802-1-git-send-email-toshi.kani@hp.com>
+	<1432940350-1802-13-git-send-email-toshi.kani@hp.com>
+Date: Fri, 29 May 2015 18:18:52 -0700
+Message-ID: <CAPcyv4jrZG4YD+kav4SSD1CaXwzJphgJRgwUUeHLSUAcxZqqNg@mail.gmail.com>
+Subject: Re: [PATCH v11 12/12] drivers/block/pmem: Map NVDIMM with ioremap_wt()
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com, mcgrof@suse.com, hch@lst.de, Toshi Kani <toshi.kani@hp.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Juergen Gross <jgross@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Luis Rodriguez <mcgrof@suse.com>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Christoph Hellwig <hch@lst.de>
 
-From: Toshi Kani <toshi.kani@hp.com>
+On Fri, May 29, 2015 at 3:59 PM, Toshi Kani <toshi.kani@hp.com> wrote:
+> From: Toshi Kani <toshi.kani@hp.com>
+>
+> The pmem driver maps NVDIMM with ioremap_nocache() as we cannot
+> write back the contents of the CPU caches in case of a crash.
+>
+> This patch changes to use ioremap_wt(), which provides uncached
+> writes but cached reads, for improving read performance.
+>
+> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 
-The pmem driver maps NVDIMM with ioremap_nocache() as we cannot
-write back the contents of the CPU caches in case of a crash.
+Acked-by: Dan Williams <dan.j.williams@intel.com>
 
-This patch changes to use ioremap_wt(), which provides uncached
-writes but cached reads, for improving read performance.
-
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- drivers/block/pmem.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/drivers/block/pmem.c b/drivers/block/pmem.c
-index eabf4a8..095dfaa 100644
---- a/drivers/block/pmem.c
-+++ b/drivers/block/pmem.c
-@@ -139,11 +139,11 @@ static struct pmem_device *pmem_alloc(struct device *dev, struct resource *res)
- 	}
- 
- 	/*
--	 * Map the memory as non-cachable, as we can't write back the contents
-+	 * Map the memory as write-through, as we can't write back the contents
- 	 * of the CPU caches in case of a crash.
- 	 */
- 	err = -ENOMEM;
--	pmem->virt_addr = ioremap_nocache(pmem->phys_addr, pmem->size);
-+	pmem->virt_addr = ioremap_wt(pmem->phys_addr, pmem->size);
- 	if (!pmem->virt_addr)
- 		goto out_release_region;
- 
+...with the caveat that I'm going to follow in behind this series with
+generic ioremap_cache() enabling and converting pmem to use
+persistent_copy() / persistent_sync() when the arch/cpu has persistent
+memory synchronization instructions.  After the conversion
+ioremap_wt() will still be there for the non-persistent_sync() capable
+case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
