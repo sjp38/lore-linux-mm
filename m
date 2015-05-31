@@ -1,56 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id E838B6B0032
-	for <linux-mm@kvack.org>; Sun, 31 May 2015 02:56:04 -0400 (EDT)
-Received: by pdjm12 with SMTP id m12so1629972pdj.3
-        for <linux-mm@kvack.org>; Sat, 30 May 2015 23:56:04 -0700 (PDT)
-Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0088.outbound.protection.outlook.com. [157.55.234.88])
-        by mx.google.com with ESMTPS id cy3si15932530pdb.175.2015.05.30.23.56.03
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B0336B0032
+	for <linux-mm@kvack.org>; Sun, 31 May 2015 06:15:31 -0400 (EDT)
+Received: by wgez8 with SMTP id z8so92949386wge.0
+        for <linux-mm@kvack.org>; Sun, 31 May 2015 03:15:30 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ew7si16745371wjc.139.2015.05.31.03.15.28
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sat, 30 May 2015 23:56:03 -0700 (PDT)
-Message-ID: <556AB086.2030305@mellanox.com>
-Date: Sun, 31 May 2015 09:56:06 +0300
-From: Haggai Eran <haggaie@mellanox.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 31 May 2015 03:15:29 -0700 (PDT)
+Message-ID: <556ADF39.4080709@suse.com>
+Date: Sun, 31 May 2015 12:15:21 +0200
+From: Juergen Gross <jgross@suse.com>
 MIME-Version: 1.0
-Subject: Re: HMM (Heterogeneous Memory Management) v8
-References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
-In-Reply-To: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
-Content-Type: text/plain; charset="utf-8"
+Subject: Re: [PATCH 2/4] x86/pat: Merge pat_init_cache_modes() into its caller
+References: <20150531094655.GA20440@pd.tnic> <1433065686-20922-1-git-send-email-bp@alien8.de> <1433065686-20922-2-git-send-email-bp@alien8.de>
+In-Reply-To: <1433065686-20922-2-git-send-email-bp@alien8.de>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: j.glisse@gmail.com, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes
- Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van
- Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron
- Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul
- Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, linux-fsdevel@vger.kernel.org, Linda
- Wang <lwang@redhat.com>, Kevin E Martin <kem@redhat.com>, Jeff Law <law@redhat.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>
+To: Borislav Petkov <bp@alien8.de>, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, arnd@arndb.de, Elliott@hp.com, hch@lst.de, hmh@hmh.eng.br, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, konrad.wilk@oracle.com, linux-mm <linux-mm@kvack.org>, linux-nvdimm@lists.01.org, "Luis R. Rodriguez" <mcgrof@suse.com>, stefan.bader@canonical.com, Thomas Gleixner <tglx@linutronix.de>, Toshi Kani <toshi.kani@hp.com>, x86-ml <x86@kernel.org>, yigal@plexistor.com
 
-On 21/05/2015 22:31, j.glisse@gmail.com wrote:
-> From design point of view not much changed since last patchset (2).
-> Most of the change are in small details of the API expose to device
-> driver. This version also include device driver change for Mellanox
-> hardware to use HMM as an alternative to ODP (which provide a subset
-> of HMM functionality specificaly for RDMA devices). Long term plan
-> is to have HMM completely replace ODP.
+On 05/31/2015 11:48 AM, Borislav Petkov wrote:
+> From: Borislav Petkov <bp@suse.de>
+>
+> This way we can pass pat MSR value directly.
+>
+> No functionality change.
 
-Hi,
+You are breaking the Xen build with that change. pat_init_cache_modes()
+is called from arch/x86/xen/enlighten.c as well.
 
-I think HMM would be a good long term solution indeed. For now I would
-want to keep ODP and HMM side by side (as the patchset seem to do)
-mainly since HMM is introduced as a STAGING feature and ODP is part of
-the mainline kernel.
 
-It would be nice if you could provide a git repository to access the
-patches. I couldn't apply them to the current linux-next tree.
+Juergen
 
-A minor thing: I noticed some style issues in the patches. You should
-run checkpatch.pl on the patches and get them to match the coding style.
-
-Regards,
-Haggai
+>
+> Signed-off-by: Borislav Petkov <bp@suse.de>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Andy Lutomirski <luto@amacapital.net>
+> Cc: arnd@arndb.de
+> Cc: Elliott@hp.com
+> Cc: hch@lst.de
+> Cc: hmh@hmh.eng.br
+> Cc: H. Peter Anvin <hpa@zytor.com>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: jgross@suse.com
+> Cc: konrad.wilk@oracle.com
+> Cc: linux-mm <linux-mm@kvack.org>
+> Cc: linux-nvdimm@lists.01.org
+> Cc: Luis R. Rodriguez <mcgrof@suse.com>
+> Cc: stefan.bader@canonical.com
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Toshi Kani <toshi.kani@hp.com>
+> Cc: x86-ml <x86@kernel.org>
+> Cc: yigal@plexistor.com
+> ---
+>   arch/x86/mm/pat.c | 39 ++++++++++++++++-----------------------
+>   1 file changed, 16 insertions(+), 23 deletions(-)
+>
+> diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+> index 476d0780560f..4d28759f5a1a 100644
+> --- a/arch/x86/mm/pat.c
+> +++ b/arch/x86/mm/pat.c
+> @@ -172,32 +172,14 @@ static enum page_cache_mode pat_get_cache_mode(unsigned pat_val, char *msg)
+>
+>   #undef CM
+>
+> -/*
+> - * Update the cache mode to pgprot translation tables according to PAT
+> - * configuration.
+> - * Using lower indices is preferred, so we start with highest index.
+> - */
+> -void pat_init_cache_modes(void)
+> -{
+> -	int i;
+> -	enum page_cache_mode cache;
+> -	char pat_msg[33];
+> -	u64 pat;
+> -
+> -	rdmsrl(MSR_IA32_CR_PAT, pat);
+> -	pat_msg[32] = 0;
+> -	for (i = 7; i >= 0; i--) {
+> -		cache = pat_get_cache_mode((pat >> (i * 8)) & 7,
+> -					   pat_msg + 4 * i);
+> -		update_cache_mode_entry(i, cache);
+> -	}
+> -	pr_info("x86/PAT: Configuration [0-7]: %s\n", pat_msg);
+> -}
+> -
+>   #define PAT(x, y)	((u64)PAT_ ## y << ((x)*8))
+>
+>   static void pat_bsp_init(u64 pat)
+>   {
+> +	enum page_cache_mode cache;
+> +	char pat_msg[33];
+> +	int i;
+> +
+>   	if (!cpu_has_pat) {
+>   		pat_disable("PAT not supported by CPU.");
+>   		return;
+> @@ -211,7 +193,18 @@ static void pat_bsp_init(u64 pat)
+>
+>   	wrmsrl(MSR_IA32_CR_PAT, pat);
+>
+> -	pat_init_cache_modes();
+> +	pat_msg[32] = 0;
+> +
+> +	/*
+> +	 * Update the cache mode to pgprot translation tables according to PAT
+> +	 * configuration. Using lower indices is preferred, so we start with
+> +	 * highest index.
+> +	 */
+> +	for (i = 7; i >= 0; i--) {
+> +		cache = pat_get_cache_mode((pat >> (i * 8)) & 7, pat_msg + 4 * i);
+> +		update_cache_mode_entry(i, cache);
+> +	}
+> +	pr_info("x86/PAT: Configuration [0-7]: %s\n", pat_msg);
+>   }
+>
+>   static void pat_ap_init(u64 pat)
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
