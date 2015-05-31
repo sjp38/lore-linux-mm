@@ -1,83 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 50BBE6B0032
-	for <linux-mm@kvack.org>; Sat, 30 May 2015 21:17:53 -0400 (EDT)
-Received: by obew15 with SMTP id w15so82059091obe.1
-        for <linux-mm@kvack.org>; Sat, 30 May 2015 18:17:52 -0700 (PDT)
-Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
-        by mx.google.com with ESMTPS id h184si6187307oib.70.2015.05.30.18.17.52
+Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 96B4A6B0032
+	for <linux-mm@kvack.org>; Sat, 30 May 2015 21:39:27 -0400 (EDT)
+Received: by lagv1 with SMTP id v1so79209670lag.3
+        for <linux-mm@kvack.org>; Sat, 30 May 2015 18:39:27 -0700 (PDT)
+Received: from mail-la0-x22f.google.com (mail-la0-x22f.google.com. [2a00:1450:4010:c03::22f])
+        by mx.google.com with ESMTPS id l5si8611315lbt.73.2015.05.30.18.39.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 May 2015 18:17:52 -0700 (PDT)
-Message-ID: <1433033892.23540.100.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v11 6/12] x86, mm, asm-gen: Add ioremap_wt() for WT
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Sat, 30 May 2015 18:58:12 -0600
-In-Reply-To: <CAMuHMdWLMUr9ggkhbOiDSsc_eq04En3L5oX5pL=9gHuR6JDb+w@mail.gmail.com>
-References: <1432940350-1802-1-git-send-email-toshi.kani@hp.com>
-	 <1432940350-1802-7-git-send-email-toshi.kani@hp.com>
-	 <CAMuHMdWLMUr9ggkhbOiDSsc_eq04En3L5oX5pL=9gHuR6JDb+w@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Sat, 30 May 2015 18:39:25 -0700 (PDT)
+Received: by laat2 with SMTP id t2so79171942laa.1
+        for <linux-mm@kvack.org>; Sat, 30 May 2015 18:39:25 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CABPcSq+5SR0vqs6fGOwKJ0AZMiLSDQ6Rsevi2wB4YgZPJ9iadg@mail.gmail.com>
+References: <CABPcSq+uMcDSBU1xt7oRqPXn-89ZpJmxK+C46M7rX7+Y7-x7iQ@mail.gmail.com>
+	<20150528120015.GA26425@suse.de>
+	<CABPcSq+5SR0vqs6fGOwKJ0AZMiLSDQ6Rsevi2wB4YgZPJ9iadg@mail.gmail.com>
+Date: Sat, 30 May 2015 18:39:24 -0700
+Message-ID: <CABPcSq+Y6Mfe7AODKhgcvtMTmj+rYmzqzXbksmzq2S2pWizhAw@mail.gmail.com>
+Subject: Re: kernel bug(VM_BUG_ON_PAGE) with 3.18.13 in mm/migrate.c
+From: Jovi Zhangwei <jovi@cloudflare.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, Andy Lutomirski <luto@amacapital.net>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, yigal@plexistor.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Elliott@hp.com, "Luis R. Rodriguez" <mcgrof@suse.com>, Christoph Hellwig <hch@lst.de>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-kernel@vger.kernel.org, sasha.levin@oracle.com, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, vbabka@suse.cz, rientjes@google.com
 
-On Sat, 2015-05-30 at 11:18 +0200, Geert Uytterhoeven wrote:
-> On Sat, May 30, 2015 at 12:59 AM, Toshi Kani <toshi.kani@hp.com> wrote:
-> > --- a/include/asm-generic/io.h
-> > +++ b/include/asm-generic/io.h
-> > @@ -785,8 +785,17 @@ static inline void __iomem *ioremap_wc(phys_addr_t offset, size_t size)
-> >  }
-> >  #endif
-> >
-> > +#ifndef ioremap_wt
-> > +#define ioremap_wt ioremap_wt
-> > +static inline void __iomem *ioremap_wt(phys_addr_t offset, size_t size)
-> > +{
-> > +       return ioremap_nocache(offset, size);
-> > +}
-> > +#endif
-> > +
-> >  #ifndef iounmap
-> >  #define iounmap iounmap
-> > +
-> >  static inline void iounmap(void __iomem *addr)
-> >  {
-> >  }
-> > diff --git a/include/asm-generic/iomap.h b/include/asm-generic/iomap.h
-> > index 1b41011..d8f8622 100644
-> > --- a/include/asm-generic/iomap.h
-> > +++ b/include/asm-generic/iomap.h
-> > @@ -66,6 +66,10 @@ extern void ioport_unmap(void __iomem *);
-> >  #define ioremap_wc ioremap_nocache
-> >  #endif
-> >
-> > +#ifndef ARCH_HAS_IOREMAP_WT
-> > +#define ioremap_wt ioremap_nocache
-> > +#endif
-> 
-> Defining ioremap_wt in two different places in asm-generic looks fishy to me.
-> 
-> If <asm/io.h> already provides it (either through asm-generic/io.h or
-> arch/<arch>/include/asm/io.h), why does asm-generic/iomap.h need to define
-> its own version?
-> 
-> I see this pattern already exists for ioremap_wc...
-
-Yes, this patchset follows the model of ioremap_wc.  This duplication
-was introduced by 9216efafc52 "asm-generic/io.h: Reconcile I/O accessor
-overrides", while the original ioremap_wc support changed
-asm-generic/iomap.h (1526a756fba).  As described in patch 07, some
-architectures define ioremap_xxx() locally as well.
-
-It is too risky to do everything in one short.  I will look into the
-duplication issue as a separate item after this patchset is settled.
-
-Thanks,
--Toshi
+On Thu, May 28, 2015 at 11:38 AM, Jovi Zhangwei <jovi@cloudflare.com> wrote:
+> Hi Mel,
+>
+> On Thu, May 28, 2015 at 5:00 AM, Mel Gorman <mgorman@suse.de> wrote:
+>> On Wed, May 27, 2015 at 11:05:33AM -0700, Jovi Zhangwei wrote:
+>>> Hi,
+>>>
+>>> I got below kernel bug error in our 3.18.13 stable kernel.
+>>> "kernel BUG at mm/migrate.c:1661!"
+>>>
+>>> Source code:
+>>>
+>>> 1657    static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
+>>> 1658   {
+>>> 1659            int page_lru;
+>>> 1660
+>>> 1661           VM_BUG_ON_PAGE(compound_order(page) &&
+>>> !PageTransHuge(page), page);
+>>>
+>>> It's easy to trigger the error by run tcpdump in our system.(not sure
+>>> it will easily be reproduced in another system)
+>>> "sudo tcpdump -i bond0.100 'tcp port 4242' -c 100000000000 -w 4242.pcap"
+>>>
+>>> Any comments for this bug would be great appreciated. thanks.
+>>>
+>>
+>> What sort of compound page is it? What sort of VMA is it in? hugetlbfs
+>> pages should never be tagged for NUMA migrate and never enter this
+>> path. Transparent huge pages are handled properly so I'm wondering
+>> exactly what type of compound page this is and what mapped it into
+>> userspace.
+>>
+> Thanks for your reply.
+>
+> After reading net/packet/af_packet.c:alloc_one_pg_vec_page, I found
+> there indeed have compound page maped into userspace.
+>
+> I sent a patch for this issue(you may received it), but not sure it's
+> right to fix,
+> feel free to update it or use your own patch.
+>
+ping?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
