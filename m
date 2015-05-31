@@ -1,284 +1,399 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id CC10D6B0032
-	for <linux-mm@kvack.org>; Sun, 31 May 2015 07:02:25 -0400 (EDT)
-Received: by wicmx19 with SMTP id mx19so51964454wic.0
-        for <linux-mm@kvack.org>; Sun, 31 May 2015 04:02:25 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id eb8si13195811wib.36.2015.05.31.04.02.23
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id BCE5E6B006E
+	for <linux-mm@kvack.org>; Sun, 31 May 2015 07:10:27 -0400 (EDT)
+Received: by pdbnf5 with SMTP id nf5so25758982pdb.2
+        for <linux-mm@kvack.org>; Sun, 31 May 2015 04:10:27 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id c4si16695010pdf.49.2015.05.31.04.10.25
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 31 May 2015 04:02:24 -0700 (PDT)
-Message-ID: <556AEA3D.4000502@suse.com>
-Date: Sun, 31 May 2015 13:02:21 +0200
-From: Juergen Gross <jgross@suse.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] x86/pat: Merge pat_init_cache_modes() into its caller
-References: <20150531094655.GA20440@pd.tnic> <1433065686-20922-1-git-send-email-bp@alien8.de> <1433065686-20922-2-git-send-email-bp@alien8.de> <20150531102338.GB20440@pd.tnic>
-In-Reply-To: <20150531102338.GB20440@pd.tnic>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 31 May 2015 04:10:26 -0700 (PDT)
+Subject: Re: [PATCH] mm/oom: Suppress unnecessary "sharing same memory" message.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201505280659.HBE69765.SOtQMJLVFHFFOO@I-love.SAKURA.ne.jp>
+	<20150528180524.GB2321@dhcp22.suse.cz>
+	<201505292140.JHE18273.SFFMJFHOtQLOVO@I-love.SAKURA.ne.jp>
+	<20150529144922.GE22728@dhcp22.suse.cz>
+	<201505300220.GCH51071.FVOOFOLQStJMFH@I-love.SAKURA.ne.jp>
+In-Reply-To: <201505300220.GCH51071.FVOOFOLQStJMFH@I-love.SAKURA.ne.jp>
+Message-Id: <201505312010.JJJ26561.FJOOVSQHLFOtMF@I-love.SAKURA.ne.jp>
+Date: Sun, 31 May 2015 20:10:23 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, arnd@arndb.de, Elliott@hp.com, hch@lst.de, hmh@hmh.eng.br, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, konrad.wilk@oracle.com, linux-mm <linux-mm@kvack.org>, linux-nvdimm@lists.01.org, "Luis R. Rodriguez" <mcgrof@suse.com>, stefan.bader@canonical.com, Thomas Gleixner <tglx@linutronix.de>, Toshi Kani <toshi.kani@hp.com>, x86-ml <x86@kernel.org>, yigal@plexistor.com, lkml <linux-kernel@vger.kernel.org>
+To: mhocko@suse.cz
+Cc: linux-mm@kvack.org
 
-On 05/31/2015 12:23 PM, Borislav Petkov wrote:
-> On Sun, May 31, 2015 at 11:48:04AM +0200, Borislav Petkov wrote:
->> From: Borislav Petkov <bp@suse.de>
->>
->> This way we can pass pat MSR value directly.
->
-> This breaks xen as that function is used there, doh. :-\
->
-> JA 1/4 rgen,
->
-> can you check the enlighten.c changes below please?
+Michal Hocko wrote:
+> So I think, but I have to think more about this, a proper way to handle
+> this would be something like the following. The patch is obviously
+> incomplete because memcg OOM killer would need the same treatment which
+> calls for a common helper etc...
 
-Acked-by: Juergen Gross <jgross@suse.com>
+I believe that current out_of_memory() code is too optimistic about exiting
+task. Current code can easily result in either
 
->
-> I'm reading xen's PAT config from MSR_IA32_CR_PAT and handing it down to
-> pat_init_cache_modes(). That shouldn't change current behavior AFAICT
-> because pat_init_cache_modes() did it itself before.
->
-> Right?
->
-> Thanks.
->
-> ---
-> Author: Borislav Petkov <bp@suse.de>
-> Date:   Sat May 30 13:09:55 2015 +0200
->
->      x86/pat: Emulate PAT when it is disabled
->
->      In the case when PAT is disabled on the command line with "nopat" or
->      when virtualization doesn't support PAT (correctly) - see
->
->        9d34cfdf4796 ("x86: Don't rely on VMWare emulating PAT MSR correctly").
->
->      we emulate it using the PWT and PCD cache attribute bits. Get rid of
->      boot_pat_state while at it.
->
->      Based on a conglomerate patch from Toshi Kani.
->
->      Signed-off-by: Borislav Petkov <bp@suse.de>
->      Cc: Andrew Morton <akpm@linux-foundation.org>
->      Cc: Andy Lutomirski <luto@amacapital.net>
->      Cc: arnd@arndb.de
->      Cc: Elliott@hp.com
->      Cc: hch@lst.de
->      Cc: hmh@hmh.eng.br
->      Cc: H. Peter Anvin <hpa@zytor.com>
->      Cc: Ingo Molnar <mingo@redhat.com>
->      Cc: jgross@suse.com
->      Cc: konrad.wilk@oracle.com
->      Cc: linux-mm <linux-mm@kvack.org>
->      Cc: linux-nvdimm@lists.01.org
->      Cc: Luis R. Rodriguez <mcgrof@suse.com>
->      Cc: stefan.bader@canonical.com
->      Cc: Thomas Gleixner <tglx@linutronix.de>
->      Cc: Toshi Kani <toshi.kani@hp.com>
->      Cc: x86-ml <x86@kernel.org>
->      Cc: yigal@plexistor.com
->
-> diff --git a/arch/x86/include/asm/pat.h b/arch/x86/include/asm/pat.h
-> index cdcff7f7f694..ca6c228d5e62 100644
-> --- a/arch/x86/include/asm/pat.h
-> +++ b/arch/x86/include/asm/pat.h
-> @@ -6,7 +6,7 @@
->
->   bool pat_enabled(void);
->   extern void pat_init(void);
-> -void pat_init_cache_modes(void);
-> +void pat_init_cache_modes(u64);
->
->   extern int reserve_memtype(u64 start, u64 end,
->   		enum page_cache_mode req_pcm, enum page_cache_mode *ret_pcm);
-> diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-> index 1d553186c434..8533b46e6bee 100644
-> --- a/arch/x86/mm/init.c
-> +++ b/arch/x86/mm/init.c
-> @@ -40,7 +40,7 @@
->    */
->   uint16_t __cachemode2pte_tbl[_PAGE_CACHE_MODE_NUM] = {
->   	[_PAGE_CACHE_MODE_WB      ]	= 0         | 0        ,
-> -	[_PAGE_CACHE_MODE_WC      ]	= _PAGE_PWT | 0        ,
-> +	[_PAGE_CACHE_MODE_WC      ]	= 0         | _PAGE_PCD,
->   	[_PAGE_CACHE_MODE_UC_MINUS]	= 0         | _PAGE_PCD,
->   	[_PAGE_CACHE_MODE_UC      ]	= _PAGE_PWT | _PAGE_PCD,
->   	[_PAGE_CACHE_MODE_WT      ]	= 0         | _PAGE_PCD,
-> @@ -50,11 +50,11 @@ EXPORT_SYMBOL(__cachemode2pte_tbl);
->
->   uint8_t __pte2cachemode_tbl[8] = {
->   	[__pte2cm_idx( 0        | 0         | 0        )] = _PAGE_CACHE_MODE_WB,
-> -	[__pte2cm_idx(_PAGE_PWT | 0         | 0        )] = _PAGE_CACHE_MODE_WC,
-> +	[__pte2cm_idx(_PAGE_PWT | 0         | 0        )] = _PAGE_CACHE_MODE_UC_MINUS,
->   	[__pte2cm_idx( 0        | _PAGE_PCD | 0        )] = _PAGE_CACHE_MODE_UC_MINUS,
->   	[__pte2cm_idx(_PAGE_PWT | _PAGE_PCD | 0        )] = _PAGE_CACHE_MODE_UC,
->   	[__pte2cm_idx( 0        | 0         | _PAGE_PAT)] = _PAGE_CACHE_MODE_WB,
-> -	[__pte2cm_idx(_PAGE_PWT | 0         | _PAGE_PAT)] = _PAGE_CACHE_MODE_WC,
-> +	[__pte2cm_idx(_PAGE_PWT | 0         | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC_MINUS,
->   	[__pte2cm_idx(0         | _PAGE_PCD | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC_MINUS,
->   	[__pte2cm_idx(_PAGE_PWT | _PAGE_PCD | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC,
->   };
-> diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-> index 476d0780560f..6dc7826e4797 100644
-> --- a/arch/x86/mm/pat.c
-> +++ b/arch/x86/mm/pat.c
-> @@ -68,8 +68,6 @@ static int __init pat_debug_setup(char *str)
->   }
->   __setup("debugpat", pat_debug_setup);
->
-> -static u64 __read_mostly boot_pat_state;
-> -
->   #ifdef CONFIG_X86_PAT
->   /*
->    * X86 PAT uses page flags WC and Uncached together to keep track of
-> @@ -177,14 +175,12 @@ static enum page_cache_mode pat_get_cache_mode(unsigned pat_val, char *msg)
->    * configuration.
->    * Using lower indices is preferred, so we start with highest index.
->    */
-> -void pat_init_cache_modes(void)
-> +void pat_init_cache_modes(u64 pat)
->   {
-> -	int i;
->   	enum page_cache_mode cache;
->   	char pat_msg[33];
-> -	u64 pat;
-> +	int i;
->
-> -	rdmsrl(MSR_IA32_CR_PAT, pat);
->   	pat_msg[32] = 0;
->   	for (i = 7; i >= 0; i--) {
->   		cache = pat_get_cache_mode((pat >> (i * 8)) & 7,
-> @@ -198,24 +194,33 @@ void pat_init_cache_modes(void)
->
->   static void pat_bsp_init(u64 pat)
->   {
-> +	u64 tmp_pat;
-> +
->   	if (!cpu_has_pat) {
->   		pat_disable("PAT not supported by CPU.");
->   		return;
->   	}
->
-> -	rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
-> -	if (!boot_pat_state) {
-> +	if (!pat_enabled())
-> +		goto done;
-> +
-> +	rdmsrl(MSR_IA32_CR_PAT, tmp_pat);
-> +	if (!tmp_pat) {
->   		pat_disable("PAT MSR is 0, disabled.");
->   		return;
->   	}
->
->   	wrmsrl(MSR_IA32_CR_PAT, pat);
->
-> -	pat_init_cache_modes();
-> +done:
-> +	pat_init_cache_modes(pat);
->   }
->
->   static void pat_ap_init(u64 pat)
->   {
-> +	if (!pat_enabled())
-> +		return;
-> +
->   	if (!cpu_has_pat) {
->   		/*
->   		 * If this happens we are on a secondary CPU, but switched to
-> @@ -231,25 +236,45 @@ void pat_init(void)
->   {
->   	u64 pat;
->
-> -	if (!pat_enabled())
-> -		return;
-> -
-> -	/*
-> -	 * Set PWT to Write-Combining. All other bits stay the same:
-> -	 *
-> -	 * PTE encoding used in Linux:
-> -	 *      PAT
-> -	 *      |PCD
-> -	 *      ||PWT
-> -	 *      |||
-> -	 *      000 WB		_PAGE_CACHE_WB
-> -	 *      001 WC		_PAGE_CACHE_WC
-> -	 *      010 UC-		_PAGE_CACHE_UC_MINUS
-> -	 *      011 UC		_PAGE_CACHE_UC
-> -	 * PAT bit unused
-> -	 */
-> -	pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
-> -	      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
-> +	if (!pat_enabled()) {
-> +		/*
-> +		 * No PAT. Emulate the PAT table that corresponds to the two
-> +		 * cache bits, PWT (Write Through) and PCD (Cache Disable). This
-> +		 * setup is the same as the BIOS default setup when the system
-> +		 * has PAT but the "nopat" boot option has been specified. This
-> +		 * emulated PAT table is used when MSR_IA32_CR_PAT returns 0.
-> +		 *
-> +		 * PTE encoding used:
-> +		 *
-> +		 *       PCD
-> +		 *       |PWT  PAT
-> +		 *       ||    slot
-> +		 *       00    0    WB : _PAGE_CACHE_MODE_WB
-> +		 *       01    1    WT : _PAGE_CACHE_MODE_WT
-> +		 *       10    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
-> +		 *       11    3    UC : _PAGE_CACHE_MODE_UC
-> +		 *
-> +		 * NOTE: When WC or WP is used, it is redirected to UC- per
-> +		 * the default setup in __cachemode2pte_tbl[].
-> +		 */
-> +		pat = PAT(0, WB) | PAT(1, WT) | PAT(2, UC_MINUS) | PAT(3, UC) |
-> +		      PAT(4, WB) | PAT(5, WT) | PAT(6, UC_MINUS) | PAT(7, UC);
-> +	} else {
-> +		/*
-> +		 * PTE encoding used in Linux:
-> +		 *      PAT
-> +		 *      |PCD
-> +		 *      ||PWT
-> +		 *      |||
-> +		 *      000 WB          _PAGE_CACHE_WB
-> +		 *      001 WC          _PAGE_CACHE_WC
-> +		 *      010 UC-         _PAGE_CACHE_UC_MINUS
-> +		 *      011 UC          _PAGE_CACHE_UC
-> +		 * PAT bit unused
-> +		 */
-> +		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
-> +		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
-> +	}
->
->   	if (!boot_cpu_done) {
->   		pat_bsp_init(pat);
-> diff --git a/arch/x86/xen/enlighten.c b/arch/x86/xen/enlighten.c
-> index 46957ead3060..53233a9beea9 100644
-> --- a/arch/x86/xen/enlighten.c
-> +++ b/arch/x86/xen/enlighten.c
-> @@ -1467,6 +1467,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
->   {
->   	struct physdev_set_iopl set_iopl;
->   	unsigned long initrd_start = 0;
-> +	u64 pat;
->   	int rc;
->
->   	if (!xen_start_info)
-> @@ -1574,8 +1575,8 @@ asmlinkage __visible void __init xen_start_kernel(void)
->   	 * Modify the cache mode translation tables to match Xen's PAT
->   	 * configuration.
->   	 */
-> -
-> -	pat_init_cache_modes();
-> +	rdmsrl(MSR_IA32_CR_PAT, pat);
-> +	pat_init_cache_modes(pat);
->
->   	/* keep using Xen gdt for now; no urgent need to change it */
->
->
->
+  (1) silent hang up due to reporting nothing upon OOM deadlock
+  (2) very noisy oom_kill_process() due to re-reporting the same mm struct
+
+because we set TIF_MEMDIE to only one thread.
+
+To avoid (1), we should remove
+
+	/*
+	 * If current has a pending SIGKILL or is exiting, then automatically
+	 * select it.  The goal is to allow it to allocate so that it may
+	 * quickly exit and free its memory.
+	 *
+	 * But don't select if current has already released its mm and cleared
+	 * TIF_MEMDIE flag at exit_mm(), otherwise an OOM livelock may occur.
+	 */
+	if (current->mm &&
+	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
+		mark_oom_victim(current);
+		goto out;
+	}
+
+in out_of_memory() and
+
+	/*
+	 * If the task is already exiting, don't alarm the sysadmin or kill
+	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+	 */
+	task_lock(p);
+	if (p->mm && task_will_free_mem(p)) {
+		mark_oom_victim(p);
+		task_unlock(p);
+		put_task_struct(p);
+		return;
+	}
+	task_unlock(p);
+
+in oom_kill_process() which set TIF_MEMDIE to only one thread.
+Removing the former chunk helps when check_panic_on_oom() is configured to
+call panic() (i.e. /proc/sys/vm/panic_on_oom is not 0) and then the system
+fell into TIF_MEMDIE deadlock, for their systems will be rebooted
+automatically than entering into silent hang up loop upon OOM condition.
+
+To avoid (2), we should consider either
+
+  (a) Add a bool to "struct mm_struct" and set that bool to true when that
+      mm struct was chosen for the first time. Set TIF_MEMDIE to next thread
+      without calling printk() unless that mm was chosen for the first time.
+
+  (b) Set TIF_MEMDIE to all threads in all processes sharing the same mm
+      struct, making oom_scan_process_thread() return OOM_SCAN_ABORT as
+      long as there is a TIF_MEMDIE thread.
+
+Untested patch for (a) would look like
+------------------------------------------------------------
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 2836da7..b43e523 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -495,6 +495,7 @@ struct mm_struct {
+ 	/* address of the bounds directory */
+ 	void __user *bd_addr;
+ #endif
++	bool oom_report_done;
+ };
+ 
+ static inline void mm_init_cpumask(struct mm_struct *mm)
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index dff991e..bb31a11 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -497,6 +497,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 	struct task_struct *t;
+ 	struct mm_struct *mm;
+ 	unsigned int victim_points = 0;
++	bool silent;
+ 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+ 					      DEFAULT_RATELIMIT_BURST);
+ 
+@@ -513,6 +514,12 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 	}
+ 	task_unlock(p);
+ 
++	task_lock(p);
++	silent = (p->mm && p->mm->oom_report_done);
++	task_unlock(p);
++	if (silent)
++		goto silent_mode;
++
+ 	if (__ratelimit(&oom_rs))
+ 		dump_header(p, gfp_mask, order, memcg, nodemask);
+ 
+@@ -521,6 +528,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		message, task_pid_nr(p), p->comm, points);
+ 	task_unlock(p);
+ 
++ silent_mode:
+ 	/*
+ 	 * If any of p's children has a different mm and is eligible for kill,
+ 	 * the one with the highest oom_badness() score is sacrificed for its
+@@ -561,6 +569,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 
+ 	/* mm cannot safely be dereferenced after task_unlock(victim) */
+ 	mm = victim->mm;
++	mm->oom_report_done = true;
+ 	mark_oom_victim(victim);
+ 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+ 		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
+@@ -584,10 +593,12 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 			if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+ 				continue;
+ 
+-			task_lock(p);	/* Protect ->comm from prctl() */
+-			pr_err("Kill process %d (%s) sharing same memory\n",
+-				task_pid_nr(p), p->comm);
+-			task_unlock(p);
++			if (!silent) {
++				task_lock(p);	/* Protect ->comm from prctl() */
++				pr_err("Kill process %d (%s) sharing same memory\n",
++				       task_pid_nr(p), p->comm);
++				task_unlock(p);
++			}
+ 			do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+ 		}
+ 	rcu_read_unlock();
+------------------------------------------------------------
+
+Untested patch for (b) would look like
+------------------------------------------------------------
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index dff991e..8e47a1c 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -581,6 +581,8 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 	for_each_process(p)
+ 		if (p->mm == mm && !same_thread_group(p, victim) &&
+ 		    !(p->flags & PF_KTHREAD)) {
++			struct task_struct *t;
++
+ 			if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+ 				continue;
+ 
+@@ -589,6 +591,8 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 				task_pid_nr(p), p->comm);
+ 			task_unlock(p);
+ 			do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
++			for_each_thread(p, t)
++				mark_oom_victim(t);
+ 		}
+ 	rcu_read_unlock();
+ 
+------------------------------------------------------------
+
+If we forget about complete depletion of all memory, (b) is preferable from
+the point of view of reducing the possibility of falling into TIF_MEMDIE
+deadlock.
+
+The TIF_MEMDIE is meant to facilitate setting tsk->mm = NULL so that memory
+associated with the TIF_MEMDIE thread's mm struct is released soon. But the
+algorithm for choosing a thread does not (more precisely, can not) take lock
+dependency into account. There are locations where down_read(&tsk->mm->mmap_sem)
+and up_read(&tsk->mm->mmap_sem) are called between getting PF_EXITING and
+setting tsk->mm = NULL. Also, there are locations where memory allocations
+are done between down_write(&current->mm->mmap_sem) and
+up_write(&current->mm->mmap_sem). As a result, TIF_MEMDIE can be set to
+a thread which is waiting at e.g. down_read(&current->mm->mmap_sem) when one
+of threads sharing the same mm struct is doing memory allocations between
+down_write(&current->mm->mmap_sem) and up_write(&current->mm->mmap_sem).
+When such case occurred, the TIF_MEMDIE thread can not be terminated because
+memory allocation by non-TIF_MEMDIE thread cannot complete until
+non-TIF_MEMDIE thread gets TIF_MEMDIE (assuming that the "too small to fail"
+memory-allocation rule remains due to reasons explained at
+http://marc.info/?l=linux-mm&m=143239200805478 ). It seems to me that the
+description
+
+  This prevents mm->mmap_sem livelock when an oom killed thread cannot exit
+  because it requires the semaphore and its contended by another thread
+  trying to allocate memory itself.
+
+is not true, for sending SIGKILL cannot make another thread to return from
+memory allocation attempt.
+
+
+
+By the way, I got two mumbles.
+
+Is "If any of p's children has a different mm and is eligible for kill," logic
+in oom_kill_process() really needed? Didn't select_bad_process() which was
+called proior to calling oom_kill_process() already choose a best victim
+using for_each_process_thread() ?
+
+Is "/* mm cannot safely be dereferenced after task_unlock(victim) */" true?
+It seems to me that it should be "/* mm cannot safely be compared after
+task_unlock(victim) */" because it is theoretically possible to have
+
+  CPU 0                         CPU 1                   CPU 2
+  task_unlock(victim);
+                                victim exits and releases mm.
+                                Usage count of the mm becomes 0 and thus released.
+                                                        New mm is allocated and assigned to some thread.
+  (p->mm == mm) matches the recreated mm and kill unrelated p.
+
+sequence. We need to either get a reference to victim's mm before
+task_unlock(victim) or do comparison before task_unlock(victim).
+
+Below is just a guess which incorporated all changes described above.
+
+------------------------------------------------------------
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index dff991e..9bf9370 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -487,67 +487,20 @@ void oom_killer_enable(void)
+  * Must be called while holding a reference to p, which will be released upon
+  * returning.
+  */
+-void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
++void oom_kill_process(struct task_struct *victim, gfp_t gfp_mask, int order,
+ 		      unsigned int points, unsigned long totalpages,
+ 		      struct mem_cgroup *memcg, nodemask_t *nodemask,
+ 		      const char *message)
+ {
+-	struct task_struct *victim = p;
+-	struct task_struct *child;
++	struct task_struct *p;
+ 	struct task_struct *t;
++	unsigned int killed = 0;
+ 	struct mm_struct *mm;
+-	unsigned int victim_points = 0;
+ 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+ 					      DEFAULT_RATELIMIT_BURST);
+ 
+-	/*
+-	 * If the task is already exiting, don't alarm the sysadmin or kill
+-	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+-	 */
+-	task_lock(p);
+-	if (p->mm && task_will_free_mem(p)) {
+-		mark_oom_victim(p);
+-		task_unlock(p);
+-		put_task_struct(p);
+-		return;
+-	}
+-	task_unlock(p);
+-
+ 	if (__ratelimit(&oom_rs))
+-		dump_header(p, gfp_mask, order, memcg, nodemask);
+-
+-	task_lock(p);
+-	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
+-		message, task_pid_nr(p), p->comm, points);
+-	task_unlock(p);
+-
+-	/*
+-	 * If any of p's children has a different mm and is eligible for kill,
+-	 * the one with the highest oom_badness() score is sacrificed for its
+-	 * parent.  This attempts to lose the minimal amount of work done while
+-	 * still freeing memory.
+-	 */
+-	read_lock(&tasklist_lock);
+-	for_each_thread(p, t) {
+-		list_for_each_entry(child, &t->children, sibling) {
+-			unsigned int child_points;
+-
+-			if (child->mm == p->mm)
+-				continue;
+-			/*
+-			 * oom_badness() returns 0 if the thread is unkillable
+-			 */
+-			child_points = oom_badness(child, memcg, nodemask,
+-								totalpages);
+-			if (child_points > victim_points) {
+-				put_task_struct(victim);
+-				victim = child;
+-				victim_points = child_points;
+-				get_task_struct(victim);
+-			}
+-		}
+-	}
+-	read_unlock(&tasklist_lock);
++		dump_header(victim, gfp_mask, order, memcg, nodemask);
+ 
+ 	p = find_lock_task_mm(victim);
+ 	if (!p) {
+@@ -558,41 +511,24 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		put_task_struct(victim);
+ 		victim = p;
+ 	}
+-
+-	/* mm cannot safely be dereferenced after task_unlock(victim) */
+ 	mm = victim->mm;
+-	mark_oom_victim(victim);
+-	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+-		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
+-		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
+-		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
+-	task_unlock(victim);
+-
+-	/*
+-	 * Kill all user processes sharing victim->mm in other thread groups, if
+-	 * any.  They don't get access to memory reserves, though, to avoid
+-	 * depletion of all memory.  This prevents mm->mmap_sem livelock when an
+-	 * oom killed thread cannot exit because it requires the semaphore and
+-	 * its contended by another thread trying to allocate memory itself.
+-	 * That thread will now get access to memory reserves since it has a
+-	 * pending fatal signal.
+-	 */
+ 	rcu_read_lock();
+ 	for_each_process(p)
+-		if (p->mm == mm && !same_thread_group(p, victim) &&
+-		    !(p->flags & PF_KTHREAD)) {
+-			if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+-				continue;
+-
+-			task_lock(p);	/* Protect ->comm from prctl() */
+-			pr_err("Kill process %d (%s) sharing same memory\n",
+-				task_pid_nr(p), p->comm);
+-			task_unlock(p);
++		if (p->mm == mm && !(p->flags & PF_KTHREAD) &&
++		    p->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
+ 			do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
++			killed++;
++			for_each_thread(p, t)
++				mark_oom_victim(t);
+ 		}
+ 	rcu_read_unlock();
+-
+-	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
++	pr_err("%s: Kill process %d (%s) score %u, total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
++	       message, task_pid_nr(p), p->comm, points, K(mm->total_vm),
++	       K(get_mm_counter(mm, MM_ANONPAGES)),
++	       K(get_mm_counter(mm, MM_FILEPAGES)));
++	if (killed > 1)
++		pr_err("Killed %u processes sharing same memory\n", killed);
++	task_unlock(victim);
+ 	put_task_struct(victim);
+ }
+ #undef K
+@@ -667,20 +603,6 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 		goto out;
+ 
+ 	/*
+-	 * If current has a pending SIGKILL or is exiting, then automatically
+-	 * select it.  The goal is to allow it to allocate so that it may
+-	 * quickly exit and free its memory.
+-	 *
+-	 * But don't select if current has already released its mm and cleared
+-	 * TIF_MEMDIE flag at exit_mm(), otherwise an OOM livelock may occur.
+-	 */
+-	if (current->mm &&
+-	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
+-		mark_oom_victim(current);
+-		goto out;
+-	}
+-
+-	/*
+ 	 * Check if there were limitations on the allocation (only relevant for
+ 	 * NUMA) that may require different handling.
+ 	 */
+------------------------------------------------------------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
