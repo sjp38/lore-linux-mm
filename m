@@ -1,48 +1,45 @@
 From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v10 11/12] x86, mm, pat: Refactor !pat_enabled handling
-Date: Fri, 29 May 2015 17:13:08 +0200
-Message-ID: <20150529151308.GG31435@pd.tnic>
-References: <1432739944-22633-1-git-send-email-toshi.kani@hp.com>
- <1432739944-22633-12-git-send-email-toshi.kani@hp.com>
- <20150529085842.GA31435@pd.tnic>
- <1432909628.23540.40.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v11 2/12] x86, mm, pat: Refactor !pat_enabled handling
+Date: Sun, 31 May 2015 11:46:55 +0200
+Message-ID: <20150531094655.GA20440@pd.tnic>
+References: <1432940350-1802-1-git-send-email-toshi.kani@hp.com>
+ <1432940350-1802-3-git-send-email-toshi.kani@hp.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Return-path: <linux-kernel-owner@vger.kernel.org>
 Content-Disposition: inline
-In-Reply-To: <1432909628.23540.40.camel@misato.fc.hp.com>
+In-Reply-To: <1432940350-1802-3-git-send-email-toshi.kani@hp.com>
 Sender: linux-kernel-owner@vger.kernel.org
 To: Toshi Kani <toshi.kani@hp.com>
 Cc: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com, mcgrof@suse.com, hch@lst.de
 List-Id: linux-mm.kvack.org
 
-On Fri, May 29, 2015 at 08:27:08AM -0600, Toshi Kani wrote:
-> This simply preserves the original error check in the code.  This error
-> check makes sure that all CPUs have the PAT feature supported when PAT
-> is enabled.  This error can only happen when heterogeneous CPUs are
-> installed/emulated on the system/guest.  This check may be paranoid, but
-> this cleanup is not meant to modify such an error check.
+On Fri, May 29, 2015 at 04:59:00PM -0600, Toshi Kani wrote:
+> From: Toshi Kani <toshi.kani@hp.com>
+> 
+> This patch refactors the !pat_enabled code paths and integrates
+> them into the PAT abstraction code.  The PAT table is emulated by
+> corresponding to the two cache attribute bits, PWT (Write Through)
+> and PCD (Cache Disable).  The emulated PAT table is the same as the
+> BIOS default setup when the system has PAT but the "nopat" boot
+> option is specified.  The emulated PAT table is also used when
+> MSR_IA32_CR_PAT returns 0 -- 9d34cfdf4796 ("x86: Don't rely on
+> VMWare emulating PAT MSR correctly").
 
-No, this is a ridiculous attempt to justify crazy code. Please do it
-right. If the cleanup makes the code more insane than it is, then don't
-do it in the first place.
+To be honest, I wasn't surprised when you sent me the same patch and
+ignored most of my comments. For the future, please let me know if I'm
+wasting my time with commenting on your stuff so that I can plan my work
+and not waste time and energy reviewing, ok?
 
-> Can you consider the patch 10/12-11/12 as a separate patchset from the
-> WT series?  If that is OK, I will resubmit 10/12 (BUG->panic) and 11/12
-> (commit log update).
+Unfortunately, if you want something done right, you have to do it
+yourself.
 
-That's not enough. 11/12 is a convoluted mess which needs splitting and
-more detailed explanations in the commit messages.
+So I did that, I split that ugly cleanup into something much more
+readable, patches as a reply to this message.
 
-So no. Read what I said: do the cleanup *first* , *then* add the new
-functionality.
+Feel free to base your work ontop of
 
-The WT patches shouldn't change all too much from what you have now.
-Also, 11/12 changes stuff which you add in 1/12. This churn is useless
-and shouldn't be there at all.
-
-So you should be able to do the cleanup first and have the WT stuff
-ontop just fine.
+git://git.kernel.org/pub/scm/linux/kernel/git/bp/bp.git#tip-mm-2
 
 -- 
 Regards/Gruss,
