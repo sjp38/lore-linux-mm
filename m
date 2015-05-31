@@ -1,86 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 3507F6B0032
-	for <linux-mm@kvack.org>; Sat, 30 May 2015 17:39:51 -0400 (EDT)
-Received: by wibut5 with SMTP id ut5so8990342wib.1
-        for <linux-mm@kvack.org>; Sat, 30 May 2015 14:39:50 -0700 (PDT)
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
-        by mx.google.com with ESMTPS id p2si10775726wij.21.2015.05.30.14.39.48
+Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 50BBE6B0032
+	for <linux-mm@kvack.org>; Sat, 30 May 2015 21:17:53 -0400 (EDT)
+Received: by obew15 with SMTP id w15so82059091obe.1
+        for <linux-mm@kvack.org>; Sat, 30 May 2015 18:17:52 -0700 (PDT)
+Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
+        by mx.google.com with ESMTPS id h184si6187307oib.70.2015.05.30.18.17.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 May 2015 14:39:49 -0700 (PDT)
-Received: by wizo1 with SMTP id o1so62112088wiz.1
-        for <linux-mm@kvack.org>; Sat, 30 May 2015 14:39:48 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <201505302300.10950.arnd@arndb.de>
-References: <20150530185425.32590.3190.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<20150530185935.32590.95416.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<201505302300.10950.arnd@arndb.de>
-Date: Sat, 30 May 2015 14:39:48 -0700
-Message-ID: <CAPcyv4hqQaabcOsOZA9emT5f+UF9GgD-PiYupng4HYwymcvYmQ@mail.gmail.com>
-Subject: Re: [PATCH v2 3/4] arch: introduce memremap()
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+        Sat, 30 May 2015 18:17:52 -0700 (PDT)
+Message-ID: <1433033892.23540.100.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v11 6/12] x86, mm, asm-gen: Add ioremap_wt() for WT
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Sat, 30 May 2015 18:58:12 -0600
+In-Reply-To: <CAMuHMdWLMUr9ggkhbOiDSsc_eq04En3L5oX5pL=9gHuR6JDb+w@mail.gmail.com>
+References: <1432940350-1802-1-git-send-email-toshi.kani@hp.com>
+	 <1432940350-1802-7-git-send-email-toshi.kani@hp.com>
+	 <CAMuHMdWLMUr9ggkhbOiDSsc_eq04En3L5oX5pL=9gHuR6JDb+w@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, geert@linux-m68k.org, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Tejun Heo <tj@kernel.org>, Christoph Hellwig <hch@lst.de>
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, Andy Lutomirski <luto@amacapital.net>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, yigal@plexistor.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Elliott@hp.com, "Luis R. Rodriguez" <mcgrof@suse.com>, Christoph Hellwig <hch@lst.de>
 
-On Sat, May 30, 2015 at 2:00 PM, Arnd Bergmann <arnd@arndb.de> wrote:
-> On Saturday 30 May 2015, Dan Williams wrote:
->>
->> +/*
->> + * memremap() is "ioremap" for cases where it is known that the resource
->> + * being mapped does not have i/o side effects and the __iomem
->> + * annotation is not applicable.
->> + */
->> +
->> +static inline void *memremap(resource_size_t offset, size_t size)
->> +{
->> +       return (void __force *) ioremap(offset, size);
->> +}
->> +
->> +static inline void *memremap_nocache(resource_size_t offset, size_t size)
->> +{
->> +       return (void __force *) ioremap_nocache(offset, size);
->> +}
->> +
->> +static inline void *memremap_cache(resource_size_t offset, size_t size)
->> +{
->> +       return (void __force *) ioremap_cache(offset, size);
->> +}
->> +
->
-> There are architectures on which the result of ioremap is not necessarily
-> a pointer, but instead indicates that the access is to be done through
-> some other indirect access, or require special instructions. I think implementing
-> the memremap() interfaces is generally helpful, but don't rely on the
-> ioremap implementation.
+On Sat, 2015-05-30 at 11:18 +0200, Geert Uytterhoeven wrote:
+> On Sat, May 30, 2015 at 12:59 AM, Toshi Kani <toshi.kani@hp.com> wrote:
+> > --- a/include/asm-generic/io.h
+> > +++ b/include/asm-generic/io.h
+> > @@ -785,8 +785,17 @@ static inline void __iomem *ioremap_wc(phys_addr_t offset, size_t size)
+> >  }
+> >  #endif
+> >
+> > +#ifndef ioremap_wt
+> > +#define ioremap_wt ioremap_wt
+> > +static inline void __iomem *ioremap_wt(phys_addr_t offset, size_t size)
+> > +{
+> > +       return ioremap_nocache(offset, size);
+> > +}
+> > +#endif
+> > +
+> >  #ifndef iounmap
+> >  #define iounmap iounmap
+> > +
+> >  static inline void iounmap(void __iomem *addr)
+> >  {
+> >  }
+> > diff --git a/include/asm-generic/iomap.h b/include/asm-generic/iomap.h
+> > index 1b41011..d8f8622 100644
+> > --- a/include/asm-generic/iomap.h
+> > +++ b/include/asm-generic/iomap.h
+> > @@ -66,6 +66,10 @@ extern void ioport_unmap(void __iomem *);
+> >  #define ioremap_wc ioremap_nocache
+> >  #endif
+> >
+> > +#ifndef ARCH_HAS_IOREMAP_WT
+> > +#define ioremap_wt ioremap_nocache
+> > +#endif
+> 
+> Defining ioremap_wt in two different places in asm-generic looks fishy to me.
+> 
+> If <asm/io.h> already provides it (either through asm-generic/io.h or
+> arch/<arch>/include/asm/io.h), why does asm-generic/iomap.h need to define
+> its own version?
+> 
+> I see this pattern already exists for ioremap_wc...
 
-Is it enough to detect the archs where ioremap() does return an
-otherwise usable pointer and set ARCH_HAS_MEMREMAP, in the first take
-of this introduction?  Regardless, it seems that drivers should have
-Kconfig dependency checks for archs where ioremap can not be used in
-this manner.
+Yes, this patchset follows the model of ioremap_wc.  This duplication
+was introduced by 9216efafc52 "asm-generic/io.h: Reconcile I/O accessor
+overrides", while the original ioremap_wc support changed
+asm-generic/iomap.h (1526a756fba).  As described in patch 07, some
+architectures define ioremap_xxx() locally as well.
 
-> Adding both cached an uncached versions is also dangerous, because you
-> typically get either undefined behavior or a system checkstop when a
-> single page is mapped both cached and uncached at the same time. This
-> means that doing memremap() or memremap_nocache() on something that
-> may be part of the linear kernel mapping is a bug, and we should probably
-> check for that here.
+It is too risky to do everything in one short.  I will look into the
+duplication issue as a separate item after this patchset is settled.
 
-Part of the reason for relying on ioremap() was to borrow its internal
-checks to fail attempts that try to remap ranges that are already in
-the kernel linear map.  Hmm, that's a guarantee x86 ioremap gives, but
-maybe that's not universal?
-
-> We can probably avoid having both memremap() and memremap_nocache(),
-> as all architectures define ioremap() and ioremap_nocache() to be the
-> same thing.
->
-
-Ok
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
