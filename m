@@ -1,10 +1,11 @@
 From: Borislav Petkov <bp@alien8.de>
-Subject: [PATCH 1/4] x86/pat: Untangle pat_init()
-Date: Sun, 31 May 2015 11:48:03 +0200
-Message-ID: <1433065686-20922-1-git-send-email-bp@alien8.de>
+Subject: [PATCH 2/4] x86/pat: Merge pat_init_cache_modes() into its caller
+Date: Sun, 31 May 2015 11:48:04 +0200
+Message-ID: <1433065686-20922-2-git-send-email-bp@alien8.de>
 References: <20150531094655.GA20440@pd.tnic>
+ <1433065686-20922-1-git-send-email-bp@alien8.de>
 Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <20150531094655.GA20440@pd.tnic>
+In-Reply-To: <1433065686-20922-1-git-send-email-bp@alien8.de>
 Sender: linux-kernel-owner@vger.kernel.org
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, arnd@arndb.de, Elliott@hp.com, hch@lst.de, hmh@hmh.eng.br, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, jgross@suse.com, konrad.wilk@oracle.com, linux-mm <linux-mm@kvack.org>, linux-nvdimm@lists.01.org, "Luis R. Rodriguez" <mcgrof@suse.com>, stefan.bader@canonical.com, Thomas Gleixner <tglx@linutronix.de>, Toshi Kani <toshi.kani@hp.com>, x86-ml <x86@kernel.org>, yigal@plexistor.com
@@ -12,8 +13,9 @@ List-Id: linux-mm.kvack.org
 
 From: Borislav Petkov <bp@suse.de>
 
-Split it into a BSP and AP version which makes the PAT initialization
-path actually readable again.
+This way we can pass pat MSR value directly.
+
+No functionality change.
 
 Signed-off-by: Borislav Petkov <bp@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -35,111 +37,69 @@ Cc: Toshi Kani <toshi.kani@hp.com>
 Cc: x86-ml <x86@kernel.org>
 Cc: yigal@plexistor.com
 ---
- arch/x86/mm/pat.c | 69 ++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 40 insertions(+), 29 deletions(-)
+ arch/x86/mm/pat.c | 39 ++++++++++++++++-----------------------
+ 1 file changed, 16 insertions(+), 23 deletions(-)
 
 diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index a1c96544099d..476d0780560f 100644
+index 476d0780560f..4d28759f5a1a 100644
 --- a/arch/x86/mm/pat.c
 +++ b/arch/x86/mm/pat.c
-@@ -36,6 +36,8 @@
- #undef pr_fmt
- #define pr_fmt(fmt) "" fmt
+@@ -172,32 +172,14 @@ static enum page_cache_mode pat_get_cache_mode(unsigned pat_val, char *msg)
  
-+static bool boot_cpu_done;
-+
- static int __read_mostly __pat_enabled = IS_ENABLED(CONFIG_X86_PAT);
+ #undef CM
  
- static inline void pat_disable(const char *reason)
-@@ -194,31 +196,47 @@ void pat_init_cache_modes(void)
- 
+-/*
+- * Update the cache mode to pgprot translation tables according to PAT
+- * configuration.
+- * Using lower indices is preferred, so we start with highest index.
+- */
+-void pat_init_cache_modes(void)
+-{
+-	int i;
+-	enum page_cache_mode cache;
+-	char pat_msg[33];
+-	u64 pat;
+-
+-	rdmsrl(MSR_IA32_CR_PAT, pat);
+-	pat_msg[32] = 0;
+-	for (i = 7; i >= 0; i--) {
+-		cache = pat_get_cache_mode((pat >> (i * 8)) & 7,
+-					   pat_msg + 4 * i);
+-		update_cache_mode_entry(i, cache);
+-	}
+-	pr_info("x86/PAT: Configuration [0-7]: %s\n", pat_msg);
+-}
+-
  #define PAT(x, y)	((u64)PAT_ ## y << ((x)*8))
  
--void pat_init(void)
-+static void pat_bsp_init(u64 pat)
+ static void pat_bsp_init(u64 pat)
  {
--	u64 pat;
--	bool boot_cpu = !boot_pat_state;
-+	if (!cpu_has_pat) {
-+		pat_disable("PAT not supported by CPU.");
-+		return;
-+	}
- 
--	if (!pat_enabled())
-+	rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
-+	if (!boot_pat_state) {
-+		pat_disable("PAT MSR is 0, disabled.");
- 		return;
-+	}
- 
-+	wrmsrl(MSR_IA32_CR_PAT, pat);
++	enum page_cache_mode cache;
++	char pat_msg[33];
++	int i;
 +
-+	pat_init_cache_modes();
-+}
-+
-+static void pat_ap_init(u64 pat)
-+{
  	if (!cpu_has_pat) {
--		if (!boot_pat_state) {
--			pat_disable("PAT not supported by CPU.");
--			return;
--		} else {
--			/*
--			 * If this happens we are on a secondary CPU, but
--			 * switched to PAT on the boot CPU. We have no way to
--			 * undo PAT.
--			 */
--			pr_err("x86/PAT: PAT enabled, but not supported by secondary CPU\n");
--			BUG();
--		}
-+		/*
-+		 * If this happens we are on a secondary CPU, but switched to
-+		 * PAT on the boot CPU. We have no way to undo PAT.
-+		 */
-+		panic("x86/PAT: PAT enabled, but not supported by secondary CPU\n");
- 	}
+ 		pat_disable("PAT not supported by CPU.");
+ 		return;
+@@ -211,7 +193,18 @@ static void pat_bsp_init(u64 pat)
  
--	/* Set PWT to Write-Combining. All other bits stay the same */
-+	wrmsrl(MSR_IA32_CR_PAT, pat);
-+}
-+
-+void pat_init(void)
-+{
-+	u64 pat;
-+
-+	if (!pat_enabled())
-+		return;
-+
- 	/*
-+	 * Set PWT to Write-Combining. All other bits stay the same:
-+	 *
- 	 * PTE encoding used in Linux:
- 	 *      PAT
- 	 *      |PCD
-@@ -233,19 +251,12 @@ void pat_init(void)
- 	pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
- 	      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
+ 	wrmsrl(MSR_IA32_CR_PAT, pat);
  
--	/* Boot CPU check */
--	if (!boot_pat_state) {
--		rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
--		if (!boot_pat_state) {
--			pat_disable("PAT read returns always zero, disabled.");
--			return;
--		}
-+	if (!boot_cpu_done) {
-+		pat_bsp_init(pat);
-+		boot_cpu_done = true;
-+	} else {
-+		pat_ap_init(pat);
- 	}
--
--	wrmsrl(MSR_IA32_CR_PAT, pat);
--
--	if (boot_cpu)
--		pat_init_cache_modes();
+-	pat_init_cache_modes();
++	pat_msg[32] = 0;
++
++	/*
++	 * Update the cache mode to pgprot translation tables according to PAT
++	 * configuration. Using lower indices is preferred, so we start with
++	 * highest index.
++	 */
++	for (i = 7; i >= 0; i--) {
++		cache = pat_get_cache_mode((pat >> (i * 8)) & 7, pat_msg + 4 * i);
++		update_cache_mode_entry(i, cache);
++	}
++	pr_info("x86/PAT: Configuration [0-7]: %s\n", pat_msg);
  }
  
- #undef PAT
+ static void pat_ap_init(u64 pat)
 -- 
 2.3.5
