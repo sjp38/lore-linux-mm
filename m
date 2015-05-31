@@ -1,7 +1,7 @@
 From: Borislav Petkov <bp@alien8.de>
-Subject: [PATCH 3/4] x86/pat: Emulate PAT when it is disabled
-Date: Sun, 31 May 2015 11:48:05 +0200
-Message-ID: <1433065686-20922-3-git-send-email-bp@alien8.de>
+Subject: [PATCH 4/4] x86/pat: Remove pat_enabled() checks
+Date: Sun, 31 May 2015 11:48:06 +0200
+Message-ID: <1433065686-20922-4-git-send-email-bp@alien8.de>
 References: <20150531094655.GA20440@pd.tnic>
  <1433065686-20922-1-git-send-email-bp@alien8.de>
 Return-path: <linux-kernel-owner@vger.kernel.org>
@@ -13,13 +13,9 @@ List-Id: linux-mm.kvack.org
 
 From: Borislav Petkov <bp@suse.de>
 
-In the case when PAT is disabled on the command line with "nopat" or
-when virtualization doesn't support PAT (correctly) - see
-
-  9d34cfdf4796 ("x86: Don't rely on VMWare emulating PAT MSR correctly").
-
-we emulate it using the PWT and PCD cache attribute bits. Get rid of
-boot_pat_state while at it.
+Now that we emulate a PAT table when PAT is disabled, there's no need
+for those checks anymore as the PAT abstraction will handle those cases
+too.
 
 Based on a conglomerate patch from Toshi Kani.
 
@@ -43,153 +39,98 @@ Cc: Toshi Kani <toshi.kani@hp.com>
 Cc: x86-ml <x86@kernel.org>
 Cc: yigal@plexistor.com
 ---
- arch/x86/mm/init.c |  6 ++---
- arch/x86/mm/pat.c  | 72 +++++++++++++++++++++++++++++++++++++-----------------
- 2 files changed, 52 insertions(+), 26 deletions(-)
+ arch/x86/mm/iomap_32.c | 12 ++++++------
+ arch/x86/mm/ioremap.c  |  5 +----
+ arch/x86/mm/pageattr.c |  3 ---
+ arch/x86/mm/pat.c      | 13 +++----------
+ 4 files changed, 10 insertions(+), 23 deletions(-)
 
-diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-index 1d553186c434..8533b46e6bee 100644
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -40,7 +40,7 @@
-  */
- uint16_t __cachemode2pte_tbl[_PAGE_CACHE_MODE_NUM] = {
- 	[_PAGE_CACHE_MODE_WB      ]	= 0         | 0        ,
--	[_PAGE_CACHE_MODE_WC      ]	= _PAGE_PWT | 0        ,
-+	[_PAGE_CACHE_MODE_WC      ]	= 0         | _PAGE_PCD,
- 	[_PAGE_CACHE_MODE_UC_MINUS]	= 0         | _PAGE_PCD,
- 	[_PAGE_CACHE_MODE_UC      ]	= _PAGE_PWT | _PAGE_PCD,
- 	[_PAGE_CACHE_MODE_WT      ]	= 0         | _PAGE_PCD,
-@@ -50,11 +50,11 @@ EXPORT_SYMBOL(__cachemode2pte_tbl);
- 
- uint8_t __pte2cachemode_tbl[8] = {
- 	[__pte2cm_idx( 0        | 0         | 0        )] = _PAGE_CACHE_MODE_WB,
--	[__pte2cm_idx(_PAGE_PWT | 0         | 0        )] = _PAGE_CACHE_MODE_WC,
-+	[__pte2cm_idx(_PAGE_PWT | 0         | 0        )] = _PAGE_CACHE_MODE_UC_MINUS,
- 	[__pte2cm_idx( 0        | _PAGE_PCD | 0        )] = _PAGE_CACHE_MODE_UC_MINUS,
- 	[__pte2cm_idx(_PAGE_PWT | _PAGE_PCD | 0        )] = _PAGE_CACHE_MODE_UC,
- 	[__pte2cm_idx( 0        | 0         | _PAGE_PAT)] = _PAGE_CACHE_MODE_WB,
--	[__pte2cm_idx(_PAGE_PWT | 0         | _PAGE_PAT)] = _PAGE_CACHE_MODE_WC,
-+	[__pte2cm_idx(_PAGE_PWT | 0         | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC_MINUS,
- 	[__pte2cm_idx(0         | _PAGE_PCD | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC_MINUS,
- 	[__pte2cm_idx(_PAGE_PWT | _PAGE_PCD | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC,
- };
-diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index 4d28759f5a1a..62171cb2b0cb 100644
---- a/arch/x86/mm/pat.c
-+++ b/arch/x86/mm/pat.c
-@@ -68,8 +68,6 @@ static int __init pat_debug_setup(char *str)
- }
- __setup("debugpat", pat_debug_setup);
- 
--static u64 __read_mostly boot_pat_state;
--
- #ifdef CONFIG_X86_PAT
- /*
-  * X86 PAT uses page flags WC and Uncached together to keep track of
-@@ -178,6 +176,7 @@ static void pat_bsp_init(u64 pat)
+diff --git a/arch/x86/mm/iomap_32.c b/arch/x86/mm/iomap_32.c
+index 3a2ec8790ca7..a9dc7a37e6a2 100644
+--- a/arch/x86/mm/iomap_32.c
++++ b/arch/x86/mm/iomap_32.c
+@@ -77,13 +77,13 @@ void __iomem *
+ iomap_atomic_prot_pfn(unsigned long pfn, pgprot_t prot)
  {
- 	enum page_cache_mode cache;
- 	char pat_msg[33];
-+	u64 tmp_pat;
- 	int i;
- 
- 	if (!cpu_has_pat) {
-@@ -185,14 +184,18 @@ static void pat_bsp_init(u64 pat)
- 		return;
- 	}
- 
--	rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
--	if (!boot_pat_state) {
-+	if (!pat_enabled())
-+		goto done;
-+
-+	rdmsrl(MSR_IA32_CR_PAT, tmp_pat);
-+	if (!tmp_pat) {
- 		pat_disable("PAT MSR is 0, disabled.");
- 		return;
- 	}
- 
- 	wrmsrl(MSR_IA32_CR_PAT, pat);
- 
-+done:
- 	pat_msg[32] = 0;
- 
  	/*
-@@ -209,6 +212,9 @@ static void pat_bsp_init(u64 pat)
+-	 * For non-PAT systems, promote PAGE_KERNEL_WC to PAGE_KERNEL_UC_MINUS.
+-	 * PAGE_KERNEL_WC maps to PWT, which translates to uncached if the
+-	 * MTRR is UC or WC.  UC_MINUS gets the real intention, of the
+-	 * user, which is "WC if the MTRR is WC, UC if you can't do that."
++	 * For non-PAT systems, translate non-WB request to UC- just in
++	 * case the caller set the PWT bit to prot directly without using
++	 * pgprot_writecombine(). UC- translates to uncached if the MTRR
++	 * is UC or WC. UC- gets the real intention, of the user, which is
++	 * "WC if the MTRR is WC, UC if you can't do that."
+ 	 */
+-	if (!pat_enabled() && pgprot_val(prot) ==
+-	    (__PAGE_KERNEL | cachemode2protval(_PAGE_CACHE_MODE_WC)))
++	if (!pat_enabled() && pgprot2cachemode(prot) != _PAGE_CACHE_MODE_WB)
+ 		prot = __pgprot(__PAGE_KERNEL |
+ 				cachemode2protval(_PAGE_CACHE_MODE_UC_MINUS));
  
- static void pat_ap_init(u64 pat)
+diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+index b0da3588b452..cc0f17c5ad9f 100644
+--- a/arch/x86/mm/ioremap.c
++++ b/arch/x86/mm/ioremap.c
+@@ -292,11 +292,8 @@ EXPORT_SYMBOL_GPL(ioremap_uc);
+  */
+ void __iomem *ioremap_wc(resource_size_t phys_addr, unsigned long size)
  {
-+	if (!pat_enabled())
-+		return;
-+
- 	if (!cpu_has_pat) {
- 		/*
- 		 * If this happens we are on a secondary CPU, but switched to
-@@ -224,25 +230,45 @@ void pat_init(void)
+-	if (pat_enabled())
+-		return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WC,
++	return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WC,
+ 					__builtin_return_address(0));
+-	else
+-		return ioremap_nocache(phys_addr, size);
+ }
+ EXPORT_SYMBOL(ioremap_wc);
+ 
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index 70d221fe2eb4..94aae76a5e06 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -1571,9 +1571,6 @@ int set_memory_wc(unsigned long addr, int numpages)
  {
- 	u64 pat;
+ 	int ret;
  
 -	if (!pat_enabled())
--		return;
+-		return set_memory_uc(addr, numpages);
 -
--	/*
--	 * Set PWT to Write-Combining. All other bits stay the same:
--	 *
--	 * PTE encoding used in Linux:
--	 *      PAT
--	 *      |PCD
--	 *      ||PWT
--	 *      |||
--	 *      000 WB		_PAGE_CACHE_WB
--	 *      001 WC		_PAGE_CACHE_WC
--	 *      010 UC-		_PAGE_CACHE_UC_MINUS
--	 *      011 UC		_PAGE_CACHE_UC
--	 * PAT bit unused
--	 */
--	pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
--	      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
-+	if (!pat_enabled()) {
-+		/*
-+		 * No PAT. Emulate the PAT table that corresponds to the two
-+		 * cache bits, PWT (Write Through) and PCD (Cache Disable). This
-+		 * setup is the same as the BIOS default setup when the system
-+		 * has PAT but the "nopat" boot option has been specified. This
-+		 * emulated PAT table is used when MSR_IA32_CR_PAT returns 0.
-+		 *
-+		 * PTE encoding used:
-+		 *
-+		 *       PCD
-+		 *       |PWT  PAT
-+		 *       ||    slot
-+		 *       00    0    WB : _PAGE_CACHE_MODE_WB
-+		 *       01    1    WT : _PAGE_CACHE_MODE_WT
-+		 *       10    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
-+		 *       11    3    UC : _PAGE_CACHE_MODE_UC
-+		 *
-+		 * NOTE: When WC or WP is used, it is redirected to UC- per
-+		 * the default setup in __cachemode2pte_tbl[].
-+		 */
-+		pat = PAT(0, WB) | PAT(1, WT) | PAT(2, UC_MINUS) | PAT(3, UC) |
-+		      PAT(4, WB) | PAT(5, WT) | PAT(6, UC_MINUS) | PAT(7, UC);
-+	} else {
-+		/*
-+		 * PTE encoding used in Linux:
-+		 *      PAT
-+		 *      |PCD
-+		 *      ||PWT
-+		 *      |||
-+		 *      000 WB          _PAGE_CACHE_WB
-+		 *      001 WC          _PAGE_CACHE_WC
-+		 *      010 UC-         _PAGE_CACHE_UC_MINUS
-+		 *      011 UC          _PAGE_CACHE_UC
-+		 * PAT bit unused
-+		 */
-+		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
-+		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
-+	}
+ 	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
+ 		_PAGE_CACHE_MODE_WC, NULL);
+ 	if (ret)
+diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+index 62171cb2b0cb..e65555e0fe3d 100644
+--- a/arch/x86/mm/pat.c
++++ b/arch/x86/mm/pat.c
+@@ -432,12 +432,8 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
  
- 	if (!boot_cpu_done) {
- 		pat_bsp_init(pat);
+ 	if (!pat_enabled()) {
+ 		/* This is identical to page table setting without PAT */
+-		if (new_type) {
+-			if (req_type == _PAGE_CACHE_MODE_WC)
+-				*new_type = _PAGE_CACHE_MODE_UC_MINUS;
+-			else
+-				*new_type = req_type;
+-		}
++		if (new_type)
++			*new_type = req_type;
+ 		return 0;
+ 	}
+ 
+@@ -941,11 +937,8 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
+ 
+ pgprot_t pgprot_writecombine(pgprot_t prot)
+ {
+-	if (pat_enabled())
+-		return __pgprot(pgprot_val(prot) |
++	return __pgprot(pgprot_val(prot) |
+ 				cachemode2protval(_PAGE_CACHE_MODE_WC));
+-	else
+-		return pgprot_noncached(prot);
+ }
+ EXPORT_SYMBOL_GPL(pgprot_writecombine);
+ 
 -- 
 2.3.5
