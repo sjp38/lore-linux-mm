@@ -1,100 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id D7C656B0038
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 06:51:10 -0400 (EDT)
-Received: by pdjm12 with SMTP id m12so22086184pdj.3
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 03:51:10 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id v5si21069828pdb.7.2015.06.01.03.51.09
+Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com [209.85.220.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 172B76B0038
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 07:14:57 -0400 (EDT)
+Received: by qkoo18 with SMTP id o18so81817594qko.1
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 04:14:56 -0700 (PDT)
+Received: from mail-qc0-x22a.google.com (mail-qc0-x22a.google.com. [2607:f8b0:400d:c01::22a])
+        by mx.google.com with ESMTPS id l4si12676079qge.125.2015.06.01.04.14.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 01 Jun 2015 03:51:09 -0700 (PDT)
-Subject: Re: [PATCH] mm/oom: Suppress unnecessary "sharing same memory" message.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20150528180524.GB2321@dhcp22.suse.cz>
-	<201505292140.JHE18273.SFFMJFHOtQLOVO@I-love.SAKURA.ne.jp>
-	<20150529144922.GE22728@dhcp22.suse.cz>
-	<201505300220.GCH51071.FVOOFOLQStJMFH@I-love.SAKURA.ne.jp>
-	<20150601090341.GA7147@dhcp22.suse.cz>
-In-Reply-To: <20150601090341.GA7147@dhcp22.suse.cz>
-Message-Id: <201506011951.DCC81216.tMVQHLFOFFOJSO@I-love.SAKURA.ne.jp>
-Date: Mon, 1 Jun 2015 19:51:05 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Jun 2015 04:14:56 -0700 (PDT)
+Received: by qcej9 with SMTP id j9so2941681qce.1
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 04:14:55 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20150529143755.35e070822d62cf39119aac13@linux-foundation.org>
+References: <1432912338-16775-1-git-send-email-ddstreet@ieee.org> <20150529143755.35e070822d62cf39119aac13@linux-foundation.org>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Mon, 1 Jun 2015 07:14:34 -0400
+Message-ID: <CALZtONAN=7q3bOOq3mJvRDwydnZ-3fQrxB+BOq_VgiY4Pmr+hg@mail.gmail.com>
+Subject: Re: [PATCH] zpool: add zpool_has_pool()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ganesh Mahendran <opensource.ganesh@gmail.com>, Minchan Kim <minchan@kernel.org>, Kees Cook <keescook@chromium.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-Michal Hocko wrote:
-> On Sat 30-05-15 02:20:23, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Fri 29-05-15 21:40:47, Tetsuo Handa wrote:
-> [...]
-> > > > Is it possible that thread1 is doing memory allocation between
-> > > > down_write(&current->mm->mmap_sem) and up_write(&current->mm->mmap_sem),
-> > > > thread2 sharing the same mm is waiting at down_read(&current->mm->mmap_sem),
-> > > > and the OOM killer invoked by thread3 chooses thread2 as the OOM victim and
-> > > > sets TIF_MEMDIE to thread2?
-> > > 
-> > > Your usage of thread is confusing. Threads are of no concerns because
-> > > those get killed when the group leader is killed. If you refer to
-> > > processes then this is exactly what is handled by:
-> > >         for_each_process(p)
-> > >                 if (p->mm == mm && !same_thread_group(p, victim) &&
-> > >                     !(p->flags & PF_KTHREAD)) {
-> > >                         if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-> > >                                 continue;
-> > > 
-> > >                         task_lock(p);   /* Protect ->comm from prctl() */
-> > >                         pr_err("Kill process %d (%s) sharing same memory\n",
-> > >                                 task_pid_nr(p), p->comm);
-> > >                         task_unlock(p);
-> > >                         do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
-> > >                 }
-> > 
-> > I refer to both "Thread-1 in process-1, thread-2 in process-1" case and
-> > "thread-1 in process-1, thread-2 in process-2" case. Thread-3 can be in
-> > process-1 or process-2 or neither.
-> 
-> And that makes it confusing because threads in the same thread group
-> case is not really interesting. All the threads have fatal signal
-> pending and they would get access to memory reserves as they hit the oom
-> killer.
+On Fri, May 29, 2015 at 5:37 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Fri, 29 May 2015 11:12:18 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
+>
+>> Add zpool_has_pool() function, indicating if the specified type of zpool
+>> is available (i.e. zsmalloc or zbud).  This allows checking if a pool is
+>> available, without actually trying to allocate it, similar to
+>> crypto_has_alg().
+>>
+>> ...
+>>
+>> +bool zpool_has_pool(char *type);
+>
+> This has no callers.
 
-Excuse me, but I didn't understand it.
-
-TIF_MEMDIE is per a "struct task_struct" attribute which is set on
-its corresponding "struct thread_info"->flags member, isn't it?
-Two "struct task_struct" can't share the same "struct thread_info"->flags
-member, can it?
-
-And the condition which we allow access to memory reserves is not
-"whether SIGKILL is pending or not" but "whether TIF_MEMDIE is set or not",
-doesn't it?
-
-----------
-static inline int
-gfp_to_alloc_flags(gfp_t gfp_mask)
-{
-(...snipped...)
-	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
-		if (gfp_mask & __GFP_MEMALLOC)
-			alloc_flags |= ALLOC_NO_WATERMARKS;
-		else if (in_serving_softirq() && (current->flags & PF_MEMALLOC))
-			alloc_flags |= ALLOC_NO_WATERMARKS;
-		else if (!in_interrupt() &&
-			 ((current->flags & PF_MEMALLOC) ||
-			  unlikely(test_thread_flag(TIF_MEMDIE))))
-			alloc_flags |= ALLOC_NO_WATERMARKS;
-	}
-(...snipped...)
-}
-----------
-
-How can all fatal_signal_pending() "struct task_struct" get access to memory
-reserves when only one of fatal_signal_pending() "struct task_struct" has
-TIF_MEMDIE ?
+Yes, I have a few patches coming up for zswap, that use this.  I was
+trying to get the simple patches in first, but I can include this in
+the patch series that uses it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
