@@ -1,92 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vn0-f47.google.com (mail-vn0-f47.google.com [209.85.216.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DBFE6B0038
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 14:14:58 -0400 (EDT)
-Received: by vnbg190 with SMTP id g190so17258404vnb.3
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 11:14:58 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j2si21311639vdb.82.2015.06.01.11.14.57
+Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
+	by kanga.kvack.org (Postfix) with ESMTP id BC0616B0038
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 14:35:34 -0400 (EDT)
+Received: by oihd6 with SMTP id d6so108267028oih.2
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 11:35:34 -0700 (PDT)
+Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
+        by mx.google.com with ESMTPS id e75si13798oic.7.2015.06.01.11.35.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jun 2015 11:14:57 -0700 (PDT)
-Date: Mon, 1 Jun 2015 13:14:52 -0500
-From: Clark Williams <williams@redhat.com>
-Subject: [RFC][PATCH] mm: ifdef out VM_BUG_ON check on PREEMPT_RT_FULL
-Message-ID: <20150601131452.3e04f10a@sluggy>
-In-Reply-To: <20150529142614.37792b9ff867626dcf5e0f08@linux-foundation.org>
-References: <20150529104815.2d2e880c@sluggy>
-	<20150529142614.37792b9ff867626dcf5e0f08@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 01 Jun 2015 11:35:34 -0700 (PDT)
+Message-ID: <1433182554.23540.112.camel@misato.fc.hp.com>
+Subject: Re: [PATCH 2/4] x86/pat: Merge pat_init_cache_modes() into its
+ caller
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Mon, 01 Jun 2015 12:15:54 -0600
+In-Reply-To: <20150531102338.GB20440@pd.tnic>
+References: <20150531094655.GA20440@pd.tnic>
+	 <1433065686-20922-1-git-send-email-bp@alien8.de>
+	 <1433065686-20922-2-git-send-email-bp@alien8.de>
+	 <20150531102338.GB20440@pd.tnic>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@glx-um.de>, linux-mm@kvack.org, RT <linux-rt-users@vger.kernel.org>, Fernando Lopez-Lezcano <nando@ccrma.Stanford.EDU>, Steven Rostedt <rostedt@goodmis.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+To: Borislav Petkov <bp@alien8.de>
+Cc: jgross@suse.com, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, arnd@arndb.de, Elliott@hp.com, hch@lst.de, hmh@hmh.eng.br, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, konrad.wilk@oracle.com, linux-mm <linux-mm@kvack.org>, linux-nvdimm@lists.01.org, "Luis R. Rodriguez" <mcgrof@suse.com>, stefan.bader@canonical.com, Thomas Gleixner <tglx@linutronix.de>, x86-ml <x86@kernel.org>, yigal@plexistor.com, lkml <linux-kernel@vger.kernel.org>
 
-On Fri, 29 May 2015 14:26:14 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Fri, 29 May 2015 10:48:15 -0500 Clark Williams <williams@redhat.com> wrote:
+On Sun, 2015-05-31 at 12:23 +0200, Borislav Petkov wrote:
+> On Sun, May 31, 2015 at 11:48:04AM +0200, Borislav Petkov wrote:
+> > From: Borislav Petkov <bp@suse.de>
+> > 
+> > This way we can pass pat MSR value directly.
 > 
-> > The irqs_disabled() check in mem_cgroup_swapout() fails on the latest
-> > RT kernel because RT mutexes do not disable interrupts when held. Change
-> > the test for the lock being held to use spin_is_locked.
-> >
-> > ...
-> >
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -5845,7 +5845,7 @@ void mem_cgroup_swapout(struct page *page,
-> > swp_entry_t entry) page_counter_uncharge(&memcg->memory, 1);
-> >  
-> >  	/* XXX: caller holds IRQ-safe mapping->tree_lock */
-> > -	VM_BUG_ON(!irqs_disabled());
-> > +	VM_BUG_ON(!spin_is_locked(&page_mapping(page)->tree_lock));
-> >  
-> >  	mem_cgroup_charge_statistics(memcg, page, -1);
-> >  	memcg_check_events(memcg, page);
+> This breaks xen as that function is used there, doh. :-\
 > 
-> spin_is_locked() returns zero on uniprocessor builds.  The results will
-> be unhappy.  
+> JA 1/4 rgen,
 > 
-> I suggest just deleting the check.
+> can you check the enlighten.c changes below please?
+> 
+> I'm reading xen's PAT config from MSR_IA32_CR_PAT and handing it down to
+> pat_init_cache_modes(). That shouldn't change current behavior AFAICT
+> because pat_init_cache_modes() did it itself before.
+> 
+> Right?
+> 
+> Thanks.
+> 
+> ---
+> Author: Borislav Petkov <bp@suse.de>
+> Date:   Sat May 30 13:09:55 2015 +0200
+> 
+>     x86/pat: Emulate PAT when it is disabled
+>     
+>     In the case when PAT is disabled on the command line with "nopat" or
+>     when virtualization doesn't support PAT (correctly) - see
+>     
+>       9d34cfdf4796 ("x86: Don't rely on VMWare emulating PAT MSR correctly").
+>     
+>     we emulate it using the PWT and PCD cache attribute bits. Get rid of
+>     boot_pat_state while at it.
+>     
+>     Based on a conglomerate patch from Toshi Kani.
+>     
+>     Signed-off-by: Borislav Petkov <bp@suse.de>
 
-Guess this is Johannes call. We can just #ifdef it out and that would
-remain the same when we finally merge PREEMPT_RT in mainline. 
+Reviewed-by: Toshi Kani <toshi.kani@hp.com>
 
-If Johannes wants to keep the check on non-RT, here's a patch:
+Thanks,
+-Toshi
 
-From: Clark Williams <williams@redhat.com>
-Date: Mon, 1 Jun 2015 13:10:39 -0500
-Subject: [PATCH] mm: ifdef out VM_BUG_ON check on PREEMPT_RT_FULL
 
-The irqs_disabled() check in mem_cgroup_swapout() fails on the latest
-RT kernel because RT mutexes do not disable interrupts when held. Ifdef
-this check out for PREEMPT_RT_FULL.
-
-Signed-off-by: Clark Williams <williams@redhat.com>
----
- mm/memcontrol.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 9da0f3e9c1f3..f3fcef7713f6 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5844,8 +5844,10 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
- 	if (!mem_cgroup_is_root(memcg))
- 		page_counter_uncharge(&memcg->memory, 1);
- 
-+#ifndef CONFIG_PREEMPT_RT_FULL
- 	/* XXX: caller holds IRQ-safe mapping->tree_lock */
- 	VM_BUG_ON(!irqs_disabled());
-+#endif
- 
- 	mem_cgroup_charge_statistics(memcg, page, -1);
- 	memcg_check_events(memcg, page);
--- 
-2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
