@@ -1,73 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B5806B0038
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 13:11:15 -0400 (EDT)
-Received: by lbcue7 with SMTP id ue7so88786568lbc.0
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 10:11:14 -0700 (PDT)
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com. [209.85.217.181])
-        by mx.google.com with ESMTPS id kh8si12808693lbc.46.2015.06.01.10.11.13
+Received: from mail-vn0-f47.google.com (mail-vn0-f47.google.com [209.85.216.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DBFE6B0038
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 14:14:58 -0400 (EDT)
+Received: by vnbg190 with SMTP id g190so17258404vnb.3
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 11:14:58 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j2si21311639vdb.82.2015.06.01.11.14.57
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jun 2015 10:11:13 -0700 (PDT)
-Received: by lbcue7 with SMTP id ue7so88786012lbc.0
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 10:11:13 -0700 (PDT)
+        Mon, 01 Jun 2015 11:14:57 -0700 (PDT)
+Date: Mon, 1 Jun 2015 13:14:52 -0500
+From: Clark Williams <williams@redhat.com>
+Subject: [RFC][PATCH] mm: ifdef out VM_BUG_ON check on PREEMPT_RT_FULL
+Message-ID: <20150601131452.3e04f10a@sluggy>
+In-Reply-To: <20150529142614.37792b9ff867626dcf5e0f08@linux-foundation.org>
+References: <20150529104815.2d2e880c@sluggy>
+	<20150529142614.37792b9ff867626dcf5e0f08@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20150601085821.GA15014@gmail.com>
-References: <1432739944-22633-1-git-send-email-toshi.kani@hp.com>
- <1432739944-22633-13-git-send-email-toshi.kani@hp.com> <20150529091129.GC31435@pd.tnic>
- <CAPcyv4jHbrUP7bDpw2Cja5x0eMQZBLmmzFXbotQWSEkAiL1s7Q@mail.gmail.com>
- <1432911782.23540.55.camel@misato.fc.hp.com> <CAPcyv4g+zYFkEYpa0HCh0Q+2C3wWNr6v3ZU143h52OKf=U=Qvw@mail.gmail.com>
- <CALCETrXXfujebOemesBtgKCkmRTOQFGjdcxjFDF+_P_tv+C0bw@mail.gmail.com>
- <94D0CD8314A33A4D9D801C0FE68B40295A92F392@G9W0745.americas.hpqcorp.net>
- <CALCETrXhNsk9yX=gerxqHCR6+CLdCGrjt9pDk98yeF0L7yyPvg@mail.gmail.com> <20150601085821.GA15014@gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 1 Jun 2015 10:10:52 -0700
-Message-ID: <CALCETrVNzrz7UCd=VeL1j-1G5yJrokev+JhizhfX-fH_4yovnQ@mail.gmail.com>
-Subject: Re: [PATCH v10 12/12] drivers/block/pmem: Map NVDIMM with ioremap_wt()
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: "Elliott, Robert (Server Storage)" <Elliott@hp.com>, Dan Williams <dan.j.williams@intel.com>, "Kani, Toshimitsu" <toshi.kani@hp.com>, Borislav Petkov <bp@alien8.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Yigal Korman <yigal@plexistor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Luis Rodriguez <mcgrof@suse.com>, Christoph Hellwig <hch@lst.de>, Matthew Wilcox <willy@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@glx-um.de>, linux-mm@kvack.org, RT <linux-rt-users@vger.kernel.org>, Fernando Lopez-Lezcano <nando@ccrma.Stanford.EDU>, Steven Rostedt <rostedt@goodmis.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-On Mon, Jun 1, 2015 at 1:58 AM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> * Andy Lutomirski <luto@amacapital.net> wrote:
->
->> You answered the wrong question. :) I understand the point of the non-temporal
->> stores -- I don't understand the point of using non-temporal stores to *WB
->> memory*.  I think we should be okay with having the kernel mapping use WT
->> instead.
->
-> WB memory is write-through, but they are still fully cached for reads.
->
-> So non-temporal instructions influence how the CPU will allocate (or not allocate)
-> WT cache lines.
->
+On Fri, 29 May 2015 14:26:14 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-I'm doing a terrible job of saying what I mean.
+> On Fri, 29 May 2015 10:48:15 -0500 Clark Williams <williams@redhat.com> wrote:
+> 
+> > The irqs_disabled() check in mem_cgroup_swapout() fails on the latest
+> > RT kernel because RT mutexes do not disable interrupts when held. Change
+> > the test for the lock being held to use spin_is_locked.
+> >
+> > ...
+> >
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -5845,7 +5845,7 @@ void mem_cgroup_swapout(struct page *page,
+> > swp_entry_t entry) page_counter_uncharge(&memcg->memory, 1);
+> >  
+> >  	/* XXX: caller holds IRQ-safe mapping->tree_lock */
+> > -	VM_BUG_ON(!irqs_disabled());
+> > +	VM_BUG_ON(!spin_is_locked(&page_mapping(page)->tree_lock));
+> >  
+> >  	mem_cgroup_charge_statistics(memcg, page, -1);
+> >  	memcg_check_events(memcg, page);
+> 
+> spin_is_locked() returns zero on uniprocessor builds.  The results will
+> be unhappy.  
+> 
+> I suggest just deleting the check.
 
-Given that we're using non-temporal writes, the kernel code should
-work correctly and with similar performance regardless of whether the
-mapping is WB or WT.  It would still be correct, if slower, with WC or
-UC, and, if we used explicit streaming reads, even that would matter
-less.
+Guess this is Johannes call. We can just #ifdef it out and that would
+remain the same when we finally merge PREEMPT_RT in mainline. 
 
-I think this means that we are free to switch the kernel mapping
-between WB and WT as needed to improve DAX behavior.  We could even
-plausibly do it at runtime.
+If Johannes wants to keep the check on non-RT, here's a patch:
 
---Andy
+From: Clark Williams <williams@redhat.com>
+Date: Mon, 1 Jun 2015 13:10:39 -0500
+Subject: [PATCH] mm: ifdef out VM_BUG_ON check on PREEMPT_RT_FULL
 
-> Thanks,
->
->         Ingo
+The irqs_disabled() check in mem_cgroup_swapout() fails on the latest
+RT kernel because RT mutexes do not disable interrupts when held. Ifdef
+this check out for PREEMPT_RT_FULL.
 
+Signed-off-by: Clark Williams <williams@redhat.com>
+---
+ mm/memcontrol.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 9da0f3e9c1f3..f3fcef7713f6 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5844,8 +5844,10 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+ 	if (!mem_cgroup_is_root(memcg))
+ 		page_counter_uncharge(&memcg->memory, 1);
+ 
++#ifndef CONFIG_PREEMPT_RT_FULL
+ 	/* XXX: caller holds IRQ-safe mapping->tree_lock */
+ 	VM_BUG_ON(!irqs_disabled());
++#endif
+ 
+ 	mem_cgroup_charge_statistics(memcg, page, -1);
+ 	memcg_check_events(memcg, page);
 -- 
-Andy Lutomirski
-AMA Capital Management, LLC
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
