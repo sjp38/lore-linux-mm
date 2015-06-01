@@ -1,51 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 257CC6B006E
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 09:00:15 -0400 (EDT)
-Received: by wizo1 with SMTP id o1so103958993wiz.1
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 06:00:14 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o2si18527350wix.110.2015.06.01.06.00.08
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 35F4F6B0038
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 09:02:28 -0400 (EDT)
+Received: by wgv5 with SMTP id 5so113685846wgv.1
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 06:02:27 -0700 (PDT)
+Received: from lb2-smtp-cloud6.xs4all.net (lb2-smtp-cloud6.xs4all.net. [194.109.24.28])
+        by mx.google.com with ESMTPS id hf1si24690756wjc.22.2015.06.01.06.02.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 01 Jun 2015 06:00:09 -0700 (PDT)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [RFC 0/2] mapping_gfp_mask from the page fault path
-Date: Mon,  1 Jun 2015 15:00:01 +0200
-Message-Id: <1433163603-13229-1-git-send-email-mhocko@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 01 Jun 2015 06:02:26 -0700 (PDT)
+Message-ID: <556C57D6.80908@xs4all.nl>
+Date: Mon, 01 Jun 2015 15:02:14 +0200
+From: Hans Verkuil <hverkuil@xs4all.nl>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/9] mm: Provide new get_vaddr_frames() helper
+References: <1431522495-4692-1-git-send-email-jack@suse.cz> <1431522495-4692-3-git-send-email-jack@suse.cz> <20150528162402.19a0a26a5b9eae36aa8050e5@linux-foundation.org> <20150601124017.GC20288@quack.suse.cz>
+In-Reply-To: <20150601124017.GC20288@quack.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, Pawel Osciak <pawel@osciak.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, mgorman@suse.de, Marek Szyprowski <m.szyprowski@samsung.com>, linux-samsung-soc@vger.kernel.org
 
-Hi,
-I somehow forgot about these patches. The previous version was
-posted here: http://marc.info/?l=linux-mm&m=142668784122763&w=2. The
-first attempt was broken but even when fixed it seems like ignoring
-mapping_gfp_mask in page_cache_read is too fragile because
-filesystems might use locks in their filemap_fault handlers
-which could trigger recursion problems as pointed out by Dave
-http://marc.info/?l=linux-mm&m=142682332032293&w=2.
+On 06/01/2015 02:40 PM, Jan Kara wrote:
+> On Thu 28-05-15 16:24:02, Andrew Morton wrote:
+>> On Wed, 13 May 2015 15:08:08 +0200 Jan Kara <jack@suse.cz> wrote:
+>>
+>>> Provide new function get_vaddr_frames().  This function maps virtual
+>>> addresses from given start and fills given array with page frame numbers of
+>>> the corresponding pages. If given start belongs to a normal vma, the function
+>>> grabs reference to each of the pages to pin them in memory. If start
+>>> belongs to VM_IO | VM_PFNMAP vma, we don't touch page structures. Caller
+>>> must make sure pfns aren't reused for anything else while he is using
+>>> them.
+>>>
+>>> This function is created for various drivers to simplify handling of
+>>> their buffers.
+>>>
+>>> Acked-by: Mel Gorman <mgorman@suse.de>
+>>> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+>>> Signed-off-by: Jan Kara <jack@suse.cz>
+>>> ---
+>>>  include/linux/mm.h |  44 +++++++++++
+>>>  mm/gup.c           | 226 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+>>
+>> That's a lump of new code which many kernels won't be needing.  Can we
+>> put all this in a new .c file and select it within drivers/media
+>> Kconfig?
+>   Yeah, makes sense. I'll write a patch. Hans, is it OK with you if I
+> just create a patch on top of the series you have in your tree?
 
-The first patch should be straightforward fix to obey mapping_gfp_mask
-when allocating for mapping. It can be applied even without the second
-one.
+No problem.
 
-The second patch is an attempt to handle mapping_gfp_mask from the
-page fault path properly. GFP_IOFS should be safe from he page fault
-path in general (we would be quite broken otherwise because there
-are places where GFP_KERNEL is used - e.g. pte allocation). MM will
-communicate this to the fs layer via struct vm_fault::gfp_mask.
-If fs needs to change this allocation context in a fs callback it can
-overwrite this mask. If the code flow gets back to MM we will obey this
-gfp_mask (e.g. in page_cache_read). This should be more appropriate than
-following mapping_gfp_mask blindly. See the patch description for more
-details.
+Regards,
 
-I am still not sure this is the right way to go so I am sending this as
-an RFC so any comments are highly appreciated.
-
-Thanks!
+	Hans
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
