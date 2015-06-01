@@ -1,149 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 2992F6B0038
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 15:56:12 -0400 (EDT)
-Received: by oifu123 with SMTP id u123so109885256oif.1
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 12:56:11 -0700 (PDT)
-Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
-        by mx.google.com with ESMTPS id pn4si71403oeb.67.2015.06.01.12.56.10
+Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
+	by kanga.kvack.org (Postfix) with ESMTP id B80ED6B006C
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 15:56:18 -0400 (EDT)
+Received: by oiww2 with SMTP id w2so109880596oiw.0
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 12:56:18 -0700 (PDT)
+Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
+        by mx.google.com with ESMTPS id e8si78756obo.53.2015.06.01.12.56.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jun 2015 12:56:10 -0700 (PDT)
+        Mon, 01 Jun 2015 12:56:17 -0700 (PDT)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v12 0/10] Support Write-Through mapping on x86
-Date: Mon,  1 Jun 2015 13:36:23 -0600
-Message-Id: <1433187393-22688-1-git-send-email-toshi.kani@hp.com>
+Subject: [PATCH v12 2/10] x86, mm, pat: Change reserve_memtype() for WT
+Date: Mon,  1 Jun 2015 13:36:25 -0600
+Message-Id: <1433187393-22688-3-git-send-email-toshi.kani@hp.com>
+In-Reply-To: <1433187393-22688-1-git-send-email-toshi.kani@hp.com>
+References: <1433187393-22688-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com, mcgrof@suse.com, hch@lst.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com, mcgrof@suse.com, hch@lst.de, Toshi Kani <toshi.kani@hp.com>
 
-This patchset adds support of Write-Through (WT) mapping on x86.
-The study below shows that using WT mapping may be useful for
-non-volatile memory.
+When a RAM range is requested to reserve_memtype(), it calls
+reserve_ram_pages_type() to verify the requested type.
+reserve_ram_pages_type() is changed to fail WT and WP requests
+with -EINVAL since set_page_memtype() is limited to handle
+three types, WB, WC and UC-.
 
-http://www.hpl.hp.com/techreports/2012/HPL-2012-236.pdf
-
-The patchset consists of the following changes.
- - Patch 1/10 to 6/10 add ioremap_wt()
- - Patch 7/10 adds pgprot_writethrough()
- - Patch 8/10 to 9/10 add set_memory_wt()
- - Patch 10/10 changes the pmem driver to call ioremap_wt()
-
-All new/modified interfaces have been tested.
-
-The patchset is based on:
-git://git.kernel.org/pub/scm/linux/kernel/git/bp/bp.git#tip-mm-2
-
+Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 ---
-v12:
-- Rebased to bp/bp.git#tip-mm-2 and resolved minor conflicts. 
-- Dropped cleanup patches 1-2 as redone by Boris.
-
-v11:
-- Reordered the refactor changes from patch 10-11 to 1-2.
-  (Borislav Petkov)
-- Changed BUG() to panic(). (Borislav Petkov)
-- Rebased to tip/master and resolved conflicts. 
-
-v10:
-- Removed ioremap_writethrough(). (Thomas Gleixner)
-- Clarified and cleaned up multiple comments and functions.
-  (Thomas Gleixner) 
-- Changed ioremap_change_attr() to accept the WT type.
-
-v9:
-- Changed to export the set_xxx_wt() interfaces with GPL.
-  (Ingo Molnar)
-- Changed is_new_memtype_allowed() to handle WT cases.
-- Changed arch-specific io.h to define ioremap_wt().
-- Changed the pmem driver to use ioremap_wt().
-- Rebased to 4.1-rc3 and resolved minor conflicts.
-
-v8:
-- Rebased to 4.0-rc1 and resolved conflicts with 9d34cfdf4 in
-  patch 5/7.
-
-v7:
-- Rebased to 3.19-rc3 as Juergen's patchset for the PAT management
-  has been accepted.
-
-v6:
-- Dropped the patch moving [set|get]_page_memtype() to pat.c
-  since the tip branch already has this change.
-- Fixed an issue when CONFIG_X86_PAT is not defined.
-
-v5:
-- Clarified comment of why using slot 7. (Andy Lutomirski,
-  Thomas Gleixner)
-- Moved [set|get]_page_memtype() to pat.c. (Thomas Gleixner)
-- Removed BUG() from set_page_memtype(). (Thomas Gleixner)
-
-v4:
-- Added set_memory_wt() by adding WT support of regular memory.
-
-v3:
-- Dropped the set_memory_wt() patch. (Andy Lutomirski)
-- Refactored the !pat_enabled handling. (H. Peter Anvin,
-  Andy Lutomirski)
-- Added the picture of PTE encoding. (Konrad Rzeszutek Wilk)
-
-v2:
-- Changed WT to use slot 7 of the PAT MSR. (H. Peter Anvin,
-  Andy Lutomirski)
-- Changed to have conservative checks to exclude all Pentium 2, 3,
-  M, and 4 families. (Ingo Molnar, Henrique de Moraes Holschuh,
-  Andy Lutomirski)
-- Updated documentation to cover WT interfaces and usages.
-  (Andy Lutomirski, Yigal Korman)
-
+Patch 8/10 enhances set_page_memtype() to support WT.
 ---
-Toshi Kani (10):
- 1/10 x86, mm, pat: Set WT to PA7 slot of PAT MSR
- 2/10 x86, mm, pat: Change reserve_memtype() for WT
- 3/10 x86, asm: Change is_new_memtype_allowed() for WT
- 4/10 x86, mm, asm-gen: Add ioremap_wt() for WT
- 5/10 arch/*/asm/io.h: Add ioremap_wt() to all architectures
- 6/10 video/fbdev, asm/io.h: Remove ioremap_writethrough()
- 7/10 x86, mm, pat: Add pgprot_writethrough() for WT
- 8/10 x86, mm, asm: Add WT support to set_page_memtype()
- 9/10 x86, mm: Add set_memory_wt() for WT
-10/10 drivers/block/pmem: Map NVDIMM with ioremap_wt()
+ arch/x86/mm/pat.c |   10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
----
- Documentation/x86/pat.txt            |  13 ++--
- arch/arc/include/asm/io.h            |   1 +
- arch/arm/include/asm/io.h            |   1 +
- arch/arm64/include/asm/io.h          |   1 +
- arch/avr32/include/asm/io.h          |   1 +
- arch/frv/include/asm/io.h            |   4 +-
- arch/m32r/include/asm/io.h           |   1 +
- arch/m68k/include/asm/io_mm.h        |   4 +-
- arch/m68k/include/asm/io_no.h        |   4 +-
- arch/metag/include/asm/io.h          |   3 +
- arch/microblaze/include/asm/io.h     |   2 +-
- arch/mn10300/include/asm/io.h        |   1 +
- arch/nios2/include/asm/io.h          |   1 +
- arch/s390/include/asm/io.h           |   1 +
- arch/sparc/include/asm/io_32.h       |   1 +
- arch/sparc/include/asm/io_64.h       |   1 +
- arch/tile/include/asm/io.h           |   2 +-
- arch/x86/include/asm/cacheflush.h    |   6 +-
- arch/x86/include/asm/io.h            |   2 +
- arch/x86/include/asm/pgtable.h       |   8 ++-
- arch/x86/include/asm/pgtable_types.h |   3 +
- arch/x86/mm/ioremap.c                |  24 +++++++
- arch/x86/mm/pageattr.c               |  62 +++++++++++++----
- arch/x86/mm/pat.c                    | 126 +++++++++++++++++++++++++----------
- arch/xtensa/include/asm/io.h         |   1 +
- drivers/block/pmem.c                 |   4 +-
- drivers/video/fbdev/amifb.c          |   4 +-
- drivers/video/fbdev/atafb.c          |   3 +-
- drivers/video/fbdev/hpfb.c           |   4 +-
- include/asm-generic/io.h             |   9 +++
- include/asm-generic/iomap.h          |   4 ++
- include/asm-generic/pgtable.h        |   4 ++
- 32 files changed, 240 insertions(+), 66 deletions(-)
+diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+index 83af01a..56c8b4d 100644
+--- a/arch/x86/mm/pat.c
++++ b/arch/x86/mm/pat.c
+@@ -401,6 +401,8 @@ static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
+ 
+ /*
+  * For RAM pages, we use page flags to mark the pages with appropriate type.
++ * The page flags are limited to three types, WB, WC and UC-.
++ * WT and WP requests fail with -EINVAL, and UC gets redirected to UC-.
+  * Here we do two pass:
+  * - Find the memtype of all the pages in the range, look for any conflicts
+  * - In case of no conflicts, set the new memtype for pages in the range
+@@ -412,6 +414,13 @@ static int reserve_ram_pages_type(u64 start, u64 end,
+ 	struct page *page;
+ 	u64 pfn;
+ 
++	if ((req_type == _PAGE_CACHE_MODE_WT) ||
++	    (req_type == _PAGE_CACHE_MODE_WP)) {
++		if (new_type)
++			*new_type = _PAGE_CACHE_MODE_UC_MINUS;
++		return -EINVAL;
++	}
++
+ 	if (req_type == _PAGE_CACHE_MODE_UC) {
+ 		/* We do not support strong UC */
+ 		WARN_ON_ONCE(1);
+@@ -461,6 +470,7 @@ static int free_ram_pages_type(u64 start, u64 end)
+  * - _PAGE_CACHE_MODE_WC
+  * - _PAGE_CACHE_MODE_UC_MINUS
+  * - _PAGE_CACHE_MODE_UC
++ * - _PAGE_CACHE_MODE_WT
+  *
+  * If new_type is NULL, function will return an error if it cannot reserve the
+  * region with req_type. If new_type is non-NULL, function will return
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
