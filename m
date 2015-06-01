@@ -1,61 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id EFEBC6B0038
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 08:40:22 -0400 (EDT)
-Received: by wgbgq6 with SMTP id gq6so113242784wgb.3
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 05:40:22 -0700 (PDT)
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 764206B0038
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 09:00:11 -0400 (EDT)
+Received: by wgez8 with SMTP id z8so113592863wge.0
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 06:00:10 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fa5si24580196wjd.72.2015.06.01.05.40.21
+        by mx.google.com with ESMTPS id p8si18425017wie.99.2015.06.01.06.00.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 01 Jun 2015 05:40:21 -0700 (PDT)
-Date: Mon, 1 Jun 2015 14:40:17 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/9] mm: Provide new get_vaddr_frames() helper
-Message-ID: <20150601124017.GC20288@quack.suse.cz>
-References: <1431522495-4692-1-git-send-email-jack@suse.cz>
- <1431522495-4692-3-git-send-email-jack@suse.cz>
- <20150528162402.19a0a26a5b9eae36aa8050e5@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150528162402.19a0a26a5b9eae36aa8050e5@linux-foundation.org>
+        Mon, 01 Jun 2015 06:00:09 -0700 (PDT)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [RFC 1/2] mm: do not ignore mapping_gfp_mask in page cache allocation paths
+Date: Mon,  1 Jun 2015 15:00:02 +0200
+Message-Id: <1433163603-13229-2-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1433163603-13229-1-git-send-email-mhocko@suse.cz>
+References: <1433163603-13229-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-media@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, dri-devel@lists.freedesktop.org, Pawel Osciak <pawel@osciak.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, mgorman@suse.de, Marek Szyprowski <m.szyprowski@samsung.com>, linux-samsung-soc@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org
 
-On Thu 28-05-15 16:24:02, Andrew Morton wrote:
-> On Wed, 13 May 2015 15:08:08 +0200 Jan Kara <jack@suse.cz> wrote:
-> 
-> > Provide new function get_vaddr_frames().  This function maps virtual
-> > addresses from given start and fills given array with page frame numbers of
-> > the corresponding pages. If given start belongs to a normal vma, the function
-> > grabs reference to each of the pages to pin them in memory. If start
-> > belongs to VM_IO | VM_PFNMAP vma, we don't touch page structures. Caller
-> > must make sure pfns aren't reused for anything else while he is using
-> > them.
-> > 
-> > This function is created for various drivers to simplify handling of
-> > their buffers.
-> > 
-> > Acked-by: Mel Gorman <mgorman@suse.de>
-> > Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> > Signed-off-by: Jan Kara <jack@suse.cz>
-> > ---
-> >  include/linux/mm.h |  44 +++++++++++
-> >  mm/gup.c           | 226 +++++++++++++++++++++++++++++++++++++++++++++++++++++
-> 
-> That's a lump of new code which many kernels won't be needing.  Can we
-> put all this in a new .c file and select it within drivers/media
-> Kconfig?
-  Yeah, makes sense. I'll write a patch. Hans, is it OK with you if I
-just create a patch on top of the series you have in your tree?
+page_cache_read, do_generic_file_read, __generic_file_splice_read and
+__ntfs_grab_cache_pages currently ignore mapping_gfp_mask when calling
+add_to_page_cache_lru which might cause recursion into fs down in the
+direct reclaim path if the mapping really relies on GFP_NOFS semantic.
 
-								Honza
+This doesn't seem to be the case now because page_cache_read (page fault
+path) doesn't seem to suffer from the reclaim recursion issues and
+do_generic_file_read and __generic_file_splice_read also shouldn't be
+called under fs locks which would deadlock in the reclaim path. Anyway
+it is better to obey mapping gfp mask and prevent from later breakage.
+
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+---
+ fs/ntfs/file.c | 2 +-
+ fs/splice.c    | 2 +-
+ mm/filemap.c   | 6 ++++--
+ 3 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/fs/ntfs/file.c b/fs/ntfs/file.c
+index 1da9b2d184dc..568c9dbc7e61 100644
+--- a/fs/ntfs/file.c
++++ b/fs/ntfs/file.c
+@@ -422,7 +422,7 @@ static inline int __ntfs_grab_cache_pages(struct address_space *mapping,
+ 				}
+ 			}
+ 			err = add_to_page_cache_lru(*cached_page, mapping, index,
+-					GFP_KERNEL);
++					GFP_KERNEL & mapping_gfp_mask(mapping));
+ 			if (unlikely(err)) {
+ 				if (err == -EEXIST)
+ 					continue;
+diff --git a/fs/splice.c b/fs/splice.c
+index 7d2fbb788fc5..ebd184f24e0d 100644
+--- a/fs/splice.c
++++ b/fs/splice.c
+@@ -360,7 +360,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
+ 				break;
+ 
+ 			error = add_to_page_cache_lru(page, mapping, index,
+-						GFP_KERNEL);
++						GFP_KERNEL & mapping_gfp_mask(mapping));
+ 			if (unlikely(error)) {
+ 				page_cache_release(page);
+ 				if (error == -EEXIST)
+diff --git a/mm/filemap.c b/mm/filemap.c
+index df533a10e8c3..adfc5d2e21c8 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1669,7 +1669,8 @@ static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
+ 			goto out;
+ 		}
+ 		error = add_to_page_cache_lru(page, mapping,
+-						index, GFP_KERNEL);
++						index,
++						GFP_KERNEL & mapping_gfp_mask(mapping));
+ 		if (error) {
+ 			page_cache_release(page);
+ 			if (error == -EEXIST) {
+@@ -1770,7 +1771,8 @@ static int page_cache_read(struct file *file, pgoff_t offset)
+ 		if (!page)
+ 			return -ENOMEM;
+ 
+-		ret = add_to_page_cache_lru(page, mapping, offset, GFP_KERNEL);
++		ret = add_to_page_cache_lru(page, mapping, offset,
++				GFP_KERNEL & mapping_gfp_mask(mapping));
+ 		if (ret == 0)
+ 			ret = mapping->a_ops->readpage(file, page);
+ 		else if (ret == -EEXIST)
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
