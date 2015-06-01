@@ -1,55 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 81EFC6B007B
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 15:56:35 -0400 (EDT)
-Received: by obew15 with SMTP id w15so112317791obe.1
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 12:56:35 -0700 (PDT)
-Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
-        by mx.google.com with ESMTPS id fy16si9391516oeb.33.2015.06.01.12.56.34
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id CCAB26B0038
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 17:11:11 -0400 (EDT)
+Received: by pacux9 with SMTP id ux9so77255137pac.3
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 14:11:11 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id qm2si23176633pac.57.2015.06.01.14.11.10
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jun 2015 12:56:34 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v12 10/10] drivers/block/pmem: Map NVDIMM with ioremap_wt()
-Date: Mon,  1 Jun 2015 13:36:33 -0600
-Message-Id: <1433187393-22688-11-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1433187393-22688-1-git-send-email-toshi.kani@hp.com>
-References: <1433187393-22688-1-git-send-email-toshi.kani@hp.com>
+        Mon, 01 Jun 2015 14:11:10 -0700 (PDT)
+Date: Mon, 1 Jun 2015 14:11:09 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [next:master 7235/7555] mm/page_alloc.c:654:121: warning:
+ comparison of distinct pointer types lacks a cast
+Message-Id: <20150601141109.19f65bd0f4e667783fa5ca7c@linux-foundation.org>
+In-Reply-To: <20150531121815.254f9bc2@BR9TG4T3.de.ibm.com>
+References: <201505300112.mcr8MSyM%fengguang.wu@intel.com>
+	<20150529133252.b0fa852381a501ff9df2ffdc@linux-foundation.org>
+	<20150531121815.254f9bc2@BR9TG4T3.de.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com, mcgrof@suse.com, hch@lst.de, Toshi Kani <toshi.kani@hp.com>
+To: Dominik Dingel <dingel@linux.vnet.ibm.com>
+Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-The pmem driver maps NVDIMM with ioremap_nocache() as we cannot
-write back the contents of the CPU caches in case of a crash.
+On Sun, 31 May 2015 12:18:15 +0200 Dominik Dingel <dingel@linux.vnet.ibm.com> wrote:
 
-This patch changes to use ioremap_wt(), which provides uncached
-writes but cached reads, for improving read performance.
+> > And on s390, HPAGE_SHIFT is unsigned int.  On x86 HPAGE_SHIFT has type
+> > int.  I suggest the fix here is to make s390's HPAGE_SHIFT have type
+> > int as well.
+> 
+> Thanks for noticing. As my way to handle this was mostly inspired by the
+> way powerpc does it,  I'm kind of puzzled why they don't have the same problem?
+> 
+> So I checked and your fix seems to be the right thing to do. But then I would
+> assume the powerpc type for HPAGE should also be changed?
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-Acked-by: Dan Williams <dan.j.williams@intel.com>
----
- drivers/block/pmem.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+powerpc sets CONFIG_HUGETLB_PAGE_SIZE_VARIABLE so it uses
 
-diff --git a/drivers/block/pmem.c b/drivers/block/pmem.c
-index eabf4a8..095dfaa 100644
---- a/drivers/block/pmem.c
-+++ b/drivers/block/pmem.c
-@@ -139,11 +139,11 @@ static struct pmem_device *pmem_alloc(struct device *dev, struct resource *res)
- 	}
- 
- 	/*
--	 * Map the memory as non-cachable, as we can't write back the contents
-+	 * Map the memory as write-through, as we can't write back the contents
- 	 * of the CPU caches in case of a crash.
- 	 */
- 	err = -ENOMEM;
--	pmem->virt_addr = ioremap_nocache(pmem->phys_addr, pmem->size);
-+	pmem->virt_addr = ioremap_wt(pmem->phys_addr, pmem->size);
- 	if (!pmem->virt_addr)
- 		goto out_release_region;
- 
+extern int pageblock_order;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
