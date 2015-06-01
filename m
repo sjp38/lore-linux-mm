@@ -1,136 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 316F66B0038
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 12:59:21 -0400 (EDT)
-Received: by obcnx10 with SMTP id nx10so102791776obc.2
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 09:59:20 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id df7si9144615obb.97.2015.06.01.09.59.19
+Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B5806B0038
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 13:11:15 -0400 (EDT)
+Received: by lbcue7 with SMTP id ue7so88786568lbc.0
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 10:11:14 -0700 (PDT)
+Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com. [209.85.217.181])
+        by mx.google.com with ESMTPS id kh8si12808693lbc.46.2015.06.01.10.11.13
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jun 2015 09:59:19 -0700 (PDT)
-Message-ID: <556C8E0E.5000309@oracle.com>
-Date: Mon, 01 Jun 2015 09:53:34 -0700
-From: Mike Kravetz <mike.kravetz@oracle.com>
+        Mon, 01 Jun 2015 10:11:13 -0700 (PDT)
+Received: by lbcue7 with SMTP id ue7so88786012lbc.0
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 10:11:13 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 3/3] mm/hugetlb: handle races in alloc_huge_page and
- hugetlb_reserve_pages
-References: <1432749371-32220-1-git-send-email-mike.kravetz@oracle.com> <1432749371-32220-4-git-send-email-mike.kravetz@oracle.com>
-In-Reply-To: <1432749371-32220-4-git-send-email-mike.kravetz@oracle.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20150601085821.GA15014@gmail.com>
+References: <1432739944-22633-1-git-send-email-toshi.kani@hp.com>
+ <1432739944-22633-13-git-send-email-toshi.kani@hp.com> <20150529091129.GC31435@pd.tnic>
+ <CAPcyv4jHbrUP7bDpw2Cja5x0eMQZBLmmzFXbotQWSEkAiL1s7Q@mail.gmail.com>
+ <1432911782.23540.55.camel@misato.fc.hp.com> <CAPcyv4g+zYFkEYpa0HCh0Q+2C3wWNr6v3ZU143h52OKf=U=Qvw@mail.gmail.com>
+ <CALCETrXXfujebOemesBtgKCkmRTOQFGjdcxjFDF+_P_tv+C0bw@mail.gmail.com>
+ <94D0CD8314A33A4D9D801C0FE68B40295A92F392@G9W0745.americas.hpqcorp.net>
+ <CALCETrXhNsk9yX=gerxqHCR6+CLdCGrjt9pDk98yeF0L7yyPvg@mail.gmail.com> <20150601085821.GA15014@gmail.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Mon, 1 Jun 2015 10:10:52 -0700
+Message-ID: <CALCETrVNzrz7UCd=VeL1j-1G5yJrokev+JhizhfX-fH_4yovnQ@mail.gmail.com>
+Subject: Re: [PATCH v10 12/12] drivers/block/pmem: Map NVDIMM with ioremap_wt()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: "Elliott, Robert (Server Storage)" <Elliott@hp.com>, Dan Williams <dan.j.williams@intel.com>, "Kani, Toshimitsu" <toshi.kani@hp.com>, Borislav Petkov <bp@alien8.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Yigal Korman <yigal@plexistor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Luis Rodriguez <mcgrof@suse.com>, Christoph Hellwig <hch@lst.de>, Matthew Wilcox <willy@linux.intel.com>
 
-On 05/27/2015 10:56 AM, Mike Kravetz wrote:
-> alloc_huge_page and hugetlb_reserve_pages use region_chg to
-> calculate the number of pages which will be added to the reserve
-> map.  Subpool and global reserve counts are adjusted based on
-> the output of region_chg.  Before the pages are actually added
-> to the reserve map, these routines could race and add fewer
-> pages than expected.  If this happens, the subpool and global
-> reserve counts are not correct.
+On Mon, Jun 1, 2015 at 1:58 AM, Ingo Molnar <mingo@kernel.org> wrote:
 >
-> Compare the number of pages actually added (region_add) to those
-> expected to added (region_chg).  If fewer pages are actually added,
-> this indicates a race and adjust counters accordingly.
+> * Andy Lutomirski <luto@amacapital.net> wrote:
 >
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> ---
->   mm/hugetlb.c | 34 ++++++++++++++++++++++++++++++----
->   1 file changed, 30 insertions(+), 4 deletions(-)
+>> You answered the wrong question. :) I understand the point of the non-temporal
+>> stores -- I don't understand the point of using non-temporal stores to *WB
+>> memory*.  I think we should be okay with having the kernel mapping use WT
+>> instead.
 >
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index b3d3d59..038c84e 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1544,7 +1544,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->   	struct hugepage_subpool *spool = subpool_vma(vma);
->   	struct hstate *h = hstate_vma(vma);
->   	struct page *page;
-> -	long chg;
-> +	long chg, commit;
->   	int ret, idx;
->   	struct hugetlb_cgroup *h_cg;
+> WB memory is write-through, but they are still fully cached for reads.
 >
-> @@ -1585,7 +1585,20 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+> So non-temporal instructions influence how the CPU will allocate (or not allocate)
+> WT cache lines.
 >
->   	set_page_private(page, (unsigned long)spool);
+
+I'm doing a terrible job of saying what I mean.
+
+Given that we're using non-temporal writes, the kernel code should
+work correctly and with similar performance regardless of whether the
+mapping is WB or WT.  It would still be correct, if slower, with WC or
+UC, and, if we used explicit streaming reads, even that would matter
+less.
+
+I think this means that we are free to switch the kernel mapping
+between WB and WT as needed to improve DAX behavior.  We could even
+plausibly do it at runtime.
+
+--Andy
+
+> Thanks,
 >
-> -	vma_commit_reservation(h, vma, addr);
-> +	commit = vma_commit_reservation(h, vma, addr);
-> +	if (unlikely(chg > commit)) {
-> +		/*
-> +		 * The page was added to the reservation map between
-> +		 * vma_needs_reservation and vma_commit_reservation.
-> +		 * This indicates a race with hugetlb_reserve_pages.
-> +		 * Adjust for the subpool count incremented above AND
-> +		 * in hugetlb_reserve_pages for the same page.  Also,
-> +		 * the reservation count added in hugetlb_reserve_pages
-> +		 * no longer applies.
-> +		 */
-> +		hugepage_subpool_put_pages(spool, 1);
-> +		hugetlb_acct_memory(h, -1);
-> +	}
->   	return page;
+>         Ingo
 
-Well, this is embarrassing.  The code to fix up counts is incomplete
-and incorrect.  It does not take into account the hugetlbfs min_size
-option to reserve a set of pages for a filesystem.  The code should
-look like:
 
-		long rsv_adjust;
-
-		rsv_adjust = hugepage_subpool_put_pages(spool, 1);
-		hugetlb_acct_memory(h, -rsv_adjust);
-
-A similar change is required in hugetlb_reserve_pages().
-
-I have verified that the global reserve count is not properly
-adjusted with the original patch, and verified that it is properly
-adjusted with the above change.
-
-Should I create a new patch set, or create a patch on top of the
-existing set?
-
-I think this oversight points out the need to encapsulate the
-subpool and global reserve count adjustments.  There are too
-many counters/adjustments in the code and it is pretty easy not
-to take them all into account.  I'll start work on some
-encapsulation routines.
 
 -- 
-Mike Kravetz
-
->
->   out_uncharge_cgroup:
-> @@ -3699,8 +3712,21 @@ int hugetlb_reserve_pages(struct inode *inode,
->   	 * consumed reservations are stored in the map. Hence, nothing
->   	 * else has to be done for private mappings here
->   	 */
-> -	if (!vma || vma->vm_flags & VM_MAYSHARE)
-> -		region_add(resv_map, from, to);
-> +	if (!vma || vma->vm_flags & VM_MAYSHARE) {
-> +		long add = region_add(resv_map, from, to);
-> +
-> +		if (unlikely(chg > add)) {
-> +			/*
-> +			 * pages in this range were added to the reserve
-> +			 * map between region_chg and region_add.  This
-> +			 * indicates a race with alloc_huge_page.  Adjust
-> +			 * the subpool and reserve counts modified above
-> +			 * based on the difference.
-> +			 */
-> +			hugepage_subpool_put_pages(spool, chg - add);
-> +			hugetlb_acct_memory(h, -(chg - ret));
-> +		}
-> +	}
->   	return 0;
->   out_err:
->   	if (vma && is_vma_resv_set(vma, HPAGE_RESV_OWNER))
->
+Andy Lutomirski
+AMA Capital Management, LLC
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
