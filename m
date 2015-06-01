@@ -1,65 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id B8A1A6B0038
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 15:28:26 -0400 (EDT)
-Received: by igbpi8 with SMTP id pi8so69720535igb.1
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 12:28:26 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0230.hostedemail.com. [216.40.44.230])
-        by mx.google.com with ESMTP id v85si11928880ioi.40.2015.06.01.12.28.26
-        for <linux-mm@kvack.org>;
-        Mon, 01 Jun 2015 12:28:26 -0700 (PDT)
-Date: Mon, 1 Jun 2015 15:28:23 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [RFC][PATCH] mm: ifdef out VM_BUG_ON check on PREEMPT_RT_FULL
-Message-ID: <20150601152823.405157c3@gandalf.local.home>
-In-Reply-To: <20150601190047.GA5879@cmpxchg.org>
-References: <20150529104815.2d2e880c@sluggy>
-	<20150529142614.37792b9ff867626dcf5e0f08@linux-foundation.org>
-	<20150601131452.3e04f10a@sluggy>
-	<20150601190047.GA5879@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 2992F6B0038
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 15:56:12 -0400 (EDT)
+Received: by oifu123 with SMTP id u123so109885256oif.1
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 12:56:11 -0700 (PDT)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id pn4si71403oeb.67.2015.06.01.12.56.10
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Jun 2015 12:56:10 -0700 (PDT)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH v12 0/10] Support Write-Through mapping on x86
+Date: Mon,  1 Jun 2015 13:36:23 -0600
+Message-Id: <1433187393-22688-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Clark Williams <williams@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@glx-um.de>, linux-mm@kvack.org, RT <linux-rt-users@vger.kernel.org>, Fernando Lopez-Lezcano <nando@ccrma.Stanford.EDU>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+To: bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com, mcgrof@suse.com, hch@lst.de
 
-On Mon, 1 Jun 2015 15:00:47 -0400
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+This patchset adds support of Write-Through (WT) mapping on x86.
+The study below shows that using WT mapping may be useful for
+non-volatile memory.
 
-> Andrew's suggestion makes sense, we can probably just delete the check
-> as long as we keep the comment.
-> 
-> That being said, I think it's a little weird that this doesn't work:
-> 
-> spin_lock_irq()
-> BUG_ON(!irqs_disabled())
-> spin_unlock_irq()
-> 
-> I'd expect that if you change the meaning of spin_lock_irq() from
-> "mask hardware interrupts" to "disable preemption by tophalf", you
-> would update the irqs_disabled() macro to match.  Most people using
-> this check probably don't care about the hardware state, only that
-> they don't get preempted by an interfering interrupt handler, no?
+http://www.hpl.hp.com/techreports/2012/HPL-2012-236.pdf
 
-The thing is, in -rt, there's no state to check if a spin_lock_irq()
-was done. Adding that would add overhead to the rt_mutexes without much
-gain.
+The patchset consists of the following changes.
+ - Patch 1/10 to 6/10 add ioremap_wt()
+ - Patch 7/10 adds pgprot_writethrough()
+ - Patch 8/10 to 9/10 add set_memory_wt()
+ - Patch 10/10 changes the pmem driver to call ioremap_wt()
 
-The fast path of spin_lock_irq() in -rt looks like this:
+All new/modified interfaces have been tested.
 
-	migrate_disable();
-	rt_mutex_cmpxchg(lock, NULL, current);
+The patchset is based on:
+git://git.kernel.org/pub/scm/linux/kernel/git/bp/bp.git#tip-mm-2
 
-Now, the migrate_disable() is more like preempt disable.
+---
+v12:
+- Rebased to bp/bp.git#tip-mm-2 and resolved minor conflicts. 
+- Dropped cleanup patches 1-2 as redone by Boris.
 
-Although, maybe we could have -rt change irq_disabled() just check
-that, and add a raw_irq_disabled() for when we need to make sure
-interrupts are really off.
+v11:
+- Reordered the refactor changes from patch 10-11 to 1-2.
+  (Borislav Petkov)
+- Changed BUG() to panic(). (Borislav Petkov)
+- Rebased to tip/master and resolved conflicts. 
 
--- Steve
+v10:
+- Removed ioremap_writethrough(). (Thomas Gleixner)
+- Clarified and cleaned up multiple comments and functions.
+  (Thomas Gleixner) 
+- Changed ioremap_change_attr() to accept the WT type.
 
+v9:
+- Changed to export the set_xxx_wt() interfaces with GPL.
+  (Ingo Molnar)
+- Changed is_new_memtype_allowed() to handle WT cases.
+- Changed arch-specific io.h to define ioremap_wt().
+- Changed the pmem driver to use ioremap_wt().
+- Rebased to 4.1-rc3 and resolved minor conflicts.
+
+v8:
+- Rebased to 4.0-rc1 and resolved conflicts with 9d34cfdf4 in
+  patch 5/7.
+
+v7:
+- Rebased to 3.19-rc3 as Juergen's patchset for the PAT management
+  has been accepted.
+
+v6:
+- Dropped the patch moving [set|get]_page_memtype() to pat.c
+  since the tip branch already has this change.
+- Fixed an issue when CONFIG_X86_PAT is not defined.
+
+v5:
+- Clarified comment of why using slot 7. (Andy Lutomirski,
+  Thomas Gleixner)
+- Moved [set|get]_page_memtype() to pat.c. (Thomas Gleixner)
+- Removed BUG() from set_page_memtype(). (Thomas Gleixner)
+
+v4:
+- Added set_memory_wt() by adding WT support of regular memory.
+
+v3:
+- Dropped the set_memory_wt() patch. (Andy Lutomirski)
+- Refactored the !pat_enabled handling. (H. Peter Anvin,
+  Andy Lutomirski)
+- Added the picture of PTE encoding. (Konrad Rzeszutek Wilk)
+
+v2:
+- Changed WT to use slot 7 of the PAT MSR. (H. Peter Anvin,
+  Andy Lutomirski)
+- Changed to have conservative checks to exclude all Pentium 2, 3,
+  M, and 4 families. (Ingo Molnar, Henrique de Moraes Holschuh,
+  Andy Lutomirski)
+- Updated documentation to cover WT interfaces and usages.
+  (Andy Lutomirski, Yigal Korman)
+
+---
+Toshi Kani (10):
+ 1/10 x86, mm, pat: Set WT to PA7 slot of PAT MSR
+ 2/10 x86, mm, pat: Change reserve_memtype() for WT
+ 3/10 x86, asm: Change is_new_memtype_allowed() for WT
+ 4/10 x86, mm, asm-gen: Add ioremap_wt() for WT
+ 5/10 arch/*/asm/io.h: Add ioremap_wt() to all architectures
+ 6/10 video/fbdev, asm/io.h: Remove ioremap_writethrough()
+ 7/10 x86, mm, pat: Add pgprot_writethrough() for WT
+ 8/10 x86, mm, asm: Add WT support to set_page_memtype()
+ 9/10 x86, mm: Add set_memory_wt() for WT
+10/10 drivers/block/pmem: Map NVDIMM with ioremap_wt()
+
+---
+ Documentation/x86/pat.txt            |  13 ++--
+ arch/arc/include/asm/io.h            |   1 +
+ arch/arm/include/asm/io.h            |   1 +
+ arch/arm64/include/asm/io.h          |   1 +
+ arch/avr32/include/asm/io.h          |   1 +
+ arch/frv/include/asm/io.h            |   4 +-
+ arch/m32r/include/asm/io.h           |   1 +
+ arch/m68k/include/asm/io_mm.h        |   4 +-
+ arch/m68k/include/asm/io_no.h        |   4 +-
+ arch/metag/include/asm/io.h          |   3 +
+ arch/microblaze/include/asm/io.h     |   2 +-
+ arch/mn10300/include/asm/io.h        |   1 +
+ arch/nios2/include/asm/io.h          |   1 +
+ arch/s390/include/asm/io.h           |   1 +
+ arch/sparc/include/asm/io_32.h       |   1 +
+ arch/sparc/include/asm/io_64.h       |   1 +
+ arch/tile/include/asm/io.h           |   2 +-
+ arch/x86/include/asm/cacheflush.h    |   6 +-
+ arch/x86/include/asm/io.h            |   2 +
+ arch/x86/include/asm/pgtable.h       |   8 ++-
+ arch/x86/include/asm/pgtable_types.h |   3 +
+ arch/x86/mm/ioremap.c                |  24 +++++++
+ arch/x86/mm/pageattr.c               |  62 +++++++++++++----
+ arch/x86/mm/pat.c                    | 126 +++++++++++++++++++++++++----------
+ arch/xtensa/include/asm/io.h         |   1 +
+ drivers/block/pmem.c                 |   4 +-
+ drivers/video/fbdev/amifb.c          |   4 +-
+ drivers/video/fbdev/atafb.c          |   3 +-
+ drivers/video/fbdev/hpfb.c           |   4 +-
+ include/asm-generic/io.h             |   9 +++
+ include/asm-generic/iomap.h          |   4 ++
+ include/asm-generic/pgtable.h        |   4 ++
+ 32 files changed, 240 insertions(+), 66 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
