@@ -1,86 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id C6FC46B0038
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 10:32:11 -0400 (EDT)
-Received: by labko7 with SMTP id ko7so99383663lab.2
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 07:32:11 -0700 (PDT)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.13])
-        by mx.google.com with ESMTPS id kw8si24999211wjb.181.2015.06.01.07.32.09
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jun 2015 07:32:10 -0700 (PDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH v2 3/4] arch: introduce memremap()
-Date: Mon, 01 Jun 2015 16:29:55 +0200
-Message-ID: <2979323.pqVEGrEfg7@wuerfel>
-In-Reply-To: <CAPcyv4hqQaabcOsOZA9emT5f+UF9GgD-PiYupng4HYwymcvYmQ@mail.gmail.com>
-References: <20150530185425.32590.3190.stgit@dwillia2-desk3.amr.corp.intel.com> <201505302300.10950.arnd@arndb.de> <CAPcyv4hqQaabcOsOZA9emT5f+UF9GgD-PiYupng4HYwymcvYmQ@mail.gmail.com>
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D14C6B0038
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 11:12:41 -0400 (EDT)
+Received: by padjw17 with SMTP id jw17so39109504pad.2
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 08:12:41 -0700 (PDT)
+Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
+        by mx.google.com with ESMTP id bt1si21578087pbb.171.2015.06.01.08.12.39
+        for <linux-mm@kvack.org>;
+        Mon, 01 Jun 2015 08:12:40 -0700 (PDT)
+Date: Mon, 1 Jun 2015 11:12:39 -0400
+From: Eric B Munson <emunson@akamai.com>
+Subject: Re: [PATCH] oom: always panic on OOM when panic_on_oom is configured
+Message-ID: <20150601151239.GA14282@akamai.com>
+References: <1433159948-9912-1-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="r5Pyd7+fXNt84Ff3"
+Content-Disposition: inline
+In-Reply-To: <1433159948-9912-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, geert@linux-m68k.org, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Tejun Heo <tj@kernel.org>, Christoph Hellwig <hch@lst.de>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Saturday 30 May 2015 14:39:48 Dan Williams wrote:
-> On Sat, May 30, 2015 at 2:00 PM, Arnd Bergmann <arnd@arndb.de> wrote:
-> > On Saturday 30 May 2015, Dan Williams wrote:
-> >>
-> >> +/*
-> >> + * memremap() is "ioremap" for cases where it is known that the resource
-> >> + * being mapped does not have i/o side effects and the __iomem
-> >> + * annotation is not applicable.
-> >> + */
-> >> +
-> >> +static inline void *memremap(resource_size_t offset, size_t size)
-> >> +{
-> >> +       return (void __force *) ioremap(offset, size);
-> >> +}
-> >> +
-> >> +static inline void *memremap_nocache(resource_size_t offset, size_t size)
-> >> +{
-> >> +       return (void __force *) ioremap_nocache(offset, size);
-> >> +}
-> >> +
-> >> +static inline void *memremap_cache(resource_size_t offset, size_t size)
-> >> +{
-> >> +       return (void __force *) ioremap_cache(offset, size);
-> >> +}
-> >> +
-> >
-> > There are architectures on which the result of ioremap is not necessarily
-> > a pointer, but instead indicates that the access is to be done through
-> > some other indirect access, or require special instructions. I think implementing
-> > the memremap() interfaces is generally helpful, but don't rely on the
-> > ioremap implementation.
-> 
-> Is it enough to detect the archs where ioremap() does return an
-> otherwise usable pointer and set ARCH_HAS_MEMREMAP, in the first take
-> of this introduction?  Regardless, it seems that drivers should have
-> Kconfig dependency checks for archs where ioremap can not be used in
-> this manner.
 
-Yes, that should work.
+--r5Pyd7+fXNt84Ff3
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> > Adding both cached an uncached versions is also dangerous, because you
-> > typically get either undefined behavior or a system checkstop when a
-> > single page is mapped both cached and uncached at the same time. This
-> > means that doing memremap() or memremap_nocache() on something that
-> > may be part of the linear kernel mapping is a bug, and we should probably
-> > check for that here.
-> 
-> Part of the reason for relying on ioremap() was to borrow its internal
-> checks to fail attempts that try to remap ranges that are already in
-> the kernel linear map.  Hmm, that's a guarantee x86 ioremap gives, but
-> maybe that's not universal?
+On Mon, 01 Jun 2015, Michal Hocko wrote:
 
-I haven't seen that check elsewhere. IIRC what ioremap() guarantees on ARM
-is that if there is an existing boot-time mapping (similar to x86 fixmap,
-but more commonly used), we use the same flags in the new ioremap and
-override the ones that are provided by the caller.
+> panic_on_oom allows administrator to set OOM policy to panic the system
+> when it is out of memory to reduce failover time e.g. when resolving
+> the OOM condition would take much more time than rebooting the system.
+>=20
+> out_of_memory tries to be clever and prevent from premature panics
+> by checking the current task and prevent from panic when the task
+> has fatal signal pending and so it should die shortly and release some
+> memory. This is fair enough but Tetsuo Handa has noted that this might
+> lead to a silent deadlock when current cannot exit because of
+> dependencies invisible to the OOM killer.
+>=20
+> panic_on_oom is disabled by default and if somebody enables it then any
+> risk of potential deadlock is certainly unwelcome. The risk is really
+> low because there are usually more sources of allocation requests and
+> one of them would eventually trigger the panic but it is better to
+> reduce the risk as much as possible.
+>=20
+> Let's move check_panic_on_oom up before the current task is
+> checked so that the knob value is . Do the same for the memcg in
+> mem_cgroup_out_of_memory.
+>=20
+> Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-	Arnd
+I was initially going to complain about this causing the machine to
+panic when a cgroup is oom, but the machine is not.  However after
+reading check_panic_on_oom(), that behavior is controllable.
+
+Reviewed-by: Eric B Munson <emunson@akamai.com>
+
+
+--r5Pyd7+fXNt84Ff3
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBAgAGBQJVbHZnAAoJELbVsDOpoOa9zd4P/jiiBTF4ehhpmMsnmi4FRUtY
+MxSQn12YLu5gXdUJ5Yg0f/qrqbqvJSP7MZ9gWt1Bnt3tVvyXSSUvUzauDnKbiSIm
+/nzr7/eQ0xYxCj3QCQCqKqnMMnWnsnwmwHspSKtIi3qdEOELMuDreWBinihgzxmF
+Yo/K0Tw32xicSdVrvnev2MwvrebDhrpuAxBfwe+IZf4mcF+ZAfE3kWOO3lNjkBTR
+RNKbo5XR8Dgs477ZSYISgJFXh7zHzbuLRGtUmibTKG7KQQOqsg1ec8ogZ/6CM5V0
+lsRkh5SszXg0saN2Q7oibEf0BpZk1OBAidVFwVOpMrAvESXCnmmW5qg+wkv3btM4
+/+0Ok3nYrVnfcNSxli4IxMrr/WgpGX6k2jNr+sanwx3BAUxiOx2O8PvgqQHPqa36
+PJIZnH5WLfkkeYaCtGPypkQLb5VUtK3N3V7C+BHr/su4U0HlEUCxFOoyCEGXHgE1
+VVcfWZp4MAW56bhgtut7O+H7Th3WAMbxSGAlYKeR6EXTdKL4WcQAkMUPtZseB7VE
+W9Zm8lilmv/HXPlHNXlqXnYqIf1yZbX7ik+Dum8Aa94oGxO0coMkh2ImvEusqqxr
+xUB3j6qpBfydYjbpSSpTyob9TOSk9jdc39Eo71Cahz64jd26WXM39avQx9mmFIyb
+wM+guHi6EJ22EvdIcb/1
+=3ixX
+-----END PGP SIGNATURE-----
+
+--r5Pyd7+fXNt84Ff3--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
