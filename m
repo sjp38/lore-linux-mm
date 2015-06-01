@@ -1,77 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 509EE6B0038
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 08:34:32 -0400 (EDT)
-Received: by padjw17 with SMTP id jw17so36188881pad.2
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 05:34:32 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id a13si21042247pbu.153.2015.06.01.05.34.30
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id EFEBC6B0038
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 08:40:22 -0400 (EDT)
+Received: by wgbgq6 with SMTP id gq6so113242784wgb.3
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 05:40:22 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fa5si24580196wjd.72.2015.06.01.05.40.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 01 Jun 2015 05:34:31 -0700 (PDT)
-Subject: Re: [PATCH] mm/oom: Suppress unnecessary "sharing same memory" message.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20150601090341.GA7147@dhcp22.suse.cz>
-	<201506011951.DCC81216.tMVQHLFOFFOJSO@I-love.SAKURA.ne.jp>
-	<20150601114349.GE7147@dhcp22.suse.cz>
-	<201506012110.GHJ73931.LVFOOMFtHOSFJQ@I-love.SAKURA.ne.jp>
-	<20150601121759.GG7147@dhcp22.suse.cz>
-In-Reply-To: <20150601121759.GG7147@dhcp22.suse.cz>
-Message-Id: <201506012134.FAH39526.FtHJSLVMOOQFFO@I-love.SAKURA.ne.jp>
-Date: Mon, 1 Jun 2015 21:34:27 +0900
-Mime-Version: 1.0
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 01 Jun 2015 05:40:21 -0700 (PDT)
+Date: Mon, 1 Jun 2015 14:40:17 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/9] mm: Provide new get_vaddr_frames() helper
+Message-ID: <20150601124017.GC20288@quack.suse.cz>
+References: <1431522495-4692-1-git-send-email-jack@suse.cz>
+ <1431522495-4692-3-git-send-email-jack@suse.cz>
+ <20150528162402.19a0a26a5b9eae36aa8050e5@linux-foundation.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150528162402.19a0a26a5b9eae36aa8050e5@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-media@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, dri-devel@lists.freedesktop.org, Pawel Osciak <pawel@osciak.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, mgorman@suse.de, Marek Szyprowski <m.szyprowski@samsung.com>, linux-samsung-soc@vger.kernel.org
 
-Michal Hocko wrote:
-> On Mon 01-06-15 21:10:18, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Mon 01-06-15 19:51:05, Tetsuo Handa wrote:
-> > > [...]
-> > > > How can all fatal_signal_pending() "struct task_struct" get access to memory
-> > > > reserves when only one of fatal_signal_pending() "struct task_struct" has
-> > > > TIF_MEMDIE ?
-> > > 
-> > > Because of 
-> > > 	/*
-> > > 	 * If current has a pending SIGKILL or is exiting, then automatically
-> > > 	 * select it.  The goal is to allow it to allocate so that it may
-> > > 	 * quickly exit and free its memory.
-> > > 	 *
-> > > 	 * But don't select if current has already released its mm and cleared
-> > > 	 * TIF_MEMDIE flag at exit_mm(), otherwise an OOM livelock may occur.
-> > > 	 */
-> > > 	if (current->mm &&
-> > > 	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
-> > > 		mark_oom_victim(current);
-> > > 		goto out;
-> > > 	}
-> > 
-> > Then, what guarantees that the thread which is between
-> > down_write(&current->mm->mmap_sem) and up_write(&current->mm->mmap_sem)
-> > (or whatever locks which are blocking the OOM victim) calls out_of_memory() ?
-> > That thread might be doing !__GFP_FS allocation request.
+On Thu 28-05-15 16:24:02, Andrew Morton wrote:
+> On Wed, 13 May 2015 15:08:08 +0200 Jan Kara <jack@suse.cz> wrote:
 > 
-> Could you point to such a place?
+> > Provide new function get_vaddr_frames().  This function maps virtual
+> > addresses from given start and fills given array with page frame numbers of
+> > the corresponding pages. If given start belongs to a normal vma, the function
+> > grabs reference to each of the pages to pin them in memory. If start
+> > belongs to VM_IO | VM_PFNMAP vma, we don't touch page structures. Caller
+> > must make sure pfns aren't reused for anything else while he is using
+> > them.
+> > 
+> > This function is created for various drivers to simplify handling of
+> > their buffers.
+> > 
+> > Acked-by: Mel Gorman <mgorman@suse.de>
+> > Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> > Signed-off-by: Jan Kara <jack@suse.cz>
+> > ---
+> >  include/linux/mm.h |  44 +++++++++++
+> >  mm/gup.c           | 226 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+> 
+> That's a lump of new code which many kernels won't be needing.  Can we
+> put all this in a new .c file and select it within drivers/media
+> Kconfig?
+  Yeah, makes sense. I'll write a patch. Hans, is it OK with you if I
+just create a patch on top of the series you have in your tree?
 
-I think sequence shown below is possible.
-
-[Thread1-in-Porcess1         Thread2-in-Porcess1]    [Thread3-in-Process2]
-
-mutex_lock(&inode->i_mutex);
-                                                     kmalloc(GFP_KERNEL)
-                                                     Invokes the OOM killer
-                             Receives TIF_MEMDIE
-Receives SIGKILL
-                             Receives SIGKILL
-                             mutex_lock(&inode->i_mutex); <= Waiting forever
-kmalloc(GFP_NOFS); <= Can't return because out_of_memory() is not called.
-mutex_unlock(&inode->i_mutex);
-                             kmalloc(GFP_NOFS);
-                             mutex_unlock(&inode->i_mutex);
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
