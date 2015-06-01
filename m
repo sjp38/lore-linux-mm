@@ -1,57 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 5775D6B006C
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 07:43:53 -0400 (EDT)
-Received: by wifw1 with SMTP id w1so101349610wif.0
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 04:43:52 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ge5si24303764wjb.125.2015.06.01.04.43.51
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 294BE6B006E
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 07:44:25 -0400 (EDT)
+Received: by wicmx19 with SMTP id mx19so72702849wic.0
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 04:44:24 -0700 (PDT)
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com. [74.125.82.54])
+        by mx.google.com with ESMTPS id p2si24342439wjy.73.2015.06.01.04.44.23
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 01 Jun 2015 04:43:51 -0700 (PDT)
-Date: Mon, 1 Jun 2015 13:43:49 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm/oom: Suppress unnecessary "sharing same memory"
- message.
-Message-ID: <20150601114349.GE7147@dhcp22.suse.cz>
-References: <20150528180524.GB2321@dhcp22.suse.cz>
- <201505292140.JHE18273.SFFMJFHOtQLOVO@I-love.SAKURA.ne.jp>
- <20150529144922.GE22728@dhcp22.suse.cz>
- <201505300220.GCH51071.FVOOFOLQStJMFH@I-love.SAKURA.ne.jp>
- <20150601090341.GA7147@dhcp22.suse.cz>
- <201506011951.DCC81216.tMVQHLFOFFOJSO@I-love.SAKURA.ne.jp>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Jun 2015 04:44:23 -0700 (PDT)
+Received: by wgv5 with SMTP id 5so111812047wgv.1
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 04:44:23 -0700 (PDT)
+Message-ID: <556C4593.5090600@plexistor.com>
+Date: Mon, 01 Jun 2015 14:44:19 +0300
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201506011951.DCC81216.tMVQHLFOFFOJSO@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH v2 4/4] arch, x86: cache management apis for persistent
+ memory
+References: <20150530185425.32590.3190.stgit@dwillia2-desk3.amr.corp.intel.com> <20150530185940.32590.37804.stgit@dwillia2-desk3.amr.corp.intel.com> <556C4477.8090803@plexistor.com>
+In-Reply-To: <556C4477.8090803@plexistor.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org
+To: Dan Williams <dan.j.williams@intel.com>, arnd@arndb.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org
+Cc: jgross@suse.com, konrad.wilk@oracle.com, mcgrof@suse.com, x86@kernel.org, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, linux-nvdimm@lists.01.org, geert@linux-m68k.org, hmh@hmh.eng.br, tj@kernel.org, hch@lst.de
 
-On Mon 01-06-15 19:51:05, Tetsuo Handa wrote:
-[...]
-> How can all fatal_signal_pending() "struct task_struct" get access to memory
-> reserves when only one of fatal_signal_pending() "struct task_struct" has
-> TIF_MEMDIE ?
+Forgot one thing
 
-Because of 
-	/*
-	 * If current has a pending SIGKILL or is exiting, then automatically
-	 * select it.  The goal is to allow it to allocate so that it may
-	 * quickly exit and free its memory.
-	 *
-	 * But don't select if current has already released its mm and cleared
-	 * TIF_MEMDIE flag at exit_mm(), otherwise an OOM livelock may occur.
-	 */
-	if (current->mm &&
-	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
-		mark_oom_victim(current);
-		goto out;
-	}
--- 
-Michal Hocko
-SUSE Labs
+On 06/01/2015 02:39 PM, Boaz Harrosh wrote:
+>> +static inline void persistent_copy(void *dst, const void *src, size_t n)
+
+Could we please make this
+memcpy_persistent
+
+Same as:
+copy_from_user_nocache
+
+The generic name of what it does first then the special override.
+copy_from_user_XXX is same as copy_from_user but with XXX applied
+
+Same here exactly as memcpy_ but with persistent applied.
+
+<>
+
+Thanks
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
