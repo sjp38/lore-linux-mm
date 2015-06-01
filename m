@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 4866C6B0072
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 15:56:27 -0400 (EDT)
-Received: by obcnx10 with SMTP id nx10so106368689obc.2
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 12:56:27 -0700 (PDT)
+Received: from mail-oi0-f53.google.com (mail-oi0-f53.google.com [209.85.218.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 596A86B0073
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 15:56:28 -0400 (EDT)
+Received: by oihb142 with SMTP id b142so109764102oih.3
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 12:56:28 -0700 (PDT)
 Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
-        by mx.google.com with ESMTPS id q8si119335oem.75.2015.06.01.12.56.26
+        by mx.google.com with ESMTPS id w186si47893oia.91.2015.06.01.12.56.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jun 2015 12:56:26 -0700 (PDT)
+        Mon, 01 Jun 2015 12:56:27 -0700 (PDT)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v12 5/10] arch/*/asm/io.h: Add ioremap_wt() to all architectures
-Date: Mon,  1 Jun 2015 13:36:28 -0600
-Message-Id: <1433187393-22688-6-git-send-email-toshi.kani@hp.com>
+Subject: [PATCH v12 6/10] video/fbdev, asm/io.h: Remove ioremap_writethrough()
+Date: Mon,  1 Jun 2015 13:36:29 -0600
+Message-Id: <1433187393-22688-7-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1433187393-22688-1-git-send-email-toshi.kani@hp.com>
 References: <1433187393-22688-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,286 +20,139 @@ List-ID: <linux-mm.kvack.org>
 To: bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com, mcgrof@suse.com, hch@lst.de, Toshi Kani <toshi.kani@hp.com>
 
-This patch adds ioremap_wt() to all arch-specific asm/io.h which
-define ioremap_wc() locally.  These arch-specific asm/io.h do not
-include <asm-generic/iomap.h>.  Some of them include
-<asm-generic/io.h>, but ioremap_wt() is defined for consistency
-since they define all ioremap_xxx locally.
-
-ioremap_wt() is defined indentical to ioremap_nocache() to all
-architectures without WT support.
-
-frv and m68k already have ioremap_writethrough().  This patch
-implements ioremap_wt() indetical to ioremap_writethrough() and
-defines ARCH_HAS_IOREMAP_WT in both architectures.
-
-This patch allows generic drivers to use ioremap_wt().
+This patch removes the callers of ioremap_writethrough() by
+replacing them with ioremap_wt() in three drivers under
+drivers/video/fbdev.  It then removes ioremap_writethrough()
+defined in some architecture's asm/io.h, frv, m68k, microblaze,
+and tile.
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 ---
- arch/arc/include/asm/io.h        |    1 +
- arch/arm/include/asm/io.h        |    1 +
- arch/arm64/include/asm/io.h      |    1 +
- arch/avr32/include/asm/io.h      |    1 +
- arch/frv/include/asm/io.h        |    7 +++++++
- arch/m32r/include/asm/io.h       |    1 +
- arch/m68k/include/asm/io_mm.h    |    7 +++++++
- arch/m68k/include/asm/io_no.h    |    6 ++++++
- arch/metag/include/asm/io.h      |    3 +++
- arch/microblaze/include/asm/io.h |    1 +
- arch/mn10300/include/asm/io.h    |    1 +
- arch/nios2/include/asm/io.h      |    1 +
- arch/s390/include/asm/io.h       |    1 +
- arch/sparc/include/asm/io_32.h   |    1 +
- arch/sparc/include/asm/io_64.h   |    1 +
- arch/tile/include/asm/io.h       |    1 +
- arch/xtensa/include/asm/io.h     |    1 +
- 17 files changed, 36 insertions(+)
+ arch/frv/include/asm/io.h        |    5 -----
+ arch/m68k/include/asm/io_mm.h    |    5 -----
+ arch/m68k/include/asm/io_no.h    |    4 ----
+ arch/microblaze/include/asm/io.h |    1 -
+ arch/tile/include/asm/io.h       |    1 -
+ drivers/video/fbdev/amifb.c      |    4 ++--
+ drivers/video/fbdev/atafb.c      |    3 +--
+ drivers/video/fbdev/hpfb.c       |    4 ++--
+ 8 files changed, 5 insertions(+), 22 deletions(-)
 
-diff --git a/arch/arc/include/asm/io.h b/arch/arc/include/asm/io.h
-index cabd518..7cc4ced 100644
---- a/arch/arc/include/asm/io.h
-+++ b/arch/arc/include/asm/io.h
-@@ -20,6 +20,7 @@ extern void iounmap(const void __iomem *addr);
- 
- #define ioremap_nocache(phy, sz)	ioremap(phy, sz)
- #define ioremap_wc(phy, sz)		ioremap(phy, sz)
-+#define ioremap_wt(phy, sz)		ioremap(phy, sz)
- 
- /* Change struct page to physical address */
- #define page_to_phys(page)		(page_to_pfn(page) << PAGE_SHIFT)
-diff --git a/arch/arm/include/asm/io.h b/arch/arm/include/asm/io.h
-index db58deb..1b7677d 100644
---- a/arch/arm/include/asm/io.h
-+++ b/arch/arm/include/asm/io.h
-@@ -336,6 +336,7 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
- #define ioremap_nocache(cookie,size)	__arm_ioremap((cookie), (size), MT_DEVICE)
- #define ioremap_cache(cookie,size)	__arm_ioremap((cookie), (size), MT_DEVICE_CACHED)
- #define ioremap_wc(cookie,size)		__arm_ioremap((cookie), (size), MT_DEVICE_WC)
-+#define ioremap_wt(cookie,size)		__arm_ioremap((cookie), (size), MT_DEVICE)
- #define iounmap				__arm_iounmap
- 
- /*
-diff --git a/arch/arm64/include/asm/io.h b/arch/arm64/include/asm/io.h
-index 540f7c0..7116d39 100644
---- a/arch/arm64/include/asm/io.h
-+++ b/arch/arm64/include/asm/io.h
-@@ -170,6 +170,7 @@ extern void __iomem *ioremap_cache(phys_addr_t phys_addr, size_t size);
- #define ioremap(addr, size)		__ioremap((addr), (size), __pgprot(PROT_DEVICE_nGnRE))
- #define ioremap_nocache(addr, size)	__ioremap((addr), (size), __pgprot(PROT_DEVICE_nGnRE))
- #define ioremap_wc(addr, size)		__ioremap((addr), (size), __pgprot(PROT_NORMAL_NC))
-+#define ioremap_wt(addr, size)		__ioremap((addr), (size), __pgprot(PROT_DEVICE_nGnRE))
- #define iounmap				__iounmap
- 
- /*
-diff --git a/arch/avr32/include/asm/io.h b/arch/avr32/include/asm/io.h
-index 4f5ec2b..e998ff5 100644
---- a/arch/avr32/include/asm/io.h
-+++ b/arch/avr32/include/asm/io.h
-@@ -296,6 +296,7 @@ extern void __iounmap(void __iomem *addr);
- 	__iounmap(addr)
- 
- #define ioremap_wc ioremap_nocache
-+#define ioremap_wt ioremap_nocache
- 
- #define cached(addr) P1SEGADDR(addr)
- #define uncached(addr) P2SEGADDR(addr)
 diff --git a/arch/frv/include/asm/io.h b/arch/frv/include/asm/io.h
-index 0b78bc8..1fe98fe 100644
+index 1fe98fe..a31b63e 100644
 --- a/arch/frv/include/asm/io.h
 +++ b/arch/frv/include/asm/io.h
-@@ -17,6 +17,8 @@
- 
- #ifdef __KERNEL__
- 
-+#define ARCH_HAS_IOREMAP_WT
-+
- #include <linux/types.h>
- #include <asm/virtconvert.h>
- #include <asm/string.h>
-@@ -270,6 +272,11 @@ static inline void __iomem *ioremap_writethrough(unsigned long physaddr, unsigne
- 	return __ioremap(physaddr, size, IOMAP_WRITETHROUGH);
+@@ -267,11 +267,6 @@ static inline void __iomem *ioremap_nocache(unsigned long physaddr, unsigned lon
+ 	return __ioremap(physaddr, size, IOMAP_NOCACHE_SER);
  }
  
-+static inline void __iomem *ioremap_wt(unsigned long physaddr, unsigned long size)
-+{
-+	return __ioremap(physaddr, size, IOMAP_WRITETHROUGH);
-+}
-+
- static inline void __iomem *ioremap_fullcache(unsigned long physaddr, unsigned long size)
+-static inline void __iomem *ioremap_writethrough(unsigned long physaddr, unsigned long size)
+-{
+-	return __ioremap(physaddr, size, IOMAP_WRITETHROUGH);
+-}
+-
+ static inline void __iomem *ioremap_wt(unsigned long physaddr, unsigned long size)
  {
- 	return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
-diff --git a/arch/m32r/include/asm/io.h b/arch/m32r/include/asm/io.h
-index 9cc00db..0c3f25e 100644
---- a/arch/m32r/include/asm/io.h
-+++ b/arch/m32r/include/asm/io.h
-@@ -68,6 +68,7 @@ static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
- extern void iounmap(volatile void __iomem *addr);
- #define ioremap_nocache(off,size) ioremap(off,size)
- #define ioremap_wc ioremap_nocache
-+#define ioremap_wt ioremap_nocache
- 
- /*
-  * IO bus memory addresses are also 1:1 with the physical address
+ 	return __ioremap(physaddr, size, IOMAP_WRITETHROUGH);
 diff --git a/arch/m68k/include/asm/io_mm.h b/arch/m68k/include/asm/io_mm.h
-index 8955b40..7c12138 100644
+index 7c12138..618c85d3 100644
 --- a/arch/m68k/include/asm/io_mm.h
 +++ b/arch/m68k/include/asm/io_mm.h
-@@ -20,6 +20,8 @@
- 
- #ifdef __KERNEL__
- 
-+#define ARCH_HAS_IOREMAP_WT
-+
- #include <linux/compiler.h>
- #include <asm/raw_io.h>
- #include <asm/virtconvert.h>
-@@ -470,6 +472,11 @@ static inline void __iomem *ioremap_writethrough(unsigned long physaddr,
+@@ -467,11 +467,6 @@ static inline void __iomem *ioremap_nocache(unsigned long physaddr, unsigned lon
  {
- 	return __ioremap(physaddr, size, IOMAP_WRITETHROUGH);
+ 	return __ioremap(physaddr, size, IOMAP_NOCACHE_SER);
  }
-+static inline void __iomem *ioremap_wt(unsigned long physaddr,
-+					 unsigned long size)
-+{
-+	return __ioremap(physaddr, size, IOMAP_WRITETHROUGH);
-+}
- static inline void __iomem *ioremap_fullcache(unsigned long physaddr,
- 				      unsigned long size)
+-static inline void __iomem *ioremap_writethrough(unsigned long physaddr,
+-					 unsigned long size)
+-{
+-	return __ioremap(physaddr, size, IOMAP_WRITETHROUGH);
+-}
+ static inline void __iomem *ioremap_wt(unsigned long physaddr,
+ 					 unsigned long size)
  {
 diff --git a/arch/m68k/include/asm/io_no.h b/arch/m68k/include/asm/io_no.h
-index a93c8cd..5fff9a2 100644
+index 5fff9a2..ad7bd40 100644
 --- a/arch/m68k/include/asm/io_no.h
 +++ b/arch/m68k/include/asm/io_no.h
-@@ -3,6 +3,8 @@
- 
- #ifdef __KERNEL__
- 
-+#define ARCH_HAS_IOREMAP_WT
-+
- #include <asm/virtconvert.h>
- #include <asm-generic/iomap.h>
- 
-@@ -157,6 +159,10 @@ static inline void *ioremap_writethrough(unsigned long physaddr, unsigned long s
+@@ -155,10 +155,6 @@ static inline void *ioremap_nocache(unsigned long physaddr, unsigned long size)
+ {
+ 	return __ioremap(physaddr, size, IOMAP_NOCACHE_SER);
+ }
+-static inline void *ioremap_writethrough(unsigned long physaddr, unsigned long size)
+-{
+-	return __ioremap(physaddr, size, IOMAP_WRITETHROUGH);
+-}
+ static inline void *ioremap_wt(unsigned long physaddr, unsigned long size)
  {
  	return __ioremap(physaddr, size, IOMAP_WRITETHROUGH);
- }
-+static inline void *ioremap_wt(unsigned long physaddr, unsigned long size)
-+{
-+	return __ioremap(physaddr, size, IOMAP_WRITETHROUGH);
-+}
- static inline void *ioremap_fullcache(unsigned long physaddr, unsigned long size)
- {
- 	return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
-diff --git a/arch/metag/include/asm/io.h b/arch/metag/include/asm/io.h
-index d5779b0..9890f21 100644
---- a/arch/metag/include/asm/io.h
-+++ b/arch/metag/include/asm/io.h
-@@ -160,6 +160,9 @@ extern void __iounmap(void __iomem *addr);
- #define ioremap_wc(offset, size)                \
- 	__ioremap((offset), (size), _PAGE_WR_COMBINE)
- 
-+#define ioremap_wt(offset, size)                \
-+	__ioremap((offset), (size), 0)
-+
- #define iounmap(addr)                           \
- 	__iounmap(addr)
- 
 diff --git a/arch/microblaze/include/asm/io.h b/arch/microblaze/include/asm/io.h
-index 940f5fc..ec3da11 100644
+index ec3da11..39b6315 100644
 --- a/arch/microblaze/include/asm/io.h
 +++ b/arch/microblaze/include/asm/io.h
-@@ -43,6 +43,7 @@ extern void __iomem *ioremap(phys_addr_t address, unsigned long size);
+@@ -39,7 +39,6 @@ extern resource_size_t isa_mem_base;
+ extern void iounmap(void __iomem *addr);
+ 
+ extern void __iomem *ioremap(phys_addr_t address, unsigned long size);
+-#define ioremap_writethrough(addr, size)	ioremap((addr), (size))
  #define ioremap_nocache(addr, size)		ioremap((addr), (size))
  #define ioremap_fullcache(addr, size)		ioremap((addr), (size))
  #define ioremap_wc(addr, size)			ioremap((addr), (size))
-+#define ioremap_wt(addr, size)			ioremap((addr), (size))
- 
- #endif /* CONFIG_MMU */
- 
-diff --git a/arch/mn10300/include/asm/io.h b/arch/mn10300/include/asm/io.h
-index cc4a2ba..07c5b4a 100644
---- a/arch/mn10300/include/asm/io.h
-+++ b/arch/mn10300/include/asm/io.h
-@@ -282,6 +282,7 @@ static inline void __iomem *ioremap_nocache(unsigned long offset, unsigned long
- }
- 
- #define ioremap_wc ioremap_nocache
-+#define ioremap_wt ioremap_nocache
- 
- static inline void iounmap(void __iomem *addr)
- {
-diff --git a/arch/nios2/include/asm/io.h b/arch/nios2/include/asm/io.h
-index 6e24d7c..c5a62da 100644
---- a/arch/nios2/include/asm/io.h
-+++ b/arch/nios2/include/asm/io.h
-@@ -46,6 +46,7 @@ static inline void iounmap(void __iomem *addr)
- }
- 
- #define ioremap_wc ioremap_nocache
-+#define ioremap_wt ioremap_nocache
- 
- /* Pages to physical address... */
- #define page_to_phys(page)	virt_to_phys(page_to_virt(page))
-diff --git a/arch/s390/include/asm/io.h b/arch/s390/include/asm/io.h
-index 30fd5c8..cb5fdf3 100644
---- a/arch/s390/include/asm/io.h
-+++ b/arch/s390/include/asm/io.h
-@@ -29,6 +29,7 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr);
- 
- #define ioremap_nocache(addr, size)	ioremap(addr, size)
- #define ioremap_wc			ioremap_nocache
-+#define ioremap_wt			ioremap_nocache
- 
- static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
- {
-diff --git a/arch/sparc/include/asm/io_32.h b/arch/sparc/include/asm/io_32.h
-index 407ac14..57f26c3 100644
---- a/arch/sparc/include/asm/io_32.h
-+++ b/arch/sparc/include/asm/io_32.h
-@@ -129,6 +129,7 @@ static inline void sbus_memcpy_toio(volatile void __iomem *dst,
- void __iomem *ioremap(unsigned long offset, unsigned long size);
- #define ioremap_nocache(X,Y)	ioremap((X),(Y))
- #define ioremap_wc(X,Y)		ioremap((X),(Y))
-+#define ioremap_wt(X,Y)		ioremap((X),(Y))
- void iounmap(volatile void __iomem *addr);
- 
- /* Create a virtual mapping cookie for an IO port range */
-diff --git a/arch/sparc/include/asm/io_64.h b/arch/sparc/include/asm/io_64.h
-index 50d4840..c32fa3f 100644
---- a/arch/sparc/include/asm/io_64.h
-+++ b/arch/sparc/include/asm/io_64.h
-@@ -402,6 +402,7 @@ static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
- 
- #define ioremap_nocache(X,Y)		ioremap((X),(Y))
- #define ioremap_wc(X,Y)			ioremap((X),(Y))
-+#define ioremap_wt(X,Y)			ioremap((X),(Y))
- 
- static inline void iounmap(volatile void __iomem *addr)
- {
 diff --git a/arch/tile/include/asm/io.h b/arch/tile/include/asm/io.h
-index 6ef4eca..9c3d950 100644
+index 9c3d950..dc61de1 100644
 --- a/arch/tile/include/asm/io.h
 +++ b/arch/tile/include/asm/io.h
-@@ -54,6 +54,7 @@ extern void iounmap(volatile void __iomem *addr);
- 
+@@ -55,7 +55,6 @@ extern void iounmap(volatile void __iomem *addr);
  #define ioremap_nocache(physaddr, size)		ioremap(physaddr, size)
  #define ioremap_wc(physaddr, size)		ioremap(physaddr, size)
-+#define ioremap_wt(physaddr, size)		ioremap(physaddr, size)
- #define ioremap_writethrough(physaddr, size)	ioremap(physaddr, size)
+ #define ioremap_wt(physaddr, size)		ioremap(physaddr, size)
+-#define ioremap_writethrough(physaddr, size)	ioremap(physaddr, size)
  #define ioremap_fullcache(physaddr, size)	ioremap(physaddr, size)
  
-diff --git a/arch/xtensa/include/asm/io.h b/arch/xtensa/include/asm/io.h
-index fe1600a..c39bb6e 100644
---- a/arch/xtensa/include/asm/io.h
-+++ b/arch/xtensa/include/asm/io.h
-@@ -59,6 +59,7 @@ static inline void __iomem *ioremap_cache(unsigned long offset,
- }
- 
- #define ioremap_wc ioremap_nocache
-+#define ioremap_wt ioremap_nocache
- 
- static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
- {
+ #define mmiowb()
+diff --git a/drivers/video/fbdev/amifb.c b/drivers/video/fbdev/amifb.c
+index 35f7900..ee3a703 100644
+--- a/drivers/video/fbdev/amifb.c
++++ b/drivers/video/fbdev/amifb.c
+@@ -3705,8 +3705,8 @@ default_chipset:
+ 	 * access the videomem with writethrough cache
+ 	 */
+ 	info->fix.smem_start = (u_long)ZTWO_PADDR(videomemory);
+-	videomemory = (u_long)ioremap_writethrough(info->fix.smem_start,
+-						   info->fix.smem_len);
++	videomemory = (u_long)ioremap_wt(info->fix.smem_start,
++					 info->fix.smem_len);
+ 	if (!videomemory) {
+ 		dev_warn(&pdev->dev,
+ 			 "Unable to map videomem cached writethrough\n");
+diff --git a/drivers/video/fbdev/atafb.c b/drivers/video/fbdev/atafb.c
+index cb9ee25..d6ce613 100644
+--- a/drivers/video/fbdev/atafb.c
++++ b/drivers/video/fbdev/atafb.c
+@@ -3185,8 +3185,7 @@ int __init atafb_init(void)
+ 		/* Map the video memory (physical address given) to somewhere
+ 		 * in the kernel address space.
+ 		 */
+-		external_screen_base = ioremap_writethrough(external_addr,
+-						     external_len);
++		external_screen_base = ioremap_wt(external_addr, external_len);
+ 		if (external_vgaiobase)
+ 			external_vgaiobase =
+ 			  (unsigned long)ioremap(external_vgaiobase, 0x10000);
+diff --git a/drivers/video/fbdev/hpfb.c b/drivers/video/fbdev/hpfb.c
+index a1b7e5f..9476d19 100644
+--- a/drivers/video/fbdev/hpfb.c
++++ b/drivers/video/fbdev/hpfb.c
+@@ -241,8 +241,8 @@ static int hpfb_init_one(unsigned long phys_base, unsigned long virt_base)
+ 	fb_info.fix.line_length = fb_width;
+ 	fb_height = (in_8(fb_regs + HPFB_FBHMSB) << 8) | in_8(fb_regs + HPFB_FBHLSB);
+ 	fb_info.fix.smem_len = fb_width * fb_height;
+-	fb_start = (unsigned long)ioremap_writethrough(fb_info.fix.smem_start,
+-						       fb_info.fix.smem_len);
++	fb_start = (unsigned long)ioremap_wt(fb_info.fix.smem_start,
++					     fb_info.fix.smem_len);
+ 	hpfb_defined.xres = (in_8(fb_regs + HPFB_DWMSB) << 8) | in_8(fb_regs + HPFB_DWLSB);
+ 	hpfb_defined.yres = (in_8(fb_regs + HPFB_DHMSB) << 8) | in_8(fb_regs + HPFB_DHLSB);
+ 	hpfb_defined.xres_virtual = hpfb_defined.xres;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
