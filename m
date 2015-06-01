@@ -1,90 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D14C6B0038
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 11:12:41 -0400 (EDT)
-Received: by padjw17 with SMTP id jw17so39109504pad.2
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 08:12:41 -0700 (PDT)
-Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
-        by mx.google.com with ESMTP id bt1si21578087pbb.171.2015.06.01.08.12.39
-        for <linux-mm@kvack.org>;
-        Mon, 01 Jun 2015 08:12:40 -0700 (PDT)
-Date: Mon, 1 Jun 2015 11:12:39 -0400
-From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [PATCH] oom: always panic on OOM when panic_on_oom is configured
-Message-ID: <20150601151239.GA14282@akamai.com>
-References: <1433159948-9912-1-git-send-email-mhocko@suse.cz>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="r5Pyd7+fXNt84Ff3"
-Content-Disposition: inline
-In-Reply-To: <1433159948-9912-1-git-send-email-mhocko@suse.cz>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 4270B6B0038
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 11:27:53 -0400 (EDT)
+Received: by padj3 with SMTP id j3so45840371pad.0
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 08:27:52 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id ah3si22005212pad.55.2015.06.01.08.27.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 01 Jun 2015 08:27:52 -0700 (PDT)
+Subject: Re: [PATCH] mm/oom: Suppress unnecessary "sharing same memory" message.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20150601101646.GC7147@dhcp22.suse.cz>
+	<201506012102.CBE60453.FOQtFJLFSHOOVM@I-love.SAKURA.ne.jp>
+	<20150601121508.GF7147@dhcp22.suse.cz>
+	<201506012204.GIF87536.LFMtOOOVJFFSQH@I-love.SAKURA.ne.jp>
+	<20150601131215.GI7147@dhcp22.suse.cz>
+In-Reply-To: <20150601131215.GI7147@dhcp22.suse.cz>
+Message-Id: <201506020027.CJI18736.FJLVtFQOHMFOSO@I-love.SAKURA.ne.jp>
+Date: Tue, 2 Jun 2015 00:27:44 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: mhocko@suse.cz
+Cc: linux-mm@kvack.org
 
+Michal Hocko wrote:
+> On Mon 01-06-15 22:04:28, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > > Likewise, move do_send_sig_info(SIGKILL, victim) to before
+> > > > mark_oom_victim(victim) in case for_each_process() took very long time,
+> > > > for the OOM victim can abuse ALLOC_NO_WATERMARKS by TIF_MEMDIE via e.g.
+> > > > memset() in user space until SIGKILL is delivered.
+> > > 
+> > > This is unrelated and I believe even not necessary.
+> > 
+> > Why unnecessary? If serial console is configured and printing a series of
+> > "Kill process %d (%s) sharing same memory" took a few seconds, the OOM
+> > victim can consume all memory via malloc() + memset(), can't it?
+> 
+> Can? You are generating one corner case after another. All of them
+> without actually showing it can happen in the real life. There are
+> million+1 corner cases possible yet we would prefer to handle those that
+> have changes to happen in the real life. So let's focus on the real life
+> scenarios.
 
---r5Pyd7+fXNt84Ff3
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+I worked at support center for three years. I saw many unexplained hangup
+cases. Some of them could be caused by these corner cases. But I can't prove
+that it happened in the real life because I don't have reproducer for hangups
+occurred in customer's systems. Analyzing syslog / vmcore did not help because
+memory allocator gives me no hints. What I can do is to imagine possible
+corner cases, but my goal is not to identify all corner cases. My goal is to
+propose a backportable workaround that enterprise customers can use now.
+While I feel sorry for bothering you, I also feel sorry for customers for
+not being able to offer one. "[PATCH] mm: Introduce timeout based OOM killing"
+is what I can come up with, without identifying one corner case after another.
 
-On Mon, 01 Jun 2015, Michal Hocko wrote:
-
-> panic_on_oom allows administrator to set OOM policy to panic the system
-> when it is out of memory to reduce failover time e.g. when resolving
-> the OOM condition would take much more time than rebooting the system.
->=20
-> out_of_memory tries to be clever and prevent from premature panics
-> by checking the current task and prevent from panic when the task
-> has fatal signal pending and so it should die shortly and release some
-> memory. This is fair enough but Tetsuo Handa has noted that this might
-> lead to a silent deadlock when current cannot exit because of
-> dependencies invisible to the OOM killer.
->=20
-> panic_on_oom is disabled by default and if somebody enables it then any
-> risk of potential deadlock is certainly unwelcome. The risk is really
-> low because there are usually more sources of allocation requests and
-> one of them would eventually trigger the panic but it is better to
-> reduce the risk as much as possible.
->=20
-> Let's move check_panic_on_oom up before the current task is
-> checked so that the knob value is . Do the same for the memcg in
-> mem_cgroup_out_of_memory.
->=20
-> Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-
-I was initially going to complain about this causing the machine to
-panic when a cgroup is oom, but the machine is not.  However after
-reading check_panic_on_oom(), that behavior is controllable.
-
-Reviewed-by: Eric B Munson <emunson@akamai.com>
-
-
---r5Pyd7+fXNt84Ff3
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQIcBAEBAgAGBQJVbHZnAAoJELbVsDOpoOa9zd4P/jiiBTF4ehhpmMsnmi4FRUtY
-MxSQn12YLu5gXdUJ5Yg0f/qrqbqvJSP7MZ9gWt1Bnt3tVvyXSSUvUzauDnKbiSIm
-/nzr7/eQ0xYxCj3QCQCqKqnMMnWnsnwmwHspSKtIi3qdEOELMuDreWBinihgzxmF
-Yo/K0Tw32xicSdVrvnev2MwvrebDhrpuAxBfwe+IZf4mcF+ZAfE3kWOO3lNjkBTR
-RNKbo5XR8Dgs477ZSYISgJFXh7zHzbuLRGtUmibTKG7KQQOqsg1ec8ogZ/6CM5V0
-lsRkh5SszXg0saN2Q7oibEf0BpZk1OBAidVFwVOpMrAvESXCnmmW5qg+wkv3btM4
-/+0Ok3nYrVnfcNSxli4IxMrr/WgpGX6k2jNr+sanwx3BAUxiOx2O8PvgqQHPqa36
-PJIZnH5WLfkkeYaCtGPypkQLb5VUtK3N3V7C+BHr/su4U0HlEUCxFOoyCEGXHgE1
-VVcfWZp4MAW56bhgtut7O+H7Th3WAMbxSGAlYKeR6EXTdKL4WcQAkMUPtZseB7VE
-W9Zm8lilmv/HXPlHNXlqXnYqIf1yZbX7ik+Dum8Aa94oGxO0coMkh2ImvEusqqxr
-xUB3j6qpBfydYjbpSSpTyob9TOSk9jdc39Eo71Cahz64jd26WXM39avQx9mmFIyb
-wM+guHi6EJ22EvdIcb/1
-=3ixX
------END PGP SIGNATURE-----
-
---r5Pyd7+fXNt84Ff3--
+I've been asking for backportable workaround for many months. I spent time for
+finding potential bugs ( http://marc.info/?l=linux-mm&m=141684929114209 ).
+If you are already aware that there are million+1 corner cases possible yet
+(that is, we have too many potential bugs to identify and fix), why do you
+keep refusing to offer for-now workaround (that is, paper over potential
+bugs) ? I don't want to see customers and support staff suffering with OOM
+corner cases any more...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
