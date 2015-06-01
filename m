@@ -1,46 +1,278 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id CCAB26B0038
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 17:11:11 -0400 (EDT)
-Received: by pacux9 with SMTP id ux9so77255137pac.3
-        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 14:11:11 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id qm2si23176633pac.57.2015.06.01.14.11.10
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jun 2015 14:11:10 -0700 (PDT)
-Date: Mon, 1 Jun 2015 14:11:09 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [next:master 7235/7555] mm/page_alloc.c:654:121: warning:
- comparison of distinct pointer types lacks a cast
-Message-Id: <20150601141109.19f65bd0f4e667783fa5ca7c@linux-foundation.org>
-In-Reply-To: <20150531121815.254f9bc2@BR9TG4T3.de.ibm.com>
-References: <201505300112.mcr8MSyM%fengguang.wu@intel.com>
-	<20150529133252.b0fa852381a501ff9df2ffdc@linux-foundation.org>
-	<20150531121815.254f9bc2@BR9TG4T3.de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 23C816B006E
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2015 17:28:25 -0400 (EDT)
+Received: by padj3 with SMTP id j3so51985235pad.0
+        for <linux-mm@kvack.org>; Mon, 01 Jun 2015 14:28:24 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id cl12si23200991pdb.137.2015.06.01.14.28.23
+        for <linux-mm@kvack.org>;
+        Mon, 01 Jun 2015 14:28:24 -0700 (PDT)
+Message-Id: <a0c3a125e5fb3ca0bb9db2479637ff256e6002ba.1433193082.git.tony.luck@intel.com>
+In-Reply-To: a0c3a125e5fb3ca0bb9db2479637ff256e6002ba.1431103461.git.tony.luck@intel.com
+From: Tony Luck <tony.luck@intel.com>
+Subject: [PATCHv3 2/3] mm/memblock: Allocate boot time data structures from
+ mirrored memory
+Date: Mon, 01 Jun 2015 14:28:18 -0700
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dominik Dingel <dingel@linux.vnet.ibm.com>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, 31 May 2015 12:18:15 +0200 Dominik Dingel <dingel@linux.vnet.ibm.com> wrote:
+Try to allocate all boot time kernel data structures from mirrored
+memory. If we run out of mirrored memory print warnings, but fall
+back to using non-mirrored memory to make sure that we still boot.
 
-> > And on s390, HPAGE_SHIFT is unsigned int.  On x86 HPAGE_SHIFT has type
-> > int.  I suggest the fix here is to make s390's HPAGE_SHIFT have type
-> > int as well.
-> 
-> Thanks for noticing. As my way to handle this was mostly inspired by the
-> way powerpc does it,  I'm kind of puzzled why they don't have the same problem?
-> 
-> So I checked and your fix seems to be the right thing to do. But then I would
-> assume the powerpc type for HPAGE should also be changed?
+By number of bytes, most of what we allocate at boot time is the
+page structures. 64 bytes per 4K page on x86_64 ... or about 1.5%
+of total system memory. For workloads where the bulk of memory is
+allocated to applications this may represent a useful improvement
+to system availability since 1.5% of total memory might be a third
+of the memory allocated to the kernel.
 
-powerpc sets CONFIG_HUGETLB_PAGE_SIZE_VARIABLE so it uses
+Signed-off-by: Tony Luck <tony.luck@intel.com>
+---
 
-extern int pageblock_order;
+v2->v3:
+	Beefed up commit description saying why this change is useful
+	even before we get run time mirror allocation.
+	[Parts 1 & 3 unchanged - not reposted]
+v1->v2:
+	Better name for memblock_has_mirror() - now choose_memblock_flags()
+	Print phys_addr_t with %pap instead of %lld
+	Don't fall back by clearing flags. Use: flags &= ~MEMBLOCK_MIRROR;
+	Keep to 80 columns
+
+ include/linux/memblock.h |  8 +++++
+ mm/memblock.c            | 78 +++++++++++++++++++++++++++++++++++++++++-------
+ mm/nobootmem.c           | 10 ++++++-
+ 3 files changed, 84 insertions(+), 12 deletions(-)
+
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 7aeec0cb4c27..0215ffd63069 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -24,6 +24,7 @@
+ enum {
+ 	MEMBLOCK_NONE		= 0x0,	/* No special request */
+ 	MEMBLOCK_HOTPLUG	= 0x1,	/* hotpluggable region */
++	MEMBLOCK_MIRROR		= 0x2,	/* mirrored region */
+ };
+ 
+ struct memblock_region {
+@@ -78,6 +79,8 @@ int memblock_reserve(phys_addr_t base, phys_addr_t size);
+ void memblock_trim_memory(phys_addr_t align);
+ int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
+ int memblock_clear_hotplug(phys_addr_t base, phys_addr_t size);
++int memblock_mark_mirror(phys_addr_t base, phys_addr_t size);
++ulong choose_memblock_flags(void);
+ 
+ /* Low level functions */
+ int memblock_add_range(struct memblock_type *type,
+@@ -160,6 +163,11 @@ static inline bool movable_node_is_enabled(void)
+ }
+ #endif
+ 
++static inline bool memblock_is_mirror(struct memblock_region *m)
++{
++	return m->flags & MEMBLOCK_MIRROR;
++}
++
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
+ 			    unsigned long  *end_pfn);
+diff --git a/mm/memblock.c b/mm/memblock.c
+index b9ff2f4f0285..1b444c730846 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -54,10 +54,16 @@ int memblock_debug __initdata_memblock;
+ #ifdef CONFIG_MOVABLE_NODE
+ bool movable_node_enabled __initdata_memblock = false;
+ #endif
++static bool system_has_some_mirror __initdata_memblock = false;
+ static int memblock_can_resize __initdata_memblock;
+ static int memblock_memory_in_slab __initdata_memblock = 0;
+ static int memblock_reserved_in_slab __initdata_memblock = 0;
+ 
++ulong __init_memblock choose_memblock_flags(void)
++{
++	return system_has_some_mirror ? MEMBLOCK_MIRROR : MEMBLOCK_NONE;
++}
++
+ /* inline so we don't get a warning when pr_debug is compiled out */
+ static __init_memblock const char *
+ memblock_type_name(struct memblock_type *type)
+@@ -259,8 +265,21 @@ phys_addr_t __init_memblock memblock_find_in_range(phys_addr_t start,
+ 					phys_addr_t end, phys_addr_t size,
+ 					phys_addr_t align)
+ {
+-	return memblock_find_in_range_node(size, align, start, end,
+-					    NUMA_NO_NODE, MEMBLOCK_NONE);
++	phys_addr_t ret;
++	ulong flags = choose_memblock_flags();
++
++again:
++	ret = memblock_find_in_range_node(size, align, start, end,
++					    NUMA_NO_NODE, flags);
++
++	if (!ret && (flags & MEMBLOCK_MIRROR)) {
++		pr_warn("Could not allocate %pap bytes of mirrored memory\n",
++			&size);
++		flags &= ~MEMBLOCK_MIRROR;
++		goto again;
++	}
++
++	return ret;
+ }
+ 
+ static void __init_memblock memblock_remove_region(struct memblock_type *type, unsigned long r)
+@@ -786,6 +805,21 @@ int __init_memblock memblock_clear_hotplug(phys_addr_t base, phys_addr_t size)
+ }
+ 
+ /**
++ * memblock_mark_mirror - Mark mirrored memory with flag MEMBLOCK_MIRROR.
++ * @base: the base phys addr of the region
++ * @size: the size of the region
++ *
++ * Return 0 on succees, -errno on failure.
++ */
++int __init_memblock memblock_mark_mirror(phys_addr_t base, phys_addr_t size)
++{
++	system_has_some_mirror = true;
++
++	return memblock_setclr_flag(base, size, 1, MEMBLOCK_MIRROR);
++}
++
++
++/**
+  * __next__mem_range - next function for for_each_free_mem_range() etc.
+  * @idx: pointer to u64 loop variable
+  * @nid: node selector, %NUMA_NO_NODE for all nodes
+@@ -839,6 +873,10 @@ void __init_memblock __next_mem_range(u64 *idx, int nid, ulong flags,
+ 		if (movable_node_is_enabled() && memblock_is_hotpluggable(m))
+ 			continue;
+ 
++		/* if we want mirror memory skip non-mirror memory regions */
++		if ((flags & MEMBLOCK_MIRROR) && !memblock_is_mirror(m))
++			continue;
++
+ 		if (!type_b) {
+ 			if (out_start)
+ 				*out_start = m_start;
+@@ -944,6 +982,10 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid, ulong flags,
+ 		if (movable_node_is_enabled() && memblock_is_hotpluggable(m))
+ 			continue;
+ 
++		/* if we want mirror memory skip non-mirror memory regions */
++		if ((flags & MEMBLOCK_MIRROR) && !memblock_is_mirror(m))
++			continue;
++
+ 		if (!type_b) {
+ 			if (out_start)
+ 				*out_start = m_start;
+@@ -1096,8 +1138,18 @@ static phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
+ 
+ phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid)
+ {
+-	return memblock_alloc_base_nid(size, align, MEMBLOCK_ALLOC_ACCESSIBLE,
+-				       nid, MEMBLOCK_NONE);
++	ulong flags = choose_memblock_flags();
++	phys_addr_t ret;
++
++again:
++	ret = memblock_alloc_base_nid(size, align, MEMBLOCK_ALLOC_ACCESSIBLE,
++				      nid, flags);
++
++	if (!ret && (flags & MEMBLOCK_MIRROR)) {
++		flags &= ~MEMBLOCK_MIRROR;
++		goto again;
++	}
++	return ret;
+ }
+ 
+ phys_addr_t __init __memblock_alloc_base(phys_addr_t size, phys_addr_t align, phys_addr_t max_addr)
+@@ -1167,6 +1219,7 @@ static void * __init memblock_virt_alloc_internal(
+ {
+ 	phys_addr_t alloc;
+ 	void *ptr;
++	ulong flags = choose_memblock_flags();
+ 
+ 	if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
+ 		nid = NUMA_NO_NODE;
+@@ -1187,14 +1240,14 @@ static void * __init memblock_virt_alloc_internal(
+ 
+ again:
+ 	alloc = memblock_find_in_range_node(size, align, min_addr, max_addr,
+-					    nid, MEMBLOCK_NONE);
++					    nid, flags);
+ 	if (alloc)
+ 		goto done;
+ 
+ 	if (nid != NUMA_NO_NODE) {
+ 		alloc = memblock_find_in_range_node(size, align, min_addr,
+ 						    max_addr, NUMA_NO_NODE,
+-						    MEMBLOCK_NONE);
++						    flags);
+ 		if (alloc)
+ 			goto done;
+ 	}
+@@ -1202,10 +1255,16 @@ again:
+ 	if (min_addr) {
+ 		min_addr = 0;
+ 		goto again;
+-	} else {
+-		goto error;
+ 	}
+ 
++	if (flags & MEMBLOCK_MIRROR) {
++		flags &= ~MEMBLOCK_MIRROR;
++		pr_warn("Could not allocate %pap bytes of mirrored memory\n",
++			&size);
++		goto again;
++	}
++
++	return NULL;
+ done:
+ 	memblock_reserve(alloc, size);
+ 	ptr = phys_to_virt(alloc);
+@@ -1220,9 +1279,6 @@ done:
+ 	kmemleak_alloc(ptr, size, 0, 0);
+ 
+ 	return ptr;
+-
+-error:
+-	return NULL;
+ }
+ 
+ /**
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index ad3641dcdbe7..5258386fa1be 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -37,12 +37,20 @@ static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
+ {
+ 	void *ptr;
+ 	u64 addr;
++	ulong flags = choose_memblock_flags();
+ 
+ 	if (limit > memblock.current_limit)
+ 		limit = memblock.current_limit;
+ 
++again:
+ 	addr = memblock_find_in_range_node(size, align, goal, limit, nid,
+-					   MEMBLOCK_NONE);
++					   flags);
++	if (!addr && (flags & MEMBLOCK_MIRROR)) {
++		flags &= ~MEMBLOCK_MIRROR;
++		pr_warn("Could not allocate %pap bytes of mirrored memory\n",
++			&size);
++		goto again;
++	}
+ 	if (!addr)
+ 		return NULL;
+ 
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
