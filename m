@@ -1,157 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 46A8F6B0072
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 14:13:50 -0400 (EDT)
-Received: by qgdy38 with SMTP id y38so37301465qgd.1
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 11:13:50 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
-        by mx.google.com with ESMTP id q5si16591951qce.7.2015.06.02.11.13.48
-        for <linux-mm@kvack.org>;
-        Tue, 02 Jun 2015 11:13:49 -0700 (PDT)
-From: Eric B Munson <emunson@akamai.com>
-Subject: [PATCH] Update mlockall() and mmap() man pages for LOCKONFAULT flags
-Date: Tue,  2 Jun 2015 14:13:44 -0400
-Message-Id: <1433268824-17183-1-git-send-email-emunson@akamai.com>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id A0CE0900016
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 15:06:29 -0400 (EDT)
+Received: by pabqy3 with SMTP id qy3so18414310pab.3
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 12:06:29 -0700 (PDT)
+Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
+        by mx.google.com with ESMTPS id m6si27613852pdr.252.2015.06.02.12.06.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Jun 2015 12:06:28 -0700 (PDT)
+Message-ID: <1433270808.23540.155.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v12 0/10] Support Write-Through mapping on x86
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Tue, 02 Jun 2015 12:46:48 -0600
+In-Reply-To: <20150602162103.GL23057@wotan.suse.de>
+References: <1433187393-22688-1-git-send-email-toshi.kani@hp.com>
+	 <20150602162103.GL23057@wotan.suse.de>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: Eric B Munson <emunson@akamai.com>, Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Luis R. Rodriguez" <mcgrof@suse.com>
+Cc: bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com, hch@lst.de
 
-Document the new flags for mmap() and mlockall() and their behavior.
-Inlcude a change to getrlimit(2) to cover interactions with
-RLIMIT_MEMLOCK.  These new flags will be introduced with the 4.2 kernel.
+On Tue, 2015-06-02 at 18:21 +0200, Luis R. Rodriguez wrote:
+> On Mon, Jun 01, 2015 at 01:36:23PM -0600, Toshi Kani wrote:
+> > This patchset adds support of Write-Through (WT) mapping on x86.
+> > The study below shows that using WT mapping may be useful for
+> > non-volatile memory.
+> > 
+> > http://www.hpl.hp.com/techreports/2012/HPL-2012-236.pdf
+> > 
+> > The patchset consists of the following changes.
+> >  - Patch 1/10 to 6/10 add ioremap_wt()
+> >  - Patch 7/10 adds pgprot_writethrough()
+> >  - Patch 8/10 to 9/10 add set_memory_wt()
+> >  - Patch 10/10 changes the pmem driver to call ioremap_wt()
+> > 
+> > All new/modified interfaces have been tested.
+> > 
+> > The patchset is based on:
+> > git://git.kernel.org/pub/scm/linux/kernel/git/bp/bp.git#tip-mm-2
+> 
+> While at it can you also look at:
+>
+> mcgrof@ergon ~/linux-next (git::master)$ git grep -4 "writethrough" drivers/infiniband/
 
-Signed-off-by: Eric B Munson <emunson@akamai.com>
+Thanks for checking this.  The inifiniband driver uses WT mappings on
+powerpc without proper WT interfaces defined.  They can be cleaned up by
+a separate patch series to support WT on powerpc in the same way after
+this patchset (support WT on x86) is settled.
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-api@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: linux-man@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
----
- man2/getrlimit.2 |  9 +++++++--
- man2/mlock.2     | 28 ++++++++++++++++++++++++++--
- man2/mmap.2      | 21 +++++++++++++++++++++
- 3 files changed, 54 insertions(+), 4 deletions(-)
+> drivers/infiniband/hw/ipath/ipath_driver.c-
+> drivers/infiniband/hw/ipath/ipath_driver.c-     dd->ipath_pcirev = pdev->revision;
+> drivers/infiniband/hw/ipath/ipath_driver.c-
+> drivers/infiniband/hw/ipath/ipath_driver.c-#if defined(__powerpc__)
+> drivers/infiniband/hw/ipath/ipath_driver.c:     /* There isn't a generic way to specify writethrough mappings */
+> drivers/infiniband/hw/ipath/ipath_driver.c-     dd->ipath_kregbase = __ioremap(addr, len,
+> drivers/infiniband/hw/ipath/ipath_driver.c-             (_PAGE_NO_CACHE|_PAGE_WRITETHRU));
+> drivers/infiniband/hw/ipath/ipath_driver.c-#else
+> drivers/infiniband/hw/ipath/ipath_driver.c-     dd->ipath_kregbase = ioremap_nocache(addr, len);
 
-diff --git a/man2/getrlimit.2 b/man2/getrlimit.2
-index ec464fe..729197e 100644
---- a/man2/getrlimit.2
-+++ b/man2/getrlimit.2
-@@ -215,7 +215,9 @@ and
- and the
- .BR mmap (2)
- .B MAP_LOCKED
--operation.
-+or
-+.B MAP_LOCKONFAULT
-+operations.
- Since Linux 2.6.9 it also affects the
- .BR shmctl (2)
- .B SHM_LOCK
-@@ -232,7 +234,10 @@ locks established by
- .BR mlockall (2),
- and
- .BR mmap (2)
--.BR MAP_LOCKED ;
-+with
-+.B MAP_LOCKED
-+or
-+.BR MAP_LOCKONFAULT ;
- a process can lock bytes up to this limit in each of these
- two categories.
- In Linux kernels before 2.6.9, this limit controlled the amount of
-diff --git a/man2/mlock.2 b/man2/mlock.2
-index b8487ff..139a7be 100644
---- a/man2/mlock.2
-+++ b/man2/mlock.2
-@@ -96,9 +96,31 @@ process in the future.
- These could be for instance new pages required
- by a growing heap and stack as well as new memory-mapped files or
- shared memory regions.
-+.B MCL_FUTURE
-+will attempt to make all pages present when the address
-+space is allocated.
-+.TP
-+.BR MCL_ONFAULT " (since Linux 4.2)"
-+Like
-+.BR MCL_FUTURE ,
-+but
-+.B MCL_ONFAULT
-+does not attempt to make all pages present when the address space is
-+allocated, instead wait until each page is accessed for the first
-+time before locking.  Note that as with the difference between
-+.B MAP_LOCKED
-+and
-+.B MAP_LOCKONFAULT
-+for
-+.BR mmap "(2),"
-+the caller is charged for the entire allocated address space.  See
-+.BR setrlimit "(2)"
-+for more details on resource limits.
- .PP
- If
- .B MCL_FUTURE
-+or
-+.B MCL_ONFAULT
- has been specified, then a later system call (e.g.,
- .BR mmap (2),
- .BR sbrk (2),
-@@ -250,9 +272,11 @@ or when the process terminates.
- The
- .BR mlockall ()
- .B MCL_FUTURE
--setting is not inherited by a child created via
-+and
-+.B MCL_ONFAULT
-+settings are not inherited by a child created via
- .BR fork (2)
--and is cleared during an
-+and are cleared during an
- .BR execve (2).
- 
- The memory lock on an address range is automatically removed
-diff --git a/man2/mmap.2 b/man2/mmap.2
-index a865612..5aa29e9 100644
---- a/man2/mmap.2
-+++ b/man2/mmap.2
-@@ -277,6 +277,26 @@ of the mapping.
- This flag is ignored in older kernels.
- .\" If set, the mapped pages will not be swapped out.
- .TP
-+.BR MAP_LOCKONFAULT " (since Linux 4.2)"
-+Lock pages covered by this mapping after they are
-+accessed for the first time.  Unlike
-+.BR MAP_LOCKED ,
-+.B MAP_LOCKONFAULT
-+does not attempt to populate the mapping immediately.  Note that while
-+.B MAP_LOCKONFAULT
-+does not populate the mapping, the caller is charged for the full mapping
-+against
-+.B RLIMIT_MEMLOCK
-+when the mapping is created.  This allows
-+.BR mmap "(2)"
-+calls to fail the same way for
-+.B MAP_LOCKED
-+and
-+.B MAP_LOCKONFAULT
-+when the resource limit would be exceeded.  See
-+.BR setrlimit "(2)"
-+for more details on resource limits.
-+.TP
- .BR MAP_NONBLOCK " (since Linux 2.5.46)"
- Only meaningful in conjunction with
- .BR MAP_POPULATE .
-@@ -618,6 +638,7 @@ The relevant flags are:
- .BR MAP_GROWSDOWN ,
- .BR MAP_HUGETLB ,
- .BR MAP_LOCKED ,
-+.BR MAP_LOCKONFAULT ,
- .BR MAP_NONBLOCK ,
- .BR MAP_NORESERVE ,
- .BR MAP_POPULATE ,
--- 
-1.9.1
+Once powerpc defines ioremap_wt(), this driver can simply call
+ioremap_wt() without the ifdef.  ioremap_wt() is defined as
+ioremap_nocache() on the architectures without WT support.
+
+> drivers/infiniband/hw/ipath/ipath_file_ops.c-
+> drivers/infiniband/hw/ipath/ipath_file_ops.c-   phys = dd->ipath_physaddr + piobufs;
+> drivers/infiniband/hw/ipath/ipath_file_ops.c-
+> drivers/infiniband/hw/ipath/ipath_file_ops.c-#if defined(__powerpc__)
+> drivers/infiniband/hw/ipath/ipath_file_ops.c:   /* There isn't a generic way to specify writethrough mappings */
+> drivers/infiniband/hw/ipath/ipath_file_ops.c-   pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
+> drivers/infiniband/hw/ipath/ipath_file_ops.c-   pgprot_val(vma->vm_page_prot) |= _PAGE_WRITETHRU;
+> drivers/infiniband/hw/ipath/ipath_file_ops.c-   pgprot_val(vma->vm_page_prot) &= ~_PAGE_GUARDED;
+> drivers/infiniband/hw/ipath/ipath_file_ops.c-#endif
+
+Once powerpc defines pgprot_writethrough(), this driver can use it
+without the ifdef.  pgprot_writethrough() is defined as
+pgprot_noncached() on the architectures without WT support.
+
+> drivers/infiniband/hw/qib/qib_file_ops.c-
+> drivers/infiniband/hw/qib/qib_file_ops.c-       phys = dd->physaddr + piobufs;
+> drivers/infiniband/hw/qib/qib_file_ops.c-
+> drivers/infiniband/hw/qib/qib_file_ops.c-#if defined(__powerpc__)
+> drivers/infiniband/hw/qib/qib_file_ops.c:       /* There isn't a generic way to specify writethrough mappings */
+> drivers/infiniband/hw/qib/qib_file_ops.c-       pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
+> drivers/infiniband/hw/qib/qib_file_ops.c-       pgprot_val(vma->vm_page_prot) |= _PAGE_WRITETHRU;
+> drivers/infiniband/hw/qib/qib_file_ops.c-       pgprot_val(vma->vm_page_prot) &= ~_PAGE_GUARDED;
+> drivers/infiniband/hw/qib/qib_file_ops.c-#endif
+
+Same as above.
+
+> drivers/infiniband/hw/qib/qib_pcie.c-   addr = pci_resource_start(pdev, 0);
+> drivers/infiniband/hw/qib/qib_pcie.c-   len = pci_resource_len(pdev, 0);
+> drivers/infiniband/hw/qib/qib_pcie.c-
+> drivers/infiniband/hw/qib/qib_pcie.c-#if defined(__powerpc__)
+> drivers/infiniband/hw/qib/qib_pcie.c:   /* There isn't a generic way to specify writethrough mappings */
+> drivers/infiniband/hw/qib/qib_pcie.c-   dd->kregbase = __ioremap(addr, len, _PAGE_NO_CACHE | _PAGE_WRITETHRU);
+> drivers/infiniband/hw/qib/qib_pcie.c-#else
+> drivers/infiniband/hw/qib/qib_pcie.c-   dd->kregbase = ioremap_nocache(addr, len);
+> drivers/infiniband/hw/qib/qib_pcie.c-#endif
+
+Same as ipath_driver.c.
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
