@@ -1,81 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 89AA86B006E
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 06:00:41 -0400 (EDT)
-Received: by laei3 with SMTP id i3so33556078lae.3
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 03:00:40 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 828B26B0038
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 08:14:50 -0400 (EDT)
+Received: by wifw1 with SMTP id w1so142149641wif.0
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 05:14:50 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dk3si23529448wib.13.2015.06.02.03.00.39
+        by mx.google.com with ESMTPS id qo2si30114680wjc.150.2015.06.02.05.14.47
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 02 Jun 2015 03:00:39 -0700 (PDT)
-Date: Tue, 2 Jun 2015 12:00:37 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] hugetlb: Do not account hugetlb pages as NR_FILE_PAGES
-Message-ID: <20150602100037.GD4440@dhcp22.suse.cz>
-References: <1432214842-22730-1-git-send-email-mhocko@suse.cz>
- <20150521170909.GA12800@cmpxchg.org>
- <20150522142143.GF5109@dhcp22.suse.cz>
- <20150522143558.GA2462@suse.de>
- <55633EAC.8060702@suse.cz>
- <20150602092535.GB4440@dhcp22.suse.cz>
- <556D7851.1020107@suse.cz>
- <20150602093805.GC4440@dhcp22.suse.cz>
+        Tue, 02 Jun 2015 05:14:48 -0700 (PDT)
+Date: Tue, 2 Jun 2015 13:14:42 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: swap: nfs: Sleeping function called from an rcu read section in
+ nfs_swap_activate
+Message-ID: <20150602121442.GD26425@suse.de>
+References: <5564732E.4090607@redhat.com>
+ <20150526095614.5b3d0e84@synchrony.poochiereds.net>
+ <20150526212929.71b28344@synchrony.poochiereds.net>
+ <20150528082619.GC13750@suse.de>
+ <20150528072434.2e7123b1@synchrony.poochiereds.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20150602093805.GC4440@dhcp22.suse.cz>
+In-Reply-To: <20150528072434.2e7123b1@synchrony.poochiereds.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Jeff Layton <jeff.layton@primarydata.com>
+Cc: Jerome Marchand <jmarchan@redhat.com>, Jeff Layton <jlayton@primarydata.com>, 'Linux-MM' <linux-mm@kvack.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>
 
-On Tue 02-06-15 11:38:05, Michal Hocko wrote:
-> On Tue 02-06-15 11:33:05, Vlastimil Babka wrote:
-> > On 06/02/2015 11:25 AM, Michal Hocko wrote:
-[...]
-> > >diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> > >index 91b7f9b2b774..bb8a70e8fc77 100644
-> > >--- a/include/linux/page-flags.h
-> > >+++ b/include/linux/page-flags.h
-> > >@@ -547,7 +547,13 @@ static inline void ClearPageCompound(struct page *page)
-> > >  #endif /* !PAGEFLAGS_EXTENDED */
-> > >
-> > >  #ifdef CONFIG_HUGETLB_PAGE
-> > >-int PageHuge(struct page *page);
-> > >+int __PageHuge(struct page *page);
-> > >+static inline int PageHuge(struct page *page)
-> > >+{
-> > >+	if (!PageCompound(page))
+On Thu, May 28, 2015 at 07:24:34AM -0400, Jeff Layton wrote:
+> > > 1) this is not done under a lock, so the non-atomic ++/-- is racy if
+> > > there are multiple swapons/swapoffs running concurrently on the same
+> > > xprt. Shouldn't those use an atomic?
+> > > 
 > > 
-> > Perhaps the above as likely()?
-> 
-> I have added it already when writing the changelog.
-> 
-> > [...]
+> > It would be more appropriate to use atomics. It's a long time ago but I
+> > doubt I considered the possibility of multiple swapons racing at the
+> > time of implementation. Activation is typically a serialised task run
+> > from init.
 > > 
-> > >-EXPORT_SYMBOL_GPL(PageHuge);
-> > >+EXPORT_SYMBOL_GPL(__PageHuge);
-> > >
-> > >  /*
-> > >   * PageHeadHuge() only returns true for hugetlbfs head page, but not for
-> > >
+> > > 2) on enable, "swapper" is incremented and memalloc is set on the
+> > > socket. Do we need to do xs_set_memalloc every time swapon is called,
+> > > or only on a 0->1 swapper transition.
+> > > 
 > > 
-> > Do the same thing here by inlining the PageHead() test?
-> > I guess the page_to_pgoff and __compound_tail_refcounted callers are rather
-> > hot?
+> > Every time because the static_key_slow_inc call is for the total number
+> > of connections.
+> > 
 > 
-> Yes, that sounds like a good idea.
+> That still seems wrong. The static_key would still be active even if
+> you just did it once per xprt.
+> 
 
-So the overal codesize (with defconfig) has still grown with the patch:
-   text    data     bss     dec     hex filename
- 443075   59217   25604  527896   80e18 mm/built-in.o.before
- 443477   59217   25604  528298   80faa mm/built-in.o.PageHuge
- 443653   59217   25604  528474   8105a mm/built-in.o.both
+True. As long as it is active while one swapfile exists then it's good.
 
-It is still not ~1K with the full inline but quite large on its own.
-So I am not sure it makes sense to fiddle with this without actually
-seeing some penalty in profiles.
+-- 
+Mel Gorman
+SUSE Labs
 
-Here is what I have if somebody wants to play with it:
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
