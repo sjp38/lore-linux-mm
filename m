@@ -1,79 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 121A66B006E
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 03:27:20 -0400 (EDT)
-Received: by pdbki1 with SMTP id ki1so126920394pdb.1
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 00:27:19 -0700 (PDT)
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DB026B0070
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 03:27:22 -0400 (EDT)
+Received: by pdbnf5 with SMTP id nf5so65808986pdb.2
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 00:27:22 -0700 (PDT)
 Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id l8si24802961pbq.79.2015.06.02.00.27.17
+        by mx.google.com with ESMTP id r11si25076510pdj.220.2015.06.02.00.27.20
         for <linux-mm@kvack.org>;
-        Tue, 02 Jun 2015 00:27:18 -0700 (PDT)
+        Tue, 02 Jun 2015 00:27:21 -0700 (PDT)
 From: Gioh Kim <gioh.kim@lge.com>
-Subject: [RFC 0/4] enable migration of non-LRU pages
-Date: Tue,  2 Jun 2015 16:27:40 +0900
-Message-Id: <1433230065-3573-1-git-send-email-gioh.kim@lge.com>
+Subject: [RFC 1/4] mm/compaction: enable driver page migration
+Date: Tue,  2 Jun 2015 16:27:41 +0900
+Message-Id: <1433230065-3573-2-git-send-email-gioh.kim@lge.com>
+In-Reply-To: <1433230065-3573-1-git-send-email-gioh.kim@lge.com>
+References: <1433230065-3573-1-git-send-email-gioh.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: jlayton@poochiereds.net, bfields@fieldses.org, akpm@linux-foundation.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, mst@redhat.com, kirill@shutemov.name, minchan@kernel.org, mgorman@suse.de
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, gunho.lee@lge.com, Gioh Kim <gioh.kim@lge.com>
 
-Hello,
+Add framework to register callback functions and
+check migratable pages.
+There are some modes to isolate page so that isolate interface
+has arguments of page address and isolation mode.
 
-This series try to enable migration of non-LRU pages, such as driver's page.
+Signed-off-by: Gioh Kim <gioh.kim@lge.com>
+---
+ include/linux/compaction.h | 13 +++++++++++++
+ include/linux/fs.h         |  2 ++
+ include/linux/mm.h         | 19 +++++++++++++++++++
+ include/linux/pagemap.h    | 27 +++++++++++++++++++++++++++
+ 4 files changed, 61 insertions(+)
 
-My ARM-based platform occured severe fragmentation problem after long-term
-(several days) test. Sometimes even order-3 page allocation failed. It has
-memory size 512MB ~ 1024MB. 30% ~ 40% memory is consumed for graphic processing
-and 20~30 memory is reserved for zram.
-
-I found that many pages of GPU driver and zram are non-movable pages. So I
-reported Minchan Kim, the maintainer of zram, and he made the internal 
-compaction logic of zram. And I made the internal compaction of GPU driver.
-
-They reduced some fragmentation but they are not enough effective.
-They are activated by its own interface, /sys, so they are not cooperative
-with kernel compaction. If there is too much fragmentation and kernel starts
-to compaction, zram and GPU driver cannot work with the kernel compaction.
-
-The first this patch adds a generic isolate/migrate/putback callbacks for page
-address-space. The zram and GPU, and any other modules can register
-its own migration method. The kernel compaction can call the registered
-migration when it works. Therefore all page in the system can be migrated
-at once.
-
-The 2nd the generic migration callbacks are applied into balloon driver.
-My gpu driver code is not open so I apply generic migration into balloon
-to show how it works. I've tested it with qemu enabled by kvm like followings:
-- turn on Ubuntu 14.04 with 1G memory on qemu.
-- do kernel building
-- after several seconds check more than 512MB is used with free command
-- command "balloon 512" in qemu monitor
-- check hundreds MB of pages are migrated
-
-Next kernel compaction code can call generic migration callbacks instead of
-balloon driver interface.
-Finally calling migration of balloon driver is removed.
-
-
-Gioh Kim (4):
-  mm/compaction: enable driver page migration
-  mm/balloon: apply migratable-page into balloon driver
-  mm/compaction: apply migratable-page into compaction
-  mm: remove direct migration of migratable-page
-
- drivers/virtio/virtio_balloon.c        |  2 +
- fs/proc/page.c                         |  4 +-
- include/linux/balloon_compaction.h     | 42 +++++++++++++++------
- include/linux/compaction.h             | 13 +++++++
- include/linux/fs.h                     |  2 +
- include/linux/mm.h                     | 14 +++----
- include/linux/pagemap.h                | 27 ++++++++++++++
- include/uapi/linux/kernel-page-flags.h |  2 +-
- mm/balloon_compaction.c                | 67 +++++++++++++++++++++++++++++-----
- mm/compaction.c                        |  9 +++--
- mm/migrate.c                           | 25 ++++---------
- 11 files changed, 154 insertions(+), 53 deletions(-)
-
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index a014559..1acfa21 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -1,6 +1,9 @@
+ #ifndef _LINUX_COMPACTION_H
+ #define _LINUX_COMPACTION_H
+ 
++#include <linux/pagemap.h>
++#include <linux/mm.h>
++
+ /* Return values for compact_zone() and try_to_compact_pages() */
+ /* compaction didn't start as it was deferred due to past failures */
+ #define COMPACT_DEFERRED	0
+@@ -50,6 +53,11 @@ extern void compaction_defer_reset(struct zone *zone, int order,
+ 				bool alloc_success);
+ extern bool compaction_restarting(struct zone *zone, int order);
+ 
++static inline bool driver_page_migratable(struct page *page)
++{
++	return PageMigratable(page) && mapping_migratable(page->mapping);
++}
++
+ #else
+ static inline unsigned long try_to_compact_pages(gfp_t gfp_mask,
+ 			unsigned int order, int alloc_flags,
+@@ -82,6 +90,11 @@ static inline bool compaction_deferred(struct zone *zone, int order)
+ 	return true;
+ }
+ 
++static inline bool driver_page_migratable(struct page *page)
++{
++	return false
++}
++
+ #endif /* CONFIG_COMPACTION */
+ 
+ #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 52cc449..bdfcadf 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -368,6 +368,8 @@ struct address_space_operations {
+ 	 */
+ 	int (*migratepage) (struct address_space *,
+ 			struct page *, struct page *, enum migrate_mode);
++	bool (*isolatepage) (struct page *, isolate_mode_t);
++	void (*putbackpage) (struct page *);
+ 	int (*launder_page) (struct page *);
+ 	int (*is_partially_uptodate) (struct page *, unsigned long,
+ 					unsigned long);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 47a9392..422c484 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -618,6 +618,25 @@ static inline void __ClearPageBalloon(struct page *page)
+ 	atomic_set(&page->_mapcount, -1);
+ }
+ 
++#define PAGE_MIGRATABLE_MAPCOUNT_VALUE (-256)
++
++static inline int PageMigratable(struct page *page)
++{
++	return atomic_read(&page->_mapcount) == PAGE_MIGRATABLE_MAPCOUNT_VALUE;
++}
++
++static inline void __SetPageMigratable(struct page *page)
++{
++	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
++	atomic_set(&page->_mapcount, PAGE_MIGRATABLE_MAPCOUNT_VALUE);
++}
++
++static inline void __ClearPageMigratable(struct page *page)
++{
++	VM_BUG_ON_PAGE(!PageMigratable(page), page);
++	atomic_set(&page->_mapcount, -1);
++}
++
+ void put_page(struct page *page);
+ void put_pages_list(struct list_head *pages);
+ 
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 4b3736f..e924dfe 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -25,8 +25,35 @@ enum mapping_flags {
+ 	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
+ 	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
+ 	AS_EXITING	= __GFP_BITS_SHIFT + 4, /* final truncate in progress */
++	AS_MIGRATABLE   = __GFP_BITS_SHIFT + 5,
+ };
+ 
++static inline void mapping_set_migratable(struct address_space *mapping)
++{
++	set_bit(AS_MIGRATABLE, &mapping->flags);
++}
++
++static inline void mapping_clear_migratable(struct address_space *mapping)
++{
++	clear_bit(AS_MIGRATABLE, &mapping->flags);
++}
++
++static inline int __mapping_ops(struct address_space *mapping)
++{
++	/* migrating page should define all following methods */
++	return mapping->a_ops &&
++		mapping->a_ops->migratepage &&
++		mapping->a_ops->isolatepage &&
++		mapping->a_ops->putbackpage;
++}
++
++static inline int mapping_migratable(struct address_space *mapping)
++{
++	if (mapping && __mapping_ops(mapping))
++		return test_bit(AS_MIGRATABLE, &mapping->flags);
++	return !!mapping;
++}
++
+ static inline void mapping_set_error(struct address_space *mapping, int error)
+ {
+ 	if (unlikely(error)) {
 -- 
 1.9.1
 
