@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 020C46B006C
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 08:38:12 -0400 (EDT)
-Received: by wgv5 with SMTP id 5so138919723wgv.1
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 05:38:11 -0700 (PDT)
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 30E726B0038
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 08:40:32 -0400 (EDT)
+Received: by wifw1 with SMTP id w1so143044374wif.0
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 05:40:31 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id la1si6731000wjc.209.2015.06.02.05.38.09
+        by mx.google.com with ESMTPS id n2si24127151wic.122.2015.06.02.05.40.30
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 02 Jun 2015 05:38:10 -0700 (PDT)
-Date: Tue, 2 Jun 2015 13:38:06 +0100
+        Tue, 02 Jun 2015 05:40:30 -0700 (PDT)
+Date: Tue, 2 Jun 2015 13:40:26 +0100
 From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [PATCH 3/4] sunrpc: if we're closing down a socket, clear
  memalloc on it first
-Message-ID: <20150602123806.GF26425@suse.de>
+Message-ID: <20150602124025.GG26425@suse.de>
 References: <1432987393-15604-1-git-send-email-jeff.layton@primarydata.com>
  <1432987393-15604-4-git-send-email-jeff.layton@primarydata.com>
 MIME-Version: 1.0
