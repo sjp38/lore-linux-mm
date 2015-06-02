@@ -1,91 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id C29ED900015
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 12:21:10 -0400 (EDT)
-Received: by wifw1 with SMTP id w1so151425189wif.0
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 09:21:10 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ge5si31335857wjb.125.2015.06.02.09.21.08
+Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BDAA900015
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 12:49:38 -0400 (EDT)
+Received: by oifu123 with SMTP id u123so130316000oif.1
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 09:49:38 -0700 (PDT)
+Received: from mail-oi0-x229.google.com (mail-oi0-x229.google.com. [2607:f8b0:4003:c06::229])
+        by mx.google.com with ESMTPS id k7si11185880oes.103.2015.06.02.09.49.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 02 Jun 2015 09:21:08 -0700 (PDT)
-Date: Tue, 2 Jun 2015 18:21:03 +0200
-From: "Luis R. Rodriguez" <mcgrof@suse.com>
-Subject: Re: [PATCH v12 0/10] Support Write-Through mapping on x86
-Message-ID: <20150602162103.GL23057@wotan.suse.de>
-References: <1433187393-22688-1-git-send-email-toshi.kani@hp.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1433187393-22688-1-git-send-email-toshi.kani@hp.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Jun 2015 09:49:37 -0700 (PDT)
+Received: by oihb142 with SMTP id b142so130182660oih.3
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 09:49:37 -0700 (PDT)
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: [PATCH] zpool: remove zpool_evict
+Date: Tue,  2 Jun 2015 12:49:25 -0400
+Message-Id: <1433263765-30772-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com, hch@lst.de
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Streetman <ddstreet@ieee.org>
 
-On Mon, Jun 01, 2015 at 01:36:23PM -0600, Toshi Kani wrote:
-> This patchset adds support of Write-Through (WT) mapping on x86.
-> The study below shows that using WT mapping may be useful for
-> non-volatile memory.
-> 
-> http://www.hpl.hp.com/techreports/2012/HPL-2012-236.pdf
-> 
-> The patchset consists of the following changes.
->  - Patch 1/10 to 6/10 add ioremap_wt()
->  - Patch 7/10 adds pgprot_writethrough()
->  - Patch 8/10 to 9/10 add set_memory_wt()
->  - Patch 10/10 changes the pmem driver to call ioremap_wt()
-> 
-> All new/modified interfaces have been tested.
-> 
-> The patchset is based on:
-> git://git.kernel.org/pub/scm/linux/kernel/git/bp/bp.git#tip-mm-2
+Remove zpool_evict helper function.  As zbud is currently the only zpool
+implementation that supports eviction, add zpool and zpool_ops references
+to struct zbud_pool and directly call zpool_ops->evict(zpool, handle) on
+eviction.
 
-While at it can you also look at:
+Currently zpool provides the zpool_evict helper which locks the zpool list
+lock and searches through all pools to find the specific one matching the
+caller, and call the corresponding zpool_ops->evict function.  However,
+this is unnecessary, as the zbud pool can simply keep a reference to the
+zpool that created it, as well as the zpool_ops, and directly call the
+zpool_ops->evict function, when it needs to evict a page.  This avoids
+a spinlock and list search in zpool for each eviction.
 
-mcgrof@ergon ~/linux-next (git::master)$ git grep -4 "writethrough" drivers/infiniband/
+Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+---
+ include/linux/zpool.h |  5 ++---
+ mm/zbud.c             | 23 +++++++++++++++++++----
+ mm/zpool.c            | 29 +----------------------------
+ mm/zsmalloc.c         |  3 ++-
+ 4 files changed, 24 insertions(+), 36 deletions(-)
 
-drivers/infiniband/hw/ipath/ipath_driver.c-
-drivers/infiniband/hw/ipath/ipath_driver.c-     dd->ipath_pcirev = pdev->revision;
-drivers/infiniband/hw/ipath/ipath_driver.c-
-drivers/infiniband/hw/ipath/ipath_driver.c-#if defined(__powerpc__)
-drivers/infiniband/hw/ipath/ipath_driver.c:     /* There isn't a generic way to specify writethrough mappings */
-drivers/infiniband/hw/ipath/ipath_driver.c-     dd->ipath_kregbase = __ioremap(addr, len,
-drivers/infiniband/hw/ipath/ipath_driver.c-             (_PAGE_NO_CACHE|_PAGE_WRITETHRU));
-drivers/infiniband/hw/ipath/ipath_driver.c-#else
-drivers/infiniband/hw/ipath/ipath_driver.c-     dd->ipath_kregbase = ioremap_nocache(addr, len);
---
-drivers/infiniband/hw/ipath/ipath_file_ops.c-
-drivers/infiniband/hw/ipath/ipath_file_ops.c-   phys = dd->ipath_physaddr + piobufs;
-drivers/infiniband/hw/ipath/ipath_file_ops.c-
-drivers/infiniband/hw/ipath/ipath_file_ops.c-#if defined(__powerpc__)
-drivers/infiniband/hw/ipath/ipath_file_ops.c:   /* There isn't a generic way to specify writethrough mappings */
-drivers/infiniband/hw/ipath/ipath_file_ops.c-   pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
-drivers/infiniband/hw/ipath/ipath_file_ops.c-   pgprot_val(vma->vm_page_prot) |= _PAGE_WRITETHRU;
-drivers/infiniband/hw/ipath/ipath_file_ops.c-   pgprot_val(vma->vm_page_prot) &= ~_PAGE_GUARDED;
-drivers/infiniband/hw/ipath/ipath_file_ops.c-#endif
---
-drivers/infiniband/hw/qib/qib_file_ops.c-
-drivers/infiniband/hw/qib/qib_file_ops.c-       phys = dd->physaddr + piobufs;
-drivers/infiniband/hw/qib/qib_file_ops.c-
-drivers/infiniband/hw/qib/qib_file_ops.c-#if defined(__powerpc__)
-drivers/infiniband/hw/qib/qib_file_ops.c:       /* There isn't a generic way to specify writethrough mappings */
-drivers/infiniband/hw/qib/qib_file_ops.c-       pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
-drivers/infiniband/hw/qib/qib_file_ops.c-       pgprot_val(vma->vm_page_prot) |= _PAGE_WRITETHRU;
-drivers/infiniband/hw/qib/qib_file_ops.c-       pgprot_val(vma->vm_page_prot) &= ~_PAGE_GUARDED;
-drivers/infiniband/hw/qib/qib_file_ops.c-#endif
---
-drivers/infiniband/hw/qib/qib_pcie.c-   addr = pci_resource_start(pdev, 0);
-drivers/infiniband/hw/qib/qib_pcie.c-   len = pci_resource_len(pdev, 0);
-drivers/infiniband/hw/qib/qib_pcie.c-
-drivers/infiniband/hw/qib/qib_pcie.c-#if defined(__powerpc__)
-drivers/infiniband/hw/qib/qib_pcie.c:   /* There isn't a generic way to specify writethrough mappings */
-drivers/infiniband/hw/qib/qib_pcie.c-   dd->kregbase = __ioremap(addr, len, _PAGE_NO_CACHE | _PAGE_WRITETHRU);
-drivers/infiniband/hw/qib/qib_pcie.c-#else
-drivers/infiniband/hw/qib/qib_pcie.c-   dd->kregbase = ioremap_nocache(addr, len);
-drivers/infiniband/hw/qib/qib_pcie.c-#endif
-
-  Luis
+diff --git a/include/linux/zpool.h b/include/linux/zpool.h
+index 56529b3..d30eff3 100644
+--- a/include/linux/zpool.h
++++ b/include/linux/zpool.h
+@@ -81,7 +81,8 @@ struct zpool_driver {
+ 	atomic_t refcount;
+ 	struct list_head list;
+ 
+-	void *(*create)(char *name, gfp_t gfp, struct zpool_ops *ops);
++	void *(*create)(char *name, gfp_t gfp, struct zpool_ops *ops,
++			struct zpool *zpool);
+ 	void (*destroy)(void *pool);
+ 
+ 	int (*malloc)(void *pool, size_t size, gfp_t gfp,
+@@ -102,6 +103,4 @@ void zpool_register_driver(struct zpool_driver *driver);
+ 
+ int zpool_unregister_driver(struct zpool_driver *driver);
+ 
+-int zpool_evict(void *pool, unsigned long handle);
+-
+ #endif
+diff --git a/mm/zbud.c b/mm/zbud.c
+index 2ee4e45..f3bf6f7 100644
+--- a/mm/zbud.c
++++ b/mm/zbud.c
+@@ -97,6 +97,10 @@ struct zbud_pool {
+ 	struct list_head lru;
+ 	u64 pages_nr;
+ 	struct zbud_ops *ops;
++#ifdef CONFIG_ZPOOL
++	struct zpool *zpool;
++	struct zpool_ops *zpool_ops;
++#endif
+ };
+ 
+ /*
+@@ -123,7 +127,10 @@ struct zbud_header {
+ 
+ static int zbud_zpool_evict(struct zbud_pool *pool, unsigned long handle)
+ {
+-	return zpool_evict(pool, handle);
++	if (pool->zpool && pool->zpool_ops && pool->zpool_ops->evict)
++		return pool->zpool_ops->evict(pool->zpool, handle);
++	else
++		return -ENOENT;
+ }
+ 
+ static struct zbud_ops zbud_zpool_ops = {
+@@ -131,9 +138,17 @@ static struct zbud_ops zbud_zpool_ops = {
+ };
+ 
+ static void *zbud_zpool_create(char *name, gfp_t gfp,
+-			struct zpool_ops *zpool_ops)
++			       struct zpool_ops *zpool_ops,
++			       struct zpool *zpool)
+ {
+-	return zbud_create_pool(gfp, zpool_ops ? &zbud_zpool_ops : NULL);
++	struct zbud_pool *pool;
++
++	pool = zbud_create_pool(gfp, zpool_ops ? &zbud_zpool_ops : NULL);
++	if (pool) {
++		pool->zpool = zpool;
++		pool->zpool_ops = zpool_ops;
++	}
++	return pool;
+ }
+ 
+ static void zbud_zpool_destroy(void *pool)
+@@ -292,7 +307,7 @@ struct zbud_pool *zbud_create_pool(gfp_t gfp, struct zbud_ops *ops)
+ 	struct zbud_pool *pool;
+ 	int i;
+ 
+-	pool = kmalloc(sizeof(struct zbud_pool), gfp);
++	pool = kzalloc(sizeof(struct zbud_pool), gfp);
+ 	if (!pool)
+ 		return NULL;
+ 	spin_lock_init(&pool->lock);
+diff --git a/mm/zpool.c b/mm/zpool.c
+index bacdab6..6a19c97 100644
+--- a/mm/zpool.c
++++ b/mm/zpool.c
+@@ -73,33 +73,6 @@ int zpool_unregister_driver(struct zpool_driver *driver)
+ }
+ EXPORT_SYMBOL(zpool_unregister_driver);
+ 
+-/**
+- * zpool_evict() - evict callback from a zpool implementation.
+- * @pool:	pool to evict from.
+- * @handle:	handle to evict.
+- *
+- * This can be used by zpool implementations to call the
+- * user's evict zpool_ops struct evict callback.
+- */
+-int zpool_evict(void *pool, unsigned long handle)
+-{
+-	struct zpool *zpool;
+-
+-	spin_lock(&pools_lock);
+-	list_for_each_entry(zpool, &pools_head, list) {
+-		if (zpool->pool == pool) {
+-			spin_unlock(&pools_lock);
+-			if (!zpool->ops || !zpool->ops->evict)
+-				return -EINVAL;
+-			return zpool->ops->evict(zpool, handle);
+-		}
+-	}
+-	spin_unlock(&pools_lock);
+-
+-	return -ENOENT;
+-}
+-EXPORT_SYMBOL(zpool_evict);
+-
+ static struct zpool_driver *zpool_get_driver(char *type)
+ {
+ 	struct zpool_driver *driver;
+@@ -170,7 +143,7 @@ struct zpool *zpool_create_pool(char *type, char *name, gfp_t gfp,
+ 
+ 	zpool->type = driver->type;
+ 	zpool->driver = driver;
+-	zpool->pool = driver->create(name, gfp, ops);
++	zpool->pool = driver->create(name, gfp, ops, zpool);
+ 	zpool->ops = ops;
+ 
+ 	if (!zpool->pool) {
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 08bd7a3..dd196c4 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -312,7 +312,8 @@ static void record_obj(unsigned long handle, unsigned long obj)
+ 
+ #ifdef CONFIG_ZPOOL
+ 
+-static void *zs_zpool_create(char *name, gfp_t gfp, struct zpool_ops *zpool_ops)
++static void *zs_zpool_create(char *name, gfp_t gfp, struct zpool_ops *zpool_ops,
++			     struct zpool *zpool)
+ {
+ 	return zs_create_pool(name, gfp);
+ }
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
