@@ -1,80 +1,228 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id D36DA900015
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 13:09:24 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so137053648pdb.0
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 10:09:24 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id m4si27209682pdp.192.2015.06.02.10.09.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jun 2015 10:09:23 -0700 (PDT)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH v4 0/3] alloc_huge_page/hugetlb_reserve_pages race
-Date: Tue,  2 Jun 2015 09:59:10 -0700
-Message-Id: <1433264353-4050-1-git-send-email-mike.kravetz@oracle.com>
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id E8D916B0038
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 14:13:28 -0400 (EDT)
+Received: by qgdy38 with SMTP id y38so37296947qgd.1
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 11:13:28 -0700 (PDT)
+Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
+        by mx.google.com with ESMTP id i85si14593353qhc.87.2015.06.02.11.13.27
+        for <linux-mm@kvack.org>;
+        Tue, 02 Jun 2015 11:13:28 -0700 (PDT)
+From: Eric B Munson <emunson@akamai.com>
+Subject: [PATCH V2 1/3] Add mmap flag to request pages are locked after page fault
+Date: Tue,  2 Jun 2015 14:13:24 -0400
+Message-Id: <1433268806-17109-2-git-send-email-emunson@akamai.com>
+In-Reply-To: <1433268806-17109-1-git-send-email-emunson@akamai.com>
+References: <1433268806-17109-1-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Eric B Munson <emunson@akamai.com>, Michal Hocko <mhocko@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-v3 of patch did not take hugetlbfs min_size into account as noted
-in change log.
+The cost of faulting in all memory to be locked can be very high when
+working with large mappings.  If only portions of the mapping will be
+used this can incur a high penalty for locking.
 
-While working on hugetlbfs fallocate support, I noticed the following
-race in the existing code.  It is unlikely that this race is hit very
-often in the current code.  However, if more functionality to add and
-remove pages to hugetlbfs mappings (such as fallocate) is added the
-likelihood of hitting this race will increase.
+For the example of a large file, this is the usage pattern for a large
+statical language model (probably applies to other statical or graphical
+models as well).  For the security example, any application transacting
+in data that cannot be swapped out (credit card data, medical records,
+etc).
 
-alloc_huge_page and hugetlb_reserve_pages use information from the
-reserve map to determine if there are enough available huge pages to
-complete the operation, as well as adjust global reserve and subpool
-usage counts.  The order of operations is as follows:
-- call region_chg() to determine the expected change based on reserve map
-- determine if enough resources are available for this operation
-- adjust global counts based on the expected change
-- call region_add() to update the reserve map
-The issue is that reserve map could change between the call to region_chg
-and region_add.  In this case, the counters which were adjusted based on
-the output of region_chg will not be correct.
+This patch introduces the ability to request that pages are not
+pre-faulted, but are placed on the unevictable LRU when they are finally
+faulted in.
 
-In order to hit this race today, there must be an existing shared hugetlb
-mmap created with the MAP_NORESERVE flag.  A page fault to allocate a huge
-page via this mapping must occur at the same another task is mapping the
-same region without the MAP_NORESERVE flag.
+To keep accounting checks out of the page fault path, users are billed
+for the entire mapping lock as if MAP_LOCKED was used.
 
-The patch set does not prevent the race from happening.  Rather, it adds
-simple functionality to detect when the race has occurred.  If a race is
-detected, then the incorrect counts are adjusted.
+Signed-off-by: Eric B Munson <emunson@akamai.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>
+Cc: linux-alpha@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mips@linux-mips.org
+Cc: linux-parisc@vger.kernel.org
+Cc: linuxppc-dev@lists.ozlabs.org
+Cc: sparclinux@vger.kernel.org
+Cc: linux-xtensa@linux-xtensa.org
+Cc: linux-mm@kvack.org
+Cc: linux-arch@vger.kernel.org
+Cc: linux-api@vger.kernel.org
+---
+ arch/alpha/include/uapi/asm/mman.h   | 1 +
+ arch/mips/include/uapi/asm/mman.h    | 1 +
+ arch/parisc/include/uapi/asm/mman.h  | 1 +
+ arch/powerpc/include/uapi/asm/mman.h | 1 +
+ arch/sparc/include/uapi/asm/mman.h   | 1 +
+ arch/tile/include/uapi/asm/mman.h    | 1 +
+ arch/xtensa/include/uapi/asm/mman.h  | 1 +
+ include/linux/mm.h                   | 1 +
+ include/linux/mman.h                 | 3 ++-
+ include/uapi/asm-generic/mman.h      | 1 +
+ mm/mmap.c                            | 4 ++--
+ mm/swap.c                            | 3 ++-
+ 12 files changed, 15 insertions(+), 4 deletions(-)
 
-Review comments pointed out the need for documentation of the existing
-region/reserve map routines.  This patch set also adds documentation
-in this area.
-
-v4:
-  Reserve count adjustments need to take into account hugetlbfs min_size
-  reservation pools
-v3:
-  Created separate patch for new documentation created in v2
-  Added VM_BUG_ON() to region add at suggestion of Naoya Horiguchi
-  __vma_reservation_common keys off parameter commit for easier reading
-v2:
-  Added documentation for the region/reserve map routines
-  Created common routine for vma_commit_reservation and
-    vma_commit_reservation to help prevent them from drifting
-    apart in the future.
-
-Mike Kravetz (3):
-  mm/hugetlb: document the reserve map/region tracking routines
-  mm/hugetlb: compute/return the number of regions added by region_add()
-  mm/hugetlb: handle races in alloc_huge_page and hugetlb_reserve_pages
-
- mm/hugetlb.c | 163 ++++++++++++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 133 insertions(+), 30 deletions(-)
-
+diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
+index 0086b47..15e96e1 100644
+--- a/arch/alpha/include/uapi/asm/mman.h
++++ b/arch/alpha/include/uapi/asm/mman.h
+@@ -30,6 +30,7 @@
+ #define MAP_NONBLOCK	0x40000		/* do not block on IO */
+ #define MAP_STACK	0x80000		/* give out an address that is best suited for process/thread stacks */
+ #define MAP_HUGETLB	0x100000	/* create a huge page mapping */
++#define MAP_LOCKONFAULT	0x200000	/* Lock pages after they are faulted in, do not prefault */
+ 
+ #define MS_ASYNC	1		/* sync memory asynchronously */
+ #define MS_SYNC		2		/* synchronous memory sync */
+diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
+index cfcb876..47846a5 100644
+--- a/arch/mips/include/uapi/asm/mman.h
++++ b/arch/mips/include/uapi/asm/mman.h
+@@ -48,6 +48,7 @@
+ #define MAP_NONBLOCK	0x20000		/* do not block on IO */
+ #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
+ #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
++#define MAP_LOCKONFAULT	0x100000	/* Lock pages after they are faulted in, do not prefault */
+ 
+ /*
+  * Flags for msync
+diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
+index 294d251..1514cd7 100644
+--- a/arch/parisc/include/uapi/asm/mman.h
++++ b/arch/parisc/include/uapi/asm/mman.h
+@@ -24,6 +24,7 @@
+ #define MAP_NONBLOCK	0x20000		/* do not block on IO */
+ #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
+ #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
++#define MAP_LOCKONFAULT	0x100000	/* Lock pages after they are faulted in, do not prefault */
+ 
+ #define MS_SYNC		1		/* synchronous memory sync */
+ #define MS_ASYNC	2		/* sync memory asynchronously */
+diff --git a/arch/powerpc/include/uapi/asm/mman.h b/arch/powerpc/include/uapi/asm/mman.h
+index 6ea26df..fce74fe 100644
+--- a/arch/powerpc/include/uapi/asm/mman.h
++++ b/arch/powerpc/include/uapi/asm/mman.h
+@@ -27,5 +27,6 @@
+ #define MAP_NONBLOCK	0x10000		/* do not block on IO */
+ #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+ #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
++#define MAP_LOCKONFAULT	0x80000		/* Lock pages after they are faulted in, do not prefault */
+ 
+ #endif /* _UAPI_ASM_POWERPC_MMAN_H */
+diff --git a/arch/sparc/include/uapi/asm/mman.h b/arch/sparc/include/uapi/asm/mman.h
+index 0b14df3..12425d8 100644
+--- a/arch/sparc/include/uapi/asm/mman.h
++++ b/arch/sparc/include/uapi/asm/mman.h
+@@ -22,6 +22,7 @@
+ #define MAP_NONBLOCK	0x10000		/* do not block on IO */
+ #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+ #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
++#define MAP_LOCKONFAULT	0x80000		/* Lock pages after they are faulted in, do not prefault */
+ 
+ 
+ #endif /* _UAPI__SPARC_MMAN_H__ */
+diff --git a/arch/tile/include/uapi/asm/mman.h b/arch/tile/include/uapi/asm/mman.h
+index 81b8fc3..ec04eaf 100644
+--- a/arch/tile/include/uapi/asm/mman.h
++++ b/arch/tile/include/uapi/asm/mman.h
+@@ -29,6 +29,7 @@
+ #define MAP_DENYWRITE	0x0800		/* ETXTBSY */
+ #define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+ #define MAP_HUGETLB	0x4000		/* create a huge page mapping */
++#define MAP_LOCKONFAULT	0x8000		/* Lock pages after they are faulted in, do not prefault */
+ 
+ 
+ /*
+diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
+index 201aec0..42d43cc 100644
+--- a/arch/xtensa/include/uapi/asm/mman.h
++++ b/arch/xtensa/include/uapi/asm/mman.h
+@@ -55,6 +55,7 @@
+ #define MAP_NONBLOCK	0x20000		/* do not block on IO */
+ #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
+ #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
++#define MAP_LOCKONFAULT	0x100000	/* Lock pages after they are faulted in, do not prefault */
+ #ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
+ # define MAP_UNINITIALIZED 0x4000000	/* For anonymous mmap, memory could be
+ 					 * uninitialized */
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 0755b9f..3e31457 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -126,6 +126,7 @@ extern unsigned int kobjsize(const void *objp);
+ #define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
+ #define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */
+ 
++#define VM_LOCKONFAULT	0x00001000	/* Lock the pages covered when they are faulted in */
+ #define VM_LOCKED	0x00002000
+ #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
+ 
+diff --git a/include/linux/mman.h b/include/linux/mman.h
+index 16373c8..437264b 100644
+--- a/include/linux/mman.h
++++ b/include/linux/mman.h
+@@ -86,7 +86,8 @@ calc_vm_flag_bits(unsigned long flags)
+ {
+ 	return _calc_vm_trans(flags, MAP_GROWSDOWN,  VM_GROWSDOWN ) |
+ 	       _calc_vm_trans(flags, MAP_DENYWRITE,  VM_DENYWRITE ) |
+-	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    );
++	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    ) |
++	       _calc_vm_trans(flags, MAP_LOCKONFAULT,VM_LOCKONFAULT);
+ }
+ 
+ unsigned long vm_commit_limit(void);
+diff --git a/include/uapi/asm-generic/mman.h b/include/uapi/asm-generic/mman.h
+index e9fe6fd..fc4e586 100644
+--- a/include/uapi/asm-generic/mman.h
++++ b/include/uapi/asm-generic/mman.h
+@@ -12,6 +12,7 @@
+ #define MAP_NONBLOCK	0x10000		/* do not block on IO */
+ #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+ #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
++#define MAP_LOCKONFAULT	0x80000		/* Lock pages after they are faulted in, do not prefault */
+ 
+ /* Bits [26:31] are reserved, see mman-common.h for MAP_HUGETLB usage */
+ 
+diff --git a/mm/mmap.c b/mm/mmap.c
+index bb50cac..ba1a6bf 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1233,7 +1233,7 @@ static inline int mlock_future_check(struct mm_struct *mm,
+ 	unsigned long locked, lock_limit;
+ 
+ 	/*  mlock MCL_FUTURE? */
+-	if (flags & VM_LOCKED) {
++	if (flags & (VM_LOCKED | VM_LOCKONFAULT)) {
+ 		locked = len >> PAGE_SHIFT;
+ 		locked += mm->locked_vm;
+ 		lock_limit = rlimit(RLIMIT_MEMLOCK);
+@@ -1301,7 +1301,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
+ 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+ 
+-	if (flags & MAP_LOCKED)
++	if (flags & (MAP_LOCKED | MAP_LOCKONFAULT))
+ 		if (!can_do_mlock())
+ 			return -EPERM;
+ 
+diff --git a/mm/swap.c b/mm/swap.c
+index a7251a8..07c905e 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -711,7 +711,8 @@ void lru_cache_add_active_or_unevictable(struct page *page,
+ {
+ 	VM_BUG_ON_PAGE(PageLRU(page), page);
+ 
+-	if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED)) {
++	if (likely((vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) == 0) ||
++		   (vma->vm_flags & VM_SPECIAL)) {
+ 		SetPageActive(page);
+ 		lru_cache_add(page);
+ 		return;
 -- 
-2.1.0
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
