@@ -1,174 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com [209.85.220.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 45BD06B0071
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 14:13:34 -0400 (EDT)
-Received: by qkx62 with SMTP id 62so105499883qkx.3
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 11:13:34 -0700 (PDT)
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 46A8F6B0072
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 14:13:50 -0400 (EDT)
+Received: by qgdy38 with SMTP id y38so37301465qgd.1
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 11:13:50 -0700 (PDT)
 Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
-        by mx.google.com with ESMTP id 48si5482125qgj.54.2015.06.02.11.13.27
+        by mx.google.com with ESMTP id q5si16591951qce.7.2015.06.02.11.13.48
         for <linux-mm@kvack.org>;
-        Tue, 02 Jun 2015 11:13:28 -0700 (PDT)
+        Tue, 02 Jun 2015 11:13:49 -0700 (PDT)
 From: Eric B Munson <emunson@akamai.com>
-Subject: [PATCH V2 0/3] Allow user to request memory to be locked on page fault
-Date: Tue,  2 Jun 2015 14:13:23 -0400
-Message-Id: <1433268806-17109-1-git-send-email-emunson@akamai.com>
+Subject: [PATCH] Update mlockall() and mmap() man pages for LOCKONFAULT flags
+Date: Tue,  2 Jun 2015 14:13:44 -0400
+Message-Id: <1433268824-17183-1-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric B Munson <emunson@akamai.com>, Shuah Khan <shuahkh@osg.samsung.com>, Michal Hocko <mhocko@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: Michael Kerrisk <mtk.manpages@gmail.com>
+Cc: Eric B Munson <emunson@akamai.com>, Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org, linux-kernel@vger.kernel.org
 
-mlock() allows a user to control page out of program memory, but this
-comes at the cost of faulting in the entire mapping when it is
-allocated.  For large mappings where the entire area is not necessary
-this is not ideal.
+Document the new flags for mmap() and mlockall() and their behavior.
+Inlcude a change to getrlimit(2) to cover interactions with
+RLIMIT_MEMLOCK.  These new flags will be introduced with the 4.2 kernel.
 
-This series introduces new flags for mmap() and mlockall() that allow a
-user to specify that the covered are should not be paged out, but only
-after the memory has been used the first time.
+Signed-off-by: Eric B Munson <emunson@akamai.com>
 
-There are two main use cases that this set covers.  The first is the
-security focussed mlock case.  A buffer is needed that cannot be written
-to swap.  The maximum size is known, but on average the memory used is
-significantly less than this maximum.  With lock on fault, the buffer
-is guaranteed to never be paged out without consuming the maximum size
-every time such a buffer is created.
-
-The second use case is focussed on performance.  Portions of a large
-file are needed and we want to keep the used portions in memory once
-accessed.  This is the case for large graphical models where the path
-through the graph is not known until run time.  The entire graph is
-unlikely to be used in a given invocation, but once a node has been
-used it needs to stay resident for further processing.  Given these
-constraints we have a number of options.  We can potentially waste a
-large amount of memory by mlocking the entire region (this can also
-cause a significant stall at startup as the entire file is read in).
-We can mlock every page as we access them without tracking if the page
-is already resident but this introduces large overhead for each access.
-The third option is mapping the entire region with PROT_NONE and using
-a signal handler for SIGSEGV to mprotect(PROT_READ) and mlock() the
-needed page.  Doing this page at a time adds a significant performance
-penalty.  Batching can be used to mitigate this overhead, but in order
-to safely avoid trying to mprotect pages outside of the mapping, the
-boundaries of each mapping to be used in this way must be tracked and
-available to the signal handler.  This is precisely what the mm system
-in the kernel should already be doing.
-
-For mmap(MAP_LOCKONFAULT) the user is charged against RLIMIT_MEMLOCK
-as if MAP_LOCKED was used, so when the VMA is created not when the pages
-are faulted in.  For mlockall(MCL_ON_FAULT) the user is charged as if
-MCL_FUTURE was used.  This decision was made to keep the accounting
-checks out of the page fault path.
-
-To illustrate the benefit of this patch I wrote a test program that
-mmaps a 5 GB file filled with random data and then makes 15,000,000
-accesses to random addresses in that mapping.  The test program was run
-20 times for each setup.  Results are reported for two program portions,
-setup and execution.  The setup phase is calling mmap and optionally
-mlock on the entire region.  For most experiments this is trivial, but
-it highlights the cost of faulting in the entire region.  Results are
-averages across the 20 runs in milliseconds.
-
-mmap with MAP_LOCKED:
-Setup avg:      11821.193
-Processing avg: 3404.286
-
-mmap with mlock() before each access:
-Setup avg:      0.054
-Processing avg: 34263.201
-
-mmap with PROT_NONE and signal handler and batch size of 1 page:
-With the default value in max_map_count, this gets ENOMEM as I attempt
-to change the permissions, after upping the sysctl significantly I get:
-Setup avg:      0.050
-Processing avg: 67690.625
-
-mmap with PROT_NONE and signal handler and batch size of 8 pages:
-Setup avg:      0.098
-Processing avg: 37344.197
-
-mmap with PROT_NONE and signal handler and batch size of 16 pages:
-Setup avg:      0.0548
-Processing avg: 29295.669
-
-mmap with MAP_LOCKONFAULT:
-Setup avg:      0.073
-Processing avg: 18392.136
-
-The signal handler in the batch cases faulted in memory in two steps to
-avoid having to know the start and end of the faulting mapping.  The
-first step covers the page that caused the fault as we know that it will
-be possible to lock.  The second step speculatively tries to mlock and
-mprotect the batch size - 1 pages that follow.  There may be a clever
-way to avoid this without having the program track each mapping to be
-covered by this handeler in a globally accessible structure, but I could
-not find it.  It should be noted that with a large enough batch size
-this two step fault handler can still cause the program to crash if it
-reaches far beyond the end of the mapping.
-
-These results show that if the developer knows that a majority of the
-mapping will be used, it is better to try and fault it in at once,
-otherwise MAP_LOCKONFAULT is significantly faster.
-
-The performance cost of these patches are minimal on the two benchmarks
-I have tested (stream and kernbench).  The following are the average
-values across 20 runs of each benchmark after a warmup run whose
-results were discarded.
-
-Avg throughput in MB/s from stream using 1000000 element arrays
-Test     4.1-rc2      4.1-rc2+lock-on-fault
-Copy:    10,979.08    10,917.34
-Scale:   11,094.45    11,023.01
-Add:     12,487.29    12,388.65
-Triad:   12,505.77    12,418.78
-
-Kernbench optimal load
-                 4.1-rc2  4.1-rc2+lock-on-fault
-Elapsed Time     71.046   71.324
-User Time        62.117   62.352
-System Time      8.926    8.969
-Context Switches 14531.9  14542.5
-Sleeps           14935.9  14939
-
-Eric B Munson (3):
-  Add mmap flag to request pages are locked after page fault
-  Add mlockall flag for locking pages on fault
-  Add tests for lock on fault
-
- arch/alpha/include/uapi/asm/mman.h          |   2 +
- arch/mips/include/uapi/asm/mman.h           |   2 +
- arch/parisc/include/uapi/asm/mman.h         |   2 +
- arch/powerpc/include/uapi/asm/mman.h        |   2 +
- arch/sparc/include/uapi/asm/mman.h          |   2 +
- arch/tile/include/uapi/asm/mman.h           |   2 +
- arch/xtensa/include/uapi/asm/mman.h         |   2 +
- include/linux/mm.h                          |   1 +
- include/linux/mman.h                        |   3 +-
- include/uapi/asm-generic/mman.h             |   2 +
- mm/mlock.c                                  |  13 ++-
- mm/mmap.c                                   |   4 +-
- mm/swap.c                                   |   3 +-
- tools/testing/selftests/vm/Makefile         |   8 +-
- tools/testing/selftests/vm/lock-on-fault.c  | 145 ++++++++++++++++++++++++++++
- tools/testing/selftests/vm/on-fault-limit.c |  47 +++++++++
- tools/testing/selftests/vm/run_vmtests      |  23 +++++
- 17 files changed, 254 insertions(+), 9 deletions(-)
- create mode 100644 tools/testing/selftests/vm/lock-on-fault.c
- create mode 100644 tools/testing/selftests/vm/on-fault-limit.c
-
-Cc: Shuah Khan <shuahkh@osg.samsung.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: linux-alpha@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mips@linux-mips.org
-Cc: linux-parisc@vger.kernel.org
-Cc: linuxppc-dev@lists.ozlabs.org
-Cc: sparclinux@vger.kernel.org
-Cc: linux-xtensa@linux-xtensa.org
-Cc: linux-mm@kvack.org
-Cc: linux-arch@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-api@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: linux-man@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
+---
+ man2/getrlimit.2 |  9 +++++++--
+ man2/mlock.2     | 28 ++++++++++++++++++++++++++--
+ man2/mmap.2      | 21 +++++++++++++++++++++
+ 3 files changed, 54 insertions(+), 4 deletions(-)
 
+diff --git a/man2/getrlimit.2 b/man2/getrlimit.2
+index ec464fe..729197e 100644
+--- a/man2/getrlimit.2
++++ b/man2/getrlimit.2
+@@ -215,7 +215,9 @@ and
+ and the
+ .BR mmap (2)
+ .B MAP_LOCKED
+-operation.
++or
++.B MAP_LOCKONFAULT
++operations.
+ Since Linux 2.6.9 it also affects the
+ .BR shmctl (2)
+ .B SHM_LOCK
+@@ -232,7 +234,10 @@ locks established by
+ .BR mlockall (2),
+ and
+ .BR mmap (2)
+-.BR MAP_LOCKED ;
++with
++.B MAP_LOCKED
++or
++.BR MAP_LOCKONFAULT ;
+ a process can lock bytes up to this limit in each of these
+ two categories.
+ In Linux kernels before 2.6.9, this limit controlled the amount of
+diff --git a/man2/mlock.2 b/man2/mlock.2
+index b8487ff..139a7be 100644
+--- a/man2/mlock.2
++++ b/man2/mlock.2
+@@ -96,9 +96,31 @@ process in the future.
+ These could be for instance new pages required
+ by a growing heap and stack as well as new memory-mapped files or
+ shared memory regions.
++.B MCL_FUTURE
++will attempt to make all pages present when the address
++space is allocated.
++.TP
++.BR MCL_ONFAULT " (since Linux 4.2)"
++Like
++.BR MCL_FUTURE ,
++but
++.B MCL_ONFAULT
++does not attempt to make all pages present when the address space is
++allocated, instead wait until each page is accessed for the first
++time before locking.  Note that as with the difference between
++.B MAP_LOCKED
++and
++.B MAP_LOCKONFAULT
++for
++.BR mmap "(2),"
++the caller is charged for the entire allocated address space.  See
++.BR setrlimit "(2)"
++for more details on resource limits.
+ .PP
+ If
+ .B MCL_FUTURE
++or
++.B MCL_ONFAULT
+ has been specified, then a later system call (e.g.,
+ .BR mmap (2),
+ .BR sbrk (2),
+@@ -250,9 +272,11 @@ or when the process terminates.
+ The
+ .BR mlockall ()
+ .B MCL_FUTURE
+-setting is not inherited by a child created via
++and
++.B MCL_ONFAULT
++settings are not inherited by a child created via
+ .BR fork (2)
+-and is cleared during an
++and are cleared during an
+ .BR execve (2).
+ 
+ The memory lock on an address range is automatically removed
+diff --git a/man2/mmap.2 b/man2/mmap.2
+index a865612..5aa29e9 100644
+--- a/man2/mmap.2
++++ b/man2/mmap.2
+@@ -277,6 +277,26 @@ of the mapping.
+ This flag is ignored in older kernels.
+ .\" If set, the mapped pages will not be swapped out.
+ .TP
++.BR MAP_LOCKONFAULT " (since Linux 4.2)"
++Lock pages covered by this mapping after they are
++accessed for the first time.  Unlike
++.BR MAP_LOCKED ,
++.B MAP_LOCKONFAULT
++does not attempt to populate the mapping immediately.  Note that while
++.B MAP_LOCKONFAULT
++does not populate the mapping, the caller is charged for the full mapping
++against
++.B RLIMIT_MEMLOCK
++when the mapping is created.  This allows
++.BR mmap "(2)"
++calls to fail the same way for
++.B MAP_LOCKED
++and
++.B MAP_LOCKONFAULT
++when the resource limit would be exceeded.  See
++.BR setrlimit "(2)"
++for more details on resource limits.
++.TP
+ .BR MAP_NONBLOCK " (since Linux 2.5.46)"
+ Only meaningful in conjunction with
+ .BR MAP_POPULATE .
+@@ -618,6 +638,7 @@ The relevant flags are:
+ .BR MAP_GROWSDOWN ,
+ .BR MAP_HUGETLB ,
+ .BR MAP_LOCKED ,
++.BR MAP_LOCKONFAULT ,
+ .BR MAP_NONBLOCK ,
+ .BR MAP_NORESERVE ,
+ .BR MAP_POPULATE ,
 -- 
 1.9.1
 
