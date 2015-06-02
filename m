@@ -1,121 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AC4A6B006E
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 03:19:48 -0400 (EDT)
-Received: by wibut5 with SMTP id ut5so59765801wib.1
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 00:19:47 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hq3si22887650wib.22.2015.06.02.00.19.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 02 Jun 2015 00:19:46 -0700 (PDT)
-Date: Tue, 2 Jun 2015 08:19:41 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: kernel bug(VM_BUG_ON_PAGE) with 3.18.13 in mm/migrate.c
-Message-ID: <20150602071941.GB26425@suse.de>
-References: <CABPcSq+uMcDSBU1xt7oRqPXn-89ZpJmxK+C46M7rX7+Y7-x7iQ@mail.gmail.com>
- <20150528120015.GA26425@suse.de>
- <CABPcSq+5SR0vqs6fGOwKJ0AZMiLSDQ6Rsevi2wB4YgZPJ9iadg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <CABPcSq+5SR0vqs6fGOwKJ0AZMiLSDQ6Rsevi2wB4YgZPJ9iadg@mail.gmail.com>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 121A66B006E
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 03:27:20 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so126920394pdb.1
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 00:27:19 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id l8si24802961pbq.79.2015.06.02.00.27.17
+        for <linux-mm@kvack.org>;
+        Tue, 02 Jun 2015 00:27:18 -0700 (PDT)
+From: Gioh Kim <gioh.kim@lge.com>
+Subject: [RFC 0/4] enable migration of non-LRU pages
+Date: Tue,  2 Jun 2015 16:27:40 +0900
+Message-Id: <1433230065-3573-1-git-send-email-gioh.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jovi Zhangwei <jovi@cloudflare.com>
-Cc: linux-kernel@vger.kernel.org, sasha.levin@oracle.com, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, vbabka@suse.cz, rientjes@google.com
+To: jlayton@poochiereds.net, bfields@fieldses.org, akpm@linux-foundation.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, mst@redhat.com, kirill@shutemov.name, minchan@kernel.org, mgorman@suse.de
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, gunho.lee@lge.com, Gioh Kim <gioh.kim@lge.com>
 
-On Thu, May 28, 2015 at 11:38:36AM -0700, Jovi Zhangwei wrote:
-> Hi Mel,
-> 
-> On Thu, May 28, 2015 at 5:00 AM, Mel Gorman <mgorman@suse.de> wrote:
-> > On Wed, May 27, 2015 at 11:05:33AM -0700, Jovi Zhangwei wrote:
-> >> Hi,
-> >>
-> >> I got below kernel bug error in our 3.18.13 stable kernel.
-> >> "kernel BUG at mm/migrate.c:1661!"
-> >>
-> >> Source code:
-> >>
-> >> 1657    static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
-> >> 1658   {
-> >> 1659            int page_lru;
-> >> 1660
-> >> 1661           VM_BUG_ON_PAGE(compound_order(page) &&
-> >> !PageTransHuge(page), page);
-> >>
-> >> It's easy to trigger the error by run tcpdump in our system.(not sure
-> >> it will easily be reproduced in another system)
-> >> "sudo tcpdump -i bond0.100 'tcp port 4242' -c 100000000000 -w 4242.pcap"
-> >>
-> >> Any comments for this bug would be great appreciated. thanks.
-> >>
-> >
-> > What sort of compound page is it? What sort of VMA is it in? hugetlbfs
-> > pages should never be tagged for NUMA migrate and never enter this
-> > path. Transparent huge pages are handled properly so I'm wondering
-> > exactly what type of compound page this is and what mapped it into
-> > userspace.
-> >
-> Thanks for your reply.
-> 
-> After reading net/packet/af_packet.c:alloc_one_pg_vec_page, I found
-> there indeed have compound page maped into userspace.
-> 
+Hello,
 
-Ok, it's clear now. Thanks very much.
+This series try to enable migration of non-LRU pages, such as driver's page.
 
-> I sent a patch for this issue(you may received it), but not sure it's
-> right to fix,
-> feel free to update it or use your own patch.
-> 
+My ARM-based platform occured severe fragmentation problem after long-term
+(several days) test. Sometimes even order-3 page allocation failed. It has
+memory size 512MB ~ 1024MB. 30% ~ 40% memory is consumed for graphic processing
+and 20~30 memory is reserved for zram.
 
-It avoids the problem but it's not the best fix because a lot of useless
-overhead has been incurred for a page that can never be migrated. Can you
-try the following instead please?
+I found that many pages of GPU driver and zram are non-movable pages. So I
+reported Minchan Kim, the maintainer of zram, and he made the internal 
+compaction logic of zram. And I made the internal compaction of GPU driver.
 
----8<---
+They reduced some fragmentation but they are not enough effective.
+They are activated by its own interface, /sys, so they are not cooperative
+with kernel compaction. If there is too much fragmentation and kernel starts
+to compaction, zram and GPU driver cannot work with the kernel compaction.
 
-sched, numa: Do not hint for NUMA balancing on VM_MIXEDMAP mappings
+The first this patch adds a generic isolate/migrate/putback callbacks for page
+address-space. The zram and GPU, and any other modules can register
+its own migration method. The kernel compaction can call the registered
+migration when it works. Therefore all page in the system can be migrated
+at once.
 
-Jovi Zhangwei reported the following problem
+The 2nd the generic migration callbacks are applied into balloon driver.
+My gpu driver code is not open so I apply generic migration into balloon
+to show how it works. I've tested it with qemu enabled by kvm like followings:
+- turn on Ubuntu 14.04 with 1G memory on qemu.
+- do kernel building
+- after several seconds check more than 512MB is used with free command
+- command "balloon 512" in qemu monitor
+- check hundreds MB of pages are migrated
 
-  Below kernel vm bug can be triggered by tcpdump which mmaped a lot of pages
-  with GFP_COMP flag.
+Next kernel compaction code can call generic migration callbacks instead of
+balloon driver interface.
+Finally calling migration of balloon driver is removed.
 
-  [Mon May 25 05:29:33 2015] page:ffffea0015414000 count:66 mapcount:1 mapping:          (null) index:0x0
-  [Mon May 25 05:29:33 2015] flags: 0x20047580004000(head)
-  [Mon May 25 05:29:33 2015] page dumped because: VM_BUG_ON_PAGE(compound_order(page) && !PageTransHuge(page))
-  [Mon May 25 05:29:33 2015] ------------[ cut here ]------------
-  [Mon May 25 05:29:33 2015] kernel BUG at mm/migrate.c:1661!
-  [Mon May 25 05:29:33 2015] invalid opcode: 0000 [#1] SMP
 
-Compound pages cannot be migrated and it was not expected that such pages
-be marked for NUMA balancing. This did not take into account that drivers
-such as net/packet/af_packet.c may insert compound pages into userspace
-with vm_insert_page. This patch tells the NUMA balancing protection scanner
-to skip all VM_MIXEDMAP mappings which avoids the possibility that compound
-pages are marked for migration.
+Gioh Kim (4):
+  mm/compaction: enable driver page migration
+  mm/balloon: apply migratable-page into balloon driver
+  mm/compaction: apply migratable-page into compaction
+  mm: remove direct migration of migratable-page
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-Reported-by: Jovi Zhangwei <jovi@cloudflare.com>
----
- kernel/sched/fair.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/virtio/virtio_balloon.c        |  2 +
+ fs/proc/page.c                         |  4 +-
+ include/linux/balloon_compaction.h     | 42 +++++++++++++++------
+ include/linux/compaction.h             | 13 +++++++
+ include/linux/fs.h                     |  2 +
+ include/linux/mm.h                     | 14 +++----
+ include/linux/pagemap.h                | 27 ++++++++++++++
+ include/uapi/linux/kernel-page-flags.h |  2 +-
+ mm/balloon_compaction.c                | 67 +++++++++++++++++++++++++++++-----
+ mm/compaction.c                        |  9 +++--
+ mm/migrate.c                           | 25 ++++---------
+ 11 files changed, 154 insertions(+), 53 deletions(-)
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 241213be507c..486d00c408b0 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -2166,7 +2166,7 @@ void task_numa_work(struct callback_head *work)
- 	}
- 	for (; vma; vma = vma->vm_next) {
- 		if (!vma_migratable(vma) || !vma_policy_mof(vma) ||
--			is_vm_hugetlb_page(vma)) {
-+			is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_MIXEDMAP)) {
- 			continue;
- 		}
- 
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
