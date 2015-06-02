@@ -1,119 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id B663A900015
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 12:05:47 -0400 (EDT)
-Received: by qkhq76 with SMTP id q76so74889316qkh.2
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 09:05:47 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
-        by mx.google.com with ESMTP id 84si16181639qkq.78.2015.06.02.09.05.46
-        for <linux-mm@kvack.org>;
-        Tue, 02 Jun 2015 09:05:47 -0700 (PDT)
-Date: Tue, 2 Jun 2015 12:05:46 -0400
-From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [RESEND PATCH 3/3] Add tests for lock on fault
-Message-ID: <20150602160545.GA2253@akamai.com>
-References: <1432908808-31150-1-git-send-email-emunson@akamai.com>
- <1432908808-31150-4-git-send-email-emunson@akamai.com>
- <556DCB05.1010102@osg.samsung.com>
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id C29ED900015
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 12:21:10 -0400 (EDT)
+Received: by wifw1 with SMTP id w1so151425189wif.0
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 09:21:10 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ge5si31335857wjb.125.2015.06.02.09.21.08
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 02 Jun 2015 09:21:08 -0700 (PDT)
+Date: Tue, 2 Jun 2015 18:21:03 +0200
+From: "Luis R. Rodriguez" <mcgrof@suse.com>
+Subject: Re: [PATCH v12 0/10] Support Write-Through mapping on x86
+Message-ID: <20150602162103.GL23057@wotan.suse.de>
+References: <1433187393-22688-1-git-send-email-toshi.kani@hp.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="zhXaljGHf11kAtnf"
-Content-Disposition: inline
-In-Reply-To: <556DCB05.1010102@osg.samsung.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Shuah Khan <shuahkh@osg.samsung.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
-
-
---zhXaljGHf11kAtnf
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1433187393-22688-1-git-send-email-toshi.kani@hp.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com, hch@lst.de
 
-On Tue, 02 Jun 2015, Shuah Khan wrote:
+On Mon, Jun 01, 2015 at 01:36:23PM -0600, Toshi Kani wrote:
+> This patchset adds support of Write-Through (WT) mapping on x86.
+> The study below shows that using WT mapping may be useful for
+> non-volatile memory.
+> 
+> http://www.hpl.hp.com/techreports/2012/HPL-2012-236.pdf
+> 
+> The patchset consists of the following changes.
+>  - Patch 1/10 to 6/10 add ioremap_wt()
+>  - Patch 7/10 adds pgprot_writethrough()
+>  - Patch 8/10 to 9/10 add set_memory_wt()
+>  - Patch 10/10 changes the pmem driver to call ioremap_wt()
+> 
+> All new/modified interfaces have been tested.
+> 
+> The patchset is based on:
+> git://git.kernel.org/pub/scm/linux/kernel/git/bp/bp.git#tip-mm-2
 
-> On 05/29/2015 08:13 AM, Eric B Munson wrote:
-> > Test the mmap() flag, the mlockall() flag, and ensure that mlock limits
-> > are respected.  Note that the limit test needs to be run a normal user.
-> >=20
-> > Signed-off-by: Eric B Munson <emunson@akamai.com>
-> > Cc: Shuah Khan <shuahkh@osg.samsung.com>
-> > Cc: linux-mm@kvack.org
-> > Cc: linux-kernel@vger.kernel.org
-> > Cc: linux-api@vger.kernel.org
-> > ---
-> >  tools/testing/selftests/vm/Makefile         |   8 +-
-> >  tools/testing/selftests/vm/lock-on-fault.c  | 145 ++++++++++++++++++++=
-++++++++
-> >  tools/testing/selftests/vm/on-fault-limit.c |  47 +++++++++
-> >  tools/testing/selftests/vm/run_vmtests      |  23 +++++
-> >  4 files changed, 222 insertions(+), 1 deletion(-)
-> >  create mode 100644 tools/testing/selftests/vm/lock-on-fault.c
-> >  create mode 100644 tools/testing/selftests/vm/on-fault-limit.c
-> >=20
-> > diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selfte=
-sts/vm/Makefile
-> > index a5ce953..32f3d20 100644
-> > --- a/tools/testing/selftests/vm/Makefile
-> > +++ b/tools/testing/selftests/vm/Makefile
-> > @@ -1,7 +1,13 @@
-> >  # Makefile for vm selftests
-> > =20
-> >  CFLAGS =3D -Wall
-> > -BINARIES =3D hugepage-mmap hugepage-shm map_hugetlb thuge-gen hugetlbf=
-stest
-> > +BINARIES =3D hugepage-mmap
-> > +BINARIES +=3D hugepage-shm
-> > +BINARIES +=3D hugetlbfstest
-> > +BINARIES +=3D lock-on-fault
-> > +BINARIES +=3D map_hugetlb
-> > +BINARIES +=3D on-fault-limit
-> > +BINARIES +=3D thuge-gen
-> >  BINARIES +=3D transhuge-stress
-> > =20
-> >  all: $(BINARIES)
-> > diff --git a/tools/testing/selftests/vm/lock-on-fault.c b/tools/testing=
-/selftests/vm/lock-on-fault.c
-> > new file mode 100644
-> > index 0000000..e6a9688
->=20
-> Hi Eric,
->=20
-> Could you please make sure make kselftest run from kernel main
-> Makefile works and tools/testing/selftests/kselftest_install.sh
-> works. For now you have to be in tools/testing/selftests to run
-> kselftest_install.sh
->=20
+While at it can you also look at:
 
-I am working on getting V2 ready, I will ensure these work and make any
-necessary adjustments before sending V2 out.
+mcgrof@ergon ~/linux-next (git::master)$ git grep -4 "writethrough" drivers/infiniband/
 
-Eric
+drivers/infiniband/hw/ipath/ipath_driver.c-
+drivers/infiniband/hw/ipath/ipath_driver.c-     dd->ipath_pcirev = pdev->revision;
+drivers/infiniband/hw/ipath/ipath_driver.c-
+drivers/infiniband/hw/ipath/ipath_driver.c-#if defined(__powerpc__)
+drivers/infiniband/hw/ipath/ipath_driver.c:     /* There isn't a generic way to specify writethrough mappings */
+drivers/infiniband/hw/ipath/ipath_driver.c-     dd->ipath_kregbase = __ioremap(addr, len,
+drivers/infiniband/hw/ipath/ipath_driver.c-             (_PAGE_NO_CACHE|_PAGE_WRITETHRU));
+drivers/infiniband/hw/ipath/ipath_driver.c-#else
+drivers/infiniband/hw/ipath/ipath_driver.c-     dd->ipath_kregbase = ioremap_nocache(addr, len);
+--
+drivers/infiniband/hw/ipath/ipath_file_ops.c-
+drivers/infiniband/hw/ipath/ipath_file_ops.c-   phys = dd->ipath_physaddr + piobufs;
+drivers/infiniband/hw/ipath/ipath_file_ops.c-
+drivers/infiniband/hw/ipath/ipath_file_ops.c-#if defined(__powerpc__)
+drivers/infiniband/hw/ipath/ipath_file_ops.c:   /* There isn't a generic way to specify writethrough mappings */
+drivers/infiniband/hw/ipath/ipath_file_ops.c-   pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
+drivers/infiniband/hw/ipath/ipath_file_ops.c-   pgprot_val(vma->vm_page_prot) |= _PAGE_WRITETHRU;
+drivers/infiniband/hw/ipath/ipath_file_ops.c-   pgprot_val(vma->vm_page_prot) &= ~_PAGE_GUARDED;
+drivers/infiniband/hw/ipath/ipath_file_ops.c-#endif
+--
+drivers/infiniband/hw/qib/qib_file_ops.c-
+drivers/infiniband/hw/qib/qib_file_ops.c-       phys = dd->physaddr + piobufs;
+drivers/infiniband/hw/qib/qib_file_ops.c-
+drivers/infiniband/hw/qib/qib_file_ops.c-#if defined(__powerpc__)
+drivers/infiniband/hw/qib/qib_file_ops.c:       /* There isn't a generic way to specify writethrough mappings */
+drivers/infiniband/hw/qib/qib_file_ops.c-       pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
+drivers/infiniband/hw/qib/qib_file_ops.c-       pgprot_val(vma->vm_page_prot) |= _PAGE_WRITETHRU;
+drivers/infiniband/hw/qib/qib_file_ops.c-       pgprot_val(vma->vm_page_prot) &= ~_PAGE_GUARDED;
+drivers/infiniband/hw/qib/qib_file_ops.c-#endif
+--
+drivers/infiniband/hw/qib/qib_pcie.c-   addr = pci_resource_start(pdev, 0);
+drivers/infiniband/hw/qib/qib_pcie.c-   len = pci_resource_len(pdev, 0);
+drivers/infiniband/hw/qib/qib_pcie.c-
+drivers/infiniband/hw/qib/qib_pcie.c-#if defined(__powerpc__)
+drivers/infiniband/hw/qib/qib_pcie.c:   /* There isn't a generic way to specify writethrough mappings */
+drivers/infiniband/hw/qib/qib_pcie.c-   dd->kregbase = __ioremap(addr, len, _PAGE_NO_CACHE | _PAGE_WRITETHRU);
+drivers/infiniband/hw/qib/qib_pcie.c-#else
+drivers/infiniband/hw/qib/qib_pcie.c-   dd->kregbase = ioremap_nocache(addr, len);
+drivers/infiniband/hw/qib/qib_pcie.c-#endif
 
---zhXaljGHf11kAtnf
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQIcBAEBAgAGBQJVbdRZAAoJELbVsDOpoOa9x3kQANSTBRYpmlw8NoSvCMWz/yqQ
-12ZdZ/5G5upe7YMBFGD6bupYQ3+nNiarUb7T+pgbIw0+dAEuTSQ7euls3RA2KKDL
-TlvgPfcdAnVsIAPhlFY+g7aqh5zhXzSKM/wf+ltoE+Kl6c0rzq4ZIzkTVf9guflY
-KwjzGOEtYsGt8RwdYTl/N2Q4vhPJ30tBXPtviANV13Ax/pAwkiYzeFVbK1ifCaUl
-dqM3SEjqbmMFkO5Cr+3zKi4F4ay5Kn69qAQ4H/rnVoTv3GzhCJyur2qK24pw6Nf+
-iorgd9s5RjE1Rc5uJ48ofgtlG0K70Y4clyHUSHTUXct+sDMlNAQTCCb3Eehl2SRt
-KmuYEghyC9sFbL4qembwq+C/s+Fd7DqVTMTvP5BMIiVcs3/KcVdebvrfAYHNbIMa
-82d12bSWR5Gfyr2X4bvr4n1gOM1bUkvtbpyL+P7+BA1j9b5JcrbF9Xj0IvmEpiCS
-uSWNG757eLba3nKF6I8OCFdZL6ha4fldEUrklUcTLuF3nopm7WWaI7a9SNq6/HdH
-fjwShyD1ZcNkIIWctZlFANgH24X703495mgFjOhqRggA2TMxNxIMD4BUFoBoEJCk
-6Hh1tKlKxXyYUMdDffDXQrrHGpeqTLyYWY3kwslpYCb3QJAbh2XWEYQ1siY8//NB
-ACOVHuBMjYdXwqM8Q8/J
-=b+/S
------END PGP SIGNATURE-----
-
---zhXaljGHf11kAtnf--
+  Luis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
