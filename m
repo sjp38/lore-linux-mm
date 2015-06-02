@@ -1,119 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 7878B900016
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 16:47:25 -0400 (EDT)
-Received: by qgg60 with SMTP id 60so64120767qgg.2
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 13:47:25 -0700 (PDT)
-Received: from mail-qk0-x22a.google.com (mail-qk0-x22a.google.com. [2607:f8b0:400d:c09::22a])
-        by mx.google.com with ESMTPS id l4si16940898qge.125.2015.06.02.13.47.24
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 95BC0900016
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 17:06:22 -0400 (EDT)
+Received: by payr10 with SMTP id r10so58479683pay.1
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 14:06:22 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d5si28050287pde.239.2015.06.02.14.06.21
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jun 2015 13:47:24 -0700 (PDT)
-Received: by qkhq76 with SMTP id q76so79728738qkh.2
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 13:47:24 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150602202628.GB14741@cerebellum.local.variantweb.net>
-References: <1433257917-13090-1-git-send-email-ddstreet@ieee.org> <20150602202628.GB14741@cerebellum.local.variantweb.net>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 2 Jun 2015 16:47:03 -0400
-Message-ID: <CALZtONCbKZKVftY87ohkMDfZtn9j1ExYcw1YxCnBJRS6Eczxzw@mail.gmail.com>
-Subject: Re: [PATCH 0/5] zswap: make params runtime changeable
-Content-Type: text/plain; charset=UTF-8
+        Tue, 02 Jun 2015 14:06:21 -0700 (PDT)
+Date: Tue, 2 Jun 2015 14:06:20 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCHv2] frontswap: allow multiple backends
+Message-Id: <20150602140620.08465687d7c69f851cd2a10f@linux-foundation.org>
+In-Reply-To: <1433168544-26301-1-git-send-email-ddstreet@ieee.org>
+References: <20150529150705.5fd6b7c1545ef5829f7ace93@linux-foundation.org>
+	<1433168544-26301-1-git-send-email-ddstreet@ieee.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjennings@variantweb.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Jun 2, 2015 at 4:26 PM, Seth Jennings <sjennings@variantweb.net> wrote:
-> On Tue, Jun 02, 2015 at 11:11:52AM -0400, Dan Streetman wrote:
->> This patch series allows setting all zswap params at runtime, instead
->> of only being settable at boot-time.
->>
->> The changes to zswap are rather large, due to the creation of zswap pools,
->> which contain both a compressor function as well as a zpool.  When either
->> the compressor or zpool param is changed at runtime, a new zswap pool is
->> created with the new compressor and zpool, and used for all new compressed
->> pages.  Any old zswap pools that still contain pages are retained only to
->> load pages from, and destroyed once they become empty.
->>
->> One notable change required for this to work is to split the currently
->> global kernel param mutex into a global mutex only for built-in params,
->> and a per-module mutex for loadable module params.  The reason this change
->> is required is because zswap's compressor and zpool param handler callback
->> functions attempt to load, via crypto_has_comp() and the new zpool_has_pool()
->> functions, any required compressor or zpool modules.  The problem there is
->> that the zswap param callback functions run while the global param mutex is
->> locked, but when they attempt to load another module, if the loading module
->> has any params set e.g. via /etc/modprobe.d/*.conf, modprobe will also try
->> to take the global param mutex, and a deadlock will result, with the mutex
->> held by the zswap param callback which is waiting for modprobe, but modprobe
->> waiting for the mutex to change the loading module's param.  Using a
->> per-module mutex for all loadable modules prevents this, since each module
->> will take its own mutex and never conflict with another module's param
->> changes.
->
-> Nice work Dan :)
->
-> I'm trying to look at this as three different efforts. In order of
-> increasing difficulty:
-> - Enabling/disabling zswap at runtime
-> - Changing the compressor at runtime, which doesn't involve the zpool layer
-> - Changing the allocator (type) at runtime which does involve the zpool layer.
->
-> In other words, we can store entries that use a different compressor in
-> the same zpool, but not entries stored in different allocators.
->
-> Enabling zswap at runtime is very straightforward, especially if you
-> aren't going to attempt to flush out all the pages on a disable; only
-> prevent new stores.  I like that.
->
-> Changing the compressor at runtime is the next easiest one, since you
-> have to allocate new compressor transforms, but not a new zpool.  You
-> just store which compressor was used on a per-entry basis.
->
-> Changing the allocator (type) is the hardest since it involves a new
-> zpool, and all the code for managing multiple zpools in zswap.
->
-> This is a lot of change all at once.  Maybe we could just do the runtime
-> enable/disable of zswap and the runtime change of compressors first?  I
-> think those two alone would be a lot less invasive.  Then we can look at
-> runtime change of the allocator as a separate thing.
+On Mon,  1 Jun 2015 10:22:24 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
 
-Sure I'll send the enable/disable individually first, with doc updates.
-
-I'll send the other patches as well, to consider separately.
-
+> Change frontswap single pointer to a singly linked list of frontswap
+> implementations.  Update Xen tmem implementation as register no longer
+> returns anything.
+> 
+> Frontswap only keeps track of a single implementation; any implementation
+> that registers second (or later) will replace the previously registered
+> implementation, and gets a pointer to the previous implementation that
+> the new implementation is expected to pass all frontswap functions to
+> if it can't handle the function itself.  However that method doesn't
+> really make much sense, as passing that work on to every implementation
+> adds unnecessary work to implementations; instead, frontswap should
+> simply keep a list of all registered implementations and try each
+> implementation for any function.  Most importantly, neither of the
+> two currently existing frontswap implementations in the kernel actually
+> do anything with any previous frontswap implementation that they
+> replace when registering.
+> 
+> This allows frontswap to successfully manage multiple implementations
+> by keeping a list of them all.
+> 
+> ...
 >
-> Thanks,
-> Seth
->
->>
->>
->> Dan Streetman (5):
->>   zpool: add zpool_has_pool()
->>   module: add per-module params lock
->>   zswap: runtime enable/disable
->>   zswap: dynamic pool creation
->>   zswap: change zpool/compressor at runtime
->>
->>  arch/um/drivers/hostaudio_kern.c                 |  20 +-
->>  drivers/net/ethernet/myricom/myri10ge/myri10ge.c |   6 +-
->>  drivers/net/wireless/libertas_tf/if_usb.c        |   6 +-
->>  drivers/usb/atm/ueagle-atm.c                     |   4 +-
->>  drivers/video/fbdev/vt8623fb.c                   |   4 +-
->>  include/linux/module.h                           |   1 +
->>  include/linux/moduleparam.h                      |  67 +--
->>  include/linux/zpool.h                            |   2 +
->>  kernel/module.c                                  |   1 +
->>  kernel/params.c                                  |  45 +-
->>  mm/zpool.c                                       |  25 +
->>  mm/zswap.c                                       | 696 +++++++++++++++++------
->>  net/mac80211/rate.c                              |   4 +-
->>  13 files changed, 640 insertions(+), 241 deletions(-)
->>
->> --
->> 2.1.0
->>
+> -struct frontswap_ops *frontswap_register_ops(struct frontswap_ops *ops)
+> +void frontswap_register_ops(struct frontswap_ops *ops)
+>  {
+> -	struct frontswap_ops *old = frontswap_ops;
+> -	int i;
+> -
+> -	for (i = 0; i < MAX_SWAPFILES; i++) {
+> -		if (test_and_clear_bit(i, need_init)) {
+> -			struct swap_info_struct *sis = swap_info[i];
+> -			/* __frontswap_init _should_ have set it! */
+> -			if (!sis->frontswap_map)
+> -				return ERR_PTR(-EINVAL);
+> -			ops->init(i);
+> -		}
+> +	DECLARE_BITMAP(a, MAX_SWAPFILES);
+> +	DECLARE_BITMAP(b, MAX_SWAPFILES);
+> +	struct swap_info_struct *si;
+> +	unsigned int i;
+> +
+> +	spin_lock(&swap_lock);
+> +	plist_for_each_entry(si, &swap_active_head, list) {
+> +		if (!WARN_ON(!si->frontswap_map))
+> +			set_bit(si->type, a);
+
+umm, DECLARE_BITMAP() doesn't initialise the storage.  Either this
+patch wasn't tested very well or you should buy me a lottery ticket!
+
+>  	}
+> -	/*
+> -	 * We MUST have frontswap_ops set _after_ the frontswap_init's
+> -	 * have been called. Otherwise __frontswap_store might fail. Hence
+> -	 * the barrier to make sure compiler does not re-order us.
+> +	spin_unlock(&swap_lock);
+> +
+> +	/* the new ops needs to know the currently active swap devices */
+> +	for_each_set_bit(i, a, MAX_SWAPFILES)
+> +		ops->init(i);
+> +
+> +	/* setting frontswap_ops must happen after the ops->init() calls
+> +	 * above; cmpxchg implies smp_mb() which will ensure the init is
+> +	 * complete at this point
+> +	 */
+
+Like this, please:
+
+	/*
+	 * Setting ...
+
+and sentences start with capital letters ;)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
