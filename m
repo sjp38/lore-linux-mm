@@ -1,61 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 142CF6B0038
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 03:06:08 -0400 (EDT)
-Received: by obcnx10 with SMTP id nx10so115701744obc.2
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 00:06:07 -0700 (PDT)
-Received: from mail-oi0-x22f.google.com (mail-oi0-x22f.google.com. [2607:f8b0:4003:c06::22f])
-        by mx.google.com with ESMTPS id kk7si6260852oeb.65.2015.06.02.00.06.06
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AC4A6B006E
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 03:19:48 -0400 (EDT)
+Received: by wibut5 with SMTP id ut5so59765801wib.1
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 00:19:47 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id hq3si22887650wib.22.2015.06.02.00.19.45
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jun 2015 00:06:07 -0700 (PDT)
-Received: by oihb142 with SMTP id b142so119041504oih.3
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 00:06:06 -0700 (PDT)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 02 Jun 2015 00:19:46 -0700 (PDT)
+Date: Tue, 2 Jun 2015 08:19:41 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: kernel bug(VM_BUG_ON_PAGE) with 3.18.13 in mm/migrate.c
+Message-ID: <20150602071941.GB26425@suse.de>
+References: <CABPcSq+uMcDSBU1xt7oRqPXn-89ZpJmxK+C46M7rX7+Y7-x7iQ@mail.gmail.com>
+ <20150528120015.GA26425@suse.de>
+ <CABPcSq+5SR0vqs6fGOwKJ0AZMiLSDQ6Rsevi2wB4YgZPJ9iadg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1433187393-22688-7-git-send-email-toshi.kani@hp.com>
-References: <1433187393-22688-1-git-send-email-toshi.kani@hp.com>
-	<1433187393-22688-7-git-send-email-toshi.kani@hp.com>
-Date: Tue, 2 Jun 2015 09:06:06 +0200
-Message-ID: <CAMuHMdUaasgirQcB=gR28Zi_4pj29cdKeVg=efOHNpvbcAck9A@mail.gmail.com>
-Subject: Re: [PATCH v12 6/10] video/fbdev, asm/io.h: Remove ioremap_writethrough()
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CABPcSq+5SR0vqs6fGOwKJ0AZMiLSDQ6Rsevi2wB4YgZPJ9iadg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, linux-nvdimm@lists.01.org, jgross@suse.com, stefan.bader@canonical.com, Andy Lutomirski <luto@amacapital.net>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, yigal@plexistor.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Elliott@hp.com, "Luis R. Rodriguez" <mcgrof@suse.com>, Christoph Hellwig <hch@lst.de>
+To: Jovi Zhangwei <jovi@cloudflare.com>
+Cc: linux-kernel@vger.kernel.org, sasha.levin@oracle.com, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, vbabka@suse.cz, rientjes@google.com
 
-On Mon, Jun 1, 2015 at 9:36 PM, Toshi Kani <toshi.kani@hp.com> wrote:
-> This patch removes the callers of ioremap_writethrough() by
-> replacing them with ioremap_wt() in three drivers under
-> drivers/video/fbdev.  It then removes ioremap_writethrough()
-> defined in some architecture's asm/io.h, frv, m68k, microblaze,
-> and tile.
->
-> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-> ---
->  arch/frv/include/asm/io.h        |    5 -----
->  arch/m68k/include/asm/io_mm.h    |    5 -----
->  arch/m68k/include/asm/io_no.h    |    4 ----
->  arch/microblaze/include/asm/io.h |    1 -
->  arch/tile/include/asm/io.h       |    1 -
->  drivers/video/fbdev/amifb.c      |    4 ++--
->  drivers/video/fbdev/atafb.c      |    3 +--
->  drivers/video/fbdev/hpfb.c       |    4 ++--
+On Thu, May 28, 2015 at 11:38:36AM -0700, Jovi Zhangwei wrote:
+> Hi Mel,
+> 
+> On Thu, May 28, 2015 at 5:00 AM, Mel Gorman <mgorman@suse.de> wrote:
+> > On Wed, May 27, 2015 at 11:05:33AM -0700, Jovi Zhangwei wrote:
+> >> Hi,
+> >>
+> >> I got below kernel bug error in our 3.18.13 stable kernel.
+> >> "kernel BUG at mm/migrate.c:1661!"
+> >>
+> >> Source code:
+> >>
+> >> 1657    static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
+> >> 1658   {
+> >> 1659            int page_lru;
+> >> 1660
+> >> 1661           VM_BUG_ON_PAGE(compound_order(page) &&
+> >> !PageTransHuge(page), page);
+> >>
+> >> It's easy to trigger the error by run tcpdump in our system.(not sure
+> >> it will easily be reproduced in another system)
+> >> "sudo tcpdump -i bond0.100 'tcp port 4242' -c 100000000000 -w 4242.pcap"
+> >>
+> >> Any comments for this bug would be great appreciated. thanks.
+> >>
+> >
+> > What sort of compound page is it? What sort of VMA is it in? hugetlbfs
+> > pages should never be tagged for NUMA migrate and never enter this
+> > path. Transparent huge pages are handled properly so I'm wondering
+> > exactly what type of compound page this is and what mapped it into
+> > userspace.
+> >
+> Thanks for your reply.
+> 
+> After reading net/packet/af_packet.c:alloc_one_pg_vec_page, I found
+> there indeed have compound page maped into userspace.
+> 
 
-For the m68k and amifb/atafb/hpfb changes:
-Acked-by: Geert Uytterhoeven <geert@linux-m68k.org>
+Ok, it's clear now. Thanks very much.
 
-Gr{oetje,eeting}s,
+> I sent a patch for this issue(you may received it), but not sure it's
+> right to fix,
+> feel free to update it or use your own patch.
+> 
 
-                        Geert
+It avoids the problem but it's not the best fix because a lot of useless
+overhead has been incurred for a page that can never be migrated. Can you
+try the following instead please?
 
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+---8<---
 
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+sched, numa: Do not hint for NUMA balancing on VM_MIXEDMAP mappings
+
+Jovi Zhangwei reported the following problem
+
+  Below kernel vm bug can be triggered by tcpdump which mmaped a lot of pages
+  with GFP_COMP flag.
+
+  [Mon May 25 05:29:33 2015] page:ffffea0015414000 count:66 mapcount:1 mapping:          (null) index:0x0
+  [Mon May 25 05:29:33 2015] flags: 0x20047580004000(head)
+  [Mon May 25 05:29:33 2015] page dumped because: VM_BUG_ON_PAGE(compound_order(page) && !PageTransHuge(page))
+  [Mon May 25 05:29:33 2015] ------------[ cut here ]------------
+  [Mon May 25 05:29:33 2015] kernel BUG at mm/migrate.c:1661!
+  [Mon May 25 05:29:33 2015] invalid opcode: 0000 [#1] SMP
+
+Compound pages cannot be migrated and it was not expected that such pages
+be marked for NUMA balancing. This did not take into account that drivers
+such as net/packet/af_packet.c may insert compound pages into userspace
+with vm_insert_page. This patch tells the NUMA balancing protection scanner
+to skip all VM_MIXEDMAP mappings which avoids the possibility that compound
+pages are marked for migration.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reported-by: Jovi Zhangwei <jovi@cloudflare.com>
+---
+ kernel/sched/fair.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 241213be507c..486d00c408b0 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -2166,7 +2166,7 @@ void task_numa_work(struct callback_head *work)
+ 	}
+ 	for (; vma; vma = vma->vm_next) {
+ 		if (!vma_migratable(vma) || !vma_policy_mof(vma) ||
+-			is_vm_hugetlb_page(vma)) {
++			is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_MIXEDMAP)) {
+ 			continue;
+ 		}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
