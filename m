@@ -1,100 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 05BB36B0038
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 04:22:57 -0400 (EDT)
-Received: by wgme6 with SMTP id e6so133440301wgm.2
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 01:22:56 -0700 (PDT)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.10])
-        by mx.google.com with ESMTPS id pd7si29221462wjb.51.2015.06.02.01.22.54
+Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
+	by kanga.kvack.org (Postfix) with ESMTP id A982A6B0038
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2015 04:38:49 -0400 (EDT)
+Received: by oifu123 with SMTP id u123so120493108oif.1
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 01:38:49 -0700 (PDT)
+Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
+        by mx.google.com with ESMTPS id q62si1170226oia.65.2015.06.02.01.38.48
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jun 2015 01:22:55 -0700 (PDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH v2 1/4] arch/*/asm/io.h: add ioremap_cache() to all architectures
-Date: Tue, 02 Jun 2015 10:20:48 +0200
-Message-ID: <1825055.kiMypDskUT@wuerfel>
-In-Reply-To: <1433198166.23540.128.camel@misato.fc.hp.com>
-References: <20150530185425.32590.3190.stgit@dwillia2-desk3.amr.corp.intel.com> <20150530185923.32590.98598.stgit@dwillia2-desk3.amr.corp.intel.com> <1433198166.23540.128.camel@misato.fc.hp.com>
+        Tue, 02 Jun 2015 01:38:48 -0700 (PDT)
+Received: by oihb142 with SMTP id b142so120352960oih.3
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 01:38:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+In-Reply-To: <1825055.kiMypDskUT@wuerfel>
+References: <20150530185425.32590.3190.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<20150530185923.32590.98598.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<1433198166.23540.128.camel@misato.fc.hp.com>
+	<1825055.kiMypDskUT@wuerfel>
+Date: Tue, 2 Jun 2015 10:38:48 +0200
+Message-ID: <CAMuHMdXXXEqaGf1zT0iL=K-LA3qcnx9aCJLZnC6W3ijY4dRipQ@mail.gmail.com>
+Subject: Re: [PATCH v2 1/4] arch/*/asm/io.h: add ioremap_cache() to all architectures
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, jgross@suse.com, x86@kernel.org, linux-nvdimm@lists.01.org, mcgrof@suse.com, konrad.wilk@oracle.com, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, geert@linux-m68k.org, hmh@hmh.eng.br, tj@kernel.org, hch@lst.de, dhowells@redhat.com
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Toshi Kani <toshi.kani@hp.com>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, ross.zwisler@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>, jgross@suse.com, the arch/x86 maintainers <x86@kernel.org>, linux-nvdimm@lists.01.org, "Luis R. Rodriguez" <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, stefan.bader@canonical.com, Andy Lutomirski <luto@amacapital.net>, Linux MM <linux-mm@kvack.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Tejun Heo <tj@kernel.org>, Christoph Hellwig <hch@lst.de>, David Howells <dhowells@redhat.com>
 
-On Monday 01 June 2015 16:36:06 Toshi Kani wrote:
-> On Sat, 2015-05-30 at 14:59 -0400, Dan Williams wrote:
-> > Similar to ioremap_wc() let architecture implementations optionally
-> > provide ioremap_cache().  As is, current ioremap_cache() users have
-> > architecture dependencies that prevent them from compiling on archs
-> > without ioremap_cache().  In some cases the architectures that have a
-> > cached ioremap() capability have an identifier other than
-> > "ioremap_cache".
-> > 
-> > Allow drivers to compile with ioremap_cache() support and fallback to a
-> > safe / uncached ioremap otherwise.
->  :
-> > diff --git a/arch/mn10300/include/asm/io.h b/arch/mn10300/include/asm/io.h
-> > index 07c5b4a3903b..dcab414f40df 100644
-> > --- a/arch/mn10300/include/asm/io.h
-> > +++ b/arch/mn10300/include/asm/io.h
-> > @@ -283,6 +283,7 @@ static inline void __iomem *ioremap_nocache(unsigned long offset, unsigned long
-> >  
-> >  #define ioremap_wc ioremap_nocache
-> >  #define ioremap_wt ioremap_nocache
-> > +#define ioremap_cache ioremap_nocache
-> 
-> From the comment in ioremap_nocache(), ioremap() may be cacheable in
-> this arch.  
+On Tue, Jun 2, 2015 at 10:20 AM, Arnd Bergmann <arnd@arndb.de> wrote:
+>> > --- a/arch/mn10300/include/asm/io.h
+>> > +++ b/arch/mn10300/include/asm/io.h
+>> > @@ -283,6 +283,7 @@ static inline void __iomem *ioremap_nocache(unsigned long offset, unsigned long
+>> >
+>> >  #define ioremap_wc ioremap_nocache
+>> >  #define ioremap_wt ioremap_nocache
+>> > +#define ioremap_cache ioremap_nocache
+>>
+>> From the comment in ioremap_nocache(), ioremap() may be cacheable in
+>> this arch.
+>
+> Right, and I guess that would be a bug. ;-)
+>
+> mn10300 decides caching on the address, so presumably all arguments passed into
 
-Right, and I guess that would be a bug. ;-)
+Aha, like MIPS...
 
-mn10300 decides caching on the address, so presumably all arguments passed into
-ioremap here already have that bit set. I've checked all the resource
-definitions for mn10300, and they are all between 0xA0000000 and 0xBFFFFFFF,
-which is non-cacheable.
+> ioremap here already have that bit set. I've checked all the resource
+> definitions for mn10300, and they are all between 0xA0000000 and 0xBFFFFFFF,
+> which is non-cacheable.
 
-> > diff --git a/include/asm-generic/io.h b/include/asm-generic/io.h
-> > index f56094cfdeff..a0665dfcab47 100644
-> > --- a/include/asm-generic/io.h
-> > +++ b/include/asm-generic/io.h
-> > @@ -793,6 +793,14 @@ static inline void __iomem *ioremap_wt(phys_addr_t offset, size_t size)
-> >  }
-> >  #endif
-> >  
-> > +#ifndef ioremap_cache
-> > +#define ioremap_cache ioremap_cache
-> > +static inline void __iomem *ioremap_cache(phys_addr_t offset, size_t size)
-> > +{
-> > +	return ioremap_nocache(offset, size);
-> 
-> Should this be defined as ioremap()?
+But ioremap() clears that bit again:
 
-I would leave it like this, for clarity. All architectures at the moment
-need to define ioremap_nocache and ioremap to be the same thing anyway,
-but this definition makes it clearer that it's not actually cached.
+static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
+{
+        return (void __iomem *)(offset & ~0x20000000);
+}
 
-> > diff --git a/include/asm-generic/iomap.h b/include/asm-generic/iomap.h
-> > index d8f8622fa044..f0f30464cecd 100644
-> > --- a/include/asm-generic/iomap.h
-> > +++ b/include/asm-generic/iomap.h
-> > @@ -70,6 +70,10 @@ extern void ioport_unmap(void __iomem *);
-> >  #define ioremap_wt ioremap_nocache
-> >  #endif
-> >  
-> > +#ifndef ARCH_HAS_IOREMAP_CACHE
-> > +#define ioremap_cache ioremap_nocache
-> 
-> Ditto.
-> 
-> 
-> Also, it'd be nice to remove ioremap_cached() and ioremap_fullcache()
-> with a separate patch in this opportunity.
+Gr{oetje,eeting}s,
 
-Agreed.
+                        Geert
 
-	Arnd
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
