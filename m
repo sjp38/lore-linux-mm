@@ -1,56 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F334900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 09:42:07 -0400 (EDT)
-Received: by wgbgq6 with SMTP id gq6so9576701wgb.3
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 06:42:06 -0700 (PDT)
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 7505F900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 09:48:33 -0400 (EDT)
+Received: by wifw1 with SMTP id w1so22827979wif.0
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 06:48:32 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id vf7si1307199wjc.127.2015.06.03.06.42.05
+        by mx.google.com with ESMTPS id x15si30821468wia.58.2015.06.03.06.48.31
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 03 Jun 2015 06:42:05 -0700 (PDT)
-Date: Wed, 3 Jun 2015 15:42:04 +0200
+        Wed, 03 Jun 2015 06:48:31 -0700 (PDT)
+Date: Wed, 3 Jun 2015 15:48:30 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC 0/2] mapping_gfp_mask from the page fault path
-Message-ID: <20150603134204.GC16201@dhcp22.suse.cz>
-References: <1433163603-13229-1-git-send-email-mhocko@suse.cz>
- <20150602132241.26fbbc98be71920da8485b73@linux-foundation.org>
- <201506032204.GAI56216.OOSVJHFLOQtMFF@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH -mm 1/2] memcg: remove unused mem_cgroup->oom_wakeups
+Message-ID: <20150603134830.GD16201@dhcp22.suse.cz>
+References: <20150603023824.GA7579@mtj.duckdns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201506032204.GAI56216.OOSVJHFLOQtMFF@I-love.SAKURA.ne.jp>
+In-Reply-To: <20150603023824.GA7579@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, david@fromorbit.com, neilb@suse.de, hannes@cmpxchg.org, viro@zeniv.linux.org.uk, mgorman@suse.de, riel@redhat.com, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed 03-06-15 22:04:22, Tetsuo Handa wrote:
-[...]
-> Michal Hocko wrote:
-> > Initialize the default to (mapping_gfp_mask | GFP_IOFS) because this
-> > should be safe from the page fault path normally. Why do we care
-> > about mapping_gfp_mask at all then? Because this doesn't hold only
-> > reclaim protection flags but it also might contain zone and movability
-> > restrictions (GFP_DMA32, __GFP_MOVABLE and others) so we have to respect
-> > those.
+On Wed 03-06-15 11:38:24, Tejun Heo wrote:
+> From 92c2a5d90ecc5eeed0224a8f6ba533c621ac3ffa Mon Sep 17 00:00:00 2001
+> From: Tejun Heo <tj@kernel.org>
+> Date: Tue, 2 Jun 2015 09:29:11 -0400
 > 
-> [2/2] says that mapping_gfp_mask(mapping) might contain bits which are not
-> in !GFP_KERNEL. If we do
+> Since 4942642080ea ("mm: memcg: handle non-error OOM situations more
+> gracefully"), nobody uses mem_cgroup->oom_wakeups.  Remove it.
 > 
->   GFP_KERNEL & mapping_gfp_mask(mapping)
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  mm/memcontrol.c | 2 --
+>  1 file changed, 2 deletions(-)
 > 
-> we will drop such bits and will cause problems.
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 86648a7..9f39647 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -287,7 +287,6 @@ struct mem_cgroup {
+>  
+>  	bool		oom_lock;
+>  	atomic_t	under_oom;
+> -	atomic_t	oom_wakeups;
+>  
+>  	int	swappiness;
+>  	/* OOM-Killer disable */
+> @@ -1852,7 +1851,6 @@ static int memcg_oom_wake_function(wait_queue_t *wait,
+>  
+>  static void memcg_wakeup_oom(struct mem_cgroup *memcg)
+>  {
+> -	atomic_inc(&memcg->oom_wakeups);
+>  	/* for filtering, pass "memcg" as argument. */
+>  	__wake_up(&memcg_oom_waitq, TASK_NORMAL, 0, memcg);
+>  }
+> -- 
+> 2.4.2
+> 
 
-No we won't.
-
-> Thus, "GFP_KERNEL"
-> in patch [1/1] should be replaced with "mapping_gfp_mask(mapping)" than
-> "GFP_KERNEL & mapping_gfp_mask(mapping)" ?
-
-Those gfp_masks are for LRU handling and that is GFP_KERNEL by
-default. We only need to drop those which are not compatible with
-mapping_gfp_mask. We do not care about __GFP_MOVABLE, GFP_DMA32 etc...
 -- 
 Michal Hocko
 SUSE Labs
