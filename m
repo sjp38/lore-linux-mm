@@ -1,125 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 7ADA9900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 13:15:07 -0400 (EDT)
-Received: by qgg60 with SMTP id 60so6705123qgg.2
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 10:15:07 -0700 (PDT)
-Received: from mail-qg0-x22c.google.com (mail-qg0-x22c.google.com. [2607:f8b0:400d:c04::22c])
-        by mx.google.com with ESMTPS id kb9si1221270qcb.31.2015.06.03.10.15.06
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id B45E1900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 15:03:21 -0400 (EDT)
+Received: by igbsb11 with SMTP id sb11so22349907igb.0
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 12:03:21 -0700 (PDT)
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com. [209.85.213.179])
+        by mx.google.com with ESMTPS id b16si1548186igv.11.2015.06.03.12.03.18
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jun 2015 10:15:06 -0700 (PDT)
-Received: by qgep100 with SMTP id p100so6686695qge.3
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 10:15:06 -0700 (PDT)
-Date: Wed, 3 Jun 2015 13:15:01 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH 02/36] mmu_notifier: keep track of active invalidation
- ranges v3
-Message-ID: <20150603171500.GB2602@gmail.com>
-References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
- <1432236705-4209-3-git-send-email-j.glisse@gmail.com>
- <alpine.LNX.2.03.1506020214160.17700@nvidia.com>
+        Wed, 03 Jun 2015 12:03:19 -0700 (PDT)
+Received: by igbpi8 with SMTP id pi8so120152798igb.1
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 12:03:18 -0700 (PDT)
+Date: Wed, 3 Jun 2015 15:03:11 -0400
+From: Jeff Layton <jlayton@poochiereds.net>
+Subject: Re: [PATCH v2 5/5] sunrpc: turn swapper_enable/disable functions
+ into rpc_xprt_ops
+Message-ID: <20150603150311.29688337@tlielax.poochiereds.net>
+In-Reply-To: <C4DF995C-4064-4DFD-99DD-8F397D394334@oracle.com>
+References: <1433342632-16173-1-git-send-email-jeff.layton@primarydata.com>
+	<1433342632-16173-6-git-send-email-jeff.layton@primarydata.com>
+	<CAHQdGtQGeVRTfv-hvZj_bHqgb5Cs84TY-ScFqzJ3qQOZy2qLcQ@mail.gmail.com>
+	<20150603110158.0d21844d@synchrony.poochiereds.net>
+	<C4DF995C-4064-4DFD-99DD-8F397D394334@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.LNX.2.03.1506020214160.17700@nvidia.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+To: Chuck Lever <chuck.lever@oracle.com>
+Cc: Trond Myklebust <trond.myklebust@primarydata.com>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Jerome Marchand <jmarchan@redhat.com>
 
-On Tue, Jun 02, 2015 at 02:32:01AM -0700, John Hubbard wrote:
-> On Thu, 21 May 2015, j.glisse@gmail.com wrote:
-> 
-> > From: Jerome Glisse <jglisse@redhat.com>
-> > 
-> > The mmu_notifier_invalidate_range_start() and mmu_notifier_invalidate_range_end()
-> > can be considered as forming an "atomic" section for the cpu page table update
-> > point of view. Between this two function the cpu page table content is unreliable
-> > for the address range being invalidated.
-> > 
-> > Current user such as kvm need to know when they can trust the content of the cpu
-> > page table. This becomes even more important to new users of the mmu_notifier
-> > api (such as HMM or ODP).
-> > 
-> > This patch use a structure define at all call site to invalidate_range_start()
-> > that is added to a list for the duration of the invalidation. It adds two new
-> > helpers to allow querying if a range is being invalidated or to wait for a range
-> > to become valid.
-> > 
-> > For proper synchronization, user must block new range invalidation from inside
-> > there invalidate_range_start() callback, before calling the helper functions.
-> > Otherwise there is no garanty that a new range invalidation will not be added
-> > after the call to the helper function to query for existing range.
-> 
-> Hi Jerome,
-> 
-> Most of this information will make nice block comments for the new helper 
-> routines. I can help tighten up the writing slightly, but first:
-> 
-> Question: in hmm.c's hmm_notifier_invalidate function (looking at the 
-> entire patchset, for a moment), I don't see any blocking of new range 
-> invalidations, even though you point out, above, that this is required. Am 
-> I missing it, and if so, where should I be looking instead?
+On Wed, 3 Jun 2015 13:07:34 -0400
+Chuck Lever <chuck.lever@oracle.com> wrote:
 
-This is a 2 sided synchronization:
+>=20
+> On Jun 3, 2015, at 11:01 AM, Jeff Layton <jlayton@poochiereds.net> wrote:
+>=20
+> > On Wed, 3 Jun 2015 10:48:10 -0400
+> > Trond Myklebust <trond.myklebust@primarydata.com> wrote:
+> >=20
+> >> On Wed, Jun 3, 2015 at 10:43 AM, Jeff Layton <jlayton@poochiereds.net>=
+ wrote:
+> >>> RDMA xprts don't have a sock_xprt, but an rdma_xprt, so the
+> >>> xs_swapper_enable/disable functions will likely oops when fed an RDMA
+> >>> xprt. Turn these functions into rpc_xprt_ops so that that doesn't
+> >>> occur. For now the RDMA versions are no-ops.
+> >>>=20
+> >>> Cc: Chuck Lever <chuck.lever@oracle.com>
+> >>> Signed-off-by: Jeff Layton <jeff.layton@primarydata.com>
+> >>> ---
+> >>> include/linux/sunrpc/xprt.h     | 16 ++++++++++++++--
+> >>> net/sunrpc/clnt.c               |  4 ++--
+> >>> net/sunrpc/xprtrdma/transport.c | 15 ++++++++++++++-
+> >>> net/sunrpc/xprtsock.c           | 31 +++++++++++++++++++++++++------
+> >>> 4 files changed, 55 insertions(+), 11 deletions(-)
+> >>>=20
+> >>> diff --git a/include/linux/sunrpc/xprt.h b/include/linux/sunrpc/xprt.h
+> >>> index 26b1624128ec..7eb58610eb94 100644
+> >>> --- a/include/linux/sunrpc/xprt.h
+> >>> +++ b/include/linux/sunrpc/xprt.h
+> >>> @@ -133,6 +133,8 @@ struct rpc_xprt_ops {
+> >>>        void            (*close)(struct rpc_xprt *xprt);
+> >>>        void            (*destroy)(struct rpc_xprt *xprt);
+> >>>        void            (*print_stats)(struct rpc_xprt *xprt, struct s=
+eq_file *seq);
+> >>> +       int             (*enable_swap)(struct rpc_xprt *xprt);
+> >>> +       void            (*disable_swap)(struct rpc_xprt *xprt);
+> >>> };
+> >>>=20
+> >>> /*
+> >>> @@ -327,6 +329,18 @@ static inline __be32 *xprt_skip_transport_header=
+(struct rpc_xprt *xprt, __be32 *
+> >>>        return p + xprt->tsh_size;
+> >>> }
+> >>>=20
+> >>> +static inline int
+> >>> +xprt_enable_swap(struct rpc_xprt *xprt)
+> >>> +{
+> >>> +       return xprt->ops->enable_swap(xprt);
+> >>> +}
+> >>> +
+> >>> +static inline void
+> >>> +xprt_disable_swap(struct rpc_xprt *xprt)
+> >>> +{
+> >>> +       xprt->ops->disable_swap(xprt);
+> >>> +}
+> >>> +
+> >>> /*
+> >>>  * Transport switch helper functions
+> >>>  */
+> >>> @@ -345,8 +359,6 @@ void                        xprt_release_rqst_con=
+g(struct rpc_task *task);
+> >>> void                   xprt_disconnect_done(struct rpc_xprt *xprt);
+> >>> void                   xprt_force_disconnect(struct rpc_xprt *xprt);
+> >>> void                   xprt_conditional_disconnect(struct rpc_xprt *x=
+prt, unsigned int cookie);
+> >>> -int                    xs_swapper_enable(struct rpc_xprt *xprt);
+> >>> -void                   xs_swapper_disable(struct rpc_xprt *xprt);
+> >>>=20
+> >>> bool                   xprt_lock_connect(struct rpc_xprt *, struct rp=
+c_task *, void *);
+> >>> void                   xprt_unlock_connect(struct rpc_xprt *, void *);
+> >>> diff --git a/net/sunrpc/clnt.c b/net/sunrpc/clnt.c
+> >>> index 804a75e71e84..60d1835edb26 100644
+> >>> --- a/net/sunrpc/clnt.c
+> >>> +++ b/net/sunrpc/clnt.c
+> >>> @@ -2492,7 +2492,7 @@ retry:
+> >>>                        goto retry;
+> >>>                }
+> >>>=20
+> >>> -               ret =3D xs_swapper_enable(xprt);
+> >>> +               ret =3D xprt_enable_swap(xprt);
+> >>>                xprt_put(xprt);
+> >>>        }
+> >>>        return ret;
+> >>> @@ -2519,7 +2519,7 @@ retry:
+> >>>                        goto retry;
+> >>>                }
+> >>>=20
+> >>> -               xs_swapper_disable(xprt);
+> >>> +               xprt_disable_swap(xprt);
+> >>>                xprt_put(xprt);
+> >>>        }
+> >>> }
+> >>> diff --git a/net/sunrpc/xprtrdma/transport.c b/net/sunrpc/xprtrdma/tr=
+ansport.c
+> >>> index 54f23b1be986..e7a157754095 100644
+> >>> --- a/net/sunrpc/xprtrdma/transport.c
+> >>> +++ b/net/sunrpc/xprtrdma/transport.c
+> >>> @@ -682,6 +682,17 @@ static void xprt_rdma_print_stats(struct rpc_xpr=
+t *xprt, struct seq_file *seq)
+> >>>           r_xprt->rx_stats.bad_reply_count);
+> >>> }
+> >>>=20
+> >>> +static int
+> >>> +xprt_rdma_enable_swap(struct rpc_xprt *xprt)
+> >>> +{
+> >>> +       return 0;
+> >>=20
+> >> Shouldn't the function be returning an error here? What does swapon
+> >> expect if the device you are trying to enable doesn't support swap?
+> >>=20
+> >=20
+> >=20
+> > Chuck suggested making these no-ops for RDMA for now.
+>=20
+> I did indeed. What I meant was that you needn=E2=80=99t worry too much ri=
+ght now
+> about how swap-on-NFS/RDMA is supposed to work, just make it not crash, a=
+nd
+> someone (maybe me) will look at it later to ensure it is working correctly
+> and then we can claim it is supported. Sorry I was not clear.
+>=20
+> > I'm fine with
+> > returning an error, but is it really an error? Maybe RDMA doesn't need
+> > any special setup for swapping?
+>=20
+> This sounds a little snarky, but we don=E2=80=99t know for sure that noth=
+ing is
+> needed until it is tested and reviewed. I think it=E2=80=99s reasonable t=
+o assume
+> it doesn=E2=80=99t work 100% until we have positive confirmation that it =
+does work.
+>=20
+> Maybe add a comment to that effect in these new xprt methods? And I would
+> have it return something like ENOSYS.=20
+>=20
+> Likewise, consider the same return code here:
+>=20
+> +#if IS_ENABLED(CONFIG_SUNRPC_SWAP)
+> +int rpc_clnt_swap_activate(struct rpc_clnt *clnt);
+> +void rpc_clnt_swap_deactivate(struct rpc_clnt *clnt);
+> +#else
+> +static inline int
+> +rpc_clnt_swap_activate(struct rpc_clnt *clnt)
+> +{
+> +	return 0;
+>               ^^^^
+> +}
+>=20
+> I=E2=80=99m not familiar enough with the swapon administrative interface =
+to know if
+> =E2=80=9Cswapping on this device is not supported=E2=80=9D is a reasonabl=
+e and expected
+> failure mode for swapon. So maybe I=E2=80=99m just full of turtles.
+>=20
 
-- hmm_device_fault_start() will wait for active invalidation that conflict
-  to be done
-- hmm_wait_device_fault() will block new invalidation until
-  active fault that conflict back off.
+No worries. I'm fine with returning an error if this stuff is disabled.
+The manpage seems to indicate that EINVAL is the right error code to
+use, but I'll see if I can verify that.
 
-
-> [...]
-> 
-> > -					   enum mmu_event event)
-> > +					   struct mmu_notifier_range *range)
-> >  
-> >  {
-> >  	struct mmu_notifier *mn;
-> >  	int id;
-> >  
-> > +	spin_lock(&mm->mmu_notifier_mm->lock);
-> > +	list_add_tail(&range->list, &mm->mmu_notifier_mm->ranges);
-> > +	mm->mmu_notifier_mm->nranges++;
-> 
-> 
-> Is this missing a call to wake_up(&mm->mmu_notifier_mm->wait_queue)? If 
-> not, then it would be helpful to explain why that's only required for 
-> nranges--, and not for the nranges++ case. The helper routine is merely 
-> waiting for nranges to *change*, not looking for greater than or less 
-> than.
-
-This is on purpose, as the waiting side only wait for active invalidation
-to be done ie for mm->mmu_notifier_mm->nranges-- so there is no reasons to
-wake up when a new invalidation is starting. Also the test need to be a not
-equal because other non conflicting range might be added/removed meaning
-that wait might finish even if mm->mmu_notifier_mm->nranges > saved_nranges.
-
-
-[...]
-> > +static bool mmu_notifier_range_is_valid_locked(struct mm_struct *mm,
-> > +					       unsigned long start,
-> > +					       unsigned long end)
-> 
-> 
-> This routine is named "_range_is_valid_", but it takes in an implicit 
-> range (start, end), and also a list of ranges (buried in mm), and so it's 
-> a little confusing. I'd like to consider *maybe* changing either the name, 
-> or the args (range* instead of start, end?), or something.
-> 
-> Could you please say a few words about the intent of this routine, to get 
-> us started there?
-
-It is just the same as mmu_notifier_range_is_valid() but it expects locks
-to be taken. This is for the benefit of mmu_notifier_range_wait_valid()
-which need to test if a range is valid (ie no conflicting invalidation)
-or not. I added a comment to explain this 3 function and to explain how
-the 2 publics helper needs to be use.
-
-Cheers,
-Jerome
+I'll need to look over the code a little more...
+--=20
+Jeff Layton <jlayton@poochiereds.net>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
