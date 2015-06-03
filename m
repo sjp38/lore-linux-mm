@@ -1,117 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EC9C900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 02:14:16 -0400 (EDT)
-Received: by wiga1 with SMTP id a1so2054136wig.0
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 23:14:15 -0700 (PDT)
-Received: from lb1-smtp-cloud6.xs4all.net (lb1-smtp-cloud6.xs4all.net. [194.109.24.24])
-        by mx.google.com with ESMTPS id fa9si8012wid.33.2015.06.02.23.14.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 02 Jun 2015 23:14:14 -0700 (PDT)
-Message-ID: <556E9B27.20006@xs4all.nl>
-Date: Wed, 03 Jun 2015 08:13:59 +0200
-From: Hans Verkuil <hverkuil@xs4all.nl>
-MIME-Version: 1.0
-Subject: Re: [Linaro-mm-sig] [RFCv3 1/2] device: add dma_params->max_segment_count
-References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
-In-Reply-To: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 52DC4900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 02:15:49 -0400 (EDT)
+Received: by pdjm12 with SMTP id m12so108899pdj.3
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 23:15:49 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id ms6si30062227pdb.76.2015.06.02.23.15.47
+        for <linux-mm@kvack.org>;
+        Tue, 02 Jun 2015 23:15:48 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [RFC 0/6] MADV_FREE: respect pte_dirty, not PG_dirty.
+Date: Wed,  3 Jun 2015 15:15:39 +0900
+Message-Id: <1433312145-19386-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sumit Semwal <sumit.semwal@linaro.org>, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
-Cc: linaro-kernel@lists.linaro.org, stanislawski.tomasz@googlemail.com, robdclark@gmail.com, daniel@ffwll.ch, robin.murphy@arm.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>
 
-Hi Sumit, Rob,
+MADV_FREE relies on the dirty bit in page table entry to decide
+whether VM allows to discard the page or not.
+IOW, if page table entry includes marked dirty bit, VM shouldn't
+discard the page.
 
-Is there any reason why this patch hasn't been merged yet? It makes perfect
-sense to me and I would really like to use this in the media drivers.
+However, as one of exmaple, if swap-in by read fault happens,
+page table entry point out the page doesn't have marked dirty bit
+so MADV_FREE might discard the page wrongly.
 
-Many DMA engines do have a limit to the number of segments (obviously
-a max count of 1 being the most common limitation, but other limits are
-definitely possible), so this patch seems a no-brainer to me.
+For avoiding the problem, MADV_FREE did more checks with PageDirty
+and PageSwapCache. It worked out because swapped-in page lives
+on swap cache and since it was evicted from the swap cache,
+the page has PG_dirty flag. So both page flags checks effectively
+prevent wrong discarding by MADV_FREE.
 
-So:
+A problem in above logic is that swapped-in page has PG_dirty
+since they are removed from swap cache so VM cannot consider
+those pages as freeable any more alghouth madvise_free is
+called in future. Look at below example for detail.
 
-Acked-by: Hans Verkuil <hans.verkuil@cisco.com>
+ptr = malloc();
+memset(ptr);
+..
+..
+.. heavy memory pressure so all of pages are swapped out
+..
+..
+var = *ptr; -> a page swapped-in and removed from swapcache.
+               page table doesn't mark dirty bit and page
+               descriptor includes PG_dirty
+..
+..
+madvise_free(ptr);
+..
+..
+..
+.. heavy memory pressure again.
+.. In this time, VM cannot discard the page because the page
+.. has *PG_dirty*
 
-Regards,
+Rather than relying on the PG_dirty of page descriptor for
+preventing discarding a page, dirty bit in page table is more
+straightforward and simple.
 
-	Hans
+So, this patch try to make page table entry's dirty bit mark so
+it doesn't need to take care of PG_dirty.
+For it, it fixes several cases(e.g, KSM, migration, swapin, swapoff)
+then, finally it makes MADV_FREE simple.
 
-On 01/27/2015 09:25 AM, Sumit Semwal wrote:
-> From: Rob Clark <robdclark@gmail.com>
-> 
-> For devices which have constraints about maximum number of segments in
-> an sglist.  For example, a device which could only deal with contiguous
-> buffers would set max_segment_count to 1.
-> 
-> The initial motivation is for devices sharing buffers via dma-buf,
-> to allow the buffer exporter to know the constraints of other
-> devices which have attached to the buffer.  The dma_mask and fields
-> in 'struct device_dma_parameters' tell the exporter everything else
-> that is needed, except whether the importer has constraints about
-> maximum number of segments.
-> 
-> Signed-off-by: Rob Clark <robdclark@gmail.com>
->  [sumits: Minor updates wrt comments]
-> Signed-off-by: Sumit Semwal <sumit.semwal@linaro.org>
-> ---
-> 
-> v3: include Robin Murphy's fix[1] for handling '0' as a value for
->      max_segment_count
-> v2: minor updates wrt comments on the first version
-> 
-> [1]: http://article.gmane.org/gmane.linux.kernel.iommu/8175/
-> 
->  include/linux/device.h      |  1 +
->  include/linux/dma-mapping.h | 19 +++++++++++++++++++
->  2 files changed, 20 insertions(+)
-> 
-> diff --git a/include/linux/device.h b/include/linux/device.h
-> index fb506738f7b7..a32f9b67315c 100644
-> --- a/include/linux/device.h
-> +++ b/include/linux/device.h
-> @@ -647,6 +647,7 @@ struct device_dma_parameters {
->  	 * sg limitations.
->  	 */
->  	unsigned int max_segment_size;
-> +	unsigned int max_segment_count;    /* INT_MAX for unlimited */
->  	unsigned long segment_boundary_mask;
->  };
->  
-> diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
-> index c3007cb4bfa6..d3351a36d5ec 100644
-> --- a/include/linux/dma-mapping.h
-> +++ b/include/linux/dma-mapping.h
-> @@ -154,6 +154,25 @@ static inline unsigned int dma_set_max_seg_size(struct device *dev,
->  		return -EIO;
->  }
->  
-> +#define DMA_SEGMENTS_MAX_SEG_COUNT ((unsigned int) INT_MAX)
-> +
-> +static inline unsigned int dma_get_max_seg_count(struct device *dev)
-> +{
-> +	if (dev->dma_parms && dev->dma_parms->max_segment_count)
-> +		return dev->dma_parms->max_segment_count;
-> +	return DMA_SEGMENTS_MAX_SEG_COUNT;
-> +}
-> +
-> +static inline int dma_set_max_seg_count(struct device *dev,
-> +						unsigned int count)
-> +{
-> +	if (dev->dma_parms) {
-> +		dev->dma_parms->max_segment_count = count;
-> +		return 0;
-> +	}
-> +	return -EIO;
-> +}
-> +
->  static inline unsigned long dma_get_seg_boundary(struct device *dev)
->  {
->  	return dev->dma_parms ?
-> 
+With this, it removes complicated logic and makes freeable page
+checking by madvise_free simple.(ie, +90/-108).
+Of course, we could solve above mentioned PG_Dirty problem.
+
+I tested this patchset(memcg, tmpfs, swapon/off, THP, KSM) and
+found no problem but it still needs careful review.
+
+Minchan Kim (6):
+  mm: keep dirty bit on KSM page
+  mm: keep dirty bit on anonymous page migration
+  mm: mark dirty bit on swapped-in page
+  mm: mark dirty bit on unuse_pte
+  mm: decouple PG_dirty from MADV_FREE
+  mm: MADV_FREE refactoring
+
+ include/linux/rmap.h |  9 ++----
+ mm/ksm.c             | 19 ++++++++++---
+ mm/madvise.c         | 13 ---------
+ mm/memory.c          |  6 ++--
+ mm/migrate.c         |  4 +++
+ mm/rmap.c            | 78 +++++++++++++++++++++++++---------------------------
+ mm/swapfile.c        |  6 +++-
+ mm/vmscan.c          | 63 ++++++++++++++----------------------------
+ 8 files changed, 90 insertions(+), 108 deletions(-)
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
