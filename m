@@ -1,118 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 57138900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 01:08:49 -0400 (EDT)
-Received: by pdjm12 with SMTP id m12so65622450pdj.3
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 22:08:49 -0700 (PDT)
-Received: from mail-pd0-x22f.google.com (mail-pd0-x22f.google.com. [2607:f8b0:400e:c02::22f])
-        by mx.google.com with ESMTPS id b12si29748871pdl.238.2015.06.02.22.08.48
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EC9C900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 02:14:16 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so2054136wig.0
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 23:14:15 -0700 (PDT)
+Received: from lb1-smtp-cloud6.xs4all.net (lb1-smtp-cloud6.xs4all.net. [194.109.24.24])
+        by mx.google.com with ESMTPS id fa9si8012wid.33.2015.06.02.23.14.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jun 2015 22:08:48 -0700 (PDT)
-Received: by pdbqa5 with SMTP id qa5so148575152pdb.0
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 22:08:48 -0700 (PDT)
-Date: Wed, 3 Jun 2015 14:09:10 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [RFC][PATCH 00/10] zsmalloc auto-compaction
-Message-ID: <20150603050910.GA534@swordfish>
-References: <1432911928-14654-1-git-send-email-sergey.senozhatsky@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 02 Jun 2015 23:14:14 -0700 (PDT)
+Message-ID: <556E9B27.20006@xs4all.nl>
+Date: Wed, 03 Jun 2015 08:13:59 +0200
+From: Hans Verkuil <hverkuil@xs4all.nl>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1432911928-14654-1-git-send-email-sergey.senozhatsky@gmail.com>
+Subject: Re: [Linaro-mm-sig] [RFCv3 1/2] device: add dma_params->max_segment_count
+References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
+In-Reply-To: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Sumit Semwal <sumit.semwal@linaro.org>, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
+Cc: linaro-kernel@lists.linaro.org, stanislawski.tomasz@googlemail.com, robdclark@gmail.com, daniel@ffwll.ch, robin.murphy@arm.com
 
-On (05/30/15 00:05), Sergey Senozhatsky wrote:
-> RFC
-> 
-> this is 4.3 material, but I wanted to publish it sooner to gain
-> responses and to settle it down before 4.3 merge window opens.
-> 
-> in short, this series tweaks zsmalloc's compaction and adds
-> auto-compaction support. auto-compaction is not aimed to replace
-> manual compaction, intead it's supposed to be good enough. yet
-> it surely slows down zsmalloc in some scenarious. whilst simple
-> un-tar test didn't show any significant performance difference
-> 
-> 
-> quote from commit 0007:
-> 
-> this test copies a 1.3G linux kernel tar to mounted zram disk,
-> and extracts it.
-> 
+Hi Sumit, Rob,
 
-[..]
+Is there any reason why this patch hasn't been merged yet? It makes perfect
+sense to me and I would really like to use this in the media drivers.
 
+Many DMA engines do have a limit to the number of segments (obviously
+a max count of 1 being the most common limitation, but other limits are
+definitely possible), so this patch seems a no-brainer to me.
 
-Hello,
+So:
 
-I've a v2:
--- squashed and re-order some of the patches;
--- run iozone with lockdep disabled.
+Acked-by: Hans Verkuil <hans.verkuil@cisco.com>
 
-=== quote ===
+Regards,
 
-    auto-compaction should not affect read-only tests, so we are interested
-    in write-only and read-write (mixed) tests, but I'll post complete test
-    stats:
-    
-    iozone -t 3 -R -r 16K -s 60M -I +Z
-    ext4, 2g zram0 device, lzo, 4 compression streams max
-    
-           test           base       auto-compact (compacted 67904 objs)
-       Initial write   2474943.62          2490551.69
-             Rewrite   3656121.38          3002796.31
-                Read   12068187.50         12044105.25
-             Re-read   12009777.25         11930537.50
-        Reverse Read   10858884.25         10388252.50
-         Stride read   10715304.75         10429308.00
-         Random read   10597970.50         10502978.75
-      Mixed workload   8517269.00          8701298.12
-        Random write   3595597.00          3465174.38
-              Pwrite   2507361.25          2553224.50
-               Pread   5380608.28          5340646.03
-              Fwrite   6123863.62          6130514.25
-               Fread   12006438.50         11936981.25
-    
-    mm_stat after the test
-    
-    base:
-    cat /sys/block/zram0/mm_stat
-    378834944  5748695  7446528        0  7450624    16318        0
-    
-    auto-compaction:
-    cat /sys/block/zram0/mm_stat
-    378892288  5754987  7397376        0  7397376    16304    67904
+	Hans
 
-===
-
-	-ss
-
+On 01/27/2015 09:25 AM, Sumit Semwal wrote:
+> From: Rob Clark <robdclark@gmail.com>
 > 
+> For devices which have constraints about maximum number of segments in
+> an sglist.  For example, a device which could only deal with contiguous
+> buffers would set max_segment_count to 1.
 > 
-> Sergey Senozhatsky (10):
->   zsmalloc: drop unused variable `nr_to_migrate'
->   zsmalloc: always keep per-class stats
->   zsmalloc: introduce zs_can_compact() function
->   zsmalloc: cosmetic compaction code adjustments
->   zsmalloc: add `num_migrated' to zs_pool
->   zsmalloc: move compaction functions
->   zsmalloc: introduce auto-compact support
->   zsmalloc: export zs_pool `num_migrated'
->   zram: remove `num_migrated' from zram_stats
->   zsmalloc: lower ZS_ALMOST_FULL waterline
+> The initial motivation is for devices sharing buffers via dma-buf,
+> to allow the buffer exporter to know the constraints of other
+> devices which have attached to the buffer.  The dma_mask and fields
+> in 'struct device_dma_parameters' tell the exporter everything else
+> that is needed, except whether the importer has constraints about
+> maximum number of segments.
 > 
->  drivers/block/zram/zram_drv.c |  12 +-
->  drivers/block/zram/zram_drv.h |   1 -
->  include/linux/zsmalloc.h      |   1 +
->  mm/zsmalloc.c                 | 578 +++++++++++++++++++++---------------------
->  4 files changed, 296 insertions(+), 296 deletions(-)
+> Signed-off-by: Rob Clark <robdclark@gmail.com>
+>  [sumits: Minor updates wrt comments]
+> Signed-off-by: Sumit Semwal <sumit.semwal@linaro.org>
+> ---
 > 
-> -- 
-> 2.4.2.337.gfae46aa
+> v3: include Robin Murphy's fix[1] for handling '0' as a value for
+>      max_segment_count
+> v2: minor updates wrt comments on the first version
+> 
+> [1]: http://article.gmane.org/gmane.linux.kernel.iommu/8175/
+> 
+>  include/linux/device.h      |  1 +
+>  include/linux/dma-mapping.h | 19 +++++++++++++++++++
+>  2 files changed, 20 insertions(+)
+> 
+> diff --git a/include/linux/device.h b/include/linux/device.h
+> index fb506738f7b7..a32f9b67315c 100644
+> --- a/include/linux/device.h
+> +++ b/include/linux/device.h
+> @@ -647,6 +647,7 @@ struct device_dma_parameters {
+>  	 * sg limitations.
+>  	 */
+>  	unsigned int max_segment_size;
+> +	unsigned int max_segment_count;    /* INT_MAX for unlimited */
+>  	unsigned long segment_boundary_mask;
+>  };
+>  
+> diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
+> index c3007cb4bfa6..d3351a36d5ec 100644
+> --- a/include/linux/dma-mapping.h
+> +++ b/include/linux/dma-mapping.h
+> @@ -154,6 +154,25 @@ static inline unsigned int dma_set_max_seg_size(struct device *dev,
+>  		return -EIO;
+>  }
+>  
+> +#define DMA_SEGMENTS_MAX_SEG_COUNT ((unsigned int) INT_MAX)
+> +
+> +static inline unsigned int dma_get_max_seg_count(struct device *dev)
+> +{
+> +	if (dev->dma_parms && dev->dma_parms->max_segment_count)
+> +		return dev->dma_parms->max_segment_count;
+> +	return DMA_SEGMENTS_MAX_SEG_COUNT;
+> +}
+> +
+> +static inline int dma_set_max_seg_count(struct device *dev,
+> +						unsigned int count)
+> +{
+> +	if (dev->dma_parms) {
+> +		dev->dma_parms->max_segment_count = count;
+> +		return 0;
+> +	}
+> +	return -EIO;
+> +}
+> +
+>  static inline unsigned long dma_get_seg_boundary(struct device *dev)
+>  {
+>  	return dev->dma_parms ?
 > 
 
 --
