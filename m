@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AF7B900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 13:07:48 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so11698068pdb.0
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 10:07:47 -0700 (PDT)
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 5104C900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 13:07:50 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so11651392pdb.1
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 10:07:50 -0700 (PDT)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id hc9si1807557pac.157.2015.06.03.10.07.28
+        by mx.google.com with ESMTP id uy7si1767505pbc.246.2015.06.03.10.07.32
         for <linux-mm@kvack.org>;
-        Wed, 03 Jun 2015 10:07:29 -0700 (PDT)
+        Wed, 03 Jun 2015 10:07:33 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 29/36] thp: implement split_huge_pmd()
-Date: Wed,  3 Jun 2015 20:06:00 +0300
-Message-Id: <1433351167-125878-30-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 04/36] mm, thp: adjust conditions when we can reuse the page on WP fault
+Date: Wed,  3 Jun 2015 20:05:35 +0300
+Message-Id: <1433351167-125878-5-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1433351167-125878-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1433351167-125878-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,173 +19,84 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Original split_huge_page() combined two operations: splitting PMDs into
-tables of PTEs and splitting underlying compound page. This patch
-implements split_huge_pmd() which split given PMD without splitting
-other PMDs this page mapped with or underlying compound page.
+With new refcounting we will be able map the same compound page with
+PTEs and PMDs. It requires adjustment to conditions when we can reuse
+the page on write-protection fault.
 
-Without tail page refcounting, implementation of split_huge_pmd() is
-pretty straight-forward.
+For PTE fault we can't reuse the page if it's part of huge page.
+
+For PMD we can only reuse the page if nobody else maps the huge page or
+it's part. We can do it by checking page_mapcount() on each sub-page,
+but it's expensive.
+
+The cheaper way is to check page_count() to be equal 1: every mapcount
+takes page reference, so this way we can guarantee, that the PMD is the
+only mapping.
+
+This approach can give false negative if somebody pinned the page, but
+that doesn't affect correctness.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Tested-by: Sasha Levin <sasha.levin@oracle.com>
+Acked-by: Jerome Marchand <jmarchan@redhat.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- include/linux/huge_mm.h |  11 ++++-
- mm/huge_memory.c        | 119 ++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 129 insertions(+), 1 deletion(-)
+ include/linux/swap.h |  3 ++-
+ mm/huge_memory.c     | 12 +++++++++++-
+ mm/swapfile.c        |  3 +++
+ 3 files changed, 16 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 67b3f3760f4a..9cfce23ab9d0 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -94,7 +94,16 @@ extern unsigned long transparent_hugepage_flags;
- 
- #define split_huge_page_to_list(page, list) BUILD_BUG()
- #define split_huge_page(page) BUILD_BUG()
--#define split_huge_pmd(__vma, __pmd, __address) BUILD_BUG()
-+
-+void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+		unsigned long address);
-+
-+#define split_huge_pmd(__vma, __pmd, __address)				\
-+	do {								\
-+		pmd_t *____pmd = (__pmd);				\
-+		if (pmd_trans_huge(*____pmd))				\
-+			__split_huge_pmd(__vma, __pmd, __address);	\
-+	}  while (0)
- 
- #if HPAGE_PMD_ORDER >= MAX_ORDER
- #error "hugepages can't be allocated by the buddy allocator"
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 5b0a13d2f28c..0f1f5731a893 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2547,6 +2547,125 @@ static int khugepaged(void *none)
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 0428e4c84e1d..17cdd6b9456b 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -524,7 +524,8 @@ static inline int page_swapcount(struct page *page)
  	return 0;
  }
  
-+static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
-+		unsigned long haddr, pmd_t *pmd)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
-+	pgtable_t pgtable;
-+	pmd_t _pmd;
-+	int i;
-+
-+	/* leave pmd empty until pte is filled */
-+	pmdp_huge_clear_flush_notify(vma, haddr, pmd);
-+
-+	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
-+	pmd_populate(mm, &_pmd, pgtable);
-+
-+	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-+		pte_t *pte, entry;
-+		entry = pfn_pte(my_zero_pfn(haddr), vma->vm_page_prot);
-+		entry = pte_mkspecial(entry);
-+		pte = pte_offset_map(&_pmd, haddr);
-+		VM_BUG_ON(!pte_none(*pte));
-+		set_pte_at(mm, haddr, pte, entry);
-+		pte_unmap(pte);
-+	}
-+	smp_wmb(); /* make pte visible before pmd */
-+	pmd_populate(mm, pmd, pgtable);
-+	put_huge_zero_page();
-+}
-+
-+static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
-+		unsigned long haddr)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
-+	struct page *page;
-+	pgtable_t pgtable;
-+	pmd_t _pmd;
-+	bool young, write;
-+	int i;
-+
-+	VM_BUG_ON(haddr & ~HPAGE_PMD_MASK);
-+	VM_BUG_ON_VMA(vma->vm_start > haddr, vma);
-+	VM_BUG_ON_VMA(vma->vm_end < haddr + HPAGE_PMD_SIZE, vma);
-+	VM_BUG_ON(!pmd_trans_huge(*pmd));
-+
-+	count_vm_event(THP_SPLIT_PMD);
-+
-+	if (is_huge_zero_pmd(*pmd))
-+		return __split_huge_zero_page_pmd(vma, haddr, pmd);
-+
-+	page = pmd_page(*pmd);
-+	VM_BUG_ON_PAGE(!page_count(page), page);
-+	atomic_add(HPAGE_PMD_NR - 1, &page->_count);
-+	write = pmd_write(*pmd);
-+	young = pmd_young(*pmd);
-+
-+	/* leave pmd empty until pte is filled */
-+	pmdp_huge_clear_flush_notify(vma, haddr, pmd);
-+
-+	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
-+	pmd_populate(mm, &_pmd, pgtable);
-+
-+	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-+		pte_t entry, *pte;
-+		/*
-+		 * Note that NUMA hinting access restrictions are not
-+		 * transferred to avoid any possibility of altering
-+		 * permissions across VMAs.
-+		 */
-+		entry = mk_pte(page + i, vma->vm_page_prot);
-+		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+		if (!write)
-+			entry = pte_wrprotect(entry);
-+		if (!young)
-+			entry = pte_mkold(entry);
-+		pte = pte_offset_map(&_pmd, haddr);
-+		BUG_ON(!pte_none(*pte));
-+		set_pte_at(mm, haddr, pte, entry);
-+		atomic_inc(&page[i]._mapcount);
-+		pte_unmap(pte);
-+	}
-+
-+	if (atomic_add_negative(-1, compound_mapcount_ptr(page))) {
-+		/* Last compound_mapcount is gone. */
-+		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+		if (PageDoubleMap(page)) {
-+			/* No need in mapcount reference anymore */
-+			ClearPageDoubleMap(page);
-+			for (i = 0; i < HPAGE_PMD_NR; i++)
-+				atomic_dec(&page[i]._mapcount);
-+		}
-+	} else if (!TestSetPageDoubleMap(page)) {
-+		/*
-+		 * The first PMD split for the compound page and we still
-+		 * have other PMD mapping of the page: bump _mapcount in
-+		 * every small page.
-+		 * This reference will go away with last compound_mapcount.
-+		 */
-+		for (i = 0; i < HPAGE_PMD_NR; i++)
-+			atomic_inc(&page[i]._mapcount);
-+	}
-+
-+	smp_wmb(); /* make pte visible before pmd */
-+	pmd_populate(mm, pmd, pgtable);
-+}
-+
-+void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+		unsigned long address)
-+{
-+	spinlock_t *ptl;
-+	struct mm_struct *mm = vma->vm_mm;
-+	unsigned long haddr = address & HPAGE_PMD_MASK;
-+
-+	mmu_notifier_invalidate_range_start(mm, haddr, haddr + HPAGE_PMD_SIZE);
-+	ptl = pmd_lock(mm, pmd);
-+	if (likely(pmd_trans_huge(*pmd)))
-+		__split_huge_pmd_locked(vma, pmd, haddr);
-+	spin_unlock(ptl);
-+	mmu_notifier_invalidate_range_end(mm, haddr, haddr + HPAGE_PMD_SIZE);
-+}
-+
- static void split_huge_pmd_address(struct vm_area_struct *vma,
- 				    unsigned long address)
+-#define reuse_swap_page(page)	(page_mapcount(page) == 1)
++#define reuse_swap_page(page) \
++	(!PageTransCompound(page) && page_mapcount(page) == 1)
+ 
+ static inline int try_to_free_swap(struct page *page)
  {
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 1043b9b0659c..6035cc92be6b 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1128,7 +1128,17 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 
+ 	page = pmd_page(orig_pmd);
+ 	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
+-	if (page_mapcount(page) == 1) {
++	/*
++	 * We can only reuse the page if nobody else maps the huge page or it's
++	 * part. We can do it by checking page_mapcount() on each sub-page, but
++	 * it's expensive.
++	 * The cheaper way is to check page_count() to be equal 1: every
++	 * mapcount takes page reference reference, so this way we can
++	 * guarantee, that the PMD is the only mapping.
++	 * This can give false negative if somebody pinned the page, but that's
++	 * fine.
++	 */
++	if (page_mapcount(page) == 1 && page_count(page) == 1) {
+ 		pmd_t entry;
+ 		entry = pmd_mkyoung(orig_pmd);
+ 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 6dd365d1c488..3cd5f188b996 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -887,6 +887,9 @@ int reuse_swap_page(struct page *page)
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	if (unlikely(PageKsm(page)))
+ 		return 0;
++	/* The page is part of THP and cannot be reused */
++	if (PageTransCompound(page))
++		return 0;
+ 	count = page_mapcount(page);
+ 	if (count <= 1 && PageSwapCache(page)) {
+ 		count += page_swapcount(page);
 -- 
 2.1.4
 
