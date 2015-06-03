@@ -1,110 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 6469B900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 11:43:06 -0400 (EDT)
-Received: by qkoo18 with SMTP id o18so7674946qko.1
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 08:43:06 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 19si964528qkt.64.2015.06.03.08.43.05
-        for <linux-mm@kvack.org>;
-        Wed, 03 Jun 2015 08:43:05 -0700 (PDT)
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: [PATCH] mm: kmemleak: Fix crashing during kmemleak disabling
-Date: Wed,  3 Jun 2015 16:42:56 +0100
-Message-Id: <1433346176-912-1-git-send-email-catalin.marinas@arm.com>
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 92972900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 12:07:29 -0400 (EDT)
+Received: by lbcmx3 with SMTP id mx3so10328167lbc.1
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 09:07:28 -0700 (PDT)
+Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com. [2a00:1450:400c:c05::236])
+        by mx.google.com with ESMTPS id v5si1964717wjr.212.2015.06.03.09.07.26
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Jun 2015 09:07:27 -0700 (PDT)
+Received: by wibut5 with SMTP id ut5so108118189wib.1
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 09:07:26 -0700 (PDT)
+Date: Wed, 3 Jun 2015 12:07:12 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [PATCH 01/36] mmu_notifier: add event information to address
+ invalidation v7
+Message-ID: <20150603160711.GA2602@gmail.com>
+References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
+ <1432236705-4209-2-git-send-email-j.glisse@gmail.com>
+ <alpine.LNX.2.03.1505292001580.13637@nvidia.com>
+ <20150601190331.GA4170@gmail.com>
+ <alpine.LNX.2.03.1506011525460.17506@nvidia.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <alpine.LNX.2.03.1506011525460.17506@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Vignesh Radhakrishnan <vigneshr@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
 
-With the current implementation, if kmemleak is disabled because of an
-error condition (e.g. fails to allocate metadata), alloc/free calls are
-no longer tracked. Usually this is not a problem since the kmemleak
-metadata is being removed via kmemleak_do_cleanup(). However, if the
-scanning thread is running at the time of disabling, kmemleak would no
-longer notice a potential vfree() call and the freed/unmapped object may
-still be accessed, causing a fault.
+On Mon, Jun 01, 2015 at 04:10:46PM -0700, John Hubbard wrote:
+> On Mon, 1 Jun 2015, Jerome Glisse wrote:
+> > On Fri, May 29, 2015 at 08:43:59PM -0700, John Hubbard wrote:
+> > > On Thu, 21 May 2015, j.glisse@gmail.com wrote:
+> > > > From: Jerome Glisse <jglisse@redhat.com>
 
-This patch separates the kmemleak_free() enabling/disabling from the
-overall kmemleak_enabled nob so that we can defer the disabling of the
-object freeing tracking until the scanning thread completed. The
-kmemleak_free_part() is deliberately ignored by this patch since this is
-only called during boot before the scanning thread started.
+[...]
+> > > > +	MMU_ISDIRTY,
+> > > 
+> > > This MMU_ISDIRTY seems like a problem to me. First of all, it looks 
+> > > backwards: the only place that invokes it is the clear_refs_write() 
+> > > routine, for the soft-dirty tracking feature. And in that case, the pages 
+> > > are *not* being made dirty! Rather, the kernel is actually making the 
+> > > pages non-writable, in order to be able to trap the subsequent page fault 
+> > > and figure out if the page is in active use.
+> > > 
+> > > So, given that there is only one call site, and that call site should 
+> > > actually be setting MMU_WRITE_PROTECT instead (I think), let's just delete 
+> > > MMU_ISDIRTY.
+> > > 
+> > > Come to think about it, there is no callback possible for "a page became 
+> > > dirty", anyway. Because the dirty and accessed bits are actually set by 
+> > > the hardware, and software is generally unable to know the current state.
+> > > So MMU_ISDIRTY just seems inappropriate to me, across the board.
+> > > 
+> > > I'll take a look at the corresponding HMM_ISDIRTY, too.
+> > 
+> > Ok i need to rename that one to CLEAR_SOFT_DIRTY, the idea is that
+> > for HMM i would rather not write protect the memory for the device
+> > and just rely on the regular and conservative dirtying of page. The
+> > soft dirty is really for migrating a process where you first clear
+> > the soft dirty bit, then copy memory while process still running,
+> > then freeze process an only copy memory that was dirtied since
+> > first copy. Point being that adding soft dirty to HMM is something
+> > that can be done down the road. We should have enough bit inside
+> > the device page table for that.
+> > 
+> 
+> Yes, I think renaming it to CLEAR_SOFT_DIRTY will definitely allow more 
+> accurate behavior in response to these events.
+> 
+> Looking ahead, a couple things:
+> 
+> 1. This mechanism is also used for general memory utilization tracking (I 
+> see that Vladimir DavyDov has an "idle memory tracking" proposal that 
+> assumes this works, for example: https://lwn.net/Articles/642202/ and 
+> https://lkml.org/lkml/2015/5/12/449).
+> 
+> 2. It seems hard to avoid the need to eventually just write protect the 
+> page, whether it is on the CPU or the remote device, if things like device 
+> drivers or user space need to track write accesses to a virtual address. 
+> Either you write protect the page, and trap the page faults, or you wait 
+> until later and read the dirty bit (indirectly, via something like 
+> unmap_mapping_range). Or did you have something else in mind?
+> 
+> Anyway, none of that needs to hold up this part of the patchset, because 
+> the renaming fixes things up for the future code to do the right thing.
 
-Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-Reported-by: Vignesh Radhakrishnan <vigneshr@codeaurora.org>
-Tested-by: Vignesh Radhakrishnan <vigneshr@codeaurora.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: <stable@vger.kernel.org>
----
- mm/kmemleak.c | 18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
+I will go over Vladimir patchset it was on my radar but haven't had yet a
+chance to go over it. We will likely need to do the write protect for device
+too. But as you said this is not an issue that this patch need a fix for,
+only HMM would need to change. I will do that.
 
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index f0fe4f2c1fa7..11d6f8015896 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -195,6 +195,8 @@ static struct kmem_cache *scan_area_cache;
- 
- /* set if tracing memory operations is enabled */
- static int kmemleak_enabled;
-+/* same as above but only for the kmemleak_free() callback */
-+static int kmemleak_free_enabled;
- /* set in the late_initcall if there were no errors */
- static int kmemleak_initialized;
- /* enables or disables early logging of the memory operations */
-@@ -942,7 +944,7 @@ void __ref kmemleak_free(const void *ptr)
- {
- 	pr_debug("%s(0x%p)\n", __func__, ptr);
- 
--	if (kmemleak_enabled && ptr && !IS_ERR(ptr))
-+	if (kmemleak_free_enabled && ptr && !IS_ERR(ptr))
- 		delete_object_full((unsigned long)ptr);
- 	else if (kmemleak_early_log)
- 		log_early(KMEMLEAK_FREE, ptr, 0, 0);
-@@ -982,7 +984,7 @@ void __ref kmemleak_free_percpu(const void __percpu *ptr)
- 
- 	pr_debug("%s(0x%p)\n", __func__, ptr);
- 
--	if (kmemleak_enabled && ptr && !IS_ERR(ptr))
-+	if (kmemleak_free_enabled && ptr && !IS_ERR(ptr))
- 		for_each_possible_cpu(cpu)
- 			delete_object_full((unsigned long)per_cpu_ptr(ptr,
- 								      cpu));
-@@ -1750,6 +1752,12 @@ static void kmemleak_do_cleanup(struct work_struct *work)
- 	mutex_lock(&scan_mutex);
- 	stop_scan_thread();
- 
-+	/*
-+	 * Once the scan thread has stopped, it is safe to no longer track
-+	 * object freeing.
-+	 */
-+	kmemleak_free_enabled = 0;
-+
- 	if (!kmemleak_found_leaks)
- 		__kmemleak_do_cleanup();
- 	else
-@@ -1776,6 +1784,8 @@ static void kmemleak_disable(void)
- 	/* check whether it is too early for a kernel thread */
- 	if (kmemleak_initialized)
- 		schedule_work(&cleanup_work);
-+	else
-+		kmemleak_free_enabled = 0;
- 
- 	pr_info("Kernel memory leak detector disabled\n");
- }
-@@ -1840,8 +1850,10 @@ void __init kmemleak_init(void)
- 	if (kmemleak_error) {
- 		local_irq_restore(flags);
- 		return;
--	} else
-+	} else {
- 		kmemleak_enabled = 1;
-+		kmemleak_free_enabled = 1;
-+	}
- 	local_irq_restore(flags);
- 
- 	/*
+
+[...]
+> > > We may have to add MMU_READ_WRITE (and maybe another one, I haven't 
+> > > bottomed out on that), if you agree with the above approach of 
+> > > always sending a precise event, instead of "protection changed".
+> > 
+> > I think Linus point made sense last time, but i would need to read
+> > again the thread. The idea of that patch is really to provide context
+> > information on what kind of CPU page table changes is happening and
+> > why.
+> >
+> 
+> Shoot, I tried to find that conversation, but my search foo is too weak. 
+> If you have a link to that thread, I'd appreciate it, so I can refresh my 
+> memory.
+> 
+> I was hoping to re-read it and see if anything has changed. It's not 
+> really a huge problem to call find_vma() again, but I do want to be sure 
+> that there's a good reason for doing so.
+>  
+> Otherwise, I'll just rely on your memory that Linus preferred your current 
+> approach, and call it good, then.
+
+http://lkml.iu.edu/hypermail/linux/kernel/1406.3/04880.html
+
+I am working on doing some of the changes discussed so far, i will push my
+tree to git://people.freedesktop.org/~glisse/linux hmm branch once i am done.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
