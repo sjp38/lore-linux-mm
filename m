@@ -1,129 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 92972900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 12:07:29 -0400 (EDT)
-Received: by lbcmx3 with SMTP id mx3so10328167lbc.1
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 09:07:28 -0700 (PDT)
-Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com. [2a00:1450:400c:c05::236])
-        by mx.google.com with ESMTPS id v5si1964717wjr.212.2015.06.03.09.07.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jun 2015 09:07:27 -0700 (PDT)
-Received: by wibut5 with SMTP id ut5so108118189wib.1
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 09:07:26 -0700 (PDT)
-Date: Wed, 3 Jun 2015 12:07:12 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH 01/36] mmu_notifier: add event information to address
- invalidation v7
-Message-ID: <20150603160711.GA2602@gmail.com>
-References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
- <1432236705-4209-2-git-send-email-j.glisse@gmail.com>
- <alpine.LNX.2.03.1505292001580.13637@nvidia.com>
- <20150601190331.GA4170@gmail.com>
- <alpine.LNX.2.03.1506011525460.17506@nvidia.com>
+Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 21B49900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 12:27:26 -0400 (EDT)
+Received: by qgfa63 with SMTP id a63so6098538qgf.0
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 09:27:25 -0700 (PDT)
+Received: from pd.grulic.org.ar (pd.grulic.org.ar. [200.16.16.187])
+        by mx.google.com with ESMTP id h65si1092316qkh.65.2015.06.03.09.27.24
+        for <linux-mm@kvack.org>;
+        Wed, 03 Jun 2015 09:27:25 -0700 (PDT)
+Date: Wed, 3 Jun 2015 13:26:49 -0300
+From: Marcos Dione <mdione@grulic.org.ar>
+Subject: Re: committed memory, mmaps and shms
+Message-ID: <20150603162649.GA15166@grulic.org.ar>
+References: <20150311181044.GC14481@diablo.grulicueva.local>
+ <20150312124053.GA30035@dhcp22.suse.cz>
+ <20150312145422.GA9240@grulic.org.ar>
+ <20150312153513.GA14537@dhcp22.suse.cz>
+ <20150312165600.GC9240@grulic.org.ar>
+ <20150313145851.GA26332@grulic.org.ar>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.LNX.2.03.1506011525460.17506@nvidia.com>
+In-Reply-To: <20150313145851.GA26332@grulic.org.ar>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, marcos-david.dione@amadeus.com, linux-mm@kvack.org
 
-On Mon, Jun 01, 2015 at 04:10:46PM -0700, John Hubbard wrote:
-> On Mon, 1 Jun 2015, Jerome Glisse wrote:
-> > On Fri, May 29, 2015 at 08:43:59PM -0700, John Hubbard wrote:
-> > > On Thu, 21 May 2015, j.glisse@gmail.com wrote:
-> > > > From: Jerome Glisse <jglisse@redhat.com>
+On Fri, Mar 13, 2015 at 11:58:51AM -0300, Marcos Dione wrote:
+> On Thu, Mar 12, 2015 at 01:56:00PM -0300, Marcos Dione wrote:
+> > On Thu, Mar 12, 2015 at 11:35:13AM -0400, Michal Hocko wrote:
+> > > On Wed 11-03-15 19:10:44, Marcos Dione wrote:
+> > > I also read Documentation/vm/overcommit-accounting
+> > 
+> > What would help you to understand it better?
+> 
+>     I think it's mostly a language barrier. The doc talks about of how
+> the kernel handles the memory, but leaves userland people 'watching from
+> outside the fence'. From the sysadmin and non-kernel developer (that not
+> necesarily knows all the kinds of things that can be done with
+> malloc/mmap/shem/&c) point of view, this is what I think the doc refers
+> to:
+> 
+> > How It Works
+> > ------------
+> > 
+> > The overcommit is based on the following rules
+> > 
+> > For a file backed map
+> 
+>     mmaps. are there more?
 
+    answering myself: yes, code maps behave like this.
+
+> >     SHARED or READ-only	-	0 cost (the file is the map not swap)
+> >     PRIVATE WRITABLE	-	size of mapping per instance
+
+    code is not writable, so only private writable mmaps are left. I
+wonder why shared writable are accounted.
+
+> > For an anonymous 
+> 
+>     malloc'ed memory
+> 
+> > or /dev/zero map
+> 
+>     hmmm, (read only?) mmap'ing on top of /dev/zero?
+> 
+> >     SHARED			-	size of mapping
+> 
+>     a shared anonymous memory is a shm?
+> 
+> >     PRIVATE READ-only	-	0 cost (but of little use)
+> >     PRIVATE WRITABLE	-	size of mapping per instance
+> 
+>     I can't translate these two terms, unless the latter is the one
+> refering specifically to mmalloc's. I wonder how could create several
+> intances of the 'same' mapping in that case. forks?
+> 
+> > Additional accounting
+> >     Pages made writable copies by mmap
+> 
+>     Hmmm, copy-on-write pages for when you write in a shared mmap? I'm
+> wild guessing here, even when what I say doesn't make any sense.
+> 
+> >     shmfs memory drawn from the same pool
+> 
+>     Beats me.
 [...]
-> > > > +	MMU_ISDIRTY,
-> > > 
-> > > This MMU_ISDIRTY seems like a problem to me. First of all, it looks 
-> > > backwards: the only place that invokes it is the clear_refs_write() 
-> > > routine, for the soft-dirty tracking feature. And in that case, the pages 
-> > > are *not* being made dirty! Rather, the kernel is actually making the 
-> > > pages non-writable, in order to be able to trap the subsequent page fault 
-> > > and figure out if the page is in active use.
-> > > 
-> > > So, given that there is only one call site, and that call site should 
-> > > actually be setting MMU_WRITE_PROTECT instead (I think), let's just delete 
-> > > MMU_ISDIRTY.
-> > > 
-> > > Come to think about it, there is no callback possible for "a page became 
-> > > dirty", anyway. Because the dirty and accessed bits are actually set by 
-> > > the hardware, and software is generally unable to know the current state.
-> > > So MMU_ISDIRTY just seems inappropriate to me, across the board.
-> > > 
-> > > I'll take a look at the corresponding HMM_ISDIRTY, too.
-> > 
-> > Ok i need to rename that one to CLEAR_SOFT_DIRTY, the idea is that
-> > for HMM i would rather not write protect the memory for the device
-> > and just rely on the regular and conservative dirtying of page. The
-> > soft dirty is really for migrating a process where you first clear
-> > the soft dirty bit, then copy memory while process still running,
-> > then freeze process an only copy memory that was dirtied since
-> > first copy. Point being that adding soft dirty to HMM is something
-> > that can be done down the road. We should have enough bit inside
-> > the device page table for that.
-> > 
-> 
-> Yes, I think renaming it to CLEAR_SOFT_DIRTY will definitely allow more 
-> accurate behavior in response to these events.
-> 
-> Looking ahead, a couple things:
-> 
-> 1. This mechanism is also used for general memory utilization tracking (I 
-> see that Vladimir DavyDov has an "idle memory tracking" proposal that 
-> assumes this works, for example: https://lwn.net/Articles/642202/ and 
-> https://lkml.org/lkml/2015/5/12/449).
-> 
-> 2. It seems hard to avoid the need to eventually just write protect the 
-> page, whether it is on the CPU or the remote device, if things like device 
-> drivers or user space need to track write accesses to a virtual address. 
-> Either you write protect the page, and trap the page faults, or you wait 
-> until later and read the dirty bit (indirectly, via something like 
-> unmap_mapping_range). Or did you have something else in mind?
-> 
-> Anyway, none of that needs to hold up this part of the patchset, because 
-> the renaming fixes things up for the future code to do the right thing.
+>     Now it seems too simple! What I'm missing? :) Cheers,
 
-I will go over Vladimir patchset it was on my radar but haven't had yet a
-chance to go over it. We will likely need to do the write protect for device
-too. But as you said this is not an issue that this patch need a fix for,
-only HMM would need to change. I will do that.
+    untrue, I'm still in the dark on what those mean. maybe someone can
+translate those terms to userland terms? malloc, shm, mmap, code maps?
+probably I'm missing some.
 
+    cheers,
 
-[...]
-> > > We may have to add MMU_READ_WRITE (and maybe another one, I haven't 
-> > > bottomed out on that), if you agree with the above approach of 
-> > > always sending a precise event, instead of "protection changed".
-> > 
-> > I think Linus point made sense last time, but i would need to read
-> > again the thread. The idea of that patch is really to provide context
-> > information on what kind of CPU page table changes is happening and
-> > why.
-> >
-> 
-> Shoot, I tried to find that conversation, but my search foo is too weak. 
-> If you have a link to that thread, I'd appreciate it, so I can refresh my 
-> memory.
-> 
-> I was hoping to re-read it and see if anything has changed. It's not 
-> really a huge problem to call find_vma() again, but I do want to be sure 
-> that there's a good reason for doing so.
->  
-> Otherwise, I'll just rely on your memory that Linus preferred your current 
-> approach, and call it good, then.
-
-http://lkml.iu.edu/hypermail/linux/kernel/1406.3/04880.html
-
-I am working on doing some of the changes discussed so far, i will push my
-tree to git://people.freedesktop.org/~glisse/linux hmm branch once i am done.
-
-Cheers,
-Jerome
+        -- Marcos.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
