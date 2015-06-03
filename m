@@ -1,30 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 865C0900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 09:28:41 -0400 (EDT)
-Received: by wgv5 with SMTP id 5so9261241wgv.1
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 06:28:41 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gf1si1919770wib.52.2015.06.03.06.28.39
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 53673900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 09:36:08 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so7832443pdb.0
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 06:36:07 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id gb5si1073055pbb.25.2015.06.03.06.36.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 03 Jun 2015 06:28:39 -0700 (PDT)
-Date: Wed, 3 Jun 2015 15:28:37 +0200
-From: Michal Hocko <mhocko@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 03 Jun 2015 06:36:06 -0700 (PDT)
 Subject: Re: [RFC 0/2] mapping_gfp_mask from the page fault path
-Message-ID: <20150603132837.GB16201@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 References: <1433163603-13229-1-git-send-email-mhocko@suse.cz>
- <20150602132241.26fbbc98be71920da8485b73@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+	<20150602132241.26fbbc98be71920da8485b73@linux-foundation.org>
 In-Reply-To: <20150602132241.26fbbc98be71920da8485b73@linux-foundation.org>
+Message-Id: <201506032204.GAI56216.OOSVJHFLOQtMFF@I-love.SAKURA.ne.jp>
+Date: Wed, 3 Jun 2015 22:04:22 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org
+To: akpm@linux-foundation.org, mhocko@suse.cz
+Cc: linux-mm@kvack.org, david@fromorbit.com, neilb@suse.de, hannes@cmpxchg.org, viro@zeniv.linux.org.uk, mgorman@suse.de, riel@redhat.com, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On Tue 02-06-15 13:22:41, Andrew Morton wrote:
+Andrew Morton wrote:
 > On Mon,  1 Jun 2015 15:00:01 +0200 Michal Hocko <mhocko@suse.cz> wrote:
 > 
 > > I somehow forgot about these patches. The previous version was
@@ -44,15 +43,43 @@ On Tue 02-06-15 13:22:41, Andrew Morton wrote:
 > actually start using GFP_NOFS from within page_cache_read() etc.  The
 > weaker allocation mode might cause problems.
 
-They are using the weaker allocation mode in this context already
-because page_cache_alloc_cold is obeying mapping gfp mask. So all this
-patch does is to make sure that add_to_page_cache_lru gfp_maks is in
-sync with other allocations. So I do not see why this would be a
-problem. Quite opposite if the function was called from a real GFP_NOFS
-context we could deadlock with the current code.
--- 
-Michal Hocko
-SUSE Labs
+If [1/2] is applied, the OOM killer will be disabled until [2/2] is also
+applied because !__GFP_FS allocations does not invoke the OOM killer.
+But both __GFP_FS allocations (e.g. GFP_KERNEL) and !__GFP_FS allocations
+(e.g. GFP_NOFS) apply "loop forever unless order > PAGE_ALLOC_COSTLY_ORDER
+or GFP_NORETRY is given or chosen as an OOM victim" rule. And the problem
+which silently hang up the system unless we choose an OOM victim is outside
+of these patches' scope.
+
+By the way,
+
+Michal Hocko wrote:
+> Initialize the default to (mapping_gfp_mask | GFP_IOFS) because this
+> should be safe from the page fault path normally. Why do we care
+> about mapping_gfp_mask at all then? Because this doesn't hold only
+> reclaim protection flags but it also might contain zone and movability
+> restrictions (GFP_DMA32, __GFP_MOVABLE and others) so we have to respect
+> those.
+
+[2/2] says that mapping_gfp_mask(mapping) might contain bits which are not
+in !GFP_KERNEL. If we do
+
+  GFP_KERNEL & mapping_gfp_mask(mapping)
+
+we will drop such bits and will cause problems. Thus, "GFP_KERNEL"
+in patch [1/1] should be replaced with "mapping_gfp_mask(mapping)" than
+"GFP_KERNEL & mapping_gfp_mask(mapping)" ?
+
+Well, maybe we should define GFP_NOIO, GFP_NOFS, GFP_KERNEL like
+
+  #define __GFP_NOWAIT      ((__force gfp_t)___GFP_NOWAIT)    /* Can not wait and reschedule */
+  #define __GFP_NOIO        ((__force gfp_t)___GFP_NOIO)      /* Can not start physical IO */
+  #define __GFP_NOFS        ((__force gfp_t)___GFP_NOFS)      /* Can not call down to low-level FS */
+  #define GFP_NOIO          (__GFP_NOFS | __GFP_NOIO)
+  #define GFP_NOFS          (__GFP_NOFS)
+  #define GFP_KERNEL        (0)
+
+so that __GFP_* bits represent requirements than permissions?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
