@@ -1,67 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com [209.85.220.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A30C900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 08:55:29 -0400 (EDT)
-Received: by qkoo18 with SMTP id o18so4387167qko.1
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 05:55:29 -0700 (PDT)
-Received: from mail-qk0-x230.google.com (mail-qk0-x230.google.com. [2607:f8b0:400d:c09::230])
-        by mx.google.com with ESMTPS id o7si481110qhb.69.2015.06.03.05.55.28
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 865C0900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 09:28:41 -0400 (EDT)
+Received: by wgv5 with SMTP id 5so9261241wgv.1
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 06:28:41 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gf1si1919770wib.52.2015.06.03.06.28.39
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jun 2015 05:55:28 -0700 (PDT)
-Received: by qkhg32 with SMTP id g32so4378377qkh.0
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 05:55:28 -0700 (PDT)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 03 Jun 2015 06:28:39 -0700 (PDT)
+Date: Wed, 3 Jun 2015 15:28:37 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 0/2] mapping_gfp_mask from the page fault path
+Message-ID: <20150603132837.GB16201@dhcp22.suse.cz>
+References: <1433163603-13229-1-git-send-email-mhocko@suse.cz>
+ <20150602132241.26fbbc98be71920da8485b73@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20150603035608.GA1652@swordfish>
-References: <1433264166-31452-1-git-send-email-ddstreet@ieee.org>
- <1433279395.4861.100.camel@perches.com> <CALZtONBVobxH--GGGdJaETScMorHKCY5ferHct74B79QDNDb4w@mail.gmail.com>
- <1433280616.4861.102.camel@perches.com> <20150603035608.GA1652@swordfish>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Wed, 3 Jun 2015 08:55:05 -0400
-Message-ID: <CALZtOND5TgiFgA-j7igmuiCx+MZN9d08BshQYiwPqpQTiXiqXg@mail.gmail.com>
-Subject: Re: [PATCH] MAINTAINERS: add zpool
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150602132241.26fbbc98be71920da8485b73@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Joe Perches <joe@perches.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org
 
-On Tue, Jun 2, 2015 at 11:56 PM, Sergey Senozhatsky
-<sergey.senozhatsky.work@gmail.com> wrote:
-> On (06/02/15 14:30), Joe Perches wrote:
->> > >> +ZPOOL COMPRESSED PAGE STORAGE API
->> > >> +M:   Dan Streetman <ddstreet@ieee.org>
->> > >> +L:   linux-mm@kvack.org
->> > >> +S:   Maintained
->> > >> +F:   mm/zpool.c
->> > >> +F:   include/linux/zpool.h
->> > >
->> > > If zpool.h is only included from files in mm/,
->> > > maybe zpool.h should be moved to mm/ ?
->> >
->> > It *could* be included by others, e.g. drivers/block/zram.
->> >
->> > It currently is only used by zswap though, so yeah it could be moved
->> > to mm/.  Should I move it there, until (if ever) anyone outside of mm/
->> > wants to use it?
->>
->> Up to you.
->>
->> I think include/linux is a bit overstuffed and
->> whatever can be include local should be.
->>
->
-> Hi,
->
-> I agree, can be local for now. if zram will ever want to use zpool
-> then we will move zpool.h to include/linux. just my 5 cents.
+On Tue 02-06-15 13:22:41, Andrew Morton wrote:
+> On Mon,  1 Jun 2015 15:00:01 +0200 Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > I somehow forgot about these patches. The previous version was
+> > posted here: http://marc.info/?l=linux-mm&m=142668784122763&w=2. The
+> > first attempt was broken but even when fixed it seems like ignoring
+> > mapping_gfp_mask in page_cache_read is too fragile because
+> > filesystems might use locks in their filemap_fault handlers
+> > which could trigger recursion problems as pointed out by Dave
+> > http://marc.info/?l=linux-mm&m=142682332032293&w=2.
+> > 
+> > The first patch should be straightforward fix to obey mapping_gfp_mask
+> > when allocating for mapping. It can be applied even without the second
+> > one.
+> 
+> I'm not so sure about that.  If only [1/2] is applied then those
+> filesystems which are setting mapping_gfp_mask to GFP_NOFS will now
+> actually start using GFP_NOFS from within page_cache_read() etc.  The
+> weaker allocation mode might cause problems.
 
-Ok.  I'll send a patch to move it from include/linux to mm/ and update
-the drivers there that include it.
-
-
->
->         -ss
+They are using the weaker allocation mode in this context already
+because page_cache_alloc_cold is obeying mapping gfp mask. So all this
+patch does is to make sure that add_to_page_cache_lru gfp_maks is in
+sync with other allocations. So I do not see why this would be a
+problem. Quite opposite if the function was called from a real GFP_NOFS
+context we could deadlock with the current code.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
