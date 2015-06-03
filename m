@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 66E1F900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 13:07:06 -0400 (EDT)
-Received: by pdjm12 with SMTP id m12so11580654pdj.3
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 10:07:06 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id g3si1862402pdo.21.2015.06.03.10.06.50
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E5C2900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 13:07:08 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so11639784pdb.1
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 10:07:08 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id kn10si1765080pbd.243.2015.06.03.10.06.59
         for <linux-mm@kvack.org>;
-        Wed, 03 Jun 2015 10:06:50 -0700 (PDT)
+        Wed, 03 Jun 2015 10:06:59 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 05/36] mm: adjust FOLL_SPLIT for new refcounting
-Date: Wed,  3 Jun 2015 20:05:36 +0300
-Message-Id: <1433351167-125878-6-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 28/36] mm, numa: skip PTE-mapped THP on numa fault
+Date: Wed,  3 Jun 2015 20:05:59 +0300
+Message-Id: <1433351167-125878-29-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1433351167-125878-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1433351167-125878-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,107 +19,32 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We need to prepare kernel to allow transhuge pages to be mapped with
-ptes too. We need to handle FOLL_SPLIT in follow_page_pte().
-
-Also we use split_huge_page() directly instead of split_huge_page_pmd().
-split_huge_page_pmd() will gone.
+We're going to have THP mapped with PTEs. It will confuse numabalancing.
+Let's skip them for now.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Tested-by: Sasha Levin <sasha.levin@oracle.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/gup.c | 67 +++++++++++++++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 49 insertions(+), 18 deletions(-)
+ mm/memory.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 6297f6bccfb1..2dd6706ea29f 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -79,6 +79,19 @@ retry:
- 		page = pte_page(pte);
+diff --git a/mm/memory.c b/mm/memory.c
+index cdc20d674675..89dae13db3d3 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3179,6 +3179,12 @@ static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		return 0;
  	}
  
-+	if (flags & FOLL_SPLIT && PageTransCompound(page)) {
-+		int ret;
-+		get_page(page);
++	/* TODO: handle PTE-mapped THP */
++	if (PageCompound(page)) {
 +		pte_unmap_unlock(ptep, ptl);
-+		lock_page(page);
-+		ret = split_huge_page(page);
-+		unlock_page(page);
-+		put_page(page);
-+		if (ret)
-+			return ERR_PTR(ret);
-+		goto retry;
++		return 0;
 +	}
 +
- 	if (flags & FOLL_GET)
- 		get_page_foll(page);
- 	if (flags & FOLL_TOUCH) {
-@@ -186,27 +199,45 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
- 	}
- 	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
- 		return no_page_table(vma, flags);
--	if (pmd_trans_huge(*pmd)) {
--		if (flags & FOLL_SPLIT) {
-+	if (likely(!pmd_trans_huge(*pmd)))
-+		return follow_page_pte(vma, address, pmd, flags);
-+
-+	ptl = pmd_lock(mm, pmd);
-+	if (unlikely(!pmd_trans_huge(*pmd))) {
-+		spin_unlock(ptl);
-+		return follow_page_pte(vma, address, pmd, flags);
-+	}
-+
-+	if (unlikely(pmd_trans_splitting(*pmd))) {
-+		spin_unlock(ptl);
-+		wait_split_huge_page(vma->anon_vma, pmd);
-+		return follow_page_pte(vma, address, pmd, flags);
-+	}
-+
-+	if (flags & FOLL_SPLIT) {
-+		int ret;
-+		page = pmd_page(*pmd);
-+		if (is_huge_zero_page(page)) {
-+			spin_unlock(ptl);
-+			ret = 0;
- 			split_huge_page_pmd(vma, address, pmd);
--			return follow_page_pte(vma, address, pmd, flags);
--		}
--		ptl = pmd_lock(mm, pmd);
--		if (likely(pmd_trans_huge(*pmd))) {
--			if (unlikely(pmd_trans_splitting(*pmd))) {
--				spin_unlock(ptl);
--				wait_split_huge_page(vma->anon_vma, pmd);
--			} else {
--				page = follow_trans_huge_pmd(vma, address,
--							     pmd, flags);
--				spin_unlock(ptl);
--				*page_mask = HPAGE_PMD_NR - 1;
--				return page;
--			}
--		} else
-+		} else {
-+			get_page(page);
- 			spin_unlock(ptl);
-+			lock_page(page);
-+			ret = split_huge_page(page);
-+			unlock_page(page);
-+			put_page(page);
-+		}
-+
-+		return ret ? ERR_PTR(ret) :
-+			follow_page_pte(vma, address, pmd, flags);
- 	}
--	return follow_page_pte(vma, address, pmd, flags);
-+
-+	page = follow_trans_huge_pmd(vma, address, pmd, flags);
-+	spin_unlock(ptl);
-+	*page_mask = HPAGE_PMD_NR - 1;
-+	return page;
- }
- 
- static int get_gate_page(struct mm_struct *mm, unsigned long address,
+ 	/*
+ 	 * Avoid grouping on RO pages in general. RO pages shouldn't hurt as
+ 	 * much anyway since they can be in shared cache state. This misses
 -- 
 2.1.4
 
