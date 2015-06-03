@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id CD8D3900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 13:06:30 -0400 (EDT)
-Received: by pdbnf5 with SMTP id nf5so11639495pdb.2
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 10:06:30 -0700 (PDT)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 06FB2900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 13:06:33 -0400 (EDT)
+Received: by payr10 with SMTP id r10so11228787pay.1
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 10:06:32 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id yr1si1835637pbc.78.2015.06.03.10.06.27
+        by mx.google.com with ESMTP id fl4si1824970pab.108.2015.06.03.10.06.27
         for <linux-mm@kvack.org>;
         Wed, 03 Jun 2015 10:06:28 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 18/36] arm, thp: remove infrastructure for handling splitting PMDs
-Date: Wed,  3 Jun 2015 20:05:49 +0300
-Message-Id: <1433351167-125878-19-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 20/36] powerpc, thp: remove infrastructure for handling splitting PMDs
+Date: Wed,  3 Jun 2015 20:05:51 +0300
+Message-Id: <1433351167-125878-21-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1433351167-125878-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1433351167-125878-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -28,89 +28,187 @@ needed for fast_gup.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/arm/include/asm/pgtable-3level.h | 10 ----------
- arch/arm/lib/uaccess_with_memcpy.c    |  5 ++---
- arch/arm/mm/flush.c                   | 15 ---------------
- 3 files changed, 2 insertions(+), 28 deletions(-)
+ arch/powerpc/include/asm/kvm_book3s_64.h |  6 ----
+ arch/powerpc/include/asm/pgtable-ppc64.h | 25 +---------------
+ arch/powerpc/mm/hugepage-hash64.c        |  3 --
+ arch/powerpc/mm/hugetlbpage.c            |  7 +----
+ arch/powerpc/mm/pgtable_64.c             | 49 --------------------------------
+ 5 files changed, 2 insertions(+), 88 deletions(-)
 
-diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
-index 6d6012a320b2..d42f81f13618 100644
---- a/arch/arm/include/asm/pgtable-3level.h
-+++ b/arch/arm/include/asm/pgtable-3level.h
-@@ -88,7 +88,6 @@
- 
- #define L_PMD_SECT_VALID	(_AT(pmdval_t, 1) << 0)
- #define L_PMD_SECT_DIRTY	(_AT(pmdval_t, 1) << 55)
--#define L_PMD_SECT_SPLITTING	(_AT(pmdval_t, 1) << 56)
- #define L_PMD_SECT_NONE		(_AT(pmdval_t, 1) << 57)
- #define L_PMD_SECT_RDONLY	(_AT(pteval_t, 1) << 58)
- 
-@@ -232,21 +231,12 @@ static inline pte_t pte_mkspecial(pte_t pte)
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- #define pmd_trans_huge(pmd)	(pmd_val(pmd) && !pmd_table(pmd))
--#define pmd_trans_splitting(pmd) (pmd_isset((pmd), L_PMD_SECT_SPLITTING))
--
--#ifdef CONFIG_HAVE_RCU_TABLE_FREE
--#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
--void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
--			  pmd_t *pmdp);
--#endif
--#endif
- 
- #define PMD_BIT_FUNC(fn,op) \
- static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
- 
- PMD_BIT_FUNC(wrprotect,	|= L_PMD_SECT_RDONLY);
- PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
--PMD_BIT_FUNC(mksplitting, |= L_PMD_SECT_SPLITTING);
- PMD_BIT_FUNC(mkwrite,   &= ~L_PMD_SECT_RDONLY);
- PMD_BIT_FUNC(mkdirty,   |= L_PMD_SECT_DIRTY);
- PMD_BIT_FUNC(mkclean,   &= ~L_PMD_SECT_DIRTY);
-diff --git a/arch/arm/lib/uaccess_with_memcpy.c b/arch/arm/lib/uaccess_with_memcpy.c
-index 3e58d710013c..11af98f46f05 100644
---- a/arch/arm/lib/uaccess_with_memcpy.c
-+++ b/arch/arm/lib/uaccess_with_memcpy.c
-@@ -52,14 +52,13 @@ pin_page_for_write(const void __user *_addr, pte_t **ptep, spinlock_t **ptlp)
- 	 *
- 	 * Lock the page table for the destination and check
- 	 * to see that it's still huge and whether or not we will
--	 * need to fault on write, or if we have a splitting THP.
-+	 * need to fault on write.
- 	 */
- 	if (unlikely(pmd_thp_or_huge(*pmd))) {
- 		ptl = &current->mm->page_table_lock;
- 		spin_lock(ptl);
- 		if (unlikely(!pmd_thp_or_huge(*pmd)
--			|| pmd_hugewillfault(*pmd)
--			|| pmd_trans_splitting(*pmd))) {
-+			|| pmd_hugewillfault(*pmd))) {
- 			spin_unlock(ptl);
- 			return 0;
+diff --git a/arch/powerpc/include/asm/kvm_book3s_64.h b/arch/powerpc/include/asm/kvm_book3s_64.h
+index 2d81e202bdcc..9a96fe3caa48 100644
+--- a/arch/powerpc/include/asm/kvm_book3s_64.h
++++ b/arch/powerpc/include/asm/kvm_book3s_64.h
+@@ -298,12 +298,6 @@ static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing,
+ 			cpu_relax();
+ 			continue;
  		}
-diff --git a/arch/arm/mm/flush.c b/arch/arm/mm/flush.c
-index 34b66af516ea..77f229302032 100644
---- a/arch/arm/mm/flush.c
-+++ b/arch/arm/mm/flush.c
-@@ -400,18 +400,3 @@ void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned l
- 	 */
- 	__cpuc_flush_dcache_area(page_address(page), PAGE_SIZE);
- }
--
 -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
--#ifdef CONFIG_HAVE_RCU_TABLE_FREE
--void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
--			  pmd_t *pmdp)
--{
--	pmd_t pmd = pmd_mksplitting(*pmdp);
--	VM_BUG_ON(address & ~PMD_MASK);
--	set_pmd_at(vma->vm_mm, address, pmdp, pmd);
+-		/* If hugepage and is trans splitting return None */
+-		if (unlikely(hugepage &&
+-			     pmd_trans_splitting(pte_pmd(old_pte))))
+-			return __pte(0);
+-#endif
+ 		/* If pte is not present return None */
+ 		if (unlikely(!(old_pte & _PAGE_PRESENT)))
+ 			return __pte(0);
+diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
+index 012e3adab7f8..5729b303d206 100644
+--- a/arch/powerpc/include/asm/pgtable-ppc64.h
++++ b/arch/powerpc/include/asm/pgtable-ppc64.h
+@@ -358,11 +358,6 @@ void pgtable_cache_init(void);
+ #endif /* __ASSEMBLY__ */
+ 
+ /*
+- * THP pages can't be special. So use the _PAGE_SPECIAL
+- */
+-#define _PAGE_SPLITTING _PAGE_SPECIAL
 -
--	/* dummy IPI to serialise against fast_gup */
+-/*
+  * We need to differentiate between explicit huge page and THP huge
+  * page, since THP huge page also need to track real subpage details
+  */
+@@ -372,8 +367,7 @@ void pgtable_cache_init(void);
+  * set of bits not changed in pmd_modify.
+  */
+ #define _HPAGE_CHG_MASK (PTE_RPN_MASK | _PAGE_HPTEFLAGS |		\
+-			 _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_SPLITTING | \
+-			 _PAGE_THP_HUGE)
++			 _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_THP_HUGE)
+ 
+ #ifndef __ASSEMBLY__
+ /*
+@@ -455,13 +449,6 @@ static inline int pmd_trans_huge(pmd_t pmd)
+ 	return (pmd_val(pmd) & 0x3) && (pmd_val(pmd) & _PAGE_THP_HUGE);
+ }
+ 
+-static inline int pmd_trans_splitting(pmd_t pmd)
+-{
+-	if (pmd_trans_huge(pmd))
+-		return pmd_val(pmd) & _PAGE_SPLITTING;
+-	return 0;
+-}
+-
+ extern int has_transparent_hugepage(void);
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 
+@@ -514,12 +501,6 @@ static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+ 	return pmd;
+ }
+ 
+-static inline pmd_t pmd_mksplitting(pmd_t pmd)
+-{
+-	pmd_val(pmd) |= _PAGE_SPLITTING;
+-	return pmd;
+-}
+-
+ #define __HAVE_ARCH_PMD_SAME
+ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
+ {
+@@ -570,10 +551,6 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+ 	pmd_hugepage_update(mm, addr, pmdp, _PAGE_RW, 0);
+ }
+ 
+-#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+-extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+-				 unsigned long address, pmd_t *pmdp);
+-
+ #define pmdp_collapse_flush pmdp_collapse_flush
+ extern pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
+ 				 unsigned long address, pmd_t *pmdp);
+diff --git a/arch/powerpc/mm/hugepage-hash64.c b/arch/powerpc/mm/hugepage-hash64.c
+index 86686514ae13..078f7207afd2 100644
+--- a/arch/powerpc/mm/hugepage-hash64.c
++++ b/arch/powerpc/mm/hugepage-hash64.c
+@@ -39,9 +39,6 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
+ 		/* If PMD busy, retry the access */
+ 		if (unlikely(old_pmd & _PAGE_BUSY))
+ 			return 0;
+-		/* If PMD is trans splitting retry the access */
+-		if (unlikely(old_pmd & _PAGE_SPLITTING))
+-			return 0;
+ 		/* If PMD permissions don't match, take page fault */
+ 		if (unlikely(access & ~old_pmd))
+ 			return 1;
+diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
+index 5f979e51ef7b..a09ff52b906e 100644
+--- a/arch/powerpc/mm/hugetlbpage.c
++++ b/arch/powerpc/mm/hugetlbpage.c
+@@ -997,13 +997,8 @@ pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift
+ 			/*
+ 			 * A hugepage collapse is captured by pmd_none, because
+ 			 * it mark the pmd none and do a hpte invalidate.
+-			 *
+-			 * A hugepage split is captured by pmd_trans_splitting
+-			 * because we mark the pmd trans splitting and do a
+-			 * hpte invalidate
+-			 *
+ 			 */
+-			if (pmd_none(pmd) || pmd_trans_splitting(pmd))
++			if (pmd_none(pmd))
+ 				return NULL;
+ 
+ 			if (pmd_huge(pmd) || pmd_large(pmd)) {
+diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
+index 52c4827bceb0..7bad475bc235 100644
+--- a/arch/powerpc/mm/pgtable_64.c
++++ b/arch/powerpc/mm/pgtable_64.c
+@@ -614,55 +614,6 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
+ }
+ 
+ /*
+- * We mark the pmd splitting and invalidate all the hpte
+- * entries for this hugepage.
+- */
+-void pmdp_splitting_flush(struct vm_area_struct *vma,
+-			  unsigned long address, pmd_t *pmdp)
+-{
+-	unsigned long old, tmp;
+-
+-	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+-
+-#ifdef CONFIG_DEBUG_VM
+-	WARN_ON(!pmd_trans_huge(*pmdp));
+-	assert_spin_locked(&vma->vm_mm->page_table_lock);
+-#endif
+-
+-#ifdef PTE_ATOMIC_UPDATES
+-
+-	__asm__ __volatile__(
+-	"1:	ldarx	%0,0,%3\n\
+-		andi.	%1,%0,%6\n\
+-		bne-	1b \n\
+-		ori	%1,%0,%4 \n\
+-		stdcx.	%1,0,%3 \n\
+-		bne-	1b"
+-	: "=&r" (old), "=&r" (tmp), "=m" (*pmdp)
+-	: "r" (pmdp), "i" (_PAGE_SPLITTING), "m" (*pmdp), "i" (_PAGE_BUSY)
+-	: "cc" );
+-#else
+-	old = pmd_val(*pmdp);
+-	*pmdp = __pmd(old | _PAGE_SPLITTING);
+-#endif
+-	/*
+-	 * If we didn't had the splitting flag set, go and flush the
+-	 * HPTE entries.
+-	 */
+-	trace_hugepage_splitting(address, old);
+-	if (!(old & _PAGE_SPLITTING)) {
+-		/* We need to flush the hpte */
+-		if (old & _PAGE_HASHPTE)
+-			hpte_do_hugepage_flush(vma->vm_mm, address, pmdp, old);
+-	}
+-	/*
+-	 * This ensures that generic code that rely on IRQ disabling
+-	 * to prevent a parallel THP split work as expected.
+-	 */
 -	kick_all_cpus_sync();
 -}
--#endif /* CONFIG_HAVE_RCU_TABLE_FREE */
--#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+-
+-/*
+  * We want to put the pgtable in pmd and use pgtable for tracking
+  * the base page size hptes
+  */
 -- 
 2.1.4
 
