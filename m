@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F90B900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 02:15:50 -0400 (EDT)
-Received: by padjw17 with SMTP id jw17so107116pad.2
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 23:15:49 -0700 (PDT)
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AA30900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 02:15:53 -0400 (EDT)
+Received: by padj3 with SMTP id j3so186521pad.0
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2015 23:15:52 -0700 (PDT)
 Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id z1si30030476pda.165.2015.06.02.23.15.48
+        by mx.google.com with ESMTP id ua7si30051773pab.105.2015.06.02.23.15.51
         for <linux-mm@kvack.org>;
-        Tue, 02 Jun 2015 23:15:49 -0700 (PDT)
+        Tue, 02 Jun 2015 23:15:52 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC 2/6] mm: keep dirty bit on anonymous page migration
-Date: Wed,  3 Jun 2015 15:15:41 +0900
-Message-Id: <1433312145-19386-3-git-send-email-minchan@kernel.org>
+Subject: [RFC 4/6] mm: mark dirty bit on unuse_pte
+Date: Wed,  3 Jun 2015 15:15:43 +0900
+Message-Id: <1433312145-19386-5-git-send-email-minchan@kernel.org>
 In-Reply-To: <1433312145-19386-1-git-send-email-minchan@kernel.org>
 References: <1433312145-19386-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,38 +19,48 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>
 
-Currently, If VM migrates anonymous page, we lose dirty bit of
-page table entry. Instead, VM translates dirty bit of page table
-as PG_dirty of page flags. It was okay because dirty bit of
-page table for anonymous page was no matter to swap out.
-Instead, VM took care of PG_dirty.
+Basically, MADV_FREE relys on the dirty bit in page table entry
+to decide whether VM allows to discard the page or not.
+IOW, if page table entry includes marked dirty bit, VM shouldn't
+discard the page.
 
-However, with introducing MADV_FREE, it's important to keep
-page table's dirty bit because It could make MADV_FREE handling
-logics more straighforward without taking care of PG_dirty.
+However, if swapoff happens, page table entry point out the page
+doesn't have marked dirty bit so MADV_FREE might discard the page
+wrongly.
 
-This patch aims for preparing to remove PG_dirty check for MADV_FREE.
+To fix the problem, this patch marks page table entry of page
+as dirty when swapoff hanppens VM shouldn't discard the page
+suddenly under us.
 
+With MADV_FREE point of view, marking dirty unconditionally is
+no problem because we dropped swapped page in MADV_FREE sycall
+context(ie, Look at madvise_free_pte_range) so every swapping-in
+pages are no MADV_FREE hinted pages.
+
+Cc: Hugh Dickins <hughd@google.com>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/migrate.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ mm/swapfile.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 236ee25e79d9..add30c3aaaa9 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -151,6 +151,10 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
- 	if (is_write_migration_entry(entry))
- 		pte = maybe_mkwrite(pte, vma);
- 
-+	/* MADV_FREE relies on pte_dirty. */
-+	if (PageAnon(new))
-+		pte = pte_mkdirty(pte);
-+
- #ifdef CONFIG_HUGETLB_PAGE
- 	if (PageHuge(new)) {
- 		pte = pte_mkhuge(pte);
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index a7e72103f23b..cc8b79ab2190 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1118,8 +1118,12 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
+ 	dec_mm_counter(vma->vm_mm, MM_SWAPENTS);
+ 	inc_mm_counter(vma->vm_mm, MM_ANONPAGES);
+ 	get_page(page);
++	/*
++	 * For preventing sudden freeing by MADV_FREE, pte must have a
++	 * dirty flag.
++	 */
+ 	set_pte_at(vma->vm_mm, addr, pte,
+-		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
++		   pte_mkdirty(pte_mkold(mk_pte(page, vma->vm_page_prot))));
+ 	if (page == swapcache) {
+ 		page_add_anon_rmap(page, vma, addr);
+ 		mem_cgroup_commit_charge(page, memcg, true);
 -- 
 1.9.1
 
