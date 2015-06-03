@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 31260900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 17:37:16 -0400 (EDT)
-Received: by pdbki1 with SMTP id ki1so15882325pdb.1
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 14:37:15 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id yt2si2680064pbc.122.2015.06.03.14.37.13
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AAD0900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 17:37:22 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so15883757pdb.1
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 14:37:22 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id z8si2709333pas.64.2015.06.03.14.37.20
         for <linux-mm@kvack.org>;
-        Wed, 03 Jun 2015 14:37:14 -0700 (PDT)
-Subject: [PATCH v3 2/6] cleanup IORESOURCE_CACHEABLE vs ioremap()
+        Wed, 03 Jun 2015 14:37:21 -0700 (PDT)
+Subject: [PATCH v3 5/6] arch: introduce memremap_cache() and memremap_wt()
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 03 Jun 2015 17:34:23 -0400
-Message-ID: <20150603213423.13749.55822.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Wed, 03 Jun 2015 17:34:40 -0400
+Message-ID: <20150603213440.13749.1981.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <20150603211948.13749.85816.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <20150603211948.13749.85816.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -22,215 +22,663 @@ List-ID: <linux-mm.kvack.org>
 To: arnd@arndb.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org
 Cc: jgross@suse.com, x86@kernel.org, toshi.kani@hp.com, linux-nvdimm@lists.01.org, benh@kernel.crashing.org, mcgrof@suse.com, konrad.wilk@oracle.com, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, mpe@ellerman.id.au, tj@kernel.org, paulus@samba.org, hch@lst.de
 
-Quoting Arnd:
-    I was thinking the opposite approach and basically removing all uses
-    of IORESOURCE_CACHEABLE from the kernel. There are only a handful of
-    them.and we can probably replace them all with hardcoded
-    ioremap_cached() calls in the cases they are actually useful.
+Existing users of ioremap_cache() are mapping memory that is known in
+advance to not have i/o side effects.  These users are forced to cast
+away the __iomem annotation, or otherwise neglect to fix the sparse
+errors thrown when dereferencing pointers to this memory.  Provide
+memremap_*() as a non __iomem annotated ioremap_*().
 
-All existing usages of IORESOURCE_CACHEABLE call ioremap() instead of
-ioremap_nocache() if the resource is cacheable, however ioremap() is
-uncached by default.  Clearly none of the existing usages care about the
-cacheability, so let's clean that up before introducing generic
-ioremap_cache() support across architectures.
+The ARCH_HAS_MEMREMAP kconfig symbol is introduced for archs to assert
+that it is safe to recast / reuse the return value from ioremap as a
+normal pointer to memory.  In other words, archs that mandate specific
+accessors for __iomem are not memremap() capable and drivers that care,
+like pmem, can add a dependency to disable themselves on these archs.
 
-Suggested-by: Arnd Bergmann <arnd@arndb.de>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/arm/mach-clps711x/board-cdb89712.c |    2 +-
- arch/powerpc/kernel/pci_of_scan.c       |    2 +-
- arch/sparc/kernel/pci.c                 |    3 +--
- drivers/pci/probe.c                     |    3 +--
- drivers/pnp/manager.c                   |    2 --
- drivers/scsi/aic94xx/aic94xx_init.c     |    7 +------
- drivers/scsi/arcmsr/arcmsr_hba.c        |    5 +----
- drivers/scsi/mvsas/mv_init.c            |   15 ++++-----------
- drivers/video/fbdev/ocfb.c              |    1 -
- lib/devres.c                            |    7 ++-----
- lib/pci_iomap.c                         |    7 ++-----
- 11 files changed, 14 insertions(+), 40 deletions(-)
+ arch/arm/Kconfig                     |    1 +
+ arch/arm64/Kconfig                   |    1 +
+ arch/arm64/kernel/efi.c              |    4 ++-
+ arch/arm64/kernel/smp_spin_table.c   |   10 ++++----
+ arch/frv/Kconfig                     |    1 +
+ arch/m68k/Kconfig                    |    1 +
+ arch/metag/Kconfig                   |    1 +
+ arch/mips/Kconfig                    |    1 +
+ arch/powerpc/Kconfig                 |    1 +
+ arch/x86/Kconfig                     |    1 +
+ arch/x86/kernel/crash_dump_64.c      |    6 ++---
+ arch/x86/kernel/kdebugfs.c           |    8 +++----
+ arch/x86/kernel/ksysfs.c             |   28 ++++++++++++-----------
+ arch/x86/mm/ioremap.c                |   12 ++++------
+ arch/xtensa/Kconfig                  |    1 +
+ drivers/acpi/apei/einj.c             |    8 +++----
+ drivers/acpi/apei/erst.c             |    4 ++-
+ drivers/block/Kconfig                |    1 +
+ drivers/block/pmem.c                 |    7 +++---
+ drivers/firmware/google/memconsole.c |    4 ++-
+ include/linux/device.h               |    5 ++++
+ include/linux/io.h                   |    4 +++
+ kernel/resource.c                    |   41 +++++++++++++++++++++++++++++++++-
+ lib/Kconfig                          |    5 +++-
+ 24 files changed, 108 insertions(+), 48 deletions(-)
 
-diff --git a/arch/arm/mach-clps711x/board-cdb89712.c b/arch/arm/mach-clps711x/board-cdb89712.c
-index 1ec378c334e5..972abdb10028 100644
---- a/arch/arm/mach-clps711x/board-cdb89712.c
-+++ b/arch/arm/mach-clps711x/board-cdb89712.c
-@@ -95,7 +95,7 @@ static struct physmap_flash_data cdb89712_bootrom_pdata __initdata = {
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 45df48ba0b12..397426f8ca37 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -3,6 +3,7 @@ config ARM
+ 	default y
+ 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+ 	select ARCH_HAS_ELF_RANDOMIZE
++	select ARCH_HAS_MEMREMAP
+ 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
+ 	select ARCH_HAVE_CUSTOM_GPIO_H
+ 	select ARCH_HAS_GCOV_PROFILE_ALL
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 7796af4b1d6f..f07a9a5af61e 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -5,6 +5,7 @@ config ARM64
+ 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+ 	select ARCH_HAS_ELF_RANDOMIZE
+ 	select ARCH_HAS_GCOV_PROFILE_ALL
++	select ARCH_HAS_MEMREMAP
+ 	select ARCH_HAS_SG_CHAIN
+ 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
+ 	select ARCH_USE_CMPXCHG_LOCKREF
+diff --git a/arch/arm64/kernel/efi.c b/arch/arm64/kernel/efi.c
+index ab21e0d58278..b672ef33f08b 100644
+--- a/arch/arm64/kernel/efi.c
++++ b/arch/arm64/kernel/efi.c
+@@ -289,7 +289,7 @@ static int __init arm64_enable_runtime_services(void)
+ 	pr_info("Remapping and enabling EFI services.\n");
  
- static struct resource cdb89712_bootrom_resources[] __initdata = {
- 	DEFINE_RES_NAMED(CS7_PHYS_BASE, SZ_128, "BOOTROM", IORESOURCE_MEM |
--			 IORESOURCE_CACHEABLE | IORESOURCE_READONLY),
-+			 IORESOURCE_READONLY),
- };
+ 	mapsize = memmap.map_end - memmap.map;
+-	memmap.map = (__force void *)ioremap_cache((phys_addr_t)memmap.phys_map,
++	memmap.map = memremap_cache((phys_addr_t)memmap.phys_map,
+ 						   mapsize);
+ 	if (!memmap.map) {
+ 		pr_err("Failed to remap EFI memory map\n");
+@@ -298,7 +298,7 @@ static int __init arm64_enable_runtime_services(void)
+ 	memmap.map_end = memmap.map + mapsize;
+ 	efi.memmap = &memmap;
  
- static struct platform_device cdb89712_bootrom_pdev __initdata = {
-diff --git a/arch/powerpc/kernel/pci_of_scan.c b/arch/powerpc/kernel/pci_of_scan.c
-index 42e02a2d570b..d4726addff0b 100644
---- a/arch/powerpc/kernel/pci_of_scan.c
-+++ b/arch/powerpc/kernel/pci_of_scan.c
-@@ -102,7 +102,7 @@ static void of_pci_parse_addrs(struct device_node *node, struct pci_dev *dev)
- 			res = &dev->resource[(i - PCI_BASE_ADDRESS_0) >> 2];
- 		} else if (i == dev->rom_base_reg) {
- 			res = &dev->resource[PCI_ROM_RESOURCE];
--			flags |= IORESOURCE_READONLY | IORESOURCE_CACHEABLE;
-+			flags |= IORESOURCE_READONLY;
- 		} else {
- 			printk(KERN_ERR "PCI: bad cfg reg num 0x%x\n", i);
- 			continue;
-diff --git a/arch/sparc/kernel/pci.c b/arch/sparc/kernel/pci.c
-index 6f7251fd2eab..5c65de283ff6 100644
---- a/arch/sparc/kernel/pci.c
-+++ b/arch/sparc/kernel/pci.c
-@@ -231,8 +231,7 @@ static void pci_parse_of_addrs(struct platform_device *op,
- 			res = &dev->resource[(i - PCI_BASE_ADDRESS_0) >> 2];
- 		} else if (i == dev->rom_base_reg) {
- 			res = &dev->resource[PCI_ROM_RESOURCE];
--			flags |= IORESOURCE_READONLY | IORESOURCE_CACHEABLE
--			      | IORESOURCE_SIZEALIGN;
-+			flags |= IORESOURCE_READONLY | IORESOURCE_SIZEALIGN;
- 		} else {
- 			printk(KERN_ERR "PCI: bad cfg reg num 0x%x\n", i);
- 			continue;
-diff --git a/drivers/pci/probe.c b/drivers/pci/probe.c
-index 6675a7a1b9fc..bbc7f8f86051 100644
---- a/drivers/pci/probe.c
-+++ b/drivers/pci/probe.c
-@@ -326,8 +326,7 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
- 		struct resource *res = &dev->resource[PCI_ROM_RESOURCE];
- 		dev->rom_base_reg = rom;
- 		res->flags = IORESOURCE_MEM | IORESOURCE_PREFETCH |
--				IORESOURCE_READONLY | IORESOURCE_CACHEABLE |
--				IORESOURCE_SIZEALIGN;
-+				IORESOURCE_READONLY | IORESOURCE_SIZEALIGN;
- 		__pci_read_base(dev, pci_bar_mem32, res, rom);
- 	}
+-	efi.systab = (__force void *)ioremap_cache(efi_system_table,
++	efi.systab = memremap_cache(efi_system_table,
+ 						   sizeof(efi_system_table_t));
+ 	if (!efi.systab) {
+ 		pr_err("Failed to remap EFI System Table\n");
+diff --git a/arch/arm64/kernel/smp_spin_table.c b/arch/arm64/kernel/smp_spin_table.c
+index 14944e5b28da..893c8586e20f 100644
+--- a/arch/arm64/kernel/smp_spin_table.c
++++ b/arch/arm64/kernel/smp_spin_table.c
+@@ -67,18 +67,18 @@ static int smp_spin_table_cpu_init(struct device_node *dn, unsigned int cpu)
+ 
+ static int smp_spin_table_cpu_prepare(unsigned int cpu)
+ {
+-	__le64 __iomem *release_addr;
++	__le64 *release_addr;
+ 
+ 	if (!cpu_release_addr[cpu])
+ 		return -ENODEV;
+ 
+ 	/*
+ 	 * The cpu-release-addr may or may not be inside the linear mapping.
+-	 * As ioremap_cache will either give us a new mapping or reuse the
++	 * As memremap_cache will either give us a new mapping or reuse the
+ 	 * existing linear mapping, we can use it to cover both cases. In
+ 	 * either case the memory will be MT_NORMAL.
+ 	 */
+-	release_addr = ioremap_cache(cpu_release_addr[cpu],
++	release_addr = memremap_cache(cpu_release_addr[cpu],
+ 				     sizeof(*release_addr));
+ 	if (!release_addr)
+ 		return -ENOMEM;
+@@ -91,7 +91,7 @@ static int smp_spin_table_cpu_prepare(unsigned int cpu)
+ 	 * the boot protocol.
+ 	 */
+ 	writeq_relaxed(__pa(secondary_holding_pen), release_addr);
+-	__flush_dcache_area((__force void *)release_addr,
++	__flush_dcache_area(release_addr,
+ 			    sizeof(*release_addr));
+ 
+ 	/*
+@@ -99,7 +99,7 @@ static int smp_spin_table_cpu_prepare(unsigned int cpu)
+ 	 */
+ 	sev();
+ 
+-	iounmap(release_addr);
++	memunmap(release_addr);
+ 
+ 	return 0;
  }
-diff --git a/drivers/pnp/manager.c b/drivers/pnp/manager.c
-index 9357aa779048..7ad3295752ef 100644
---- a/drivers/pnp/manager.c
-+++ b/drivers/pnp/manager.c
-@@ -97,8 +97,6 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
- 	/* ??? rule->flags restricted to 8 bits, all tests bogus ??? */
- 	if (!(rule->flags & IORESOURCE_MEM_WRITEABLE))
- 		res->flags |= IORESOURCE_READONLY;
--	if (rule->flags & IORESOURCE_MEM_CACHEABLE)
--		res->flags |= IORESOURCE_CACHEABLE;
- 	if (rule->flags & IORESOURCE_MEM_RANGELENGTH)
- 		res->flags |= IORESOURCE_RANGELENGTH;
- 	if (rule->flags & IORESOURCE_MEM_SHADOWABLE)
-diff --git a/drivers/scsi/aic94xx/aic94xx_init.c b/drivers/scsi/aic94xx/aic94xx_init.c
-index 02a2512b76a8..1058a7b1e334 100644
---- a/drivers/scsi/aic94xx/aic94xx_init.c
-+++ b/drivers/scsi/aic94xx/aic94xx_init.c
-@@ -101,12 +101,7 @@ static int asd_map_memio(struct asd_ha_struct *asd_ha)
- 				   pci_name(asd_ha->pcidev));
- 			goto Err;
+diff --git a/arch/frv/Kconfig b/arch/frv/Kconfig
+index 34aa19352dc1..2373bf183527 100644
+--- a/arch/frv/Kconfig
++++ b/arch/frv/Kconfig
+@@ -14,6 +14,7 @@ config FRV
+ 	select OLD_SIGSUSPEND3
+ 	select OLD_SIGACTION
+ 	select HAVE_DEBUG_STACKOVERFLOW
++	select ARCH_HAS_MEMREMAP
+ 
+ config ZONE_DMA
+ 	bool
+diff --git a/arch/m68k/Kconfig b/arch/m68k/Kconfig
+index 2dd8f63bfbbb..831b1be8c43d 100644
+--- a/arch/m68k/Kconfig
++++ b/arch/m68k/Kconfig
+@@ -23,6 +23,7 @@ config M68K
+ 	select MODULES_USE_ELF_RELA
+ 	select OLD_SIGSUSPEND3
+ 	select OLD_SIGACTION
++	select ARCH_HAS_MEMREMAP
+ 
+ config RWSEM_GENERIC_SPINLOCK
+ 	bool
+diff --git a/arch/metag/Kconfig b/arch/metag/Kconfig
+index 0b389a81c43a..5669fe3eb807 100644
+--- a/arch/metag/Kconfig
++++ b/arch/metag/Kconfig
+@@ -24,6 +24,7 @@ config METAG
+ 	select HAVE_PERF_EVENTS
+ 	select HAVE_SYSCALL_TRACEPOINTS
+ 	select HAVE_UNDERSCORE_SYMBOL_PREFIX
++	select ARCH_HAS_MEMREMAP
+ 	select IRQ_DOMAIN
+ 	select MODULES_USE_ELF_RELA
+ 	select OF
+diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
+index f5016656494f..9ee35e615c0d 100644
+--- a/arch/mips/Kconfig
++++ b/arch/mips/Kconfig
+@@ -58,6 +58,7 @@ config MIPS
+ 	select SYSCTL_EXCEPTION_TRACE
+ 	select HAVE_VIRT_CPU_ACCOUNTING_GEN
+ 	select HAVE_IRQ_TIME_ACCOUNTING
++	select ARCH_HAS_MEMREMAP
+ 
+ menu "Machine selection"
+ 
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index 190cc48abc0c..73c1f8b1f022 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -153,6 +153,7 @@ config PPC
+ 	select NO_BOOTMEM
+ 	select HAVE_GENERIC_RCU_GUP
+ 	select HAVE_PERF_EVENTS_NMI if PPC64
++	select ARCH_HAS_MEMREMAP
+ 
+ config GENERIC_CSUM
+ 	def_bool CPU_LITTLE_ENDIAN
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 4eb0b0ffae85..cfda0b6d7698 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -102,6 +102,7 @@ config X86
+ 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+ 	select HAVE_ARCH_HUGE_VMAP if X86_64 || X86_PAE
+ 	select ARCH_HAS_SG_CHAIN
++	select ARCH_HAS_MEMREMAP
+ 	select CLKEVT_I8253
+ 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+ 	select GENERIC_IOMAP
+diff --git a/arch/x86/kernel/crash_dump_64.c b/arch/x86/kernel/crash_dump_64.c
+index afa64adb75ee..8e04011665fd 100644
+--- a/arch/x86/kernel/crash_dump_64.c
++++ b/arch/x86/kernel/crash_dump_64.c
+@@ -31,19 +31,19 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
+ 	if (!csize)
+ 		return 0;
+ 
+-	vaddr = ioremap_cache(pfn << PAGE_SHIFT, PAGE_SIZE);
++	vaddr = memremap_cache(pfn << PAGE_SHIFT, PAGE_SIZE);
+ 	if (!vaddr)
+ 		return -ENOMEM;
+ 
+ 	if (userbuf) {
+ 		if (copy_to_user(buf, vaddr + offset, csize)) {
+-			iounmap(vaddr);
++			memunmap(vaddr);
+ 			return -EFAULT;
  		}
--		if (io_handle->flags & IORESOURCE_CACHEABLE)
--			io_handle->addr = ioremap(io_handle->start,
--						  io_handle->len);
--		else
--			io_handle->addr = ioremap_nocache(io_handle->start,
--							  io_handle->len);
-+		io_handle->addr = ioremap(io_handle->start, io_handle->len);
- 		if (!io_handle->addr) {
- 			asd_printk("couldn't map MBAR%d of %s\n", i==0?0:1,
- 				   pci_name(asd_ha->pcidev));
-diff --git a/drivers/scsi/arcmsr/arcmsr_hba.c b/drivers/scsi/arcmsr/arcmsr_hba.c
-index 914c39f9f388..e4f77cad9fd8 100644
---- a/drivers/scsi/arcmsr/arcmsr_hba.c
-+++ b/drivers/scsi/arcmsr/arcmsr_hba.c
-@@ -259,10 +259,7 @@ static bool arcmsr_remap_pciregion(struct AdapterControlBlock *acb)
- 		addr = (unsigned long)pci_resource_start(pdev, 0);
- 		range = pci_resource_len(pdev, 0);
- 		flags = pci_resource_flags(pdev, 0);
--		if (flags & IORESOURCE_CACHEABLE)
--			mem_base0 = ioremap(addr, range);
--		else
--			mem_base0 = ioremap_nocache(addr, range);
-+		mem_base0 = ioremap(addr, range);
- 		if (!mem_base0) {
- 			pr_notice("arcmsr%d: memory mapping region fail\n",
- 				acb->host->host_no);
-diff --git a/drivers/scsi/mvsas/mv_init.c b/drivers/scsi/mvsas/mv_init.c
-index 53030b0e8015..c01ef5f538b1 100644
---- a/drivers/scsi/mvsas/mv_init.c
-+++ b/drivers/scsi/mvsas/mv_init.c
-@@ -325,13 +325,9 @@ int mvs_ioremap(struct mvs_info *mvi, int bar, int bar_ex)
- 			goto err_out;
+ 	} else
+ 		memcpy(buf, vaddr + offset, csize);
  
- 		res_flag_ex = pci_resource_flags(pdev, bar_ex);
--		if (res_flag_ex & IORESOURCE_MEM) {
--			if (res_flag_ex & IORESOURCE_CACHEABLE)
--				mvi->regs_ex = ioremap(res_start, res_len);
--			else
--				mvi->regs_ex = ioremap_nocache(res_start,
--						res_len);
--		} else
-+		if (res_flag_ex & IORESOURCE_MEM)
-+			mvi->regs_ex = ioremap(res_start, res_len);
-+		else
- 			mvi->regs_ex = (void *)res_start;
- 		if (!mvi->regs_ex)
- 			goto err_out;
-@@ -343,10 +339,7 @@ int mvs_ioremap(struct mvs_info *mvi, int bar, int bar_ex)
- 		goto err_out;
- 
- 	res_flag = pci_resource_flags(pdev, bar);
--	if (res_flag & IORESOURCE_CACHEABLE)
--		mvi->regs = ioremap(res_start, res_len);
--	else
--		mvi->regs = ioremap_nocache(res_start, res_len);
-+	mvi->regs = ioremap(res_start, res_len);
- 
- 	if (!mvi->regs) {
- 		if (mvi->regs_ex && (res_flag_ex & IORESOURCE_MEM))
-diff --git a/drivers/video/fbdev/ocfb.c b/drivers/video/fbdev/ocfb.c
-index de9819660ca0..c9293aea8ec3 100644
---- a/drivers/video/fbdev/ocfb.c
-+++ b/drivers/video/fbdev/ocfb.c
-@@ -325,7 +325,6 @@ static int ocfb_probe(struct platform_device *pdev)
- 		dev_err(&pdev->dev, "I/O resource request failed\n");
- 		return -ENXIO;
- 	}
--	res->flags &= ~IORESOURCE_CACHEABLE;
- 	fbdev->regs = devm_ioremap_resource(&pdev->dev, res);
- 	if (IS_ERR(fbdev->regs))
- 		return PTR_ERR(fbdev->regs);
-diff --git a/lib/devres.c b/lib/devres.c
-index fbe2aac522e6..f4001d90d24d 100644
---- a/lib/devres.c
-+++ b/lib/devres.c
-@@ -153,11 +153,8 @@ void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res)
- 		return IOMEM_ERR_PTR(-EBUSY);
- 	}
- 
--	if (res->flags & IORESOURCE_CACHEABLE)
--		dest_ptr = devm_ioremap(dev, res->start, size);
--	else
--		dest_ptr = devm_ioremap_nocache(dev, res->start, size);
--
-+	/* FIXME: add devm_ioremap_cache support */
-+	dest_ptr = devm_ioremap(dev, res->start, size);
- 	if (!dest_ptr) {
- 		dev_err(dev, "ioremap failed for resource %pR\n", res);
- 		devm_release_mem_region(dev, res->start, size);
-diff --git a/lib/pci_iomap.c b/lib/pci_iomap.c
-index bcce5f149310..e1930dbab2da 100644
---- a/lib/pci_iomap.c
-+++ b/lib/pci_iomap.c
-@@ -41,11 +41,8 @@ void __iomem *pci_iomap_range(struct pci_dev *dev,
- 		len = maxlen;
- 	if (flags & IORESOURCE_IO)
- 		return __pci_ioport_map(dev, start, len);
--	if (flags & IORESOURCE_MEM) {
--		if (flags & IORESOURCE_CACHEABLE)
--			return ioremap(start, len);
--		return ioremap_nocache(start, len);
--	}
-+	if (flags & IORESOURCE_MEM)
-+		return ioremap(start, len);
- 	/* What? */
- 	return NULL;
+ 	set_iounmap_nonlazy();
+-	iounmap(vaddr);
++	memunmap(vaddr);
+ 	return csize;
  }
+diff --git a/arch/x86/kernel/kdebugfs.c b/arch/x86/kernel/kdebugfs.c
+index dc1404bf8e4b..731b10e2814f 100644
+--- a/arch/x86/kernel/kdebugfs.c
++++ b/arch/x86/kernel/kdebugfs.c
+@@ -49,7 +49,7 @@ static ssize_t setup_data_read(struct file *file, char __user *user_buf,
+ 	pa = node->paddr + sizeof(struct setup_data) + pos;
+ 	pg = pfn_to_page((pa + count - 1) >> PAGE_SHIFT);
+ 	if (PageHighMem(pg)) {
+-		p = ioremap_cache(pa, count);
++		p = memremap_cache(pa, count);
+ 		if (!p)
+ 			return -ENXIO;
+ 	} else
+@@ -58,7 +58,7 @@ static ssize_t setup_data_read(struct file *file, char __user *user_buf,
+ 	remain = copy_to_user(user_buf, p, count);
+ 
+ 	if (PageHighMem(pg))
+-		iounmap(p);
++		memunmap(p);
+ 
+ 	if (remain)
+ 		return -EFAULT;
+@@ -128,7 +128,7 @@ static int __init create_setup_data_nodes(struct dentry *parent)
+ 
+ 		pg = pfn_to_page((pa_data+sizeof(*data)-1) >> PAGE_SHIFT);
+ 		if (PageHighMem(pg)) {
+-			data = ioremap_cache(pa_data, sizeof(*data));
++			data = memremap_cache(pa_data, sizeof(*data));
+ 			if (!data) {
+ 				kfree(node);
+ 				error = -ENXIO;
+@@ -144,7 +144,7 @@ static int __init create_setup_data_nodes(struct dentry *parent)
+ 		pa_data = data->next;
+ 
+ 		if (PageHighMem(pg))
+-			iounmap(data);
++			memunmap(data);
+ 		if (error)
+ 			goto err_dir;
+ 		no++;
+diff --git a/arch/x86/kernel/ksysfs.c b/arch/x86/kernel/ksysfs.c
+index c2bedaea11f7..2fbc62886eae 100644
+--- a/arch/x86/kernel/ksysfs.c
++++ b/arch/x86/kernel/ksysfs.c
+@@ -16,8 +16,8 @@
+ #include <linux/stat.h>
+ #include <linux/slab.h>
+ #include <linux/mm.h>
++#include <linux/io.h>
+ 
+-#include <asm/io.h>
+ #include <asm/setup.h>
+ 
+ static ssize_t version_show(struct kobject *kobj,
+@@ -79,12 +79,12 @@ static int get_setup_data_paddr(int nr, u64 *paddr)
+ 			*paddr = pa_data;
+ 			return 0;
+ 		}
+-		data = ioremap_cache(pa_data, sizeof(*data));
++		data = memremap_cache(pa_data, sizeof(*data));
+ 		if (!data)
+ 			return -ENOMEM;
+ 
+ 		pa_data = data->next;
+-		iounmap(data);
++		memunmap(data);
+ 		i++;
+ 	}
+ 	return -EINVAL;
+@@ -97,17 +97,17 @@ static int __init get_setup_data_size(int nr, size_t *size)
+ 	u64 pa_data = boot_params.hdr.setup_data;
+ 
+ 	while (pa_data) {
+-		data = ioremap_cache(pa_data, sizeof(*data));
++		data = memremap_cache(pa_data, sizeof(*data));
+ 		if (!data)
+ 			return -ENOMEM;
+ 		if (nr == i) {
+ 			*size = data->len;
+-			iounmap(data);
++			memunmap(data);
+ 			return 0;
+ 		}
+ 
+ 		pa_data = data->next;
+-		iounmap(data);
++		memunmap(data);
+ 		i++;
+ 	}
+ 	return -EINVAL;
+@@ -127,12 +127,12 @@ static ssize_t type_show(struct kobject *kobj,
+ 	ret = get_setup_data_paddr(nr, &paddr);
+ 	if (ret)
+ 		return ret;
+-	data = ioremap_cache(paddr, sizeof(*data));
++	data = memremap_cache(paddr, sizeof(*data));
+ 	if (!data)
+ 		return -ENOMEM;
+ 
+ 	ret = sprintf(buf, "0x%x\n", data->type);
+-	iounmap(data);
++	memunmap(data);
+ 	return ret;
+ }
+ 
+@@ -154,7 +154,7 @@ static ssize_t setup_data_data_read(struct file *fp,
+ 	ret = get_setup_data_paddr(nr, &paddr);
+ 	if (ret)
+ 		return ret;
+-	data = ioremap_cache(paddr, sizeof(*data));
++	data = memremap_cache(paddr, sizeof(*data));
+ 	if (!data)
+ 		return -ENOMEM;
+ 
+@@ -170,15 +170,15 @@ static ssize_t setup_data_data_read(struct file *fp,
+ 		goto out;
+ 
+ 	ret = count;
+-	p = ioremap_cache(paddr + sizeof(*data), data->len);
++	p = memremap_cache(paddr + sizeof(*data), data->len);
+ 	if (!p) {
+ 		ret = -ENOMEM;
+ 		goto out;
+ 	}
+ 	memcpy(buf, p + off, count);
+-	iounmap(p);
++	memunmap(p);
+ out:
+-	iounmap(data);
++	memunmap(data);
+ 	return ret;
+ }
+ 
+@@ -250,13 +250,13 @@ static int __init get_setup_data_total_num(u64 pa_data, int *nr)
+ 	*nr = 0;
+ 	while (pa_data) {
+ 		*nr += 1;
+-		data = ioremap_cache(pa_data, sizeof(*data));
++		data = memremap_cache(pa_data, sizeof(*data));
+ 		if (!data) {
+ 			ret = -ENOMEM;
+ 			goto out;
+ 		}
+ 		pa_data = data->next;
+-		iounmap(data);
++		memunmap(data);
+ 	}
+ 
+ out:
+diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+index 8405c0c6a535..a6fee9e57ad2 100644
+--- a/arch/x86/mm/ioremap.c
++++ b/arch/x86/mm/ioremap.c
+@@ -408,18 +408,16 @@ void *xlate_dev_mem_ptr(phys_addr_t phys)
+ {
+ 	unsigned long start  = phys &  PAGE_MASK;
+ 	unsigned long offset = phys & ~PAGE_MASK;
+-	unsigned long vaddr;
++	void *vaddr;
+ 
+ 	/* If page is RAM, we can use __va. Otherwise ioremap and unmap. */
+ 	if (page_is_ram(start >> PAGE_SHIFT))
+ 		return __va(phys);
+ 
+-	vaddr = (unsigned long)ioremap_cache(start, PAGE_SIZE);
+-	/* Only add the offset on success and return NULL if the ioremap() failed: */
++	vaddr = memremap_cache(start, PAGE_SIZE);
+ 	if (vaddr)
+-		vaddr += offset;
+-
+-	return (void *)vaddr;
++		return vaddr + offset;
++	return NULL;
+ }
+ 
+ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
+@@ -427,7 +425,7 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
+ 	if (page_is_ram(phys >> PAGE_SHIFT))
+ 		return;
+ 
+-	iounmap((void __iomem *)((unsigned long)addr & PAGE_MASK));
++	memunmap((void *)((unsigned long)addr & PAGE_MASK));
+ 	return;
+ }
+ 
+diff --git a/arch/xtensa/Kconfig b/arch/xtensa/Kconfig
+index 87be10e8b57a..e601faf87cee 100644
+--- a/arch/xtensa/Kconfig
++++ b/arch/xtensa/Kconfig
+@@ -3,6 +3,7 @@ config ZONE_DMA
+ 
+ config XTENSA
+ 	def_bool y
++	select ARCH_HAS_MEMREMAP
+ 	select ARCH_WANT_FRAME_POINTERS
+ 	select ARCH_WANT_IPC_PARSE_VERSION
+ 	select ARCH_WANT_OPTIONAL_GPIOLIB
+diff --git a/drivers/acpi/apei/einj.c b/drivers/acpi/apei/einj.c
+index a095d4f858da..2ec9006cfb6c 100644
+--- a/drivers/acpi/apei/einj.c
++++ b/drivers/acpi/apei/einj.c
+@@ -318,7 +318,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
+ 			    sizeof(*trigger_tab) - 1);
+ 		goto out;
+ 	}
+-	trigger_tab = ioremap_cache(trigger_paddr, sizeof(*trigger_tab));
++	trigger_tab = memremap_cache(trigger_paddr, sizeof(*trigger_tab));
+ 	if (!trigger_tab) {
+ 		pr_err(EINJ_PFX "Failed to map trigger table!\n");
+ 		goto out_rel_header;
+@@ -346,8 +346,8 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
+ 		       (unsigned long long)trigger_paddr + table_size - 1);
+ 		goto out_rel_header;
+ 	}
+-	iounmap(trigger_tab);
+-	trigger_tab = ioremap_cache(trigger_paddr, table_size);
++	memunmap(trigger_tab);
++	trigger_tab = memremap_cache(trigger_paddr, table_size);
+ 	if (!trigger_tab) {
+ 		pr_err(EINJ_PFX "Failed to map trigger table!\n");
+ 		goto out_rel_entry;
+@@ -409,7 +409,7 @@ out_rel_header:
+ 	release_mem_region(trigger_paddr, sizeof(*trigger_tab));
+ out:
+ 	if (trigger_tab)
+-		iounmap(trigger_tab);
++		memunmap(trigger_tab);
+ 
+ 	return rc;
+ }
+diff --git a/drivers/acpi/apei/erst.c b/drivers/acpi/apei/erst.c
+index ed65e9c4b5b0..4432d6eaaa0a 100644
+--- a/drivers/acpi/apei/erst.c
++++ b/drivers/acpi/apei/erst.c
+@@ -76,7 +76,7 @@ static struct acpi_table_erst *erst_tab;
+ static struct erst_erange {
+ 	u64 base;
+ 	u64 size;
+-	void __iomem *vaddr;
++	void *vaddr;
+ 	u32 attr;
+ } erst_erange;
+ 
+@@ -1184,7 +1184,7 @@ static int __init erst_init(void)
+ 		goto err_unmap_reg;
+ 	}
+ 	rc = -ENOMEM;
+-	erst_erange.vaddr = ioremap_cache(erst_erange.base,
++	erst_erange.vaddr = memremap_cache(erst_erange.base,
+ 					  erst_erange.size);
+ 	if (!erst_erange.vaddr)
+ 		goto err_release_erange;
+diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
+index eb1fed5bd516..98418fc330ae 100644
+--- a/drivers/block/Kconfig
++++ b/drivers/block/Kconfig
+@@ -406,6 +406,7 @@ config BLK_DEV_RAM_DAX
+ 
+ config BLK_DEV_PMEM
+ 	tristate "Persistent memory block device support"
++	depends on ARCH_HAS_MEMREMAP
+ 	help
+ 	  Saying Y here will allow you to use a contiguous range of reserved
+ 	  memory as one or more persistent block devices.
+diff --git a/drivers/block/pmem.c b/drivers/block/pmem.c
+index 095dfaadcaa5..b00b97314b57 100644
+--- a/drivers/block/pmem.c
++++ b/drivers/block/pmem.c
+@@ -23,6 +23,7 @@
+ #include <linux/module.h>
+ #include <linux/moduleparam.h>
+ #include <linux/slab.h>
++#include <linux/io.h>
+ 
+ #define PMEM_MINORS		16
+ 
+@@ -143,7 +144,7 @@ static struct pmem_device *pmem_alloc(struct device *dev, struct resource *res)
+ 	 * of the CPU caches in case of a crash.
+ 	 */
+ 	err = -ENOMEM;
+-	pmem->virt_addr = ioremap_wt(pmem->phys_addr, pmem->size);
++	pmem->virt_addr = memremap_wt(pmem->phys_addr, pmem->size);
+ 	if (!pmem->virt_addr)
+ 		goto out_release_region;
+ 
+@@ -179,7 +180,7 @@ static struct pmem_device *pmem_alloc(struct device *dev, struct resource *res)
+ out_free_queue:
+ 	blk_cleanup_queue(pmem->pmem_queue);
+ out_unmap:
+-	iounmap(pmem->virt_addr);
++	memunmap(pmem->virt_addr);
+ out_release_region:
+ 	release_mem_region(pmem->phys_addr, pmem->size);
+ out_free_dev:
+@@ -193,7 +194,7 @@ static void pmem_free(struct pmem_device *pmem)
+ 	del_gendisk(pmem->pmem_disk);
+ 	put_disk(pmem->pmem_disk);
+ 	blk_cleanup_queue(pmem->pmem_queue);
+-	iounmap(pmem->virt_addr);
++	memunmap(pmem->virt_addr);
+ 	release_mem_region(pmem->phys_addr, pmem->size);
+ 	kfree(pmem);
+ }
+diff --git a/drivers/firmware/google/memconsole.c b/drivers/firmware/google/memconsole.c
+index 2f569aaed4c7..877433dc8297 100644
+--- a/drivers/firmware/google/memconsole.c
++++ b/drivers/firmware/google/memconsole.c
+@@ -52,14 +52,14 @@ static ssize_t memconsole_read(struct file *filp, struct kobject *kobp,
+ 	char *memconsole;
+ 	ssize_t ret;
+ 
+-	memconsole = ioremap_cache(memconsole_baseaddr, memconsole_length);
++	memconsole = memremap_cache(memconsole_baseaddr, memconsole_length);
+ 	if (!memconsole) {
+ 		pr_err("memconsole: ioremap_cache failed\n");
+ 		return -ENOMEM;
+ 	}
+ 	ret = memory_read_from_buffer(buf, count, &pos, memconsole,
+ 				      memconsole_length);
+-	iounmap(memconsole);
++	memunmap(memconsole);
+ 	return ret;
+ }
+ 
+diff --git a/include/linux/device.h b/include/linux/device.h
+index 6558af90c8fe..518f49c5d596 100644
+--- a/include/linux/device.h
++++ b/include/linux/device.h
+@@ -638,6 +638,11 @@ extern void devm_free_pages(struct device *dev, unsigned long addr);
+ 
+ void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res);
+ 
++static inline void *devm_memremap_resource(struct device *dev, struct resource *res)
++{
++	return (void __force *) devm_ioremap_resource(dev, res);
++}
++
+ /* allows to add/remove a custom action to devres stack */
+ int devm_add_action(struct device *dev, void (*action)(void *), void *data);
+ void devm_remove_action(struct device *dev, void (*action)(void *), void *data);
+diff --git a/include/linux/io.h b/include/linux/io.h
+index 1c9ad4c6d485..a9011d2188ac 100644
+--- a/include/linux/io.h
++++ b/include/linux/io.h
+@@ -122,4 +122,8 @@ static inline int arch_phys_wc_index(int handle)
+ #endif
+ #endif
+ 
++extern void *memremap_cache(resource_size_t offset, size_t size);
++extern void *memremap_wt(resource_size_t offset, size_t size);
++extern void memunmap(void *addr);
++
+ #endif /* _LINUX_IO_H */
+diff --git a/kernel/resource.c b/kernel/resource.c
+index 90552aab5f2d..a9d44488fe3a 100644
+--- a/kernel/resource.c
++++ b/kernel/resource.c
+@@ -23,7 +23,7 @@
+ #include <linux/pfn.h>
+ #include <linux/mm.h>
+ #include <linux/resource_ext.h>
+-#include <asm/io.h>
++#include <linux/io.h>
+ 
+ 
+ struct resource ioport_resource = {
+@@ -528,6 +528,45 @@ int region_is_ram(resource_size_t start, unsigned long size)
+ 	return ret;
+ }
+ 
++#ifdef CONFIG_ARCH_HAS_MEMREMAP
++/*
++ * memremap() is "ioremap" for cases where it is known that the resource
++ * being mapped does not have i/o side effects and the __iomem
++ * annotation is not applicable.
++ */
++static bool memremap_valid(resource_size_t offset, size_t size)
++{
++	if (region_is_ram(offset, size) != 0) {
++		WARN_ONCE(1, "memremap attempted on ram %pa size: %zd\n",
++				&offset, size);
++		return false;
++	}
++	return true;
++}
++
++void *memremap_cache(resource_size_t offset, size_t size)
++{
++	if (!memremap_valid(offset, size))
++		return NULL;
++	return (void __force *) ioremap_cache(offset, size);
++}
++EXPORT_SYMBOL(memremap_cache);
++
++void *memremap_wt(resource_size_t offset, size_t size)
++{
++	if (!memremap_valid(offset, size))
++		return NULL;
++	return (void __force *) ioremap_wt(offset, size);
++}
++EXPORT_SYMBOL(memremap_wt);
++
++void memunmap(void *addr)
++{
++	iounmap((void __iomem __force *) addr);
++}
++EXPORT_SYMBOL(memunmap);
++#endif /* CONFIG_ARCH_HAS_MEMREMAP */
++
+ void __weak arch_remove_reservations(struct resource *avail)
+ {
+ }
+diff --git a/lib/Kconfig b/lib/Kconfig
+index 601965a948e8..bc7bc0278921 100644
+--- a/lib/Kconfig
++++ b/lib/Kconfig
+@@ -520,6 +520,9 @@ source "lib/fonts/Kconfig"
+ #
+ 
+ config ARCH_HAS_SG_CHAIN
+-	def_bool n
++	bool
++
++config ARCH_HAS_MEMREMAP
++	bool
+ 
+ endmenu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
