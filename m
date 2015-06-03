@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 88F48900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 13:06:37 -0400 (EDT)
-Received: by padjw17 with SMTP id jw17so11156145pad.2
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 10:06:37 -0700 (PDT)
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 986C5900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 13:06:39 -0400 (EDT)
+Received: by pdbnf5 with SMTP id nf5so11641923pdb.2
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 10:06:39 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id hq3si1800802pac.164.2015.06.03.10.06.34
+        by mx.google.com with ESMTP id q2si1801925pde.187.2015.06.03.10.06.34
         for <linux-mm@kvack.org>;
         Wed, 03 Jun 2015 10:06:34 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 08/36] khugepaged: ignore pmd tables with THP mapped with ptes
-Date: Wed,  3 Jun 2015 20:05:39 +0300
-Message-Id: <1433351167-125878-9-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 10/36] mm, vmstats: new THP splitting event
+Date: Wed,  3 Jun 2015 20:05:41 +0300
+Message-Id: <1433351167-125878-11-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1433351167-125878-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1433351167-125878-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,43 +19,65 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Prepare khugepaged to see compound pages mapped with pte. For now we
-won't collapse the pmd table with such pte.
-
-khugepaged is subject for future rework wrt new refcounting.
+The patch replaces THP_SPLIT with tree events: THP_SPLIT_PAGE,
+THP_SPLIT_PAGE_FAILED and THP_SPLIT_PMD. It reflects the fact that we
+are going to be able split PMD without the compound page and that
+split_huge_page() can fail.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Christoph Lameter <cl@linux.com>
 Tested-by: Sasha Levin <sasha.levin@oracle.com>
 Acked-by: Jerome Marchand <jmarchan@redhat.com>
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/huge_memory.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ include/linux/vm_event_item.h | 4 +++-
+ mm/huge_memory.c              | 2 +-
+ mm/vmstat.c                   | 4 +++-
+ 3 files changed, 7 insertions(+), 3 deletions(-)
 
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index 2b1cef88b827..3261bfe2156a 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -69,7 +69,9 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		THP_FAULT_FALLBACK,
+ 		THP_COLLAPSE_ALLOC,
+ 		THP_COLLAPSE_ALLOC_FAILED,
+-		THP_SPLIT,
++		THP_SPLIT_PAGE,
++		THP_SPLIT_PAGE_FAILED,
++		THP_SPLIT_PMD,
+ 		THP_ZERO_PAGE_ALLOC,
+ 		THP_ZERO_PAGE_ALLOC_FAILED,
+ #endif
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 4ad975506c1b..a5423bee0109 100644
+index 2374dbb57c44..cdc3a358eb17 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -2680,6 +2680,11 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 		page = vm_normal_page(vma, _address, pteval);
- 		if (unlikely(!page))
- 			goto out_unmap;
-+
-+		/* TODO: teach khugepaged to collapse THP mapped with pte */
-+		if (PageCompound(page))
-+			goto out_unmap;
-+
- 		/*
- 		 * Record which node the original page is from and save this
- 		 * information to khugepaged_node_load[].
-@@ -2690,7 +2695,6 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 		if (khugepaged_scan_abort(node))
- 			goto out_unmap;
- 		khugepaged_node_load[node]++;
--		VM_BUG_ON_PAGE(PageCompound(page), page);
- 		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
- 			goto out_unmap;
- 		/*
+@@ -1986,7 +1986,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 
+ 	BUG_ON(!PageSwapBacked(page));
+ 	__split_huge_page(page, anon_vma, list);
+-	count_vm_event(THP_SPLIT);
++	count_vm_event(THP_SPLIT_PAGE);
+ 
+ 	BUG_ON(PageCompound(page));
+ out_unlock:
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 1fd0886a389f..e1c87425fe11 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -821,7 +821,9 @@ const char * const vmstat_text[] = {
+ 	"thp_fault_fallback",
+ 	"thp_collapse_alloc",
+ 	"thp_collapse_alloc_failed",
+-	"thp_split",
++	"thp_split_page",
++	"thp_split_page_failed",
++	"thp_split_pmd",
+ 	"thp_zero_page_alloc",
+ 	"thp_zero_page_alloc_failed",
+ #endif
 -- 
 2.1.4
 
