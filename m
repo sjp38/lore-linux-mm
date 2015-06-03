@@ -1,145 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B7D0900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 11:21:10 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so9778581pdb.0
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 08:21:10 -0700 (PDT)
-Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
-        by mx.google.com with ESMTPS id x5si1473113pbt.0.2015.06.03.08.21.09
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jun 2015 08:21:09 -0700 (PDT)
-Received: by pdbki1 with SMTP id ki1so9736418pdb.1
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 08:21:09 -0700 (PDT)
-Date: Thu, 4 Jun 2015 00:21:01 +0900
-From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH v2 -mm 2/2] memcg: convert mem_cgroup->under_oom from
- atomic_t to int
-Message-ID: <20150603152101.GG20091@mtj.duckdns.org>
-References: <20150603023824.GA7579@mtj.duckdns.org>
- <20150603023859.GB7579@mtj.duckdns.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150603023859.GB7579@mtj.duckdns.org>
+Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 6469B900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 11:43:06 -0400 (EDT)
+Received: by qkoo18 with SMTP id o18so7674946qko.1
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 08:43:06 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 19si964528qkt.64.2015.06.03.08.43.05
+        for <linux-mm@kvack.org>;
+        Wed, 03 Jun 2015 08:43:05 -0700 (PDT)
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: [PATCH] mm: kmemleak: Fix crashing during kmemleak disabling
+Date: Wed,  3 Jun 2015 16:42:56 +0100
+Message-Id: <1433346176-912-1-git-send-email-catalin.marinas@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Vignesh Radhakrishnan <vigneshr@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>
 
-memcg->under_oom tracks whether the memcg is under OOM conditions and
-is an atomic_t counter managed with mem_cgroup_[un]mark_under_oom().
-While atomic_t appears to be simple synchronization-wise, when used as
-a synchronization construct like here, it's trickier and more
-error-prone due to weak memory ordering rules, especially around
-atomic_read(), and false sense of security.
+With the current implementation, if kmemleak is disabled because of an
+error condition (e.g. fails to allocate metadata), alloc/free calls are
+no longer tracked. Usually this is not a problem since the kmemleak
+metadata is being removed via kmemleak_do_cleanup(). However, if the
+scanning thread is running at the time of disabling, kmemleak would no
+longer notice a potential vfree() call and the freed/unmapped object may
+still be accessed, causing a fault.
 
-For example, both non-trivial read sites of memcg->under_oom are a bit
-problematic although not being actually broken.
+This patch separates the kmemleak_free() enabling/disabling from the
+overall kmemleak_enabled nob so that we can defer the disabling of the
+object freeing tracking until the scanning thread completed. The
+kmemleak_free_part() is deliberately ignored by this patch since this is
+only called during boot before the scanning thread started.
 
-* mem_cgroup_oom_register_event()
-
-  It isn't explicit what guarantees the memory ordering between event
-  addition and memcg->under_oom check.  This isn't broken only because
-  memcg_oom_lock is used for both event list and memcg->oom_lock.
-
-* memcg_oom_recover()
-
-  The lockless test doesn't have any explanation why this would be
-  safe.
-
-mem_cgroup_[un]mark_under_oom() are very cold paths and there's no
-point in avoiding locking memcg_oom_lock there.  This patch converts
-memcg->under_oom from atomic_t to int, puts their modifications under
-memcg_oom_lock and documents why the lockless test in
-memcg_oom_recover() is safe.
-
-Signed-off-by: Tejun Heo <tj@kernel.org>
+Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+Reported-by: Vignesh Radhakrishnan <vigneshr@codeaurora.org>
+Tested-by: Vignesh Radhakrishnan <vigneshr@codeaurora.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: <stable@vger.kernel.org>
 ---
-Update of the 1/2 patch causes a trivial context conflict.  Refreshed.
+ mm/kmemleak.c | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)
 
-Thanks.
-
- mm/memcontrol.c |   29 +++++++++++++++++++++--------
- 1 file changed, 21 insertions(+), 8 deletions(-)
-
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -285,8 +285,9 @@ struct mem_cgroup {
- 	 */
- 	bool use_hierarchy;
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index f0fe4f2c1fa7..11d6f8015896 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -195,6 +195,8 @@ static struct kmem_cache *scan_area_cache;
  
-+	/* protected by memcg_oom_lock */
- 	bool		oom_lock;
--	atomic_t	under_oom;
-+	int		under_oom;
- 
- 	int	swappiness;
- 	/* OOM-Killer disable */
-@@ -1809,8 +1810,10 @@ static void mem_cgroup_mark_under_oom(st
+ /* set if tracing memory operations is enabled */
+ static int kmemleak_enabled;
++/* same as above but only for the kmemleak_free() callback */
++static int kmemleak_free_enabled;
+ /* set in the late_initcall if there were no errors */
+ static int kmemleak_initialized;
+ /* enables or disables early logging of the memory operations */
+@@ -942,7 +944,7 @@ void __ref kmemleak_free(const void *ptr)
  {
- 	struct mem_cgroup *iter;
+ 	pr_debug("%s(0x%p)\n", __func__, ptr);
  
-+	spin_lock(&memcg_oom_lock);
- 	for_each_mem_cgroup_tree(iter, memcg)
--		atomic_inc(&iter->under_oom);
-+		iter->under_oom++;
-+	spin_unlock(&memcg_oom_lock);
+-	if (kmemleak_enabled && ptr && !IS_ERR(ptr))
++	if (kmemleak_free_enabled && ptr && !IS_ERR(ptr))
+ 		delete_object_full((unsigned long)ptr);
+ 	else if (kmemleak_early_log)
+ 		log_early(KMEMLEAK_FREE, ptr, 0, 0);
+@@ -982,7 +984,7 @@ void __ref kmemleak_free_percpu(const void __percpu *ptr)
+ 
+ 	pr_debug("%s(0x%p)\n", __func__, ptr);
+ 
+-	if (kmemleak_enabled && ptr && !IS_ERR(ptr))
++	if (kmemleak_free_enabled && ptr && !IS_ERR(ptr))
+ 		for_each_possible_cpu(cpu)
+ 			delete_object_full((unsigned long)per_cpu_ptr(ptr,
+ 								      cpu));
+@@ -1750,6 +1752,12 @@ static void kmemleak_do_cleanup(struct work_struct *work)
+ 	mutex_lock(&scan_mutex);
+ 	stop_scan_thread();
+ 
++	/*
++	 * Once the scan thread has stopped, it is safe to no longer track
++	 * object freeing.
++	 */
++	kmemleak_free_enabled = 0;
++
+ 	if (!kmemleak_found_leaks)
+ 		__kmemleak_do_cleanup();
+ 	else
+@@ -1776,6 +1784,8 @@ static void kmemleak_disable(void)
+ 	/* check whether it is too early for a kernel thread */
+ 	if (kmemleak_initialized)
+ 		schedule_work(&cleanup_work);
++	else
++		kmemleak_free_enabled = 0;
+ 
+ 	pr_info("Kernel memory leak detector disabled\n");
  }
- 
- static void mem_cgroup_unmark_under_oom(struct mem_cgroup *memcg)
-@@ -1819,11 +1822,13 @@ static void mem_cgroup_unmark_under_oom(
+@@ -1840,8 +1850,10 @@ void __init kmemleak_init(void)
+ 	if (kmemleak_error) {
+ 		local_irq_restore(flags);
+ 		return;
+-	} else
++	} else {
+ 		kmemleak_enabled = 1;
++		kmemleak_free_enabled = 1;
++	}
+ 	local_irq_restore(flags);
  
  	/*
- 	 * When a new child is created while the hierarchy is under oom,
--	 * mem_cgroup_oom_lock() may not be called. We have to use
--	 * atomic_add_unless() here.
-+	 * mem_cgroup_oom_lock() may not be called. Watch for underflow.
- 	 */
-+	spin_lock(&memcg_oom_lock);
- 	for_each_mem_cgroup_tree(iter, memcg)
--		atomic_add_unless(&iter->under_oom, -1, 0);
-+		if (iter->under_oom > 0)
-+			iter->under_oom--;
-+	spin_unlock(&memcg_oom_lock);
- }
- 
- static DECLARE_WAIT_QUEUE_HEAD(memcg_oom_waitq);
-@@ -1851,7 +1856,15 @@ static int memcg_oom_wake_function(wait_
- 
- static void memcg_oom_recover(struct mem_cgroup *memcg)
- {
--	if (memcg && atomic_read(&memcg->under_oom))
-+	/*
-+	 * For the following lockless ->under_oom test, the only required
-+	 * guarantee is that it must see the state asserted by an OOM when
-+	 * this function is called as a result of userland actions
-+	 * triggered by the notification of the OOM.  This is trivially
-+	 * achieved by invoking mem_cgroup_mark_under_oom() before
-+	 * triggering notification.
-+	 */
-+	if (memcg && memcg->under_oom)
- 		__wake_up(&memcg_oom_waitq, TASK_NORMAL, 0, memcg);
- }
- 
-@@ -3860,7 +3873,7 @@ static int mem_cgroup_oom_register_event
- 	list_add(&event->list, &memcg->oom_notify);
- 
- 	/* already in OOM ? */
--	if (atomic_read(&memcg->under_oom))
-+	if (memcg->under_oom)
- 		eventfd_signal(eventfd, 1);
- 	spin_unlock(&memcg_oom_lock);
- 
-@@ -3889,7 +3902,7 @@ static int mem_cgroup_oom_control_read(s
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(sf));
- 
- 	seq_printf(sf, "oom_kill_disable %d\n", memcg->oom_kill_disable);
--	seq_printf(sf, "under_oom %d\n", (bool)atomic_read(&memcg->under_oom));
-+	seq_printf(sf, "under_oom %d\n", (bool)memcg->under_oom);
- 	return 0;
- }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
