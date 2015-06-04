@@ -1,20 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 15469900016
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 13:01:11 -0400 (EDT)
-Received: by pdjm12 with SMTP id m12so34648431pdj.3
-        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 10:01:10 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id ub1si6708387pac.114.2015.06.04.10.01.09
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AAD4900016
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 13:09:04 -0400 (EDT)
+Received: by pdbqa5 with SMTP id qa5so34915140pdb.0
+        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 10:09:04 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id pr7si6701872pdb.236.2015.06.04.10.09.03
         for <linux-mm@kvack.org>;
-        Thu, 04 Jun 2015 10:01:10 -0700 (PDT)
+        Thu, 04 Jun 2015 10:09:03 -0700 (PDT)
 From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [RFC PATCH 08/12] mm: use mirrorable to switch allocate
- mirrored memory
-Date: Thu, 4 Jun 2015 17:01:08 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F32A8D5A2@ORSMSX114.amr.corp.intel.com>
-References: <55704A7E.5030507@huawei.com> <55704C79.5060608@huawei.com>
-In-Reply-To: <55704C79.5060608@huawei.com>
+Subject: RE: [RFC PATCH 10/12] mm: add the buddy system interface
+Date: Thu, 4 Jun 2015 17:09:03 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F32A8D5C7@ORSMSX114.amr.corp.intel.com>
+References: <55704A7E.5030507@huawei.com> <55704CC4.8040707@huawei.com>
+In-Reply-To: <55704CC4.8040707@huawei.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -24,17 +23,23 @@ List-ID: <linux-mm.kvack.org>
 To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, "nao.horiguchi@gmail.com" <nao.horiguchi@gmail.com>, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
 Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> Add a new interface in path /proc/sys/vm/mirrorable. When set to 1, it me=
-ans
-> we should allocate mirrored memory for both user and kernel processes.
++#ifdef CONFIG_MEMORY_MIRROR
++	if (change_to_mirror(gfp_mask, ac.high_zoneidx))
++		ac.migratetype =3D MIGRATE_MIRROR;
++#endif
 
-With some "to be defined later" mechanism for how the user requests mirror =
-vs.
-not mirror.  Plus some capability/ulimit pieces that restrict who can do th=
-is and how
-much they can get???
+We may have to be smarter than this here. I'd like to encourage the
+enterprise Linux distributions to set CONFIG_MEMORY_MIRROR=3Dy
+But the reality is that most systems will not configure any mirrored
+memory - so we don't want the common code path for memory
+allocation to call functions that set the migrate type, try to allocate
+and then fall back to a non-mirror when that may be a complete waste
+of time.
 
--Tony
+Maybe a global "got_mirror" that is true if we have some mirrored
+memory.  Then code is
+
+	if (got_mirror && change_to_mirror(...))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
