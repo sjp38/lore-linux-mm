@@ -1,227 +1,273 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id E9E6F900016
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 00:57:32 -0400 (EDT)
-Received: by padj3 with SMTP id j3so21526887pad.0
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 21:57:32 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id nz1si4094811pbb.33.2015.06.03.21.57.32
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id DACBF900016
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 01:24:25 -0400 (EDT)
+Received: by pdjm12 with SMTP id m12so22889438pdj.3
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 22:24:25 -0700 (PDT)
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com. [209.85.220.53])
+        by mx.google.com with ESMTPS id wu3si4181126pbc.61.2015.06.03.22.24.24
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jun 2015 21:57:32 -0700 (PDT)
-Received: by payr10 with SMTP id r10so21608347pay.1
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 21:57:32 -0700 (PDT)
-Date: Thu, 4 Jun 2015 13:57:25 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC][PATCH 07/10] zsmalloc: introduce auto-compact support
-Message-ID: <20150604045725.GI2241@blaptop>
-References: <1432911928-14654-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1432911928-14654-8-git-send-email-sergey.senozhatsky@gmail.com>
+        Wed, 03 Jun 2015 22:24:24 -0700 (PDT)
+Received: by padjw17 with SMTP id jw17so21952543pad.2
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 22:24:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1432911928-14654-8-git-send-email-sergey.senozhatsky@gmail.com>
+In-Reply-To: <556ECACC.9000207@xs4all.nl>
+References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
+ <1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
+ <54DB12B5.4080000@samsung.com> <20150211111258.GP8656@n2100.arm.linux.org.uk>
+ <54DB4908.10004@samsung.com> <20150211162312.GR8656@n2100.arm.linux.org.uk>
+ <CAO_48GHf=Zt7Ju=N=FAVfaudApSV+rSfb+Wou7L1Dh3egULm9g@mail.gmail.com>
+ <556EA13B.7080306@xs4all.nl> <20150603084115.GC7557@n2100.arm.linux.org.uk> <556ECACC.9000207@xs4all.nl>
+From: Sumit Semwal <sumit.semwal@linaro.org>
+Date: Thu, 4 Jun 2015 10:54:03 +0530
+Message-ID: <CAO_48GFiHgpo7O_db5YMEQPmsOUDjouquF5V6bkQa2U6Ej7=Kg@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [RFCv3 2/2] dma-buf: add helpers for sharing
+ attacher constraints with dma-parms
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Hans Verkuil <hverkuil@xs4all.nl>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, LKML <linux-kernel@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, Linaro MM SIG Mailman List <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rob Clark <robdclark@gmail.com>, Daniel Vetter <daniel@ffwll.ch>, Robin Murphy <robin.murphy@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
 
-On Sat, May 30, 2015 at 12:05:25AM +0900, Sergey Senozhatsky wrote:
-> perform class compaction in zs_free(), if zs_free() has created
-> a ZS_ALMOST_EMPTY page. this is the most trivial `policy'.
+On 3 June 2015 at 15:07, Hans Verkuil <hverkuil@xs4all.nl> wrote:
+> On 06/03/15 10:41, Russell King - ARM Linux wrote:
+>> On Wed, Jun 03, 2015 at 08:39:55AM +0200, Hans Verkuil wrote:
+>>> Hi Sumit,
+>>>
+>>> On 05/05/2015 04:41 PM, Sumit Semwal wrote:
+>>>> Hi Russell, everyone,
+>>>>
+>>>> First up, sincere apologies for being awol for sometime; had some
+>>>> personal / medical things to take care of, and then I thought I'd wait
+>>>> for the merge window to get over before beginning to discuss this
+>>>> again.
+>>>>
+>>>> On 11 February 2015 at 21:53, Russell King - ARM Linux
+>>>> <linux@arm.linux.org.uk> wrote:
+>>>>> On Wed, Feb 11, 2015 at 01:20:24PM +0100, Marek Szyprowski wrote:
+>>>>>> Hello,
+>>>>>>
+>>>>>> On 2015-02-11 12:12, Russell King - ARM Linux wrote:
+>>>>>>> Which is a damn good reason to NAK it - by that admission, it's a half-baked
+>>>>>>> idea.
+>>>>>>>
+>>>>>>> If all we want to know is whether the importer can accept only contiguous
+>>>>>>> memory or not, make a flag to do that, and allow the exporter to test this
+>>>>>>> flag.  Don't over-engineer this to make it _seem_ like it can do something
+>>>>>>> that it actually totally fails with.
+>>>>>>>
+>>>>>>> As I've already pointed out, there's a major problem if you have already
+>>>>>>> had a less restrictive attachment which has an active mapping, and a new
+>>>>>>> more restrictive attachment comes along later.
+>>>>>>>
+>>>>>>> It seems from Rob's descriptions that we also need another flag in the
+>>>>>>> importer to indicate whether it wants to have a valid struct page in the
+>>>>>>> scatter list, or whether it (correctly) uses the DMA accessors on the
+>>>>>>> scatter list - so that exporters can reject importers which are buggy.
+>>>>>>
+>>>>>> Okay, but flag-based approach also have limitations.
+>>>>>
+>>>>> Yes, the flag-based approach doesn't let you describe in detail what
+>>>>> the importer can accept - which, given the issues that I've raised
+>>>>> is a *good* thing.  We won't be misleading anyone into thinking that
+>>>>> we can do something that's really half-baked, and which we have no
+>>>>> present requirement for.
+>>>>>
+>>>>> This is precisely what Linus talks about when he says "don't over-
+>>>>> engineer" - if we over-engineer this, we end up with something that
+>>>>> sort-of works, and that's a bad thing.
+>>>>>
+>>>>> The Keep It Simple approach here makes total sense - what are our
+>>>>> current requirements - to be able to say that an importer can only accept:
+>>>>>   - contiguous memory rather than a scatterlist
+>>>>>   - scatterlists with struct page pointers
+>>>>>
+>>>>> Does solving that need us to compare all the constraints of each and
+>>>>> every importer, possibly ending up with constraints which can't be
+>>>>> satisfied?  No.  Does the flag approach satisfy the requirements?  Yes.
+>>>>>
+>>>>
+>>>> So, for basic constraint-sharing, we'll just go with the flag based
+>>>> approach, with a flag (best place for it is still dev->dma_params I
+>>>> suppose) for denoting contiguous or scatterlist. Is that agreed, then?
+>>>> Also, with this idea, of course, there won't be any helpers for trying
+>>>> to calculate constraints; it would be totally the exporter's
+>>>> responsibility to handle it via the attach() dma_buf_op if it wishes
+>>>> to.
+>>>
+>>> What's wrong with the proposed max_segment_count? Many media devices do
+>>> have a limited max_segment_count and that should be taken into account.
+>>
+>> So what happens if you have a dma_buf exporter, and several dma_buf
+>> importers.  One dma_buf importer attaches to the exporter, and asks
+>> for the buffer, and starts making use of the buffer.  This export has
+>> many scatterlist segments.
+>>
+>> Another dma_buf importer attaches to the same buffer, and now asks for
+>> the buffer, but the number of scatterlist segments exceeds it
+>> requirement.
 
-Finally, I got realized your intention.
+So, in the midst of all the various directions this discussion has
+taken, I seem to have missed to reiterate the base premise for this
+suggestion [1] - that we can use this information to help implement a
+deferred allocation logic - so that all the importers can attach
+first, and the exporter can do the actual allocation on the first
+map() call.
+This is also inline with the prescribed usage of dma_buf_attach() /
+dma_buf_map_attachment() sequence - ideally speaking, all
+participating 'importers' of dma_buf should only attach first, and
+then map() at a 'later' time, which is usually right before using the
+buffer actually.
+Note: at present, both DRI and V4L subsystems don't do that; while
+proposing this RFC I had deliberately kept that separate, as it is a
+related but orthogonal problem to solve. I guess I should address that
+in parallel.
+>>
+>> You can't reallocate the buffer because it's in-use by another importer.
+>> There is no way to revoke the buffer from the other importer.  So there
+>> is no way to satisfy this importer's requirements.
+>>
+You're right; but in a deferred allocation mechanism, this
+constraint-sharing can atleast help decide on the most restrictive
+allocation at the time of first map() ,and if later, an importer with
+more relaxed constraints attaches, it can still use the same buffer.
+A more restrictive importer would still be not allowed, but in that
+case the exporter can disallow that importer from attaching, and a
+feedback to userspace is possible.
 
-Actually, I had a plan to add /sys/block/zram0/compact_threshold_ratio
-which means to compact automatically when compr_data_size/mem_used_total
-is below than the threshold but I didn't try because it could be done
-by usertool.
+>> What I'm showing is that the idea that exporting these parameters fixes
+>> some problem is just an illusion - it may work for the single importer
+>> case, but doesn't for the multiple importer case.
+>>
+>> Importers really have two choices here: either they accept what the
+>> exporter is giving them, or they reject it.
+>
+> I agree completely with that.
+>
+In a non-deferred allocation case, these constraints have no meaning,
+since it will always depend on the first subsystem to attach,
+irrespective of the exporter's possible capability to allocate from
+different allocators with different constraints; for example, if a
+subsystem with relaxed constraints attaches first, a later more
+restrictive constraints attach() request will fail, even though the
+exporter might have the ability to allocate with the more restricted
+constraints.
 
-Another reason I didn't try the approach is that it could scan all of
-zs_objects repeatedly withtout any freeing zspage in some corner cases,
-which could be big overhead we should prevent so we might add some
-heuristic. as an example, we could delay a few compaction trial when
-we found a few previous trials as all fails.
-It's simple design of mm/compaction.c to prevent pointless overhead
-but historically it made pains several times and required more
-complicated logics but it's still painful.
+In deferred allocation, on the other hand, the exporter atleast gets
+the ability to possibly choose the allocation mechanism based on the
+match of most restricted importers, so the order of attach() ceases to
+matter.
 
-Other thing I found recently is that it's not always win zsmalloc
-for zram is not fragmented. The fragmented space could be used
-for storing upcoming compressed objects although it is wasted space
-at the moment but if we don't have any hole(ie, fragment space)
-via frequent compaction, zsmalloc should allocate a new zspage
-which could be allocated on movable pageblock by fallback of
-nonmovable pageblock request on highly memory pressure system
-so it accelerates fragment problem of the system memory.
+>> The other issue here is that DMA scatterlists are _not_ really that
+>> determinable in terms of number of entries when it comes to systems with
+>> system IOMMUs.  System IOMMUs, which should be integrated into the DMA
+>> API, are permitted to coalesce entries in the physical page range.  For
+>> example:
+>>
+>>       nsg = 128;
+>>       n = dma_map_sg(dev, sg, nsg, DMA_TO_DEVICE);
+>>
+>> Here, n might be 4 if the system IOMMU has been able to coalesce the 128
+>> entries down to 4 IOMMU entries - and that means for DMA purposes, only
+>> the first four scatterlist entries should be walked (this is why
+>> dma_map_sg() returns a positive integer when mapping.)
+>>
+>> Each struct device has a set of parameters which control how the IOMMU
+>> entries are coalesced:
+>>
+>> struct device_dma_parameters {
+>>         /*
+>>          * a low level driver may set these to teach IOMMU code about
+>>          * sg limitations.
+>>          */
+>>         unsigned int max_segment_size;
+>>         unsigned long segment_boundary_mask;
+>> };
+>>
+>> and this is independent of the dma_buf API.  This doesn't indicate the
+>> maximum number of segments, but as I've shown above, it's not something
+>> that you can say "I want a scatterlist for this memory with only 32
+>> segments" so it's totally unclear how an exporter would limit that.
+>>
+>> The only thing an exporter could do would be to fail the
+>> buffer didn't end up having fewer than the requested scatterlist entries,
+>> which is something the importer can do too.
+>
+You're right in that after allocation is done, an exporter can only
+fail a more restrictive attach request, but I don't think the importer
+has any way of knowing the information about the current allocation?
+Unless I misunderstood something.
+> Right.
+>
+>>> One of the main problems end-users are faced with today is that they do not
+>>> know which device should be the exporter of buffers and which should be the
+>>> importer. This depends on the constraints and right now applications have
+>>> no way of knowing this. It's nuts that this hasn't been addressed yet since
+>>> it is the main complaint I am getting.
+>>
+One of the ways to try and solve this is via the deferred allocation
+mechanism described above; I hope it makes sense to you all, but if it
+doesn't, may I request you to please help me understand why not?
 
-So, I want to pass the policy to userspace.
-If we found it's really trobule on userspace, then, we need more
-thinking.
+>> IT's nuts that we've ended up in this situation in the first place.  This
+>> was bound to happen as soon as the dma_buf sharing was introduced, because
+>> it immediately introduced this problem.  I don't think there is any easy
+>> solution to it, and what's being proposed with flags and other stuff is
+>> just trying to paper over the problem.
+>
+> This was the first thing raised in the initial discussions. My suggestion at
+> the time was to give userspace limited information about the buffer restrictions:
+> Physically contiguous, scatter-gather and 'weird'. But obviously you need
+> segment_boundary_mask and max_segment_size as well.
+>
+> And the application can decide based on that info which device has the most
+> restrictive requirements and make that the exporter.
+>
+> I am not sure whether there is any sense in exporting the max_segment_count
+> to userspace (probably not), but I see no reason why we can't set it internally.
+> That said, a single flag is OK for me as well.
+>
+>> What you're actually asking is that each dmabuf exporting subsystem needs
+>> to publish their DMA parameters to userspace, and userspace then gets to
+>> decide which dmabuf exporter should be used.
+>
+> Yes, that was the initial plan.
+>
+In absence of deferred allocation, that could be the other option.
+With deferred allocation, we could try and keep this internal to the
+kernel.
 
-Thanks.
+>> That's not a dmabuf problem, that's a subsystem problem,
+>
+> Well, yes, but it doesn't hurt to sync which DMA parameters are exposed with
+> what dma-buf uses.
+>
+>> but even so, we
+>> don't have a standardised way to export that information (and I'd suspect
+>> that it would be very difficult to get agreements between subsystems on
+>> a standard ioctl and/or data structure.)  In my experience, getting cross-
+>> subsystem agreement in the kernel with anything is very difficult, you
+>> normally end up with 60% of people agreeing, and the other 40% going off
+>> and doing something completely different because they object to it
+>> (figures vary, 90% of all statistics are made up on the spot!)
+>
+> I don't care which ioctl or other mechanism a subsystem uses to expose the
+> information. Each subsystem should design their own method for that. Imposing
+> a standard API for that generally doesn't work for the reasons you give.
+>
+> But deciding *which* minimum set of information is exposed, that is another
+> matter and that should be synced. And the easiest starting point for that is
+> that the device will store that information internally in device_dma_parameters.
+>
+> The various subsystems can then make APIs to expose that info.
+>
+> Regards,
+>
+>         Hans
 
-> 
-> probably it would make zs_can_compact() to return an estimated number
-> of pages that potentially will be free and trigger auto-compaction
-> only when it's above some limit (e.g. at least 4 zs pages); or put it
-> under config option.
-> 
-> this also tweaks __zs_compact() -- we can't do reschedule
-> anymore, waiting for new pages in the current class. so we
-> compact as much as we can and return immediately if compaction
-> is not possible anymore.
-> 
-> auto-compaction is not a replacement of manual compaction.
-> 
-> compiled linux kernel with auto-compaction:
-> 
-> cat /sys/block/zram0/mm_stat
-> 2339885056 1601034235 1624076288        0 1624076288    19961     1106
-> 
-> performing additional manual compaction:
-> 
-> echo 1 > /sys/block/zram0/compact
-> cat /sys/block/zram0/mm_stat
-> 2339885056 1601034235 1624051712        0 1624076288    19961     1114
-> 
-> manual compaction was able to migrate additional 8 objects. so
-> auto-compaction is 'good enough'.
-> 
-> TEST
-> 
-> this test copies a 1.3G linux kernel tar to mounted zram disk,
-> and extracts it.
-> 
-> w/auto-compaction:
-> 
-> cat /sys/block/zram0/mm_stat
->  1171456    26006    86016        0    86016    32781        0
-> 
-> time tar xf linux-3.10.tar.gz -C linux
-> 
-> real    0m16.970s
-> user    0m15.247s
-> sys     0m8.477s
-> 
-> du -sh linux
-> 2.0G    linux
-> 
-> cat /sys/block/zram0/mm_stat
-> 3547353088 2993384270 3011088384        0 3011088384    24310      108
-> 
-> =====================================================================
-> 
-> w/o auto compaction:
-> 
-> cat /sys/block/zram0/mm_stat
->  1171456    26000    81920        0    81920    32781        0
-> 
-> time tar xf linux-3.10.tar.gz -C linux
-> 
-> real    0m16.983s
-> user    0m15.267s
-> sys     0m8.417s
-> 
-> du -sh linux
-> 2.0G    linux
-> 
-> cat /sys/block/zram0/mm_stat
-> 3548917760 2993566924 3011317760        0 3011317760    23928        0
-> 
-> =====================================================================
-> 
-> iozone shows that auto-compacted code runs faster in several
-> tests, which is hardly trustworthy. anyway.
-> 
-> iozone -t 3 -R -r 16K -s 60M -I +Z
-> 
->        test           base       auto-compact (compacted 66123 objs)
->    Initial write   1603682.25          1645112.38
->          Rewrite   2502243.31          2256570.31
->             Read   7040860.00          7130575.00
->          Re-read   7036490.75          7066744.25
->     Reverse Read   6617115.25          6155395.50
->      Stride read   6705085.50          6350030.38
->      Random read   6668497.75          6350129.38
->   Mixed workload   5494030.38          5091669.62
->     Random write   2526834.44          2500977.81
->           Pwrite   1656874.00          1663796.94
->            Pread   3322818.91          3359683.44
->           Fwrite   4090124.25          4099773.88
->            Fread   10358916.25         10324409.75
-> 
-> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> ---
->  mm/zsmalloc.c | 25 +++++++++++++------------
->  1 file changed, 13 insertions(+), 12 deletions(-)
-> 
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index c2a640a..70bf481 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -1515,34 +1515,28 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
->  
->  		while ((dst_page = isolate_target_page(class))) {
->  			cc.d_page = dst_page;
-> -			/*
-> -			 * If there is no more space in dst_page, resched
-> -			 * and see if anyone had allocated another zspage.
-> -			 */
-> +
->  			if (!migrate_zspage(pool, class, &cc))
-> -				break;
-> +				goto out;
->  
->  			putback_zspage(pool, class, dst_page);
->  		}
->  
-> -		/* Stop if we couldn't find slot */
-> -		if (dst_page == NULL)
-> +		if (!dst_page)
->  			break;
-> -
->  		putback_zspage(pool, class, dst_page);
->  		putback_zspage(pool, class, src_page);
-> -		spin_unlock(&class->lock);
-> -		cond_resched();
-> -		spin_lock(&class->lock);
->  	}
->  
-> +out:
-> +	if (dst_page)
-> +		putback_zspage(pool, class, dst_page);
->  	if (src_page)
->  		putback_zspage(pool, class, src_page);
->  
->  	spin_unlock(&class->lock);
->  }
->  
-> -
->  unsigned long zs_get_total_pages(struct zs_pool *pool)
->  {
->  	return atomic_long_read(&pool->pages_allocated);
-> @@ -1741,6 +1735,13 @@ void zs_free(struct zs_pool *pool, unsigned long handle)
->  	unpin_tag(handle);
->  
->  	free_handle(pool, handle);
-> +
-> +	/*
-> +	 * actual fullness might have changed, __zs_compact() checks
-> +	 * if compaction makes sense
-> +	 */
-> +	if (fullness == ZS_ALMOST_EMPTY)
-> +		__zs_compact(pool, class);
->  }
->  EXPORT_SYMBOL_GPL(zs_free);
->  
-> -- 
-> 2.4.2.337.gfae46aa
-> 
-
--- 
-Kind regards,
-Minchan Kim
+Best regards,
+Sumit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
