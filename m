@@ -1,115 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C4EB900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 22:32:28 -0400 (EDT)
-Received: by pdbnf5 with SMTP id nf5so20245260pdb.2
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 19:32:28 -0700 (PDT)
-Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com. [2607:f8b0:400e:c02::22b])
-        by mx.google.com with ESMTPS id bf3si3601868pbc.29.2015.06.03.19.32.26
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 193F9900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 22:34:00 -0400 (EDT)
+Received: by pabqy3 with SMTP id qy3so19254851pab.3
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 19:33:59 -0700 (PDT)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id ds16si3569319pdb.171.2015.06.03.19.33.59
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jun 2015 19:32:27 -0700 (PDT)
-Received: by pdbki1 with SMTP id ki1so20213278pdb.1
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 19:32:26 -0700 (PDT)
-Date: Thu, 4 Jun 2015 11:32:51 +0900
+        Wed, 03 Jun 2015 19:33:59 -0700 (PDT)
+Received: by padjw17 with SMTP id jw17so19352141pad.2
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 19:33:59 -0700 (PDT)
+Date: Thu, 4 Jun 2015 11:34:23 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] zram: clear disk io accounting when reset zram device
-Message-ID: <20150604023251.GB1951@swordfish>
-References: <20150604015305.GA2241@blaptop>
+Subject: Re: [RFC][PATCH 02/10] zsmalloc: always keep per-class stats
+Message-ID: <20150604023423.GC1951@swordfish>
+References: <1432911928-14654-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1432911928-14654-3-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150604021821.GC2241@blaptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150604015305.GA2241@blaptop>
+In-Reply-To: <20150604021821.GC2241@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Weijie Yang <weijie.yang@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, ngupta@vflare.org, 'Weijie Yang' <weijie.yang.kh@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On (06/04/15 10:53), Minchan Kim wrote:
-> > hm, sounds interesting, but I think it will end up being tricky.
+On (06/04/15 11:18), Minchan Kim wrote:
+> On Sat, May 30, 2015 at 12:05:20AM +0900, Sergey Senozhatsky wrote:
+> > always account per-class `zs_size_stat' stats. this data will
+> > help us make better decisions during compaction. we are especially
+> > interested in OBJ_ALLOCATED and OBJ_USED, which can tell us if
+> > class compaction will result in any memory gain.
 > > 
-> > zram_remove() will be called from device's sysfs node (now we call it from
-> > zram_control sysfs class node, makes a huge difference). sysfs locks the node
-> > until node's read/write handler returns back, so zram_remove() will be called
-> > with lock(s_active#XXX) being locked (we had a lockdep splat with these locks
-> > recently), while zram_remove()->sysfs_remove_group() will once again attempt
-> > to lock this node (the very same lock(s_active#XXX)). in other words, we cannot
-> > fully remove zram device from its sysfs attr. and I don't want to add any bool
-> > flags to zram_remove() and zram_add() indicating that this is a "partial" device
-> > remove: don't delete device's sysfs group in remove() and don't create it in add().
-> > 
-> > 
-> > doing reset from zram_control is easy, for sure:
-> > 	lock idr mutex,
-> > 	do zram_remove() and zram_add()
-> > 	unlock idr lock.
-> > 
-> > `echo ID > /sys/.../zram_control/reset`
-> > 
-> > no need to modify remove()/add() -- idr will pick up just released idx,
-> > so device_id will be preserved. but it'll be hard to drop the per-device
-> > `reset` attr and to make it a zram_control attr. things would have been
-> > much simpler if all of zram users were also zramctl users. zramctl, from
-> > this point of view, lets us change zram interfaces easily -- we merely need
-> > to teach/modify zramctl, the rest is transparent.
+> > for instance, we know the number of allocated objects in the class,
+> > the number of objects being used (so we also know how many objects
+> > are not used) and the number of objects per-page. so we can estimate
+> > how many pages compaction can free (pages that will turn into
+> > ZS_EMPTY during compaction).
 > 
-> Thanks for the looking.
-> Fair enough.
+> Fair enough but I need to read further patches to see if we need
+> really this at the moment.
 > 
-> So you mean you don't want to add any bool flags. Instead, you want to move
-> reset interface into /sys/.../zram_control/reset and it would be transparent
-> if everyone doesn't use raw interface.
-
-I just described the ideal case -- moving reset to zram_control. which
-is very much unlikely to happen. even if zramX/reset will become a symlink
-to zram_control/reset user still will have to supply a device_id. it's too
-late to change this, unfortunately.
-
-
-> Somethings I have in mind.
+> I hope it would be better to write down more detail in cover-letter
+> so when I read just [0/0] I realize your goal and approach without
+> looking into detail in each patch.
 > 
-> We should change old interface(ie, /sys/block/zram0/reset) by just
-> *implementation difficulty* which is just adding a bool flag?
-> IMO, it's not a good reason to change old interface.
-> I prefer adding a bool flag if it can meet our goal entirely.
 
-well, we can add it. but it's hacky and tricky.
-
-
-having a clear
-"zram_add(void)/zram_remove(void)" vs. "zram_add(bool partial)/zram_remove(bool partial)".
-
-apart from that, zram_add() will introduce additional 4 places where we
-can fail to re-create the device:
--- zram = kzalloc(sizeof(struct zram), GFP_KERNEL);
--- ret = idr_alloc(&zram_index_idr, zram, 0, 0, GFP_KERNEL);
--- queue = blk_alloc_queue(GFP_KERNEL);
--- zram->disk = alloc_disk(1);
-
-
-so, we don't destroy and create zram's sysfs_group. which means that we
-better not kfree() and kzalloc() zram pointer, otherise we still need to
-set up &disk_to_dev(zram->disk)->kobj. so 'bool partial' flag will now
-also make zram kfree()/kmalloc() optional. if we have kfree()/kmalloc()
-optional, then we probably should keep idr allocation optional as well. iow,
-optional idr_alloc/idr_remove().
-
-which sort of turns zram_add()/zram_remove() into a hell.
-I need to think about it more.
-
-
-> Another thing I repeated several times is that we cannot guarantee
-> every users in the world will use zramctl forever so we should
-> be careful to change interface even though a userland tool becomes
-> popular.
-
-no, of course I'm not saying that everyone is using zramctl nor I count
-on it, zram is simply ~4 years older than zramctl.
-
-*things would have been much simpler if* ...
-
+sure, will do later today.
+I caught a cold, so I'm a bit slow.
 
 	-ss
+
+> > 
+> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> > ---
+> >  mm/zsmalloc.c | 49 ++++++++++++-------------------------------------
+> >  1 file changed, 12 insertions(+), 37 deletions(-)
+> > 
+> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> > index e615b31..778b8db 100644
+> > --- a/mm/zsmalloc.c
+> > +++ b/mm/zsmalloc.c
+> > @@ -169,14 +169,12 @@ enum zs_stat_type {
+> >  	NR_ZS_STAT_TYPE,
+> >  };
+> >  
+> > -#ifdef CONFIG_ZSMALLOC_STAT
+> > -
+> > -static struct dentry *zs_stat_root;
+> > -
+> >  struct zs_size_stat {
+> >  	unsigned long objs[NR_ZS_STAT_TYPE];
+> >  };
+> >  
+> > +#ifdef CONFIG_ZSMALLOC_STAT
+> > +static struct dentry *zs_stat_root;
+> >  #endif
+> >  
+> >  /*
+> > @@ -201,25 +199,21 @@ static int zs_size_classes;
+> >  static const int fullness_threshold_frac = 4;
+> >  
+> >  struct size_class {
+> > +	spinlock_t		lock;
+> > +	struct page		*fullness_list[_ZS_NR_FULLNESS_GROUPS];
+> >  	/*
+> >  	 * Size of objects stored in this class. Must be multiple
+> >  	 * of ZS_ALIGN.
+> >  	 */
+> > -	int size;
+> > -	unsigned int index;
+> > +	int			size;
+> > +	unsigned int		index;
+> >  
+> >  	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
+> > -	int pages_per_zspage;
+> > -	/* huge object: pages_per_zspage == 1 && maxobj_per_zspage == 1 */
+> > -	bool huge;
+> > -
+> > -#ifdef CONFIG_ZSMALLOC_STAT
+> > -	struct zs_size_stat stats;
+> > -#endif
+> > -
+> > -	spinlock_t lock;
+> > +	int			pages_per_zspage;
+> > +	struct zs_size_stat	stats;
+> >  
+> > -	struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
+> > +	/* huge object: pages_per_zspage == 1 && maxobj_per_zspage == 1 */
+> > +	bool			huge;
+> >  };
+> >  
+> >  /*
+> > @@ -439,8 +433,6 @@ static int get_size_class_index(int size)
+> >  	return min(zs_size_classes - 1, idx);
+> >  }
+> >  
+> > -#ifdef CONFIG_ZSMALLOC_STAT
+> > -
+> >  static inline void zs_stat_inc(struct size_class *class,
+> >  				enum zs_stat_type type, unsigned long cnt)
+> >  {
+> > @@ -459,6 +451,8 @@ static inline unsigned long zs_stat_get(struct size_class *class,
+> >  	return class->stats.objs[type];
+> >  }
+> >  
+> > +#ifdef CONFIG_ZSMALLOC_STAT
+> > +
+> >  static int __init zs_stat_init(void)
+> >  {
+> >  	if (!debugfs_initialized())
+> > @@ -574,23 +568,6 @@ static void zs_pool_stat_destroy(struct zs_pool *pool)
+> >  }
+> >  
+> >  #else /* CONFIG_ZSMALLOC_STAT */
+> > -
+> > -static inline void zs_stat_inc(struct size_class *class,
+> > -				enum zs_stat_type type, unsigned long cnt)
+> > -{
+> > -}
+> > -
+> > -static inline void zs_stat_dec(struct size_class *class,
+> > -				enum zs_stat_type type, unsigned long cnt)
+> > -{
+> > -}
+> > -
+> > -static inline unsigned long zs_stat_get(struct size_class *class,
+> > -				enum zs_stat_type type)
+> > -{
+> > -	return 0;
+> > -}
+> > -
+> >  static int __init zs_stat_init(void)
+> >  {
+> >  	return 0;
+> > @@ -608,7 +585,6 @@ static inline int zs_pool_stat_create(char *name, struct zs_pool *pool)
+> >  static inline void zs_pool_stat_destroy(struct zs_pool *pool)
+> >  {
+> >  }
+> > -
+> >  #endif
+> >  
+> >  
+> > @@ -1682,7 +1658,6 @@ static void putback_zspage(struct zs_pool *pool, struct size_class *class,
+> >  			class->size, class->pages_per_zspage));
+> >  		atomic_long_sub(class->pages_per_zspage,
+> >  				&pool->pages_allocated);
+> > -
+> >  		free_zspage(first_page);
+> >  	}
+> >  }
+> > -- 
+> > 2.4.2.337.gfae46aa
+> > 
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
