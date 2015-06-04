@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 462E7900016
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 09:14:37 -0400 (EDT)
-Received: by obew15 with SMTP id w15so32150518obe.1
-        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 06:14:37 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id df7si1629833obb.97.2015.06.04.06.14.35
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id CE15F900016
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 09:14:39 -0400 (EDT)
+Received: by obbgp2 with SMTP id gp2so9732704obb.2
+        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 06:14:39 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id j184si1622657oig.140.2015.06.04.06.14.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 04 Jun 2015 06:14:36 -0700 (PDT)
-Message-ID: <55704B0C.1000308@huawei.com>
-Date: Thu, 4 Jun 2015 20:56:44 +0800
+        Thu, 04 Jun 2015 06:14:39 -0700 (PDT)
+Message-ID: <55704C9B.6010809@huawei.com>
+Date: Thu, 4 Jun 2015 21:03:23 +0800
 From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH 01/12] mm: add a new config to manage the code
+Subject: [RFC PATCH 09/12] mm: enable allocate mirrored memory at boot time
 References: <55704A7E.5030507@huawei.com>
 In-Reply-To: <55704A7E.5030507@huawei.com>
 Content-Type: text/plain; charset="ISO-8859-1"
@@ -23,33 +23,32 @@ List-ID: <linux-mm.kvack.org>
 To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>
 Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-This patch introduces a new config called "CONFIG_ACPI_MIRROR_MEMORY", it is
-used to on/off the feature.
+Add a boot option called "mirrorable" to allocate mirrored memory at boot time
+(after bootmem free).
 
 Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
 ---
- mm/Kconfig | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ mm/page_alloc.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 390214d..4f2a726 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -200,6 +200,14 @@ config MEMORY_HOTREMOVE
- 	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
- 	depends on MIGRATION
- 
-+config MEMORY_MIRROR
-+	bool "Address range mirroring support"
-+	depends on X86 && NUMA
-+	default y
-+	help
-+	  This feature depends on hardware and firmware support.
-+	  ACPI or EFI records the mirror info.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 63b90ca..d4d2066 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -213,6 +213,13 @@ int user_min_free_kbytes = -1;
+ #ifdef CONFIG_MEMORY_MIRROR
+ struct mirror_info mirror_info;
+ int sysctl_mirrorable = 0;
 +
- #
- # If we have space for more page flags then we can enable additional
- # optimizations and functionality.
++static int __init set_mirrorable(char *p)
++{
++	sysctl_mirrorable = 1;
++	return 0;
++}
++early_param("mirrorable", set_mirrorable);
+ #endif
+ 
+ static unsigned long __meminitdata nr_kernel_pages;
 -- 
 2.0.0
 
