@@ -1,67 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 188DE900016
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 18:59:12 -0400 (EDT)
-Received: by iebgx4 with SMTP id gx4so46425892ieb.0
-        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 15:59:12 -0700 (PDT)
-Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com. [2607:f8b0:4001:c03::234])
-        by mx.google.com with ESMTPS id ng16si293641igb.36.2015.06.04.15.59.11
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 056F2900016
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 19:12:30 -0400 (EDT)
+Received: by igbhj9 with SMTP id hj9so3297141igb.1
+        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 16:12:29 -0700 (PDT)
+Received: from mail-ig0-x22a.google.com (mail-ig0-x22a.google.com. [2607:f8b0:4001:c05::22a])
+        by mx.google.com with ESMTPS id c6si379818igg.0.2015.06.04.16.12.29
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Jun 2015 15:59:11 -0700 (PDT)
-Received: by iebgx4 with SMTP id gx4so46425768ieb.0
-        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 15:59:11 -0700 (PDT)
-Date: Thu, 4 Jun 2015 15:59:09 -0700 (PDT)
+        Thu, 04 Jun 2015 16:12:29 -0700 (PDT)
+Received: by igbpi8 with SMTP id pi8so2856507igb.1
+        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 16:12:29 -0700 (PDT)
+Date: Thu, 4 Jun 2015 16:12:27 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] oom: split out forced OOM killer
-In-Reply-To: <1433235187-32673-1-git-send-email-mhocko@suse.cz>
-Message-ID: <alpine.DEB.2.10.1506041557070.16555@chino.kir.corp.google.com>
-References: <1433235187-32673-1-git-send-email-mhocko@suse.cz>
+Subject: Re: [PATCH] oom: always panic on OOM when panic_on_oom is
+ configured
+In-Reply-To: <1433159948-9912-1-git-send-email-mhocko@suse.cz>
+Message-ID: <alpine.DEB.2.10.1506041607020.16555@chino.kir.corp.google.com>
+References: <1433159948-9912-1-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 2 Jun 2015, Michal Hocko wrote:
+On Mon, 1 Jun 2015, Michal Hocko wrote:
 
-> OOM killer might be triggered externally via sysrq+f. This is supposed
-> to kill a task no matter what e.g. a task is selected even though there
-> is an OOM victim on the way to exit. This is a big hammer for an admin
-> to help to resolve a memory short condition when the system is not able
-> to cope with it on its own in a reasonable time frame (e.g. when the
-> system is trashing or the OOM killer cannot make sufficient progress).
+> panic_on_oom allows administrator to set OOM policy to panic the system
+> when it is out of memory to reduce failover time e.g. when resolving
+> the OOM condition would take much more time than rebooting the system.
 > 
-> The forced OOM killing is currently wired into out_of_memory()
-> call which is kind of ugly because generic out_of_memory path
-> has to deal with configuration settings and heuristics which
-> are completely irrelevant to the forced OOM killer (e.g.
-> sysctl_oom_kill_allocating_task or OOM killer prevention for already
-> dying tasks). Some of those will not apply to sysrq because the handler
-> runs from the worker context.
-> check_panic_on_oom on the other hand will work and that is kind of
-> unexpected because sysrq+f should be usable to kill a mem hog whether
-> the global OOM policy is to panic or not.
-> It also doesn't make much sense to panic the system when no task cannot
-> be killed because admin has a separate sysrq for that purpose.
+> out_of_memory tries to be clever and prevent from premature panics
+> by checking the current task and prevent from panic when the task
+> has fatal signal pending and so it should die shortly and release some
+> memory. This is fair enough but Tetsuo Handa has noted that this might
+> lead to a silent deadlock when current cannot exit because of
+> dependencies invisible to the OOM killer.
 > 
-> Let's pull forced OOM killer code out into a separate function
-> (force_out_of_memory) which is really trivial now. Also extract the core
-> of oom_kill_process into __oom_kill_process which doesn't do any
-> OOM prevention heuristics.
-> As a bonus we can clearly state that this is a forced OOM killer in the
-> OOM message which is helpful to distinguish it from the regular OOM
-> killer.
+> panic_on_oom is disabled by default and if somebody enables it then any
+> risk of potential deadlock is certainly unwelcome. The risk is really
+> low because there are usually more sources of allocation requests and
+> one of them would eventually trigger the panic but it is better to
+> reduce the risk as much as possible.
 > 
+> Let's move check_panic_on_oom up before the current task is
+> checked so that the knob value is . Do the same for the memcg in
+> mem_cgroup_out_of_memory.
+> 
+> Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-I'm not sure what the benefit of this is, and it's adding more code.  
-Having multiple pathways and requirements, such as constrained_alloc(), to 
-oom kill a process isn't any clearer, in my opinion.  It also isn't 
-intended to be optimized since the oom killer called from the page 
-allocator and from sysrq aren't fastpaths.  To me, this seems like only a 
-source code level change and doesn't make anything more clear but rather 
-adds more code and obfuscates the entry path.
+Nack, this is not the appropriate response to exit path livelocks.  By 
+doing this, you are going to start unnecessarily panicking machines that 
+have panic_on_oom set when it would not have triggered before.  If there 
+is no reclaimable memory and a process that has already been signaled to 
+die to is in the process of exiting has to allocate memory, it is 
+perfectly acceptable to give them access to memory reserves so they can 
+allocate and exit.  Under normal circumstances, that allows the process to 
+naturally exit.  With your patch, it will cause the machine to panic.
+
+It's this simple: panic_on_oom is not a solution to workaround oom killer 
+livelocks and shouldn't be suggested as the canonical way that such 
+possibilities should be addressed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
