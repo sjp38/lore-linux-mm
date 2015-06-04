@@ -1,46 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 44E6E900016
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 22:10:17 -0400 (EDT)
-Received: by pabqy3 with SMTP id qy3so18888602pab.3
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 19:10:16 -0700 (PDT)
-Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
-        by mx.google.com with ESMTPS id uy7si3444039pbc.246.2015.06.03.19.10.16
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id B6AF6900016
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2015 22:18:28 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so19978944pdb.1
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 19:18:28 -0700 (PDT)
+Received: from mail-pd0-x233.google.com (mail-pd0-x233.google.com. [2607:f8b0:400e:c02::233])
+        by mx.google.com with ESMTPS id df1si3543529pad.84.2015.06.03.19.18.27
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jun 2015 19:10:16 -0700 (PDT)
-Received: by pdjm12 with SMTP id m12so19799483pdj.3
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 19:10:16 -0700 (PDT)
-Date: Thu, 4 Jun 2015 11:10:41 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [RFC][PATCH 01/10] zsmalloc: drop unused variable `nr_to_migrate'
-Message-ID: <20150604021041.GA1951@swordfish>
+        Wed, 03 Jun 2015 19:18:27 -0700 (PDT)
+Received: by pdjm12 with SMTP id m12so19930805pdj.3
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2015 19:18:27 -0700 (PDT)
+Date: Thu, 4 Jun 2015 11:18:21 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC][PATCH 02/10] zsmalloc: always keep per-class stats
+Message-ID: <20150604021821.GC2241@blaptop>
 References: <1432911928-14654-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1432911928-14654-2-git-send-email-sergey.senozhatsky@gmail.com>
- <20150604020401.GB2241@blaptop>
+ <1432911928-14654-3-git-send-email-sergey.senozhatsky@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150604020401.GB2241@blaptop>
+In-Reply-To: <1432911928-14654-3-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On (06/04/15 11:04), Minchan Kim wrote:
-> On Sat, May 30, 2015 at 12:05:19AM +0900, Sergey Senozhatsky wrote:
-> > __zs_compact() does not use `nr_to_migrate', drop it.
-> > 
-> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Acked-by: Minchan Kim <minchan@kernel.org>
+On Sat, May 30, 2015 at 12:05:20AM +0900, Sergey Senozhatsky wrote:
+> always account per-class `zs_size_stat' stats. this data will
+> help us make better decisions during compaction. we are especially
+> interested in OBJ_ALLOCATED and OBJ_USED, which can tell us if
+> class compaction will result in any memory gain.
+> 
+> for instance, we know the number of allocated objects in the class,
+> the number of objects being used (so we also know how many objects
+> are not used) and the number of objects per-page. so we can estimate
+> how many pages compaction can free (pages that will turn into
+> ZS_EMPTY during compaction).
+
+Fair enough but I need to read further patches to see if we need
+really this at the moment.
+
+I hope it would be better to write down more detail in cover-letter
+so when I read just [0/0] I realize your goal and approach without
+looking into detail in each patch.
+
+> 
+> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> ---
+>  mm/zsmalloc.c | 49 ++++++++++++-------------------------------------
+>  1 file changed, 12 insertions(+), 37 deletions(-)
+> 
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index e615b31..778b8db 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -169,14 +169,12 @@ enum zs_stat_type {
+>  	NR_ZS_STAT_TYPE,
+>  };
+>  
+> -#ifdef CONFIG_ZSMALLOC_STAT
+> -
+> -static struct dentry *zs_stat_root;
+> -
+>  struct zs_size_stat {
+>  	unsigned long objs[NR_ZS_STAT_TYPE];
+>  };
+>  
+> +#ifdef CONFIG_ZSMALLOC_STAT
+> +static struct dentry *zs_stat_root;
+>  #endif
+>  
+>  /*
+> @@ -201,25 +199,21 @@ static int zs_size_classes;
+>  static const int fullness_threshold_frac = 4;
+>  
+>  struct size_class {
+> +	spinlock_t		lock;
+> +	struct page		*fullness_list[_ZS_NR_FULLNESS_GROUPS];
+>  	/*
+>  	 * Size of objects stored in this class. Must be multiple
+>  	 * of ZS_ALIGN.
+>  	 */
+> -	int size;
+> -	unsigned int index;
+> +	int			size;
+> +	unsigned int		index;
+>  
+>  	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
+> -	int pages_per_zspage;
+> -	/* huge object: pages_per_zspage == 1 && maxobj_per_zspage == 1 */
+> -	bool huge;
+> -
+> -#ifdef CONFIG_ZSMALLOC_STAT
+> -	struct zs_size_stat stats;
+> -#endif
+> -
+> -	spinlock_t lock;
+> +	int			pages_per_zspage;
+> +	struct zs_size_stat	stats;
+>  
+> -	struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
+> +	/* huge object: pages_per_zspage == 1 && maxobj_per_zspage == 1 */
+> +	bool			huge;
+>  };
+>  
+>  /*
+> @@ -439,8 +433,6 @@ static int get_size_class_index(int size)
+>  	return min(zs_size_classes - 1, idx);
+>  }
+>  
+> -#ifdef CONFIG_ZSMALLOC_STAT
+> -
+>  static inline void zs_stat_inc(struct size_class *class,
+>  				enum zs_stat_type type, unsigned long cnt)
+>  {
+> @@ -459,6 +451,8 @@ static inline unsigned long zs_stat_get(struct size_class *class,
+>  	return class->stats.objs[type];
+>  }
+>  
+> +#ifdef CONFIG_ZSMALLOC_STAT
+> +
+>  static int __init zs_stat_init(void)
+>  {
+>  	if (!debugfs_initialized())
+> @@ -574,23 +568,6 @@ static void zs_pool_stat_destroy(struct zs_pool *pool)
+>  }
+>  
+>  #else /* CONFIG_ZSMALLOC_STAT */
+> -
+> -static inline void zs_stat_inc(struct size_class *class,
+> -				enum zs_stat_type type, unsigned long cnt)
+> -{
+> -}
+> -
+> -static inline void zs_stat_dec(struct size_class *class,
+> -				enum zs_stat_type type, unsigned long cnt)
+> -{
+> -}
+> -
+> -static inline unsigned long zs_stat_get(struct size_class *class,
+> -				enum zs_stat_type type)
+> -{
+> -	return 0;
+> -}
+> -
+>  static int __init zs_stat_init(void)
+>  {
+>  	return 0;
+> @@ -608,7 +585,6 @@ static inline int zs_pool_stat_create(char *name, struct zs_pool *pool)
+>  static inline void zs_pool_stat_destroy(struct zs_pool *pool)
+>  {
+>  }
+> -
+>  #endif
+>  
+>  
+> @@ -1682,7 +1658,6 @@ static void putback_zspage(struct zs_pool *pool, struct size_class *class,
+>  			class->size, class->pages_per_zspage));
+>  		atomic_long_sub(class->pages_per_zspage,
+>  				&pool->pages_allocated);
+> -
+>  		free_zspage(first_page);
+>  	}
+>  }
+> -- 
+> 2.4.2.337.gfae46aa
 > 
 
-Hello Minchan,
-
-I will post a slightly reworked patchset later today.
-thanks.
-
-	-ss
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
