@@ -1,19 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 638CE900016
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 09:07:40 -0400 (EDT)
-Received: by pdbnf5 with SMTP id nf5so30778692pdb.2
-        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 06:07:40 -0700 (PDT)
-Received: from szxga03-in.huawei.com ([119.145.14.66])
-        by mx.google.com with ESMTPS id su9si5811424pab.143.2015.06.04.06.07.37
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id D4781900016
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 09:07:47 -0400 (EDT)
+Received: by pdjm12 with SMTP id m12so30678438pdj.3
+        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 06:07:47 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id g16si5789274pdl.216.2015.06.04.06.07.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 04 Jun 2015 06:07:39 -0700 (PDT)
-Message-ID: <55704CED.1020702@huawei.com>
-Date: Thu, 4 Jun 2015 21:04:45 +0800
+        Thu, 04 Jun 2015 06:07:46 -0700 (PDT)
+Message-ID: <55704B8C.7080506@huawei.com>
+Date: Thu, 4 Jun 2015 20:58:52 +0800
 From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH 11/12] mm: add the PCP interface
+Subject: [RFC PATCH 03/12] mm: introduce MIGRATE_MIRROR to manage the mirrored,
+ pages
 References: <55704A7E.5030507@huawei.com>
 In-Reply-To: <55704A7E.5030507@huawei.com>
 Content-Type: text/plain; charset="ISO-8859-1"
@@ -23,52 +24,113 @@ List-ID: <linux-mm.kvack.org>
 To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>
 Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Add the PCP interface for address range mirroring feature.
+This patch introduces a new MIGRATE_TYPES called "MIGRATE_MIRROR", it is used
+to storage the mirrored pages list.
+When cat /proc/pagetypeinfo, you can see the count of free mirrored blocks.
+
+e.g.
+euler-linux:~ # cat /proc/pagetypeinfo
+Page block order: 9
+Pages per block:  512
+
+Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
+Node    0, zone      DMA, type    Unmovable      1      1      0      0      2      1      1      0      1      0      0
+Node    0, zone      DMA, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      0
+Node    0, zone      DMA, type      Movable      0      0      0      0      0      0      0      0      0      0      3
+Node    0, zone      DMA, type       Mirror      0      0      0      0      0      0      0      0      0      0      0
+Node    0, zone      DMA, type      Reserve      0      0      0      0      0      0      0      0      0      1      0
+Node    0, zone      DMA, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
+Node    0, zone    DMA32, type    Unmovable      0      0      1      0      0      0      0      1      1      1      0
+Node    0, zone    DMA32, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      0
+Node    0, zone    DMA32, type      Movable      1      2      6      6      6      4      5      3      3      2    738
+Node    0, zone    DMA32, type       Mirror      0      0      0      0      0      0      0      0      0      0      0
+Node    0, zone    DMA32, type      Reserve      0      0      0      0      0      0      0      0      0      0      1
+Node    0, zone    DMA32, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
+Node    0, zone   Normal, type    Unmovable      0      0      0      0      0      0      0      0      0      0      0
+Node    0, zone   Normal, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      0
+Node    0, zone   Normal, type      Movable      0      0      1      1      0      0      0      2      1      0   4254
+Node    0, zone   Normal, type       Mirror    148    104     63     70     26     11      2      2      1      1    973
+Node    0, zone   Normal, type      Reserve      0      0      0      0      0      0      0      0      0      0      1
+Node    0, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
+
+Number of blocks type     Unmovable  Reclaimable      Movable       Mirror      Reserve      Isolate
+Node 0, zone      DMA            1            0            6            0            1            0
+Node 0, zone    DMA32            2            0         1525            0            1            0
+Node 0, zone   Normal            0            0         8702         2048            2            0
+Page block order: 9
+Pages per block:  512
+
+Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
+Node    1, zone   Normal, type    Unmovable      0      0      0      0      0      0      0      0      0      0      0
+Node    1, zone   Normal, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      0
+Node    1, zone   Normal, type      Movable      2      2      1      1      2      1      2      2      2      3   3996
+Node    1, zone   Normal, type       Mirror     68     94     57      6      8      1      0      0      3      1   2003
+Node    1, zone   Normal, type      Reserve      0      0      0      0      0      0      0      0      0      0      1
+Node    1, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
+
+Number of blocks type     Unmovable  Reclaimable      Movable       Mirror      Reserve      Isolate
+Node 1, zone   Normal            0            0         8190         4096            2            0
+
 
 Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
 ---
- mm/page_alloc.c | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ include/linux/mmzone.h | 6 ++++++
+ mm/page_alloc.c        | 3 +++
+ mm/vmstat.c            | 3 +++
+ 3 files changed, 12 insertions(+)
 
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 1fae07b..b444335 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -39,6 +39,9 @@ enum {
+ 	MIGRATE_UNMOVABLE,
+ 	MIGRATE_RECLAIMABLE,
+ 	MIGRATE_MOVABLE,
++#ifdef CONFIG_MEMORY_MIRROR
++	MIGRATE_MIRROR,
++#endif
+ 	MIGRATE_PCPTYPES,	/* the number of types on the pcp lists */
+ 	MIGRATE_RESERVE = MIGRATE_PCPTYPES,
+ #ifdef CONFIG_CMA
+@@ -82,6 +85,9 @@ struct mirror_info {
+ };
+ 
+ extern struct mirror_info mirror_info;
++#  define is_migrate_mirror(migratetype) unlikely((migratetype) == MIGRATE_MIRROR)
++#else
++#  define is_migrate_mirror(migratetype) false
+ #endif
+ 
+ #define for_each_migratetype_order(order, type) \
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0fb55288..cf3b7cb 100644
+index 41a95a7..3b2ff46 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1401,11 +1401,16 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
- 			unsigned long count, struct list_head *list,
- 			int migratetype, bool cold)
- {
--	int i;
-+	int i, mt;
- 
- 	spin_lock(&zone->lock);
- 	for (i = 0; i < count; ++i) {
--		struct page *page = __rmqueue(zone, order, migratetype);
-+		struct page *page;
-+
-+		if (is_migrate_mirror(migratetype))
-+			page = __rmqueue_smallest(zone, order, migratetype);
-+		else
-+			page = __rmqueue(zone, order, migratetype);
- 		if (unlikely(page == NULL))
- 			break;
- 
-@@ -1423,9 +1428,14 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
- 		else
- 			list_add_tail(&page->lru, list);
- 		list = &page->lru;
--		if (is_migrate_cma(get_freepage_migratetype(page)))
-+
-+		mt = get_freepage_migratetype(page);
-+		if (is_migrate_cma(mt))
- 			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
- 					      -(1 << order));
-+		if (is_migrate_mirror(mt))
-+			__mod_zone_page_state(zone, NR_FREE_MIRROR_PAGES,
-+					      -(1 << order));
- 	}
- 	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
- 	spin_unlock(&zone->lock);
+@@ -3245,6 +3245,9 @@ static void show_migration_types(unsigned char type)
+ 		[MIGRATE_UNMOVABLE]	= 'U',
+ 		[MIGRATE_RECLAIMABLE]	= 'E',
+ 		[MIGRATE_MOVABLE]	= 'M',
++#ifdef CONFIG_MEMORY_MIRROR
++		[MIGRATE_MIRROR]	= 'O',
++#endif
+ 		[MIGRATE_RESERVE]	= 'R',
+ #ifdef CONFIG_CMA
+ 		[MIGRATE_CMA]		= 'C',
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 4f5cd97..d0323e0 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -901,6 +901,9 @@ static char * const migratetype_names[MIGRATE_TYPES] = {
+ 	"Unmovable",
+ 	"Reclaimable",
+ 	"Movable",
++#ifdef CONFIG_MEMORY_MIRROR
++	"Mirror",
++#endif
+ 	"Reserve",
+ #ifdef CONFIG_CMA
+ 	"CMA",
 -- 
 2.0.0
 
