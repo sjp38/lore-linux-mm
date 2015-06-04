@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B242900016
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 09:12:40 -0400 (EDT)
-Received: by oihd6 with SMTP id d6so30789588oih.2
-        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 06:12:39 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id 203si1626440oic.114.2015.06.04.06.12.37
+Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A2C2900016
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 09:14:29 -0400 (EDT)
+Received: by obbgp2 with SMTP id gp2so9729136obb.2
+        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 06:14:29 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id c8si1641130oel.39.2015.06.04.06.14.27
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 04 Jun 2015 06:12:39 -0700 (PDT)
-Message-ID: <55704C1C.6040101@huawei.com>
-Date: Thu, 4 Jun 2015 21:01:16 +0800
+        Thu, 04 Jun 2015 06:14:28 -0700 (PDT)
+Message-ID: <55704D15.3030309@huawei.com>
+Date: Thu, 4 Jun 2015 21:05:25 +0800
 From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH 06/12] mm: add free mirrored pages info
+Subject: [RFC PATCH 12/12] mm: let slab/slub/slob use mirrored memory
 References: <55704A7E.5030507@huawei.com>
 In-Reply-To: <55704A7E.5030507@huawei.com>
 Content-Type: text/plain; charset="ISO-8859-1"
@@ -23,119 +23,55 @@ List-ID: <linux-mm.kvack.org>
 To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>
 Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Add the count of free mirrored pages in the following paths:
-/proc/meminfo
-/proc/zoneinfo
-/sys/devices/system/node/node XX/meminfo
-/sys/devices/system/node/node XX/vmstat
+Add __GFP_MIRROR flag when allocate a new slab.
 
 Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
 ---
- drivers/base/node.c | 17 +++++++++++------
- fs/proc/meminfo.c   |  6 ++++++
- mm/page_alloc.c     |  7 +++++--
- 3 files changed, 22 insertions(+), 8 deletions(-)
+ mm/slab.c | 3 ++-
+ mm/slob.c | 2 +-
+ mm/slub.c | 2 +-
+ 3 files changed, 4 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index a2aa65b..d1a3556 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -114,6 +114,9 @@ static ssize_t node_read_meminfo(struct device *dev,
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 		       "Node %d AnonHugePages:  %8lu kB\n"
- #endif
-+#ifdef CONFIG_MEMORY_MIRROR
-+		       "Node %d MirrorFree:     %8lu kB\n"
-+#endif
- 			,
- 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
- 		       nid, K(node_page_state(nid, NR_WRITEBACK)),
-@@ -130,14 +133,16 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +
- 				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
- 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
--			, nid,
--			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
--			HPAGE_PMD_NR));
--#else
--		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+		     , nid, K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
-+				HPAGE_PMD_NR)
-+#endif
-+#ifdef CONFIG_MEMORY_MIRROR
-+		     , nid, K(node_page_state(nid, NR_FREE_MIRROR_PAGES))
- #endif
-+			);
-+
- 	n += hugetlb_report_node_meminfo(nid, buf + n);
- 	return n;
- }
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index d3ebf2e..d1ebb20 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -145,6 +145,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 		"CmaTotal:       %8lu kB\n"
- 		"CmaFree:        %8lu kB\n"
- #endif
-+#ifdef CONFIG_MEMORY_MIRROR
-+		"MirrorFree:     %8lu kB\n"
-+#endif
- 		,
- 		K(i.totalram),
- 		K(i.freeram),
-@@ -204,6 +207,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 		, K(totalcma_pages)
- 		, K(global_page_state(NR_FREE_CMA_PAGES))
- #endif
-+#ifdef CONFIG_MEMORY_MIRROR
-+		, K(global_page_state(NR_FREE_MIRROR_PAGES))
-+#endif
- 		);
+diff --git a/mm/slab.c b/mm/slab.c
+index 7eb38dd..3b3ef22 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1594,7 +1594,8 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
+ 	if (memcg_charge_slab(cachep, flags, cachep->gfporder))
+ 		return NULL;
  
- 	hugetlb_report_meminfo(m);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8fe0187..249a8f6 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3316,7 +3316,7 @@ void show_free_areas(unsigned int filter)
- 		" unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
- 		" slab_reclaimable:%lu slab_unreclaimable:%lu\n"
- 		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
--		" free:%lu free_pcp:%lu free_cma:%lu\n",
-+		" free:%lu free_pcp:%lu free_cma:%lu free_mirror:%lu\n",
- 		global_page_state(NR_ACTIVE_ANON),
- 		global_page_state(NR_INACTIVE_ANON),
- 		global_page_state(NR_ISOLATED_ANON),
-@@ -3335,7 +3335,8 @@ void show_free_areas(unsigned int filter)
- 		global_page_state(NR_BOUNCE),
- 		global_page_state(NR_FREE_PAGES),
- 		free_pcp,
--		global_page_state(NR_FREE_CMA_PAGES));
-+		global_page_state(NR_FREE_CMA_PAGES),
-+		global_page_state(NR_FREE_MIRROR_PAGES));
+-	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
++	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK | __GFP_MIRROR,
++					cachep->gfporder);
+ 	if (!page) {
+ 		memcg_uncharge_slab(cachep, cachep->gfporder);
+ 		slab_out_of_memory(cachep, flags, nodeid);
+diff --git a/mm/slob.c b/mm/slob.c
+index 4765f65..4ff9bde 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -452,7 +452,7 @@ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
  
- 	for_each_populated_zone(zone) {
- 		int i;
-@@ -3376,6 +3377,7 @@ void show_free_areas(unsigned int filter)
- 			" free_pcp:%lukB"
- 			" local_pcp:%ukB"
- 			" free_cma:%lukB"
-+			" free_mirror:%lukB"
- 			" writeback_tmp:%lukB"
- 			" pages_scanned:%lu"
- 			" all_unreclaimable? %s"
-@@ -3409,6 +3411,7 @@ void show_free_areas(unsigned int filter)
- 			K(free_pcp),
- 			K(this_cpu_read(zone->pageset->pcp.count)),
- 			K(zone_page_state(zone, NR_FREE_CMA_PAGES)),
-+			K(zone_page_state(zone, NR_FREE_MIRROR_PAGES)),
- 			K(zone_page_state(zone, NR_WRITEBACK_TEMP)),
- 			K(zone_page_state(zone, NR_PAGES_SCANNED)),
- 			(!zone_reclaimable(zone) ? "yes" : "no")
+ 		if (likely(order))
+ 			gfp |= __GFP_COMP;
+-		ret = slob_new_pages(gfp, order, node);
++		ret = slob_new_pages(gfp | __GFP_MIRROR, order, node);
+ 
+ 		trace_kmalloc_node(caller, ret,
+ 				   size, PAGE_SIZE << order, gfp, node);
+diff --git a/mm/slub.c b/mm/slub.c
+index 54c0876..1219e33 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1315,7 +1315,7 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
+ 	struct page *page;
+ 	int order = oo_order(oo);
+ 
+-	flags |= __GFP_NOTRACK;
++	flags |= __GFP_NOTRACK | __GFP_MIRROR;
+ 
+ 	if (memcg_charge_slab(s, flags, order))
+ 		return NULL;
 -- 
 2.0.0
 
