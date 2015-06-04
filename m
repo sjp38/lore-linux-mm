@@ -1,85 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F1A9900016
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 04:25:04 -0400 (EDT)
-Received: by pdbki1 with SMTP id ki1so26036762pdb.1
-        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 01:25:03 -0700 (PDT)
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com. [209.85.220.52])
-        by mx.google.com with ESMTPS id rj10si4810814pdb.132.2015.06.04.01.25.01
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id A7A20900016
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 04:39:59 -0400 (EDT)
+Received: by wibdq8 with SMTP id dq8so116993407wib.1
+        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 01:39:59 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id lt3si5998302wjb.33.2015.06.04.01.39.57
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Jun 2015 01:25:02 -0700 (PDT)
-Received: by payr10 with SMTP id r10so25031212pay.1
-        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 01:25:00 -0700 (PDT)
-From: Grant Likely <grant.likely@linaro.org>
-Subject: Re: [PATCH] of: return NUMA_NO_NODE from fallback of_node_to_nid()
-In-Reply-To: 
- <CAL_Jsq+vaufZJAchHC1OaV9g18zFfkXyRZ9j5wm0VWosh9i4kQ@mail.gmail.com>
-References: <20150408165920.25007.6869.stgit@buzz>
-	<CAL_JsqKQPtNPfTAiqsKnFuU6e-qozzPgujM=8MHseG75R9cbSA@mail.gmail.com>
-	<552BC6E8.1040400@yandex-team.ru>
-	<CAL_Jsq+vaufZJAchHC1OaV9g18zFfkXyRZ9j5wm0VWosh9i4kQ@mail.gmail.com>
-Date: Thu, 04 Jun 2015 14:45:23 +0900
-Message-Id: <20150604054523.6D86DC40872@trevor.secretlab.ca>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 04 Jun 2015 01:39:57 -0700 (PDT)
+Date: Thu, 4 Jun 2015 10:39:53 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Rules for calling ->releasepage()
+Message-ID: <20150604083953.GB5923@quack.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rob Herring <robherring2@gmail.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, Rob Herring <robh+dt@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, sparclinux@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: linux-mm@kvack.org
+Cc: linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, mfasheh@suse.de, mgorman@suse.de, linux-ext4@vger.kernel.org
 
-On Mon, 13 Apr 2015 11:49:31 -0500
-, Rob Herring <robherring2@gmail.com>
- wrote:
-> On Mon, Apr 13, 2015 at 8:38 AM, Konstantin Khlebnikov
-> <khlebnikov@yandex-team.ru> wrote:
-> > On 13.04.2015 16:22, Rob Herring wrote:
-> >>
-> >> On Wed, Apr 8, 2015 at 11:59 AM, Konstantin Khlebnikov
-> >> <khlebnikov@yandex-team.ru> wrote:
-> >>>
-> >>> Node 0 might be offline as well as any other numa node,
-> >>> in this case kernel cannot handle memory allocation and crashes.
-> >>>
-> >>> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-> >>> Fixes: 0c3f061c195c ("of: implement of_node_to_nid as a weak function")
-> >>> ---
-> >>>   drivers/of/base.c  |    2 +-
-> >>>   include/linux/of.h |    5 ++++-
-> >>>   2 files changed, 5 insertions(+), 2 deletions(-)
-> >>>
-> >>> diff --git a/drivers/of/base.c b/drivers/of/base.c
-> >>> index 8f165b112e03..51f4bd16e613 100644
-> >>> --- a/drivers/of/base.c
-> >>> +++ b/drivers/of/base.c
-> >>> @@ -89,7 +89,7 @@ EXPORT_SYMBOL(of_n_size_cells);
-> >>>   #ifdef CONFIG_NUMA
-> >>>   int __weak of_node_to_nid(struct device_node *np)
-> >>>   {
-> >>> -       return numa_node_id();
-> >>> +       return NUMA_NO_NODE;
-> >>
-> >>
-> >> This is going to break any NUMA machine that enables OF and expects
-> >> the weak function to work.
-> >
-> >
-> > Why? NUMA_NO_NODE == -1 -- this's standard "no-affinity" signal.
-> > As I see powerpc/sparc versions of of_node_to_nid returns -1 if they
-> > cannot find out which node should be used.
-> 
-> Ah, I was thinking those platforms were relying on the default
-> implementation. I guess any real NUMA support is going to need to
-> override this function. The arm64 patch series does that as well. We
-> need to be sure this change is correct for metag which appears to be
-> the only other OF enabled platform with NUMA support.
-> 
-> In that case, then there is little reason to keep the inline and we
-> can just always enable the weak function (with your change). It is
-> slightly less optimal, but the few callers hardly appear to be hot
-> paths.
+  Hello,
 
-Sounds like you're in agreement with this patch then? Shall I apply it?
+  we were recently debugging an issue where customer was hitting warnings
+in xfs_vm_releasepage() which was complaining that the page it was called
+for has delay-allocated buffers. After some debugging we realized that
+indeed try_to_release_page() call from shrink_active_list() can happen for
+a page in arbitrary state (that call happens only if
+buffer_heads_over_limit is set so that is the reason why we normally don't
+see that).
 
-g.
+Hence comes my question: What are the rules for when can ->releasepage() be
+called? And what is the expected outcome? We are certainly guaranteed to
+hold page lock. try_to_release_page() also makes sure the page isn't under
+writeback.  But what is ->releasepage() supposed to do with a dirty page?
+Generally IFAIU we aren't supposed to discard dirty data but I wouldn't bet
+on all filesystems getting it right because the common call paths make sure
+page is clean. I would almost say we should enforce !PageDirty in
+try_to_release_page() if it was not for that ext3 nastyness of cleaning
+buffers under a dirty page - hum, but maybe the right answer for that is
+ripping ext3 out of tree (which would also allow us to get rid of some code
+in the blocklayer for bouncing journaled data buffers when stable writes
+are required).
+
+Thoughts?
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
