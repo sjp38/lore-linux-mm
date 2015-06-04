@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A8C6900016
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 09:07:05 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so30798533pdb.0
-        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 06:07:05 -0700 (PDT)
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id AD00B900016
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 09:07:16 -0400 (EDT)
+Received: by igblz2 with SMTP id lz2so38599055igb.1
+        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 06:07:16 -0700 (PDT)
 Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id rf8si5802910pdb.180.2015.06.04.06.07.02
+        by mx.google.com with ESMTPS id n10si16439512igv.28.2015.06.04.06.07.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 04 Jun 2015 06:07:04 -0700 (PDT)
-Message-ID: <55704BB0.7030606@huawei.com>
-Date: Thu, 4 Jun 2015 20:59:28 +0800
+        Thu, 04 Jun 2015 06:07:16 -0700 (PDT)
+Message-ID: <55704BE7.1000408@huawei.com>
+Date: Thu, 4 Jun 2015 21:00:23 +0800
 From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH 04/12] mm: add mirrored pages to buddy system
+Subject: [RFC PATCH 05/12] mm: introduce a new zone_stat_item NR_FREE_MIRROR_PAGES
 References: <55704A7E.5030507@huawei.com>
 In-Reply-To: <55704A7E.5030507@huawei.com>
 Content-Type: text/plain; charset="ISO-8859-1"
@@ -23,66 +23,53 @@ List-ID: <linux-mm.kvack.org>
 To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>
 Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Set mirrored pageblock's migratetype to MIGRATE_MIRROR, so they could free to
-buddy system's MIGRATE_MIRROR list when free bootmem.
+This patch introduces a new zone_stat_item called "NR_FREE_MIRROR_PAGES", it is
+used to storage free mirrored pages count.
 
 Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
 ---
- mm/page_alloc.c | 27 +++++++++++++++++++++++++++
- 1 file changed, 27 insertions(+)
+ include/linux/mmzone.h | 1 +
+ include/linux/vmstat.h | 2 ++
+ mm/vmstat.c            | 1 +
+ 3 files changed, 4 insertions(+)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3b2ff46..8fe0187 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -572,6 +572,25 @@ static void __init print_mirror_info(void)
- 			mirror_info.info[i].start +
- 				mirror_info.info[i].size - 1);
- }
-+
-+static inline bool is_mirror_pfn(unsigned long pfn)
-+{
-+	int i;
-+	unsigned long addr = pfn << PAGE_SHIFT;
-+
-+	/* 0-4G is always mirrored, so ignore it */
-+	if (addr < (4UL << 30))
-+		return false;
-+
-+	for (i = 0; i < mirror_info.count; i++) {
-+		if (addr >= mirror_info.info[i].start &&
-+		    addr < mirror_info.info[i].start +
-+			   mirror_info.info[i].size)
-+			return true;
-+	}
-+
-+	return false;
-+}
- #endif
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index b444335..f82e3ae 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -178,6 +178,7 @@ enum zone_stat_item {
+ 	WORKINGSET_NODERECLAIM,
+ 	NR_ANON_TRANSPARENT_HUGEPAGES,
+ 	NR_FREE_CMA_PAGES,
++	NR_FREE_MIRROR_PAGES,
+ 	NR_VM_ZONE_STAT_ITEMS };
  
  /*
-@@ -4147,6 +4166,9 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index 82e7db7..d0a7268 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -283,6 +283,8 @@ static inline void __mod_zone_freepage_state(struct zone *zone, int nr_pages,
+ 	__mod_zone_page_state(zone, NR_FREE_PAGES, nr_pages);
+ 	if (is_migrate_cma(migratetype))
+ 		__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, nr_pages);
++	if (is_migrate_mirror(migratetype))
++		__mod_zone_page_state(zone, NR_FREE_MIRROR_PAGES, nr_pages);
+ }
  
- 		block_migratetype = get_pageblock_migratetype(page);
+ extern const char * const vmstat_text[];
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index d0323e0..7ee11ca 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -739,6 +739,7 @@ const char * const vmstat_text[] = {
+ 	"workingset_nodereclaim",
+ 	"nr_anon_transparent_hugepages",
+ 	"nr_free_cma",
++	"nr_free_mirror",
  
-+		if (is_migrate_mirror(block_migratetype))
-+			continue;
-+
- 		/* Only test what is necessary when the reserves are not met */
- 		if (reserve > 0) {
- 			/*
-@@ -4246,6 +4268,11 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		    && !(pfn & (pageblock_nr_pages - 1)))
- 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
- 
-+#ifdef CONFIG_MEMORY_MIRROR
-+		if (is_mirror_pfn(pfn))
-+			set_pageblock_migratetype(page, MIGRATE_MIRROR);
-+#endif
-+
- 		INIT_LIST_HEAD(&page->lru);
- #ifdef WANT_PAGE_VIRTUAL
- 		/* The shift won't overflow because ZONE_NORMAL is below 4G. */
+ 	/* enum writeback_stat_item counters */
+ 	"nr_dirty_threshold",
 -- 
 2.0.0
 
