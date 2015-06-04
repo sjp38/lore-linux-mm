@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AAD4900016
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 13:09:04 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so34915140pdb.0
-        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 10:09:04 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id pr7si6701872pdb.236.2015.06.04.10.09.03
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id D8244900016
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 13:14:42 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so34924012pdb.1
+        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 10:14:42 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id bo11si1847590pdb.19.2015.06.04.10.14.41
         for <linux-mm@kvack.org>;
-        Thu, 04 Jun 2015 10:09:03 -0700 (PDT)
+        Thu, 04 Jun 2015 10:14:42 -0700 (PDT)
 From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [RFC PATCH 10/12] mm: add the buddy system interface
-Date: Thu, 4 Jun 2015 17:09:03 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F32A8D5C7@ORSMSX114.amr.corp.intel.com>
-References: <55704A7E.5030507@huawei.com> <55704CC4.8040707@huawei.com>
-In-Reply-To: <55704CC4.8040707@huawei.com>
+Subject: RE: [RFC PATCH 12/12] mm: let slab/slub/slob use mirrored memory
+Date: Thu, 4 Jun 2015 17:14:38 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F32A8D5D7@ORSMSX114.amr.corp.intel.com>
+References: <55704A7E.5030507@huawei.com> <55704D15.3030309@huawei.com>
+In-Reply-To: <55704D15.3030309@huawei.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -23,23 +23,24 @@ List-ID: <linux-mm.kvack.org>
 To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, "nao.horiguchi@gmail.com" <nao.horiguchi@gmail.com>, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
 Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-+#ifdef CONFIG_MEMORY_MIRROR
-+	if (change_to_mirror(gfp_mask, ac.high_zoneidx))
-+		ac.migratetype =3D MIGRATE_MIRROR;
-+#endif
+-	page =3D alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gf=
+porder);
++	page =3D alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK | __GFP_MIR=
+ROR,
++					cachep->gfporder);
+=20
+Set some global "got_mirror"[*] if we have any mirrored memory to __GFP_MIR=
+ROR, else to 0.
 
-We may have to be smarter than this here. I'd like to encourage the
-enterprise Linux distributions to set CONFIG_MEMORY_MIRROR=3Dy
-But the reality is that most systems will not configure any mirrored
-memory - so we don't want the common code path for memory
-allocation to call functions that set the migrate type, try to allocate
-and then fall back to a non-mirror when that may be a complete waste
-of time.
+then
+=09
+	page =3D alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK | got_mirror=
+,
+					cachep->gfporder);
 
-Maybe a global "got_mirror" that is true if we have some mirrored
-memory.  Then code is
+-Tony
 
-	if (got_mirror && change_to_mirror(...))
+[*] Someone will suggest a better name. I'm bad at picking names.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
