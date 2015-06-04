@@ -1,96 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E9F8900016
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 03:27:56 -0400 (EDT)
-Received: by pdbqa5 with SMTP id qa5so25129257pdb.0
-        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 00:27:56 -0700 (PDT)
-Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com. [2607:f8b0:400e:c02::22d])
-        by mx.google.com with ESMTPS id q2si4635164pap.44.2015.06.04.00.27.55
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F1A9900016
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 04:25:04 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so26036762pdb.1
+        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 01:25:03 -0700 (PDT)
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com. [209.85.220.52])
+        by mx.google.com with ESMTPS id rj10si4810814pdb.132.2015.06.04.01.25.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Jun 2015 00:27:55 -0700 (PDT)
-Received: by pdbqa5 with SMTP id qa5so25128973pdb.0
-        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 00:27:55 -0700 (PDT)
-Date: Thu, 4 Jun 2015 16:28:16 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [RFC][PATCH 07/10] zsmalloc: introduce auto-compact support
-Message-ID: <20150604072816.GB662@swordfish>
-References: <1432911928-14654-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1432911928-14654-8-git-send-email-sergey.senozhatsky@gmail.com>
- <20150604045725.GI2241@blaptop>
- <20150604053056.GA662@swordfish>
- <20150604062712.GJ2241@blaptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150604062712.GJ2241@blaptop>
+        Thu, 04 Jun 2015 01:25:02 -0700 (PDT)
+Received: by payr10 with SMTP id r10so25031212pay.1
+        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 01:25:00 -0700 (PDT)
+From: Grant Likely <grant.likely@linaro.org>
+Subject: Re: [PATCH] of: return NUMA_NO_NODE from fallback of_node_to_nid()
+In-Reply-To: 
+ <CAL_Jsq+vaufZJAchHC1OaV9g18zFfkXyRZ9j5wm0VWosh9i4kQ@mail.gmail.com>
+References: <20150408165920.25007.6869.stgit@buzz>
+	<CAL_JsqKQPtNPfTAiqsKnFuU6e-qozzPgujM=8MHseG75R9cbSA@mail.gmail.com>
+	<552BC6E8.1040400@yandex-team.ru>
+	<CAL_Jsq+vaufZJAchHC1OaV9g18zFfkXyRZ9j5wm0VWosh9i4kQ@mail.gmail.com>
+Date: Thu, 04 Jun 2015 14:45:23 +0900
+Message-Id: <20150604054523.6D86DC40872@trevor.secretlab.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rob Herring <robherring2@gmail.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, Rob Herring <robh+dt@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, sparclinux@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On (06/04/15 15:27), Minchan Kim wrote:
-[..]
+On Mon, 13 Apr 2015 11:49:31 -0500
+, Rob Herring <robherring2@gmail.com>
+ wrote:
+> On Mon, Apr 13, 2015 at 8:38 AM, Konstantin Khlebnikov
+> <khlebnikov@yandex-team.ru> wrote:
+> > On 13.04.2015 16:22, Rob Herring wrote:
+> >>
+> >> On Wed, Apr 8, 2015 at 11:59 AM, Konstantin Khlebnikov
+> >> <khlebnikov@yandex-team.ru> wrote:
+> >>>
+> >>> Node 0 might be offline as well as any other numa node,
+> >>> in this case kernel cannot handle memory allocation and crashes.
+> >>>
+> >>> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> >>> Fixes: 0c3f061c195c ("of: implement of_node_to_nid as a weak function")
+> >>> ---
+> >>>   drivers/of/base.c  |    2 +-
+> >>>   include/linux/of.h |    5 ++++-
+> >>>   2 files changed, 5 insertions(+), 2 deletions(-)
+> >>>
+> >>> diff --git a/drivers/of/base.c b/drivers/of/base.c
+> >>> index 8f165b112e03..51f4bd16e613 100644
+> >>> --- a/drivers/of/base.c
+> >>> +++ b/drivers/of/base.c
+> >>> @@ -89,7 +89,7 @@ EXPORT_SYMBOL(of_n_size_cells);
+> >>>   #ifdef CONFIG_NUMA
+> >>>   int __weak of_node_to_nid(struct device_node *np)
+> >>>   {
+> >>> -       return numa_node_id();
+> >>> +       return NUMA_NO_NODE;
+> >>
+> >>
+> >> This is going to break any NUMA machine that enables OF and expects
+> >> the weak function to work.
+> >
+> >
+> > Why? NUMA_NO_NODE == -1 -- this's standard "no-affinity" signal.
+> > As I see powerpc/sparc versions of of_node_to_nid returns -1 if they
+> > cannot find out which node should be used.
 > 
-> The problem is migration/freeing old zspage/allocating new zspage is
-> not a cheap, either.
-> If the system has no problem with small fragmented space, there is
-> no point to keep such overheads.
->
-> So, ideal is we should trigger compaction once we realized system
-> is trouble but I don't have any good idea to detect it.
-> That's why i wanted to rely on the decision from user via
-> compact_threshold_ratio.
-
-that'll be extremly hard to understand knob.
-
-well, we can do something like
--- don't let the number of "CLASS_ALMOST_EMPTY" to become N times greater
-than "CLASS_ALMOST_FULL".
-
-or
-
--- don't let the number of pages in ZS_ALMOST_EMPTY pages to contribute 70%
-of class memory usage. that is 70% of all pages allocated for this class belong
-to ZS_ALMOST_EMPTY zspages, thus potentially we can compact it.
-
-> > 
-> > > It's simple design of mm/compaction.c to prevent pointless overhead
-> > > but historically it made pains several times and required more
-> > > complicated logics but it's still painful.
-> > > 
-> > > Other thing I found recently is that it's not always win zsmalloc
-> > > for zram is not fragmented. The fragmented space could be used
-> > > for storing upcoming compressed objects although it is wasted space
-> > > at the moment but if we don't have any hole(ie, fragment space)
-> > > via frequent compaction, zsmalloc should allocate a new zspage
-> > > which could be allocated on movable pageblock by fallback of
-> > > nonmovable pageblock request on highly memory pressure system
-> > > so it accelerates fragment problem of the system memory.
-> > 
-> > yes, but compaction almost always leave classes fragmented. I think
-> > it's a corner case, when the number of unused allocated objects was
-> > exactly the same as the number of objects that we migrated and the
-> > number of migrated objects was exactly N*maxobj_per_zspage, so we
-> > left the class w/o any unused objects (OBJ_ALLOCATED == OBJ_USED).
-> > classes have 'holes' after compaction.
-> > 
-> > 
-> > > So, I want to pass the policy to userspace.
-> > > If we found it's really trobule on userspace, then, we need more
-> > > thinking.
-> > 
-> > well, it can be under config "aggressive compaction" or "automatic
-> > compaction" option.
-> > 
+> Ah, I was thinking those platforms were relying on the default
+> implementation. I guess any real NUMA support is going to need to
+> override this function. The arm64 patch series does that as well. We
+> need to be sure this change is correct for metag which appears to be
+> the only other OF enabled platform with NUMA support.
 > 
-> If you really want to do it automatically without any feedback
-> form the userspace, we should find better algorithm.
+> In that case, then there is little reason to keep the inline and we
+> can just always enable the weak function (with your change). It is
+> slightly less optimal, but the few callers hardly appear to be hot
+> paths.
 
-ok. I'll drop auto-compaction part for now and will resend
-general/minor zsmalloc tweaks today.
+Sounds like you're in agreement with this patch then? Shall I apply it?
 
-	-ss
+g.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
