@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id AD00B900016
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 09:07:16 -0400 (EDT)
-Received: by igblz2 with SMTP id lz2so38599055igb.1
-        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 06:07:16 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id n10si16439512igv.28.2015.06.04.06.07.14
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 638CE900016
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 09:07:40 -0400 (EDT)
+Received: by pdbnf5 with SMTP id nf5so30778692pdb.2
+        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 06:07:40 -0700 (PDT)
+Received: from szxga03-in.huawei.com ([119.145.14.66])
+        by mx.google.com with ESMTPS id su9si5811424pab.143.2015.06.04.06.07.37
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 04 Jun 2015 06:07:16 -0700 (PDT)
-Message-ID: <55704BE7.1000408@huawei.com>
-Date: Thu, 4 Jun 2015 21:00:23 +0800
+        Thu, 04 Jun 2015 06:07:39 -0700 (PDT)
+Message-ID: <55704CED.1020702@huawei.com>
+Date: Thu, 4 Jun 2015 21:04:45 +0800
 From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH 05/12] mm: introduce a new zone_stat_item NR_FREE_MIRROR_PAGES
+Subject: [RFC PATCH 11/12] mm: add the PCP interface
 References: <55704A7E.5030507@huawei.com>
 In-Reply-To: <55704A7E.5030507@huawei.com>
 Content-Type: text/plain; charset="ISO-8859-1"
@@ -23,53 +23,52 @@ List-ID: <linux-mm.kvack.org>
 To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>
 Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-This patch introduces a new zone_stat_item called "NR_FREE_MIRROR_PAGES", it is
-used to storage free mirrored pages count.
+Add the PCP interface for address range mirroring feature.
 
 Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
 ---
- include/linux/mmzone.h | 1 +
- include/linux/vmstat.h | 2 ++
- mm/vmstat.c            | 1 +
- 3 files changed, 4 insertions(+)
+ mm/page_alloc.c | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index b444335..f82e3ae 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -178,6 +178,7 @@ enum zone_stat_item {
- 	WORKINGSET_NODERECLAIM,
- 	NR_ANON_TRANSPARENT_HUGEPAGES,
- 	NR_FREE_CMA_PAGES,
-+	NR_FREE_MIRROR_PAGES,
- 	NR_VM_ZONE_STAT_ITEMS };
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 0fb55288..cf3b7cb 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1401,11 +1401,16 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 			unsigned long count, struct list_head *list,
+ 			int migratetype, bool cold)
+ {
+-	int i;
++	int i, mt;
  
- /*
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 82e7db7..d0a7268 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -283,6 +283,8 @@ static inline void __mod_zone_freepage_state(struct zone *zone, int nr_pages,
- 	__mod_zone_page_state(zone, NR_FREE_PAGES, nr_pages);
- 	if (is_migrate_cma(migratetype))
- 		__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, nr_pages);
-+	if (is_migrate_mirror(migratetype))
-+		__mod_zone_page_state(zone, NR_FREE_MIRROR_PAGES, nr_pages);
- }
+ 	spin_lock(&zone->lock);
+ 	for (i = 0; i < count; ++i) {
+-		struct page *page = __rmqueue(zone, order, migratetype);
++		struct page *page;
++
++		if (is_migrate_mirror(migratetype))
++			page = __rmqueue_smallest(zone, order, migratetype);
++		else
++			page = __rmqueue(zone, order, migratetype);
+ 		if (unlikely(page == NULL))
+ 			break;
  
- extern const char * const vmstat_text[];
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index d0323e0..7ee11ca 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -739,6 +739,7 @@ const char * const vmstat_text[] = {
- 	"workingset_nodereclaim",
- 	"nr_anon_transparent_hugepages",
- 	"nr_free_cma",
-+	"nr_free_mirror",
- 
- 	/* enum writeback_stat_item counters */
- 	"nr_dirty_threshold",
+@@ -1423,9 +1428,14 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 		else
+ 			list_add_tail(&page->lru, list);
+ 		list = &page->lru;
+-		if (is_migrate_cma(get_freepage_migratetype(page)))
++
++		mt = get_freepage_migratetype(page);
++		if (is_migrate_cma(mt))
+ 			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
+ 					      -(1 << order));
++		if (is_migrate_mirror(mt))
++			__mod_zone_page_state(zone, NR_FREE_MIRROR_PAGES,
++					      -(1 << order));
+ 	}
+ 	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+ 	spin_unlock(&zone->lock);
 -- 
 2.0.0
 
