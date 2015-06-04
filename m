@@ -1,139 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id D4781900016
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 09:07:47 -0400 (EDT)
-Received: by pdjm12 with SMTP id m12so30678438pdj.3
-        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 06:07:47 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id g16si5789274pdl.216.2015.06.04.06.07.45
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 418B0900016
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 09:08:37 -0400 (EDT)
+Received: by laew7 with SMTP id w7so31431601lae.1
+        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 06:08:36 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t5si7165149wjy.122.2015.06.04.06.08.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 04 Jun 2015 06:07:46 -0700 (PDT)
-Message-ID: <55704B8C.7080506@huawei.com>
-Date: Thu, 4 Jun 2015 20:58:52 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 04 Jun 2015 06:08:34 -0700 (PDT)
+Date: Thu, 4 Jun 2015 14:08:30 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 3/4] sunrpc: if we're closing down a socket, clear
+ memalloc on it first
+Message-ID: <20150604130830.GH26425@suse.de>
+References: <1432987393-15604-1-git-send-email-jeff.layton@primarydata.com>
+ <1432987393-15604-4-git-send-email-jeff.layton@primarydata.com>
+ <20150602124025.GG26425@suse.de>
+ <20150603103200.4f66bae5@synchrony.poochiereds.net>
 MIME-Version: 1.0
-Subject: [RFC PATCH 03/12] mm: introduce MIGRATE_MIRROR to manage the mirrored,
- pages
-References: <55704A7E.5030507@huawei.com>
-In-Reply-To: <55704A7E.5030507@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20150603103200.4f66bae5@synchrony.poochiereds.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jeff Layton <jlayton@poochiereds.net>
+Cc: trond.myklebust@primarydata.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jerome Marchand <jmarchan@redhat.com>
 
-This patch introduces a new MIGRATE_TYPES called "MIGRATE_MIRROR", it is used
-to storage the mirrored pages list.
-When cat /proc/pagetypeinfo, you can see the count of free mirrored blocks.
+On Wed, Jun 03, 2015 at 10:32:00AM -0400, Jeff Layton wrote:
+> On Tue, 2 Jun 2015 13:40:26 +0100
+> Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > On Sat, May 30, 2015 at 08:03:12AM -0400, Jeff Layton wrote:
+> > > We currently increment the memalloc_socks counter if we have a xprt that
+> > > is associated with a swapfile. That socket can be replaced however
+> > > during a reconnect event, and the memalloc_socks counter is never
+> > > decremented if that occurs.
+> > > 
+> > > When tearing down a xprt socket, check to see if the xprt is set up for
+> > > swapping and sk_clear_memalloc before releasing the socket if so.
+> > > 
+> > > Cc: Mel Gorman <mgorman@suse.de>
+> > > Signed-off-by: Jeff Layton <jeff.layton@primarydata.com>
+> > 
+> > Acked-by: Mel Gorman <mgorman@suse.de>
+> > 
+> 
+> Thanks Mel,
+> 
+> I should also mention that I see this warning pop when working with
+> swapfiles on NFS. This trace is with this patchset, but I see a similar
+> one without it:
+> 
+> [   74.232485] ------------[ cut here ]------------
+> [   74.233354] WARNING: CPU: 2 PID: 754 at net/core/sock.c:364 sk_clear_memalloc+0x51/0x80()
+> [   74.234790] Modules linked in: cts rpcsec_gss_krb5 nfsv4 dns_resolver nfs fscache xfs libcrc32c snd_hda_codec_generic snd_hda_intel snd_hda_controller snd_hda_codec snd_hda_core snd_hwdep snd_seq snd_seq_device nfsd snd_pcm snd_timer snd e1000 ppdev parport_pc joydev parport pvpanic soundcore floppy serio_raw i2c_piix4 pcspkr nfs_acl lockd virtio_balloon acpi_cpufreq auth_rpcgss grace sunrpc qxl drm_kms_helper ttm drm virtio_console virtio_blk virtio_pci ata_generic virtio_ring pata_acpi virtio
+> [   74.243599] CPU: 2 PID: 754 Comm: swapoff Not tainted 4.1.0-rc6+ #5
+> [   74.244635] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+> [   74.245546]  0000000000000000 0000000079e69e31 ffff8800d066bde8 ffffffff8179263d
+> [   74.246786]  0000000000000000 0000000000000000 ffff8800d066be28 ffffffff8109e6fa
+> [   74.248175]  0000000000000000 ffff880118d48000 ffff8800d58f5c08 ffff880036e380a8
+> [   74.249483] Call Trace:
+> [   74.249872]  [<ffffffff8179263d>] dump_stack+0x45/0x57
+> [   74.250703]  [<ffffffff8109e6fa>] warn_slowpath_common+0x8a/0xc0
+> [   74.251655]  [<ffffffff8109e82a>] warn_slowpath_null+0x1a/0x20
+> [   74.252585]  [<ffffffff81661241>] sk_clear_memalloc+0x51/0x80
+> [   74.253519]  [<ffffffffa0116c72>] xs_disable_swap+0x42/0x80 [sunrpc]
+> [   74.254537]  [<ffffffffa01109de>] rpc_clnt_swap_deactivate+0x7e/0xc0 [sunrpc]
+> [   74.255610]  [<ffffffffa03e4fd7>] nfs_swap_deactivate+0x27/0x30 [nfs]
+> [   74.256582]  [<ffffffff811e99d4>] destroy_swap_extents+0x74/0x80
+> [   74.257496]  [<ffffffff811ecb52>] SyS_swapoff+0x222/0x5c0
+> [   74.258318]  [<ffffffff81023f27>] ? syscall_trace_leave+0xc7/0x140
+> [   74.259253]  [<ffffffff81798dae>] system_call_fastpath+0x12/0x71
+> [   74.260158] ---[ end trace 2530722966429f10 ]---
+> 
+> ...that comes from this in sk_clear_memalloc:
+> 
+>         /*
+>          * SOCK_MEMALLOC is allowed to ignore rmem limits to ensure forward
+>          * progress of swapping. However, if SOCK_MEMALLOC is cleared while
+>          * it has rmem allocations there is a risk that the user of the
+>          * socket cannot make forward progress due to exceeding the rmem
+>          * limits. By rights, sk_clear_memalloc() should only be called
+>          * on sockets being torn down but warn and reset the accounting if
+>          * that assumption breaks.
+>          */
+>         if (WARN_ON(sk->sk_forward_alloc))
+>                 sk_mem_reclaim(sk);
+> 
+> Is it wrong to call sk_clear_memalloc on swapoff? Should we try to keep
+> it set up as a memalloc socket on the last swapoff and just wait until
+> the socket is being freed to clear it? If so, then maybe the right
+> thing to do is to call sk_clear_memalloc in __sk_free or somewhere
+> similar if it's set up for memalloc?
+>
 
-e.g.
-euler-linux:~ # cat /proc/pagetypeinfo
-Page block order: 9
-Pages per block:  512
+I think it is perfectly reasonable to remove the warning after your
+series. When I had it in mind, I was primarily thinking of the shutdown
+case and a single swap file. With your series applied, the disabling of
+swap is called at the correct time. So, something like this to tack on
+to the end of your series?
 
-Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
-Node    0, zone      DMA, type    Unmovable      1      1      0      0      2      1      1      0      1      0      0
-Node    0, zone      DMA, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      0
-Node    0, zone      DMA, type      Movable      0      0      0      0      0      0      0      0      0      0      3
-Node    0, zone      DMA, type       Mirror      0      0      0      0      0      0      0      0      0      0      0
-Node    0, zone      DMA, type      Reserve      0      0      0      0      0      0      0      0      0      1      0
-Node    0, zone      DMA, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
-Node    0, zone    DMA32, type    Unmovable      0      0      1      0      0      0      0      1      1      1      0
-Node    0, zone    DMA32, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      0
-Node    0, zone    DMA32, type      Movable      1      2      6      6      6      4      5      3      3      2    738
-Node    0, zone    DMA32, type       Mirror      0      0      0      0      0      0      0      0      0      0      0
-Node    0, zone    DMA32, type      Reserve      0      0      0      0      0      0      0      0      0      0      1
-Node    0, zone    DMA32, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
-Node    0, zone   Normal, type    Unmovable      0      0      0      0      0      0      0      0      0      0      0
-Node    0, zone   Normal, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      0
-Node    0, zone   Normal, type      Movable      0      0      1      1      0      0      0      2      1      0   4254
-Node    0, zone   Normal, type       Mirror    148    104     63     70     26     11      2      2      1      1    973
-Node    0, zone   Normal, type      Reserve      0      0      0      0      0      0      0      0      0      0      1
-Node    0, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
+---8<---
+net, swap: Remove a warning and clarify why sk_mem_reclaim is required when deactivating swap
 
-Number of blocks type     Unmovable  Reclaimable      Movable       Mirror      Reserve      Isolate
-Node 0, zone      DMA            1            0            6            0            1            0
-Node 0, zone    DMA32            2            0         1525            0            1            0
-Node 0, zone   Normal            0            0         8702         2048            2            0
-Page block order: 9
-Pages per block:  512
+Jeff Layton reported the following;
 
-Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
-Node    1, zone   Normal, type    Unmovable      0      0      0      0      0      0      0      0      0      0      0
-Node    1, zone   Normal, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      0
-Node    1, zone   Normal, type      Movable      2      2      1      1      2      1      2      2      2      3   3996
-Node    1, zone   Normal, type       Mirror     68     94     57      6      8      1      0      0      3      1   2003
-Node    1, zone   Normal, type      Reserve      0      0      0      0      0      0      0      0      0      0      1
-Node    1, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
+ [   74.232485] ------------[ cut here ]------------
+ [   74.233354] WARNING: CPU: 2 PID: 754 at net/core/sock.c:364 sk_clear_memalloc+0x51/0x80()
+ [   74.234790] Modules linked in: cts rpcsec_gss_krb5 nfsv4 dns_resolver nfs fscache xfs libcrc32c snd_hda_codec_generic snd_hda_intel snd_hda_controller snd_hda_codec snd_hda_core snd_hwdep snd_seq snd_seq_device nfsd snd_pcm snd_timer snd e1000 ppdev parport_pc joydev parport pvpanic soundcore floppy serio_raw i2c_piix4 pcspkr nfs_acl lockd virtio_balloon acpi_cpufreq auth_rpcgss grace sunrpc qxl drm_kms_helper ttm drm virtio_console virtio_blk virtio_pci ata_generic virtio_ring pata_acpi virtio
+ [   74.243599] CPU: 2 PID: 754 Comm: swapoff Not tainted 4.1.0-rc6+ #5
+ [   74.244635] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+ [   74.245546]  0000000000000000 0000000079e69e31 ffff8800d066bde8 ffffffff8179263d
+ [   74.246786]  0000000000000000 0000000000000000 ffff8800d066be28 ffffffff8109e6fa
+ [   74.248175]  0000000000000000 ffff880118d48000 ffff8800d58f5c08 ffff880036e380a8
+ [   74.249483] Call Trace:
+ [   74.249872]  [<ffffffff8179263d>] dump_stack+0x45/0x57
+ [   74.250703]  [<ffffffff8109e6fa>] warn_slowpath_common+0x8a/0xc0
+ [   74.251655]  [<ffffffff8109e82a>] warn_slowpath_null+0x1a/0x20
+ [   74.252585]  [<ffffffff81661241>] sk_clear_memalloc+0x51/0x80
+ [   74.253519]  [<ffffffffa0116c72>] xs_disable_swap+0x42/0x80 [sunrpc]
+ [   74.254537]  [<ffffffffa01109de>] rpc_clnt_swap_deactivate+0x7e/0xc0 [sunrpc]
+ [   74.255610]  [<ffffffffa03e4fd7>] nfs_swap_deactivate+0x27/0x30 [nfs]
+ [   74.256582]  [<ffffffff811e99d4>] destroy_swap_extents+0x74/0x80
+ [   74.257496]  [<ffffffff811ecb52>] SyS_swapoff+0x222/0x5c0
+ [   74.258318]  [<ffffffff81023f27>] ? syscall_trace_leave+0xc7/0x140
+ [   74.259253]  [<ffffffff81798dae>] system_call_fastpath+0x12/0x71
+ [   74.260158] ---[ end trace 2530722966429f10 ]---
 
-Number of blocks type     Unmovable  Reclaimable      Movable       Mirror      Reserve      Isolate
-Node 1, zone   Normal            0            0         8190         4096            2            0
+The warning in question was unnecessary but with Jeff's series the rules
+are also clearer.  This patch removes the warning and updates the comment
+to explain why sk_mem_reclaim() may still be called.
 
-
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/mmzone.h | 6 ++++++
- mm/page_alloc.c        | 3 +++
- mm/vmstat.c            | 3 +++
- 3 files changed, 12 insertions(+)
+ net/core/sock.c | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 1fae07b..b444335 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -39,6 +39,9 @@ enum {
- 	MIGRATE_UNMOVABLE,
- 	MIGRATE_RECLAIMABLE,
- 	MIGRATE_MOVABLE,
-+#ifdef CONFIG_MEMORY_MIRROR
-+	MIGRATE_MIRROR,
-+#endif
- 	MIGRATE_PCPTYPES,	/* the number of types on the pcp lists */
- 	MIGRATE_RESERVE = MIGRATE_PCPTYPES,
- #ifdef CONFIG_CMA
-@@ -82,6 +85,9 @@ struct mirror_info {
- };
+diff --git a/net/core/sock.c b/net/core/sock.c
+index 71e3e5f1eaa0..1ebf706b5847 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -354,14 +354,12 @@ void sk_clear_memalloc(struct sock *sk)
  
- extern struct mirror_info mirror_info;
-+#  define is_migrate_mirror(migratetype) unlikely((migratetype) == MIGRATE_MIRROR)
-+#else
-+#  define is_migrate_mirror(migratetype) false
- #endif
- 
- #define for_each_migratetype_order(order, type) \
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 41a95a7..3b2ff46 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3245,6 +3245,9 @@ static void show_migration_types(unsigned char type)
- 		[MIGRATE_UNMOVABLE]	= 'U',
- 		[MIGRATE_RECLAIMABLE]	= 'E',
- 		[MIGRATE_MOVABLE]	= 'M',
-+#ifdef CONFIG_MEMORY_MIRROR
-+		[MIGRATE_MIRROR]	= 'O',
-+#endif
- 		[MIGRATE_RESERVE]	= 'R',
- #ifdef CONFIG_CMA
- 		[MIGRATE_CMA]		= 'C',
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 4f5cd97..d0323e0 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -901,6 +901,9 @@ static char * const migratetype_names[MIGRATE_TYPES] = {
- 	"Unmovable",
- 	"Reclaimable",
- 	"Movable",
-+#ifdef CONFIG_MEMORY_MIRROR
-+	"Mirror",
-+#endif
- 	"Reserve",
- #ifdef CONFIG_CMA
- 	"CMA",
--- 
-2.0.0
-
+ 	/*
+ 	 * SOCK_MEMALLOC is allowed to ignore rmem limits to ensure forward
+-	 * progress of swapping. However, if SOCK_MEMALLOC is cleared while
+-	 * it has rmem allocations there is a risk that the user of the
+-	 * socket cannot make forward progress due to exceeding the rmem
+-	 * limits. By rights, sk_clear_memalloc() should only be called
+-	 * on sockets being torn down but warn and reset the accounting if
+-	 * that assumption breaks.
++	 * progress of swapping. SOCK_MEMALLOC may be cleared while
++	 * it has rmem allocations due to the last swapfile being deactivated
++	 * but there is a risk that the socket is unusable due to exceeding
++	 * the rmem limits. Reclaim the reserves and obey rmem limits again.
+ 	 */
+-	if (WARN_ON(sk->sk_forward_alloc))
++	if (sk->sk_forward_alloc)
+ 		sk_mem_reclaim(sk);
+ }
+ EXPORT_SYMBOL_GPL(sk_clear_memalloc);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
