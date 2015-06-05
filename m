@@ -1,66 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D3813900016
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 22:02:28 -0400 (EDT)
-Received: by igbhj9 with SMTP id hj9so5411651igb.1
-        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 19:02:28 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id c89si3340529ioj.80.2015.06.04.19.02.27
+Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
+	by kanga.kvack.org (Postfix) with ESMTP id B3742900016
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2015 22:38:01 -0400 (EDT)
+Received: by qcxw10 with SMTP id w10so25375366qcx.3
+        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 19:38:01 -0700 (PDT)
+Received: from mail-qk0-x232.google.com (mail-qk0-x232.google.com. [2607:f8b0:400d:c09::232])
+        by mx.google.com with ESMTPS id f185si6171890qhc.71.2015.06.04.19.38.00
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 04 Jun 2015 19:02:28 -0700 (PDT)
-Message-ID: <55710132.4070602@huawei.com>
-Date: Fri, 5 Jun 2015 09:53:54 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH 02/12] mm: introduce mirror_info
-References: <55704A7E.5030507@huawei.com> <55704B55.1020403@huawei.com> <3908561D78D1C84285E8C5FCA982C28F32A8D57F@ORSMSX114.amr.corp.intel.com>
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F32A8D57F@ORSMSX114.amr.corp.intel.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Jun 2015 19:38:00 -0700 (PDT)
+Received: by qkoo18 with SMTP id o18so34142159qko.1
+        for <linux-mm@kvack.org>; Thu, 04 Jun 2015 19:38:00 -0700 (PDT)
+Message-ID: <1433471877.1895.51.camel@edumazet-glaptop2.roam.corp.google.com>
+Subject: Re: [RFC PATCH] slub: RFC: Improving SLUB performance with 38% on
+ NO-PREEMPT
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Thu, 04 Jun 2015 19:37:57 -0700
+In-Reply-To: <20150604103159.4744.75870.stgit@ivy>
+References: <20150604103159.4744.75870.stgit@ivy>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "nao.horiguchi@gmail.com" <nao.horiguchi@gmail.com>, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Alexander Duyck <alexander.duyck@gmail.com>, linux-mm@kvack.org, netdev@vger.kernel.org
 
-On 2015/6/5 0:57, Luck, Tony wrote:
-
-> +#ifdef CONFIG_MEMORY_MIRROR
-> +struct numa_mirror_info {
-> +	int node;
-> +	unsigned long start;
-> +	unsigned long size;
-> +};
-> +
-> +struct mirror_info {
-> +	int count;
-> +	struct numa_mirror_info info[MAX_NUMNODES];
-> +};
+On Thu, 2015-06-04 at 12:31 +0200, Jesper Dangaard Brouer wrote:
+> This patch improves performance of SLUB allocator fastpath with 38% by
+> avoiding the call to this_cpu_cmpxchg_double() for NO-PREEMPT kernels.
 > 
-> Do we really need this?  My patch series leaves all the mirrored memory in
-> the memblock allocator tagged with the MEMBLOCK_MIRROR flag.  Can't
-> we use that information when freeing the boot memory into the runtime
-> free lists?
-> 
+> Reviewers please point out why this change is wrong, as such a large
+> improvement should not be possible ;-)
 
-Hi Tony,
+I am not sure if anyone already answered, but the cmpxchg_double()
+is needed to avoid the ABA problem.
 
-I used this code for testing before, so when your patchset added to mainline,
-I'll rewrite it, use MEMBLOCK_MIRROR, not mirror_info. 
+This is the whole point using tid _and_ freelist
 
-I find Andrew has added your patches to mm-tree, right?
-
-Thanks,
-Xishi Qiu
-
-> If we can't ... then [MAX_NUMNODES] may not be enough.  We may have
-> more than one mirrored range on each node. Current h/w allows two ranges
-> per node.
-> 
-> -Tony
-> 
-> .
-> 
+Preemption is not the only thing that could happen here, think of
+interrupts.
 
 
 
