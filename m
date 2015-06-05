@@ -1,92 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id A85BE900016
-	for <linux-mm@kvack.org>; Fri,  5 Jun 2015 11:21:38 -0400 (EDT)
-Received: by wiwd19 with SMTP id d19so24640539wiw.0
-        for <linux-mm@kvack.org>; Fri, 05 Jun 2015 08:21:38 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cy1si4590152wib.89.2015.06.05.08.21.36
+Received: from mail-vn0-f53.google.com (mail-vn0-f53.google.com [209.85.216.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CEE0900016
+	for <linux-mm@kvack.org>; Fri,  5 Jun 2015 11:27:00 -0400 (EDT)
+Received: by vnbg129 with SMTP id g129so9434495vnb.11
+        for <linux-mm@kvack.org>; Fri, 05 Jun 2015 08:27:00 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id yn14si13883424vdb.73.2015.06.05.08.26.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 05 Jun 2015 08:21:37 -0700 (PDT)
-Date: Fri, 5 Jun 2015 17:21:35 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH RFC] memcg: close the race window between OOM detection
- and killing
-Message-ID: <20150605152135.GE26113@dhcp22.suse.cz>
-References: <20150603031544.GC7579@mtj.duckdns.org>
- <20150603144414.GG16201@dhcp22.suse.cz>
- <20150603193639.GH20091@mtj.duckdns.org>
- <20150604093031.GB4806@dhcp22.suse.cz>
- <20150604192936.GR20091@mtj.duckdns.org>
- <20150605143534.GD26113@dhcp22.suse.cz>
- <20150605145759.GA5946@mtj.duckdns.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Jun 2015 08:26:59 -0700 (PDT)
+Message-ID: <5571BFBE.3070209@redhat.com>
+Date: Fri, 05 Jun 2015 08:26:54 -0700
+From: Laura Abbott <labbott@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150605145759.GA5946@mtj.duckdns.org>
+Subject: Re: [PATCH] cma: allow concurrent cma pages allocation for multi-cma
+ areas
+References: <"000001d09f66$056b67f0$104237d0$@yang"@samsung.com>
+In-Reply-To: <"000001d09f66$056b67f0$104237d0$@yang"@samsung.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Weijie Yang <weijie.yang@samsung.com>, iamjoonsoo.kim@lge.com
+Cc: mina86@mina86.com, m.szyprowski@samsung.com, 'Andrew Morton' <akpm@linux-foundation.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 05-06-15 23:57:59, Tejun Heo wrote:
-> Hello, Michal.
-> 
-> On Fri, Jun 05, 2015 at 04:35:34PM +0200, Michal Hocko wrote:
-> > > That doesn't matter because the detection and TIF_MEMDIE assertion are
-> > > atomic w.r.t. oom_lock and TIF_MEMDIE essentially extends the locking
-> > > by preventing further OOM kills.  Am I missing something?
-> > 
-> > This is true but TIF_MEMDIE releasing is not atomic wrt. the allocation
-> > path. So the oom victim could have released memory and dropped
-> 
-> This is splitting hairs.  In vast majority of problem cases, if
-> anything is gonna be locked up, it's gonna be locked up before
-> releasing memory it's holding.  Yet again, this is a blunt instrument
-> to unwedge the system.  It's difficult to see the point of aiming that
-> level of granularity.
+On 06/05/2015 01:01 AM, Weijie Yang wrote:
+> Currently we have to hold the single cma_mutex when alloc cma pages,
+> it is ok when there is only one cma area in system.
+> However, when there are several cma areas, such as in our Android smart
+> phone, the single cma_mutex prevents concurrent cma page allocation.
+>
+> This patch removes the single cma_mutex and uses per-cma area alloc_lock,
+> this allows concurrent cma pages allocation for different cma areas while
+> protects access to the same pageblocks.
+>
+> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
 
-I was just pointing out that the OOM killer is inherently racy even for
-the global case. Not sure we are talking about the same thing here.
+Last I knew alloc_contig_range needed to be serialized which is why we
+still had the global CMA mutex. https://lkml.org/lkml/2014/2/18/462
 
-> 
-> > TIF_MEMDIE but the allocation path hasn't noticed that because it's passed
-> >         /*
-> >          * Go through the zonelist yet one more time, keep very high watermark
-> >          * here, this is only to catch a parallel oom killing, we must fail if
-> >          * we're still under heavy pressure.
-> >          */
-> >         page = get_page_from_freelist(gfp_mask | __GFP_HARDWALL, order,
-> >                                         ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
-> > 
-> > and goes on to kill another task because there is no TIF_MEMDIE
-> > anymore.
-> 
-> Why would this be an issue if we disallow parallel killing?
+So NAK unless something has changed to allow this.
 
-I am confused. The whole thread has started by fixing a race in memcg
-and I was asking about the global case which is racy currently as well.
+Laura
 
-> > > Deadlocks from infallible allocations getting interlocked are
-> > > different.  OOM killer can't really get around that by itself but I'm
-> > > not talking about those deadlocks but at the same time they're a lot
-> > > less likely.  It's about OOM victim trapped in a deadlock failing to
-> > > release memory because someone else is waiting for that memory to be
-> > > released while blocking the victim. 
-> > 
-> > I thought those would be in the allocator context - which was the
-> > example I've provided. What kind of context do you have in mind?
-> 
-> Yeah, sure, they'd be in the allocator context holding other resources
-> which are being waited upon.  The first case was deadlock based on
-> purely memory starvation where NOFAIL allocations interlock with each
-> other w/o involving other resources.
-
-OK, I guess we were just talking past each other.
--- 
-Michal Hocko
-SUSE Labs
+> ---
+>   mm/cma.c |    6 +++---
+>   mm/cma.h |    1 +
+>   2 files changed, 4 insertions(+), 3 deletions(-)
+>
+> diff --git a/mm/cma.c b/mm/cma.c
+> index 3a7a67b..eaf1afe 100644
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -41,7 +41,6 @@
+>
+>   struct cma cma_areas[MAX_CMA_AREAS];
+>   unsigned cma_area_count;
+> -static DEFINE_MUTEX(cma_mutex);
+>
+>   phys_addr_t cma_get_base(const struct cma *cma)
+>   {
+> @@ -128,6 +127,7 @@ static int __init cma_activate_area(struct cma *cma)
+>   	} while (--i);
+>
+>   	mutex_init(&cma->lock);
+> +	mutex_init(&cma->alloc_lock);
+>
+>   #ifdef CONFIG_CMA_DEBUGFS
+>   	INIT_HLIST_HEAD(&cma->mem_head);
+> @@ -398,9 +398,9 @@ struct page *cma_alloc(struct cma *cma, unsigned int count, unsigned int align)
+>   		mutex_unlock(&cma->lock);
+>
+>   		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
+> -		mutex_lock(&cma_mutex);
+> +		mutex_lock(&cma->alloc_lock);
+>   		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA);
+> -		mutex_unlock(&cma_mutex);
+> +		mutex_unlock(&cma->alloc_lock);
+>   		if (ret == 0) {
+>   			page = pfn_to_page(pfn);
+>   			break;
+> diff --git a/mm/cma.h b/mm/cma.h
+> index 1132d73..2084c9f 100644
+> --- a/mm/cma.h
+> +++ b/mm/cma.h
+> @@ -7,6 +7,7 @@ struct cma {
+>   	unsigned long   *bitmap;
+>   	unsigned int order_per_bit; /* Order of pages represented by one bit */
+>   	struct mutex    lock;
+> +	struct mutex    alloc_lock;
+>   #ifdef CONFIG_CMA_DEBUGFS
+>   	struct hlist_head mem_head;
+>   	spinlock_t mem_head_lock;
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
