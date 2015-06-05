@@ -1,113 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id B83D7900016
-	for <linux-mm@kvack.org>; Fri,  5 Jun 2015 10:35:37 -0400 (EDT)
-Received: by wiam3 with SMTP id m3so21378298wia.1
-        for <linux-mm@kvack.org>; Fri, 05 Jun 2015 07:35:37 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o4si13673474wjx.75.2015.06.05.07.35.35
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 05 Jun 2015 07:35:36 -0700 (PDT)
-Date: Fri, 5 Jun 2015 16:35:34 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH RFC] memcg: close the race window between OOM detection
- and killing
-Message-ID: <20150605143534.GD26113@dhcp22.suse.cz>
-References: <20150603031544.GC7579@mtj.duckdns.org>
- <20150603144414.GG16201@dhcp22.suse.cz>
- <20150603193639.GH20091@mtj.duckdns.org>
- <20150604093031.GB4806@dhcp22.suse.cz>
- <20150604192936.GR20091@mtj.duckdns.org>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D551900016
+	for <linux-mm@kvack.org>; Fri,  5 Jun 2015 10:35:54 -0400 (EDT)
+Received: by pdjn11 with SMTP id n11so16871287pdj.0
+        for <linux-mm@kvack.org>; Fri, 05 Jun 2015 07:35:54 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id bz4si11120750pab.196.2015.06.05.07.35.52
+        for <linux-mm@kvack.org>;
+        Fri, 05 Jun 2015 07:35:53 -0700 (PDT)
+Message-ID: <5571B3C5.1000004@lge.com>
+Date: Fri, 05 Jun 2015 23:35:49 +0900
+From: Gioh Kim <gioh.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150604192936.GR20091@mtj.duckdns.org>
+Subject: Re: [RFC 0/4] enable migration of non-LRU pages
+References: <1433230065-3573-1-git-send-email-gioh.kim@lge.com> <20150605135350.GE10661@t510.redhat.com>
+In-Reply-To: <20150605135350.GE10661@t510.redhat.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Rafael Aquini <aquini@redhat.com>
+Cc: jlayton@poochiereds.net, bfields@fieldses.org, akpm@linux-foundation.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, mst@redhat.com, kirill@shutemov.name, minchan@kernel.org, mgorman@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, gunho.lee@lge.com
 
-On Fri 05-06-15 04:29:36, Tejun Heo wrote:
-> Hello, Michal.
-> 
-> On Thu, Jun 04, 2015 at 11:30:31AM +0200, Michal Hocko wrote:
-> > > Hmmm?  In -mm, if __alloc_page_may_oom() fails trylock, it never calls
-> > > out_of_memory().
-> > 
-> > Sure but the oom_lock might be free already. out_of_memory doesn't wait
-> > for the victim to finish. It just does schedule_timeout_killable.
-> 
-> That doesn't matter because the detection and TIF_MEMDIE assertion are
-> atomic w.r.t. oom_lock and TIF_MEMDIE essentially extends the locking
-> by preventing further OOM kills.  Am I missing something?
+> On Tue, Jun 02, 2015 at 04:27:40PM +0900, Gioh Kim wrote:
+>> Hello,
+>>
+>> This series try to enable migration of non-LRU pages, such as driver's page.
+>>
+>> My ARM-based platform occured severe fragmentation problem after long-term
+>> (several days) test. Sometimes even order-3 page allocation failed. It has
+>> memory size 512MB ~ 1024MB. 30% ~ 40% memory is consumed for graphic processing
+>> and 20~30 memory is reserved for zram.
+>>
+>> I found that many pages of GPU driver and zram are non-movable pages. So I
+>> reported Minchan Kim, the maintainer of zram, and he made the internal
+>> compaction logic of zram. And I made the internal compaction of GPU driver.
+>>
+>> They reduced some fragmentation but they are not enough effective.
+>> They are activated by its own interface, /sys, so they are not cooperative
+>> with kernel compaction. If there is too much fragmentation and kernel starts
+>> to compaction, zram and GPU driver cannot work with the kernel compaction.
+>>
+>> The first this patch adds a generic isolate/migrate/putback callbacks for page
+>> address-space. The zram and GPU, and any other modules can register
+>> its own migration method. The kernel compaction can call the registered
+>> migration when it works. Therefore all page in the system can be migrated
+>> at once.
+>>
+>> The 2nd the generic migration callbacks are applied into balloon driver.
+>> My gpu driver code is not open so I apply generic migration into balloon
+>> to show how it works. I've tested it with qemu enabled by kvm like followings:
+>> - turn on Ubuntu 14.04 with 1G memory on qemu.
+>> - do kernel building
+>> - after several seconds check more than 512MB is used with free command
+>> - command "balloon 512" in qemu monitor
+>> - check hundreds MB of pages are migrated
+>>
+>> Next kernel compaction code can call generic migration callbacks instead of
+>> balloon driver interface.
+>> Finally calling migration of balloon driver is removed.
+>>
+>
+> In a glance, ss Konstantin pointed out this set, while it twists chunks around,
+> brings back code we got rid of a while ago because it was messy and racy.
 
-This is true but TIF_MEMDIE releasing is not atomic wrt. the allocation
-path. So the oom victim could have released memory and dropped
-TIF_MEMDIE but the allocation path hasn't noticed that because it's passed
-        /*
-         * Go through the zonelist yet one more time, keep very high watermark
-         * here, this is only to catch a parallel oom killing, we must fail if
-         * we're still under heavy pressure.
-         */
-        page = get_page_from_freelist(gfp_mask | __GFP_HARDWALL, order,
-                                        ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
+Yes, your point is right.
 
-and goes on to kill another task because there is no TIF_MEMDIE
-anymore.
- 
-> > > The main difference here is that the alloc path does the whole thing
-> > > synchrnously and thus the OOM detection and killing can be put in the
-> > > same critical section which isn't the case for the memcg OOM handling.
-> > 
-> > This is true but there is still a time window between the last
-> > allocation attempt and out_of_memory when the OOM victim might have
-> > exited and another task would be selected.
-> 
-> Please see above.
-> 
-> > > > This is not the only reason. In-kernel memcg oom handling needs it
-> > > > as well. See 3812c8c8f395 ("mm: memcg: do not trap chargers with
-> > > > full callstack on OOM"). In fact it was the in-kernel case which has
-> > > > triggered this change. We simply cannot wait for oom with the stack and
-> > > > all the state the charge is called from.
-> > > 
-> > > Why should this be any different from OOM handling from page allocator
-> > > tho? 
-> > 
-> > Yes the global OOM is prone to deadlock. This has been discussed a lot
-> > and we still do not have a good answer for that. The primary problem
-> > is that small allocations do not fail and retry indefinitely so an OOM
-> > victim might be blocked on a lock held by a task which is the allocator.
-> > This is less likely and harder to trigger with standard loads than in
-> > memcg environment though.
-> 
-> Deadlocks from infallible allocations getting interlocked are
-> different.  OOM killer can't really get around that by itself but I'm
-> not talking about those deadlocks but at the same time they're a lot
-> less likely.  It's about OOM victim trapped in a deadlock failing to
-> release memory because someone else is waiting for that memory to be
-> released while blocking the victim. 
+> I'll take a closer look into your work next week, but for now, I'd say
+> we should not follow this patch of reintroducing long-dead code.
 
-I thought those would be in the allocator context - which was the
-example I've provided. What kind of context do you have in mind?
+BUT as I replied to Konstantin, the code for balloon driver is to show
+how the generic callbacks can be applied.
 
-> Sure, the two issues are related
-> but once you solve things getting blocked on single OOM victim, it
-> becomes a lot less of an issue.
-> 
-> > There have been suggestions to add an OOM timeout and ignore the
-> > previous OOM victim after the timeout expires and select a new
-> > victim. This sounds attractive but this approach has its own problems
-> > (http://marc.info/?l=linux-mm&m=141686814824684&w=2).
-> 
-> Here are the the issues the message lists
+My point is there are some pages to be migrated which are not LRU pages,
+but there is no interface for them to migrate.
 
-Let's focus on discussing those points in reply to Johannes' email. AFAIU
-your notes very in line with his.
--- 
-Michal Hocko
-SUSE Labs
+For example gpu driver has many, not mapped to kernel space, pages.
+Those pages can be migrated when GPU is not working, screen is not refreshed.
+And zram pages can be migrated also.
+
+I'm very sorry that I'm not familiar to balloon driver.
+If you give me some hints, I might be able to refine code of patch 2~3 in the next spin.
+
+Thank you for the feedback.
+
+>
+> Cheers!
+> -- Rafael
+>
+>>
+>> Gioh Kim (4):
+>>    mm/compaction: enable driver page migration
+>>    mm/balloon: apply migratable-page into balloon driver
+>>    mm/compaction: apply migratable-page into compaction
+>>    mm: remove direct migration of migratable-page
+>>
+>>   drivers/virtio/virtio_balloon.c        |  2 +
+>>   fs/proc/page.c                         |  4 +-
+>>   include/linux/balloon_compaction.h     | 42 +++++++++++++++------
+>>   include/linux/compaction.h             | 13 +++++++
+>>   include/linux/fs.h                     |  2 +
+>>   include/linux/mm.h                     | 14 +++----
+>>   include/linux/pagemap.h                | 27 ++++++++++++++
+>>   include/uapi/linux/kernel-page-flags.h |  2 +-
+>>   mm/balloon_compaction.c                | 67 +++++++++++++++++++++++++++++-----
+>>   mm/compaction.c                        |  9 +++--
+>>   mm/migrate.c                           | 25 ++++---------
+>>   11 files changed, 154 insertions(+), 53 deletions(-)
+>>
+>> --
+>> 1.9.1
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
