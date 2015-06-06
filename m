@@ -1,61 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FEF5900016
-	for <linux-mm@kvack.org>; Sat,  6 Jun 2015 05:55:19 -0400 (EDT)
-Received: by labpy14 with SMTP id py14so68676836lab.0
-        for <linux-mm@kvack.org>; Sat, 06 Jun 2015 02:55:18 -0700 (PDT)
-Received: from mail-la0-x232.google.com (mail-la0-x232.google.com. [2a00:1450:4010:c03::232])
-        by mx.google.com with ESMTPS id zz9si7044449lbb.157.2015.06.06.02.55.16
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A821900016
+	for <linux-mm@kvack.org>; Sat,  6 Jun 2015 09:38:11 -0400 (EDT)
+Received: by pdjm12 with SMTP id m12so70833718pdj.3
+        for <linux-mm@kvack.org>; Sat, 06 Jun 2015 06:38:11 -0700 (PDT)
+Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
+        by mx.google.com with ESMTPS id w14si15106526pbt.113.2015.06.06.06.38.09
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 06 Jun 2015 02:55:17 -0700 (PDT)
-Received: by laew7 with SMTP id w7so68560553lae.1
-        for <linux-mm@kvack.org>; Sat, 06 Jun 2015 02:55:16 -0700 (PDT)
-From: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
-Subject: [PATCH] mm/mmap.c: optimization of do_mmap_pgoff function
-Date: Sat,  6 Jun 2015 11:54:32 +0200
-Message-Id: <1433584472-19151-1-git-send-email-kwapulinski.piotr@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 06 Jun 2015 06:38:10 -0700 (PDT)
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: [PATCH -next 0/5] ipc: EIDRM/EINVAL returns & misc updates
+Date: Sat,  6 Jun 2015 06:37:55 -0700
+Message-Id: <1433597880-8571-1-git-send-email-dave@stgolabs.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: kirill.shutemov@linux.intel.com, riel@redhat.com, mhocko@suse.cz, sasha.levin@oracle.com, dave@stgolabs.net, koct9i@gmail.com, pfeiner@google.com, dh.herrmann@gmail.com, vishnu.ps@samsung.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Manfred Spraul <manfred@colorfullife.com>, dave@stgolabs.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-The simple check for zero length memory mapping may be performed
-earlier. It causes that in case of zero length memory mapping some
-unnecessary code is not executed at all. It does not make the code less
-readable and saves some CPU cycles.
+Hello,
 
-Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
----
- mm/mmap.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+Patches 1,2: Are a resend, I've incorporated them to the set,
+based on Manfred's comments.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index bb50cac..aa632ad 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1258,6 +1258,9 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 
- 	*populate = 0;
- 
-+	if (!len)
-+		return -EINVAL;
-+
- 	/*
- 	 * Does the application expect PROT_READ to imply PROT_EXEC?
- 	 *
-@@ -1268,9 +1271,6 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 		if (!(file && (file->f_path.mnt->mnt_flags & MNT_NOEXEC)))
- 			prot |= PROT_EXEC;
- 
--	if (!len)
--		return -EINVAL;
--
- 	if (!(flags & MAP_FIXED))
- 		addr = round_hint_to_min(addr);
- 
+Patch 3: is a trivial function rename.
+
+Patches 4,5: are attempts to order how Linux ipc deals with EIDRM
+and EINVAL return error codes. By looking at corresponding manpages
+two possible inverted return codes are returned, these patches
+make the manpages accurate now -- but I may have missed something,
+and we are changing semantics. afaik EIDRM is specific to Linux
+(other OSes only rely on EINVAL), which is already messy, so lets
+try to make this consistent at least. 
+
+Passes all ipc related ltp tests.
+
+Thanks!
+
+Davidlohr Bueso (5):
+  ipc,shm: move BUG_ON check into shm_lock
+  ipc,msg: provide barrier pairings for lockless receive
+  ipc: rename ipc_obtain_object
+  ipc,sysv: make return -EIDRM when racing with RMID consistent
+  ipc,sysv: return -EINVAL upon incorrect id/seqnum
+
+ ipc/msg.c  | 50 +++++++++++++++++++++++++++++++++++++++-----------
+ ipc/sem.c  |  4 ++--
+ ipc/shm.c  | 13 ++++++++-----
+ ipc/util.c | 23 +++++++++++++----------
+ ipc/util.h |  2 +-
+ 5 files changed, 63 insertions(+), 29 deletions(-)
+
 -- 
-2.3.7
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
