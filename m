@@ -1,24 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DC816B0072
-	for <linux-mm@kvack.org>; Sun,  7 Jun 2015 13:40:40 -0400 (EDT)
-Received: by padev16 with SMTP id ev16so22887911pad.0
-        for <linux-mm@kvack.org>; Sun, 07 Jun 2015 10:40:39 -0700 (PDT)
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 672A26B0073
+	for <linux-mm@kvack.org>; Sun,  7 Jun 2015 13:41:02 -0400 (EDT)
+Received: by pdbnf5 with SMTP id nf5so86356886pdb.2
+        for <linux-mm@kvack.org>; Sun, 07 Jun 2015 10:41:02 -0700 (PDT)
 Received: from terminus.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id z1si347366pda.165.2015.06.07.10.40.39
+        by mx.google.com with ESMTPS id yl8si336437pab.167.2015.06.07.10.41.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 07 Jun 2015 10:40:39 -0700 (PDT)
-Date: Sun, 7 Jun 2015 10:40:03 -0700
-From: tip-bot for Borislav Petkov <tipbot@zytor.com>
-Message-ID: <tip-7202fdb1b3299ec78dc1e7702260947ec20dd9e9@git.kernel.org>
-Reply-To: tglx@linutronix.de, mingo@kernel.org, akpm@linux-foundation.org,
-        peterz@infradead.org, bp@suse.de, mcgrof@suse.com, linux-mm@kvack.org,
-        torvalds@linux-foundation.org, toshi.kani@hp.com, hpa@zytor.com,
-        linux-kernel@vger.kernel.org, luto@amacapital.net
-In-Reply-To: <1433436928-31903-4-git-send-email-bp@alien8.de>
-References: <1433436928-31903-4-git-send-email-bp@alien8.de>
-Subject: [tip:x86/mm] x86/mm/pat: Remove pat_enabled() checks
+        Sun, 07 Jun 2015 10:41:01 -0700 (PDT)
+Date: Sun, 7 Jun 2015 10:40:22 -0700
+From: tip-bot for Toshi Kani <tipbot@zytor.com>
+Message-ID: <tip-d79a40caf8e15a2a15ecdefdc9d05865d4f37baa@git.kernel.org>
+Reply-To: tglx@linutronix.de, hpa@zytor.com, akpm@linux-foundation.org,
+        mcgrof@suse.com, toshi.kani@hp.com, linux-mm@kvack.org,
+        mingo@kernel.org, linux-kernel@vger.kernel.org, luto@amacapital.net,
+        bp@suse.de, peterz@infradead.org, torvalds@linux-foundation.org
+Subject: [tip:x86/mm] x86/mm/pat:
+  Use 7th PAT MSR slot for Write-Through PAT type
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Content-Type: text/plain; charset=UTF-8
@@ -26,25 +25,42 @@ Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-tip-commits@vger.kernel.org
-Cc: tglx@linutronix.de, mingo@kernel.org, akpm@linux-foundation.org, bp@suse.de, peterz@infradead.org, mcgrof@suse.com, linux-mm@kvack.org, torvalds@linux-foundation.org, toshi.kani@hp.com, hpa@zytor.com, linux-kernel@vger.kernel.org, luto@amacapital.net
+Cc: toshi.kani@hp.com, mcgrof@suse.com, hpa@zytor.com, akpm@linux-foundation.org, tglx@linutronix.de, torvalds@linux-foundation.org, peterz@infradead.org, luto@amacapital.net, bp@suse.de, linux-mm@kvack.org, mingo@kernel.org
 
-Commit-ID:  7202fdb1b3299ec78dc1e7702260947ec20dd9e9
-Gitweb:     http://git.kernel.org/tip/7202fdb1b3299ec78dc1e7702260947ec20dd9e9
-Author:     Borislav Petkov <bp@suse.de>
-AuthorDate: Thu, 4 Jun 2015 18:55:11 +0200
+Commit-ID:  d79a40caf8e15a2a15ecdefdc9d05865d4f37baa
+Gitweb:     http://git.kernel.org/tip/d79a40caf8e15a2a15ecdefdc9d05865d4f37baa
+Author:     Toshi Kani <toshi.kani@hp.com>
+AuthorDate: Thu, 4 Jun 2015 18:55:12 +0200
 Committer:  Ingo Molnar <mingo@kernel.org>
-CommitDate: Sun, 7 Jun 2015 15:28:53 +0200
+CommitDate: Sun, 7 Jun 2015 15:28:54 +0200
 
-x86/mm/pat: Remove pat_enabled() checks
+x86/mm/pat: Use 7th PAT MSR slot for Write-Through PAT type
 
-Now that we emulate a PAT table when PAT is disabled, there's no
-need for those checks anymore as the PAT abstraction will handle
-those cases too.
+Assign Write-Through type to the PA7 slot in the PAT MSR when
+the processor is not affected by PAT errata. The PA7 slot is
+chosen to improve robustness in the presence of errata that
+might cause the high PAT bit to be ignored. This way a buggy PA7
+slot access will hit the PA3 slot, which is UC, so at worst we
+lose performance without causing a correctness issue.
 
-Based on a conglomerate patch from Toshi Kani.
+The following Intel processors are affected by the PAT errata.
 
+  Errata               CPUID
+  ----------------------------------------------------
+  Pentium 2, A52       family 0x6, model 0x5
+  Pentium 3, E27       family 0x6, model 0x7, 0x8
+  Pentium 3 Xenon, G26 family 0x6, model 0x7, 0x8, 0xa
+  Pentium M, Y26       family 0x6, model 0x9
+  Pentium M 90nm, X9   family 0x6, model 0xd
+  Pentium 4, N46       family 0xf, model 0x0
+
+Instead of making sharp boundary checks, we remain conservative
+and exclude all Pentium 2, 3, M and 4 family processors. For
+those, _PAGE_CACHE_MODE_WT is redirected to UC- per the default
+setup in __cachemode2pte_tbl[].
+
+Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 Signed-off-by: Borislav Petkov <bp@suse.de>
-Reviewed-by: Toshi Kani <toshi.kani@hp.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andy Lutomirski <luto@amacapital.net>
 Cc: Elliott@hp.com
@@ -62,102 +78,103 @@ Cc: linux-mm <linux-mm@kvack.org>
 Cc: linux-nvdimm@lists.01.org
 Cc: stefan.bader@canonical.com
 Cc: yigal@plexistor.com
-Link: http://lkml.kernel.org/r/1433436928-31903-4-git-send-email-bp@alien8.de
+Link: https://lkml.kernel.org/r/1433187393-22688-2-git-send-email-toshi.kani@hp.com
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- arch/x86/mm/iomap_32.c | 12 ++++++------
- arch/x86/mm/ioremap.c  |  5 +----
- arch/x86/mm/pageattr.c |  3 ---
- arch/x86/mm/pat.c      | 13 +++----------
- 4 files changed, 10 insertions(+), 23 deletions(-)
+ arch/x86/mm/pat.c | 59 ++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 50 insertions(+), 9 deletions(-)
 
-diff --git a/arch/x86/mm/iomap_32.c b/arch/x86/mm/iomap_32.c
-index 3a2ec87..a9dc7a3 100644
---- a/arch/x86/mm/iomap_32.c
-+++ b/arch/x86/mm/iomap_32.c
-@@ -77,13 +77,13 @@ void __iomem *
- iomap_atomic_prot_pfn(unsigned long pfn, pgprot_t prot)
- {
- 	/*
--	 * For non-PAT systems, promote PAGE_KERNEL_WC to PAGE_KERNEL_UC_MINUS.
--	 * PAGE_KERNEL_WC maps to PWT, which translates to uncached if the
--	 * MTRR is UC or WC.  UC_MINUS gets the real intention, of the
--	 * user, which is "WC if the MTRR is WC, UC if you can't do that."
-+	 * For non-PAT systems, translate non-WB request to UC- just in
-+	 * case the caller set the PWT bit to prot directly without using
-+	 * pgprot_writecombine(). UC- translates to uncached if the MTRR
-+	 * is UC or WC. UC- gets the real intention, of the user, which is
-+	 * "WC if the MTRR is WC, UC if you can't do that."
- 	 */
--	if (!pat_enabled() && pgprot_val(prot) ==
--	    (__PAGE_KERNEL | cachemode2protval(_PAGE_CACHE_MODE_WC)))
-+	if (!pat_enabled() && pgprot2cachemode(prot) != _PAGE_CACHE_MODE_WB)
- 		prot = __pgprot(__PAGE_KERNEL |
- 				cachemode2protval(_PAGE_CACHE_MODE_UC_MINUS));
- 
-diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-index b0da358..cc0f17c 100644
---- a/arch/x86/mm/ioremap.c
-+++ b/arch/x86/mm/ioremap.c
-@@ -292,11 +292,8 @@ EXPORT_SYMBOL_GPL(ioremap_uc);
-  */
- void __iomem *ioremap_wc(resource_size_t phys_addr, unsigned long size)
- {
--	if (pat_enabled())
--		return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WC,
-+	return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WC,
- 					__builtin_return_address(0));
--	else
--		return ioremap_nocache(phys_addr, size);
- }
- EXPORT_SYMBOL(ioremap_wc);
- 
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index fae3c53..31b4f3f 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -1572,9 +1572,6 @@ int set_memory_wc(unsigned long addr, int numpages)
- {
- 	int ret;
- 
--	if (!pat_enabled())
--		return set_memory_uc(addr, numpages);
--
- 	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
- 		_PAGE_CACHE_MODE_WC, NULL);
- 	if (ret)
 diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index 6dc7826..f89e460 100644
+index f89e460..59ab1a0f 100644
 --- a/arch/x86/mm/pat.c
 +++ b/arch/x86/mm/pat.c
-@@ -438,12 +438,8 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
+@@ -235,6 +235,7 @@ static void pat_ap_init(u64 pat)
+ void pat_init(void)
+ {
+ 	u64 pat;
++	struct cpuinfo_x86 *c = &boot_cpu_data;
  
  	if (!pat_enabled()) {
- 		/* This is identical to page table setting without PAT */
--		if (new_type) {
--			if (req_type == _PAGE_CACHE_MODE_WC)
--				*new_type = _PAGE_CACHE_MODE_UC_MINUS;
--			else
--				*new_type = req_type;
--		}
-+		if (new_type)
-+			*new_type = req_type;
- 		return 0;
+ 		/*
+@@ -244,7 +245,7 @@ void pat_init(void)
+ 		 * has PAT but the "nopat" boot option has been specified. This
+ 		 * emulated PAT table is used when MSR_IA32_CR_PAT returns 0.
+ 		 *
+-		 * PTE encoding used:
++		 * PTE encoding:
+ 		 *
+ 		 *       PCD
+ 		 *       |PWT  PAT
+@@ -259,21 +260,61 @@ void pat_init(void)
+ 		 */
+ 		pat = PAT(0, WB) | PAT(1, WT) | PAT(2, UC_MINUS) | PAT(3, UC) |
+ 		      PAT(4, WB) | PAT(5, WT) | PAT(6, UC_MINUS) | PAT(7, UC);
+-	} else {
++
++	} else if ((c->x86_vendor == X86_VENDOR_INTEL) &&
++		   (((c->x86 == 0x6) && (c->x86_model <= 0xd)) ||
++		    ((c->x86 == 0xf) && (c->x86_model <= 0x6)))) {
+ 		/*
+-		 * PTE encoding used in Linux:
++		 * PAT support with the lower four entries. Intel Pentium 2,
++		 * 3, M, and 4 are affected by PAT errata, which makes the
++		 * upper four entries unusable. To be on the safe side, we don't
++		 * use those.
++		 *
++		 *  PTE encoding:
+ 		 *      PAT
+ 		 *      |PCD
+-		 *      ||PWT
+-		 *      |||
+-		 *      000 WB          _PAGE_CACHE_WB
+-		 *      001 WC          _PAGE_CACHE_WC
+-		 *      010 UC-         _PAGE_CACHE_UC_MINUS
+-		 *      011 UC          _PAGE_CACHE_UC
++		 *      ||PWT  PAT
++		 *      |||    slot
++		 *      000    0    WB : _PAGE_CACHE_MODE_WB
++		 *      001    1    WC : _PAGE_CACHE_MODE_WC
++		 *      010    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
++		 *      011    3    UC : _PAGE_CACHE_MODE_UC
+ 		 * PAT bit unused
++		 *
++		 * NOTE: When WT or WP is used, it is redirected to UC- per
++		 * the default setup in __cachemode2pte_tbl[].
+ 		 */
+ 		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
+ 		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
++	} else {
++		/*
++		 * Full PAT support.  We put WT in slot 7 to improve
++		 * robustness in the presence of errata that might cause
++		 * the high PAT bit to be ignored.  This way, a buggy slot 7
++		 * access will hit slot 3, and slot 3 is UC, so at worst
++		 * we lose performance without causing a correctness issue.
++		 * Pentium 4 erratum N46 is an example for such an erratum,
++		 * although we try not to use PAT at all on affected CPUs.
++		 *
++		 *  PTE encoding:
++		 *      PAT
++		 *      |PCD
++		 *      ||PWT  PAT
++		 *      |||    slot
++		 *      000    0    WB : _PAGE_CACHE_MODE_WB
++		 *      001    1    WC : _PAGE_CACHE_MODE_WC
++		 *      010    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
++		 *      011    3    UC : _PAGE_CACHE_MODE_UC
++		 *      100    4    WB : Reserved
++		 *      101    5    WC : Reserved
++		 *      110    6    UC-: Reserved
++		 *      111    7    WT : _PAGE_CACHE_MODE_WT
++		 *
++		 * The reserved slots are unused, but mapped to their
++		 * corresponding types in the presence of PAT errata.
++		 */
++		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
++		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, WT);
  	}
  
-@@ -947,11 +943,8 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
- 
- pgprot_t pgprot_writecombine(pgprot_t prot)
- {
--	if (pat_enabled())
--		return __pgprot(pgprot_val(prot) |
-+	return __pgprot(pgprot_val(prot) |
- 				cachemode2protval(_PAGE_CACHE_MODE_WC));
--	else
--		return pgprot_noncached(prot);
- }
- EXPORT_SYMBOL_GPL(pgprot_writecombine);
- 
+ 	if (!boot_cpu_done) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
