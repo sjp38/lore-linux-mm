@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 561BE6B0070
-	for <linux-mm@kvack.org>; Sun,  7 Jun 2015 13:41:27 -0400 (EDT)
-Received: by padev16 with SMTP id ev16so22896035pad.0
-        for <linux-mm@kvack.org>; Sun, 07 Jun 2015 10:41:27 -0700 (PDT)
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CF6E6B0071
+	for <linux-mm@kvack.org>; Sun,  7 Jun 2015 13:41:42 -0400 (EDT)
+Received: by pabqy3 with SMTP id qy3so80070354pab.3
+        for <linux-mm@kvack.org>; Sun, 07 Jun 2015 10:41:42 -0700 (PDT)
 Received: from terminus.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id bz12si377059pdb.79.2015.06.07.10.41.26
+        by mx.google.com with ESMTPS id df1si370181pad.84.2015.06.07.10.41.41
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 07 Jun 2015 10:41:26 -0700 (PDT)
-Date: Sun, 7 Jun 2015 10:40:40 -0700
+        Sun, 07 Jun 2015 10:41:41 -0700 (PDT)
+Date: Sun, 7 Jun 2015 10:41:00 -0700
 From: tip-bot for Toshi Kani <tipbot@zytor.com>
-Message-ID: <tip-0d69bdff451a10aa48f80509e8bf18fb24683c06@git.kernel.org>
-Reply-To: akpm@linux-foundation.org, hpa@zytor.com, luto@amacapital.net,
-        linux-mm@kvack.org, torvalds@linux-foundation.org, toshi.kani@hp.com,
-        mingo@kernel.org, mcgrof@suse.com, peterz@infradead.org,
-        linux-kernel@vger.kernel.org, tglx@linutronix.de, bp@suse.de
-In-Reply-To: <1433436928-31903-6-git-send-email-bp@alien8.de>
-References: <1433436928-31903-6-git-send-email-bp@alien8.de>
-Subject: [tip:x86/mm] x86/mm/pat: Change reserve_memtype()
-  for Write-Through type
+Message-ID: <tip-ecb2febaaa3945e1578359adc30ca818e78540fb@git.kernel.org>
+Reply-To: tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        bp@suse.de, toshi.kani@hp.com, peterz@infradead.org,
+        luto@amacapital.net, mingo@kernel.org, torvalds@linux-foundation.org,
+        hpa@zytor.com, akpm@linux-foundation.org, mcgrof@suse.com
+In-Reply-To: <1433436928-31903-7-git-send-email-bp@alien8.de>
+References: <1433436928-31903-7-git-send-email-bp@alien8.de>
+Subject: [tip:x86/mm] x86/mm: Teach is_new_memtype_allowed()
+  about Write-Through type
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Content-Type: text/plain; charset=UTF-8
@@ -27,24 +27,35 @@ Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-tip-commits@vger.kernel.org
-Cc: hpa@zytor.com, akpm@linux-foundation.org, linux-mm@kvack.org, luto@amacapital.net, torvalds@linux-foundation.org, toshi.kani@hp.com, peterz@infradead.org, mingo@kernel.org, mcgrof@suse.com, linux-kernel@vger.kernel.org, bp@suse.de, tglx@linutronix.de
+Cc: tglx@linutronix.de, linux-kernel@vger.kernel.org, bp@suse.de, toshi.kani@hp.com, linux-mm@kvack.org, mingo@kernel.org, torvalds@linux-foundation.org, hpa@zytor.com, peterz@infradead.org, luto@amacapital.net, mcgrof@suse.com, akpm@linux-foundation.org
 
-Commit-ID:  0d69bdff451a10aa48f80509e8bf18fb24683c06
-Gitweb:     http://git.kernel.org/tip/0d69bdff451a10aa48f80509e8bf18fb24683c06
+Commit-ID:  ecb2febaaa3945e1578359adc30ca818e78540fb
+Gitweb:     http://git.kernel.org/tip/ecb2febaaa3945e1578359adc30ca818e78540fb
 Author:     Toshi Kani <toshi.kani@hp.com>
-AuthorDate: Thu, 4 Jun 2015 18:55:13 +0200
+AuthorDate: Thu, 4 Jun 2015 18:55:14 +0200
 Committer:  Ingo Molnar <mingo@kernel.org>
 CommitDate: Sun, 7 Jun 2015 15:28:55 +0200
 
-x86/mm/pat: Change reserve_memtype() for Write-Through type
+x86/mm: Teach is_new_memtype_allowed() about Write-Through type
 
-When a target range is in RAM, reserve_ram_pages_type() verifies
-the requested type. Change it to fail WT and WP requests with
--EINVAL since set_page_memtype() is limited to handle three
-types: WB, WC and UC-.
+__ioremap_caller() calls reserve_memtype() and the passed down
+@new_pcm contains the actual page cache type it reserved in the
+success case.
+
+is_new_memtype_allowed() verifies if converting to the new page
+cache type is allowed when @pcm (the requested type) is
+different from @new_pcm.
+
+When WT is requested, the caller expects that writes are ordered
+and uncached. Therefore, enhance is_new_memtype_allowed() to
+disallow the following cases:
+
+ - If the request is WT, mapping type cannot be WB
+ - If the request is WT, mapping type cannot be WC
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 Signed-off-by: Borislav Petkov <bp@suse.de>
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andy Lutomirski <luto@amacapital.net>
 Cc: Elliott@hp.com
@@ -52,7 +63,6 @@ Cc: H. Peter Anvin <hpa@zytor.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Luis R. Rodriguez <mcgrof@suse.com>
 Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: arnd@arndb.de
 Cc: hch@lst.de
 Cc: hmh@hmh.eng.br
@@ -62,54 +72,35 @@ Cc: linux-mm <linux-mm@kvack.org>
 Cc: linux-nvdimm@lists.01.org
 Cc: stefan.bader@canonical.com
 Cc: yigal@plexistor.com
-Link: http://lkml.kernel.org/r/1433436928-31903-6-git-send-email-bp@alien8.de
+Link: http://lkml.kernel.org/r/1433436928-31903-7-git-send-email-bp@alien8.de
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- arch/x86/mm/pat.c | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ arch/x86/include/asm/pgtable.h | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index 59ab1a0f..6311193 100644
---- a/arch/x86/mm/pat.c
-+++ b/arch/x86/mm/pat.c
-@@ -401,9 +401,12 @@ static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index fe57e7a..2562e30 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -398,11 +398,17 @@ static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
+ 	 * requested memtype:
+ 	 * - request is uncached, return cannot be write-back
+ 	 * - request is write-combine, return cannot be write-back
++	 * - request is write-through, return cannot be write-back
++	 * - request is write-through, return cannot be write-combine
+ 	 */
+ 	if ((pcm == _PAGE_CACHE_MODE_UC_MINUS &&
+ 	     new_pcm == _PAGE_CACHE_MODE_WB) ||
+ 	    (pcm == _PAGE_CACHE_MODE_WC &&
+-	     new_pcm == _PAGE_CACHE_MODE_WB)) {
++	     new_pcm == _PAGE_CACHE_MODE_WB) ||
++	    (pcm == _PAGE_CACHE_MODE_WT &&
++	     new_pcm == _PAGE_CACHE_MODE_WB) ||
++	    (pcm == _PAGE_CACHE_MODE_WT &&
++	     new_pcm == _PAGE_CACHE_MODE_WC)) {
+ 		return 0;
+ 	}
  
- /*
-  * For RAM pages, we use page flags to mark the pages with appropriate type.
-- * Here we do two pass:
-- * - Find the memtype of all the pages in the range, look for any conflicts
-- * - In case of no conflicts, set the new memtype for pages in the range
-+ * The page flags are limited to three types, WB, WC and UC-. WT and WP requests
-+ * fail with -EINVAL, and UC gets redirected to UC-.
-+ *
-+ * Here we do two passes:
-+ * - Find the memtype of all the pages in the range, look for any conflicts.
-+ * - In case of no conflicts, set the new memtype for pages in the range.
-  */
- static int reserve_ram_pages_type(u64 start, u64 end,
- 				  enum page_cache_mode req_type,
-@@ -412,6 +415,13 @@ static int reserve_ram_pages_type(u64 start, u64 end,
- 	struct page *page;
- 	u64 pfn;
- 
-+	if ((req_type == _PAGE_CACHE_MODE_WT) ||
-+	    (req_type == _PAGE_CACHE_MODE_WP)) {
-+		if (new_type)
-+			*new_type = _PAGE_CACHE_MODE_UC_MINUS;
-+		return -EINVAL;
-+	}
-+
- 	if (req_type == _PAGE_CACHE_MODE_UC) {
- 		/* We do not support strong UC */
- 		WARN_ON_ONCE(1);
-@@ -461,6 +471,7 @@ static int free_ram_pages_type(u64 start, u64 end)
-  * - _PAGE_CACHE_MODE_WC
-  * - _PAGE_CACHE_MODE_UC_MINUS
-  * - _PAGE_CACHE_MODE_UC
-+ * - _PAGE_CACHE_MODE_WT
-  *
-  * If new_type is NULL, function will return an error if it cannot reserve the
-  * region with req_type. If new_type is non-NULL, function will return
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
