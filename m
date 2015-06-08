@@ -1,131 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 6680D6B0038
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 19:20:24 -0400 (EDT)
-Received: by ieclw1 with SMTP id lw1so3675450iec.3
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 16:20:24 -0700 (PDT)
-Received: from mail-ie0-x22f.google.com (mail-ie0-x22f.google.com. [2607:f8b0:4001:c03::22f])
-        by mx.google.com with ESMTPS id g76si3172959ioj.58.2015.06.08.16.20.23
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EA406B0038
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 19:30:55 -0400 (EDT)
+Received: by payr10 with SMTP id r10so1561905pay.1
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 16:30:55 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id du9si6221526pdb.80.2015.06.08.16.30.54
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jun 2015 16:20:23 -0700 (PDT)
-Received: by iebmu5 with SMTP id mu5so3727370ieb.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 16:20:23 -0700 (PDT)
-Date: Mon, 8 Jun 2015 16:20:21 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] oom: always panic on OOM when panic_on_oom is
- configured
-In-Reply-To: <20150608213218.GB18360@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1506081606500.17040@chino.kir.corp.google.com>
-References: <1433159948-9912-1-git-send-email-mhocko@suse.cz> <alpine.DEB.2.10.1506041607020.16555@chino.kir.corp.google.com> <20150605111302.GB26113@dhcp22.suse.cz> <alpine.DEB.2.10.1506081242250.13272@chino.kir.corp.google.com>
- <20150608213218.GB18360@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Mon, 08 Jun 2015 16:30:54 -0700 (PDT)
+Date: Mon, 8 Jun 2015 16:30:53 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/memory hotplug: print the last vmemmap region at the
+ end of hot add memory
+Message-Id: <20150608163053.c481d9a5057513130f760910@linux-foundation.org>
+In-Reply-To: <1433745881-7179-1-git-send-email-zhugh.fnst@cn.fujitsu.com>
+References: <1433745881-7179-1-git-send-email-zhugh.fnst@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, vbabka@suse.cz, rientjes@google.com, n-horiguchi@ah.jp.nec.com, zhenzhang.zhang@huawei.com, wangnan0@huawei.com, fabf@skynet.be
 
-On Mon, 8 Jun 2015, Michal Hocko wrote:
+On Mon, 8 Jun 2015 14:44:41 +0800 Zhu Guihua <zhugh.fnst@cn.fujitsu.com> wrote:
 
-> On Mon 08-06-15 12:51:53, David Rientjes wrote:
-> > On Fri, 5 Jun 2015, Michal Hocko wrote:
-> > 
-> > > > Nack, this is not the appropriate response to exit path livelocks.  By 
-> > > > doing this, you are going to start unnecessarily panicking machines that 
-> > > > have panic_on_oom set when it would not have triggered before.  If there 
-> > > > is no reclaimable memory and a process that has already been signaled to 
-> > > > die to is in the process of exiting has to allocate memory, it is 
-> > > > perfectly acceptable to give them access to memory reserves so they can 
-> > > > allocate and exit.  Under normal circumstances, that allows the process to 
-> > > > naturally exit.  With your patch, it will cause the machine to panic.
-> > > 
-> > > Isn't that what the administrator of the system wants? The system
-> > > is _clearly_ out of memory at this point. A coincidental exiting task
-> > > doesn't change a lot in that regard. Moreover it increases a risk of
-> > > unnecessarily unresponsive system which is what panic_on_oom tries to
-> > > prevent from. So from my POV this is a clear violation of the user
-> > > policy.
-> > > 
-> > 
-> > We rely on the functionality that this patch is short cutting because we 
-> > rely on userspace to trigger oom kills.  For system oom conditions, we 
-> > must then rely on the kernel oom killer to set TIF_MEMDIE since userspace 
-> > cannot grant it itself.  (I think the memcg case is very similar in that 
-> > this patch is short cutting it, but I'm more concerned for the system oom 
-> > in this case because it's a show stopper for us.)
+> When hot add two nodes continuously, we found the vmemmap region info is a
+> bit messed. The last region of node 2 is printed when node 3 hot added,
+> like the following:
+> Initmem setup node 2 [mem 0x0000000000000000-0xffffffffffffffff]
+>  On node 2 totalpages: 0
+>  Built 2 zonelists in Node order, mobility grouping on.  Total pages: 16090539
+>  Policy zone: Normal
+>  init_memory_mapping: [mem 0x40000000000-0x407ffffffff]
+>   [mem 0x40000000000-0x407ffffffff] page 1G
+>   [ffffea1000000000-ffffea10001fffff] PMD -> [ffff8a077d800000-ffff8a077d9fffff] on node 2
+>   [ffffea1000200000-ffffea10003fffff] PMD -> [ffff8a077de00000-ffff8a077dffffff] on node 2
+> ...
+>   [ffffea101f600000-ffffea101f9fffff] PMD -> [ffff8a074ac00000-ffff8a074affffff] on node 2
+>   [ffffea101fa00000-ffffea101fdfffff] PMD -> [ffff8a074a800000-ffff8a074abfffff] on node 2
+> Initmem setup node 3 [mem 0x0000000000000000-0xffffffffffffffff]
+>  On node 3 totalpages: 0
+>  Built 3 zonelists in Node order, mobility grouping on.  Total pages: 16090539
+>  Policy zone: Normal
+>  init_memory_mapping: [mem 0x60000000000-0x607ffffffff]
+>   [mem 0x60000000000-0x607ffffffff] page 1G
+>   [ffffea101fe00000-ffffea101fffffff] PMD -> [ffff8a074a400000-ffff8a074a5fffff] on node 2 <=== node 2 ???
+>   [ffffea1800000000-ffffea18001fffff] PMD -> [ffff8a074a600000-ffff8a074a7fffff] on node 3
+>   [ffffea1800200000-ffffea18005fffff] PMD -> [ffff8a074a000000-ffff8a074a3fffff] on node 3
+>   [ffffea1800600000-ffffea18009fffff] PMD -> [ffff8a0749c00000-ffff8a0749ffffff] on node 3
+> ...
 > 
-> Do you actually have panic_on_oops enabled?
+> The cause is the last region was missed at the and of hot add memory, and
+> p_start, p_end, node_start were not reset, so when hot add memory to a new
+> node, it will consider they are not contiguous blocks and print the
+> previous one. So we print the last vmemmap region at the end of hot add
+> memory to avoid the confusion.
 > 
+> ...
+>
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -513,6 +513,7 @@ int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
+>  			break;
+>  		err = 0;
+>  	}
+> +	vmemmap_populate_print_last();
+>  
+>  	return err;
+>  }
 
-CONFIG_PANIC_ON_OOPS_VALUE should be 0, I'm not sure why that's relevant.
-
-The functionality I'm referring to is that your patch now panics the 
-machine for configs where /proc/sys/vm/panic_on_oom is set and the same 
-scenario occurs as described above.  You're introducing userspace breakage 
-because you are using panic_on_oom in a way that it hasn't been used in 
-the past and isn't described as working in the documentation.
-
-> > We want to send the SIGKILL, which will interrupt things like 
-> 
-> But this patch only changes the ordering of panic_on_oops vs.
-> fatal_signal_pending(current) shortcut. So it can possible affect the
-> case when the current is exiting during OOM. Is this the case that you
-> are worried about?
-> 
-
-Yes, of course, the case specifically when the killed process is in the 
-exit path due to a userspace oom kill and needs access to memory reserves 
-to exit.  That's needed because the machine is oom (typically the only 
-time a non-buggy userspace oom handler would kill a process).
-
-This:
-
-	check_panic_on_oom(constraint, gfp_mask, order, mpol_mask, NULL);
-	...
-	if (current->mm &&
-	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
-		mark_oom_victim(current);
-		goto out;
-	}
-
-is obviously buggy in that regard.  We need to be able to give a killed 
-process or an exiting process memory reserves so it may (1) allocate prior 
-to handling the signal and (2) be assured of exiting once it is in the 
-exit path.
-
-> The documentation clearly states:
-> "
-> If this is set to 1, the kernel panics when out-of-memory happens.
-> However, if a process limits using nodes by mempolicy/cpusets,
-> and those nodes become memory exhaustion status, one process
-> may be killed by oom-killer. No panic occurs in this case.
-> Because other nodes' memory may be free. This means system total status
-> may be not fatal yet.
-> 
-> If this is set to 2, the kernel panics compulsorily even on the
-> above-mentioned. Even oom happens under memory cgroup, the whole
-> system panics.
-> 
-> The default value is 0.
-> 1 and 2 are for failover of clustering. Please select either
-> according to your policy of failover.
-> "
-> 
-> So I read this as a reliability feature to handle oom situation as soon
-> as possible.
-> 
-
-A userspace process that is killed by userspace that simply needs memory 
-to handle the signal and exit is not oom.  We have always allowed current 
-to have access to memory reserves to exit without triggering panic_on_oom.  
-This is nothing new, and is not implied by the documentation to be the 
-case.
-
-I'm not going to spend all day trying to convince you that you cannot 
-change the semantics of sysctls that have existed for years with new 
-behavior especially when users require that behavior to handle userspace 
-kills while still keeping their machines running.
+vmemmap_populate_print_last() is only available on x86_64, when
+CONFIG_SPARSEMEM_VMEMMAP=y.  Are you sure this won't break builds?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
