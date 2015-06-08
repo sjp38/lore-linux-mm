@@ -1,65 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vn0-f48.google.com (mail-vn0-f48.google.com [209.85.216.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C5A06B0032
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 05:58:50 -0400 (EDT)
-Received: by vnbf190 with SMTP id f190so16697148vnb.5
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 02:58:50 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id xh1si4040692vdb.8.2015.06.08.02.58.48
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jun 2015 02:58:49 -0700 (PDT)
-Date: Mon, 8 Jun 2015 11:58:42 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [RFC PATCH] slub: RFC: Improving SLUB performance with 38% on
- NO-PREEMPT
-Message-ID: <20150608115842.694856ff@redhat.com>
-In-Reply-To: <alpine.DEB.2.11.1506080438570.10781@east.gentwo.org>
-References: <20150604103159.4744.75870.stgit@ivy>
-	<1433471877.1895.51.camel@edumazet-glaptop2.roam.corp.google.com>
-	<20150608112359.04a3750e@redhat.com>
-	<alpine.DEB.2.11.1506080438570.10781@east.gentwo.org>
+Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 7ECBC6B0032
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 06:04:00 -0400 (EDT)
+Received: by qczw4 with SMTP id w4so48320251qcz.2
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 03:04:00 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f15si2035291qkh.36.2015.06.08.03.03.59
+        for <linux-mm@kvack.org>;
+        Mon, 08 Jun 2015 03:03:59 -0700 (PDT)
+Date: Mon, 8 Jun 2015 11:03:49 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH] slub/slab: fix kmemleak didn't work on some case
+Message-ID: <20150608100349.GA31349@e104818-lin.cambridge.arm.com>
+References: <99C214DF91337140A8D774E25DF6CD5FC89DA2@shsmsx102.ccr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <99C214DF91337140A8D774E25DF6CD5FC89DA2@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Alexander Duyck <alexander.duyck@gmail.com>, linux-mm@kvack.org, netdev@vger.kernel.org, brouer@redhat.com
+To: "Liu, XinwuX" <xinwux.liu@intel.com>
+Cc: "cl@linux-foundation.org" <cl@linux-foundation.org>, "penberg@kernel.org" <penberg@kernel.org>, "mpm@selenic.com" <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "yanmin_zhang@linux.intel.com" <yanmin_zhang@linux.intel.com>, "He, Bo" <bo.he@intel.com>, "Chen, Lin Z" <lin.z.chen@intel.com>
 
-On Mon, 8 Jun 2015 04:39:38 -0500 (CDT)
-Christoph Lameter <cl@linux.com> wrote:
-
-> On Mon, 8 Jun 2015, Jesper Dangaard Brouer wrote:
+On Mon, Jun 08, 2015 at 06:14:32AM +0100, Liu, XinwuX wrote:
+> when kernel uses kmalloc to allocate memory, slub/slab will find
+> a suitable kmem_cache. Ususally the cache's object size is often
+> greater than requested size. There is unused space which contains
+> dirty data. These dirty data might have pointers pointing to a block
+> of leaked memory. Kernel wouldn't consider this memory as leaked when
+> scanning kmemleak object.
 > 
-> > My real question is if disabling local interrupts is enough to avoid this?
+> The patch fixes it by clearing the unused memory.
+
+In general, I'm not bothered about this. We may miss a leak or two but
+in my experience they eventually show up at some point. Have you seen
+any real leaks not being reported because of this? Note that we already
+have a lot of non-pointer data that is scanned by kmemleak (it can't
+distinguish which members are pointers in a data structure).
+
+> mm/slab.c | 22 +++++++++++++++++++++-
+> mm/slub.c | 35 +++++++++++++++++++++++++++++++++++
+> 2 files changed, 56 insertions(+), 1 deletion(-)
 > 
-> Yes the initial release of slub used interrupt disable in the fast paths.
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 7eb38dd..ef25e7d 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -3423,6 +3423,12 @@ kmem_cache_alloc_trace(struct kmem_cache *cachep, gfp_t flags, size_t size)
+>                 ret = slab_alloc(cachep, flags, _RET_IP_);
+> +#ifdef CONFIG_DEBUG_KMEMLEAK
+> +             int delta = cachep->object_size - size;
+> +
+> +             if (ret && likely(!(flags & __GFP_ZERO)) && (delta > 0))
+> +                             memset((void *)((char *)ret + size), 0, delta);
+> +#endif
 
-Thanks for the confirmation.
+On the implementation side, there is too much code duplication. I would
+rather add something like the kmemleak_erase(), e.g.
+kmemleak_erase_range(addr, object_size, actual_size) which is an empty
+static inline when !CONFIG_DEBUG_KMEMLEAK.
 
-For this code path we would need the save/restore variant, which is
-more expensive than the local cmpxchg16b.   In case of bulking, we
-should be able to use the less expensive local_irq_{disable,enable}.
-
-Cost of local IRQ toggling (CPU E5-2695):
- *  local_irq_{disable,enable}:  7 cycles(tsc) -  2.861 ns
- *  local_irq_{save,restore}  : 37 cycles(tsc) - 14.846 ns
-
-p.s. I'm back working on bulking API...
-
-> > And, does local irq disabling also stop preemption?
-> 
-> Of course.
-
-Thanks for confirming this.
+Kmemleak already has an API for similar cases, kmemleak_scan_area().
+While this allocates an extra structure, it could be adapted to only
+change some of the object properties. However, the rb tree lookup is
+probably still slower than a memset().
 
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
