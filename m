@@ -1,64 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 89E396B0032
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 06:13:08 -0400 (EDT)
-Received: by qgf75 with SMTP id 75so44001475qgf.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 03:13:08 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g5si2065086qca.6.2015.06.08.03.13.07
-        for <linux-mm@kvack.org>;
-        Mon, 08 Jun 2015 03:13:07 -0700 (PDT)
-Date: Mon, 8 Jun 2015 11:13:02 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] slub/slab: fix kmemleak didn't work on some case
-Message-ID: <20150608101302.GB31349@e104818-lin.cambridge.arm.com>
-References: <99C214DF91337140A8D774E25DF6CD5FC89DA2@shsmsx102.ccr.corp.intel.com>
- <alpine.DEB.2.11.1506080425350.10651@east.gentwo.org>
+Received: from mail-vn0-f43.google.com (mail-vn0-f43.google.com [209.85.216.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 69EC36B0032
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 06:16:49 -0400 (EDT)
+Received: by vnbg1 with SMTP id g1so16734308vnb.3
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 03:16:49 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id if6si4070619vdb.58.2015.06.08.03.16.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Jun 2015 03:16:48 -0700 (PDT)
+Date: Mon, 8 Jun 2015 12:16:39 +0200
+From: Jesper Dangaard Brouer <jbrouer@redhat.com>
+Subject: Corruption with MMOTS
+ slub-bulk-allocation-from-per-cpu-partial-pages.patch
+Message-ID: <20150608121639.3d9ce2aa@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1506080425350.10651@east.gentwo.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: "Liu, XinwuX" <xinwux.liu@intel.com>, "penberg@kernel.org" <penberg@kernel.org>, "mpm@selenic.com" <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "yanmin_zhang@linux.intel.com" <yanmin_zhang@linux.intel.com>, "He, Bo" <bo.he@intel.com>, "Chen, Lin Z" <lin.z.chen@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 
-On Mon, Jun 08, 2015 at 10:38:13AM +0100, Christoph Lameter wrote:
-> On Mon, 8 Jun 2015, Liu, XinwuX wrote:
-> 
-> > when kernel uses kmalloc to allocate memory, slub/slab will find
-> > a suitable kmem_cache. Ususally the cache's object size is often
-> > greater than requested size. There is unused space which contains
-> > dirty data. These dirty data might have pointers pointing to a block
-> 
-> dirty? In what sense?
 
-I guess XinwuX meant uninitialised.
+It seems the patch from (inserted below):
+ http://ozlabs.org/~akpm/mmots/broken-out/slub-bulk-allocation-from-per-cpu-partial-pages.patch
 
-> > of leaked memory. Kernel wouldn't consider this memory as leaked when
-> > scanning kmemleak object.
-> 
-> This has never been considered leaked memory before to my knowledge and
-> the data is already initialized.
+Is not protecting access to c->partial "enough" (section is under
+local_irq_disable/enable).  When exercising bulk API I can make it
+crash/corrupt memory when compiled with CONFIG_SLUB_CPU_PARTIAL=y
 
-It's not the object being allocated that is considered leaked. But
-uninitialised data in this object is scanned by kmemleak and it may look
-like valid pointers to real leaked objects. So such data increases the
-number of kmemleak false negatives.
+First I suspected:
+ object = get_freelist(s, c->page); 
+But the problem goes way with CONFIG_SLUB_CPU_PARTIAL=n
 
-As I replied already, I don't think this is that bad, or at least not
-worse than what kmemleak already does (looking at all data whether it's
-pointer or not). It also doesn't solve the kmem_cache_alloc() case where
-the original object size is no longer available.
 
-> F.e. The zeroing function in linux/mm/slub.c::slab_alloc_node() zeros the
-> complete object and not only the number of bytes specified in the kmalloc
-> call. Same thing is true for SLAB.
+From: Christoph Lameter <cl@linux.com>
+Subject: slub: bulk allocation from per cpu partial pages
 
-But that's only when __GFP_ZERO is passed.
+Cover all of the per cpu objects available.
+
+Expand the bulk allocation support to drain the per cpu partial pages
+while interrupts are off.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/slub.c |   36 +++++++++++++++++++++++++++++++++---
+ 1 file changed, 33 insertions(+), 3 deletions(-)
+
+diff -puN mm/slub.c~slub-bulk-allocation-from-per-cpu-partial-pages mm/slub.c
+--- a/mm/slub.c~slub-bulk-allocation-from-per-cpu-partial-pages
++++ a/mm/slub.c
+@@ -2769,15 +2769,45 @@ bool kmem_cache_alloc_bulk(struct kmem_c
+ 		while (size) {
+ 			void *object = c->freelist;
+ 
+-			if (!object)
+-				break;
++			if (unlikely(!object)) {
++				/*
++				 * Check if there remotely freed objects
++				 * availalbe in the page.
++				 */
++				object = get_freelist(s, c->page);
++
++				if (!object) {
++					/*
++					 * All objects in use lets check if
++					 * we have other per cpu partial
++					 * pages that have available
++					 * objects.
++					 */
++					c->page = c->partial;
++					if (!c->page) {
++						/* No per cpu objects left */
++						c->freelist = NULL;
++						break;
++					}
++
++					/* Next per cpu partial page */
++					c->partial = c->page->next;
++					c->freelist = get_freelist(s,
++							c->page);
++					continue;
++				}
++
++			}
++
+ 
+-			c->freelist = get_freepointer(s, object);
+ 			*p++ = object;
+ 			size--;
+ 
+ 			if (unlikely(flags & __GFP_ZERO))
+ 				memset(object, 0, s->object_size);
++
++			c->freelist = get_freepointer(s, object);
++
+ 		}
+ 		c->tid = next_tid(c->tid);
+ 
+_
+
 
 -- 
-Catalin
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
