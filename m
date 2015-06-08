@@ -1,300 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id B54EC6B0038
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 18:48:51 -0400 (EDT)
-Received: by wibdq8 with SMTP id dq8so4654635wib.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 15:48:51 -0700 (PDT)
-Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
-        by mx.google.com with SMTP id vq1si8071987wjc.36.2015.06.08.15.48.49
-        for <linux-mm@kvack.org>;
-        Mon, 08 Jun 2015 15:48:49 -0700 (PDT)
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Subject: Re: [RFC PATCH] PM / hibernate: fix kernel crash in alloc_highmem_pages
-Date: Tue, 09 Jun 2015 01:14:37 +0200
-Message-ID: <5743565.2B66qaKcGE@vostro.rjw.lan>
-In-Reply-To: <1433776925-24662-1-git-send-email-grygorii.strashko@ti.com>
-References: <1433776925-24662-1-git-send-email-grygorii.strashko@ti.com>
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C5176B0038
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 19:06:10 -0400 (EDT)
+Received: by igbzc4 with SMTP id zc4so135496igb.0
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 16:06:09 -0700 (PDT)
+Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com. [2607:f8b0:4001:c05::22b])
+        by mx.google.com with ESMTPS id hx4si1571804igb.43.2015.06.08.16.06.09
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Jun 2015 16:06:09 -0700 (PDT)
+Received: by igbpi8 with SMTP id pi8so111068igb.1
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 16:06:09 -0700 (PDT)
+Date: Mon, 8 Jun 2015 16:06:07 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] oom: split out forced OOM killer
+In-Reply-To: <20150608210621.GA18360@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1506081558270.17040@chino.kir.corp.google.com>
+References: <1433235187-32673-1-git-send-email-mhocko@suse.cz> <alpine.DEB.2.10.1506041557070.16555@chino.kir.corp.google.com> <557187F9.8020301@gmail.com> <alpine.DEB.2.10.1506081059200.10521@chino.kir.corp.google.com> <5575E5E6.20908@gmail.com>
+ <alpine.DEB.2.10.1506081237350.13272@chino.kir.corp.google.com> <20150608210621.GA18360@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Grygorii Strashko <grygorii.strashko@ti.com>
-Cc: linux-pm@vger.kernel.org, Len Brown <len.brown@intel.com>, Pavel Machek <pavel@ucw.cz>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, illia.smyrnov@globallogic.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Austin S Hemmelgarn <ahferroin7@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Monday, June 08, 2015 06:22:05 PM Grygorii Strashko wrote:
-> Now Kernel crashes under some circumstances in swsusp_alloc()
-> because it hits BUG() in memory_bm_set_bit().
-> 
-> Kernel: Linux 4.1-rc3
-> HW: TI dra7-evm board, 2xARM Cortex-A15, 1.5G RAM
-> Swap: 2G swap partition on SD-card
-> 
-> Steps to reproduce:
-> - reserve 500M memory for CMA from command line: "cma=500M"
-> - configure image_size
->   # echo 1073741824 > sys/power/image_size
-> - enable swap
->   # swapon /dev/<swap partition>
-> - run memtester
->   # memtester 460M &
-> - [optional] disable console suspend
->   # echo 0 > sys/module/printk/parameters/console_suspend
-> - perform suspend to disk
->   # echo disk > sys/power/state
-> 
-> Crash report:
-> -----------[ cut here ]------------
-> Kernel BUG at c0097394 [verbose debug info unavailable]
-> Internal error: Oops - BUG: 0 [#1] SMP ARM
-> Modules linked in:
-> CPU: 0 PID: 68 Comm: sh Not tainted 4.1.0-rc3-00190-ga96463d-dirty #138
-> Hardware name: Generic DRA74X (Flattened Device Tree)
-> task: ee3b2fc0 ti: ee6e8000 task.ti: ee6e8000
-> PC is at memory_bm_set_bit+0x30/0x34
-> LR is at 0x80000
-> pc : [<c0097394>]    lr : [<00080000>]    psr: a00000d3
-> sp : ee6e9de4  ip : c111f714  fp : 00000000
-> r10: 000128e2  r9 : c111f6f8  r8 : 00028658
-> r7 : c114ef00  r6 : c08bad04  r5 : 00027849  r4 : 00012b59
-> r3 : ee6e9de8  r2 : ee6e9de4  r1 : 8ebc3c00  r0 : fffffff2
-> Flags: NzCv  IRQs off  FIQs off  Mode SVC_32  ISA ARM  Segment user
-> Control: 10c5387d  Table: ae6dc06a  DAC: 00000015
-> Process sh (pid: 68, stack limit = 0xee6e8218)
-> Stack: (0xee6e9de4 to 0xee6ea000)
-> 9de0:          00000000 c0097690 00012b59 c0099148 00000030 ee6e9e4c 00000000
-> 9e00: 00000007 0000000f c096b624 c08b78d4 c001452c 00000030 c00141b0 ae0d0000
-> 9e20: ee6e9e4c 80021ae0 00000000 001fc4c0 001fc4c0 00000015 8000406a 10c5387d
-> 9e40: 00000040 00f00000 00000000 00000000 ee6f4c00 00000000 c08b6800 c0773a60
-> 9e60: c096b624 c096dbe8 00000000 c001435c ee3b2fc0 00000000 c096b624 c00966a8
-> 9e80: c08f9710 00000000 c111f5c8 00200660 c08f9644 00000005 00000000 c0096ef0
-> 9ea0: ee6470c0 00000005 00000004 00200660 ee6a6300 c00944cc 00000005 ee6470c0
-> 9ec0: 00000005 ee6a6300 00200660 ee6470cc ee6e9f88 c01dc688 00000000 00000000
-> 9ee0: 20000013 ee6f76c0 00000005 00200660 ee6e9f88 c000f6a4 ee6e8000 00000000
-> 9f00: 00000002 c016beec c08b87bc c016e32c 00000020 00000000 c016c830 ee3b2fb8
-> 9f20: c016c830 ee652ae4 ee6f76c0 00000000 00000000 c016c51c 00000000 00000003
-> 9f40: 00000000 ee6f76c0 00000005 00200660 ee6f76c0 00000005 00200660 ee6e9f88
-> 9f60: c000f6a4 c016c784 00000000 00000000 ee6f76c0 ee6f76c0 00200660 00000005
-> 9f80: c000f6a4 c016cfb0 00000000 00000000 00200660 001fc4e0 00000005 00200660
-> 9fa0: 00000004 c000f4e0 001fc4e0 00000005 00000001 00200660 00000005 001fbc18
-> 9fc0: 001fc4e0 00000005 00200660 00000004 001fd264 001fcfc8 00000000 00000002
-> 9fe0: 00000001 bee87618 0000c55c 0000921c 60000010 00000001 00000000 00000000
-> [<c0097394>] (memory_bm_set_bit) from [<c0099148>] (swsusp_save+0x3f0/0x440)
-> [<c0099148>] (swsusp_save) from [<c001452c>] (arch_save_image+0x8/0x2c)
-> [<c001452c>] (arch_save_image) from [<c00141b0>] (cpu_suspend_abort+0x0/0x30)
-> [<c00141b0>] (cpu_suspend_abort) from [<00000000>] (  (null))
-> Code: e59d0004 eb0ae150 e28dd00c e49df004 (e7f001f2)
-> ---[ end trace 61e3b86f908e4d7f ]---
-> 
-> As was investigated, the issue depends on following things:
-> 1) Hibernation should follow through the below code path in
->    hibernate_preallocate_memory():
-> 
-> int hibernate_preallocate_memory(void)
-> {
-> 	[...]
-> 	/*
-> 	 * If the desired number of image pages is at least as large as the
-> 	 * current number of saveable pages in memory, allocate page frames for
-> 	 * the image and we're done.
-> 	 */
-> 	if (size >= saveable) {
-> 		pages = preallocate_image_highmem(save_highmem);
-> 		pages += preallocate_image_memory(saveable - pages, avail_normal);
-> 		goto out;
-> 	}
-> 
-> 2) Amount of memory reserved for CMA purposes. CMA memory reported as free
->    by MM, but Hibernation core can't use it. As result, All memory checks
->    are passed and system reaches later Hibernation stages, tries to create
->    Hibernation immage and, finally crashes in swsusp_alloc():
-> 	swsusp_alloc()
-> 	|- alloc_highmem_pages()
-> 	   |- alloc_image_page(__GFP_HIGHMEM)
-> 	   -- >"sh: page allocation failure: order:0, mode:0x2"
-> 	   |- memory_bm_set_bit
-> 		|- BUG_ON(error)
-> 
-> 3) alloc_page(__GFP_HIGHMEM) doesn't return Highmem pages always, instead
->    MM allocates pages from all available zones evenly. For example:
-> 
-> 	saveable pages 167191 = hmem 80400 + normal 86791
-> 	request hmem 80400
-> 	- alloc hmem 204
-> 	- alloc normal 161
-> 	- alloc hmem 442
-> 	...
-> 	- alloc normal 38615
-> 	- alloc hmem 41785
->   Such behaviour is not always handled properly. As result, swsusp_alloc(),
->   (from above example) will try to allocate (80400 - 41785) additional Highmem pages
->   without taking into account that those pages were allocated already,
->   but from Normal zone.
-> 
-> In this patch it is proposed to fix issue by rewriting swsusp_alloc()
-> in the following way:
->   - allocate Highmem buffer
->   - check if we need to allocate any memory at all
-> 	alloc_normal + alloc_highmem < nr_normal + nr_highmem
->   - calculate number of pages which still need to be allocated
-> 	nr_pages = nr_normal + nr_highmem - alloc_normal - alloc_highmem
->   - try to allocate Highmem first, but no more than nr_pages
->   - try to get rest from Normal memory
->   - abort if not all pages were allocated
-> 
-> And also use preallocate_image_pages() instead of alloc_highmem_pages() and
-> alloc_image_page(). This way, allocated pages will be accounted properly
-> in alloc_highmem and alloc_normal counters.
-> 
-> alloc_highmem_pages() isn't used any more after this patch and so removed.
-> 
-> Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
-> ---
-> Hi All,
-> 
-> I've tested this patch with both CONFIG_HIGHMEM=y/n.
-> 
-> This patch marked as RFC, because:
-> - I'm not expert in MM, so there could be other, more simple ways
->   to fix it. Also, I'm not sure that I've described Item 2 correctly.
->   (fair zone allocator policy?!)
-> - preallocate_image_highmem() and preallocate_image_memory()
->   could be used instead of preallocate_image_pages(), potentially.
-> 
-> Thanks for any comments.
+On Mon, 8 Jun 2015, Michal Hocko wrote:
 
-The assumption the original code was written with was that a copy of a highmem
-page could be stored either in highmem or in normal memory, while a copy of a
-normal memory page could only be stored in normal memory.
-
-IOW, the number of allocated normal pages must always be greater than or equal
-to the number of pages in normal memory to make copies of.
-
-Does that still hold after your patch?
-
->  kernel/power/snapshot.c | 82 ++++++++++++++++++++++---------------------------
->  1 file changed, 37 insertions(+), 45 deletions(-)
+> > This patch is not a functional change, so I don't interpret your feedback 
+> > as any support of it being merged.
 > 
-> diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
-> index 5235dd4..6ee8790 100644
-> --- a/kernel/power/snapshot.c
-> +++ b/kernel/power/snapshot.c
-> @@ -1761,34 +1761,9 @@ static inline int get_highmem_buffer(int safe_needed)
->  	return buffer ? 0 : -ENOMEM;
->  }
->  
-> -/**
-> - *	alloc_highmem_image_pages - allocate some highmem pages for the image.
-> - *	Try to allocate as many pages as needed, but if the number of free
-> - *	highmem pages is lesser than that, allocate them all.
-> - */
-> -
-> -static inline unsigned int
-> -alloc_highmem_pages(struct memory_bitmap *bm, unsigned int nr_highmem)
-> -{
-> -	unsigned int to_alloc = count_free_highmem_pages();
-> -
-> -	if (to_alloc > nr_highmem)
-> -		to_alloc = nr_highmem;
-> -
-> -	nr_highmem -= to_alloc;
-> -	while (to_alloc-- > 0) {
-> -		struct page *page;
-> -
-> -		page = alloc_image_page(__GFP_HIGHMEM);
-> -		memory_bm_set_bit(bm, page_to_pfn(page));
-> -	}
-> -	return nr_highmem;
-> -}
->  #else
->  static inline int get_highmem_buffer(int safe_needed) { return 0; }
->  
-> -static inline unsigned int
-> -alloc_highmem_pages(struct memory_bitmap *bm, unsigned int n) { return 0; }
->  #endif /* CONFIG_HIGHMEM */
->  
->  /**
-> @@ -1805,28 +1780,45 @@ alloc_highmem_pages(struct memory_bitmap *bm, unsigned int n) { return 0; }
->  
->  static int
->  swsusp_alloc(struct memory_bitmap *orig_bm, struct memory_bitmap *copy_bm,
-> -		unsigned int nr_pages, unsigned int nr_highmem)
-> +		unsigned int nr_normal, unsigned int nr_highmem)
->  {
-> -	if (nr_highmem > 0) {
-> -		if (get_highmem_buffer(PG_ANY))
-> -			goto err_out;
-> -		if (nr_highmem > alloc_highmem) {
-> -			nr_highmem -= alloc_highmem;
-> -			nr_pages += alloc_highmem_pages(copy_bm, nr_highmem);
-> -		}
-> -	}
-> -	if (nr_pages > alloc_normal) {
-> -		nr_pages -= alloc_normal;
-> -		while (nr_pages-- > 0) {
-> -			struct page *page;
-> -
-> -			page = alloc_image_page(GFP_ATOMIC | __GFP_COLD);
-> -			if (!page)
-> -				goto err_out;
-> -			memory_bm_set_bit(copy_bm, page_to_pfn(page));
-> -		}
-> -	}
-> +	unsigned int nr_pages;
-> +	/*
-> +	 * Additional input data:
-> +	 *  alloc_highmem - number of allocated Highmem pages
-> +	 *  alloc_normal - number of allocated Normal pages
-> +	 */
-> +
-> +	/* allocate Highmem buffer */
-> +	if ((nr_highmem > 0) && get_highmem_buffer(PG_ANY))
-> +		goto err_out;
-> +
-> +	/*
-> +	 * check if we need to allocate any memory at all
-> +	 *	alloc_normal + alloc_highmem < nr_normal + nr_highmem
-> +	 * and calculate number of pages which still need to be allocated
-> +	 *     nr_pages = nr_normal + nr_highmem - alloc_normal - alloc_highmem
-> +	 */
-> +	nr_pages = nr_normal + nr_highmem;
-> +	if (nr_pages > alloc_normal + alloc_highmem)
-> +		nr_pages -= alloc_normal + alloc_highmem;
-> +	else
-> +		goto out;
-
-Please do not jump to return statements.  Use them directly instead (ie. return
-0 from here).
-
-> +
-> +	/* try to allocate Highmem first, but no more than nr_pages */
-> +	if (nr_highmem > 0)
-> +		nr_pages -= preallocate_image_pages(nr_pages,  __GFP_HIGHMEM);
->  
-> +	/* try to get rest from Normal memory */
-> +	if (nr_pages)
-> +		nr_pages -= preallocate_image_pages(nr_pages,
-> +						    GFP_ATOMIC | __GFP_COLD);
-> +
-> +	/* abort if not all pages were allocated */
-> +	if (nr_pages)
-> +		goto err_out;
-
-This can be
-
-	if (!nr_pages)
-		return 0;
-
-> +
-> +out:
->  	return 0;
->  
->   err_out:
+> David, have you actually read the patch? The changelog is mentioning this:
+> "
+>     check_panic_on_oom on the other hand will work and that is kind of
+>     unexpected because sysrq+f should be usable to kill a mem hog whether
+>     the global OOM policy is to panic or not.
+>     It also doesn't make much sense to panic the system when no task cannot
+>     be killed because admin has a separate sysrq for that purpose.
+> "
+> and the patch exludes panic_on_oom from the sysrq path.
 > 
 
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+Yes, and that's why I believe we should pursue that direction without the 
+associated "cleanup" that adds 35 lines of code to supress a panic.  In 
+other words, there's no reason to combine a patch that suppresses the 
+panic even with panic_on_oom, which I support, and a "cleanup" that I 
+believe just obfuscates the code.
+
+It's a one-liner change: just test for force_kill and suppress the panic; 
+we don't need 35 new lines that create even more unique entry paths.
+
+> > That said, you raise an interesting point of whether sysrq+f should ever 
+> > trigger a panic due to panic_on_oom.  The case can be made that it should 
+> > ignore panic_on_oom and require the use of another sysrq to panic the 
+> > machine instead.  Sysrq+f could then be used to oom kill a process, 
+> > regardless of panic_on_oom, and the panic only occurs if userspace did not 
+> > trigger the kill or the kill itself will fail.
+> 
+> Why would it panic the system if there is no killable task? Shoudln't
+> be admin able to do additional steps after the explicit oom killer failed
+> and only then panic by sysrq?
+> 
+
+Today it panics, I don't think it should panic when there are no killable 
+processes because it's inherently racy with userspace.  It's similar to 
+suppressing panic_on_oom for sysrq+f, but for a different reason, so it 
+should probably be a separate patch with its own changelog (and update to 
+documentation for both patches to make this explicit).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
