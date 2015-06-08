@@ -1,94 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 42ED36B0032
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 08:53:39 -0400 (EDT)
-Received: by lbcmx3 with SMTP id mx3so80032559lbc.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 05:53:38 -0700 (PDT)
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com. [209.85.217.169])
-        by mx.google.com with ESMTPS id dc7si2633637lad.124.2015.06.08.05.53.36
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 995186B0032
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 09:29:05 -0400 (EDT)
+Received: by wiwd19 with SMTP id d19so86398993wiw.0
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 06:29:05 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u15si5108470wjw.211.2015.06.08.06.29.03
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jun 2015 05:53:37 -0700 (PDT)
-Received: by lbcmx3 with SMTP id mx3so80031838lbc.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 05:53:36 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAEVpBaLPDa8tacKKeHmcLMdmYZ86aZBfGqCnAcQ8R=JKSUoagQ@mail.gmail.com>
-References: <20150512090156.24768.2521.stgit@buzz>
-	<CAEVpBa+-wwf5Q3CwQAAad3V0pJ+uD50uaHKW=EnChLDLOLSAGg@mail.gmail.com>
-	<CAEVpBaLPDa8tacKKeHmcLMdmYZ86aZBfGqCnAcQ8R=JKSUoagQ@mail.gmail.com>
-Date: Mon, 8 Jun 2015 13:53:36 +0100
-Message-ID: <CAEVpBaLmw54FX25Kmrw0owOjDW-ijekS5OJO7iZM3UcV1o3fGA@mail.gmail.com>
-Subject: Re: [PATCH RFC 0/3] pagemap: make useable for non-privilege users
-From: Mark Williamson <mwilliamson@undo-software.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 08 Jun 2015 06:29:03 -0700 (PDT)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH -resend] jbd2: revert must-not-fail allocation loops back to GFP_NOFAIL
+Date: Mon,  8 Jun 2015 15:28:44 +0200
+Message-Id: <1433770124-19614-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, kernel list <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelyanov <xemul@parallels.com>, Linux API <linux-api@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Machek <pavel@ucw.cz>, Mark Seaborn <mseaborn@chromium.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, Daniel James <djames@undo-software.com>, Finn Grimwood <fgrimwood@undo-software.com>
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: linux-ext4@vger.kernel.org, David Rientjes <rientjes@google.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Hi Konstantin,
+This basically reverts 47def82672b3 (jbd2: Remove __GFP_NOFAIL from jbd2
+layer). The deprecation of __GFP_NOFAIL was a bad choice because it led
+to open coding the endless loop around the allocator rather than
+removing the dependency on the non failing allocation. So the
+deprecation was a clear failure and the reality tells us that
+__GFP_NOFAIL is not even close to go away.
 
-Would you still be intending to re-submit this patch?  We'd be quite
-keen to assist, so if there's anything further I can do please let me
-know!
+It is still true that __GFP_NOFAIL allocations are generally discouraged
+and new uses should be evaluated and an alternative (pre-allocations or
+reservations) should be considered but it doesn't make any sense to lie
+the allocator about the requirements. Allocator can take steps to help
+making a progress if it knows the requirements.
 
-Just to re-confirm - we do think that the patch will solve our problem
-(relatively minor changes required on our side).
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: David Rientjes <rientjes@google.com>
+---
 
-Thanks,
-Mark
+Hi, 
+this has been posted few months ago
+(http://marc.info/?l=linux-mm&m=142530454419654&w=2) but it hasn't
+gone anywhere so I am reposting. I've just rebased it on top of the
+ext4/for-linus tree. It wasn't clear to me which branch should I use so
+I've just picked this one as it was one of the most recently updated.
 
-On Thu, May 14, 2015 at 7:40 PM, Mark Williamson
-<mwilliamson@undo-software.com> wrote:
-> Hi Konstantin,
->
-> I modified our code to check for the map-exclusive flag where it used
-> to compare pageframe numbers.  First tests look pretty promising, so
-> this patch looks like a viable approach for us.
->
-> Is there anything further we can do to help?
->
-> Thanks,
-> Mark
->
-> On Tue, May 12, 2015 at 12:13 PM, Mark Williamson
-> <mwilliamson@undo-software.com> wrote:
->> Hi Konstantin,
->>
->> Thanks very much for continuing to look at this!  It's very much
->> appreciated.  I've been investigating from our end but got caught up
->> in some gnarly details of our pagemap-consuming code.
->>
->> I like the approach and it seems like the information you're exposing
->> will be useful for our application.  I'll test the patch and see if it
->> works for us as-is.
->>
->> Will follow up with any comments on the individual patches.
->>
->> Thanks,
->> Mark
->>
->> On Tue, May 12, 2015 at 10:43 AM, Konstantin Khlebnikov
->> <khlebnikov@yandex-team.ru> wrote:
->>> This patchset tries to make pagemap useable again in the safe way.
->>> First patch adds bit 'map-exlusive' which is set if page is mapped only here.
->>> Second patch restores access for non-privileged users but hides pfn if task
->>> has no capability CAP_SYS_ADMIN. Third patch removes page-shift bits and
->>> completes migration to the new pagemap format (flags soft-dirty and
->>> mmap-exlusive are available only in the new format).
->>>
->>> ---
->>>
->>> Konstantin Khlebnikov (3):
->>>       pagemap: add mmap-exclusive bit for marking pages mapped only here
->>>       pagemap: hide physical addresses from non-privileged users
->>>       pagemap: switch to the new format and do some cleanup
->>>
->>>
->>>  Documentation/vm/pagemap.txt |    3 -
->>>  fs/proc/task_mmu.c           |  178 +++++++++++++++++-------------------------
->>>  tools/vm/page-types.c        |   35 ++++----
->>>  3 files changed, 91 insertions(+), 125 deletions(-)
+ fs/jbd2/journal.c     | 11 +----------
+ fs/jbd2/transaction.c | 20 +++++++-------------
+ 2 files changed, 8 insertions(+), 23 deletions(-)
+
+diff --git a/fs/jbd2/journal.c b/fs/jbd2/journal.c
+index b96bd8076b70..0bc333b4a594 100644
+--- a/fs/jbd2/journal.c
++++ b/fs/jbd2/journal.c
+@@ -371,16 +371,7 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
+ 	 */
+ 	J_ASSERT_BH(bh_in, buffer_jbddirty(bh_in));
+ 
+-retry_alloc:
+-	new_bh = alloc_buffer_head(GFP_NOFS);
+-	if (!new_bh) {
+-		/*
+-		 * Failure is not an option, but __GFP_NOFAIL is going
+-		 * away; so we retry ourselves here.
+-		 */
+-		congestion_wait(BLK_RW_ASYNC, HZ/50);
+-		goto retry_alloc;
+-	}
++	new_bh = alloc_buffer_head(GFP_NOFS|__GFP_NOFAIL);
+ 
+ 	/* keep subsequent assertions sane */
+ 	atomic_set(&new_bh->b_count, 1);
+diff --git a/fs/jbd2/transaction.c b/fs/jbd2/transaction.c
+index ff2f2e6ad311..799242cecffb 100644
+--- a/fs/jbd2/transaction.c
++++ b/fs/jbd2/transaction.c
+@@ -278,22 +278,16 @@ static int start_this_handle(journal_t *journal, handle_t *handle,
+ 
+ alloc_transaction:
+ 	if (!journal->j_running_transaction) {
++		/*
++		 * If __GFP_FS is not present, then we may be being called from
++		 * inside the fs writeback layer, so we MUST NOT fail.
++		 */
++		if ((gfp_mask & __GFP_FS) == 0)
++			gfp_mask |= __GFP_NOFAIL;
+ 		new_transaction = kmem_cache_zalloc(transaction_cache,
+ 						    gfp_mask);
+-		if (!new_transaction) {
+-			/*
+-			 * If __GFP_FS is not present, then we may be
+-			 * being called from inside the fs writeback
+-			 * layer, so we MUST NOT fail.  Since
+-			 * __GFP_NOFAIL is going away, we will arrange
+-			 * to retry the allocation ourselves.
+-			 */
+-			if ((gfp_mask & __GFP_FS) == 0) {
+-				congestion_wait(BLK_RW_ASYNC, HZ/50);
+-				goto alloc_transaction;
+-			}
++		if (!new_transaction)
+ 			return -ENOMEM;
+-		}
+ 	}
+ 
+ 	jbd_debug(3, "New handle %p going live.\n", handle);
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
