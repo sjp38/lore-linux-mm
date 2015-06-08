@@ -1,245 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 696226B006E
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 17:17:53 -0400 (EDT)
-Received: by qgf75 with SMTP id 75so50854736qgf.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 14:17:53 -0700 (PDT)
-Received: from mail-qc0-x22c.google.com (mail-qc0-x22c.google.com. [2607:f8b0:400d:c01::22c])
-        by mx.google.com with ESMTPS id q52si3655607qgd.39.2015.06.08.14.17.52
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 797226B0038
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 17:32:22 -0400 (EDT)
+Received: by wibdq8 with SMTP id dq8so3229240wib.1
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 14:32:22 -0700 (PDT)
+Received: from mail-wg0-x22a.google.com (mail-wg0-x22a.google.com. [2a00:1450:400c:c00::22a])
+        by mx.google.com with ESMTPS id db5si3763600wib.63.2015.06.08.14.32.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jun 2015 14:17:52 -0700 (PDT)
-Received: by qczw4 with SMTP id w4so55528790qcz.2
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 14:17:52 -0700 (PDT)
-Date: Mon, 8 Jun 2015 17:17:42 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH 05/36] HMM: introduce heterogeneous memory management v3.
-Message-ID: <20150608211740.GA5241@gmail.com>
-References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
- <1432236705-4209-6-git-send-email-j.glisse@gmail.com>
- <alpine.DEB.2.00.1506081222270.27796@mdh-linux64-2.nvidia.com>
+        Mon, 08 Jun 2015 14:32:21 -0700 (PDT)
+Received: by wgbgq6 with SMTP id gq6so113298304wgb.3
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 14:32:20 -0700 (PDT)
+Date: Mon, 8 Jun 2015 23:32:18 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] oom: always panic on OOM when panic_on_oom is configured
+Message-ID: <20150608213218.GB18360@dhcp22.suse.cz>
+References: <1433159948-9912-1-git-send-email-mhocko@suse.cz>
+ <alpine.DEB.2.10.1506041607020.16555@chino.kir.corp.google.com>
+ <20150605111302.GB26113@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1506081242250.13272@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.00.1506081222270.27796@mdh-linux64-2.nvidia.com>
+In-Reply-To: <alpine.DEB.2.10.1506081242250.13272@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Hairgrove <mhairgrove@nvidia.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, "joro@8bytes.org" <joro@8bytes.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jun 08, 2015 at 12:40:18PM -0700, Mark Hairgrove wrote:
+On Mon 08-06-15 12:51:53, David Rientjes wrote:
+> On Fri, 5 Jun 2015, Michal Hocko wrote:
 > 
+> > > Nack, this is not the appropriate response to exit path livelocks.  By 
+> > > doing this, you are going to start unnecessarily panicking machines that 
+> > > have panic_on_oom set when it would not have triggered before.  If there 
+> > > is no reclaimable memory and a process that has already been signaled to 
+> > > die to is in the process of exiting has to allocate memory, it is 
+> > > perfectly acceptable to give them access to memory reserves so they can 
+> > > allocate and exit.  Under normal circumstances, that allows the process to 
+> > > naturally exit.  With your patch, it will cause the machine to panic.
+> > 
+> > Isn't that what the administrator of the system wants? The system
+> > is _clearly_ out of memory at this point. A coincidental exiting task
+> > doesn't change a lot in that regard. Moreover it increases a risk of
+> > unnecessarily unresponsive system which is what panic_on_oom tries to
+> > prevent from. So from my POV this is a clear violation of the user
+> > policy.
+> > 
 > 
-> On Thu, 21 May 2015, j.glisse@gmail.com wrote:
-> 
-> > From: Jerome Glisse <jglisse@redhat.com>
-> >
-> > This patch only introduce core HMM functions for registering a new
-> > mirror and stopping a mirror as well as HMM device registering and
-> > unregistering.
-> >
-> > [...]
-> >
-> > +/* struct hmm_device_operations - HMM device operation callback
-> > + */
-> > +struct hmm_device_ops {
-> > +	/* release() - mirror must stop using the address space.
-> > +	 *
-> > +	 * @mirror: The mirror that link process address space with the device.
-> > +	 *
-> > +	 * When this is call, device driver must kill all device thread using
-> > +	 * this mirror. Also, this callback is the last thing call by HMM and
-> > +	 * HMM will not access the mirror struct after this call (ie no more
-> > +	 * dereference of it so it is safe for the device driver to free it).
-> > +	 * It is call either from :
-> > +	 *   - mm dying (all process using this mm exiting).
-> > +	 *   - hmm_mirror_unregister() (if no other thread holds a reference)
-> > +	 *   - outcome of some device error reported by any of the device
-> > +	 *     callback against that mirror.
-> > +	 */
-> > +	void (*release)(struct hmm_mirror *mirror);
-> > +};
-> 
-> The comment that ->release is called when the mm dies doesn't match the
-> implementation. ->release is only called when the mirror is destroyed, and
-> that can only happen after the mirror has been unregistered. This may not
-> happen until after the mm dies.
-> 
-> Is the intent for the driver to get the callback when the mm goes down?
-> That seems beneficial so the driver can kill whatever's happening on the
-> device. Otherwise the device may continue operating in a dead address
-> space until the driver's file gets closed and it unregisters the mirror.
+> We rely on the functionality that this patch is short cutting because we 
+> rely on userspace to trigger oom kills.  For system oom conditions, we 
+> must then rely on the kernel oom killer to set TIF_MEMDIE since userspace 
+> cannot grant it itself.  (I think the memcg case is very similar in that 
+> this patch is short cutting it, but I'm more concerned for the system oom 
+> in this case because it's a show stopper for us.)
 
-This was the intent before merging free & release. I guess i need to
-reinstate the free versus release callback. Sadly the lifetime for HMM
-is more complex than mmu_notifier as we intend the mirror struct to
-be embedded into a driver private struct.
+Do you actually have panic_on_oops enabled?
 
-> 
-> > +static void hmm_mirror_destroy(struct kref *kref)
-> > +{
-> > +	struct hmm_device *device;
-> > +	struct hmm_mirror *mirror;
-> > +	struct hmm *hmm;
-> > +
-> > +	mirror = container_of(kref, struct hmm_mirror, kref);
-> > +	device = mirror->device;
-> > +	hmm = mirror->hmm;
-> > +
-> > +	mutex_lock(&device->mutex);
-> > +	list_del_init(&mirror->dlist);
-> > +	device->ops->release(mirror);
-> > +	mutex_unlock(&device->mutex);
-> > +}
-> 
-> The hmm variable is unused. It also probably isn't safe to access at this
-> point.
+> We want to send the SIGKILL, which will interrupt things like 
 
-hmm_unref(hmm); was lost somewhere probably in a rebase and it is safe to
-access hmm here.
+But this patch only changes the ordering of panic_on_oops vs.
+fatal_signal_pending(current) shortcut. So it can possible affect the
+case when the current is exiting during OOM. Is this the case that you
+are worried about?
 
+> get_user_pages() which we find is our culprit most of the time.  When the 
+> process enters the exit path, it must allocate other memory (slab, 
+> coredumping and the very problematic proc_exit_connector()) to free 
+> memory.  This patch would cause the machine to panic rather than utilizing 
+> memory reserves so that it can exit, not as a result of a kernel oom kill 
+> but rather a userspace kill.
 > 
-> 
-> > +static void hmm_mirror_kill(struct hmm_mirror *mirror)
-> > +{
-> > +	down_write(&mirror->hmm->rwsem);
-> > +	if (!hlist_unhashed(&mirror->mlist)) {
-> > +		hlist_del_init(&mirror->mlist);
-> > +		up_write(&mirror->hmm->rwsem);
-> > +
-> > +		hmm_mirror_unref(&mirror);
-> > +	} else
-> > +		up_write(&mirror->hmm->rwsem);
-> > +}
-> 
-> Shouldn't this call hmm_unref? hmm_mirror_register calls hmm_ref but
-> there's no corresponding hmm_unref when the mirror goes away. As a result
-> the hmm struct gets leaked and thus so does the entire mm since
-> mmu_notifier_unregister is never called.
-> 
-> It might also be a good idea to set mirror->hmm = NULL here to prevent
-> accidental use in say hmm_mirror_destroy.
+> Panic_on_oom is to suppress the kernel oom killer.  It's not a sysctl that 
+> triggers whenever watermarks are hit and it doesn't suppress memory 
+> reserves from being used for things like GFP_ATOMIC.  Setting TIF_MEMDIE 
+> for an exiting process is another type of memory reserves and is 
+> imperative that we have it to make forward progress. 
 
-No, hmm_mirror_destroy must be the one doing the hmm_unref(hmm)
+is your assumption about exiting process actually true? I mean there is
+no _guarantee_ the process will manage to die with the available memory
+reserves. Dependency blocking the task is another reason why we should
+be careful about relying on TIF_MEMDIE.
+
+> Panic_on_oom should 
+> only trigger when the kernel can't make forward progress without killing 
+> something (not true in this case).  I believe that's how the documentation 
+> has always been interpreted and the tunable used in the wild.
+
+The documentation clearly states:
+"
+If this is set to 1, the kernel panics when out-of-memory happens.
+However, if a process limits using nodes by mempolicy/cpusets,
+and those nodes become memory exhaustion status, one process
+may be killed by oom-killer. No panic occurs in this case.
+Because other nodes' memory may be free. This means system total status
+may be not fatal yet.
+
+If this is set to 2, the kernel panics compulsorily even on the
+above-mentioned. Even oom happens under memory cgroup, the whole
+system panics.
+
+The default value is 0.
+1 and 2 are for failover of clustering. Please select either
+according to your policy of failover.
+"
+
+So I read this as a reliability feature to handle oom situation as soon
+as possible.
 
 > 
+> It would be interesting to consider your other patch that refactors the 
+> sysrq+f tunable.  I think we should make that never trigger panic_on_oom 
+> (the sysadmin can use other sysrqs for that) and allow userspace to use 
+> sysrq+f as a trigger when it is responsive to handle oom conditions.
 > 
-> > +/* hmm_device_unregister() - unregister a device with HMM.
-> > + *
-> > + * @device: The hmm_device struct.
-> > + * Returns: 0 on success or -EBUSY otherwise.
-> > + *
-> > + * Call when device driver want to unregister itself with HMM. This will check
-> > + * that there is no any active mirror and returns -EBUSY if so.
-> > + */
-> > +int hmm_device_unregister(struct hmm_device *device)
-> > +{
-> > +	mutex_lock(&device->mutex);
-> > +	if (!list_empty(&device->mirrors)) {
-> > +		mutex_unlock(&device->mutex);
-> > +		return -EBUSY;
-> > +	}
-> > +	mutex_unlock(&device->mutex);
-> > +	return 0;
-> > +}
-> 
-> I assume that the intention is for the caller to spin on
-> hmm_device_unregister until -EBUSY is no longer returned?
-> 
-> If so, I think there's a race here in the case of mm teardown happening
-> concurrently with hmm_mirror_unregister. This can happen if the parent
-> process was forked and exits while the child closes the file, or if the
-> file is passed to another process and closed last there while the original
-> process exits.
-> 
-> The upshot is that the hmm_device may still be referenced by another
-> thread even after hmm_device_unregister returns 0.
-> 
-> The below sequence shows how this might happen. Coming into this, the
-> mirror's ref count is 2:
-> 
-> Thread A (file close)               Thread B (process exit)
-> ----------------------              ----------------------
->                                     hmm_notifier_release
->                                       down_write(&hmm->rwsem);
-> hmm_mirror_unregister
->   hmm_mirror_kill
->     down_write(&hmm->rwsem);
->     // Blocked on thread B
->                                       hlist_del_init(&mirror->mlist);
->                                       up_write(&hmm->rwsem);
-> 
->                                       // Thread A unblocked
->                                       // Thread B is preempted
->     // hlist_unhashed returns 1
->     up_write(&hmm->rwsem);
-> 
->   // Mirror ref goes 2 -> 1
->   hmm_mirror_unref(&mirror);
-> 
->   // hmm_mirror_unregister returns
-> 
-> At this point hmm_mirror_unregister has returned to the caller but the
-> mirror still is in use by thread B. Since all mirrors have been
-> unregistered, the driver in thread A is now free to call
-> hmm_device_unregister.
-> 
->                                       // Thread B is scheduled
-> 
->                                       // Mirror ref goes 1 -> 0
->                                       hmm_mirror_unref(&mirror);
->                                         hmm_mirror_destroy(&mirror)
->                                           mutex_lock(&device->mutex);
->                                           list_del_init(&mirror->dlist);
->                                           device->ops->release(mirror);
->                                           mutex_unlock(&device->mutex);
-> 
-> hmm_device_unregister
->   mutex_lock(&device->mutex);
->   // Device list empty
->   mutex_unlock(&device->mutex);
->   return 0;
-> // Caller frees device
-> 
-> Do you agree that this sequence can happen, or am I missing something
-> which prevents it?
+> But this patch itself can't possibly be merged.
 
-Can't happen because child have mm->hmm = NULL ie only one hmm per mm
-and hmm is tie to only one mm. It is the responsability of the device
-driver to make sure same apply to private reference to the hmm mirror
-struct ie hmm_mirror should never be tie to a private file struct.
 
-> 
-> If this can happen, the problem is that the only thing preventing thread A
-> from freeing the device is that thread B has device->mutex locked. That's
-> bad, because a lock within a structure cannot be used to control freeing
-> that structure. The mutex_unlock in thread B may internally still access
-> the mutex memory even after the atomic operation which unlocks the mutex
-> and unblocks thread A.
-> 
-> This can't be solved by having the driver wait for the ->release mirror
-> callback before it calls hmm_device_unregister, because the race happens
-> after that point.
-> 
-> A kref on the device itself might solve this, but the core issue IMO is
-> that hmm_mirror_unregister doesn't wait for hmm_notifier_release to
-> complete before returning. It feels like hmm_mirror_unregister wants to do
-> a synchronize_srcu on the mmu_notifier srcu. Is that possible?
-
-I guess i need to revisit once again the whole lifetime issue.
-
-> 
-> Whatever the resolution, it would be useful for the block comments of
-> hmm_mirror_unregister and hmm_device_unregister to describe the
-> expectations on the caller and what the caller is guaranteed as far as
-> mirror and device lifetimes go.
-
-Yes i need to fix comment and add again spend time on lifetime. I
-obviously completely screw that up in that version of the patchset.
-
-Cheers,
-Jerome
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
