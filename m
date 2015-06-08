@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DEB26B0032
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 08:14:51 -0400 (EDT)
-Received: by wifx6 with SMTP id x6so84480425wif.0
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 05:14:51 -0700 (PDT)
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 6156D6B006C
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 08:14:52 -0400 (EDT)
+Received: by wifx6 with SMTP id x6so84480883wif.0
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 05:14:52 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q9si4746300wjr.166.2015.06.08.05.07.05
+        by mx.google.com with ESMTPS id v10si4788551wja.89.2015.06.08.05.07.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Mon, 08 Jun 2015 05:07:06 -0700 (PDT)
 From: Juergen Gross <jgross@suse.com>
-Subject: [Patch V4 15/16] xen: allow more than 512 GB of RAM for 64 bit pv-domains
-Date: Mon,  8 Jun 2015 14:06:56 +0200
-Message-Id: <1433765217-16333-16-git-send-email-jgross@suse.com>
+Subject: [Patch V4 16/16] xen: remove no longer needed p2m.h
+Date: Mon,  8 Jun 2015 14:06:57 +0200
+Message-Id: <1433765217-16333-17-git-send-email-jgross@suse.com>
 In-Reply-To: <1433765217-16333-1-git-send-email-jgross@suse.com>
 References: <1433765217-16333-1-git-send-email-jgross@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,271 +20,104 @@ List-ID: <linux-mm.kvack.org>
 To: xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Juergen Gross <jgross@suse.com>
 
-64 bit pv-domains under Xen are limited to 512 GB of RAM today. The
-main reason has been the 3 level p2m tree, which was replaced by the
-virtual mapped linear p2m list. Parallel to the p2m list which is
-being used by the kernel itself there is a 3 level mfn tree for usage
-by the Xen tools and eventually for crash dump analysis. For this tree
-the linear p2m list can serve as a replacement, too. As the kernel
-can't know whether the tools are capable of dealing with the p2m list
-instead of the mfn tree, the limit of 512 GB can't be dropped in all
-cases.
+Cleanup by removing arch/x86/xen/p2m.h as it isn't needed any more.
 
-This patch replaces the hard limit by a kernel parameter which tells
-the kernel to obey the 512 GB limit or not. The default is selected by
-a configuration parameter which specifies whether the 512 GB limit
-should be active per default for domUs (domain save/restore/migration
-and crash dump analysis are affected).
+Most definitions in this file are used in p2m.c only. Move those into
+p2m.c.
 
-Memory above the domain limit is returned to the hypervisor instead of
-being identity mapped, which was wrong anyway.
+set_phys_range_identity() is already declared in
+arch/x86/include/asm/xen/page.h, add __init annotation there.
 
-The kernel configuration parameter to specify the maximum size of a
-domain can be deleted, as it is not relevant any more.
+MAX_REMAP_RANGES isn't used at all, just delete it.
+
+The only define left is P2M_PER_PAGE which is moved to page.h as well.
 
 Signed-off-by: Juergen Gross <jgross@suse.com>
 ---
- Documentation/kernel-parameters.txt |  7 +++++
- arch/x86/include/asm/xen/page.h     |  4 ---
- arch/x86/xen/Kconfig                | 20 ++++++++-----
- arch/x86/xen/p2m.c                  | 10 +++----
- arch/x86/xen/setup.c                | 59 +++++++++++++++++++++++++++++++------
- 5 files changed, 73 insertions(+), 27 deletions(-)
+ arch/x86/include/asm/xen/page.h |  6 ++++--
+ arch/x86/xen/p2m.c              |  6 +++++-
+ arch/x86/xen/p2m.h              | 15 ---------------
+ arch/x86/xen/setup.c            |  1 -
+ 4 files changed, 9 insertions(+), 19 deletions(-)
+ delete mode 100644 arch/x86/xen/p2m.h
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 61ab162..2f4a4ca 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -4014,6 +4014,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			plus one apbt timer for broadcast timer.
- 			x86_intel_mid_timer=apbt_only | lapic_and_apbt
- 
-+	xen_512gb_limit		[KNL,X86-64,XEN]
-+			Restricts the kernel running paravirtualized under Xen
-+			to use only up to 512 GB of RAM. The reason to do so is
-+			crash analysis tools and Xen tools for doing domain
-+			save/restore/migration must be enabled to handle larger
-+			domains.
-+
- 	xen_emul_unplug=		[HW,X86,XEN]
- 			Unplug Xen emulated devices
- 			Format: [unplug0,][unplug1]
 diff --git a/arch/x86/include/asm/xen/page.h b/arch/x86/include/asm/xen/page.h
-index c44a5d5..10ef14b 100644
+index 10ef14b..a3804fb 100644
 --- a/arch/x86/include/asm/xen/page.h
 +++ b/arch/x86/include/asm/xen/page.h
-@@ -35,10 +35,6 @@ typedef struct xpaddr {
+@@ -35,6 +35,8 @@ typedef struct xpaddr {
  #define FOREIGN_FRAME(m)	((m) | FOREIGN_FRAME_BIT)
  #define IDENTITY_FRAME(m)	((m) | IDENTITY_FRAME_BIT)
  
--/* Maximum amount of memory we can handle in a domain in pages */
--#define MAX_DOMAIN_PAGES						\
--    ((unsigned long)((u64)CONFIG_XEN_MAX_DOMAIN_MEMORY * 1024 * 1024 * 1024 / PAGE_SIZE))
--
++#define P2M_PER_PAGE		(PAGE_SIZE / sizeof(unsigned long))
++
  extern unsigned long *machine_to_phys_mapping;
  extern unsigned long  machine_to_phys_nr;
  extern unsigned long *xen_p2m_addr;
-diff --git a/arch/x86/xen/Kconfig b/arch/x86/xen/Kconfig
-index e88fda8..7bcf21b 100644
---- a/arch/x86/xen/Kconfig
-+++ b/arch/x86/xen/Kconfig
-@@ -23,14 +23,18 @@ config XEN_PVHVM
- 	def_bool y
- 	depends on XEN && PCI && X86_LOCAL_APIC
+@@ -44,8 +46,8 @@ extern unsigned long  xen_max_p2m_pfn;
+ extern unsigned long get_phys_to_machine(unsigned long pfn);
+ extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+ extern bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+-extern unsigned long set_phys_range_identity(unsigned long pfn_s,
+-					     unsigned long pfn_e);
++extern unsigned long __init set_phys_range_identity(unsigned long pfn_s,
++						    unsigned long pfn_e);
  
--config XEN_MAX_DOMAIN_MEMORY
--       int
--       default 500 if X86_64
--       default 64 if X86_32
--       depends on XEN
--       help
--         This only affects the sizing of some bss arrays, the unused
--         portions of which are freed.
-+config XEN_512GB
-+	bool "Limit Xen pv-domain memory to 512GB"
-+	depends on XEN && X86_64
-+	default y
-+	help
-+	  Limit paravirtualized user domains to 512GB of RAM.
-+
-+	  The Xen tools and crash dump analysis tools might not support
-+	  pv-domains with more than 512 GB of RAM. This option controls the
-+	  default setting of the kernel to use only up to 512 GB or more.
-+	  It is always possible to change the default via specifying the
-+	  boot parameter "xen_512gb_limit".
- 
- config XEN_SAVE_RESTORE
-        bool
+ extern int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
+ 				   struct gnttab_map_grant_ref *kmap_ops,
 diff --git a/arch/x86/xen/p2m.c b/arch/x86/xen/p2m.c
-index 6f80cd3..365a64a 100644
+index 365a64a..1f63ad2 100644
 --- a/arch/x86/xen/p2m.c
 +++ b/arch/x86/xen/p2m.c
-@@ -516,7 +516,7 @@ static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
-  */
- static bool alloc_p2m(unsigned long pfn)
- {
--	unsigned topidx, mididx;
-+	unsigned topidx;
- 	unsigned long *top_mfn_p, *mid_mfn;
- 	pte_t *ptep, *pte_pg;
- 	unsigned int level;
-@@ -524,9 +524,6 @@ static bool alloc_p2m(unsigned long pfn)
- 	unsigned long addr = (unsigned long)(xen_p2m_addr + pfn);
- 	unsigned long p2m_pfn;
+@@ -78,10 +78,14 @@
+ #include <xen/balloon.h>
+ #include <xen/grant_table.h>
  
--	topidx = p2m_top_index(pfn);
--	mididx = p2m_mid_index(pfn);
+-#include "p2m.h"
+ #include "multicalls.h"
+ #include "xen-ops.h"
+ 
++#define P2M_MID_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long *))
++#define P2M_TOP_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long **))
++
++#define MAX_P2M_PFN	(P2M_TOP_PER_PAGE * P2M_MID_PER_PAGE * P2M_PER_PAGE)
++
+ #define PMDS_PER_MID_PAGE	(P2M_MID_PER_PAGE / PTRS_PER_PTE)
+ 
+ unsigned long *xen_p2m_addr __read_mostly;
+diff --git a/arch/x86/xen/p2m.h b/arch/x86/xen/p2m.h
+deleted file mode 100644
+index ad8aee2..0000000
+--- a/arch/x86/xen/p2m.h
++++ /dev/null
+@@ -1,15 +0,0 @@
+-#ifndef _XEN_P2M_H
+-#define _XEN_P2M_H
 -
- 	ptep = lookup_address(addr, &level);
- 	BUG_ON(!ptep || level != PG_LEVEL_4K);
- 	pte_pg = (pte_t *)((unsigned long)ptep & ~(PAGE_SIZE - 1));
-@@ -538,7 +535,8 @@ static bool alloc_p2m(unsigned long pfn)
- 			return false;
- 	}
- 
--	if (p2m_top_mfn) {
-+	if (p2m_top_mfn && pfn < MAX_P2M_PFN) {
-+		topidx = p2m_top_index(pfn);
- 		top_mfn_p = &p2m_top_mfn[topidx];
- 		mid_mfn = ACCESS_ONCE(p2m_top_mfn_p[topidx]);
- 
-@@ -595,7 +593,7 @@ static bool alloc_p2m(unsigned long pfn)
- 			wmb(); /* Tools are synchronizing via p2m_generation. */
- 			HYPERVISOR_shared_info->arch.p2m_generation++;
- 			if (mid_mfn)
--				mid_mfn[mididx] = virt_to_mfn(p2m);
-+				mid_mfn[p2m_mid_index(pfn)] = virt_to_mfn(p2m);
- 			p2m = NULL;
- 		}
- 
+-#define P2M_PER_PAGE        (PAGE_SIZE / sizeof(unsigned long))
+-#define P2M_MID_PER_PAGE    (PAGE_SIZE / sizeof(unsigned long *))
+-#define P2M_TOP_PER_PAGE    (PAGE_SIZE / sizeof(unsigned long **))
+-
+-#define MAX_P2M_PFN         (P2M_TOP_PER_PAGE * P2M_MID_PER_PAGE * P2M_PER_PAGE)
+-
+-#define MAX_REMAP_RANGES    10
+-
+-extern unsigned long __init set_phys_range_identity(unsigned long pfn_s,
+-                                      unsigned long pfn_e);
+-
+-#endif  /* _XEN_P2M_H */
 diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
-index b096d02..f960021 100644
+index f960021..a1a77ea 100644
 --- a/arch/x86/xen/setup.c
 +++ b/arch/x86/xen/setup.c
-@@ -33,6 +33,8 @@
- #include "p2m.h"
+@@ -30,7 +30,6 @@
+ #include <xen/hvc-console.h>
+ #include "xen-ops.h"
+ #include "vdso.h"
+-#include "p2m.h"
  #include "mmu.h"
  
-+#define GB(x) ((uint64_t)(x) * 1024 * 1024 * 1024)
-+
- /* Amount of extra memory space we add to the e820 ranges */
- struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
- 
-@@ -69,6 +71,26 @@ static unsigned long xen_remap_mfn __initdata = INVALID_P2M_ENTRY;
-  */
- #define EXTRA_MEM_RATIO		(10)
- 
-+static bool xen_512gb_limit __initdata = IS_ENABLED(CONFIG_XEN_512GB);
-+
-+static void __init xen_parse_512gb(void)
-+{
-+	bool val = false;
-+	char *arg;
-+
-+	arg = strstr(xen_start_info->cmd_line, "xen_512gb_limit");
-+	if (!arg)
-+		return;
-+
-+	arg = strstr(xen_start_info->cmd_line, "xen_512gb_limit=");
-+	if (!arg)
-+		val = true;
-+	else if (strtobool(arg + strlen("xen_512gb_limit="), &val))
-+		return;
-+
-+	xen_512gb_limit = val;
-+}
-+
- static void __init xen_add_extra_mem(phys_addr_t start, phys_addr_t size)
- {
- 	int i;
-@@ -503,12 +525,29 @@ void __init xen_remap_memory(void)
- 	pr_info("Remapped %ld page(s)\n", remapped);
- }
- 
-+static unsigned long __init xen_get_pages_limit(void)
-+{
-+	unsigned long limit;
-+
-+#ifdef CONFIG_X86_32
-+	limit = GB(64) / PAGE_SIZE;
-+#else
-+	limit = ~0ul;
-+	if (!xen_initial_domain() && xen_512gb_limit)
-+		limit = GB(512) / PAGE_SIZE;
-+#endif
-+	return limit;
-+}
-+
- static unsigned long __init xen_get_max_pages(void)
- {
--	unsigned long max_pages = MAX_DOMAIN_PAGES;
-+	unsigned long max_pages, limit;
- 	domid_t domid = DOMID_SELF;
- 	int ret;
- 
-+	limit = xen_get_pages_limit();
-+	max_pages = limit;
-+
- 	/*
- 	 * For the initial domain we use the maximum reservation as
- 	 * the maximum page.
-@@ -524,7 +563,7 @@ static unsigned long __init xen_get_max_pages(void)
- 			max_pages = ret;
- 	}
- 
--	return min(max_pages, MAX_DOMAIN_PAGES);
-+	return min(max_pages, limit);
- }
- 
- static void __init xen_align_and_add_e820_region(phys_addr_t start,
-@@ -699,7 +738,7 @@ static void __init xen_reserve_xen_mfnlist(void)
-  **/
- char * __init xen_memory_setup(void)
- {
--	unsigned long max_pfn = xen_start_info->nr_pages;
-+	unsigned long max_pfn;
- 	phys_addr_t mem_end, addr, size, chunk_size;
- 	u32 type;
- 	int rc;
-@@ -709,7 +748,9 @@ char * __init xen_memory_setup(void)
- 	int i;
- 	int op;
- 
--	max_pfn = min(MAX_DOMAIN_PAGES, max_pfn);
-+	xen_parse_512gb();
-+	max_pfn = xen_get_pages_limit();
-+	max_pfn = min(max_pfn, xen_start_info->nr_pages);
- 	mem_end = PFN_PHYS(max_pfn);
- 
- 	memmap.nr_entries = E820MAX;
-@@ -762,12 +803,15 @@ char * __init xen_memory_setup(void)
- 	 * is limited to the max size of lowmem, so that it doesn't
- 	 * get completely filled.
- 	 *
-+	 * Make sure we have no memory above max_pages, as this area
-+	 * isn't handled by the p2m management.
-+	 *
- 	 * In principle there could be a problem in lowmem systems if
- 	 * the initial memory is also very large with respect to
- 	 * lowmem, but we won't try to deal with that here.
- 	 */
--	extra_pages = min(EXTRA_MEM_RATIO * min(max_pfn, PFN_DOWN(MAXMEM)),
--			  extra_pages);
-+	extra_pages = min3(EXTRA_MEM_RATIO * min(max_pfn, PFN_DOWN(MAXMEM)),
-+			   extra_pages, max_pages - max_pfn);
- 	i = 0;
- 	addr = xen_e820_map[0].addr;
- 	size = xen_e820_map[0].size;
-@@ -803,9 +847,6 @@ char * __init xen_memory_setup(void)
- 	/*
- 	 * Set the rest as identity mapped, in case PCI BARs are
- 	 * located here.
--	 *
--	 * PFNs above MAX_P2M_PFN are considered identity mapped as
--	 * well.
- 	 */
- 	set_phys_range_identity(addr / PAGE_SIZE, ~0ul);
- 
+ #define GB(x) ((uint64_t)(x) * 1024 * 1024 * 1024)
 -- 
 2.1.4
 
