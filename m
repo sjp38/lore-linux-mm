@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E7A06B0072
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 08:07:15 -0400 (EDT)
-Received: by wigg3 with SMTP id g3so49894892wig.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 05:07:14 -0700 (PDT)
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id D19806B0074
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 08:07:17 -0400 (EDT)
+Received: by wifx6 with SMTP id x6so84247225wif.0
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 05:07:17 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ei5si740105wid.118.2015.06.08.05.07.02
+        by mx.google.com with ESMTPS id dt1si797056wib.46.2015.06.08.05.07.02
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Mon, 08 Jun 2015 05:07:03 -0700 (PDT)
 From: Juergen Gross <jgross@suse.com>
-Subject: [Patch V4 05/16] xen: move static e820 map to global scope
-Date: Mon,  8 Jun 2015 14:06:46 +0200
-Message-Id: <1433765217-16333-6-git-send-email-jgross@suse.com>
+Subject: [Patch V4 06/16] xen: split counting of extra memory pages from remapping
+Date: Mon,  8 Jun 2015 14:06:47 +0200
+Message-Id: <1433765217-16333-7-git-send-email-jgross@suse.com>
 In-Reply-To: <1433765217-16333-1-git-send-email-jgross@suse.com>
 References: <1433765217-16333-1-git-send-email-jgross@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,263 +20,241 @@ List-ID: <linux-mm.kvack.org>
 To: xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Juergen Gross <jgross@suse.com>
 
-Instead of using a function local static e820 map in xen_memory_setup()
-and calling various functions in the same source with the map as a
-parameter use a map directly accessible by all functions in the source.
+Memory pages in the initial memory setup done by the Xen hypervisor
+conflicting with the target E820 map are remapped. In order to do this
+those pages are counted and remapped in xen_set_identity_and_remap().
+
+Split the counting from the remapping operation to be able to setup
+the needed memory sizes in time but doing the remap operation at a
+later time. This enables us to simplify the interface to
+xen_set_identity_and_remap() as the number of remapped and released
+pages is no longer needed here.
+
+Finally move the remapping further down to prepare relocating
+conflicting memory contents before the memory might be clobbered by
+xen_set_identity_and_remap(). This requires to not destroy the Xen
+E820 map when the one for the system is being constructed.
 
 Signed-off-by: Juergen Gross <jgross@suse.com>
-Reviewed-by: David Vrabel <david.vrabel@citrix.com>
 ---
- arch/x86/xen/setup.c | 96 +++++++++++++++++++++++++++-------------------------
- 1 file changed, 49 insertions(+), 47 deletions(-)
+ arch/x86/xen/setup.c | 98 +++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 58 insertions(+), 40 deletions(-)
 
 diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
-index adad417..ab6c36e 100644
+index ab6c36e..87251b4 100644
 --- a/arch/x86/xen/setup.c
 +++ b/arch/x86/xen/setup.c
-@@ -38,6 +38,10 @@ struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
- /* Number of pages released from the initial allocation. */
- unsigned long xen_released_pages;
- 
-+/* E820 map used during setting up memory. */
-+static struct e820entry xen_e820_map[E820MAX] __initdata;
-+static u32 xen_e820_map_entries __initdata;
-+
- /*
-  * Buffer used to remap identity mapped pages. We only need the virtual space.
-  * The physical page behind this address is remapped as needed to different
-@@ -164,15 +168,13 @@ void __init xen_inv_extra_mem(void)
-  * This function updates min_pfn with the pfn found and returns
-  * the size of that range or zero if not found.
+@@ -223,7 +223,7 @@ static int __init xen_free_mfn(unsigned long mfn)
+  * as a fallback if the remapping fails.
   */
--static unsigned long __init xen_find_pfn_range(
--	const struct e820entry *list, size_t map_size,
--	unsigned long *min_pfn)
-+static unsigned long __init xen_find_pfn_range(unsigned long *min_pfn)
+ static void __init xen_set_identity_and_release_chunk(unsigned long start_pfn,
+-	unsigned long end_pfn, unsigned long nr_pages, unsigned long *released)
++			unsigned long end_pfn, unsigned long nr_pages)
  {
--	const struct e820entry *entry;
-+	const struct e820entry *entry = xen_e820_map;
- 	unsigned int i;
- 	unsigned long done = 0;
+ 	unsigned long pfn, end;
+ 	int ret;
+@@ -243,7 +243,7 @@ static void __init xen_set_identity_and_release_chunk(unsigned long start_pfn,
+ 		WARN(ret != 1, "Failed to release pfn %lx err=%d\n", pfn, ret);
  
--	for (i = 0, entry = list; i < map_size; i++, entry++) {
-+	for (i = 0; i < xen_e820_map_entries; i++, entry++) {
- 		unsigned long s_pfn;
- 		unsigned long e_pfn;
- 
-@@ -356,9 +358,9 @@ static void __init xen_do_set_identity_and_remap_chunk(
-  * to Xen and not remapped.
+ 		if (ret == 1) {
+-			(*released)++;
++			xen_released_pages++;
+ 			if (!__set_phys_to_machine(pfn, INVALID_P2M_ENTRY))
+ 				break;
+ 		} else
+@@ -359,8 +359,7 @@ static void __init xen_do_set_identity_and_remap_chunk(
   */
  static unsigned long __init xen_set_identity_and_remap_chunk(
--        const struct e820entry *list, size_t map_size, unsigned long start_pfn,
--	unsigned long end_pfn, unsigned long nr_pages, unsigned long remap_pfn,
--	unsigned long *released, unsigned long *remapped)
-+	unsigned long start_pfn, unsigned long end_pfn, unsigned long nr_pages,
-+	unsigned long remap_pfn, unsigned long *released,
-+	unsigned long *remapped)
+ 	unsigned long start_pfn, unsigned long end_pfn, unsigned long nr_pages,
+-	unsigned long remap_pfn, unsigned long *released,
+-	unsigned long *remapped)
++	unsigned long remap_pfn)
  {
  	unsigned long pfn;
  	unsigned long i = 0;
-@@ -379,8 +381,7 @@ static unsigned long __init xen_set_identity_and_remap_chunk(
- 		if (cur_pfn + size > nr_pages)
- 			size = nr_pages - cur_pfn;
- 
--		remap_range_size = xen_find_pfn_range(list, map_size,
--						      &remap_pfn);
-+		remap_range_size = xen_find_pfn_range(&remap_pfn);
+@@ -385,7 +384,7 @@ static unsigned long __init xen_set_identity_and_remap_chunk(
  		if (!remap_range_size) {
  			pr_warning("Unable to find available pfn range, not remapping identity pages\n");
  			xen_set_identity_and_release_chunk(cur_pfn,
-@@ -411,13 +412,12 @@ static unsigned long __init xen_set_identity_and_remap_chunk(
+-				cur_pfn + left, nr_pages, released);
++						cur_pfn + left, nr_pages);
+ 			break;
+ 		}
+ 		/* Adjust size to fit in current e820 RAM region */
+@@ -397,7 +396,6 @@ static unsigned long __init xen_set_identity_and_remap_chunk(
+ 		/* Update variables to reflect new mappings. */
+ 		i += size;
+ 		remap_pfn += size;
+-		*remapped += size;
+ 	}
+ 
+ 	/*
+@@ -412,14 +410,11 @@ static unsigned long __init xen_set_identity_and_remap_chunk(
  	return remap_pfn;
  }
  
--static void __init xen_set_identity_and_remap(
--	const struct e820entry *list, size_t map_size, unsigned long nr_pages,
--	unsigned long *released, unsigned long *remapped)
-+static void __init xen_set_identity_and_remap(unsigned long nr_pages,
-+			unsigned long *released, unsigned long *remapped)
+-static void __init xen_set_identity_and_remap(unsigned long nr_pages,
+-			unsigned long *released, unsigned long *remapped)
++static void __init xen_set_identity_and_remap(unsigned long nr_pages)
  {
  	phys_addr_t start = 0;
  	unsigned long last_pfn = nr_pages;
--	const struct e820entry *entry;
-+	const struct e820entry *entry = xen_e820_map;
- 	unsigned long num_released = 0;
- 	unsigned long num_remapped = 0;
+ 	const struct e820entry *entry = xen_e820_map;
+-	unsigned long num_released = 0;
+-	unsigned long num_remapped = 0;
  	int i;
-@@ -433,9 +433,9 @@ static void __init xen_set_identity_and_remap(
- 	 * example) the DMI tables in a reserved region that begins on
- 	 * a non-page boundary.
- 	 */
--	for (i = 0, entry = list; i < map_size; i++, entry++) {
-+	for (i = 0; i < xen_e820_map_entries; i++, entry++) {
- 		phys_addr_t end = entry->addr + entry->size;
--		if (entry->type == E820_RAM || i == map_size - 1) {
-+		if (entry->type == E820_RAM || i == xen_e820_map_entries - 1) {
- 			unsigned long start_pfn = PFN_DOWN(start);
- 			unsigned long end_pfn = PFN_UP(end);
  
-@@ -444,9 +444,9 @@ static void __init xen_set_identity_and_remap(
- 
+ 	/*
+@@ -445,16 +440,12 @@ static void __init xen_set_identity_and_remap(unsigned long nr_pages,
  			if (start_pfn < end_pfn)
  				last_pfn = xen_set_identity_and_remap_chunk(
--						list, map_size, start_pfn,
--						end_pfn, nr_pages, last_pfn,
--						&num_released, &num_remapped);
-+						start_pfn, end_pfn, nr_pages,
-+						last_pfn, &num_released,
-+						&num_remapped);
+ 						start_pfn, end_pfn, nr_pages,
+-						last_pfn, &num_released,
+-						&num_remapped);
++						last_pfn);
  			start = end;
  		}
  	}
-@@ -549,12 +549,12 @@ static void __init xen_align_and_add_e820_region(phys_addr_t start,
- 	e820_add_region(start, end - start, type);
+ 
+-	*released = num_released;
+-	*remapped = num_remapped;
+-
+-	pr_info("Released %ld page(s)\n", num_released);
++	pr_info("Released %ld page(s)\n", xen_released_pages);
  }
  
--static void __init xen_ignore_unusable(struct e820entry *list, size_t map_size)
-+static void __init xen_ignore_unusable(void)
- {
--	struct e820entry *entry;
-+	struct e820entry *entry = xen_e820_map;
- 	unsigned int i;
- 
--	for (i = 0, entry = list; i < map_size; i++, entry++) {
-+	for (i = 0; i < xen_e820_map_entries; i++, entry++) {
- 		if (entry->type == E820_UNUSABLE)
- 			entry->type = E820_RAM;
+ /*
+@@ -560,6 +551,28 @@ static void __init xen_ignore_unusable(void)
  	}
-@@ -600,8 +600,6 @@ static void __init xen_reserve_xen_mfnlist(void)
-  **/
+ }
+ 
++static unsigned long __init xen_count_remap_pages(unsigned long max_pfn)
++{
++	unsigned long extra = 0;
++	const struct e820entry *entry = xen_e820_map;
++	int i;
++
++	for (i = 0; i < xen_e820_map_entries; i++, entry++) {
++		unsigned long start_pfn = PFN_DOWN(entry->addr);
++		unsigned long end_pfn = PFN_UP(entry->addr + entry->size);
++
++		if (start_pfn >= max_pfn)
++			break;
++		if (entry->type == E820_RAM)
++			continue;
++		if (end_pfn >= max_pfn)
++			end_pfn = max_pfn;
++		extra += end_pfn - start_pfn;
++	}
++
++	return extra;
++}
++
+ /*
+  * Reserve Xen mfn_list.
+  * See comment above "struct start_info" in <xen/interface/xen.h>
+@@ -601,12 +614,12 @@ static void __init xen_reserve_xen_mfnlist(void)
  char * __init xen_memory_setup(void)
  {
--	static struct e820entry map[E820MAX] __initdata;
--
  	unsigned long max_pfn = xen_start_info->nr_pages;
- 	phys_addr_t mem_end;
+-	phys_addr_t mem_end;
++	phys_addr_t mem_end, addr, size, chunk_size;
++	u32 type;
  	int rc;
-@@ -616,7 +614,7 @@ char * __init xen_memory_setup(void)
- 	mem_end = PFN_PHYS(max_pfn);
+ 	struct xen_memory_map memmap;
+ 	unsigned long max_pages;
+ 	unsigned long extra_pages = 0;
+-	unsigned long remapped_pages;
+ 	int i;
+ 	int op;
  
- 	memmap.nr_entries = E820MAX;
--	set_xen_guest_handle(memmap.buffer, map);
-+	set_xen_guest_handle(memmap.buffer, xen_e820_map);
+@@ -653,15 +666,8 @@ char * __init xen_memory_setup(void)
+ 	if (max_pages > max_pfn)
+ 		extra_pages += max_pages - max_pfn;
  
- 	op = xen_initial_domain() ?
- 		XENMEM_machine_memory_map :
-@@ -625,15 +623,16 @@ char * __init xen_memory_setup(void)
- 	if (rc == -ENOSYS) {
- 		BUG_ON(xen_initial_domain());
- 		memmap.nr_entries = 1;
--		map[0].addr = 0ULL;
--		map[0].size = mem_end;
-+		xen_e820_map[0].addr = 0ULL;
-+		xen_e820_map[0].size = mem_end;
- 		/* 8MB slack (to balance backend allocations). */
--		map[0].size += 8ULL << 20;
--		map[0].type = E820_RAM;
-+		xen_e820_map[0].size += 8ULL << 20;
-+		xen_e820_map[0].type = E820_RAM;
- 		rc = 0;
- 	}
- 	BUG_ON(rc);
- 	BUG_ON(memmap.nr_entries == 0);
-+	xen_e820_map_entries = memmap.nr_entries;
+-	/*
+-	 * Set identity map on non-RAM pages and prepare remapping the
+-	 * underlying RAM.
+-	 */
+-	xen_set_identity_and_remap(max_pfn, &xen_released_pages,
+-				   &remapped_pages);
+-
+-	extra_pages += xen_released_pages;
+-	extra_pages += remapped_pages;
++	/* How many extra pages do we need due to remapping? */
++	extra_pages += xen_count_remap_pages(max_pfn);
  
  	/*
- 	 * Xen won't allow a 1:1 mapping to be created to UNUSABLE
-@@ -644,10 +643,11 @@ char * __init xen_memory_setup(void)
- 	 * a patch in the future.
- 	 */
- 	if (xen_initial_domain())
--		xen_ignore_unusable(map, memmap.nr_entries);
-+		xen_ignore_unusable();
- 
- 	/* Make sure the Xen-supplied memory map is well-ordered. */
--	sanitize_e820_map(map, memmap.nr_entries, &memmap.nr_entries);
-+	sanitize_e820_map(xen_e820_map, xen_e820_map_entries,
-+			  &xen_e820_map_entries);
- 
- 	max_pages = xen_get_max_pages();
- 	if (max_pages > max_pfn)
-@@ -657,8 +657,8 @@ char * __init xen_memory_setup(void)
- 	 * Set identity map on non-RAM pages and prepare remapping the
- 	 * underlying RAM.
- 	 */
--	xen_set_identity_and_remap(map, memmap.nr_entries, max_pfn,
--				   &xen_released_pages, &remapped_pages);
-+	xen_set_identity_and_remap(max_pfn, &xen_released_pages,
-+				   &remapped_pages);
- 
- 	extra_pages += xen_released_pages;
- 	extra_pages += remapped_pages;
-@@ -677,10 +677,10 @@ char * __init xen_memory_setup(void)
+ 	 * Clamp the amount of extra memory to a EXTRA_MEM_RATIO
+@@ -677,29 +683,35 @@ char * __init xen_memory_setup(void)
  	extra_pages = min(EXTRA_MEM_RATIO * min(max_pfn, PFN_DOWN(MAXMEM)),
  			  extra_pages);
  	i = 0;
--	while (i < memmap.nr_entries) {
--		phys_addr_t addr = map[i].addr;
--		phys_addr_t size = map[i].size;
--		u32 type = map[i].type;
-+	while (i < xen_e820_map_entries) {
-+		phys_addr_t addr = xen_e820_map[i].addr;
-+		phys_addr_t size = xen_e820_map[i].size;
-+		u32 type = xen_e820_map[i].type;
++	addr = xen_e820_map[0].addr;
++	size = xen_e820_map[0].size;
+ 	while (i < xen_e820_map_entries) {
+-		phys_addr_t addr = xen_e820_map[i].addr;
+-		phys_addr_t size = xen_e820_map[i].size;
+-		u32 type = xen_e820_map[i].type;
++		chunk_size = size;
++		type = xen_e820_map[i].type;
  
  		if (type == E820_RAM) {
  			if (addr < mem_end) {
-@@ -696,9 +696,9 @@ char * __init xen_memory_setup(void)
+-				size = min(size, mem_end - addr);
++				chunk_size = min(size, mem_end - addr);
+ 			} else if (extra_pages) {
+-				size = min(size, PFN_PHYS(extra_pages));
+-				extra_pages -= PFN_DOWN(size);
+-				xen_add_extra_mem(addr, size);
+-				xen_max_p2m_pfn = PFN_DOWN(addr + size);
++				chunk_size = min(size, PFN_PHYS(extra_pages));
++				extra_pages -= PFN_DOWN(chunk_size);
++				xen_add_extra_mem(addr, chunk_size);
++				xen_max_p2m_pfn = PFN_DOWN(addr + chunk_size);
+ 			} else
+ 				type = E820_UNUSABLE;
+ 		}
  
- 		xen_align_and_add_e820_region(addr, size, type);
+-		xen_align_and_add_e820_region(addr, size, type);
++		xen_align_and_add_e820_region(addr, chunk_size, type);
  
--		map[i].addr += size;
--		map[i].size -= size;
--		if (map[i].size == 0)
-+		xen_e820_map[i].addr += size;
-+		xen_e820_map[i].size -= size;
-+		if (xen_e820_map[i].size == 0)
+-		xen_e820_map[i].addr += size;
+-		xen_e820_map[i].size -= size;
+-		if (xen_e820_map[i].size == 0)
++		addr += chunk_size;
++		size -= chunk_size;
++		if (size == 0) {
  			i++;
++			if (i < xen_e820_map_entries) {
++				addr = xen_e820_map[i].addr;
++				size = xen_e820_map[i].size;
++			}
++		}
  	}
  
-@@ -709,7 +709,7 @@ char * __init xen_memory_setup(void)
+ 	/*
+@@ -709,7 +721,7 @@ char * __init xen_memory_setup(void)
  	 * PFNs above MAX_P2M_PFN are considered identity mapped as
  	 * well.
  	 */
--	set_phys_range_identity(map[i-1].addr / PAGE_SIZE, ~0ul);
-+	set_phys_range_identity(xen_e820_map[i - 1].addr / PAGE_SIZE, ~0ul);
+-	set_phys_range_identity(xen_e820_map[i - 1].addr / PAGE_SIZE, ~0ul);
++	set_phys_range_identity(addr / PAGE_SIZE, ~0ul);
  
  	/*
  	 * In domU, the ISA region is normal, usable memory, but we
-@@ -731,23 +731,25 @@ char * __init xen_memory_setup(void)
-  */
- char * __init xen_auto_xlated_memory_setup(void)
- {
--	static struct e820entry map[E820MAX] __initdata;
--
- 	struct xen_memory_map memmap;
- 	int i;
- 	int rc;
- 
- 	memmap.nr_entries = E820MAX;
--	set_xen_guest_handle(memmap.buffer, map);
-+	set_xen_guest_handle(memmap.buffer, xen_e820_map);
- 
- 	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
- 	if (rc < 0)
- 		panic("No memory map (%d)\n", rc);
- 
--	sanitize_e820_map(map, ARRAY_SIZE(map), &memmap.nr_entries);
-+	xen_e820_map_entries = memmap.nr_entries;
-+
-+	sanitize_e820_map(xen_e820_map, ARRAY_SIZE(xen_e820_map),
-+			  &xen_e820_map_entries);
- 
--	for (i = 0; i < memmap.nr_entries; i++)
--		e820_add_region(map[i].addr, map[i].size, map[i].type);
-+	for (i = 0; i < xen_e820_map_entries; i++)
-+		e820_add_region(xen_e820_map[i].addr, xen_e820_map[i].size,
-+				xen_e820_map[i].type);
+@@ -723,6 +735,12 @@ char * __init xen_memory_setup(void)
  
  	xen_reserve_xen_mfnlist();
+ 
++	/*
++	 * Set identity map on non-RAM pages and prepare remapping the
++	 * underlying RAM.
++	 */
++	xen_set_identity_and_remap(max_pfn);
++
+ 	return "Xen";
+ }
  
 -- 
 2.1.4
