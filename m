@@ -1,63 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
-	by kanga.kvack.org (Postfix) with ESMTP id D26246B0032
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 13:32:38 -0400 (EDT)
-Received: by qcej9 with SMTP id j9so53093236qce.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 10:32:38 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id h4si3136638qge.80.2015.06.08.10.32.37
-        for <linux-mm@kvack.org>;
-        Mon, 08 Jun 2015 10:32:38 -0700 (PDT)
-Date: Mon, 8 Jun 2015 18:32:34 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [RFC PATCH] mm: kmemleak: Optimise kmemleak_lock acquiring
- during kmemleak_scan
-Message-ID: <20150608173233.GD31349@e104818-lin.cambridge.arm.com>
-References: <1433783219-14453-1-git-send-email-catalin.marinas@arm.com>
+Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
+	by kanga.kvack.org (Postfix) with ESMTP id D01AD6B0032
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 13:45:57 -0400 (EDT)
+Received: by labko7 with SMTP id ko7so102599384lab.2
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 10:45:57 -0700 (PDT)
+Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
+        by mx.google.com with ESMTPS id ck8si2687061wib.55.2015.06.08.10.45.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Jun 2015 10:45:56 -0700 (PDT)
+Received: by wigg3 with SMTP id g3so60443489wig.1
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 10:45:55 -0700 (PDT)
+Date: Mon, 8 Jun 2015 19:45:51 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
+Message-ID: <20150608174551.GA27558@gmail.com>
+References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1433783219-14453-1-git-send-email-catalin.marinas@arm.com>
+In-Reply-To: <1433767854-24408-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-On Mon, Jun 08, 2015 at 06:06:59PM +0100, Catalin Marinas wrote:
-> The kmemleak memory scanning uses finer grained object->lock spinlocks
-> primarily to avoid races with the memory block freeing. However, the
-> pointer lookup in the rb tree requires the kmemleak_lock to be held.
-> This is currently done in the find_and_get_object() function for each
-> pointer-like location read during scanning. While this allows a low
-> latency on kmemleak_*() callbacks on other CPUs, the memory scanning is
-> slower.
-> 
-> This patch moves the kmemleak_lock outside the core scan_block()
-> function allowing the spinlock to be acquired/released only once per
-> scanned memory block rather than individual pointer-like values. The
-> memory scanning performance is significantly improved (by an order of
-> magnitude on an arm64 system).
-> 
-> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
-> Andrew,
-> 
-> While sorting out some of the kmemleak disabling races, I realised that
-> kmemleak scanning performance can be improved. On an arm64 system I
-> tested (albeit not a fast one but with 6 CPUs and 8GB of RAM),
-> immediately after boot an "time echo scan > /sys/kernel/debug/kmemleak"
-> takes on average 70 sec. With this patch applied, I get on average 4.7
-> sec.
 
-I need to make a correction here as I forgot lock proving enabled in my
-.config when running the tests. With all the spinlock debugging
-disabled, I get 9.5 sec vs 3.5 sec. Still an improvement but no longer
-by an order of magnitude.
+* Mel Gorman <mgorman@suse.de> wrote:
 
--- 
-Catalin
+> Changelog since V4
+> o Rebase to 4.1-rc6
+> 
+> Changelog since V3
+> o Drop batching of TLB flush from migration
+> o Redo how larger batching is managed
+> o Batch TLB flushes when writable entries exist
+> 
+> When unmapping pages it is necessary to flush the TLB. If that page was
+> accessed by another CPU then an IPI is used to flush the remote CPU. That
+> is a lot of IPIs if kswapd is scanning and unmapping >100K pages per second.
+> 
+> There already is a window between when a page is unmapped and when it is
+> TLB flushed. This series simply increases the window so multiple pages
+> can be flushed using a single IPI. This *should* be safe or the kernel is
+> hosed already but I've cc'd the x86 maintainers and some of the Intel folk
+> for comment.
+> 
+> Patch 1 simply made the rest of the series easier to write as ftrace
+> 	could identify all the senders of TLB flush IPIS.
+> 
+> Patch 2 collects a list of PFNs and sends one IPI to flush them all
+> 
+> Patch 3 tracks when there potentially are writable TLB entries that
+> 	need to be batched differently
+> 
+> The performance impact is documented in the changelogs but in the optimistic
+> case on a 4-socket machine the full series reduces interrupts from 900K
+> interrupts/second to 60K interrupts/second.
+
+Yeah, so I think batching writable flushes is useful I think, but I disagree with 
+one aspect of it: with the need to gather _pfns_ and batch them over to the remote 
+CPU.
+
+As per my measurements the __flush_tlb_single() primitive (which you use in patch
+#2) is very expensive on most Intel and AMD CPUs. It barely makes sense for a 2
+pages and gets exponentially worse. It's probably done in microcode and its 
+performance is horrible.
+
+So have you explored the possibility to significantly simplify your patch-set by 
+only deferring the flushing, and doing a simple TLB flush on the remote CPU? As 
+per your measurements there must be tons and tons of flushes of lots of pages, the 
+pfn tracking simply does not make sense.
+
+That way there's no memory overhead and no complex tracking of pfns - we'd 
+basically track a simple deferred-flush bit instead. We'd still have the benefits 
+of batching the IPIs, which is the main win.
+
+I strongly suspect that your numbers will become even better with such a variant.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
