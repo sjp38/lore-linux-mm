@@ -1,51 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 37E856B006E
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 08:36:11 -0400 (EDT)
-Received: by pdjn11 with SMTP id n11so66069501pdj.0
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 05:36:10 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id z5si3908652pdk.254.2015.06.08.05.36.09
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 5546D6B0032
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 08:51:00 -0400 (EDT)
+Received: by wgv5 with SMTP id 5so102579596wgv.1
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 05:50:59 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id wo1si4931339wjc.207.2015.06.08.05.50.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 08 Jun 2015 05:36:10 -0700 (PDT)
-Subject: Re: [PATCH] oom: always panic on OOM when panic_on_oom is configured
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1433159948-9912-1-git-send-email-mhocko@suse.cz>
-	<alpine.DEB.2.10.1506041607020.16555@chino.kir.corp.google.com>
-	<20150605111302.GB26113@dhcp22.suse.cz>
-	<201506061551.BHH48489.QHFOMtFLSOFOJV@I-love.SAKURA.ne.jp>
-	<20150608082137.GD1380@dhcp22.suse.cz>
-In-Reply-To: <20150608082137.GD1380@dhcp22.suse.cz>
-Message-Id: <201506082053.IIF18706.JFFFHOQtMLOSVO@I-love.SAKURA.ne.jp>
-Date: Mon, 8 Jun 2015 20:53:18 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 08 Jun 2015 05:50:58 -0700 (PDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 0/3] TLB flush multiple pages per IPI v5
+Date: Mon,  8 Jun 2015 13:50:51 +0100
+Message-Id: <1433767854-24408-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Michal Hocko wrote:
-> On Sat 06-06-15 15:51:35, Tetsuo Handa wrote:
-> > For me, !__GFP_FS allocations not calling out_of_memory() _forever_ is a
-> > violation of the user policy.
-> 
-> Yes, the current behavior of GFP_NOFS is highly suboptimal, but this has
-> _nothing_ what so ever to do with this patch and panic_on_oom handling.
-> The former one is the page allocator proper while we are in the OOM
-> killer layer here.
-> 
-> This is not the first time you have done that. Please stop it. It makes
-> a complete mess of the original discussions.
+Changelog since V4
+o Rebase to 4.1-rc6
 
-My specific area of expertise in Linux kernel is security/tomoyo/ directory.
-What I could contribute with other areas is to pay attention to potential
-possibilities. But I'm such outsider about other areas that I can't
-differentiate the page allocator proper from the OOM killer layer.
+Changelog since V3
+o Drop batching of TLB flush from migration
+o Redo how larger batching is managed
+o Batch TLB flushes when writable entries exist
 
-Excuse me for focusing on the wrong issue, but I will likely unconsciously
-make the same mistake again. Please ignore or point out when I made mistakes.
+When unmapping pages it is necessary to flush the TLB. If that page was
+accessed by another CPU then an IPI is used to flush the remote CPU. That
+is a lot of IPIs if kswapd is scanning and unmapping >100K pages per second.
+
+There already is a window between when a page is unmapped and when it is
+TLB flushed. This series simply increases the window so multiple pages
+can be flushed using a single IPI. This *should* be safe or the kernel is
+hosed already but I've cc'd the x86 maintainers and some of the Intel folk
+for comment.
+
+Patch 1 simply made the rest of the series easier to write as ftrace
+	could identify all the senders of TLB flush IPIS.
+
+Patch 2 collects a list of PFNs and sends one IPI to flush them all
+
+Patch 3 tracks when there potentially are writable TLB entries that
+	need to be batched differently
+
+The performance impact is documented in the changelogs but in the optimistic
+case on a 4-socket machine the full series reduces interrupts from 900K
+interrupts/second to 60K interrupts/second.
+
+ arch/x86/Kconfig                |   1 +
+ arch/x86/include/asm/tlbflush.h |   2 +
+ arch/x86/mm/tlb.c               |   1 +
+ include/linux/init_task.h       |   8 +++
+ include/linux/mm_types.h        |   1 +
+ include/linux/rmap.h            |   3 +
+ include/linux/sched.h           |  15 +++++
+ include/trace/events/tlb.h      |   3 +-
+ init/Kconfig                    |   8 +++
+ kernel/fork.c                   |   5 ++
+ kernel/sched/core.c             |   3 +
+ mm/internal.h                   |  15 +++++
+ mm/rmap.c                       | 119 +++++++++++++++++++++++++++++++++++++++-
+ mm/vmscan.c                     |  30 +++++++++-
+ 14 files changed, 210 insertions(+), 4 deletions(-)
+
+-- 
+2.3.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
