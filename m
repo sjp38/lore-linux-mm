@@ -1,102 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 04A0F6B0032
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 05:01:53 -0400 (EDT)
-Received: by padev16 with SMTP id ev16so35511380pad.0
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 02:01:52 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id ms6si3166505pdb.76.2015.06.08.02.01.51
+Received: from mail-vn0-f45.google.com (mail-vn0-f45.google.com [209.85.216.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 89E6B6B0032
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 05:24:08 -0400 (EDT)
+Received: by vnbf190 with SMTP id f190so16596565vnb.5
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 02:24:08 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id mq18si3850268vdb.57.2015.06.08.02.24.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 08 Jun 2015 02:01:52 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm/memory hotplug: print the last vmemmap region at the
- end of hot add memory
-Date: Mon, 8 Jun 2015 08:52:00 +0000
-Message-ID: <20150608085200.GC4210@hori1.linux.bs1.fc.nec.co.jp>
-References: <1433745881-7179-1-git-send-email-zhugh.fnst@cn.fujitsu.com>
-In-Reply-To: <1433745881-7179-1-git-send-email-zhugh.fnst@cn.fujitsu.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <99F58657E630984C8BA87337A9A1E6C5@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Jun 2015 02:24:07 -0700 (PDT)
+Date: Mon, 8 Jun 2015 11:23:59 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [RFC PATCH] slub: RFC: Improving SLUB performance with 38% on
+ NO-PREEMPT
+Message-ID: <20150608112359.04a3750e@redhat.com>
+In-Reply-To: <1433471877.1895.51.camel@edumazet-glaptop2.roam.corp.google.com>
+References: <20150604103159.4744.75870.stgit@ivy>
+	<1433471877.1895.51.camel@edumazet-glaptop2.roam.corp.google.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "rientjes@google.com" <rientjes@google.com>, "zhenzhang.zhang@huawei.com" <zhenzhang.zhang@huawei.com>, "wangnan0@huawei.com" <wangnan0@huawei.com>, "fabf@skynet.be" <fabf@skynet.be>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Alexander Duyck <alexander.duyck@gmail.com>, linux-mm@kvack.org, netdev@vger.kernel.org, brouer@redhat.com
 
-On Mon, Jun 08, 2015 at 02:44:41PM +0800, Zhu Guihua wrote:
-> When hot add two nodes continuously, we found the vmemmap region info is =
-a
-> bit messed. The last region of node 2 is printed when node 3 hot added,
-> like the following:
-> Initmem setup node 2 [mem 0x0000000000000000-0xffffffffffffffff]
->  On node 2 totalpages: 0
->  Built 2 zonelists in Node order, mobility grouping on.  Total pages: 160=
-90539
->  Policy zone: Normal
->  init_memory_mapping: [mem 0x40000000000-0x407ffffffff]
->   [mem 0x40000000000-0x407ffffffff] page 1G
->   [ffffea1000000000-ffffea10001fffff] PMD -> [ffff8a077d800000-ffff8a077d=
-9fffff] on node 2
->   [ffffea1000200000-ffffea10003fffff] PMD -> [ffff8a077de00000-ffff8a077d=
-ffffff] on node 2
-> ...
->   [ffffea101f600000-ffffea101f9fffff] PMD -> [ffff8a074ac00000-ffff8a074a=
-ffffff] on node 2
->   [ffffea101fa00000-ffffea101fdfffff] PMD -> [ffff8a074a800000-ffff8a074a=
-bfffff] on node 2
-> Initmem setup node 3 [mem 0x0000000000000000-0xffffffffffffffff]
->  On node 3 totalpages: 0
->  Built 3 zonelists in Node order, mobility grouping on.  Total pages: 160=
-90539
->  Policy zone: Normal
->  init_memory_mapping: [mem 0x60000000000-0x607ffffffff]
->   [mem 0x60000000000-0x607ffffffff] page 1G
->   [ffffea101fe00000-ffffea101fffffff] PMD -> [ffff8a074a400000-ffff8a074a=
-5fffff] on node 2 <=3D=3D=3D node 2 ???
->   [ffffea1800000000-ffffea18001fffff] PMD -> [ffff8a074a600000-ffff8a074a=
-7fffff] on node 3
->   [ffffea1800200000-ffffea18005fffff] PMD -> [ffff8a074a000000-ffff8a074a=
-3fffff] on node 3
->   [ffffea1800600000-ffffea18009fffff] PMD -> [ffff8a0749c00000-ffff8a0749=
-ffffff] on node 3
-> ...
->=20
-> The cause is the last region was missed at the and of hot add memory, and
-> p_start, p_end, node_start were not reset, so when hot add memory to a ne=
-w
-> node, it will consider they are not contiguous blocks and print the
-> previous one. So we print the last vmemmap region at the end of hot add
-> memory to avoid the confusion.
->=20
-> Signed-off-by: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+On Thu, 04 Jun 2015 19:37:57 -0700
+Eric Dumazet <eric.dumazet@gmail.com> wrote:
 
-Looks good to me.
+> On Thu, 2015-06-04 at 12:31 +0200, Jesper Dangaard Brouer wrote:
+> > This patch improves performance of SLUB allocator fastpath with 38% by
+> > avoiding the call to this_cpu_cmpxchg_double() for NO-PREEMPT kernels.
+> > 
+> > Reviewers please point out why this change is wrong, as such a large
+> > improvement should not be possible ;-)
+> 
+> I am not sure if anyone already answered, but the cmpxchg_double()
+> is needed to avoid the ABA problem.
+> 
+> This is the whole point using tid _and_ freelist
+> 
+> Preemption is not the only thing that could happen here, think of
+> interrupts.
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Yes, I sort of already knew this.
 
-> ---
->  mm/memory_hotplug.c | 1 +
->  1 file changed, 1 insertion(+)
->=20
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 457bde5..58fb223 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -513,6 +513,7 @@ int __ref __add_pages(int nid, struct zone *zone, uns=
-igned long phys_start_pfn,
->  			break;
->  		err =3D 0;
->  	}
-> +	vmemmap_populate_print_last();
-> =20
->  	return err;
->  }
-> --=20
-> 1.9.3
-> =
+My real question is if disabling local interrupts is enough to avoid this?
+
+And, does local irq disabling also stop preemption?
+
+Questions relate to this patch:
+ http://ozlabs.org/~akpm/mmots/broken-out/slub-bulk-alloc-extract-objects-from-the-per-cpu-slab.patch
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
