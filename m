@@ -1,104 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 37ADD6B006C
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 15:52:43 -0400 (EDT)
-Received: by wigg3 with SMTP id g3so63670957wig.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 12:52:42 -0700 (PDT)
-Received: from mail-wg0-x230.google.com (mail-wg0-x230.google.com. [2a00:1450:400c:c00::230])
-        by mx.google.com with ESMTPS id u3si3366163wiy.42.2015.06.08.12.52.41
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F4286B0038
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 15:58:48 -0400 (EDT)
+Received: by igbpi8 with SMTP id pi8so70278611igb.1
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 12:58:47 -0700 (PDT)
+Received: from mail-ig0-x22e.google.com (mail-ig0-x22e.google.com. [2607:f8b0:4001:c05::22e])
+        by mx.google.com with ESMTPS id ny7si4707590icb.19.2015.06.08.12.58.47
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jun 2015 12:52:41 -0700 (PDT)
-Received: by wgbgq6 with SMTP id gq6so111617336wgb.3
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 12:52:41 -0700 (PDT)
-Date: Mon, 8 Jun 2015 21:52:37 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
-Message-ID: <20150608195237.GA15429@gmail.com>
-References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
- <20150608174551.GA27558@gmail.com>
- <5575DD33.3000400@intel.com>
+        Mon, 08 Jun 2015 12:58:47 -0700 (PDT)
+Received: by igbpi8 with SMTP id pi8so67616973igb.0
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 12:58:47 -0700 (PDT)
+Date: Mon, 8 Jun 2015 12:58:45 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] oom: always panic on OOM when panic_on_oom is
+ configured
+In-Reply-To: <201506061551.BHH48489.QHFOMtFLSOFOJV@I-love.SAKURA.ne.jp>
+Message-ID: <alpine.DEB.2.10.1506081252050.13272@chino.kir.corp.google.com>
+References: <1433159948-9912-1-git-send-email-mhocko@suse.cz> <alpine.DEB.2.10.1506041607020.16555@chino.kir.corp.google.com> <20150605111302.GB26113@dhcp22.suse.cz> <201506061551.BHH48489.QHFOMtFLSOFOJV@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5575DD33.3000400@intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: mhocko@suse.cz, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Sat, 6 Jun 2015, Tetsuo Handa wrote:
 
-* Dave Hansen <dave.hansen@intel.com> wrote:
-
-> On 06/08/2015 10:45 AM, Ingo Molnar wrote:
-> > As per my measurements the __flush_tlb_single() primitive (which you use in patch
-> > #2) is very expensive on most Intel and AMD CPUs. It barely makes sense for a 2
-> > pages and gets exponentially worse. It's probably done in microcode and its 
-> > performance is horrible.
+> For me, !__GFP_FS allocations not calling out_of_memory() _forever_ is a
+> violation of the user policy.
 > 
-> I discussed this a bit in commit a5102476a2.  I'd be curious what
-> numbers you came up with.
 
-... which for those of us who don't have sha1's cached in their brain is:
+I agree that we need work in this area to prevent livelocks that rely on 
+the contexts of other allocators to make forward progress, but let's be 
+clear that panicking the system is not the appropriate response.  It's 
+nice and convenient to say we should repurpose panic_on_oom to solve 
+livelocks because it triggers a fast reboot in your configuration, but we, 
+and certainly others, can't tolerate reboots when the kernel just gives up 
+and the majority of the time these situations do resolve themselves.
 
-  a5102476a24b ("x86/mm: Set TLB flush tunable to sane value (33)")
+I think the appropriate place to be attacking this problem is in the page 
+allocator, which is responsible for the page allocations in the context of 
+the gfp flags given to it, and not the oom killer.  The oom killer is just 
+supposed to pick a process, send it a SIGKILL, and give it a reasonable 
+expectation of being able to exit.
 
-;-)
+> If kswapd found nothing more to reclaim and/or kswapd cannot continue
+> reclaiming due to lock dependency, can't we consider as out of memory
+> because we already tried to reclaim memory which would have been done by
+> __GFP_FS allocations?
+> 
+> Why do we do "!__GFP_FS allocations do not call out_of_memory() because
+> they have very limited reclaim ability"? Both GFP_NOFS and GFP_NOIO
+> allocations will wake up kswapd due to !__GFP_NO_KSWAPD, doesn't it?
+> 
 
-So what I measured agrees generally with the comment you added in the commit:
-
- + * Each single flush is about 100 ns, so this caps the maximum overhead at
- + * _about_ 3,000 ns.
-
-Let that sink through: 3,000 nsecs = 3 usecs, that's like eternity!
-
-A CR3 driven TLB flush takes less time than a single INVLPG (!):
-
-   [    0.389028] x86/fpu: Cost of: __flush_tlb()               fn            :    96 cycles
-   [    0.405885] x86/fpu: Cost of: __flush_tlb_one()           fn            :   260 cycles
-   [    0.414302] x86/fpu: Cost of: __flush_tlb_range()         fn            :   404 cycles
-
-it's true that a full flush has hidden costs not measured above, because it has 
-knock-on effects (because it drops non-global TLB entries), but it's not _that_ 
-bad due to:
-
-  - there almost always being a L1 or L2 cache miss when a TLB miss occurs,
-    which latency can be overlaid
-
-  - global bit being held for kernel entries
-
-  - user-space with high memory pressure trashing through TLBs typically
-
-... and especially with caches and Intel's historically phenomenally low TLB 
-refill latency it's difficult to measure the effects of local TLB refills, let 
-alone measure it in any macro benchmark.
-
-Cross-CPU flushes are expensive, absolutely no argument about that - my suggestion 
-here is to keep the batching but simplify it: because I strongly suspect that the 
-biggest win is the batching, not the pfn queueing.
-
-We might even win a bit more performance due to the simplification.
-
-> But, don't we have to take in to account the cost of refilling the TLB in 
-> addition to the cost of emptying it?  The TLB size is historically increasing on 
-> a per-core basis, so isn't this refill cost only going to get worse?
-
-Only if TLB refill latency sucks - but Intel's is very good and AMD's is pretty 
-good as well.
-
-Also, usually if you miss the TLB you miss the cache line as well (you definitely 
-miss the L1 cache, and TLB caches are sized to hold a fair chunk of your L2 
-cache), and the CPU can overlap the two latencies.
-
-So while it might sound counter-intuitive, a full TLB flush might be faster than 
-trying to do software based TLB cache management ...
-
-INVLPG really sucks. I can be convinced by numbers, but this isn't nearly as 
-clear-cut as it might look.
-
-Thanks,
-
-	Ingo
+The !__GFP_FS exception is historic because the oom killer would trigger 
+waaay too often if it were removed simply because it doesn't have a great 
+chance of allowing reclaim to succeed.  Instead, we rely on external 
+memory freeing or other parallel allocators being able to reclaim memory.  
+What happens when there is no external freeing, nothing else is trying to 
+reclaim, or nothing else is able to reclaim?  Yeah, that's the big 
+problem.  In my opinion, there's three ways of attacking it: (1) 
+preallocation so we are less dependent on the page allocator in these 
+contexts, (2) memory reserves in extraordinary circumstances to allow 
+forward progress (it's already tunable by min_free_kbytes), and (3) 
+eventual page allocation failure when neither of these succeed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
