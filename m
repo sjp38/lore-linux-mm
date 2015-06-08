@@ -1,69 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 5546D6B0032
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 08:51:00 -0400 (EDT)
-Received: by wgv5 with SMTP id 5so102579596wgv.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 05:50:59 -0700 (PDT)
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E70B6B0038
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 08:51:01 -0400 (EDT)
+Received: by wgez8 with SMTP id z8so102465731wge.0
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 05:51:00 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wo1si4931339wjc.207.2015.06.08.05.50.58
+        by mx.google.com with ESMTPS id m3si4941949wjx.191.2015.06.08.05.50.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Mon, 08 Jun 2015 05:50:58 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 0/3] TLB flush multiple pages per IPI v5
-Date: Mon,  8 Jun 2015 13:50:51 +0100
-Message-Id: <1433767854-24408-1-git-send-email-mgorman@suse.de>
+Subject: [PATCH 1/3] x86, mm: Trace when an IPI is about to be sent
+Date: Mon,  8 Jun 2015 13:50:52 +0100
+Message-Id: <1433767854-24408-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1433767854-24408-1-git-send-email-mgorman@suse.de>
+References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Changelog since V4
-o Rebase to 4.1-rc6
+It is easy to trace when an IPI is received to flush a TLB but harder to
+detect what event sent it. This patch makes it easy to identify the source
+of IPIs being transmitted for TLB flushes on x86.
 
-Changelog since V3
-o Drop batching of TLB flush from migration
-o Redo how larger batching is managed
-o Batch TLB flushes when writable entries exist
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Dave Hansen <dave.hansen@intel.com>
+---
+ arch/x86/mm/tlb.c          | 1 +
+ include/linux/mm_types.h   | 1 +
+ include/trace/events/tlb.h | 3 ++-
+ 3 files changed, 4 insertions(+), 1 deletion(-)
 
-When unmapping pages it is necessary to flush the TLB. If that page was
-accessed by another CPU then an IPI is used to flush the remote CPU. That
-is a lot of IPIs if kswapd is scanning and unmapping >100K pages per second.
-
-There already is a window between when a page is unmapped and when it is
-TLB flushed. This series simply increases the window so multiple pages
-can be flushed using a single IPI. This *should* be safe or the kernel is
-hosed already but I've cc'd the x86 maintainers and some of the Intel folk
-for comment.
-
-Patch 1 simply made the rest of the series easier to write as ftrace
-	could identify all the senders of TLB flush IPIS.
-
-Patch 2 collects a list of PFNs and sends one IPI to flush them all
-
-Patch 3 tracks when there potentially are writable TLB entries that
-	need to be batched differently
-
-The performance impact is documented in the changelogs but in the optimistic
-case on a 4-socket machine the full series reduces interrupts from 900K
-interrupts/second to 60K interrupts/second.
-
- arch/x86/Kconfig                |   1 +
- arch/x86/include/asm/tlbflush.h |   2 +
- arch/x86/mm/tlb.c               |   1 +
- include/linux/init_task.h       |   8 +++
- include/linux/mm_types.h        |   1 +
- include/linux/rmap.h            |   3 +
- include/linux/sched.h           |  15 +++++
- include/trace/events/tlb.h      |   3 +-
- init/Kconfig                    |   8 +++
- kernel/fork.c                   |   5 ++
- kernel/sched/core.c             |   3 +
- mm/internal.h                   |  15 +++++
- mm/rmap.c                       | 119 +++++++++++++++++++++++++++++++++++++++-
- mm/vmscan.c                     |  30 +++++++++-
- 14 files changed, 210 insertions(+), 4 deletions(-)
-
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index 3250f2371aea..2da824c1c140 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -140,6 +140,7 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
+ 	info.flush_end = end;
+ 
+ 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH);
++	trace_tlb_flush(TLB_REMOTE_SEND_IPI, end - start);
+ 	if (is_uv_system()) {
+ 		unsigned int cpu;
+ 
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 8d37e26a1007..86ad9f902042 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -534,6 +534,7 @@ enum tlb_flush_reason {
+ 	TLB_REMOTE_SHOOTDOWN,
+ 	TLB_LOCAL_SHOOTDOWN,
+ 	TLB_LOCAL_MM_SHOOTDOWN,
++	TLB_REMOTE_SEND_IPI,
+ 	NR_TLB_FLUSH_REASONS,
+ };
+ 
+diff --git a/include/trace/events/tlb.h b/include/trace/events/tlb.h
+index 4250f364a6ca..bc8815f45f3b 100644
+--- a/include/trace/events/tlb.h
++++ b/include/trace/events/tlb.h
+@@ -11,7 +11,8 @@
+ 	EM(  TLB_FLUSH_ON_TASK_SWITCH,	"flush on task switch" )	\
+ 	EM(  TLB_REMOTE_SHOOTDOWN,	"remote shootdown" )		\
+ 	EM(  TLB_LOCAL_SHOOTDOWN,	"local shootdown" )		\
+-	EMe( TLB_LOCAL_MM_SHOOTDOWN,	"local mm shootdown" )
++	EM(  TLB_LOCAL_MM_SHOOTDOWN,	"local mm shootdown" )		\
++	EMe( TLB_REMOTE_SEND_IPI,	"remote ipi send" )
+ 
+ /*
+  * First define the enums in TLB_FLUSH_REASON to be exported to userspace
 -- 
 2.3.5
 
