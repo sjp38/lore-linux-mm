@@ -1,79 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com [209.85.220.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C0406B0082
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 10:29:41 -0400 (EDT)
-Received: by qkhq76 with SMTP id q76so78645742qkh.2
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 07:29:41 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id e145si2651492qhc.95.2015.06.08.07.29.37
-        for <linux-mm@kvack.org>;
-        Mon, 08 Jun 2015 07:29:38 -0700 (PDT)
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: [PATCH v2 4/4] mm: kmemleak: Avoid deadlock on the kmemleak object insertion error path
-Date: Mon,  8 Jun 2015 15:29:18 +0100
-Message-Id: <1433773758-21994-5-git-send-email-catalin.marinas@arm.com>
-In-Reply-To: <1433773758-21994-1-git-send-email-catalin.marinas@arm.com>
-References: <1433773758-21994-1-git-send-email-catalin.marinas@arm.com>
+Received: from mail-yk0-f171.google.com (mail-yk0-f171.google.com [209.85.160.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 655DA6B0032
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 10:54:35 -0400 (EDT)
+Received: by yked142 with SMTP id d142so53095231yke.3
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 07:54:35 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id 17si1267020ykz.152.2015.06.08.07.54.34
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Mon, 08 Jun 2015 07:54:34 -0700 (PDT)
+Date: Mon, 8 Jun 2015 10:54:32 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH -resend] jbd2: revert must-not-fail allocation loops back
+ to GFP_NOFAIL
+Message-ID: <20150608145432.GB19168@thunk.org>
+References: <1433770124-19614-1-git-send-email-mhocko@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1433770124-19614-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, vigneshr@codeaurora.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-ext4@vger.kernel.org, David Rientjes <rientjes@google.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-While very unlikely (usually kmemleak or sl*b bug), the create_object()
-function in mm/kmemleak.c may fail to insert a newly allocated object
-into the rb tree. When this happens, kmemleak disables itself and prints
-additional information about the object already found in the rb tree.
-Such printing is done with the parent->lock acquired, however the
-kmemleak_lock is already held. This is a potential race with the
-scanning thread which acquires object->lock and kmemleak_lock in a
-different order.
+On Mon, Jun 08, 2015 at 03:28:44PM +0200, Michal Hocko wrote:
+> This basically reverts 47def82672b3 (jbd2: Remove __GFP_NOFAIL from jbd2
+> layer). The deprecation of __GFP_NOFAIL was a bad choice because it led
+> to open coding the endless loop around the allocator rather than
+> removing the dependency on the non failing allocation. So the
+> deprecation was a clear failure and the reality tells us that
+> __GFP_NOFAIL is not even close to go away.
+> 
+> It is still true that __GFP_NOFAIL allocations are generally discouraged
+> and new uses should be evaluated and an alternative (pre-allocations or
+> reservations) should be considered but it doesn't make any sense to lie
+> the allocator about the requirements. Allocator can take steps to help
+> making a progress if it knows the requirements.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Acked-by: David Rientjes <rientjes@google.com>
 
-This patch removes the locking around the 'parent' object information
-printing. Such object cannot be freed or removed from object_tree_root
-and object_list since kmemleak_lock is already held. There is a very
-small risk that some of the object data is being modified on another CPU
-but the only downside is inconsistent information printing.
+Applied, thanks.
 
-Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- mm/kmemleak.c | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
-
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 8a57e34625fa..c0fd7769d227 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -53,6 +53,11 @@
-  *   modifications to the memory scanning parameters including the scan_thread
-  *   pointer
-  *
-+ * Locks and mutexes should only be acquired/nested in the following order:
-+ *
-+ *   scan_mutex -> object->lock -> other_object->lock (SINGLE_DEPTH_NESTING)
-+ *				-> kmemleak_lock
-+ *
-  * The kmemleak_object structures have a use_count incremented or decremented
-  * using the get_object()/put_object() functions. When the use_count becomes
-  * 0, this count can no longer be incremented and put_object() schedules the
-@@ -603,11 +608,13 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
- 			kmemleak_stop("Cannot insert 0x%lx into the object "
- 				      "search tree (overlaps existing)\n",
- 				      ptr);
-+			/*
-+			 * No need for parent->lock here since "parent" cannot
-+			 * be freed while the kmemleak_lock is held.
-+			 */
-+			dump_object_info(parent);
- 			kmem_cache_free(object_cache, object);
--			object = parent;
--			spin_lock(&object->lock);
--			dump_object_info(object);
--			spin_unlock(&object->lock);
-+			object = NULL;
- 			goto out;
- 		}
- 	}
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
