@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id EF601900015
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 09:56:54 -0400 (EDT)
-Received: by wibdq8 with SMTP id dq8so86280616wib.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 06:56:54 -0700 (PDT)
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A91E900015
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 09:56:57 -0400 (EDT)
+Received: by wgv5 with SMTP id 5so104172142wgv.1
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 06:56:57 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cw10si5288827wjc.154.2015.06.08.06.56.52
+        by mx.google.com with ESMTPS id bf3si5354134wjb.13.2015.06.08.06.56.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 08 Jun 2015 06:56:52 -0700 (PDT)
+        Mon, 08 Jun 2015 06:56:53 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 08/25] mm, vmscan: By default have direct reclaim only shrink once per node
-Date: Mon,  8 Jun 2015 14:56:14 +0100
-Message-Id: <1433771791-30567-9-git-send-email-mgorman@suse.de>
+Subject: [PATCH 09/25] mm, vmscan: Clear congestion, dirty and need for compaction on a per-node basis
+Date: Mon,  8 Jun 2015 14:56:15 +0100
+Message-Id: <1433771791-30567-10-git-send-email-mgorman@suse.de>
 In-Reply-To: <1433771791-30567-1-git-send-email-mgorman@suse.de>
 References: <1433771791-30567-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,65 +20,133 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Direct reclaim iterates over all zones in the zonelist and shrinking them
-but this is in conflict with node-based reclaim. In the default case,
-only shrink once per node.
+Congested and dirty tracking of a node and whether reclaim should stall
+is still based on zone activity. This patch considers whether the kernel
+should stall based on node-based reclaim activity.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/vmscan.c | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ mm/vmscan.c | 54 ++++++++++++++++++++++++------------------------------
+ 1 file changed, 24 insertions(+), 30 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 4d7ddaf4f2f4..50aa650ac206 100644
+index 50aa650ac206..e069decbcfa1 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2468,14 +2468,6 @@ static inline bool compaction_ready(struct zone *zone, int order)
-  * try to reclaim pages from zones which will satisfy the caller's allocation
-  * request.
-  *
-- * We reclaim from a zone even if that zone is over high_wmark_pages(zone).
-- * Because:
-- * a) The caller may be trying to free *extra* pages to satisfy a higher-order
-- *    allocation or
-- * b) The target zone may be at high_wmark_pages(zone) but the lower zones
-- *    must go *over* high_wmark_pages(zone) to satisfy the `incremental min'
-- *    zone defense algorithm.
-- *
-  * If a zone is deemed to be full of pinned pages then just give it a light
-  * scan then give up on it.
-  *
-@@ -2490,6 +2482,7 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc,
- 	unsigned long nr_soft_scanned;
- 	gfp_t orig_mask;
- 	bool reclaimable = false;
-+	pg_data_t *last_pgdat = NULL;
+@@ -2921,16 +2921,30 @@ static void age_active_anon(struct pglist_data *pgdat,
+ }
  
- 	/*
- 	 * If the number of buffer_heads in the machine exceeds the maximum
-@@ -2502,11 +2495,18 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc,
+ static bool zone_balanced(struct zone *zone, int order,
+-			  unsigned long balance_gap, int classzone_idx)
++			  unsigned long balance_gap, int classzone_idx,
++			  bool *pgdat_needs_compaction)
+ {
+ 	if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone) +
+ 				    balance_gap, classzone_idx, 0))
+ 		return false;
  
- 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
- 					classzone_idx, sc->nodemask) {
--		if (!populated_zone(zone)) {
--			reclaim_idx--;
--			classzone_idx--;
-+		BUG_ON(!populated_zone(zone));
++	/*
++	 * If any eligible zone is balanced then the node is not considered
++	 * to be congested or dirty
++	 */
++	clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
++	clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
 +
-+		/*
-+		 * Shrink each node in the zonelist once. If the zonelist is
-+		 * ordered by zone (not the default) then a node may be
-+		 * shrunk multiple times but in that case the user prefers
-+		 * lower zones being preserved
-+		 */
-+		if (zone->zone_pgdat == last_pgdat)
- 			continue;
--		}
-+		last_pgdat = zone->zone_pgdat;
-+		reclaim_idx = zone_idx(zone);
+ 	if (IS_ENABLED(CONFIG_COMPACTION) && order && compaction_suitable(zone,
+ 				order, 0, classzone_idx) == COMPACT_SKIPPED)
+ 		return false;
+ 
++	/*
++	 * If a zone is balanced and compaction can start then there is no
++	 * need for kswapd to call compact_pgdat
++	 */
++	*pgdat_needs_compaction = false;
++
+ 	return true;
+ }
+ 
+@@ -2944,6 +2958,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+ 					int classzone_idx)
+ {
+ 	int i;
++	bool dummy;
+ 
+ 	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
+ 	if (remaining)
+@@ -2968,7 +2983,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+ 	for (i = 0; i <= classzone_idx; i++) {
+ 		struct zone *zone = pgdat->node_zones + i;
+ 
+-		if (zone_balanced(zone, order, 0, classzone_idx))
++		if (zone_balanced(zone, order, 0, classzone_idx, &dummy))
+ 			return true;
+ 	}
+ 
+@@ -3099,29 +3114,10 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 				break;
+ 			}
+ 
+-			if (!zone_balanced(zone, order, 0, 0)) {
++			if (!zone_balanced(zone, order, 0, 0,
++						&pgdat_needs_compaction)) {
+ 				end_zone = i;
+ 				break;
+-			} else {
+-				/*
+-				 * If any eligible zone is balanced then the
+-				 * node is not considered congested or dirty.
+-				 */
+-				clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
+-				clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
+-
+-				/*
+-				 * If any zone is currently balanced then kswapd will
+-				 * not call compaction as it is expected that the
+-				 * necessary pages are already available.
+-				 */
+-				if (pgdat_needs_compaction &&
+-						zone_watermark_ok(zone, order,
+-							low_wmark_pages(zone),
+-							*classzone_idx, 0)) {
+-					pgdat_needs_compaction = false;
+-				}
+-
+ 			}
+ 		}
+ 
+@@ -3182,12 +3178,9 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 		 */
+ 		for (i = 0; i <= *classzone_idx; i++) {
+ 			zone = pgdat->node_zones + i;
+-
+-			if (zone_balanced(zone, sc.order, 0, *classzone_idx)) {
+-				clear_bit(PGDAT_CONGESTED, &pgdat->flags);
+-				clear_bit(PGDAT_DIRTY, &pgdat->flags);
+-				break;
+-			}
++			if (zone_balanced(zone, sc.order, 0, *classzone_idx,
++						&pgdat_needs_compaction))
++				goto out;
+ 		}
  
  		/*
- 		 * Take care memory controller reclaiming has small influence
+@@ -3379,6 +3372,7 @@ static int kswapd(void *p)
+ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+ {
+ 	pg_data_t *pgdat;
++	bool dummy;
+ 
+ 	if (!populated_zone(zone))
+ 		return;
+@@ -3392,7 +3386,7 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+ 	}
+ 	if (!waitqueue_active(&pgdat->kswapd_wait))
+ 		return;
+-	if (zone_balanced(zone, order, 0, 0))
++	if (zone_balanced(zone, order, 0, 0, &dummy))
+ 		return;
+ 
+ 	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
 -- 
 2.3.5
 
