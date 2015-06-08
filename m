@@ -1,70 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id EE70B6B0032
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 04:17:57 -0400 (EDT)
-Received: by wibut5 with SMTP id ut5so77321380wib.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 01:17:57 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 24C9C6B0032
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 04:21:41 -0400 (EDT)
+Received: by wigg3 with SMTP id g3so43264788wig.1
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 01:21:40 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k8si11763563wiy.12.2015.06.08.01.17.56
+        by mx.google.com with ESMTPS id p19si11772492wiw.26.2015.06.08.01.21.39
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 08 Jun 2015 01:17:56 -0700 (PDT)
-Date: Mon, 8 Jun 2015 10:17:51 +0200
+        Mon, 08 Jun 2015 01:21:39 -0700 (PDT)
+Date: Mon, 8 Jun 2015 10:21:37 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm/mmap.c: optimization of do_mmap_pgoff function
-Message-ID: <20150608081751.GC1380@dhcp22.suse.cz>
-References: <1433584472-19151-1-git-send-email-kwapulinski.piotr@gmail.com>
+Subject: Re: [PATCH] oom: always panic on OOM when panic_on_oom is configured
+Message-ID: <20150608082137.GD1380@dhcp22.suse.cz>
+References: <1433159948-9912-1-git-send-email-mhocko@suse.cz>
+ <alpine.DEB.2.10.1506041607020.16555@chino.kir.corp.google.com>
+ <20150605111302.GB26113@dhcp22.suse.cz>
+ <201506061551.BHH48489.QHFOMtFLSOFOJV@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1433584472-19151-1-git-send-email-kwapulinski.piotr@gmail.com>
+In-Reply-To: <201506061551.BHH48489.QHFOMtFLSOFOJV@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, riel@redhat.com, sasha.levin@oracle.com, dave@stgolabs.net, koct9i@gmail.com, pfeiner@google.com, dh.herrmann@gmail.com, vishnu.ps@samsung.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat 06-06-15 11:54:32, Piotr Kwapulinski wrote:
-> The simple check for zero length memory mapping may be performed
-> earlier. It causes that in case of zero length memory mapping some
-> unnecessary code is not executed at all. It does not make the code less
-> readable and saves some CPU cycles.
+On Sat 06-06-15 15:51:35, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > > > Let's move check_panic_on_oom up before the current task is
+> > > > checked so that the knob value is . Do the same for the memcg in
+> > > > mem_cgroup_out_of_memory.
+> > > > 
+> > > > Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > > > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > > 
+> > > Nack, this is not the appropriate response to exit path livelocks.  By 
+> > > doing this, you are going to start unnecessarily panicking machines that 
+> > > have panic_on_oom set when it would not have triggered before.  If there 
+> > > is no reclaimable memory and a process that has already been signaled to 
+> > > die to is in the process of exiting has to allocate memory, it is 
+> > > perfectly acceptable to give them access to memory reserves so they can 
+> > > allocate and exit.  Under normal circumstances, that allows the process to 
+> > > naturally exit.  With your patch, it will cause the machine to panic.
+> > 
+> > Isn't that what the administrator of the system wants? The system
+> > is _clearly_ out of memory at this point. A coincidental exiting task
+> > doesn't change a lot in that regard. Moreover it increases a risk of
+> > unnecessarily unresponsive system which is what panic_on_oom tries to
+> > prevent from. So from my POV this is a clear violation of the user
+> > policy.
 > 
-> Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+> For me, !__GFP_FS allocations not calling out_of_memory() _forever_ is a
+> violation of the user policy.
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Yes, the current behavior of GFP_NOFS is highly suboptimal, but this has
+_nothing_ what so ever to do with this patch and panic_on_oom handling.
+The former one is the page allocator proper while we are in the OOM
+killer layer here.
 
-> ---
->  mm/mmap.c | 6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index bb50cac..aa632ad 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -1258,6 +1258,9 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
->  
->  	*populate = 0;
->  
-> +	if (!len)
-> +		return -EINVAL;
-> +
->  	/*
->  	 * Does the application expect PROT_READ to imply PROT_EXEC?
->  	 *
-> @@ -1268,9 +1271,6 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
->  		if (!(file && (file->f_path.mnt->mnt_flags & MNT_NOEXEC)))
->  			prot |= PROT_EXEC;
->  
-> -	if (!len)
-> -		return -EINVAL;
-> -
->  	if (!(flags & MAP_FIXED))
->  		addr = round_hint_to_min(addr);
->  
-> -- 
-> 2.3.7
-> 
+This is not the first time you have done that. Please stop it. It makes
+a complete mess of the original discussions.
 
+[...]
 -- 
 Michal Hocko
 SUSE Labs
