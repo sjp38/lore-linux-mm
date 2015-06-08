@@ -1,109 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 995186B0032
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 09:29:05 -0400 (EDT)
-Received: by wiwd19 with SMTP id d19so86398993wiw.0
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 06:29:05 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u15si5108470wjw.211.2015.06.08.06.29.03
+Received: from mail-yk0-f180.google.com (mail-yk0-f180.google.com [209.85.160.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 6552D6B0032
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 09:42:36 -0400 (EDT)
+Received: by yken206 with SMTP id n206so52066913yke.2
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 06:42:36 -0700 (PDT)
+Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
+        by mx.google.com with ESMTPS id l10si1196028ykd.24.2015.06.08.06.42.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 08 Jun 2015 06:29:03 -0700 (PDT)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH -resend] jbd2: revert must-not-fail allocation loops back to GFP_NOFAIL
-Date: Mon,  8 Jun 2015 15:28:44 +0200
-Message-Id: <1433770124-19614-1-git-send-email-mhocko@suse.cz>
+        Mon, 08 Jun 2015 06:42:35 -0700 (PDT)
+Message-ID: <55759BC8.50100@citrix.com>
+Date: Mon, 8 Jun 2015 14:42:32 +0100
+From: David Vrabel <david.vrabel@citrix.com>
+MIME-Version: 1.0
+Subject: Re: [Xen-devel] [Patch V4 00/16] xen: support pv-domains larger than
+ 512GB
+References: <1433765217-16333-1-git-send-email-jgross@suse.com>
+In-Reply-To: <1433765217-16333-1-git-send-email-jgross@suse.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: linux-ext4@vger.kernel.org, David Rientjes <rientjes@google.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Juergen Gross <jgross@suse.com>, xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This basically reverts 47def82672b3 (jbd2: Remove __GFP_NOFAIL from jbd2
-layer). The deprecation of __GFP_NOFAIL was a bad choice because it led
-to open coding the endless loop around the allocator rather than
-removing the dependency on the non failing allocation. So the
-deprecation was a clear failure and the reality tells us that
-__GFP_NOFAIL is not even close to go away.
+On 08/06/15 13:06, Juergen Gross wrote:
+> Support 64 bit pv-domains with more than 512GB of memory.
+> 
+> Tested with 64 bit dom0 on machines with 8GB and 1TB and 32 bit dom0 on a
+> 8GB machine. Conflicts between E820 map and different hypervisor populated
+> memory areas have been tested via a fake E820 map reserved area on the
+> 8GB machine.
 
-It is still true that __GFP_NOFAIL allocations are generally discouraged
-and new uses should be evaluated and an alternative (pre-allocations or
-reservations) should be considered but it doesn't make any sense to lie
-the allocator about the requirements. Allocator can take steps to help
-making a progress if it knows the requirements.
+Do you have a git tree I can pull this from?
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
-Acked-by: David Rientjes <rientjes@google.com>
----
-
-Hi, 
-this has been posted few months ago
-(http://marc.info/?l=linux-mm&m=142530454419654&w=2) but it hasn't
-gone anywhere so I am reposting. I've just rebased it on top of the
-ext4/for-linus tree. It wasn't clear to me which branch should I use so
-I've just picked this one as it was one of the most recently updated.
-
- fs/jbd2/journal.c     | 11 +----------
- fs/jbd2/transaction.c | 20 +++++++-------------
- 2 files changed, 8 insertions(+), 23 deletions(-)
-
-diff --git a/fs/jbd2/journal.c b/fs/jbd2/journal.c
-index b96bd8076b70..0bc333b4a594 100644
---- a/fs/jbd2/journal.c
-+++ b/fs/jbd2/journal.c
-@@ -371,16 +371,7 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
- 	 */
- 	J_ASSERT_BH(bh_in, buffer_jbddirty(bh_in));
- 
--retry_alloc:
--	new_bh = alloc_buffer_head(GFP_NOFS);
--	if (!new_bh) {
--		/*
--		 * Failure is not an option, but __GFP_NOFAIL is going
--		 * away; so we retry ourselves here.
--		 */
--		congestion_wait(BLK_RW_ASYNC, HZ/50);
--		goto retry_alloc;
--	}
-+	new_bh = alloc_buffer_head(GFP_NOFS|__GFP_NOFAIL);
- 
- 	/* keep subsequent assertions sane */
- 	atomic_set(&new_bh->b_count, 1);
-diff --git a/fs/jbd2/transaction.c b/fs/jbd2/transaction.c
-index ff2f2e6ad311..799242cecffb 100644
---- a/fs/jbd2/transaction.c
-+++ b/fs/jbd2/transaction.c
-@@ -278,22 +278,16 @@ static int start_this_handle(journal_t *journal, handle_t *handle,
- 
- alloc_transaction:
- 	if (!journal->j_running_transaction) {
-+		/*
-+		 * If __GFP_FS is not present, then we may be being called from
-+		 * inside the fs writeback layer, so we MUST NOT fail.
-+		 */
-+		if ((gfp_mask & __GFP_FS) == 0)
-+			gfp_mask |= __GFP_NOFAIL;
- 		new_transaction = kmem_cache_zalloc(transaction_cache,
- 						    gfp_mask);
--		if (!new_transaction) {
--			/*
--			 * If __GFP_FS is not present, then we may be
--			 * being called from inside the fs writeback
--			 * layer, so we MUST NOT fail.  Since
--			 * __GFP_NOFAIL is going away, we will arrange
--			 * to retry the allocation ourselves.
--			 */
--			if ((gfp_mask & __GFP_FS) == 0) {
--				congestion_wait(BLK_RW_ASYNC, HZ/50);
--				goto alloc_transaction;
--			}
-+		if (!new_transaction)
- 			return -ENOMEM;
--		}
- 	}
- 
- 	jbd_debug(3, "New handle %p going live.\n", handle);
--- 
-2.1.4
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
