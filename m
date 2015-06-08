@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 60CDC6B0072
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 09:56:48 -0400 (EDT)
-Received: by wibdq8 with SMTP id dq8so86276696wib.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 06:56:48 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 641356B0073
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 09:56:51 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so87440777wig.0
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 06:56:51 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lk1si1335686wic.42.2015.06.08.06.56.46
+        by mx.google.com with ESMTPS id fx12si5266359wjc.192.2015.06.08.06.56.49
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 08 Jun 2015 06:56:47 -0700 (PDT)
+        Mon, 08 Jun 2015 06:56:50 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 05/25] mm, vmscan: Have kswapd only scan based on the highest requested zone
-Date: Mon,  8 Jun 2015 14:56:11 +0100
-Message-Id: <1433771791-30567-6-git-send-email-mgorman@suse.de>
+Subject: [PATCH 06/25] mm, vmscan: Avoid a second search through zones checking if compaction is required
+Date: Mon,  8 Jun 2015 14:56:12 +0100
+Message-Id: <1433771791-30567-7-git-send-email-mgorman@suse.de>
 In-Reply-To: <1433771791-30567-1-git-send-email-mgorman@suse.de>
 References: <1433771791-30567-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,37 +20,61 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-kswapd checks all eligible zones to see if they need balancing even if it was
-woken for a lower zone. This made sense when we reclaimed on a per-zone basis
-because we wanted to shrink zones fairly so avoid age-inversion problems.
-Ideally this is completely unnecessary when reclaiming on a per-node basis.
-In theory, there may still be anomalies when all requests are for lower
-zones and very old pages are preserved in higher zones but this should be
-the exceptional case.
+This patch removes an unnecessary loop.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/vmscan.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ mm/vmscan.c | 31 +++++++++++++------------------
+ 1 file changed, 13 insertions(+), 18 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index acdded211bd8..f0eed2e6883c 100644
+index f0eed2e6883c..975c315f1bf5 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -3142,11 +3142,8 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+@@ -3182,30 +3182,25 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 				 */
+ 				clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
+ 				clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
++
++				/*
++				 * If any zone is currently balanced then kswapd will
++				 * not call compaction as it is expected that the
++				 * necessary pages are already available.
++				 */
++				if (pgdat_needs_compaction &&
++						zone_watermark_ok(zone, order,
++							low_wmark_pages(zone),
++							*classzone_idx, 0)) {
++					pgdat_needs_compaction = false;
++				}
++
+ 			}
+ 		}
  
- 		sc.nr_reclaimed = 0;
+ 		if (i < 0)
+ 			goto out;
  
--		/*
--		 * Scan in the highmem->dma direction for the highest
--		 * zone which needs scanning
--		 */
--		for (i = pgdat->nr_zones - 1; i >= 0; i--) {
-+		/* Scan from the highest requested zone to dma */
-+		for (i = *classzone_idx; i >= 0; i--) {
- 			struct zone *zone = pgdat->node_zones + i;
- 
- 			if (!populated_zone(zone))
+-		for (i = 0; i <= end_zone; i++) {
+-			struct zone *zone = pgdat->node_zones + i;
+-
+-			if (!populated_zone(zone))
+-				continue;
+-
+-			/*
+-			 * If any zone is currently balanced then kswapd will
+-			 * not call compaction as it is expected that the
+-			 * necessary pages are already available.
+-			 */
+-			if (pgdat_needs_compaction &&
+-					zone_watermark_ok(zone, order,
+-						low_wmark_pages(zone),
+-						*classzone_idx, 0))
+-				pgdat_needs_compaction = false;
+-		}
+-
+ 		/*
+ 		 * If we're getting trouble reclaiming, start doing writepage
+ 		 * even in laptop mode.
 -- 
 2.3.5
 
