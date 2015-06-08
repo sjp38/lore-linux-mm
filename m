@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B2196B0081
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 08:07:32 -0400 (EDT)
-Received: by wgme6 with SMTP id e6so101496829wgm.2
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 05:07:31 -0700 (PDT)
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id DD0A86B0032
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 08:13:29 -0400 (EDT)
+Received: by wgbgq6 with SMTP id gq6so101749277wgb.3
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 05:13:29 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id db5si793667wib.63.2015.06.08.05.07.04
+        by mx.google.com with ESMTPS id lp13si793092wic.64.2015.06.08.05.07.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 08 Jun 2015 05:07:04 -0700 (PDT)
+        Mon, 08 Jun 2015 05:07:05 -0700 (PDT)
 From: Juergen Gross <jgross@suse.com>
-Subject: [Patch V4 11/16] xen: check for initrd conflicting with e820 map
-Date: Mon,  8 Jun 2015 14:06:52 +0200
-Message-Id: <1433765217-16333-12-git-send-email-jgross@suse.com>
+Subject: [Patch V4 12/16] mm: provide early_memremap_ro to establish read-only mapping
+Date: Mon,  8 Jun 2015 14:06:53 +0200
+Message-Id: <1433765217-16333-13-git-send-email-jgross@suse.com>
 In-Reply-To: <1433765217-16333-1-git-send-email-jgross@suse.com>
 References: <1433765217-16333-1-git-send-email-jgross@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,85 +20,77 @@ List-ID: <linux-mm.kvack.org>
 To: xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Juergen Gross <jgross@suse.com>
 
-Check whether the initrd is placed at a location which is conflicting
-with the target E820 map. If this is the case relocate it to a new
-area unused up to now and compliant to the E820 map.
+During early boot as Xen pv domain the kernel needs to map some page
+tables supplied by the hypervisor read only. This is needed to be
+able to relocate some data structures conflicting with the physical
+memory map especially on systems with huge RAM (above 512GB).
+
+Provide the function early_memremap_ro() to provide this read only
+mapping.
 
 Signed-off-by: Juergen Gross <jgross@suse.com>
-Reviewed-by: David Vrabel <david.vrabel@citrix.com>
 ---
- arch/x86/xen/setup.c | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 51 insertions(+)
+ include/asm-generic/early_ioremap.h |  2 ++
+ include/asm-generic/fixmap.h        |  3 +++
+ mm/early_ioremap.c                  | 11 +++++++++++
+ 3 files changed, 16 insertions(+)
 
-diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
-index 3fca9c1..0d7f881 100644
---- a/arch/x86/xen/setup.c
-+++ b/arch/x86/xen/setup.c
-@@ -632,6 +632,36 @@ phys_addr_t __init xen_find_free_area(phys_addr_t size)
+diff --git a/include/asm-generic/early_ioremap.h b/include/asm-generic/early_ioremap.h
+index a5de55c..316bd04 100644
+--- a/include/asm-generic/early_ioremap.h
++++ b/include/asm-generic/early_ioremap.h
+@@ -11,6 +11,8 @@ extern void __iomem *early_ioremap(resource_size_t phys_addr,
+ 				   unsigned long size);
+ extern void *early_memremap(resource_size_t phys_addr,
+ 			    unsigned long size);
++extern void *early_memremap_ro(resource_size_t phys_addr,
++			       unsigned long size);
+ extern void early_iounmap(void __iomem *addr, unsigned long size);
+ extern void early_memunmap(void *addr, unsigned long size);
+ 
+diff --git a/include/asm-generic/fixmap.h b/include/asm-generic/fixmap.h
+index f23174f..d8cc637 100644
+--- a/include/asm-generic/fixmap.h
++++ b/include/asm-generic/fixmap.h
+@@ -46,6 +46,9 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
+ #ifndef FIXMAP_PAGE_NORMAL
+ #define FIXMAP_PAGE_NORMAL PAGE_KERNEL
+ #endif
++#ifndef FIXMAP_PAGE_RO
++#define FIXMAP_PAGE_RO PAGE_KERNEL_RO
++#endif
+ #ifndef FIXMAP_PAGE_NOCACHE
+ #define FIXMAP_PAGE_NOCACHE PAGE_KERNEL_NOCACHE
+ #endif
+diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
+index e10ccd2..e4ffaac 100644
+--- a/mm/early_ioremap.c
++++ b/mm/early_ioremap.c
+@@ -217,6 +217,12 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
+ 	return (__force void *)__early_ioremap(phys_addr, size,
+ 					       FIXMAP_PAGE_NORMAL);
  }
- 
- /*
-+ * Like memcpy, but with physical addresses for dest and src.
-+ */
-+static void __init xen_phys_memcpy(phys_addr_t dest, phys_addr_t src,
-+				   phys_addr_t n)
++void __init *
++early_memremap_ro(resource_size_t phys_addr, unsigned long size)
 +{
-+	phys_addr_t dest_off, src_off, dest_len, src_len, len;
-+	void *from, *to;
-+
-+	while (n) {
-+		dest_off = dest & ~PAGE_MASK;
-+		src_off = src & ~PAGE_MASK;
-+		dest_len = n;
-+		if (dest_len > (NR_FIX_BTMAPS << PAGE_SHIFT) - dest_off)
-+			dest_len = (NR_FIX_BTMAPS << PAGE_SHIFT) - dest_off;
-+		src_len = n;
-+		if (src_len > (NR_FIX_BTMAPS << PAGE_SHIFT) - src_off)
-+			src_len = (NR_FIX_BTMAPS << PAGE_SHIFT) - src_off;
-+		len = min(dest_len, src_len);
-+		to = early_memremap(dest - dest_off, dest_len + dest_off);
-+		from = early_memremap(src - src_off, src_len + src_off);
-+		memcpy(to, from, len);
-+		early_memunmap(to, dest_len + dest_off);
-+		early_memunmap(from, src_len + src_off);
-+		n -= len;
-+		dest += len;
-+		src += len;
-+	}
++	return (__force void *)__early_ioremap(phys_addr, size,
++					       FIXMAP_PAGE_RO);
 +}
-+
-+/*
-  * Reserve Xen mfn_list.
-  * See comment above "struct start_info" in <xen/interface/xen.h>
-  * We tried to make the the memblock_reserve more selective so
-@@ -810,6 +840,27 @@ char * __init xen_memory_setup(void)
+ #else /* CONFIG_MMU */
  
- 	xen_reserve_xen_mfnlist();
+ void __init __iomem *
+@@ -231,6 +237,11 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
+ {
+ 	return (void *)phys_addr;
+ }
++void __init *
++early_memremap_ro(resource_size_t phys_addr, unsigned long size)
++{
++	return (void *)phys_addr;
++}
  
-+	/* Check for a conflict of the initrd with the target E820 map. */
-+	if (xen_is_e820_reserved(boot_params.hdr.ramdisk_image,
-+				 boot_params.hdr.ramdisk_size)) {
-+		phys_addr_t new_area, start, size;
-+
-+		new_area = xen_find_free_area(boot_params.hdr.ramdisk_size);
-+		if (!new_area) {
-+			xen_raw_console_write("Can't find new memory area for initrd needed due to E820 map conflict\n");
-+			BUG();
-+		}
-+
-+		start = boot_params.hdr.ramdisk_image;
-+		size = boot_params.hdr.ramdisk_size;
-+		xen_phys_memcpy(new_area, start, size);
-+		pr_info("initrd moved from [mem %#010llx-%#010llx] to [mem %#010llx-%#010llx]\n",
-+			start, start + size, new_area, new_area + size);
-+		memblock_free(start, size);
-+		boot_params.hdr.ramdisk_image = new_area;
-+		boot_params.ext_ramdisk_image = new_area >> 32;
-+	}
-+
- 	/*
- 	 * Set identity map on non-RAM pages and prepare remapping the
- 	 * underlying RAM.
+ void __init early_iounmap(void __iomem *addr, unsigned long size)
+ {
 -- 
 2.1.4
 
