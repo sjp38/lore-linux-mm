@@ -1,71 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 24C9C6B0032
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 04:21:41 -0400 (EDT)
-Received: by wigg3 with SMTP id g3so43264788wig.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 01:21:40 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p19si11772492wiw.26.2015.06.08.01.21.39
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 04A0F6B0032
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 05:01:53 -0400 (EDT)
+Received: by padev16 with SMTP id ev16so35511380pad.0
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 02:01:52 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id ms6si3166505pdb.76.2015.06.08.02.01.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 08 Jun 2015 01:21:39 -0700 (PDT)
-Date: Mon, 8 Jun 2015 10:21:37 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] oom: always panic on OOM when panic_on_oom is configured
-Message-ID: <20150608082137.GD1380@dhcp22.suse.cz>
-References: <1433159948-9912-1-git-send-email-mhocko@suse.cz>
- <alpine.DEB.2.10.1506041607020.16555@chino.kir.corp.google.com>
- <20150605111302.GB26113@dhcp22.suse.cz>
- <201506061551.BHH48489.QHFOMtFLSOFOJV@I-love.SAKURA.ne.jp>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 08 Jun 2015 02:01:52 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm/memory hotplug: print the last vmemmap region at the
+ end of hot add memory
+Date: Mon, 8 Jun 2015 08:52:00 +0000
+Message-ID: <20150608085200.GC4210@hori1.linux.bs1.fc.nec.co.jp>
+References: <1433745881-7179-1-git-send-email-zhugh.fnst@cn.fujitsu.com>
+In-Reply-To: <1433745881-7179-1-git-send-email-zhugh.fnst@cn.fujitsu.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <99F58657E630984C8BA87337A9A1E6C5@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201506061551.BHH48489.QHFOMtFLSOFOJV@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "rientjes@google.com" <rientjes@google.com>, "zhenzhang.zhang@huawei.com" <zhenzhang.zhang@huawei.com>, "wangnan0@huawei.com" <wangnan0@huawei.com>, "fabf@skynet.be" <fabf@skynet.be>
 
-On Sat 06-06-15 15:51:35, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > > > Let's move check_panic_on_oom up before the current task is
-> > > > checked so that the knob value is . Do the same for the memcg in
-> > > > mem_cgroup_out_of_memory.
-> > > > 
-> > > > Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > > > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> > > 
-> > > Nack, this is not the appropriate response to exit path livelocks.  By 
-> > > doing this, you are going to start unnecessarily panicking machines that 
-> > > have panic_on_oom set when it would not have triggered before.  If there 
-> > > is no reclaimable memory and a process that has already been signaled to 
-> > > die to is in the process of exiting has to allocate memory, it is 
-> > > perfectly acceptable to give them access to memory reserves so they can 
-> > > allocate and exit.  Under normal circumstances, that allows the process to 
-> > > naturally exit.  With your patch, it will cause the machine to panic.
-> > 
-> > Isn't that what the administrator of the system wants? The system
-> > is _clearly_ out of memory at this point. A coincidental exiting task
-> > doesn't change a lot in that regard. Moreover it increases a risk of
-> > unnecessarily unresponsive system which is what panic_on_oom tries to
-> > prevent from. So from my POV this is a clear violation of the user
-> > policy.
-> 
-> For me, !__GFP_FS allocations not calling out_of_memory() _forever_ is a
-> violation of the user policy.
+On Mon, Jun 08, 2015 at 02:44:41PM +0800, Zhu Guihua wrote:
+> When hot add two nodes continuously, we found the vmemmap region info is =
+a
+> bit messed. The last region of node 2 is printed when node 3 hot added,
+> like the following:
+> Initmem setup node 2 [mem 0x0000000000000000-0xffffffffffffffff]
+>  On node 2 totalpages: 0
+>  Built 2 zonelists in Node order, mobility grouping on.  Total pages: 160=
+90539
+>  Policy zone: Normal
+>  init_memory_mapping: [mem 0x40000000000-0x407ffffffff]
+>   [mem 0x40000000000-0x407ffffffff] page 1G
+>   [ffffea1000000000-ffffea10001fffff] PMD -> [ffff8a077d800000-ffff8a077d=
+9fffff] on node 2
+>   [ffffea1000200000-ffffea10003fffff] PMD -> [ffff8a077de00000-ffff8a077d=
+ffffff] on node 2
+> ...
+>   [ffffea101f600000-ffffea101f9fffff] PMD -> [ffff8a074ac00000-ffff8a074a=
+ffffff] on node 2
+>   [ffffea101fa00000-ffffea101fdfffff] PMD -> [ffff8a074a800000-ffff8a074a=
+bfffff] on node 2
+> Initmem setup node 3 [mem 0x0000000000000000-0xffffffffffffffff]
+>  On node 3 totalpages: 0
+>  Built 3 zonelists in Node order, mobility grouping on.  Total pages: 160=
+90539
+>  Policy zone: Normal
+>  init_memory_mapping: [mem 0x60000000000-0x607ffffffff]
+>   [mem 0x60000000000-0x607ffffffff] page 1G
+>   [ffffea101fe00000-ffffea101fffffff] PMD -> [ffff8a074a400000-ffff8a074a=
+5fffff] on node 2 <=3D=3D=3D node 2 ???
+>   [ffffea1800000000-ffffea18001fffff] PMD -> [ffff8a074a600000-ffff8a074a=
+7fffff] on node 3
+>   [ffffea1800200000-ffffea18005fffff] PMD -> [ffff8a074a000000-ffff8a074a=
+3fffff] on node 3
+>   [ffffea1800600000-ffffea18009fffff] PMD -> [ffff8a0749c00000-ffff8a0749=
+ffffff] on node 3
+> ...
+>=20
+> The cause is the last region was missed at the and of hot add memory, and
+> p_start, p_end, node_start were not reset, so when hot add memory to a ne=
+w
+> node, it will consider they are not contiguous blocks and print the
+> previous one. So we print the last vmemmap region at the end of hot add
+> memory to avoid the confusion.
+>=20
+> Signed-off-by: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
 
-Yes, the current behavior of GFP_NOFS is highly suboptimal, but this has
-_nothing_ what so ever to do with this patch and panic_on_oom handling.
-The former one is the page allocator proper while we are in the OOM
-killer layer here.
+Looks good to me.
 
-This is not the first time you have done that. Please stop it. It makes
-a complete mess of the original discussions.
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-[...]
--- 
-Michal Hocko
-SUSE Labs
+> ---
+>  mm/memory_hotplug.c | 1 +
+>  1 file changed, 1 insertion(+)
+>=20
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 457bde5..58fb223 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -513,6 +513,7 @@ int __ref __add_pages(int nid, struct zone *zone, uns=
+igned long phys_start_pfn,
+>  			break;
+>  		err =3D 0;
+>  	}
+> +	vmemmap_populate_print_last();
+> =20
+>  	return err;
+>  }
+> --=20
+> 1.9.3
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
