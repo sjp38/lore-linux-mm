@@ -1,101 +1,274 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id B27BF6B0038
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 17:51:00 -0400 (EDT)
-Received: by wibdq8 with SMTP id dq8so3617446wib.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 14:51:00 -0700 (PDT)
-Received: from mail-wi0-x22a.google.com (mail-wi0-x22a.google.com. [2a00:1450:400c:c05::22a])
-        by mx.google.com with ESMTPS id jv5si3863133wid.14.2015.06.08.14.50.58
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 693306B0038
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 18:38:16 -0400 (EDT)
+Received: by payr10 with SMTP id r10so877507pay.1
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 15:38:16 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id qm2si6081193pac.57.2015.06.08.15.38.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jun 2015 14:50:59 -0700 (PDT)
-Received: by wiwd19 with SMTP id d19so615635wiw.0
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 14:50:58 -0700 (PDT)
-Date: Mon, 8 Jun 2015 23:50:54 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
-Message-ID: <20150608215054.GB30566@gmail.com>
+        Mon, 08 Jun 2015 15:38:15 -0700 (PDT)
+Date: Mon, 8 Jun 2015 15:38:13 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/3] mm: Send one IPI per CPU to TLB flush multiple
+ pages that were recently unmapped
+Message-Id: <20150608153813.dbadaceffe316d09ee9f2446@linux-foundation.org>
+In-Reply-To: <1433767854-24408-3-git-send-email-mgorman@suse.de>
 References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
- <20150608174551.GA27558@gmail.com>
- <5575DD33.3000400@intel.com>
- <20150608195237.GA15429@gmail.com>
- <5576042E.9030001@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5576042E.9030001@intel.com>
+	<1433767854-24408-3-git-send-email-mgorman@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
+On Mon,  8 Jun 2015 13:50:53 +0100 Mel Gorman <mgorman@suse.de> wrote:
 
-* Dave Hansen <dave.hansen@intel.com> wrote:
-
-> On 06/08/2015 12:52 PM, Ingo Molnar wrote:
-> > A CR3 driven TLB flush takes less time than a single INVLPG (!):
-> > 
-> >    [    0.389028] x86/fpu: Cost of: __flush_tlb()               fn            :    96 cycles
-> >    [    0.405885] x86/fpu: Cost of: __flush_tlb_one()           fn            :   260 cycles
-> >    [    0.414302] x86/fpu: Cost of: __flush_tlb_range()         fn            :   404 cycles
+> An IPI is sent to flush remote TLBs when a page is unmapped that was
+> recently accessed by other CPUs. There are many circumstances where this
+> happens but the obvious one is kswapd reclaiming pages belonging to a
+> running process as kswapd and the task are likely running on separate CPUs.
 > 
-> How was that measured, btw?  Are these instructions running in a loop?
-
-Yes - see the x86 benchmarking patch in the big FPU submission for an earlier 
-version.
-
-> Does __flush_tlb_one() include the tracepoint?
-
-No tracing overhead.
-
-> (From the commit I referenced) This was (probably) using a different method than 
-> you did, but "FULL" below is __flush_tlb() while "1" is __flush_tlb_one().  The 
-> "cycles" includes some overhead from the tracing:
+> On small machines, this is not a significant problem but as machine
+> gets larger with more cores and more memory, the cost of these IPIs can
+> be high. This patch uses a structure similar in principle to a pagevec
+> to collect a list of PFNs and CPUs that require flushing. It then sends
+> one IPI per CPU that was mapping any of those pages to flush the list of
+> PFNs. A new TLB flush helper is required for this and one is added for
+> x86. Other architectures will need to decide if batching like this is both
+> safe and worth the memory overhead. Specifically the requirement is;
 > 
-> >       FULL:   2.20%   2.20% avg cycles:  2283 cycles/page: xxxx samples: 23960
-> >          1:  56.92%  59.12% avg cycles:  1276 cycles/page: 1276 samples: 620895
+> 	If a clean page is unmapped and not immediately flushed, the
+> 	architecture must guarantee that a write to that page from a CPU
+> 	with a cached TLB entry will trap a page fault.
 > 
-> So it looks like we've got some discrepancy, either from the test methodology or 
-> the CPU.  All of the code and my methodology are in the commit.  Could you share 
-> yours?
-
-Yes, you can reproduce it by applying this patch from the FPU series:
-
-  Subject: [PATCH 207/208] x86/fpu: Add FPU performance measurement subsystem
-
-(you were Cc:-ed to it, so it should be in your inbox.)
-
-I've got a more advanced version meanwhile, will post it in the next couple of 
-days or so.
-
-> > it's true that a full flush has hidden costs not measured above, because it has 
-> > knock-on effects (because it drops non-global TLB entries), but it's not _that_ 
-> > bad due to:
-> > 
-> >   - there almost always being a L1 or L2 cache miss when a TLB miss occurs,
-> >     which latency can be overlaid
-> > 
-> >   - global bit being held for kernel entries
-> > 
-> >   - user-space with high memory pressure trashing through TLBs typically
-> > 
-> > ... and especially with caches and Intel's historically phenomenally low TLB 
-> > refill latency it's difficult to measure the effects of local TLB refills, let 
-> > alone measure it in any macro benchmark.
+> This is essentially what the kernel already depends on but the window is
+> much larger with this patch applied and is worth highlighting.
 > 
-> All that you're saying there is that you need to consider how TLB misses act in 
-> _practice_ and not just measure worst-case or theoretical TLB miss cost.  I 
-> completely agree with that.
+> The impact of this patch depends on the workload as measuring any benefit
+> requires both mapped pages co-located on the LRU and memory pressure. The
+> case with the biggest impact is multiple processes reading mapped pages
+> taken from the vm-scalability test suite. The test case uses NR_CPU readers
+> of mapped files that consume 10*RAM.
+> 
+> vmscale on a 4-node machine with 64G RAM and 48 CPUs
+>            4.1.0-rc6     4.1.0-rc6
+>              vanilla batchunmap-v5
+> User          577.35        618.60
+> System       5927.06       4195.03
+> Elapsed       162.21        121.31
+> 
+> The workload completed 25% faster with 29% less CPU time.
+> 
+> This is showing that the readers completed 25% with 30% less CPU time. From
+> vmstats, it is known that the vanilla kernel was interrupted roughly 900K
+> times per second during the steady phase of the test and the patched kernel
+> was interrupts 180K times per second.
+> 
+> The impact is much lower on a small machine
+> 
+> vmscale on a 1-node machine with 8G RAM and 1 CPU
+>            4.1.0-rc6     4.1.0-rc6
+>              vanilla batchunmap-v5
+> User           59.14         58.86
+> System        109.15         83.78
+> Elapsed        27.32         23.14
+> 
+> It's still a noticeable improvement with vmstat showing interrupts went
+> from roughly 500K per second to 45K per second.
 
-So I'm saying considerably more than that: I consider it likely that a full TLB 
-flush is not nearly as costly as assumed, for the three reasons outlined above.
+Looks nice.
 
-It might even be a performance win in Mel's benchmark - although possibly not 
-measurable within measurement noise levels.
+> The patch will have no impact on workloads with no memory pressure or
+> have relatively few mapped pages.
 
-Thanks,
+What benefit can we expect to see to any real-world userspace?
 
-	Ingo
+> --- a/include/linux/init_task.h
+> +++ b/include/linux/init_task.h
+> @@ -175,6 +175,13 @@ extern struct task_group root_task_group;
+>  # define INIT_NUMA_BALANCING(tsk)
+>  #endif
+>  
+> +#ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
+> +# define INIT_TLBFLUSH_UNMAP_BATCH_CONTROL(tsk)				\
+> +	.tlb_ubc = NULL,
+> +#else
+> +# define INIT_TLBFLUSH_UNMAP_BATCH_CONTROL(tsk)
+> +#endif
+> +
+>  #ifdef CONFIG_KASAN
+>  # define INIT_KASAN(tsk)						\
+>  	.kasan_depth = 1,
+> @@ -257,6 +264,7 @@ extern struct task_group root_task_group;
+>  	INIT_RT_MUTEXES(tsk)						\
+>  	INIT_VTIME(tsk)							\
+>  	INIT_NUMA_BALANCING(tsk)					\
+> +	INIT_TLBFLUSH_UNMAP_BATCH_CONTROL(tsk)				\
+>  	INIT_KASAN(tsk)							\
+>  }
+
+We don't really need any of this - init_task starts up all-zero anyway.
+Maybe it's useful for documentation reasons (dubious), but I bet we've
+already missed fields.
+
+>
+> ...
+>
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1289,6 +1289,16 @@ enum perf_event_task_context {
+>  	perf_nr_task_contexts,
+>  };
+>  
+> +/* Matches SWAP_CLUSTER_MAX but refined to limit header dependencies */
+> +#define BATCH_TLBFLUSH_SIZE 32UL
+> +
+> +/* Track pages that require TLB flushes */
+> +struct tlbflush_unmap_batch {
+> +	struct cpumask cpumask;
+> +	unsigned long nr_pages;
+> +	unsigned long pfns[BATCH_TLBFLUSH_SIZE];
+
+Why are we storing pfn's rather than page*'s?
+
+I'm trying to get my head around what's actually in this structure.
+
+Each thread has one of these, lazily allocated <under circumstances>. 
+The cpumask field contains a mask of all the CPUs which have done
+<something>.  The careful reader will find mm_struct.cpu_vm_mask_var
+and will wonder why it didn't need documenting, sigh.
+
+Wanna fill in the blanks?  As usual, understanding the data structure
+is the key to understanding the design, so it's worth a couple of
+paragraphs.  With this knowledge, the reader may understand why
+try_to_unmap_flush() has preempt_disable() protection but
+set_tlb_ubc_flush_pending() doesn't need it!
+
+> +};
+> +
+>  struct task_struct {
+>  	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
+>  	void *stack;
+>
+> ...
+>
+> @@ -581,6 +583,90 @@ vma_address(struct page *page, struct vm_area_struct *vma)
+>  	return address;
+>  }
+>  
+> +#ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
+> +static void percpu_flush_tlb_batch_pages(void *data)
+> +{
+> +	struct tlbflush_unmap_batch *tlb_ubc = data;
+> +	int i;
+
+Anally speaking, this should be unsigned long (in which case it
+shouldn't be called `i'!).  Or make tlbflush_unmap_batch.nr_pages int. 
+But int is signed, which is silly.  Whatever ;)
+
+
+> +	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
+> +	for (i = 0; i < tlb_ubc->nr_pages; i++)
+> +		flush_local_tlb_addr(tlb_ubc->pfns[i] << PAGE_SHIFT);
+> +}
+> +
+> +/*
+> + * Flush TLB entries for recently unmapped pages from remote CPUs. It is
+> + * important that if a PTE was dirty when it was unmapped that it's flushed
+
+s/important that/important /
+
+> + * before any IO is initiated on the page to prevent lost writes. Similarly,
+> + * it must be flushed before freeing to prevent data leakage.
+> + */
+> +void try_to_unmap_flush(void)
+> +{
+> +	struct tlbflush_unmap_batch *tlb_ubc = current->tlb_ubc;
+> +	int cpu;
+> +
+> +	if (!tlb_ubc || !tlb_ubc->nr_pages)
+> +		return;
+> +
+> +	trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, tlb_ubc->nr_pages);
+> +
+> +	preempt_disable();
+> +	cpu = smp_processor_id();
+
+get_cpu()
+
+> +	if (cpumask_test_cpu(cpu, &tlb_ubc->cpumask))
+> +		percpu_flush_tlb_batch_pages(&tlb_ubc->cpumask);
+> +
+> +	if (cpumask_any_but(&tlb_ubc->cpumask, cpu) < nr_cpu_ids) {
+> +		smp_call_function_many(&tlb_ubc->cpumask,
+> +			percpu_flush_tlb_batch_pages, (void *)tlb_ubc, true);
+> +	}
+> +	cpumask_clear(&tlb_ubc->cpumask);
+> +	tlb_ubc->nr_pages = 0;
+> +	preempt_enable();
+
+put_cpu()
+
+> +}
+>
+> ...
+>
+> +/*
+> + * Returns true if the TLB flush should be deferred to the end of a batch of
+> + * unmap operations to reduce IPIs.
+> + */
+> +static bool should_defer_flush(struct mm_struct *mm, enum ttu_flags flags)
+> +{
+> +	bool should_defer = false;
+> +
+> +	if (!current->tlb_ubc || !(flags & TTU_BATCH_FLUSH))
+> +		return false;
+> +
+> +	/* If remote CPUs need to be flushed then defer batch the flush */
+> +	if (cpumask_any_but(mm_cpumask(mm), get_cpu()) < nr_cpu_ids)
+> +		should_defer = true;
+> +	put_cpu();
+
+What did the get_cpu() protect?
+
+> +	return should_defer;
+> +}
+> +#else
+> +static void set_tlb_ubc_flush_pending(struct mm_struct *mm,
+> +		struct page *page)
+> +{
+> +}
+> +
+>
+> ...
+>
+> +#ifdef CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH
+> +/*
+> + * Allocate the control structure for batch TLB flushing. An allocation
+> + * failure is harmless as the reclaimer will send IPIs where necessary.
+> + */
+> +static void alloc_tlb_ubc(void)
+> +{
+> +	if (!current->tlb_ubc)
+> +		current->tlb_ubc = kzalloc(sizeof(struct tlbflush_unmap_batch),
+> +						GFP_KERNEL | __GFP_NOWARN);
+
+A GFP_KERNEL allocation from deep within page reclaim?  Seems imprudent
+if only from a stack-usage POV.
+
+> +}
+> +#else
+> +static inline void alloc_tlb_ubc(void)
+> +{
+> +}
+> +#endif /* CONFIG_ARCH_SUPPORTS_LOCAL_TLB_PFN_FLUSH */
+>
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
