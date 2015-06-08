@@ -1,54 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EB336B0071
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 11:37:42 -0400 (EDT)
-Received: by wgme6 with SMTP id e6so106550926wgm.2
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 08:37:42 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l9si1904656wiv.44.2015.06.08.08.37.40
+Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CA2A6B0071
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 11:42:57 -0400 (EDT)
+Received: by yhpn97 with SMTP id n97so41644232yhp.0
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 08:42:56 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n63si1353471yka.21.2015.06.08.08.42.56
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 08 Jun 2015 08:37:40 -0700 (PDT)
-Date: Mon, 8 Jun 2015 17:37:40 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -resend] jbd2: revert must-not-fail allocation loops back
- to GFP_NOFAIL
-Message-ID: <20150608153740.GC1390@dhcp22.suse.cz>
-References: <1433770124-19614-1-git-send-email-mhocko@suse.cz>
- <20150608145432.GB19168@thunk.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Jun 2015 08:42:56 -0700 (PDT)
+Message-ID: <5575B7F6.6090000@redhat.com>
+Date: Mon, 08 Jun 2015 11:42:46 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150608145432.GB19168@thunk.org>
+Subject: Re: [PATCH] mm/mmap.c: optimization of do_mmap_pgoff function
+References: <1433584472-19151-1-git-send-email-kwapulinski.piotr@gmail.com>
+In-Reply-To: <1433584472-19151-1-git-send-email-kwapulinski.piotr@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: linux-ext4@vger.kernel.org, David Rientjes <rientjes@google.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>, akpm@linux-foundation.org
+Cc: kirill.shutemov@linux.intel.com, mhocko@suse.cz, sasha.levin@oracle.com, dave@stgolabs.net, koct9i@gmail.com, pfeiner@google.com, dh.herrmann@gmail.com, vishnu.ps@samsung.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 08-06-15 10:54:32, Theodore Ts'o wrote:
-> On Mon, Jun 08, 2015 at 03:28:44PM +0200, Michal Hocko wrote:
-> > This basically reverts 47def82672b3 (jbd2: Remove __GFP_NOFAIL from jbd2
-> > layer). The deprecation of __GFP_NOFAIL was a bad choice because it led
-> > to open coding the endless loop around the allocator rather than
-> > removing the dependency on the non failing allocation. So the
-> > deprecation was a clear failure and the reality tells us that
-> > __GFP_NOFAIL is not even close to go away.
-> > 
-> > It is still true that __GFP_NOFAIL allocations are generally discouraged
-> > and new uses should be evaluated and an alternative (pre-allocations or
-> > reservations) should be considered but it doesn't make any sense to lie
-> > the allocator about the requirements. Allocator can take steps to help
-> > making a progress if it knows the requirements.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> > Acked-by: David Rientjes <rientjes@google.com>
+On 06/06/2015 05:54 AM, Piotr Kwapulinski wrote:
+> The simple check for zero length memory mapping may be performed
+> earlier. It causes that in case of zero length memory mapping some
+> unnecessary code is not executed at all. It does not make the code less
+> readable and saves some CPU cycles.
 > 
-> Applied, thanks.
+> Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
 
-Thanks!
+Acked-by: Rik van Riel <riel@redhat.com>
+
 -- 
-Michal Hocko
-SUSE Labs
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
