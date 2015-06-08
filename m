@@ -1,75 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 0368A6B0032
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 02:45:56 -0400 (EDT)
-Received: by pdbki1 with SMTP id ki1so96707050pdb.1
-        for <linux-mm@kvack.org>; Sun, 07 Jun 2015 23:45:55 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id gg2si2629160pbc.85.2015.06.07.23.45.53
-        for <linux-mm@kvack.org>;
-        Sun, 07 Jun 2015 23:45:54 -0700 (PDT)
-From: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
-Subject: [PATCH] mm/memory hotplug: print the last vmemmap region at the end of hot add memory
-Date: Mon, 8 Jun 2015 14:44:41 +0800
-Message-ID: <1433745881-7179-1-git-send-email-zhugh.fnst@cn.fujitsu.com>
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id EE70B6B0032
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 04:17:57 -0400 (EDT)
+Received: by wibut5 with SMTP id ut5so77321380wib.1
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 01:17:57 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k8si11763563wiy.12.2015.06.08.01.17.56
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 08 Jun 2015 01:17:56 -0700 (PDT)
+Date: Mon, 8 Jun 2015 10:17:51 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm/mmap.c: optimization of do_mmap_pgoff function
+Message-ID: <20150608081751.GC1380@dhcp22.suse.cz>
+References: <1433584472-19151-1-git-send-email-kwapulinski.piotr@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1433584472-19151-1-git-send-email-kwapulinski.piotr@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, n-horiguchi@ah.jp.nec.com, zhenzhang.zhang@huawei.com, wangnan0@huawei.com, fabf@skynet.be, Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+To: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, riel@redhat.com, sasha.levin@oracle.com, dave@stgolabs.net, koct9i@gmail.com, pfeiner@google.com, dh.herrmann@gmail.com, vishnu.ps@samsung.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-When hot add two nodes continuously, we found the vmemmap region info is a
-bit messed. The last region of node 2 is printed when node 3 hot added,
-like the following:
-Initmem setup node 2 [mem 0x0000000000000000-0xffffffffffffffff]
- On node 2 totalpages: 0
- Built 2 zonelists in Node order, mobility grouping on.  Total pages: 16090539
- Policy zone: Normal
- init_memory_mapping: [mem 0x40000000000-0x407ffffffff]
-  [mem 0x40000000000-0x407ffffffff] page 1G
-  [ffffea1000000000-ffffea10001fffff] PMD -> [ffff8a077d800000-ffff8a077d9fffff] on node 2
-  [ffffea1000200000-ffffea10003fffff] PMD -> [ffff8a077de00000-ffff8a077dffffff] on node 2
-...
-  [ffffea101f600000-ffffea101f9fffff] PMD -> [ffff8a074ac00000-ffff8a074affffff] on node 2
-  [ffffea101fa00000-ffffea101fdfffff] PMD -> [ffff8a074a800000-ffff8a074abfffff] on node 2
-Initmem setup node 3 [mem 0x0000000000000000-0xffffffffffffffff]
- On node 3 totalpages: 0
- Built 3 zonelists in Node order, mobility grouping on.  Total pages: 16090539
- Policy zone: Normal
- init_memory_mapping: [mem 0x60000000000-0x607ffffffff]
-  [mem 0x60000000000-0x607ffffffff] page 1G
-  [ffffea101fe00000-ffffea101fffffff] PMD -> [ffff8a074a400000-ffff8a074a5fffff] on node 2 <=== node 2 ???
-  [ffffea1800000000-ffffea18001fffff] PMD -> [ffff8a074a600000-ffff8a074a7fffff] on node 3
-  [ffffea1800200000-ffffea18005fffff] PMD -> [ffff8a074a000000-ffff8a074a3fffff] on node 3
-  [ffffea1800600000-ffffea18009fffff] PMD -> [ffff8a0749c00000-ffff8a0749ffffff] on node 3
-...
+On Sat 06-06-15 11:54:32, Piotr Kwapulinski wrote:
+> The simple check for zero length memory mapping may be performed
+> earlier. It causes that in case of zero length memory mapping some
+> unnecessary code is not executed at all. It does not make the code less
+> readable and saves some CPU cycles.
+> 
+> Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
 
-The cause is the last region was missed at the and of hot add memory, and
-p_start, p_end, node_start were not reset, so when hot add memory to a new
-node, it will consider they are not contiguous blocks and print the
-previous one. So we print the last vmemmap region at the end of hot add
-memory to avoid the confusion.
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Signed-off-by: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
----
- mm/memory_hotplug.c | 1 +
- 1 file changed, 1 insertion(+)
+> ---
+>  mm/mmap.c | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index bb50cac..aa632ad 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1258,6 +1258,9 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+>  
+>  	*populate = 0;
+>  
+> +	if (!len)
+> +		return -EINVAL;
+> +
+>  	/*
+>  	 * Does the application expect PROT_READ to imply PROT_EXEC?
+>  	 *
+> @@ -1268,9 +1271,6 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+>  		if (!(file && (file->f_path.mnt->mnt_flags & MNT_NOEXEC)))
+>  			prot |= PROT_EXEC;
+>  
+> -	if (!len)
+> -		return -EINVAL;
+> -
+>  	if (!(flags & MAP_FIXED))
+>  		addr = round_hint_to_min(addr);
+>  
+> -- 
+> 2.3.7
+> 
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 457bde5..58fb223 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -513,6 +513,7 @@ int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
- 			break;
- 		err = 0;
- 	}
-+	vmemmap_populate_print_last();
- 
- 	return err;
- }
 -- 
-1.9.3
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
