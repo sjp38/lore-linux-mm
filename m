@@ -1,75 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A76D6B0071
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 11:10:31 -0400 (EDT)
-Received: by pdjn11 with SMTP id n11so68981347pdj.0
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 08:10:31 -0700 (PDT)
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com. [209.85.192.170])
-        by mx.google.com with ESMTPS id k4si4480324pbq.230.2015.06.08.08.10.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jun 2015 08:10:29 -0700 (PDT)
-Received: by pdjm12 with SMTP id m12so106676214pdj.3
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 08:10:29 -0700 (PDT)
-Message-ID: <5575B061.6060603@kernel.dk>
-Date: Mon, 08 Jun 2015 09:10:25 -0600
-From: Jens Axboe <axboe@kernel.dk>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BC9E6B0071
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 11:14:29 -0400 (EDT)
+Received: by payr10 with SMTP id r10so99939539pay.1
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 08:14:29 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id gf9si4503302pbc.213.2015.06.08.08.14.28
+        for <linux-mm@kvack.org>;
+        Mon, 08 Jun 2015 08:14:28 -0700 (PDT)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [RFC PATCH 01/12] mm: add a new config to manage the code
+Date: Mon, 8 Jun 2015 15:14:27 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F32A8E39B@ORSMSX114.amr.corp.intel.com>
+References: <55704A7E.5030507@huawei.com> <55704B0C.1000308@huawei.com>
+ <CALq1K=J7BuqMDkPrjioRVyRedHLhmM-gg8MOb9GSBcrmNah23g@mail.gmail.com>
+In-Reply-To: <CALq1K=J7BuqMDkPrjioRVyRedHLhmM-gg8MOb9GSBcrmNah23g@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Subject: Re: [PATCH block/for-4.2-writeback] v9fs: fix error handling in v9fs_session_init()
-References: <1432329245-5844-1-git-send-email-tj@kernel.org> <1432329245-5844-17-git-send-email-tj@kernel.org> <55739536.5040509@oracle.com> <20150608055731.GD21465@mtj.duckdns.org>
-In-Reply-To: <20150608055731.GD21465@mtj.duckdns.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, v9fs-developer@lists.sourceforge.net
-Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
+To: Leon Romanovsky <leon@leon.nu>, Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "nao.horiguchi@gmail.com" <nao.horiguchi@gmail.com>, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 06/07/2015 11:57 PM, Tejun Heo wrote:
-> On failure, v9fs_session_init() returns with the v9fs_session_info
-> struct partially initialized and expects the caller to invoke
-> v9fs_session_close() to clean it up; however, it doesn't track whether
-> the bdi is initialized or not and curiously invokes bdi_destroy() in
-> both vfs_session_init() failure path too.
->
-> A. If v9fs_session_init() fails before the bdi is initialized, the
->     follow-up v9fs_session_close() will invoke bdi_destroy() on an
->     uninitialized bdi.
->
-> B. If v9fs_session_init() fails after the bdi is initialized,
->     bdi_destroy() will be called twice on the same bdi - once in the
->     failure path of v9fs_session_init() and then by
->     v9fs_session_close().
->
-> A is broken no matter what.  B used to be okay because bdi_destroy()
-> allowed being invoked multiple times on the same bdi, which BTW was
-> broken in its own way - if bdi_destroy() was invoked on an initialiezd
-> but !registered bdi, it'd fail to free percpu counters.  Since
-> f0054bb1e1f3 ("writeback: move backing_dev_info->wb_lock and
-> ->worklist into bdi_writeback"), this no longer work - bdi_destroy()
-> on an initialized but not registered bdi works correctly but multiple
-> invocations of bdi_destroy() is no longer allowed.
->
-> The obvious culprit here is v9fs_session_init()'s odd and broken error
-> behavior.  It should simply clean up after itself on failures.  This
-> patch makes the following updates to v9fs_session_init().
->
-> * @rc -> @retval error return propagation removed.  It didn't serve
->    any purpose.  Just use @rc.
->
-> * Move addition to v9fs_sessionlist to the end of the function so that
->    incomplete sessions are not put on the list or iterated and error
->    path doesn't have to worry about it.
->
-> * Update error handling so that it cleans up after itself.
->
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> Reported-by: Sasha Levin <sasha.levin@oracle.com>
-
-Added to for-4.2/writeback, thanks.
-
--- 
-Jens Axboe
+PiA+ICtjb25maWcgTUVNT1JZX01JUlJPUg0KPiA+ICsgICAgICAgYm9vbCAiQWRkcmVzcyByYW5n
+ZSBtaXJyb3Jpbmcgc3VwcG9ydCINCj4gPiArICAgICAgIGRlcGVuZHMgb24gWDg2ICYmIE5VTUEN
+Cj4gPiArICAgICAgIGRlZmF1bHQgeQ0KPiBJcyBpdCBjb3JyZWN0IGZvciB0aGUgc3lzdGVtcyAo
+Tk9UIHhlb24pIHdpdGhvdXQgbWVtb3J5IHN1cHBvcnQgYnVpbHQgaW4/DQoNCklzIHRoZSAiJiYg
+TlVNQSIgZG9pbmcgdGhhdD8gIElmIHlvdSBzdXBwb3J0IE5VTUEsIHRoZW4geW91IGFyZSBub3Qg
+YSBtaW5pbWFsDQpjb25maWcgZm9yIGEgdGFibGV0IG9yIGxhcHRvcC4NCg0KSWYgeW91IHdhbnQg
+YSBzeW1ib2wgdGhhdCBoYXMgYSBzdHJvbmdlciBjb3JyZWxhdGlvbiB0byBoaWdoIGVuZCBYZW9u
+IGZlYXR1cmVzDQp0aGVuIHBlcmhhcHMgTUVNT1JZX0ZBSUxVUkU/DQoNCi1Ub255DQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
