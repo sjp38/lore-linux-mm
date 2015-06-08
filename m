@@ -1,125 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 797226B0038
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 17:32:22 -0400 (EDT)
-Received: by wibdq8 with SMTP id dq8so3229240wib.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 14:32:22 -0700 (PDT)
-Received: from mail-wg0-x22a.google.com (mail-wg0-x22a.google.com. [2a00:1450:400c:c00::22a])
-        by mx.google.com with ESMTPS id db5si3763600wib.63.2015.06.08.14.32.20
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id B27BF6B0038
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 17:51:00 -0400 (EDT)
+Received: by wibdq8 with SMTP id dq8so3617446wib.1
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 14:51:00 -0700 (PDT)
+Received: from mail-wi0-x22a.google.com (mail-wi0-x22a.google.com. [2a00:1450:400c:c05::22a])
+        by mx.google.com with ESMTPS id jv5si3863133wid.14.2015.06.08.14.50.58
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jun 2015 14:32:21 -0700 (PDT)
-Received: by wgbgq6 with SMTP id gq6so113298304wgb.3
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 14:32:20 -0700 (PDT)
-Date: Mon, 8 Jun 2015 23:32:18 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] oom: always panic on OOM when panic_on_oom is configured
-Message-ID: <20150608213218.GB18360@dhcp22.suse.cz>
-References: <1433159948-9912-1-git-send-email-mhocko@suse.cz>
- <alpine.DEB.2.10.1506041607020.16555@chino.kir.corp.google.com>
- <20150605111302.GB26113@dhcp22.suse.cz>
- <alpine.DEB.2.10.1506081242250.13272@chino.kir.corp.google.com>
+        Mon, 08 Jun 2015 14:50:59 -0700 (PDT)
+Received: by wiwd19 with SMTP id d19so615635wiw.0
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 14:50:58 -0700 (PDT)
+Date: Mon, 8 Jun 2015 23:50:54 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
+Message-ID: <20150608215054.GB30566@gmail.com>
+References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
+ <20150608174551.GA27558@gmail.com>
+ <5575DD33.3000400@intel.com>
+ <20150608195237.GA15429@gmail.com>
+ <5576042E.9030001@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1506081242250.13272@chino.kir.corp.google.com>
+In-Reply-To: <5576042E.9030001@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-On Mon 08-06-15 12:51:53, David Rientjes wrote:
-> On Fri, 5 Jun 2015, Michal Hocko wrote:
-> 
-> > > Nack, this is not the appropriate response to exit path livelocks.  By 
-> > > doing this, you are going to start unnecessarily panicking machines that 
-> > > have panic_on_oom set when it would not have triggered before.  If there 
-> > > is no reclaimable memory and a process that has already been signaled to 
-> > > die to is in the process of exiting has to allocate memory, it is 
-> > > perfectly acceptable to give them access to memory reserves so they can 
-> > > allocate and exit.  Under normal circumstances, that allows the process to 
-> > > naturally exit.  With your patch, it will cause the machine to panic.
+
+* Dave Hansen <dave.hansen@intel.com> wrote:
+
+> On 06/08/2015 12:52 PM, Ingo Molnar wrote:
+> > A CR3 driven TLB flush takes less time than a single INVLPG (!):
 > > 
-> > Isn't that what the administrator of the system wants? The system
-> > is _clearly_ out of memory at this point. A coincidental exiting task
-> > doesn't change a lot in that regard. Moreover it increases a risk of
-> > unnecessarily unresponsive system which is what panic_on_oom tries to
-> > prevent from. So from my POV this is a clear violation of the user
-> > policy.
+> >    [    0.389028] x86/fpu: Cost of: __flush_tlb()               fn            :    96 cycles
+> >    [    0.405885] x86/fpu: Cost of: __flush_tlb_one()           fn            :   260 cycles
+> >    [    0.414302] x86/fpu: Cost of: __flush_tlb_range()         fn            :   404 cycles
+> 
+> How was that measured, btw?  Are these instructions running in a loop?
+
+Yes - see the x86 benchmarking patch in the big FPU submission for an earlier 
+version.
+
+> Does __flush_tlb_one() include the tracepoint?
+
+No tracing overhead.
+
+> (From the commit I referenced) This was (probably) using a different method than 
+> you did, but "FULL" below is __flush_tlb() while "1" is __flush_tlb_one().  The 
+> "cycles" includes some overhead from the tracing:
+> 
+> >       FULL:   2.20%   2.20% avg cycles:  2283 cycles/page: xxxx samples: 23960
+> >          1:  56.92%  59.12% avg cycles:  1276 cycles/page: 1276 samples: 620895
+> 
+> So it looks like we've got some discrepancy, either from the test methodology or 
+> the CPU.  All of the code and my methodology are in the commit.  Could you share 
+> yours?
+
+Yes, you can reproduce it by applying this patch from the FPU series:
+
+  Subject: [PATCH 207/208] x86/fpu: Add FPU performance measurement subsystem
+
+(you were Cc:-ed to it, so it should be in your inbox.)
+
+I've got a more advanced version meanwhile, will post it in the next couple of 
+days or so.
+
+> > it's true that a full flush has hidden costs not measured above, because it has 
+> > knock-on effects (because it drops non-global TLB entries), but it's not _that_ 
+> > bad due to:
 > > 
+> >   - there almost always being a L1 or L2 cache miss when a TLB miss occurs,
+> >     which latency can be overlaid
+> > 
+> >   - global bit being held for kernel entries
+> > 
+> >   - user-space with high memory pressure trashing through TLBs typically
+> > 
+> > ... and especially with caches and Intel's historically phenomenally low TLB 
+> > refill latency it's difficult to measure the effects of local TLB refills, let 
+> > alone measure it in any macro benchmark.
 > 
-> We rely on the functionality that this patch is short cutting because we 
-> rely on userspace to trigger oom kills.  For system oom conditions, we 
-> must then rely on the kernel oom killer to set TIF_MEMDIE since userspace 
-> cannot grant it itself.  (I think the memcg case is very similar in that 
-> this patch is short cutting it, but I'm more concerned for the system oom 
-> in this case because it's a show stopper for us.)
+> All that you're saying there is that you need to consider how TLB misses act in 
+> _practice_ and not just measure worst-case or theoretical TLB miss cost.  I 
+> completely agree with that.
 
-Do you actually have panic_on_oops enabled?
+So I'm saying considerably more than that: I consider it likely that a full TLB 
+flush is not nearly as costly as assumed, for the three reasons outlined above.
 
-> We want to send the SIGKILL, which will interrupt things like 
+It might even be a performance win in Mel's benchmark - although possibly not 
+measurable within measurement noise levels.
 
-But this patch only changes the ordering of panic_on_oops vs.
-fatal_signal_pending(current) shortcut. So it can possible affect the
-case when the current is exiting during OOM. Is this the case that you
-are worried about?
+Thanks,
 
-> get_user_pages() which we find is our culprit most of the time.  When the 
-> process enters the exit path, it must allocate other memory (slab, 
-> coredumping and the very problematic proc_exit_connector()) to free 
-> memory.  This patch would cause the machine to panic rather than utilizing 
-> memory reserves so that it can exit, not as a result of a kernel oom kill 
-> but rather a userspace kill.
-> 
-> Panic_on_oom is to suppress the kernel oom killer.  It's not a sysctl that 
-> triggers whenever watermarks are hit and it doesn't suppress memory 
-> reserves from being used for things like GFP_ATOMIC.  Setting TIF_MEMDIE 
-> for an exiting process is another type of memory reserves and is 
-> imperative that we have it to make forward progress. 
-
-is your assumption about exiting process actually true? I mean there is
-no _guarantee_ the process will manage to die with the available memory
-reserves. Dependency blocking the task is another reason why we should
-be careful about relying on TIF_MEMDIE.
-
-> Panic_on_oom should 
-> only trigger when the kernel can't make forward progress without killing 
-> something (not true in this case).  I believe that's how the documentation 
-> has always been interpreted and the tunable used in the wild.
-
-The documentation clearly states:
-"
-If this is set to 1, the kernel panics when out-of-memory happens.
-However, if a process limits using nodes by mempolicy/cpusets,
-and those nodes become memory exhaustion status, one process
-may be killed by oom-killer. No panic occurs in this case.
-Because other nodes' memory may be free. This means system total status
-may be not fatal yet.
-
-If this is set to 2, the kernel panics compulsorily even on the
-above-mentioned. Even oom happens under memory cgroup, the whole
-system panics.
-
-The default value is 0.
-1 and 2 are for failover of clustering. Please select either
-according to your policy of failover.
-"
-
-So I read this as a reliability feature to handle oom situation as soon
-as possible.
-
-> 
-> It would be interesting to consider your other patch that refactors the 
-> sysrq+f tunable.  I think we should make that never trigger panic_on_oom 
-> (the sysadmin can use other sysrqs for that) and allow userspace to use 
-> sysrq+f as a trigger when it is responsive to handle oom conditions.
-> 
-> But this patch itself can't possibly be merged.
-
-
--- 
-Michal Hocko
-SUSE Labs
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
