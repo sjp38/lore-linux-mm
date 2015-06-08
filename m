@@ -1,72 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C5176B0038
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 19:06:10 -0400 (EDT)
-Received: by igbzc4 with SMTP id zc4so135496igb.0
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 16:06:09 -0700 (PDT)
-Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com. [2607:f8b0:4001:c05::22b])
-        by mx.google.com with ESMTPS id hx4si1571804igb.43.2015.06.08.16.06.09
+Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 6680D6B0038
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 19:20:24 -0400 (EDT)
+Received: by ieclw1 with SMTP id lw1so3675450iec.3
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 16:20:24 -0700 (PDT)
+Received: from mail-ie0-x22f.google.com (mail-ie0-x22f.google.com. [2607:f8b0:4001:c03::22f])
+        by mx.google.com with ESMTPS id g76si3172959ioj.58.2015.06.08.16.20.23
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jun 2015 16:06:09 -0700 (PDT)
-Received: by igbpi8 with SMTP id pi8so111068igb.1
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 16:06:09 -0700 (PDT)
-Date: Mon, 8 Jun 2015 16:06:07 -0700 (PDT)
+        Mon, 08 Jun 2015 16:20:23 -0700 (PDT)
+Received: by iebmu5 with SMTP id mu5so3727370ieb.1
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 16:20:23 -0700 (PDT)
+Date: Mon, 8 Jun 2015 16:20:21 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] oom: split out forced OOM killer
-In-Reply-To: <20150608210621.GA18360@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1506081558270.17040@chino.kir.corp.google.com>
-References: <1433235187-32673-1-git-send-email-mhocko@suse.cz> <alpine.DEB.2.10.1506041557070.16555@chino.kir.corp.google.com> <557187F9.8020301@gmail.com> <alpine.DEB.2.10.1506081059200.10521@chino.kir.corp.google.com> <5575E5E6.20908@gmail.com>
- <alpine.DEB.2.10.1506081237350.13272@chino.kir.corp.google.com> <20150608210621.GA18360@dhcp22.suse.cz>
+Subject: Re: [PATCH] oom: always panic on OOM when panic_on_oom is
+ configured
+In-Reply-To: <20150608213218.GB18360@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1506081606500.17040@chino.kir.corp.google.com>
+References: <1433159948-9912-1-git-send-email-mhocko@suse.cz> <alpine.DEB.2.10.1506041607020.16555@chino.kir.corp.google.com> <20150605111302.GB26113@dhcp22.suse.cz> <alpine.DEB.2.10.1506081242250.13272@chino.kir.corp.google.com>
+ <20150608213218.GB18360@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Austin S Hemmelgarn <ahferroin7@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
 On Mon, 8 Jun 2015, Michal Hocko wrote:
 
-> > This patch is not a functional change, so I don't interpret your feedback 
-> > as any support of it being merged.
+> On Mon 08-06-15 12:51:53, David Rientjes wrote:
+> > On Fri, 5 Jun 2015, Michal Hocko wrote:
+> > 
+> > > > Nack, this is not the appropriate response to exit path livelocks.  By 
+> > > > doing this, you are going to start unnecessarily panicking machines that 
+> > > > have panic_on_oom set when it would not have triggered before.  If there 
+> > > > is no reclaimable memory and a process that has already been signaled to 
+> > > > die to is in the process of exiting has to allocate memory, it is 
+> > > > perfectly acceptable to give them access to memory reserves so they can 
+> > > > allocate and exit.  Under normal circumstances, that allows the process to 
+> > > > naturally exit.  With your patch, it will cause the machine to panic.
+> > > 
+> > > Isn't that what the administrator of the system wants? The system
+> > > is _clearly_ out of memory at this point. A coincidental exiting task
+> > > doesn't change a lot in that regard. Moreover it increases a risk of
+> > > unnecessarily unresponsive system which is what panic_on_oom tries to
+> > > prevent from. So from my POV this is a clear violation of the user
+> > > policy.
+> > > 
+> > 
+> > We rely on the functionality that this patch is short cutting because we 
+> > rely on userspace to trigger oom kills.  For system oom conditions, we 
+> > must then rely on the kernel oom killer to set TIF_MEMDIE since userspace 
+> > cannot grant it itself.  (I think the memcg case is very similar in that 
+> > this patch is short cutting it, but I'm more concerned for the system oom 
+> > in this case because it's a show stopper for us.)
 > 
-> David, have you actually read the patch? The changelog is mentioning this:
+> Do you actually have panic_on_oops enabled?
+> 
+
+CONFIG_PANIC_ON_OOPS_VALUE should be 0, I'm not sure why that's relevant.
+
+The functionality I'm referring to is that your patch now panics the 
+machine for configs where /proc/sys/vm/panic_on_oom is set and the same 
+scenario occurs as described above.  You're introducing userspace breakage 
+because you are using panic_on_oom in a way that it hasn't been used in 
+the past and isn't described as working in the documentation.
+
+> > We want to send the SIGKILL, which will interrupt things like 
+> 
+> But this patch only changes the ordering of panic_on_oops vs.
+> fatal_signal_pending(current) shortcut. So it can possible affect the
+> case when the current is exiting during OOM. Is this the case that you
+> are worried about?
+> 
+
+Yes, of course, the case specifically when the killed process is in the 
+exit path due to a userspace oom kill and needs access to memory reserves 
+to exit.  That's needed because the machine is oom (typically the only 
+time a non-buggy userspace oom handler would kill a process).
+
+This:
+
+	check_panic_on_oom(constraint, gfp_mask, order, mpol_mask, NULL);
+	...
+	if (current->mm &&
+	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
+		mark_oom_victim(current);
+		goto out;
+	}
+
+is obviously buggy in that regard.  We need to be able to give a killed 
+process or an exiting process memory reserves so it may (1) allocate prior 
+to handling the signal and (2) be assured of exiting once it is in the 
+exit path.
+
+> The documentation clearly states:
 > "
->     check_panic_on_oom on the other hand will work and that is kind of
->     unexpected because sysrq+f should be usable to kill a mem hog whether
->     the global OOM policy is to panic or not.
->     It also doesn't make much sense to panic the system when no task cannot
->     be killed because admin has a separate sysrq for that purpose.
+> If this is set to 1, the kernel panics when out-of-memory happens.
+> However, if a process limits using nodes by mempolicy/cpusets,
+> and those nodes become memory exhaustion status, one process
+> may be killed by oom-killer. No panic occurs in this case.
+> Because other nodes' memory may be free. This means system total status
+> may be not fatal yet.
+> 
+> If this is set to 2, the kernel panics compulsorily even on the
+> above-mentioned. Even oom happens under memory cgroup, the whole
+> system panics.
+> 
+> The default value is 0.
+> 1 and 2 are for failover of clustering. Please select either
+> according to your policy of failover.
 > "
-> and the patch exludes panic_on_oom from the sysrq path.
+> 
+> So I read this as a reliability feature to handle oom situation as soon
+> as possible.
 > 
 
-Yes, and that's why I believe we should pursue that direction without the 
-associated "cleanup" that adds 35 lines of code to supress a panic.  In 
-other words, there's no reason to combine a patch that suppresses the 
-panic even with panic_on_oom, which I support, and a "cleanup" that I 
-believe just obfuscates the code.
+A userspace process that is killed by userspace that simply needs memory 
+to handle the signal and exit is not oom.  We have always allowed current 
+to have access to memory reserves to exit without triggering panic_on_oom.  
+This is nothing new, and is not implied by the documentation to be the 
+case.
 
-It's a one-liner change: just test for force_kill and suppress the panic; 
-we don't need 35 new lines that create even more unique entry paths.
-
-> > That said, you raise an interesting point of whether sysrq+f should ever 
-> > trigger a panic due to panic_on_oom.  The case can be made that it should 
-> > ignore panic_on_oom and require the use of another sysrq to panic the 
-> > machine instead.  Sysrq+f could then be used to oom kill a process, 
-> > regardless of panic_on_oom, and the panic only occurs if userspace did not 
-> > trigger the kill or the kill itself will fail.
-> 
-> Why would it panic the system if there is no killable task? Shoudln't
-> be admin able to do additional steps after the explicit oom killer failed
-> and only then panic by sysrq?
-> 
-
-Today it panics, I don't think it should panic when there are no killable 
-processes because it's inherently racy with userspace.  It's similar to 
-suppressing panic_on_oom for sysrq+f, but for a different reason, so it 
-should probably be a separate patch with its own changelog (and update to 
-documentation for both patches to make this explicit).
+I'm not going to spend all day trying to convince you that you cannot 
+change the semantics of sysctls that have existed for years with new 
+behavior especially when users require that behavior to handle userspace 
+kills while still keeping their machines running.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
