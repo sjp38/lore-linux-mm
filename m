@@ -1,91 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id C096E6B0032
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 08:36:11 -0400 (EDT)
-Received: by pdbnf5 with SMTP id nf5so14319445pdb.2
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 05:36:11 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id h13si8812941pdk.53.2015.06.09.05.36.10
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B00EB6B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 08:43:35 -0400 (EDT)
+Received: by wiwd19 with SMTP id d19so16898196wiw.0
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 05:43:35 -0700 (PDT)
+Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
+        by mx.google.com with ESMTPS id bb4si2920736wib.124.2015.06.09.05.43.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 09 Jun 2015 05:36:10 -0700 (PDT)
-Subject: Re: oom: How to handle !__GFP_FS exception?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1433159948-9912-1-git-send-email-mhocko@suse.cz>
-	<alpine.DEB.2.10.1506041607020.16555@chino.kir.corp.google.com>
-	<20150605111302.GB26113@dhcp22.suse.cz>
-	<201506061551.BHH48489.QHFOMtFLSOFOJV@I-love.SAKURA.ne.jp>
-	<alpine.DEB.2.10.1506081252050.13272@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1506081252050.13272@chino.kir.corp.google.com>
-Message-Id: <201506092048.BII73411.MOVLQOHJFFFSOt@I-love.SAKURA.ne.jp>
-Date: Tue, 9 Jun 2015 20:48:30 +0900
-Mime-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Jun 2015 05:43:34 -0700 (PDT)
+Received: by wibut5 with SMTP id ut5so16825295wib.1
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 05:43:33 -0700 (PDT)
+Date: Tue, 9 Jun 2015 14:43:28 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
+Message-ID: <20150609124328.GA23066@gmail.com>
+References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
+ <20150608174551.GA27558@gmail.com>
+ <20150609084739.GQ26425@suse.de>
+ <20150609103231.GA11026@gmail.com>
+ <20150609112055.GS26425@suse.de>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150609112055.GS26425@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: mhocko@suse.cz, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-David Rientjes wrote:
-> On Sat, 6 Jun 2015, Tetsuo Handa wrote:
-> 
-> > For me, !__GFP_FS allocations not calling out_of_memory() _forever_ is a
-> > violation of the user policy.
-> > 
-> 
-> I agree that we need work in this area to prevent livelocks that rely on 
-> the contexts of other allocators to make forward progress, but let's be 
-> clear that panicking the system is not the appropriate response.  It's 
-> nice and convenient to say we should repurpose panic_on_oom to solve 
-> livelocks because it triggers a fast reboot in your configuration, but we, 
-> and certainly others, can't tolerate reboots when the kernel just gives up 
-> and the majority of the time these situations do resolve themselves.
-> 
-> I think the appropriate place to be attacking this problem is in the page 
-> allocator, which is responsible for the page allocations in the context of 
-> the gfp flags given to it, and not the oom killer.  The oom killer is just 
-> supposed to pick a process, send it a SIGKILL, and give it a reasonable 
-> expectation of being able to exit.
-> 
-> > If kswapd found nothing more to reclaim and/or kswapd cannot continue
-> > reclaiming due to lock dependency, can't we consider as out of memory
-> > because we already tried to reclaim memory which would have been done by
-> > __GFP_FS allocations?
-> > 
-> > Why do we do "!__GFP_FS allocations do not call out_of_memory() because
-> > they have very limited reclaim ability"? Both GFP_NOFS and GFP_NOIO
-> > allocations will wake up kswapd due to !__GFP_NO_KSWAPD, doesn't it?
-> > 
-> 
-> The !__GFP_FS exception is historic because the oom killer would trigger 
-> waaay too often if it were removed simply because it doesn't have a great 
-> chance of allowing reclaim to succeed.  Instead, we rely on external 
-> memory freeing or other parallel allocators being able to reclaim memory.  
-> What happens when there is no external freeing, nothing else is trying to 
-> reclaim, or nothing else is able to reclaim?  Yeah, that's the big 
-> problem.  In my opinion, there's three ways of attacking it: (1) 
-> preallocation so we are less dependent on the page allocator in these 
-> contexts, (2) memory reserves in extraordinary circumstances to allow 
-> forward progress (it's already tunable by min_free_kbytes), and (3) 
-> eventual page allocation failure when neither of these succeed.
-> 
-According to my observations (as posted at
-http://marc.info/?l=linux-mm&m=143239200805478 ), (3) is dangerous because
-it can potentially kill critical processes including global init process.
-Killing a process by invoking the OOM killer sounds safer than (3).
 
-Regarding (2), how can we selectively allow blocking process to access
-memory reserves? Since we don't know the dependency, we can't identify the
-process which should be allowed to access memory reserves. If we allow all
-processes to access memory reserves, unrelated processes could deplete the
-memory reserves while the blocking process is waiting for a lock (either in
-killable or unkillable state). What we need to do to make forward progress
-is not always to allow access to memory reserves. Sometimes making locks
-killable (as posted at http://marc.info/?l=linux-mm&m=142408937117294 )
-helps more.
+* Mel Gorman <mgorman@suse.de> wrote:
 
-Regarding (1), it would help but insufficient because (2) and (3) unlikely
-work.
+> > Sorry, I don't buy this, at all.
+> > 
+> > Please measure this, the code would become a lot simpler, as I'm not convinced 
+> > that we need pfn (or struct page) or even range based flushing.
+> 
+> The code will be simplier and the cost of reclaim will be lower and that is the 
+> direct case but shows nothing about the indirect cost. The mapped reader will 
+> benefit as it is not reusing the TLB entries and will look artifically very 
+> good. It'll be very difficult for even experienced users to determine that a 
+> slowdown during kswapd activity is due to increased TLB misses incurred by the 
+> full flush.
+
+If so then the converse is true just as much: if you were to introduce finegrained 
+flushing today, you couldn't justify it because you claim it's very hard to 
+measure!
+
+Really, in such cases we should IMHO fall back to the simplest approach, and 
+iterate from there.
+
+I cited very real numbers about the direct costs of TLB flushes, and plausible 
+speculation about why the indirect costs are low on the achitecture you are trying 
+to modify here.
+
+I think since it is you who wants to introduce additional complexity into the x86 
+MM code the burden is on you to provide proof that the complexity of pfn (or 
+struct page) tracking is worth it.
+
+> > I.e. please first implement the simplest remote batching variant, then 
+> > complicate it if the numbers warrant it. Not the other way around. It's not 
+> > like the VM code needs the extra complexity!
+> 
+> The simplest remote batching variant is a much more drastic change from what we 
+> do today and an unpredictable one. If we were to take that direction, it goes 
+> against the notion of making incremental changes. Even if we ultimately ended up 
+> with your proposal, it would make sense to separte it from this series by at 
+> least one release for bisection purposes. That way we get;
+> 
+> Current:     Send one IPI per page to unmap, active TLB entries preserved
+> This series: Send one IPI per BATCH_TLBFLUSH_SIZE pages to unmap, active TLB entries preserved
+> Your proposal: Send one IPI, flush everything, active TLB entries must refill
+
+Not quite, my take of it is:
+
+  Current:      Simplest method: send one IPI per page to unmap, active TLB 
+                entries preserved. Remote TLB flushing cost is so high that it 
+                probably moots any secondary effects of TLB preservation.
+
+  This series:  Send one IPI per BATCH_TLBFLUSH_SIZE pages to unmap, add complex 
+                tracking of pfn's with expensive flushing, active TLB entries 
+                preserved. Cost of the more complex flushing are probably
+                higher than the refill cost, based on the numbers I gave.
+
+  My proposal:  Send one IPI per BATCH_TLBFLUSH_SIZE pages to unmap that flushes 
+                everything. TLB entries not preserved but this is expected to be 
+                more than offset by the reduction in remote flushing costs and the 
+                simplicity of the flushing scheme. It can still be complicated to 
+                your proposed pfn tracking scheme, based on numbers.
+
+Btw., have you measured the full TLB flush variant as well? If so, mind sharing 
+the numbers?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
