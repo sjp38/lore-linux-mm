@@ -1,121 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DB396B006E
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 07:21:02 -0400 (EDT)
-Received: by wifx6 with SMTP id x6so12997307wif.0
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 04:21:01 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x19si10843615wjq.43.2015.06.09.04.21.00
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 57C9D6B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 08:05:40 -0400 (EDT)
+Received: by pdjn11 with SMTP id n11so13794928pdj.0
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 05:05:40 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id ue3si8634793pac.233.2015.06.09.05.05.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Jun 2015 04:21:00 -0700 (PDT)
-Date: Tue, 9 Jun 2015 12:20:55 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
-Message-ID: <20150609112055.GS26425@suse.de>
-References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
- <20150608174551.GA27558@gmail.com>
- <20150609084739.GQ26425@suse.de>
- <20150609103231.GA11026@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20150609103231.GA11026@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Jun 2015 05:05:39 -0700 (PDT)
+Received: by padev16 with SMTP id ev16so12680486pad.0
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 05:05:39 -0700 (PDT)
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: [RFC][PATCH 0/5] do not dereference NULL pools in pools' destroy() functions
+Date: Tue,  9 Jun 2015 21:04:48 +0900
+Message-Id: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sergey.senozhatsky.work@gmail.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Tue, Jun 09, 2015 at 12:32:31PM +0200, Ingo Molnar wrote:
-> 
-> * Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > > So have you explored the possibility to significantly simplify your patch-set 
-> > > by only deferring the flushing, and doing a simple TLB flush on the remote 
-> > > CPU?
-> > 
-> > Yes. At one point I looked at range flushing but it is not a good idea.
-> 
-> My suggestion wasn't range-flushing, but a simple all-or-nothing batched flush of 
-> user-space TLBs.
-> 
+Hello,
 
-I'm aware of that. I had considered both range flushing and full flushing
-as alternatives to PFN tracking and settled on PFN tracking as the least
-risky change.
+RFC
 
-> > The ranges that reach the end of the LRU are too large to be useful except in 
-> > the ideal case of a workload that sequentially accesses memory. Flushing the 
-> > full TLB has an unpredictable cost. [...]
-> 
-> Why would it have unpredictable cost?
+Proposed by Andrew Morton: https://lkml.org/lkml/2015/6/8/583
 
-Because we have no means of knowing how many active TLB entries are flushed,
-no way of knowing if it matters and we potentially do this every 32
-(BATCH_TLBFLUSH_SIZE) pages that are reclaimed.
+The existing pools' destroy() functions do not allow NULL pool pointers;
+instead, every destructor() caller forced to check if pool is not NULL,
+which:
+ a) requires additional attention from developers/reviewers
+ b) may lead to a NULL pointer dereferences if (a) didn't work
 
-> We flush the TLB on every process context 
-> switch. Yes, it's somewhat workload dependent, but the performance profile is so 
-> different anyway with batching that it has to be re-measured anyway.
-> 
 
-With the per-page flush, there is a direct cost associated with the
-operation -- the IPI and the TLB flushes. This is easy to measure. With
-a full flush there is an indirect cost -- the TLB entries that have to be
-refilled after the full flush. It also works against any notion of using
-ASID or similar mechanisms that avoid full flushes on context switches.
+First 3 patches tweak
+- kmem_cache_destroy()
+- mempool_destroy()
+- dma_pool_destroy()
 
-It will be very easy to show the benefit in the direct case. The indirect
-case is both unpredictable and impossible to measure the full impact in
-all cases.
+to handle NULL pointers.
+Basically, this patch set will:
 
-> > With a full flush we clear entries we know were recently accessed and may have 
-> > to be looked up again and we do this every 32 mapped pages that are reclaimed. 
-> > In the ideal case of a sequential mapped reader it would not matter as the 
-> > entries are not needed so we would not see the cost at all. Other workloads will 
-> > have to do a refill that was not necessary before this series. The cost of the 
-> > refill will depend on the CPU and whether the lookup information is still in the 
-> > CPU cache or not. That means measuring the full impact of your proposal is 
-> > impossible as it depends heavily on the workload, the timing of its interaction 
-> > with kswapd in particular, the state of the CPU cache and the cost of refills 
-> > for the CPU.
-> >
-> > I agree with you in that it would be a simplier series and the actual flush 
-> > would probably be faster but the downsides are too unpredictable for a series 
-> > that primarily is about reducing the number of IPIs.
-> 
-> Sorry, I don't buy this, at all.
-> 
-> Please measure this, the code would become a lot simpler, as I'm not convinced 
-> that we need pfn (or struct page) or even range based flushing.
-> 
+1) Can prevent us from still undiscovered NULL pointer dereferences.
+ (like the one that was addressed in https://lkml.org/lkml/2015/6/5/262)
 
-The code will be simplier and the cost of reclaim will be lower and that
-is the direct case but shows nothing about the indirect cost. The mapped
-reader will benefit as it is not reusing the TLB entries and will look
-artifically very good. It'll be very difficult for even experienced users
-to determine that a slowdown during kswapd activity is due to increased
-TLB misses incurred by the full flush.
+2) Make a cleanup possible. Things like:
+ [..]
+         if (xhci->segment_pool)
+                 dma_pool_destroy(xhci->segment_pool);
+ 	..
+         if (xhci->device_pool)
+                 dma_pool_destroy(xhci->device_pool);
+ 	..
+         if (xhci->small_streams_pool)
+                 dma_pool_destroy(xhci->small_streams_pool);
+ 	..
+         if (xhci->medium_streams_pool)
+                 dma_pool_destroy(xhci->medium_streams_pool);
+ [..]
+ 
+ or
+ 
+ [..]
+ fail_dma_pool:
+         if (IS_QLA82XX(ha) || ql2xenabledif) {
+                 dma_pool_destroy(ha->fcp_cmnd_dma_pool);
+                 ha->fcp_cmnd_dma_pool = NULL;
+         }
+ fail_dl_dma_pool:
+         if (IS_QLA82XX(ha) || ql2xenabledif) {
+                 dma_pool_destroy(ha->dl_dma_pool);
+                 ha->dl_dma_pool = NULL;
+         }
+ fail_s_dma_pool:
+         dma_pool_destroy(ha->s_dma_pool);
+         ha->s_dma_pool = NULL;
+ [..]
 
-> I.e. please first implement the simplest remote batching variant, then complicate 
-> it if the numbers warrant it. Not the other way around. It's not like the VM code 
-> needs the extra complexity!
-> 
+ may now be simplified.
 
-The simplest remote batching variant is a much more drastic change from what
-we do today and an unpredictable one. If we were to take that direction,
-it goes against the notion of making incremental changes. Even if we
-ultimately ended up with your proposal, it would make sense to separte
-it from this series by at least one release for bisection purposes. That
-way we get;
 
-Current:     Send one IPI per page to unmap, active TLB entries preserved
-This series: Send one IPI per BATCH_TLBFLUSH_SIZE pages to unmap, active TLB entries preserved
-Your proposal: Send one IPI, flush everything, active TLB entries must refill
+0004 and 0005 are not so necessary, simply because there are not
+so many users of these two (added for pool's destroy() functions consistency):
+-- zpool_destroy_pool()
+-- zs_destroy_pool()
+
+So, 0004 and 0005 can be dropped.
+
+
+- zbud does kfree() in zbud_destroy_pool(), so I didn't touch it.
+
+
+Sergey Senozhatsky (5):
+  mm/slab_common: allow NULL cache pointer in kmem_cache_destroy()
+  mm/mempool: allow NULL `pool' pointer in mempool_destroy()
+  mm/dmapool: allow NULL `pool' pointer in dma_pool_destroy()
+  mm/zpool: allow NULL `zpool' pointer in zpool_destroy_pool()
+  mm/zsmalloc: allow NULL `pool' pointer in zs_destroy_pool()
+
+ mm/dmapool.c     | 3 +++
+ mm/mempool.c     | 3 +++
+ mm/slab_common.c | 3 +++
+ mm/zpool.c       | 3 +++
+ mm/zsmalloc.c    | 3 +++
+ 5 files changed, 15 insertions(+)
 
 -- 
-Mel Gorman
-SUSE Labs
+2.4.3.368.g7974889
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
