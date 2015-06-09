@@ -1,70 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 188EE6B0032
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 17:14:54 -0400 (EDT)
-Received: by pdjn11 with SMTP id n11so22394211pdj.0
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 14:14:53 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id bt1si10427476pbb.171.2015.06.09.14.14.52
-        for <linux-mm@kvack.org>;
-        Tue, 09 Jun 2015 14:14:53 -0700 (PDT)
-Message-ID: <55775749.3090004@intel.com>
-Date: Tue, 09 Jun 2015 14:14:49 -0700
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
-References: <1433767854-24408-1-git-send-email-mgorman@suse.de> <20150608174551.GA27558@gmail.com> <20150609084739.GQ26425@suse.de> <20150609103231.GA11026@gmail.com> <20150609112055.GS26425@suse.de> <20150609124328.GA23066@gmail.com> <5577078B.2000503@intel.com> <55771909.2020005@intel.com>
-In-Reply-To: <55771909.2020005@intel.com>
-Content-Type: text/plain; charset=windows-1252
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 7783B6B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 17:25:25 -0400 (EDT)
+Received: by payr10 with SMTP id r10so20739326pay.1
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 14:25:25 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id p8si10509569pdi.112.2015.06.09.14.25.24
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Jun 2015 14:25:24 -0700 (PDT)
+Date: Tue, 9 Jun 2015 14:25:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC][PATCH 0/5] do not dereference NULL pools in pools'
+ destroy() functions
+Message-Id: <20150609142523.b717dba6033ee08de997c8be@linux-foundation.org>
+In-Reply-To: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com>
+References: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sergey.senozhatsky.work@gmail.com, Joe Perches <joe@perches.com>
 
-I did some of what I talked about earlier in the thread.
+On Tue,  9 Jun 2015 21:04:48 +0900 Sergey Senozhatsky <sergey.senozhatsky@gmail.com> wrote:
 
-I think the sfence (via mb()) is potentially unfair since it removes
-some of the CPU's ability to optimize things.  For this kind of test,
-any ability that the CPU has to smear the overhead around is a bonus in
-practice and should be taken in to account for these tests.
+> The existing pools' destroy() functions do not allow NULL pool pointers;
+> instead, every destructor() caller forced to check if pool is not NULL,
+> which:
+>  a) requires additional attention from developers/reviewers
+>  b) may lead to a NULL pointer dereferences if (a) didn't work
+> 
+> 
+> First 3 patches tweak
+> - kmem_cache_destroy()
+> - mempool_destroy()
+> - dma_pool_destroy()
+> 
+> to handle NULL pointers.
 
-Here's the horribly hacked-together patch so you can see precisely
-what's going on:
+Well I like it, even though it's going to cause a zillion little cleanup
+patches.
 
-	https://www.sr71.net/~dave/intel/measure-tlb-stuff.patch
+checkpatch already has a "kfree(NULL) is safe and this check is
+probably not required" test so I guess Joe will need to get busy ;)
 
-Here's a Haswell Xeon:
-
-> [    0.222090] x86/fpu:########  MM instructions:            ############################
-> [    0.222168] x86/fpu: Cost of: __flush_tlb()               fn            :   124 cycles avg:   125
-> [    0.222623] x86/fpu: Cost of: __flush_tlb_global()        fn            :   960 cycles avg:   968
-> [    0.222744] x86/fpu: Cost of: __flush_tlb_single()        fn            :   216 cycles avg:   216
-> [    0.222864] x86/fpu: Cost of: __flush_tlb_single() vmal   fn            :   216 cycles avg:   219
-> [    0.222987] x86/fpu: Cost of: __flush_tlb_one() OLD       fn            :   216 cycles avg:   216
-> [    0.223139] x86/fpu: Cost of: __flush_tlb_range()         fn            :   284 cycles avg:   287
-> [    0.223272] x86/fpu: Cost of: tlb miss                    fn            :     0 cycles avg:     0
-
-And a Westmere Xeon:
-
-> [    1.057770] x86/fpu:########  MM instructions:            ############################
-> [    1.065876] x86/fpu: Cost of: __flush_tlb()               fn            :   108 cycles avg:   109
-> [    1.075188] x86/fpu: Cost of: __flush_tlb_global()        fn            :   828 cycles avg:   829
-> [    1.084162] x86/fpu: Cost of: __flush_tlb_single()        fn            :   232 cycles avg:   237
-> [    1.093175] x86/fpu: Cost of: __flush_tlb_single() vmal   fn            :   240 cycles avg:   240
-> [    1.102214] x86/fpu: Cost of: __flush_tlb_one() OLD       fn            :   284 cycles avg:   286
-> [    1.111299] x86/fpu: Cost of: __flush_tlb_range()         fn            :   472 cycles avg:   478
-> [    1.120281] x86/fpu: Cost of: tlb miss                    fn            :     0 cycles avg:     0
-
-I was rather surprised how close the three __flush_tlb_single/one()
-variants were on Haswell.  I've looked at a few other CPUs and this was
-the only one that acted like this.
-
-The 0 cycle TLB miss was also interesting.  It goes back up to something
-reasonable if I put the mb()/mfence's back.
-
-I don't think this kind of thing is a realistic test unless we put
-mfence's around all of our TLB flushes in practice. :)
+I'll park these patches until after 4.1 is released - it's getting to
+that time...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
