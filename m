@@ -1,87 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id C069C6B0032
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 23:56:53 -0400 (EDT)
-Received: by pdjm12 with SMTP id m12so5652876pdj.3
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 20:56:53 -0700 (PDT)
-Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
-        by mx.google.com with ESMTPS id p2si6944743pda.257.2015.06.08.20.56.52
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id C8A7D6B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 02:45:06 -0400 (EDT)
+Received: by payr10 with SMTP id r10so7513567pay.1
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 23:45:06 -0700 (PDT)
+Received: from mgwkm02.jp.fujitsu.com (mgwkm02.jp.fujitsu.com. [202.219.69.169])
+        by mx.google.com with ESMTPS id fk8si7555610pab.89.2015.06.08.23.45.05
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jun 2015 20:56:52 -0700 (PDT)
-Received: by pdjm12 with SMTP id m12so5652481pdj.3
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 20:56:52 -0700 (PDT)
-Date: Tue, 9 Jun 2015 12:57:17 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] zsmalloc: fix a null pointer dereference in
- destroy_handle_cache()
-Message-ID: <20150609035717.GB3297@swordfish>
-References: <1433502690-2524-1-git-send-email-sergey.senozhatsky@gmail.com>
- <20150608135532.ac913746b6394217e92a229a@linux-foundation.org>
+        Mon, 08 Jun 2015 23:45:06 -0700 (PDT)
+Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
+	by kw-mxq.gw.nic.fujitsu.com (Postfix) with ESMTP id 3BB51AC0388
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 15:45:02 +0900 (JST)
+Message-ID: <55768B42.80503@jp.fujitsu.com>
+Date: Tue, 09 Jun 2015 15:44:18 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150608135532.ac913746b6394217e92a229a@linux-foundation.org>
+Subject: Re: [RFC PATCH 01/12] mm: add a new config to manage the code
+References: <55704A7E.5030507@huawei.com> <55704B0C.1000308@huawei.com>
+In-Reply-To: <55704B0C.1000308@huawei.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>
+To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On (06/08/15 13:55), Andrew Morton wrote:
-[..]
-> > zs_destroy_pool()->destroy_handle_cache() invoked from
-> > zs_create_pool() can pass a NULL ->handle_cachep pointer
-> > to kmem_cache_destroy(), which will dereference it.
-> >
-> 
-> That's slightly lacking in details (under what circumstances will it
-> crash) so I changed it to
-> 
-> : If zs_create_pool()->create_handle_cache()->kmem_cache_create() fails,
-> : zs_create_pool()->destroy_handle_cache() will dereference the NULL
-> : pool->handle_cachep.
-> :
-> : Modify destroy_handle_cache() to avoid this.
-> 
+On 2015/06/04 21:56, Xishi Qiu wrote:
+> This patch introduces a new config called "CONFIG_ACPI_MIRROR_MEMORY", it is
+> used to on/off the feature.
+>
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> ---
+>   mm/Kconfig | 8 ++++++++
+>   1 file changed, 8 insertions(+)
+>
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 390214d..4f2a726 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -200,6 +200,14 @@ config MEMORY_HOTREMOVE
+>   	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
+>   	depends on MIGRATION
+>
+> +config MEMORY_MIRROR
+> +	bool "Address range mirroring support"
+> +	depends on X86 && NUMA
+> +	default y
+> +	help
+> +	  This feature depends on hardware and firmware support.
+> +	  ACPI or EFI records the mirror info.
 
-Oh, sorry I first received "+ zsmalloc-fix-a-null-pointer-dereference-in-
-destroy_handle_cache.patch added to -mm tree" message, so I replied
-there. fetchmail works somewhat confusing over the last weeks.
+default y...no runtime influence when the user doesn't use memory mirror ?
 
-> > ...
-> >
-> > --- a/mm/zsmalloc.c
-> > +++ b/mm/zsmalloc.c
-> > @@ -285,7 +285,8 @@ static int create_handle_cache(struct zs_pool *pool)
-> >  
-> >  static void destroy_handle_cache(struct zs_pool *pool)
-> >  {
-> > -	kmem_cache_destroy(pool->handle_cachep);
-> > +	if (pool->handle_cachep)
-> > +		kmem_cache_destroy(pool->handle_cachep);
-> >  }
-> >  
-> >  static unsigned long alloc_handle(struct zs_pool *pool)
-> 
-> I'll apply this, but...  from a bit of grepping I'm estimating that we
-> have approximately 200 instances of
-> 
-> 	if (foo)
-> 		kmem_cache_destroy(foo);
-> 
-> so obviously kmem_cache_destroy() should be doing the check.
+Thanks,
+-Kame
 
-Yes, I thought about this.
 
-A naive grepping gave me 563 occurrences
-
- git grep kmem_cache_destroy | wc -l
- 563
-
-So I decided to hold this activity. Well, I think I can create this
-patch bomb, it's trivial.
-
-	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
