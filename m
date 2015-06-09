@@ -1,94 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id B49A16B0032
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 05:37:02 -0400 (EDT)
-Received: by wgbgq6 with SMTP id gq6so8437819wgb.3
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 02:37:02 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D1476B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 05:44:00 -0400 (EDT)
+Received: by wiwd19 with SMTP id d19so11879211wiw.0
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 02:43:59 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e17si2205746wic.4.2015.06.09.02.36.59
+        by mx.google.com with ESMTPS id ym6si10398402wjc.130.2015.06.09.02.43.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Jun 2015 02:37:00 -0700 (PDT)
-Date: Tue, 9 Jun 2015 11:36:59 +0200
+        Tue, 09 Jun 2015 02:43:58 -0700 (PDT)
+Date: Tue, 9 Jun 2015 11:43:56 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] oom: split out forced OOM killer
-Message-ID: <20150609093659.GA29057@dhcp22.suse.cz>
-References: <1433235187-32673-1-git-send-email-mhocko@suse.cz>
- <alpine.DEB.2.10.1506041557070.16555@chino.kir.corp.google.com>
- <557187F9.8020301@gmail.com>
- <alpine.DEB.2.10.1506081059200.10521@chino.kir.corp.google.com>
- <5575E5E6.20908@gmail.com>
- <alpine.DEB.2.10.1506081237350.13272@chino.kir.corp.google.com>
- <20150608210621.GA18360@dhcp22.suse.cz>
- <alpine.DEB.2.10.1506081558270.17040@chino.kir.corp.google.com>
+Subject: Re: [PATCH] oom: always panic on OOM when panic_on_oom is configured
+Message-ID: <20150609094356.GB29057@dhcp22.suse.cz>
+References: <1433159948-9912-1-git-send-email-mhocko@suse.cz>
+ <alpine.DEB.2.10.1506041607020.16555@chino.kir.corp.google.com>
+ <20150605111302.GB26113@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1506081242250.13272@chino.kir.corp.google.com>
+ <20150608213218.GB18360@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1506081606500.17040@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1506081558270.17040@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1506081606500.17040@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Austin S Hemmelgarn <ahferroin7@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 08-06-15 16:06:07, David Rientjes wrote:
+On Mon 08-06-15 16:20:21, David Rientjes wrote:
 > On Mon, 8 Jun 2015, Michal Hocko wrote:
-> 
-> > > This patch is not a functional change, so I don't interpret your feedback 
-> > > as any support of it being merged.
+[...]
+> > On Mon 08-06-15 12:51:53, David Rientjes wrote:
+> > Do you actually have panic_on_oops enabled?
 > > 
-> > David, have you actually read the patch? The changelog is mentioning this:
+> 
+> CONFIG_PANIC_ON_OOPS_VALUE should be 0, I'm not sure why that's relevant.
+
+No I meant panic_on_oops > 0.
+
+> The functionality I'm referring to is that your patch now panics the 
+> machine for configs where /proc/sys/vm/panic_on_oom is set and the same 
+> scenario occurs as described above.  You're introducing userspace breakage 
+> because you are using panic_on_oom in a way that it hasn't been used in 
+> the past and isn't described as working in the documentation.
+
+I am sorry, but I do not follow. The knob has been always used to
+_panic_ the OOM system. Nothing more and nothing less. Now you
+are arguing about the change being buggy because a task might be
+killed but that argument doesn't make much sense to me because
+basically _any_ other allocation which allows OOM to trigger might hit
+check_panic_on_oom() and panic the system well before your killed task
+gets a chance to terminate.
+
+I would understand your complain if we waited for oom victim(s) before
+check_panic_on_oom but we have not been doing that.
+
+> > > We want to send the SIGKILL, which will interrupt things like 
+> > 
+> > But this patch only changes the ordering of panic_on_oops vs.
+> > fatal_signal_pending(current) shortcut. So it can possible affect the
+> > case when the current is exiting during OOM. Is this the case that you
+> > are worried about?
+> > 
+> 
+> Yes, of course, the case specifically when the killed process is in the 
+> exit path due to a userspace oom kill and needs access to memory reserves 
+> to exit.  That's needed because the machine is oom (typically the only 
+> time a non-buggy userspace oom handler would kill a process).
+>
+> This:
+> 
+> 	check_panic_on_oom(constraint, gfp_mask, order, mpol_mask, NULL);
+> 	...
+> 	if (current->mm &&
+> 	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
+> 		mark_oom_victim(current);
+> 		goto out;
+> 	}
+> 
+> is obviously buggy in that regard.  We need to be able to give a killed 
+> process or an exiting process memory reserves so it may (1) allocate prior 
+> to handling the signal and (2) be assured of exiting once it is in the 
+> exit path.
+
+Which OOM path are you talking about here? memcg OOM user space handler
+killing a task? This one however doesn't go this path unless the memcg
+OOM is racing with the global OOM. Is this the case you are worried
+about? If yes then this is racy anyway and nothing to rely on as
+described above.
+If you have a global OOM detection mechanism then it is racy as well
+for the very same reason. User space OOM handling with panic_on_oom
+is simply not usable.
+ 
+> > The documentation clearly states:
 > > "
-> >     check_panic_on_oom on the other hand will work and that is kind of
-> >     unexpected because sysrq+f should be usable to kill a mem hog whether
-> >     the global OOM policy is to panic or not.
-> >     It also doesn't make much sense to panic the system when no task cannot
-> >     be killed because admin has a separate sysrq for that purpose.
+> > If this is set to 1, the kernel panics when out-of-memory happens.
+> > However, if a process limits using nodes by mempolicy/cpusets,
+> > and those nodes become memory exhaustion status, one process
+> > may be killed by oom-killer. No panic occurs in this case.
+> > Because other nodes' memory may be free. This means system total status
+> > may be not fatal yet.
+> > 
+> > If this is set to 2, the kernel panics compulsorily even on the
+> > above-mentioned. Even oom happens under memory cgroup, the whole
+> > system panics.
+> > 
+> > The default value is 0.
+> > 1 and 2 are for failover of clustering. Please select either
+> > according to your policy of failover.
 > > "
-> > and the patch exludes panic_on_oom from the sysrq path.
+> > 
+> > So I read this as a reliability feature to handle oom situation as soon
+> > as possible.
 > > 
 > 
-> Yes, and that's why I believe we should pursue that direction without the 
-> associated "cleanup" that adds 35 lines of code to supress a panic.  In 
-> other words, there's no reason to combine a patch that suppresses the 
-> panic even with panic_on_oom, which I support, and a "cleanup" that I 
-> believe just obfuscates the code.
-> 
-> It's a one-liner change: just test for force_kill and suppress the panic; 
-> we don't need 35 new lines that create even more unique entry paths.
+> A userspace process that is killed by userspace that simply needs memory 
+> to handle the signal and exit is not oom.  We have always allowed current 
+> to have access to memory reserves to exit without triggering panic_on_oom.  
+> This is nothing new, and is not implied by the documentation to be the 
+> case.
 
-I completely detest yet another check in out_of_memory. And there is
-even no reason to do that. Forced kill and genuine oom have different
-objectives and combining those two just makes the code harder to read
-(one has to go to check the syrq callback to realize that the forced
-path is triggered from the workqueue context and that current->mm !=
-NULL check will prevent some heuristics. This is just too ugly to
-live). So why the heck are you pushing for keeping everything in a
-single path?
+The documentation doesn't mention anything about exiting task or any
+other last minute attempt to be nice and prevent from OOM killing.
+And moreover the assumption that TIF_MEMDIE will help to exit the oom
+victim or a task with fatal_signal_pending is not true in general (and
+you haven't provided sound arguments yet).
 
-That being said, I have no problem to do 3 patches, where two of them
-would add force check for check_panic_on_oom and panic on no killable
-task and only then pull out force_out_of_memory to make it readable
-again and drop force checks but I do not see much point in this
-juggling.
+> I'm not going to spend all day trying to convince you that you cannot 
+> change the semantics of sysctls that have existed for years with new 
+> behavior especially when users require that behavior to handle userspace 
+> kills while still keeping their machines running.
 
-> > > That said, you raise an interesting point of whether sysrq+f should ever 
-> > > trigger a panic due to panic_on_oom.  The case can be made that it should 
-> > > ignore panic_on_oom and require the use of another sysrq to panic the 
-> > > machine instead.  Sysrq+f could then be used to oom kill a process, 
-> > > regardless of panic_on_oom, and the panic only occurs if userspace did not 
-> > > trigger the kill or the kill itself will fail.
-> > 
-> > Why would it panic the system if there is no killable task? Shoudln't
-> > be admin able to do additional steps after the explicit oom killer failed
-> > and only then panic by sysrq?
-> > 
-> 
-> Today it panics, I don't think it should panic when there are no killable 
-> processes because it's inherently racy with userspace.  It's similar to 
-> suppressing panic_on_oom for sysrq+f, but for a different reason, so it 
-> should probably be a separate patch with its own changelog (and update to 
-> documentation for both patches to make this explicit).
+Let me remind that you are trying to nack this patch and your
+argumentation is unclear at best.
 
-I have no problem to be more explicit about the behavior of course. I
-can fold it to the original patch.
----
+The matter seems quite simple to me. Relying on fatal_signal_pending(current)
+to help before check_panic_on_oom might help to prevent OOM but it is
+racy and cannot be relied on while not going to check_panic_on_oom might
+be potentially harmful, albeil unlikely, and lock up machine which is
+against the user defined policy to panic machine on OOM.
+-- 
+Michal Hocko
+SUSE Labs
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
