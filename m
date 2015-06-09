@@ -1,74 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 913AD6B006C
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 06:21:55 -0400 (EDT)
-Received: by pdjm12 with SMTP id m12so11894564pdj.3
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 03:21:55 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id pl10si8277427pbb.188.2015.06.09.03.21.53
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D0966B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 06:32:38 -0400 (EDT)
+Received: by wifx6 with SMTP id x6so11654236wif.0
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 03:32:37 -0700 (PDT)
+Received: from mail-wg0-x22a.google.com (mail-wg0-x22a.google.com. [2a00:1450:400c:c00::22a])
+        by mx.google.com with ESMTPS id es2si2429473wib.12.2015.06.09.03.32.35
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 09 Jun 2015 03:21:54 -0700 (PDT)
-Message-ID: <5576BBA5.20005@huawei.com>
-Date: Tue, 9 Jun 2015 18:10:45 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Jun 2015 03:32:36 -0700 (PDT)
+Received: by wgbgq6 with SMTP id gq6so9592462wgb.3
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 03:32:35 -0700 (PDT)
+Date: Tue, 9 Jun 2015 12:32:31 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
+Message-ID: <20150609103231.GA11026@gmail.com>
+References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
+ <20150608174551.GA27558@gmail.com>
+ <20150609084739.GQ26425@suse.de>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 01/12] mm: add a new config to manage the code
-References: <55704A7E.5030507@huawei.com> <55704B0C.1000308@huawei.com> <55768B42.80503@jp.fujitsu.com>
-In-Reply-To: <55768B42.80503@jp.fujitsu.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150609084739.GQ26425@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas
- Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-On 2015/6/9 14:44, Kamezawa Hiroyuki wrote:
 
-> On 2015/06/04 21:56, Xishi Qiu wrote:
->> This patch introduces a new config called "CONFIG_ACPI_MIRROR_MEMORY", it is
->> used to on/off the feature.
->>
->> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->> ---
->>   mm/Kconfig | 8 ++++++++
->>   1 file changed, 8 insertions(+)
->>
->> diff --git a/mm/Kconfig b/mm/Kconfig
->> index 390214d..4f2a726 100644
->> --- a/mm/Kconfig
->> +++ b/mm/Kconfig
->> @@ -200,6 +200,14 @@ config MEMORY_HOTREMOVE
->>       depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
->>       depends on MIGRATION
->>
->> +config MEMORY_MIRROR
->> +    bool "Address range mirroring support"
->> +    depends on X86 && NUMA
->> +    default y
->> +    help
->> +      This feature depends on hardware and firmware support.
->> +      ACPI or EFI records the mirror info.
+* Mel Gorman <mgorman@suse.de> wrote:
+
+> > So have you explored the possibility to significantly simplify your patch-set 
+> > by only deferring the flushing, and doing a simple TLB flush on the remote 
+> > CPU?
 > 
-> default y...no runtime influence when the user doesn't use memory mirror ?
-> 
+> Yes. At one point I looked at range flushing but it is not a good idea.
 
-It is a new feature, so how about like this: default y -> n?
+My suggestion wasn't range-flushing, but a simple all-or-nothing batched flush of 
+user-space TLBs.
+
+> The ranges that reach the end of the LRU are too large to be useful except in 
+> the ideal case of a workload that sequentially accesses memory. Flushing the 
+> full TLB has an unpredictable cost. [...]
+
+Why would it have unpredictable cost? We flush the TLB on every process context 
+switch. Yes, it's somewhat workload dependent, but the performance profile is so 
+different anyway with batching that it has to be re-measured anyway.
+
+> With a full flush we clear entries we know were recently accessed and may have 
+> to be looked up again and we do this every 32 mapped pages that are reclaimed. 
+> In the ideal case of a sequential mapped reader it would not matter as the 
+> entries are not needed so we would not see the cost at all. Other workloads will 
+> have to do a refill that was not necessary before this series. The cost of the 
+> refill will depend on the CPU and whether the lookup information is still in the 
+> CPU cache or not. That means measuring the full impact of your proposal is 
+> impossible as it depends heavily on the workload, the timing of its interaction 
+> with kswapd in particular, the state of the CPU cache and the cost of refills 
+> for the CPU.
+>
+> I agree with you in that it would be a simplier series and the actual flush 
+> would probably be faster but the downsides are too unpredictable for a series 
+> that primarily is about reducing the number of IPIs.
+
+Sorry, I don't buy this, at all.
+
+Please measure this, the code would become a lot simpler, as I'm not convinced 
+that we need pfn (or struct page) or even range based flushing.
+
+I.e. please first implement the simplest remote batching variant, then complicate 
+it if the numbers warrant it. Not the other way around. It's not like the VM code 
+needs the extra complexity!
 
 Thanks,
-Xishi Qiu
 
-> Thanks,
-> -Kame
-> 
-> 
-> 
-> 
-> .
-> 
-
-
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
