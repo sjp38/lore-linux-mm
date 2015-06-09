@@ -1,88 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D1A86B0032
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 23:42:18 -0400 (EDT)
-Received: by padev16 with SMTP id ev16so5051540pad.0
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 20:42:17 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id sz8si6897013pbc.204.2015.06.08.20.42.14
-        for <linux-mm@kvack.org>;
-        Mon, 08 Jun 2015 20:42:15 -0700 (PDT)
-Message-ID: <55766068.9090809@cn.fujitsu.com>
-Date: Tue, 9 Jun 2015 11:41:28 +0800
-From: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id C069C6B0032
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 23:56:53 -0400 (EDT)
+Received: by pdjm12 with SMTP id m12so5652876pdj.3
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 20:56:53 -0700 (PDT)
+Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
+        by mx.google.com with ESMTPS id p2si6944743pda.257.2015.06.08.20.56.52
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Jun 2015 20:56:52 -0700 (PDT)
+Received: by pdjm12 with SMTP id m12so5652481pdj.3
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 20:56:52 -0700 (PDT)
+Date: Tue, 9 Jun 2015 12:57:17 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] zsmalloc: fix a null pointer dereference in
+ destroy_handle_cache()
+Message-ID: <20150609035717.GB3297@swordfish>
+References: <1433502690-2524-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150608135532.ac913746b6394217e92a229a@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/memory hotplug: print the last vmemmap region at the
- end of hot add memory
-References: <1433745881-7179-1-git-send-email-zhugh.fnst@cn.fujitsu.com> <20150608163053.c481d9a5057513130f760910@linux-foundation.org>
-In-Reply-To: <20150608163053.c481d9a5057513130f760910@linux-foundation.org>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150608135532.ac913746b6394217e92a229a@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, vbabka@suse.cz, rientjes@google.com, n-horiguchi@ah.jp.nec.com, zhenzhang.zhang@huawei.com, wangnan0@huawei.com, fabf@skynet.be
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>
 
+On (06/08/15 13:55), Andrew Morton wrote:
+[..]
+> > zs_destroy_pool()->destroy_handle_cache() invoked from
+> > zs_create_pool() can pass a NULL ->handle_cachep pointer
+> > to kmem_cache_destroy(), which will dereference it.
+> >
+> 
+> That's slightly lacking in details (under what circumstances will it
+> crash) so I changed it to
+> 
+> : If zs_create_pool()->create_handle_cache()->kmem_cache_create() fails,
+> : zs_create_pool()->destroy_handle_cache() will dereference the NULL
+> : pool->handle_cachep.
+> :
+> : Modify destroy_handle_cache() to avoid this.
+> 
 
-On 06/09/2015 07:30 AM, Andrew Morton wrote:
-> On Mon, 8 Jun 2015 14:44:41 +0800 Zhu Guihua <zhugh.fnst@cn.fujitsu.com> wrote:
->
->> When hot add two nodes continuously, we found the vmemmap region info is a
->> bit messed. The last region of node 2 is printed when node 3 hot added,
->> like the following:
->> Initmem setup node 2 [mem 0x0000000000000000-0xffffffffffffffff]
->>   On node 2 totalpages: 0
->>   Built 2 zonelists in Node order, mobility grouping on.  Total pages: 16090539
->>   Policy zone: Normal
->>   init_memory_mapping: [mem 0x40000000000-0x407ffffffff]
->>    [mem 0x40000000000-0x407ffffffff] page 1G
->>    [ffffea1000000000-ffffea10001fffff] PMD -> [ffff8a077d800000-ffff8a077d9fffff] on node 2
->>    [ffffea1000200000-ffffea10003fffff] PMD -> [ffff8a077de00000-ffff8a077dffffff] on node 2
->> ...
->>    [ffffea101f600000-ffffea101f9fffff] PMD -> [ffff8a074ac00000-ffff8a074affffff] on node 2
->>    [ffffea101fa00000-ffffea101fdfffff] PMD -> [ffff8a074a800000-ffff8a074abfffff] on node 2
->> Initmem setup node 3 [mem 0x0000000000000000-0xffffffffffffffff]
->>   On node 3 totalpages: 0
->>   Built 3 zonelists in Node order, mobility grouping on.  Total pages: 16090539
->>   Policy zone: Normal
->>   init_memory_mapping: [mem 0x60000000000-0x607ffffffff]
->>    [mem 0x60000000000-0x607ffffffff] page 1G
->>    [ffffea101fe00000-ffffea101fffffff] PMD -> [ffff8a074a400000-ffff8a074a5fffff] on node 2 <=== node 2 ???
->>    [ffffea1800000000-ffffea18001fffff] PMD -> [ffff8a074a600000-ffff8a074a7fffff] on node 3
->>    [ffffea1800200000-ffffea18005fffff] PMD -> [ffff8a074a000000-ffff8a074a3fffff] on node 3
->>    [ffffea1800600000-ffffea18009fffff] PMD -> [ffff8a0749c00000-ffff8a0749ffffff] on node 3
->> ...
->>
->> The cause is the last region was missed at the and of hot add memory, and
->> p_start, p_end, node_start were not reset, so when hot add memory to a new
->> node, it will consider they are not contiguous blocks and print the
->> previous one. So we print the last vmemmap region at the end of hot add
->> memory to avoid the confusion.
->>
->> ...
->>
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -513,6 +513,7 @@ int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
->>   			break;
->>   		err = 0;
->>   	}
->> +	vmemmap_populate_print_last();
->>   
->>   	return err;
->>   }
-> vmemmap_populate_print_last() is only available on x86_64, when
-> CONFIG_SPARSEMEM_VMEMMAP=y.  Are you sure this won't break builds?
+Oh, sorry I first received "+ zsmalloc-fix-a-null-pointer-dereference-in-
+destroy_handle_cache.patch added to -mm tree" message, so I replied
+there. fetchmail works somewhat confusing over the last weeks.
 
-I tried this on i386 and on x86_64 when CONFIG_SPARSEMEM_VMEMMAP=n ,
-it builds ok.
+> > ...
+> >
+> > --- a/mm/zsmalloc.c
+> > +++ b/mm/zsmalloc.c
+> > @@ -285,7 +285,8 @@ static int create_handle_cache(struct zs_pool *pool)
+> >  
+> >  static void destroy_handle_cache(struct zs_pool *pool)
+> >  {
+> > -	kmem_cache_destroy(pool->handle_cachep);
+> > +	if (pool->handle_cachep)
+> > +		kmem_cache_destroy(pool->handle_cachep);
+> >  }
+> >  
+> >  static unsigned long alloc_handle(struct zs_pool *pool)
+> 
+> I'll apply this, but...  from a bit of grepping I'm estimating that we
+> have approximately 200 instances of
+> 
+> 	if (foo)
+> 		kmem_cache_destroy(foo);
+> 
+> so obviously kmem_cache_destroy() should be doing the check.
 
-Thanks,
-Zhu
+Yes, I thought about this.
 
->
-> .
->
+A naive grepping gave me 563 occurrences
+
+ git grep kmem_cache_destroy | wc -l
+ 563
+
+So I decided to hold this activity. Well, I think I can create this
+patch bomb, it's trivial.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
