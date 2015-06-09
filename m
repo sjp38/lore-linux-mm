@@ -1,67 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D6966B006E
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 17:54:02 -0400 (EDT)
-Received: by igbpi8 with SMTP id pi8so21833219igb.1
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 14:54:02 -0700 (PDT)
-Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com. [2607:f8b0:4001:c05::233])
-        by mx.google.com with ESMTPS id nq6si2324610igb.16.2015.06.09.14.54.01
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 26ED96B0071
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 18:28:40 -0400 (EDT)
+Received: by pdjn11 with SMTP id n11so23439023pdj.0
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 15:28:39 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id wu3si10662917pbc.61.2015.06.09.15.28.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jun 2015 14:54:01 -0700 (PDT)
-Received: by igbzc4 with SMTP id zc4so21884929igb.0
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 14:54:01 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <55775749.3090004@intel.com>
-References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
-	<20150608174551.GA27558@gmail.com>
-	<20150609084739.GQ26425@suse.de>
-	<20150609103231.GA11026@gmail.com>
-	<20150609112055.GS26425@suse.de>
-	<20150609124328.GA23066@gmail.com>
-	<5577078B.2000503@intel.com>
-	<55771909.2020005@intel.com>
-	<55775749.3090004@intel.com>
-Date: Tue, 9 Jun 2015 14:54:01 -0700
-Message-ID: <CA+55aFz6b5pG9tRNazk8ynTCXS3whzWJ_737dt1xxAHDf1jASQ@mail.gmail.com>
-Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+        Tue, 09 Jun 2015 15:28:39 -0700 (PDT)
+Date: Tue, 9 Jun 2015 15:28:38 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/5] ipc,shm: move BUG_ON check into shm_lock
+Message-Id: <20150609152838.94774d7feafef3f7e6ccbd74@linux-foundation.org>
+In-Reply-To: <1433597880-8571-2-git-send-email-dave@stgolabs.net>
+References: <1433597880-8571-1-git-send-email-dave@stgolabs.net>
+	<1433597880-8571-2-git-send-email-dave@stgolabs.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: Manfred Spraul <manfred@colorfullife.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Davidlohr Bueso <dbueso@suse.de>
 
-On Tue, Jun 9, 2015 at 2:14 PM, Dave Hansen <dave.hansen@intel.com> wrote:
->
-> The 0 cycle TLB miss was also interesting.  It goes back up to something
-> reasonable if I put the mb()/mfence's back.
+On Sat,  6 Jun 2015 06:37:56 -0700 Davidlohr Bueso <dave@stgolabs.net> wrote:
 
-So I've said it before, and I'll say it again: Intel does really well
-on TLB fills.
+> Upon every shm_lock call, we BUG_ON if an error was returned,
+> indicating racing either in idr or in shm_destroy. Move this logic
+> into the locking.
+> 
+> --- a/ipc/shm.c
+> +++ b/ipc/shm.c
+> @@ -155,8 +155,14 @@ static inline struct shmid_kernel *shm_lock(struct ipc_namespace *ns, int id)
+>  {
+>  	struct kern_ipc_perm *ipcp = ipc_lock(&shm_ids(ns), id);
+>  
+> -	if (IS_ERR(ipcp))
+> +	if (IS_ERR(ipcp)) {
+> +		/*
+> +		 * We raced in the idr lookup or with shm_destroy(),
+> +		 * either way, the ID is busted.
+> +		 */
+> +		BUG();
+>  		return (struct shmid_kernel *)ipcp;
+> +	}
 
-The reason is partly historical, with Win95 doing a ton of TLB
-invalidation (I think every single GDI call ended up invalidating the
-TLB, so under some important Windows benchmarks of the time, you
-literally had a TLB flush every 10k instructions!).
+Was there any particular reason to still do it this way?  It's a bit
+klunky.
 
-But partly it is because people are wrong in thinking that TLB fills
-have to be slow. There's a lot of complete garbage RISC machines where
-the TLB fill took forever, because in the name of simplicity it would
-stop the pipeline and often be done in SW.
+--- a/ipc/shm.c~ipcshm-move-bug_on-check-into-shm_lock-fix
++++ a/ipc/shm.c
+@@ -155,14 +155,11 @@ static inline struct shmid_kernel *shm_l
+ {
+ 	struct kern_ipc_perm *ipcp = ipc_lock(&shm_ids(ns), id);
+ 
+-	if (IS_ERR(ipcp)) {
+-		/*
+-		 * We raced in the idr lookup or with shm_destroy(),
+-		 * either way, the ID is busted.
+-		 */
+-		BUG();
+-		return (struct shmid_kernel *)ipcp;
+-	}
++	/*
++	 * We raced in the idr lookup or with shm_destroy().  Either way, the
++	 * ID is busted.
++	 */
++	BUG_ON(IS_ERR(ipcp));
+ 
+ 	return container_of(ipcp, struct shmid_kernel, shm_perm);
+ }
 
-The zero-cycle TLB fill is obviously a bit optimistic, but at the same
-time it's not completely insane. TLB fills can be prefetched, and the
-table walker can hit the cache, if you do them right. And Intel mostly
-does.
-
-So the normal full (non-global) TLB fill really is fairly cheap. It's
-been optimized for, and the TLB gets re-filled fairly efficiently. I
-suspect that it's really the case that doing more than just a couple
-of single-tlb flushes is a complete waste of time: the flushing takes
-longer than re-filling the TLB well.
-
-                         Linus
+One benefit of the code you sent is that the unreachable `return' will
+prevent a compile warning when CONFIG_BUG=n, but CONFIG_BUG=n is silly
+and I never worry about it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
