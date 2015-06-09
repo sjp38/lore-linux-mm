@@ -1,243 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A2036B0032
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 14:48:08 -0400 (EDT)
-Received: by igbsb11 with SMTP id sb11so17374506igb.0
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 11:48:07 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id zp5si6985833icb.30.2015.06.09.11.26.49
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 85DEF6B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 15:03:10 -0400 (EDT)
+Received: by igblz2 with SMTP id lz2so17821974igb.1
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 12:03:10 -0700 (PDT)
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com. [209.85.213.181])
+        by mx.google.com with ESMTPS id gi14si7024067icb.61.2015.06.09.11.47.50
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jun 2015 11:26:49 -0700 (PDT)
-Message-ID: <55772FDD.4040302@codeaurora.org>
-Date: Tue, 09 Jun 2015 23:56:37 +0530
-From: Susheel Khiani <skhiani@codeaurora.org>
-MIME-Version: 1.0
-Subject: Re: [Question] ksm: rmap_item pointing to some stale vmas
-References: <55268741.8010301@codeaurora.org> <alpine.LSU.2.11.1504101047200.28925@eggly.anvils> <552CBB49.5000308@codeaurora.org> <alpine.LSU.2.11.1504142155010.11693@eggly.anvils> <5541C6AD.8080906@codeaurora.org>
-In-Reply-To: <5541C6AD.8080906@codeaurora.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        Tue, 09 Jun 2015 11:47:50 -0700 (PDT)
+Received: by igbsb11 with SMTP id sb11so17367433igb.0
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 11:47:50 -0700 (PDT)
+From: Jeff Layton <jlayton@poochiereds.net>
+Subject: [PATCH] net, swap: Remove a warning and clarify why sk_mem_reclaim is required when deactivating swap
+Date: Tue,  9 Jun 2015 14:40:04 -0400
+Message-Id: <1433875204-18060-1-git-send-email-jeff.layton@primarydata.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: akpm@linux-foundation.org, peterz@infradead.org, neilb@suse.de, dhowells@redhat.com, paulmcquad@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: trond.myklebust@primarydata.com
+Cc: davem@davemloft.net, netdev@vger.kernel.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, mgorman@suse.de, linux-mm@kvack.org
 
-On 4/30/2015 11:37 AM, Susheel Khiani wrote:
->> But if I've misunderstood, and you think that what you're seeing
->> fits with the transient forking bugs I've (not quite) described,
->> and you can explain why even the transient case is important for
->> you to have fixed, then I really ought to redouble my efforts.
->>
->> Hugh
+From: Mel Gorman <mgorman@suse.de>
 
-I was able to root cause the issue as we got few instances of same and 
-was frequently getting reproducible on stress tests. The reason why it 
-was important was because failure to unmap ksm page was resulting into 
-CMA allocation failure for us.
+Jeff Layton reported the following;
 
-For cases like fork, what we observed is for private mapped file pages, 
-stable_node pointed by KSM page won't cover all the mappings until ksmd 
-completes one full scan. Only after ksmd scan, new rmap_items pointing 
-to mappings in child process would come into existence. So in cases like 
-CMA allocations where we can't wait for ksmd to complete one full cycle, 
-we can traverse anon_vma tree from parent's anon_vma to find out all the 
-pages wheres CMA is mapped.
+ [   74.232485] ------------[ cut here ]------------
+ [   74.233354] WARNING: CPU: 2 PID: 754 at net/core/sock.c:364 sk_clear_memalloc+0x51/0x80()
+ [   74.234790] Modules linked in: cts rpcsec_gss_krb5 nfsv4 dns_resolver nfs fscache xfs libcrc32c snd_hda_codec_generic snd_hda_intel snd_hda_controller snd_hda_codec snd_hda_core snd_hwdep snd_seq snd_seq_device nfsd snd_pcm snd_timer snd e1000 ppdev parport_pc joydev parport pvpanic soundcore floppy serio_raw i2c_piix4 pcspkr nfs_acl lockd virtio_balloon acpi_cpufreq auth_rpcgss grace sunrpc qxl drm_kms_helper ttm drm virtio_console virtio_blk virtio_pci ata_generic virtio_ring pata_acpi virtio
+ [   74.243599] CPU: 2 PID: 754 Comm: swapoff Not tainted 4.1.0-rc6+ #5
+ [   74.244635] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+ [   74.245546]  0000000000000000 0000000079e69e31 ffff8800d066bde8 ffffffff8179263d
+ [   74.246786]  0000000000000000 0000000000000000 ffff8800d066be28 ffffffff8109e6fa
+ [   74.248175]  0000000000000000 ffff880118d48000 ffff8800d58f5c08 ffff880036e380a8
+ [   74.249483] Call Trace:
+ [   74.249872]  [<ffffffff8179263d>] dump_stack+0x45/0x57
+ [   74.250703]  [<ffffffff8109e6fa>] warn_slowpath_common+0x8a/0xc0
+ [   74.251655]  [<ffffffff8109e82a>] warn_slowpath_null+0x1a/0x20
+ [   74.252585]  [<ffffffff81661241>] sk_clear_memalloc+0x51/0x80
+ [   74.253519]  [<ffffffffa0116c72>] xs_disable_swap+0x42/0x80 [sunrpc]
+ [   74.254537]  [<ffffffffa01109de>] rpc_clnt_swap_deactivate+0x7e/0xc0 [sunrpc]
+ [   74.255610]  [<ffffffffa03e4fd7>] nfs_swap_deactivate+0x27/0x30 [nfs]
+ [   74.256582]  [<ffffffff811e99d4>] destroy_swap_extents+0x74/0x80
+ [   74.257496]  [<ffffffff811ecb52>] SyS_swapoff+0x222/0x5c0
+ [   74.258318]  [<ffffffff81023f27>] ? syscall_trace_leave+0xc7/0x140
+ [   74.259253]  [<ffffffff81798dae>] system_call_fastpath+0x12/0x71
+ [   74.260158] ---[ end trace 2530722966429f10 ]---
 
-I have tested the following patch on 3.10 kernel and with this change I 
-am able to avoid CMA allocation failure which we were otherwise 
-frequently seeing because of not able to unmap KSM page.
+The warning in question was unnecessary but with Jeff's series the rules
+are also clearer.  This patch removes the warning and updates the comment
+to explain why sk_mem_reclaim() may still be called.
 
-Please review and let me know the feedback.
-
-
-
-[PATCH] ksm: Traverse through parent's anon_vma while unmapping
-
-While doing try_to_unmap_ksm, we traverse through
-rmap_item list to find out all the anon_vmas from which
-page needs to be unmapped.
-
-Now as per the design of KSM, it builds up its data
-structures by looking into each mm, and comes back a cycle
-later to find out which data structures are now outdated and
-needs to be updated. So, for cases like fork, what we
-observe is for private mapped file pages stable_node
-pointed by KSM page won't cover all the mappings until
-ksmd completes one full scan. Only after ksmd scan, new
-rmap_items pointing to mappings in child process would come
-into existence.
-
-As a result unmapping of a stable page can't be done until
-ksmd has completed one full scan. This becomes an issue in
-case of CMA where we need to unmap and move a CMA page and
-can't wait for ksmd to complete one cycle. Because of
-new rmap_items for new mapping still not created we won't be
-able to unmap CMA page from all the vmas where it is mapped.
-This would result in frequent CMA allocation failures.
-
-So instead of just relying on rmap_items list which we know
-can contain incomplete list, we also scan anon_vma tree from
-parent's anon_vma to find out all the vmas where CMA page is
-mapped and thereby successfully unmap the page and move it
-to new page.
-
-Change-Id: I97cacf6a73734b10c7098362c20fb3f2d4040c76
-Signed-off-by: Susheel Khiani <skhiani@codeaurora.org>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Acked-by: Jeff Layton <jeff.layton@primarydata.com>
 ---
-  mm/ksm.c | 58 +++++++++++++++++++++++++++++++++++++++++++++++++++++++---
-  1 file changed, 55 insertions(+), 3 deletions(-)
+ net/core/sock.c | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 11f6293..10d5266 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1956,6 +1956,7 @@ int page_referenced_ksm(struct page *page, struct 
-mem_cgroup *memcg,
-  	unsigned int mapcount = page_mapcount(page);
-  	int referenced = 0;
-  	int search_new_forks = 0;
-+	int search_from_root = 0;
-
-  	VM_BUG_ON(!PageKsm(page));
-  	VM_BUG_ON(!PageLocked(page));
-@@ -1968,9 +1969,20 @@ again:
-  		struct anon_vma *anon_vma = rmap_item->anon_vma;
-  		struct anon_vma_chain *vmac;
-  		struct vm_area_struct *vma;
-+		struct rb_root rb_root;
-+
-+		if (!search_from_root) {
-+			if (anon_vma)
-+				rb_root = anon_vma->rb_root;
-+		}
-+		else {
-+			if (anon_vma && anon_vma->root) {
-+				rb_root = anon_vma->root->rb_root;
-+			}
-+		}
-
-  		anon_vma_lock_read(anon_vma);
--		anon_vma_interval_tree_foreach(vmac, &anon_vma->rb_root,
-+		anon_vma_interval_tree_foreach(vmac, &rb_root,
-  					       0, ULONG_MAX) {
-  			vma = vmac->vma;
-  			if (rmap_item->address < vma->vm_start ||
-@@ -1999,6 +2011,11 @@ again:
-  	}
-  	if (!search_new_forks++)
-  		goto again;
-+
-+	if (!search_from_root++) {
-+		search_new_forks = 0;
-+		goto again;
-+	}
-  out:
-  	return referenced;
-  }
-@@ -2010,6 +2027,7 @@ int try_to_unmap_ksm(struct page *page, enum 
-ttu_flags flags,
-  	struct rmap_item *rmap_item;
-  	int ret = SWAP_AGAIN;
-  	int search_new_forks = 0;
-+	int search_from_root = 0;
-
-  	VM_BUG_ON(!PageKsm(page));
-  	VM_BUG_ON(!PageLocked(page));
-@@ -2028,9 +2046,20 @@ again:
-  		struct anon_vma *anon_vma = rmap_item->anon_vma;
-  		struct anon_vma_chain *vmac;
-  		struct vm_area_struct *vma;
-+		struct rb_root rb_root;
-+
-+		if (!search_from_root) {
-+			if (anon_vma)
-+				rb_root = anon_vma->rb_root;
-+		}
-+		else {
-+			if (anon_vma && anon_vma->root) {
-+				rb_root = anon_vma->root->rb_root;
-+			}
-+		}
-
-  		anon_vma_lock_read(anon_vma);
--		anon_vma_interval_tree_foreach(vmac, &anon_vma->rb_root,
-+		anon_vma_interval_tree_foreach(vmac, &rb_root,
-  					       0, ULONG_MAX) {
-  			vma = vmac->vma;
-  			if (rmap_item->address < vma->vm_start ||
-@@ -2056,6 +2085,11 @@ again:
-  	}
-  	if (!search_new_forks++)
-  		goto again;
-+
-+	if(!search_from_root++) {
-+		search_new_forks = 0;
-+		goto again;
-+	}
-  out:
-  	return ret;
-  }
-@@ -2068,6 +2102,7 @@ int rmap_walk_ksm(struct page *page, int 
-(*rmap_one)(struct page *,
-  	struct rmap_item *rmap_item;
-  	int ret = SWAP_AGAIN;
-  	int search_new_forks = 0;
-+	int search_from_root = 0;
-
-  	VM_BUG_ON(!PageKsm(page));
-  	VM_BUG_ON(!PageLocked(page));
-@@ -2080,9 +2115,21 @@ again:
-  		struct anon_vma *anon_vma = rmap_item->anon_vma;
-  		struct anon_vma_chain *vmac;
-  		struct vm_area_struct *vma;
-+		struct rb_root rb_root;
-+
-+		if (!search_from_root) {
-+			if (anon_vma)
-+				rb_root = anon_vma->rb_root;
-+		}
-+		else {
-+			if (anon_vma && anon_vma->root) {
-+				rb_root = anon_vma->root->rb_root;
-+			}
-+		}
-+
-
-  		anon_vma_lock_read(anon_vma);
--		anon_vma_interval_tree_foreach(vmac, &anon_vma->rb_root,
-+		anon_vma_interval_tree_foreach(vmac, &rb_root,
-  					       0, ULONG_MAX) {
-  			vma = vmac->vma;
-  			if (rmap_item->address < vma->vm_start ||
-@@ -2107,6 +2154,11 @@ again:
-  	}
-  	if (!search_new_forks++)
-  		goto again;
-+
-+	if (!search_from_root++) {
-+		search_new_forks = 0;
-+		goto again;
-+	}
-  out:
-  	return ret;
-  }
+diff --git a/net/core/sock.c b/net/core/sock.c
+index 292f42228bfb..2bb4c56370e5 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -354,14 +354,12 @@ void sk_clear_memalloc(struct sock *sk)
+ 
+ 	/*
+ 	 * SOCK_MEMALLOC is allowed to ignore rmem limits to ensure forward
+-	 * progress of swapping. However, if SOCK_MEMALLOC is cleared while
+-	 * it has rmem allocations there is a risk that the user of the
+-	 * socket cannot make forward progress due to exceeding the rmem
+-	 * limits. By rights, sk_clear_memalloc() should only be called
+-	 * on sockets being torn down but warn and reset the accounting if
+-	 * that assumption breaks.
++	 * progress of swapping. SOCK_MEMALLOC may be cleared while
++	 * it has rmem allocations due to the last swapfile being deactivated
++	 * but there is a risk that the socket is unusable due to exceeding
++	 * the rmem limits. Reclaim the reserves and obey rmem limits again.
+ 	 */
+-	if (WARN_ON(sk->sk_forward_alloc))
++	if (sk->sk_forward_alloc)
+ 		sk_mem_reclaim(sk);
+ }
+ EXPORT_SYMBOL_GPL(sk_clear_memalloc);
 -- 
-1.8.2.1
-
-
-
--- 
-Susheel Khiani
-
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center,
-Inc. is a member of the Code Aurora Forum, hosted by The Linux Foundation
-
--- 
-Susheel Khiani
-
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center,
-Inc. is a member of the Code Aurora Forum, hosted by The Linux Foundation
+2.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
