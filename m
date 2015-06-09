@@ -1,129 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 403D36B0032
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 03:13:10 -0400 (EDT)
-Received: by padev16 with SMTP id ev16so7962108pad.0
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 00:13:10 -0700 (PDT)
-Received: from mgwym02.jp.fujitsu.com (mgwym02.jp.fujitsu.com. [211.128.242.41])
-        by mx.google.com with ESMTPS id ej13si7641619pdb.143.2015.06.09.00.13.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jun 2015 00:13:09 -0700 (PDT)
-Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
-	by yt-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id 3F45EAC0982
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 16:13:05 +0900 (JST)
-Message-ID: <557691E0.5020203@jp.fujitsu.com>
-Date: Tue, 09 Jun 2015 16:12:32 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id C31FC6B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 04:10:48 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so9587683pdb.1
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 01:10:48 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id ka13si7865142pbb.16.2015.06.09.01.10.47
+        for <linux-mm@kvack.org>;
+        Tue, 09 Jun 2015 01:10:47 -0700 (PDT)
+Message-ID: <55769F85.5060909@linux.intel.com>
+Date: Tue, 09 Jun 2015 16:10:45 +0800
+From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 10/12] mm: add the buddy system interface
-References: <55704A7E.5030507@huawei.com> <55704CC4.8040707@huawei.com>
-In-Reply-To: <55704CC4.8040707@huawei.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Subject: Re: [PATCH] slub/slab: fix kmemleak didn't work on some case
+References: <99C214DF91337140A8D774E25DF6CD5FC89DA2@shsmsx102.ccr.corp.intel.com> <alpine.DEB.2.11.1506080425350.10651@east.gentwo.org> <20150608101302.GB31349@e104818-lin.cambridge.arm.com>
+In-Reply-To: <20150608101302.GB31349@e104818-lin.cambridge.arm.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux.com>
+Cc: "Liu, XinwuX" <xinwux.liu@intel.com>, "penberg@kernel.org" <penberg@kernel.org>, "mpm@selenic.com" <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "He, Bo" <bo.he@intel.com>, "Chen, Lin Z" <lin.z.chen@intel.com>
 
-On 2015/06/04 22:04, Xishi Qiu wrote:
-> Add the buddy system interface for address range mirroring feature.
-> Allocate mirrored pages in MIGRATE_MIRROR list. If there is no mirrored pages
-> left, use other types pages.
->
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->   mm/page_alloc.c | 40 +++++++++++++++++++++++++++++++++++++++-
->   1 file changed, 39 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index d4d2066..0fb55288 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -599,6 +599,26 @@ static inline bool is_mirror_pfn(unsigned long pfn)
->
->   	return false;
->   }
-> +
-> +static inline bool change_to_mirror(gfp_t gfp_flags, int high_zoneidx)
-> +{
-> +	/*
-> +	 * Do not alloc mirrored memory below 4G, because 0-4G is
-> +	 * all mirrored by default, and the list is always empty.
-> +	 */
-> +	if (high_zoneidx < ZONE_NORMAL)
-> +		return false;
-> +
-> +	/* Alloc mirrored memory for only kernel */
-> +	if (gfp_flags & __GFP_MIRROR)
-> +		return true;
+On 2015/6/8 18:13, Catalin Marinas wrote:
+> On Mon, Jun 08, 2015 at 10:38:13AM +0100, Christoph Lameter wrote:
+>> On Mon, 8 Jun 2015, Liu, XinwuX wrote:
+>>
+>>> when kernel uses kmalloc to allocate memory, slub/slab will find
+>>> a suitable kmem_cache. Ususally the cache's object size is often
+>>> greater than requested size. There is unused space which contains
+>>> dirty data. These dirty data might have pointers pointing to a block
+>> dirty? In what sense?
+> I guess XinwuX meant uninitialised.
 
-GFP_KERNEL itself should imply mirror, I think.
+Uninitialized or dirty data used before being freed.
 
-> +
-> +	/* Alloc mirrored memory for both user and kernel */
-> +	if (sysctl_mirrorable)
-> +		return true;
-
-Reading this, I think this sysctl is not good. The user cannot know what is mirrored
-because memory may not be mirrored until the sysctl is set.
-
-Thanks,
--Kame
-
-
-> +
-> +	return false;
-> +}
->   #endif
 >
->   /*
-> @@ -1796,7 +1816,10 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
->   			WARN_ON_ONCE(order > 1);
->   		}
->   		spin_lock_irqsave(&zone->lock, flags);
-> -		page = __rmqueue(zone, order, migratetype);
-> +		if (is_migrate_mirror(migratetype))
-> +			page = __rmqueue_smallest(zone, order, migratetype);
-> +		else
-> +			page = __rmqueue(zone, order, migratetype);
->   		spin_unlock(&zone->lock);
->   		if (!page)
->   			goto failed;
-> @@ -2928,6 +2951,11 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->   	if (IS_ENABLED(CONFIG_CMA) && ac.migratetype == MIGRATE_MOVABLE)
->   		alloc_flags |= ALLOC_CMA;
->
-> +#ifdef CONFIG_MEMORY_MIRROR
-> +	if (change_to_mirror(gfp_mask, ac.high_zoneidx))
-> +		ac.migratetype = MIGRATE_MIRROR;
-> +#endif
-> +
->   retry_cpuset:
->   	cpuset_mems_cookie = read_mems_allowed_begin();
->
-> @@ -2943,9 +2971,19 @@ retry_cpuset:
->
->   	/* First allocation attempt */
->   	alloc_mask = gfp_mask|__GFP_HARDWALL;
-> +retry:
->   	page = get_page_from_freelist(alloc_mask, order, alloc_flags, &ac);
->   	if (unlikely(!page)) {
->   		/*
-> +		 * If there is no mirrored memory, we will alloc other
-> +		 * types memory.
-> +		 */
-> +		if (is_migrate_mirror(ac.migratetype)) {
-> +			ac.migratetype = gfpflags_to_migratetype(gfp_mask);
-> +			goto retry;
-> +		}
-> +
-> +		/*
->   		 * Runtime PM, block IO and its error handling path
->   		 * can deadlock because I/O on the device might not
->   		 * complete.
->
+>>> of leaked memory. Kernel wouldn't consider this memory as leaked when
+>>> scanning kmemleak object.
+>> This has never been considered leaked memory before to my knowledge and
+>> the data is already initialized.
+> It's not the object being allocated that is considered leaked. But
+> uninitialised data in this object is scanned by kmemleak and it may look
+> like valid pointers to real leaked objects. So such data increases the
+> number of kmemleak false negatives.
 
+Yes, indeed.
+
+>
+> As I replied already, I don't think this is that bad, or at least not
+> worse than what kmemleak already does (looking at all data whether it's
+> pointer or not).
+
+It depends. As for memleak, developers prefers there are false alarms instead
+of missing some leaked memory.
+
+>  It also doesn't solve the kmem_cache_alloc() case where
+> the original object size is no longer available.
+
+Such issue around kmem_cache_alloc() case happens only when the
+caller doesn't initialize or use the full object, so the object keeps
+old dirty data.
+This patch is to resolve the redundant unused space (more than object size)
+although the full object is used by kernel.
+
+>
+>> F.e. The zeroing function in linux/mm/slub.c::slab_alloc_node() zeros the
+>> complete object and not only the number of bytes specified in the kmalloc
+>> call. Same thing is true for SLAB.
+> But that's only when __GFP_ZERO is passed.
+>
+Thanks for the kind comments. There is a balance between performance (new memset
+consumes time) and debug capability. 
+
+Yanmin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
