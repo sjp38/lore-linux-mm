@@ -1,115 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id E3FFD6B0038
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 20:21:24 -0400 (EDT)
-Received: by pacyx8 with SMTP id yx8so2216878pac.2
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 17:21:24 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id za1si6313007pbb.154.2015.06.08.17.21.22
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B4446B0038
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2015 20:36:48 -0400 (EDT)
+Received: by pdjm12 with SMTP id m12so2649899pdj.3
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2015 17:36:47 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id hy8si6339763pab.227.2015.06.08.17.36.46
         for <linux-mm@kvack.org>;
-        Mon, 08 Jun 2015 17:21:23 -0700 (PDT)
-Date: Tue, 9 Jun 2015 09:22:59 +0900
+        Mon, 08 Jun 2015 17:36:47 -0700 (PDT)
+Date: Tue, 9 Jun 2015 09:38:27 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: Corruption with MMOTS
- slub-bulk-allocation-from-per-cpu-partial-pages.patch
-Message-ID: <20150609002258.GA9687@js1304-P5Q-DELUXE>
-References: <20150608121639.3d9ce2aa@redhat.com>
+Subject: Re: [PATCH] zsmalloc: fix a null pointer dereference in
+ destroy_handle_cache()
+Message-ID: <20150609003827.GD9687@js1304-P5Q-DELUXE>
+References: <1433502690-2524-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150608135532.ac913746b6394217e92a229a@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150608121639.3d9ce2aa@redhat.com>
+In-Reply-To: <20150608135532.ac913746b6394217e92a229a@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <jbrouer@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
 
-On Mon, Jun 08, 2015 at 12:16:39PM +0200, Jesper Dangaard Brouer wrote:
+On Mon, Jun 08, 2015 at 01:55:32PM -0700, Andrew Morton wrote:
+> On Fri,  5 Jun 2015 20:11:30 +0900 Sergey Senozhatsky <sergey.senozhatsky@gmail.com> wrote:
 > 
-> It seems the patch from (inserted below):
->  http://ozlabs.org/~akpm/mmots/broken-out/slub-bulk-allocation-from-per-cpu-partial-pages.patch
+> > zs_destroy_pool()->destroy_handle_cache() invoked from
+> > zs_create_pool() can pass a NULL ->handle_cachep pointer
+> > to kmem_cache_destroy(), which will dereference it.
+> >
 > 
-> Is not protecting access to c->partial "enough" (section is under
-> local_irq_disable/enable).  When exercising bulk API I can make it
-> crash/corrupt memory when compiled with CONFIG_SLUB_CPU_PARTIAL=y
+> That's slightly lacking in details (under what circumstances will it
+> crash) so I changed it to
 > 
-> First I suspected:
->  object = get_freelist(s, c->page); 
-> But the problem goes way with CONFIG_SLUB_CPU_PARTIAL=n
+> : If zs_create_pool()->create_handle_cache()->kmem_cache_create() fails,
+> : zs_create_pool()->destroy_handle_cache() will dereference the NULL
+> : pool->handle_cachep.
+> :
+> : Modify destroy_handle_cache() to avoid this.
 > 
 > 
-> From: Christoph Lameter <cl@linux.com>
-> Subject: slub: bulk allocation from per cpu partial pages
+> > ...
+> >
+> > --- a/mm/zsmalloc.c
+> > +++ b/mm/zsmalloc.c
+> > @@ -285,7 +285,8 @@ static int create_handle_cache(struct zs_pool *pool)
+> >  
+> >  static void destroy_handle_cache(struct zs_pool *pool)
+> >  {
+> > -	kmem_cache_destroy(pool->handle_cachep);
+> > +	if (pool->handle_cachep)
+> > +		kmem_cache_destroy(pool->handle_cachep);
+> >  }
+> >  
+> >  static unsigned long alloc_handle(struct zs_pool *pool)
 > 
-> Cover all of the per cpu objects available.
+> I'll apply this, but...  from a bit of grepping I'm estimating that we
+> have approximately 200 instances of
 > 
-> Expand the bulk allocation support to drain the per cpu partial pages
-> while interrupts are off.
+> 	if (foo)
+> 		kmem_cache_destroy(foo);
 > 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-> Cc: Jesper Dangaard Brouer <brouer@redhat.com>
-> Cc: Pekka Enberg <penberg@kernel.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  mm/slub.c |   36 +++++++++++++++++++++++++++++++++---
->  1 file changed, 33 insertions(+), 3 deletions(-)
-> 
-> diff -puN mm/slub.c~slub-bulk-allocation-from-per-cpu-partial-pages mm/slub.c
-> --- a/mm/slub.c~slub-bulk-allocation-from-per-cpu-partial-pages
-> +++ a/mm/slub.c
-> @@ -2769,15 +2769,45 @@ bool kmem_cache_alloc_bulk(struct kmem_c
->  		while (size) {
->  			void *object = c->freelist;
->  
-> -			if (!object)
-> -				break;
-> +			if (unlikely(!object)) {
-> +				/*
-> +				 * Check if there remotely freed objects
-> +				 * availalbe in the page.
-> +				 */
-> +				object = get_freelist(s, c->page);
-> +
-> +				if (!object) {
-> +					/*
-> +					 * All objects in use lets check if
-> +					 * we have other per cpu partial
-> +					 * pages that have available
-> +					 * objects.
-> +					 */
-> +					c->page = c->partial;
-> +					if (!c->page) {
-> +						/* No per cpu objects left */
-> +						c->freelist = NULL;
-> +						break;
-> +					}
-> +
-> +					/* Next per cpu partial page */
-> +					c->partial = c->page->next;
-> +					c->freelist = get_freelist(s,
-> +							c->page);
-> +					continue;
-> +				}
-> +
-> +			}
-> +
->  
-> -			c->freelist = get_freepointer(s, object);
->  			*p++ = object;
->  			size--;
->  
->  			if (unlikely(flags & __GFP_ZERO))
->  				memset(object, 0, s->object_size);
-> +
-> +			c->freelist = get_freepointer(s, object);
-> +
+> so obviously kmem_cache_destroy() should be doing the check.
 
-Hello,
+Hello, Andrew.
 
-get_freepointer() should be called before zeroing object.
-It may help your problem.
+I'm not sure if doing the check in kmem_cache_destroy() is better.
+My quick grep for other pool based allocators(ex. mempool, zpool) also
+says that they don't check whether passed pool pointer is NULL or not
+in destroy function. I think that it's general convention that proper
+pool pointer should be passed to pool based function APIs.
 
 Thanks.
 
