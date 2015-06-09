@@ -1,91 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F51A6B0072
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 18:28:42 -0400 (EDT)
-Received: by igbpi8 with SMTP id pi8so22379527igb.1
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 15:28:42 -0700 (PDT)
-Received: from mail-ie0-x236.google.com (mail-ie0-x236.google.com. [2607:f8b0:4001:c03::236])
-        by mx.google.com with ESMTPS id mk9si7456731icb.2.2015.06.09.15.28.42
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id A1B756B0072
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 18:32:10 -0400 (EDT)
+Received: by wiwd19 with SMTP id d19so30590533wiw.0
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 15:32:10 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t4si5672009wiz.31.2015.06.09.15.32.08
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jun 2015 15:28:42 -0700 (PDT)
-Received: by ieclw1 with SMTP id lw1so22911250iec.3
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 15:28:42 -0700 (PDT)
-Date: Tue, 9 Jun 2015 15:28:40 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] oom: always panic on OOM when panic_on_oom is
- configured
-In-Reply-To: <20150609094356.GB29057@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1506091516000.30516@chino.kir.corp.google.com>
-References: <1433159948-9912-1-git-send-email-mhocko@suse.cz> <alpine.DEB.2.10.1506041607020.16555@chino.kir.corp.google.com> <20150605111302.GB26113@dhcp22.suse.cz> <alpine.DEB.2.10.1506081242250.13272@chino.kir.corp.google.com> <20150608213218.GB18360@dhcp22.suse.cz>
- <alpine.DEB.2.10.1506081606500.17040@chino.kir.corp.google.com> <20150609094356.GB29057@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 09 Jun 2015 15:32:09 -0700 (PDT)
+Date: Tue, 9 Jun 2015 23:32:03 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
+Message-ID: <20150609223203.GW26425@suse.de>
+References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
+ <20150608174551.GA27558@gmail.com>
+ <20150609084739.GQ26425@suse.de>
+ <20150609103231.GA11026@gmail.com>
+ <20150609112055.GS26425@suse.de>
+ <20150609124328.GA23066@gmail.com>
+ <5577078B.2000503@intel.com>
+ <55771909.2020005@intel.com>
+ <55775749.3090004@intel.com>
+ <CA+55aFz6b5pG9tRNazk8ynTCXS3whzWJ_737dt1xxAHDf1jASQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CA+55aFz6b5pG9tRNazk8ynTCXS3whzWJ_737dt1xxAHDf1jASQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, 9 Jun 2015, Michal Hocko wrote:
-
-> > > On Mon 08-06-15 12:51:53, David Rientjes wrote:
-> > > Do you actually have panic_on_oops enabled?
-> > > 
-> > 
-> > CONFIG_PANIC_ON_OOPS_VALUE should be 0, I'm not sure why that's relevant.
+On Tue, Jun 09, 2015 at 02:54:01PM -0700, Linus Torvalds wrote:
+> On Tue, Jun 9, 2015 at 2:14 PM, Dave Hansen <dave.hansen@intel.com> wrote:
+> >
+> > The 0 cycle TLB miss was also interesting.  It goes back up to something
+> > reasonable if I put the mb()/mfence's back.
 > 
-> No I meant panic_on_oops > 0.
+> So I've said it before, and I'll say it again: Intel does really well
+> on TLB fills.
 > 
-
-CONFIG_PANIC_ON_OOPS_VALUE sets panic_on_oops, so it's 0.
-
-> > The functionality I'm referring to is that your patch now panics the 
-> > machine for configs where /proc/sys/vm/panic_on_oom is set and the same 
-> > scenario occurs as described above.  You're introducing userspace breakage 
-> > because you are using panic_on_oom in a way that it hasn't been used in 
-> > the past and isn't described as working in the documentation.
+> The reason is partly historical, with Win95 doing a ton of TLB
+> invalidation (I think every single GDI call ended up invalidating the
+> TLB, so under some important Windows benchmarks of the time, you
+> literally had a TLB flush every 10k instructions!).
 > 
-> I am sorry, but I do not follow. The knob has been always used to
-> _panic_ the OOM system. Nothing more and nothing less. Now you
-> are arguing about the change being buggy because a task might be
-> killed but that argument doesn't make much sense to me because
-> basically _any_ other allocation which allows OOM to trigger might hit
-> check_panic_on_oom() and panic the system well before your killed task
-> gets a chance to terminate.
+> But partly it is because people are wrong in thinking that TLB fills
+> have to be slow. There's a lot of complete garbage RISC machines where
+> the TLB fill took forever, because in the name of simplicity it would
+> stop the pipeline and often be done in SW.
 > 
-
-Not necessarily.  We pin a lot of memory with get_user_pages() and 
-short-circuit it by checking for fatal_signal_pending() specifically for 
-oom conditions.  This was done over six years ago by commit 4779280d1ea4 
-("mm: make get_user_pages() interruptible").  When such a process is 
-faulting in memory, and it is killed by userspace as a result of an oom 
-condition, it needs to be able to allocate (TIF_MEMDIE set by the oom 
-killer due to SIGKILL), return to __get_user_pages(), abort, handle the 
-signal, and exit.
-
-I can't possibly make that any more clear.
-
-Your patch causes that to instead panic the system if panic_on_oom is set.  
-It's inappropriate and userspace breakage.  The fact that I don't 
-personally use panic_on_oom is completely and utterly irrelevant.
-
-There is absolutely nothing wrong with a process that has been killed 
-either directly by userspace or as part of a group exit, or a process that 
-is already in the exit path and needs to allocate memory to be able to 
-free its memory, to get access to memory reserves.  That's not an oom 
-condition, that's memory reserves.  Panic_on_oom has nothing to do with 
-this scenario whatsoever.
-
-Panic_on_oom is not panic_when_reclaim_fails.  It's to suppress a kernel 
-oom kill.  That's why it's checked where it is checked and always has 
-been.  This patch cannot possibly be merged.
-
-> I would understand your complain if we waited for oom victim(s) before
-> check_panic_on_oom but we have not been doing that.
+> The zero-cycle TLB fill is obviously a bit optimistic, but at the same
+> time it's not completely insane. TLB fills can be prefetched, and the
+> table walker can hit the cache, if you do them right. And Intel mostly
+> does.
+> 
+> So the normal full (non-global) TLB fill really is fairly cheap. It's
+> been optimized for, and the TLB gets re-filled fairly efficiently. I
+> suspect that it's really the case that doing more than just a couple
+> of single-tlb flushes is a complete waste of time: the flushing takes
+> longer than re-filling the TLB well.
 > 
 
-I don't think anybody is changing panic_on_oom after boot, so we wouldn't 
-have any oom victims if the oom killer never did anything.
+I expect I'll do another revision of the series after 4.2-rc1 as it's way
+too close to 4.1's release. When that happens, I'll drop patch 4 and leave
+just the full non-global flush patch. In the event there is an architecture
+that really cares about the refill cost or we find that there is a corner
+case where the TLB refill hurts then patch 4 will be in the mail archives
+to consider for rebase and testing.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
