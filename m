@@ -1,20 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DC086B0032
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 16:00:19 -0400 (EDT)
-Received: by lbbqq2 with SMTP id qq2so16649768lbb.3
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 13:00:18 -0700 (PDT)
-Received: from mail-la0-x243.google.com (mail-la0-x243.google.com. [2a00:1450:4010:c03::243])
-        by mx.google.com with ESMTPS id t6si6641724lby.29.2015.06.09.13.00.16
+Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
+	by kanga.kvack.org (Postfix) with ESMTP id F20356B006C
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 16:00:20 -0400 (EDT)
+Received: by labpy14 with SMTP id py14so19138543lab.0
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 13:00:20 -0700 (PDT)
+Received: from mail-la0-x242.google.com (mail-la0-x242.google.com. [2a00:1450:4010:c03::242])
+        by mx.google.com with ESMTPS id s2si6602529lbf.154.2015.06.09.13.00.18
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jun 2015 13:00:17 -0700 (PDT)
-Received: by lamq1 with SMTP id q1so3235027lam.0
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 13:00:16 -0700 (PDT)
-Subject: [PATCHSET v3 0/4] pagemap: make useable for non-privilege users
+        Tue, 09 Jun 2015 13:00:19 -0700 (PDT)
+Received: by lamq1 with SMTP id q1so3235293lam.0
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 13:00:18 -0700 (PDT)
+Subject: [PATCH v3 1/4] pagemap: check permissions and capabilities at open
+ time
 From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Tue, 09 Jun 2015 23:00:13 +0300
-Message-ID: <20150609195333.21971.58194.stgit@zurg>
+Date: Tue, 09 Jun 2015 23:00:15 +0300
+Message-ID: <20150609200015.21971.25692.stgit@zurg>
+In-Reply-To: <20150609195333.21971.58194.stgit@zurg>
+References: <20150609195333.21971.58194.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -23,32 +26,143 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: linux-api@vger.kernel.org, Mark Williamson <mwilliamson@undo-software.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-This patchset makes pagemap useable again in the safe way. It adds bit
-'map-exlusive' which is set if page is mapped only here and restores
-access for non-privileged users but hides pfn from them.
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-Last patch removes page-shift bits and completes migration to the new
-pagemap format: flags soft-dirty and mmap-exlusive are available only
-in the new format.
+This patch moves permission checks from pagemap_read() into pagemap_open().
 
-v3: check permissions in ->open
+Pointer to mm is saved in file->private_data. This reference pins only
+mm_struct itself. /proc/*/mem, maps, smaps already work in the same way.
 
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Link: http://lkml.kernel.org/r/CA+55aFyKpWrt_Ajzh1rzp_GcwZ4=6Y=kOv8hBz172CFJp6L8Tg@mail.gmail.com
 ---
+ fs/proc/task_mmu.c |   48 ++++++++++++++++++++++++++++--------------------
+ 1 file changed, 28 insertions(+), 20 deletions(-)
 
-Konstantin Khlebnikov (4):
-      pagemap: check permissions and capabilities at open time
-      pagemap: add mmap-exclusive bit for marking pages mapped only here
-      pagemap: hide physical addresses from non-privileged users
-      pagemap: switch to the new format and do some cleanup
-
-
- Documentation/vm/pagemap.txt |    3 -
- fs/proc/task_mmu.c           |  219 +++++++++++++++++++-----------------------
- tools/vm/page-types.c        |   35 +++----
- 3 files changed, 118 insertions(+), 139 deletions(-)
-
---
-Signature
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 6dee68d..21bc251 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1227,40 +1227,33 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+ static ssize_t pagemap_read(struct file *file, char __user *buf,
+ 			    size_t count, loff_t *ppos)
+ {
+-	struct task_struct *task = get_proc_task(file_inode(file));
+-	struct mm_struct *mm;
++	struct mm_struct *mm = file->private_data;
+ 	struct pagemapread pm;
+-	int ret = -ESRCH;
+ 	struct mm_walk pagemap_walk = {};
+ 	unsigned long src;
+ 	unsigned long svpfn;
+ 	unsigned long start_vaddr;
+ 	unsigned long end_vaddr;
+-	int copied = 0;
++	int ret = 0, copied = 0;
+ 
+-	if (!task)
++	if (!mm || !atomic_inc_not_zero(&mm->mm_users))
+ 		goto out;
+ 
+ 	ret = -EINVAL;
+ 	/* file position must be aligned */
+ 	if ((*ppos % PM_ENTRY_BYTES) || (count % PM_ENTRY_BYTES))
+-		goto out_task;
++		goto out_mm;
+ 
+ 	ret = 0;
+ 	if (!count)
+-		goto out_task;
++		goto out_mm;
+ 
+ 	pm.v2 = soft_dirty_cleared;
+ 	pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
+ 	pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_TEMPORARY);
+ 	ret = -ENOMEM;
+ 	if (!pm.buffer)
+-		goto out_task;
+-
+-	mm = mm_access(task, PTRACE_MODE_READ);
+-	ret = PTR_ERR(mm);
+-	if (!mm || IS_ERR(mm))
+-		goto out_free;
++		goto out_mm;
+ 
+ 	pagemap_walk.pmd_entry = pagemap_pte_range;
+ 	pagemap_walk.pte_hole = pagemap_pte_hole;
+@@ -1273,10 +1266,10 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+ 	src = *ppos;
+ 	svpfn = src / PM_ENTRY_BYTES;
+ 	start_vaddr = svpfn << PAGE_SHIFT;
+-	end_vaddr = TASK_SIZE_OF(task);
++	end_vaddr = mm->task_size;
+ 
+ 	/* watch out for wraparound */
+-	if (svpfn > TASK_SIZE_OF(task) >> PAGE_SHIFT)
++	if (svpfn > mm->task_size >> PAGE_SHIFT)
+ 		start_vaddr = end_vaddr;
+ 
+ 	/*
+@@ -1303,7 +1296,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+ 		len = min(count, PM_ENTRY_BYTES * pm.pos);
+ 		if (copy_to_user(buf, pm.buffer, len)) {
+ 			ret = -EFAULT;
+-			goto out_mm;
++			goto out_free;
+ 		}
+ 		copied += len;
+ 		buf += len;
+@@ -1313,24 +1306,38 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+ 	if (!ret || ret == PM_END_OF_BUFFER)
+ 		ret = copied;
+ 
+-out_mm:
+-	mmput(mm);
+ out_free:
+ 	kfree(pm.buffer);
+-out_task:
+-	put_task_struct(task);
++out_mm:
++	mmput(mm);
+ out:
+ 	return ret;
+ }
+ 
+ static int pagemap_open(struct inode *inode, struct file *file)
+ {
++	struct mm_struct *mm;
++
+ 	/* do not disclose physical addresses: attack vector */
+ 	if (!capable(CAP_SYS_ADMIN))
+ 		return -EPERM;
+ 	pr_warn_once("Bits 55-60 of /proc/PID/pagemap entries are about "
+ 			"to stop being page-shift some time soon. See the "
+ 			"linux/Documentation/vm/pagemap.txt for details.\n");
++
++	mm = proc_mem_open(inode, PTRACE_MODE_READ);
++	if (IS_ERR(mm))
++		return PTR_ERR(mm);
++	file->private_data = mm;
++	return 0;
++}
++
++static int pagemap_release(struct inode *inode, struct file *file)
++{
++	struct mm_struct *mm = file->private_data;
++
++	if (mm)
++		mmdrop(mm);
+ 	return 0;
+ }
+ 
+@@ -1338,6 +1345,7 @@ const struct file_operations proc_pagemap_operations = {
+ 	.llseek		= mem_lseek, /* borrow this */
+ 	.read		= pagemap_read,
+ 	.open		= pagemap_open,
++	.release	= pagemap_release,
+ };
+ #endif /* CONFIG_PROC_PAGE_MONITOR */
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
