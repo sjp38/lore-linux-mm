@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
-	by kanga.kvack.org (Postfix) with ESMTP id F20356B006C
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 16:00:20 -0400 (EDT)
-Received: by labpy14 with SMTP id py14so19138543lab.0
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 13:00:20 -0700 (PDT)
-Received: from mail-la0-x242.google.com (mail-la0-x242.google.com. [2a00:1450:4010:c03::242])
-        by mx.google.com with ESMTPS id s2si6602529lbf.154.2015.06.09.13.00.18
+Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 163A46B006E
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 16:00:23 -0400 (EDT)
+Received: by lbcue7 with SMTP id ue7so16645096lbc.0
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 13:00:22 -0700 (PDT)
+Received: from mail-lb0-x242.google.com (mail-lb0-x242.google.com. [2a00:1450:4010:c04::242])
+        by mx.google.com with ESMTPS id q2si6616192laq.102.2015.06.09.13.00.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jun 2015 13:00:19 -0700 (PDT)
-Received: by lamq1 with SMTP id q1so3235293lam.0
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 13:00:18 -0700 (PDT)
-Subject: [PATCH v3 1/4] pagemap: check permissions and capabilities at open
- time
+        Tue, 09 Jun 2015 13:00:21 -0700 (PDT)
+Received: by lbio15 with SMTP id o15so3295900lbi.0
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 13:00:20 -0700 (PDT)
+Subject: [PATCH v3 2/4] pagemap: add mmap-exclusive bit for marking pages
+ mapped only here
 From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Tue, 09 Jun 2015 23:00:15 +0300
-Message-ID: <20150609200015.21971.25692.stgit@zurg>
+Date: Tue, 09 Jun 2015 23:00:17 +0300
+Message-ID: <20150609200017.21971.23391.stgit@zurg>
 In-Reply-To: <20150609195333.21971.58194.stgit@zurg>
 References: <20150609195333.21971.58194.stgit@zurg>
 MIME-Version: 1.0
@@ -28,141 +28,133 @@ Cc: linux-api@vger.kernel.org, Mark Williamson <mwilliamson@undo-software.com>, 
 
 From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-This patch moves permission checks from pagemap_read() into pagemap_open().
+This patch sets bit 56 in pagemap if this page is mapped only once.
+It allows to detect exclusively used pages without exposing PFN:
 
-Pointer to mm is saved in file->private_data. This reference pins only
-mm_struct itself. /proc/*/mem, maps, smaps already work in the same way.
+present file exclusive state
+0       0    0         non-present
+1       1    0         file page mapped somewhere else
+1       1    1         file page mapped only here
+1       0    0         anon non-CoWed page (shared with parent/child)
+1       0    1         anon CoWed page (or never forked)
+
+CoWed pages in MAP_FILE|MAP_PRIVATE areas are anon in this context.
+
+Mmap-exclusive bit doesn't reflect potential page-sharing via swapcache:
+page could be mapped once but has several swap-ptes which point to it.
+Application could detect that by swap bit in pagemap entry and touch
+that pte via /proc/pid/mem to get real information.
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Link: http://lkml.kernel.org/r/CA+55aFyKpWrt_Ajzh1rzp_GcwZ4=6Y=kOv8hBz172CFJp6L8Tg@mail.gmail.com
----
- fs/proc/task_mmu.c |   48 ++++++++++++++++++++++++++++--------------------
- 1 file changed, 28 insertions(+), 20 deletions(-)
+Link: http://lkml.kernel.org/r/CAEVpBa+_RyACkhODZrRvQLs80iy0sqpdrd0AaP_-tgnX3Y9yNQ@mail.gmail.com
 
+---
+
+v2:
+* handle transparent huge pages
+* invert bit and rename shared -> exclusive (less confusing name)
+---
+ Documentation/vm/pagemap.txt |    3 ++-
+ fs/proc/task_mmu.c           |   10 ++++++++++
+ tools/vm/page-types.c        |   12 ++++++++++++
+ 3 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/Documentation/vm/pagemap.txt b/Documentation/vm/pagemap.txt
+index 6bfbc17..3cfbbb3 100644
+--- a/Documentation/vm/pagemap.txt
++++ b/Documentation/vm/pagemap.txt
+@@ -16,7 +16,8 @@ There are three components to pagemap:
+     * Bits 0-4   swap type if swapped
+     * Bits 5-54  swap offset if swapped
+     * Bit  55    pte is soft-dirty (see Documentation/vm/soft-dirty.txt)
+-    * Bits 56-60 zero
++    * Bit  56    page exlusively mapped
++    * Bits 57-60 zero
+     * Bit  61    page is file-page or shared-anon
+     * Bit  62    page swapped
+     * Bit  63    page present
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 6dee68d..21bc251 100644
+index 21bc251..b02e38f 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
-@@ -1227,40 +1227,33 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
- static ssize_t pagemap_read(struct file *file, char __user *buf,
- 			    size_t count, loff_t *ppos)
- {
--	struct task_struct *task = get_proc_task(file_inode(file));
--	struct mm_struct *mm;
-+	struct mm_struct *mm = file->private_data;
- 	struct pagemapread pm;
--	int ret = -ESRCH;
- 	struct mm_walk pagemap_walk = {};
- 	unsigned long src;
- 	unsigned long svpfn;
- 	unsigned long start_vaddr;
- 	unsigned long end_vaddr;
--	int copied = 0;
-+	int ret = 0, copied = 0;
+@@ -982,6 +982,7 @@ struct pagemapread {
+ #define PM_STATUS2(v2, x)   (__PM_PSHIFT(v2 ? x : PAGE_SHIFT))
  
--	if (!task)
-+	if (!mm || !atomic_inc_not_zero(&mm->mm_users))
- 		goto out;
+ #define __PM_SOFT_DIRTY      (1LL)
++#define __PM_MMAP_EXCLUSIVE  (2LL)
+ #define PM_PRESENT          PM_STATUS(4LL)
+ #define PM_SWAP             PM_STATUS(2LL)
+ #define PM_FILE             PM_STATUS(1LL)
+@@ -1074,6 +1075,8 @@ static void pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
  
- 	ret = -EINVAL;
- 	/* file position must be aligned */
- 	if ((*ppos % PM_ENTRY_BYTES) || (count % PM_ENTRY_BYTES))
--		goto out_task;
-+		goto out_mm;
+ 	if (page && !PageAnon(page))
+ 		flags |= PM_FILE;
++	if (page && page_mapcount(page) == 1)
++		flags2 |= __PM_MMAP_EXCLUSIVE;
+ 	if ((vma->vm_flags & VM_SOFTDIRTY))
+ 		flags2 |= __PM_SOFT_DIRTY;
  
- 	ret = 0;
- 	if (!count)
--		goto out_task;
-+		goto out_mm;
+@@ -1119,6 +1122,13 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 		else
+ 			pmd_flags2 = 0;
  
- 	pm.v2 = soft_dirty_cleared;
- 	pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
- 	pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_TEMPORARY);
- 	ret = -ENOMEM;
- 	if (!pm.buffer)
--		goto out_task;
--
--	mm = mm_access(task, PTRACE_MODE_READ);
--	ret = PTR_ERR(mm);
--	if (!mm || IS_ERR(mm))
--		goto out_free;
-+		goto out_mm;
- 
- 	pagemap_walk.pmd_entry = pagemap_pte_range;
- 	pagemap_walk.pte_hole = pagemap_pte_hole;
-@@ -1273,10 +1266,10 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
- 	src = *ppos;
- 	svpfn = src / PM_ENTRY_BYTES;
- 	start_vaddr = svpfn << PAGE_SHIFT;
--	end_vaddr = TASK_SIZE_OF(task);
-+	end_vaddr = mm->task_size;
- 
- 	/* watch out for wraparound */
--	if (svpfn > TASK_SIZE_OF(task) >> PAGE_SHIFT)
-+	if (svpfn > mm->task_size >> PAGE_SHIFT)
- 		start_vaddr = end_vaddr;
- 
- 	/*
-@@ -1303,7 +1296,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
- 		len = min(count, PM_ENTRY_BYTES * pm.pos);
- 		if (copy_to_user(buf, pm.buffer, len)) {
- 			ret = -EFAULT;
--			goto out_mm;
-+			goto out_free;
- 		}
- 		copied += len;
- 		buf += len;
-@@ -1313,24 +1306,38 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
- 	if (!ret || ret == PM_END_OF_BUFFER)
- 		ret = copied;
- 
--out_mm:
--	mmput(mm);
- out_free:
- 	kfree(pm.buffer);
--out_task:
--	put_task_struct(task);
-+out_mm:
-+	mmput(mm);
- out:
- 	return ret;
- }
- 
- static int pagemap_open(struct inode *inode, struct file *file)
- {
-+	struct mm_struct *mm;
++		if (pmd_present(*pmd)) {
++			struct page *page = pmd_page(*pmd);
 +
- 	/* do not disclose physical addresses: attack vector */
- 	if (!capable(CAP_SYS_ADMIN))
- 		return -EPERM;
- 	pr_warn_once("Bits 55-60 of /proc/PID/pagemap entries are about "
- 			"to stop being page-shift some time soon. See the "
- 			"linux/Documentation/vm/pagemap.txt for details.\n");
++			if (page_mapcount(page) == 1)
++				pmd_flags2 |= __PM_MMAP_EXCLUSIVE;
++		}
 +
-+	mm = proc_mem_open(inode, PTRACE_MODE_READ);
-+	if (IS_ERR(mm))
-+		return PTR_ERR(mm);
-+	file->private_data = mm;
-+	return 0;
-+}
-+
-+static int pagemap_release(struct inode *inode, struct file *file)
-+{
-+	struct mm_struct *mm = file->private_data;
-+
-+	if (mm)
-+		mmdrop(mm);
- 	return 0;
- }
+ 		for (; addr != end; addr += PAGE_SIZE) {
+ 			unsigned long offset;
+ 			pagemap_entry_t pme;
+diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
+index 8bdf16b..3a9f193 100644
+--- a/tools/vm/page-types.c
++++ b/tools/vm/page-types.c
+@@ -70,9 +70,12 @@
+ #define PM_PFRAME(x)        ((x) & PM_PFRAME_MASK)
  
-@@ -1338,6 +1345,7 @@ const struct file_operations proc_pagemap_operations = {
- 	.llseek		= mem_lseek, /* borrow this */
- 	.read		= pagemap_read,
- 	.open		= pagemap_open,
-+	.release	= pagemap_release,
+ #define __PM_SOFT_DIRTY      (1LL)
++#define __PM_MMAP_EXCLUSIVE  (2LL)
+ #define PM_PRESENT          PM_STATUS(4LL)
+ #define PM_SWAP             PM_STATUS(2LL)
++#define PM_FILE             PM_STATUS(1LL)
+ #define PM_SOFT_DIRTY       __PM_PSHIFT(__PM_SOFT_DIRTY)
++#define PM_MMAP_EXCLUSIVE   __PM_PSHIFT(__PM_MMAP_EXCLUSIVE)
+ 
+ 
+ /*
+@@ -100,6 +103,8 @@
+ #define KPF_SLOB_FREE		49
+ #define KPF_SLUB_FROZEN		50
+ #define KPF_SLUB_DEBUG		51
++#define KPF_FILE		62
++#define KPF_MMAP_EXCLUSIVE	63
+ 
+ #define KPF_ALL_BITS		((uint64_t)~0ULL)
+ #define KPF_HACKERS_BITS	(0xffffULL << 32)
+@@ -149,6 +154,9 @@ static const char * const page_flag_names[] = {
+ 	[KPF_SLOB_FREE]		= "P:slob_free",
+ 	[KPF_SLUB_FROZEN]	= "A:slub_frozen",
+ 	[KPF_SLUB_DEBUG]	= "E:slub_debug",
++
++	[KPF_FILE]		= "F:file",
++	[KPF_MMAP_EXCLUSIVE]	= "1:mmap_exclusive",
  };
- #endif /* CONFIG_PROC_PAGE_MONITOR */
  
+ 
+@@ -452,6 +460,10 @@ static uint64_t expand_overloaded_flags(uint64_t flags, uint64_t pme)
+ 
+ 	if (pme & PM_SOFT_DIRTY)
+ 		flags |= BIT(SOFTDIRTY);
++	if (pme & PM_FILE)
++		flags |= BIT(FILE);
++	if (pme & PM_MMAP_EXCLUSIVE)
++		flags |= BIT(MMAP_EXCLUSIVE);
+ 
+ 	return flags;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
