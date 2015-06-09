@@ -1,131 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 160E26B006C
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 08:29:23 -0400 (EDT)
-Received: by wibdq8 with SMTP id dq8so14943893wib.1
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 05:29:22 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ba3si11123248wjc.86.2015.06.09.05.29.20
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id C096E6B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 08:36:11 -0400 (EDT)
+Received: by pdbnf5 with SMTP id nf5so14319445pdb.2
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 05:36:11 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id h13si8812941pdk.53.2015.06.09.05.36.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Jun 2015 05:29:21 -0700 (PDT)
-Message-ID: <5576DC1D.6010800@suse.cz>
-Date: Tue, 09 Jun 2015 14:29:17 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [PATCHv6 01/36] mm, proc: adjust PSS calculation
-References: <1433351167-125878-1-git-send-email-kirill.shutemov@linux.intel.com> <1433351167-125878-2-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1433351167-125878-2-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 09 Jun 2015 05:36:10 -0700 (PDT)
+Subject: Re: oom: How to handle !__GFP_FS exception?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1433159948-9912-1-git-send-email-mhocko@suse.cz>
+	<alpine.DEB.2.10.1506041607020.16555@chino.kir.corp.google.com>
+	<20150605111302.GB26113@dhcp22.suse.cz>
+	<201506061551.BHH48489.QHFOMtFLSOFOJV@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1506081252050.13272@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1506081252050.13272@chino.kir.corp.google.com>
+Message-Id: <201506092048.BII73411.MOVLQOHJFFFSOt@I-love.SAKURA.ne.jp>
+Date: Tue, 9 Jun 2015 20:48:30 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: rientjes@google.com
+Cc: mhocko@suse.cz, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/03/2015 07:05 PM, Kirill A. Shutemov wrote:
-> With new refcounting all subpages of the compound page are not nessessary
-> have the same mapcount. We need to take into account mapcount of every
-> sub-page.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Tested-by: Sasha Levin <sasha.levin@oracle.com>
-> Acked-by: Jerome Marchand <jmarchan@redhat.com>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> ---
->   fs/proc/task_mmu.c | 48 +++++++++++++++++++++++++++++++-----------------
->   1 file changed, 31 insertions(+), 17 deletions(-)
->
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 58be92e11939..f9b285761bc0 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -449,9 +449,10 @@ struct mem_size_stats {
->   };
->
->   static void smaps_account(struct mem_size_stats *mss, struct page *page,
-> -		unsigned long size, bool young, bool dirty)
-> +		bool compound, bool young, bool dirty)
->   {
-> -	int mapcount;
-> +	int i, nr = compound ? HPAGE_PMD_NR : 1;
-> +	unsigned long size = nr * PAGE_SIZE;
->
->   	if (PageAnon(page))
->   		mss->anonymous += size;
-> @@ -460,23 +461,36 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
->   	/* Accumulate the size in pages that have been accessed. */
->   	if (young || PageReferenced(page))
->   		mss->referenced += size;
-> -	mapcount = page_mapcount(page);
-> -	if (mapcount >= 2) {
-> -		u64 pss_delta;
->
-> -		if (dirty || PageDirty(page))
-> -			mss->shared_dirty += size;
-> -		else
-> -			mss->shared_clean += size;
-> -		pss_delta = (u64)size << PSS_SHIFT;
-> -		do_div(pss_delta, mapcount);
-> -		mss->pss += pss_delta;
-> -	} else {
-> +	/*
-> +	 * page_count(page) == 1 guarantees the page is mapped exactly once.
-> +	 * If any subpage of the compound page mapped with PTE it would elevate
-> +	 * page_count().
-> +	 */
-> +	if (page_count(page) == 1) {
->   		if (dirty || PageDirty(page))
->   			mss->private_dirty += size;
->   		else
->   			mss->private_clean += size;
-> -		mss->pss += (u64)size << PSS_SHIFT;
+David Rientjes wrote:
+> On Sat, 6 Jun 2015, Tetsuo Handa wrote:
+> 
+> > For me, !__GFP_FS allocations not calling out_of_memory() _forever_ is a
+> > violation of the user policy.
+> > 
+> 
+> I agree that we need work in this area to prevent livelocks that rely on 
+> the contexts of other allocators to make forward progress, but let's be 
+> clear that panicking the system is not the appropriate response.  It's 
+> nice and convenient to say we should repurpose panic_on_oom to solve 
+> livelocks because it triggers a fast reboot in your configuration, but we, 
+> and certainly others, can't tolerate reboots when the kernel just gives up 
+> and the majority of the time these situations do resolve themselves.
+> 
+> I think the appropriate place to be attacking this problem is in the page 
+> allocator, which is responsible for the page allocations in the context of 
+> the gfp flags given to it, and not the oom killer.  The oom killer is just 
+> supposed to pick a process, send it a SIGKILL, and give it a reasonable 
+> expectation of being able to exit.
+> 
+> > If kswapd found nothing more to reclaim and/or kswapd cannot continue
+> > reclaiming due to lock dependency, can't we consider as out of memory
+> > because we already tried to reclaim memory which would have been done by
+> > __GFP_FS allocations?
+> > 
+> > Why do we do "!__GFP_FS allocations do not call out_of_memory() because
+> > they have very limited reclaim ability"? Both GFP_NOFS and GFP_NOIO
+> > allocations will wake up kswapd due to !__GFP_NO_KSWAPD, doesn't it?
+> > 
+> 
+> The !__GFP_FS exception is historic because the oom killer would trigger 
+> waaay too often if it were removed simply because it doesn't have a great 
+> chance of allowing reclaim to succeed.  Instead, we rely on external 
+> memory freeing or other parallel allocators being able to reclaim memory.  
+> What happens when there is no external freeing, nothing else is trying to 
+> reclaim, or nothing else is able to reclaim?  Yeah, that's the big 
+> problem.  In my opinion, there's three ways of attacking it: (1) 
+> preallocation so we are less dependent on the page allocator in these 
+> contexts, (2) memory reserves in extraordinary circumstances to allow 
+> forward progress (it's already tunable by min_free_kbytes), and (3) 
+> eventual page allocation failure when neither of these succeed.
+> 
+According to my observations (as posted at
+http://marc.info/?l=linux-mm&m=143239200805478 ), (3) is dangerous because
+it can potentially kill critical processes including global init process.
+Killing a process by invoking the OOM killer sounds safer than (3).
 
-Deleting the line above was a mistake, right?
+Regarding (2), how can we selectively allow blocking process to access
+memory reserves? Since we don't know the dependency, we can't identify the
+process which should be allowed to access memory reserves. If we allow all
+processes to access memory reserves, unrelated processes could deplete the
+memory reserves while the blocking process is waiting for a lock (either in
+killable or unkillable state). What we need to do to make forward progress
+is not always to allow access to memory reserves. Sometimes making locks
+killable (as posted at http://marc.info/?l=linux-mm&m=142408937117294 )
+helps more.
 
-> +		return;
-> +	}
-> +
-> +	for (i = 0; i < nr; i++, page++) {
-> +		int mapcount = page_mapcount(page);
-> +
-> +		if (mapcount >= 2) {
-> +			if (dirty || PageDirty(page))
-> +				mss->shared_dirty += PAGE_SIZE;
-> +			else
-> +				mss->shared_clean += PAGE_SIZE;
-> +			mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
-> +		} else {
-> +			if (dirty || PageDirty(page))
-> +				mss->private_dirty += PAGE_SIZE;
-> +			else
-> +				mss->private_clean += PAGE_SIZE;
-> +			mss->pss += PAGE_SIZE << PSS_SHIFT;
-> +		}
->   	}
->   }
->
-> @@ -500,7 +514,8 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
->
->   	if (!page)
->   		return;
-> -	smaps_account(mss, page, PAGE_SIZE, pte_young(*pte), pte_dirty(*pte));
-> +
-> +	smaps_account(mss, page, false, pte_young(*pte), pte_dirty(*pte));
->   }
->
->   #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> @@ -516,8 +531,7 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
->   	if (IS_ERR_OR_NULL(page))
->   		return;
->   	mss->anonymous_thp += HPAGE_PMD_SIZE;
-> -	smaps_account(mss, page, HPAGE_PMD_SIZE,
-> -			pmd_young(*pmd), pmd_dirty(*pmd));
-> +	smaps_account(mss, page, true, pmd_young(*pmd), pmd_dirty(*pmd));
->   }
->   #else
->   static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
->
+Regarding (1), it would help but insufficient because (2) and (3) unlikely
+work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
