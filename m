@@ -1,94 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B2A96B0032
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 09:05:44 -0400 (EDT)
-Received: by wgv5 with SMTP id 5so12928875wgv.1
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 06:05:43 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id AE2726B0038
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 09:59:44 -0400 (EDT)
+Received: by wgme6 with SMTP id e6so14229273wgm.2
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 06:59:44 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hr12si3035567wib.98.2015.06.09.06.05.41
+        by mx.google.com with ESMTPS id s9si3353577wia.28.2015.06.09.06.59.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Jun 2015 06:05:42 -0700 (PDT)
-Date: Tue, 9 Jun 2015 14:05:36 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
-Message-ID: <20150609130536.GT26425@suse.de>
-References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
- <20150608174551.GA27558@gmail.com>
- <20150609084739.GQ26425@suse.de>
- <20150609103231.GA11026@gmail.com>
- <20150609112055.GS26425@suse.de>
- <20150609124328.GA23066@gmail.com>
+        Tue, 09 Jun 2015 06:59:43 -0700 (PDT)
+Message-ID: <5576F14C.8080303@suse.cz>
+Date: Tue, 09 Jun 2015 15:59:40 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20150609124328.GA23066@gmail.com>
+Subject: Re: [PATCHv6 13/36] mm: drop tail page refcounting
+References: <1433351167-125878-1-git-send-email-kirill.shutemov@linux.intel.com> <1433351167-125878-14-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1433351167-125878-14-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Jun 09, 2015 at 02:43:28PM +0200, Ingo Molnar wrote:
-> 
-> * Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > > Sorry, I don't buy this, at all.
-> > > 
-> > > Please measure this, the code would become a lot simpler, as I'm not convinced 
-> > > that we need pfn (or struct page) or even range based flushing.
-> > 
-> > The code will be simplier and the cost of reclaim will be lower and that is the 
-> > direct case but shows nothing about the indirect cost. The mapped reader will 
-> > benefit as it is not reusing the TLB entries and will look artifically very 
-> > good. It'll be very difficult for even experienced users to determine that a 
-> > slowdown during kswapd activity is due to increased TLB misses incurred by the 
-> > full flush.
-> 
-> If so then the converse is true just as much: if you were to introduce finegrained 
-> flushing today, you couldn't justify it because you claim it's very hard to 
-> measure!
-> 
+On 06/03/2015 07:05 PM, Kirill A. Shutemov wrote:
+> Tail page refcounting is utterly complicated and painful to support.
+>
+> It uses ->_mapcount on tail pages to store how many times this page is
+> pinned. get_page() bumps ->_mapcount on tail page in addition to
+> ->_count on head. This information is required by split_huge_page() to
+> be able to distribute pins from head of compound page to tails during
+> the split.
+>
+> We will need ->_mapcount acoount PTE mappings of subpages of the
 
-I'm claiming the *INDIRECT COST* is impossible to measure as part of this
-series because it depends on the workload and exact CPU used. The direct
-cost is measurable and can be quantified.
+                            to account
 
-> Really, in such cases we should IMHO fall back to the simplest approach, and 
-> iterate from there.
-> 
-> I cited very real numbers about the direct costs of TLB flushes, and plausible 
-> speculation about why the indirect costs are low on the achitecture you are trying 
-> to modify here.
-> 
-> I think since it is you who wants to introduce additional complexity into the x86 
-> MM code the burden is on you to provide proof that the complexity of pfn (or 
-> struct page) tracking is worth it.
-> 
-
-I'm taking a situation whereby IPIs are sent like crazy with interrupt
-storms and replacing it with something that is a lot more efficient that
-minimises the number of potential surprises. I'm stating that the benefit
-of PFN tracking is unknowable in the general case because it depends on the
-workload, timing and the exact CPU used so any example provided can be naked
-with a counter-example such as a trivial sequential reader that shows no
-benefit. The series as posted is approximately in line with current behaviour
-minimising the chances of surprise regressions from excessive TLB flush.
-
-You are actively blocking a measurable improvement and forcing it to be
-replaced with something whose full impact is unquantifiable. Any regressions
-in this area due to increased TLB misses could take several kernel releases
-as the issue will be so difficult to detect.
-
-I'm going to implement the approach you are forcing because there is an
-x86 part of the patch and you are the maintainer that could indefinitely
-NAK it. However, I'm extremely pissed about being forced to introduce
-these indirect unpredictable costs because I know the alternative is you
-dragging this out for weeks with no satisfactory conclusion in an argument
-that I cannot prove in the general case.
-
--- 
-Mel Gorman
-SUSE Labs
+> compound page. We eliminate need in current meaning of ->_mapcount in
+> tail pages by forbidding split entirely if the page is pinned.
+>
+> The only user of tail page refcounting is THP which is marked BROKEN for
+> now.
+>
+> Let's drop all this mess. It makes get_page() and put_page() much
+> simpler.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Tested-by: Sasha Levin <sasha.levin@oracle.com>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
