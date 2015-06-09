@@ -1,74 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 63DFF6B0038
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 11:03:10 -0400 (EDT)
-Received: by qgfa66 with SMTP id a66so6595730qgf.0
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 08:03:10 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id b132si5657828qka.45.2015.06.09.08.03.08
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C62B6B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 11:34:37 -0400 (EDT)
+Received: by pabqy3 with SMTP id qy3so16160428pab.3
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 08:34:37 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id nl4si9366778pbc.114.2015.06.09.08.34.36
         for <linux-mm@kvack.org>;
-        Tue, 09 Jun 2015 08:03:09 -0700 (PDT)
-Date: Tue, 9 Jun 2015 16:03:03 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] slub/slab: fix kmemleak didn't work on some case
-Message-ID: <20150609150303.GB4808@e104818-lin.cambridge.arm.com>
-References: <99C214DF91337140A8D774E25DF6CD5FC89DA2@shsmsx102.ccr.corp.intel.com>
- <alpine.DEB.2.11.1506080425350.10651@east.gentwo.org>
- <20150608101302.GB31349@e104818-lin.cambridge.arm.com>
- <55769F85.5060909@linux.intel.com>
+        Tue, 09 Jun 2015 08:34:36 -0700 (PDT)
+Message-ID: <5577078B.2000503@intel.com>
+Date: Tue, 09 Jun 2015 08:34:35 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55769F85.5060909@linux.intel.com>
+Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
+References: <1433767854-24408-1-git-send-email-mgorman@suse.de> <20150608174551.GA27558@gmail.com> <20150609084739.GQ26425@suse.de> <20150609103231.GA11026@gmail.com> <20150609112055.GS26425@suse.de> <20150609124328.GA23066@gmail.com>
+In-Reply-To: <20150609124328.GA23066@gmail.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-Cc: Christoph Lameter <cl@linux.com>, "Liu, XinwuX" <xinwux.liu@intel.com>, "penberg@kernel.org" <penberg@kernel.org>, "mpm@selenic.com" <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "He, Bo" <bo.he@intel.com>, "Chen, Lin Z" <lin.z.chen@intel.com>
+To: Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, Jun 09, 2015 at 09:10:45AM +0100, Zhang, Yanmin wrote:
-> On 2015/6/8 18:13, Catalin Marinas wrote:
-> > As I replied already, I don't think this is that bad, or at least not
-> > worse than what kmemleak already does (looking at all data whether it's
-> > pointer or not).
-> 
-> It depends. As for memleak, developers prefers there are false alarms instead
-> of missing some leaked memory.
+On 06/09/2015 05:43 AM, Ingo Molnar wrote:
+> I cited very real numbers about the direct costs of TLB flushes, and plausible 
+> speculation about why the indirect costs are low on the achitecture you are trying 
+> to modify here.
 
-Lots of false positives aren't that nice, you spend a lot of time
-debugging them (I've been there in the early kmemleak days). Anyway,
-your use case is not about false positives vs. negatives but just false
-negatives.
+We should be careful to extrapolate what the real-world cost of a TLB
+flush is from the cost of running a kernel function in a loop.
 
-My point is that there is a lot of random, pointer-like data read by
-kmemleak even without this memset (e.g. thread stacks, non-pointer data
-in kmalloc'ed structures, data/bss sections). Just doing this memset may
-reduce the chance of false negatives a bit but I don't think it would be
-noticeable.
+Let's look at what got measured:
 
-If there is some serious memory leak (lots of objects), they would
-likely show up at some point. Even if it's a one-off leak, it's possible
-that it shows up after some time (e.g. the object pointing to this
-memory block is freed).
+> +static char tlb_flush_target[PAGE_SIZE] __aligned(4096);
+> +static void fn_flush_tlb_one(void)
+> +{
+> +	unsigned long addr = (unsigned long)&tlb_flush_target;
+> +
+> +	tlb_flush_target[0]++;
+> +	__flush_tlb_one(addr);
+> +}
 
-> >  It also doesn't solve the kmem_cache_alloc() case where
-> > the original object size is no longer available.
-> 
-> Such issue around kmem_cache_alloc() case happens only when the
-> caller doesn't initialize or use the full object, so the object keeps
-> old dirty data.
+So we've got an increment of a variable in kernel memory (which is
+almost surely in the L1), then we flush that memory location, and repeat
+the increment.
 
-The kmem_cache blocks size would be aligned to a cache line, so you
-still have some extra bytes never touched by the caller.
+I assume the increment is so that the __flush_tlb_one() has some "real"
+work to do and is not just flushing an address which is not in the TLB.
+ This is almost certainly a departure from workloads like Mel is
+addressing where we (try to) flush pages used long ago that will
+hopefully *not* be in the TLB.
 
-> This patch is to resolve the redundant unused space (more than object size)
-> although the full object is used by kernel.
+But, that unfortunately means that we're measuring a TLB _miss_ here in
+addition to the flush.  A TLB miss shouldn't be *that* expensive, right?
+ The SDM says: "INVLPG also invalidates all entries in all
+paging-structure caches ... regardless of the linear addresses to which
+they correspond."  Ugh, so the TLB refill has to also refill the paging
+structure caches.  At least the page tables will be in the L1.
 
-So this solves only the cases where the original object size is still
-known (e.g. kmalloc). It could also be solved by telling kmemleak the
-actual object size.
+Since "tlb_flush_target" is in kernel mapping, you might also be
+shooting down the TLB entry for kernel text, or who knows what else.
+The TLB entry might be 1G or 2M which might never be in the STLB
+(second-level TLB), which could have *VERY* different behavior than a 4k
+flush or a flush of an entry in the first-level TLB.
 
--- 
-Catalin
+I'm not sure that these loop-style tests are particularly valuable, but
+if we're going to do it, I think we should consider:
+1. We need to separate the TLB fill portion from the flush and not
+   measure any part of a fill along with the flush
+2. We should measure flushing of ascending, adjacent virtual addresses
+   mapped with 4k pages since that is the normal case.  Perhaps
+   vmalloc(16MB) or something.
+3. We should flush a mix of virtual addresses that are in and out of the
+   TLB.
+4. To measure instruction (as opposed to instruction+software)
+   overhead, use __flush_tlb_single(), not __flush_tlb_one()
+
+P.S.  I think I'm responsible for it, but we should probably also move
+the count_vm_tlb_event() to outside the loop in flush_tlb_mm_range().
+invlpg is not a "normal" instruction and could potentially increase the
+overhead of incrementing the counter.  But, I guess the kernel mappings
+_should_ stay in the TLB over an invlpg and shouldn't pay any cost to be
+refilled in to the TLB despite the paging-structure caches going away.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
