@@ -1,80 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 26ED96B0071
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 18:28:40 -0400 (EDT)
-Received: by pdjn11 with SMTP id n11so23439023pdj.0
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 15:28:39 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id wu3si10662917pbc.61.2015.06.09.15.28.39
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F51A6B0072
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 18:28:42 -0400 (EDT)
+Received: by igbpi8 with SMTP id pi8so22379527igb.1
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 15:28:42 -0700 (PDT)
+Received: from mail-ie0-x236.google.com (mail-ie0-x236.google.com. [2607:f8b0:4001:c03::236])
+        by mx.google.com with ESMTPS id mk9si7456731icb.2.2015.06.09.15.28.42
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jun 2015 15:28:39 -0700 (PDT)
-Date: Tue, 9 Jun 2015 15:28:38 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/5] ipc,shm: move BUG_ON check into shm_lock
-Message-Id: <20150609152838.94774d7feafef3f7e6ccbd74@linux-foundation.org>
-In-Reply-To: <1433597880-8571-2-git-send-email-dave@stgolabs.net>
-References: <1433597880-8571-1-git-send-email-dave@stgolabs.net>
-	<1433597880-8571-2-git-send-email-dave@stgolabs.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 09 Jun 2015 15:28:42 -0700 (PDT)
+Received: by ieclw1 with SMTP id lw1so22911250iec.3
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 15:28:42 -0700 (PDT)
+Date: Tue, 9 Jun 2015 15:28:40 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] oom: always panic on OOM when panic_on_oom is
+ configured
+In-Reply-To: <20150609094356.GB29057@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1506091516000.30516@chino.kir.corp.google.com>
+References: <1433159948-9912-1-git-send-email-mhocko@suse.cz> <alpine.DEB.2.10.1506041607020.16555@chino.kir.corp.google.com> <20150605111302.GB26113@dhcp22.suse.cz> <alpine.DEB.2.10.1506081242250.13272@chino.kir.corp.google.com> <20150608213218.GB18360@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1506081606500.17040@chino.kir.corp.google.com> <20150609094356.GB29057@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: Manfred Spraul <manfred@colorfullife.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Davidlohr Bueso <dbueso@suse.de>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Sat,  6 Jun 2015 06:37:56 -0700 Davidlohr Bueso <dave@stgolabs.net> wrote:
+On Tue, 9 Jun 2015, Michal Hocko wrote:
 
-> Upon every shm_lock call, we BUG_ON if an error was returned,
-> indicating racing either in idr or in shm_destroy. Move this logic
-> into the locking.
+> > > On Mon 08-06-15 12:51:53, David Rientjes wrote:
+> > > Do you actually have panic_on_oops enabled?
+> > > 
+> > 
+> > CONFIG_PANIC_ON_OOPS_VALUE should be 0, I'm not sure why that's relevant.
 > 
-> --- a/ipc/shm.c
-> +++ b/ipc/shm.c
-> @@ -155,8 +155,14 @@ static inline struct shmid_kernel *shm_lock(struct ipc_namespace *ns, int id)
->  {
->  	struct kern_ipc_perm *ipcp = ipc_lock(&shm_ids(ns), id);
->  
-> -	if (IS_ERR(ipcp))
-> +	if (IS_ERR(ipcp)) {
-> +		/*
-> +		 * We raced in the idr lookup or with shm_destroy(),
-> +		 * either way, the ID is busted.
-> +		 */
-> +		BUG();
->  		return (struct shmid_kernel *)ipcp;
-> +	}
+> No I meant panic_on_oops > 0.
+> 
 
-Was there any particular reason to still do it this way?  It's a bit
-klunky.
+CONFIG_PANIC_ON_OOPS_VALUE sets panic_on_oops, so it's 0.
 
---- a/ipc/shm.c~ipcshm-move-bug_on-check-into-shm_lock-fix
-+++ a/ipc/shm.c
-@@ -155,14 +155,11 @@ static inline struct shmid_kernel *shm_l
- {
- 	struct kern_ipc_perm *ipcp = ipc_lock(&shm_ids(ns), id);
- 
--	if (IS_ERR(ipcp)) {
--		/*
--		 * We raced in the idr lookup or with shm_destroy(),
--		 * either way, the ID is busted.
--		 */
--		BUG();
--		return (struct shmid_kernel *)ipcp;
--	}
-+	/*
-+	 * We raced in the idr lookup or with shm_destroy().  Either way, the
-+	 * ID is busted.
-+	 */
-+	BUG_ON(IS_ERR(ipcp));
- 
- 	return container_of(ipcp, struct shmid_kernel, shm_perm);
- }
+> > The functionality I'm referring to is that your patch now panics the 
+> > machine for configs where /proc/sys/vm/panic_on_oom is set and the same 
+> > scenario occurs as described above.  You're introducing userspace breakage 
+> > because you are using panic_on_oom in a way that it hasn't been used in 
+> > the past and isn't described as working in the documentation.
+> 
+> I am sorry, but I do not follow. The knob has been always used to
+> _panic_ the OOM system. Nothing more and nothing less. Now you
+> are arguing about the change being buggy because a task might be
+> killed but that argument doesn't make much sense to me because
+> basically _any_ other allocation which allows OOM to trigger might hit
+> check_panic_on_oom() and panic the system well before your killed task
+> gets a chance to terminate.
+> 
 
-One benefit of the code you sent is that the unreachable `return' will
-prevent a compile warning when CONFIG_BUG=n, but CONFIG_BUG=n is silly
-and I never worry about it.
+Not necessarily.  We pin a lot of memory with get_user_pages() and 
+short-circuit it by checking for fatal_signal_pending() specifically for 
+oom conditions.  This was done over six years ago by commit 4779280d1ea4 
+("mm: make get_user_pages() interruptible").  When such a process is 
+faulting in memory, and it is killed by userspace as a result of an oom 
+condition, it needs to be able to allocate (TIF_MEMDIE set by the oom 
+killer due to SIGKILL), return to __get_user_pages(), abort, handle the 
+signal, and exit.
+
+I can't possibly make that any more clear.
+
+Your patch causes that to instead panic the system if panic_on_oom is set.  
+It's inappropriate and userspace breakage.  The fact that I don't 
+personally use panic_on_oom is completely and utterly irrelevant.
+
+There is absolutely nothing wrong with a process that has been killed 
+either directly by userspace or as part of a group exit, or a process that 
+is already in the exit path and needs to allocate memory to be able to 
+free its memory, to get access to memory reserves.  That's not an oom 
+condition, that's memory reserves.  Panic_on_oom has nothing to do with 
+this scenario whatsoever.
+
+Panic_on_oom is not panic_when_reclaim_fails.  It's to suppress a kernel 
+oom kill.  That's why it's checked where it is checked and always has 
+been.  This patch cannot possibly be merged.
+
+> I would understand your complain if we waited for oom victim(s) before
+> check_panic_on_oom but we have not been doing that.
+> 
+
+I don't think anybody is changing panic_on_oom after boot, so we wouldn't 
+have any oom victims if the oom killer never did anything.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
