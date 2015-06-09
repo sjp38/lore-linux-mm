@@ -1,41 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f42.google.com (mail-yh0-f42.google.com [209.85.213.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 727716B006E
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 16:02:53 -0400 (EDT)
-Received: by yhak3 with SMTP id k3so11641383yha.2
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 13:02:53 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y28si3110952yhy.53.2015.06.09.13.02.52
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BDB36B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 16:29:11 -0400 (EDT)
+Received: by pdbnf5 with SMTP id nf5so21746990pdb.2
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 13:29:11 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id tv5si10277921pbc.226.2015.06.09.13.29.09
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jun 2015 13:02:52 -0700 (PDT)
-Message-ID: <55774664.6060402@redhat.com>
-Date: Tue, 09 Jun 2015 16:02:44 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/4] mm: Defer flush of writable TLB entries
-References: <1433871118-15207-1-git-send-email-mgorman@suse.de> <1433871118-15207-4-git-send-email-mgorman@suse.de>
-In-Reply-To: <1433871118-15207-4-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=utf-8
+        Tue, 09 Jun 2015 13:29:09 -0700 (PDT)
+Date: Tue, 9 Jun 2015 13:29:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/memory hotplug: print the last vmemmap region at the
+ end of hot add memory
+Message-Id: <20150609132908.c5a9d2c9714bd7a8f33ffde8@linux-foundation.org>
+In-Reply-To: <55766068.9090809@cn.fujitsu.com>
+References: <1433745881-7179-1-git-send-email-zhugh.fnst@cn.fujitsu.com>
+	<20150608163053.c481d9a5057513130f760910@linux-foundation.org>
+	<55766068.9090809@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, vbabka@suse.cz, rientjes@google.com, n-horiguchi@ah.jp.nec.com, zhenzhang.zhang@huawei.com, wangnan0@huawei.com, fabf@skynet.be
 
-On 06/09/2015 01:31 PM, Mel Gorman wrote:
-> If a PTE is unmapped and it's dirty then it was writable recently. Due
-> to deferred TLB flushing, it's best to assume a writable TLB cache entry
-> exists. With that assumption, the TLB must be flushed before any IO can
-> start or the page is freed to avoid lost writes or data corruption. This
-> patch defers flushing of potentially writable TLBs as long as possible.
+On Tue, 9 Jun 2015 11:41:28 +0800 Zhu Guihua <zhugh.fnst@cn.fujitsu.com> wrote:
+
+> >> --- a/mm/memory_hotplug.c
+> >> +++ b/mm/memory_hotplug.c
+> >> @@ -513,6 +513,7 @@ int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
+> >>   			break;
+> >>   		err = 0;
+> >>   	}
+> >> +	vmemmap_populate_print_last();
+> >>   
+> >>   	return err;
+> >>   }
+> > vmemmap_populate_print_last() is only available on x86_64, when
+> > CONFIG_SPARSEMEM_VMEMMAP=y.  Are you sure this won't break builds?
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> I tried this on i386 and on x86_64 when CONFIG_SPARSEMEM_VMEMMAP=n ,
+> it builds ok.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+With powerpc:
 
--- 
-All rights reversed
+akpm3:/usr/src/25> make allmodconfig
+akpm3:/usr/src/25> make mm/memory_hotplug.o
+akpm3:/usr/src/25> nm mm/memory_hotplug.o | grep vmemmap_populate_print_last
+	U .vmemmap_populate_print_last
+akpm3:/usr/src/25> grep -r vmemmap_populate_print_last arch/powerpc
+akpm3:/usr/src/25> 
+
+So I think that's going to break.
+
+I expect ia64 will break also, but I didn't investigate.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
