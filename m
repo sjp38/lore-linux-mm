@@ -1,115 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E9856B006C
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 04:47:47 -0400 (EDT)
-Received: by wgez8 with SMTP id z8so7455248wge.0
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 01:47:46 -0700 (PDT)
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id B49A16B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 05:37:02 -0400 (EDT)
+Received: by wgbgq6 with SMTP id gq6so8437819wgb.3
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 02:37:02 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id vn9si10181562wjc.113.2015.06.09.01.47.44
+        by mx.google.com with ESMTPS id e17si2205746wic.4.2015.06.09.02.36.59
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Jun 2015 01:47:45 -0700 (PDT)
-Date: Tue, 9 Jun 2015 09:47:39 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
-Message-ID: <20150609084739.GQ26425@suse.de>
-References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
- <20150608174551.GA27558@gmail.com>
+        Tue, 09 Jun 2015 02:37:00 -0700 (PDT)
+Date: Tue, 9 Jun 2015 11:36:59 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] oom: split out forced OOM killer
+Message-ID: <20150609093659.GA29057@dhcp22.suse.cz>
+References: <1433235187-32673-1-git-send-email-mhocko@suse.cz>
+ <alpine.DEB.2.10.1506041557070.16555@chino.kir.corp.google.com>
+ <557187F9.8020301@gmail.com>
+ <alpine.DEB.2.10.1506081059200.10521@chino.kir.corp.google.com>
+ <5575E5E6.20908@gmail.com>
+ <alpine.DEB.2.10.1506081237350.13272@chino.kir.corp.google.com>
+ <20150608210621.GA18360@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1506081558270.17040@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150608174551.GA27558@gmail.com>
+In-Reply-To: <alpine.DEB.2.10.1506081558270.17040@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+To: David Rientjes <rientjes@google.com>
+Cc: Austin S Hemmelgarn <ahferroin7@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jun 08, 2015 at 07:45:51PM +0200, Ingo Molnar wrote:
+On Mon 08-06-15 16:06:07, David Rientjes wrote:
+> On Mon, 8 Jun 2015, Michal Hocko wrote:
 > 
-> * Mel Gorman <mgorman@suse.de> wrote:
+> > > This patch is not a functional change, so I don't interpret your feedback 
+> > > as any support of it being merged.
+> > 
+> > David, have you actually read the patch? The changelog is mentioning this:
+> > "
+> >     check_panic_on_oom on the other hand will work and that is kind of
+> >     unexpected because sysrq+f should be usable to kill a mem hog whether
+> >     the global OOM policy is to panic or not.
+> >     It also doesn't make much sense to panic the system when no task cannot
+> >     be killed because admin has a separate sysrq for that purpose.
+> > "
+> > and the patch exludes panic_on_oom from the sysrq path.
+> > 
 > 
-> > Changelog since V4
-> > o Rebase to 4.1-rc6
-> > 
-> > Changelog since V3
-> > o Drop batching of TLB flush from migration
-> > o Redo how larger batching is managed
-> > o Batch TLB flushes when writable entries exist
-> > 
-> > When unmapping pages it is necessary to flush the TLB. If that page was
-> > accessed by another CPU then an IPI is used to flush the remote CPU. That
-> > is a lot of IPIs if kswapd is scanning and unmapping >100K pages per second.
-> > 
-> > There already is a window between when a page is unmapped and when it is
-> > TLB flushed. This series simply increases the window so multiple pages
-> > can be flushed using a single IPI. This *should* be safe or the kernel is
-> > hosed already but I've cc'd the x86 maintainers and some of the Intel folk
-> > for comment.
-> > 
-> > Patch 1 simply made the rest of the series easier to write as ftrace
-> > 	could identify all the senders of TLB flush IPIS.
-> > 
-> > Patch 2 collects a list of PFNs and sends one IPI to flush them all
-> > 
-> > Patch 3 tracks when there potentially are writable TLB entries that
-> > 	need to be batched differently
-> > 
-> > The performance impact is documented in the changelogs but in the optimistic
-> > case on a 4-socket machine the full series reduces interrupts from 900K
-> > interrupts/second to 60K interrupts/second.
+> Yes, and that's why I believe we should pursue that direction without the 
+> associated "cleanup" that adds 35 lines of code to supress a panic.  In 
+> other words, there's no reason to combine a patch that suppresses the 
+> panic even with panic_on_oom, which I support, and a "cleanup" that I 
+> believe just obfuscates the code.
 > 
-> Yeah, so I think batching writable flushes is useful I think, but I disagree with 
-> one aspect of it: with the need to gather _pfns_ and batch them over to the remote 
-> CPU.
+> It's a one-liner change: just test for force_kill and suppress the panic; 
+> we don't need 35 new lines that create even more unique entry paths.
+
+I completely detest yet another check in out_of_memory. And there is
+even no reason to do that. Forced kill and genuine oom have different
+objectives and combining those two just makes the code harder to read
+(one has to go to check the syrq callback to realize that the forced
+path is triggered from the workqueue context and that current->mm !=
+NULL check will prevent some heuristics. This is just too ugly to
+live). So why the heck are you pushing for keeping everything in a
+single path?
+
+That being said, I have no problem to do 3 patches, where two of them
+would add force check for check_panic_on_oom and panic on no killable
+task and only then pull out force_out_of_memory to make it readable
+again and drop force checks but I do not see much point in this
+juggling.
+
+> > > That said, you raise an interesting point of whether sysrq+f should ever 
+> > > trigger a panic due to panic_on_oom.  The case can be made that it should 
+> > > ignore panic_on_oom and require the use of another sysrq to panic the 
+> > > machine instead.  Sysrq+f could then be used to oom kill a process, 
+> > > regardless of panic_on_oom, and the panic only occurs if userspace did not 
+> > > trigger the kill or the kill itself will fail.
+> > 
+> > Why would it panic the system if there is no killable task? Shoudln't
+> > be admin able to do additional steps after the explicit oom killer failed
+> > and only then panic by sysrq?
+> > 
 > 
+> Today it panics, I don't think it should panic when there are no killable 
+> processes because it's inherently racy with userspace.  It's similar to 
+> suppressing panic_on_oom for sysrq+f, but for a different reason, so it 
+> should probably be a separate patch with its own changelog (and update to 
+> documentation for both patches to make this explicit).
 
-It's PFN-based for three reasons. The first is because the old code
-is flushing on a per-page basis and the intent of the series was to
-reduce the number of IPIs that requires. Moving away from that has an
-unpredictable impact that depends on the workload and the exact CPU
-used.  The second is that a struct page-based interface would require
-percpu_flush_tlb_batch_pages to do a page->pfn lookup in the IPI call which
-is more expensive than necessary. The final reason is that the TLB flush
-API given to architectures at the moment includes single page primitives
-and while it's not necessarily the best decision for x86, the same may
-not be true for other architectures if they decide to activate the batching.
-
-> As per my measurements the __flush_tlb_single() primitive (which you use in patch
-> #2) is very expensive on most Intel and AMD CPUs. It barely makes sense for a 2
-> pages and gets exponentially worse. It's probably done in microcode and its 
-> performance is horrible.
-> 
-> So have you explored the possibility to significantly simplify your patch-set by 
-> only deferring the flushing, and doing a simple TLB flush on the remote CPU?
-
-Yes. At one point I looked at range flushing but it is not a good idea.
-The ranges that reach the end of the LRU are too large to be useful except
-in the ideal case of a workload that sequentially accesses memory. Flushing
-the full TLB has an unpredictable cost. Currently, the unmapping and flush
-is of inactive pages, some of which may not be in the TLB at all and the
-impact on the workload is limited to the IPI and flush cost.
-
-With a full flush we clear entries we know were recently accessed and
-may have to be looked up again and we do this every 32 mapped pages that
-are reclaimed. In the ideal case of a sequential mapped reader it would
-not matter as the entries are not needed so we would not see the cost at
-all. Other workloads will have to do a refill that was not necessary before
-this series. The cost of the refill will depend on the CPU and whether the
-lookup information is still in the CPU cache or not. That means measuring
-the full impact of your proposal is impossible as it depends heavily on
-the workload, the timing of its interaction with kswapd in particular,
-the state of the CPU cache and the cost of refills for the CPU.
-
-I agree with you in that it would be a simplier series and the actual
-flush would probably be faster but the downsides are too unpredictable
-for a series that primarily is about reducing the number of IPIs.
-
--- 
-Mel Gorman
-SUSE Labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I have no problem to be more explicit about the behavior of course. I
+can fold it to the original patch.
+---
