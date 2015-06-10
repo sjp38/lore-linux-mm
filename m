@@ -1,319 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 174296B0071
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 05:08:06 -0400 (EDT)
-Received: by wigg3 with SMTP id g3so41307454wig.1
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 02:08:05 -0700 (PDT)
-Received: from lb2-smtp-cloud6.xs4all.net (lb2-smtp-cloud6.xs4all.net. [194.109.24.28])
-        by mx.google.com with ESMTPS id t1si16594504wjx.99.2015.06.10.02.08.04
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A1B56B0072
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 05:08:20 -0400 (EDT)
+Received: by wibdq8 with SMTP id dq8so40339004wib.1
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 02:08:19 -0700 (PDT)
+Received: from mail-wg0-x22d.google.com (mail-wg0-x22d.google.com. [2a00:1450:400c:c00::22d])
+        by mx.google.com with ESMTPS id gd5si16603298wjb.115.2015.06.10.02.08.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 10 Jun 2015 02:08:05 -0700 (PDT)
-Message-ID: <5577FE47.5090807@xs4all.nl>
-Date: Wed, 10 Jun 2015 11:07:19 +0200
-From: Hans Verkuil <hverkuil@xs4all.nl>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Jun 2015 02:08:18 -0700 (PDT)
+Received: by wgez8 with SMTP id z8so30624447wge.0
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 02:08:18 -0700 (PDT)
+Date: Wed, 10 Jun 2015 11:08:13 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
+Message-ID: <20150610090813.GA30359@gmail.com>
+References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
+ <20150608174551.GA27558@gmail.com>
+ <20150609084739.GQ26425@suse.de>
+ <20150609103231.GA11026@gmail.com>
+ <20150609112055.GS26425@suse.de>
+ <20150609124328.GA23066@gmail.com>
+ <20150609130536.GT26425@suse.de>
+ <20150610085141.GA25704@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 9/9] drm/exynos: Convert g2d_userptr_get_dma_addr() to
- use get_vaddr_frames()
-References: <1431522495-4692-1-git-send-email-jack@suse.cz> <1431522495-4692-10-git-send-email-jack@suse.cz>
-In-Reply-To: <1431522495-4692-10-git-send-email-jack@suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150610085141.GA25704@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, linux-mm@kvack.org
-Cc: linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, Pawel Osciak <pawel@osciak.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, mgorman@suse.de, Marek Szyprowski <m.szyprowski@samsung.com>, linux-samsung-soc@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-For unclear reasons my SoB was missing in my pull request. So add it now:
 
-Signed-off-by: Hans Verkuil <hans.verkuil@cisco.com>
+* Ingo Molnar <mingo@kernel.org> wrote:
 
-Regards,
-
-	Hans
-
-On 05/13/15 15:08, Jan Kara wrote:
-> Convert g2d_userptr_get_dma_addr() to pin pages using get_vaddr_frames().
-> This removes the knowledge about vmas and mmap_sem locking from exynos
-> driver. Also it fixes a problem that the function has been mapping user
-> provided address without holding mmap_sem.
+> Stop this crap.
 > 
-> Signed-off-by: Jan Kara <jack@suse.cz>
-> ---
->  drivers/gpu/drm/exynos/exynos_drm_g2d.c | 89 ++++++++++--------------------
->  drivers/gpu/drm/exynos/exynos_drm_gem.c | 97 ---------------------------------
->  2 files changed, 29 insertions(+), 157 deletions(-)
+> I made a really clear and unambiguous chain of arguments:
 > 
-> diff --git a/drivers/gpu/drm/exynos/exynos_drm_g2d.c b/drivers/gpu/drm/exynos/exynos_drm_g2d.c
-> index 81a250830808..265519c0fe2d 100644
-> --- a/drivers/gpu/drm/exynos/exynos_drm_g2d.c
-> +++ b/drivers/gpu/drm/exynos/exynos_drm_g2d.c
-> @@ -190,10 +190,8 @@ struct g2d_cmdlist_userptr {
->  	dma_addr_t		dma_addr;
->  	unsigned long		userptr;
->  	unsigned long		size;
-> -	struct page		**pages;
-> -	unsigned int		npages;
-> +	struct frame_vector	*vec;
->  	struct sg_table		*sgt;
-> -	struct vm_area_struct	*vma;
->  	atomic_t		refcount;
->  	bool			in_pool;
->  	bool			out_of_list;
-> @@ -363,6 +361,7 @@ static void g2d_userptr_put_dma_addr(struct drm_device *drm_dev,
->  {
->  	struct g2d_cmdlist_userptr *g2d_userptr =
->  					(struct g2d_cmdlist_userptr *)obj;
-> +	struct page **pages;
->  
->  	if (!obj)
->  		return;
-> @@ -382,19 +381,21 @@ out:
->  	exynos_gem_unmap_sgt_from_dma(drm_dev, g2d_userptr->sgt,
->  					DMA_BIDIRECTIONAL);
->  
-> -	exynos_gem_put_pages_to_userptr(g2d_userptr->pages,
-> -					g2d_userptr->npages,
-> -					g2d_userptr->vma);
-> +	pages = frame_vector_pages(g2d_userptr->vec);
-> +	if (!IS_ERR(pages)) {
-> +		int i;
->  
-> -	exynos_gem_put_vma(g2d_userptr->vma);
-> +		for (i = 0; i < frame_vector_count(g2d_userptr->vec); i++)
-> +			set_page_dirty_lock(pages[i]);
-> +	}
-> +	put_vaddr_frames(g2d_userptr->vec);
-> +	frame_vector_destroy(g2d_userptr->vec);
->  
->  	if (!g2d_userptr->out_of_list)
->  		list_del_init(&g2d_userptr->list);
->  
->  	sg_free_table(g2d_userptr->sgt);
->  	kfree(g2d_userptr->sgt);
-> -
-> -	drm_free_large(g2d_userptr->pages);
->  	kfree(g2d_userptr);
->  }
->  
-> @@ -413,6 +414,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
->  	struct vm_area_struct *vma;
->  	unsigned long start, end;
->  	unsigned int npages, offset;
-> +	struct frame_vector *vec;
->  	int ret;
->  
->  	if (!size) {
-> @@ -456,65 +458,37 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
->  		return ERR_PTR(-ENOMEM);
->  
->  	atomic_set(&g2d_userptr->refcount, 1);
-> +	g2d_userptr->size = size;
->  
->  	start = userptr & PAGE_MASK;
->  	offset = userptr & ~PAGE_MASK;
->  	end = PAGE_ALIGN(userptr + size);
->  	npages = (end - start) >> PAGE_SHIFT;
-> -	g2d_userptr->npages = npages;
-> -
-> -	pages = drm_calloc_large(npages, sizeof(struct page *));
-> -	if (!pages) {
-> -		DRM_ERROR("failed to allocate pages.\n");
-> -		ret = -ENOMEM;
-> +	vec = g2d_userptr->vec = frame_vector_create(npages);
-> +	if (!vec)
->  		goto err_free;
-> -	}
->  
-> -	down_read(&current->mm->mmap_sem);
-> -	vma = find_vma(current->mm, userptr);
-> -	if (!vma) {
-> -		up_read(&current->mm->mmap_sem);
-> -		DRM_ERROR("failed to get vm region.\n");
-> +	ret = get_vaddr_frames(start, npages, 1, 1, vec);
-> +	if (ret != npages) {
-> +		DRM_ERROR("failed to get user pages from userptr.\n");
-> +		if (ret < 0)
-> +			goto err_destroy_framevec;
->  		ret = -EFAULT;
-> -		goto err_free_pages;
-> +		goto err_put_framevec;
->  	}
-> -
-> -	if (vma->vm_end < userptr + size) {
-> -		up_read(&current->mm->mmap_sem);
-> -		DRM_ERROR("vma is too small.\n");
-> +	if (frame_vector_to_pages(vec) < 0) {
->  		ret = -EFAULT;
-> -		goto err_free_pages;
-> +		goto err_put_framevec;
->  	}
->  
-> -	g2d_userptr->vma = exynos_gem_get_vma(vma);
-> -	if (!g2d_userptr->vma) {
-> -		up_read(&current->mm->mmap_sem);
-> -		DRM_ERROR("failed to copy vma.\n");
-> -		ret = -ENOMEM;
-> -		goto err_free_pages;
-> -	}
-> -
-> -	g2d_userptr->size = size;
-> -
-> -	ret = exynos_gem_get_pages_from_userptr(start & PAGE_MASK,
-> -						npages, pages, vma);
-> -	if (ret < 0) {
-> -		up_read(&current->mm->mmap_sem);
-> -		DRM_ERROR("failed to get user pages from userptr.\n");
-> -		goto err_put_vma;
-> -	}
-> -
-> -	up_read(&current->mm->mmap_sem);
-> -	g2d_userptr->pages = pages;
-> -
->  	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
->  	if (!sgt) {
->  		ret = -ENOMEM;
-> -		goto err_free_userptr;
-> +		goto err_put_framevec;
->  	}
->  
-> -	ret = sg_alloc_table_from_pages(sgt, pages, npages, offset,
-> -					size, GFP_KERNEL);
-> +	ret = sg_alloc_table_from_pages(sgt, frame_vector_pages(vec), npages,
-> +					offset, size, GFP_KERNEL);
->  	if (ret < 0) {
->  		DRM_ERROR("failed to get sgt from pages.\n");
->  		goto err_free_sgt;
-> @@ -549,16 +523,11 @@ err_sg_free_table:
->  err_free_sgt:
->  	kfree(sgt);
->  
-> -err_free_userptr:
-> -	exynos_gem_put_pages_to_userptr(g2d_userptr->pages,
-> -					g2d_userptr->npages,
-> -					g2d_userptr->vma);
-> -
-> -err_put_vma:
-> -	exynos_gem_put_vma(g2d_userptr->vma);
-> +err_put_framevec:
-> +	put_vaddr_frames(vec);
->  
-> -err_free_pages:
-> -	drm_free_large(pages);
-> +err_destroy_framevec:
-> +	frame_vector_destroy(vec);
->  
->  err_free:
->  	kfree(g2d_userptr);
-> diff --git a/drivers/gpu/drm/exynos/exynos_drm_gem.c b/drivers/gpu/drm/exynos/exynos_drm_gem.c
-> index 0d5b9698d384..47068ae44ced 100644
-> --- a/drivers/gpu/drm/exynos/exynos_drm_gem.c
-> +++ b/drivers/gpu/drm/exynos/exynos_drm_gem.c
-> @@ -378,103 +378,6 @@ int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
->  	return 0;
->  }
->  
-> -struct vm_area_struct *exynos_gem_get_vma(struct vm_area_struct *vma)
-> -{
-> -	struct vm_area_struct *vma_copy;
-> -
-> -	vma_copy = kmalloc(sizeof(*vma_copy), GFP_KERNEL);
-> -	if (!vma_copy)
-> -		return NULL;
-> -
-> -	if (vma->vm_ops && vma->vm_ops->open)
-> -		vma->vm_ops->open(vma);
-> -
-> -	if (vma->vm_file)
-> -		get_file(vma->vm_file);
-> -
-> -	memcpy(vma_copy, vma, sizeof(*vma));
-> -
-> -	vma_copy->vm_mm = NULL;
-> -	vma_copy->vm_next = NULL;
-> -	vma_copy->vm_prev = NULL;
-> -
-> -	return vma_copy;
-> -}
-> -
-> -void exynos_gem_put_vma(struct vm_area_struct *vma)
-> -{
-> -	if (!vma)
-> -		return;
-> -
-> -	if (vma->vm_ops && vma->vm_ops->close)
-> -		vma->vm_ops->close(vma);
-> -
-> -	if (vma->vm_file)
-> -		fput(vma->vm_file);
-> -
-> -	kfree(vma);
-> -}
-> -
-> -int exynos_gem_get_pages_from_userptr(unsigned long start,
-> -						unsigned int npages,
-> -						struct page **pages,
-> -						struct vm_area_struct *vma)
-> -{
-> -	int get_npages;
-> -
-> -	/* the memory region mmaped with VM_PFNMAP. */
-> -	if (vma_is_io(vma)) {
-> -		unsigned int i;
-> -
-> -		for (i = 0; i < npages; ++i, start += PAGE_SIZE) {
-> -			unsigned long pfn;
-> -			int ret = follow_pfn(vma, start, &pfn);
-> -			if (ret)
-> -				return ret;
-> -
-> -			pages[i] = pfn_to_page(pfn);
-> -		}
-> -
-> -		if (i != npages) {
-> -			DRM_ERROR("failed to get user_pages.\n");
-> -			return -EINVAL;
-> -		}
-> -
-> -		return 0;
-> -	}
-> -
-> -	get_npages = get_user_pages(current, current->mm, start,
-> -					npages, 1, 1, pages, NULL);
-> -	get_npages = max(get_npages, 0);
-> -	if (get_npages != npages) {
-> -		DRM_ERROR("failed to get user_pages.\n");
-> -		while (get_npages)
-> -			put_page(pages[--get_npages]);
-> -		return -EFAULT;
-> -	}
-> -
-> -	return 0;
-> -}
-> -
-> -void exynos_gem_put_pages_to_userptr(struct page **pages,
-> -					unsigned int npages,
-> -					struct vm_area_struct *vma)
-> -{
-> -	if (!vma_is_io(vma)) {
-> -		unsigned int i;
-> -
-> -		for (i = 0; i < npages; i++) {
-> -			set_page_dirty_lock(pages[i]);
-> -
-> -			/*
-> -			 * undo the reference we took when populating
-> -			 * the table.
-> -			 */
-> -			put_page(pages[i]);
-> -		}
-> -	}
-> -}
-> -
->  int exynos_gem_map_sgt_with_dma(struct drm_device *drm_dev,
->  				struct sg_table *sgt,
->  				enum dma_data_direction dir)
-> 
+>  - I'm unconvinced about the benefits of INVLPG in general, and your patches adds
+>    a whole new bunch of them. [...]
+
+... and note that your claim that 'we were doing them before, this is just an 
+equivalent transformation' is utter bullsh*t technically: what we were doing 
+previously was a hideously expensive IPI combined with an INVLPG.
+
+The behavior was dominated by the huge overhead of the remote flushing IPI, which 
+does not prove or disprove either your or my opinion!
+
+Preserving that old INVLPG logic without measuring its benefits _again_ would be 
+cargo cult programming.
+
+So I think this should be measured, and I don't mind worst-case TLB trashing 
+measurements, which would be relatively straightforward to construct and the 
+results should be unambiguous.
+
+The batching limit (which you set to 32) should then be tuned by comparing it to a 
+working full-flushing batching logic, not by comparing it to the previous single 
+IPI per single flush approach!
+
+... and if the benefits of a complex algorithm are not measurable and if there are 
+doubts about the cost/benefit tradeoff then frankly it should not exist in the 
+kernel in the first place. It's not like the Linux TLB flushing code is too boring 
+due to overwhelming simplicity.
+
+and yes, it's my job as a maintainer to request measurements justifying complexity 
+and your ad hominem attacks against me are disgusting - you should know better.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
