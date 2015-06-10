@@ -1,54 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id DB3146B0032
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 00:47:54 -0400 (EDT)
-Received: by igbsb11 with SMTP id sb11so25589355igb.0
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 21:47:54 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0195.hostedemail.com. [216.40.44.195])
-        by mx.google.com with ESMTP id a3si8048197icv.24.2015.06.09.21.47.54
-        for <linux-mm@kvack.org>;
-        Tue, 09 Jun 2015 21:47:54 -0700 (PDT)
-Message-ID: <1433911671.2730.102.camel@perches.com>
-Subject: Re: [RFC][PATCH 0/5] do not dereference NULL pools in pools'
- destroy() functions
-From: Joe Perches <joe@perches.com>
-Date: Tue, 09 Jun 2015 21:47:51 -0700
-In-Reply-To: <20150609191755.867a36c3.akpm@linux-foundation.org>
-References: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com>
-	 <20150609142523.b717dba6033ee08de997c8be@linux-foundation.org>
-	 <alpine.DEB.2.11.1506092008220.3300@east.gentwo.org>
-	 <20150609185150.8c9fed8d.akpm@linux-foundation.org>
-	 <alpine.DEB.2.11.1506092056570.6964@east.gentwo.org>
-	 <20150609191755.867a36c3.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id F14286B0032
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:46:07 -0400 (EDT)
+Received: by wiwd19 with SMTP id d19so36700104wiw.0
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 22:46:07 -0700 (PDT)
+Received: from mail2-relais-roc.national.inria.fr (mail2-relais-roc.national.inria.fr. [192.134.164.83])
+        by mx.google.com with ESMTPS id e17si7490934wic.4.2015.06.09.22.46.05
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 09 Jun 2015 22:46:06 -0700 (PDT)
+Date: Wed, 10 Jun 2015 07:46:03 +0200 (CEST)
+From: Julia Lawall <julia.lawall@lip6.fr>
+Subject: Re: [RFC][PATCH 0/5] do not dereference NULL pools in pools' destroy()
+ functions
+In-Reply-To: <1433894769.2730.87.camel@perches.com>
+Message-ID: <alpine.DEB.2.02.1506100743200.2087@localhost6.localdomain6>
+References: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com>  <20150609142523.b717dba6033ee08de997c8be@linux-foundation.org> <1433894769.2730.87.camel@perches.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sergey.senozhatsky.work@gmail.com
+To: Joe Perches <joe@perches.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Julia Lawall <julia.lawall@lip6.fr>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sergey.senozhatsky.work@gmail.com
 
-On Tue, 2015-06-09 at 19:17 -0700, Andrew Morton wrote:
-> On Tue, 9 Jun 2015 21:00:58 -0500 (CDT) Christoph Lameter <cl@linux.com> wrote:
-> > On Tue, 9 Jun 2015, Andrew Morton wrote:
-> > > > Why do this at all?
-> > Did some grepping and I did see some call sites that do this but the
-> > majority has to do other processing as well.
-> > 
-> > 200 call sites? Do we have that many uses of caches? Typical prod system
-> > have ~190 caches active and the merging brings that down to half of that.
-> I didn't try terribly hard.
-> z:/usr/src/linux-4.1-rc7> grep -r -C1 kmem_cache_destroy .  | grep "if [(]" | wc -l
-> 158
-> 
-> It's a lot, anyway.
+> > Well I like it, even though it's going to cause a zillion little cleanup
+> > patches.
 
-Yeah.
+Actually only at most 87.  There are some functions that look quite a bit 
+nicer with the change, like:
 
-$ git grep -E -B1 -w "(kmem_cache|mempool|dma_pool)_destroy" *| \
-  grep -P "\bif\s*\(" | wc -l
-268
+ void jffs2_destroy_slab_caches(void)
+ {
+-       if(full_dnode_slab)
+-               kmem_cache_destroy(full_dnode_slab);
+-       if(raw_dirent_slab)
+-               kmem_cache_destroy(raw_dirent_slab);
+-       if(raw_inode_slab)
+-               kmem_cache_destroy(raw_inode_slab);
+-       if(tmp_dnode_info_slab)
+-               kmem_cache_destroy(tmp_dnode_info_slab);
+-       if(raw_node_ref_slab)
+-               kmem_cache_destroy(raw_node_ref_slab);
+-       if(node_frag_slab)
+-               kmem_cache_destroy(node_frag_slab);
+-       if(inode_cache_slab)
+-               kmem_cache_destroy(inode_cache_slab);
++       kmem_cache_destroy(full_dnode_slab);
++       kmem_cache_destroy(raw_dirent_slab);
++       kmem_cache_destroy(raw_inode_slab);
++       kmem_cache_destroy(tmp_dnode_info_slab);
++       kmem_cache_destroy(raw_node_ref_slab);
++       kmem_cache_destroy(node_frag_slab);
++       kmem_cache_destroy(inode_cache_slab);
+ #ifdef CONFIG_JFFS2_FS_XATTR
+-       if (xattr_datum_cache)
+-               kmem_cache_destroy(xattr_datum_cache);
+-       if (xattr_ref_cache)
+-               kmem_cache_destroy(xattr_ref_cache);
++       kmem_cache_destroy(xattr_datum_cache);
++       kmem_cache_destroy(xattr_ref_cache);
+ #endif
+ }
 
+I can try to check and submit the patches.
+
+julia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
