@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 699256B006E
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 02:32:38 -0400 (EDT)
-Received: by payr10 with SMTP id r10so28485260pay.1
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 23:32:38 -0700 (PDT)
-Received: from mail-pd0-x241.google.com (mail-pd0-x241.google.com. [2607:f8b0:400e:c02::241])
-        by mx.google.com with ESMTPS id og9si12303078pbc.66.2015.06.09.23.32.37
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id F3F126B0070
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 02:32:45 -0400 (EDT)
+Received: by payr10 with SMTP id r10so28487232pay.1
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 23:32:45 -0700 (PDT)
+Received: from mail-pd0-x243.google.com (mail-pd0-x243.google.com. [2607:f8b0:400e:c02::243])
+        by mx.google.com with ESMTPS id d7si12318670pdf.127.2015.06.09.23.32.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jun 2015 23:32:37 -0700 (PDT)
-Received: by pdbht2 with SMTP id ht2so7453873pdb.2
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 23:32:37 -0700 (PDT)
+        Tue, 09 Jun 2015 23:32:45 -0700 (PDT)
+Received: by pdev10 with SMTP id v10so7464260pde.0
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 23:32:44 -0700 (PDT)
 From: Wenwei Tao <wenweitaowenwei@gmail.com>
-Subject: [RFC PATCH 3/6] perf: change the condition of identifying hugetlb vm
-Date: Wed, 10 Jun 2015 14:27:16 +0800
-Message-Id: <1433917639-31699-4-git-send-email-wenweitaowenwei@gmail.com>
+Subject: [RFC PATCH 4/6] fs/binfmt_elf.c: change the condition of identifying hugetlb vm
+Date: Wed, 10 Jun 2015 14:27:17 +0800
+Message-Id: <1433917639-31699-5-git-send-email-wenweitaowenwei@gmail.com>
 In-Reply-To: <1433917639-31699-1-git-send-email-wenweitaowenwei@gmail.com>
 References: <1433917639-31699-1-git-send-email-wenweitaowenwei@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -29,22 +29,22 @@ VMA only if it doesn't have VM_MERGEABLE been set in the same time.
 
 Signed-off-by: Wenwei Tao <wenweitaowenwei@gmail.com>
 ---
- kernel/events/core.c |    2 +-
+ fs/binfmt_elf.c |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/kernel/events/core.c b/kernel/events/core.c
-index f04daab..6313bdd 100644
---- a/kernel/events/core.c
-+++ b/kernel/events/core.c
-@@ -5624,7 +5624,7 @@ static void perf_event_mmap_event(struct perf_mmap_event *mmap_event)
- 			flags |= MAP_EXECUTABLE;
- 		if (vma->vm_flags & VM_LOCKED)
- 			flags |= MAP_LOCKED;
--		if (vma->vm_flags & VM_HUGETLB)
-+		if ((vma->vm_flags & (VM_HUGETLB | VM_MERGEABLE)) == VM_HUGETLB)
- 			flags |= MAP_HUGETLB;
+diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+index 995986b..f529c8e 100644
+--- a/fs/binfmt_elf.c
++++ b/fs/binfmt_elf.c
+@@ -1242,7 +1242,7 @@ static unsigned long vma_dump_size(struct vm_area_struct *vma,
+ 		return 0;
  
- 		goto got_name;
+ 	/* Hugetlb memory check */
+-	if (vma->vm_flags & VM_HUGETLB) {
++	if ((vma->vm_flags & (VM_HUGETLB | VM_MERGEABLE)) == VM_HUGETLB) {
+ 		if ((vma->vm_flags & VM_SHARED) && FILTER(HUGETLB_SHARED))
+ 			goto whole;
+ 		if (!(vma->vm_flags & VM_SHARED) && FILTER(HUGETLB_PRIVATE))
 -- 
 1.7.9.5
 
