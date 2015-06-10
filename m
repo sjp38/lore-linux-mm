@@ -1,70 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id F14286B0032
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:46:07 -0400 (EDT)
-Received: by wiwd19 with SMTP id d19so36700104wiw.0
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 22:46:07 -0700 (PDT)
-Received: from mail2-relais-roc.national.inria.fr (mail2-relais-roc.national.inria.fr. [192.134.164.83])
-        by mx.google.com with ESMTPS id e17si7490934wic.4.2015.06.09.22.46.05
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 09 Jun 2015 22:46:06 -0700 (PDT)
-Date: Wed, 10 Jun 2015 07:46:03 +0200 (CEST)
-From: Julia Lawall <julia.lawall@lip6.fr>
-Subject: Re: [RFC][PATCH 0/5] do not dereference NULL pools in pools' destroy()
- functions
-In-Reply-To: <1433894769.2730.87.camel@perches.com>
-Message-ID: <alpine.DEB.2.02.1506100743200.2087@localhost6.localdomain6>
-References: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com>  <20150609142523.b717dba6033ee08de997c8be@linux-foundation.org> <1433894769.2730.87.camel@perches.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 946766B0032
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:52:33 -0400 (EDT)
+Received: by igbzc4 with SMTP id zc4so27979091igb.0
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 22:52:33 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0014.hostedemail.com. [216.40.44.14])
+        by mx.google.com with ESMTP id hu6si3069630igb.44.2015.06.09.22.52.32
+        for <linux-mm@kvack.org>;
+        Tue, 09 Jun 2015 22:52:32 -0700 (PDT)
+Message-ID: <1433915549.2730.107.camel@perches.com>
+Subject: [PATCH V2] checkpatch: Add some <foo>_destroy functions to
+ NEEDLESS_IF tests
+From: Joe Perches <joe@perches.com>
+Date: Tue, 09 Jun 2015 22:52:29 -0700
+In-Reply-To: <1433911166.2730.98.camel@perches.com>
+References: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com>
+	 <20150609142523.b717dba6033ee08de997c8be@linux-foundation.org>
+	 <1433894769.2730.87.camel@perches.com>
+	 <1433911166.2730.98.camel@perches.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Julia Lawall <julia.lawall@lip6.fr>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sergey.senozhatsky.work@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Julia Lawall <julia.lawall@lip6.fr>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sergey.senozhatsky.work@gmail.com
 
-> > Well I like it, even though it's going to cause a zillion little cleanup
-> > patches.
+Sergey Senozhatsky has modified several destroy functions that can
+now be called with NULL values.
 
-Actually only at most 87.  There are some functions that look quite a bit 
-nicer with the change, like:
+ - kmem_cache_destroy()
+ - mempool_destroy()
+ - dma_pool_destroy()
 
- void jffs2_destroy_slab_caches(void)
- {
--       if(full_dnode_slab)
--               kmem_cache_destroy(full_dnode_slab);
--       if(raw_dirent_slab)
--               kmem_cache_destroy(raw_dirent_slab);
--       if(raw_inode_slab)
--               kmem_cache_destroy(raw_inode_slab);
--       if(tmp_dnode_info_slab)
--               kmem_cache_destroy(tmp_dnode_info_slab);
--       if(raw_node_ref_slab)
--               kmem_cache_destroy(raw_node_ref_slab);
--       if(node_frag_slab)
--               kmem_cache_destroy(node_frag_slab);
--       if(inode_cache_slab)
--               kmem_cache_destroy(inode_cache_slab);
-+       kmem_cache_destroy(full_dnode_slab);
-+       kmem_cache_destroy(raw_dirent_slab);
-+       kmem_cache_destroy(raw_inode_slab);
-+       kmem_cache_destroy(tmp_dnode_info_slab);
-+       kmem_cache_destroy(raw_node_ref_slab);
-+       kmem_cache_destroy(node_frag_slab);
-+       kmem_cache_destroy(inode_cache_slab);
- #ifdef CONFIG_JFFS2_FS_XATTR
--       if (xattr_datum_cache)
--               kmem_cache_destroy(xattr_datum_cache);
--       if (xattr_ref_cache)
--               kmem_cache_destroy(xattr_ref_cache);
-+       kmem_cache_destroy(xattr_datum_cache);
-+       kmem_cache_destroy(xattr_ref_cache);
- #endif
- }
+Update checkpatch to warn when those functions are preceded by an if.
 
-I can try to check and submit the patches.
+Update checkpatch to --fix all the calls too only when the code style
+form is using leading tabs.
 
-julia
+from:
+	if (foo)
+		<func>(foo);
+to:
+	<func>(foo);
+
+Signed-off-by: Joe Perches <joe@perches.com>
+---
+V2: Remove useless debugging print messages and multiple quotemetas
+
+ scripts/checkpatch.pl | 32 ++++++++++++++++++++++++++++----
+ 1 file changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
+index 69c4716..87d3bf1aa 100755
+--- a/scripts/checkpatch.pl
++++ b/scripts/checkpatch.pl
+@@ -4800,10 +4800,34 @@ sub process {
+ 
+ # check for needless "if (<foo>) fn(<foo>)" uses
+ 		if ($prevline =~ /\bif\s*\(\s*($Lval)\s*\)/) {
+-			my $expr = '\s*\(\s*' . quotemeta($1) . '\s*\)\s*;';
+-			if ($line =~ /\b(kfree|usb_free_urb|debugfs_remove(?:_recursive)?)$expr/) {
+-				WARN('NEEDLESS_IF',
+-				     "$1(NULL) is safe and this check is probably not required\n" . $hereprev);
++			my $tested = quotemeta($1);
++			my $expr = '\s*\(\s*' . $tested . '\s*\)\s*;';
++			if ($line =~ /\b(kfree|usb_free_urb|debugfs_remove(?:_recursive)?|(?:kmem_cache|mempool|dma_pool)_destroy)$expr/) {
++				my $func = $1;
++				if (WARN('NEEDLESS_IF',
++					 "$func(NULL) is safe and this check is probably not required\n" . $hereprev) &&
++				    $fix) {
++					my $do_fix = 1;
++					my $leading_tabs = "";
++					my $new_leading_tabs = "";
++					if ($lines[$linenr - 2] =~ /^\+(\t*)if\s*\(\s*$tested\s*\)\s*$/) {
++						$leading_tabs = $1;
++					} else {
++						$do_fix = 0;
++					}
++					if ($lines[$linenr - 1] =~ /^\+(\t+)$func\s*\(\s*$tested\s*\)\s*;\s*$/) {
++						$new_leading_tabs = $1;
++						if (length($leading_tabs) + 1 ne length($new_leading_tabs)) {
++							$do_fix = 0;
++						}
++					} else {
++						$do_fix = 0;
++					}
++					if ($do_fix) {
++						fix_delete_line($fixlinenr - 1, $prevrawline);
++						$fixed[$fixlinenr] =~ s/^\+$new_leading_tabs/\+$leading_tabs/;
++					}
++				}
+ 			}
+ 		}
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
