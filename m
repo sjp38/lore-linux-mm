@@ -1,99 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 818326B0032
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 05:58:33 -0400 (EDT)
-Received: by wgez8 with SMTP id z8so31607999wge.0
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 02:58:33 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 093776B0032
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 06:15:39 -0400 (EDT)
+Received: by wigg3 with SMTP id g3so43139898wig.1
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 03:15:38 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hn1si16869161wjc.69.2015.06.10.02.58.31
+        by mx.google.com with ESMTPS id m1si16913293wja.170.2015.06.10.03.15.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Jun 2015 02:58:32 -0700 (PDT)
-Date: Wed, 10 Jun 2015 10:58:26 +0100
+        Wed, 10 Jun 2015 03:15:35 -0700 (PDT)
+Date: Wed, 10 Jun 2015 11:15:29 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/4] mm: Send one IPI per CPU to TLB flush all entries
- after unmapping pages
-Message-ID: <20150610095826.GD26425@suse.de>
-References: <1433871118-15207-1-git-send-email-mgorman@suse.de>
- <1433871118-15207-3-git-send-email-mgorman@suse.de>
- <20150610082640.GA24483@gmail.com>
+Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
+Message-ID: <20150610101529.GE26425@suse.de>
+References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
+ <20150608174551.GA27558@gmail.com>
+ <20150609084739.GQ26425@suse.de>
+ <20150609103231.GA11026@gmail.com>
+ <20150609112055.GS26425@suse.de>
+ <20150609124328.GA23066@gmail.com>
+ <20150609130536.GT26425@suse.de>
+ <20150610085141.GA25704@gmail.com>
+ <20150610090813.GA30359@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20150610082640.GA24483@gmail.com>
+In-Reply-To: <20150610090813.GA30359@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-On Wed, Jun 10, 2015 at 10:26:40AM +0200, Ingo Molnar wrote:
+On Wed, Jun 10, 2015 at 11:08:13AM +0200, Ingo Molnar wrote:
 > 
-> * Mel Gorman <mgorman@suse.de> wrote:
+> * Ingo Molnar <mingo@kernel.org> wrote:
 > 
-> > On a 4-socket machine the results were
+> > Stop this crap.
 > > 
-> >                                         4.1.0-rc6          4.1.0-rc6
-> >                                     batchdirty-v6      batchunmap-v6
-> > Ops lru-file-mmap-read-elapsed   121.27 (  0.00%)   118.79 (  2.05%)
+> > I made a really clear and unambiguous chain of arguments:
 > > 
-> >            4.1.0-rc6      4.1.0-rc6
-> >         batchdirty-v6 batchunmap-v6
-> > User          620.84         608.48
-> > System       4245.35        4152.89
-> > Elapsed       122.65         120.15
-> > 
-> > In this case the workload completed faster and there was less CPU overhead
-> > but as it's a NUMA machine there are a lot of factors at play. It's easier
-> > to quantify on a single socket machine;
-> > 
-> >                                         4.1.0-rc6          4.1.0-rc6
-> >                                     batchdirty-v6      batchunmap-v6
-> > Ops lru-file-mmap-read-elapsed    20.35 (  0.00%)    21.52 ( -5.75%)
-> > 
-> >            4.1.0-rc6   4.1.0-rc6
-> >         batchdirty-v6r5batchunmap-v6r5
-> > User           58.02       60.70
-> > System         77.57       81.92
-> > Elapsed        22.14       23.16
-> > 
-> > That shows the workload takes 5.75% longer to complete with a similar
-> > increase in the system CPU usage.
+> >  - I'm unconvinced about the benefits of INVLPG in general, and your patches adds
+> >    a whole new bunch of them. [...]
 > 
-> Btw., do you have any stddev noise numbers?
+> ... and note that your claim that 'we were doing them before, this is just an 
+> equivalent transformation' is utter bullsh*t technically: what we were doing 
+> previously was a hideously expensive IPI combined with an INVLPG.
 > 
 
-                                           4.1.0-rc6          4.1.0-rc6          4.1.0-rc6          4.1.0-rc6
-                                             vanilla     flushfull-v6r5    batchdirty-v6r5    batchunmap-v6r5
-Ops lru-file-mmap-read-elapsed       25.43 (  0.00%)    20.59 ( 19.03%)    20.35 ( 19.98%)    21.52 ( 15.38%)
-Ops lru-file-mmap-read-time_stddv     0.32 (  0.00%)     0.32 ( -1.30%)     0.39 (-23.00%)     0.45 (-40.91%)
+And replacing it with an INVLPG without excessive IPI transmission is
+changing one major variable. Going straight to a full TLB flush is changing
+two major variables. I thought the refill cost was high, parially based
+on the estimate of 22,000 cycles in https://lkml.org/lkml/2014/7/31/825.
+I've been told in these discussions that I'm wrong and the cost is not
+high. As it'll always be variable, we can never be sure which is why
+I do not see a value to building a complex test around it that will be
+invalidated the instant we use a different CPU. When/if a workload shows
+up that really cares about those refill costs then there will be a stable
+test case to work from.
 
-
-flushfull  -- patch 2
-batchdirty -- patch 3
-batchunmap -- patch 4
-
-So the impact of tracking the PFNs is outside the noise and there is
-definite direct cost to it. This was expected for both the PFN tracking
-and the individual flushes.
-
-> The batching speedup is brutal enough to not need any noise estimations, it's a 
-> clear winner.
+> The behavior was dominated by the huge overhead of the remote flushing IPI, which 
+> does not prove or disprove either your or my opinion!
+> 
+> Preserving that old INVLPG logic without measuring its benefits _again_ would be 
+> cargo cult programming.
+> 
+> So I think this should be measured, and I don't mind worst-case TLB trashing 
+> measurements, which would be relatively straightforward to construct and the 
+> results should be unambiguous.
+> 
+> The batching limit (which you set to 32) should then be tuned by comparing it to a 
+> working full-flushing batching logic, not by comparing it to the previous single 
+> IPI per single flush approach!
 > 
 
-Agreed.
+We can decrease it easily but increasing it means we also have to change
+SWAP_CLUSTER_MAX because otherwise enough pages are not unmapped for
+flushes and it is a requirement that we flush before freeing the pages. That
+changes another complex variable because at the very least, it alters LRU
+lock hold times.
 
-> But this PFN tracking patch is more difficult to judge as the numbers are pretty 
-> close to each other.
+> ... and if the benefits of a complex algorithm are not measurable and if there are 
+> doubts about the cost/benefit tradeoff then frankly it should not exist in the 
+> kernel in the first place. It's not like the Linux TLB flushing code is too boring 
+> due to overwhelming simplicity.
+> 
+> and yes, it's my job as a maintainer to request measurements justifying complexity 
+> and your ad hominem attacks against me are disgusting - you should know better.
 > 
 
-It's definitely measurable, no doubt about it and there never was. The
-concerns were always the refill costs due to flushing potentially active
-TLB entries unnecessarily. From https://lkml.org/lkml/2014/7/31/825, this
-is potentially high where it says that a 512 DTLB refill takes 22,000
-cycles which is higher than the individual flushes. However, this is an
-estimate and it'll always be a case of "it depends". It's been asserted
-that the refill costs are really low so lets just go with that, drop
-patch 4 and wait and see who complains.
+It was not intended as an ad hominem attack and my apologies for that.
+I wanted to express my frustration that a series that adjusted one variable
+with known benefit will be rejected for a series that adjusts two major
+variables instead with the second variable being very sensitive to
+workload and CPU.
 
 -- 
 Mel Gorman
