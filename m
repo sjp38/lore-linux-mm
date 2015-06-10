@@ -1,113 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B6CA96B0071
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 03:37:29 -0400 (EDT)
-Received: by wgbgq6 with SMTP id gq6so28889230wgb.3
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 00:37:29 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dx2si7949157wib.2.2015.06.10.00.37.27
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Jun 2015 00:37:27 -0700 (PDT)
-Date: Wed, 10 Jun 2015 09:37:26 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] oom: split out forced OOM killer
-Message-ID: <20150610073726.GB4501@dhcp22.suse.cz>
-References: <1433235187-32673-1-git-send-email-mhocko@suse.cz>
- <alpine.DEB.2.10.1506041557070.16555@chino.kir.corp.google.com>
- <557187F9.8020301@gmail.com>
- <alpine.DEB.2.10.1506081059200.10521@chino.kir.corp.google.com>
- <5575E5E6.20908@gmail.com>
- <alpine.DEB.2.10.1506081237350.13272@chino.kir.corp.google.com>
- <20150608210621.GA18360@dhcp22.suse.cz>
- <alpine.DEB.2.10.1506081558270.17040@chino.kir.corp.google.com>
- <20150609093659.GA29057@dhcp22.suse.cz>
- <alpine.DEB.2.10.1506091542120.30516@chino.kir.corp.google.com>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id A69E76B0071
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 03:45:54 -0400 (EDT)
+Received: by pabqy3 with SMTP id qy3so29562015pab.3
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 00:45:54 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id el6si12571872pdb.218.2015.06.10.00.45.53
+        for <linux-mm@kvack.org>;
+        Wed, 10 Jun 2015 00:45:53 -0700 (PDT)
+Message-ID: <5577EB2E.8090505@linux.intel.com>
+Date: Wed, 10 Jun 2015 15:45:50 +0800
+From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1506091542120.30516@chino.kir.corp.google.com>
+Subject: Re: [PATCH] slub/slab: fix kmemleak didn't work on some case
+References: <99C214DF91337140A8D774E25DF6CD5FC89DA2@shsmsx102.ccr.corp.intel.com> <alpine.DEB.2.11.1506080425350.10651@east.gentwo.org> <20150608101302.GB31349@e104818-lin.cambridge.arm.com> <55769F85.5060909@linux.intel.com> <20150609150303.GB4808@e104818-lin.cambridge.arm.com>
+In-Reply-To: <20150609150303.GB4808@e104818-lin.cambridge.arm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Austin S Hemmelgarn <ahferroin7@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Christoph Lameter <cl@linux.com>, "Liu, XinwuX" <xinwux.liu@intel.com>, "penberg@kernel.org" <penberg@kernel.org>, "mpm@selenic.com" <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "He, Bo" <bo.he@intel.com>, "Chen, Lin Z" <lin.z.chen@intel.com>
 
-On Tue 09-06-15 15:45:35, David Rientjes wrote:
-> On Tue, 9 Jun 2015, Michal Hocko wrote:
-> 
-> > > Yes, and that's why I believe we should pursue that direction without the 
-> > > associated "cleanup" that adds 35 lines of code to supress a panic.  In 
-> > > other words, there's no reason to combine a patch that suppresses the 
-> > > panic even with panic_on_oom, which I support, and a "cleanup" that I 
-> > > believe just obfuscates the code.
-> > > 
-> > > It's a one-liner change: just test for force_kill and suppress the panic; 
-> > > we don't need 35 new lines that create even more unique entry paths.
-> > 
-> > I completely detest yet another check in out_of_memory. And there is
-> > even no reason to do that. Forced kill and genuine oom have different
-> > objectives and combining those two just makes the code harder to read
-> > (one has to go to check the syrq callback to realize that the forced
-> > path is triggered from the workqueue context and that current->mm !=
-> > NULL check will prevent some heuristics. This is just too ugly to
-> > live). So why the heck are you pushing for keeping everything in a
-> > single path?
-> > 
-> 
-> Perhaps if you renamed "force_kill" to "sysrq" it would make more sense to 
-> you?
+On 2015/6/9 23:03, Catalin Marinas wrote:
+> On Tue, Jun 09, 2015 at 09:10:45AM +0100, Zhang, Yanmin wrote:
+>> On 2015/6/8 18:13, Catalin Marinas wrote:
+>>> As I replied already, I don't think this is that bad, or at least not
+>>> worse than what kmemleak already does (looking at all data whether it's
+>>> pointer or not).
+>> It depends. As for memleak, developers prefers there are false alarms instead
+>> of missing some leaked memory.
+> Lots of false positives aren't that nice, you spend a lot of time
+> debugging them (I've been there in the early kmemleak days). Anyway,
+> your use case is not about false positives vs. negatives but just false
+> negatives.
+>
+> My point is that there is a lot of random, pointer-like data read by
+> kmemleak even without this memset (e.g. thread stacks, non-pointer data
+> in kmalloc'ed structures, data/bss sections). Just doing this memset may
+> reduce the chance of false negatives a bit but I don't think it would be
+> noticeable.
+>
+> If there is some serious memory leak (lots of objects), they would
+> likely show up at some point. Even if it's a one-off leak, it's possible
+> that it shows up after some time (e.g. the object pointing to this
+> memory block is freed).
+>
+>>>  It also doesn't solve the kmem_cache_alloc() case where
+>>> the original object size is no longer available.
+>> Such issue around kmem_cache_alloc() case happens only when the
+>> caller doesn't initialize or use the full object, so the object keeps
+>> old dirty data.
+> The kmem_cache blocks size would be aligned to a cache line, so you
+> still have some extra bytes never touched by the caller.
+>
+>> This patch is to resolve the redundant unused space (more than object size)
+>> although the full object is used by kernel.
+> So this solves only the cases where the original object size is still
+> known (e.g. kmalloc). It could also be solved by telling kmemleak the
+> actual object size.
 
-The naming is not _the_ problem.
+Your explanation is reasonable. The patch is for debug purpose.
+Maintainers can make decision based on balance.
 
-> I don't think the oom killer needs multiple entry points that duplicates 
-> code and adds more than twice the lines it removes.  It would make sense 
-> if that was an optimization in a hot path, or a warm path, or even a 
-> luke-warm path, but not an icy cold path like the oom killer.  
+Xinwu is a new developer in kernel community. Accepting the patch
+into kernel can encourage him definitely. :)
 
-This is not trying to optimize for speed. It is a clean up for
-_readability_ and _maintainability_ which is considerably better after
-the patch because responsibilities of both paths are clear and sysrq
-path doesn't have to care about whatever special handling the oom path
-wants to care. It is _that_ simple.
-
-> check_panic_on_oom() can simply do
-
-> 
-> 	if (sysrq)
-> 		return;
-
-and then do the same thing for panic on no killable task and then for
-all other cases which are of no relevance for the sysrq path which we
-come up later potentially.
-
-This level of argumentation is just ridiculous. You are blocking a
-useful cleanup which also fixes a really non-intuitive behavior. I admit
-that nobody was complaining about this behavior so this is nothing
-urgent but if we go with panic_on_oom_timeout proposal posted in other
-email thread then I expect panic_on_oom would be usable much more and
-then it would matter much more.
-
-> It's not hard and it's very clear.  We don't need 35 more lines of code to 
-> do this.
-
-Sure we do not _need_ it and we definitely can _clutter_ the code even
-more.
-
-I do not think your objections are justified. It is natural and a good
-practice to split code paths which have different requirements rather
-than differentiate them with multiple checks in the common path (some of
-them even very subtle). It is a common practice to split up common
-infrastructure in helper functions and reuse them when needed. But I
-guess I do not have teach you this trivial things...
-
-</bunfight> from my side
-
-Andrew do whatever you like with the patch but I find the level of
-argumentation in this thread as not reasonable (I would even consider it
-trolling at some parts) and not sufficient for a nack.
--- 
-Michal Hocko
-SUSE Labs
+Yanmin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
