@@ -1,106 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 49B106B006E
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 05:33:24 -0400 (EDT)
-Received: by wgez8 with SMTP id z8so31118432wge.0
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 02:33:23 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E8896B0070
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 05:33:26 -0400 (EDT)
+Received: by wifx6 with SMTP id x6so40982971wif.0
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 02:33:26 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m8si16754494wje.41.2015.06.10.02.33.18
+        by mx.google.com with ESMTPS id d7si16736435wjn.85.2015.06.10.02.33.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Wed, 10 Jun 2015 02:33:19 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 3/6] mm, compaction: encapsulate resetting cached scanner positions
-Date: Wed, 10 Jun 2015 11:32:31 +0200
-Message-Id: <1433928754-966-4-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1433928754-966-1-git-send-email-vbabka@suse.cz>
-References: <1433928754-966-1-git-send-email-vbabka@suse.cz>
+Subject: [PATCH 0/6] Assorted compaction cleanups and optimizations
+Date: Wed, 10 Jun 2015 11:32:28 +0200
+Message-Id: <1433928754-966-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
+Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rik van Riel <riel@redhat.com>
 
-Resetting the cached compaction scanner positions is now done implicitly in
-__reset_isolation_suitable() and compact_finished(). Encapsulate the
-functionality in a new function reset_cached_positions() and call it explicitly
-where needed.
+This series is partly the cleanups that were posted as part of the RFC for
+changing initial scanning positions [1] and partly new relatively simple
+scanner optimizations (yes, they are still possible). I've resumed working
+on the bigger scanner changes, but that will take a while, so no point in
+delaying these smaller patches.
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: David Rientjes <rientjes@google.com>
----
- mm/compaction.c | 22 ++++++++++++++--------
- 1 file changed, 14 insertions(+), 8 deletions(-)
+The interesting patches are 4 and 5, and somewhat patch 6. In 4, skipping of
+compound pages in single iteration is improved for migration scanner, so it
+works also for !PageLRU compound pages such as hugetlbfs, slab etc. Patch 5
+introduces this kind of skipping in the free scanner. The trick is that we
+can read compound_order() without any protection, if we are careful to filter
+out values larger than MAX_ORDER. The only danger is that we skip too much.
+The same trick was already used for reading the freepage order in the migrate
+scanner.
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 7e0a814..d334bb3 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -207,6 +207,13 @@ static inline bool isolation_suitable(struct compact_control *cc,
- 	return !get_pageblock_skip(page);
- }
- 
-+static void reset_cached_positions(struct zone *zone)
-+{
-+	zone->compact_cached_migrate_pfn[0] = zone->zone_start_pfn;
-+	zone->compact_cached_migrate_pfn[1] = zone->zone_start_pfn;
-+	zone->compact_cached_free_pfn = zone_end_pfn(zone);
-+}
-+
- /*
-  * This function is called to clear all cached information on pageblocks that
-  * should be skipped for page isolation when the migrate and free page scanner
-@@ -218,9 +225,6 @@ static void __reset_isolation_suitable(struct zone *zone)
- 	unsigned long end_pfn = zone_end_pfn(zone);
- 	unsigned long pfn;
- 
--	zone->compact_cached_migrate_pfn[0] = start_pfn;
--	zone->compact_cached_migrate_pfn[1] = start_pfn;
--	zone->compact_cached_free_pfn = end_pfn;
- 	zone->compact_blockskip_flush = false;
- 
- 	/* Walk the zone and mark every pageblock as suitable for isolation */
-@@ -250,8 +254,10 @@ void reset_isolation_suitable(pg_data_t *pgdat)
- 			continue;
- 
- 		/* Only flush if a full compaction finished recently */
--		if (zone->compact_blockskip_flush)
-+		if (zone->compact_blockskip_flush) {
- 			__reset_isolation_suitable(zone);
-+			reset_cached_positions(zone);
-+		}
- 	}
- }
- 
-@@ -1164,9 +1170,7 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
- 	/* Compaction run completes if the migrate and free scanner meet */
- 	if (compact_scanners_met(cc)) {
- 		/* Let the next compaction start anew. */
--		zone->compact_cached_migrate_pfn[0] = zone->zone_start_pfn;
--		zone->compact_cached_migrate_pfn[1] = zone->zone_start_pfn;
--		zone->compact_cached_free_pfn = zone_end_pfn(zone);
-+		reset_cached_positions(zone);
- 
- 		/*
- 		 * Mark that the PG_migrate_skip information should be cleared
-@@ -1329,8 +1333,10 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 	 * is about to be retried after being deferred. kswapd does not do
- 	 * this reset as it'll reset the cached information when going to sleep.
- 	 */
--	if (compaction_restarting(zone, cc->order) && !current_is_kswapd())
-+	if (compaction_restarting(zone, cc->order) && !current_is_kswapd()) {
- 		__reset_isolation_suitable(zone);
-+		reset_cached_positions(zone);
-+	}
- 
- 	/*
- 	 * Setup to move all movable pages to the end of the zone. Used cached
+Patch 6 avoids some rescanning when compaction restarts from cached scanner
+positions, but the benefits are small enough to be lost in the noise.
+
+To demonstrate improvements of Patches 4 and 5 I've run stress-highalloc from
+mmtests, set to simulate THP allocations (including __GFP_COMP) on a 4GB system
+where 1GB was occupied by hugetlbfs pages. I'll include just the relevant
+stats:
+
+                               Patch 3     Patch 4     Patch 5     Patch 6
+
+Compaction stalls                 7523        7529        7515        7495
+Compaction success                 323         304         322         289
+Compaction failures               7200        7224        7192        7206
+Page migrate success            247778      264395      240737      248956
+Page migrate failure             15358       33184       21621       23657
+Compaction pages isolated       906928      980192      909983      958044
+Compaction migrate scanned     2005277     1692805     1498800     1750952
+Compaction free scanned       13255284    11539986     9011276     9703018
+Compaction cost                    288         305         277         289
+
+With 5 iterations per patch, the results are still noisy, but we can see that
+Patch 4 does reduce migrate_scanned by 15% thanks to skipping the hugetlbfs
+pages at once. Interestingly, free_scanned is also reduced and I have no idea
+why. Patch 5 further reduces free_scanned as expected, by 15%. Other stats
+are unaffected modulo noise. Patch 6 looks like a regression but I believe it's
+just the noise. I've verified that compaction now restarts from the exact pfns
+it left off, using tracepoints.
+
+[1] https://lkml.org/lkml/2015/1/19/158
+
+Vlastimil Babka (6):
+  mm, compaction: more robust check for scanners meeting
+  mm, compaction: simplify handling restart position in free pages
+    scanner
+  mm, compaction: encapsulate resetting cached scanner positions
+  mm, compaction: always skip compound pages by order in migrate scanner
+  mm, compaction: skip compound pages by order in free scanner
+  mm, compaction: decouple updating pageblock_skip and cached pfn
+
+ mm/compaction.c | 188 ++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 115 insertions(+), 73 deletions(-)
+
 -- 
 2.1.4
 
