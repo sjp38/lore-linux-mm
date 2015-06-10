@@ -1,75 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com [209.85.220.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 66D206B0038
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 17:00:14 -0400 (EDT)
-Received: by qkx62 with SMTP id 62so31386265qkx.3
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 14:00:14 -0700 (PDT)
-Received: from mail-qk0-x22c.google.com (mail-qk0-x22c.google.com. [2607:f8b0:400d:c09::22c])
-        by mx.google.com with ESMTPS id t77si9906455qga.36.2015.06.10.14.00.13
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 043446B0032
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 17:59:32 -0400 (EDT)
+Received: by pabqy3 with SMTP id qy3so41913152pab.3
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 14:59:31 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id xg10si15784457pbc.254.2015.06.10.14.59.30
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jun 2015 14:00:13 -0700 (PDT)
-Received: by qkoo18 with SMTP id o18so31728337qko.1
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 14:00:13 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1433851493-23685-5-git-send-email-sergey.senozhatsky@gmail.com>
-References: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com> <1433851493-23685-5-git-send-email-sergey.senozhatsky@gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Wed, 10 Jun 2015 16:59:53 -0400
-Message-ID: <CALZtONAyQn1qGusF4TXcS1FHmiHNmJT+Wrh2G6j7OYA=R+Q0dQ@mail.gmail.com>
-Subject: Re: [RFC][PATCH 4/5] mm/zpool: allow NULL `zpool' pointer in zpool_destroy_pool()
-Content-Type: text/plain; charset=UTF-8
+        Wed, 10 Jun 2015 14:59:31 -0700 (PDT)
+Date: Wed, 10 Jun 2015 14:59:29 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RESEND PATCH V2 0/3] Allow user to request memory to be locked
+ on page fault
+Message-Id: <20150610145929.b22be8647887ea7091b09ae1@linux-foundation.org>
+In-Reply-To: <1433942810-7852-1-git-send-email-emunson@akamai.com>
+References: <1433942810-7852-1-git-send-email-emunson@akamai.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Eric B Munson <emunson@akamai.com>
+Cc: Shuah Khan <shuahkh@osg.samsung.com>, Michal Hocko <mhocko@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On Tue, Jun 9, 2015 at 8:04 AM, Sergey Senozhatsky
-<sergey.senozhatsky@gmail.com> wrote:
-> zpool_destroy_pool() does not tolerate a NULL zpool pointer
-> argument and performs a NULL-pointer dereference. Although
-> there is only one zpool_destroy_pool() user (as of 4.1),
-> still update it to be coherent with the corresponding
-> destroy() functions of the remainig pool-allocators (slab,
-> mempool, etc.), which now allow NULL pool-pointers.
->
-> For consistency, tweak zpool_destroy_pool() and NULL-check the
-> pointer there.
->
-> Proposed by Andrew Morton.
->
-> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Reported-by: Andrew Morton <akpm@linux-foundation.org>
-> LKML-reference: https://lkml.org/lkml/2015/6/8/583
+On Wed, 10 Jun 2015 09:26:47 -0400 Eric B Munson <emunson@akamai.com> wrote:
 
-Acked-by: Dan Streetman <ddstreet@ieee.org>
+> mlock() allows a user to control page out of program memory, but this
+> comes at the cost of faulting in the entire mapping when it is
 
-> ---
->  mm/zpool.c | 3 +++
->  1 file changed, 3 insertions(+)
->
-> diff --git a/mm/zpool.c b/mm/zpool.c
-> index bacdab6..2f59b90 100644
-> --- a/mm/zpool.c
-> +++ b/mm/zpool.c
-> @@ -202,6 +202,9 @@ struct zpool *zpool_create_pool(char *type, char *name, gfp_t gfp,
->   */
->  void zpool_destroy_pool(struct zpool *zpool)
->  {
-> +       if (unlikely(!zpool))
-> +               return;
-> +
->         pr_info("destroying pool type %s\n", zpool->type);
->
->         spin_lock(&pools_lock);
-> --
-> 2.4.3.368.g7974889
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+s/mapping/locked area/
+
+> allocated.  For large mappings where the entire area is not necessary
+> this is not ideal.
+> 
+> This series introduces new flags for mmap() and mlockall() that allow a
+> user to specify that the covered are should not be paged out, but only
+> after the memory has been used the first time.
+
+The comparison with MCL_FUTURE is hiding over in the 2/3 changelog. 
+It's important so let's copy it here.
+
+: MCL_ONFAULT is preferrable to MCL_FUTURE for the use cases enumerated
+: in the previous patch becuase MCL_FUTURE will behave as if each mapping
+: was made with MAP_LOCKED, causing the entire mapping to be faulted in
+: when new space is allocated or mapped.  MCL_ONFAULT allows the user to
+: delay the fault in cost of any given page until it is actually needed,
+: but then guarantees that that page will always be resident.
+
+I *think* it all looks OK.  I'd like someone else to go over it also if
+poss.
+
+
+I guess the 2/3 changelog should have something like
+
+: munlockall() will clear MCL_ONFAULT on all vma's in the process's VM.
+
+It's pretty obvious, but the manpage delta should make this clear also.
+
+
+Also the changelog(s) and manpage delta should explain that munlock()
+clears MCL_ONFAULT.
+
+And now I'm wondering what happens if userspace does
+mmap(MAP_LOCKONFAULT) and later does munlock() on just part of that
+region.  Does the vma get split?  Is this tested?  Should also be in
+the changelogs and manpage.
+
+Ditto mlockall(MCL_ONFAULT) followed by munlock().  I'm not sure that
+even makes sense but the behaviour should be understood and tested.
+
+
+What's missing here is a syscall to set VM_LOCKONFAULT on an arbitrary
+range of memory - mlock() for lock-on-fault.  It's a shame that mlock()
+didn't take a `mode' argument.  Perhaps we should add such a syscall -
+that would make the mmap flag unneeded but I suppose it should be kept
+for symmetry.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
