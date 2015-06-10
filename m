@@ -1,73 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 918746B006E
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 20:06:14 -0400 (EDT)
-Received: by igbzc4 with SMTP id zc4so23723690igb.0
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 17:06:14 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0070.hostedemail.com. [216.40.44.70])
-        by mx.google.com with ESMTP id ba5si7602031icc.39.2015.06.09.17.06.14
-        for <linux-mm@kvack.org>;
-        Tue, 09 Jun 2015 17:06:14 -0700 (PDT)
-Message-ID: <1433894769.2730.87.camel@perches.com>
-Subject: Re: [RFC][PATCH 0/5] do not dereference NULL pools in pools'
- destroy() functions
-From: Joe Perches <joe@perches.com>
-Date: Tue, 09 Jun 2015 17:06:09 -0700
-In-Reply-To: <20150609142523.b717dba6033ee08de997c8be@linux-foundation.org>
-References: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com>
-	 <20150609142523.b717dba6033ee08de997c8be@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 59D846B0070
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 20:07:31 -0400 (EDT)
+Received: by pabqy3 with SMTP id qy3so22653097pab.3
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 17:07:31 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id il2si10914569pbc.120.2015.06.09.17.07.30
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Jun 2015 17:07:30 -0700 (PDT)
+Received: by pacyx8 with SMTP id yx8so22724496pac.2
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 17:07:30 -0700 (PDT)
+Date: Wed, 10 Jun 2015 09:07:55 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [RFC][PATCHv2 0/8] introduce automatic pool compaction
+Message-ID: <20150610000755.GB596@swordfish>
+References: <1433505838-23058-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150610000453.GB13376@bgram>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150610000453.GB13376@bgram>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Julia Lawall <julia.lawall@lip6.fr>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sergey.senozhatsky.work@gmail.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Tue, 2015-06-09 at 14:25 -0700, Andrew Morton wrote:
-> On Tue,  9 Jun 2015 21:04:48 +0900 Sergey Senozhatsky <sergey.senozhatsky@gmail.com> wrote:
+Hello,
+
+On (06/10/15 09:04), Minchan Kim wrote:
+> Hello Sergey,
 > 
-> > The existing pools' destroy() functions do not allow NULL pool pointers;
-> > instead, every destructor() caller forced to check if pool is not NULL,
-> > which:
-> >  a) requires additional attention from developers/reviewers
-> >  b) may lead to a NULL pointer dereferences if (a) didn't work
-> > 
-> > 
-> > First 3 patches tweak
-> > - kmem_cache_destroy()
-> > - mempool_destroy()
-> > - dma_pool_destroy()
-> > 
-> > to handle NULL pointers.
+> Thanks for looking this and sorry for the delay for review.
+> I don't have a time to hold a review yet.
+> Please wait and I try to get a time within this week.
 > 
-> Well I like it, even though it's going to cause a zillion little cleanup
-> patches.
+> Thanks for your patience.
+
+sure, no problem at all.
+
+	-ss
+
+> On Fri, Jun 05, 2015 at 09:03:50PM +0900, Sergey Senozhatsky wrote:
+> > Hello,
+> > 
+> > This patch set tweaks compaction and makes it possible to trigger
+> > pool compaction automatically when system is getting low on memory.
+> > 
+> > zsmalloc in some cases can suffer from a notable fragmentation and
+> > compaction can release some considerable amount of memory. The problem
+> > here is that currently we fully rely on user space to perform compaction
+> > when needed. However, performing zsmalloc compaction is not always an
+> > obvious thing to do. For example, suppose we have a `idle' fragmented
+> > (compaction was never performed) zram device and system is getting low
+> > on memory due to some 3rd party user processes (gcc LTO, or firefox, etc.).
+> > It's quite unlikely that user space will issue zpool compaction in this
+> > case. Besides, user space cannot tell for sure how badly pool is
+> > fragmented; however, this info is known to zsmalloc and, hence, to a
+> > shrinker.
+> > 
+> > v2:
+> > -- use a slab shrinker instead of triggering compaction from zs_free (Minchan)
+> > 
+> > Sergey Senozhatsky (8):
+> >   zsmalloc: drop unused variable `nr_to_migrate'
+> >   zsmalloc: partial page ordering within a fullness_list
+> >   zsmalloc: lower ZS_ALMOST_FULL waterline
+> >   zsmalloc: always keep per-class stats
+> >   zsmalloc: introduce zs_can_compact() function
+> >   zsmalloc: cosmetic compaction code adjustments
+> >   zsmalloc/zram: move `num_migrated' to zs_pool
+> >   zsmalloc: register a shrinker to trigger auto-compaction
+> > 
+> >  drivers/block/zram/zram_drv.c |  12 +--
+> >  drivers/block/zram/zram_drv.h |   1 -
+> >  include/linux/zsmalloc.h      |   1 +
+> >  mm/zsmalloc.c                 | 228 +++++++++++++++++++++++++++---------------
+> >  4 files changed, 152 insertions(+), 90 deletions(-)
+> > 
+> > -- 
+> > 2.4.2.387.gf86f31a
+> > 
 > 
-> checkpatch already has a "kfree(NULL) is safe and this check is
-> probably not required" test so I guess Joe will need to get busy ;)
-
-Maybe it'll be Julia's crew.
-
-The checkpatch change is pretty trivial
----
- scripts/checkpatch.pl | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
-index 69c4716..3d6e34d 100755
---- a/scripts/checkpatch.pl
-+++ b/scripts/checkpatch.pl
-@@ -4801,7 +4801,7 @@ sub process {
- # check for needless "if (<foo>) fn(<foo>)" uses
- 		if ($prevline =~ /\bif\s*\(\s*($Lval)\s*\)/) {
- 			my $expr = '\s*\(\s*' . quotemeta($1) . '\s*\)\s*;';
--			if ($line =~ /\b(kfree|usb_free_urb|debugfs_remove(?:_recursive)?)$expr/) {
-+			if ($line =~ /\b(kfree|usb_free_urb|debugfs_remove(?:_recursive)?|(?:kmem_cache|mempool|dma_pool)_destroy)$expr/) {
- 				WARN('NEEDLESS_IF',
- 				     "$1(NULL) is safe and this check is probably not required\n" . $hereprev);
- 			}
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
