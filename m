@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id EACB76B0071
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 02:32:53 -0400 (EDT)
-Received: by pdjm12 with SMTP id m12so30819729pdj.3
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 23:32:53 -0700 (PDT)
-Received: from mail-pd0-x242.google.com (mail-pd0-x242.google.com. [2607:f8b0:400e:c02::242])
-        by mx.google.com with ESMTPS id hn9si12325244pdb.133.2015.06.09.23.32.52
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id ECB7F6B0072
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 02:32:59 -0400 (EDT)
+Received: by pacyx8 with SMTP id yx8so28430559pac.2
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 23:32:59 -0700 (PDT)
+Received: from mail-pd0-x244.google.com (mail-pd0-x244.google.com. [2607:f8b0:400e:c02::244])
+        by mx.google.com with ESMTPS id f6si12296011pdj.194.2015.06.09.23.32.58
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jun 2015 23:32:52 -0700 (PDT)
-Received: by pdbht2 with SMTP id ht2so7464539pdb.1
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 23:32:52 -0700 (PDT)
+        Tue, 09 Jun 2015 23:32:59 -0700 (PDT)
+Received: by pdbht2 with SMTP id ht2so7464770pdb.1
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 23:32:58 -0700 (PDT)
 From: Wenwei Tao <wenweitaowenwei@gmail.com>
-Subject: [RFC PATCH 5/6] x86/mm: change the condition of identifying hugetlb vm
-Date: Wed, 10 Jun 2015 14:27:18 +0800
-Message-Id: <1433917639-31699-6-git-send-email-wenweitaowenwei@gmail.com>
+Subject: [RFC PATCH 6/6] powerpc/kvm: change the condition of identifying hugetlb vm
+Date: Wed, 10 Jun 2015 14:27:19 +0800
+Message-Id: <1433917639-31699-7-git-send-email-wenweitaowenwei@gmail.com>
 In-Reply-To: <1433917639-31699-1-git-send-email-wenweitaowenwei@gmail.com>
 References: <1433917639-31699-1-git-send-email-wenweitaowenwei@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -29,23 +29,23 @@ VMA only if it doesn't have VM_MERGEABLE been set in the same time.
 
 Signed-off-by: Wenwei Tao <wenweitaowenwei@gmail.com>
 ---
- arch/x86/mm/tlb.c |    3 ++-
+ arch/powerpc/kvm/e500_mmu_host.c |    3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 3250f23..0247916 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -195,7 +195,8 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 		goto out;
- 	}
+diff --git a/arch/powerpc/kvm/e500_mmu_host.c b/arch/powerpc/kvm/e500_mmu_host.c
+index cc536d4..d76f518 100644
+--- a/arch/powerpc/kvm/e500_mmu_host.c
++++ b/arch/powerpc/kvm/e500_mmu_host.c
+@@ -423,7 +423,8 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
+ 				break;
+ 			}
+ 		} else if (vma && hva >= vma->vm_start &&
+-			   (vma->vm_flags & VM_HUGETLB)) {
++			((vma->vm_flags & (VM_HUGETLB | VM_MERGEABLE)) ==
++							VM_HUGETLB)) {
+ 			unsigned long psize = vma_kernel_pagesize(vma);
  
--	if ((end != TLB_FLUSH_ALL) && !(vmflag & VM_HUGETLB))
-+	if ((end != TLB_FLUSH_ALL) &&
-+		!((vmflag & (VM_HUGETLB | VM_MERGEABLE)) == VM_HUGETLB))
- 		base_pages_to_flush = (end - start) >> PAGE_SHIFT;
- 
- 	if (base_pages_to_flush > tlb_single_page_flush_ceiling) {
+ 			tsize = (gtlbe->mas1 & MAS1_TSIZE_MASK) >>
 -- 
 1.7.9.5
 
