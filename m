@@ -1,43 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id DD62E6B006E
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 09:26:55 -0400 (EDT)
-Received: by qcxw10 with SMTP id w10so17333332qcx.3
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 06:26:55 -0700 (PDT)
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F72C6B006E
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 09:26:57 -0400 (EDT)
+Received: by qczw4 with SMTP id w4so17157233qcz.2
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 06:26:56 -0700 (PDT)
 Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
-        by mx.google.com with ESMTP id 103si8631374qkt.41.2015.06.10.06.26.54
+        by mx.google.com with ESMTP id 19si8592168qhg.115.2015.06.10.06.26.54
         for <linux-mm@kvack.org>;
         Wed, 10 Jun 2015 06:26:54 -0700 (PDT)
 From: Eric B Munson <emunson@akamai.com>
-Subject: [RESEND PATCH V2 1/3] Add mmap flag to request pages are locked after page fault
-Date: Wed, 10 Jun 2015 09:26:48 -0400
-Message-Id: <1433942810-7852-2-git-send-email-emunson@akamai.com>
-In-Reply-To: <1433942810-7852-1-git-send-email-emunson@akamai.com>
-References: <1433942810-7852-1-git-send-email-emunson@akamai.com>
+Subject: [RESEND PATCH V2 0/3] Allow user to request memory to be locked on page fault
+Date: Wed, 10 Jun 2015 09:26:47 -0400
+Message-Id: <1433942810-7852-1-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric B Munson <emunson@akamai.com>, Michal Hocko <mhocko@suse.cz>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+Cc: Eric B Munson <emunson@akamai.com>, Shuah Khan <shuahkh@osg.samsung.com>, Michal Hocko <mhocko@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-The cost of faulting in all memory to be locked can be very high when
-working with large mappings.  If only portions of the mapping will be
-used this can incur a high penalty for locking.
+mlock() allows a user to control page out of program memory, but this
+comes at the cost of faulting in the entire mapping when it is
+allocated.  For large mappings where the entire area is not necessary
+this is not ideal.
 
-For the example of a large file, this is the usage pattern for a large
-statical language model (probably applies to other statical or graphical
-models as well).  For the security example, any application transacting
-in data that cannot be swapped out (credit card data, medical records,
-etc).
+This series introduces new flags for mmap() and mlockall() that allow a
+user to specify that the covered are should not be paged out, but only
+after the memory has been used the first time.
 
-This patch introduces the ability to request that pages are not
-pre-faulted, but are placed on the unevictable LRU when they are finally
-faulted in.
+There are two main use cases that this set covers.  The first is the
+security focussed mlock case.  A buffer is needed that cannot be written
+to swap.  The maximum size is known, but on average the memory used is
+significantly less than this maximum.  With lock on fault, the buffer
+is guaranteed to never be paged out without consuming the maximum size
+every time such a buffer is created.
 
-To keep accounting checks out of the page fault path, users are billed
-for the entire mapping lock as if MAP_LOCKED was used.
+The second use case is focussed on performance.  Portions of a large
+file are needed and we want to keep the used portions in memory once
+accessed.  This is the case for large graphical models where the path
+through the graph is not known until run time.  The entire graph is
+unlikely to be used in a given invocation, but once a node has been
+used it needs to stay resident for further processing.  Given these
+constraints we have a number of options.  We can potentially waste a
+large amount of memory by mlocking the entire region (this can also
+cause a significant stall at startup as the entire file is read in).
+We can mlock every page as we access them without tracking if the page
+is already resident but this introduces large overhead for each access.
+The third option is mapping the entire region with PROT_NONE and using
+a signal handler for SIGSEGV to mprotect(PROT_READ) and mlock() the
+needed page.  Doing this page at a time adds a significant performance
+penalty.  Batching can be used to mitigate this overhead, but in order
+to safely avoid trying to mprotect pages outside of the mapping, the
+boundaries of each mapping to be used in this way must be tracked and
+available to the signal handler.  This is precisely what the mm system
+in the kernel should already be doing.
 
-Signed-off-by: Eric B Munson <emunson@akamai.com>
+For mmap(MAP_LOCKONFAULT) the user is charged against RLIMIT_MEMLOCK
+as if MAP_LOCKED was used, so when the VMA is created not when the pages
+are faulted in.  For mlockall(MCL_ON_FAULT) the user is charged as if
+MCL_FUTURE was used.  This decision was made to keep the accounting
+checks out of the page fault path.
+
+To illustrate the benefit of this patch I wrote a test program that
+mmaps a 5 GB file filled with random data and then makes 15,000,000
+accesses to random addresses in that mapping.  The test program was run
+20 times for each setup.  Results are reported for two program portions,
+setup and execution.  The setup phase is calling mmap and optionally
+mlock on the entire region.  For most experiments this is trivial, but
+it highlights the cost of faulting in the entire region.  Results are
+averages across the 20 runs in milliseconds.
+
+mmap with MAP_LOCKED:
+Setup avg:      11821.193
+Processing avg: 3404.286
+
+mmap with mlock() before each access:
+Setup avg:      0.054
+Processing avg: 34263.201
+
+mmap with PROT_NONE and signal handler and batch size of 1 page:
+With the default value in max_map_count, this gets ENOMEM as I attempt
+to change the permissions, after upping the sysctl significantly I get:
+Setup avg:      0.050
+Processing avg: 67690.625
+
+mmap with PROT_NONE and signal handler and batch size of 8 pages:
+Setup avg:      0.098
+Processing avg: 37344.197
+
+mmap with PROT_NONE and signal handler and batch size of 16 pages:
+Setup avg:      0.0548
+Processing avg: 29295.669
+
+mmap with MAP_LOCKONFAULT:
+Setup avg:      0.073
+Processing avg: 18392.136
+
+The signal handler in the batch cases faulted in memory in two steps to
+avoid having to know the start and end of the faulting mapping.  The
+first step covers the page that caused the fault as we know that it will
+be possible to lock.  The second step speculatively tries to mlock and
+mprotect the batch size - 1 pages that follow.  There may be a clever
+way to avoid this without having the program track each mapping to be
+covered by this handeler in a globally accessible structure, but I could
+not find it.  It should be noted that with a large enough batch size
+this two step fault handler can still cause the program to crash if it
+reaches far beyond the end of the mapping.
+
+These results show that if the developer knows that a majority of the
+mapping will be used, it is better to try and fault it in at once,
+otherwise MAP_LOCKONFAULT is significantly faster.
+
+The performance cost of these patches are minimal on the two benchmarks
+I have tested (stream and kernbench).  The following are the average
+values across 20 runs of each benchmark after a warmup run whose
+results were discarded.
+
+Avg throughput in MB/s from stream using 1000000 element arrays
+Test     4.1-rc2      4.1-rc2+lock-on-fault
+Copy:    10,979.08    10,917.34
+Scale:   11,094.45    11,023.01
+Add:     12,487.29    12,388.65
+Triad:   12,505.77    12,418.78
+
+Kernbench optimal load
+                 4.1-rc2  4.1-rc2+lock-on-fault
+Elapsed Time     71.046   71.324
+User Time        62.117   62.352
+System Time      8.926    8.969
+Context Switches 14531.9  14542.5
+Sleeps           14935.9  14939
+
+Eric B Munson (3):
+  Add mmap flag to request pages are locked after page fault
+  Add mlockall flag for locking pages on fault
+  Add tests for lock on fault
+
+ arch/alpha/include/uapi/asm/mman.h          |   2 +
+ arch/mips/include/uapi/asm/mman.h           |   2 +
+ arch/parisc/include/uapi/asm/mman.h         |   2 +
+ arch/powerpc/include/uapi/asm/mman.h        |   2 +
+ arch/sparc/include/uapi/asm/mman.h          |   2 +
+ arch/tile/include/uapi/asm/mman.h           |   2 +
+ arch/xtensa/include/uapi/asm/mman.h         |   2 +
+ include/linux/mm.h                          |   1 +
+ include/linux/mman.h                        |   3 +-
+ include/uapi/asm-generic/mman.h             |   2 +
+ mm/mlock.c                                  |  13 ++-
+ mm/mmap.c                                   |   4 +-
+ mm/swap.c                                   |   3 +-
+ tools/testing/selftests/vm/Makefile         |   8 +-
+ tools/testing/selftests/vm/lock-on-fault.c  | 145 ++++++++++++++++++++++++++++
+ tools/testing/selftests/vm/on-fault-limit.c |  47 +++++++++
+ tools/testing/selftests/vm/run_vmtests      |  23 +++++
+ 17 files changed, 254 insertions(+), 9 deletions(-)
+ create mode 100644 tools/testing/selftests/vm/lock-on-fault.c
+ create mode 100644 tools/testing/selftests/vm/on-fault-limit.c
+
+Cc: Shuah Khan <shuahkh@osg.samsung.com>
 Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>
 Cc: linux-alpha@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org
 Cc: linux-mips@linux-mips.org
@@ -48,178 +168,7 @@ Cc: linux-xtensa@linux-xtensa.org
 Cc: linux-mm@kvack.org
 Cc: linux-arch@vger.kernel.org
 Cc: linux-api@vger.kernel.org
----
- arch/alpha/include/uapi/asm/mman.h   | 1 +
- arch/mips/include/uapi/asm/mman.h    | 1 +
- arch/parisc/include/uapi/asm/mman.h  | 1 +
- arch/powerpc/include/uapi/asm/mman.h | 1 +
- arch/sparc/include/uapi/asm/mman.h   | 1 +
- arch/tile/include/uapi/asm/mman.h    | 1 +
- arch/xtensa/include/uapi/asm/mman.h  | 1 +
- include/linux/mm.h                   | 1 +
- include/linux/mman.h                 | 3 ++-
- include/uapi/asm-generic/mman.h      | 1 +
- mm/mmap.c                            | 4 ++--
- mm/swap.c                            | 3 ++-
- 12 files changed, 15 insertions(+), 4 deletions(-)
 
-diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
-index 0086b47..15e96e1 100644
---- a/arch/alpha/include/uapi/asm/mman.h
-+++ b/arch/alpha/include/uapi/asm/mman.h
-@@ -30,6 +30,7 @@
- #define MAP_NONBLOCK	0x40000		/* do not block on IO */
- #define MAP_STACK	0x80000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x100000	/* create a huge page mapping */
-+#define MAP_LOCKONFAULT	0x200000	/* Lock pages after they are faulted in, do not prefault */
- 
- #define MS_ASYNC	1		/* sync memory asynchronously */
- #define MS_SYNC		2		/* synchronous memory sync */
-diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
-index cfcb876..47846a5 100644
---- a/arch/mips/include/uapi/asm/mman.h
-+++ b/arch/mips/include/uapi/asm/mman.h
-@@ -48,6 +48,7 @@
- #define MAP_NONBLOCK	0x20000		/* do not block on IO */
- #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
-+#define MAP_LOCKONFAULT	0x100000	/* Lock pages after they are faulted in, do not prefault */
- 
- /*
-  * Flags for msync
-diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
-index 294d251..1514cd7 100644
---- a/arch/parisc/include/uapi/asm/mman.h
-+++ b/arch/parisc/include/uapi/asm/mman.h
-@@ -24,6 +24,7 @@
- #define MAP_NONBLOCK	0x20000		/* do not block on IO */
- #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
-+#define MAP_LOCKONFAULT	0x100000	/* Lock pages after they are faulted in, do not prefault */
- 
- #define MS_SYNC		1		/* synchronous memory sync */
- #define MS_ASYNC	2		/* sync memory asynchronously */
-diff --git a/arch/powerpc/include/uapi/asm/mman.h b/arch/powerpc/include/uapi/asm/mman.h
-index 6ea26df..fce74fe 100644
---- a/arch/powerpc/include/uapi/asm/mman.h
-+++ b/arch/powerpc/include/uapi/asm/mman.h
-@@ -27,5 +27,6 @@
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
- #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
-+#define MAP_LOCKONFAULT	0x80000		/* Lock pages after they are faulted in, do not prefault */
- 
- #endif /* _UAPI_ASM_POWERPC_MMAN_H */
-diff --git a/arch/sparc/include/uapi/asm/mman.h b/arch/sparc/include/uapi/asm/mman.h
-index 0b14df3..12425d8 100644
---- a/arch/sparc/include/uapi/asm/mman.h
-+++ b/arch/sparc/include/uapi/asm/mman.h
-@@ -22,6 +22,7 @@
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
- #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
-+#define MAP_LOCKONFAULT	0x80000		/* Lock pages after they are faulted in, do not prefault */
- 
- 
- #endif /* _UAPI__SPARC_MMAN_H__ */
-diff --git a/arch/tile/include/uapi/asm/mman.h b/arch/tile/include/uapi/asm/mman.h
-index 81b8fc3..ec04eaf 100644
---- a/arch/tile/include/uapi/asm/mman.h
-+++ b/arch/tile/include/uapi/asm/mman.h
-@@ -29,6 +29,7 @@
- #define MAP_DENYWRITE	0x0800		/* ETXTBSY */
- #define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
- #define MAP_HUGETLB	0x4000		/* create a huge page mapping */
-+#define MAP_LOCKONFAULT	0x8000		/* Lock pages after they are faulted in, do not prefault */
- 
- 
- /*
-diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
-index 201aec0..42d43cc 100644
---- a/arch/xtensa/include/uapi/asm/mman.h
-+++ b/arch/xtensa/include/uapi/asm/mman.h
-@@ -55,6 +55,7 @@
- #define MAP_NONBLOCK	0x20000		/* do not block on IO */
- #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
-+#define MAP_LOCKONFAULT	0x100000	/* Lock pages after they are faulted in, do not prefault */
- #ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
- # define MAP_UNINITIALIZED 0x4000000	/* For anonymous mmap, memory could be
- 					 * uninitialized */
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0755b9f..3e31457 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -126,6 +126,7 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
- #define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */
- 
-+#define VM_LOCKONFAULT	0x00001000	/* Lock the pages covered when they are faulted in */
- #define VM_LOCKED	0x00002000
- #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
- 
-diff --git a/include/linux/mman.h b/include/linux/mman.h
-index 16373c8..437264b 100644
---- a/include/linux/mman.h
-+++ b/include/linux/mman.h
-@@ -86,7 +86,8 @@ calc_vm_flag_bits(unsigned long flags)
- {
- 	return _calc_vm_trans(flags, MAP_GROWSDOWN,  VM_GROWSDOWN ) |
- 	       _calc_vm_trans(flags, MAP_DENYWRITE,  VM_DENYWRITE ) |
--	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    );
-+	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    ) |
-+	       _calc_vm_trans(flags, MAP_LOCKONFAULT,VM_LOCKONFAULT);
- }
- 
- unsigned long vm_commit_limit(void);
-diff --git a/include/uapi/asm-generic/mman.h b/include/uapi/asm-generic/mman.h
-index e9fe6fd..fc4e586 100644
---- a/include/uapi/asm-generic/mman.h
-+++ b/include/uapi/asm-generic/mman.h
-@@ -12,6 +12,7 @@
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
- #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
-+#define MAP_LOCKONFAULT	0x80000		/* Lock pages after they are faulted in, do not prefault */
- 
- /* Bits [26:31] are reserved, see mman-common.h for MAP_HUGETLB usage */
- 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index bb50cac..ba1a6bf 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1233,7 +1233,7 @@ static inline int mlock_future_check(struct mm_struct *mm,
- 	unsigned long locked, lock_limit;
- 
- 	/*  mlock MCL_FUTURE? */
--	if (flags & VM_LOCKED) {
-+	if (flags & (VM_LOCKED | VM_LOCKONFAULT)) {
- 		locked = len >> PAGE_SHIFT;
- 		locked += mm->locked_vm;
- 		lock_limit = rlimit(RLIMIT_MEMLOCK);
-@@ -1301,7 +1301,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
- 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
- 
--	if (flags & MAP_LOCKED)
-+	if (flags & (MAP_LOCKED | MAP_LOCKONFAULT))
- 		if (!can_do_mlock())
- 			return -EPERM;
- 
-diff --git a/mm/swap.c b/mm/swap.c
-index a7251a8..07c905e 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -711,7 +711,8 @@ void lru_cache_add_active_or_unevictable(struct page *page,
- {
- 	VM_BUG_ON_PAGE(PageLRU(page), page);
- 
--	if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED)) {
-+	if (likely((vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) == 0) ||
-+		   (vma->vm_flags & VM_SPECIAL)) {
- 		SetPageActive(page);
- 		lru_cache_add(page);
- 		return;
 -- 
 1.9.1
 
