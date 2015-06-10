@@ -1,55 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id B92076B006C
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 02:52:07 -0400 (EDT)
-Received: by pdjm12 with SMTP id m12so31157152pdj.3
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 23:52:07 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id pn8si12355537pbb.126.2015.06.09.23.52.06
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F7706B0032
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 03:19:29 -0400 (EDT)
+Received: by obbsn1 with SMTP id sn1so5249277obb.1
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 00:19:29 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id m2si3283307obx.5.2015.06.10.00.19.27
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jun 2015 23:52:07 -0700 (PDT)
-Received: by payr10 with SMTP id r10so28806929pay.1
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 23:52:06 -0700 (PDT)
-Date: Wed, 10 Jun 2015 15:52:32 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [RFC][PATCH 0/5] do not dereference NULL pools in pools'
- destroy() functions
-Message-ID: <20150610065232.GC566@swordfish>
-References: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com>
- <20150609142523.b717dba6033ee08de997c8be@linux-foundation.org>
- <1433894769.2730.87.camel@perches.com>
- <alpine.DEB.2.02.1506100743200.2087@localhost6.localdomain6>
- <20150610064108.GB566@swordfish>
- <alpine.DEB.2.02.1506100841420.2087@localhost6.localdomain6>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 10 Jun 2015 00:19:28 -0700 (PDT)
+Message-ID: <5577E483.7060500@huawei.com>
+Date: Wed, 10 Jun 2015 15:17:23 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1506100841420.2087@localhost6.localdomain6>
+Subject: [RFC] panic when reboot the system
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Julia Lawall <julia.lawall@lip6.fr>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Joe Perches <joe@perches.com>, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Li Zefan <lizefan@huawei.com>, Xishi Qiu <qiuxishi@huawei.com>, Andrew
+ Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Rafael Aquini <aquini@redhat.com>, Tejun Heo <tj@kernel.org>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On (06/10/15 08:44), Julia Lawall wrote:
-> > 
-> > [..]
-> > 
-> > err_percpu_counter_init:
-> > 	kmem_cache_destroy(sctp_chunk_cachep);
-> > err_chunk_cachep:
-> > 	kmem_cache_destroy(sctp_bucket_cachep);
-> > 
-> > [..]
-> > 
-> > and others.
-> 
-> This I find much less appealing.  The labels make clear what is needed
->
+Kernel panic - not syncing: Attempted to kill init! exitcode=0x00000007
 
-hm, agree.
+Pid: 1, comm: init Tainted: G  R        O 3.4.24.19-0.11-default #1
+Call Trace:
+ [<ffffffff8144dd24>] panic+0xc1/0x1e2
+ [<ffffffff8104483b>] do_exit+0x7db/0x8d0
+ [<ffffffff81044c7a>] do_group_exit+0x3a/0xa0
+ [<ffffffff8105394b>] get_signal_to_deliver+0x1ab/0x5e0
+ [<ffffffff81002270>] do_signal+0x60/0x5f0
+ [<ffffffff8145bf97>] ? do_page_fault+0x4a7/0x4d0
+ [<ffffffff81170d2c>] ? poll_select_copy_remaining+0xec/0x140
+ [<ffffffff81002885>] do_notify_resume+0x65/0x80
+ [<ffffffff8124ca7e>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff814587ab>] retint_signal+0x4d/0x92
 
-	-ss
+
+The system has a little memory left, then reboot it, and get the panic.
+Perhaps this is a bug and trigger it like this and the latest kernel maybe
+also have the problem.
+
+use a lot of memory
+  wake up kswapd()
+    reclaim some pages from init thread (pid=1)
+      reboot
+        shutdown the disk
+          init thread read data from disk
+            page fault, because the page has already reclaimed
+              receive SIGBUS, and init thread exit
+                trigger the panic
+
+
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
