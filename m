@@ -1,78 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F89F6B006E
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 03:23:11 -0400 (EDT)
-Received: by laar3 with SMTP id r3so26643096laa.3
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 00:23:11 -0700 (PDT)
-Received: from mail-la0-x22c.google.com (mail-la0-x22c.google.com. [2a00:1450:4010:c03::22c])
-        by mx.google.com with ESMTPS id o7si7994183lbw.36.2015.06.10.00.23.09
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B6CA96B0071
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 03:37:29 -0400 (EDT)
+Received: by wgbgq6 with SMTP id gq6so28889230wgb.3
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 00:37:29 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dx2si7949157wib.2.2015.06.10.00.37.27
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jun 2015 00:23:09 -0700 (PDT)
-Received: by labpy14 with SMTP id py14so26808513lab.0
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 00:23:09 -0700 (PDT)
-Date: Wed, 10 Jun 2015 10:23:05 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [RFC 3/6] mm: mark dirty bit on swapped-in page
-Message-ID: <20150610072305.GB13008@uranus>
-References: <1433312145-19386-1-git-send-email-minchan@kernel.org>
- <1433312145-19386-4-git-send-email-minchan@kernel.org>
- <20150609190737.GV13008@uranus>
- <20150609235206.GB12689@bgram>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 10 Jun 2015 00:37:27 -0700 (PDT)
+Date: Wed, 10 Jun 2015 09:37:26 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] oom: split out forced OOM killer
+Message-ID: <20150610073726.GB4501@dhcp22.suse.cz>
+References: <1433235187-32673-1-git-send-email-mhocko@suse.cz>
+ <alpine.DEB.2.10.1506041557070.16555@chino.kir.corp.google.com>
+ <557187F9.8020301@gmail.com>
+ <alpine.DEB.2.10.1506081059200.10521@chino.kir.corp.google.com>
+ <5575E5E6.20908@gmail.com>
+ <alpine.DEB.2.10.1506081237350.13272@chino.kir.corp.google.com>
+ <20150608210621.GA18360@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1506081558270.17040@chino.kir.corp.google.com>
+ <20150609093659.GA29057@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1506091542120.30516@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150609235206.GB12689@bgram>
+In-Reply-To: <alpine.DEB.2.10.1506091542120.30516@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Yalin Wang <yalin.wang@sonymobile.com>
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Austin S Hemmelgarn <ahferroin7@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jun 10, 2015 at 08:52:06AM +0900, Minchan Kim wrote:
-> > > +++ b/mm/memory.c
-> > > @@ -2557,9 +2557,11 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> > >  
-> > >  	inc_mm_counter_fast(mm, MM_ANONPAGES);
-> > >  	dec_mm_counter_fast(mm, MM_SWAPENTS);
-> > > -	pte = mk_pte(page, vma->vm_page_prot);
-> > > +
-> > > +	/* Mark dirty bit of page table because MADV_FREE relies on it */
-> > > +	pte = pte_mkdirty(mk_pte(page, vma->vm_page_prot));
-> > >  	if ((flags & FAULT_FLAG_WRITE) && reuse_swap_page(page)) {
-> > > -		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
-> > > +		pte = maybe_mkwrite(pte, vma);
-> > >  		flags &= ~FAULT_FLAG_WRITE;
-> > >  		ret |= VM_FAULT_WRITE;
-> > >  		exclusive = 1;
+On Tue 09-06-15 15:45:35, David Rientjes wrote:
+> On Tue, 9 Jun 2015, Michal Hocko wrote:
+> 
+> > > Yes, and that's why I believe we should pursue that direction without the 
+> > > associated "cleanup" that adds 35 lines of code to supress a panic.  In 
+> > > other words, there's no reason to combine a patch that suppresses the 
+> > > panic even with panic_on_oom, which I support, and a "cleanup" that I 
+> > > believe just obfuscates the code.
+> > > 
+> > > It's a one-liner change: just test for force_kill and suppress the panic; 
+> > > we don't need 35 new lines that create even more unique entry paths.
 > > 
-> > Hi Minchan! Really sorry for delay in reply. Look, I don't understand
-> > the moment -- if page has fault on read then before the patch the
-> > PTE won't carry the dirty flag but now we do set it up unconditionally
-> > and to me it looks somehow strange at least because this as well
-> > sets soft-dirty bit on pages which were not modified but only swapped
-> > out. Am I missing something obvious?
+> > I completely detest yet another check in out_of_memory. And there is
+> > even no reason to do that. Forced kill and genuine oom have different
+> > objectives and combining those two just makes the code harder to read
+> > (one has to go to check the syrq callback to realize that the forced
+> > path is triggered from the workqueue context and that current->mm !=
+> > NULL check will prevent some heuristics. This is just too ugly to
+> > live). So why the heck are you pushing for keeping everything in a
+> > single path?
+> > 
 > 
-> It's same one I sent a while ago and you said it's okay at that time. ;-)
+> Perhaps if you renamed "force_kill" to "sysrq" it would make more sense to 
+> you?
 
-Ah, I recall. If there is no way to escape dirtifying the page in pte itself
-maybe we should at least not make it softdirty on read faults?
+The naming is not _the_ problem.
 
-> Okay, It might be lack of description compared to one I sent long time ago
-> because I moved some part of description to another patch and I didn't Cc
-> you. Sorry. I hope below will remind you.
+> I don't think the oom killer needs multiple entry points that duplicates 
+> code and adds more than twice the lines it removes.  It would make sense 
+> if that was an optimization in a hot path, or a warm path, or even a 
+> luke-warm path, but not an icy cold path like the oom killer.  
+
+This is not trying to optimize for speed. It is a clean up for
+_readability_ and _maintainability_ which is considerably better after
+the patch because responsibilities of both paths are clear and sysrq
+path doesn't have to care about whatever special handling the oom path
+wants to care. It is _that_ simple.
+
+> check_panic_on_oom() can simply do
+
 > 
-> https://www.mail-archive.com/linux-kernel%40vger.kernel.org/msg857827.html
-> 
-> In summary, the problem is that in MADV_FREE point of view,
-> clean anonymous page(ie, no dirty) in  page table entry has a problem
-> about sudden discarding under us by reclaimer. Otherwise, VM cannot
-> discard MADV_FREE hinted pages by PageDirty flag of page descriptor.
-> 
-> This patchset aims for solving the problem.
-> Please feel free to ask if you have questions without wasting your time
-> unless you can remind after reading above URL
-> 
-> Thanks for looking!
+> 	if (sysrq)
+> 		return;
+
+and then do the same thing for panic on no killable task and then for
+all other cases which are of no relevance for the sysrq path which we
+come up later potentially.
+
+This level of argumentation is just ridiculous. You are blocking a
+useful cleanup which also fixes a really non-intuitive behavior. I admit
+that nobody was complaining about this behavior so this is nothing
+urgent but if we go with panic_on_oom_timeout proposal posted in other
+email thread then I expect panic_on_oom would be usable much more and
+then it would matter much more.
+
+> It's not hard and it's very clear.  We don't need 35 more lines of code to 
+> do this.
+
+Sure we do not _need_ it and we definitely can _clutter_ the code even
+more.
+
+I do not think your objections are justified. It is natural and a good
+practice to split code paths which have different requirements rather
+than differentiate them with multiple checks in the common path (some of
+them even very subtle). It is a common practice to split up common
+infrastructure in helper functions and reuse them when needed. But I
+guess I do not have teach you this trivial things...
+
+</bunfight> from my side
+
+Andrew do whatever you like with the patch but I find the level of
+argumentation in this thread as not reasonable (I would even consider it
+trolling at some parts) and not sufficient for a nack.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
