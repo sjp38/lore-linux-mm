@@ -1,94 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B2926B006C
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 04:51:48 -0400 (EDT)
-Received: by wigg3 with SMTP id g3so40853833wig.1
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:51:47 -0700 (PDT)
-Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
-        by mx.google.com with ESMTPS id gs9si8323087wib.31.2015.06.10.01.51.46
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 64B0B6B0071
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 04:59:57 -0400 (EDT)
+Received: by wifx6 with SMTP id x6so40074461wif.0
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:59:57 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id uc10si16579428wjc.54.2015.06.10.01.59.55
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jun 2015 01:51:46 -0700 (PDT)
-Received: by wiga1 with SMTP id a1so40791030wig.0
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:51:46 -0700 (PDT)
-Date: Wed, 10 Jun 2015 10:51:41 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
-Message-ID: <20150610085141.GA25704@gmail.com>
-References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
- <20150608174551.GA27558@gmail.com>
- <20150609084739.GQ26425@suse.de>
- <20150609103231.GA11026@gmail.com>
- <20150609112055.GS26425@suse.de>
- <20150609124328.GA23066@gmail.com>
- <20150609130536.GT26425@suse.de>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 10 Jun 2015 01:59:55 -0700 (PDT)
+Date: Wed, 10 Jun 2015 09:59:50 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 2/4] mm: Send one IPI per CPU to TLB flush all entries
+ after unmapping pages
+Message-ID: <20150610085950.GB26425@suse.de>
+References: <1433871118-15207-1-git-send-email-mgorman@suse.de>
+ <1433871118-15207-3-git-send-email-mgorman@suse.de>
+ <20150610083332.GA25605@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20150609130536.GT26425@suse.de>
+In-Reply-To: <20150610083332.GA25605@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-
-* Mel Gorman <mgorman@suse.de> wrote:
-
-> > I think since it is you who wants to introduce additional complexity into the 
-> > x86 MM code the burden is on you to provide proof that the complexity of pfn 
-> > (or struct page) tracking is worth it.
+On Wed, Jun 10, 2015 at 10:33:32AM +0200, Ingo Molnar wrote:
 > 
-> I'm taking a situation whereby IPIs are sent like crazy with interrupt storms 
-> and replacing it with something that is a lot more efficient that minimises the 
-> number of potential surprises. I'm stating that the benefit of PFN tracking is 
-> unknowable in the general case because it depends on the workload, timing and 
-> the exact CPU used so any example provided can be naked with a counter-example 
-> such as a trivial sequential reader that shows no benefit. The series as posted 
-> is approximately in line with current behaviour minimising the chances of 
-> surprise regressions from excessive TLB flush.
+> * Mel Gorman <mgorman@suse.de> wrote:
 > 
-> You are actively blocking a measurable improvement and forcing it to be replaced 
-> with something whose full impact is unquantifiable. Any regressions in this area 
-> due to increased TLB misses could take several kernel releases as the issue will 
-> be so difficult to detect.
+> > Linear mapped reader on a 4-node machine with 64G RAM and 48 CPUs
+> > 
+> >                                         4.1.0-rc6          4.1.0-rc6
+> >                                           vanilla       flushfull-v6
+> > Ops lru-file-mmap-read-elapsed   162.88 (  0.00%)   120.81 ( 25.83%)
+> > 
+> >            4.1.0-rc6   4.1.0-rc6
+> >              vanillaflushfull-v6r5
+> > User          568.96      614.68
+> > System       6085.61     4226.61
+> > Elapsed       164.24      122.17
+> > 
+> > This is showing that the readers completed 25.83% faster with 30% less
+> > system CPU time. From vmstats, it is known that the vanilla kernel was
+> > interrupted roughly 900K times per second during the steady phase of the
+> > test and the patched kernel was interrupts 180K times per second.
+> > 
+> > The impact is lower on a single socket machine.
+> > 
+> >                                         4.1.0-rc6          4.1.0-rc6
+> >                                           vanilla       flushfull-v6
+> > Ops lru-file-mmap-read-elapsed    25.43 (  0.00%)    20.59 ( 19.03%)
+> > 
+> >            4.1.0-rc6    4.1.0-rc6
+> >              vanilla flushfull-v6
+> > User           59.14        58.99
+> > System        109.15        77.84
+> > Elapsed        27.32        22.31
+> > 
+> > It's still a noticeable improvement with vmstat showing interrupts went
+> > from roughly 500K per second to 45K per second.
 > 
-> I'm going to implement the approach you are forcing because there is an x86 part 
-> of the patch and you are the maintainer that could indefinitely NAK it. However, 
-> I'm extremely pissed about being forced to introduce these indirect 
-> unpredictable costs because I know the alternative is you dragging this out for 
-> weeks with no satisfactory conclusion in an argument that I cannot prove in the 
-> general case.
+> Btw., I tried to compare your previous (v5) pfn-tracking numbers with these 
+> full-flushing numbers, and found that the IRQ rate appears to be the same:
+> 
 
-Stop this crap.
+That's expected because the number of IPIs sent is the same. What
+changes is the tracking of the PFNs and then the work within the IPI
+itself.
 
-I made a really clear and unambiguous chain of arguments:
+> > > From vmstats, it is known that the vanilla kernel was interrupted roughly 900K 
+> > > times per second during the steady phase of the test and the patched kernel 
+> > > was interrupts 180K times per second.
+> 
+> > > It's still a noticeable improvement with vmstat showing interrupts went from 
+> > > roughly 500K per second to 45K per second.
+> 
+> ... is that because the batching limit in the pfn-tracking case was high enough to 
+> not be noticeable in the vmstat?
+> 
 
- - I'm unconvinced about the benefits of INVLPG in general, and your patches adds
-   a whole new bunch of them. I cited measurements and went out on a limb to 
-   explain my position, backed with numbers and logic. It's admittedly still a 
-   speculative position and I might be wrong, but I think it's well grounded 
-   position that you cannot just brush aside.
+It's just the case that there are fewer cores and less activity in the
+machine overall.
 
- - I suggested that you split this approach into steps that first does the simpler
-   approach that will give us at least 95% of the benefits, then the more complex
-   one on top of it. Your false claim that I'm blocking a clear improvement is
-   pure demagogy!
+> In the full-flushing case (v6 without patch 4) the batching limit is 'infinite', 
+> we'll batch as long as possible, right?
+> 
 
- - I very clearly claimed that I am more than willing to be convinced by numbers.
-   It's not _that_ hard to construct a memory trashing workload with a
-   TLB-efficient iteration that uses say 80% of the TLB cache, to measure the
-   worst-case overhead of full flushes.
+No because we must flush before pages are freed so the maximum batching
+is related to SWAP_CLUSTER_MAX. If we free a page before the flush then
+in theory the page can be reallocated and a stale TLB entry can allow
+access to unrelated data. It would be almost impossible to trigger
+corruption this way but it's a concern.
 
-I'm really sick of this partly deceptive, partly passive-aggressive discussion 
-style that seems to frequently permeate VM discussions and which made sched/numa 
-such a huge PITA in the past...
-
-And I think the numbers in the v6 series you submitted today support my position, 
-so you owe me an apology I think ...
-
-Thanks,
-
-	Ingo
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
