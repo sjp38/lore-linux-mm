@@ -1,118 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id EB11A6B0032
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 04:51:37 -0400 (EDT)
-Received: by wifx6 with SMTP id x6so39852129wif.0
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:51:37 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fx5si8323525wib.35.2015.06.10.01.51.35
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B2926B006C
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 04:51:48 -0400 (EDT)
+Received: by wigg3 with SMTP id g3so40853833wig.1
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:51:47 -0700 (PDT)
+Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
+        by mx.google.com with ESMTPS id gs9si8323087wib.31.2015.06.10.01.51.46
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Jun 2015 01:51:36 -0700 (PDT)
-Date: Wed, 10 Jun 2015 09:51:30 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/4] mm: Send one IPI per CPU to TLB flush all entries
- after unmapping pages
-Message-ID: <20150610085130.GA26425@suse.de>
-References: <1433871118-15207-1-git-send-email-mgorman@suse.de>
- <1433871118-15207-3-git-send-email-mgorman@suse.de>
- <20150610074704.GA18049@gmail.com>
- <20150610081432.GY26425@suse.de>
- <20150610082107.GA23575@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Jun 2015 01:51:46 -0700 (PDT)
+Received: by wiga1 with SMTP id a1so40791030wig.0
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:51:46 -0700 (PDT)
+Date: Wed, 10 Jun 2015 10:51:41 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
+Message-ID: <20150610085141.GA25704@gmail.com>
+References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
+ <20150608174551.GA27558@gmail.com>
+ <20150609084739.GQ26425@suse.de>
+ <20150609103231.GA11026@gmail.com>
+ <20150609112055.GS26425@suse.de>
+ <20150609124328.GA23066@gmail.com>
+ <20150609130536.GT26425@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150610082107.GA23575@gmail.com>
+In-Reply-To: <20150609130536.GT26425@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-On Wed, Jun 10, 2015 at 10:21:07AM +0200, Ingo Molnar wrote:
-> 
-> * Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > On Wed, Jun 10, 2015 at 09:47:04AM +0200, Ingo Molnar wrote:
-> > > 
-> > > * Mel Gorman <mgorman@suse.de> wrote:
-> > > 
-> > > > --- a/include/linux/sched.h
-> > > > +++ b/include/linux/sched.h
-> > > > @@ -1289,6 +1289,18 @@ enum perf_event_task_context {
-> > > >  	perf_nr_task_contexts,
-> > > >  };
-> > > >  
-> > > > +/* Track pages that require TLB flushes */
-> > > > +struct tlbflush_unmap_batch {
-> > > > +	/*
-> > > > +	 * Each bit set is a CPU that potentially has a TLB entry for one of
-> > > > +	 * the PFNs being flushed. See set_tlb_ubc_flush_pending().
-> > > > +	 */
-> > > > +	struct cpumask cpumask;
-> > > > +
-> > > > +	/* True if any bit in cpumask is set */
-> > > > +	bool flush_required;
-> > > > +};
-> > > > +
-> > > >  struct task_struct {
-> > > >  	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
-> > > >  	void *stack;
-> > > > @@ -1648,6 +1660,10 @@ struct task_struct {
-> > > >  	unsigned long numa_pages_migrated;
-> > > >  #endif /* CONFIG_NUMA_BALANCING */
-> > > >  
-> > > > +#ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
-> > > > +	struct tlbflush_unmap_batch *tlb_ubc;
-> > > > +#endif
-> > > 
-> > > Please embedd this constant size structure in task_struct directly so that the 
-> > > whole per task allocation overhead goes away:
-> > > 
-> > 
-> > That puts a structure (72 bytes in the config I used) within the task struct 
-> > even when it's not required. On a lightly loaded system direct reclaim will not 
-> > be active and for some processes, it'll never be active. It's very wasteful.
-> 
-> For certain values of 'very'.
-> 
->  - 72 bytes suggests that you have NR_CPUS set to 512 or so? On a kernel sized to 
->    such large systems with 1000 active tasks we are talking about about +72K of 
->    RAM...
-> 
 
-The NR_CPUS is based on the openSUSE 13.1 distro config so yes, it's large but I also
-expect it to be a common configuration.
+* Mel Gorman <mgorman@suse.de> wrote:
 
->  - Furthermore, by embedding it it gets packed better with neighboring task_struct 
->    fields, while by allocating it dynamically it's a separate cache line wasted.
+> > I think since it is you who wants to introduce additional complexity into the 
+> > x86 MM code the burden is on you to provide proof that the complexity of pfn 
+> > (or struct page) tracking is worth it.
 > 
-
-A separate cache line that is only used during direct reclaim when the
-process is taking a large hit anyway
-
->  - Plus by allocating it separately you spend two cachelines on it: each slab will 
->    be at least cacheline aligned, and 72 bytes will allocate 128 bytes. So when 
->    this gets triggered you've just wasted some more RAM.
+> I'm taking a situation whereby IPIs are sent like crazy with interrupt storms 
+> and replacing it with something that is a lot more efficient that minimises the 
+> number of potential surprises. I'm stating that the benefit of PFN tracking is 
+> unknowable in the general case because it depends on the workload, timing and 
+> the exact CPU used so any example provided can be naked with a counter-example 
+> such as a trivial sequential reader that shows no benefit. The series as posted 
+> is approximately in line with current behaviour minimising the chances of 
+> surprise regressions from excessive TLB flush.
 > 
->  - I mean, if it had dynamic size, or was arguably huge. But this is just a 
->    cpumask and a boolean!
+> You are actively blocking a measurable improvement and forcing it to be replaced 
+> with something whose full impact is unquantifiable. Any regressions in this area 
+> due to increased TLB misses could take several kernel releases as the issue will 
+> be so difficult to detect.
 > 
+> I'm going to implement the approach you are forcing because there is an x86 part 
+> of the patch and you are the maintainer that could indefinitely NAK it. However, 
+> I'm extremely pissed about being forced to introduce these indirect 
+> unpredictable costs because I know the alternative is you dragging this out for 
+> weeks with no satisfactory conclusion in an argument that I cannot prove in the 
+> general case.
 
-It gets larger with enterprise configs.
+Stop this crap.
 
->  - The cpumask will be dynamic if you increase the NR_CPUS count any more than 
->    that - in which case embedding the structure is the right choice again.
-> 
+I made a really clear and unambiguous chain of arguments:
 
-Enterprise configurations are larger. The most recent one I checked defined
-NR_CPUS as 8192. If it's embedded in the structure, it means that we need
-to call cpumask_clear on every fork even if it's never used. That adds
-constant overhead to a fast path to avoid an allocation and a few cache
-misses in a direct reclaim path. Are you certain you want that trade-off?
+ - I'm unconvinced about the benefits of INVLPG in general, and your patches adds
+   a whole new bunch of them. I cited measurements and went out on a limb to 
+   explain my position, backed with numbers and logic. It's admittedly still a 
+   speculative position and I might be wrong, but I think it's well grounded 
+   position that you cannot just brush aside.
 
--- 
-Mel Gorman
-SUSE Labs
+ - I suggested that you split this approach into steps that first does the simpler
+   approach that will give us at least 95% of the benefits, then the more complex
+   one on top of it. Your false claim that I'm blocking a clear improvement is
+   pure demagogy!
+
+ - I very clearly claimed that I am more than willing to be convinced by numbers.
+   It's not _that_ hard to construct a memory trashing workload with a
+   TLB-efficient iteration that uses say 80% of the TLB cache, to measure the
+   worst-case overhead of full flushes.
+
+I'm really sick of this partly deceptive, partly passive-aggressive discussion 
+style that seems to frequently permeate VM discussions and which made sched/numa 
+such a huge PITA in the past...
+
+And I think the numbers in the v6 series you submitted today support my position, 
+so you owe me an apology I think ...
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
