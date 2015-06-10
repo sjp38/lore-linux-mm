@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id F3F126B0070
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 02:32:45 -0400 (EDT)
-Received: by payr10 with SMTP id r10so28487232pay.1
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 23:32:45 -0700 (PDT)
-Received: from mail-pd0-x243.google.com (mail-pd0-x243.google.com. [2607:f8b0:400e:c02::243])
-        by mx.google.com with ESMTPS id d7si12318670pdf.127.2015.06.09.23.32.44
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id EACB76B0071
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 02:32:53 -0400 (EDT)
+Received: by pdjm12 with SMTP id m12so30819729pdj.3
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 23:32:53 -0700 (PDT)
+Received: from mail-pd0-x242.google.com (mail-pd0-x242.google.com. [2607:f8b0:400e:c02::242])
+        by mx.google.com with ESMTPS id hn9si12325244pdb.133.2015.06.09.23.32.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jun 2015 23:32:45 -0700 (PDT)
-Received: by pdev10 with SMTP id v10so7464260pde.0
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 23:32:44 -0700 (PDT)
+        Tue, 09 Jun 2015 23:32:52 -0700 (PDT)
+Received: by pdbht2 with SMTP id ht2so7464539pdb.1
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 23:32:52 -0700 (PDT)
 From: Wenwei Tao <wenweitaowenwei@gmail.com>
-Subject: [RFC PATCH 4/6] fs/binfmt_elf.c: change the condition of identifying hugetlb vm
-Date: Wed, 10 Jun 2015 14:27:17 +0800
-Message-Id: <1433917639-31699-5-git-send-email-wenweitaowenwei@gmail.com>
+Subject: [RFC PATCH 5/6] x86/mm: change the condition of identifying hugetlb vm
+Date: Wed, 10 Jun 2015 14:27:18 +0800
+Message-Id: <1433917639-31699-6-git-send-email-wenweitaowenwei@gmail.com>
 In-Reply-To: <1433917639-31699-1-git-send-email-wenweitaowenwei@gmail.com>
 References: <1433917639-31699-1-git-send-email-wenweitaowenwei@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -29,22 +29,23 @@ VMA only if it doesn't have VM_MERGEABLE been set in the same time.
 
 Signed-off-by: Wenwei Tao <wenweitaowenwei@gmail.com>
 ---
- fs/binfmt_elf.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/x86/mm/tlb.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
-index 995986b..f529c8e 100644
---- a/fs/binfmt_elf.c
-+++ b/fs/binfmt_elf.c
-@@ -1242,7 +1242,7 @@ static unsigned long vma_dump_size(struct vm_area_struct *vma,
- 		return 0;
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index 3250f23..0247916 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -195,7 +195,8 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 		goto out;
+ 	}
  
- 	/* Hugetlb memory check */
--	if (vma->vm_flags & VM_HUGETLB) {
-+	if ((vma->vm_flags & (VM_HUGETLB | VM_MERGEABLE)) == VM_HUGETLB) {
- 		if ((vma->vm_flags & VM_SHARED) && FILTER(HUGETLB_SHARED))
- 			goto whole;
- 		if (!(vma->vm_flags & VM_SHARED) && FILTER(HUGETLB_PRIVATE))
+-	if ((end != TLB_FLUSH_ALL) && !(vmflag & VM_HUGETLB))
++	if ((end != TLB_FLUSH_ALL) &&
++		!((vmflag & (VM_HUGETLB | VM_MERGEABLE)) == VM_HUGETLB))
+ 		base_pages_to_flush = (end - start) >> PAGE_SHIFT;
+ 
+ 	if (base_pages_to_flush > tlb_single_page_flush_ceiling) {
 -- 
 1.7.9.5
 
