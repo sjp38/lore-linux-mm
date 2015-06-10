@@ -1,29 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 544206B0032
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 04:21:13 -0400 (EDT)
-Received: by wiwd19 with SMTP id d19so40255793wiw.0
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:21:13 -0700 (PDT)
-Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
-        by mx.google.com with ESMTPS id h6si16381165wjy.71.2015.06.10.01.21.11
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id A8EEB6B0032
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 04:26:45 -0400 (EDT)
+Received: by wgme6 with SMTP id e6so29753733wgm.2
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:26:45 -0700 (PDT)
+Received: from mail-wg0-x236.google.com (mail-wg0-x236.google.com. [2a00:1450:400c:c00::236])
+        by mx.google.com with ESMTPS id az10si8176538wib.65.2015.06.10.01.26.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jun 2015 01:21:12 -0700 (PDT)
-Received: by wibdq8 with SMTP id dq8so39063938wib.1
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:21:11 -0700 (PDT)
-Date: Wed, 10 Jun 2015 10:21:07 +0200
+        Wed, 10 Jun 2015 01:26:44 -0700 (PDT)
+Received: by wgez8 with SMTP id z8so29814266wge.0
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:26:43 -0700 (PDT)
+Date: Wed, 10 Jun 2015 10:26:40 +0200
 From: Ingo Molnar <mingo@kernel.org>
 Subject: Re: [PATCH 2/4] mm: Send one IPI per CPU to TLB flush all entries
  after unmapping pages
-Message-ID: <20150610082107.GA23575@gmail.com>
+Message-ID: <20150610082640.GA24483@gmail.com>
 References: <1433871118-15207-1-git-send-email-mgorman@suse.de>
  <1433871118-15207-3-git-send-email-mgorman@suse.de>
- <20150610074704.GA18049@gmail.com>
- <20150610081432.GY26425@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150610081432.GY26425@suse.de>
+In-Reply-To: <1433871118-15207-3-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
@@ -32,65 +30,78 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, H
 
 * Mel Gorman <mgorman@suse.de> wrote:
 
-> On Wed, Jun 10, 2015 at 09:47:04AM +0200, Ingo Molnar wrote:
-> > 
-> > * Mel Gorman <mgorman@suse.de> wrote:
-> > 
-> > > --- a/include/linux/sched.h
-> > > +++ b/include/linux/sched.h
-> > > @@ -1289,6 +1289,18 @@ enum perf_event_task_context {
-> > >  	perf_nr_task_contexts,
-> > >  };
-> > >  
-> > > +/* Track pages that require TLB flushes */
-> > > +struct tlbflush_unmap_batch {
-> > > +	/*
-> > > +	 * Each bit set is a CPU that potentially has a TLB entry for one of
-> > > +	 * the PFNs being flushed. See set_tlb_ubc_flush_pending().
-> > > +	 */
-> > > +	struct cpumask cpumask;
-> > > +
-> > > +	/* True if any bit in cpumask is set */
-> > > +	bool flush_required;
-> > > +};
-> > > +
-> > >  struct task_struct {
-> > >  	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
-> > >  	void *stack;
-> > > @@ -1648,6 +1660,10 @@ struct task_struct {
-> > >  	unsigned long numa_pages_migrated;
-> > >  #endif /* CONFIG_NUMA_BALANCING */
-> > >  
-> > > +#ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
-> > > +	struct tlbflush_unmap_batch *tlb_ubc;
-> > > +#endif
-> > 
-> > Please embedd this constant size structure in task_struct directly so that the 
-> > whole per task allocation overhead goes away:
-> > 
+> On a 4-socket machine the results were
 > 
-> That puts a structure (72 bytes in the config I used) within the task struct 
-> even when it's not required. On a lightly loaded system direct reclaim will not 
-> be active and for some processes, it'll never be active. It's very wasteful.
+>                                         4.1.0-rc6          4.1.0-rc6
+>                                     batchdirty-v6      batchunmap-v6
+> Ops lru-file-mmap-read-elapsed   121.27 (  0.00%)   118.79 (  2.05%)
+> 
+>            4.1.0-rc6      4.1.0-rc6
+>         batchdirty-v6 batchunmap-v6
+> User          620.84         608.48
+> System       4245.35        4152.89
+> Elapsed       122.65         120.15
+> 
+> In this case the workload completed faster and there was less CPU overhead
+> but as it's a NUMA machine there are a lot of factors at play. It's easier
+> to quantify on a single socket machine;
+> 
+>                                         4.1.0-rc6          4.1.0-rc6
+>                                     batchdirty-v6      batchunmap-v6
+> Ops lru-file-mmap-read-elapsed    20.35 (  0.00%)    21.52 ( -5.75%)
+> 
+>            4.1.0-rc6   4.1.0-rc6
+>         batchdirty-v6r5batchunmap-v6r5
+> User           58.02       60.70
+> System         77.57       81.92
+> Elapsed        22.14       23.16
+> 
+> That shows the workload takes 5.75% longer to complete with a similar
+> increase in the system CPU usage.
 
-For certain values of 'very'.
+Btw., do you have any stddev noise numbers?
 
- - 72 bytes suggests that you have NR_CPUS set to 512 or so? On a kernel sized to 
-   such large systems with 1000 active tasks we are talking about about +72K of 
-   RAM...
+The batching speedup is brutal enough to not need any noise estimations, it's a 
+clear winner.
 
- - Furthermore, by embedding it it gets packed better with neighboring task_struct 
-   fields, while by allocating it dynamically it's a separate cache line wasted.
+But this PFN tracking patch is more difficult to judge as the numbers are pretty 
+close to each other.
 
- - Plus by allocating it separately you spend two cachelines on it: each slab will 
-   be at least cacheline aligned, and 72 bytes will allocate 128 bytes. So when 
-   this gets triggered you've just wasted some more RAM.
+> It is expected that there is overhead to tracking the PFNs and flushing 
+> individual pages. This can be quantified but we cannot quantify the indirect 
+> savings due to active unrelated TLB entries being preserved. Whether this 
+> matters depends on whether the workload was using those entries and if they 
+> would be used before a context switch but targeting the TLB flushes is the 
+> conservative and safer choice.
 
- - I mean, if it had dynamic size, or was arguably huge. But this is just a 
-   cpumask and a boolean!
+So this is how I picture a realistic TLB flushing 'worst case': a workload that 
+uses about 80% of the TLB cache in a 'fast' function and trashes memory in a 
+'slow' function, and does alternate calls to the two functions from the same task.
 
- - The cpumask will be dynamic if you increase the NR_CPUS count any more than 
-   that - in which case embedding the structure is the right choice again.
+Typical dTLB sizes on x86 are a couple of hundred entries (you can see the precise 
+count in x86info -c), up to 1024 entries on the latest uarchs.
+
+A cached TLB miss will take about 10-20 cycles (progressively more if the lookup 
+chain misses in the cache) - but that cost is partially hidden if the L1 data 
+cache was missed (which is likely for most TLB-flush intense workloads), and will 
+be almost completely hidden if it goes out to the L3 cache or goes to RAM. (It 
+takes up cache/memory bandwidth though, but unless the access patters are totally 
+sparse, it should be a small fraction.)
+
+A single INVLPG with its 200+ cycles cost is equivalent to about 10-20 TLB misses. 
+That's a lot.
+
+So this kind of workload should trigger the TLB flushing 'worst case': with say 
+512 dTLB entries you could see up to 5k-10k cycles of hidden/indirect cost, but 
+potentially parallelized with other misses going on with the same data accesses.
+
+The current limit for INVLPG flushing is 33 entries: that's 10k-20k cycles max 
+with an INVLPG cost of 250 cycles - this could explain the results you got.
+
+But the problem is: AFAICS you can only decrease the INVLPG count by decreasing 
+the batching size - the additional IPI costs will overwhelm any TLB preservation 
+benefits. So depending on the cost relationship between INVLPG, TLB miss cost and 
+IPI cost, it might not be possible to see a speedup even in the worst-case.
 
 Thanks,
 
