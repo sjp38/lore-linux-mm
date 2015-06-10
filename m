@@ -1,87 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 59D846B0070
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 20:07:31 -0400 (EDT)
-Received: by pabqy3 with SMTP id qy3so22653097pab.3
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 17:07:31 -0700 (PDT)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id il2si10914569pbc.120.2015.06.09.17.07.30
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 301B36B0070
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 20:08:49 -0400 (EDT)
+Received: by pdbnf5 with SMTP id nf5so24777297pdb.2
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 17:08:48 -0700 (PDT)
+Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com. [2607:f8b0:400e:c02::229])
+        by mx.google.com with ESMTPS id cc3si10948910pdb.128.2015.06.09.17.08.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jun 2015 17:07:30 -0700 (PDT)
-Received: by pacyx8 with SMTP id yx8so22724496pac.2
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 17:07:30 -0700 (PDT)
-Date: Wed, 10 Jun 2015 09:07:55 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [RFC][PATCHv2 0/8] introduce automatic pool compaction
-Message-ID: <20150610000755.GB596@swordfish>
-References: <1433505838-23058-1-git-send-email-sergey.senozhatsky@gmail.com>
- <20150610000453.GB13376@bgram>
+        Tue, 09 Jun 2015 17:08:48 -0700 (PDT)
+Received: by pdbnf5 with SMTP id nf5so24776279pdb.2
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 17:08:44 -0700 (PDT)
+Date: Wed, 10 Jun 2015 09:08:51 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC 0/4] enable migration of non-LRU pages
+Message-ID: <20150610000850.GC13376@bgram>
+References: <1433230065-3573-1-git-send-email-gioh.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150610000453.GB13376@bgram>
+In-Reply-To: <1433230065-3573-1-git-send-email-gioh.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Gioh Kim <gioh.kim@lge.com>
+Cc: jlayton@poochiereds.net, bfields@fieldses.org, akpm@linux-foundation.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, mst@redhat.com, kirill@shutemov.name, mgorman@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, gunho.lee@lge.com
 
-Hello,
+Hello Gioh,
 
-On (06/10/15 09:04), Minchan Kim wrote:
-> Hello Sergey,
+On Tue, Jun 02, 2015 at 04:27:40PM +0900, Gioh Kim wrote:
+> Hello,
 > 
-> Thanks for looking this and sorry for the delay for review.
-> I don't have a time to hold a review yet.
-> Please wait and I try to get a time within this week.
+> This series try to enable migration of non-LRU pages, such as driver's page.
 > 
-> Thanks for your patience.
-
-sure, no problem at all.
-
-	-ss
-
-> On Fri, Jun 05, 2015 at 09:03:50PM +0900, Sergey Senozhatsky wrote:
-> > Hello,
-> > 
-> > This patch set tweaks compaction and makes it possible to trigger
-> > pool compaction automatically when system is getting low on memory.
-> > 
-> > zsmalloc in some cases can suffer from a notable fragmentation and
-> > compaction can release some considerable amount of memory. The problem
-> > here is that currently we fully rely on user space to perform compaction
-> > when needed. However, performing zsmalloc compaction is not always an
-> > obvious thing to do. For example, suppose we have a `idle' fragmented
-> > (compaction was never performed) zram device and system is getting low
-> > on memory due to some 3rd party user processes (gcc LTO, or firefox, etc.).
-> > It's quite unlikely that user space will issue zpool compaction in this
-> > case. Besides, user space cannot tell for sure how badly pool is
-> > fragmented; however, this info is known to zsmalloc and, hence, to a
-> > shrinker.
-> > 
-> > v2:
-> > -- use a slab shrinker instead of triggering compaction from zs_free (Minchan)
-> > 
-> > Sergey Senozhatsky (8):
-> >   zsmalloc: drop unused variable `nr_to_migrate'
-> >   zsmalloc: partial page ordering within a fullness_list
-> >   zsmalloc: lower ZS_ALMOST_FULL waterline
-> >   zsmalloc: always keep per-class stats
-> >   zsmalloc: introduce zs_can_compact() function
-> >   zsmalloc: cosmetic compaction code adjustments
-> >   zsmalloc/zram: move `num_migrated' to zs_pool
-> >   zsmalloc: register a shrinker to trigger auto-compaction
-> > 
-> >  drivers/block/zram/zram_drv.c |  12 +--
-> >  drivers/block/zram/zram_drv.h |   1 -
-> >  include/linux/zsmalloc.h      |   1 +
-> >  mm/zsmalloc.c                 | 228 +++++++++++++++++++++++++++---------------
-> >  4 files changed, 152 insertions(+), 90 deletions(-)
-> > 
-> > -- 
-> > 2.4.2.387.gf86f31a
-> > 
+> My ARM-based platform occured severe fragmentation problem after long-term
+> (several days) test. Sometimes even order-3 page allocation failed. It has
+> memory size 512MB ~ 1024MB. 30% ~ 40% memory is consumed for graphic processing
+> and 20~30 memory is reserved for zram.
 > 
+> I found that many pages of GPU driver and zram are non-movable pages. So I
+> reported Minchan Kim, the maintainer of zram, and he made the internal 
+> compaction logic of zram. And I made the internal compaction of GPU driver.
+> 
+> They reduced some fragmentation but they are not enough effective.
+> They are activated by its own interface, /sys, so they are not cooperative
+> with kernel compaction. If there is too much fragmentation and kernel starts
+> to compaction, zram and GPU driver cannot work with the kernel compaction.
+> 
+> The first this patch adds a generic isolate/migrate/putback callbacks for page
+> address-space. The zram and GPU, and any other modules can register
+> its own migration method. The kernel compaction can call the registered
+> migration when it works. Therefore all page in the system can be migrated
+> at once.
+> 
+> The 2nd the generic migration callbacks are applied into balloon driver.
+> My gpu driver code is not open so I apply generic migration into balloon
+> to show how it works. I've tested it with qemu enabled by kvm like followings:
+> - turn on Ubuntu 14.04 with 1G memory on qemu.
+> - do kernel building
+> - after several seconds check more than 512MB is used with free command
+> - command "balloon 512" in qemu monitor
+> - check hundreds MB of pages are migrated
+> 
+> Next kernel compaction code can call generic migration callbacks instead of
+> balloon driver interface.
+> Finally calling migration of balloon driver is removed.
+
+I didn't hava a time to review but it surely will help using zram with
+CMA as well as fragmentation of the system memory via making zram objects
+movable.
+
+If it lands on mainline, I will work for zram object migration.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
