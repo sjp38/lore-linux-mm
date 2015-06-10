@@ -1,81 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 72C7C6B0032
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 21:08:17 -0400 (EDT)
-Received: by pabqy3 with SMTP id qy3so23472775pab.3
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 18:08:17 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id bh8si11144039pdb.2.2015.06.09.18.08.15
-        for <linux-mm@kvack.org>;
-        Tue, 09 Jun 2015 18:08:16 -0700 (PDT)
-Message-ID: <55778DFD.7070704@lge.com>
-Date: Wed, 10 Jun 2015 10:08:13 +0900
-From: Gioh Kim <gioh.kim@lge.com>
-MIME-Version: 1.0
-Subject: Re: [RFC 0/4] enable migration of non-LRU pages
-References: <1433230065-3573-1-git-send-email-gioh.kim@lge.com> <20150610000850.GC13376@bgram>
-In-Reply-To: <20150610000850.GC13376@bgram>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Received: from mail-vn0-f49.google.com (mail-vn0-f49.google.com [209.85.216.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 13D986B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2015 21:11:39 -0400 (EDT)
+Received: by vnbg190 with SMTP id g190so5565225vnb.6
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2015 18:11:38 -0700 (PDT)
+Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
+        by mx.google.com with ESMTPS id ey7si13186854vdb.99.2015.06.09.18.11.26
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Tue, 09 Jun 2015 18:11:27 -0700 (PDT)
+Date: Tue, 9 Jun 2015 20:11:25 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH 0/5] do not dereference NULL pools in pools' destroy()
+ functions
+In-Reply-To: <20150609142523.b717dba6033ee08de997c8be@linux-foundation.org>
+Message-ID: <alpine.DEB.2.11.1506092008220.3300@east.gentwo.org>
+References: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com> <20150609142523.b717dba6033ee08de997c8be@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: jlayton@poochiereds.net, bfields@fieldses.org, akpm@linux-foundation.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, mst@redhat.com, kirill@shutemov.name, mgorman@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, gunho.lee@lge.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sergey.senozhatsky.work@gmail.com, Joe Perches <joe@perches.com>
 
+On Tue, 9 Jun 2015, Andrew Morton wrote:
 
+> Well I like it, even though it's going to cause a zillion little cleanup
+> patches.
+>
+> checkpatch already has a "kfree(NULL) is safe and this check is
+> probably not required" test so I guess Joe will need to get busy ;)
+>
+> I'll park these patches until after 4.1 is released - it's getting to
+> that time...
 
-2015-06-10 i??i ? 9:08i?? Minchan Kim i?'(e??) i?' e,?:
-> Hello Gioh,
->
-> On Tue, Jun 02, 2015 at 04:27:40PM +0900, Gioh Kim wrote:
->> Hello,
->>
->> This series try to enable migration of non-LRU pages, such as driver's page.
->>
->> My ARM-based platform occured severe fragmentation problem after long-term
->> (several days) test. Sometimes even order-3 page allocation failed. It has
->> memory size 512MB ~ 1024MB. 30% ~ 40% memory is consumed for graphic processing
->> and 20~30 memory is reserved for zram.
->>
->> I found that many pages of GPU driver and zram are non-movable pages. So I
->> reported Minchan Kim, the maintainer of zram, and he made the internal
->> compaction logic of zram. And I made the internal compaction of GPU driver.
->>
->> They reduced some fragmentation but they are not enough effective.
->> They are activated by its own interface, /sys, so they are not cooperative
->> with kernel compaction. If there is too much fragmentation and kernel starts
->> to compaction, zram and GPU driver cannot work with the kernel compaction.
->>
->> The first this patch adds a generic isolate/migrate/putback callbacks for page
->> address-space. The zram and GPU, and any other modules can register
->> its own migration method. The kernel compaction can call the registered
->> migration when it works. Therefore all page in the system can be migrated
->> at once.
->>
->> The 2nd the generic migration callbacks are applied into balloon driver.
->> My gpu driver code is not open so I apply generic migration into balloon
->> to show how it works. I've tested it with qemu enabled by kvm like followings:
->> - turn on Ubuntu 14.04 with 1G memory on qemu.
->> - do kernel building
->> - after several seconds check more than 512MB is used with free command
->> - command "balloon 512" in qemu monitor
->> - check hundreds MB of pages are migrated
->>
->> Next kernel compaction code can call generic migration callbacks instead of
->> balloon driver interface.
->> Finally calling migration of balloon driver is removed.
->
-> I didn't hava a time to review but it surely will help using zram with
-> CMA as well as fragmentation of the system memory via making zram objects
-> movable.
-
-I know you are busy. I hope you make time for review.
-
->
-> If it lands on mainline, I will work for zram object migration.
->
-> Thanks!
->
+Why do this at all? I understand that kfree/kmem_cache_free can take a
+null pointer but this is the destruction of a cache and it usually
+requires multiple actions to clean things up and these actions have to be
+properly sequenced. All other processors have to stop referencing this
+cache before it can be destroyed. I think failing if someone does
+something strange like doing cache destruction with a NULL pointer is
+valuable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
