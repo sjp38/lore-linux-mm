@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id A8EEB6B0032
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 04:26:45 -0400 (EDT)
-Received: by wgme6 with SMTP id e6so29753733wgm.2
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:26:45 -0700 (PDT)
-Received: from mail-wg0-x236.google.com (mail-wg0-x236.google.com. [2a00:1450:400c:c00::236])
-        by mx.google.com with ESMTPS id az10si8176538wib.65.2015.06.10.01.26.43
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 92D2B6B0032
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 04:33:38 -0400 (EDT)
+Received: by wifx6 with SMTP id x6so39372255wif.0
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:33:38 -0700 (PDT)
+Received: from mail-wg0-x22f.google.com (mail-wg0-x22f.google.com. [2a00:1450:400c:c00::22f])
+        by mx.google.com with ESMTPS id go2si8228929wib.16.2015.06.10.01.33.36
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jun 2015 01:26:44 -0700 (PDT)
-Received: by wgez8 with SMTP id z8so29814266wge.0
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:26:43 -0700 (PDT)
-Date: Wed, 10 Jun 2015 10:26:40 +0200
+        Wed, 10 Jun 2015 01:33:37 -0700 (PDT)
+Received: by wgv5 with SMTP id 5so29952032wgv.1
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:33:36 -0700 (PDT)
+Date: Wed, 10 Jun 2015 10:33:32 +0200
 From: Ingo Molnar <mingo@kernel.org>
 Subject: Re: [PATCH 2/4] mm: Send one IPI per CPU to TLB flush all entries
  after unmapping pages
-Message-ID: <20150610082640.GA24483@gmail.com>
+Message-ID: <20150610083332.GA25605@gmail.com>
 References: <1433871118-15207-1-git-send-email-mgorman@suse.de>
  <1433871118-15207-3-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
@@ -30,78 +30,55 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, H
 
 * Mel Gorman <mgorman@suse.de> wrote:
 
-> On a 4-socket machine the results were
+> Linear mapped reader on a 4-node machine with 64G RAM and 48 CPUs
 > 
 >                                         4.1.0-rc6          4.1.0-rc6
->                                     batchdirty-v6      batchunmap-v6
-> Ops lru-file-mmap-read-elapsed   121.27 (  0.00%)   118.79 (  2.05%)
-> 
->            4.1.0-rc6      4.1.0-rc6
->         batchdirty-v6 batchunmap-v6
-> User          620.84         608.48
-> System       4245.35        4152.89
-> Elapsed       122.65         120.15
-> 
-> In this case the workload completed faster and there was less CPU overhead
-> but as it's a NUMA machine there are a lot of factors at play. It's easier
-> to quantify on a single socket machine;
-> 
->                                         4.1.0-rc6          4.1.0-rc6
->                                     batchdirty-v6      batchunmap-v6
-> Ops lru-file-mmap-read-elapsed    20.35 (  0.00%)    21.52 ( -5.75%)
+>                                           vanilla       flushfull-v6
+> Ops lru-file-mmap-read-elapsed   162.88 (  0.00%)   120.81 ( 25.83%)
 > 
 >            4.1.0-rc6   4.1.0-rc6
->         batchdirty-v6r5batchunmap-v6r5
-> User           58.02       60.70
-> System         77.57       81.92
-> Elapsed        22.14       23.16
+>              vanillaflushfull-v6r5
+> User          568.96      614.68
+> System       6085.61     4226.61
+> Elapsed       164.24      122.17
 > 
-> That shows the workload takes 5.75% longer to complete with a similar
-> increase in the system CPU usage.
+> This is showing that the readers completed 25.83% faster with 30% less
+> system CPU time. From vmstats, it is known that the vanilla kernel was
+> interrupted roughly 900K times per second during the steady phase of the
+> test and the patched kernel was interrupts 180K times per second.
+> 
+> The impact is lower on a single socket machine.
+> 
+>                                         4.1.0-rc6          4.1.0-rc6
+>                                           vanilla       flushfull-v6
+> Ops lru-file-mmap-read-elapsed    25.43 (  0.00%)    20.59 ( 19.03%)
+> 
+>            4.1.0-rc6    4.1.0-rc6
+>              vanilla flushfull-v6
+> User           59.14        58.99
+> System        109.15        77.84
+> Elapsed        27.32        22.31
+> 
+> It's still a noticeable improvement with vmstat showing interrupts went
+> from roughly 500K per second to 45K per second.
 
-Btw., do you have any stddev noise numbers?
+Btw., I tried to compare your previous (v5) pfn-tracking numbers with these 
+full-flushing numbers, and found that the IRQ rate appears to be the same:
 
-The batching speedup is brutal enough to not need any noise estimations, it's a 
-clear winner.
+> > From vmstats, it is known that the vanilla kernel was interrupted roughly 900K 
+> > times per second during the steady phase of the test and the patched kernel 
+> > was interrupts 180K times per second.
 
-But this PFN tracking patch is more difficult to judge as the numbers are pretty 
-close to each other.
+> > It's still a noticeable improvement with vmstat showing interrupts went from 
+> > roughly 500K per second to 45K per second.
 
-> It is expected that there is overhead to tracking the PFNs and flushing 
-> individual pages. This can be quantified but we cannot quantify the indirect 
-> savings due to active unrelated TLB entries being preserved. Whether this 
-> matters depends on whether the workload was using those entries and if they 
-> would be used before a context switch but targeting the TLB flushes is the 
-> conservative and safer choice.
+... is that because the batching limit in the pfn-tracking case was high enough to 
+not be noticeable in the vmstat?
 
-So this is how I picture a realistic TLB flushing 'worst case': a workload that 
-uses about 80% of the TLB cache in a 'fast' function and trashes memory in a 
-'slow' function, and does alternate calls to the two functions from the same task.
+In the full-flushing case (v6 without patch 4) the batching limit is 'infinite', 
+we'll batch as long as possible, right?
 
-Typical dTLB sizes on x86 are a couple of hundred entries (you can see the precise 
-count in x86info -c), up to 1024 entries on the latest uarchs.
-
-A cached TLB miss will take about 10-20 cycles (progressively more if the lookup 
-chain misses in the cache) - but that cost is partially hidden if the L1 data 
-cache was missed (which is likely for most TLB-flush intense workloads), and will 
-be almost completely hidden if it goes out to the L3 cache or goes to RAM. (It 
-takes up cache/memory bandwidth though, but unless the access patters are totally 
-sparse, it should be a small fraction.)
-
-A single INVLPG with its 200+ cycles cost is equivalent to about 10-20 TLB misses. 
-That's a lot.
-
-So this kind of workload should trigger the TLB flushing 'worst case': with say 
-512 dTLB entries you could see up to 5k-10k cycles of hidden/indirect cost, but 
-potentially parallelized with other misses going on with the same data accesses.
-
-The current limit for INVLPG flushing is 33 entries: that's 10k-20k cycles max 
-with an INVLPG cost of 250 cycles - this could explain the results you got.
-
-But the problem is: AFAICS you can only decrease the INVLPG count by decreasing 
-the batching size - the additional IPI costs will overwhelm any TLB preservation 
-benefits. So depending on the cost relationship between INVLPG, TLB miss cost and 
-IPI cost, it might not be possible to see a speedup even in the worst-case.
+Or have I managed to get confused somewhere ...
 
 Thanks,
 
