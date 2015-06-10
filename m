@@ -1,72 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id A69E76B0071
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 03:45:54 -0400 (EDT)
-Received: by pabqy3 with SMTP id qy3so29562015pab.3
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 00:45:54 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id el6si12571872pdb.218.2015.06.10.00.45.53
-        for <linux-mm@kvack.org>;
-        Wed, 10 Jun 2015 00:45:53 -0700 (PDT)
-Message-ID: <5577EB2E.8090505@linux.intel.com>
-Date: Wed, 10 Jun 2015 15:45:50 +0800
-From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C7DD6B0032
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 03:47:10 -0400 (EDT)
+Received: by wgez8 with SMTP id z8so29053749wge.0
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 00:47:09 -0700 (PDT)
+Received: from mail-wi0-x22a.google.com (mail-wi0-x22a.google.com. [2a00:1450:400c:c05::22a])
+        by mx.google.com with ESMTPS id y20si16231778wjq.3.2015.06.10.00.47.08
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Jun 2015 00:47:08 -0700 (PDT)
+Received: by wifx6 with SMTP id x6so38129336wif.0
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 00:47:08 -0700 (PDT)
+Date: Wed, 10 Jun 2015 09:47:04 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 2/4] mm: Send one IPI per CPU to TLB flush all entries
+ after unmapping pages
+Message-ID: <20150610074704.GA18049@gmail.com>
+References: <1433871118-15207-1-git-send-email-mgorman@suse.de>
+ <1433871118-15207-3-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH] slub/slab: fix kmemleak didn't work on some case
-References: <99C214DF91337140A8D774E25DF6CD5FC89DA2@shsmsx102.ccr.corp.intel.com> <alpine.DEB.2.11.1506080425350.10651@east.gentwo.org> <20150608101302.GB31349@e104818-lin.cambridge.arm.com> <55769F85.5060909@linux.intel.com> <20150609150303.GB4808@e104818-lin.cambridge.arm.com>
-In-Reply-To: <20150609150303.GB4808@e104818-lin.cambridge.arm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1433871118-15207-3-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Christoph Lameter <cl@linux.com>, "Liu, XinwuX" <xinwux.liu@intel.com>, "penberg@kernel.org" <penberg@kernel.org>, "mpm@selenic.com" <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "He, Bo" <bo.he@intel.com>, "Chen, Lin Z" <lin.z.chen@intel.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 2015/6/9 23:03, Catalin Marinas wrote:
-> On Tue, Jun 09, 2015 at 09:10:45AM +0100, Zhang, Yanmin wrote:
->> On 2015/6/8 18:13, Catalin Marinas wrote:
->>> As I replied already, I don't think this is that bad, or at least not
->>> worse than what kmemleak already does (looking at all data whether it's
->>> pointer or not).
->> It depends. As for memleak, developers prefers there are false alarms instead
->> of missing some leaked memory.
-> Lots of false positives aren't that nice, you spend a lot of time
-> debugging them (I've been there in the early kmemleak days). Anyway,
-> your use case is not about false positives vs. negatives but just false
-> negatives.
->
-> My point is that there is a lot of random, pointer-like data read by
-> kmemleak even without this memset (e.g. thread stacks, non-pointer data
-> in kmalloc'ed structures, data/bss sections). Just doing this memset may
-> reduce the chance of false negatives a bit but I don't think it would be
-> noticeable.
->
-> If there is some serious memory leak (lots of objects), they would
-> likely show up at some point. Even if it's a one-off leak, it's possible
-> that it shows up after some time (e.g. the object pointing to this
-> memory block is freed).
->
->>>  It also doesn't solve the kmem_cache_alloc() case where
->>> the original object size is no longer available.
->> Such issue around kmem_cache_alloc() case happens only when the
->> caller doesn't initialize or use the full object, so the object keeps
->> old dirty data.
-> The kmem_cache blocks size would be aligned to a cache line, so you
-> still have some extra bytes never touched by the caller.
->
->> This patch is to resolve the redundant unused space (more than object size)
->> although the full object is used by kernel.
-> So this solves only the cases where the original object size is still
-> known (e.g. kmalloc). It could also be solved by telling kmemleak the
-> actual object size.
 
-Your explanation is reasonable. The patch is for debug purpose.
-Maintainers can make decision based on balance.
+* Mel Gorman <mgorman@suse.de> wrote:
 
-Xinwu is a new developer in kernel community. Accepting the patch
-into kernel can encourage him definitely. :)
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1289,6 +1289,18 @@ enum perf_event_task_context {
+>  	perf_nr_task_contexts,
+>  };
+>  
+> +/* Track pages that require TLB flushes */
+> +struct tlbflush_unmap_batch {
+> +	/*
+> +	 * Each bit set is a CPU that potentially has a TLB entry for one of
+> +	 * the PFNs being flushed. See set_tlb_ubc_flush_pending().
+> +	 */
+> +	struct cpumask cpumask;
+> +
+> +	/* True if any bit in cpumask is set */
+> +	bool flush_required;
+> +};
+> +
+>  struct task_struct {
+>  	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
+>  	void *stack;
+> @@ -1648,6 +1660,10 @@ struct task_struct {
+>  	unsigned long numa_pages_migrated;
+>  #endif /* CONFIG_NUMA_BALANCING */
+>  
+> +#ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+> +	struct tlbflush_unmap_batch *tlb_ubc;
+> +#endif
 
-Yanmin
+Please embedd this constant size structure in task_struct directly so that the 
+whole per task allocation overhead goes away:
+
+> +#ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+> +/*
+> + * Allocate the control structure for batch TLB flushing. An allocation
+> + * failure is harmless as the reclaimer will send IPIs where necessary.
+> + * A GFP_KERNEL allocation from this context is normally not advised but
+> + * we are depending on PF_MEMALLOC (set by direct reclaim or kswapd) to
+> + * limit the depth of the call.
+> + */
+> +static void alloc_tlb_ubc(void)
+> +{
+> +	if (!current->tlb_ubc)
+> +		current->tlb_ubc = kzalloc(sizeof(struct tlbflush_unmap_batch),
+> +						GFP_KERNEL | __GFP_NOWARN);
+> +}
+> +#else
+> +static inline void alloc_tlb_ubc(void)
+> +{
+> +}
+> +#endif /* CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH */
+> +
+>  /*
+>   * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
+>   */
+> @@ -2152,6 +2174,8 @@ static void shrink_lruvec(struct lruvec *lruvec, int swappiness,
+>  	scan_adjusted = (global_reclaim(sc) && !current_is_kswapd() &&
+>  			 sc->priority == DEF_PRIORITY);
+>  
+> +	alloc_tlb_ubc();
+> +
+>  	blk_start_plug(&plug);
+>  	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
+>  					nr[LRU_INACTIVE_FILE]) {
+
+the whole patch series will become even simpler.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
