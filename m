@@ -1,88 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 92D2B6B0032
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 04:33:38 -0400 (EDT)
-Received: by wifx6 with SMTP id x6so39372255wif.0
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:33:38 -0700 (PDT)
-Received: from mail-wg0-x22f.google.com (mail-wg0-x22f.google.com. [2a00:1450:400c:c00::22f])
-        by mx.google.com with ESMTPS id go2si8228929wib.16.2015.06.10.01.33.36
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id EB11A6B0032
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2015 04:51:37 -0400 (EDT)
+Received: by wifx6 with SMTP id x6so39852129wif.0
+        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:51:37 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fx5si8323525wib.35.2015.06.10.01.51.35
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jun 2015 01:33:37 -0700 (PDT)
-Received: by wgv5 with SMTP id 5so29952032wgv.1
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 01:33:36 -0700 (PDT)
-Date: Wed, 10 Jun 2015 10:33:32 +0200
-From: Ingo Molnar <mingo@kernel.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 10 Jun 2015 01:51:36 -0700 (PDT)
+Date: Wed, 10 Jun 2015 09:51:30 +0100
+From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [PATCH 2/4] mm: Send one IPI per CPU to TLB flush all entries
  after unmapping pages
-Message-ID: <20150610083332.GA25605@gmail.com>
+Message-ID: <20150610085130.GA26425@suse.de>
 References: <1433871118-15207-1-git-send-email-mgorman@suse.de>
  <1433871118-15207-3-git-send-email-mgorman@suse.de>
+ <20150610074704.GA18049@gmail.com>
+ <20150610081432.GY26425@suse.de>
+ <20150610082107.GA23575@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1433871118-15207-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <20150610082107.GA23575@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
+To: Ingo Molnar <mingo@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-
-* Mel Gorman <mgorman@suse.de> wrote:
-
-> Linear mapped reader on a 4-node machine with 64G RAM and 48 CPUs
+On Wed, Jun 10, 2015 at 10:21:07AM +0200, Ingo Molnar wrote:
 > 
->                                         4.1.0-rc6          4.1.0-rc6
->                                           vanilla       flushfull-v6
-> Ops lru-file-mmap-read-elapsed   162.88 (  0.00%)   120.81 ( 25.83%)
+> * Mel Gorman <mgorman@suse.de> wrote:
 > 
->            4.1.0-rc6   4.1.0-rc6
->              vanillaflushfull-v6r5
-> User          568.96      614.68
-> System       6085.61     4226.61
-> Elapsed       164.24      122.17
+> > On Wed, Jun 10, 2015 at 09:47:04AM +0200, Ingo Molnar wrote:
+> > > 
+> > > * Mel Gorman <mgorman@suse.de> wrote:
+> > > 
+> > > > --- a/include/linux/sched.h
+> > > > +++ b/include/linux/sched.h
+> > > > @@ -1289,6 +1289,18 @@ enum perf_event_task_context {
+> > > >  	perf_nr_task_contexts,
+> > > >  };
+> > > >  
+> > > > +/* Track pages that require TLB flushes */
+> > > > +struct tlbflush_unmap_batch {
+> > > > +	/*
+> > > > +	 * Each bit set is a CPU that potentially has a TLB entry for one of
+> > > > +	 * the PFNs being flushed. See set_tlb_ubc_flush_pending().
+> > > > +	 */
+> > > > +	struct cpumask cpumask;
+> > > > +
+> > > > +	/* True if any bit in cpumask is set */
+> > > > +	bool flush_required;
+> > > > +};
+> > > > +
+> > > >  struct task_struct {
+> > > >  	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
+> > > >  	void *stack;
+> > > > @@ -1648,6 +1660,10 @@ struct task_struct {
+> > > >  	unsigned long numa_pages_migrated;
+> > > >  #endif /* CONFIG_NUMA_BALANCING */
+> > > >  
+> > > > +#ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+> > > > +	struct tlbflush_unmap_batch *tlb_ubc;
+> > > > +#endif
+> > > 
+> > > Please embedd this constant size structure in task_struct directly so that the 
+> > > whole per task allocation overhead goes away:
+> > > 
+> > 
+> > That puts a structure (72 bytes in the config I used) within the task struct 
+> > even when it's not required. On a lightly loaded system direct reclaim will not 
+> > be active and for some processes, it'll never be active. It's very wasteful.
 > 
-> This is showing that the readers completed 25.83% faster with 30% less
-> system CPU time. From vmstats, it is known that the vanilla kernel was
-> interrupted roughly 900K times per second during the steady phase of the
-> test and the patched kernel was interrupts 180K times per second.
+> For certain values of 'very'.
 > 
-> The impact is lower on a single socket machine.
+>  - 72 bytes suggests that you have NR_CPUS set to 512 or so? On a kernel sized to 
+>    such large systems with 1000 active tasks we are talking about about +72K of 
+>    RAM...
 > 
->                                         4.1.0-rc6          4.1.0-rc6
->                                           vanilla       flushfull-v6
-> Ops lru-file-mmap-read-elapsed    25.43 (  0.00%)    20.59 ( 19.03%)
+
+The NR_CPUS is based on the openSUSE 13.1 distro config so yes, it's large but I also
+expect it to be a common configuration.
+
+>  - Furthermore, by embedding it it gets packed better with neighboring task_struct 
+>    fields, while by allocating it dynamically it's a separate cache line wasted.
 > 
->            4.1.0-rc6    4.1.0-rc6
->              vanilla flushfull-v6
-> User           59.14        58.99
-> System        109.15        77.84
-> Elapsed        27.32        22.31
+
+A separate cache line that is only used during direct reclaim when the
+process is taking a large hit anyway
+
+>  - Plus by allocating it separately you spend two cachelines on it: each slab will 
+>    be at least cacheline aligned, and 72 bytes will allocate 128 bytes. So when 
+>    this gets triggered you've just wasted some more RAM.
 > 
-> It's still a noticeable improvement with vmstat showing interrupts went
-> from roughly 500K per second to 45K per second.
+>  - I mean, if it had dynamic size, or was arguably huge. But this is just a 
+>    cpumask and a boolean!
+> 
 
-Btw., I tried to compare your previous (v5) pfn-tracking numbers with these 
-full-flushing numbers, and found that the IRQ rate appears to be the same:
+It gets larger with enterprise configs.
 
-> > From vmstats, it is known that the vanilla kernel was interrupted roughly 900K 
-> > times per second during the steady phase of the test and the patched kernel 
-> > was interrupts 180K times per second.
+>  - The cpumask will be dynamic if you increase the NR_CPUS count any more than 
+>    that - in which case embedding the structure is the right choice again.
+> 
 
-> > It's still a noticeable improvement with vmstat showing interrupts went from 
-> > roughly 500K per second to 45K per second.
+Enterprise configurations are larger. The most recent one I checked defined
+NR_CPUS as 8192. If it's embedded in the structure, it means that we need
+to call cpumask_clear on every fork even if it's never used. That adds
+constant overhead to a fast path to avoid an allocation and a few cache
+misses in a direct reclaim path. Are you certain you want that trade-off?
 
-... is that because the batching limit in the pfn-tracking case was high enough to 
-not be noticeable in the vmstat?
-
-In the full-flushing case (v6 without patch 4) the batching limit is 'infinite', 
-we'll batch as long as possible, right?
-
-Or have I managed to get confused somewhere ...
-
-Thanks,
-
-	Ingo
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
