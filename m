@@ -1,72 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E4606B0032
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 05:49:53 -0400 (EDT)
-Received: by wiga1 with SMTP id a1so70745229wig.0
-        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 02:49:52 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jt5si273718wjc.48.2015.06.11.02.49.50
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C2CD76B0032
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 05:51:20 -0400 (EDT)
+Received: by payr10 with SMTP id r10so1377953pay.1
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 02:51:20 -0700 (PDT)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id lt3si198705pab.125.2015.06.11.02.51.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 11 Jun 2015 02:49:51 -0700 (PDT)
-Message-ID: <557959BC.5000303@suse.cz>
-Date: Thu, 11 Jun 2015 11:49:48 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Jun 2015 02:51:20 -0700 (PDT)
+Received: by pabqy3 with SMTP id qy3so1296536pab.3
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 02:51:19 -0700 (PDT)
+Date: Thu, 11 Jun 2015 18:51:44 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH V2] checkpatch: Add some <foo>_destroy functions to
+ NEEDLESS_IF tests
+Message-ID: <20150611095144.GC515@swordfish>
+References: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150609142523.b717dba6033ee08de997c8be@linux-foundation.org>
+ <1433894769.2730.87.camel@perches.com>
+ <1433911166.2730.98.camel@perches.com>
+ <1433915549.2730.107.camel@perches.com>
+ <alpine.DEB.2.10.1506111140240.2320@hadrien>
 MIME-Version: 1.0
-Subject: Re: [PATCHv6 29/36] thp: implement split_huge_pmd()
-References: <1433351167-125878-1-git-send-email-kirill.shutemov@linux.intel.com> <1433351167-125878-30-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1433351167-125878-30-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1506111140240.2320@hadrien>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Julia Lawall <julia.lawall@lip6.fr>
+Cc: Joe Perches <joe@perches.com>, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sergey.senozhatsky.work@gmail.com
 
-On 06/03/2015 07:06 PM, Kirill A. Shutemov wrote:
-> Original split_huge_page() combined two operations: splitting PMDs into
-> tables of PTEs and splitting underlying compound page. This patch
-> implements split_huge_pmd() which split given PMD without splitting
-> other PMDs this page mapped with or underlying compound page.
->
-> Without tail page refcounting, implementation of split_huge_pmd() is
-> pretty straight-forward.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Tested-by: Sasha Levin <sasha.levin@oracle.com>
+On (06/11/15 11:41), Julia Lawall wrote:
+> On Tue, 9 Jun 2015, Joe Perches wrote:
+> 
+> > Sergey Senozhatsky has modified several destroy functions that can
+> > now be called with NULL values.
+> >
+> >  - kmem_cache_destroy()
+> >  - mempool_destroy()
+> >  - dma_pool_destroy()
+> 
+> I don't actually see any null test in the definition of dma_pool_destroy,
+> in the linux-next 54896f27dd5 (20150610).  So I guess it would be
+> premature to send patches to remove the null tests.
+> 
 
-[...]
+yes,
 
-> +
-> +	if (atomic_add_negative(-1, compound_mapcount_ptr(page))) {
-> +		/* Last compound_mapcount is gone. */
-> +		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-> +		if (PageDoubleMap(page)) {
-> +			/* No need in mapcount reference anymore */
-> +			ClearPageDoubleMap(page);
-> +			for (i = 0; i < HPAGE_PMD_NR; i++)
-> +				atomic_dec(&page[i]._mapcount);
-> +		}
-> +	} else if (!TestSetPageDoubleMap(page)) {
-> +		/*
-> +		 * The first PMD split for the compound page and we still
-> +		 * have other PMD mapping of the page: bump _mapcount in
-> +		 * every small page.
-> +		 * This reference will go away with last compound_mapcount.
-> +		 */
-> +		for (i = 0; i < HPAGE_PMD_NR; i++)
-> +			atomic_inc(&page[i]._mapcount);
+Andrew Morton:
+: I'll park these patches until after 4.1 is released - it's getting to
+: that time...
 
-The order of actions here means that between TestSetPageDoubleMap() and 
-the atomic incs, anyone calling page_mapcount() on one of the pages not 
-processed by the for loop yet, will see a value lower by 1 from what he 
-should see. I wonder if that can cause any trouble somewhere, especially 
-if there's only one other compound mapping and page_mapcount() will 
-return 0 instead of 1?
 
-Conversely, when clearing PageDoubleMap() above (or in one of those rmap 
-functions IIRC), one could see mapcount inflated by one. But I guess 
-that's less dangerous.
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
