@@ -1,98 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 489BA900015
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 17:22:16 -0400 (EDT)
-Received: by igbsb11 with SMTP id sb11so12927281igb.0
-        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 14:22:16 -0700 (PDT)
-Received: from mail-ig0-x241.google.com (mail-ig0-x241.google.com. [2607:f8b0:4001:c05::241])
-        by mx.google.com with ESMTPS id ik8si217783igb.1.2015.06.11.14.22.15
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jun 2015 14:22:15 -0700 (PDT)
-Received: by igdh15 with SMTP id h15so4865997igd.3
-        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 14:22:15 -0700 (PDT)
-Message-ID: <1434057733.27504.52.camel@edumazet-glaptop2.roam.corp.google.com>
-Subject: Re: [RFC] net: use atomic allocation for order-3 page allocation
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Thu, 11 Jun 2015 14:22:13 -0700
-In-Reply-To: <5579FABE.4050505@fb.com>
-References: 
-	<71a20cf185c485fa23d9347bd846a6f4e9753405.1434053941.git.shli@fb.com>
-	 <1434055687.27504.51.camel@edumazet-glaptop2.roam.corp.google.com>
-	 <5579FABE.4050505@fb.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D797B900015
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 17:22:17 -0400 (EDT)
+Received: by pdjm12 with SMTP id m12so10437886pdj.3
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 14:22:17 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id fk17si2486283pdb.56.2015.06.11.14.22.16
+        for <linux-mm@kvack.org>;
+        Thu, 11 Jun 2015 14:22:17 -0700 (PDT)
+Subject: [PATCH v4 4/6] devm: fix ioremap_cache() usage
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 11 Jun 2015 17:19:36 -0400
+Message-ID: <20150611211936.10271.3169.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <20150611211354.10271.57950.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <20150611211354.10271.57950.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Mason <clm@fb.com>
-Cc: Shaohua Li <shli@fb.com>, netdev@vger.kernel.org, davem@davemloft.net, Kernel-team@fb.com, Eric Dumazet <edumazet@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: arnd@arndb.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org
+Cc: jgross@suse.com, x86@kernel.org, toshi.kani@hp.com, linux-nvdimm@lists.01.org, benh@kernel.crashing.org, mcgrof@suse.com, konrad.wilk@oracle.com, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, mpe@ellerman.id.au, tj@kernel.org, paulus@samba.org, hch@lst.de
 
-On Thu, 2015-06-11 at 17:16 -0400, Chris Mason wrote:
-> On 06/11/2015 04:48 PM, Eric Dumazet wrote:
-> > On Thu, 2015-06-11 at 13:24 -0700, Shaohua Li wrote:
-> >> We saw excessive memory compaction triggered by skb_page_frag_refill.
-> >> This causes performance issues. Commit 5640f7685831e0 introduces the
-> >> order-3 allocation to improve performance. But memory compaction has
-> >> high overhead. The benefit of order-3 allocation can't compensate the
-> >> overhead of memory compaction.
-> >>
-> >> This patch makes the order-3 page allocation atomic. If there is no
-> >> memory pressure and memory isn't fragmented, the alloction will still
-> >> success, so we don't sacrifice the order-3 benefit here. If the atomic
-> >> allocation fails, compaction will not be triggered and we will fallback
-> >> to order-0 immediately.
-> >>
-> >> The mellanox driver does similar thing, if this is accepted, we must fix
-> >> the driver too.
-> >>
-> >> Cc: Eric Dumazet <edumazet@google.com>
-> >> Signed-off-by: Shaohua Li <shli@fb.com>
-> >> ---
-> >>  net/core/sock.c | 2 +-
-> >>  1 file changed, 1 insertion(+), 1 deletion(-)
-> >>
-> >> diff --git a/net/core/sock.c b/net/core/sock.c
-> >> index 292f422..e9855a4 100644
-> >> --- a/net/core/sock.c
-> >> +++ b/net/core/sock.c
-> >> @@ -1883,7 +1883,7 @@ bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t gfp)
-> >>  
-> >>  	pfrag->offset = 0;
-> >>  	if (SKB_FRAG_PAGE_ORDER) {
-> >> -		pfrag->page = alloc_pages(gfp | __GFP_COMP |
-> >> +		pfrag->page = alloc_pages((gfp & ~__GFP_WAIT) | __GFP_COMP |
-> >>  					  __GFP_NOWARN | __GFP_NORETRY,
-> >>  					  SKB_FRAG_PAGE_ORDER);
-> >>  		if (likely(pfrag->page)) {
-> > 
-> > This is not a specific networking issue, but mm one.
-> > 
-> > You really need to start a discussion with mm experts.
-> > 
-> > Your changelog does not exactly explains what _is_ the problem.
-> > 
-> > If the problem lies in mm layer, it might be time to fix it, instead of
-> > work around the bug by never triggering it from this particular point,
-> > which is a safe point where a process is willing to wait a bit.
-> > 
-> > Memory compaction is either working as intending, or not.
-> > 
-> > If we enabled it but never run it because it hurts, what is the point
-> > enabling it ?
-> 
-> networking is asking for 32KB, and the MM layer is doing what it can to
-> provide it.  Are the gains from getting 32KB contig bigger than the cost
-> of moving pages around if the MM has to actually go into compaction?
-> Should we start disk IO to give back 32KB contig?
-> 
-> I think we want to tell the MM to compact in the background and give
-> networking 32KB if it happens to have it available.  If not, fall back
-> to smaller allocations without doing anything expensive.
+Provide devm_ioremap_cache() and fix up devm_ioremap_resource() to
+actually provide cacheable mappings.  On archs that implement
+ioremap_cache() devm_ioremap_resource() is always silently falling back
+to uncached when IORESOURCE_CACHEABLE is specified.
 
-Exactly my point. (And I mentioned this about 4 months ago)
+Cc: Toshi Kani <toshi.kani@hp.com>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+---
+ include/linux/io.h |    2 ++
+ lib/devres.c       |   53 +++++++++++++++++++++++++---------------------------
+ 2 files changed, 27 insertions(+), 28 deletions(-)
 
-
+diff --git a/include/linux/io.h b/include/linux/io.h
+index fb5a99800e77..4cd8996cfea0 100644
+--- a/include/linux/io.h
++++ b/include/linux/io.h
+@@ -71,6 +71,8 @@ static inline void devm_ioport_unmap(struct device *dev, void __iomem *addr)
+ 
+ void __iomem *devm_ioremap(struct device *dev, resource_size_t offset,
+ 			   resource_size_t size);
++void __iomem *devm_ioremap_cache(struct device *dev, resource_size_t offset,
++			   resource_size_t size);
+ void __iomem *devm_ioremap_nocache(struct device *dev, resource_size_t offset,
+ 				   resource_size_t size);
+ void __iomem *devm_ioremap_wc(struct device *dev, resource_size_t offset,
+diff --git a/lib/devres.c b/lib/devres.c
+index f4001d90d24d..c8e75cdaf816 100644
+--- a/lib/devres.c
++++ b/lib/devres.c
+@@ -14,6 +14,8 @@ static int devm_ioremap_match(struct device *dev, void *res, void *match_data)
+ 	return *(void **)res == match_data;
+ }
+ 
++typedef void __iomem *(*ioremap_fn)(resource_size_t offset, unsigned long size);
++
+ /**
+  * devm_ioremap - Managed ioremap()
+  * @dev: Generic device to remap IO address for
+@@ -22,8 +24,9 @@ static int devm_ioremap_match(struct device *dev, void *res, void *match_data)
+  *
+  * Managed ioremap().  Map is automatically unmapped on driver detach.
+  */
+-void __iomem *devm_ioremap(struct device *dev, resource_size_t offset,
+-			   resource_size_t size)
++static void __iomem *devm_ioremap_type(struct device *dev,
++		resource_size_t offset, resource_size_t size,
++		ioremap_fn ioremap_type)
+ {
+ 	void __iomem **ptr, *addr;
+ 
+@@ -31,7 +34,7 @@ void __iomem *devm_ioremap(struct device *dev, resource_size_t offset,
+ 	if (!ptr)
+ 		return NULL;
+ 
+-	addr = ioremap(offset, size);
++	addr = ioremap_type(offset, size);
+ 	if (addr) {
+ 		*ptr = addr;
+ 		devres_add(dev, ptr);
+@@ -40,34 +43,25 @@ void __iomem *devm_ioremap(struct device *dev, resource_size_t offset,
+ 
+ 	return addr;
+ }
++
++void __iomem *devm_ioremap(struct device *dev, resource_size_t offset,
++			   resource_size_t size)
++{
++	return devm_ioremap_type(dev, offset, size, ioremap);
++}
+ EXPORT_SYMBOL(devm_ioremap);
+ 
+-/**
+- * devm_ioremap_nocache - Managed ioremap_nocache()
+- * @dev: Generic device to remap IO address for
+- * @offset: BUS offset to map
+- * @size: Size of map
+- *
+- * Managed ioremap_nocache().  Map is automatically unmapped on driver
+- * detach.
+- */
++void __iomem *devm_ioremap_cache(struct device *dev, resource_size_t offset,
++			   resource_size_t size)
++{
++	return devm_ioremap_type(dev, offset, size, ioremap_cache);
++}
++EXPORT_SYMBOL(devm_ioremap_cache);
++
+ void __iomem *devm_ioremap_nocache(struct device *dev, resource_size_t offset,
+ 				   resource_size_t size)
+ {
+-	void __iomem **ptr, *addr;
+-
+-	ptr = devres_alloc(devm_ioremap_release, sizeof(*ptr), GFP_KERNEL);
+-	if (!ptr)
+-		return NULL;
+-
+-	addr = ioremap_nocache(offset, size);
+-	if (addr) {
+-		*ptr = addr;
+-		devres_add(dev, ptr);
+-	} else
+-		devres_free(ptr);
+-
+-	return addr;
++	return devm_ioremap_type(dev, offset, size, ioremap_nocache);
+ }
+ EXPORT_SYMBOL(devm_ioremap_nocache);
+ 
+@@ -153,8 +147,11 @@ void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res)
+ 		return IOMEM_ERR_PTR(-EBUSY);
+ 	}
+ 
+-	/* FIXME: add devm_ioremap_cache support */
+-	dest_ptr = devm_ioremap(dev, res->start, size);
++	if (res->flags & IORESOURCE_CACHEABLE)
++		dest_ptr = devm_ioremap_cache(dev, res->start, size);
++	else
++		dest_ptr = devm_ioremap_nocache(dev, res->start, size);
++
+ 	if (!dest_ptr) {
+ 		dev_err(dev, "ioremap failed for resource %pR\n", res);
+ 		devm_release_mem_region(dev, res->start, size);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
