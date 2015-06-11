@@ -1,90 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CB5A6B0032
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 11:48:33 -0400 (EDT)
-Received: by wifx6 with SMTP id x6so12856457wif.0
-        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 08:48:32 -0700 (PDT)
-Received: from mail-wi0-x244.google.com (mail-wi0-x244.google.com. [2a00:1450:400c:c05::244])
-        by mx.google.com with ESMTPS id ym6si1951110wjc.130.2015.06.11.08.48.31
+Received: from mail-vn0-f53.google.com (mail-vn0-f53.google.com [209.85.216.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 58DBF6B0032
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 13:26:14 -0400 (EDT)
+Received: by vnbg190 with SMTP id g190so1981003vnb.8
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 10:26:14 -0700 (PDT)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
+        by mx.google.com with ESMTPS id ui18si2040724vdb.37.2015.06.11.10.26.12
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jun 2015 08:48:31 -0700 (PDT)
-Received: by wibbw19 with SMTP id bw19so4043106wib.2
-        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 08:48:31 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CA+KgHt_4rnCdh-_PUJNOpkQZAse5EWn9cDxBhfbJzKR_C=-K3A@mail.gmail.com>
-References: <CAGqmi75yWZjsF-bVin=ch+E7DYha7ob55nWT565Dwta3F+UqjA@mail.gmail.com>
- <CA+KgHt_4rnCdh-_PUJNOpkQZAse5EWn9cDxBhfbJzKR_C=-K3A@mail.gmail.com>
-From: Timofey Titovets <nefelim4ag@gmail.com>
-Date: Thu, 11 Jun 2015 18:47:50 +0300
-Message-ID: <CAGqmi74GXnXND85DUAHnTefMs0ed=qM7ZndMmZxVpP7t6qExvQ@mail.gmail.com>
-Subject: Fwd: Why rapiddisk cache, better then build-in ram cache?
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Thu, 11 Jun 2015 10:26:13 -0700 (PDT)
+Date: Thu, 11 Jun 2015 12:26:11 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH 0/5] do not dereference NULL pools in pools' destroy()
+ functions
+In-Reply-To: <20150609191755.867a36c3.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.11.1506111212530.18426@east.gentwo.org>
+References: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com> <20150609142523.b717dba6033ee08de997c8be@linux-foundation.org> <alpine.DEB.2.11.1506092008220.3300@east.gentwo.org> <20150609185150.8c9fed8d.akpm@linux-foundation.org>
+ <alpine.DEB.2.11.1506092056570.6964@east.gentwo.org> <20150609191755.867a36c3.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sergey.senozhatsky.work@gmail.com, Joe Perches <joe@perches.com>
 
-Hello list,
-I'm very sorry, what i've forward mail it to linux-mm list, but i
-can't find any mailing list like linux-block-io or something like that
-%)
+On Tue, 9 Jun 2015, Andrew Morton wrote:
 
-I've recently find rapid cache and it confuse me, as i know, linux use
-almost all free ram for IO caching and do it very cool and fast.
-May be i misstake in something? May be linux memory io cache sub
-system not fast as i think?
-
----------- Forwarded message ----------
-From: Petros Koutoupis <pkoutoupis@inverness-data.com>
-Date: 2015-06-11 18:33 GMT+03:00
-Subject: Re: Why rapiddisk cache, better then build-in ram cache?
-To: Timofey Titovets <nefelim4ag@gmail.com>
-=D0=9A=D0=BE=D0=BF=D0=B8=D1=8F: support@inverness-data.com
-
-
-Timofey,
-
-Thank you very much for you interest in the project.
-Linux does not have a built block I/O cache. All block I/O resides in
-a temporary buffer until the schedular schedules the task to the block
-device; that is, unless you are running Direct I/O in which all I/O is
-immediately dispatched regardless of the schedular. Now a file system
-will cache data in the VFS layer but this cache is somewhat small and
-limited. With RapidDisk / RapidCache, you can easily enable 1GB or
-even 1TB of cache to a slower block device, thus enabling a block
-based cache. Or you can simply just enable a large RAM based block
-device and not use it as a cache. I guess it all depends on your
-requirements.
-
-You are correct, though. This should be detailed on the Wiki and I
-will definitely address it. Thank you for bringing it to our
-attention.
-
-On Thu, Jun 11, 2015 at 10:26 AM, Timofey Titovets <nefelim4ag@gmail.com> w=
-rote:
+> > > More than half of the kmem_cache_destroy() callsites are declining that
+> > > value by open-coding the NULL test.  That's reality and we should recognize
+> > > it.
+> >
+> > Well that may just indicate that we need to have a look at those
+> > callsites and the reason there to use a special cache at all.
 >
-> Hello,
-> i've read http://rapiddisk.org/index.php?title=3DMain_Page
-> That a very cool,
-> but i can't understand why it better than linux built in file/block io ca=
-che?
->
-> May be you can explain it on wiki page?
->
-> --
-> Have a nice day,
-> Timofey.
+> This makes no sense.  Go look at the code.
+> drivers/staging/lustre/lustre/llite/super25.c, for example.  It's all
+> in the basic unwind/recover/exit code.
 
---
-Petros Koutoupis
-Inverness Storage Solutions, LLC
-312-854-9707
-pkoutoupis@inverness-data.com
+That is screwed up code. I'd do that without the checks simply with a
+series of kmem_cache_destroys().
 
---=20
-Have a nice day,
-Timofey.
+> > If the cache
+> > is just something that kmalloc can provide then why create a special
+> > cache. On the other hand if something special needs to be accomplished
+> > then it would make sense to have special processing on kmem_cache_destroy.
+>
+> This has nothing to do with anything.  We're talking about a basic "if
+> I created this cache then destroy it" operation.
+
+As you see in this code snipped you cannot continue if a certain operation
+during setup fails. At that point it is known which caches exist and
+therefore kmem_cache_destroy() can be called without the checks.
+
+> It's a common pattern.  mm/ exists to serve client code and as a lot of
+> client code is doing this, we should move it into mm/ so as to serve
+> client code better.
+
+Doing this seems to encourage sloppy coding practices.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
