@@ -1,90 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A5246B0032
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 17:16:56 -0400 (EDT)
-Received: by pdbnf5 with SMTP id nf5so10439248pdb.2
-        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 14:16:55 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id s7si2485995pdl.14.2015.06.11.14.16.54
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 11 Jun 2015 14:16:55 -0700 (PDT)
-Message-ID: <5579FABE.4050505@fb.com>
-Date: Thu, 11 Jun 2015 17:16:46 -0400
-From: Chris Mason <clm@fb.com>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id A592E6B0032
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 17:21:57 -0400 (EDT)
+Received: by pacyx8 with SMTP id yx8so9678053pac.2
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 14:21:57 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id cg8si2439331pac.134.2015.06.11.14.21.55
+        for <linux-mm@kvack.org>;
+        Thu, 11 Jun 2015 14:21:56 -0700 (PDT)
+Subject: [-tip PATCH v4 0/6] pmem api, generic ioremap_cache, and memremap
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 11 Jun 2015 17:19:12 -0400
+Message-ID: <20150611211354.10271.57950.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] net: use atomic allocation for order-3 page allocation
-References: <71a20cf185c485fa23d9347bd846a6f4e9753405.1434053941.git.shli@fb.com> <1434055687.27504.51.camel@edumazet-glaptop2.roam.corp.google.com>
-In-Reply-To: <1434055687.27504.51.camel@edumazet-glaptop2.roam.corp.google.com>
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>, Shaohua Li <shli@fb.com>
-Cc: netdev@vger.kernel.org, davem@davemloft.net, Kernel-team@fb.com, Eric Dumazet <edumazet@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: arnd@arndb.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org
+Cc: jgross@suse.com, x86@kernel.org, toshi.kani@hp.com, konrad.wilk@oracle.com, benh@kernel.crashing.org, mcgrof@suse.com, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, Andy Shevchenko <andy.shevchenko@gmail.com>, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, mpe@ellerman.id.au, tj@kernel.org, paulus@samba.org, kbuild test robot <fengguang.wu@intel.com>, hch@lst.de
 
-On 06/11/2015 04:48 PM, Eric Dumazet wrote:
-> On Thu, 2015-06-11 at 13:24 -0700, Shaohua Li wrote:
->> We saw excessive memory compaction triggered by skb_page_frag_refill.
->> This causes performance issues. Commit 5640f7685831e0 introduces the
->> order-3 allocation to improve performance. But memory compaction has
->> high overhead. The benefit of order-3 allocation can't compensate the
->> overhead of memory compaction.
->>
->> This patch makes the order-3 page allocation atomic. If there is no
->> memory pressure and memory isn't fragmented, the alloction will still
->> success, so we don't sacrifice the order-3 benefit here. If the atomic
->> allocation fails, compaction will not be triggered and we will fallback
->> to order-0 immediately.
->>
->> The mellanox driver does similar thing, if this is accepted, we must fix
->> the driver too.
->>
->> Cc: Eric Dumazet <edumazet@google.com>
->> Signed-off-by: Shaohua Li <shli@fb.com>
->> ---
->>  net/core/sock.c | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->>
->> diff --git a/net/core/sock.c b/net/core/sock.c
->> index 292f422..e9855a4 100644
->> --- a/net/core/sock.c
->> +++ b/net/core/sock.c
->> @@ -1883,7 +1883,7 @@ bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t gfp)
->>  
->>  	pfrag->offset = 0;
->>  	if (SKB_FRAG_PAGE_ORDER) {
->> -		pfrag->page = alloc_pages(gfp | __GFP_COMP |
->> +		pfrag->page = alloc_pages((gfp & ~__GFP_WAIT) | __GFP_COMP |
->>  					  __GFP_NOWARN | __GFP_NORETRY,
->>  					  SKB_FRAG_PAGE_ORDER);
->>  		if (likely(pfrag->page)) {
-> 
-> This is not a specific networking issue, but mm one.
-> 
-> You really need to start a discussion with mm experts.
-> 
-> Your changelog does not exactly explains what _is_ the problem.
-> 
-> If the problem lies in mm layer, it might be time to fix it, instead of
-> work around the bug by never triggering it from this particular point,
-> which is a safe point where a process is willing to wait a bit.
-> 
-> Memory compaction is either working as intending, or not.
-> 
-> If we enabled it but never run it because it hurts, what is the point
-> enabling it ?
+The pmem api is responsible for shepherding data out to persistent
+media.  The pmem driver uses this api, when available, to assert that
+data is durable by the time bio_endio() is invoked.  When an
+architecture or cpu can not make persistence guarantees the driver warns
+and falls back to "best effort" implementation.
 
-networking is asking for 32KB, and the MM layer is doing what it can to
-provide it.  Are the gains from getting 32KB contig bigger than the cost
-of moving pages around if the MM has to actually go into compaction?
-Should we start disk IO to give back 32KB contig?
+Changes since v3 [1]:
 
-I think we want to tell the MM to compact in the background and give
-networking 32KB if it happens to have it available.  If not, fall back
-to smaller allocations without doing anything expensive.
+Rebased on tip/master now that Toshi's ioremap_wt() patches have landed
+in -tip.  The primary change was reflowing the patches against the newly
+alphabetized 'select' options under config X86.
 
--chris
+[1]: https://lists.01.org/pipermail/linux-nvdimm/2015-June/001081.html
+
+---
+
+Dan Williams (5):
+      arch: unify ioremap prototypes and macro aliases
+      cleanup IORESOURCE_CACHEABLE vs ioremap()
+      arch/*/asm/io.h: add ioremap_cache() to all architectures
+      devm: fix ioremap_cache() usage
+      arch: introduce memremap_cache() and memremap_wt()
+
+Ross Zwisler (1):
+      arch, x86: pmem api for ensuring durability of persistent memory updates
+
+
+ arch/arc/include/asm/io.h               |    1 
+ arch/arm/Kconfig                        |    1 
+ arch/arm/include/asm/io.h               |    2 +
+ arch/arm/mach-clps711x/board-cdb89712.c |    2 -
+ arch/arm64/Kconfig                      |    1 
+ arch/arm64/include/asm/io.h             |    3 +
+ arch/arm64/kernel/efi.c                 |    4 +
+ arch/arm64/kernel/smp_spin_table.c      |   10 ++-
+ arch/avr32/include/asm/io.h             |    1 
+ arch/cris/include/asm/io.h              |    8 +-
+ arch/cris/mm/ioremap.c                  |    6 +-
+ arch/frv/Kconfig                        |    1 
+ arch/frv/include/asm/io.h               |    6 ++
+ arch/ia64/include/asm/io.h              |    9 +--
+ arch/ia64/mm/ioremap.c                  |    4 +
+ arch/m32r/include/asm/io.h              |    1 
+ arch/m68k/Kconfig                       |    1 
+ arch/m68k/include/asm/io_mm.h           |    7 ++
+ arch/m68k/include/asm/io_no.h           |    5 ++
+ arch/metag/Kconfig                      |    1 
+ arch/metag/include/asm/io.h             |    5 ++
+ arch/microblaze/include/asm/io.h        |    1 
+ arch/mips/Kconfig                       |    1 
+ arch/mips/include/asm/io.h              |   17 ++++-
+ arch/mn10300/include/asm/io.h           |    1 
+ arch/nios2/include/asm/io.h             |    1 
+ arch/powerpc/Kconfig                    |    1 
+ arch/powerpc/include/asm/io.h           |    2 -
+ arch/powerpc/kernel/pci_of_scan.c       |    2 -
+ arch/s390/include/asm/io.h              |    1 
+ arch/sparc/include/asm/io_32.h          |    1 
+ arch/sparc/include/asm/io_64.h          |    9 ++-
+ arch/sparc/kernel/pci.c                 |    3 -
+ arch/tile/include/asm/io.h              |    1 
+ arch/x86/Kconfig                        |    2 +
+ arch/x86/include/asm/cacheflush.h       |   36 +++++++++++
+ arch/x86/include/asm/io.h               |    7 ++
+ arch/x86/kernel/crash_dump_64.c         |    6 +-
+ arch/x86/kernel/kdebugfs.c              |    8 +-
+ arch/x86/kernel/ksysfs.c                |   28 ++++-----
+ arch/x86/mm/ioremap.c                   |   10 +--
+ arch/xtensa/Kconfig                     |    1 
+ arch/xtensa/include/asm/io.h            |    3 +
+ drivers/acpi/apei/einj.c                |    8 +-
+ drivers/acpi/apei/erst.c                |    4 +
+ drivers/block/Kconfig                   |    1 
+ drivers/block/pmem.c                    |   76 +++++++++++++++++++++--
+ drivers/firmware/google/memconsole.c    |    4 +
+ drivers/pci/probe.c                     |    3 -
+ drivers/pnp/manager.c                   |    2 -
+ drivers/scsi/aic94xx/aic94xx_init.c     |    7 --
+ drivers/scsi/arcmsr/arcmsr_hba.c        |    5 --
+ drivers/scsi/mvsas/mv_init.c            |   15 +----
+ drivers/video/fbdev/ocfb.c              |    1 
+ include/asm-generic/io.h                |    8 ++
+ include/asm-generic/iomap.h             |    4 +
+ include/linux/compiler.h                |    2 +
+ include/linux/device.h                  |    5 ++
+ include/linux/io.h                      |    6 ++
+ include/linux/pmem.h                    |  102 +++++++++++++++++++++++++++++++
+ kernel/resource.c                       |   41 ++++++++++++
+ lib/Kconfig                             |    8 ++
+ lib/devres.c                            |   48 ++++++---------
+ lib/pci_iomap.c                         |    7 +-
+ 64 files changed, 440 insertions(+), 138 deletions(-)
+ create mode 100644 include/linux/pmem.h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
