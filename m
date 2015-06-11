@@ -1,120 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 795136B0032
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 15:55:49 -0400 (EDT)
-Received: by qkhg32 with SMTP id g32so7771105qkh.0
-        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 12:55:49 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
-        by mx.google.com with ESMTP id g36si1608137qgd.123.2015.06.11.12.55.48
-        for <linux-mm@kvack.org>;
-        Thu, 11 Jun 2015 12:55:48 -0700 (PDT)
-Message-ID: <5579E7C3.2020601@akamai.com>
-Date: Thu, 11 Jun 2015 15:55:47 -0400
-From: Eric B Munson <emunson@akamai.com>
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id A11886B0032
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 16:06:15 -0400 (EDT)
+Received: by wgez8 with SMTP id z8so11087372wge.0
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 13:06:15 -0700 (PDT)
+Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com. [2a00:1450:400c:c05::22c])
+        by mx.google.com with ESMTPS id cw10si3097727wjc.154.2015.06.11.13.06.13
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Jun 2015 13:06:14 -0700 (PDT)
+Received: by wiga1 with SMTP id a1so83203919wig.0
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 13:06:13 -0700 (PDT)
+Date: Thu, 11 Jun 2015 13:06:04 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: linux 4.1-rc7 deadlock
+In-Reply-To: <CAKSJeFLb523beVQHqWhCtaBOECfeYrwWdojb5M8wqQWMfwJ72A@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1506111246170.6716@eggly.anvils>
+References: <5576D3E7.40302@fedoraproject.org> <5576F3DA.7000106@monom.org> <CAKSJeFLb523beVQHqWhCtaBOECfeYrwWdojb5M8wqQWMfwJ72A@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RESEND PATCH V2 0/3] Allow user to request memory to be locked
- on page fault
-References: <1433942810-7852-1-git-send-email-emunson@akamai.com>	<20150610145929.b22be8647887ea7091b09ae1@linux-foundation.org>	<5579DFBA.80809@akamai.com> <20150611123424.4bb07cffd0e5bb146cc92231@linux-foundation.org>
-In-Reply-To: <20150611123424.4bb07cffd0e5bb146cc92231@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shuah Khan <shuahkh@osg.samsung.com>, Michal Hocko <mhocko@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: Morten Stevens <mstevens@fedoraproject.org>
+Cc: Daniel Wagner <wagi@monom.org>, Prarit Bhargava <prarit@redhat.com>, Dave Chinner <david@fromorbit.com>, Eric Paris <eparis@redhat.com>, Eric Sandeen <esandeen@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+On Tue, 9 Jun 2015, Morten Stevens wrote:
+> 2015-06-09 16:10 GMT+02:00 Daniel Wagner <wagi@monom.org>:
+> > On 06/09/2015 01:54 PM, Morten Stevens wrote:
+> >> [   28.193327]  Possible unsafe locking scenario:
+> >>
+> >> [   28.194297]        CPU0                    CPU1
+> >> [   28.194774]        ----                    ----
+> >> [   28.195254]   lock(&mm->mmap_sem);
+> >> [   28.195709]                                lock(&xfs_dir_ilock_class);
+> >> [   28.196174]                                lock(&mm->mmap_sem);
+> >> [   28.196654]   lock(&isec->lock);
+> >> [   28.197108]
+> >
+> > [...]
+> >
+> >> Any ideas?
+> >
+> > I think you hit the same problem many have already reported:
+> >
+> > https://lkml.org/lkml/2015/3/30/594
+> 
+> Yes, that sounds very likely. But that was about 1 month ago, so I
+> thought that it has been fixed in the last weeks?
 
-On 06/11/2015 03:34 PM, Andrew Morton wrote:
-> On Thu, 11 Jun 2015 15:21:30 -0400 Eric B Munson
-> <emunson@akamai.com> wrote:
-> 
->>> Ditto mlockall(MCL_ONFAULT) followed by munlock().  I'm not
->>> sure that even makes sense but the behaviour should be
->>> understood and tested.
->> 
->> I have extended the kselftest for lock-on-fault to try both of
->> these scenarios and they work as expected.  The VMA is split and
->> the VM flags are set appropriately for the resulting VMAs.
-> 
-> munlock() should do vma merging as well.  I *think* we implemented 
-> that.  More tests for you to add ;)
+It's not likely to get fixed without Cc'ing the right people.
 
-I will add a test for this as well.  But the code is in place to merge
-VMAs IIRC.
+This appears to be the same as Prarit reported to linux-mm on
+2014/09/10.  Dave Chinner thinks it's a shmem bug, I disagree,
+but I am hopeful that it can be easily fixed at the shmem end.
 
-> 
-> How are you testing the vma merging and splitting, btw?  Parsing 
-> the profcs files?
+Here's the patch I suggested nine months ago: but got no feedback,
+so it remains Not-Yet-Signed-off-by.  Please, if you find this works
+(and does not just delay the lockdep conflict until a little later),
+do let me know, then I can add some Tested-bys and send it to Linus.
 
-To show the VMA split happened, I dropped a printk in mlock_fixup()
-and the user space test simply checks that unlocked pages are not
-marked as unevictable.  The test does not parse maps or smaps for
-actual VMA layout.  Given that we want to check the merging of VMAs as
-well I will add this.
+mm: shmem_zero_setup skip security check and lockdep conflict with XFS
 
-> 
->>> What's missing here is a syscall to set VM_LOCKONFAULT on an 
->>> arbitrary range of memory - mlock() for lock-on-fault.  It's a 
->>> shame that mlock() didn't take a `mode' argument.  Perhaps we 
->>> should add such a syscall - that would make the mmap flag
->>> unneeded but I suppose it should be kept for symmetry.
->> 
->> Do you want such a system call as part of this set?  I would need
->> some time to make sure I had thought through all the possible
->> corners one could get into with such a call, so it would delay a
->> V3 quite a bit. Otherwise I can send a V3 out immediately.
-> 
-> I think the way to look at this is to pretend that mm/mlock.c
-> doesn't exist and ask "how should we design these features".
-> 
-> And that would be:
-> 
-> - mmap() takes a `flags' argument: MAP_LOCKED|MAP_LOCKONFAULT.
-> 
-> - mlock() takes a `flags' argument.  Presently that's 
-> MLOCK_LOCKED|MLOCK_LOCKONFAULT.
-> 
-> - munlock() takes a `flags' arument.
-> MLOCK_LOCKED|MLOCK_LOCKONFAULT to specify which flags are being
-> cleared.
-> 
-> - mlockall() and munlockall() ditto.
-> 
-> 
-> IOW, LOCKED and LOCKEDONFAULT are treated identically and
-> independently.
-> 
-> Now, that's how we would have designed all this on day one.  And I 
-> think we can do this now, by adding new mlock2() and munlock2() 
-> syscalls.  And we may as well deprecate the old mlock() and
-> munlock(), not that this matters much.
-> 
-> *should* we do this?  I'm thinking "yes" - it's all pretty simple 
-> boilerplate and wrappers and such, and it gets the interface
-> correct, and extensible.
-> 
-> What do others think?
-> 
+It appears that, at some point last year, XFS made directory handling
+changes which bring it into lockdep conflict with shmem_zero_setup():
+it is surprising that mmap() can clone an inode while holding mmap_sem,
+but that has been so for many years.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
+Since those few lockdep traces that I've seen all implicated selinux,
+I'm hoping that we can use the __shmem_file_setup(,,,S_PRIVATE) which
+v3.13's commit c7277090927a ("security: shmem: implement kernel private
+shmem inodes") introduced to avoid LSM checks on kernel-internal inodes:
+the mmap("/dev/zero") cloned inode is indeed a kernel-internal detail.
 
-iQIcBAEBAgAGBQJVeefAAAoJELbVsDOpoOa9930P/j32OhsgPdxt8pmlYddpHBJg
-PJ4EOYZLoNJ0bWAoePRAQvb9Rd0UumXukkQKVdFCFW72QfMPkjqyMWWOA5BZ6dYl
-q3h3FTzcnAtVHG7bqFheV+Ie9ZX0dplTmuGlqTZzEIVePry9VXzqp9BADbWn3bVR
-ucq1CFikyEB2yu8pMtykJmEaz4CO7fzCHz6oB7RNX5oHElWmi9AieuUr5eAw6enQ
-6ofuNy/N3rTCwcjeRfdL7Xhs6vn62u4nw1Jey6l9hBQUx/ujMktKcn4VwkDXIYCi
-+h7lfXWruqOuC+lspBRJO7OL2e6nRdedpDWJypeUGcKXokxB2FEB25Yu31K9sk/8
-jDfaKNqmcfgOseLHb+DjJqG6nq9lsUhozg8C17SJpT8qFwQ8q7iJe+1GhUF1EBsL
-+DpqLU56geBY6fyIfurOfp/4Hsx2u1KzezkEnMYT/8LkbGwqbq7Zj4rquLMSHCUt
-uG5j0MuhmP8/Fuf8OMsIHHUMjBHRjH4rTyaCKxNj3T8uSuLfcnIqEZiJu2qaSA8l
-PxpQ6yy2szw9lDxPvxLnh8Rkx+SGEc1ciamyppDTI4LQRiCjMQ7bHAKo0RwAaPJL
-ZSHrdlDnUHrYTnd0EZwg0peh8AgkROgxna/pLpfQTeW1g3erqPfbI0Ab8N0cu5j0
-8+qA5C+DeSjaMAoMskTG
-=82B8
------END PGP SIGNATURE-----
+This also covers the !CONFIG_SHMEM use of ramfs to support /dev/zero
+(and MAP_SHARED|MAP_ANONYMOUS).  I thought there were also drivers
+which cloned inode in mmap(), but if so, I cannot locate them now.
+
+Reported-by: Prarit Bhargava <prarit@redhat.com>
+Reported-by: Daniel Wagner <wagi@monom.org>
+Reported-by: Morten Stevens <mstevens@fedoraproject.org>
+Not-Yet-Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+
+ mm/shmem.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- 4.1-rc7/mm/shmem.c	2015-04-26 19:16:31.352191298 -0700
++++ linux/mm/shmem.c	2015-06-11 11:08:21.042745594 -0700
+@@ -3401,7 +3401,7 @@ int shmem_zero_setup(struct vm_area_stru
+ 	struct file *file;
+ 	loff_t size = vma->vm_end - vma->vm_start;
+ 
+-	file = shmem_file_setup("dev/zero", size, vma->vm_flags);
++	file = __shmem_file_setup("dev/zero", size, vma->vm_flags, S_PRIVATE);
+ 	if (IS_ERR(file))
+ 		return PTR_ERR(file);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
