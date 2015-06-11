@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A17A6B0032
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 03:12:29 -0400 (EDT)
-Received: by pdjm12 with SMTP id m12so52121958pdj.3
-        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 00:12:29 -0700 (PDT)
-Received: from out21.biz.mail.alibaba.com (out114-136.biz.mail.alibaba.com. [205.204.114.136])
-        by mx.google.com with ESMTP id vx6si17769585pab.220.2015.06.11.00.12.26
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DAFD46B006C
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 03:58:31 -0400 (EDT)
+Received: by padev16 with SMTP id ev16so49070202pad.0
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 00:58:31 -0700 (PDT)
+Received: from us-alimail-mta1.hst.scl.en.alidc.net (mail113-248.mail.alibaba.com. [205.204.113.248])
+        by mx.google.com with ESMTP id gs10si17967643pac.124.2015.06.11.00.58.29
         for <linux-mm@kvack.org>;
-        Thu, 11 Jun 2015 00:12:28 -0700 (PDT)
+        Thu, 11 Jun 2015 00:58:30 -0700 (PDT)
 Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
 From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-Subject: Re: [PATCH 03/25] mm, vmscan: Move LRU lists to node
-Date: Thu, 11 Jun 2015 15:12:12 +0800
-Message-ID: <00e901d0a415$f06fed80$d14fc880$@alibaba-inc.com>
+Subject: Re: [PATCH 04/25] mm, vmscan: Begin reclaiming pages on a per-node basis
+Date: Thu, 11 Jun 2015 15:58:14 +0800
+Message-ID: <00fe01d0a41c$5f242bf0$1d6c83d0$@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="UTF-8"
@@ -23,84 +23,44 @@ List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
 
-> @@ -774,6 +764,21 @@ typedef struct pglist_data {
->  	ZONE_PADDING(_pad1_)
->  	spinlock_t		lru_lock;
+> @@ -1319,6 +1322,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  	struct list_head *src = &lruvec->lists[lru];
+>  	unsigned long nr_taken = 0;
+>  	unsigned long scan;
+> +	LIST_HEAD(pages_skipped);
 > 
-> +	/* Fields commonly accessed by the page reclaim scanner */
-> +	struct lruvec		lruvec;
+>  	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
+>  		struct page *page;
+> @@ -1329,6 +1333,9 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+> 
+>  		VM_BUG_ON_PAGE(!PageLRU(page), page);
+> 
+> +		if (page_zone_id(page) > sc->reclaim_idx)
+> +			list_move(&page->lru, &pages_skipped);
 > +
-> +	/* Evictions & activations on the inactive file list */
-> +	atomic_long_t		inactive_age;
-> +
+>  		switch (__isolate_lru_page(page, mode)) {
+>  		case 0:
+>  			nr_pages = hpage_nr_pages(page);
+> @@ -1347,6 +1354,15 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  		}
+>  	}
+> 
 > +	/*
-> +	 * The target ratio of ACTIVE_ANON to INACTIVE_ANON pages on
-> +	 * this zone's LRU.  Maintained by the pageout code.
+> +	 * Splice any skipped pages to the start of the LRU list. Note that
+> +	 * this disrupts the LRU order when reclaiming for lower zones but
+> +	 * we cannot splice to the tail. If we did then the SWAP_CLUSTER_MAX
+> +	 * scanning would soon rescan the same pages to skip and put the
+> +	 * system at risk of premature OOM.
 > +	 */
+> +	if (!list_empty(&pages_skipped))
+> +		list_splice(&pages_skipped, src);
+>  	*nr_scanned = scan;
+>  	trace_mm_vmscan_lru_isolate(sc->order, nr_to_scan, scan,
+>  				    nr_taken, mode, is_file_lru(lru));
 
-The comment has to be updated.
+Can we avoid splicing pages by skipping pages with scan not incremented?
 
-> +	unsigned int inactive_ratio;
-> +
-> +	unsigned long		flags;
-> +
-> +	ZONE_PADDING(_pad2_)
->  	struct per_cpu_nodestat __percpu *per_cpu_nodestats;
->  	atomic_long_t		vm_stat[NR_VM_NODE_STAT_ITEMS];
->  } pg_data_t;
-> @@ -1185,7 +1185,7 @@ struct lruvec *mem_cgroup_zone_lruvec(struct zone *zone,
->  	struct lruvec *lruvec;
-> 
->  	if (mem_cgroup_disabled()) {
-> -		lruvec = &zone->lruvec;
-> +		lruvec = zone_lruvec(zone);
->  		goto out;
->  	}
-> 
-> @@ -1197,8 +1197,8 @@ out:
->  	 * we have to be prepared to initialize lruvec->zone here;
->  	 * and if offlined then reonlined, we need to reinitialize it.
->  	 */
-> -	if (unlikely(lruvec->zone != zone))
-> -		lruvec->zone = zone;
-> +	if (unlikely(lruvec->pgdat != zone->zone_pgdat))
-> +		lruvec->pgdat = zone->zone_pgdat;
-
-See below please.
-
->  	return lruvec;
->  }
-> 
-> @@ -1211,14 +1211,14 @@ out:
->   * and putback protocol: the LRU lock must be held, and the page must
->   * either be PageLRU() or the caller must have isolated/allocated it.
->   */
-> -struct lruvec *mem_cgroup_page_lruvec(struct page *page, struct zone *zone)
-> +struct lruvec *mem_cgroup_page_lruvec(struct page *page, struct pglist_data *pgdat)
->  {
->  	struct mem_cgroup_per_zone *mz;
->  	struct mem_cgroup *memcg;
->  	struct lruvec *lruvec;
-> 
->  	if (mem_cgroup_disabled()) {
-> -		lruvec = &zone->lruvec;
-> +		lruvec = &pgdat->lruvec;
->  		goto out;
->  	}
-> 
-> @@ -1238,8 +1238,8 @@ out:
->  	 * we have to be prepared to initialize lruvec->zone here;
->  	 * and if offlined then reonlined, we need to reinitialize it.
->  	 */
-> -	if (unlikely(lruvec->zone != zone))
-> -		lruvec->zone = zone;
-> +	if (unlikely(lruvec->pgdat != pgdat))
-> +		lruvec->pgdat = pgdat;
-
-Given &pgdat->lruvec, we no longer need(or are able) to set lruvec->pgdat.
-
->  	return lruvec;
->  }
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
