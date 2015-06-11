@@ -1,265 +1,85 @@
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [RFC] panic_on_oom_timeout
-Date: Tue, 9 Jun 2015 19:03:10 +0200
-Message-ID: <20150609170310.GA8990@dhcp22.suse.cz>
+From: Shaohua Li <shli@fb.com>
+Subject: [RFC v2] net: use atomic allocation for order-3 page allocation
+Date: Thu, 11 Jun 2015 15:27:16 -0700
+Message-ID: <71a20cf185c485fa23d9347bd846a6f4e9753405.1434053941.git.shli__3523.43395720727$1434061654$gmane$org@fb.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-kernel-owner@vger.kernel.org>
-Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: linux-mm@kvack.org
-Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
-List-Id: linux-mm.kvack.org
+Content-Type: text/plain
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by plane.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1Z3AwU-0000IG-Qk
+	for glkm-linux-mm-2@m.gmane.org; Fri, 12 Jun 2015 00:27:23 +0200
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F1E86B0038
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 18:27:21 -0400 (EDT)
+Received: by padev16 with SMTP id ev16so10380000pad.0
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 15:27:21 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id pm1si2656462pbc.4.2015.06.11.15.27.20
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 11 Jun 2015 15:27:20 -0700 (PDT)
+Received: from pps.filterd (m0044010 [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.14.5/8.14.5) with SMTP id t5BMOs35002770
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 15:27:19 -0700
+Received: from mail.thefacebook.com ([199.201.64.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 1uy7af17qd-1
+	(version=TLSv1/SSLv3 cipher=AES128-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 15:27:19 -0700
+Received: from facebook.com (2401:db00:20:7003:face:0:4d:0)	by
+ mx-out.facebook.com (10.212.236.87) with ESMTP	id
+ 047b2ac6108911e584310002c9521c9e-3d1dc2a0 for <linux-mm@kvack.org>;	Thu, 11
+ Jun 2015 15:27:17 -0700
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: netdev@vger.kernel.org
+Cc: davem@davemloft.net, Kernel-team@fb.com, clm@fb.com, linux-mm@kvack.org, dbavatar@gmail.com, Eric Dumazet <edumazet@google.com>
 
-Hi,
-during the last iteration of the timeout based oom killer discussion
-(http://marc.info/?l=linux-mm&m=143351457601723) I've proposed to
-introduce panic_on_oom_timeout as an extension to panic_on_oom rather
-than oom timeout which would allow OOM killer to select another oom
-victim and do that until the OOM is resolved or the system panics due to
-potential oom victims depletion.
+We saw excessive direct memory compaction triggered by skb_page_frag_refill.
+This causes performance issues and add latency. Commit 5640f7685831e0
+introduces the order-3 allocation. According to the changelog, the order-3
+allocation isn't a must-have but to improve performance. But direct memory
+compaction has high overhead. The benefit of order-3 allocation can't
+compensate the overhead of direct memory compaction.
 
-My main rationale for going panic_on_oom_timeout way is that this
-approach will lead to much more predictable behavior because the system
-will get to a usable state after given amount of time + reboot time.
-On the other hand, if the other approach was chosen then there is no
-guarantee that another victim would be in any better situation than the
-original one. In fact there might be many tasks blocked on a single lock
-(e.g. i_mutex) and the oom killer doesn't have any way to find out which
-task to kill in order to make the progress. The result would be
-N*timeout time period when the system is basically unusable and the N is
-unknown to the admin.
+This patch makes the order-3 page allocation atomic. If there is no memory
+pressure and memory isn't fragmented, the alloction will still success, so we
+don't sacrifice the order-3 benefit here. If the atomic allocation fails,
+direct memory compaction will not be triggered, skb_page_frag_refill will
+fallback to order-0 immediately, hence the direct memory compaction overhead is
+avoided. In the allocation failure case, kswapd is waken up and doing
+compaction, so chances are allocation could success next time.
 
-I think that it is more appropriate to shut such a system down when such
-a corner case is hit rather than struggle for basically unbounded amount
-of time.
+The mellanox driver does similar thing, if this is accepted, we must fix
+the driver too.
 
-Thoughts? An RFC implementing this is below. It is quite trivial and
-I've tried to test it a bit. I will add the missing pieces if this looks
-like a way to go.
+V2: make the changelog clearer
 
-There are obviously places in the oom killer and the page allocator path
-which could be improved and this patch doesn't try to put them aside. It
-is just providing a reasonable the very last resort when things go
-really wrong.
+Cc: Eric Dumazet <edumazet@google.com>
+Signed-off-by: Shaohua Li <shli@fb.com>
 ---
->From 35b7cff442326c609cdbb78757ef46e6d0ca0c61 Mon Sep 17 00:00:00 2001
-From: Michal Hocko <mhocko@suse.cz>
-Date: Tue, 9 Jun 2015 16:15:42 +0200
-Subject: [RFC] oom: implement panic_on_oom_timeout
+ net/core/sock.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-OOM killer is a desparate last resort reclaim attempt to free some
-memory. It is based on heuristics which will never be 100% and may
-result in an unusable or a locked up system.
-
-panic_on_oom sysctl knob allows to set the OOM policy to panic the
-system instead of trying to resolve the OOM condition. This might be
-useful for several reasons - e.g. reduce the downtime to a predictable
-amount of time, allow to get a crash dump of the system and debug the
-issue post-mortem.
-
-panic_on_oom is, however, a big hammer in many situations when the
-OOM condition could be resolved in a reasonable time. So it would be
-good to have some middle ground and allow the OOM killer to do its job
-but have a failover when things go wrong and it is not able to make any
-further progress for a considerable amount of time.
-
-This patch implements panic_on_oom_timeout sysctl which is active
-only when panic_on_oom!=0 and it configures a maximum timeout for
-the OOM killer to resolve the OOM situation. If the system is still
-under OOM after the timeout expires it will panic the system as per
-panic_on_oom configuration. A reasonably chosen timeout can protect from
-both temporal OOM conditions and allows to have a predictable time frame
-for the OOM condition.
-
-The feature is implemented as a delayed work which is scheduled when
-the OOM condition is declared for the first time (oom_victims is still
-zero) in out_of_memory and it is canceled in exit_oom_victim after
-the oom_victims count drops down to zero. For this time period OOM
-killer cannot kill new tasks and it only allows exiting or killed
-tasks to access memory reserves (and increase oom_victims counter via
-mark_oom_victim) in order to make a progress so it is reasonable to
-consider the elevated oom_victims count as an ongoing OOM condition
-
-The log will then contain something like:
-[  904.144494] run_test.sh invoked oom-killer: gfp_mask=0x280da, order=0, oom_score_adj=0
-[  904.145854] run_test.sh cpuset=/ mems_allowed=0
-[  904.146651] CPU: 0 PID: 5244 Comm: run_test.sh Not tainted 4.0.0-oomtimeout2-00001-g3b4737913602 #575
-[...]
-[  905.147523] panic_on_oom timeout 1s has expired
-[  905.150049] kworker/0:1 invoked oom-killer: gfp_mask=0x280da, order=0, oom_score_adj=0
-[  905.154572] kworker/0:1 cpuset=/ mems_allowed=0
-[...]
-[  905.503378] Kernel panic - not syncing: Out of memory: system-wide panic_on_oom is enabled
-
-TODO: Documentation update
-TODO: check all potential paths which might skip mark_oom_victim
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
- include/linux/oom.h |  1 +
- kernel/sysctl.c     |  8 ++++++
- mm/oom_kill.c       | 75 ++++++++++++++++++++++++++++++++++++++++++++++++++---
- 3 files changed, 80 insertions(+), 4 deletions(-)
-
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 061e0ffd3493..6884c8dc37a0 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -100,4 +100,5 @@ static inline bool task_will_free_mem(struct task_struct *task)
- extern int sysctl_oom_dump_tasks;
- extern int sysctl_oom_kill_allocating_task;
- extern int sysctl_panic_on_oom;
-+extern int sysctl_panic_on_oom_timeout;
- #endif /* _INCLUDE_LINUX_OOM_H */
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index d6fff89b78db..3ac2e5d0b1e2 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1141,6 +1141,14 @@ static struct ctl_table vm_table[] = {
- 		.extra2		= &two,
- 	},
- 	{
-+		.procname	= "panic_on_oom_timeout",
-+		.data		= &sysctl_panic_on_oom_timeout,
-+		.maxlen		= sizeof(sysctl_panic_on_oom_timeout),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec_minmax,
-+		.extra1		= &zero,
-+	},
-+	{
- 		.procname	= "oom_kill_allocating_task",
- 		.data		= &sysctl_oom_kill_allocating_task,
- 		.maxlen		= sizeof(sysctl_oom_kill_allocating_task),
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index d7fb1275e200..9b1ac69caa24 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -35,11 +35,14 @@
- #include <linux/freezer.h>
- #include <linux/ftrace.h>
- #include <linux/ratelimit.h>
-+#include <linux/nodemask.h>
-+#include <linux/lockdep.h>
+diff --git a/net/core/sock.c b/net/core/sock.c
+index 292f422..e9855a4 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -1883,7 +1883,7 @@ bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t gfp)
  
- #define CREATE_TRACE_POINTS
- #include <trace/events/oom.h>
- 
- int sysctl_panic_on_oom;
-+int sysctl_panic_on_oom_timeout;
- int sysctl_oom_kill_allocating_task;
- int sysctl_oom_dump_tasks = 1;
- 
-@@ -430,6 +433,9 @@ void mark_oom_victim(struct task_struct *tsk)
- 	atomic_inc(&oom_victims);
- }
- 
-+static void delayed_panic_on_oom(struct work_struct *w);
-+static DECLARE_DELAYED_WORK(panic_on_oom_work, delayed_panic_on_oom);
-+
- /**
-  * exit_oom_victim - note the exit of an OOM victim
-  */
-@@ -437,8 +443,10 @@ void exit_oom_victim(void)
- {
- 	clear_thread_flag(TIF_MEMDIE);
- 
--	if (!atomic_dec_return(&oom_victims))
-+	if (!atomic_dec_return(&oom_victims)) {
-+		cancel_delayed_work(&panic_on_oom_work);
- 		wake_up_all(&oom_victims_wait);
-+	}
- }
- 
- /**
-@@ -538,6 +546,7 @@ static void __oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 
- 	p = find_lock_task_mm(victim);
- 	if (!p) {
-+		/* TODO cancel delayed_panic_on_oom */
- 		put_task_struct(victim);
- 		return;
- 	} else if (victim != p) {
-@@ -606,6 +615,62 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 			nodemask, message);
- }
- 
-+static void panic_on_oom(enum oom_constraint constraint, gfp_t gfp_mask,
-+			int order, const nodemask_t *nodemask,
-+			struct mem_cgroup *memcg)
-+{
-+	dump_header(NULL, gfp_mask, order, memcg, nodemask);
-+	panic("Out of memory: %s panic_on_oom is enabled\n",
-+		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
-+}
-+
-+static struct oom_ctx {
-+	enum oom_constraint constraint;
-+	gfp_t gfp_mask;
-+	int order;
-+	nodemask_t nodemask;
-+	struct mem_cgroup *memcg;
-+	int timeout;
-+} oom_ctx;
-+
-+static void delayed_panic_on_oom(struct work_struct *w)
-+{
-+	pr_info("panic_on_oom timeout %ds has expired\n", oom_ctx.timeout);
-+	panic_on_oom(oom_ctx.constraint, oom_ctx.gfp_mask, oom_ctx.order,
-+			&oom_ctx.nodemask, oom_ctx.memcg);
-+}
-+
-+void schedule_panic_on_oom(enum oom_constraint constraint, gfp_t gfp_mask,
-+			int order, const nodemask_t *nodemask,
-+			struct mem_cgroup *memcg, int timeout)
-+{
-+	lockdep_assert_held(&oom_lock);
-+
-+	/*
-+	 * Only schedule the delayed panic_on_oom when this is the first OOM
-+	 * triggered. oom_lock will protect us from races
-+	 */
-+	if (atomic_read(&oom_victims))
-+		return;
-+
-+	oom_ctx.constraint = constraint;
-+	oom_ctx.gfp_mask = gfp_mask;
-+	oom_ctx.order = order;
-+	if (nodemask)
-+		oom_ctx.nodemask = *nodemask;
-+	else
-+		memset(&oom_ctx.nodemask, 0, sizeof(oom_ctx.nodemask));
-+
-+	/*
-+	 * The killed task should ping the memcg and the even the delayed
-+	 * work either expires or strikes before the victim exits.
-+	 */
-+	oom_ctx.memcg = memcg;
-+	oom_ctx.timeout = timeout;
-+
-+	schedule_delayed_work(&panic_on_oom_work, timeout*HZ);
-+}
-+
- /*
-  * Determines whether the kernel must panic because of the panic_on_oom sysctl.
-  */
-@@ -624,9 +689,11 @@ void check_panic_on_oom(enum oom_constraint constraint, gfp_t gfp_mask,
- 		if (constraint != CONSTRAINT_NONE)
- 			return;
- 	}
--	dump_header(NULL, gfp_mask, order, memcg, nodemask);
--	panic("Out of memory: %s panic_on_oom is enabled\n",
--		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
-+	if (!sysctl_panic_on_oom_timeout)
-+		panic_on_oom(constraint, gfp_mask, order, nodemask, memcg);
-+	else
-+		schedule_panic_on_oom(constraint, gfp_mask, order, nodemask,
-+				memcg, sysctl_panic_on_oom_timeout);
- }
- 
- static BLOCKING_NOTIFIER_HEAD(oom_notify_list);
+ 	pfrag->offset = 0;
+ 	if (SKB_FRAG_PAGE_ORDER) {
+-		pfrag->page = alloc_pages(gfp | __GFP_COMP |
++		pfrag->page = alloc_pages((gfp & ~__GFP_WAIT) | __GFP_COMP |
+ 					  __GFP_NOWARN | __GFP_NORETRY,
+ 					  SKB_FRAG_PAGE_ORDER);
+ 		if (likely(pfrag->page)) {
 -- 
-2.1.4
+1.8.1
 
--- 
-Michal Hocko
-SUSE Labs
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
