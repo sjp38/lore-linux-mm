@@ -1,70 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com [209.85.220.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F6CE6B0032
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 02:02:50 -0400 (EDT)
-Received: by qkoo18 with SMTP id o18so36405965qko.1
-        for <linux-mm@kvack.org>; Wed, 10 Jun 2015 23:02:49 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id 128si11052051qhs.23.2015.06.10.23.02.47
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A17A6B0032
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 03:12:29 -0400 (EDT)
+Received: by pdjm12 with SMTP id m12so52121958pdj.3
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 00:12:29 -0700 (PDT)
+Received: from out21.biz.mail.alibaba.com (out114-136.biz.mail.alibaba.com. [205.204.114.136])
+        by mx.google.com with ESMTP id vx6si17769585pab.220.2015.06.11.00.12.26
         for <linux-mm@kvack.org>;
-        Wed, 10 Jun 2015 23:02:48 -0700 (PDT)
-Date: Wed, 10 Jun 2015 23:02:45 -0700 (PDT)
-Message-Id: <20150610.230245.11186520327122078.davem@davemloft.net>
-Subject: Re: [PATCH v2] net, swap: Remove a warning and clarify why
- sk_mem_reclaim is required when deactivating swap
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <1433984524-28063-1-git-send-email-jeff.layton@primarydata.com>
-References: <1433875204-18060-1-git-send-email-jeff.layton@primarydata.com>
-	<1433984524-28063-1-git-send-email-jeff.layton@primarydata.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+        Thu, 11 Jun 2015 00:12:28 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+Subject: Re: [PATCH 03/25] mm, vmscan: Move LRU lists to node
+Date: Thu, 11 Jun 2015 15:12:12 +0800
+Message-ID: <00e901d0a415$f06fed80$d14fc880$@alibaba-inc.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="UTF-8"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jlayton@poochiereds.net
-Cc: trond.myklebust@primarydata.com, netdev@vger.kernel.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, mgorman@suse.de, linux-mm@kvack.org, leon@leon.nu
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
 
-From: Jeff Layton <jlayton@poochiereds.net>
-Date: Wed, 10 Jun 2015 21:02:04 -0400
+> @@ -774,6 +764,21 @@ typedef struct pglist_data {
+>  	ZONE_PADDING(_pad1_)
+>  	spinlock_t		lru_lock;
+> 
+> +	/* Fields commonly accessed by the page reclaim scanner */
+> +	struct lruvec		lruvec;
+> +
+> +	/* Evictions & activations on the inactive file list */
+> +	atomic_long_t		inactive_age;
+> +
+> +	/*
+> +	 * The target ratio of ACTIVE_ANON to INACTIVE_ANON pages on
+> +	 * this zone's LRU.  Maintained by the pageout code.
+> +	 */
 
-> From: Mel Gorman <mgorman@suse.de>
-> 
-> Jeff Layton reported the following;
-> 
->  [   74.232485] ------------[ cut here ]------------
->  [   74.233354] WARNING: CPU: 2 PID: 754 at net/core/sock.c:364 sk_clear_memalloc+0x51/0x80()
->  [   74.234790] Modules linked in: cts rpcsec_gss_krb5 nfsv4 dns_resolver nfs fscache xfs libcrc32c snd_hda_codec_generic snd_hda_intel snd_hda_controller snd_hda_codec snd_hda_core snd_hwdep snd_seq snd_seq_device nfsd snd_pcm snd_timer snd e1000 ppdev parport_pc joydev parport pvpanic soundcore floppy serio_raw i2c_piix4 pcspkr nfs_acl lockd virtio_balloon acpi_cpufreq auth_rpcgss grace sunrpc qxl drm_kms_helper ttm drm virtio_console virtio_blk virtio_pci ata_generic virtio_ring pata_acpi virtio
->  [   74.243599] CPU: 2 PID: 754 Comm: swapoff Not tainted 4.1.0-rc6+ #5
->  [   74.244635] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
->  [   74.245546]  0000000000000000 0000000079e69e31 ffff8800d066bde8 ffffffff8179263d
->  [   74.246786]  0000000000000000 0000000000000000 ffff8800d066be28 ffffffff8109e6fa
->  [   74.248175]  0000000000000000 ffff880118d48000 ffff8800d58f5c08 ffff880036e380a8
->  [   74.249483] Call Trace:
->  [   74.249872]  [<ffffffff8179263d>] dump_stack+0x45/0x57
->  [   74.250703]  [<ffffffff8109e6fa>] warn_slowpath_common+0x8a/0xc0
->  [   74.251655]  [<ffffffff8109e82a>] warn_slowpath_null+0x1a/0x20
->  [   74.252585]  [<ffffffff81661241>] sk_clear_memalloc+0x51/0x80
->  [   74.253519]  [<ffffffffa0116c72>] xs_disable_swap+0x42/0x80 [sunrpc]
->  [   74.254537]  [<ffffffffa01109de>] rpc_clnt_swap_deactivate+0x7e/0xc0 [sunrpc]
->  [   74.255610]  [<ffffffffa03e4fd7>] nfs_swap_deactivate+0x27/0x30 [nfs]
->  [   74.256582]  [<ffffffff811e99d4>] destroy_swap_extents+0x74/0x80
->  [   74.257496]  [<ffffffff811ecb52>] SyS_swapoff+0x222/0x5c0
->  [   74.258318]  [<ffffffff81023f27>] ? syscall_trace_leave+0xc7/0x140
->  [   74.259253]  [<ffffffff81798dae>] system_call_fastpath+0x12/0x71
->  [   74.260158] ---[ end trace 2530722966429f10 ]---
-> 
-> The warning in question was unnecessary but with Jeff's series the rules
-> are also clearer.  This patch removes the warning and updates the comment
-> to explain why sk_mem_reclaim() may still be called.
-> 
-> [jlayton: remove if (sk->sk_forward_alloc) conditional. As Leon
->           points out that it's not needed.]
-> 
-> Cc: Leon Romanovsky <leon@leon.nu>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Signed-off-by: Jeff Layton <jeff.layton@primarydata.com>
+The comment has to be updated.
 
-Applied, thanks everyone.
+> +	unsigned int inactive_ratio;
+> +
+> +	unsigned long		flags;
+> +
+> +	ZONE_PADDING(_pad2_)
+>  	struct per_cpu_nodestat __percpu *per_cpu_nodestats;
+>  	atomic_long_t		vm_stat[NR_VM_NODE_STAT_ITEMS];
+>  } pg_data_t;
+> @@ -1185,7 +1185,7 @@ struct lruvec *mem_cgroup_zone_lruvec(struct zone *zone,
+>  	struct lruvec *lruvec;
+> 
+>  	if (mem_cgroup_disabled()) {
+> -		lruvec = &zone->lruvec;
+> +		lruvec = zone_lruvec(zone);
+>  		goto out;
+>  	}
+> 
+> @@ -1197,8 +1197,8 @@ out:
+>  	 * we have to be prepared to initialize lruvec->zone here;
+>  	 * and if offlined then reonlined, we need to reinitialize it.
+>  	 */
+> -	if (unlikely(lruvec->zone != zone))
+> -		lruvec->zone = zone;
+> +	if (unlikely(lruvec->pgdat != zone->zone_pgdat))
+> +		lruvec->pgdat = zone->zone_pgdat;
+
+See below please.
+
+>  	return lruvec;
+>  }
+> 
+> @@ -1211,14 +1211,14 @@ out:
+>   * and putback protocol: the LRU lock must be held, and the page must
+>   * either be PageLRU() or the caller must have isolated/allocated it.
+>   */
+> -struct lruvec *mem_cgroup_page_lruvec(struct page *page, struct zone *zone)
+> +struct lruvec *mem_cgroup_page_lruvec(struct page *page, struct pglist_data *pgdat)
+>  {
+>  	struct mem_cgroup_per_zone *mz;
+>  	struct mem_cgroup *memcg;
+>  	struct lruvec *lruvec;
+> 
+>  	if (mem_cgroup_disabled()) {
+> -		lruvec = &zone->lruvec;
+> +		lruvec = &pgdat->lruvec;
+>  		goto out;
+>  	}
+> 
+> @@ -1238,8 +1238,8 @@ out:
+>  	 * we have to be prepared to initialize lruvec->zone here;
+>  	 * and if offlined then reonlined, we need to reinitialize it.
+>  	 */
+> -	if (unlikely(lruvec->zone != zone))
+> -		lruvec->zone = zone;
+> +	if (unlikely(lruvec->pgdat != pgdat))
+> +		lruvec->pgdat = pgdat;
+
+Given &pgdat->lruvec, we no longer need(or are able) to set lruvec->pgdat.
+
+>  	return lruvec;
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
