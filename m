@@ -1,81 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 18F046B0038
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 19:10:41 -0400 (EDT)
-Received: by obbgp2 with SMTP id gp2so12507783obb.2
-        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 16:10:40 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id h5si1361224oer.59.2015.06.11.16.10.39
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DE656B0032
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 19:32:47 -0400 (EDT)
+Received: by pacyx8 with SMTP id yx8so10919836pac.2
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 16:32:46 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id 13si2781267pdb.141.2015.06.11.16.32.46
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jun 2015 16:10:39 -0700 (PDT)
-Message-ID: <557A1546.3090300@oracle.com>
-Date: Thu, 11 Jun 2015 16:09:58 -0700
-From: Mike Kravetz <mike.kravetz@oracle.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 11 Jun 2015 16:32:46 -0700 (PDT)
+Date: Thu, 11 Jun 2015 16:32:35 -0700
+From: Shaohua Li <shli@fb.com>
+Subject: Re: [RFC v2] net: use atomic allocation for order-3 page allocation
+Message-ID: <20150611233235.GA667489@devbig257.prn2.facebook.com>
+References: <71a20cf185c485fa23d9347bd846a6f4e9753405.1434053941.git.shli@fb.com>
+ <1434063184.27504.60.camel@edumazet-glaptop2.roam.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [RFC v4 PATCH 2/9] mm/hugetlb: expose hugetlb fault mutex for
- use by fallocate
-References: <1434056500-2434-1-git-send-email-mike.kravetz@oracle.com>	 <1434056500-2434-3-git-send-email-mike.kravetz@oracle.com> <1434062766.3165.103.camel@stgolabs.net>
-In-Reply-To: <1434062766.3165.103.camel@stgolabs.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <1434063184.27504.60.camel@edumazet-glaptop2.roam.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: netdev@vger.kernel.org, davem@davemloft.net, Kernel-team@fb.com, clm@fb.com, linux-mm@kvack.org, dbavatar@gmail.com, Eric Dumazet <edumazet@google.com>
 
-On 06/11/2015 03:46 PM, Davidlohr Bueso wrote:
-> On Thu, 2015-06-11 at 14:01 -0700, Mike Kravetz wrote:
->>   /* Forward declaration */
->>   static int hugetlb_acct_memory(struct hstate *h, long delta);
->> @@ -3324,7 +3324,8 @@ static u32 fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
->>   	unsigned long key[2];
->>   	u32 hash;
->>
->> -	if (vma->vm_flags & VM_SHARED) {
->> +	/* !vma implies this was called from hugetlbfs fallocate code */
->> +	if (!vma || vma->vm_flags & VM_SHARED) {
->
-> That !vma is icky, and really no need for it: hugetlbfs_fallocate(), for
-> example, already passes [pseudo]vma->vm_flags with VM_SHARED, and you
-> say it yourself in the comment. Do you see any reason why we cannot just
-> keep the vma->vm_flags & VM_SHARED check?
->
->> +/*
->> + * Interface for use by hugetlbfs fallocate code.  Faults must be
->> + * synchronized with page adds or deletes by fallocate.  fallocate
->> + * only deals with shared mappings.  See also hugetlb_fault_mutex_lock
->> + * and hugetlb_fault_mutex_unlock.
->> + */
->> +u32 hugetlb_fault_mutex_shared_hash(struct address_space *mapping, pgoff_t idx)
->> +{
->> +	return fault_mutex_hash(NULL, NULL, NULL, mapping, idx, 0);
->> +}
->
-> It strikes me that this too should be static inlined. But I really
-> dislike the nil params thing, which should be addressed by my comment
-> above.
+On Thu, Jun 11, 2015 at 03:53:04PM -0700, Eric Dumazet wrote:
+> On Thu, 2015-06-11 at 15:27 -0700, Shaohua Li wrote:
+> > We saw excessive direct memory compaction triggered by skb_page_frag_refill.
+> > This causes performance issues and add latency. Commit 5640f7685831e0
+> > introduces the order-3 allocation. According to the changelog, the order-3
+> > allocation isn't a must-have but to improve performance. But direct memory
+> > compaction has high overhead. The benefit of order-3 allocation can't
+> > compensate the overhead of direct memory compaction.
+> > 
+> > This patch makes the order-3 page allocation atomic. If there is no memory
+> > pressure and memory isn't fragmented, the alloction will still success, so we
+> > don't sacrifice the order-3 benefit here. If the atomic allocation fails,
+> > direct memory compaction will not be triggered, skb_page_frag_refill will
+> > fallback to order-0 immediately, hence the direct memory compaction overhead is
+> > avoided. In the allocation failure case, kswapd is waken up and doing
+> > compaction, so chances are allocation could success next time.
+> > 
+> > The mellanox driver does similar thing, if this is accepted, we must fix
+> > the driver too.
+> > 
+> > V2: make the changelog clearer
+> > 
+> > Cc: Eric Dumazet <edumazet@google.com>
+> > Signed-off-by: Shaohua Li <shli@fb.com>
+> > ---
+> >  net/core/sock.c | 2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > 
+> > diff --git a/net/core/sock.c b/net/core/sock.c
+> > index 292f422..e9855a4 100644
+> > --- a/net/core/sock.c
+> > +++ b/net/core/sock.c
+> > @@ -1883,7 +1883,7 @@ bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t gfp)
+> >  
+> >  	pfrag->offset = 0;
+> >  	if (SKB_FRAG_PAGE_ORDER) {
+> > -		pfrag->page = alloc_pages(gfp | __GFP_COMP |
+> > +		pfrag->page = alloc_pages((gfp & ~__GFP_WAIT) | __GFP_COMP |
+> >  					  __GFP_NOWARN | __GFP_NORETRY,
+> >  					  SKB_FRAG_PAGE_ORDER);
+> >  		if (likely(pfrag->page)) {
+> 
+> 
+> OK, now what about alloc_skb_with_frags() ?
+> 
+> This should have same problem right ?
 
-In the previous RFC, I was trying not to make all the fault mutex data
-global (so it could be accessed outside hugetlb.c).  That was the
-original reason for the wrapper interfaces.  That may just be too ugly,
-and does not buy us much.
-
-Now that the mutex table is global for inlining, I might as well make
-fault_mutex_hash() global.  I can then get rid of the wrappers.  However,
-I'm guessing it would be a good idea to change the name(s) to something
-hugetlb specific since they will be global.
-
--- 
-Mike Kravetz
-
->
-> Thanks,
-> Davidlohr
->
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Ok, looks similar, added. Didn't trigger this one though.
