@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D10B900015
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 17:22:07 -0400 (EDT)
-Received: by payr10 with SMTP id r10so9720035pay.1
-        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 14:22:06 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id ux8si2443742pbc.145.2015.06.11.14.22.05
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 493C2900015
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 17:22:13 -0400 (EDT)
+Received: by pdbnf5 with SMTP id nf5so10497607pdb.2
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 14:22:13 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id by2si2415677pbb.217.2015.06.11.14.22.11
         for <linux-mm@kvack.org>;
-        Thu, 11 Jun 2015 14:22:05 -0700 (PDT)
-Subject: [PATCH v4 2/6] cleanup IORESOURCE_CACHEABLE vs ioremap()
+        Thu, 11 Jun 2015 14:22:11 -0700 (PDT)
+Subject: [PATCH v4 3/6] arch/*/asm/io.h: add ioremap_cache() to all
+ architectures
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 11 Jun 2015 17:19:24 -0400
-Message-ID: <20150611211924.10271.2950.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Thu, 11 Jun 2015 17:19:30 -0400
+Message-ID: <20150611211930.10271.9100.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <20150611211354.10271.57950.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <20150611211354.10271.57950.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -22,216 +23,419 @@ List-ID: <linux-mm.kvack.org>
 To: arnd@arndb.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org
 Cc: jgross@suse.com, x86@kernel.org, toshi.kani@hp.com, linux-nvdimm@lists.01.org, benh@kernel.crashing.org, mcgrof@suse.com, konrad.wilk@oracle.com, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, mpe@ellerman.id.au, tj@kernel.org, paulus@samba.org, hch@lst.de
 
-Quoting Arnd:
-    I was thinking the opposite approach and basically removing all uses
-    of IORESOURCE_CACHEABLE from the kernel. There are only a handful of
-    them.and we can probably replace them all with hardcoded
-    ioremap_cached() calls in the cases they are actually useful.
+Similar to ioremap_wc() let architecture implementations optionally
+provide ioremap_cache().  As is, current ioremap_cache() users have
+architecture dependencies that prevent them from compiling on archs
+without ioremap_cache().  In some cases the architectures that have a
+cached ioremap() capability have an identifier other than
+"ioremap_cache".
 
-All existing usages of IORESOURCE_CACHEABLE call ioremap() instead of
-ioremap_nocache() if the resource is cacheable, however ioremap() is
-uncached by default.  Clearly none of the existing usages care about the
-cacheability, so let's clean that up before introducing generic
-ioremap_cache() support across architectures.
+Allow drivers to compile with ioremap_cache() support and fallback to a
+safe / uncached ioremap otherwise.
 
-Suggested-by: Arnd Bergmann <arnd@arndb.de>
+Cc: Toshi Kani <toshi.kani@hp.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/arm/mach-clps711x/board-cdb89712.c |    2 +-
- arch/powerpc/kernel/pci_of_scan.c       |    2 +-
- arch/sparc/kernel/pci.c                 |    3 +--
- drivers/pci/probe.c                     |    3 +--
- drivers/pnp/manager.c                   |    2 --
- drivers/scsi/aic94xx/aic94xx_init.c     |    7 +------
- drivers/scsi/arcmsr/arcmsr_hba.c        |    5 +----
- drivers/scsi/mvsas/mv_init.c            |   15 ++++-----------
- drivers/video/fbdev/ocfb.c              |    1 -
- lib/devres.c                            |    7 ++-----
- lib/pci_iomap.c                         |    7 ++-----
- 11 files changed, 14 insertions(+), 40 deletions(-)
+ arch/arc/include/asm/io.h        |    1 +
+ arch/arm/include/asm/io.h        |    2 ++
+ arch/arm64/include/asm/io.h      |    3 +++
+ arch/avr32/include/asm/io.h      |    1 +
+ arch/frv/include/asm/io.h        |    6 ++++++
+ arch/ia64/include/asm/io.h       |    5 -----
+ arch/m32r/include/asm/io.h       |    1 +
+ arch/m68k/include/asm/io_mm.h    |    7 +++++++
+ arch/m68k/include/asm/io_no.h    |    5 +++++
+ arch/metag/include/asm/io.h      |    5 +++++
+ arch/microblaze/include/asm/io.h |    1 +
+ arch/mips/include/asm/io.h       |   17 +++++++++++++----
+ arch/mn10300/include/asm/io.h    |    1 +
+ arch/nios2/include/asm/io.h      |    1 +
+ arch/s390/include/asm/io.h       |    1 +
+ arch/sparc/include/asm/io_32.h   |    1 +
+ arch/sparc/include/asm/io_64.h   |    1 +
+ arch/tile/include/asm/io.h       |    1 +
+ arch/x86/include/asm/io.h        |    1 +
+ arch/xtensa/include/asm/io.h     |    3 +++
+ include/asm-generic/io.h         |    8 ++++++++
+ include/asm-generic/iomap.h      |    4 ++++
+ 22 files changed, 67 insertions(+), 9 deletions(-)
 
-diff --git a/arch/arm/mach-clps711x/board-cdb89712.c b/arch/arm/mach-clps711x/board-cdb89712.c
-index 1ec378c334e5..972abdb10028 100644
---- a/arch/arm/mach-clps711x/board-cdb89712.c
-+++ b/arch/arm/mach-clps711x/board-cdb89712.c
-@@ -95,7 +95,7 @@ static struct physmap_flash_data cdb89712_bootrom_pdata __initdata = {
+diff --git a/arch/arc/include/asm/io.h b/arch/arc/include/asm/io.h
+index 7cc4ced5dbf4..6b6f5a47acec 100644
+--- a/arch/arc/include/asm/io.h
++++ b/arch/arc/include/asm/io.h
+@@ -19,6 +19,7 @@ extern void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
+ extern void iounmap(const void __iomem *addr);
  
- static struct resource cdb89712_bootrom_resources[] __initdata = {
- 	DEFINE_RES_NAMED(CS7_PHYS_BASE, SZ_128, "BOOTROM", IORESOURCE_MEM |
--			 IORESOURCE_CACHEABLE | IORESOURCE_READONLY),
-+			 IORESOURCE_READONLY),
- };
+ #define ioremap_nocache(phy, sz)	ioremap(phy, sz)
++#define ioremap_cache(phy, sz)		ioremap(phy, sz)
+ #define ioremap_wc(phy, sz)		ioremap(phy, sz)
+ #define ioremap_wt(phy, sz)		ioremap(phy, sz)
  
- static struct platform_device cdb89712_bootrom_pdev __initdata = {
-diff --git a/arch/powerpc/kernel/pci_of_scan.c b/arch/powerpc/kernel/pci_of_scan.c
-index 42e02a2d570b..d4726addff0b 100644
---- a/arch/powerpc/kernel/pci_of_scan.c
-+++ b/arch/powerpc/kernel/pci_of_scan.c
-@@ -102,7 +102,7 @@ static void of_pci_parse_addrs(struct device_node *node, struct pci_dev *dev)
- 			res = &dev->resource[(i - PCI_BASE_ADDRESS_0) >> 2];
- 		} else if (i == dev->rom_base_reg) {
- 			res = &dev->resource[PCI_ROM_RESOURCE];
--			flags |= IORESOURCE_READONLY | IORESOURCE_CACHEABLE;
-+			flags |= IORESOURCE_READONLY;
- 		} else {
- 			printk(KERN_ERR "PCI: bad cfg reg num 0x%x\n", i);
- 			continue;
-diff --git a/arch/sparc/kernel/pci.c b/arch/sparc/kernel/pci.c
-index c928bc64b4ba..04da147e0712 100644
---- a/arch/sparc/kernel/pci.c
-+++ b/arch/sparc/kernel/pci.c
-@@ -231,8 +231,7 @@ static void pci_parse_of_addrs(struct platform_device *op,
- 			res = &dev->resource[(i - PCI_BASE_ADDRESS_0) >> 2];
- 		} else if (i == dev->rom_base_reg) {
- 			res = &dev->resource[PCI_ROM_RESOURCE];
--			flags |= IORESOURCE_READONLY | IORESOURCE_CACHEABLE
--			      | IORESOURCE_SIZEALIGN;
-+			flags |= IORESOURCE_READONLY | IORESOURCE_SIZEALIGN;
- 		} else {
- 			printk(KERN_ERR "PCI: bad cfg reg num 0x%x\n", i);
- 			continue;
-diff --git a/drivers/pci/probe.c b/drivers/pci/probe.c
-index 6675a7a1b9fc..bbc7f8f86051 100644
---- a/drivers/pci/probe.c
-+++ b/drivers/pci/probe.c
-@@ -326,8 +326,7 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
- 		struct resource *res = &dev->resource[PCI_ROM_RESOURCE];
- 		dev->rom_base_reg = rom;
- 		res->flags = IORESOURCE_MEM | IORESOURCE_PREFETCH |
--				IORESOURCE_READONLY | IORESOURCE_CACHEABLE |
--				IORESOURCE_SIZEALIGN;
-+				IORESOURCE_READONLY | IORESOURCE_SIZEALIGN;
- 		__pci_read_base(dev, pci_bar_mem32, res, rom);
- 	}
+diff --git a/arch/arm/include/asm/io.h b/arch/arm/include/asm/io.h
+index 1b7677d1e5e1..5e2c5cbdffdc 100644
+--- a/arch/arm/include/asm/io.h
++++ b/arch/arm/include/asm/io.h
+@@ -23,6 +23,8 @@
+ 
+ #ifdef __KERNEL__
+ 
++#define ARCH_HAS_IOREMAP_CACHE
++
+ #include <linux/types.h>
+ #include <linux/blk_types.h>
+ #include <asm/byteorder.h>
+diff --git a/arch/arm64/include/asm/io.h b/arch/arm64/include/asm/io.h
+index 7116d3973058..6a8836c9d993 100644
+--- a/arch/arm64/include/asm/io.h
++++ b/arch/arm64/include/asm/io.h
+@@ -21,6 +21,8 @@
+ 
+ #ifdef __KERNEL__
+ 
++#define ARCH_HAS_IOREMAP_CACHE
++
+ #include <linux/types.h>
+ #include <linux/blk_types.h>
+ 
+@@ -171,6 +173,7 @@ extern void __iomem *ioremap_cache(phys_addr_t phys_addr, size_t size);
+ #define ioremap_nocache(addr, size)	__ioremap((addr), (size), __pgprot(PROT_DEVICE_nGnRE))
+ #define ioremap_wc(addr, size)		__ioremap((addr), (size), __pgprot(PROT_NORMAL_NC))
+ #define ioremap_wt(addr, size)		__ioremap((addr), (size), __pgprot(PROT_DEVICE_nGnRE))
++#define ioremap_cache			ioremap_cache
+ #define iounmap				__iounmap
+ 
+ /*
+diff --git a/arch/avr32/include/asm/io.h b/arch/avr32/include/asm/io.h
+index e998ff5d8e1a..c6994d880dbd 100644
+--- a/arch/avr32/include/asm/io.h
++++ b/arch/avr32/include/asm/io.h
+@@ -297,6 +297,7 @@ extern void __iounmap(void __iomem *addr);
+ 
+ #define ioremap_wc ioremap_nocache
+ #define ioremap_wt ioremap_nocache
++#define ioremap_cache ioremap_nocache
+ 
+ #define cached(addr) P1SEGADDR(addr)
+ #define uncached(addr) P2SEGADDR(addr)
+diff --git a/arch/frv/include/asm/io.h b/arch/frv/include/asm/io.h
+index a31b63ec4930..cd841f852af3 100644
+--- a/arch/frv/include/asm/io.h
++++ b/arch/frv/include/asm/io.h
+@@ -18,6 +18,7 @@
+ #ifdef __KERNEL__
+ 
+ #define ARCH_HAS_IOREMAP_WT
++#define ARCH_HAS_IOREMAP_CACHE
+ 
+ #include <linux/types.h>
+ #include <asm/virtconvert.h>
+@@ -277,6 +278,11 @@ static inline void __iomem *ioremap_fullcache(unsigned long physaddr, unsigned l
+ 	return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
  }
-diff --git a/drivers/pnp/manager.c b/drivers/pnp/manager.c
-index 9357aa779048..7ad3295752ef 100644
---- a/drivers/pnp/manager.c
-+++ b/drivers/pnp/manager.c
-@@ -97,8 +97,6 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
- 	/* ??? rule->flags restricted to 8 bits, all tests bogus ??? */
- 	if (!(rule->flags & IORESOURCE_MEM_WRITEABLE))
- 		res->flags |= IORESOURCE_READONLY;
--	if (rule->flags & IORESOURCE_MEM_CACHEABLE)
--		res->flags |= IORESOURCE_CACHEABLE;
- 	if (rule->flags & IORESOURCE_MEM_RANGELENGTH)
- 		res->flags |= IORESOURCE_RANGELENGTH;
- 	if (rule->flags & IORESOURCE_MEM_SHADOWABLE)
-diff --git a/drivers/scsi/aic94xx/aic94xx_init.c b/drivers/scsi/aic94xx/aic94xx_init.c
-index 02a2512b76a8..1058a7b1e334 100644
---- a/drivers/scsi/aic94xx/aic94xx_init.c
-+++ b/drivers/scsi/aic94xx/aic94xx_init.c
-@@ -101,12 +101,7 @@ static int asd_map_memio(struct asd_ha_struct *asd_ha)
- 				   pci_name(asd_ha->pcidev));
- 			goto Err;
- 		}
--		if (io_handle->flags & IORESOURCE_CACHEABLE)
--			io_handle->addr = ioremap(io_handle->start,
--						  io_handle->len);
--		else
--			io_handle->addr = ioremap_nocache(io_handle->start,
--							  io_handle->len);
-+		io_handle->addr = ioremap(io_handle->start, io_handle->len);
- 		if (!io_handle->addr) {
- 			asd_printk("couldn't map MBAR%d of %s\n", i==0?0:1,
- 				   pci_name(asd_ha->pcidev));
-diff --git a/drivers/scsi/arcmsr/arcmsr_hba.c b/drivers/scsi/arcmsr/arcmsr_hba.c
-index 914c39f9f388..e4f77cad9fd8 100644
---- a/drivers/scsi/arcmsr/arcmsr_hba.c
-+++ b/drivers/scsi/arcmsr/arcmsr_hba.c
-@@ -259,10 +259,7 @@ static bool arcmsr_remap_pciregion(struct AdapterControlBlock *acb)
- 		addr = (unsigned long)pci_resource_start(pdev, 0);
- 		range = pci_resource_len(pdev, 0);
- 		flags = pci_resource_flags(pdev, 0);
--		if (flags & IORESOURCE_CACHEABLE)
--			mem_base0 = ioremap(addr, range);
--		else
--			mem_base0 = ioremap_nocache(addr, range);
-+		mem_base0 = ioremap(addr, range);
- 		if (!mem_base0) {
- 			pr_notice("arcmsr%d: memory mapping region fail\n",
- 				acb->host->host_no);
-diff --git a/drivers/scsi/mvsas/mv_init.c b/drivers/scsi/mvsas/mv_init.c
-index 53030b0e8015..c01ef5f538b1 100644
---- a/drivers/scsi/mvsas/mv_init.c
-+++ b/drivers/scsi/mvsas/mv_init.c
-@@ -325,13 +325,9 @@ int mvs_ioremap(struct mvs_info *mvi, int bar, int bar_ex)
- 			goto err_out;
  
- 		res_flag_ex = pci_resource_flags(pdev, bar_ex);
--		if (res_flag_ex & IORESOURCE_MEM) {
--			if (res_flag_ex & IORESOURCE_CACHEABLE)
--				mvi->regs_ex = ioremap(res_start, res_len);
--			else
--				mvi->regs_ex = ioremap_nocache(res_start,
--						res_len);
--		} else
-+		if (res_flag_ex & IORESOURCE_MEM)
-+			mvi->regs_ex = ioremap(res_start, res_len);
-+		else
- 			mvi->regs_ex = (void *)res_start;
- 		if (!mvi->regs_ex)
- 			goto err_out;
-@@ -343,10 +339,7 @@ int mvs_ioremap(struct mvs_info *mvi, int bar, int bar_ex)
- 		goto err_out;
++static inline void __iomem *ioremap_cache(unsigned long physaddr, unsigned long size)
++{
++	return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
++}
++
+ #define ioremap_wc ioremap_nocache
  
- 	res_flag = pci_resource_flags(pdev, bar);
--	if (res_flag & IORESOURCE_CACHEABLE)
--		mvi->regs = ioremap(res_start, res_len);
--	else
--		mvi->regs = ioremap_nocache(res_start, res_len);
-+	mvi->regs = ioremap(res_start, res_len);
- 
- 	if (!mvi->regs) {
- 		if (mvi->regs_ex && (res_flag_ex & IORESOURCE_MEM))
-diff --git a/drivers/video/fbdev/ocfb.c b/drivers/video/fbdev/ocfb.c
-index de9819660ca0..c9293aea8ec3 100644
---- a/drivers/video/fbdev/ocfb.c
-+++ b/drivers/video/fbdev/ocfb.c
-@@ -325,7 +325,6 @@ static int ocfb_probe(struct platform_device *pdev)
- 		dev_err(&pdev->dev, "I/O resource request failed\n");
- 		return -ENXIO;
- 	}
--	res->flags &= ~IORESOURCE_CACHEABLE;
- 	fbdev->regs = devm_ioremap_resource(&pdev->dev, res);
- 	if (IS_ERR(fbdev->regs))
- 		return PTR_ERR(fbdev->regs);
-diff --git a/lib/devres.c b/lib/devres.c
-index fbe2aac522e6..f4001d90d24d 100644
---- a/lib/devres.c
-+++ b/lib/devres.c
-@@ -153,11 +153,8 @@ void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res)
- 		return IOMEM_ERR_PTR(-EBUSY);
- 	}
- 
--	if (res->flags & IORESOURCE_CACHEABLE)
--		dest_ptr = devm_ioremap(dev, res->start, size);
--	else
--		dest_ptr = devm_ioremap_nocache(dev, res->start, size);
+ extern void iounmap(void volatile __iomem *addr);
+diff --git a/arch/ia64/include/asm/io.h b/arch/ia64/include/asm/io.h
+index 8588ef767a44..cba265c30c3c 100644
+--- a/arch/ia64/include/asm/io.h
++++ b/arch/ia64/include/asm/io.h
+@@ -431,11 +431,6 @@ extern void __iomem * early_ioremap (unsigned long phys_addr, unsigned long size
+ #define early_memremap(phys_addr, size)        early_ioremap(phys_addr, size)
+ extern void early_iounmap (volatile void __iomem *addr, unsigned long size);
+ #define early_memunmap(addr, size)             early_iounmap(addr, size)
+-static inline void __iomem * ioremap_cache (unsigned long phys_addr, unsigned long size)
+-{
+-	return ioremap(phys_addr, size);
+-}
 -
-+	/* FIXME: add devm_ioremap_cache support */
-+	dest_ptr = devm_ioremap(dev, res->start, size);
- 	if (!dest_ptr) {
- 		dev_err(dev, "ioremap failed for resource %pR\n", res);
- 		devm_release_mem_region(dev, res->start, size);
-diff --git a/lib/pci_iomap.c b/lib/pci_iomap.c
-index bcce5f149310..e1930dbab2da 100644
---- a/lib/pci_iomap.c
-+++ b/lib/pci_iomap.c
-@@ -41,11 +41,8 @@ void __iomem *pci_iomap_range(struct pci_dev *dev,
- 		len = maxlen;
- 	if (flags & IORESOURCE_IO)
- 		return __pci_ioport_map(dev, start, len);
--	if (flags & IORESOURCE_MEM) {
--		if (flags & IORESOURCE_CACHEABLE)
--			return ioremap(start, len);
--		return ioremap_nocache(start, len);
--	}
-+	if (flags & IORESOURCE_MEM)
-+		return ioremap(start, len);
- 	/* What? */
- 	return NULL;
+ 
+ /*
+  * String version of IO memory access ops:
+diff --git a/arch/m32r/include/asm/io.h b/arch/m32r/include/asm/io.h
+index 0c3f25ee3381..f3eceeac25c8 100644
+--- a/arch/m32r/include/asm/io.h
++++ b/arch/m32r/include/asm/io.h
+@@ -67,6 +67,7 @@ static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
+ 
+ extern void iounmap(volatile void __iomem *addr);
+ #define ioremap_nocache(off,size) ioremap(off,size)
++#define ioremap_cache ioremap_nocache
+ #define ioremap_wc ioremap_nocache
+ #define ioremap_wt ioremap_nocache
+ 
+diff --git a/arch/m68k/include/asm/io_mm.h b/arch/m68k/include/asm/io_mm.h
+index 618c85d3c786..aaf1009f2f94 100644
+--- a/arch/m68k/include/asm/io_mm.h
++++ b/arch/m68k/include/asm/io_mm.h
+@@ -21,6 +21,7 @@
+ #ifdef __KERNEL__
+ 
+ #define ARCH_HAS_IOREMAP_WT
++#define ARCH_HAS_IOREMAP_CACHE
+ 
+ #include <linux/compiler.h>
+ #include <asm/raw_io.h>
+@@ -478,6 +479,12 @@ static inline void __iomem *ioremap_fullcache(unsigned long physaddr,
+ 	return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
  }
+ 
++static inline void __iomem *ioremap_cache(unsigned long physaddr,
++		unsigned long size)
++{
++	return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
++}
++
+ static inline void memset_io(volatile void __iomem *addr, unsigned char val, int count)
+ {
+ 	__builtin_memset((void __force *) addr, val, count);
+diff --git a/arch/m68k/include/asm/io_no.h b/arch/m68k/include/asm/io_no.h
+index ad7bd40e6742..020483566b73 100644
+--- a/arch/m68k/include/asm/io_no.h
++++ b/arch/m68k/include/asm/io_no.h
+@@ -4,6 +4,7 @@
+ #ifdef __KERNEL__
+ 
+ #define ARCH_HAS_IOREMAP_WT
++#define ARCH_HAS_IOREMAP_CACHE
+ 
+ #include <asm/virtconvert.h>
+ #include <asm-generic/iomap.h>
+@@ -163,6 +164,10 @@ static inline void *ioremap_fullcache(unsigned long physaddr, unsigned long size
+ {
+ 	return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
+ }
++static inline void *ioremap_cache(unsigned long physaddr, unsigned long size)
++{
++	return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
++}
+ 
+ #define	iounmap(addr)	do { } while(0)
+ 
+diff --git a/arch/metag/include/asm/io.h b/arch/metag/include/asm/io.h
+index 9890f21eadbe..d9b2873e3ca8 100644
+--- a/arch/metag/include/asm/io.h
++++ b/arch/metag/include/asm/io.h
+@@ -1,6 +1,8 @@
+ #ifndef _ASM_METAG_IO_H
+ #define _ASM_METAG_IO_H
+ 
++#define ARCH_HAS_IOREMAP_CACHE
++
+ #include <linux/types.h>
+ #include <asm/pgtable-bits.h>
+ 
+@@ -157,6 +159,9 @@ extern void __iounmap(void __iomem *addr);
+ #define ioremap_cached(offset, size)            \
+ 	__ioremap((offset), (size), _PAGE_CACHEABLE)
+ 
++#define ioremap_cache(offset, size)            \
++	__ioremap((offset), (size), _PAGE_CACHEABLE)
++
+ #define ioremap_wc(offset, size)                \
+ 	__ioremap((offset), (size), _PAGE_WR_COMBINE)
+ 
+diff --git a/arch/microblaze/include/asm/io.h b/arch/microblaze/include/asm/io.h
+index 39b6315db82e..986cc0c9e67f 100644
+--- a/arch/microblaze/include/asm/io.h
++++ b/arch/microblaze/include/asm/io.h
+@@ -43,6 +43,7 @@ extern void __iomem *ioremap(phys_addr_t address, unsigned long size);
+ #define ioremap_fullcache(addr, size)		ioremap((addr), (size))
+ #define ioremap_wc(addr, size)			ioremap((addr), (size))
+ #define ioremap_wt(addr, size)			ioremap((addr), (size))
++#define ioremap_cache(addr, size)		ioremap((addr), (size))
+ 
+ #endif /* CONFIG_MMU */
+ 
+diff --git a/arch/mips/include/asm/io.h b/arch/mips/include/asm/io.h
+index 9e777cd42b67..6d4c3ae146a5 100644
+--- a/arch/mips/include/asm/io.h
++++ b/arch/mips/include/asm/io.h
+@@ -12,6 +12,8 @@
+ #ifndef _ASM_IO_H
+ #define _ASM_IO_H
+ 
++#define ARCH_HAS_IOREMAP_CACHE
++
+ #include <linux/compiler.h>
+ #include <linux/kernel.h>
+ #include <linux/types.h>
+@@ -232,8 +234,10 @@ static inline void __iomem * __ioremap_mode(phys_addr_t offset, unsigned long si
+  * address is not guaranteed to be usable directly as a virtual
+  * address.
+  */
+-#define ioremap(offset, size)						\
+-	__ioremap_mode((offset), (size), _CACHE_UNCACHED)
++static inline void __iomem *ioremap(resource_size_t offset, unsigned long size)
++{
++	return __ioremap_mode(offset, size, _CACHE_UNCACHED);
++}
+ 
+ /*
+  * ioremap_nocache     -   map bus memory into CPU space
+@@ -254,8 +258,7 @@ static inline void __iomem * __ioremap_mode(phys_addr_t offset, unsigned long si
+  * It's useful if some control registers are in such an area and
+  * write combining or read caching is not desirable:
+  */
+-#define ioremap_nocache(offset, size)					\
+-	__ioremap_mode((offset), (size), _CACHE_UNCACHED)
++#define ioremap_nocache ioremap
+ 
+ /*
+  * ioremap_cachable -	map bus memory into CPU space
+@@ -272,8 +275,14 @@ static inline void __iomem * __ioremap_mode(phys_addr_t offset, unsigned long si
+  * the CPU.  Also enables full write-combining.	 Useful for some
+  * memory-like regions on I/O busses.
+  */
++extern unsigned long _page_cachable_default;
+ #define ioremap_cachable(offset, size)					\
+ 	__ioremap_mode((offset), (size), _page_cachable_default)
++static inline void __iomem *ioremap_cache(resource_size_t offset,
++		unsigned long size)
++{
++	return ioremap_cachable(offset, size);
++}
+ 
+ /*
+  * These two are MIPS specific ioremap variant.	 ioremap_cacheable_cow
+diff --git a/arch/mn10300/include/asm/io.h b/arch/mn10300/include/asm/io.h
+index 07c5b4a3903b..dcab414f40df 100644
+--- a/arch/mn10300/include/asm/io.h
++++ b/arch/mn10300/include/asm/io.h
+@@ -283,6 +283,7 @@ static inline void __iomem *ioremap_nocache(unsigned long offset, unsigned long
+ 
+ #define ioremap_wc ioremap_nocache
+ #define ioremap_wt ioremap_nocache
++#define ioremap_cache ioremap_nocache
+ 
+ static inline void iounmap(void __iomem *addr)
+ {
+diff --git a/arch/nios2/include/asm/io.h b/arch/nios2/include/asm/io.h
+index c5a62da22cd2..367e2ea7663a 100644
+--- a/arch/nios2/include/asm/io.h
++++ b/arch/nios2/include/asm/io.h
+@@ -47,6 +47,7 @@ static inline void iounmap(void __iomem *addr)
+ 
+ #define ioremap_wc ioremap_nocache
+ #define ioremap_wt ioremap_nocache
++#define ioremap_cache ioremap_nocache
+ 
+ /* Pages to physical address... */
+ #define page_to_phys(page)	virt_to_phys(page_to_virt(page))
+diff --git a/arch/s390/include/asm/io.h b/arch/s390/include/asm/io.h
+index cb5fdf3a78fc..6824c3daa2a1 100644
+--- a/arch/s390/include/asm/io.h
++++ b/arch/s390/include/asm/io.h
+@@ -30,6 +30,7 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr);
+ #define ioremap_nocache(addr, size)	ioremap(addr, size)
+ #define ioremap_wc			ioremap_nocache
+ #define ioremap_wt			ioremap_nocache
++#define ioremap_cache			ioremap_nocache
+ 
+ static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
+ {
+diff --git a/arch/sparc/include/asm/io_32.h b/arch/sparc/include/asm/io_32.h
+index 57f26c398dc9..b9a734caf57d 100644
+--- a/arch/sparc/include/asm/io_32.h
++++ b/arch/sparc/include/asm/io_32.h
+@@ -128,6 +128,7 @@ static inline void sbus_memcpy_toio(volatile void __iomem *dst,
+  */
+ void __iomem *ioremap(unsigned long offset, unsigned long size);
+ #define ioremap_nocache(X,Y)	ioremap((X),(Y))
++#define ioremap_cache(X,Y)	ioremap((X),(Y))
+ #define ioremap_wc(X,Y)		ioremap((X),(Y))
+ #define ioremap_wt(X,Y)		ioremap((X),(Y))
+ void iounmap(volatile void __iomem *addr);
+diff --git a/arch/sparc/include/asm/io_64.h b/arch/sparc/include/asm/io_64.h
+index b99ae1fac174..61f5d04da892 100644
+--- a/arch/sparc/include/asm/io_64.h
++++ b/arch/sparc/include/asm/io_64.h
+@@ -401,6 +401,7 @@ static inline void __iomem *ioremap(resource_size_t offset, unsigned long size)
+ }
+ 
+ #define ioremap_nocache ioremap
++#define ioremap_cache ioremap
+ #define ioremap_wc ioremap
+ #define ioremap_wt ioremap
+ 
+diff --git a/arch/tile/include/asm/io.h b/arch/tile/include/asm/io.h
+index dc61de15c1f9..fe853a135e25 100644
+--- a/arch/tile/include/asm/io.h
++++ b/arch/tile/include/asm/io.h
+@@ -53,6 +53,7 @@ extern void iounmap(volatile void __iomem *addr);
+ #endif
+ 
+ #define ioremap_nocache(physaddr, size)		ioremap(physaddr, size)
++#define ioremap_cache(physaddr, size)		ioremap(physaddr, size)
+ #define ioremap_wc(physaddr, size)		ioremap(physaddr, size)
+ #define ioremap_wt(physaddr, size)		ioremap(physaddr, size)
+ #define ioremap_fullcache(physaddr, size)	ioremap(physaddr, size)
+diff --git a/arch/x86/include/asm/io.h b/arch/x86/include/asm/io.h
+index 83ec9b1d77cc..e9d6691ec4c5 100644
+--- a/arch/x86/include/asm/io.h
++++ b/arch/x86/include/asm/io.h
+@@ -36,6 +36,7 @@
+ 
+ #define ARCH_HAS_IOREMAP_WC
+ #define ARCH_HAS_IOREMAP_WT
++#define ARCH_HAS_IOREMAP_CACHE
+ 
+ #include <linux/string.h>
+ #include <linux/compiler.h>
+diff --git a/arch/xtensa/include/asm/io.h b/arch/xtensa/include/asm/io.h
+index c39bb6e61911..f91a8a99aa29 100644
+--- a/arch/xtensa/include/asm/io.h
++++ b/arch/xtensa/include/asm/io.h
+@@ -12,6 +12,9 @@
+ #define _XTENSA_IO_H
+ 
+ #ifdef __KERNEL__
++
++#define ARCH_HAS_IOREMAP_CACHE
++
+ #include <asm/byteorder.h>
+ #include <asm/page.h>
+ #include <asm/vectors.h>
+diff --git a/include/asm-generic/io.h b/include/asm-generic/io.h
+index f56094cfdeff..a0665dfcab47 100644
+--- a/include/asm-generic/io.h
++++ b/include/asm-generic/io.h
+@@ -793,6 +793,14 @@ static inline void __iomem *ioremap_wt(phys_addr_t offset, size_t size)
+ }
+ #endif
+ 
++#ifndef ioremap_cache
++#define ioremap_cache ioremap_cache
++static inline void __iomem *ioremap_cache(phys_addr_t offset, size_t size)
++{
++	return ioremap_nocache(offset, size);
++}
++#endif
++
+ #ifndef iounmap
+ #define iounmap iounmap
+ 
+diff --git a/include/asm-generic/iomap.h b/include/asm-generic/iomap.h
+index d8f8622fa044..f0f30464cecd 100644
+--- a/include/asm-generic/iomap.h
++++ b/include/asm-generic/iomap.h
+@@ -70,6 +70,10 @@ extern void ioport_unmap(void __iomem *);
+ #define ioremap_wt ioremap_nocache
+ #endif
+ 
++#ifndef ARCH_HAS_IOREMAP_CACHE
++#define ioremap_cache ioremap_nocache
++#endif
++
+ #ifdef CONFIG_PCI
+ /* Destroy a virtual mapping cookie for a PCI BAR (memory or IO) */
+ struct pci_dev;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
