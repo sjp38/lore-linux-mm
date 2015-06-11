@@ -1,66 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DAFD46B006C
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 03:58:31 -0400 (EDT)
-Received: by padev16 with SMTP id ev16so49070202pad.0
-        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 00:58:31 -0700 (PDT)
-Received: from us-alimail-mta1.hst.scl.en.alidc.net (mail113-248.mail.alibaba.com. [205.204.113.248])
-        by mx.google.com with ESMTP id gs10si17967643pac.124.2015.06.11.00.58.29
-        for <linux-mm@kvack.org>;
-        Thu, 11 Jun 2015 00:58:30 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-Subject: Re: [PATCH 04/25] mm, vmscan: Begin reclaiming pages on a per-node basis
-Date: Thu, 11 Jun 2015 15:58:14 +0800
-Message-ID: <00fe01d0a41c$5f242bf0$1d6c83d0$@alibaba-inc.com>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DD946B006C
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 04:00:52 -0400 (EDT)
+Received: by padev16 with SMTP id ev16so49111469pad.0
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 01:00:52 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id zd13si8420348pab.169.2015.06.11.01.00.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Jun 2015 01:00:51 -0700 (PDT)
+Received: by padev16 with SMTP id ev16so49111201pad.0
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 01:00:51 -0700 (PDT)
+Date: Thu, 11 Jun 2015 17:01:15 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH 1/9] mm: Provide new get_vaddr_frames() helper
+Message-ID: <20150611080115.GB515@swordfish>
+References: <cover.1433927458.git.mchehab@osg.samsung.com>
+ <f8d212d88c005564f3faedf1c7d6f089fcb3126d.1433927458.git.mchehab@osg.samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f8d212d88c005564f3faedf1c7d6f089fcb3126d.1433927458.git.mchehab@osg.samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Linux Media Mailing List <linux-media@vger.kernel.org>, Mauro Carvalho Chehab <mchehab@infradead.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Christian Borntraeger <borntraeger@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Hans Verkuil <hans.verkuil@cisco.com>, Paul Cassella <cassella@cray.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-> @@ -1319,6 +1322,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  	struct list_head *src = &lruvec->lists[lru];
->  	unsigned long nr_taken = 0;
->  	unsigned long scan;
-> +	LIST_HEAD(pages_skipped);
-> 
->  	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
->  		struct page *page;
-> @@ -1329,6 +1333,9 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
-> 
->  		VM_BUG_ON_PAGE(!PageLRU(page), page);
-> 
-> +		if (page_zone_id(page) > sc->reclaim_idx)
-> +			list_move(&page->lru, &pages_skipped);
+On (06/10/15 06:20), Mauro Carvalho Chehab wrote:
+[..]
 > +
->  		switch (__isolate_lru_page(page, mode)) {
->  		case 0:
->  			nr_pages = hpage_nr_pages(page);
-> @@ -1347,6 +1354,15 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  		}
->  	}
-> 
-> +	/*
-> +	 * Splice any skipped pages to the start of the LRU list. Note that
-> +	 * this disrupts the LRU order when reclaiming for lower zones but
-> +	 * we cannot splice to the tail. If we did then the SWAP_CLUSTER_MAX
-> +	 * scanning would soon rescan the same pages to skip and put the
-> +	 * system at risk of premature OOM.
-> +	 */
-> +	if (!list_empty(&pages_skipped))
-> +		list_splice(&pages_skipped, src);
->  	*nr_scanned = scan;
->  	trace_mm_vmscan_lru_isolate(sc->order, nr_to_scan, scan,
->  				    nr_taken, mode, is_file_lru(lru));
+> +/**
+> + * frame_vector_destroy() - free memory allocated to carry frame vector
+> + * @vec:	Frame vector to free
+> + *
+> + * Free structure allocated by frame_vector_create() to carry frames.
+> + */
+> +void frame_vector_destroy(struct frame_vector *vec)
+> +{
+> +	/* Make sure put_vaddr_frames() got called properly... */
+> +	VM_BUG_ON(vec->nr_frames > 0);
+> +	if (!is_vmalloc_addr(vec))
+> +		kfree(vec);
+> +	else
+> +		vfree(vec);
 
-Can we avoid splicing pages by skipping pages with scan not incremented?
+minor:  kvfree(vec);
 
-Hillf
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
