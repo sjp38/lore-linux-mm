@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CDF96B0083
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2015 06:11:41 -0400 (EDT)
-Received: by wgez8 with SMTP id z8so21280028wge.0
-        for <linux-mm@kvack.org>; Fri, 12 Jun 2015 03:11:41 -0700 (PDT)
-Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
-        by mx.google.com with ESMTPS id ly8si6302673wjb.40.2015.06.12.03.11.39
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id A7A876B0089
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2015 06:18:11 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so12625077wig.0
+        for <linux-mm@kvack.org>; Fri, 12 Jun 2015 03:18:11 -0700 (PDT)
+Received: from mail-wg0-x22a.google.com (mail-wg0-x22a.google.com. [2a00:1450:400c:c00::22a])
+        by mx.google.com with ESMTPS id h18si2541470wiw.84.2015.06.12.03.18.09
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jun 2015 03:11:40 -0700 (PDT)
-Received: by wibut5 with SMTP id ut5so13775710wib.1
-        for <linux-mm@kvack.org>; Fri, 12 Jun 2015 03:11:39 -0700 (PDT)
+        Fri, 12 Jun 2015 03:18:10 -0700 (PDT)
+Received: by wgez8 with SMTP id z8so21401567wge.0
+        for <linux-mm@kvack.org>; Fri, 12 Jun 2015 03:18:09 -0700 (PDT)
 From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH 4/6] mm, compaction: always skip compound pages by order in migrate scanner
-In-Reply-To: <1433928754-966-5-git-send-email-vbabka@suse.cz>
-References: <1433928754-966-1-git-send-email-vbabka@suse.cz> <1433928754-966-5-git-send-email-vbabka@suse.cz>
-Date: Fri, 12 Jun 2015 12:11:35 +0200
-Message-ID: <xa1toaklp76w.fsf@mina86.com>
+Subject: Re: [PATCH 5/6] mm, compaction: skip compound pages by order in free scanner
+In-Reply-To: <1433928754-966-6-git-send-email-vbabka@suse.cz>
+References: <1433928754-966-1-git-send-email-vbabka@suse.cz> <1433928754-966-6-git-send-email-vbabka@suse.cz>
+Date: Fri, 12 Jun 2015 12:18:07 +0200
+Message-ID: <xa1tk2v9p6w0.fsf@mina86.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
@@ -26,41 +26,19 @@ To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>,
 Cc: linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
 
 On Wed, Jun 10 2015, Vlastimil Babka wrote:
-> The compaction migrate scanner tries to skip compound pages by their orde=
-r, to
-> reduce number of iterations for pages it cannot isolate. The check is onl=
-y done
-> if PageLRU() is true, which means it applies to THP pages, but not e.g.
-> hugetlbfs pages or any other non-LRU compound pages, which we have to ite=
-rate
-> by base pages.
->
-> This limitation comes from the assumption that it's only safe to read
-> compound_order() when we have the zone's lru_lock and THP cannot be split=
- under
-> us. But the only danger (after filtering out order values that are not be=
-low
-> MAX_ORDER, to prevent overflows) is that we skip too much or too little a=
-fter
-> reading a bogus compound_order() due to a rare race. This is the same rea=
-soning
-> as patch 99c0fd5e51c4 ("mm, compaction: skip buddy pages by their order i=
-n the
-> migrate scanner") introduced for unsafely reading PageBuddy() order.
->
-> After this patch, all pages are tested for PageCompound() and we skip the=
-m by
-> compound_order().  The test is done after the test for balloon_page_movab=
-le()
-> as we don't want to assume if balloon pages (or other pages with own isol=
-ation
-> and migration implementation if a generic API gets implemented) are compo=
-und
-> or not.
+> The compaction free scanner is looking for PageBuddy() pages and skipping=
+ all
+> others.  For large compound pages such as THP or hugetlbfs, we can save a=
+ lot
+> of iterations if we skip them at once using their compound_order(). This =
+is
+> generally unsafe and we can read a bogus value of order due to a race, bu=
+t if
+> we are careful, the only danger is skipping too much.
 >
 > When tested with stress-highalloc from mmtests on 4GB system with 1GB hug=
 etlbfs
-> pages, the vmstat compact_migrate_scanned count decreased by 15%.
+> pages, the vmstat compact_free_scanned count decreased by at least 15%.
 >
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 > Cc: Minchan Kim <minchan@kernel.org>
@@ -75,79 +53,59 @@ Acked-by: Michal Nazarewicz <mina86@mina86.com>
 > Cc: Rik van Riel <riel@redhat.com>
 > Cc: David Rientjes <rientjes@google.com>
 > ---
->  mm/compaction.c | 36 +++++++++++++++++-------------------
->  1 file changed, 17 insertions(+), 19 deletions(-)
+>  mm/compaction.c | 25 +++++++++++++++++++++++++
+>  1 file changed, 25 insertions(+)
 >
 > diff --git a/mm/compaction.c b/mm/compaction.c
-> index d334bb3..e37d361 100644
+> index e37d361..4a14084 100644
 > --- a/mm/compaction.c
 > +++ b/mm/compaction.c
-> @@ -680,6 +680,8 @@ isolate_migratepages_block(struct compact_control *cc=
-, unsigned long low_pfn,
+> @@ -437,6 +437,24 @@ static unsigned long isolate_freepages_block(struct =
+compact_control *cc,
 >=20=20
->  	/* Time to isolate some pages for migration */
->  	for (; low_pfn < end_pfn; low_pfn++) {
-> +		bool is_lru;
+>  		if (!valid_page)
+>  			valid_page =3D page;
 > +
->  		/*
->  		 * Periodically drop the lock (if held) regardless of its
->  		 * contention, to give chance to IRQs. Abort async compaction
-> @@ -723,39 +725,35 @@ isolate_migratepages_block(struct compact_control *=
-cc, unsigned long low_pfn,
->  		 * It's possible to migrate LRU pages and balloon pages
->  		 * Skip any other type of page
->  		 */
-> -		if (!PageLRU(page)) {
-> +		is_lru =3D PageLRU(page);
-> +		if (!is_lru) {
->  			if (unlikely(balloon_page_movable(page))) {
->  				if (balloon_page_isolate(page)) {
->  					/* Successfully isolated */
->  					goto isolate_success;
->  				}
->  			}
-> -			continue;
->  		}
->=20=20
->  		/*
-> -		 * PageLRU is set. lru_lock normally excludes isolation
-> -		 * splitting and collapsing (collapsing has already happened
-> -		 * if PageLRU is set) but the lock is not necessarily taken
-> -		 * here and it is wasteful to take it just to check transhuge.
-> -		 * Check PageCompound without lock and skip the whole pageblock
-> -		 * if it's a transhuge page, as calling compound_order()
-> -		 * without preventing THP from splitting the page underneath us
-> -		 * may return surprising results.
-> -		 * If we happen to check a THP tail page, compound_order()
-> -		 * returns 0. It should be rare enough to not bother with
-> -		 * using compound_head() in that case.
-> +		 * Regardless of being on LRU, compound pages such as THP and
-> +		 * hugetlbfs are not to be compacted. We can potentially save
-> +		 * a lot of iterations if we skip them at once. The check is
-> +		 * racy, but we can consider only valid values and the only
-> +		 * danger is skipping too much.
->  		 */
->  		if (PageCompound(page)) {
-> -			int nr;
-> -			if (locked)
-> -				nr =3D 1 << compound_order(page);
-> -			else
-> -				nr =3D pageblock_nr_pages;
-> -			low_pfn +=3D nr - 1;
+> +		/*
+> +		 * For compound pages such as THP and hugetlbfs, we can save
+> +		 * potentially a lot of iterations if we skip them at once.
+> +		 * The check is racy, but we can consider only valid values
+> +		 * and the only danger is skipping too much.
+> +		 */
+> +		if (PageCompound(page)) {
 > +			unsigned int comp_order =3D compound_order(page);
 > +
-> +			if (comp_order > 0 && comp_order < MAX_ORDER)
-> +				low_pfn +=3D (1UL << comp_order) - 1;
+> +			if (comp_order > 0 && comp_order < MAX_ORDER) {
+
++			if (comp_order < MAX_ORDER) {
+
+Might produce shorter/faster code.  Dunno.  Maybe.  So much
+micro-optimisations.  Applies to the previous patch as well.
+
+> +				blockpfn +=3D (1UL << comp_order) - 1;
+> +				cursor +=3D (1UL << comp_order) - 1;
+> +			}
 > +
->  			continue;
->  		}
+> +			goto isolate_fail;
+> +		}
+> +
+>  		if (!PageBuddy(page))
+>  			goto isolate_fail;
 >=20=20
-> +		if (!is_lru)
-> +			continue;
+> @@ -496,6 +514,13 @@ isolate_fail:
+>=20=20
+>  	}
+>=20=20
+> +	/*
+> +	 * There is a tiny chance that we have read bogus compound_order(),
+> +	 * so be careful to not go outside of the pageblock.
+> +	 */
+> +	if (unlikely(blockpfn > end_pfn))
+> +		blockpfn =3D end_pfn;
 > +
->  		/*
->  		 * Migration will fail if an anonymous page is pinned in memory,
->  		 * so avoid taking lru_lock and isolating it unnecessarily in an
+>  	trace_mm_compaction_isolate_freepages(*start_pfn, blockpfn,
+>  					nr_scanned, total_isolated);
+>=20=20
 > --=20
 > 2.1.4
 >
