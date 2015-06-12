@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id EB6C76B0081
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2015 06:07:39 -0400 (EDT)
-Received: by wigg3 with SMTP id g3so12333523wig.1
-        for <linux-mm@kvack.org>; Fri, 12 Jun 2015 03:07:39 -0700 (PDT)
-Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com. [2a00:1450:400c:c05::236])
-        by mx.google.com with ESMTPS id dj8si2500027wib.80.2015.06.12.03.07.37
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CDF96B0083
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2015 06:11:41 -0400 (EDT)
+Received: by wgez8 with SMTP id z8so21280028wge.0
+        for <linux-mm@kvack.org>; Fri, 12 Jun 2015 03:11:41 -0700 (PDT)
+Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
+        by mx.google.com with ESMTPS id ly8si6302673wjb.40.2015.06.12.03.11.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jun 2015 03:07:38 -0700 (PDT)
-Received: by wiga1 with SMTP id a1so12354826wig.0
-        for <linux-mm@kvack.org>; Fri, 12 Jun 2015 03:07:37 -0700 (PDT)
+        Fri, 12 Jun 2015 03:11:40 -0700 (PDT)
+Received: by wibut5 with SMTP id ut5so13775710wib.1
+        for <linux-mm@kvack.org>; Fri, 12 Jun 2015 03:11:39 -0700 (PDT)
 From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH 3/6] mm, compaction: encapsulate resetting cached scanner positions
-In-Reply-To: <1433928754-966-4-git-send-email-vbabka@suse.cz>
-References: <1433928754-966-1-git-send-email-vbabka@suse.cz> <1433928754-966-4-git-send-email-vbabka@suse.cz>
-Date: Fri, 12 Jun 2015 12:07:35 +0200
-Message-ID: <xa1tr3php7dk.fsf@mina86.com>
+Subject: Re: [PATCH 4/6] mm, compaction: always skip compound pages by order in migrate scanner
+In-Reply-To: <1433928754-966-5-git-send-email-vbabka@suse.cz>
+References: <1433928754-966-1-git-send-email-vbabka@suse.cz> <1433928754-966-5-git-send-email-vbabka@suse.cz>
+Date: Fri, 12 Jun 2015 12:11:35 +0200
+Message-ID: <xa1toaklp76w.fsf@mina86.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
@@ -26,12 +26,41 @@ To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>,
 Cc: linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
 
 On Wed, Jun 10 2015, Vlastimil Babka wrote:
-> Resetting the cached compaction scanner positions is now done implicitly =
-in
-> __reset_isolation_suitable() and compact_finished(). Encapsulate the
-> functionality in a new function reset_cached_positions() and call it expl=
-icitly
-> where needed.
+> The compaction migrate scanner tries to skip compound pages by their orde=
+r, to
+> reduce number of iterations for pages it cannot isolate. The check is onl=
+y done
+> if PageLRU() is true, which means it applies to THP pages, but not e.g.
+> hugetlbfs pages or any other non-LRU compound pages, which we have to ite=
+rate
+> by base pages.
+>
+> This limitation comes from the assumption that it's only safe to read
+> compound_order() when we have the zone's lru_lock and THP cannot be split=
+ under
+> us. But the only danger (after filtering out order values that are not be=
+low
+> MAX_ORDER, to prevent overflows) is that we skip too much or too little a=
+fter
+> reading a bogus compound_order() due to a rare race. This is the same rea=
+soning
+> as patch 99c0fd5e51c4 ("mm, compaction: skip buddy pages by their order i=
+n the
+> migrate scanner") introduced for unsafely reading PageBuddy() order.
+>
+> After this patch, all pages are tested for PageCompound() and we skip the=
+m by
+> compound_order().  The test is done after the test for balloon_page_movab=
+le()
+> as we don't want to assume if balloon pages (or other pages with own isol=
+ation
+> and migration implementation if a generic API gets implemented) are compo=
+und
+> or not.
+>
+> When tested with stress-highalloc from mmtests on 4GB system with 1GB hug=
+etlbfs
+> pages, the vmstat compact_migrate_scanned count decreased by 15%.
 >
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 > Cc: Minchan Kim <minchan@kernel.org>
@@ -46,78 +75,79 @@ Acked-by: Michal Nazarewicz <mina86@mina86.com>
 > Cc: Rik van Riel <riel@redhat.com>
 > Cc: David Rientjes <rientjes@google.com>
 > ---
->  mm/compaction.c | 22 ++++++++++++++--------
->  1 file changed, 14 insertions(+), 8 deletions(-)
+>  mm/compaction.c | 36 +++++++++++++++++-------------------
+>  1 file changed, 17 insertions(+), 19 deletions(-)
 >
 > diff --git a/mm/compaction.c b/mm/compaction.c
-> index 7e0a814..d334bb3 100644
+> index d334bb3..e37d361 100644
 > --- a/mm/compaction.c
 > +++ b/mm/compaction.c
-> @@ -207,6 +207,13 @@ static inline bool isolation_suitable(struct compact=
-_control *cc,
->  	return !get_pageblock_skip(page);
->  }
+> @@ -680,6 +680,8 @@ isolate_migratepages_block(struct compact_control *cc=
+, unsigned long low_pfn,
 >=20=20
-> +static void reset_cached_positions(struct zone *zone)
-> +{
-> +	zone->compact_cached_migrate_pfn[0] =3D zone->zone_start_pfn;
-> +	zone->compact_cached_migrate_pfn[1] =3D zone->zone_start_pfn;
-> +	zone->compact_cached_free_pfn =3D zone_end_pfn(zone);
-> +}
+>  	/* Time to isolate some pages for migration */
+>  	for (; low_pfn < end_pfn; low_pfn++) {
+> +		bool is_lru;
 > +
->  /*
->   * This function is called to clear all cached information on pageblocks=
- that
->   * should be skipped for page isolation when the migrate and free page s=
-canner
-> @@ -218,9 +225,6 @@ static void __reset_isolation_suitable(struct zone *z=
-one)
->  	unsigned long end_pfn =3D zone_end_pfn(zone);
->  	unsigned long pfn;
->=20=20
-> -	zone->compact_cached_migrate_pfn[0] =3D start_pfn;
-> -	zone->compact_cached_migrate_pfn[1] =3D start_pfn;
-> -	zone->compact_cached_free_pfn =3D end_pfn;
->  	zone->compact_blockskip_flush =3D false;
->=20=20
->  	/* Walk the zone and mark every pageblock as suitable for isolation */
-> @@ -250,8 +254,10 @@ void reset_isolation_suitable(pg_data_t *pgdat)
->  			continue;
->=20=20
->  		/* Only flush if a full compaction finished recently */
-> -		if (zone->compact_blockskip_flush)
-> +		if (zone->compact_blockskip_flush) {
->  			__reset_isolation_suitable(zone);
-> +			reset_cached_positions(zone);
-> +		}
->  	}
->  }
->=20=20
-> @@ -1164,9 +1170,7 @@ static int __compact_finished(struct zone *zone, st=
-ruct compact_control *cc,
->  	/* Compaction run completes if the migrate and free scanner meet */
->  	if (compact_scanners_met(cc)) {
->  		/* Let the next compaction start anew. */
-> -		zone->compact_cached_migrate_pfn[0] =3D zone->zone_start_pfn;
-> -		zone->compact_cached_migrate_pfn[1] =3D zone->zone_start_pfn;
-> -		zone->compact_cached_free_pfn =3D zone_end_pfn(zone);
-> +		reset_cached_positions(zone);
+>  		/*
+>  		 * Periodically drop the lock (if held) regardless of its
+>  		 * contention, to give chance to IRQs. Abort async compaction
+> @@ -723,39 +725,35 @@ isolate_migratepages_block(struct compact_control *=
+cc, unsigned long low_pfn,
+>  		 * It's possible to migrate LRU pages and balloon pages
+>  		 * Skip any other type of page
+>  		 */
+> -		if (!PageLRU(page)) {
+> +		is_lru =3D PageLRU(page);
+> +		if (!is_lru) {
+>  			if (unlikely(balloon_page_movable(page))) {
+>  				if (balloon_page_isolate(page)) {
+>  					/* Successfully isolated */
+>  					goto isolate_success;
+>  				}
+>  			}
+> -			continue;
+>  		}
 >=20=20
 >  		/*
->  		 * Mark that the PG_migrate_skip information should be cleared
-> @@ -1329,8 +1333,10 @@ static int compact_zone(struct zone *zone, struct =
-compact_control *cc)
->  	 * is about to be retried after being deferred. kswapd does not do
->  	 * this reset as it'll reset the cached information when going to sleep.
->  	 */
-> -	if (compaction_restarting(zone, cc->order) && !current_is_kswapd())
-> +	if (compaction_restarting(zone, cc->order) && !current_is_kswapd()) {
->  		__reset_isolation_suitable(zone);
-> +		reset_cached_positions(zone);
-> +	}
+> -		 * PageLRU is set. lru_lock normally excludes isolation
+> -		 * splitting and collapsing (collapsing has already happened
+> -		 * if PageLRU is set) but the lock is not necessarily taken
+> -		 * here and it is wasteful to take it just to check transhuge.
+> -		 * Check PageCompound without lock and skip the whole pageblock
+> -		 * if it's a transhuge page, as calling compound_order()
+> -		 * without preventing THP from splitting the page underneath us
+> -		 * may return surprising results.
+> -		 * If we happen to check a THP tail page, compound_order()
+> -		 * returns 0. It should be rare enough to not bother with
+> -		 * using compound_head() in that case.
+> +		 * Regardless of being on LRU, compound pages such as THP and
+> +		 * hugetlbfs are not to be compacted. We can potentially save
+> +		 * a lot of iterations if we skip them at once. The check is
+> +		 * racy, but we can consider only valid values and the only
+> +		 * danger is skipping too much.
+>  		 */
+>  		if (PageCompound(page)) {
+> -			int nr;
+> -			if (locked)
+> -				nr =3D 1 << compound_order(page);
+> -			else
+> -				nr =3D pageblock_nr_pages;
+> -			low_pfn +=3D nr - 1;
+> +			unsigned int comp_order =3D compound_order(page);
+> +
+> +			if (comp_order > 0 && comp_order < MAX_ORDER)
+> +				low_pfn +=3D (1UL << comp_order) - 1;
+> +
+>  			continue;
+>  		}
 >=20=20
->  	/*
->  	 * Setup to move all movable pages to the end of the zone. Used cached
+> +		if (!is_lru)
+> +			continue;
+> +
+>  		/*
+>  		 * Migration will fail if an anonymous page is pinned in memory,
+>  		 * so avoid taking lru_lock and isolating it unnecessarily in an
 > --=20
 > 2.1.4
 >
