@@ -1,59 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
-	by kanga.kvack.org (Postfix) with ESMTP id DED3C6B0032
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 20:34:22 -0400 (EDT)
-Received: by qkhq76 with SMTP id q76so10289225qkh.2
-        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 17:34:22 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id v108si2272193qge.0.2015.06.11.17.34.21
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D8C36B0032
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 20:53:40 -0400 (EDT)
+Received: by pdjm12 with SMTP id m12so12903896pdj.3
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 17:53:39 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id nw8si2995238pbb.84.2015.06.11.17.53.39
         for <linux-mm@kvack.org>;
-        Thu, 11 Jun 2015 17:34:21 -0700 (PDT)
-Date: Thu, 11 Jun 2015 17:34:19 -0700 (PDT)
-Message-Id: <20150611.173419.1266197335293542334.davem@davemloft.net>
-Subject: Re: [RFC V3] net: don't wait for order-3 page allocation
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <0099265406c32b9b9057de100404a4148d602cdd.1434066549.git.shli@fb.com>
-References: <0099265406c32b9b9057de100404a4148d602cdd.1434066549.git.shli@fb.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+        Thu, 11 Jun 2015 17:53:39 -0700 (PDT)
+Date: Fri, 12 Jun 2015 08:52:45 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [next:master 10274/10671]
+ /kbuild/src/slow3/arch/arm/mach-tegra/cpuidle-tegra114.c:88: undefined
+ reference to `psci_smp_available'
+Message-ID: <20150612005245.GB11843@wfg-t540p.sh.intel.com>
+References: <201506120455.HwpOSg84%fengguang.wu@intel.com>
+ <1434060757.3165.96.camel@stgolabs.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1434060757.3165.96.camel@stgolabs.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: shli@fb.com
-Cc: netdev@vger.kernel.org, Kernel-team@fb.com, clm@fb.com, linux-mm@kvack.org, dbavatar@gmail.com, edumazet@google.com
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-From: Shaohua Li <shli@fb.com>
-Date: Thu, 11 Jun 2015 16:50:48 -0700
+Hi Davidlohr,
 
-> We saw excessive direct memory compaction triggered by skb_page_frag_refill.
-> This causes performance issues and add latency. Commit 5640f7685831e0
-> introduces the order-3 allocation. According to the changelog, the order-3
-> allocation isn't a must-have but to improve performance. But direct memory
-> compaction has high overhead. The benefit of order-3 allocation can't
-> compensate the overhead of direct memory compaction.
-> 
-> This patch makes the order-3 page allocation atomic. If there is no memory
-> pressure and memory isn't fragmented, the alloction will still success, so we
-> don't sacrifice the order-3 benefit here. If the atomic allocation fails,
-> direct memory compaction will not be triggered, skb_page_frag_refill will
-> fallback to order-0 immediately, hence the direct memory compaction overhead is
-> avoided. In the allocation failure case, kswapd is waken up and doing
-> compaction, so chances are allocation could success next time.
-> 
-> alloc_skb_with_frags is the same.
-> 
-> The mellanox driver does similar thing, if this is accepted, we must fix
-> the driver too.
-> 
-> V3: fix the same issue in alloc_skb_with_frags as pointed out by Eric
-> V2: make the changelog clearer
-> 
-> Cc: Eric Dumazet <edumazet@google.com>
-> Cc: Chris Mason <clm@fb.com>
-> Cc: Debabrata Banerjee <dbavatar@gmail.com>
-> Signed-off-by: Shaohua Li <shli@fb.com>
+Sorry it's a wrong bisect. I'll fix the bisect script.
 
-Applied and queued up for -stable, thanks!
+Thanks,
+Fengguang
+
+On Thu, Jun 11, 2015 at 03:12:37PM -0700, Davidlohr Bueso wrote:
+> On Fri, 2015-06-12 at 04:45 +0800, kbuild test robot wrote:
+> > Hi Davidlohr,
+> > 
+> > First bad commit (maybe != root cause):
+> > 
+> > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> > head:   f0939c364ffe7dc377c4d7946360f99cb7fc867b
+> > commit: 48803a970534ad0411991de1d293996db8ea9aa0 [10274/10671] ipc,sysv: return -EINVAL upon incorrect id/seqnum
+> 
+> The below makes no sense with this commit. `psci_smp_available' has 0 to
+> do with ipc.
+> 
+> > 
+> > All error/warnings (new ones prefixed by >>):
+> > 
+> >    arch/arm/mach-tegra/built-in.o: In function `tegra114_cpuidle_init':
+> > >> /kbuild/src/slow3/arch/arm/mach-tegra/cpuidle-tegra114.c:88: undefined reference to `psci_smp_available'
+> 
+> Thanks,
+> Davidlohr
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
