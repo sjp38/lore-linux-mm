@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D5D16B006C
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2015 05:52:55 -0400 (EDT)
-Received: by pdbnf5 with SMTP id nf5so21753220pdb.2
-        for <linux-mm@kvack.org>; Fri, 12 Jun 2015 02:52:54 -0700 (PDT)
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AF896B006E
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2015 05:53:03 -0400 (EDT)
+Received: by pacyx8 with SMTP id yx8so20147451pac.2
+        for <linux-mm@kvack.org>; Fri, 12 Jun 2015 02:53:03 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id j2si4671645pdn.104.2015.06.12.02.52.54
+        by mx.google.com with ESMTPS id wj1si4643447pab.152.2015.06.12.02.53.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jun 2015 02:52:54 -0700 (PDT)
+        Fri, 12 Jun 2015 02:53:02 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm v6 2/6] hwpoison: use page_cgroup_ino for filtering by memcg
-Date: Fri, 12 Jun 2015 12:52:22 +0300
-Message-ID: <93666415fe4fae7c03e11d36b495a147422a7324.1434102076.git.vdavydov@parallels.com>
+Subject: [PATCH -mm v6 3/6] memcg: zap try_get_mem_cgroup_from_page
+Date: Fri, 12 Jun 2015 12:52:23 +0300
+Message-ID: <b1e1f810af5c39bec3a05281fac10459f09df923.1434102076.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1434102076.git.vdavydov@parallels.com>
 References: <cover.1434102076.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,77 +22,113 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hwpoison allows to filter pages by memory cgroup ino. Currently, it
-calls try_get_mem_cgroup_from_page to obtain the cgroup from a page and
-then its ino using cgroup_ino, but now we have an apter method for that,
-page_cgroup_ino, so use it instead.
+It is only used in mem_cgroup_try_charge, so fold it in and zap it.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- mm/hwpoison-inject.c |  5 +----
- mm/memory-failure.c  | 16 ++--------------
- 2 files changed, 3 insertions(+), 18 deletions(-)
+ include/linux/memcontrol.h |  6 ------
+ mm/memcontrol.c            | 48 ++++++++++++----------------------------------
+ 2 files changed, 12 insertions(+), 42 deletions(-)
 
-diff --git a/mm/hwpoison-inject.c b/mm/hwpoison-inject.c
-index bf73ac17dad4..5015679014c1 100644
---- a/mm/hwpoison-inject.c
-+++ b/mm/hwpoison-inject.c
-@@ -45,12 +45,9 @@ static int hwpoison_inject(void *data, u64 val)
- 	/*
- 	 * do a racy check with elevated page count, to make sure PG_hwpoison
- 	 * will only be set for the targeted owner (or on a free page).
--	 * We temporarily take page lock for try_get_mem_cgroup_from_page().
- 	 * memory_failure() will redo the check reliably inside page lock.
- 	 */
--	lock_page(hpage);
- 	err = hwpoison_filter(hpage);
--	unlock_page(hpage);
- 	if (err)
- 		goto put_out;
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 50069abebc3c..635edfe06bac 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -94,7 +94,6 @@ bool mem_cgroup_is_descendant(struct mem_cgroup *memcg,
+ 			      struct mem_cgroup *root);
+ bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
  
-@@ -126,7 +123,7 @@ static int pfn_inject_init(void)
- 	if (!dentry)
- 		goto fail;
+-extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
  
--#ifdef CONFIG_MEMCG_SWAP
-+#ifdef CONFIG_MEMCG
- 	dentry = debugfs_create_u64("corrupt-filter-memcg", 0600,
- 				    hwpoison_dir, &hwpoison_filter_memcg);
- 	if (!dentry)
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 1cf7f2988422..97005396a507 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -130,27 +130,15 @@ static int hwpoison_filter_flags(struct page *p)
-  * can only guarantee that the page either belongs to the memcg tasks, or is
-  * a freed page.
-  */
--#ifdef	CONFIG_MEMCG_SWAP
-+#ifdef CONFIG_MEMCG
- u64 hwpoison_filter_memcg;
- EXPORT_SYMBOL_GPL(hwpoison_filter_memcg);
- static int hwpoison_filter_task(struct page *p)
+ extern struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
+@@ -259,11 +258,6 @@ static inline struct lruvec *mem_cgroup_page_lruvec(struct page *page,
+ 	return &zone->lruvec;
+ }
+ 
+-static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+-{
+-	return NULL;
+-}
+-
+ static inline bool mm_match_cgroup(struct mm_struct *mm,
+ 		struct mem_cgroup *memcg)
  {
--	struct mem_cgroup *mem;
--	struct cgroup_subsys_state *css;
--	unsigned long ino;
--
- 	if (!hwpoison_filter_memcg)
- 		return 0;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 894dc2169979..fa1447fcba33 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2378,40 +2378,6 @@ static void cancel_charge(struct mem_cgroup *memcg, unsigned int nr_pages)
+ 	css_put_many(&memcg->css, nr_pages);
+ }
  
--	mem = try_get_mem_cgroup_from_page(p);
--	if (!mem)
--		return -EINVAL;
+-/*
+- * try_get_mem_cgroup_from_page - look up page's memcg association
+- * @page: the page
+- *
+- * Look up, get a css reference, and return the memcg that owns @page.
+- *
+- * The page must be locked to prevent racing with swap-in and page
+- * cache charges.  If coming from an unlocked page table, the caller
+- * must ensure the page is on the LRU or this can race with charging.
+- */
+-struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+-{
+-	struct mem_cgroup *memcg;
+-	unsigned short id;
+-	swp_entry_t ent;
 -
--	css = mem_cgroup_css(mem);
--	ino = cgroup_ino(css->cgroup);
--	css_put(css);
+-	VM_BUG_ON_PAGE(!PageLocked(page), page);
 -
--	if (ino != hwpoison_filter_memcg)
-+	if (page_cgroup_ino(p) != hwpoison_filter_memcg)
- 		return -EINVAL;
+-	memcg = page->mem_cgroup;
+-	if (memcg) {
+-		if (!css_tryget_online(&memcg->css))
+-			memcg = NULL;
+-	} else if (PageSwapCache(page)) {
+-		ent.val = page_private(page);
+-		id = lookup_swap_cgroup_id(ent);
+-		rcu_read_lock();
+-		memcg = mem_cgroup_from_id(id);
+-		if (memcg && !css_tryget_online(&memcg->css))
+-			memcg = NULL;
+-		rcu_read_unlock();
+-	}
+-	return memcg;
+-}
+-
+ static void lock_page_lru(struct page *page, int *isolated)
+ {
+ 	struct zone *zone = page_zone(page);
+@@ -5628,8 +5594,20 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
+ 		 * the page lock, which serializes swap cache removal, which
+ 		 * in turn serializes uncharging.
+ 		 */
++		VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 		if (page->mem_cgroup)
+ 			goto out;
++
++		if (do_swap_account) {
++			swp_entry_t ent = { .val = page_private(page), };
++			unsigned short id = lookup_swap_cgroup_id(ent);
++
++			rcu_read_lock();
++			memcg = mem_cgroup_from_id(id);
++			if (memcg && !css_tryget_online(&memcg->css))
++				memcg = NULL;
++			rcu_read_unlock();
++		}
+ 	}
  
- 	return 0;
+ 	if (PageTransHuge(page)) {
+@@ -5637,8 +5615,6 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
+ 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+ 	}
+ 
+-	if (do_swap_account && PageSwapCache(page))
+-		memcg = try_get_mem_cgroup_from_page(page);
+ 	if (!memcg)
+ 		memcg = get_mem_cgroup_from_mm(mm);
+ 
 -- 
 2.1.4
 
