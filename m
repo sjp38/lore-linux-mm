@@ -1,60 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D8C36B0032
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2015 20:53:40 -0400 (EDT)
-Received: by pdjm12 with SMTP id m12so12903896pdj.3
-        for <linux-mm@kvack.org>; Thu, 11 Jun 2015 17:53:39 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id nw8si2995238pbb.84.2015.06.11.17.53.39
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EF176B0032
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2015 03:05:11 -0400 (EDT)
+Received: by padev16 with SMTP id ev16so17576124pad.0
+        for <linux-mm@kvack.org>; Fri, 12 Jun 2015 00:05:10 -0700 (PDT)
+Received: from out4133-130.mail.aliyun.com (out4133-130.mail.aliyun.com. [42.120.133.130])
+        by mx.google.com with ESMTP id mx8si4069838pdb.255.2015.06.12.00.05.08
         for <linux-mm@kvack.org>;
-        Thu, 11 Jun 2015 17:53:39 -0700 (PDT)
-Date: Fri, 12 Jun 2015 08:52:45 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [next:master 10274/10671]
- /kbuild/src/slow3/arch/arm/mach-tegra/cpuidle-tegra114.c:88: undefined
- reference to `psci_smp_available'
-Message-ID: <20150612005245.GB11843@wfg-t540p.sh.intel.com>
-References: <201506120455.HwpOSg84%fengguang.wu@intel.com>
- <1434060757.3165.96.camel@stgolabs.net>
+        Fri, 12 Jun 2015 00:05:09 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+Subject: Re: [PATCH 07/25] mm, vmscan: Make kswapd think of reclaim in terms of nodes
+Date: Fri, 12 Jun 2015 15:05:00 +0800
+Message-ID: <00ea01d0a4de$19f165d0$4dd43170$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1434060757.3165.96.camel@stgolabs.net>
+Content-Type: text/plain;
+	charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
 
-Hi Davidlohr,
-
-Sorry it's a wrong bisect. I'll fix the bisect script.
-
-Thanks,
-Fengguang
-
-On Thu, Jun 11, 2015 at 03:12:37PM -0700, Davidlohr Bueso wrote:
-> On Fri, 2015-06-12 at 04:45 +0800, kbuild test robot wrote:
-> > Hi Davidlohr,
-> > 
-> > First bad commit (maybe != root cause):
-> > 
-> > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> > head:   f0939c364ffe7dc377c4d7946360f99cb7fc867b
-> > commit: 48803a970534ad0411991de1d293996db8ea9aa0 [10274/10671] ipc,sysv: return -EINVAL upon incorrect id/seqnum
+> -	/* Reclaim above the high watermark. */
+> -	sc->nr_to_reclaim = max(SWAP_CLUSTER_MAX, high_wmark_pages(zone));
+> +	/* Aim to reclaim above all the zone high watermarks */
+> +	for (z = 0; z <= end_zone; z++) {
+> +		zone = pgdat->node_zones + end_zone;
+s/end_zone/z/ ?
+> +		nr_to_reclaim += high_wmark_pages(zone);
 > 
-> The below makes no sense with this commit. `psci_smp_available' has 0 to
-> do with ipc.
+[...]
+> @@ -3280,13 +3177,26 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>  			compact_pgdat(pgdat, order);
 > 
-> > 
-> > All error/warnings (new ones prefixed by >>):
-> > 
-> >    arch/arm/mach-tegra/built-in.o: In function `tegra114_cpuidle_init':
-> > >> /kbuild/src/slow3/arch/arm/mach-tegra/cpuidle-tegra114.c:88: undefined reference to `psci_smp_available'
+>  		/*
+> +		 * Stop reclaiming if any eligible zone is balanced and clear
+> +		 * node writeback or congested.
+> +		 */
+> +		for (i = 0; i <= *classzone_idx; i++) {
+> +			zone = pgdat->node_zones + i;
+> +
+> +			if (zone_balanced(zone, sc.order, 0, *classzone_idx)) {
+> +				clear_bit(PGDAT_CONGESTED, &pgdat->flags);
+> +				clear_bit(PGDAT_DIRTY, &pgdat->flags);
+> +				break;
+s/break/goto out/ ?
+> +			}
+> +		}
+> +
+> +		/*
+>  		 * Raise priority if scanning rate is too low or there was no
+>  		 * progress in reclaiming pages
+>  		 */
+>  		if (raise_priority || !sc.nr_reclaimed)
+>  			sc.priority--;
+> -	} while (sc.priority >= 1 &&
+> -		 !pgdat_balanced(pgdat, order, *classzone_idx));
+> +	} while (sc.priority >= 1);
 > 
-> Thanks,
-> Davidlohr
-> 
-> 
+>  out:
+>  	/*
+> --
+> 2.3.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
