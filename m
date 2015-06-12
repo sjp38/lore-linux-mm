@@ -1,69 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EF176B0032
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2015 03:05:11 -0400 (EDT)
-Received: by padev16 with SMTP id ev16so17576124pad.0
-        for <linux-mm@kvack.org>; Fri, 12 Jun 2015 00:05:10 -0700 (PDT)
-Received: from out4133-130.mail.aliyun.com (out4133-130.mail.aliyun.com. [42.120.133.130])
-        by mx.google.com with ESMTP id mx8si4069838pdb.255.2015.06.12.00.05.08
-        for <linux-mm@kvack.org>;
-        Fri, 12 Jun 2015 00:05:09 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-Subject: Re: [PATCH 07/25] mm, vmscan: Make kswapd think of reclaim in terms of nodes
-Date: Fri, 12 Jun 2015 15:05:00 +0800
-Message-ID: <00ea01d0a4de$19f165d0$4dd43170$@alibaba-inc.com>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id AE7426B0032
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2015 04:11:03 -0400 (EDT)
+Received: by padev16 with SMTP id ev16so18604977pad.0
+        for <linux-mm@kvack.org>; Fri, 12 Jun 2015 01:11:03 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id ct15si4284024pac.193.2015.06.12.01.11.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 12 Jun 2015 01:11:02 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [RFC PATCH 08/12] mm: use mirrorable to switch allocate
+ mirrored memory
+Date: Fri, 12 Jun 2015 08:05:18 +0000
+Message-ID: <20150612080518.GA19075@hori1.linux.bs1.fc.nec.co.jp>
+References: <55704A7E.5030507@huawei.com> <55704C79.5060608@huawei.com>
+In-Reply-To: <55704C79.5060608@huawei.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <B23D6155B26463448713088DB573C28D@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "nao.horiguchi@gmail.com" <nao.horiguchi@gmail.com>, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> -	/* Reclaim above the high watermark. */
-> -	sc->nr_to_reclaim = max(SWAP_CLUSTER_MAX, high_wmark_pages(zone));
-> +	/* Aim to reclaim above all the zone high watermarks */
-> +	for (z = 0; z <= end_zone; z++) {
-> +		zone = pgdat->node_zones + end_zone;
-s/end_zone/z/ ?
-> +		nr_to_reclaim += high_wmark_pages(zone);
-> 
-[...]
-> @@ -3280,13 +3177,26 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  			compact_pgdat(pgdat, order);
-> 
->  		/*
-> +		 * Stop reclaiming if any eligible zone is balanced and clear
-> +		 * node writeback or congested.
-> +		 */
-> +		for (i = 0; i <= *classzone_idx; i++) {
-> +			zone = pgdat->node_zones + i;
-> +
-> +			if (zone_balanced(zone, sc.order, 0, *classzone_idx)) {
-> +				clear_bit(PGDAT_CONGESTED, &pgdat->flags);
-> +				clear_bit(PGDAT_DIRTY, &pgdat->flags);
-> +				break;
-s/break/goto out/ ?
-> +			}
-> +		}
-> +
-> +		/*
->  		 * Raise priority if scanning rate is too low or there was no
->  		 * progress in reclaiming pages
->  		 */
->  		if (raise_priority || !sc.nr_reclaimed)
->  			sc.priority--;
-> -	} while (sc.priority >= 1 &&
-> -		 !pgdat_balanced(pgdat, order, *classzone_idx));
-> +	} while (sc.priority >= 1);
-> 
->  out:
->  	/*
+On Thu, Jun 04, 2015 at 09:02:49PM +0800, Xishi Qiu wrote:
+> Add a new interface in path /proc/sys/vm/mirrorable. When set to 1, it me=
+ans
+> we should allocate mirrored memory for both user and kernel processes.
+
+As Dave and Kamezawa-san commented, documentation is not enough, so please
+add a section in Documentation/sysctl/vm.txt for this new tuning parameter.
+
+Thanks,
+Naoya Horiguchi
+
+>=20
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> ---
+>  include/linux/mmzone.h | 1 +
+>  kernel/sysctl.c        | 9 +++++++++
+>  mm/page_alloc.c        | 1 +
+>  3 files changed, 11 insertions(+)
+>=20
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index f82e3ae..20888dd 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -85,6 +85,7 @@ struct mirror_info {
+>  };
+> =20
+>  extern struct mirror_info mirror_info;
+> +extern int sysctl_mirrorable;
+>  #  define is_migrate_mirror(migratetype) unlikely((migratetype) =3D=3D M=
+IGRATE_MIRROR)
+>  #else
+>  #  define is_migrate_mirror(migratetype) false
+> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> index 2082b1a..dc2625e 100644
+> --- a/kernel/sysctl.c
+> +++ b/kernel/sysctl.c
+> @@ -1514,6 +1514,15 @@ static struct ctl_table vm_table[] =3D {
+>  		.extra2		=3D &one,
+>  	},
+>  #endif
+> +#ifdef CONFIG_MEMORY_MIRROR
+> +	{
+> +		.procname	=3D "mirrorable",
+> +		.data		=3D &sysctl_mirrorable,
+> +		.maxlen		=3D sizeof(sysctl_mirrorable),
+> +		.mode		=3D 0644,
+> +		.proc_handler	=3D proc_dointvec_minmax,
+> +	},
+> +#endif
+>  	{
+>  		.procname	=3D "user_reserve_kbytes",
+>  		.data		=3D &sysctl_user_reserve_kbytes,
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 249a8f6..63b90ca 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -212,6 +212,7 @@ int user_min_free_kbytes =3D -1;
+> =20
+>  #ifdef CONFIG_MEMORY_MIRROR
+>  struct mirror_info mirror_info;
+> +int sysctl_mirrorable =3D 0;
+>  #endif
+> =20
+>  static unsigned long __meminitdata nr_kernel_pages;
+> --=20
+> 2.0.0
+>=20
+>=20
 > --
-> 2.3.5
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
