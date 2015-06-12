@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id AE7426B0032
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2015 04:11:03 -0400 (EDT)
-Received: by padev16 with SMTP id ev16so18604977pad.0
-        for <linux-mm@kvack.org>; Fri, 12 Jun 2015 01:11:03 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id ct15si4284024pac.193.2015.06.12.01.11.01
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BA876B0032
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2015 04:48:09 -0400 (EDT)
+Received: by payr10 with SMTP id r10so19170141pay.1
+        for <linux-mm@kvack.org>; Fri, 12 Jun 2015 01:48:09 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id rc6si4455130pab.83.2015.06.12.01.48.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 12 Jun 2015 01:11:02 -0700 (PDT)
+        Fri, 12 Jun 2015 01:48:08 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [RFC PATCH 08/12] mm: use mirrorable to switch allocate
- mirrored memory
-Date: Fri, 12 Jun 2015 08:05:18 +0000
-Message-ID: <20150612080518.GA19075@hori1.linux.bs1.fc.nec.co.jp>
-References: <55704A7E.5030507@huawei.com> <55704C79.5060608@huawei.com>
-In-Reply-To: <55704C79.5060608@huawei.com>
+Subject: Re: [RFC PATCH 00/12] mm: mirrored memory support for page buddy
+ allocations
+Date: Fri, 12 Jun 2015 08:42:33 +0000
+Message-ID: <20150612084233.GB19075@hori1.linux.bs1.fc.nec.co.jp>
+References: <55704A7E.5030507@huawei.com>
+In-Reply-To: <55704A7E.5030507@huawei.com>
 Content-Language: ja-JP
 Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <B23D6155B26463448713088DB573C28D@gisp.nec.co.jp>
+Content-ID: <E97BB67761E3F247B677894AB42604BD@gisp.nec.co.jp>
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
@@ -26,79 +26,113 @@ List-ID: <linux-mm.kvack.org>
 To: Xishi Qiu <qiuxishi@huawei.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, "nao.horiguchi@gmail.com" <nao.horiguchi@gmail.com>, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 04, 2015 at 09:02:49PM +0800, Xishi Qiu wrote:
-> Add a new interface in path /proc/sys/vm/mirrorable. When set to 1, it me=
-ans
-> we should allocate mirrored memory for both user and kernel processes.
+On Thu, Jun 04, 2015 at 08:54:22PM +0800, Xishi Qiu wrote:
+> Intel Xeon processor E7 v3 product family-based platforms introduces supp=
+ort
+> for partial memory mirroring called as 'Address Range Mirroring'. This fe=
+ature
+> allows BIOS to specify a subset of total available memory to be mirrored =
+(and
+> optionally also specify whether to mirror the range 0-4 GB). This capabil=
+ity
+> allows user to make an appropriate tradeoff between non-mirrored memory r=
+ange
+> and mirrored memory range thus optimizing total available memory and stil=
+l
+> achieving highly reliable memory range for mission critical workloads and=
+/or
+> kernel space.
+>=20
+> Tony has already send a patchset to supprot this feature at boot time.
+> https://lkml.org/lkml/2015/5/8/521
+>=20
+> This patchset can support the feature after boot time. It introduces mirr=
+or_info
+> to save the mirrored memory range. Then use __GFP_MIRROR to allocate mirr=
+ored=20
+> pages.=20
+>=20
+> I think add a new migratetype is btter and easier than a new zone, so I u=
+se
+> MIGRATE_MIRROR to manage the mirrored pages. However it changed some code=
+ in the
+> core file, please review and comment, thanks.
+>=20
+> TBD:=20
+> 1) call add_mirror_info() to fill mirrored memory info.
+> 2) add compatibility with memory online/offline.
 
-As Dave and Kamezawa-san commented, documentation is not enough, so please
-add a section in Documentation/sysctl/vm.txt for this new tuning parameter.
+Maybe simply disabling memory offlining of memory block including MIGRATE_M=
+IRROR?
+
+> 3) add more interface? others?
+
+4?) I don't have the whole picture of how address ranging mirroring works,
+but I'm curious about what happens when an uncorrected memory error happens
+on the a mirror page. If HW/FW do some useful work invisible from kernel,
+please document it somewhere. And my questions are:
+ - can the kernel with this patchset really continue its operation without
+   breaking consistency? More specifically, the corrupted page is replaced =
+with
+   its mirror page, but can any other pages which have references (like str=
+uct
+   page or pfn) for the corrupted page properly switch these references to =
+the
+   mirror page? Or no worry about that?  (This is difficult for kernel page=
+s
+   like slab, and that's why currently hwpoison doesn't handle any kernel p=
+ages.)
+ - How can we test/confirm that the whole scheme works fine?  Is current me=
+mory
+   error injection framework enough?
+
+It's really nice if any roadmap including testing is shared.
+
+# And please CC me as n-horiguchi@ah.nec.com (my primary email address :)
 
 Thanks,
 Naoya Horiguchi
 
+> Xishi Qiu (12):
+>   mm: add a new config to manage the code
+>   mm: introduce mirror_info
+>   mm: introduce MIGRATE_MIRROR to manage the mirrored pages
+>   mm: add mirrored pages to buddy system
+>   mm: introduce a new zone_stat_item NR_FREE_MIRROR_PAGES
+>   mm: add free mirrored pages info
+>   mm: introduce __GFP_MIRROR to allocate mirrored pages
+>   mm: use mirrorable to switch allocate mirrored memory
+>   mm: enable allocate mirrored memory at boot time
+>   mm: add the buddy system interface
+>   mm: add the PCP interface
+>   mm: let slab/slub/slob use mirrored memory
 >=20
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->  include/linux/mmzone.h | 1 +
->  kernel/sysctl.c        | 9 +++++++++
->  mm/page_alloc.c        | 1 +
->  3 files changed, 11 insertions(+)
+>  arch/x86/mm/numa.c     |   3 ++
+>  drivers/base/node.c    |  17 ++++---
+>  fs/proc/meminfo.c      |   6 +++
+>  include/linux/gfp.h    |   5 +-
+>  include/linux/mmzone.h |  23 +++++++++
+>  include/linux/vmstat.h |   2 +
+>  kernel/sysctl.c        |   9 ++++
+>  mm/Kconfig             |   8 +++
+>  mm/page_alloc.c        | 134 +++++++++++++++++++++++++++++++++++++++++++=
++++---
+>  mm/slab.c              |   3 +-
+>  mm/slob.c              |   2 +-
+>  mm/slub.c              |   2 +-
+>  mm/vmstat.c            |   4 ++
+>  13 files changed, 202 insertions(+), 16 deletions(-)
 >=20
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index f82e3ae..20888dd 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -85,6 +85,7 @@ struct mirror_info {
->  };
-> =20
->  extern struct mirror_info mirror_info;
-> +extern int sysctl_mirrorable;
->  #  define is_migrate_mirror(migratetype) unlikely((migratetype) =3D=3D M=
-IGRATE_MIRROR)
->  #else
->  #  define is_migrate_mirror(migratetype) false
-> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> index 2082b1a..dc2625e 100644
-> --- a/kernel/sysctl.c
-> +++ b/kernel/sysctl.c
-> @@ -1514,6 +1514,15 @@ static struct ctl_table vm_table[] =3D {
->  		.extra2		=3D &one,
->  	},
->  #endif
-> +#ifdef CONFIG_MEMORY_MIRROR
-> +	{
-> +		.procname	=3D "mirrorable",
-> +		.data		=3D &sysctl_mirrorable,
-> +		.maxlen		=3D sizeof(sysctl_mirrorable),
-> +		.mode		=3D 0644,
-> +		.proc_handler	=3D proc_dointvec_minmax,
-> +	},
-> +#endif
->  	{
->  		.procname	=3D "user_reserve_kbytes",
->  		.data		=3D &sysctl_user_reserve_kbytes,
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 249a8f6..63b90ca 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -212,6 +212,7 @@ int user_min_free_kbytes =3D -1;
-> =20
->  #ifdef CONFIG_MEMORY_MIRROR
->  struct mirror_info mirror_info;
-> +int sysctl_mirrorable =3D 0;
->  #endif
-> =20
->  static unsigned long __meminitdata nr_kernel_pages;
 > --=20
 > 2.0.0
 >=20
 >=20
 > --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>=
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
+n
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
