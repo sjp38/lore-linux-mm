@@ -1,99 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 905B0280003
-	for <linux-mm@kvack.org>; Sat, 13 Jun 2015 05:49:55 -0400 (EDT)
-Received: by wigg3 with SMTP id g3so34744517wig.1
-        for <linux-mm@kvack.org>; Sat, 13 Jun 2015 02:49:55 -0700 (PDT)
-Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com. [2a00:1450:400c:c05::231])
-        by mx.google.com with ESMTPS id en9si7882911wib.46.2015.06.13.02.49.52
+Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
+	by kanga.kvack.org (Postfix) with ESMTP id E0AAF6B0038
+	for <linux-mm@kvack.org>; Sat, 13 Jun 2015 11:25:23 -0400 (EDT)
+Received: by oihd6 with SMTP id d6so36696839oih.2
+        for <linux-mm@kvack.org>; Sat, 13 Jun 2015 08:25:23 -0700 (PDT)
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com. [209.85.214.174])
+        by mx.google.com with ESMTPS id go5si3827271obb.42.2015.06.13.08.25.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 13 Jun 2015 02:49:53 -0700 (PDT)
-Received: by wifx6 with SMTP id x6so34980907wif.0
-        for <linux-mm@kvack.org>; Sat, 13 Jun 2015 02:49:52 -0700 (PDT)
-From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 12/12] x86/mm: Simplify pgd_alloc()
-Date: Sat, 13 Jun 2015 11:49:15 +0200
-Message-Id: <1434188955-31397-13-git-send-email-mingo@kernel.org>
-In-Reply-To: <1434188955-31397-1-git-send-email-mingo@kernel.org>
-References: <1434188955-31397-1-git-send-email-mingo@kernel.org>
+        Sat, 13 Jun 2015 08:25:22 -0700 (PDT)
+Received: by obbgp2 with SMTP id gp2so39416659obb.2
+        for <linux-mm@kvack.org>; Sat, 13 Jun 2015 08:25:22 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAPAsAGy-r8Z2N09wKV+e0kLfbwxd-eWK6N5Xajsnqq9jfyWqcQ@mail.gmail.com>
+References: <1431698344-28054-1-git-send-email-a.ryabinin@samsung.com>
+	<1431698344-28054-6-git-send-email-a.ryabinin@samsung.com>
+	<CACRpkdaRJJjCXR=vK1M2YhR26JZfGoBB+jcqz8r2MhERfxRzqA@mail.gmail.com>
+	<CAPAsAGy-r8Z2N09wKV+e0kLfbwxd-eWK6N5Xajsnqq9jfyWqcQ@mail.gmail.com>
+Date: Sat, 13 Jun 2015 17:25:22 +0200
+Message-ID: <CACRpkdZmHLMxosLXjyOPdkavo=UNzmTcHOLF5vV4cS1ULfbq6A@mail.gmail.com>
+Subject: Re: [PATCH v2 5/5] arm64: add KASan support
+From: Linus Walleij <linus.walleij@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Waiman Long <Waiman.Long@hp.com>
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, David Keitel <dkeitel@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Right now pgd_alloc() uses pgd_ctor(), which copies over the
-current swapper_pg_dir[] to a new task's PGD.
+On Fri, Jun 12, 2015 at 8:14 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
+> 2015-06-11 16:39 GMT+03:00 Linus Walleij <linus.walleij@linaro.org>:
+>> On Fri, May 15, 2015 at 3:59 PM, Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
+>>
+>>> This patch adds arch specific code for kernel address sanitizer
+>>> (see Documentation/kasan.txt).
+>>
+>> I looked closer at this again ... I am trying to get KASan up for
+>> ARM(32) with some tricks and hacks.
+>>
+>
+> I have some patches for that. They still need some polishing, but works for me.
+> I could share after I get back to office on Tuesday.
 
-This is not necessary, it's enough if we clear it: the PGD will
-then be properly updated by arch_pgd_init_late().
+OK! I'd be happy to test!
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Waiman Long <Waiman.Long@hp.com>
-Cc: linux-mm@kvack.org
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
----
- arch/x86/mm/pgtable.c | 27 +++++++++------------------
- 1 file changed, 9 insertions(+), 18 deletions(-)
+I have a WIP patch too, but it was trying to do a physical carveout
+at early boot because of misunderstandings as to how KASan works...
+Yeah I'm a slow learner.
 
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 7cca42c01677..d7d341e57e33 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -87,20 +87,6 @@ void ___pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
- #define UNSHARED_PTRS_PER_PGD				\
- 	(SHARED_KERNEL_PMD ? KERNEL_PGD_BOUNDARY : PTRS_PER_PGD)
- 
--static void pgd_ctor(struct mm_struct *mm, pgd_t *pgd)
--{
--	/* If the pgd points to a shared pagetable level (either the
--	   ptes in non-PAE, or shared PMD in PAE), then just copy the
--	   references from swapper_pg_dir. */
--	if (CONFIG_PGTABLE_LEVELS == 2 ||
--	    (CONFIG_PGTABLE_LEVELS == 3 && SHARED_KERNEL_PMD) ||
--	    CONFIG_PGTABLE_LEVELS == 4) {
--		clone_pgd_range(pgd + KERNEL_PGD_BOUNDARY,
--				swapper_pg_dir + KERNEL_PGD_BOUNDARY,
--				KERNEL_PGD_PTRS);
--	}
--}
--
- /*
-  * List of all pgd's needed for non-PAE so it can invalidate entries
-  * in both cached and uncached pgd's; not needed for PAE since the
-@@ -328,11 +314,16 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
- 		goto out_free_pmds;
- 
- 	/*
--	 * No locking is needed here, as the PGD is still private,
--	 * so no code walking the task list and looking at mm->pgd
--	 * will be able to see it before it's fully constructed:
-+	 * Zero out the kernel portion here, we'll set them up in
-+	 * arch_pgd_init_late(), when the pgd is globally
-+	 * visible already per the task list, so that it cannot
-+	 * miss updates.
-+	 *
-+	 * We need to zero it here, to make sure arch_pgd_init_late()
-+	 * can initialize them without locking.
- 	 */
--	pgd_ctor(mm, pgd);
-+	memset(pgd + KERNEL_PGD_BOUNDARY, 0, KERNEL_PGD_PTRS*sizeof(pgd_t));
-+
- 	pgd_prepopulate_pmd(mm, pgd, pmds);
- 
- 	return pgd;
--- 
-2.1.4
+>>> +/*
+>>> + * KASAN_SHADOW_START: beginning of the kernel virtual addresses.
+>>> + * KASAN_SHADOW_END: KASAN_SHADOW_START + 1/8 of kernel virtual addresses.
+>>> + */
+>>> +#define KASAN_SHADOW_START      (UL(0xffffffffffffffff) << (VA_BITS))
+>>> +#define KASAN_SHADOW_END        (KASAN_SHADOW_START + (1UL << (VA_BITS - 3)))
+>>
+>> Will this not mean that shadow start to end actually covers *all*
+>> virtual addresses including userspace and what not? However a
+>> large portion of this shadow memory will be unused because the
+>> SHADOW_OFFSET only works for code compiled for the kernel
+>> anyway.
+>>
+>
+> SHADOW_OFFSET:SHADOW_END - covers *all* 64bits of virtual addresses.
+> SHADOW_OFFSET:SHADOW_START - unused shadow.
+> SHADOW_START:SHADOW_END - covers only kernel virtual addresses (used shadow).
+
+Aha. I see now...
+
+>> When working on ARM32 I certainly could not map
+>> (1UL << (VA_BITS -3)) i.e. for 32 bit (1UL << 29) bytes (512 MB) of
+>
+> Why not? We can just take it from TASK_SIZE.
+
+Yeah the idea to steal it from userspace occured to me too...
+with ARM32 having a highmem split in the middle of vmalloc I was
+quite stressed when trying to chisel it out from the vmalloc area.
+
+I actually managed to remove all static iomaps from my platform
+so I could allocate the KASan memory from high to log addresses
+at 0xf7000000-0xff000000 but it puts requirements on all
+the ARM32 platforms to rid their static maps :P
+
+>> Is it correct that when the pte's, pgd's and pud's are populated
+>> KASan really doesn't kick in, it's just done to have some scratch
+>> memory with whatever contents so as to do dummy updates
+>> for the __asan_loadN() and __asan_storeN() calls, and no checks
+>> start until the shadow memory is populated in kasan_init()
+>> i.e. there are no KASan checks for any code executing up
+>> to that point, just random writes and reads?
+>
+> Yes, kasan_early_init() setups scratch memory with whatever contents.
+> But  KASan checks shadow before kasan_init(), that's the reason why we
+> need scratch shadow.
+>
+> So checks are performed, but KASan don't print any reports, because
+> init_task has non-zero kasan_depth flag (see include/linux/init_task.h)
+> We check that flag in kasan_report() and print report iff it have zero value.
+>
+> In kasan_init() after shadow populated, we enable reports by setting
+> kasan_depth to zero.
+
+Aha now I understand how this works! Now I understand
+this init_task.kasan_depth = 0 too.
+
+>> Are we just lucky that these functions never do any loads
+>> and stores?
+>>
+>
+> We relay on fact that these functions are static inline and do not call other
+> functions from other (instrumented) files.
+
+Aha, makes perfect sense.
+
+I think I understand the code a bit now ... it maps all the KASan
+shadow memory to the physical memory of the zero page and let all
+updates hit that memory until the memory manager is up and running,
+then you allocate physical memory backing the shadow in
+kasan_populate_zero_shadow().
+
+I misunderstood it such that the backing physical shadow memory
+had to be available when we do the early call... no wonder I
+got lost.
+
+Yours,
+Linus Walleij
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
