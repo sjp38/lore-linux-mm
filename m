@@ -1,741 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 19C6E6B0075
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 13:22:33 -0400 (EDT)
-Received: by qcsf5 with SMTP id f5so5588628qcs.2
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 10:22:32 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 46si13417592qgh.27.2015.06.15.10.22.19
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 026B76B0038
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 14:11:53 -0400 (EDT)
+Received: by igbos3 with SMTP id os3so25434843igb.0
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 11:11:52 -0700 (PDT)
+Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com. [2607:f8b0:4001:c05::229])
+        by mx.google.com with ESMTPS id i80si10353858ioi.31.2015.06.15.11.11.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jun 2015 10:22:20 -0700 (PDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 7/7] userfaultfd: selftest
-Date: Mon, 15 Jun 2015 19:22:11 +0200
-Message-Id: <1434388931-24487-8-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1434388931-24487-1-git-send-email-aarcange@redhat.com>
+        Mon, 15 Jun 2015 11:11:52 -0700 (PDT)
+Received: by igbos3 with SMTP id os3so25434564igb.0
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 11:11:52 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1434388931-24487-2-git-send-email-aarcange@redhat.com>
 References: <1434388931-24487-1-git-send-email-aarcange@redhat.com>
+	<1434388931-24487-2-git-send-email-aarcange@redhat.com>
+Date: Mon, 15 Jun 2015 08:11:50 -1000
+Message-ID: <CA+55aFzdZJw7Ot7=PYyyskNhkv=H+NPzoF6rKtb6oMyzkuQ-=Q@mail.gmail.com>
+Subject: Re: [PATCH 1/7] userfaultfd: require UFFDIO_API before other ioctls
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: multipart/alternative; boundary=001a113feefc6280fe05189264ce
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org
-Cc: Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Paolo Bonzini <pbonzini@redhat.com>, qemu-devel@nongnu.org, Pavel Emelyanov <xemul@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, zhang.zhanghailiang@huawei.com, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Peter Feiner <pfeiner@google.com>, Mel Gorman <mgorman@suse.de>, kvm@vger.kernel.org
 
-This test allocates two virtual areas and bounces the physical memory
-across the two virtual areas using only userfaultfd.
+--001a113feefc6280fe05189264ce
+Content-Type: text/plain; charset=UTF-8
 
-This exposed a race condition in the refile of the userfault in
-userfaultfd_read and an alignment issue with the address returned to
-userland with THP enabled. It also allowed to test the interruption of
-userfaults by signals (like running the testcase under gdb).
+On Jun 15, 2015 7:22 AM, "Andrea Arcangeli" <aarcange@redhat.com> wrote:
+>
+> +       if (cmd != UFFDIO_API) {
+> +               if (ctx->state == UFFD_STATE_WAIT_API)
+> +                       return -EINVAL;
+> +               BUG_ON(ctx->state != UFFD_STATE_RUNNING);
+> +       }
 
-As expected no sign of memory corruption has ever materialized no
-matter how I changed the stress test while developing it. The two bugs
-had no impact on the safety and correctness of the memory being
-tracked by userfaultfd. The fix for those two bugs was also
-strightforward and required no design change of any sort.
+NAK.
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- tools/testing/selftests/vm/Makefile      |   4 +-
- tools/testing/selftests/vm/userfaultfd.c | 669 +++++++++++++++++++++++++++++++
- 2 files changed, 672 insertions(+), 1 deletion(-)
- create mode 100644 tools/testing/selftests/vm/userfaultfd.c
+Once again: we don't add BUG_ON() as some kind of assert. If your
+non-critical code has s bug in it, you do WARN_ONCE() and you return. You
+don't kill the machine just because of some "this can't happen" situation.
 
-diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
-index a5ce953..6f19ecc 100644
---- a/tools/testing/selftests/vm/Makefile
-+++ b/tools/testing/selftests/vm/Makefile
-@@ -1,12 +1,14 @@
- # Makefile for vm selftests
- 
- CFLAGS = -Wall
--BINARIES = hugepage-mmap hugepage-shm map_hugetlb thuge-gen hugetlbfstest
-+BINARIES = hugepage-mmap hugepage-shm map_hugetlb thuge-gen hugetlbfstest userfaultfd
- BINARIES += transhuge-stress
- 
- all: $(BINARIES)
- %: %.c
- 	$(CC) $(CFLAGS) -o $@ $^ -lrt
-+userfaultfd: userfaultfd.c
-+	$(CC) $(CFLAGS) -o $@ $^ -g -lrt -lpthread
- 
- TEST_PROGS := run_vmtests
- TEST_FILES := $(BINARIES)
-diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
-new file mode 100644
-index 0000000..418dc33
---- /dev/null
-+++ b/tools/testing/selftests/vm/userfaultfd.c
-@@ -0,0 +1,669 @@
-+/*
-+ * Stress userfaultfd syscall.
-+ *
-+ *  Copyright (C) 2015  Red Hat, Inc.
-+ *
-+ *  This work is licensed under the terms of the GNU GPL, version 2. See
-+ *  the COPYING file in the top-level directory.
-+ *
-+ * This test allocates two virtual areas and bounces the physical
-+ * memory across the two virtual areas (from area_src to area_dst)
-+ * using userfaultfd.
-+ *
-+ * There are three threads running per CPU:
-+ *
-+ * 1) one per-CPU thread takes a per-page pthread_mutex in a random
-+ *    page of the area_dst (while the physical page may still be in
-+ *    area_src), and increments a per-page counter in the same page,
-+ *    and checks its value against a verification region.
-+ *
-+ * 2) another per-CPU thread handles the userfaults generated by
-+ *    thread 1 above. userfaultfd blocking reads or poll() modes are
-+ *    exercised interleaved.
-+ *
-+ * 3) one last per-CPU thread transfers the memory in the background
-+ *    at maximum bandwidth (if not already transferred by thread
-+ *    2). Each cpu thread takes cares of transferring a portion of the
-+ *    area.
-+ *
-+ * When all threads of type 3 completed the transfer, one bounce is
-+ * complete. area_src and area_dst are then swapped. All threads are
-+ * respawned and so the bounce is immediately restarted in the
-+ * opposite direction.
-+ *
-+ * per-CPU threads 1 by triggering userfaults inside
-+ * pthread_mutex_lock will also verify the atomicity of the memory
-+ * transfer (UFFDIO_COPY).
-+ *
-+ * The program takes two parameters: the amounts of physical memory in
-+ * megabytes (MiB) of the area and the number of bounces to execute.
-+ *
-+ * # 100MiB 99999 bounces
-+ * ./userfaultfd 100 99999
-+ *
-+ * # 1GiB 99 bounces
-+ * ./userfaultfd 1000 99
-+ *
-+ * # 10MiB-~6GiB 999 bounces, continue forever unless an error triggers
-+ * while ./userfaultfd $[RANDOM % 6000 + 10] 999; do true; done
-+ */
-+
-+#define _GNU_SOURCE
-+#include <stdio.h>
-+#include <errno.h>
-+#include <unistd.h>
-+#include <stdlib.h>
-+#include <sys/types.h>
-+#include <sys/stat.h>
-+#include <fcntl.h>
-+#include <time.h>
-+#include <signal.h>
-+#include <poll.h>
-+#include <string.h>
-+#include <sys/mman.h>
-+#include <sys/syscall.h>
-+#include <sys/ioctl.h>
-+#include <pthread.h>
-+#include "../../../../include/uapi/linux/userfaultfd.h"
-+
-+#ifdef __x86_64__
-+#define __NR_userfaultfd 323
-+#elif defined(__i386__)
-+#define __NR_userfaultfd 359
-+#elif defined(__powewrpc__)
-+#define __NR_userfaultfd 364
-+#else
-+#error "missing __NR_userfaultfd definition"
-+#endif
-+
-+static unsigned long nr_cpus, nr_pages, nr_pages_per_cpu, page_size;
-+
-+#define BOUNCE_RANDOM		(1<<0)
-+#define BOUNCE_RACINGFAULTS	(1<<1)
-+#define BOUNCE_VERIFY		(1<<2)
-+#define BOUNCE_POLL		(1<<3)
-+static int bounces;
-+
-+static unsigned long long *count_verify;
-+static int uffd, finished, *pipefd;
-+static char *area_src, *area_dst;
-+static char *zeropage;
-+pthread_attr_t attr;
-+
-+/* pthread_mutex_t starts at page offset 0 */
-+#define area_mutex(___area, ___nr)					\
-+	((pthread_mutex_t *) ((___area) + (___nr)*page_size))
-+/*
-+ * count is placed in the page after pthread_mutex_t naturally aligned
-+ * to avoid non alignment faults on non-x86 archs.
-+ */
-+#define area_count(___area, ___nr)					\
-+	((volatile unsigned long long *) ((unsigned long)		\
-+				 ((___area) + (___nr)*page_size +	\
-+				  sizeof(pthread_mutex_t) +		\
-+				  sizeof(unsigned long long) - 1) &	\
-+				 ~(unsigned long)(sizeof(unsigned long long) \
-+						  -  1)))
-+
-+static int my_bcmp(char *str1, char *str2, size_t n)
-+{
-+	unsigned long i;
-+	for (i = 0; i < n; i++)
-+		if (str1[i] != str2[i])
-+			return 1;
-+	return 0;
-+}
-+
-+static void *locking_thread(void *arg)
-+{
-+	unsigned long cpu = (unsigned long) arg;
-+	struct random_data rand;
-+	unsigned long page_nr;
-+	int32_t rand_nr;
-+	unsigned long long count;
-+	char randstate[64];
-+	unsigned int seed;
-+	time_t start;
-+
-+	if (bounces & BOUNCE_RANDOM) {
-+		seed = (unsigned int) time(NULL) - bounces;
-+		if (!(bounces & BOUNCE_RACINGFAULTS))
-+			seed += cpu;
-+		bzero(&rand, sizeof(rand));
-+		bzero(&randstate, sizeof(randstate));
-+		if (initstate_r(seed, randstate, sizeof(randstate), &rand))
-+			fprintf(stderr, "srandom_r error\n"), exit(1);
-+	} else {
-+		page_nr = -bounces;
-+		if (!(bounces & BOUNCE_RACINGFAULTS))
-+			page_nr += cpu * nr_pages_per_cpu;
-+	}
-+
-+	while (!finished) {
-+		if (bounces & BOUNCE_RANDOM) {
-+			if (random_r(&rand, &rand_nr))
-+				fprintf(stderr, "random_r 1 error\n"), exit(1);
-+			page_nr = rand_nr;
-+			if (sizeof(page_nr) > sizeof(rand_nr)) {
-+				if (random_r(&rand, &rand_nr))
-+					fprintf(stderr, "random_r 2 error\n"), exit(1);
-+				page_nr |= ((unsigned long) rand_nr) << 32;
-+			}
-+		} else
-+			page_nr += 1;
-+		page_nr %= nr_pages;
-+
-+		start = time(NULL);
-+		if (bounces & BOUNCE_VERIFY) {
-+			count = *area_count(area_dst, page_nr);
-+			if (!count)
-+				fprintf(stderr,
-+					"page_nr %lu wrong count %Lu %Lu\n",
-+					page_nr, count,
-+					count_verify[page_nr]), exit(1);
-+
-+
-+			/*
-+			 * NOTE: why is s/my_bcmp/bcmp/ or
-+			 * s/my_bcmp/memcmp/ failing?  This has
-+			 * nothing to do with userfaultfd: it's
-+			 * possible to reproduce the same failure with
-+			 * a testcase that won't invoke the
-+			 * userfaultfd syscalls at all. Apparently if
-+			 * part of the memory to be compared is
-+			 * changing under memcmp/bcmp, that library
-+			 * call will misbehave. This is concerning and
-+			 * it caused confusion while developing this
-+			 * testcase.
-+			 *
-+			 * If this check is moved inside the
-+			 * pthread_mutex protected region (by
-+			 * uncommenting the two mutex lock/unlock
-+			 * lines), then "memset/bcmp" will behave
-+			 * correctly.
-+			 *
-+			 * As far as single threaded C standard is
-+			 * concerned, memset may even be perfectly
-+			 * correct, but in multithreaded world it
-+			 * looks an unacceptable risk that memset
-+			 * returns 0 just because part of the memory
-+			 * is changing under it.
-+			 *
-+			 * These two pages are never equal at any
-+			 * given time.
-+			 *
-+			 * If the code is changed so that the second
-+			 * part of the page that is always different
-+			 * than the zeropage is never written to,
-+			 * still memcmp/bcmp returns zero because the
-+			 * first part is still changing.
-+			 *
-+			 * Insisting multiple times eventually leads
-+			 * to the correct result confirming it must be
-+			 * some CPU cache effect with SIMD
-+			 * instructions of the default memcmp/bcmp.
-+			 */
-+#if 1
-+			if (!my_bcmp(area_dst + page_nr * page_size, zeropage,
-+				     page_size))
-+				fprintf(stderr,
-+					"my_bcmp page_nr %lu wrong count %Lu %Lu\n",
-+					page_nr, count,
-+					count_verify[page_nr]), exit(1);
-+#else
-+			unsigned long loops;
-+
-+			loops = 0;
-+			// uncomment the below line to test with mutex
-+			//pthread_mutex_lock(area_mutex(area_dst, page_nr));
-+			while (!bcmp(area_dst + page_nr * page_size, zeropage,
-+				     page_size)) {
-+				loops += 1;
-+				if (loops > 10)
-+					break;
-+			}
-+			// uncomment below line to test with mutex
-+			//pthread_mutex_unlock(area_mutex(area_dst, page_nr));
-+			if (loops) {
-+				fprintf(stderr,
-+					"page_nr %lu all zero thread %lu %p %lu\n",
-+					page_nr, cpu, area_dst + page_nr * page_size,
-+					loops);
-+				if (loops > 10)
-+					exit(1);
-+			}
-+#endif
-+		}
-+
-+		pthread_mutex_lock(area_mutex(area_dst, page_nr));
-+		count = *area_count(area_dst, page_nr);
-+		if (count != count_verify[page_nr]) {
-+			fprintf(stderr,
-+				"page_nr %lu memory corruption %Lu %Lu\n",
-+				page_nr, count,
-+				count_verify[page_nr]), exit(1);
-+		}
-+		count++;
-+		*area_count(area_dst, page_nr) = count_verify[page_nr] = count;
-+		pthread_mutex_unlock(area_mutex(area_dst, page_nr));
-+
-+		if (time(NULL) - start > 1)
-+			fprintf(stderr,
-+				"userfault too slow %ld "
-+				"possible false positive with overcommit\n",
-+				time(NULL) - start);
-+	}
-+
-+	return NULL;
-+}
-+
-+static int copy_page(unsigned long offset)
-+{
-+	struct uffdio_copy uffdio_copy;
-+
-+	if (offset >= nr_pages * page_size)
-+		fprintf(stderr, "unexpected offset %lu\n",
-+			offset), exit(1);
-+	uffdio_copy.dst = (unsigned long) area_dst + offset;
-+	uffdio_copy.src = (unsigned long) area_src + offset;
-+	uffdio_copy.len = page_size;
-+	uffdio_copy.mode = 0;
-+	uffdio_copy.copy = 0;
-+	if (ioctl(uffd, UFFDIO_COPY, &uffdio_copy)) {
-+		/* real retval in ufdio_copy.copy */
-+		if (uffdio_copy.copy != -EEXIST)
-+			fprintf(stderr, "UFFDIO_COPY error %Ld\n",
-+				uffdio_copy.copy), exit(1);
-+	} else if (uffdio_copy.copy != page_size) {
-+		fprintf(stderr, "UFFDIO_COPY unexpected copy %Ld\n",
-+			uffdio_copy.copy), exit(1);
-+	} else
-+		return 1;
-+	return 0;
-+}
-+
-+static void *uffd_poll_thread(void *arg)
-+{
-+	unsigned long cpu = (unsigned long) arg;
-+	struct pollfd pollfd[2];
-+	struct uffd_msg msg;
-+	int ret;
-+	unsigned long offset;
-+	char tmp_chr;
-+	unsigned long long userfaults = 0;
-+
-+	pollfd[0].fd = uffd;
-+	pollfd[0].events = POLLIN;
-+	pollfd[1].fd = pipefd[cpu*2];
-+	pollfd[1].events = POLLIN;
-+
-+	for (;;) {
-+		ret = poll(pollfd, 2, -1);
-+		if (!ret)
-+			fprintf(stderr, "poll error %d\n", ret), exit(1);
-+		if (ret < 0)
-+			perror("poll"), exit(1);
-+		if (pollfd[1].revents & POLLIN) {
-+			if (read(pollfd[1].fd, &tmp_chr, 1) != 1)
-+				fprintf(stderr, "read pipefd error\n"),
-+					exit(1);
-+			break;
-+		}
-+		if (!(pollfd[0].revents & POLLIN))
-+			fprintf(stderr, "pollfd[0].revents %d\n",
-+				pollfd[0].revents), exit(1);
-+		ret = read(uffd, &msg, sizeof(msg));
-+		if (ret < 0) {
-+			if (errno == EAGAIN)
-+				continue;
-+			perror("nonblocking read error"), exit(1);
-+		}
-+		if (msg.event != UFFD_EVENT_PAGEFAULT)
-+			fprintf(stderr, "unexpected msg event %u\n",
-+				msg.event), exit(1);
-+		if (msg.arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WRITE)
-+			fprintf(stderr, "unexpected write fault\n"), exit(1);
-+		offset = (char *)msg.arg.pagefault.address - area_dst;
-+		offset &= ~(page_size-1);
-+		if (copy_page(offset))
-+			userfaults++;
-+	}
-+	return (void *)userfaults;
-+}
-+
-+pthread_mutex_t uffd_read_mutex = PTHREAD_MUTEX_INITIALIZER;
-+
-+static void *uffd_read_thread(void *arg)
-+{
-+	unsigned long long *this_cpu_userfaults;
-+	struct uffd_msg msg;
-+	unsigned long offset;
-+	int ret;
-+
-+	this_cpu_userfaults = (unsigned long long *) arg;
-+	*this_cpu_userfaults = 0;
-+
-+	pthread_mutex_unlock(&uffd_read_mutex);
-+	/* from here cancellation is ok */
-+
-+	for (;;) {
-+		ret = read(uffd, &msg, sizeof(msg));
-+		if (ret != sizeof(msg)) {
-+			if (ret < 0)
-+				perror("blocking read error"), exit(1);
-+			else
-+				fprintf(stderr, "short read\n"), exit(1);
-+		}
-+		if (msg.event != UFFD_EVENT_PAGEFAULT)
-+			fprintf(stderr, "unexpected msg event %u\n",
-+				msg.event), exit(1);
-+		if (msg.arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WRITE)
-+			fprintf(stderr, "unexpected write fault\n"), exit(1);
-+		offset = (char *)msg.arg.pagefault.address - area_dst;
-+		offset &= ~(page_size-1);
-+		if (copy_page(offset))
-+			(*this_cpu_userfaults)++;
-+	}
-+	return (void *)NULL;
-+}
-+
-+static void *background_thread(void *arg)
-+{
-+	unsigned long cpu = (unsigned long) arg;
-+	unsigned long page_nr;
-+
-+	for (page_nr = cpu * nr_pages_per_cpu;
-+	     page_nr < (cpu+1) * nr_pages_per_cpu;
-+	     page_nr++)
-+		copy_page(page_nr * page_size);
-+
-+	return NULL;
-+}
-+
-+static int stress(unsigned long long *userfaults)
-+{
-+	unsigned long cpu;
-+	pthread_t locking_threads[nr_cpus];
-+	pthread_t uffd_threads[nr_cpus];
-+	pthread_t background_threads[nr_cpus];
-+	void **_userfaults = (void **) userfaults;
-+
-+	finished = 0;
-+	for (cpu = 0; cpu < nr_cpus; cpu++) {
-+		if (pthread_create(&locking_threads[cpu], &attr,
-+				   locking_thread, (void *)cpu))
-+			return 1;
-+		if (bounces & BOUNCE_POLL) {
-+			if (pthread_create(&uffd_threads[cpu], &attr,
-+					   uffd_poll_thread, (void *)cpu))
-+				return 1;
-+		} else {
-+			if (pthread_create(&uffd_threads[cpu], &attr,
-+					   uffd_read_thread,
-+					   &_userfaults[cpu]))
-+				return 1;
-+			pthread_mutex_lock(&uffd_read_mutex);
-+		}
-+		if (pthread_create(&background_threads[cpu], &attr,
-+				   background_thread, (void *)cpu))
-+			return 1;
-+	}
-+	for (cpu = 0; cpu < nr_cpus; cpu++)
-+		if (pthread_join(background_threads[cpu], NULL))
-+			return 1;
-+
-+	/*
-+	 * Be strict and immediately zap area_src, the whole area has
-+	 * been transferred already by the background treads. The
-+	 * area_src could then be faulted in in a racy way by still
-+	 * running uffdio_threads reading zeropages after we zapped
-+	 * area_src (but they're guaranteed to get -EEXIST from
-+	 * UFFDIO_COPY without writing zero pages into area_dst
-+	 * because the background threads already completed).
-+	 */
-+	if (madvise(area_src, nr_pages * page_size, MADV_DONTNEED)) {
-+		perror("madvise");
-+		return 1;
-+	}
-+
-+	for (cpu = 0; cpu < nr_cpus; cpu++) {
-+		char c;
-+		if (bounces & BOUNCE_POLL) {
-+			if (write(pipefd[cpu*2+1], &c, 1) != 1) {
-+				fprintf(stderr, "pipefd write error\n");
-+				return 1;
-+			}
-+			if (pthread_join(uffd_threads[cpu], &_userfaults[cpu]))
-+				return 1;
-+		} else {
-+			if (pthread_cancel(uffd_threads[cpu]))
-+				return 1;
-+			if (pthread_join(uffd_threads[cpu], NULL))
-+				return 1;
-+		}
-+	}
-+
-+	finished = 1;
-+	for (cpu = 0; cpu < nr_cpus; cpu++)
-+		if (pthread_join(locking_threads[cpu], NULL))
-+			return 1;
-+
-+	return 0;
-+}
-+
-+static int userfaultfd_stress(void)
-+{
-+	void *area;
-+	char *tmp_area;
-+	unsigned long nr;
-+	struct uffdio_register uffdio_register;
-+	struct uffdio_api uffdio_api;
-+	unsigned long cpu;
-+	int uffd_flags;
-+	unsigned long long userfaults[nr_cpus];
-+
-+	if (posix_memalign(&area, page_size, nr_pages * page_size)) {
-+		fprintf(stderr, "out of memory\n");
-+		return 1;
-+	}
-+	area_src = area;
-+	if (posix_memalign(&area, page_size, nr_pages * page_size)) {
-+		fprintf(stderr, "out of memory\n");
-+		return 1;
-+	}
-+	area_dst = area;
-+
-+	uffd = syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK);
-+	if (uffd < 0) {
-+		fprintf(stderr,
-+			"userfaultfd syscall not available in this kernel\n");
-+		return 1;
-+	}
-+	uffd_flags = fcntl(uffd, F_GETFD, NULL);
-+
-+	uffdio_api.api = UFFD_API;
-+	uffdio_api.features = 0;
-+	if (ioctl(uffd, UFFDIO_API, &uffdio_api)) {
-+		fprintf(stderr, "UFFDIO_API\n");
-+		return 1;
-+	}
-+	if (uffdio_api.api != UFFD_API) {
-+		fprintf(stderr, "UFFDIO_API error %Lu\n", uffdio_api.api);
-+		return 1;
-+	}
-+
-+	count_verify = malloc(nr_pages * sizeof(unsigned long long));
-+	if (!count_verify) {
-+		perror("count_verify");
-+		return 1;
-+	}
-+
-+	for (nr = 0; nr < nr_pages; nr++) {
-+		*area_mutex(area_src, nr) = (pthread_mutex_t)
-+			PTHREAD_MUTEX_INITIALIZER;
-+		count_verify[nr] = *area_count(area_src, nr) = 1;
-+	}
-+
-+	pipefd = malloc(sizeof(int) * nr_cpus * 2);
-+	if (!pipefd) {
-+		perror("pipefd");
-+		return 1;
-+	}
-+	for (cpu = 0; cpu < nr_cpus; cpu++) {
-+		if (pipe2(&pipefd[cpu*2], O_CLOEXEC | O_NONBLOCK)) {
-+			perror("pipe");
-+			return 1;
-+		}
-+	}
-+
-+	if (posix_memalign(&area, page_size, page_size)) {
-+		fprintf(stderr, "out of memory\n");
-+		return 1;
-+	}
-+	zeropage = area;
-+	bzero(zeropage, page_size);
-+
-+	pthread_mutex_lock(&uffd_read_mutex);
-+
-+	pthread_attr_init(&attr);
-+	pthread_attr_setstacksize(&attr, 16*1024*1024);
-+
-+	while (bounces--) {
-+		unsigned long expected_ioctls;
-+
-+		printf("bounces: %d, mode:", bounces);
-+		if (bounces & BOUNCE_RANDOM)
-+			printf(" rnd");
-+		if (bounces & BOUNCE_RACINGFAULTS)
-+			printf(" racing");
-+		if (bounces & BOUNCE_VERIFY)
-+			printf(" ver");
-+		if (bounces & BOUNCE_POLL)
-+			printf(" poll");
-+		printf(", ");
-+		fflush(stdout);
-+
-+		if (bounces & BOUNCE_POLL)
-+			fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
-+		else
-+			fcntl(uffd, F_SETFL, uffd_flags & ~O_NONBLOCK);
-+
-+		/* register */
-+		uffdio_register.range.start = (unsigned long) area_dst;
-+		uffdio_register.range.len = nr_pages * page_size;
-+		uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-+		if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register)) {
-+			fprintf(stderr, "register failure\n");
-+			return 1;
-+		}
-+		expected_ioctls = (1 << _UFFDIO_WAKE) |
-+				  (1 << _UFFDIO_COPY) |
-+				  (1 << _UFFDIO_ZEROPAGE);
-+		if ((uffdio_register.ioctls & expected_ioctls) !=
-+		    expected_ioctls) {
-+			fprintf(stderr,
-+				"unexpected missing ioctl for anon memory\n");
-+			return 1;
-+		}
-+
-+		/*
-+		 * The madvise done previously isn't enough: some
-+		 * uffd_thread could have read userfaults (one of
-+		 * those already resolved by the background thread)
-+		 * and it may be in the process of calling
-+		 * UFFDIO_COPY. UFFDIO_COPY will read the zapped
-+		 * area_src and it would map a zero page in it (of
-+		 * course such a UFFDIO_COPY is perfectly safe as it'd
-+		 * return -EEXIST). The problem comes at the next
-+		 * bounce though: that racing UFFDIO_COPY would
-+		 * generate zeropages in the area_src, so invalidating
-+		 * the previous MADV_DONTNEED. Without this additional
-+		 * MADV_DONTNEED those zeropages leftovers in the
-+		 * area_src would lead to -EEXIST failure during the
-+		 * next bounce, effectively leaving a zeropage in the
-+		 * area_dst.
-+		 *
-+		 * Try to comment this out madvise to see the memory
-+		 * corruption being caught pretty quick.
-+		 *
-+		 * khugepaged is also inhibited to collapse THP after
-+		 * MADV_DONTNEED only after the UFFDIO_REGISTER, so it's
-+		 * required to MADV_DONTNEED here.
-+		 */
-+		if (madvise(area_dst, nr_pages * page_size, MADV_DONTNEED)) {
-+			perror("madvise 2");
-+			return 1;
-+		}
-+
-+		/* bounce pass */
-+		if (stress(userfaults))
-+			return 1;
-+
-+		/* unregister */
-+		if (ioctl(uffd, UFFDIO_UNREGISTER, &uffdio_register.range)) {
-+			fprintf(stderr, "register failure\n");
-+			return 1;
-+		}
-+
-+		/* verification */
-+		if (bounces & BOUNCE_VERIFY) {
-+			for (nr = 0; nr < nr_pages; nr++) {
-+				if (my_bcmp(area_dst,
-+					    area_dst + nr * page_size,
-+					    sizeof(pthread_mutex_t))) {
-+					fprintf(stderr,
-+						"error mutex 2 %lu\n",
-+						nr);
-+					bounces = 0;
-+				}
-+				if (*area_count(area_dst, nr) != count_verify[nr]) {
-+					fprintf(stderr,
-+						"error area_count %Lu %Lu %lu\n",
-+						*area_count(area_src, nr),
-+						count_verify[nr],
-+						nr);
-+					bounces = 0;
-+				}
-+			}
-+		}
-+
-+		/* prepare next bounce */
-+		tmp_area = area_src;
-+		area_src = area_dst;
-+		area_dst = tmp_area;
-+
-+		printf("userfaults:");
-+		for (cpu = 0; cpu < nr_cpus; cpu++)
-+			printf(" %Lu", userfaults[cpu]);
-+		printf("\n");
-+	}
-+
-+	return 0;
-+}
-+
-+int main(int argc, char **argv)
-+{
-+	if (argc < 3)
-+		fprintf(stderr, "Usage: <MiB> <bounces>\n"), exit(1);
-+	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
-+	page_size = sysconf(_SC_PAGE_SIZE);
-+	if ((unsigned long) area_count((char *)0 +
-+				       sizeof(unsigned long long), 0) >
-+	    page_size)
-+		fprintf(stderr, "Impossible to run this test\n"), exit(2);
-+	nr_pages_per_cpu = atol(argv[1]) * 1024*1024 / page_size /
-+		nr_cpus;
-+	if (!nr_pages_per_cpu) {
-+		fprintf(stderr, "invalid MiB\n");
-+		fprintf(stderr, "Usage: <MiB> <bounces>\n"), exit(1);
-+	}
-+	bounces = atoi(argv[2]);
-+	if (bounces <= 0) {
-+		fprintf(stderr, "invalid bounces\n");
-+		fprintf(stderr, "Usage: <MiB> <bounces>\n"), exit(1);
-+	}
-+	nr_pages = nr_pages_per_cpu * nr_cpus;
-+	printf("nr_pages: %lu, nr_pages_per_cpu: %lu\n",
-+	       nr_pages, nr_pages_per_cpu);
-+	return userfaultfd_stress();
-+}
+It turns out "this can't happen" happens way too often, just because code
+changes, or programmers didn't think all the cases through. And killing the
+machine is just NOT ACCEPTABLE.
+
+People need to stop adding machine-killing checks to code that just doesn't
+merit killing the machine.
+
+And if you are so damn sure that it really cannot happen ever, then you
+damn well had better remove the test too!
+
+BUG_ON is not a debugging tool, or a "I think this would be bad" helper.
+
+    Linus
+
+--001a113feefc6280fe05189264ce
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<p dir=3D"ltr"><br>
+On Jun 15, 2015 7:22 AM, &quot;Andrea Arcangeli&quot; &lt;<a href=3D"mailto=
+:aarcange@redhat.com">aarcange@redhat.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0if (cmd !=3D UFFDIO_API) {<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (ctx-&gt;st=
+ate =3D=3D UFFD_STATE_WAIT_API)<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 =C2=A0return -EINVAL;<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0BUG_ON(ctx-&gt=
+;state !=3D UFFD_STATE_RUNNING);<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0}</p>
+<p dir=3D"ltr">NAK. </p>
+<p dir=3D"ltr">Once again: we don&#39;t add BUG_ON() as some kind of assert=
+. If your non-critical code has s bug in it, you do WARN_ONCE() and you ret=
+urn. You don&#39;t kill the machine just because of some &quot;this can&#39=
+;t happen&quot; situation.</p>
+<p dir=3D"ltr">It turns out &quot;this can&#39;t happen&quot; happens way t=
+oo often, just because code changes, or programmers didn&#39;t think all th=
+e cases through. And killing the machine is just NOT ACCEPTABLE.</p>
+<p dir=3D"ltr">People need to stop adding machine-killing checks to code th=
+at just doesn&#39;t merit killing the machine.</p>
+<p dir=3D"ltr">And if you are so damn sure that it really cannot happen eve=
+r, then you damn well had better remove the test too!</p>
+<p dir=3D"ltr">BUG_ON is not a debugging tool, or a &quot;I think this woul=
+d be bad&quot; helper.</p>
+<p dir=3D"ltr">=C2=A0=C2=A0=C2=A0 Linus</p>
+
+--001a113feefc6280fe05189264ce--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
