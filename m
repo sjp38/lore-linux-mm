@@ -1,89 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 8329A6B006E
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 14:19:08 -0400 (EDT)
-Received: by igbos3 with SMTP id os3so25596465igb.0
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 11:19:08 -0700 (PDT)
-Received: from mail-ie0-x22c.google.com (mail-ie0-x22c.google.com. [2607:f8b0:4001:c03::22c])
-        by mx.google.com with ESMTPS id f6si8767661igt.23.2015.06.15.11.19.08
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id B692F6B0038
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 14:43:06 -0400 (EDT)
+Received: by pdbnf5 with SMTP id nf5so78847095pdb.2
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 11:43:06 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id na2si8663925pdb.130.2015.06.15.11.43.04
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jun 2015 11:19:08 -0700 (PDT)
-Received: by iesa3 with SMTP id a3so68155620ies.2
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 11:19:08 -0700 (PDT)
+        Mon, 15 Jun 2015 11:43:05 -0700 (PDT)
+Message-ID: <557F1C91.9080904@oracle.com>
+Date: Mon, 15 Jun 2015 11:42:25 -0700
+From: Mike Kravetz <mike.kravetz@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <1434388931-24487-6-git-send-email-aarcange@redhat.com>
-References: <1434388931-24487-1-git-send-email-aarcange@redhat.com>
-	<1434388931-24487-6-git-send-email-aarcange@redhat.com>
-Date: Mon, 15 Jun 2015 08:19:07 -1000
-Message-ID: <CA+55aFxD8hakE9SjhAD1_vJ9PATK+90k7yHQ2cENqGqK8r3QhQ@mail.gmail.com>
-Subject: Re: [PATCH 5/7] userfaultfd: switch to exclusive wakeup for blocking reads
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: multipart/alternative; boundary=90e6ba6e8ade5dc9700518927e7c
+Subject: Re: [RFC v4 PATCH 6/9] mm/hugetlb: alloc_huge_page handle areas hole
+ punched by fallocate
+References: <1434056500-2434-1-git-send-email-mike.kravetz@oracle.com> <1434056500-2434-7-git-send-email-mike.kravetz@oracle.com> <20150615063444.GA26050@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20150615063444.GA26050@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Paolo Bonzini <pbonzini@redhat.com>, qemu-devel@nongnu.org, Pavel Emelyanov <xemul@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, zhang.zhanghailiang@huawei.com, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Peter Feiner <pfeiner@google.com>, Mel Gorman <mgorman@suse.de>, kvm@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>
 
---90e6ba6e8ade5dc9700518927e7c
-Content-Type: text/plain; charset=UTF-8
+On 06/14/2015 11:34 PM, Naoya Horiguchi wrote:
+> On Thu, Jun 11, 2015 at 02:01:37PM -0700, Mike Kravetz wrote:
+>> Areas hole punched by fallocate will not have entries in the
+>> region/reserve map.  However, shared mappings with min_size subpool
+>> reservations may still have reserved pages.  alloc_huge_page needs
+>> to handle this special case and do the proper accounting.
+>>
+>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+>> ---
+>>   mm/hugetlb.c | 48 +++++++++++++++++++++++++++---------------------
+>>   1 file changed, 27 insertions(+), 21 deletions(-)
+>>
+>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> index ecbaffe..9c295c9 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -692,19 +692,9 @@ static int vma_has_reserves(struct vm_area_struct *vma, long chg)
+>>   			return 0;
+>>   	}
+>>   
+>> -	if (vma->vm_flags & VM_MAYSHARE) {
+>> -		/*
+>> -		 * We know VM_NORESERVE is not set.  Therefore, there SHOULD
+>> -		 * be a region map for all pages.  The only situation where
+>> -		 * there is no region map is if a hole was punched via
+>> -		 * fallocate.  In this case, there really are no reverves to
+>> -		 * use.  This situation is indicated if chg != 0.
+>> -		 */
+>> -		if (chg)
+>> -			return 0;
+>> -		else
+>> -			return 1;
+>> -	}
+>> +	/* Shared mappings always use reserves */
+>> +	if (vma->vm_flags & VM_MAYSHARE)
+>> +		return 1;
+> 
+> This change completely reverts 5/9, so can you omit 5/9?
 
-On Jun 15, 2015 7:22 AM, "Andrea Arcangeli" <aarcange@redhat.com> wrote:
->
-> Blocking reads can easily use exclusive wakeups. Poll in theory could
-> too but there's no poll_wait_exclusive in common code yet.
+That was a mistake.  This change should not be in the patch.  The
+change from 5/9 needs to remain.  Sorry for confusion.  Thanks for
+catching.
 
-NAK.
+>>   	/*
+>>   	 * Only the process that called mmap() has reserves for
+>> @@ -1601,6 +1591,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>>   	struct hstate *h = hstate_vma(vma);
+>>   	struct page *page;
+>>   	long chg, commit;
+>> +	long gbl_chg;
+>>   	int ret, idx;
+>>   	struct hugetlb_cgroup *h_cg;
+>>   
+>> @@ -1608,24 +1599,39 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>>   	/*
+>>   	 * Processes that did not create the mapping will have no
+>>   	 * reserves and will not have accounted against subpool
+>> -	 * limit. Check that the subpool limit can be made before
+>> -	 * satisfying the allocation MAP_NORESERVE mappings may also
+>> -	 * need pages and subpool limit allocated allocated if no reserve
+>> -	 * mapping overlaps.
+>> +	 * limit. Check that the subpool limit will not be exceeded
+>> +	 * before performing the allocation.  Allocations for
+>> +	 * MAP_NORESERVE mappings also need to be checked against
+>> +	 * any subpool limit.
+>> +	 *
+>> +	 * NOTE: Shared mappings with holes punched via fallocate
+>> +	 * may still have reservations, even without entries in the
+>> +	 * reserve map as indicated by vma_needs_reservation.  This
+>> +	 * would be the case if hugepage_subpool_get_pages returns
+>> +	 * zero to indicate no changes to the global reservation count
+>> +	 * are necessary.  In this case, pass the output of
+>> +	 * hugepage_subpool_get_pages (zero) to dequeue_huge_page_vma
+>> +	 * so that the page is not counted against the global limit.
+>> +	 * For MAP_NORESERVE mappings always pass the output of
+>> +	 * vma_needs_reservation.  For race detection and error cleanup
+>> +	 * use output of vma_needs_reservation as well.
+>>   	 */
+>> -	chg = vma_needs_reservation(h, vma, addr);
+>> +	chg = gbl_chg = vma_needs_reservation(h, vma, addr);
+>>   	if (chg < 0)
+>>   		return ERR_PTR(-ENOMEM);
+>> -	if (chg || avoid_reserve)
+>> -		if (hugepage_subpool_get_pages(spool, 1) < 0)
+>> +	if (chg || avoid_reserve) {
+>> +		gbl_chg = hugepage_subpool_get_pages(spool, 1);
+>> +		if (gbl_chg < 0)
+>>   			return ERR_PTR(-ENOSPC);
+>> +	}
+>>   
+>>   	ret = hugetlb_cgroup_charge_cgroup(idx, pages_per_huge_page(h), &h_cg);
+>>   	if (ret)
+>>   		goto out_subpool_put;
+>>   
+>>   	spin_lock(&hugetlb_lock);
+>> -	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, chg);
+>> +	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve,
+>> +					avoid_reserve ? chg : gbl_chg);
+> 
+> You use chg or gbl_chg depending on avoid_reserve here, and below this line
+> there's code like below
+> 
+> 	commit = vma_commit_reservation(h, vma, addr);
+> 	if (unlikely(chg > commit)) {
+> 		...
+> 	}
+> 
+> This also need to be changed to use chg or gbl_chg depending on avoid_reserve?
 
-Tie while commit message is crap, and so us the comment
+It should use chg only.  I attempted to address this at the end of the
+Note above.
+" For race detection and error cleanup use output of vma_needs_reservation
+  as well."
+I will add more comments to make it clear.
 
-No, your really cannot "easily use exclusive waits", and no, using them for
-polling isn't about a lack of interface, it's about the fact that it would
-be buggy shit.
+> # I feel that this reserve-handling code in alloc_huge_page() is too complicated
+> # and hard to understand, so some cleanup like separating reserve parts into
+> # other new routine(s) might be helpful...
 
-What if the process doing the polling never doors anything with the end
-result? Maybe it meant to, but it got killed before it could? Are you going
-to leave everybody else blocked, even though there are pending events?
+I agree, let me think about ways to split this up and hopefully make
+it easier to understand.
 
-The same us try of read() too. What if the reader only reads party of the
-message? The wake didn't wake anybody else, so now people are (again)
-blocked despite there being data.
+-- 
+Mike Kravetz
 
-So no, exclusive waiting is never "simple". You have to 100% guarantee that
-you will consume all the data that caused the wake event (or perhaps wake
-the next person up if you don't).
-
-    Linus
-
---90e6ba6e8ade5dc9700518927e7c
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<p dir=3D"ltr"><br>
-On Jun 15, 2015 7:22 AM, &quot;Andrea Arcangeli&quot; &lt;<a href=3D"mailto=
-:aarcange@redhat.com">aarcange@redhat.com</a>&gt; wrote:<br>
-&gt;<br>
-&gt; Blocking reads can easily use exclusive wakeups. Poll in theory could<=
-br>
-&gt; too but there&#39;s no poll_wait_exclusive in common code yet.</p>
-<p dir=3D"ltr">NAK.</p>
-<p dir=3D"ltr">Tie while commit message is crap, and so us the comment </p>
-<p dir=3D"ltr">No, your really cannot &quot;easily use exclusive waits&quot=
-;, and no, using them for polling isn&#39;t about a lack of interface, it&#=
-39;s about the fact that it would be buggy shit.</p>
-<p dir=3D"ltr">What if the process doing the polling never doors anything w=
-ith the end result? Maybe it meant to, but it got killed before it could? A=
-re you going to leave everybody else blocked, even though there are pending=
- events?</p>
-<p dir=3D"ltr">The same us try of read() too. What if the reader only reads=
- party of the message? The wake didn&#39;t wake anybody else, so now people=
- are (again) blocked despite there being data.</p>
-<p dir=3D"ltr">So no, exclusive waiting is never &quot;simple&quot;. You ha=
-ve to 100% guarantee that you will consume all the data that caused the wak=
-e event (or perhaps wake the next person up if you don&#39;t).</p>
-<p dir=3D"ltr">=C2=A0=C2=A0=C2=A0 Linus</p>
-
---90e6ba6e8ade5dc9700518927e7c--
+> 
+> Thanks,
+> Naoya Horiguchi
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
