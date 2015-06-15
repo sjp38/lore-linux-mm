@@ -1,158 +1,228 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 9773B6B0032
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 06:30:35 -0400 (EDT)
-Received: by ykfl8 with SMTP id l8so52610414ykf.1
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 03:30:35 -0700 (PDT)
-Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
-        by mx.google.com with ESMTPS id y184si4784029yky.22.2015.06.15.03.30.34
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 51B1E6B006C
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 08:45:20 -0400 (EDT)
+Received: by wgez8 with SMTP id z8so67908560wge.0
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 05:45:19 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i18si21844846wjs.183.2015.06.15.05.45.17
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Jun 2015 03:30:34 -0700 (PDT)
-Message-ID: <557EA944.9020504@citrix.com>
-Date: Mon, 15 Jun 2015 11:30:28 +0100
-From: David Vrabel <david.vrabel@citrix.com>
+        Mon, 15 Jun 2015 05:45:18 -0700 (PDT)
+Date: Mon, 15 Jun 2015 14:45:15 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC] panic_on_oom_timeout
+Message-ID: <20150615124515.GC29447@dhcp22.suse.cz>
+References: <20150609170310.GA8990@dhcp22.suse.cz>
+ <201506102120.FEC87595.OQSJLOVtMFOHFF@I-love.SAKURA.ne.jp>
+ <20150610142801.GD4501@dhcp22.suse.cz>
+ <20150610155646.GE4501@dhcp22.suse.cz>
+ <201506130022.FJF05762.LSQMOFtVFFOJOH@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Subject: Re: [PATCH 07/12] x86/virt/guest/xen: Remove use of pgd_list from
- the Xen guest code
-References: <1434188955-31397-1-git-send-email-mingo@kernel.org>
-	 <1434188955-31397-8-git-send-email-mingo@kernel.org>
- <1434359109.13744.14.camel@hellion.org.uk>
-In-Reply-To: <1434359109.13744.14.camel@hellion.org.uk>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201506130022.FJF05762.LSQMOFtVFFOJOH@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ian Campbell <ijc@hellion.org.uk>, Ingo Molnar <mingo@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg
- Nesterov <oleg@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Waiman Long <Waiman.Long@hp.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On 15/06/15 10:05, Ian Campbell wrote:
-> On Sat, 2015-06-13 at 11:49 +0200, Ingo Molnar wrote:
->> xen_mm_pin_all()/unpin_all() are used to implement full guest instance
->> suspend/restore. It's a stop-all method that needs to iterate through
->> all allocated pgds in the system to fix them up for Xen's use.
->>
->> This code uses pgd_list, probably because it was an easy interface.
->>
->> But we want to remove the pgd_list, so convert the code over to walk
->> all tasks in the system. This is an equivalent method.
+On Sat 13-06-15 00:23:00, Tetsuo Handa wrote:
+[...]
+> >From e59b64683827151a35257384352c70bce61babdd Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Fri, 12 Jun 2015 23:56:18 +0900
+> Subject: [RFC] oom: implement memdie_task_panic_secs
+> 
+> OOM killer is a desperate last resort reclaim attempt to free some
+> memory. It is based on heuristics which will never be 100% and may
+> result in an unusable or a locked up system.
+> 
+> panic_on_oom sysctl knob allows to set the OOM policy to panic the
+> system instead of trying to resolve the OOM condition. This might be
+> useful for several reasons - e.g. reduce the downtime to a predictable
+> amount of time, allow to get a crash dump of the system and debug the
+> issue post-mortem.
+> 
+> panic_on_oom is, however, a big hammer in many situations when the
+> OOM condition could be resolved in a reasonable time. So it would be
+> good to have some middle ground and allow the OOM killer to do its job
+> but have a failover when things go wrong and it is not able to make any
+> further progress for a considerable amount of time.
+> 
+> This patch implements system_memdie_panic_secs sysctl which configures
+> a maximum timeout for the OOM killer to resolve the OOM situation.
+> If the system is still under OOM (i.e. the OOM victim cannot release
+> memory) after the timeout expires, it will panic the system. A
+> reasonably chosen timeout can protect from both temporal OOM conditions
+> and allows to have a predictable time frame for the OOM condition.
+> 
+> Since there are memcg OOM, cpuset OOM, mempolicy OOM as with system OOM,
+> this patch also implements {memcg,cpuset,mempolicy}_memdie_panic_secs .
 
-It is not equivalent because pgd_alloc() now populates entries in pgds
-that are not visible to xen_mm_pin_all() (note how the original code
-adds the pgd to the pgd_list in pgd_ctor() before calling
-pgd_prepopulate_pmd()).  These newly allocated page tables won't be
-correctly converted on suspend/resume and the new process will die after
-resume.
+I really hate having so many knobs. What would they be good for? Why
+cannot you simply use a single timeout and decide whether to panic or
+not based on panic_on_oom value? Or do you have any strong reason to
+put this aside from panic_on_oom?
 
-David
+> These will allow administrator to use different timeout settings for
+> each type of OOM, for administrator still has chance to perform steps
+> to resolve the potential lockup or trashing from the global context
+> (e.g. by relaxing restrictions or even rebooting cleanly).
+> 
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> ---
+>  include/linux/oom.h   |  8 +++++
+>  include/linux/sched.h |  1 +
+>  kernel/sysctl.c       | 39 ++++++++++++++++++++++++
+>  mm/oom_kill.c         | 83 +++++++++++++++++++++++++++++++++++++++++++++++++++
+>  4 files changed, 131 insertions(+)
+> 
+[...]
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index dff991e..40d7b6d0 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+[...]
+> +static void check_memdie_task(struct task_struct *p, struct mem_cgroup *memcg,
+> +			      const nodemask_t *nodemask)
+> +{
+> +	unsigned long start = p->memdie_start;
+> +	unsigned long spent;
+> +	unsigned long timeout = 0;
+> +
+> +	/* If task does not have TIF_MEMDIE flag, there is nothing to do. */
+> +	if (!start)
+> +		return;
+> +	spent = jiffies - start;
+> +#ifdef CONFIG_MEMCG
+> +	/* task_in_mem_cgroup(p, memcg) is true. */
+> +	if (memcg)
+> +		timeout = sysctl_cgroup_memdie_panic_secs;
+> +#endif
+> +#ifdef CONFIG_NUMA
+> +	/* has_intersects_mems_allowed(p, nodemask) is true. */
+> +	else if (nodemask)
+> +		timeout = sysctl_mempolicy_memdie_panic_secs;
+> +	else
+> +		timeout = sysctl_cpuset_memdie_panic_secs;
+> +#endif
+> +	if (!timeout)
+> +		timeout = sysctl_system_memdie_panic_secs;
+> +	/* If timeout is disabled, there is nothing to do. */
+> +	if (!timeout)
+> +		return;
+> +#ifdef CONFIG_NUMA
+> +	{
+> +		struct task_struct *t;
+> +
+> +		rcu_read_lock();
+> +		for_each_thread(p, t) {
+> +			start = t->memdie_start;
+> +			if (start && time_after(spent, timeout * HZ))
+> +				break;
+> +		}
+> +		rcu_read_unlock();
 
->>
->> (As I don't use Xen this is was only build tested.)
+This doesn't make any sense to me. What are you trying to achieve here?
+Why would you want to check all threads and do that only for CONFIG_NUMA
+and even then do a noop if the timeout expired?
+
+> +	}
+> +#endif
+> +	if (time_before(spent, timeout * HZ))
+> +		return;
+
+I think the whole function is way too much complicated without a good
+reason. Why don't you simply store the expire time when marking the task
+oom victim and compare it with the current jiffies with time_after and
+be done with it. This is few lines of code...
+
+> +	panic("Out of memory: %s (%u) did not die within %lu seconds.\n",
+> +	      p->comm, p->pid, timeout);
+
+It would be better to sync this message with what check_panic_on_oom
+does.
+
+> +}
+> +
+>  /* return true if the task is not adequate as candidate victim task. */
+>  static bool oom_unkillable_task(struct task_struct *p,
+>  		struct mem_cgroup *memcg, const nodemask_t *nodemask)
+> @@ -135,6 +209,7 @@ static bool oom_unkillable_task(struct task_struct *p,
+>  	if (!has_intersects_mems_allowed(p, nodemask))
+>  		return true;
+>  
+> +	check_memdie_task(p, memcg, nodemask);
+
+This is not sufficient. oom_scan_process_thread would break out from the
+loop when encountering the first TIF_MEMDIE task and could have missed
+an older one later in the task_list.
+Besides that oom_unkillable_task doesn't sound like a good match to
+evaluate this logic. I would expect it to be in oom_scan_process_thread.
+
+>  	return false;
+>  }
+>  
+> @@ -416,10 +491,17 @@ bool oom_killer_disabled __read_mostly;
+>   */
+>  void mark_oom_victim(struct task_struct *tsk)
+>  {
+> +	unsigned long start;
+> +
+>  	WARN_ON(oom_killer_disabled);
+>  	/* OOM killer might race with memcg OOM */
+>  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+>  		return;
+> +	/* Set current time for is_killable_memdie_task() check. */
+> +	start = jiffies;
+> +	if (!start)
+> +		start = 1;
+> +	tsk->memdie_start = start;
+
+I would rather go with tsk->oom_expire = jiffies + timeout and set the
+timeout depending on panic_on_oom value (which would require nodemask
+and memcg parameters here).
+
+>  	/*
+>  	 * Make sure that the task is woken up from uninterruptible sleep
+>  	 * if it is frozen because OOM killer wouldn't be able to free
+> @@ -435,6 +517,7 @@ void mark_oom_victim(struct task_struct *tsk)
+>   */
+>  void exit_oom_victim(void)
+>  {
+> +	current->memdie_start = 0;
+
+Is this really needed? OOM killer shouldn't see the task because it has
+already released its mm. oom_scan_process_thread checks mm after it
+TIF_MEMDIE so we can race theoretically but this shouldn't matter much.
+If a task is still visible after the timeout then there obviously was a
+problem in making progress.
+
+>  	clear_thread_flag(TIF_MEMDIE);
+>  
+>  	if (!atomic_dec_return(&oom_victims))
+> -- 
+> 1.8.3.1
+> ------------------------------------------------------------
 > 
-> In which case it seems extra important to copy the appropriate
-> maintainers, which I've done here.
+> By the way, with introduction of per "struct task_struct" variable, I think
+> that we can replace TIF_MEMDIE checks with memdie_start checks via
 > 
-> Ian.
+>   test_tsk_thread_flag(p, TIF_MEMDIE) => p->memdie_start
 > 
->>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Andy Lutomirski <luto@amacapital.net>
->> Cc: Borislav Petkov <bp@alien8.de>
->> Cc: Brian Gerst <brgerst@gmail.com>
->> Cc: Denys Vlasenko <dvlasenk@redhat.com>
->> Cc: H. Peter Anvin <hpa@zytor.com>
->> Cc: Linus Torvalds <torvalds@linux-foundation.org>
->> Cc: Oleg Nesterov <oleg@redhat.com>
->> Cc: Peter Zijlstra <peterz@infradead.org>
->> Cc: Thomas Gleixner <tglx@linutronix.de>
->> Cc: Waiman Long <Waiman.Long@hp.com>
->> Cc: linux-mm@kvack.org
->> Signed-off-by: Ingo Molnar <mingo@kernel.org>
->> ---
->>  arch/x86/xen/mmu.c | 51 ++++++++++++++++++++++++++++++++++++++-------------
->>  1 file changed, 38 insertions(+), 13 deletions(-)
->>
->> diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
->> index dd151b2045b0..70a3df5b0b54 100644
->> --- a/arch/x86/xen/mmu.c
->> +++ b/arch/x86/xen/mmu.c
->> @@ -853,15 +853,27 @@ static void xen_pgd_pin(struct mm_struct *mm)
->>   */
->>  void xen_mm_pin_all(void)
->>  {
->> -	struct page *page;
->> +	struct task_struct *g, *p;
->>  
->> -	spin_lock(&pgd_lock);
->> +	spin_lock(&pgd_lock); /* Implies rcu_read_lock() for the task list iteration: */
->>  
->> -	list_for_each_entry(page, &pgd_list, lru) {
->> -		if (!PagePinned(page)) {
->> -			__xen_pgd_pin(&init_mm, (pgd_t *)page_address(page));
->> -			SetPageSavePinned(page);
->> +	for_each_process_thread(g, p) {
->> +		struct mm_struct *mm;
->> +		struct page *page;
->> +		pgd_t *pgd;
->> +
->> +		task_lock(p);
->> +		mm = p->mm;
->> +		if (mm) {
->> +			pgd = mm->pgd;
->> +			page = virt_to_page(pgd);
->> +
->> +			if (!PagePinned(page)) {
->> +				__xen_pgd_pin(&init_mm, pgd);
->> +				SetPageSavePinned(page);
->> +			}
->>  		}
->> +		task_unlock(p);
->>  	}
->>  
->>  	spin_unlock(&pgd_lock);
->> @@ -967,19 +979,32 @@ static void xen_pgd_unpin(struct mm_struct *mm)
->>   */
->>  void xen_mm_unpin_all(void)
->>  {
->> -	struct page *page;
->> +	struct task_struct *g, *p;
->>  
->> -	spin_lock(&pgd_lock);
->> +	spin_lock(&pgd_lock); /* Implies rcu_read_lock() for the task list iteration: */
->>  
->> -	list_for_each_entry(page, &pgd_list, lru) {
->> -		if (PageSavePinned(page)) {
->> -			BUG_ON(!PagePinned(page));
->> -			__xen_pgd_unpin(&init_mm, (pgd_t *)page_address(page));
->> -			ClearPageSavePinned(page);
->> +	for_each_process_thread(g, p) {
->> +		struct mm_struct *mm;
->> +		struct page *page;
->> +		pgd_t *pgd;
->> +
->> +		task_lock(p);
->> +		mm = p->mm;
->> +		if (mm) {
->> +			pgd = mm->pgd;
->> +			page = virt_to_page(pgd);
->> +
->> +			if (PageSavePinned(page)) {
->> +				BUG_ON(!PagePinned(page));
->> +				__xen_pgd_unpin(&init_mm, pgd);
->> +				ClearPageSavePinned(page);
->> +			}
->>  		}
->> +		task_unlock(p);
->>  	}
->>  
->>  	spin_unlock(&pgd_lock);
->> +	rcu_read_unlock();
->>  }
->>  
->>  static void xen_activate_mm(struct mm_struct *prev, struct mm_struct *next)
+>   test_and_clear_thread_flag(TIF_MEMDIE) => xchg(&current->memdie_start, 0)
 > 
+>   test_and_set_tsk_thread_flag(p, TIF_MEMDIE)
+>   => xchg(&p->memdie_start, jiffies (or 1 if jiffies == 0))
 > 
+> though above patch did not replace TIF_MEMDIE in order to focus on one thing.
+
+I fail to see a direct advantage other than to safe one bit in flags. Is
+something asking for it?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
