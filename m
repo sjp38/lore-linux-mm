@@ -1,45 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C7A46B0038
-	for <linux-mm@kvack.org>; Sun, 14 Jun 2015 21:04:40 -0400 (EDT)
-Received: by qcej3 with SMTP id j3so3033767qce.3
-        for <linux-mm@kvack.org>; Sun, 14 Jun 2015 18:04:40 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z92si11229367qgd.1.2015.06.14.18.04.39
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 14 Jun 2015 18:04:39 -0700 (PDT)
-Message-ID: <557E249B.6070208@redhat.com>
-Date: Sun, 14 Jun 2015 21:04:27 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A82336B0038
+	for <linux-mm@kvack.org>; Sun, 14 Jun 2015 22:47:18 -0400 (EDT)
+Received: by padev16 with SMTP id ev16so56168603pad.0
+        for <linux-mm@kvack.org>; Sun, 14 Jun 2015 19:47:18 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id kp10si15609596pdb.200.2015.06.14.19.47.17
+        for <linux-mm@kvack.org>;
+        Sun, 14 Jun 2015 19:47:17 -0700 (PDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: why do we need vmalloc_sync_all?
+References: <1434188955-31397-1-git-send-email-mingo@kernel.org>
+	<20150613185828.GA32376@redhat.com> <20150614075943.GA810@gmail.com>
+	<20150614200623.GB19582@redhat.com>
+Date: Sun, 14 Jun 2015 19:47:11 -0700
+In-Reply-To: <20150614200623.GB19582@redhat.com> (Oleg Nesterov's message of
+	"Sun, 14 Jun 2015 22:06:23 +0200")
+Message-ID: <87bnghit74.fsf@tassilo.jf.intel.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 1/3] mm: add tracepoint for scanning pages
-References: <1434294283-8699-1-git-send-email-ebru.akagunduz@gmail.com> <1434294283-8699-2-git-send-email-ebru.akagunduz@gmail.com>
-In-Reply-To: <1434294283-8699-2-git-send-email-ebru.akagunduz@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Waiman Long <Waiman.Long@hp.com>
 
-On 06/14/2015 11:04 AM, Ebru Akagunduz wrote:
-> Using static tracepoints, data of functions is recorded.
-> It is good to automatize debugging without doing a lot
-> of changes in the source code.
-> 
-> This patch adds tracepoint for khugepaged_scan_pmd,
-> collapse_huge_page and __collapse_huge_page_isolate.
+Oleg Nesterov <oleg@redhat.com> writes:
+>
+> But again, the kernel no longer does this? do_page_fault() does vmalloc_fault()
+> without notify_die(). If it fails, I do not see how/why a modular DIE_OOPS
+> handler could try to resolve this problem and trigger another fault.
 
-These trace points seem like a useful set to figure out what
-the THP collapse code is doing.
+The same problem can happen from NMI handlers or machine check
+handlers. It's not necessarily tied to page faults only.
 
-> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-
-Acked-by: Rik van Riel <riel@redhat.com>
+-Andi
 
 -- 
-All rights reversed
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
