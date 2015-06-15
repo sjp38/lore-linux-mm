@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B2DF6B0070
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 03:51:12 -0400 (EDT)
-Received: by lblr1 with SMTP id r1so21690698lbl.0
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 00:51:11 -0700 (PDT)
-Received: from mail-lb0-x229.google.com (mail-lb0-x229.google.com. [2a00:1450:4010:c04::229])
-        by mx.google.com with ESMTPS id ql5si9821017lbb.165.2015.06.15.00.51.09
+Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
+	by kanga.kvack.org (Postfix) with ESMTP id EF5556B0071
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 03:51:13 -0400 (EDT)
+Received: by lacny3 with SMTP id ny3so32328285lac.3
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 00:51:13 -0700 (PDT)
+Received: from mail-la0-x235.google.com (mail-la0-x235.google.com. [2a00:1450:4010:c03::235])
+        by mx.google.com with ESMTPS id cr7si9837023lad.33.2015.06.15.00.51.11
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jun 2015 00:51:10 -0700 (PDT)
-Received: by lbbti3 with SMTP id ti3so10736691lbb.1
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 00:51:09 -0700 (PDT)
-Subject: [PATCH RFC v0 3/6] mm/cma: repalce reclaim_clean_pages_from_list
- with try_to_reclaim_page
+        Mon, 15 Jun 2015 00:51:12 -0700 (PDT)
+Received: by labbc20 with SMTP id bc20so16039317lab.1
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 00:51:11 -0700 (PDT)
+Subject: [PATCH RFC v0 4/6] mm/migrate: page migration without page isolation
 From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Mon, 15 Jun 2015 10:51:05 +0300
-Message-ID: <20150615075105.18112.90811.stgit@zurg>
+Date: Mon, 15 Jun 2015 10:51:07 +0300
+Message-ID: <20150615075107.18112.64594.stgit@zurg>
 In-Reply-To: <20150615073926.18112.59207.stgit@zurg>
 References: <20150615073926.18112.59207.stgit@zurg>
 MIME-Version: 1.0
@@ -25,192 +24,139 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 
-This gives almost the same behavior but makes code much less ugly.
-Reclaimer works only with isolated pages, try_to_reclaim_page doesn't
-require that. Of course it fails if page is currently isolated by
-somebody else because in this case page has elevated refcount.
+migrate_pagevec() does the same job as migrate_pages() but it works with
+chained page vector instead of list of isolated pages.
 
 Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
 ---
- include/linux/mm.h |    1 +
- mm/filemap.c       |   20 ++++++++++++++++++++
- mm/internal.h      |    2 --
- mm/page_alloc.c    |   13 +++++++++----
- mm/vmscan.c        |   42 +++++-------------------------------------
- 5 files changed, 35 insertions(+), 43 deletions(-)
+ include/linux/migrate.h |    4 ++
+ mm/migrate.c            |   98 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 102 insertions(+)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0755b9f..ed1e76bb 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1204,6 +1204,7 @@ int get_kernel_page(unsigned long start, int write, struct page **pages);
- struct page *get_dump_page(unsigned long addr);
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index cac1c09..04553f5 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -33,6 +33,10 @@ extern int migrate_page(struct address_space *,
+ 			struct page *, struct page *, enum migrate_mode);
+ extern int migrate_pages(struct list_head *l, new_page_t new, free_page_t free,
+ 		unsigned long private, enum migrate_mode mode, int reason);
++struct pagevec;
++extern int migrate_pagevec(struct pagevec *pages, new_page_t get_new_page,
++		free_page_t put_new_page, unsigned long private,
++		enum migrate_mode mode, int reason);
  
- extern int try_to_release_page(struct page * page, gfp_t gfp_mask);
-+extern int try_to_reclaim_page(struct page *page);
- extern void do_invalidatepage(struct page *page, unsigned int offset,
- 			      unsigned int length);
- 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 6bf5e42..a06324d 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2663,3 +2663,23 @@ int try_to_release_page(struct page *page, gfp_t gfp_mask)
+ extern int migrate_prep(void);
+ extern int migrate_prep_local(void);
+diff --git a/mm/migrate.c b/mm/migrate.c
+index eca80b3..775cc9d 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1153,6 +1153,104 @@ out:
+ 	return rc;
  }
  
- EXPORT_SYMBOL(try_to_release_page);
-+
-+/**
-+ * try_to_reclaim_page() - unmap and invalidate clean page cache page
++/*
++ * migrate_pagevec - migrate the pages specified in a page vector, to the free
++ *		     pages supplied as the target for the page migration
 + *
-+ * @page: the page which the kernel is trying to free
++ * @pages:		The vector of pages to be migrated.
++ * @get_new_page:	The function used to allocate free pages to be used
++ *			as the target of the page migration.
++ * @put_new_page:	The function used to free target pages if migration
++ *			fails, or NULL if no special handling is necessary.
++ * @private:		Private data to be passed on to get_new_page()
++ * @mode:		The migration mode that specifies the constraints for
++ *			page migration, if any.
++ * @reason:		The reason for page migration.
++ *
++ * The function returns after 10 attempts or if no pages are movable any more
++ * because the vector has become empty or no retryable pages exist any more.
++ * This function keeps all pages in the page vector but reorders them.
++ *
++ * Returns the number of pages that were not migrated, or an error code.
 + */
-+int try_to_reclaim_page(struct page *page)
++int migrate_pagevec(struct pagevec *pages, new_page_t get_new_page,
++		    free_page_t put_new_page, unsigned long private,
++		    enum migrate_mode mode, int reason)
 +{
-+	int ret;
-+
-+	if (PageDirty(page) || PageWriteback(page))
-+		return 0;
-+	if (!trylock_page(page))
-+		return 0;
-+	if (page_mapped(page))
-+		try_to_unmap(page, TTU_UNMAP | TTU_IGNORE_ACCESS);
-+	ret = invalidate_inode_page(page);
-+	unlock_page(page);
-+	return ret;
-+}
-diff --git a/mm/internal.h b/mm/internal.h
-index a25e359..1cf2eb9 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -416,8 +416,6 @@ extern unsigned long vm_mmap_pgoff(struct file *, unsigned long,
-         unsigned long, unsigned long);
- 
- extern void set_pageblock_order(void);
--unsigned long reclaim_clean_pages_from_list(struct zone *zone,
--					    struct list_head *page_list);
- /* The ALLOC_WMARK bits are used as an index to zone->watermark */
- #define ALLOC_WMARK_MIN		WMARK_MIN
- #define ALLOC_WMARK_LOW		WMARK_LOW
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ebffa0e..9adf4d07 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6341,9 +6341,9 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
- 					unsigned long start, unsigned long end)
- {
- 	/* This function is based on compact_zone() from compaction.c. */
--	unsigned long nr_reclaimed;
- 	unsigned long pfn = start;
- 	unsigned int tries = 0;
++	int nr_to_scan = INT_MAX;
++	int nr_failed = 0;
++	int nr_succeeded = 0;
++	int nr_retry, pass;
 +	struct page *page;
- 	int ret = 0;
- 
- 	migrate_prep();
-@@ -6367,9 +6367,14 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
- 			break;
- 		}
- 
--		nr_reclaimed = reclaim_clean_pages_from_list(cc->zone,
--							&cc->migratepages);
--		cc->nr_migratepages -= nr_reclaimed;
-+		/*
-+		 * Try to reclaim clean page cache pages.
-+		 * Migration simply skips pages where page_count == 1.
-+		 */
-+		list_for_each_entry(page, &cc->migratepages, lru) {
-+			if (!PageAnon(page))
-+				try_to_reclaim_page(page);
++	int swapwrite = current->flags & PF_SWAPWRITE;
++	int rc;
++
++	if (!swapwrite)
++		current->flags |= PF_SWAPWRITE;
++
++	for (pass = 0; pass < 10 && nr_to_scan; pass++) {
++		struct pagevec *pvec, *retry_pvec = pages;
++		int index, retry_index = 0;
++
++		nr_retry = 0;
++		pagevec_for_each_vec_and_page(pages, pvec, index, page) {
++			cond_resched();
++
++			if (!nr_to_scan--)
++				goto next_pass;
++
++			if (PageHuge(page))
++				rc = unmap_and_move_huge_page(get_new_page,
++						put_new_page, private, page,
++						pass > 2, mode);
++			else
++				rc = unmap_and_move(get_new_page, put_new_page,
++						private, page, pass > 2, mode);
++
++			switch(rc) {
++			case -ENOMEM:
++				goto out;
++			case -EAGAIN:
++				nr_retry++;
++				/* move page to the head for next pass */
++				swap(pvec->pages[index],
++				     retry_pvec->pages[retry_index]);
++				if (++retry_index == retry_pvec->nr) {
++					retry_pvec = pagevec_next(retry_pvec);
++					retry_index = 0;
++				}
++				break;
++			case MIGRATEPAGE_SUCCESS:
++				nr_succeeded++;
++				break;
++			default:
++				/*
++				 * Permanent failure (-EBUSY, -ENOSYS, etc.):
++				 * unlike -EAGAIN case, the failed page is
++				 * removed from migration page list and not
++				 * retried in the next outer loop.
++				 */
++				nr_failed++;
++				break;
++			}
 +		}
- 
- 		ret = migrate_pages(&cc->migratepages, alloc_migrate_target,
- 				    NULL, 0, cc->mode, MR_CMA);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 5e8eadd..ae2d50d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -843,13 +843,11 @@ static void page_check_dirty_writeback(struct page *page,
- static unsigned long shrink_page_list(struct list_head *page_list,
- 				      struct zone *zone,
- 				      struct scan_control *sc,
--				      enum ttu_flags ttu_flags,
- 				      unsigned long *ret_nr_dirty,
- 				      unsigned long *ret_nr_unqueued_dirty,
- 				      unsigned long *ret_nr_congested,
- 				      unsigned long *ret_nr_writeback,
--				      unsigned long *ret_nr_immediate,
--				      bool force_reclaim)
-+				      unsigned long *ret_nr_immediate)
- {
- 	LIST_HEAD(ret_pages);
- 	LIST_HEAD(free_pages);
-@@ -991,8 +989,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			}
- 		}
- 
--		if (!force_reclaim)
--			references = page_check_references(page, sc);
-+		references = page_check_references(page, sc);
- 
- 		switch (references) {
- 		case PAGEREF_ACTIVATE:
-@@ -1024,7 +1021,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 * processes. Try to unmap it here.
- 		 */
- 		if (page_mapped(page) && mapping) {
--			switch (try_to_unmap(page, ttu_flags)) {
-+			switch (try_to_unmap(page, TTU_UNMAP)) {
- 			case SWAP_FAIL:
- 				goto activate_locked;
- 			case SWAP_AGAIN:
-@@ -1188,34 +1185,6 @@ keep:
- 	return nr_reclaimed;
- }
- 
--unsigned long reclaim_clean_pages_from_list(struct zone *zone,
--					    struct list_head *page_list)
--{
--	struct scan_control sc = {
--		.gfp_mask = GFP_KERNEL,
--		.priority = DEF_PRIORITY,
--		.may_unmap = 1,
--	};
--	unsigned long ret, dummy1, dummy2, dummy3, dummy4, dummy5;
--	struct page *page, *next;
--	LIST_HEAD(clean_pages);
--
--	list_for_each_entry_safe(page, next, page_list, lru) {
--		if (page_is_file_cache(page) && !PageDirty(page) &&
--		    !isolated_balloon_page(page)) {
--			ClearPageActive(page);
--			list_move(&page->lru, &clean_pages);
--		}
--	}
--
--	ret = shrink_page_list(&clean_pages, zone, &sc,
--			TTU_UNMAP|TTU_IGNORE_ACCESS,
--			&dummy1, &dummy2, &dummy3, &dummy4, &dummy5, true);
--	list_splice(&clean_pages, page_list);
--	mod_zone_page_state(zone, NR_ISOLATED_FILE, -ret);
--	return ret;
--}
--
++next_pass:
++		nr_to_scan = nr_retry;
++	}
++	rc = nr_failed + nr_retry;
++out:
++	if (nr_succeeded)
++		count_vm_events(PGMIGRATE_SUCCESS, nr_succeeded);
++	if (nr_failed)
++		count_vm_events(PGMIGRATE_FAIL, nr_failed);
++	trace_mm_migrate_pages(nr_succeeded, nr_failed, mode, reason);
++
++	if (!swapwrite)
++		current->flags &= ~PF_SWAPWRITE;
++
++	return rc;
++}
++
+ #ifdef CONFIG_NUMA
  /*
-  * Attempt to remove the specified page from its LRU.  Only take this page
-  * if it is of the appropriate PageActive status.  Pages which are being
-@@ -1563,10 +1532,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	if (nr_taken == 0)
- 		return 0;
- 
--	nr_reclaimed = shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
-+	nr_reclaimed = shrink_page_list(&page_list, zone, sc,
- 				&nr_dirty, &nr_unqueued_dirty, &nr_congested,
--				&nr_writeback, &nr_immediate,
--				false);
-+				&nr_writeback, &nr_immediate);
- 
- 	spin_lock_irq(&zone->lru_lock);
- 
+  * Move a list of individual pages
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
