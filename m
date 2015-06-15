@@ -1,82 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E5556B0032
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 02:08:24 -0400 (EDT)
-Received: by wgez8 with SMTP id z8so60031609wge.0
-        for <linux-mm@kvack.org>; Sun, 14 Jun 2015 23:08:24 -0700 (PDT)
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com. [209.85.212.180])
-        by mx.google.com with ESMTPS id es2si16597539wib.45.2015.06.14.23.08.22
+	by kanga.kvack.org (Postfix) with ESMTP id 164A56B006C
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 02:09:22 -0400 (EDT)
+Received: by wgbhy7 with SMTP id hy7so26785376wgb.2
+        for <linux-mm@kvack.org>; Sun, 14 Jun 2015 23:09:21 -0700 (PDT)
+Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com. [2a00:1450:400c:c05::229])
+        by mx.google.com with ESMTPS id f8si16592587wiy.57.2015.06.14.23.09.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 14 Jun 2015 23:08:23 -0700 (PDT)
-Received: by wicnd19 with SMTP id nd19so13907536wic.1
-        for <linux-mm@kvack.org>; Sun, 14 Jun 2015 23:08:22 -0700 (PDT)
+        Sun, 14 Jun 2015 23:09:20 -0700 (PDT)
+Received: by wiga1 with SMTP id a1so65946844wig.0
+        for <linux-mm@kvack.org>; Sun, 14 Jun 2015 23:09:19 -0700 (PDT)
+Message-ID: <557E6C0C.3050802@monom.org>
+Date: Mon, 15 Jun 2015 08:09:16 +0200
+From: Daniel Wagner <wagi@monom.org>
 MIME-Version: 1.0
-In-Reply-To: <557E65E7.9010000@redhat.com>
-References: <1434294283-8699-1-git-send-email-ebru.akagunduz@gmail.com>
- <1434294283-8699-3-git-send-email-ebru.akagunduz@gmail.com>
- <CALq1K=JzAWt2NUB8SOitBcXeegFTA5OOUm7NsxE3RGTzkuWfuA@mail.gmail.com> <557E65E7.9010000@redhat.com>
-From: Leon Romanovsky <leon@leon.nu>
-Date: Mon, 15 Jun 2015 09:08:02 +0300
-Message-ID: <CALq1K=LZvnfj2T2i3BrUK7uuYVLJDc=-0=K4ov0f+8QMeEt=og@mail.gmail.com>
-Subject: Re: [RFC 2/3] mm: make optimistic check for swapin readahead
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: mm: shmem_zero_setup skip security check and lockdep conflict
+ with XFS
+References: <alpine.LSU.2.11.1506140944380.11018@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1506140944380.11018@eggly.anvils>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Ebru Akagunduz <ebru.akagunduz@gmail.com>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi <n-horiguchi@ah.jp.nec.com>, aarcange <aarcange@redhat.com>, "iamjoonsoo.kim" <iamjoonsoo.kim@lge.com>, Xiexiuqi <xiexiuqi@huawei.com>, gorcunov <gorcunov@openvz.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, "aneesh.kumar" <aneesh.kumar@linux.vnet.ibm.com>, hughd <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, mhocko <mhocko@suse.cz>, boaz <boaz@plexistor.com>, raindel <raindel@mellanox.com>
+To: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Prarit Bhargava <prarit@redhat.com>, Morten Stevens <mstevens@fedoraproject.org>, Dave Chinner <david@fromorbit.com>, Eric Paris <eparis@redhat.com>, Eric Sandeen <esandeen@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jun 15, 2015 at 8:43 AM, Rik van Riel <riel@redhat.com> wrote:
-> On 06/15/2015 01:40 AM, Leon Romanovsky wrote:
->> On Sun, Jun 14, 2015 at 6:04 PM, Ebru Akagunduz
->> <ebru.akagunduz@gmail.com> wrote:
->>> This patch makes optimistic check for swapin readahead
->>> to increase thp collapse rate. Before getting swapped
->>> out pages to memory, checks them and allows up to a
->>> certain number. It also prints out using tracepoints
->>> amount of unmapped ptes.
->>>
->>> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
->
->>> @@ -2639,11 +2640,11 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
->>>  {
->>>         pmd_t *pmd;
->>>         pte_t *pte, *_pte;
->>> -       int ret = 0, none_or_zero = 0;
->>> +       int ret = 0, none_or_zero = 0, unmapped = 0;
->>>         struct page *page;
->>>         unsigned long _address;
->>>         spinlock_t *ptl;
->>> -       int node = NUMA_NO_NODE;
->>> +       int node = NUMA_NO_NODE, max_ptes_swap = HPAGE_PMD_NR/8;
->> Sorry for asking, my knoweldge of THP is very limited, but why did you
->> choose this default value?
->> From the discussion followed by your patch
->> (https://lkml.org/lkml/2015/2/27/432), I got an impression that it is
->> not necessary right value.
->
-> I believe that Ebru's main focus for this initial version of
-> the patch series was to get the _mechanism_ (patch 3) right,
-> while having a fairly simple policy to drive it.
->
-> Any suggestions on when it is a good idea to bring in pages
-> from swap, and whether to treat resident-in-swap-cache pages
-> differently from need-to-be-paged-in pages, and what other
-> factors should be examined, are very welcome...
-My concern with these patches that they deal with specific
-load/scenario (most of the application returned back from swap). In
-scenario there only 10% of data will be required, it theoretically can
-bring upto 80% data (70% waste).
+On 06/14/2015 06:48 PM, Hugh Dickins wrote:
+> It appears that, at some point last year, XFS made directory handling
+> changes which bring it into lockdep conflict with shmem_zero_setup():
+> it is surprising that mmap() can clone an inode while holding mmap_sem,
+> but that has been so for many years.
+> 
+> Since those few lockdep traces that I've seen all implicated selinux,
+> I'm hoping that we can use the __shmem_file_setup(,,,S_PRIVATE) which
+> v3.13's commit c7277090927a ("security: shmem: implement kernel private
+> shmem inodes") introduced to avoid LSM checks on kernel-internal inodes:
+> the mmap("/dev/zero") cloned inode is indeed a kernel-internal detail.
+> 
+> This also covers the !CONFIG_SHMEM use of ramfs to support /dev/zero
+> (and MAP_SHARED|MAP_ANONYMOUS).  I thought there were also drivers
+> which cloned inode in mmap(), but if so, I cannot locate them now.
+> 
+> Reported-and-tested-by: Prarit Bhargava <prarit@redhat.com>
+> Reported-by: Daniel Wagner <wagi@monom.org>
 
->
-> --
-> All rights reversed
+Reported-and-tested-by: Daniel Wagner <wagi@monom.org>
 
+Sorry for the long delay. It took me a while to figure out my original
+setup. I could verify that this patch made the lockdep message go away
+on 4.0-rc6 and also on 4.1-rc8.
 
+For the record: SELinux needs to be enabled triggering it.
 
--- 
-Leon Romanovsky | Independent Linux Consultant
-        www.leon.nu | leon@leon.nu
+cheers,
+daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
