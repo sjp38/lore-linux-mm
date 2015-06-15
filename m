@@ -1,89 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
-	by kanga.kvack.org (Postfix) with ESMTP id DFAED6B0071
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 13:22:23 -0400 (EDT)
-Received: by qkdm188 with SMTP id m188so36111352qkd.1
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 10:22:23 -0700 (PDT)
+Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 324BC6B0072
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 13:22:26 -0400 (EDT)
+Received: by qkdm188 with SMTP id m188so36111917qkd.1
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 10:22:26 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k39si13404868qgk.87.2015.06.15.10.22.17
+        by mx.google.com with ESMTPS id i77si4134271qkh.107.2015.06.15.10.22.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 15 Jun 2015 10:22:17 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 2/7] userfaultfd: propagate the full address in THP faults
-Date: Mon, 15 Jun 2015 19:22:06 +0200
-Message-Id: <1434388931-24487-3-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1434388931-24487-1-git-send-email-aarcange@redhat.com>
-References: <1434388931-24487-1-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 0/7] userfault21 update
+Date: Mon, 15 Jun 2015 19:22:04 +0200
+Message-Id: <1434388931-24487-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org
 Cc: Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-The THP faults were not propagating the original fault address. The latest
-version of the API with uffd.arg.pagefault.address is supposed to propagate the
-full address through THP faults.
+This is an incremental update to the userfaultfd code in -mm.
 
-This was not a kernel crashing bug and it wouldn't risk to corrupt
-user memory, but it would cause a SIGBUS failure because the wrong page was
-being copied.
+This fixes two bugs that could cause some malfunction (but nothing
+that could cause memory corruption or kernel crashes of any sort,
+neither in kernel nor userland).
 
-For various reasons this wasn't easily reproducible in the qemu
-workload, but the strestest exposed the problem immediately.
+This also introduces some enhancement: gdb now runs fine, signals can
+interrupt userfaults (userfaults are retried when signal returns),
+read blocking got wakeone behavior (with benchmark results in commit
+header), the UFFDIO_API invocation is enforced before other ioctl can
+run (to enforce future backwards compatibility just in case of API
+bumps), one dependency on a scheduler change has been reverted.
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/huge_memory.c | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+Notably this introduces the testsuite as well. A good way to run the
+testsuite is:
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 80d4ae1..73eb404 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -717,13 +717,14 @@ static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
- 
- static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 					struct vm_area_struct *vma,
--					unsigned long haddr, pmd_t *pmd,
-+					unsigned long address, pmd_t *pmd,
- 					struct page *page, gfp_t gfp,
- 					unsigned int flags)
- {
- 	struct mem_cgroup *memcg;
- 	pgtable_t pgtable;
- 	spinlock_t *ptl;
-+	unsigned long haddr = address & HPAGE_PMD_MASK;
- 
- 	VM_BUG_ON_PAGE(!PageCompound(page), page);
- 
-@@ -765,7 +766,7 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 			mem_cgroup_cancel_charge(page, memcg);
- 			put_page(page);
- 			pte_free(mm, pgtable);
--			ret = handle_userfault(vma, haddr, flags,
-+			ret = handle_userfault(vma, address, flags,
- 					       VM_UFFD_MISSING);
- 			VM_BUG_ON(ret & VM_FAULT_FALLBACK);
- 			return ret;
-@@ -841,7 +842,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		if (pmd_none(*pmd)) {
- 			if (userfaultfd_missing(vma)) {
- 				spin_unlock(ptl);
--				ret = handle_userfault(vma, haddr, flags,
-+				ret = handle_userfault(vma, address, flags,
- 						       VM_UFFD_MISSING);
- 				VM_BUG_ON(ret & VM_FAULT_FALLBACK);
- 			} else {
-@@ -865,7 +866,8 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		count_vm_event(THP_FAULT_FALLBACK);
- 		return VM_FAULT_FALLBACK;
- 	}
--	return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page, gfp, flags);
-+	return __do_huge_pmd_anonymous_page(mm, vma, address, pmd, page, gfp,
-+					    flags);
- }
- 
- int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+# it will use 10MiB-~6GiB 999 bounces, continue forever unless an error triggers
+while ./userfaultfd $[RANDOM % 6000 + 10] 999; do true; done
+
+What caused a significant amount of time wasted, had nothing to do
+with userfaultfd. The testsuite exposed erratic memcmp/bcmp retvals if
+part of the strings compared can change under memcmp/bcmp (while still
+being different in other parts of the string that aren't actually
+changing). I will provide a separate standalone testcase for this not
+using userfaultfd (I already created it to be sure it isn't a bug in
+userfaultfd, and nevertheless my my_bcmp works fine even with
+userfaultfd). Insisting memcmp/bcmp would eventually lead to the
+correct result that in kernel-speak to be initially (but erroneously)
+translated to missing TLB flush (or cache flush but on x86 unlikely)
+or a pagefault hitting on the zeropage somehow, or some other subtle
+kernel bug. Eventually I had to consider the possibiltity memcmp or
+bcmp core library functions were broken, despite how unlikely this
+sounds. It might be possible that this only happens if the memory
+changing is inside the "len" range being compared and that nothing
+goes wrong if the data changing is beyond the end of the "len" even if
+in the same cacheline. So it might be possible that it's perfectly
+correct in C standard terms, but the total erratic result is
+unacceptable to me and it makes memcmp/bcmp very risky to use in
+multithreaded programs. I will ensure this gets fixed in my systems
+with perhaps slower versions of memcpy/bcmp. If the two pages never
+actually are the same at any given time (no matter if they're
+changing) both bcmp and memcmp can't keep returning an erratic racy 0
+here. If this is safe by C standard, this still wouldn't be safe
+enough for me. It's unclear how this erratic result materializes at
+this point and if SIMD instructions have special restrictions on
+memory that is modified by other CPUs. CPU bugs in SIMD cannot be
+ruled out either yet.
+
+Andrea Arcangeli (7):
+  userfaultfd: require UFFDIO_API before other ioctls
+  userfaultfd: propagate the full address in THP faults
+  userfaultfd: allow signals to interrupt a userfault
+  userfaultfd: avoid missing wakeups during refile in userfaultfd_read
+  userfaultfd: switch to exclusive wakeup for blocking reads
+  userfaultfd: Revert "userfaultfd: waitqueue: add nr wake parameter to
+    __wake_up_locked_key"
+  userfaultfd: selftest
+
+ fs/userfaultfd.c                         |  78 +++-
+ include/linux/wait.h                     |   5 +-
+ kernel/sched/wait.c                      |   7 +-
+ mm/huge_memory.c                         |  10 +-
+ net/sunrpc/sched.c                       |   2 +-
+ tools/testing/selftests/vm/Makefile      |   4 +-
+ tools/testing/selftests/vm/userfaultfd.c | 669 +++++++++++++++++++++++++++++++
+ 7 files changed, 752 insertions(+), 23 deletions(-)
+ create mode 100644 tools/testing/selftests/vm/userfaultfd.c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
