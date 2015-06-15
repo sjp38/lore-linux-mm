@@ -1,61 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id C73E66B0038
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 16:35:38 -0400 (EDT)
-Received: by wibdq8 with SMTP id dq8so90743755wib.1
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 13:35:38 -0700 (PDT)
-Received: from mail-wg0-x233.google.com (mail-wg0-x233.google.com. [2a00:1450:400c:c00::233])
-        by mx.google.com with ESMTPS id q5si23931003wjw.143.2015.06.15.13.35.37
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id B1AF56B0038
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 16:36:53 -0400 (EDT)
+Received: by pacgb13 with SMTP id gb13so42171814pac.1
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 13:36:53 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id kp7si19347728pbc.76.2015.06.15.13.36.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jun 2015 13:35:37 -0700 (PDT)
-Received: by wgv5 with SMTP id 5so77925644wgv.1
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 13:35:36 -0700 (PDT)
-Date: Mon, 15 Jun 2015 22:35:32 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 07/12] x86/virt/guest/xen: Remove use of pgd_list from
- the Xen guest code
-Message-ID: <20150615203532.GC13273@gmail.com>
-References: <1434188955-31397-1-git-send-email-mingo@kernel.org>
- <1434188955-31397-8-git-send-email-mingo@kernel.org>
- <1434359109.13744.14.camel@hellion.org.uk>
- <557EA944.9020504@citrix.com>
+        Mon, 15 Jun 2015 13:36:52 -0700 (PDT)
+Date: Mon, 15 Jun 2015 13:36:45 -0700
+From: Darren Hart <dvhart@infradead.org>
+Subject: Re: Possible broken MM code in dell-laptop.c?
+Message-ID: <20150615203645.GD83198@vmdeb7>
+References: <201506141105.07171@pali>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <557EA944.9020504@citrix.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <201506141105.07171@pali>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Vrabel <david.vrabel@citrix.com>
-Cc: Ian Campbell <ijc@hellion.org.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Waiman Long <Waiman.Long@hp.com>
+To: Pali =?iso-8859-1?Q?Roh=E1r?= <pali.rohar@gmail.com>
+Cc: Hans de Goede <hdegoede@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Stuart Hayes <stuart_hayes@dell.com>, Matthew Garrett <mjg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, platform-driver-x86@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-
-* David Vrabel <david.vrabel@citrix.com> wrote:
-
-> On 15/06/15 10:05, Ian Campbell wrote:
-> > On Sat, 2015-06-13 at 11:49 +0200, Ingo Molnar wrote:
-
-> >> xen_mm_pin_all()/unpin_all() are used to implement full guest instance 
-> >> suspend/restore. It's a stop-all method that needs to iterate through all 
-> >> allocated pgds in the system to fix them up for Xen's use.
-> >>
-> >> This code uses pgd_list, probably because it was an easy interface.
-> >>
-> >> But we want to remove the pgd_list, so convert the code over to walk all 
-> >> tasks in the system. This is an equivalent method.
+On Sun, Jun 14, 2015 at 11:05:07AM +0200, Pali Rohar wrote:
+> Hello,
 > 
-> It is not equivalent because pgd_alloc() now populates entries in pgds that are 
-> not visible to xen_mm_pin_all() (note how the original code adds the pgd to the 
-> pgd_list in pgd_ctor() before calling pgd_prepopulate_pmd()).  These newly 
-> allocated page tables won't be correctly converted on suspend/resume and the new 
-> process will die after resume.
+> in drivers/platform/x86/dell-laptop.c is this part of code:
+> 
+> static int __init dell_init(void)
+> {
+> ...
+> 	/*
+> 	 * Allocate buffer below 4GB for SMI data--only 32-bit physical addr
+> 	 * is passed to SMI handler.
+> 	 */
+> 	bufferpage = alloc_page(GFP_KERNEL | GFP_DMA32);
+> 	if (!bufferpage) {
+> 		ret = -ENOMEM;
+> 		goto fail_buffer;
+> 	}
+> 	buffer = page_address(bufferpage);
+> 
+> 	ret = dell_setup_rfkill();
+> 
+> 	if (ret) {
+> 		pr_warn("Unable to setup rfkill\n");
+> 		goto fail_rfkill;
+> 	}
+> ...
+> fail_rfkill:
+> 	free_page((unsigned long)bufferpage);
+> fail_buffer:
+> ...
+> }
+> 
+> Then there is another part:
+> 
+> static void __exit dell_exit(void)
+> {
+> ...
+> 	free_page((unsigned long)buffer);
 
-So how should the Xen logic be fixed for the new scheme? I can't say I can see 
-through the paravirt complexity here.
+I believe you are correct, and this should be bufferpage. Have you observed any
+failures?
 
-Thanks,
-
-	Ingo
+-- 
+Darren Hart
+Intel Open Source Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
