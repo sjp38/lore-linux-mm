@@ -1,404 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E24CD6B0073
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 10:57:06 -0400 (EDT)
-Received: by lacny3 with SMTP id ny3so39751744lac.3
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 07:57:06 -0700 (PDT)
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com. [209.85.217.176])
-        by mx.google.com with ESMTPS id og4si10706637lbb.10.2015.06.15.07.57.03
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id BD3A36B0032
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 11:51:53 -0400 (EDT)
+Received: by qgal13 with SMTP id l13so6466058qga.3
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 08:51:53 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d11si5883607qhc.108.2015.06.15.08.51.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jun 2015 07:57:04 -0700 (PDT)
-Received: by lbbti3 with SMTP id ti3so17804972lbb.1
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 07:57:03 -0700 (PDT)
+        Mon, 15 Jun 2015 08:51:52 -0700 (PDT)
+Subject: [PATCH 0/7] slub: bulk alloc and free for slub allocator
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Date: Mon, 15 Jun 2015 17:51:45 +0200
+Message-ID: <20150615155053.18824.617.stgit@devil>
 MIME-Version: 1.0
-In-Reply-To: <20150615055649.4485.92087.stgit@zurg>
-References: <20150609200021.21971.13598.stgit@zurg>
-	<20150615055649.4485.92087.stgit@zurg>
-Date: Mon, 15 Jun 2015 15:57:03 +0100
-Message-ID: <CAEVpBaKY6TprEcZTAb6WQFb7uJy-hX+gSNxACUCzd2MAZwMi1Q@mail.gmail.com>
-Subject: Re: [PATCH v4] pagemap: switch to the new format and do some cleanup
-From: Mark Williamson <mwilliamson@undo-software.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Linux API <linux-api@vger.kernel.org>, kernel list <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: netdev@vger.kernel.org, Alexander Duyck <alexander.duyck@gmail.com>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-Thanks!  No outstanding issues with the patchset, from our side.
+With this patchset SLUB allocator now both have bulk alloc and free
+implemented.
 
-Reviewed-by: mwilliamson@undo-software.com
+(This patchset is based on DaveM's net-next tree on-top of commit
+c3eee1fb1d308.  Tested patchset applied on-top of volatile linux-next
+commit aa036f86e1bf ("slub bulk alloc: extract objects from the per
+cpu slab"))
 
-On Mon, Jun 15, 2015 at 6:56 AM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
-> From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
->
-> This patch removes page-shift bits (scheduled to remove since 3.11) and
-> completes migration to the new bit layout. Also it cleans messy macro.
->
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
->
-> ---
->
-> v4: fix misprint PM_PFEAME_BITS -> PM_PFRAME_BITS
-> ---
->  fs/proc/task_mmu.c    |  147 ++++++++++++++++---------------------------------
->  tools/vm/page-types.c |   29 +++-------
->  2 files changed, 58 insertions(+), 118 deletions(-)
->
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index f1b9ae8..99fa2ae 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -710,23 +710,6 @@ const struct file_operations proc_tid_smaps_operations = {
->         .release        = proc_map_release,
->  };
->
-> -/*
-> - * We do not want to have constant page-shift bits sitting in
-> - * pagemap entries and are about to reuse them some time soon.
-> - *
-> - * Here's the "migration strategy":
-> - * 1. when the system boots these bits remain what they are,
-> - *    but a warning about future change is printed in log;
-> - * 2. once anyone clears soft-dirty bits via clear_refs file,
-> - *    these flag is set to denote, that user is aware of the
-> - *    new API and those page-shift bits change their meaning.
-> - *    The respective warning is printed in dmesg;
-> - * 3. In a couple of releases we will remove all the mentions
-> - *    of page-shift in pagemap entries.
-> - */
-> -
-> -static bool soft_dirty_cleared __read_mostly;
-> -
->  enum clear_refs_types {
->         CLEAR_REFS_ALL = 1,
->         CLEAR_REFS_ANON,
-> @@ -887,13 +870,6 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
->         if (type < CLEAR_REFS_ALL || type >= CLEAR_REFS_LAST)
->                 return -EINVAL;
->
-> -       if (type == CLEAR_REFS_SOFT_DIRTY) {
-> -               soft_dirty_cleared = true;
-> -               pr_warn_once("The pagemap bits 55-60 has changed their meaning!"
-> -                            " See the linux/Documentation/vm/pagemap.txt for "
-> -                            "details.\n");
-> -       }
-> -
->         task = get_proc_task(file_inode(file));
->         if (!task)
->                 return -ESRCH;
-> @@ -961,38 +937,26 @@ typedef struct {
->  struct pagemapread {
->         int pos, len;           /* units: PM_ENTRY_BYTES, not bytes */
->         pagemap_entry_t *buffer;
-> -       bool v2;
->         bool show_pfn;
->  };
->
->  #define PAGEMAP_WALK_SIZE      (PMD_SIZE)
->  #define PAGEMAP_WALK_MASK      (PMD_MASK)
->
-> -#define PM_ENTRY_BYTES      sizeof(pagemap_entry_t)
-> -#define PM_STATUS_BITS      3
-> -#define PM_STATUS_OFFSET    (64 - PM_STATUS_BITS)
-> -#define PM_STATUS_MASK      (((1LL << PM_STATUS_BITS) - 1) << PM_STATUS_OFFSET)
-> -#define PM_STATUS(nr)       (((nr) << PM_STATUS_OFFSET) & PM_STATUS_MASK)
-> -#define PM_PSHIFT_BITS      6
-> -#define PM_PSHIFT_OFFSET    (PM_STATUS_OFFSET - PM_PSHIFT_BITS)
-> -#define PM_PSHIFT_MASK      (((1LL << PM_PSHIFT_BITS) - 1) << PM_PSHIFT_OFFSET)
-> -#define __PM_PSHIFT(x)      (((u64) (x) << PM_PSHIFT_OFFSET) & PM_PSHIFT_MASK)
-> -#define PM_PFRAME_MASK      ((1LL << PM_PSHIFT_OFFSET) - 1)
-> -#define PM_PFRAME(x)        ((x) & PM_PFRAME_MASK)
-> -/* in "new" pagemap pshift bits are occupied with more status bits */
-> -#define PM_STATUS2(v2, x)   (__PM_PSHIFT(v2 ? x : PAGE_SHIFT))
-> -
-> -#define __PM_SOFT_DIRTY      (1LL)
-> -#define __PM_MMAP_EXCLUSIVE  (2LL)
-> -#define PM_PRESENT          PM_STATUS(4LL)
-> -#define PM_SWAP             PM_STATUS(2LL)
-> -#define PM_FILE             PM_STATUS(1LL)
-> -#define PM_NOT_PRESENT(v2)  PM_STATUS2(v2, 0)
-> +#define PM_ENTRY_BYTES         sizeof(pagemap_entry_t)
-> +#define PM_PFRAME_BITS         54
-> +#define PM_PFRAME_MASK         GENMASK_ULL(PM_PFRAME_BITS - 1, 0)
-> +#define PM_SOFT_DIRTY          BIT_ULL(55)
-> +#define PM_MMAP_EXCLUSIVE      BIT_ULL(56)
-> +#define PM_FILE                        BIT_ULL(61)
-> +#define PM_SWAP                        BIT_ULL(62)
-> +#define PM_PRESENT             BIT_ULL(63)
-> +
->  #define PM_END_OF_BUFFER    1
->
-> -static inline pagemap_entry_t make_pme(u64 val)
-> +static inline pagemap_entry_t make_pme(u64 frame, u64 flags)
->  {
-> -       return (pagemap_entry_t) { .pme = val };
-> +       return (pagemap_entry_t) { .pme = (frame & PM_PFRAME_MASK) | flags };
->  }
->
->  static int add_to_pagemap(unsigned long addr, pagemap_entry_t *pme,
-> @@ -1013,7 +977,7 @@ static int pagemap_pte_hole(unsigned long start, unsigned long end,
->
->         while (addr < end) {
->                 struct vm_area_struct *vma = find_vma(walk->mm, addr);
-> -               pagemap_entry_t pme = make_pme(PM_NOT_PRESENT(pm->v2));
-> +               pagemap_entry_t pme = make_pme(0, 0);
->                 /* End of address space hole, which we mark as non-present. */
->                 unsigned long hole_end;
->
-> @@ -1033,7 +997,7 @@ static int pagemap_pte_hole(unsigned long start, unsigned long end,
->
->                 /* Addresses in the VMA. */
->                 if (vma->vm_flags & VM_SOFTDIRTY)
-> -                       pme.pme |= PM_STATUS2(pm->v2, __PM_SOFT_DIRTY);
-> +                       pme = make_pme(0, PM_SOFT_DIRTY);
->                 for (; addr < min(end, vma->vm_end); addr += PAGE_SIZE) {
->                         err = add_to_pagemap(addr, &pme, pm);
->                         if (err)
-> @@ -1044,50 +1008,44 @@ out:
->         return err;
->  }
->
-> -static void pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
-> +static pagemap_entry_t pte_to_pagemap_entry(struct pagemapread *pm,
->                 struct vm_area_struct *vma, unsigned long addr, pte_t pte)
->  {
-> -       u64 frame = 0, flags;
-> +       u64 frame = 0, flags = 0;
->         struct page *page = NULL;
-> -       int flags2 = 0;
->
->         if (pte_present(pte)) {
->                 if (pm->show_pfn)
->                         frame = pte_pfn(pte);
-> -               flags = PM_PRESENT;
-> +               flags |= PM_PRESENT;
->                 page = vm_normal_page(vma, addr, pte);
->                 if (pte_soft_dirty(pte))
-> -                       flags2 |= __PM_SOFT_DIRTY;
-> +                       flags |= PM_SOFT_DIRTY;
->         } else if (is_swap_pte(pte)) {
->                 swp_entry_t entry;
->                 if (pte_swp_soft_dirty(pte))
-> -                       flags2 |= __PM_SOFT_DIRTY;
-> +                       flags |= PM_SOFT_DIRTY;
->                 entry = pte_to_swp_entry(pte);
->                 frame = swp_type(entry) |
->                         (swp_offset(entry) << MAX_SWAPFILES_SHIFT);
-> -               flags = PM_SWAP;
-> +               flags |= PM_SWAP;
->                 if (is_migration_entry(entry))
->                         page = migration_entry_to_page(entry);
-> -       } else {
-> -               if (vma->vm_flags & VM_SOFTDIRTY)
-> -                       flags2 |= __PM_SOFT_DIRTY;
-> -               *pme = make_pme(PM_NOT_PRESENT(pm->v2) | PM_STATUS2(pm->v2, flags2));
-> -               return;
->         }
->
->         if (page && !PageAnon(page))
->                 flags |= PM_FILE;
->         if (page && page_mapcount(page) == 1)
-> -               flags2 |= __PM_MMAP_EXCLUSIVE;
-> -       if ((vma->vm_flags & VM_SOFTDIRTY))
-> -               flags2 |= __PM_SOFT_DIRTY;
-> +               flags |= PM_MMAP_EXCLUSIVE;
-> +       if (vma->vm_flags & VM_SOFTDIRTY)
-> +               flags |= PM_SOFT_DIRTY;
->
-> -       *pme = make_pme(PM_PFRAME(frame) | PM_STATUS2(pm->v2, flags2) | flags);
-> +       return make_pme(frame, flags);
->  }
->
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> -static void thp_pmd_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
-> -               pmd_t pmd, int offset, int pmd_flags2)
-> +static pagemap_entry_t thp_pmd_to_pagemap_entry(struct pagemapread *pm,
-> +               pmd_t pmd, int offset, u64 flags)
->  {
->         u64 frame = 0;
->
-> @@ -1099,15 +1057,16 @@ static void thp_pmd_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *p
->         if (pmd_present(pmd)) {
->                 if (pm->show_pfn)
->                         frame = pmd_pfn(pmd) + offset;
-> -               *pme = make_pme(PM_PFRAME(frame) | PM_PRESENT |
-> -                               PM_STATUS2(pm->v2, pmd_flags2));
-> -       } else
-> -               *pme = make_pme(PM_NOT_PRESENT(pm->v2) | PM_STATUS2(pm->v2, pmd_flags2));
-> +               flags |= PM_PRESENT;
-> +       }
-> +
-> +       return make_pme(frame, flags);
->  }
->  #else
-> -static inline void thp_pmd_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
-> -               pmd_t pmd, int offset, int pmd_flags2)
-> +static pagemap_entry_t thp_pmd_to_pagemap_entry(struct pagemapread *pm,
-> +               pmd_t pmd, int offset, u64 flags)
->  {
-> +       return make_pme(0, 0);
->  }
->  #endif
->
-> @@ -1121,18 +1080,16 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->         int err = 0;
->
->         if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
-> -               int pmd_flags2;
-> +               u64 flags = 0;
->
->                 if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(*pmd))
-> -                       pmd_flags2 = __PM_SOFT_DIRTY;
-> -               else
-> -                       pmd_flags2 = 0;
-> +                       flags |= PM_SOFT_DIRTY;
->
->                 if (pmd_present(*pmd)) {
->                         struct page *page = pmd_page(*pmd);
->
->                         if (page_mapcount(page) == 1)
-> -                               pmd_flags2 |= __PM_MMAP_EXCLUSIVE;
-> +                               flags |= PM_MMAP_EXCLUSIVE;
->                 }
->
->                 for (; addr != end; addr += PAGE_SIZE) {
-> @@ -1141,7 +1098,7 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->
->                         offset = (addr & ~PAGEMAP_WALK_MASK) >>
->                                         PAGE_SHIFT;
-> -                       thp_pmd_to_pagemap_entry(&pme, pm, *pmd, offset, pmd_flags2);
-> +                       pme = thp_pmd_to_pagemap_entry(pm, *pmd, offset, flags);
->                         err = add_to_pagemap(addr, &pme, pm);
->                         if (err)
->                                 break;
-> @@ -1161,7 +1118,7 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->         for (; addr < end; pte++, addr += PAGE_SIZE) {
->                 pagemap_entry_t pme;
->
-> -               pte_to_pagemap_entry(&pme, pm, vma, addr, *pte);
-> +               pme = pte_to_pagemap_entry(pm, vma, addr, *pte);
->                 err = add_to_pagemap(addr, &pme, pm);
->                 if (err)
->                         break;
-> @@ -1174,19 +1131,18 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->  }
->
->  #ifdef CONFIG_HUGETLB_PAGE
-> -static void huge_pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
-> -                                       pte_t pte, int offset, int flags2)
-> +static pagemap_entry_t huge_pte_to_pagemap_entry(struct pagemapread *pm,
-> +                                       pte_t pte, int offset, u64 flags)
->  {
->         u64 frame = 0;
->
->         if (pte_present(pte)) {
->                 if (pm->show_pfn)
->                         frame = pte_pfn(pte) + offset;
-> -               *pme = make_pme(PM_PFRAME(frame) | PM_PRESENT |
-> -                               PM_STATUS2(pm->v2, flags2));
-> -       } else
-> -               *pme = make_pme(PM_NOT_PRESENT(pm->v2)                  |
-> -                               PM_STATUS2(pm->v2, flags2));
-> +               flags |= PM_PRESENT;
-> +       }
-> +
-> +       return make_pme(frame, flags);
->  }
->
->  /* This function walks within one hugetlb entry in the single call */
-> @@ -1197,17 +1153,15 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
->         struct pagemapread *pm = walk->private;
->         struct vm_area_struct *vma = walk->vma;
->         int err = 0;
-> -       int flags2;
-> +       u64 flags = 0;
->         pagemap_entry_t pme;
->
->         if (vma->vm_flags & VM_SOFTDIRTY)
-> -               flags2 = __PM_SOFT_DIRTY;
-> -       else
-> -               flags2 = 0;
-> +               flags |= PM_SOFT_DIRTY;
->
->         for (; addr != end; addr += PAGE_SIZE) {
->                 int offset = (addr & ~hmask) >> PAGE_SHIFT;
-> -               huge_pte_to_pagemap_entry(&pme, pm, *pte, offset, flags2);
-> +               pme = huge_pte_to_pagemap_entry(pm, *pte, offset, flags);
->                 err = add_to_pagemap(addr, &pme, pm);
->                 if (err)
->                         return err;
-> @@ -1228,7 +1182,9 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
->   * Bits 0-54  page frame number (PFN) if present
->   * Bits 0-4   swap type if swapped
->   * Bits 5-54  swap offset if swapped
-> - * Bits 55-60 page shift (page size = 1<<page shift)
-> + * Bit  55    pte is soft-dirty (see Documentation/vm/soft-dirty.txt)
-> + * Bit  56    page exclusively mapped
-> + * Bits 57-60 zero
->   * Bit  61    page is file-page or shared-anon
->   * Bit  62    page swapped
->   * Bit  63    page present
-> @@ -1269,7 +1225,6 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
->
->         /* do not disclose physical addresses: attack vector */
->         pm.show_pfn = file_ns_capable(file, &init_user_ns, CAP_SYS_ADMIN);
-> -       pm.v2 = soft_dirty_cleared;
->         pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
->         pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_TEMPORARY);
->         ret = -ENOMEM;
-> @@ -1339,10 +1294,6 @@ static int pagemap_open(struct inode *inode, struct file *file)
->  {
->         struct mm_struct *mm;
->
-> -       pr_warn_once("Bits 55-60 of /proc/PID/pagemap entries are about "
-> -                       "to stop being page-shift some time soon. See the "
-> -                       "linux/Documentation/vm/pagemap.txt for details.\n");
-> -
->         mm = proc_mem_open(inode, PTRACE_MODE_READ);
->         if (IS_ERR(mm))
->                 return PTR_ERR(mm);
-> diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
-> index 3a9f193..e1d5ff8 100644
-> --- a/tools/vm/page-types.c
-> +++ b/tools/vm/page-types.c
-> @@ -57,26 +57,15 @@
->   * pagemap kernel ABI bits
->   */
->
-> -#define PM_ENTRY_BYTES      sizeof(uint64_t)
-> -#define PM_STATUS_BITS      3
-> -#define PM_STATUS_OFFSET    (64 - PM_STATUS_BITS)
-> -#define PM_STATUS_MASK      (((1LL << PM_STATUS_BITS) - 1) << PM_STATUS_OFFSET)
-> -#define PM_STATUS(nr)       (((nr) << PM_STATUS_OFFSET) & PM_STATUS_MASK)
-> -#define PM_PSHIFT_BITS      6
-> -#define PM_PSHIFT_OFFSET    (PM_STATUS_OFFSET - PM_PSHIFT_BITS)
-> -#define PM_PSHIFT_MASK      (((1LL << PM_PSHIFT_BITS) - 1) << PM_PSHIFT_OFFSET)
-> -#define __PM_PSHIFT(x)      (((uint64_t) (x) << PM_PSHIFT_OFFSET) & PM_PSHIFT_MASK)
-> -#define PM_PFRAME_MASK      ((1LL << PM_PSHIFT_OFFSET) - 1)
-> -#define PM_PFRAME(x)        ((x) & PM_PFRAME_MASK)
-> -
-> -#define __PM_SOFT_DIRTY      (1LL)
-> -#define __PM_MMAP_EXCLUSIVE  (2LL)
-> -#define PM_PRESENT          PM_STATUS(4LL)
-> -#define PM_SWAP             PM_STATUS(2LL)
-> -#define PM_FILE             PM_STATUS(1LL)
-> -#define PM_SOFT_DIRTY       __PM_PSHIFT(__PM_SOFT_DIRTY)
-> -#define PM_MMAP_EXCLUSIVE   __PM_PSHIFT(__PM_MMAP_EXCLUSIVE)
-> -
-> +#define PM_ENTRY_BYTES         8
-> +#define PM_PFRAME_BITS         54
-> +#define PM_PFRAME_MASK         ((1LL << PM_PFRAME_BITS) - 1)
-> +#define PM_PFRAME(x)           ((x) & PM_PFRAME_MASK)
-> +#define PM_SOFT_DIRTY          (1ULL << 55)
-> +#define PM_MMAP_EXCLUSIVE      (1ULL << 56)
-> +#define PM_FILE                        (1ULL << 61)
-> +#define PM_SWAP                        (1ULL << 62)
-> +#define PM_PRESENT             (1ULL << 63)
->
->  /*
->   * kernel page flags
->
+This mostly optimizes the "fastpath" where objects are available on
+the per CPU fastpath page.  This mostly amortize the less-heavy
+none-locked cmpxchg_double used on fastpath.
+
+The "fallback bulking" (e.g __kmem_cache_free_bulk) provides a good
+basis for comparison, but to avoid counting the overhead of the
+function call in benchmarking[1] I've used an inlined versions of
+these.
+
+Tested on (very fast) CPU i7-4790K @ 4.00GHz, thus look at cycles
+count (as nanosec measurements are very low given the clock rate).
+
+Baseline normal fastpath (alloc+free cost): 43 cycles(tsc) 10.814 ns
+
+Bulk - Fallback bulking           - fastpath-bulking
+   1 -  47 cycles(tsc) 11.921 ns  -  45 cycles(tsc) 11.461 ns   improved  4.3%
+   2 -  46 cycles(tsc) 11.649 ns  -  28 cycles(tsc)  7.023 ns   improved 39.1%
+   3 -  46 cycles(tsc) 11.550 ns  -  22 cycles(tsc)  5.671 ns   improved 52.2%
+   4 -  45 cycles(tsc) 11.398 ns  -  19 cycles(tsc)  4.967 ns   improved 57.8%
+   8 -  45 cycles(tsc) 11.303 ns  -  17 cycles(tsc)  4.298 ns   improved 62.2%
+  16 -  44 cycles(tsc) 11.221 ns  -  17 cycles(tsc)  4.423 ns   improved 61.4%
+  30 -  75 cycles(tsc) 18.894 ns  -  57 cycles(tsc) 14.497 ns   improved 24.0%
+  32 -  73 cycles(tsc) 18.491 ns  -  56 cycles(tsc) 14.227 ns   improved 23.3%
+  34 -  75 cycles(tsc) 18.962 ns  -  58 cycles(tsc) 14.638 ns   improved 22.7%
+  48 -  80 cycles(tsc) 20.049 ns  -  64 cycles(tsc) 16.247 ns   improved 20.0%
+  64 -  87 cycles(tsc) 21.929 ns  -  74 cycles(tsc) 18.598 ns   improved 14.9%
+ 128 -  98 cycles(tsc) 24.511 ns  -  89 cycles(tsc) 22.295 ns   improved  9.2%
+ 158 - 101 cycles(tsc) 25.389 ns  -  93 cycles(tsc) 23.390 ns   improved  7.9%
+ 250 - 104 cycles(tsc) 26.170 ns  - 100 cycles(tsc) 25.112 ns   improved  3.8%
+
+Benchmarking shows impressive improvements in the "fastpath" with a
+small number of objects in the working set.  Once the working set
+increases, resulting in activating the "slowpath" (that contains the
+heavier locked cmpxchg_double) the improvement decreases.
+
+I'm currently working on also optimizing the "slowpath" (as network
+stack use-case hits this), but this patchset should provide a good
+foundation for further improvements.
+
+Rest of my patch queue in this area needs some more work, but
+preliminary results are good.  I'm attending Netfilter Workshop[2]
+next week, and I'll hopefully return working on further improvements
+in this area.
+
+[1] https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/slab_bulk_test01.c
+[2] http://workshop.netfilter.org/2015/
+---
+
+Christoph Lameter (2):
+      slab: infrastructure for bulk object allocation and freeing
+      slub bulk alloc: extract objects from the per cpu slab
+
+Jesper Dangaard Brouer (5):
+      slub: reduce indention level in kmem_cache_alloc_bulk()
+      slub: fix error path bug in kmem_cache_alloc_bulk
+      slub: kmem_cache_alloc_bulk() move clearing outside IRQ disabled section
+      slub: improve bulk alloc strategy
+      slub: initial bulk free implementation
+
+
+ include/linux/slab.h |   10 +++++
+ mm/slab.c            |   13 +++++++
+ mm/slab.h            |    9 +++++
+ mm/slab_common.c     |   23 ++++++++++++
+ mm/slob.c            |   13 +++++++
+ mm/slub.c            |   93 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 161 insertions(+)
+
+--
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
