@@ -1,75 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 715E26B0038
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 16:48:46 -0400 (EDT)
-Received: by laka10 with SMTP id a10so18228293lak.0
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 13:48:45 -0700 (PDT)
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com. [209.85.217.178])
-        by mx.google.com with ESMTPS id ej7si11337010lad.149.2015.06.15.13.48.44
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AC246B0038
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 17:18:21 -0400 (EDT)
+Received: by wifx6 with SMTP id x6so964022wif.0
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 14:18:20 -0700 (PDT)
+Received: from mail-wg0-x22e.google.com (mail-wg0-x22e.google.com. [2a00:1450:400c:c00::22e])
+        by mx.google.com with ESMTPS id u7si20320619wiw.120.2015.06.15.14.18.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jun 2015 13:48:44 -0700 (PDT)
-Received: by lblr1 with SMTP id r1so34636881lbl.0
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 13:48:44 -0700 (PDT)
+        Mon, 15 Jun 2015 14:18:19 -0700 (PDT)
+Received: by wgv5 with SMTP id 5so78647602wgv.1
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 14:18:19 -0700 (PDT)
+Date: Mon, 15 Jun 2015 23:18:16 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: Possible broken MM code in dell-laptop.c?
+Message-ID: <20150615211816.GC16138@dhcp22.suse.cz>
+References: <201506141105.07171@pali>
 MIME-Version: 1.0
-In-Reply-To: <20150615202856.GA13273@gmail.com>
-References: <1434188955-31397-1-git-send-email-mingo@kernel.org>
- <20150613185828.GA32376@redhat.com> <20150614075943.GA810@gmail.com>
- <20150614200623.GB19582@redhat.com> <87bnghit74.fsf@tassilo.jf.intel.com>
- <CALCETrUp5Xm1ZmzoSEGrq1D05myAUhCzNgXvv-Cga8xjEi-CeQ@mail.gmail.com> <20150615202856.GA13273@gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 15 Jun 2015 13:48:23 -0700
-Message-ID: <CALCETrW6uYSD47As0UZ3t=PoVKA-BY4bLM50mRKXJeXBX5Zg4w@mail.gmail.com>
-Subject: Re: why do we need vmalloc_sync_all?
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <201506141105.07171@pali>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Waiman Long <Waiman.Long@hp.com>
+To: Pali =?iso-8859-1?Q?Roh=E1r?= <pali.rohar@gmail.com>
+Cc: Hans de Goede <hdegoede@redhat.com>, Darren Hart <dvhart@infradead.org>, Ben Skeggs <bskeggs@redhat.com>, Stuart Hayes <stuart_hayes@dell.com>, Matthew Garrett <mjg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, platform-driver-x86@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jun 15, 2015 at 1:28 PM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> * Andy Lutomirski <luto@amacapital.net> wrote:
->
->> On Sun, Jun 14, 2015 at 7:47 PM, Andi Kleen <andi@firstfloor.org> wrote:
->> > Oleg Nesterov <oleg@redhat.com> writes:
->> >>
->> >> But again, the kernel no longer does this? do_page_fault() does
->> >> vmalloc_fault() without notify_die(). If it fails, I do not see how/why a
->> >> modular DIE_OOPS handler could try to resolve this problem and trigger
->> >> another fault.
->> >
->> > The same problem can happen from NMI handlers or machine check handlers. It's
->> > not necessarily tied to page faults only.
->>
->> AIUI, the point of the one and only vmalloc_sync_all call is to prevent
->> infinitely recursive faults when we call a notify_die callback.  The only thing
->> that it could realistically protect is module text or static non-per-cpu module
->> data, since that's the only thing that's reliably already in the init pgd.  I'm
->> with Oleg: I don't see how that can happen, since do_page_fault fixes up vmalloc
->> faults before it calls notify_die.
->
-> Yes, but what I meant is that it can happen if due to an unrelated kernel bug and
-> unlucky timing we have installed this new handler just when that other unrelated
-> kernel bug triggers: say a #GPF crash in kernel code.
+On Sun 14-06-15 11:05:07, Pali Rohar wrote:
+> Hello,
+> 
+> in drivers/platform/x86/dell-laptop.c is this part of code:
+> 
+> static int __init dell_init(void)
+> {
+> ...
+> 	/*
+> 	 * Allocate buffer below 4GB for SMI data--only 32-bit physical addr
+> 	 * is passed to SMI handler.
+> 	 */
+> 	bufferpage = alloc_page(GFP_KERNEL | GFP_DMA32);
+[...]
+> 	buffer = page_address(bufferpage);
+[...]
+> fail_rfkill:
+> 	free_page((unsigned long)bufferpage);
 
-I still don't see the problem.
+This one should be __free_page because it consumes struct page* and it
+is the proper counter part for alloc_page. free_page, just to make it
+confusing, consumes an address which has to be translated to a struct
+page.
 
-CPU A: crash and start executing do_page_fault
+I have no idea why the API has been done this way and yeah, it is really
+confusing.
 
-CPU B: register_die_notifier
+[...]
+> static void __exit dell_exit(void)
+> {
+> ...
+> 	free_page((unsigned long)buffer);
 
-CPU A: notify_die
 
-now we get a vmalloc fault, fix it up, and return to do_page_fault and
-print the oops.
-
->
-> In any case it should all be mooted with the removal of lazy PGD instantiation.
-
-Agreed.
-
---Andy
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
