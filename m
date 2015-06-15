@@ -1,90 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 66AEC6B0032
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 13:04:20 -0400 (EDT)
-Received: by pabqy3 with SMTP id qy3so69010216pab.3
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 10:04:20 -0700 (PDT)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id bo11si18768037pdb.19.2015.06.15.10.04.19
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jun 2015 10:04:19 -0700 (PDT)
-Received: by padev16 with SMTP id ev16so69310154pad.0
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 10:04:19 -0700 (PDT)
-Message-ID: <557F0591.5080704@gmail.com>
-Date: Mon, 15 Jun 2015 10:04:17 -0700
-From: Alexander Duyck <alexander.duyck@gmail.com>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AEEF6B0032
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 13:20:27 -0400 (EDT)
+Received: by pabqy3 with SMTP id qy3so69262328pab.3
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 10:20:26 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id xi9si18717804pbc.158.2015.06.15.10.20.25
+        for <linux-mm@kvack.org>;
+        Mon, 15 Jun 2015 10:20:26 -0700 (PDT)
+Date: Mon, 15 Jun 2015 10:20:25 -0700
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: Re: [RFC PATCH 10/12] mm: add the buddy system interface
+Message-ID: <20150615172023.GA12088@agluck-desk.sc.intel.com>
+References: <55704A7E.5030507@huawei.com>
+ <55704CC4.8040707@huawei.com>
+ <557691E0.5020203@jp.fujitsu.com>
+ <5576BA2B.6060907@huawei.com>
+ <5577A9A9.7010108@jp.fujitsu.com>
+ <3908561D78D1C84285E8C5FCA982C28F32A8F209@ORSMSX114.amr.corp.intel.com>
+ <557E911F.5040602@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 7/7] slub: initial bulk free implementation
-References: <20150615155053.18824.617.stgit@devil> <20150615155256.18824.42651.stgit@devil>
-In-Reply-To: <20150615155256.18824.42651.stgit@devil>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <557E911F.5040602@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: netdev@vger.kernel.org
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, "nao.horiguchi@gmail.com" <nao.horiguchi@gmail.com>, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 06/15/2015 08:52 AM, Jesper Dangaard Brouer wrote:
-> This implements SLUB specific kmem_cache_free_bulk().  SLUB allocator
-> now both have bulk alloc and free implemented.
->
-> Play nice and reenable local IRQs while calling slowpath.
->
-> Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
-> ---
->   mm/slub.c |   32 +++++++++++++++++++++++++++++++-
->   1 file changed, 31 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 98d0e6f73ec1..cc4f870677bb 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2752,7 +2752,37 @@ EXPORT_SYMBOL(kmem_cache_free);
->   
->   void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
->   {
-> -	__kmem_cache_free_bulk(s, size, p);
-> +	struct kmem_cache_cpu *c;
-> +	struct page *page;
-> +	int i;
-> +
-> +	local_irq_disable();
-> +	c = this_cpu_ptr(s->cpu_slab);
-> +
-> +	for (i = 0; i < size; i++) {
-> +		void *object = p[i];
-> +
-> +		if (unlikely(!object))
-> +			continue; // HOW ABOUT BUG_ON()???
-> +
-> +		page = virt_to_head_page(object);
-> +		BUG_ON(s != page->slab_cache); /* Check if valid slab page */
-> +
-> +		if (c->page == page) {
-> +			/* Fastpath: local CPU free */
-> +			set_freepointer(s, object, c->freelist);
-> +			c->freelist = object;
-> +		} else {
-> +			c->tid = next_tid(c->tid);
-> +			local_irq_enable();
-> +			/* Slowpath: overhead locked cmpxchg_double_slab */
-> +			__slab_free(s, page, object, _RET_IP_);
-> +			local_irq_disable();
-> +			c = this_cpu_ptr(s->cpu_slab);
-> +		}
-> +	}
-> +	c->tid = next_tid(c->tid);
-> +	local_irq_enable();
->   }
->   EXPORT_SYMBOL(kmem_cache_free_bulk);
+On Mon, Jun 15, 2015 at 05:47:27PM +0900, Kamezawa Hiroyuki wrote:
+> So, there are 3 ideas.
+> 
+>  (1) kernel only from MIRROR / user only from MOVABLE (Tony)
+>  (2) kernel only from MIRROR / user from MOVABLE + MIRROR(ASAP)  (AKPM suggested)
+>      This makes use of the fact MOVABLE memory is reclaimable but Tony pointed out
+>      the memory reclaim can be critical for GFP_ATOMIC.
+>  (3) kernel only from MIRROR / user from MOVABLE, special user from MIRROR (Xishi)
+> 
+> 2 Implementation ideas.
+>   - creating ZONE
+>   - creating new alloation attribute
+> 
+> I don't convince whether we need some new structure in mm. Isn't it good to use
+> ZONE_MOVABLE for not-mirrored memory ?
+> Then, disable fallback from ZONE_MOVABLE -> ZONE_NORMAL for (1) and (3)
 
-So if the idea is to batch the freeing maybe you should look at doing 
-the freeing in two passes.  The first would be to free all those buffers 
-that share their page with the percpu slab.  Then you could just free 
-everything else in the second pass after you have re-enabled IRQs.
+We might need to rename it ... right now the memory hotplug
+people use ZONE_MOVABLE to indicate regions of physical memory
+that can be removed from the system.  I'm wondering whether
+people will want systems that have both removable and mirrored
+areas?  Then we have four attribute combinations:
 
-- Alex
+mirror=no  removable=no  - prefer to use for user, could use for kernel if we run out of mirror
+mirror=no  removable=yes - can only be used for user (kernel allocation makes it not-removable)
+mirror=yes removable=no  - use for kernel, possibly for special users if we define some interface
+mirror=yes removable=yes - must not use for kernel ... would have to give to user ... seems like a bad idea to configure a system this way
+
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
