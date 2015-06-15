@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com [209.85.220.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 417776B0073
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 13:22:28 -0400 (EDT)
-Received: by qkdm188 with SMTP id m188so36112428qkd.1
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 10:22:28 -0700 (PDT)
+Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com [209.85.220.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EA946B0074
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 13:22:30 -0400 (EDT)
+Received: by qkdm188 with SMTP id m188so36112920qkd.1
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 10:22:30 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g13si9567491qhc.50.2015.06.15.10.22.19
+        by mx.google.com with ESMTPS id f29si9873307qki.74.2015.06.15.10.22.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jun 2015 10:22:20 -0700 (PDT)
+        Mon, 15 Jun 2015 10:22:19 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 6/7] userfaultfd: Revert "userfaultfd: waitqueue: add nr wake parameter to __wake_up_locked_key"
-Date: Mon, 15 Jun 2015 19:22:10 +0200
-Message-Id: <1434388931-24487-7-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 4/7] userfaultfd: avoid missing wakeups during refile in userfaultfd_read
+Date: Mon, 15 Jun 2015 19:22:08 +0200
+Message-Id: <1434388931-24487-5-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1434388931-24487-1-git-send-email-aarcange@redhat.com>
 References: <1434388931-24487-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,116 +20,87 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org
 Cc: Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-This reverts commit 855c5a9026b0fce58c8de5382ef8ce00f74c1331 and
-adapts fs/userfaultfd.c to use the old version of that function.
-
-It didn't look robust to call __wake_up_common with "nr == 1" when we
-absolutely require wakeall semantics, but we've full control of what
-we insert in the two waitqueue heads of the blocked userfaults. No
-exclusive waitqueue risks to be inserted into those two waitqueue
-heads so we can as well stick to "nr == 1" of the old code and we can
-rely purely on the fact no waitqueue inserted in one of the two
-waitqueue heads we must enforce as wakeall, has wait->flags
-WQ_FLAG_EXCLUSIVE set.
+During the refile in userfaultfd_read both waitqueues could look empty
+to the lockless wake_userfault(). Use a seqcount to prevent this false
+negative that could leave an userfault blocked.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- fs/userfaultfd.c     | 8 ++++----
- include/linux/wait.h | 5 ++---
- kernel/sched/wait.c  | 7 +++----
- net/sunrpc/sched.c   | 2 +-
- 4 files changed, 10 insertions(+), 12 deletions(-)
+ fs/userfaultfd.c | 26 ++++++++++++++++++++++++--
+ 1 file changed, 24 insertions(+), 2 deletions(-)
 
 diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index a66c4be..e601dd8 100644
+index 8286ec8..f9e11ec 100644
 --- a/fs/userfaultfd.c
 +++ b/fs/userfaultfd.c
-@@ -467,8 +467,8 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
- 	 * the fault_*wqh.
- 	 */
- 	spin_lock(&ctx->fault_pending_wqh.lock);
--	__wake_up_locked_key(&ctx->fault_pending_wqh, TASK_NORMAL, 0, &range);
--	__wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, 0, &range);
-+	__wake_up_locked_key(&ctx->fault_pending_wqh, TASK_NORMAL, &range);
-+	__wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, &range);
- 	spin_unlock(&ctx->fault_pending_wqh.lock);
+@@ -45,6 +45,8 @@ struct userfaultfd_ctx {
+ 	wait_queue_head_t fault_wqh;
+ 	/* waitqueue head for the pseudo fd to wakeup poll/read */
+ 	wait_queue_head_t fd_wqh;
++	/* a refile sequence protected by fault_pending_wqh lock */
++	struct seqcount refile_seq;
+ 	/* pseudo fd refcounting */
+ 	atomic_t refcount;
+ 	/* userfaultfd syscall flags */
+@@ -547,6 +549,15 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
+ 		uwq = find_userfault(ctx);
+ 		if (uwq) {
+ 			/*
++			 * Use a seqcount to repeat the lockless check
++			 * in wake_userfault() to avoid missing
++			 * wakeups because during the refile both
++			 * waitqueue could become empty if this is the
++			 * only userfault.
++			 */
++			write_seqcount_begin(&ctx->refile_seq);
++
++			/*
+ 			 * The fault_pending_wqh.lock prevents the uwq
+ 			 * to disappear from under us.
+ 			 *
+@@ -570,6 +581,8 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
+ 			list_del(&uwq->wq.task_list);
+ 			__add_wait_queue(&ctx->fault_wqh, &uwq->wq);
  
- 	wake_up_poll(&ctx->fd_wqh, POLLHUP);
-@@ -652,10 +652,10 @@ static void __wake_userfault(struct userfaultfd_ctx *ctx,
- 	spin_lock(&ctx->fault_pending_wqh.lock);
- 	/* wake all in the range and autoremove */
- 	if (waitqueue_active(&ctx->fault_pending_wqh))
--		__wake_up_locked_key(&ctx->fault_pending_wqh, TASK_NORMAL, 0,
-+		__wake_up_locked_key(&ctx->fault_pending_wqh, TASK_NORMAL,
- 				     range);
- 	if (waitqueue_active(&ctx->fault_wqh))
--		__wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, 0, range);
-+		__wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, range);
- 	spin_unlock(&ctx->fault_pending_wqh.lock);
- }
- 
-diff --git a/include/linux/wait.h b/include/linux/wait.h
-index cf884cf..2db8334 100644
---- a/include/linux/wait.h
-+++ b/include/linux/wait.h
-@@ -147,8 +147,7 @@ __remove_wait_queue(wait_queue_head_t *head, wait_queue_t *old)
- 
- typedef int wait_bit_action_f(struct wait_bit_key *);
- void __wake_up(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
--void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, int nr,
--			  void *key);
-+void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, void *key);
- void __wake_up_sync_key(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
- void __wake_up_locked(wait_queue_head_t *q, unsigned int mode, int nr);
- void __wake_up_sync(wait_queue_head_t *q, unsigned int mode, int nr);
-@@ -180,7 +179,7 @@ wait_queue_head_t *bit_waitqueue(void *, int);
- #define wake_up_poll(x, m)						\
- 	__wake_up(x, TASK_NORMAL, 1, (void *) (m))
- #define wake_up_locked_poll(x, m)					\
--	__wake_up_locked_key((x), TASK_NORMAL, 1, (void *) (m))
-+	__wake_up_locked_key((x), TASK_NORMAL, (void *) (m))
- #define wake_up_interruptible_poll(x, m)				\
- 	__wake_up(x, TASK_INTERRUPTIBLE, 1, (void *) (m))
- #define wake_up_interruptible_sync_poll(x, m)				\
-diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
-index 6da208dd2..852143a 100644
---- a/kernel/sched/wait.c
-+++ b/kernel/sched/wait.c
-@@ -106,10 +106,9 @@ void __wake_up_locked(wait_queue_head_t *q, unsigned int mode, int nr)
- }
- EXPORT_SYMBOL_GPL(__wake_up_locked);
- 
--void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, int nr,
--			  void *key)
-+void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, void *key)
++			write_seqcount_end(&ctx->refile_seq);
++
+ 			/* careful to always initialize msg if ret == 0 */
+ 			*msg = uwq->msg;
+ 			spin_unlock(&ctx->fault_pending_wqh.lock);
+@@ -648,6 +661,9 @@ static void __wake_userfault(struct userfaultfd_ctx *ctx,
+ static __always_inline void wake_userfault(struct userfaultfd_ctx *ctx,
+ 					   struct userfaultfd_wake_range *range)
  {
--	__wake_up_common(q, mode, nr, 0, key);
-+	__wake_up_common(q, mode, 1, 0, key);
++	unsigned seq;
++	bool need_wakeup;
++
+ 	/*
+ 	 * To be sure waitqueue_active() is not reordered by the CPU
+ 	 * before the pagetable update, use an explicit SMP memory
+@@ -663,8 +679,13 @@ static __always_inline void wake_userfault(struct userfaultfd_ctx *ctx,
+ 	 * userfaults yet. So we take the spinlock only when we're
+ 	 * sure we've userfaults to wake.
+ 	 */
+-	if (waitqueue_active(&ctx->fault_pending_wqh) ||
+-	    waitqueue_active(&ctx->fault_wqh))
++	do {
++		seq = read_seqcount_begin(&ctx->refile_seq);
++		need_wakeup = waitqueue_active(&ctx->fault_pending_wqh) ||
++			waitqueue_active(&ctx->fault_wqh);
++		cond_resched();
++	} while (read_seqcount_retry(&ctx->refile_seq, seq));
++	if (need_wakeup)
+ 		__wake_userfault(ctx, range);
  }
- EXPORT_SYMBOL_GPL(__wake_up_locked_key);
  
-@@ -284,7 +283,7 @@ void abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait,
- 	if (!list_empty(&wait->task_list))
- 		list_del_init(&wait->task_list);
- 	else if (waitqueue_active(q))
--		__wake_up_locked_key(q, mode, 1, key);
-+		__wake_up_locked_key(q, mode, key);
- 	spin_unlock_irqrestore(&q->lock, flags);
+@@ -1223,6 +1244,7 @@ static void init_once_userfaultfd_ctx(void *mem)
+ 	init_waitqueue_head(&ctx->fault_pending_wqh);
+ 	init_waitqueue_head(&ctx->fault_wqh);
+ 	init_waitqueue_head(&ctx->fd_wqh);
++	seqcount_init(&ctx->refile_seq);
  }
- EXPORT_SYMBOL(abort_exclusive_wait);
-diff --git a/net/sunrpc/sched.c b/net/sunrpc/sched.c
-index b140c09..337ca85 100644
---- a/net/sunrpc/sched.c
-+++ b/net/sunrpc/sched.c
-@@ -297,7 +297,7 @@ static int rpc_complete_task(struct rpc_task *task)
- 	clear_bit(RPC_TASK_ACTIVE, &task->tk_runstate);
- 	ret = atomic_dec_and_test(&task->tk_count);
- 	if (waitqueue_active(wq))
--		__wake_up_locked_key(wq, TASK_NORMAL, 1, &k);
-+		__wake_up_locked_key(wq, TASK_NORMAL, &k);
- 	spin_unlock_irqrestore(&wq->lock, flags);
- 	return ret;
- }
+ 
+ /**
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
