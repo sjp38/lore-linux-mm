@@ -1,93 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 14F9C6B006E
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 17:55:39 -0400 (EDT)
-Received: by igbos3 with SMTP id os3so30013954igb.0
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 14:55:38 -0700 (PDT)
-Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com. [2607:f8b0:4001:c03::233])
-        by mx.google.com with ESMTPS id a11si11009692icm.68.2015.06.15.14.55.38
+Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 405546B0038
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 18:19:52 -0400 (EDT)
+Received: by qkdm188 with SMTP id m188so40424968qkd.1
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 15:19:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o24si2984448qko.1.2015.06.15.15.19.50
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jun 2015 14:55:38 -0700 (PDT)
-Received: by iebgx4 with SMTP id gx4so1257618ieb.0
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 14:55:38 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150615214338.GH18909@redhat.com>
+        Mon, 15 Jun 2015 15:19:51 -0700 (PDT)
+Date: Tue, 16 Jun 2015 00:19:46 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 5/7] userfaultfd: switch to exclusive wakeup for blocking
+ reads
+Message-ID: <20150615221946.GI18909@redhat.com>
 References: <1434388931-24487-1-git-send-email-aarcange@redhat.com>
-	<1434388931-24487-2-git-send-email-aarcange@redhat.com>
-	<CA+55aFzdZJw7Ot7=PYyyskNhkv=H+NPzoF6rKtb6oMyzkuQ-=Q@mail.gmail.com>
-	<20150615214338.GH18909@redhat.com>
-Date: Mon, 15 Jun 2015 11:55:38 -1000
-Message-ID: <CA+55aFxKz5eONz1g57ccZ8b=6ivouQOapBtVjt7U3aOtrRgw8Q@mail.gmail.com>
-Subject: Re: [PATCH 1/7] userfaultfd: require UFFDIO_API before other ioctls
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: multipart/alternative; boundary=90e6ba6e8adea8f885051895841d
+ <1434388931-24487-6-git-send-email-aarcange@redhat.com>
+ <CA+55aFxD8hakE9SjhAD1_vJ9PATK+90k7yHQ2cENqGqK8r3QhQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFxD8hakE9SjhAD1_vJ9PATK+90k7yHQ2cENqGqK8r3QhQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, qemu-devel@nongnu.org, Paolo Bonzini <pbonzini@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Paolo Bonzini <pbonzini@redhat.com>, qemu-devel@nongnu.org, Pavel Emelyanov <xemul@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, zhang.zhanghailiang@huawei.com, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Peter Feiner <pfeiner@google.com>, Mel Gorman <mgorman@suse.de>, kvm@vger.kernel.org
 
---90e6ba6e8adea8f885051895841d
-Content-Type: text/plain; charset=UTF-8
+On Mon, Jun 15, 2015 at 08:19:07AM -1000, Linus Torvalds wrote:
+> What if the process doing the polling never doors anything with the end
+> result? Maybe it meant to, but it got killed before it could? Are you going
+> to leave everybody else blocked, even though there are pending events?
 
-On Jun 15, 2015 11:43 AM, "Andrea Arcangeli" <aarcange@redhat.com> wrote:
->
-> Several times I got very hardly reproducible bugs noticed purely
-> because of BUG_ON (not VM_BUG_ON)
+Yes, it would leave the other blocked, how is it different from having
+just 1 reader and it gets killed?
 
-Feel free to use them while developing. Don't send me patches with your
-broken debug code, though.
+If any qemu thread gets killed the thing is going to be noticeable,
+there's no fault-tolerance-double-thread for anything. If one wants to
+use more threads for fault tolerance of this scenario with
+userfaultfd, one just needs to add a feature flag to the
+uffdio_api.features to request it and change the behavior to wakeall
+but by default if we can do wakeone I think we should.
 
-For users, a dead machine means that it is less likely you will ever get a
-bug report. People set "reboot on oops", and when running X is not always
-something that can be seen anyway. They'll just see a rebooting or a dead
-machine, and not send you any debug output.
+> The same us try of read() too. What if the reader only reads party of the
+> message? The wake didn't wake anybody else, so now people are (again)
+> blocked despite there being data.
 
-This is not negotiable. Seriously. Get rid of the BUG_ON if you expect your
-patches to be merged mainline.
+I totally agree that for a normal read that would be a concern, but
+the wakeone only applies to the uffd. I'm not even trying to change
+other read methods.
 
-Also, even for debugging, using something like
+The uffd can't short-read. Lengths not multiple of sizeof(struct
+uffd_msg) immediately return -EINVAL. read will return one or more
+events, sizeof(struct uffd_msg). Signal interruptions only are
+reported if it's about to block and it found nothing.
 
-    if (WARN_ON_ONCE(...))
-         return -EINVAL;
+> So no, exclusive waiting is never "simple". You have to 100% guarantee that
+> you will consume all the data that caused the wake event (or perhaps wake
+> the next person up if you don't).
 
-is the right thing to do. Then you can unwind locks etc, and return
-cleanly, and you'll only get one warning rather than a stream of them etc.
+I don't see where it goes wrong.
 
-So stop making excuses for your bad BUG_ON use. Do it in private where
-nobody can see your perversions, or do it right.
+Now if __wake_up_common didn't check the retval of
+default_wake_function->try_to_wake_up before decrements and checking
+nr_exclusive I would where the problem about the next guy is, but it
+does this:
 
-        Linus
+		if (curr->func(curr, mode, wake_flags, key) &&
+				(flags & WQ_FLAG_EXCLUSIVE) && !--nr_exclusive)
+			break;
 
---90e6ba6e8adea8f885051895841d
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Every new userfault blocking (and at max 1 event to read is generated
+for each new blocking userfaults) wakes one more reader, and each
+reader is guaranteed to be blocked only if the pending (pending as not
+read yet) waitqueue is truly empty. Where does it misbehave?
 
-<p dir=3D"ltr"><br>
-On Jun 15, 2015 11:43 AM, &quot;Andrea Arcangeli&quot; &lt;<a href=3D"mailt=
-o:aarcange@redhat.com">aarcange@redhat.com</a>&gt; wrote:<br>
-&gt;<br>
-&gt; Several times I got very hardly reproducible bugs noticed purely<br>
-&gt; because of BUG_ON (not VM_BUG_ON)</p>
-<p dir=3D"ltr">Feel free to use them while developing. Don&#39;t send me pa=
-tches with your broken debug code, though.</p>
-<p dir=3D"ltr">For users, a dead machine means that it is less likely you w=
-ill ever get a bug report. People set &quot;reboot on oops&quot;, and when =
-running X is not always something that can be seen anyway. They&#39;ll just=
- see a rebooting or a dead machine, and not send you any debug output.</p>
-<p dir=3D"ltr">This is not negotiable. Seriously. Get rid of the BUG_ON if =
-you expect your patches to be merged mainline.</p>
-<p dir=3D"ltr">Also, even for debugging, using something like</p>
-<p dir=3D"ltr">=C2=A0=C2=A0=C2=A0 if (WARN_ON_ONCE(...))<br>
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 return -EINVAL;</p>
-<p dir=3D"ltr">is the right thing to do. Then you can unwind locks etc, and=
- return cleanly, and you&#39;ll only get one warning rather than a stream o=
-f them etc.</p>
-<p dir=3D"ltr">So stop making excuses for your bad BUG_ON use. Do it in pri=
-vate where nobody can see your perversions, or do it right.</p>
-<p dir=3D"ltr">=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 Linus</p>
+Yes each reader is required then to handle whatever userfault event it
+got from read (or to pass it to another thread before quitting), but
+this is a must anyway. This is because after the userfault is read it
+is moved from pending fault queue to normal fault queue, so it won't
+ever be read again, if it wasn't the case read would infinite loop and
+it couldn't block (the same applies to poll, poll blocks after the
+pending event has been read).
 
---90e6ba6e8adea8f885051895841d--
+The testsuite can reproduce the bug fixed in 4/7 in like 3 seconds,
+and it's 100% reproducible. And the window for such a bug is really
+small: exactly in between list_del(); list_add the two
+waitqueue_active must run in the other CPU. So it's hard to imagine if
+this had some major issue, the testsuite wouldn't show it. In fact the
+load seems to scale more evenly across all uffd threads too without no
+apparent downside.
+
+qemu uses just one reader, and it's even using poll, so this is not
+needed for the short term production code, and it's totally fine to
+defer this patch.
+
+I'm not saying doing wakeone is easy and it's enough to flip a switch
+everywhere to get it everywhere, and perhaps there's something wrong
+still, I just I don't see where the actual bug is and how it should
+work better without this patch but it's certainly fine to drop the
+patch anyway (at least for now).
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
