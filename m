@@ -1,75 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f175.google.com (mail-qc0-f175.google.com [209.85.216.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 9ADF26B006E
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 10:05:31 -0400 (EDT)
-Received: by qcsf5 with SMTP id f5so3663323qcs.2
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 07:05:31 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i8si9640141qgf.23.2015.06.15.07.05.30
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 5978C6B0032
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 10:17:42 -0400 (EDT)
+Received: by wigg3 with SMTP id g3so79236170wig.1
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 07:17:41 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o19si22329474wjr.59.2015.06.15.07.17.40
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jun 2015 07:05:31 -0700 (PDT)
-Message-ID: <557EDBA2.9090308@redhat.com>
-Date: Mon, 15 Jun 2015 10:05:22 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [RFC 2/3] mm: make optimistic check for swapin readahead
-References: <1434294283-8699-1-git-send-email-ebru.akagunduz@gmail.com> <1434294283-8699-3-git-send-email-ebru.akagunduz@gmail.com>
-In-Reply-To: <1434294283-8699-3-git-send-email-ebru.akagunduz@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 15 Jun 2015 07:17:40 -0700 (PDT)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH] jbd2: get rid of open coded allocation retry loop
+Date: Mon, 15 Jun 2015 16:17:34 +0200
+Message-Id: <1434377854-17959-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 06/14/2015 11:04 AM, Ebru Akagunduz wrote:
-> This patch makes optimistic check for swapin readahead
-> to increase thp collapse rate. Before getting swapped
-> out pages to memory, checks them and allows up to a
-> certain number. It also prints out using tracepoints
-> amount of unmapped ptes.
-> 
-> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+insert_revoke_hash does an open coded endless allocation loop if
+journal_oom_retry is true. It doesn't implement any allocation fallback
+strategy between the retries, though. The memory allocator doesn't know
+about the never fail requirement so it cannot potentially help to move
+on with the allocation (e.g. use memory reserves).
 
-> @@ -2639,11 +2640,11 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
->  {
->  	pmd_t *pmd;
->  	pte_t *pte, *_pte;
-> -	int ret = 0, none_or_zero = 0;
-> +	int ret = 0, none_or_zero = 0, unmapped = 0;
->  	struct page *page;
->  	unsigned long _address;
->  	spinlock_t *ptl;
-> -	int node = NUMA_NO_NODE;
-> +	int node = NUMA_NO_NODE, max_ptes_swap = HPAGE_PMD_NR/8;
->  	bool writable = false, referenced = false;
+Get rid of the retry loop and use __GFP_NOFAIL instead. We will lose the
+debugging message but I am not sure it is anyhow helpful.
 
-This has the effect of only swapping in 4kB pages to form a THP
-if 7/8th of the THP is already resident in memory.
+Do the same for journal_alloc_journal_head which is doing a similar
+thing.
 
-This is a pretty conservative thing to do.
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+---
 
-I am not sure if we would also need to take into account things
-like these:
-1) How many pages in the THP-area are recently referenced?
-   Maybe this does not matter if 87.5% of the 4kB pages got
-   faulted in after swap-out, anyway?
-2) How much free memory does the system have?
-   We don't test that for collapsing a THP with lots of
-   pte_none() ptes, so not sure how much this matters...
-3) How many of the pages we want to swap in are already resident
-   in the swap cache?
-   Not sure exactly what to do with this number...
-4) other factors?
+Hi,
+While looking at something unrelated I have encountered the following
+two open coded endless loops around allocation request. I have converted
+them to use __GFP_NOFAIL in lines of http://marc.info/?l=linux-mm&m=143377014630186&w=2.
 
-I am also not sure how we would determine such a policy, except
-by maybe having these patches sit in -mm and -next for a few
-cycles, and seeing what happens...
+journal_oom_retry is hardcoded to 1 and used only at a single place in
+jbd2 code so I guess it is just a left over. Nevertheless, I have kept
+it there because I do not understand its historical purpose. Anyway
+it seems like removing it would allow some more clean ups because
+insert_revoke_hash doesn't have any other failure modes (same applies to
+jbd2_journal_set_revoke). Let me know if you would be interested in
+such a cleanup.
 
+Thanks!
 
+ fs/jbd2/journal.c |  6 ++----
+ fs/jbd2/revoke.c  | 15 +++++----------
+ 2 files changed, 7 insertions(+), 14 deletions(-)
+
+diff --git a/fs/jbd2/journal.c b/fs/jbd2/journal.c
+index b96bd8076b70..218414703f11 100644
+--- a/fs/jbd2/journal.c
++++ b/fs/jbd2/journal.c
+@@ -2362,10 +2362,8 @@ static struct journal_head *journal_alloc_journal_head(void)
+ 	if (!ret) {
+ 		jbd_debug(1, "out of memory for journal_head\n");
+ 		pr_notice_ratelimited("ENOMEM in %s, retrying.\n", __func__);
+-		while (!ret) {
+-			yield();
+-			ret = kmem_cache_zalloc(jbd2_journal_head_cache, GFP_NOFS);
+-		}
++		ret = kmem_cache_zalloc(jbd2_journal_head_cache,
++				GFP_NOFS | __GFP_NOFAIL);
+ 	}
+ 	return ret;
+ }
+diff --git a/fs/jbd2/revoke.c b/fs/jbd2/revoke.c
+index c6cbaef2bda1..f9eb93e1b3cb 100644
+--- a/fs/jbd2/revoke.c
++++ b/fs/jbd2/revoke.c
+@@ -141,11 +141,13 @@ static int insert_revoke_hash(journal_t *journal, unsigned long long blocknr,
+ {
+ 	struct list_head *hash_list;
+ 	struct jbd2_revoke_record_s *record;
++	gfp_t gfp_mask = GFP_NOFS;
+ 
+-repeat:
+-	record = kmem_cache_alloc(jbd2_revoke_record_cache, GFP_NOFS);
++	if (journal_oom_retry)
++		gfp_mask |= __GFP_NOFAIL;
++	record = kmem_cache_alloc(jbd2_revoke_record_cache, gfp_mask);
+ 	if (!record)
+-		goto oom;
++		return -ENOMEM;
+ 
+ 	record->sequence = seq;
+ 	record->blocknr = blocknr;
+@@ -154,13 +156,6 @@ static int insert_revoke_hash(journal_t *journal, unsigned long long blocknr,
+ 	list_add(&record->hash, hash_list);
+ 	spin_unlock(&journal->j_revoke_lock);
+ 	return 0;
+-
+-oom:
+-	if (!journal_oom_retry)
+-		return -ENOMEM;
+-	jbd_debug(1, "ENOMEM in %s, retrying\n", __func__);
+-	yield();
+-	goto repeat;
+ }
+ 
+ /* Find a revoke record in the journal's hash table. */
 -- 
-All rights reversed
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
