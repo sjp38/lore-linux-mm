@@ -1,42 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id BCC546B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 12:04:46 -0400 (EDT)
-Received: by iesa3 with SMTP id a3so16005036ies.2
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 09:04:46 -0700 (PDT)
-Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
-        by mx.google.com with ESMTPS id k196si1058168ioe.102.2015.06.16.09.04.46
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C92536B0038
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 12:22:02 -0400 (EDT)
+Received: by wicnd19 with SMTP id nd19so3354528wic.1
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 09:22:02 -0700 (PDT)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [2002:c35c:fd02::1])
+        by mx.google.com with ESMTPS id et1si24879772wib.116.2015.06.16.09.22.00
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 16 Jun 2015 09:04:46 -0700 (PDT)
-Date: Tue, 16 Jun 2015 11:04:45 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 7/7] slub: initial bulk free implementation
-In-Reply-To: <20150616175231.427499ae@redhat.com>
-Message-ID: <alpine.DEB.2.11.1506161104060.5683@east.gentwo.org>
-References: <20150615155053.18824.617.stgit@devil> <20150615155256.18824.42651.stgit@devil> <20150616072806.GC13125@js1304-P5Q-DELUXE> <20150616102110.55208fdd@redhat.com> <20150616105732.2bc37714@redhat.com> <CAAmzW4OM-afGBZbWZzcH7O-mivNWvyeKpMVV4Os+i4Xb7GPgmg@mail.gmail.com>
- <alpine.DEB.2.11.1506161008350.3496@east.gentwo.org> <20150616175231.427499ae@redhat.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 16 Jun 2015 09:22:01 -0700 (PDT)
+Date: Tue, 16 Jun 2015 17:21:47 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [RFC v3 1/4] fs: Add generic file system event notifications
+Message-ID: <20150616162147.GA17109@ZenIV.linux.org.uk>
+References: <1434460173-18427-1-git-send-email-b.michalska@samsung.com>
+ <1434460173-18427-2-git-send-email-b.michalska@samsung.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1434460173-18427-2-git-send-email-b.michalska@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-Netdev <netdev@vger.kernel.org>, Alexander Duyck <alexander.duyck@gmail.com>
+To: Beata Michalska <b.michalska@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, greg@kroah.com, jack@suse.cz, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
-On Tue, 16 Jun 2015, Jesper Dangaard Brouer wrote:
+On Tue, Jun 16, 2015 at 03:09:30PM +0200, Beata Michalska wrote:
+> Introduce configurable generic interface for file
+> system-wide event notifications, to provide file
+> systems with a common way of reporting any potential
+> issues as they emerge.
+> 
+> The notifications are to be issued through generic
+> netlink interface by newly introduced multicast group.
+> 
+> Threshold notifications have been included, allowing
+> triggering an event whenever the amount of free space drops
+> below a certain level - or levels to be more precise as two
+> of them are being supported: the lower and the upper range.
+> The notifications work both ways: once the threshold level
+> has been reached, an event shall be generated whenever
+> the number of available blocks goes up again re-activating
+> the threshold.
+> 
+> The interface has been exposed through a vfs. Once mounted,
+> it serves as an entry point for the set-up where one can
+> register for particular file system events.
 
-> It is very important that everybody realizes that the save+restore
-> variant is very expensive, this is key:
->
-> CPU: i7-4790K CPU @ 4.00GHz
->  * local_irq_{disable,enable}:  7 cycles(tsc) - 1.821 ns
->  * local_irq_{save,restore}  : 37 cycles(tsc) - 9.443 ns
->
-> Even if EVERY object need to call slowpath/__slab_free() it will be
-> faster than calling the fallback.  Because I've demonstrated the call
-> this_cpu_cmpxchg_double() costs 9 cycles.
+Hmm...
 
-But the cmpxchg also stores a value. You need to add the cost of the store
-to the cycles.
+1) what happens if two processes write to that file at the same time,
+trying to create an entry for the same fs?  WARN_ON() and fail for one
+of them if they race?
+
+2) what happens if fs is mounted more than once (e.g. in different
+namespaces, or bound at different mountpoints, or just plain mounted
+several times in different places) and we add an event for each?
+More specifically, what should happen when one of those gets unmounted?
+
+3) what's the meaning of ->active?  Is that "fs_drop_trace_entry() hadn't
+been called yet" flag?  Unless I'm misreading it, we can very well get
+explicit removal race with umount, resulting in cleanup_mnt() returning
+from fs_event_mount_dropped() before the first process (i.e. write
+asking to remove that entry) gets around to its deactivate_super(),
+ending up with umount(2) on a filesystem that isn't mounted anywhere
+else reporting success to userland before the actual fs shutdown, which
+is not a nice thing to do...
+
+4) test in fs_event_mount_dropped() looks very odd - by that point we
+are absolutely guaranteed to have ->mnt_ns == NULL.  What's that supposed
+to do?
+
+
+Al, trying to figure out the lifetime rules in all of that...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
