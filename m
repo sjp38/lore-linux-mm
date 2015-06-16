@@ -1,82 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E6616B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 08:05:48 -0400 (EDT)
-Received: by oial131 with SMTP id l131so9618125oia.3
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 05:05:48 -0700 (PDT)
-Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
-        by mx.google.com with ESMTPS id f14si480625oib.119.2015.06.16.05.05.47
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F6306B0038
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 08:13:34 -0400 (EDT)
+Received: by lbbti3 with SMTP id ti3so9481698lbb.1
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 05:13:33 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id kw8si1428164wjb.181.2015.06.16.05.13.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jun 2015 05:05:47 -0700 (PDT)
-Received: by oiha141 with SMTP id a141so9686432oih.0
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 05:05:47 -0700 (PDT)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 16 Jun 2015 05:13:32 -0700 (PDT)
+Message-ID: <558012E8.8090605@suse.cz>
+Date: Tue, 16 Jun 2015 14:13:28 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20150616105732.2bc37714@redhat.com>
-References: <20150615155053.18824.617.stgit@devil>
-	<20150615155256.18824.42651.stgit@devil>
-	<20150616072806.GC13125@js1304-P5Q-DELUXE>
-	<20150616102110.55208fdd@redhat.com>
-	<20150616105732.2bc37714@redhat.com>
-Date: Tue, 16 Jun 2015 21:05:47 +0900
-Message-ID: <CAAmzW4OM-afGBZbWZzcH7O-mivNWvyeKpMVV4Os+i4Xb7GPgmg@mail.gmail.com>
-Subject: Re: [PATCH 7/7] slub: initial bulk free implementation
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 3/6] mm, compaction: encapsulate resetting cached scanner
+ positions
+References: <1433928754-966-1-git-send-email-vbabka@suse.cz> <1433928754-966-4-git-send-email-vbabka@suse.cz> <20150616054115.GC12641@js1304-P5Q-DELUXE>
+In-Reply-To: <20150616054115.GC12641@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-Netdev <netdev@vger.kernel.org>, Alexander Duyck <alexander.duyck@gmail.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
 
-2015-06-16 17:57 GMT+09:00 Jesper Dangaard Brouer <brouer@redhat.com>:
-> On Tue, 16 Jun 2015 10:21:10 +0200
-> Jesper Dangaard Brouer <brouer@redhat.com> wrote:
->
->>
->> On Tue, 16 Jun 2015 16:28:06 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
->>
->> > Is this really better than just calling __kmem_cache_free_bulk()?
->>
->> Yes, as can be seen by cover-letter, but my cover-letter does not seem
->> to have reached mm-list.
->>
->> Measurements for the entire patchset:
->>
->> Bulk - Fallback bulking           - fastpath-bulking
->>    1 -  47 cycles(tsc) 11.921 ns  -  45 cycles(tsc) 11.461 ns   improved  4.3%
->>    2 -  46 cycles(tsc) 11.649 ns  -  28 cycles(tsc)  7.023 ns   improved 39.1%
->>    3 -  46 cycles(tsc) 11.550 ns  -  22 cycles(tsc)  5.671 ns   improved 52.2%
->>    4 -  45 cycles(tsc) 11.398 ns  -  19 cycles(tsc)  4.967 ns   improved 57.8%
->>    8 -  45 cycles(tsc) 11.303 ns  -  17 cycles(tsc)  4.298 ns   improved 62.2%
->>   16 -  44 cycles(tsc) 11.221 ns  -  17 cycles(tsc)  4.423 ns   improved 61.4%
->>   30 -  75 cycles(tsc) 18.894 ns  -  57 cycles(tsc) 14.497 ns   improved 24.0%
->>   32 -  73 cycles(tsc) 18.491 ns  -  56 cycles(tsc) 14.227 ns   improved 23.3%
->>   34 -  75 cycles(tsc) 18.962 ns  -  58 cycles(tsc) 14.638 ns   improved 22.7%
->>   48 -  80 cycles(tsc) 20.049 ns  -  64 cycles(tsc) 16.247 ns   improved 20.0%
->>   64 -  87 cycles(tsc) 21.929 ns  -  74 cycles(tsc) 18.598 ns   improved 14.9%
->>  128 -  98 cycles(tsc) 24.511 ns  -  89 cycles(tsc) 22.295 ns   improved  9.2%
->>  158 - 101 cycles(tsc) 25.389 ns  -  93 cycles(tsc) 23.390 ns   improved  7.9%
->>  250 - 104 cycles(tsc) 26.170 ns  - 100 cycles(tsc) 25.112 ns   improved  3.8%
->>
->> I'll do a compare against the previous patch, and post the results.
->
-> Compare against previous patch:
->
-> Run:   previous-patch            - this patch
->   1 -   49 cycles(tsc) 12.378 ns -  43 cycles(tsc) 10.775 ns  improved 12.2%
->   2 -   37 cycles(tsc)  9.297 ns -  26 cycles(tsc)  6.652 ns  improved 29.7%
->   3 -   33 cycles(tsc)  8.348 ns -  21 cycles(tsc)  5.347 ns  improved 36.4%
->   4 -   31 cycles(tsc)  7.930 ns -  18 cycles(tsc)  4.669 ns  improved 41.9%
->   8 -   30 cycles(tsc)  7.693 ns -  17 cycles(tsc)  4.404 ns  improved 43.3%
->  16 -   32 cycles(tsc)  8.059 ns -  17 cycles(tsc)  4.493 ns  improved 46.9%
+On 06/16/2015 07:41 AM, Joonsoo Kim wrote:
+> On Wed, Jun 10, 2015 at 11:32:31AM +0200, Vlastimil Babka wrote:
+>> Resetting the cached compaction scanner positions is now done implicitly in
+>> __reset_isolation_suitable() and compact_finished(). Encapsulate the
+>> functionality in a new function reset_cached_positions() and call it explicitly
+>> where needed.
+>> 
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+>> Cc: Minchan Kim <minchan@kernel.org>
+>> Cc: Mel Gorman <mgorman@suse.de>
+>> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> Cc: Michal Nazarewicz <mina86@mina86.com>
+>> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>> Cc: Christoph Lameter <cl@linux.com>
+>> Cc: Rik van Riel <riel@redhat.com>
+>> Cc: David Rientjes <rientjes@google.com>
+>> ---
+>>  mm/compaction.c | 22 ++++++++++++++--------
+>>  1 file changed, 14 insertions(+), 8 deletions(-)
+>> 
+>> diff --git a/mm/compaction.c b/mm/compaction.c
+>> index 7e0a814..d334bb3 100644
+>> --- a/mm/compaction.c
+>> +++ b/mm/compaction.c
+>> @@ -207,6 +207,13 @@ static inline bool isolation_suitable(struct compact_control *cc,
+>>  	return !get_pageblock_skip(page);
+>>  }
+>>  
+>> +static void reset_cached_positions(struct zone *zone)
+>> +{
+>> +	zone->compact_cached_migrate_pfn[0] = zone->zone_start_pfn;
+>> +	zone->compact_cached_migrate_pfn[1] = zone->zone_start_pfn;
+>> +	zone->compact_cached_free_pfn = zone_end_pfn(zone);
+>> +}
+>> +
+>>  /*
+>>   * This function is called to clear all cached information on pageblocks that
+>>   * should be skipped for page isolation when the migrate and free page scanner
+>> @@ -218,9 +225,6 @@ static void __reset_isolation_suitable(struct zone *zone)
+>>  	unsigned long end_pfn = zone_end_pfn(zone);
+>>  	unsigned long pfn;
+>>  
+>> -	zone->compact_cached_migrate_pfn[0] = start_pfn;
+>> -	zone->compact_cached_migrate_pfn[1] = start_pfn;
+>> -	zone->compact_cached_free_pfn = end_pfn;
+>>  	zone->compact_blockskip_flush = false;
+> 
+> Is there a valid reason not to call reset_cached_positions() in
+> __reset_isolation_suitable?
 
-So, in your test, most of objects may come from one or two slabs and your
-algorithm is well optimized for this case. But, is this workload normal case?
-If most of objects comes from many different slabs, bulk free API does
-enabling/disabling interrupt very much so I guess it work worse than
-just calling __kmem_cache_free_bulk(). Could you test this case?
+Hm maybe not, except being somewhat implicit again. It might had a stronger
+reason in the previous patchset.
 
-Thanks.
+> You missed one callsite in
+> __compact_pgdat().
+> 
+>         if (cc->order == -1)
+>                 __reset_isolation_suitable(zone);
+> 
+> This also needs reset_cached_positions().
+
+Ah, good catch. Thanks.
+
+> 
+> Thanks.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
