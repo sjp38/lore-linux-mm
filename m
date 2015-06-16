@@ -1,53 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id B7B0C6B006C
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 01:36:00 -0400 (EDT)
-Received: by pdbnf5 with SMTP id nf5so6330605pdb.2
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 22:36:00 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id w9si13969801pbs.163.2015.06.15.22.35.58
-        for <linux-mm@kvack.org>;
-        Mon, 15 Jun 2015 22:36:00 -0700 (PDT)
-Date: Tue, 16 Jun 2015 14:38:07 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 2/6] mm, compaction: simplify handling restart position
- in free pages scanner
-Message-ID: <20150616053807.GB12641@js1304-P5Q-DELUXE>
-References: <1433928754-966-1-git-send-email-vbabka@suse.cz>
- <1433928754-966-3-git-send-email-vbabka@suse.cz>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 208B46B0038
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 01:37:16 -0400 (EDT)
+Received: by pdbnf5 with SMTP id nf5so6352251pdb.2
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 22:37:15 -0700 (PDT)
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
+        by mx.google.com with ESMTPS id kl8si21103037pdb.48.2015.06.15.22.37.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Mon, 15 Jun 2015 22:37:15 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <kamalesh@linux.vnet.ibm.com>;
+	Tue, 16 Jun 2015 11:07:11 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 6AF96E004C
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 11:10:38 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t5G5bA6w9765146
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 11:07:10 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t5G5b9B3013691
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 11:07:09 +0530
+Date: Tue, 16 Jun 2015 11:07:04 +0530
+From: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+Subject: Re: [RFC NEXT] mm: Fix suspicious RCU usage at
+ kernel/sched/core.c:7318
+Message-ID: <20150616053702.GA29055@linux.vnet.ibm.com>
+Reply-To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+References: <1434403518-5308-1-git-send-email-Larry.Finger@lwfinger.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1433928754-966-3-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1434403518-5308-1-git-send-email-Larry.Finger@lwfinger.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
+To: Larry Finger <Larry.Finger@lwfinger.net>
+Cc: Tejun Heo <tj@kernel.org>, Martin KaFai Lau <kafai@fb.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jun 10, 2015 at 11:32:30AM +0200, Vlastimil Babka wrote:
-> Handling the position where compaction free scanner should restart (stored in
-> cc->free_pfn) got more complex with commit e14c720efdd7 ("mm, compaction:
-> remember position within pageblock in free pages scanner"). Currently the
-> position is updated in each loop iteration of isolate_freepages(), although it
-> should be enough to update it only when breaking from the loop. There's also
-> an extra check outside the loop updates the position in case we have met the
-> migration scanner.
-> 
-> This can be simplified if we move the test for having isolated enough from the
-> for loop header next to the test for contention, and determining the restart
-> position only in these cases. We can reuse the isolate_start_pfn variable for
-> this instead of setting cc->free_pfn directly. Outside the loop, we can simply
-> set cc->free_pfn to current value of isolate_start_pfn without any extra check.
-> 
-> Also add a VM_BUG_ON to catch possible mistake in the future, in case we later
-> add a new condition that terminates isolate_freepages_block() prematurely
-> without also considering the condition in isolate_freepages().
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+* Larry Finger <Larry.Finger@lwfinger.net> [2015-06-15 16:25:18]:
 
-Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Beginning at commit d52d399, the following INFO splat is logged:
+> 
 
-Thanks.
+[...]
+
+> ---
+>  include/linux/kmemleak.h |  3 ++-
+>  mm/kmemleak.c            |  9 +++++----
+>  mm/kmemleak.c.rej        | 19 +++++++++++++++++++
+>  mm/percpu.c              |  2 +-
+>  4 files changed, 27 insertions(+), 6 deletions(-)
+>  create mode 100644 mm/kmemleak.c.rej
+
+Patch creates kmemleak.c.rej file.
+
+
+Regards,
+Kamalesh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
