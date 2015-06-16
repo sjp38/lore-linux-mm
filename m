@@ -1,107 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 405546B0038
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 18:19:52 -0400 (EDT)
-Received: by qkdm188 with SMTP id m188so40424968qkd.1
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 15:19:52 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o24si2984448qko.1.2015.06.15.15.19.50
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 344926B0038
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2015 20:32:18 -0400 (EDT)
+Received: by pdbnf5 with SMTP id nf5so1426717pdb.2
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 17:32:17 -0700 (PDT)
+Received: from mgwkm03.jp.fujitsu.com (mgwkm03.jp.fujitsu.com. [202.219.69.170])
+        by mx.google.com with ESMTPS id nl4si19973046pbc.114.2015.06.15.17.32.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jun 2015 15:19:51 -0700 (PDT)
-Date: Tue, 16 Jun 2015 00:19:46 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 5/7] userfaultfd: switch to exclusive wakeup for blocking
- reads
-Message-ID: <20150615221946.GI18909@redhat.com>
-References: <1434388931-24487-1-git-send-email-aarcange@redhat.com>
- <1434388931-24487-6-git-send-email-aarcange@redhat.com>
- <CA+55aFxD8hakE9SjhAD1_vJ9PATK+90k7yHQ2cENqGqK8r3QhQ@mail.gmail.com>
+        Mon, 15 Jun 2015 17:32:17 -0700 (PDT)
+Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
+	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id ED809AC04FC
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 09:32:12 +0900 (JST)
+Message-ID: <557F6E6E.9060104@jp.fujitsu.com>
+Date: Tue, 16 Jun 2015 09:31:42 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFxD8hakE9SjhAD1_vJ9PATK+90k7yHQ2cENqGqK8r3QhQ@mail.gmail.com>
+Subject: Re: [RFC PATCH 10/12] mm: add the buddy system interface
+References: <55704A7E.5030507@huawei.com> <55704CC4.8040707@huawei.com> <557691E0.5020203@jp.fujitsu.com> <5576BA2B.6060907@huawei.com> <5577A9A9.7010108@jp.fujitsu.com> <3908561D78D1C84285E8C5FCA982C28F32A8F209@ORSMSX114.amr.corp.intel.com> <557E911F.5040602@jp.fujitsu.com> <20150615172023.GA12088@agluck-desk.sc.intel.com>
+In-Reply-To: <20150615172023.GA12088@agluck-desk.sc.intel.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Paolo Bonzini <pbonzini@redhat.com>, qemu-devel@nongnu.org, Pavel Emelyanov <xemul@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, zhang.zhanghailiang@huawei.com, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Peter Feiner <pfeiner@google.com>, Mel Gorman <mgorman@suse.de>, kvm@vger.kernel.org
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, "nao.horiguchi@gmail.com" <nao.horiguchi@gmail.com>, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jun 15, 2015 at 08:19:07AM -1000, Linus Torvalds wrote:
-> What if the process doing the polling never doors anything with the end
-> result? Maybe it meant to, but it got killed before it could? Are you going
-> to leave everybody else blocked, even though there are pending events?
+On 2015/06/16 2:20, Luck, Tony wrote:
+> On Mon, Jun 15, 2015 at 05:47:27PM +0900, Kamezawa Hiroyuki wrote:
+>> So, there are 3 ideas.
+>>
+>>   (1) kernel only from MIRROR / user only from MOVABLE (Tony)
+>>   (2) kernel only from MIRROR / user from MOVABLE + MIRROR(ASAP)  (AKPM suggested)
+>>       This makes use of the fact MOVABLE memory is reclaimable but Tony pointed out
+>>       the memory reclaim can be critical for GFP_ATOMIC.
+>>   (3) kernel only from MIRROR / user from MOVABLE, special user from MIRROR (Xishi)
+>>
+>> 2 Implementation ideas.
+>>    - creating ZONE
+>>    - creating new alloation attribute
+>>
+>> I don't convince whether we need some new structure in mm. Isn't it good to use
+>> ZONE_MOVABLE for not-mirrored memory ?
+>> Then, disable fallback from ZONE_MOVABLE -> ZONE_NORMAL for (1) and (3)
+>
+> We might need to rename it ... right now the memory hotplug
+> people use ZONE_MOVABLE to indicate regions of physical memory
+> that can be removed from the system.  I'm wondering whether
+> people will want systems that have both removable and mirrored
+> areas?  Then we have four attribute combinations:
+>
+> mirror=no  removable=no  - prefer to use for user, could use for kernel if we run out of mirror
+> mirror=no  removable=yes - can only be used for user (kernel allocation makes it not-removable)
+> mirror=yes removable=no  - use for kernel, possibly for special users if we define some interface
+> mirror=yes removable=yes - must not use for kernel ... would have to give to user ... seems like a bad idea to configure a system this way
+>
 
-Yes, it would leave the other blocked, how is it different from having
-just 1 reader and it gets killed?
+Thank you for clarification. I see "mirror=no, removable=no" case may require a new name.
 
-If any qemu thread gets killed the thing is going to be noticeable,
-there's no fault-tolerance-double-thread for anything. If one wants to
-use more threads for fault tolerance of this scenario with
-userfaultfd, one just needs to add a feature flag to the
-uffdio_api.features to request it and change the behavior to wakeall
-but by default if we can do wakeone I think we should.
+IMHO, the value of Address-Based-Memory-Mirror is that users can protect their system's
+important functions without using full-memory mirror. So, I feel thinking
+"mirror=no, removable=no" just makes our discussion/implemenation complex without real
+user value.
 
-> The same us try of read() too. What if the reader only reads party of the
-> message? The wake didn't wake anybody else, so now people are (again)
-> blocked despite there being data.
+Shouldn't we start with just thiking 2 cases of
+  mirror=no  removable=yes
+  mirror=yes removable=no
+?
 
-I totally agree that for a normal read that would be a concern, but
-the wakeone only applies to the uffd. I'm not even trying to change
-other read methods.
-
-The uffd can't short-read. Lengths not multiple of sizeof(struct
-uffd_msg) immediately return -EINVAL. read will return one or more
-events, sizeof(struct uffd_msg). Signal interruptions only are
-reported if it's about to block and it found nothing.
-
-> So no, exclusive waiting is never "simple". You have to 100% guarantee that
-> you will consume all the data that caused the wake event (or perhaps wake
-> the next person up if you don't).
-
-I don't see where it goes wrong.
-
-Now if __wake_up_common didn't check the retval of
-default_wake_function->try_to_wake_up before decrements and checking
-nr_exclusive I would where the problem about the next guy is, but it
-does this:
-
-		if (curr->func(curr, mode, wake_flags, key) &&
-				(flags & WQ_FLAG_EXCLUSIVE) && !--nr_exclusive)
-			break;
-
-Every new userfault blocking (and at max 1 event to read is generated
-for each new blocking userfaults) wakes one more reader, and each
-reader is guaranteed to be blocked only if the pending (pending as not
-read yet) waitqueue is truly empty. Where does it misbehave?
-
-Yes each reader is required then to handle whatever userfault event it
-got from read (or to pass it to another thread before quitting), but
-this is a must anyway. This is because after the userfault is read it
-is moved from pending fault queue to normal fault queue, so it won't
-ever be read again, if it wasn't the case read would infinite loop and
-it couldn't block (the same applies to poll, poll blocks after the
-pending event has been read).
-
-The testsuite can reproduce the bug fixed in 4/7 in like 3 seconds,
-and it's 100% reproducible. And the window for such a bug is really
-small: exactly in between list_del(); list_add the two
-waitqueue_active must run in the other CPU. So it's hard to imagine if
-this had some major issue, the testsuite wouldn't show it. In fact the
-load seems to scale more evenly across all uffd threads too without no
-apparent downside.
-
-qemu uses just one reader, and it's even using poll, so this is not
-needed for the short term production code, and it's totally fine to
-defer this patch.
-
-I'm not saying doing wakeone is easy and it's enough to flip a switch
-everywhere to get it everywhere, and perhaps there's something wrong
-still, I just I don't see where the actual bug is and how it should
-work better without this patch but it's certainly fine to drop the
-patch anyway (at least for now).
+And then, if the naming is problem, alias name can be added.
 
 Thanks,
-Andrea
+-Kame
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
