@@ -1,100 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 32AB06B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 06:12:16 -0400 (EDT)
-Received: by laka10 with SMTP id a10so7834699lak.0
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 03:12:15 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTP id d3si933104wjr.121.2015.06.16.03.12.13
-        for <linux-mm@kvack.org>;
-        Tue, 16 Jun 2015 03:12:14 -0700 (PDT)
-Date: Tue, 16 Jun 2015 12:12:12 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: Possible broken MM code in dell-laptop.c?
-Message-ID: <20150616101211.GA25899@amd>
-References: <201506141105.07171@pali>
- <20150615203645.GD83198@vmdeb7>
- <201506152242.30732@pali>
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id EFA826B0038
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 07:34:22 -0400 (EDT)
+Received: by qkhu186 with SMTP id u186so6992537qkh.0
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 04:34:22 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j78si608613qhc.65.2015.06.16.04.34.21
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Jun 2015 04:34:22 -0700 (PDT)
+Subject: [BUG] fs: inotify_handle_event() reading un-init memory
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Date: Tue, 16 Jun 2015 13:33:18 +0200
+Message-ID: <20150616113300.10621.35439.stgit@devil>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <201506152242.30732@pali>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pali =?iso-8859-1?Q?Roh=E1r?= <pali.rohar@gmail.com>
-Cc: Darren Hart <dvhart@infradead.org>, Hans de Goede <hdegoede@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Stuart Hayes <stuart_hayes@dell.com>, Matthew Garrett <mjg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, platform-driver-x86@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Mon 2015-06-15 22:42:30, Pali Rohar wrote:
-> On Monday 15 June 2015 22:36:45 Darren Hart wrote:
-> > On Sun, Jun 14, 2015 at 11:05:07AM +0200, Pali Rohar wrote:
-> > > Hello,
-> > > 
-> > > in drivers/platform/x86/dell-laptop.c is this part of code:
-> > > 
-> > > static int __init dell_init(void)
-> > > {
-> > > ...
-> > > 
-> > > 	/*
-> > > 	
-> > > 	 * Allocate buffer below 4GB for SMI data--only 32-bit physical
-> > > 	 addr * is passed to SMI handler.
-> > > 	 */
-> > > 	
-> > > 	bufferpage = alloc_page(GFP_KERNEL | GFP_DMA32);
-> > > 	if (!bufferpage) {
-> > > 	
-> > > 		ret = -ENOMEM;
-> > > 		goto fail_buffer;
-> > > 	
-> > > 	}
-> > > 	buffer = page_address(bufferpage);
-> > > 	
-> > > 	ret = dell_setup_rfkill();
-> > > 	
-> > > 	if (ret) {
-> > > 	
-> > > 		pr_warn("Unable to setup rfkill\n");
-> > > 		goto fail_rfkill;
-> > > 	
-> > > 	}
-> > > 
-> > > ...
-> > > 
-> > > fail_rfkill:
-> > > 	free_page((unsigned long)bufferpage);
-> > > 
-> > > fail_buffer:
-> > > ...
-> > > }
-> > > 
-> > > Then there is another part:
-> > > 
-> > > static void __exit dell_exit(void)
-> > > {
-> > > ...
-> > > 
-> > > 	free_page((unsigned long)buffer);
-> > 
-> > I believe you are correct, and this should be bufferpage. Have you
-> > observed any failures?
-> 
-> Rmmoding dell-laptop.ko works fine. There is no error in dmesg. I think 
-> that buffer (and not bufferpage) should be passed to free_page(). So in 
-> my opinion problem is at fail_rfkill: label and not in dell_exit().
+Caught by kmemcheck.
 
-You seem to be right. Interface is strange...
+Don't know the fix... just pointed at the bug.
 
-alloc_pages() returns struct page *,
-__free_pages() takes struct page *,
-free_pages() takes unsinged long.
+Introduced in commit 7053aee26a3 ("fsnotify: do not share
+events between notification groups").
+---
+ fs/notify/inotify/inotify_fsnotify.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-Best regards,
-									Pavel
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+diff --git a/fs/notify/inotify/inotify_fsnotify.c b/fs/notify/inotify/inotify_fsnotify.c
+index 2cd900c2c737..370d66dc4ddb 100644
+--- a/fs/notify/inotify/inotify_fsnotify.c
++++ b/fs/notify/inotify/inotify_fsnotify.c
+@@ -96,11 +96,12 @@ int inotify_handle_event(struct fsnotify_group *group,
+ 	i_mark = container_of(inode_mark, struct inotify_inode_mark,
+ 			      fsn_mark);
+ 
++	// new object alloc here
+ 	event = kmalloc(alloc_len, GFP_KERNEL);
+ 	if (unlikely(!event))
+ 		return -ENOMEM;
+ 
+-	fsn_event = &event->fse;
++	fsn_event = &event->fse; // This looks wrong!?! read from un-init mem?
+ 	fsnotify_init_event(fsn_event, inode, mask);
+ 	event->wd = i_mark->wd;
+ 	event->sync_cookie = cookie;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
