@@ -1,23 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 80BF36B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 04:57:40 -0400 (EDT)
-Received: by qcwx2 with SMTP id x2so2296037qcw.1
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 01:57:40 -0700 (PDT)
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EE896B0038
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 05:20:40 -0400 (EDT)
+Received: by qgf75 with SMTP id 75so2872604qgf.1
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 02:20:40 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g5si305558qca.6.2015.06.16.01.57.39
+        by mx.google.com with ESMTPS id 30si346898qks.30.2015.06.16.02.20.38
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jun 2015 01:57:39 -0700 (PDT)
-Date: Tue, 16 Jun 2015 10:57:32 +0200
+        Tue, 16 Jun 2015 02:20:39 -0700 (PDT)
+Date: Tue, 16 Jun 2015 11:20:33 +0200
 From: Jesper Dangaard Brouer <brouer@redhat.com>
 Subject: Re: [PATCH 7/7] slub: initial bulk free implementation
-Message-ID: <20150616105732.2bc37714@redhat.com>
-In-Reply-To: <20150616102110.55208fdd@redhat.com>
+Message-ID: <20150616112033.0b8bafb8@redhat.com>
+In-Reply-To: <20150616072328.GB13125@js1304-P5Q-DELUXE>
 References: <20150615155053.18824.617.stgit@devil>
 	<20150615155256.18824.42651.stgit@devil>
-	<20150616072806.GC13125@js1304-P5Q-DELUXE>
-	<20150616102110.55208fdd@redhat.com>
+	<20150616072328.GB13125@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -26,60 +25,54 @@ List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, Alexander Duyck <alexander.duyck@gmail.com>, brouer@redhat.com
 
-On Tue, 16 Jun 2015 10:21:10 +0200
-Jesper Dangaard Brouer <brouer@redhat.com> wrote:
+On Tue, 16 Jun 2015 16:23:28 +0900
+Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 
+> On Mon, Jun 15, 2015 at 05:52:56PM +0200, Jesper Dangaard Brouer wrote:
+> > This implements SLUB specific kmem_cache_free_bulk().  SLUB allocator
+> > now both have bulk alloc and free implemented.
+> > 
+> > Play nice and reenable local IRQs while calling slowpath.
+> > 
+> > Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> > ---
+> >  mm/slub.c |   32 +++++++++++++++++++++++++++++++-
+> >  1 file changed, 31 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index 98d0e6f73ec1..cc4f870677bb 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -2752,7 +2752,37 @@ EXPORT_SYMBOL(kmem_cache_free);
+> >  
+> >  void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
+> >  {
+> > -	__kmem_cache_free_bulk(s, size, p);
+> > +	struct kmem_cache_cpu *c;
+> > +	struct page *page;
+> > +	int i;
+> > +
+> > +	local_irq_disable();
+> > +	c = this_cpu_ptr(s->cpu_slab);
+> > +
+> > +	for (i = 0; i < size; i++) {
+> > +		void *object = p[i];
+> > +
+> > +		if (unlikely(!object))
+> > +			continue; // HOW ABOUT BUG_ON()???
+> > +
+> > +		page = virt_to_head_page(object);
+> > +		BUG_ON(s != page->slab_cache); /* Check if valid slab page */
 > 
-> On Tue, 16 Jun 2015 16:28:06 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> 
-> > Is this really better than just calling __kmem_cache_free_bulk()?
-> 
-> Yes, as can be seen by cover-letter, but my cover-letter does not seem
-> to have reached mm-list.
-> 
-> Measurements for the entire patchset:
-> 
-> Bulk - Fallback bulking           - fastpath-bulking
->    1 -  47 cycles(tsc) 11.921 ns  -  45 cycles(tsc) 11.461 ns   improved  4.3%
->    2 -  46 cycles(tsc) 11.649 ns  -  28 cycles(tsc)  7.023 ns   improved 39.1%
->    3 -  46 cycles(tsc) 11.550 ns  -  22 cycles(tsc)  5.671 ns   improved 52.2%
->    4 -  45 cycles(tsc) 11.398 ns  -  19 cycles(tsc)  4.967 ns   improved 57.8%
->    8 -  45 cycles(tsc) 11.303 ns  -  17 cycles(tsc)  4.298 ns   improved 62.2%
->   16 -  44 cycles(tsc) 11.221 ns  -  17 cycles(tsc)  4.423 ns   improved 61.4%
->   30 -  75 cycles(tsc) 18.894 ns  -  57 cycles(tsc) 14.497 ns   improved 24.0%
->   32 -  73 cycles(tsc) 18.491 ns  -  56 cycles(tsc) 14.227 ns   improved 23.3%
->   34 -  75 cycles(tsc) 18.962 ns  -  58 cycles(tsc) 14.638 ns   improved 22.7%
->   48 -  80 cycles(tsc) 20.049 ns  -  64 cycles(tsc) 16.247 ns   improved 20.0%
->   64 -  87 cycles(tsc) 21.929 ns  -  74 cycles(tsc) 18.598 ns   improved 14.9%
->  128 -  98 cycles(tsc) 24.511 ns  -  89 cycles(tsc) 22.295 ns   improved  9.2%
->  158 - 101 cycles(tsc) 25.389 ns  -  93 cycles(tsc) 23.390 ns   improved  7.9%
->  250 - 104 cycles(tsc) 26.170 ns  - 100 cycles(tsc) 25.112 ns   improved  3.8%
-> 
-> I'll do a compare against the previous patch, and post the results.
+> You need to use cache_from_objt() to support kmemcg accounting.
+> And, slab_free_hook() should be called before free.
 
-Compare against previous patch:
+Okay, but Christoph choose to not support kmem_cache_debug() in patch2/7.
 
-Run:   previous-patch            - this patch
-  1 -   49 cycles(tsc) 12.378 ns -  43 cycles(tsc) 10.775 ns  improved 12.2%
-  2 -   37 cycles(tsc)  9.297 ns -  26 cycles(tsc)  6.652 ns  improved 29.7%
-  3 -   33 cycles(tsc)  8.348 ns -  21 cycles(tsc)  5.347 ns  improved 36.4%
-  4 -   31 cycles(tsc)  7.930 ns -  18 cycles(tsc)  4.669 ns  improved 41.9%
-  8 -   30 cycles(tsc)  7.693 ns -  17 cycles(tsc)  4.404 ns  improved 43.3%
- 16 -   32 cycles(tsc)  8.059 ns -  17 cycles(tsc)  4.493 ns  improved 46.9%
- 30 -   65 cycles(tsc) 16.345 ns -  59 cycles(tsc) 14.858 ns  improved  9.2%
- 32 -   64 cycles(tsc) 16.170 ns -  56 cycles(tsc) 14.074 ns  improved 12.5%
- 34 -   66 cycles(tsc) 16.645 ns -  55 cycles(tsc) 13.882 ns  improved 16.7%
- 48 -   78 cycles(tsc) 19.581 ns -  65 cycles(tsc) 16.266 ns  improved 16.7%
- 64 -   81 cycles(tsc) 20.428 ns -  77 cycles(tsc) 19.432 ns  improved  4.9%
-128 -   92 cycles(tsc) 23.030 ns -  78 cycles(tsc) 19.650 ns  improved 15.2%
-158 -   94 cycles(tsc) 23.581 ns -  83 cycles(tsc) 20.953 ns  improved 11.7%
-250 -   96 cycles(tsc) 24.175 ns -  93 cycles(tsc) 23.444 ns  improved  3.1%
+Should we/I try to add kmem cache debugging support?
 
-This mostly amortize the less-heavy none-locked cmpxchg_double used on
-fastpath.  As I demonstrated earlier this fastpath cmpxchg is approx 38%
-of the fastpath cost.
+If adding these, then I would also need to add those on alloc path...
 
-Thus, yes, doing bulk free this way is faster ;-)
 -- 
 Best regards,
   Jesper Dangaard Brouer
