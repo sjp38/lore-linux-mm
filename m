@@ -1,82 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 49DAD6B0032
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 17:53:39 -0400 (EDT)
-Received: by pacyx8 with SMTP id yx8so20552545pac.2
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 14:53:39 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id uj2si3039508pab.146.2015.06.16.14.53.38
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id C42F46B0032
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 18:28:53 -0400 (EDT)
+Received: by obbsn1 with SMTP id sn1so21433734obb.1
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 15:28:53 -0700 (PDT)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id t9si1427679oig.65.2015.06.16.15.28.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jun 2015 14:53:38 -0700 (PDT)
-Date: Tue, 16 Jun 2015 14:53:36 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 6/7] slub: improve bulk alloc strategy
-Message-Id: <20150616145336.1cacbfb88ff55b0e088676c3@linux-foundation.org>
-In-Reply-To: <20150615155246.18824.3788.stgit@devil>
-References: <20150615155053.18824.617.stgit@devil>
-	<20150615155246.18824.3788.stgit@devil>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 16 Jun 2015 15:28:52 -0700 (PDT)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH] mm: Fix MAP_POPULATE and mlock() for DAX
+Date: Tue, 16 Jun 2015 16:28:30 -0600
+Message-Id: <1434493710-11138-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, netdev@vger.kernel.org, Alexander Duyck <alexander.duyck@gmail.com>
+To: akpm@linux-foundation.org
+Cc: kirill.shutemov@linux.intel.com, willy@linux.intel.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hp.com>
 
-On Mon, 15 Jun 2015 17:52:46 +0200 Jesper Dangaard Brouer <brouer@redhat.com> wrote:
+DAX has the following issues in a shared or read-only private
+mmap'd file.
+ - mmap(MAP_POPULATE) does not pre-fault
+ - mlock() fails with -ENOMEM
 
-> Call slowpath __slab_alloc() from within the bulk loop, as the
-> side-effect of this call likely repopulates c->freelist.
-> 
-> Choose to reenable local IRQs while calling slowpath.
-> 
-> Saving some optimizations for later.  E.g. it is possible to
-> extract parts of __slab_alloc() and avoid the unnecessary and
-> expensive (37 cycles) local_irq_{save,restore}.  For now, be
-> happy calling __slab_alloc() this lower icache impact of this
-> func and I don't have to worry about correctness.
-> 
-> ...
->
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2776,8 +2776,23 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
->  	for (i = 0; i < size; i++) {
->  		void *object = c->freelist;
->  
-> -		if (!object)
-> -			break;
-> +		if (unlikely(!object)) {
-> +			c->tid = next_tid(c->tid);
-> +			local_irq_enable();
-> +
-> +			/* Invoke slow path one time, then retry fastpath
-> +			 * as side-effect have updated c->freelist
-> +			 */
+DAX uses VM_MIXEDMAP for mmap'd files, which do not have struct
+page associated with the ranges.  Both MAP_POPULATE and mlock()
+call __mm_populate(), which in turn calls __get_user_pages().
+Because __get_user_pages() requires a valid page returned from
+follow_page_mask(), MAP_POPULATE and mlock(), i.e. FOLL_POPULATE,
+fail in the first page.
 
-That isn't very grammatical.
+Change __get_user_pages() to proceed FOLL_POPULATE when the
+translation is set but its page does not exist (-EFAULT), and
+@pages is not requested.  With that, MAP_POPULATE and mlock()
+set translations to the requested range and complete successfully.
 
-Block comments are formatted
+MAP_POPULATE still provides a major performance improvement to
+DAX as it will avoid page faults during initial access to the
+pages.
 
-	/*
-	 * like this
-	 */
+mlock() continues to set VM_LOCKED to vma and populate the range.
+Since there is no struct page, the range is pinned without marking
+pages mlocked.
 
-please.
+Note, MAP_POPULATE and mlock() already work for a write-able
+private mmap'd file on DAX since populate_vma_page_range() breaks
+COW, which allocates page caches.
 
+Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+---
+ mm/gup.c |   14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
 
-> +			p[i] = __slab_alloc(s, flags, NUMA_NO_NODE,
-> +					    _RET_IP_, c);
-> +			if (unlikely(!p[i])) {
-> +				__kmem_cache_free_bulk(s, i, p);
-> +				return false;
-> +			}
-> +			local_irq_disable();
-> +			c = this_cpu_ptr(s->cpu_slab);
-> +			continue; /* goto for-loop */
-> +		}
->  
+diff --git a/mm/gup.c b/mm/gup.c
+index 6297f6b..16d536f 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -490,8 +490,20 @@ retry:
+ 			}
+ 			BUG();
+ 		}
+-		if (IS_ERR(page))
++		if (IS_ERR(page)) {
++			/*
++			 * No page may be associated with VM_MIXEDMAP. Proceed
++			 * FOLL_POPULATE when the translation is set but its
++			 * page does not exist (-EFAULT), and @pages is not
++			 * requested by the caller.
++			 */
++			if ((PTR_ERR(page) == -EFAULT) && (!pages) &&
++			    (gup_flags & FOLL_POPULATE) &&
++			    (vma->vm_flags & VM_MIXEDMAP))
++				goto next_page;
++
+ 			return i ? i : PTR_ERR(page);
++		}
+ 		if (pages) {
+ 			pages[i] = page;
+ 			flush_anon_page(vma, page, start);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
