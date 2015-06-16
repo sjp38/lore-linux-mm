@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id D71E26B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 03:21:21 -0400 (EDT)
-Received: by padev16 with SMTP id ev16so7328074pad.0
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 00:21:21 -0700 (PDT)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id fs3si195186pbd.147.2015.06.16.00.21.19
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id ADC096B0038
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 03:25:59 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so8298597pdb.1
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 00:25:59 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id ed4si170646pbd.248.2015.06.16.00.25.57
         for <linux-mm@kvack.org>;
-        Tue, 16 Jun 2015 00:21:21 -0700 (PDT)
-Date: Tue, 16 Jun 2015 16:23:28 +0900
+        Tue, 16 Jun 2015 00:25:58 -0700 (PDT)
+Date: Tue, 16 Jun 2015 16:28:06 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Subject: Re: [PATCH 7/7] slub: initial bulk free implementation
-Message-ID: <20150616072328.GB13125@js1304-P5Q-DELUXE>
+Message-ID: <20150616072806.GC13125@js1304-P5Q-DELUXE>
 References: <20150615155053.18824.617.stgit@devil>
  <20150615155256.18824.42651.stgit@devil>
 MIME-Version: 1.0
@@ -58,9 +58,22 @@ On Mon, Jun 15, 2015 at 05:52:56PM +0200, Jesper Dangaard Brouer wrote:
 > +
 > +		page = virt_to_head_page(object);
 > +		BUG_ON(s != page->slab_cache); /* Check if valid slab page */
+> +
+> +		if (c->page == page) {
+> +			/* Fastpath: local CPU free */
+> +			set_freepointer(s, object, c->freelist);
+> +			c->freelist = object;
+> +		} else {
+> +			c->tid = next_tid(c->tid);
+> +			local_irq_enable();
+> +			/* Slowpath: overhead locked cmpxchg_double_slab */
+> +			__slab_free(s, page, object, _RET_IP_);
+> +			local_irq_disable();
+> +			c = this_cpu_ptr(s->cpu_slab);
 
-You need to use cache_from_objt() to support kmemcg accounting.
-And, slab_free_hook() should be called before free.
+SLUB free path doesn't need to irq management in many cases although
+it uses cmpxchg_doule_slab. Is this really better than just calling
+__kmem_cache_free_bulk()?
 
 Thanks.
 
