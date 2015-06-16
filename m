@@ -1,52 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DEEF6B006E
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 05:46:24 -0400 (EDT)
-Received: by wicnd19 with SMTP id nd19so47953497wic.1
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 02:46:23 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ei6si2096707wib.57.2015.06.16.02.46.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 16 Jun 2015 02:46:22 -0700 (PDT)
-Message-ID: <557FF06A.3020000@suse.cz>
-Date: Tue, 16 Jun 2015 11:46:18 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 32AB06B0038
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 06:12:16 -0400 (EDT)
+Received: by laka10 with SMTP id a10so7834699lak.0
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 03:12:15 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTP id d3si933104wjr.121.2015.06.16.03.12.13
+        for <linux-mm@kvack.org>;
+        Tue, 16 Jun 2015 03:12:14 -0700 (PDT)
+Date: Tue, 16 Jun 2015 12:12:12 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: Possible broken MM code in dell-laptop.c?
+Message-ID: <20150616101211.GA25899@amd>
+References: <201506141105.07171@pali>
+ <20150615203645.GD83198@vmdeb7>
+ <201506152242.30732@pali>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 00/12] mm: mirrored memory support for page buddy
- allocations
-References: <55704A7E.5030507@huawei.com> <557FD5F8.10903@suse.cz> <557FDB9B.1090105@huawei.com>
-In-Reply-To: <557FDB9B.1090105@huawei.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <201506152242.30732@pali>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Pali =?iso-8859-1?Q?Roh=E1r?= <pali.rohar@gmail.com>
+Cc: Darren Hart <dvhart@infradead.org>, Hans de Goede <hdegoede@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Stuart Hayes <stuart_hayes@dell.com>, Matthew Garrett <mjg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, platform-driver-x86@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/16/2015 10:17 AM, Xishi Qiu wrote:
-> On 2015/6/16 15:53, Vlastimil Babka wrote:
+On Mon 2015-06-15 22:42:30, Pali Rohar wrote:
+> On Monday 15 June 2015 22:36:45 Darren Hart wrote:
+> > On Sun, Jun 14, 2015 at 11:05:07AM +0200, Pali Rohar wrote:
+> > > Hello,
+> > > 
+> > > in drivers/platform/x86/dell-laptop.c is this part of code:
+> > > 
+> > > static int __init dell_init(void)
+> > > {
+> > > ...
+> > > 
+> > > 	/*
+> > > 	
+> > > 	 * Allocate buffer below 4GB for SMI data--only 32-bit physical
+> > > 	 addr * is passed to SMI handler.
+> > > 	 */
+> > > 	
+> > > 	bufferpage = alloc_page(GFP_KERNEL | GFP_DMA32);
+> > > 	if (!bufferpage) {
+> > > 	
+> > > 		ret = -ENOMEM;
+> > > 		goto fail_buffer;
+> > > 	
+> > > 	}
+> > > 	buffer = page_address(bufferpage);
+> > > 	
+> > > 	ret = dell_setup_rfkill();
+> > > 	
+> > > 	if (ret) {
+> > > 	
+> > > 		pr_warn("Unable to setup rfkill\n");
+> > > 		goto fail_rfkill;
+> > > 	
+> > > 	}
+> > > 
+> > > ...
+> > > 
+> > > fail_rfkill:
+> > > 	free_page((unsigned long)bufferpage);
+> > > 
+> > > fail_buffer:
+> > > ...
+> > > }
+> > > 
+> > > Then there is another part:
+> > > 
+> > > static void __exit dell_exit(void)
+> > > {
+> > > ...
+> > > 
+> > > 	free_page((unsigned long)buffer);
+> > 
+> > I believe you are correct, and this should be bufferpage. Have you
+> > observed any failures?
 > 
->> On 06/04/2015 02:54 PM, Xishi Qiu wrote:
->>>
->>> I think add a new migratetype is btter and easier than a new zone, so I use
->> 
->> If the mirrored memory is in a single reasonably compact (no large holes) range
->> (per NUMA node) and won't dynamically change its size, then zone might be a
->> better option. For one thing, it will still allow distinguishing movable and
->> unmovable allocations within the mirrored memory.
->> 
->> We had enough fun with MIGRATE_CMA and all kinds of checks it added to allocator
->> hot paths, and even CMA is now considering moving to a separate zone.
->> 
-> 
-> Hi, how about the problem of this case:
-> e.g. node 0: 0-4G(dma and dma32)
->      node 1: 4G-8G(normal), 8-12G(mirror), 12-16G(normal),
-> so more than one normal zone in a node? or normal zone just span the mirror zone?
+> Rmmoding dell-laptop.ko works fine. There is no error in dmesg. I think 
+> that buffer (and not bufferpage) should be passed to free_page(). So in 
+> my opinion problem is at fail_rfkill: label and not in dell_exit().
 
-Normal zone can span the mirror zone just fine. However, it will result in zone
-scanners such as compaction to skip over the mirror zone inefficiently. Hmm...
+You seem to be right. Interface is strange...
+
+alloc_pages() returns struct page *,
+__free_pages() takes struct page *,
+free_pages() takes unsinged long.
+
+Best regards,
+									Pavel
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
