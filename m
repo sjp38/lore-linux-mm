@@ -1,59 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A2E66B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 09:58:29 -0400 (EDT)
-Received: by qcej3 with SMTP id j3so4317751qce.3
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 06:58:29 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e9si1006925qka.58.2015.06.16.06.58.28
+Received: from mail-yk0-f171.google.com (mail-yk0-f171.google.com [209.85.160.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E9CD86B0038
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 10:16:23 -0400 (EDT)
+Received: by ykfr66 with SMTP id r66so14397461ykf.0
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 07:16:23 -0700 (PDT)
+Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
+        by mx.google.com with ESMTPS id e3si357310ywf.121.2015.06.16.07.16.22
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jun 2015 06:58:28 -0700 (PDT)
-Date: Tue, 16 Jun 2015 15:58:21 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH 7/7] slub: initial bulk free implementation
-Message-ID: <20150616155821.351a86a8@redhat.com>
-In-Reply-To: <CAAmzW4P4kHW4NJv=BFXye4bENv1L7Tdyhuwio3rm5j-3y-tE-g@mail.gmail.com>
-References: <20150615155053.18824.617.stgit@devil>
-	<20150615155256.18824.42651.stgit@devil>
-	<20150616072328.GB13125@js1304-P5Q-DELUXE>
-	<20150616112033.0b8bafb8@redhat.com>
-	<CAAmzW4P4kHW4NJv=BFXye4bENv1L7Tdyhuwio3rm5j-3y-tE-g@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 16 Jun 2015 07:16:23 -0700 (PDT)
+Message-ID: <55802F94.90306@citrix.com>
+Date: Tue, 16 Jun 2015 15:15:48 +0100
+From: David Vrabel <david.vrabel@citrix.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: Re: [PATCH 07/12] x86/virt/guest/xen: Remove use of pgd_list from
+ the Xen guest code
+References: <1434188955-31397-1-git-send-email-mingo@kernel.org>
+ <1434188955-31397-8-git-send-email-mingo@kernel.org>
+ <1434359109.13744.14.camel@hellion.org.uk> <557EA944.9020504@citrix.com>
+ <20150615203532.GC13273@gmail.com>
+In-Reply-To: <20150615203532.GC13273@gmail.com>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Duyck <alexander.duyck@gmail.com>, brouer@redhat.com
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Ian Campbell <ijc@hellion.org.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg
+ Nesterov <oleg@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Waiman Long <Waiman.Long@hp.com>
 
-
-On Tue, 16 Jun 2015 21:00:39 +0900 Joonsoo Kim <js1304@gmail.com> wrote:
-
-> > Okay, but Christoph choose to not support kmem_cache_debug() in patch2/7.
-> >
-> > Should we/I try to add kmem cache debugging support?
+On 15/06/15 21:35, Ingo Molnar wrote:
 > 
-> kmem_cache_debug() is the check for slab internal debugging feature.
-> slab_free_hook() and others mentioned from me are also related to external
-> debugging features like as kasan and kmemleak. So, even if
-> debugged kmem_cache isn't supported by bulk API, external debugging
-> feature should be supported.
+> * David Vrabel <david.vrabel@citrix.com> wrote:
 > 
-> > If adding these, then I would also need to add those on alloc path...
+>> On 15/06/15 10:05, Ian Campbell wrote:
+>>> On Sat, 2015-06-13 at 11:49 +0200, Ingo Molnar wrote:
 > 
-> Yes, please.
+>>>> xen_mm_pin_all()/unpin_all() are used to implement full guest instance 
+>>>> suspend/restore. It's a stop-all method that needs to iterate through all 
+>>>> allocated pgds in the system to fix them up for Xen's use.
+>>>>
+>>>> This code uses pgd_list, probably because it was an easy interface.
+>>>>
+>>>> But we want to remove the pgd_list, so convert the code over to walk all 
+>>>> tasks in the system. This is an equivalent method.
+>>
+>> It is not equivalent because pgd_alloc() now populates entries in pgds that are 
+>> not visible to xen_mm_pin_all() (note how the original code adds the pgd to the 
+>> pgd_list in pgd_ctor() before calling pgd_prepopulate_pmd()).  These newly 
+>> allocated page tables won't be correctly converted on suspend/resume and the new 
+>> process will die after resume.
+> 
+> So how should the Xen logic be fixed for the new scheme? I can't say I can see 
+> through the paravirt complexity here.
 
-I've added a patch 8 to my queue, that (tries to) implement this.
-Currently trying to figure out how to "use" these debugging features,
-so I activate that code path.
+Actually, since we freeze_processes() before trying to pin page tables,
+I think it should be ok as-is.
 
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+I'll put the patch through some tests.
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
