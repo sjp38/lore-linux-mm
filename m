@@ -1,104 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 27DC26B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 08:16:57 -0400 (EDT)
-Received: by lblr1 with SMTP id r1so9571654lbl.0
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 05:16:56 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id uc10si1501350wjc.54.2015.06.16.05.16.54
+Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
+	by kanga.kvack.org (Postfix) with ESMTP id C15286B006C
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 08:17:52 -0400 (EDT)
+Received: by qkhu186 with SMTP id u186so7548334qkh.0
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 05:17:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 76si716874qkz.88.2015.06.16.05.17.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 16 Jun 2015 05:16:55 -0700 (PDT)
-Message-ID: <558013B5.4050204@suse.cz>
-Date: Tue, 16 Jun 2015 14:16:53 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Jun 2015 05:17:52 -0700 (PDT)
+Date: Tue, 16 Jun 2015 14:17:47 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 5/7] userfaultfd: switch to exclusive wakeup for blocking
+ reads
+Message-ID: <20150616121747.GJ18909@redhat.com>
+References: <1434388931-24487-1-git-send-email-aarcange@redhat.com>
+ <1434388931-24487-6-git-send-email-aarcange@redhat.com>
+ <CA+55aFxD8hakE9SjhAD1_vJ9PATK+90k7yHQ2cENqGqK8r3QhQ@mail.gmail.com>
+ <20150615221946.GI18909@redhat.com>
+ <CA+55aFxZ2_Nix6-PrNE+yN87T02CdqG-y+piHXg=5AMGOiJy2A@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/6] mm, compaction: always skip compound pages by order
- in migrate scanner
-References: <1433928754-966-1-git-send-email-vbabka@suse.cz> <1433928754-966-5-git-send-email-vbabka@suse.cz> <20150616054436.GD12641@js1304-P5Q-DELUXE>
-In-Reply-To: <20150616054436.GD12641@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFxZ2_Nix6-PrNE+yN87T02CdqG-y+piHXg=5AMGOiJy2A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Paolo Bonzini <pbonzini@redhat.com>, qemu-devel@nongnu.org, Pavel Emelyanov <xemul@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, zhang.zhanghailiang@huawei.com, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Peter Feiner <pfeiner@google.com>, Mel Gorman <mgorman@suse.de>, KVM list <kvm@vger.kernel.org>
 
-On 06/16/2015 07:44 AM, Joonsoo Kim wrote:
-> On Wed, Jun 10, 2015 at 11:32:32AM +0200, Vlastimil Babka wrote:
-
-[...]
-
->> @@ -723,39 +725,35 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
->>  		 * It's possible to migrate LRU pages and balloon pages
->>  		 * Skip any other type of page
->>  		 */
->> -		if (!PageLRU(page)) {
->> +		is_lru = PageLRU(page);
->> +		if (!is_lru) {
->>  			if (unlikely(balloon_page_movable(page))) {
->>  				if (balloon_page_isolate(page)) {
->>  					/* Successfully isolated */
->>  					goto isolate_success;
->>  				}
->>  			}
->> -			continue;
->>  		}
->>  
->>  		/*
->> -		 * PageLRU is set. lru_lock normally excludes isolation
->> -		 * splitting and collapsing (collapsing has already happened
->> -		 * if PageLRU is set) but the lock is not necessarily taken
->> -		 * here and it is wasteful to take it just to check transhuge.
->> -		 * Check PageCompound without lock and skip the whole pageblock
->> -		 * if it's a transhuge page, as calling compound_order()
->> -		 * without preventing THP from splitting the page underneath us
->> -		 * may return surprising results.
->> -		 * If we happen to check a THP tail page, compound_order()
->> -		 * returns 0. It should be rare enough to not bother with
->> -		 * using compound_head() in that case.
->> +		 * Regardless of being on LRU, compound pages such as THP and
->> +		 * hugetlbfs are not to be compacted. We can potentially save
->> +		 * a lot of iterations if we skip them at once. The check is
->> +		 * racy, but we can consider only valid values and the only
->> +		 * danger is skipping too much.
->>  		 */
->>  		if (PageCompound(page)) {
->> -			int nr;
->> -			if (locked)
->> -				nr = 1 << compound_order(page);
->> -			else
->> -				nr = pageblock_nr_pages;
->> -			low_pfn += nr - 1;
->> +			unsigned int comp_order = compound_order(page);
->> +
->> +			if (comp_order > 0 && comp_order < MAX_ORDER)
->> +				low_pfn += (1UL << comp_order) - 1;
->> +
->>  			continue;
->>  		}
+On Mon, Jun 15, 2015 at 08:41:24PM -1000, Linus Torvalds wrote:
+> On Mon, Jun 15, 2015 at 12:19 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> >
+> > Yes, it would leave the other blocked, how is it different from having
+> > just 1 reader and it gets killed?
 > 
-> How about moving this PageCompound() check up to the PageLRU check?
-> Is there any relationship between balloon page and PageCompound()?
-
-I didn't want to assume if there's a relationship or not, as per the changelog:
-
->> After this patch, all pages are tested for PageCompound() and we skip them by
->> compound_order().  The test is done after the test for balloon_page_movable()
->> as we don't want to assume if balloon pages (or other pages with own isolation
->> and migration implementation if a generic API gets implemented) are compound
->> or not.
-
-> It will remove is_lru and code would be more understandable.
-
-Right, it just felt safer and more future-proof this way.
-
-> Otherwise,
+> Either is completely wrong. But the read() code can at least see that
+> "I'm returning early due to a signal, so I'll wake up any other
+> waiters".
 > 
-> Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Poll simply *cannot* do that. Because by definition poll always
+> returns without actually clearing the thing that caused the wakeup.
 > 
-> Thanks.
+> So for "poll()", using exclusive waits is wrong very much by
+> definition. For read(), you *can* use exclusive waits correctly, it
+> just requires you to wake up others if you don't read all the data
+> (either due to being killed by a signal, or because the read was
+> incomplete).
+
+There's no interface to do wakeone with poll so I haven't thought much
+about it frankly but intuitively it didn't look radically different as
+long as poll checks every fd revent it gets. If I was to patch it to
+introduce wakeone in poll I'd think more about it of course. Perhaps
+I've been overoptimistic here.
+
+> What does qemu have to do with anything?
 > 
+> We don't implement kernel interfaces that are broken, and that can
+> leave processes blocked when they shouldn't be blocked. We also don't
+> implement kernel interfaces that only work with one program and then
+> say "if that program is broken, it's not our problem".
+
+I'm testing with the stresstest application not with qemu, qemu cannot
+take advantage of this anyway because it uses a single thread so far
+and it uses poll not blocking reads. The stresstest suite listens to
+events with one thread per CPU and it interleaves poll usage with
+blocking reads at every bounce, and it's working correctly so far.
+
+> > I'm not saying doing wakeone is easy [...]
+> 
+> Bullshit, Andrea.
+> 
+> That's *exactly* what you said in the commit message for the broken
+> patch that I complained about. And I quote:
+
+Please don't quote me out of context, and quote me in full if you
+quote me:
+
+"I'm not saying doing wakeone is easy and it's enough to flip a switch
+everywhere to get it everywhere"
+
+In the above paragraph (that you quoted in a truncated version of it)
+I was talking in general, not specific to userfaultfd. I meant in
+general wakeone is not easy.
+
+> patch that I complained about. And I quote:
+> 
+>   "Blocking reads can easily use exclusive wakeups. Poll in theory
+> could too but there's no poll_wait_exclusive in common code yet"
+
+With "I'm not saying doing wakeone is easy and it's enough to flip a
+switch everywhere to get it everywhere" I intended exactly to clarify
+that "Blocking reads can easily use exclusive wakeups" was in the
+context of userfaultfd only.
+
+With regard to the patch you still haven't told what exactly what
+runtime breakage I shall expect from my simple change. The case you
+mentioned about a thread that gets killed is irrelevant because an
+userfault would get missed anyway, if a task listening to userfaultfd
+get killed after it received any uffd_msg structure. Wakeone or
+wakeall won't move the needle for that case. There's no broadcast of
+userfaults to all readers, even with wakeall, only the first reader
+that wakes up, gets the messages, the others returns to sleep
+immediately.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
