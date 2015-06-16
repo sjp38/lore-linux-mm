@@ -1,61 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 5349E6B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 10:20:52 -0400 (EDT)
-Received: by pacyx8 with SMTP id yx8so13804655pac.2
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 07:20:52 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id gq8si1610920pbc.83.2015.06.16.07.20.50
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 8598C6B0038
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 10:30:55 -0400 (EDT)
+Received: by pdjm12 with SMTP id m12so15614513pdj.3
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 07:30:55 -0700 (PDT)
+Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com. [2607:f8b0:400e:c02::236])
+        by mx.google.com with ESMTPS id hb1si1614110pbd.184.2015.06.16.07.30.54
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jun 2015 07:20:51 -0700 (PDT)
-Message-ID: <5580307F.8050007@oracle.com>
-Date: Tue, 16 Jun 2015 10:19:43 -0400
-From: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+        Tue, 16 Jun 2015 07:30:54 -0700 (PDT)
+Received: by pdjm12 with SMTP id m12so15614179pdj.3
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 07:30:54 -0700 (PDT)
+Date: Tue, 16 Jun 2015 23:30:11 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [RFC][PATCHv2 2/8] zsmalloc: partial page ordering within a
+ fullness_list
+Message-ID: <20150616143011.GB20596@swordfish>
+References: <1433505838-23058-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1433505838-23058-3-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150616131903.GA31387@blaptop>
 MIME-Version: 1.0
-Subject: Re: [PATCH 07/12] x86/virt/guest/xen: Remove use of pgd_list from
- the Xen guest code
-References: <1434188955-31397-1-git-send-email-mingo@kernel.org> <1434188955-31397-8-git-send-email-mingo@kernel.org> <1434359109.13744.14.camel@hellion.org.uk> <557EA944.9020504@citrix.com> <20150615203532.GC13273@gmail.com> <55802F94.90306@citrix.com>
-In-Reply-To: <55802F94.90306@citrix.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150616131903.GA31387@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Vrabel <david.vrabel@citrix.com>, Ingo Molnar <mingo@kernel.org>
-Cc: Ian Campbell <ijc@hellion.org.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Waiman Long <Waiman.Long@hp.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On 06/16/2015 10:15 AM, David Vrabel wrote:
-> On 15/06/15 21:35, Ingo Molnar wrote:
->> * David Vrabel <david.vrabel@citrix.com> wrote:
->>
->>> On 15/06/15 10:05, Ian Campbell wrote:
->>>> On Sat, 2015-06-13 at 11:49 +0200, Ingo Molnar wrote:
->>>>> xen_mm_pin_all()/unpin_all() are used to implement full guest instance
->>>>> suspend/restore. It's a stop-all method that needs to iterate through all
->>>>> allocated pgds in the system to fix them up for Xen's use.
->>>>>
->>>>> This code uses pgd_list, probably because it was an easy interface.
->>>>>
->>>>> But we want to remove the pgd_list, so convert the code over to walk all
->>>>> tasks in the system. This is an equivalent method.
->>> It is not equivalent because pgd_alloc() now populates entries in pgds that are
->>> not visible to xen_mm_pin_all() (note how the original code adds the pgd to the
->>> pgd_list in pgd_ctor() before calling pgd_prepopulate_pmd()).  These newly
->>> allocated page tables won't be correctly converted on suspend/resume and the new
->>> process will die after resume.
->> So how should the Xen logic be fixed for the new scheme? I can't say I can see
->> through the paravirt complexity here.
-> Actually, since we freeze_processes() before trying to pin page tables,
-> I think it should be ok as-is.
->
-> I'll put the patch through some tests.
+Hello,
 
-Actually, I just ran this through a couple of boot/suspend/resume tests 
-and didn't see any issues (with the one fix I mentioned to Ingo 
-earlier). On unstable Xen only.
+On (06/16/15 22:19), Minchan Kim wrote:
+> Hello Sergey,
+> 
+> On Fri, Jun 05, 2015 at 09:03:52PM +0900, Sergey Senozhatsky wrote:
+> > We want to see more ZS_FULL pages and less ZS_ALMOST_{FULL, EMPTY}
+> > pages. Put a page with higher ->inuse count first within its
+> > ->fullness_list, which will give us better chances to fill up this
+> > page with new objects (find_get_zspage() return ->fullness_list head
+> > for new object allocation), so some zspages will become
+> > ZS_ALMOST_FULL/ZS_FULL quicker.
+> > 
+> > It performs a trivial and cheap ->inuse compare which does not slow
+> > down zsmalloc, and in the worst case it keeps the list pages not in
+> > any particular order, just like we do it now.
+> 
+> Fair enough.
+> 
+> I think it would be better with small cost and it matches current
+> zsmalloc design which allocates a object from ALMOST_FULL zspage
+> first to reduce memory footprint.
+> 
+> Although we uses page->lru to link zspages, it's not lru order
+> so I like your idea.
+> 
+> One think I want to say is it doesn't need to be part of this patchset.
+> I hope you gives some data to prove gain and includes it in changelog
+> and resubmit, please.
 
--boris
+OK, I'll do some testing and come back with some numbers.
 
+Well, none of these patches will get into 4.2, so splitting
+the patchset will make things a bit less easy, but I guess I
+can do this.
+
+	-ss
+
+> > 
+> > A more expensive solution could sort fullness_list by ->inuse count.
+> > 
+> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> > ---
+> >  mm/zsmalloc.c | 12 ++++++++++--
+> >  1 file changed, 10 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> > index ce3310c..cd37bda 100644
+> > --- a/mm/zsmalloc.c
+> > +++ b/mm/zsmalloc.c
+> > @@ -658,8 +658,16 @@ static void insert_zspage(struct page *page, struct size_class *class,
+> >  		return;
+> >  
+> >  	head = &class->fullness_list[fullness];
+> > -	if (*head)
+> > -		list_add_tail(&page->lru, &(*head)->lru);
+> > +	if (*head) {
+> > +		/*
+> > +		 * We want to see more ZS_FULL pages and less almost
+> > +		 * empty/full. Put pages with higher ->inuse first.
+> > +		 */
+> > +		if (page->inuse < (*head)->inuse)
+> > +			list_add_tail(&page->lru, &(*head)->lru);
+> > +		else
+> > +			list_add(&page->lru, &(*head)->lru);
+> > +	}
+> >  
+> >  	*head = page;
+> >  	zs_stat_inc(class, fullness == ZS_ALMOST_EMPTY ?
+> > -- 
+> > 2.4.2.387.gf86f31a
+> > 
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
