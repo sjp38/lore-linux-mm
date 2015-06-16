@@ -1,111 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D17356B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 10:35:47 -0400 (EDT)
-Received: by pdjn11 with SMTP id n11so15826421pdj.0
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 07:35:47 -0700 (PDT)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id k16si1618451pdm.244.2015.06.16.07.35.46
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 042EA6B0038
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 10:41:50 -0400 (EDT)
+Received: by pacyx8 with SMTP id yx8so14134160pac.2
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 07:41:49 -0700 (PDT)
+Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
+        by mx.google.com with ESMTPS id yf2si1641109pbb.223.2015.06.16.07.41.49
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jun 2015 07:35:47 -0700 (PDT)
-Received: by padev16 with SMTP id ev16so14029197pad.0
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 07:35:46 -0700 (PDT)
-Date: Tue, 16 Jun 2015 23:35:03 +0900
+        Tue, 16 Jun 2015 07:41:49 -0700 (PDT)
+Received: by pdjn11 with SMTP id n11so15932656pdj.0
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 07:41:49 -0700 (PDT)
+Date: Tue, 16 Jun 2015 23:41:06 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [RFC][PATCHv2 3/8] zsmalloc: lower ZS_ALMOST_FULL waterline
-Message-ID: <20150616143503.GC20596@swordfish>
+Subject: Re: [RFC][PATCHv2 5/8] zsmalloc: introduce zs_can_compact() function
+Message-ID: <20150616144106.GD20596@swordfish>
 References: <1433505838-23058-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1433505838-23058-4-git-send-email-sergey.senozhatsky@gmail.com>
- <20150616133708.GB31387@blaptop>
+ <1433505838-23058-6-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150616141914.GC31387@blaptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150616133708.GB31387@blaptop>
+In-Reply-To: <20150616141914.GC31387@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On (06/16/15 22:37), Minchan Kim wrote:
-> On Fri, Jun 05, 2015 at 09:03:53PM +0900, Sergey Senozhatsky wrote:
-> > get_fullness_group() considers 3/4 full pages as almost empty.
-> > That, unfortunately, marks as ALMOST_EMPTY pages that we would
-> > probably like to keep in ALMOST_FULL lists.
+On (06/16/15 23:19), Minchan Kim wrote:
+> On Fri, Jun 05, 2015 at 09:03:55PM +0900, Sergey Senozhatsky wrote:
+> > This function checks if class compaction will free any pages.
+> > Rephrasing -- do we have enough unused objects to form at least
+> > one ZS_EMPTY page and free it. It aborts compaction if class
+> > compaction will not result in any (further) savings.
 > > 
-> > ALMOST_EMPTY:
+> > EXAMPLE (this debug output is not part of this patch set):
+> > 
+> > -- class size
+> > -- number of allocated objects
+> > -- number of used objects,
+> > -- estimated number of pages that will be freed
+> > 
 > > [..]
-> >   inuse: 3 max_objects: 4
-> >   inuse: 5 max_objects: 7
-> >   inuse: 5 max_objects: 7
-> >   inuse: 2 max_objects: 3
-> > [..]
-> > 
-> > For "inuse: 5 max_objexts: 7" ALMOST_EMPTY page, for example,
-> > it'll take 2 obj_malloc to make the page FULL and 5 obj_free to
-> > make it EMPTY. Compaction selects ALMOST_EMPTY pages as source
-> > pages, which can result in extra object moves.
-> > 
-> > In other words, from compaction point of view, it makes more
-> > sense to fill this page, rather than drain it.
-> > 
-> > Decrease ALMOST_FULL waterline to 2/3 of max capacity; which is,
-> > of course, still imperfect, but can shorten compaction
-> > execution time.
+> >  class-3072 objs:24652 inuse:24628 maxobjs-per-page:4  pages-tofree:6
 > 
-> However, at worst case, once compaction is done, it could remain
-> 33% fragment space while it can remain 25% fragment space in current.
-> Maybe 25% wouldn't enough so we might need to scan ZS_ALMOST_FULL as
-> source in future. Anyway, compaction is really slow path now so
-> I prefer saving memory space by reduce internal fragmentation to
-> performance caused more copy of objects.
+> Please use clear term. We have been used zspage as cluster of pages.
+> 
+>                                      maxobjs-per-zspage:4
 > 
 
-Well, agree. I think we can drop this one from the series for now.
-It's very hard to support this patch with any numbers, etc. because
-it depends on things that are out of zram/zsmalloc control -- IO and
-data patterns.
+OK, will correct.
 
-(opposing this patch is also very hard, due to exactly same reason).
+class size
+sats[OBJ_ALLOCATED]
+stats[OBJ_USED]
+get_maxobj_per_zspage()
++pages-per-zspage
+zspages-to-free
+
+> And say what is pages-per-zspage for each class.
+> then, write how you calculate it for easy reviewing.
+> 
+> * class-3072
+> * pages-per-zspage: 3
+> * maxobjs-per-zspage = 4
+> 
+> In your example, allocated obj = 24652 and inuse obj = 24628
+> so 24652 - 24628 = 24 = 4(ie, maxobjs-per-zspage) * 6
+> so we can save 6 zspage. A zspage includes 3 pages so we can
+> save 3 * 6 = 18 pages via compaction.
+> 
+> 
+
+[..]
+
+> > + * Make sure that we actually can compact this class,
+> > + * IOW if migration will empty at least one page.
+> 
+>                             free at least one zspage
+
+OK.
+
+> > + *
+> > + * Should be called under class->lock
+> > + */
+> > +static unsigned long zs_can_compact(struct size_class *class)
+> > +{
+> > +	/*
+> > +	 * Calculate how many unused allocated objects we
+> > +	 * have and see if we can free any zspages. Otherwise,
+> > +	 * compaction can just move objects back and forth w/o
+> > +	 * any memory gain.
+> > +	 */
+> > +	unsigned long obj_wasted = zs_stat_get(class, OBJ_ALLOCATED) -
+> > +		zs_stat_get(class, OBJ_USED);
+> > +
+> > +	obj_wasted /= get_maxobj_per_zspage(class->size,
+> > +			class->pages_per_zspage);
+> 
+> I don't think we need division and make it simple.
+> 
+>         return obj_wasted >= get_maxobj_per_zspage
+
+I use this number later for the shrinker, as a shrinker.count_objects()
+return value (total number of zsages that can be freed).
+
 
 	-ss
-
-> > 
-> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> > ---
-> >  mm/zsmalloc.c | 4 ++--
-> >  1 file changed, 2 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> > index cd37bda..b94e281 100644
-> > --- a/mm/zsmalloc.c
-> > +++ b/mm/zsmalloc.c
-> > @@ -198,7 +198,7 @@ static int zs_size_classes;
-> >   *
-> >   * (see: fix_fullness_group())
-> >   */
-> > -static const int fullness_threshold_frac = 4;
-> > +static const int fullness_threshold_frac = 3;
-> >  
-> >  struct size_class {
-> >  	/*
-> > @@ -633,7 +633,7 @@ static enum fullness_group get_fullness_group(struct page *page)
-> >  		fg = ZS_EMPTY;
-> >  	else if (inuse == max_objects)
-> >  		fg = ZS_FULL;
-> > -	else if (inuse <= 3 * max_objects / fullness_threshold_frac)
-> > +	else if (inuse <= 2 * max_objects / fullness_threshold_frac)
-> >  		fg = ZS_ALMOST_EMPTY;
-> >  	else
-> >  		fg = ZS_ALMOST_FULL;
-> > -- 
-> > 2.4.2.387.gf86f31a
-> > 
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
