@@ -1,50 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DC4C6B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 01:35:38 -0400 (EDT)
-Received: by pdjn11 with SMTP id n11so6369819pdj.0
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 22:35:38 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id b7si15320720pat.208.2015.06.15.22.35.36
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id B7B0C6B006C
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 01:36:00 -0400 (EDT)
+Received: by pdbnf5 with SMTP id nf5so6330605pdb.2
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2015 22:36:00 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id w9si13969801pbs.163.2015.06.15.22.35.58
         for <linux-mm@kvack.org>;
-        Mon, 15 Jun 2015 22:35:37 -0700 (PDT)
-Date: Tue, 16 Jun 2015 14:37:44 +0900
+        Mon, 15 Jun 2015 22:36:00 -0700 (PDT)
+Date: Tue, 16 Jun 2015 14:38:07 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 1/6] mm, compaction: more robust check for scanners
- meeting
-Message-ID: <20150616053743.GA12641@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH 2/6] mm, compaction: simplify handling restart position
+ in free pages scanner
+Message-ID: <20150616053807.GB12641@js1304-P5Q-DELUXE>
 References: <1433928754-966-1-git-send-email-vbabka@suse.cz>
- <1433928754-966-2-git-send-email-vbabka@suse.cz>
+ <1433928754-966-3-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1433928754-966-2-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1433928754-966-3-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
 
-On Wed, Jun 10, 2015 at 11:32:29AM +0200, Vlastimil Babka wrote:
-> Compaction should finish when the migration and free scanner meet, i.e. they
-> reach the same pageblock. Currently however, the test in compact_finished()
-> simply just compares the exact pfns, which may yield a false negative when the
-> free scanner position is in the middle of a pageblock and the migration scanner
-> reaches the beginning of the same pageblock.
+On Wed, Jun 10, 2015 at 11:32:30AM +0200, Vlastimil Babka wrote:
+> Handling the position where compaction free scanner should restart (stored in
+> cc->free_pfn) got more complex with commit e14c720efdd7 ("mm, compaction:
+> remember position within pageblock in free pages scanner"). Currently the
+> position is updated in each loop iteration of isolate_freepages(), although it
+> should be enough to update it only when breaking from the loop. There's also
+> an extra check outside the loop updates the position in case we have met the
+> migration scanner.
 > 
-> This hasn't been a problem until commit e14c720efdd7 ("mm, compaction: remember
-> position within pageblock in free pages scanner") allowed the free scanner
-> position to be in the middle of a pageblock between invocations.  The hot-fix
-> 1d5bfe1ffb5b ("mm, compaction: prevent infinite loop in compact_zone")
-> prevented the issue by adding a special check in the migration scanner to
-> satisfy the current detection of scanners meeting.
+> This can be simplified if we move the test for having isolated enough from the
+> for loop header next to the test for contention, and determining the restart
+> position only in these cases. We can reuse the isolate_start_pfn variable for
+> this instead of setting cc->free_pfn directly. Outside the loop, we can simply
+> set cc->free_pfn to current value of isolate_start_pfn without any extra check.
 > 
-> However, the proper fix is to make the detection more robust. This patch
-> introduces the compact_scanners_met() function that returns true when the free
-> scanner position is in the same or lower pageblock than the migration scanner.
-> The special case in isolate_migratepages() introduced by 1d5bfe1ffb5b is
-> removed.
+> Also add a VM_BUG_ON to catch possible mistake in the future, in case we later
+> add a new condition that terminates isolate_freepages_block() prematurely
+> without also considering the condition in isolate_freepages().
 > 
-> Suggested-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
 Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
