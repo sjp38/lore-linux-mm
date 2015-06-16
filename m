@@ -1,93 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B7A76B006E
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 03:53:33 -0400 (EDT)
-Received: by wifx6 with SMTP id x6so10866490wif.0
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 00:53:32 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a16si1614072wiv.96.2015.06.16.00.53.31
+Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com [209.85.220.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 199076B006E
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 04:05:03 -0400 (EDT)
+Received: by qkhu186 with SMTP id u186so4955933qkh.0
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 01:05:03 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f92si196084qge.71.2015.06.16.01.05.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 16 Jun 2015 00:53:31 -0700 (PDT)
-Message-ID: <557FD5F8.10903@suse.cz>
-Date: Tue, 16 Jun 2015 09:53:28 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Jun 2015 01:05:02 -0700 (PDT)
+Date: Tue, 16 Jun 2015 10:04:56 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH 7/7] slub: initial bulk free implementation
+Message-ID: <20150616100456.624d775e@redhat.com>
+In-Reply-To: <alpine.DEB.2.11.1506151133150.20358@east.gentwo.org>
+References: <20150615155053.18824.617.stgit@devil>
+	<20150615155256.18824.42651.stgit@devil>
+	<alpine.DEB.2.11.1506151133150.20358@east.gentwo.org>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 00/12] mm: mirrored memory support for page buddy
- allocations
-References: <55704A7E.5030507@huawei.com>
-In-Reply-To: <55704A7E.5030507@huawei.com>
-Content-Type: text/plain; charset=windows-1252
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, Alexander Duyck <alexander.duyck@gmail.com>, brouer@redhat.com
 
-On 06/04/2015 02:54 PM, Xishi Qiu wrote:
-> Intel Xeon processor E7 v3 product family-based platforms introduces support
-> for partial memory mirroring called as 'Address Range Mirroring'. This feature
-> allows BIOS to specify a subset of total available memory to be mirrored (and
-> optionally also specify whether to mirror the range 0-4 GB). This capability
-> allows user to make an appropriate tradeoff between non-mirrored memory range
-> and mirrored memory range thus optimizing total available memory and still
-> achieving highly reliable memory range for mission critical workloads and/or
-> kernel space.
-> 
-> Tony has already send a patchset to supprot this feature at boot time.
-> https://lkml.org/lkml/2015/5/8/521
-> 
-> This patchset can support the feature after boot time. It introduces mirror_info
-> to save the mirrored memory range. Then use __GFP_MIRROR to allocate mirrored 
-> pages. 
-> 
-> I think add a new migratetype is btter and easier than a new zone, so I use
+On Mon, 15 Jun 2015 11:34:44 -0500 (CDT)
+Christoph Lameter <cl@linux.com> wrote:
 
-If the mirrored memory is in a single reasonably compact (no large holes) range
-(per NUMA node) and won't dynamically change its size, then zone might be a
-better option. For one thing, it will still allow distinguishing movable and
-unmovable allocations within the mirrored memory.
+> On Mon, 15 Jun 2015, Jesper Dangaard Brouer wrote:
+> 
+> > +	for (i = 0; i < size; i++) {
+> > +		void *object = p[i];
+> > +
+> > +		if (unlikely(!object))
+> > +			continue; // HOW ABOUT BUG_ON()???
+> 
+> Sure BUG_ON would be fitting here.
 
-We had enough fun with MIGRATE_CMA and all kinds of checks it added to allocator
-hot paths, and even CMA is now considering moving to a separate zone.
+Okay, will do in V2.
 
-> MIGRATE_MIRROR to manage the mirrored pages. However it changed some code in the
-> core file, please review and comment, thanks.
+> > +
+> > +		page = virt_to_head_page(object);
+> > +		BUG_ON(s != page->slab_cache); /* Check if valid slab page */
 > 
-> TBD: 
-> 1) call add_mirror_info() to fill mirrored memory info.
-> 2) add compatibility with memory online/offline.
-> 3) add more interface? others?
+> This is the check if the slab page belongs to the slab cache we are
+> interested in.
+
+Is this appropriate to keep on this fastpath? (I copied the check from
+one of your earlier patches)
+
+> > +
+> > +		if (c->page == page) {
+> > +			/* Fastpath: local CPU free */
+> > +			set_freepointer(s, object, c->freelist);
+> > +			c->freelist = object;
+> > +		} else {
+> > +			c->tid = next_tid(c->tid);
 > 
-> Xishi Qiu (12):
->   mm: add a new config to manage the code
->   mm: introduce mirror_info
->   mm: introduce MIGRATE_MIRROR to manage the mirrored pages
->   mm: add mirrored pages to buddy system
->   mm: introduce a new zone_stat_item NR_FREE_MIRROR_PAGES
->   mm: add free mirrored pages info
->   mm: introduce __GFP_MIRROR to allocate mirrored pages
->   mm: use mirrorable to switch allocate mirrored memory
->   mm: enable allocate mirrored memory at boot time
->   mm: add the buddy system interface
->   mm: add the PCP interface
->   mm: let slab/slub/slob use mirrored memory
-> 
->  arch/x86/mm/numa.c     |   3 ++
->  drivers/base/node.c    |  17 ++++---
->  fs/proc/meminfo.c      |   6 +++
->  include/linux/gfp.h    |   5 +-
->  include/linux/mmzone.h |  23 +++++++++
->  include/linux/vmstat.h |   2 +
->  kernel/sysctl.c        |   9 ++++
->  mm/Kconfig             |   8 +++
->  mm/page_alloc.c        | 134 ++++++++++++++++++++++++++++++++++++++++++++++---
->  mm/slab.c              |   3 +-
->  mm/slob.c              |   2 +-
->  mm/slub.c              |   2 +-
->  mm/vmstat.c            |   4 ++
->  13 files changed, 202 insertions(+), 16 deletions(-)
-> 
+> tids are only useful for the fastpath. No need to fiddle around with them
+> for the slowpath.
+
+Okay, understood.
+
+> > +			local_irq_enable();
+> > +			/* Slowpath: overhead locked cmpxchg_double_slab */
+
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
