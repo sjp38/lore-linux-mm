@@ -1,73 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 757906B006C
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 16:27:21 -0400 (EDT)
-Received: by lbbwc1 with SMTP id wc1so18463899lbb.2
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 13:27:20 -0700 (PDT)
-Received: from mail-wg0-x22b.google.com (mail-wg0-x22b.google.com. [2a00:1450:400c:c00::22b])
-        by mx.google.com with ESMTPS id 20si3676966wjq.25.2015.06.16.13.27.19
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id EC3276B006E
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 16:33:22 -0400 (EDT)
+Received: by pacgb13 with SMTP id gb13so19497775pac.1
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 13:33:22 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id ad6si2824048pbd.44.2015.06.16.13.33.21
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jun 2015 13:27:19 -0700 (PDT)
-Received: by wgzl5 with SMTP id l5so20581739wgz.3
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 13:27:19 -0700 (PDT)
-Date: Tue, 16 Jun 2015 13:27:05 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm: shmem_zero_setup skip security check and lockdep conflict
- with XFS
-In-Reply-To: <557E6C0C.3050802@monom.org>
-Message-ID: <alpine.LSU.2.11.1506161317530.1840@eggly.anvils>
-References: <alpine.LSU.2.11.1506140944380.11018@eggly.anvils> <557E6C0C.3050802@monom.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 16 Jun 2015 13:33:22 -0700 (PDT)
+Message-ID: <5580821D.3050508@fb.com>
+Date: Tue, 16 Jun 2015 13:07:57 -0700
+From: Josef Bacik <jbacik@fb.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] tmpfs: truncate at i_size
+References: <1432049251-3298-1-git-send-email-jbacik@fb.com> <alpine.LSU.2.11.1506161256490.1050@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1506161256490.1050@eggly.anvils>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Wagner <wagi@monom.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Prarit Bhargava <prarit@redhat.com>, Morten Stevens <mstevens@fedoraproject.org>, Dave Chinner <david@fromorbit.com>, Eric Paris <eparis@redhat.com>, Eric Sandeen <esandeen@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 15 Jun 2015, Daniel Wagner wrote:
-> On 06/14/2015 06:48 PM, Hugh Dickins wrote:
-> > It appears that, at some point last year, XFS made directory handling
-> > changes which bring it into lockdep conflict with shmem_zero_setup():
-> > it is surprising that mmap() can clone an inode while holding mmap_sem,
-> > but that has been so for many years.
-> > 
-> > Since those few lockdep traces that I've seen all implicated selinux,
-> > I'm hoping that we can use the __shmem_file_setup(,,,S_PRIVATE) which
-> > v3.13's commit c7277090927a ("security: shmem: implement kernel private
-> > shmem inodes") introduced to avoid LSM checks on kernel-internal inodes:
-> > the mmap("/dev/zero") cloned inode is indeed a kernel-internal detail.
-> > 
-> > This also covers the !CONFIG_SHMEM use of ramfs to support /dev/zero
-> > (and MAP_SHARED|MAP_ANONYMOUS).  I thought there were also drivers
-> > which cloned inode in mmap(), but if so, I cannot locate them now.
-> > 
-> > Reported-and-tested-by: Prarit Bhargava <prarit@redhat.com>
-> > Reported-by: Daniel Wagner <wagi@monom.org>
-> 
-> Reported-and-tested-by: Daniel Wagner <wagi@monom.org>
+On 06/16/2015 01:02 PM, Hugh Dickins wrote:
+> On Tue, 19 May 2015, Josef Bacik wrote:
+>
+>> If we fallocate past i_size with KEEP_SIZE, extend the file to use some but not
+>> all of this space, and then truncate(i_size) we won't trim the excess
+>> preallocated space.  We decided at LSF that we want to truncate the fallocated
+>> bit past i_size when we truncate to i_size, which is what this patch does.
+>> Thanks,
+>>
+>> Signed-off-by: Josef Bacik <jbacik@fb.com>
+>
+> Sorry for the delay, it's been on my mind but only now I get to it.
+> Yes, that was agreed at LSF, and I've checked that indeed tmpfs is
+> out of line here: thank you for fixing it.  But I do prefer your
+> original more explicit description, so I'll send the patch to akpm
+> now for v4.2, with that description instead (plus a reference to LSF).
+>
 
-Great, thank you Daniel: we look more convincing now :)
+Sounds good, thanks Hugh.
 
-> 
-> Sorry for the long delay. It took me a while to figure out my original
-> setup. I could verify that this patch made the lockdep message go away
-> on 4.0-rc6 and also on 4.1-rc8.
-
-Thank you for taking the trouble.
-
-> 
-> For the record: SELinux needs to be enabled triggering it.
-
-Right, selinux was in all the stacktraces we saw, and I was banking
-on that security "recursion" being what actually upset lockdep; but
-couldn't be sure until you tried it out.
-
-We didn't make -rc8, and I won't be at all surprised if Linus feels
-that a year(?)-old lockdep warning is not worth disturbing v4.1
-final for, but it should get into v4.2 (thank you, Andrew).
-
-Hugh
+Josef
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
