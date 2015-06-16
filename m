@@ -1,38 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B5D86B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 17:29:37 -0400 (EDT)
-Received: by pacgb13 with SMTP id gb13so20263161pac.1
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 14:29:37 -0700 (PDT)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A5886B0032
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 17:44:43 -0400 (EDT)
+Received: by pacgb13 with SMTP id gb13so20459020pac.1
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 14:44:42 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ps1si2946802pdb.215.2015.06.16.14.29.36
+        by mx.google.com with ESMTPS id qq9si3053154pbb.13.2015.06.16.14.44.42
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jun 2015 14:29:36 -0700 (PDT)
-Date: Tue, 16 Jun 2015 14:29:35 -0700
+        Tue, 16 Jun 2015 14:44:42 -0700 (PDT)
+Date: Tue, 16 Jun 2015 14:44:41 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4] pagemap: switch to the new format and do some
- cleanup
-Message-Id: <20150616142935.b8f679650e35534e75806399@linux-foundation.org>
-In-Reply-To: <20150615055649.4485.92087.stgit@zurg>
-References: <20150609200021.21971.13598.stgit@zurg>
-	<20150615055649.4485.92087.stgit@zurg>
+Subject: Re: [PATCH 1/7] slab: infrastructure for bulk object allocation and
+ freeing
+Message-Id: <20150616144441.65bead5677fc13f86b5244f2@linux-foundation.org>
+In-Reply-To: <20150615155156.18824.35187.stgit@devil>
+References: <20150615155053.18824.617.stgit@devil>
+	<20150615155156.18824.35187.stgit@devil>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: linux-mm@kvack.org, Mark Williamson <mwilliamson@undo-software.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, netdev@vger.kernel.org, Alexander Duyck <alexander.duyck@gmail.com>
 
-On Mon, 15 Jun 2015 08:56:49 +0300 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+On Mon, 15 Jun 2015 17:51:56 +0200 Jesper Dangaard Brouer <brouer@redhat.com> wrote:
 
-> This patch removes page-shift bits (scheduled to remove since 3.11) and
-> completes migration to the new bit layout. Also it cleans messy macro.
+> +bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+> +								void **p)
+> +{
+> +	return kmem_cache_alloc_bulk(s, flags, size, p);
+> +}
 
-hm, I can't find any kernel version to which this patch comes close to
-applying.
+hm, any call to this function is going to be nasty, brutal and short.
 
+--- a/mm/slab.c~slab-infrastructure-for-bulk-object-allocation-and-freeing-v3-fix
++++ a/mm/slab.c
+@@ -3425,7 +3425,7 @@ EXPORT_SYMBOL(kmem_cache_free_bulk);
+ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+ 								void **p)
+ {
+-	return kmem_cache_alloc_bulk(s, flags, size, p);
++	return __kmem_cache_alloc_bulk(s, flags, size, p);
+ }
+ EXPORT_SYMBOL(kmem_cache_alloc_bulk);
+ 
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
