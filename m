@@ -1,81 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id ADC096B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 03:25:59 -0400 (EDT)
-Received: by pdbki1 with SMTP id ki1so8298597pdb.1
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 00:25:59 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id ed4si170646pbd.248.2015.06.16.00.25.57
-        for <linux-mm@kvack.org>;
-        Tue, 16 Jun 2015 00:25:58 -0700 (PDT)
-Date: Tue, 16 Jun 2015 16:28:06 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 7/7] slub: initial bulk free implementation
-Message-ID: <20150616072806.GC13125@js1304-P5Q-DELUXE>
-References: <20150615155053.18824.617.stgit@devil>
- <20150615155256.18824.42651.stgit@devil>
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 4ACAE6B0038
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 03:43:20 -0400 (EDT)
+Received: by wigg3 with SMTP id g3so100212731wig.1
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 00:43:19 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id es2si1623674wib.12.2015.06.16.00.43.18
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 16 Jun 2015 00:43:18 -0700 (PDT)
+Date: Tue, 16 Jun 2015 09:43:09 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: Possible broken MM code in dell-laptop.c?
+Message-ID: <20150616074308.GB24296@dhcp22.suse.cz>
+References: <201506141105.07171@pali>
+ <20150615211816.GC16138@dhcp22.suse.cz>
+ <201506152327.59907@pali>
+ <20150616063346.GA24296@dhcp22.suse.cz>
+ <20150616071523.GB5863@pali>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20150615155256.18824.42651.stgit@devil>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20150616071523.GB5863@pali>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, Alexander Duyck <alexander.duyck@gmail.com>
+To: Pali =?iso-8859-1?Q?Roh=E1r?= <pali.rohar@gmail.com>
+Cc: Darren Hart <dvhart@infradead.org>, Hans de Goede <hdegoede@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Stuart Hayes <stuart_hayes@dell.com>, Matthew Garrett <mjg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, platform-driver-x86@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jun 15, 2015 at 05:52:56PM +0200, Jesper Dangaard Brouer wrote:
-> This implements SLUB specific kmem_cache_free_bulk().  SLUB allocator
-> now both have bulk alloc and free implemented.
+On Tue 16-06-15 09:15:23, Pali Rohar wrote:
+[...]
+> Michal, thank you for explaining this situation!
 > 
-> Play nice and reenable local IRQs while calling slowpath.
+> Darren, I will prepare patch which will fix code and use __free_page().
 > 
-> Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
-> ---
->  mm/slub.c |   32 +++++++++++++++++++++++++++++++-
->  1 file changed, 31 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 98d0e6f73ec1..cc4f870677bb 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2752,7 +2752,37 @@ EXPORT_SYMBOL(kmem_cache_free);
->  
->  void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
->  {
-> -	__kmem_cache_free_bulk(s, size, p);
-> +	struct kmem_cache_cpu *c;
-> +	struct page *page;
-> +	int i;
-> +
-> +	local_irq_disable();
-> +	c = this_cpu_ptr(s->cpu_slab);
-> +
-> +	for (i = 0; i < size; i++) {
-> +		void *object = p[i];
-> +
-> +		if (unlikely(!object))
-> +			continue; // HOW ABOUT BUG_ON()???
-> +
-> +		page = virt_to_head_page(object);
-> +		BUG_ON(s != page->slab_cache); /* Check if valid slab page */
-> +
-> +		if (c->page == page) {
-> +			/* Fastpath: local CPU free */
-> +			set_freepointer(s, object, c->freelist);
-> +			c->freelist = object;
-> +		} else {
-> +			c->tid = next_tid(c->tid);
-> +			local_irq_enable();
-> +			/* Slowpath: overhead locked cmpxchg_double_slab */
-> +			__slab_free(s, page, object, _RET_IP_);
-> +			local_irq_disable();
-> +			c = this_cpu_ptr(s->cpu_slab);
+> (Btw, execution on fail_rfkill label caused kernel panic)
 
-SLUB free path doesn't need to irq management in many cases although
-it uses cmpxchg_doule_slab. Is this really better than just calling
-__kmem_cache_free_bulk()?
+I am sorry, I could have made it more clear in the very first email.
+A panic is to be expected because free_page will translate the given
+address to a struct page* but this is what the code gave it. So an
+unrelated struct page would be freed (or maybe an invalid one).
 
-Thanks.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
