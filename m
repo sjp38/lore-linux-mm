@@ -1,42 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 0757F6B0070
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 11:10:27 -0400 (EDT)
-Received: by iebgx4 with SMTP id gx4so14830096ieb.0
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 08:10:26 -0700 (PDT)
-Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
-        by mx.google.com with ESMTPS id z5si10889900igg.2.2015.06.16.08.10.26
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 17E396B0038
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 11:46:15 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so17061489pdb.1
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 08:46:14 -0700 (PDT)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id ca1si1889848pbb.169.2015.06.16.08.46.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 16 Jun 2015 08:10:26 -0700 (PDT)
-Date: Tue, 16 Jun 2015 10:10:25 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 7/7] slub: initial bulk free implementation
-In-Reply-To: <CAAmzW4OM-afGBZbWZzcH7O-mivNWvyeKpMVV4Os+i4Xb7GPgmg@mail.gmail.com>
-Message-ID: <alpine.DEB.2.11.1506161008350.3496@east.gentwo.org>
-References: <20150615155053.18824.617.stgit@devil> <20150615155256.18824.42651.stgit@devil> <20150616072806.GC13125@js1304-P5Q-DELUXE> <20150616102110.55208fdd@redhat.com> <20150616105732.2bc37714@redhat.com>
- <CAAmzW4OM-afGBZbWZzcH7O-mivNWvyeKpMVV4Os+i4Xb7GPgmg@mail.gmail.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Jun 2015 08:46:13 -0700 (PDT)
+Received: by pacgb13 with SMTP id gb13so15209161pac.1
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 08:46:13 -0700 (PDT)
+Date: Wed, 17 Jun 2015 00:45:29 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [RFC][PATCHv2 8/8] zsmalloc: register a shrinker to trigger
+ auto-compaction
+Message-ID: <20150616154529.GE20596@swordfish>
+References: <1433505838-23058-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1433505838-23058-9-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150616144730.GD31387@blaptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150616144730.GD31387@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-Netdev <netdev@vger.kernel.org>, Alexander Duyck <alexander.duyck@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Tue, 16 Jun 2015, Joonsoo Kim wrote:
+On (06/16/15 23:47), Minchan Kim wrote:
+[..]
+> > 
+> > Compaction now has a relatively quick pool scan so we are able to
+> > estimate the number of pages that will be freed easily, which makes it
+> > possible to call this function from a shrinker->count_objects() callback.
+> > We also abort compaction as soon as we detect that we can't free any
+> > pages any more, preventing wasteful objects migrations. In the example
+> > above, "6074 objects were migrated" implies that we actually released
+> > zspages back to system.
+> > 
+> > The initial patch was triggering compaction from zs_free() for
+> > every ZS_ALMOST_EMPTY page. Minchan Kim proposed to use a slab
+> > shrinker.
+> 
+> First of all, thanks for mentioning me as proposer.
+> However, it's not a helpful comment for other reviewers and
+> anonymous people who will review this in future.
+> 
+> At least, write why I suggested it so others can understand
+> the pros/cons.
 
-> So, in your test, most of objects may come from one or two slabs and your
-> algorithm is well optimized for this case. But, is this workload normal case?
+OK, this one is far from perfect. Will try to improve later.
 
-It is normal if the objects were bulk allocated because SLUB ensures that
-all objects are first allocated from one page before moving to another.
+> > 
+> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> > Reported-by: Minchan Kim <minchan@kernel.org>
+> 
+> I didn't report anything. ;-).
 
-> If most of objects comes from many different slabs, bulk free API does
-> enabling/disabling interrupt very much so I guess it work worse than
-> just calling __kmem_cache_free_bulk(). Could you test this case?
+:-)
 
-In case of SLAB this would be an issue since the queueing mechanism
-destroys spatial locality. This is much less an issue for SLUB.
+> 
+> > ---
 
+[..]
+
+> 
+> So should we hold class lock until finishing the compaction of the class?
+> It would make horrible latency for other allocation from the class
+> in parallel.
+
+hm, what's the difference with the existing implementation?
+The 'new one' aborts when (a) !zs_can_compact() and (b) !migrate_zspage().
+It holds the class lock less time than current compaction.
+
+> I will review remain parts tomorrow(I hope) but what I want to say
+> before going sleep is:
+> 
+> I like the idea but still have a concern to lack of fragmented zspages
+> during memory pressure because auto-compaction will prevent fragment
+> most of time. Surely, using fragment space as buffer in heavy memory
+> pressure is not intened design so it could be fragile but I'm afraid
+> this feature might accelrate it and it ends up having a problem and
+> change current behavior in zram as swap.
+
+Well, it's nearly impossible to prove anything with the numbers obtained
+during some particular case. I agree that fragmentation can be both
+'good' (depending on IO pattern) and 'bad'.
+
+
+Auto-compaction of IDLE zram devices certainly makes sense, when system
+is getting low on memory. zram devices are not always 'busy', serving
+heavy IO. There may be N idle zram devices simply sitting and wasting
+memory; or being 'moderately' busy; so compaction will not cause any
+significant slow down there.
+
+Auto-compaction of BUSY zram devices is less `desired', of course;
+but not entirely terrible I think (zs_can_compact() can help here a
+lot).
+
+Just an idea
+we can move shrinker registration from zsmalloc to zram. zram will be
+able to STOP (or forbid) any shrinker activities while it [zram] serves
+IO requests (or has requests in its request_queue).
+
+But, again, advocating fragmentation is tricky.
+
+
+I'll quote from the cover letter
+
+: zsmalloc in some cases can suffer from a notable fragmentation and
+: compaction can release some considerable amount of memory. The problem
+: here is that currently we fully rely on user space to perform compaction
+: when needed. However, performing zsmalloc compaction is not always an
+: obvious thing to do. For example, suppose we have a `idle' fragmented
+: (compaction was never performed) zram device and system is getting low
+: on memory due to some 3rd party user processes (gcc LTO, or firefox, etc.).
+: It's quite unlikely that user space will issue zpool compaction in this
+: case. Besides, user space cannot tell for sure how badly pool is
+: fragmented; however, this info is known to zsmalloc and, hence, to a
+: shrinker.
+
+
+I find this case (a) interesting and (b) quite possible.
+/* Besides, this happens on one of my old x86_64 boxen all the time.
+ And I do like/appreciate that zram automatically releases some memory. */
+
+
+> I hope you test this feature with considering my concern.
+> Of course, I will test it with enough time.
+> 
+> Thanks.
+> 
+
+sure.
+
+Thanks.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
