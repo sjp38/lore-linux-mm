@@ -1,82 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f47.google.com (mail-yh0-f47.google.com [209.85.213.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C41A6B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 10:33:26 -0400 (EDT)
-Received: by yhid80 with SMTP id d80so12565664yhi.1
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 07:33:26 -0700 (PDT)
-Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
-        by mx.google.com with ESMTPS id m46si376560yhb.99.2015.06.16.07.33.24
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D17356B0038
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 10:35:47 -0400 (EDT)
+Received: by pdjn11 with SMTP id n11so15826421pdj.0
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 07:35:47 -0700 (PDT)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id k16si1618451pdm.244.2015.06.16.07.35.46
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 16 Jun 2015 07:33:25 -0700 (PDT)
-Message-ID: <5580326D.30006@citrix.com>
-Date: Tue, 16 Jun 2015 15:27:57 +0100
-From: David Vrabel <david.vrabel@citrix.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Jun 2015 07:35:47 -0700 (PDT)
+Received: by padev16 with SMTP id ev16so14029197pad.0
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 07:35:46 -0700 (PDT)
+Date: Tue, 16 Jun 2015 23:35:03 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [RFC][PATCHv2 3/8] zsmalloc: lower ZS_ALMOST_FULL waterline
+Message-ID: <20150616143503.GC20596@swordfish>
+References: <1433505838-23058-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1433505838-23058-4-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150616133708.GB31387@blaptop>
 MIME-Version: 1.0
-Subject: Re: [PATCH 07/12] x86/virt/guest/xen: Remove use of pgd_list from
- the Xen guest code
-References: <1434188955-31397-1-git-send-email-mingo@kernel.org>
- <1434188955-31397-8-git-send-email-mingo@kernel.org>
- <1434359109.13744.14.camel@hellion.org.uk> <557EA944.9020504@citrix.com>
- <20150615203532.GC13273@gmail.com> <55802F94.90306@citrix.com>
- <5580307F.8050007@oracle.com>
-In-Reply-To: <5580307F.8050007@oracle.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150616133708.GB31387@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Ostrovsky <boris.ostrovsky@oracle.com>, Ingo Molnar <mingo@kernel.org>
-Cc: Ian Campbell <ijc@hellion.org.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Denys
- Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter
- Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter
- Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Waiman Long <Waiman.Long@hp.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On 16/06/15 15:19, Boris Ostrovsky wrote:
-> On 06/16/2015 10:15 AM, David Vrabel wrote:
->> On 15/06/15 21:35, Ingo Molnar wrote:
->>> * David Vrabel <david.vrabel@citrix.com> wrote:
->>>
->>>> On 15/06/15 10:05, Ian Campbell wrote:
->>>>> On Sat, 2015-06-13 at 11:49 +0200, Ingo Molnar wrote:
->>>>>> xen_mm_pin_all()/unpin_all() are used to implement full guest
->>>>>> instance
->>>>>> suspend/restore. It's a stop-all method that needs to iterate
->>>>>> through all
->>>>>> allocated pgds in the system to fix them up for Xen's use.
->>>>>>
->>>>>> This code uses pgd_list, probably because it was an easy interface.
->>>>>>
->>>>>> But we want to remove the pgd_list, so convert the code over to
->>>>>> walk all
->>>>>> tasks in the system. This is an equivalent method.
->>>> It is not equivalent because pgd_alloc() now populates entries in
->>>> pgds that are
->>>> not visible to xen_mm_pin_all() (note how the original code adds the
->>>> pgd to the
->>>> pgd_list in pgd_ctor() before calling pgd_prepopulate_pmd()).  These
->>>> newly
->>>> allocated page tables won't be correctly converted on suspend/resume
->>>> and the new
->>>> process will die after resume.
->>> So how should the Xen logic be fixed for the new scheme? I can't say
->>> I can see
->>> through the paravirt complexity here.
->> Actually, since we freeze_processes() before trying to pin page tables,
->> I think it should be ok as-is.
->>
->> I'll put the patch through some tests.
+On (06/16/15 22:37), Minchan Kim wrote:
+> On Fri, Jun 05, 2015 at 09:03:53PM +0900, Sergey Senozhatsky wrote:
+> > get_fullness_group() considers 3/4 full pages as almost empty.
+> > That, unfortunately, marks as ALMOST_EMPTY pages that we would
+> > probably like to keep in ALMOST_FULL lists.
+> > 
+> > ALMOST_EMPTY:
+> > [..]
+> >   inuse: 3 max_objects: 4
+> >   inuse: 5 max_objects: 7
+> >   inuse: 5 max_objects: 7
+> >   inuse: 2 max_objects: 3
+> > [..]
+> > 
+> > For "inuse: 5 max_objexts: 7" ALMOST_EMPTY page, for example,
+> > it'll take 2 obj_malloc to make the page FULL and 5 obj_free to
+> > make it EMPTY. Compaction selects ALMOST_EMPTY pages as source
+> > pages, which can result in extra object moves.
+> > 
+> > In other words, from compaction point of view, it makes more
+> > sense to fill this page, rather than drain it.
+> > 
+> > Decrease ALMOST_FULL waterline to 2/3 of max capacity; which is,
+> > of course, still imperfect, but can shorten compaction
+> > execution time.
 > 
-> Actually, I just ran this through a couple of boot/suspend/resume tests
-> and didn't see any issues (with the one fix I mentioned to Ingo
-> earlier). On unstable Xen only.
+> However, at worst case, once compaction is done, it could remain
+> 33% fragment space while it can remain 25% fragment space in current.
+> Maybe 25% wouldn't enough so we might need to scan ZS_ALMOST_FULL as
+> source in future. Anyway, compaction is really slow path now so
+> I prefer saving memory space by reduce internal fragmentation to
+> performance caused more copy of objects.
+> 
 
-In which case this can have a:
+Well, agree. I think we can drop this one from the series for now.
+It's very hard to support this patch with any numbers, etc. because
+it depends on things that are out of zram/zsmalloc control -- IO and
+data patterns.
 
-Reviewed-by: David Vrabel <david.vrabel@citrix.com>
+(opposing this patch is also very hard, due to exactly same reason).
 
-Thanks.
+	-ss
 
-David
+> > 
+> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> > ---
+> >  mm/zsmalloc.c | 4 ++--
+> >  1 file changed, 2 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> > index cd37bda..b94e281 100644
+> > --- a/mm/zsmalloc.c
+> > +++ b/mm/zsmalloc.c
+> > @@ -198,7 +198,7 @@ static int zs_size_classes;
+> >   *
+> >   * (see: fix_fullness_group())
+> >   */
+> > -static const int fullness_threshold_frac = 4;
+> > +static const int fullness_threshold_frac = 3;
+> >  
+> >  struct size_class {
+> >  	/*
+> > @@ -633,7 +633,7 @@ static enum fullness_group get_fullness_group(struct page *page)
+> >  		fg = ZS_EMPTY;
+> >  	else if (inuse == max_objects)
+> >  		fg = ZS_FULL;
+> > -	else if (inuse <= 3 * max_objects / fullness_threshold_frac)
+> > +	else if (inuse <= 2 * max_objects / fullness_threshold_frac)
+> >  		fg = ZS_ALMOST_EMPTY;
+> >  	else
+> >  		fg = ZS_ALMOST_FULL;
+> > -- 
+> > 2.4.2.387.gf86f31a
+> > 
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
