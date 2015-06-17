@@ -1,61 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BDE796B0070
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 11:09:12 -0400 (EDT)
-Received: by lbbqq2 with SMTP id qq2so33742366lbb.3
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 08:09:12 -0700 (PDT)
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com. [209.85.217.171])
-        by mx.google.com with ESMTPS id pu2si3843678lbb.69.2015.06.17.08.09.10
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id E9FE56B0072
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 11:16:36 -0400 (EDT)
+Received: by wgv5 with SMTP id 5so39854036wgv.1
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 08:16:36 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id m6si9677796wif.81.2015.06.17.08.16.35
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jun 2015 08:09:11 -0700 (PDT)
-Received: by lblr1 with SMTP id r1so33843870lbl.0
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 08:09:10 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAPcyv4hkS+3iTqJkcuES13vZKNYdWKufAqjD3+Pf4BaZ88nZEQ@mail.gmail.com>
-References: <20150611211354.10271.57950.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20150611211947.10271.80768.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20150617113121.GC9246@lst.de> <CAPcyv4hkS+3iTqJkcuES13vZKNYdWKufAqjD3+Pf4BaZ88nZEQ@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 17 Jun 2015 08:08:49 -0700
-Message-ID: <CALCETrX_CCvZyoscZaOnqiyPgFmNg9i0qh452pTeHQnQGjAGug@mail.gmail.com>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Wed, 17 Jun 2015 08:16:35 -0700 (PDT)
+Date: Wed, 17 Jun 2015 17:15:57 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
 Subject: Re: [PATCH v4 6/6] arch, x86: pmem api for ensuring durability of
  persistent memory updates
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <CALCETrXXYyjKHi1ajR6aescmjSo5eds=5g_byWpzBRbBNdsgRQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.11.1506171714490.4107@nanos>
+References: <20150611211354.10271.57950.stgit@dwillia2-desk3.amr.corp.intel.com> <20150611211947.10271.80768.stgit@dwillia2-desk3.amr.corp.intel.com> <CALCETrXXYyjKHi1ajR6aescmjSo5eds=5g_byWpzBRbBNdsgRQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Christoph Hellwig <hch@lst.de>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Michael Ellerman <mpe@ellerman.id.au>, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, Toshi Kani <toshi.kani@hp.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Michael Ellerman <mpe@ellerman.id.au>, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>, Christoph Hellwig <hch@lst.de>
 
-On Wed, Jun 17, 2015 at 7:54 AM, Dan Williams <dan.j.williams@intel.com> wrote:
-> On Wed, Jun 17, 2015 at 4:31 AM, Christoph Hellwig <hch@lst.de> wrote:
->> This mess with arch_ methods and an ops vecor is almost unreadable.
->>
->> What's the problem with having something like:
->>
->> pmem_foo()
->> {
->>         if (arch_has_pmem)              // or sync_pmem
->>                 arch_pmem_foo();
->>         generic_pmem_foo();
->> }
->>
->> This adds a branch at runtime, but that shoudn't really be any slower
->> than an indirect call on architectures that matter.
->
-> No doubt it's premature optimization, but it bothered me that we'll
-> end up calling cpuid perhaps multiple times every i/o.  If it's just a
-> readability concern I could wrap it in helpers.  Getting it upstream
-> is my primary concern at this point so I have no strong attachment to
-> the indirect calls if that's all that is preventing an ack.
+On Wed, 17 Jun 2015, Andy Lutomirski wrote:
+> On Thu, Jun 11, 2015 at 2:19 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+> > +static inline void arch_sync_pmem(void)
+> > +{
+> > +       wmb();
+> > +       pcommit_sfence();
+> > +}
+> 
+> This function is non-intuitive to me.  It's really "arch-specific sync
+> pmem after one or more copies using arch_memcpy_to_pmem".  If normal
+> stores or memcpy to non-WC memory is used instead, then it's
+> insufficient if the memory is WB and it's unnecessarily slow if the
+> memory is WT or UC (the first sfence isn't needed).
+> 
+> I would change the name and add documentation.  I'd also add a comment
+> about the wmb() being an SFENCE to flush pending non-temporal writes.
 
-A cpuid per i/o would be a killer, but the cpufeature code is way
-smarter than that.
+Not "I'd also add ...".
 
-You want static_cpu_has, though -- it's even faster, since it gets
-patched at boot time.
+Documentation of memory barriers are mandatory.
 
---Andy
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
