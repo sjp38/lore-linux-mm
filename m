@@ -1,75 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 281A06B0093
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 07:45:32 -0400 (EDT)
-Received: by lbbwc1 with SMTP id wc1so29825107lbb.2
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 04:45:31 -0700 (PDT)
-Received: from mx02.imt-systems.com (mx02.imt-systems.com. [212.224.83.171])
-        by mx.google.com with ESMTPS id fk12si7329329wjc.153.2015.06.17.04.45.29
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 276546B009A
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 08:11:11 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so137450900wig.0
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 05:11:10 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id li12si8712270wic.91.2015.06.17.05.11.09
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jun 2015 04:45:30 -0700 (PDT)
-Received: from ucsinet10.imt-systems.com (ucsinet10.imt-systems.com [212.224.83.165])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mx02.imt-systems.com (Postfix) with ESMTPS id 3mBPj42Z4hzMwm4L
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 13:45:28 +0200 (CEST)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	(authenticated bits=0)
-	by ucsinet10.imt-systems.com (8.14.7/8.14.7) with ESMTP id t5HBjSdZ020371
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 13:45:28 +0200
-Received: by wifx6 with SMTP id x6so50180682wif.0
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 04:45:27 -0700 (PDT)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 17 Jun 2015 05:11:09 -0700 (PDT)
+Date: Wed, 17 Jun 2015 14:11:04 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [RFC -v2] panic_on_oom_timeout
+Message-ID: <20150617121104.GD25056@dhcp22.suse.cz>
+References: <20150609170310.GA8990@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <557E6C0C.3050802@monom.org>
-References: <alpine.LSU.2.11.1506140944380.11018@eggly.anvils>
-	<557E6C0C.3050802@monom.org>
-Date: Wed, 17 Jun 2015 13:45:27 +0200
-Message-ID: <CAKSJeFKR+jWYiMiexvqGyBQe-=hGmq0DO0TZK-EQszTwcbmG4A@mail.gmail.com>
-Subject: Re: mm: shmem_zero_setup skip security check and lockdep conflict
- with XFS
-From: Morten Stevens <mstevens@fedoraproject.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150609170310.GA8990@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Wagner <wagi@monom.org>
-Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Prarit Bhargava <prarit@redhat.com>, Morten Stevens <mstevens@fedoraproject.org>, Dave Chinner <david@fromorbit.com>, Eric Paris <eparis@redhat.com>, Eric Sandeen <esandeen@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-2015-06-15 8:09 GMT+02:00 Daniel Wagner <wagi@monom.org>:
-> On 06/14/2015 06:48 PM, Hugh Dickins wrote:
->> It appears that, at some point last year, XFS made directory handling
->> changes which bring it into lockdep conflict with shmem_zero_setup():
->> it is surprising that mmap() can clone an inode while holding mmap_sem,
->> but that has been so for many years.
->>
->> Since those few lockdep traces that I've seen all implicated selinux,
->> I'm hoping that we can use the __shmem_file_setup(,,,S_PRIVATE) which
->> v3.13's commit c7277090927a ("security: shmem: implement kernel private
->> shmem inodes") introduced to avoid LSM checks on kernel-internal inodes:
->> the mmap("/dev/zero") cloned inode is indeed a kernel-internal detail.
->>
->> This also covers the !CONFIG_SHMEM use of ramfs to support /dev/zero
->> (and MAP_SHARED|MAP_ANONYMOUS).  I thought there were also drivers
->> which cloned inode in mmap(), but if so, I cannot locate them now.
->>
->> Reported-and-tested-by: Prarit Bhargava <prarit@redhat.com>
->> Reported-by: Daniel Wagner <wagi@monom.org>
->
-> Reported-and-tested-by: Daniel Wagner <wagi@monom.org>
->
-> Sorry for the long delay. It took me a while to figure out my original
-> setup. I could verify that this patch made the lockdep message go away
-> on 4.0-rc6 and also on 4.1-rc8.
+Hi,
+I was thinking about this and I am more and more convinced that we
+shouldn't care about panic_on_oom=2 configuration for now and go with
+the simplest solution first. I have revisited my original patch and
+replaced delayed work by a timer based on the feedback from Tetsuo.
 
-Yes, it's also fixed for me after applying this patch to 4.1-rc8.
+I think we can rely on timers. A downside would be that we cannot dump
+the full OOM report from the IRQ context because we rely on task_lock
+which is not IRQ safe. But I do not think we really need it. An OOM
+report will be in the log already most of the time and show_mem will
+tell us the current memory situation.
 
-Best regards,
-
-Morten
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+What do you think?
+---
