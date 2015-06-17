@@ -1,109 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 93EB86B0070
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 10:00:03 -0400 (EDT)
-Received: by pdjn11 with SMTP id n11so40779550pdj.0
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 07:00:03 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id rl7si6420650pab.173.2015.06.17.07.00.01
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id C46926B0070
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 10:27:57 -0400 (EDT)
+Received: by qgf75 with SMTP id 75so15766256qgf.1
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 07:27:57 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k199si4489260qhc.57.2015.06.17.07.27.56
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 17 Jun 2015 07:00:02 -0700 (PDT)
-Subject: Re: [RFC -v2] panic_on_oom_timeout
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20150609170310.GA8990@dhcp22.suse.cz>
-	<20150617121104.GD25056@dhcp22.suse.cz>
-	<201506172131.EFE12444.JMLFOSVOHFOtFQ@I-love.SAKURA.ne.jp>
-	<20150617125127.GF25056@dhcp22.suse.cz>
-In-Reply-To: <20150617125127.GF25056@dhcp22.suse.cz>
-Message-Id: <201506172259.EAI00575.OFQtVFFSHMOLJO@I-love.SAKURA.ne.jp>
-Date: Wed, 17 Jun 2015 22:59:54 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Jun 2015 07:27:56 -0700 (PDT)
+Subject: [PATCH V2 0/6] slub: bulk alloc and free for slub allocator
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Date: Wed, 17 Jun 2015 16:26:54 +0200
+Message-ID: <20150617142613.11791.76008.stgit@devil>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-Michal Hocko wrote:
-> > > +	if (sysctl_panic_on_oom_timeout) {
-> > > +		if (sysctl_panic_on_oom > 1) {
-> > > +			pr_warn("panic_on_oom_timeout is ignored for panic_on_oom=2\n");
-> > > +		} else {
-> > > +			/*
-> > > +			 * Only schedule the delayed panic_on_oom when this is
-> > > +			 * the first OOM triggered. oom_lock will protect us
-> > > +			 * from races
-> > > +			 */
-> > > +			if (atomic_read(&oom_victims))
-> > > +				return;
-> > > +
-> > > +			mod_timer(&panic_on_oom_timer,
-> > > +					jiffies + (sysctl_panic_on_oom_timeout * HZ));
-> > > +			return;
-> > > +		}
-> > > +	}
-> > 
-> > Since this version uses global panic_on_oom_timer, you cannot handle
-> > OOM race like below.
-> > 
-> >   (1) p1 in memcg1 calls out_of_memory().
-> >   (2) 5 seconds of timeout is started by p1.
-> >   (3) p1 takes 3 seconds for some reason.
-> >   (4) p2 in memcg2 calls out_of_memory().
-> >   (5) p1 calls unmark_oom_victim() but timer continues.
-> >   (6) p2 takes 2 seconds for some reason.
-> >   (7) 5 seconds of timeout expires despite individual delay was less than
-> >       5 seconds.
-> 
-> Yes it is not intended to handle such a race. Timeout is completely
-> ignored for panic_on_oom=2 and contrained oom context doesn't trigger
-> this path for panic_on_oom=1.
-> 
-Oops.
+With this patchset SLUB allocator now both have bulk alloc and free
+implemented.
 
-> But you have a point that we could have
-> - constrained OOM which elevates oom_victims
-> - global OOM killer strikes but wouldn't start the timer
-> 
-> This is certainly possible and timer_pending(&panic_on_oom) replacing
-> oom_victims check should help here. I will think about this some more.
+(This patchset is based on DaveM's net-next tree on-top of commit
+89d256bb69f)
 
-Yes, please.
+This patchset mostly optimizes the "fastpath" where objects are
+available on the per CPU fastpath page.  This mostly amortize the
+less-heavy none-locked cmpxchg_double used on fastpath.
+
+The "fallback" bulking (e.g __kmem_cache_free_bulk) provides a good
+basis for comparison. Measurements[1] of the fallback functions
+__kmem_cache_{free,alloc}_bulk have been copied from slab_common.c and
+forced "noinline" to force a function call like slab_common.c.
+
+Measurements on CPU CPU i7-4790K @ 4.00GHz
+Baseline normal fastpath (alloc+free cost): 42 cycles(tsc) 10.601 ns
+
+Measurements last-patch with disabled debugging:
+
+Bulk- fallback                   - this-patch
+  1 -  57 cycles(tsc) 14.448 ns  -  44 cycles(tsc) 11.236 ns  improved 22.8%
+  2 -  51 cycles(tsc) 12.768 ns  -  28 cycles(tsc)  7.019 ns  improved 45.1%
+  3 -  48 cycles(tsc) 12.232 ns  -  22 cycles(tsc)  5.526 ns  improved 54.2%
+  4 -  48 cycles(tsc) 12.025 ns  -  19 cycles(tsc)  4.786 ns  improved 60.4%
+  8 -  46 cycles(tsc) 11.558 ns  -  18 cycles(tsc)  4.572 ns  improved 60.9%
+ 16 -  45 cycles(tsc) 11.458 ns  -  18 cycles(tsc)  4.658 ns  improved 60.0%
+ 30 -  45 cycles(tsc) 11.499 ns  -  18 cycles(tsc)  4.568 ns  improved 60.0%
+ 32 -  79 cycles(tsc) 19.917 ns  -  65 cycles(tsc) 16.454 ns  improved 17.7%
+ 34 -  78 cycles(tsc) 19.655 ns  -  63 cycles(tsc) 15.932 ns  improved 19.2%
+ 48 -  68 cycles(tsc) 17.049 ns  -  50 cycles(tsc) 12.506 ns  improved 26.5%
+ 64 -  80 cycles(tsc) 20.009 ns  -  63 cycles(tsc) 15.929 ns  improved 21.3%
+128 -  94 cycles(tsc) 23.749 ns  -  86 cycles(tsc) 21.583 ns  improved  8.5%
+158 -  97 cycles(tsc) 24.299 ns  -  90 cycles(tsc) 22.552 ns  improved  7.2%
+250 - 102 cycles(tsc) 25.681 ns  -  98 cycles(tsc) 24.589 ns  improved  3.9%
+
+Benchmarking shows impressive improvements in the "fastpath" with a
+small number of objects in the working set.  Once the working set
+increases, resulting in activating the "slowpath" (that contains the
+heavier locked cmpxchg_double) the improvement decreases.
+
+I'm currently working on also optimizing the "slowpath" (as network
+stack use-case hits this), but this patchset should provide a good
+foundation for further improvements.
+ Rest of my patch queue in this area needs some more work, but
+preliminary results are good.  I'm attending Netfilter Workshop[2]
+next week, and I'll hopefully return working on further improvements
+in this area.
+
+[1] https://github.com/netoptimizer/prototype-kernel/blob/b4688559b/kernel/mm/slab_bulk_test01.c#L80
+[2] http://workshop.netfilter.org/2015/
+---
+
+Christoph Lameter (1):
+      slab: infrastructure for bulk object allocation and freeing
+
+Jesper Dangaard Brouer (5):
+      slub: fix spelling succedd to succeed
+      slub bulk alloc: extract objects from the per cpu slab
+      slub: improve bulk alloc strategy
+      slub: initial bulk free implementation
+      slub: add support for kmem_cache_debug in bulk calls
 
 
+ include/linux/slab.h |   10 +++++
+ mm/slab.c            |   13 ++++++
+ mm/slab.h            |    9 ++++
+ mm/slab_common.c     |   23 +++++++++++
+ mm/slob.c            |   13 ++++++
+ mm/slub.c            |  109 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 176 insertions(+), 1 deletion(-)
 
-> The important thing is to decide what is the reasonable way forward. We
-> have two two implementations of panic based timeout. So we should decide
-> - Should we add a panic timeout at all?
-> - Should be the timeout bound to panic_on_oom?
-> - Should we care about constrained OOM contexts?
-> - If yes should they use the same timeout?
-> - If no should each memcg be able to define its own timeout?
-> 
-Exactly.
-
-> My thinking is that it should be bound to panic_on_oom=1 only until we
-> hear from somebody actually asking for a constrained oom and even then
-> do not allow for too large configuration space (e.g. no per-memcg
-> timeout) or have separate mempolicy vs. memcg timeouts.
-> 
-My implementation comes from providing debugging hints when analyzing
-vmcore of a stalled system. I'm posting logs of stalls after global OOM
-killer struck because it is easy to reproduce. But what I have problem
-is when a system stalled before the OOM killer strikes (I saw many cases
-for customer's enterprise servers), for we don't have hints for guessing
-whether memory allocator is the cause or not. Thus, my version tried to
-emit warning messages using sysctl_memalloc_task_warn_secs .
-
-Ability to take care of constrained OOM contexts is a side effect of use of
-per a "struct task_struct" variable. Even if we come to a conclusion that
-we should not add a timeout for panic, I hope that a timeout for warning
-about memory allocation stalls is added.
-
-> Let's start simple and make things more complicated later!
-
-I think we mismatch about what the timeout counters are for.
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
