@@ -1,130 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com [209.85.220.181])
-	by kanga.kvack.org (Postfix) with ESMTP id D22A36B0074
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 10:30:55 -0400 (EDT)
-Received: by qkeo142 with SMTP id o142so9954287qke.1
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 07:30:55 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id da8si4521045qcb.10.2015.06.17.07.30.54
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id A01AC6B0071
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 10:41:41 -0400 (EDT)
+Received: by wibdq8 with SMTP id dq8so56125424wib.1
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 07:41:41 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cl5si8279069wjc.68.2015.06.17.07.41.39
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jun 2015 07:30:55 -0700 (PDT)
-Subject: [PATCH V2 6/6] slub: add support for kmem_cache_debug in bulk calls
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Wed, 17 Jun 2015 16:29:52 +0200
-Message-ID: <20150617142934.11791.85352.stgit@devil>
-In-Reply-To: <20150617142613.11791.76008.stgit@devil>
-References: <20150617142613.11791.76008.stgit@devil>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 17 Jun 2015 07:41:40 -0700 (PDT)
+Date: Wed, 17 Jun 2015 16:41:34 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 01/19] memcg: make mem_cgroup_read_{stat|event}() iterate
+ possible cpus instead of online
+Message-ID: <20150617144134.GH25056@dhcp22.suse.cz>
+References: <1432333416-6221-1-git-send-email-tj@kernel.org>
+ <1432333416-6221-2-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1432333416-6221-2-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
 
-Per request of Joonsoo Kim adding kmem debug support.
+On Fri 22-05-15 18:23:18, Tejun Heo wrote:
+> cpu_possible_mask represents the CPUs which are actually possible
+> during that boot instance.  For systems which don't support CPU
+> hotplug, this will match cpu_online_mask exactly in most cases.  Even
+> for systems which support CPU hotplug, the number of possible CPU
+> slots is highly unlikely to diverge greatly from the number of online
+> CPUs.  The only cases where the difference between possible and online
+> caused problems were when the boot code failed to initialize the
+> possible mask and left it fully set at NR_CPUS - 1.
+> 
+> As such, most per-cpu constructs allocate for all possible CPUs and
+> often iterate over the possibles, which also has the benefit of
+> avoiding the blocking CPU hotplug synchronization.
+> 
+> memcg open codes per-cpu stat counting for mem_cgroup_read_stat() and
+> mem_cgroup_read_events(), which iterates over online CPUs and handles
+> CPU hotplug operations explicitly.  This complexity doesn't actually
+> buy anything.  Switch to iterating over the possibles and drop the
+> explicit CPU hotplug handling.
+> 
+> Eventually, we want to convert memcg to use percpu_counter instead of
+> its own custom implementation which also benefits from quick access
+> w/o summing for cases where larger error margin is acceptable.
+> 
+> This will allow mem_cgroup_read_stat() to be called from non-sleepable
+> contexts which will be used by cgroup writeback.
+> 
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
 
-I've tested that when debugging is disabled, then there is almost
-no performance impact as this code basically gets removed by the
-compiler.
+I am sorry for being late in this thread. 
 
-Need some guidance in enabling and testing this.
+I have seen systems where the number of possible CPUs was really high
+wrt. online ones but I wouldn't worry about them. The change is an
+overal improvement for usual configurations though.
 
-Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  mm/memcontrol.c | 51 ++-------------------------------------------------
+>  1 file changed, 2 insertions(+), 49 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 6732c2c..d7d270a 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -324,11 +324,6 @@ struct mem_cgroup {
+>  	 * percpu counter.
+>  	 */
+>  	struct mem_cgroup_stat_cpu __percpu *stat;
+> -	/*
+> -	 * used when a cpu is offlined or other synchronizations
+> -	 * See mem_cgroup_read_stat().
+> -	 */
+> -	struct mem_cgroup_stat_cpu nocpu_base;
+>  	spinlock_t pcp_counter_lock;
+>  
+>  #if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
+> @@ -815,15 +810,8 @@ static long mem_cgroup_read_stat(struct mem_cgroup *memcg,
+>  	long val = 0;
+>  	int cpu;
+>  
+> -	get_online_cpus();
+> -	for_each_online_cpu(cpu)
+> +	for_each_possible_cpu(cpu)
+>  		val += per_cpu(memcg->stat->count[idx], cpu);
+> -#ifdef CONFIG_HOTPLUG_CPU
+> -	spin_lock(&memcg->pcp_counter_lock);
+> -	val += memcg->nocpu_base.count[idx];
+> -	spin_unlock(&memcg->pcp_counter_lock);
+> -#endif
+> -	put_online_cpus();
+>  	return val;
+>  }
+>  
+> @@ -833,15 +821,8 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
+>  	unsigned long val = 0;
+>  	int cpu;
+>  
+> -	get_online_cpus();
+> -	for_each_online_cpu(cpu)
+> +	for_each_possible_cpu(cpu)
+>  		val += per_cpu(memcg->stat->events[idx], cpu);
+> -#ifdef CONFIG_HOTPLUG_CPU
+> -	spin_lock(&memcg->pcp_counter_lock);
+> -	val += memcg->nocpu_base.events[idx];
+> -	spin_unlock(&memcg->pcp_counter_lock);
+> -#endif
+> -	put_online_cpus();
+>  	return val;
+>  }
+>  
+> @@ -2191,37 +2172,12 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
+>  	mutex_unlock(&percpu_charge_mutex);
+>  }
+>  
+> -/*
+> - * This function drains percpu counter value from DEAD cpu and
+> - * move it to local cpu. Note that this function can be preempted.
+> - */
+> -static void mem_cgroup_drain_pcp_counter(struct mem_cgroup *memcg, int cpu)
+> -{
+> -	int i;
+> -
+> -	spin_lock(&memcg->pcp_counter_lock);
+> -	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+> -		long x = per_cpu(memcg->stat->count[i], cpu);
+> -
+> -		per_cpu(memcg->stat->count[i], cpu) = 0;
+> -		memcg->nocpu_base.count[i] += x;
+> -	}
+> -	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++) {
+> -		unsigned long x = per_cpu(memcg->stat->events[i], cpu);
+> -
+> -		per_cpu(memcg->stat->events[i], cpu) = 0;
+> -		memcg->nocpu_base.events[i] += x;
+> -	}
+> -	spin_unlock(&memcg->pcp_counter_lock);
+> -}
+> -
+>  static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
+>  					unsigned long action,
+>  					void *hcpu)
+>  {
+>  	int cpu = (unsigned long)hcpu;
+>  	struct memcg_stock_pcp *stock;
+> -	struct mem_cgroup *iter;
+>  
+>  	if (action == CPU_ONLINE)
+>  		return NOTIFY_OK;
+> @@ -2229,9 +2185,6 @@ static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
+>  	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN)
+>  		return NOTIFY_OK;
+>  
+> -	for_each_mem_cgroup(iter)
+> -		mem_cgroup_drain_pcp_counter(iter, cpu);
+> -
+>  	stock = &per_cpu(memcg_stock, cpu);
+>  	drain_stock(stock);
+>  	return NOTIFY_OK;
+> -- 
+> 2.4.0
+> 
 
----
-Measurements with disabled debugging:
-
-bulk- PREVIOUS                  - THIS-PATCH
-  1 -  43 cycles(tsc) 10.811 ns -  44 cycles(tsc) 11.236 ns  improved  -2.3%
-  2 -  27 cycles(tsc)  6.867 ns -  28 cycles(tsc)  7.019 ns  improved  -3.7%
-  3 -  21 cycles(tsc)  5.496 ns -  22 cycles(tsc)  5.526 ns  improved  -4.8%
-  4 -  24 cycles(tsc)  6.038 ns -  19 cycles(tsc)  4.786 ns  improved  20.8%
-  8 -  17 cycles(tsc)  4.280 ns -  18 cycles(tsc)  4.572 ns  improved  -5.9%
- 16 -  17 cycles(tsc)  4.483 ns -  18 cycles(tsc)  4.658 ns  improved  -5.9%
- 30 -  18 cycles(tsc)  4.531 ns -  18 cycles(tsc)  4.568 ns  improved   0.0%
- 32 -  58 cycles(tsc) 14.586 ns -  65 cycles(tsc) 16.454 ns  improved -12.1%
- 34 -  53 cycles(tsc) 13.391 ns -  63 cycles(tsc) 15.932 ns  improved -18.9%
- 48 -  65 cycles(tsc) 16.268 ns -  50 cycles(tsc) 12.506 ns  improved  23.1%
- 64 -  53 cycles(tsc) 13.440 ns -  63 cycles(tsc) 15.929 ns  improved -18.9%
-128 -  79 cycles(tsc) 19.899 ns -  86 cycles(tsc) 21.583 ns  improved  -8.9%
-158 -  90 cycles(tsc) 22.732 ns -  90 cycles(tsc) 22.552 ns  improved   0.0%
-250 -  95 cycles(tsc) 23.916 ns -  98 cycles(tsc) 24.589 ns  improved  -3.2%
-
- mm/slub.c |   28 +++++++++++++++++++---------
- 1 file changed, 19 insertions(+), 9 deletions(-)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index 6ac5921b3389..cb19d5c0e26c 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2757,10 +2757,6 @@ void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
- 	struct page *page;
- 	int i;
- 
--	/* Debugging fallback to generic bulk */
--	if (kmem_cache_debug(s))
--		return __kmem_cache_free_bulk(s, size, p);
--
- 	local_irq_disable();
- 	c = this_cpu_ptr(s->cpu_slab);
- 
-@@ -2768,8 +2764,13 @@ void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
- 		void *object = p[i];
- 
- 		BUG_ON(!object);
-+		/* kmem cache debug support */
-+		s = cache_from_obj(s, object);
-+		if (unlikely(!s))
-+			goto exit;
-+		slab_free_hook(s, object);
-+
- 		page = virt_to_head_page(object);
--		BUG_ON(s != page->slab_cache); /* Check if valid slab page */
- 
- 		if (c->page == page) {
- 			/* Fastpath: local CPU free */
-@@ -2784,6 +2785,7 @@ void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
- 			c = this_cpu_ptr(s->cpu_slab);
- 		}
- 	}
-+exit:
- 	c->tid = next_tid(c->tid);
- 	local_irq_enable();
- }
-@@ -2796,10 +2798,6 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
- 	struct kmem_cache_cpu *c;
- 	int i;
- 
--	/* Debugging fallback to generic bulk */
--	if (kmem_cache_debug(s))
--		return __kmem_cache_alloc_bulk(s, flags, size, p);
--
- 	/*
- 	 * Drain objects in the per cpu slab, while disabling local
- 	 * IRQs, which protects against PREEMPT and interrupts
-@@ -2828,8 +2826,20 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
- 			continue; /* goto for-loop */
- 		}
- 
-+		/* kmem_cache debug support */
-+		s = slab_pre_alloc_hook(s, flags);
-+		if (unlikely(!s)) {
-+			__kmem_cache_free_bulk(s, i, p);
-+			c->tid = next_tid(c->tid);
-+			local_irq_enable();
-+			return false;
-+		}
-+
- 		c->freelist = get_freepointer(s, object);
- 		p[i] = object;
-+
-+		/* kmem_cache debug support */
-+		slab_post_alloc_hook(s, flags, object);
- 	}
- 	c->tid = next_tid(c->tid);
- 	local_irq_enable();
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
