@@ -1,42 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id E7D056B008C
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 07:31:23 -0400 (EDT)
-Received: by wifx6 with SMTP id x6so49776619wif.0
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 04:31:23 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id k2si3285518wjz.170.2015.06.17.04.31.22
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 281A06B0093
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 07:45:32 -0400 (EDT)
+Received: by lbbwc1 with SMTP id wc1so29825107lbb.2
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 04:45:31 -0700 (PDT)
+Received: from mx02.imt-systems.com (mx02.imt-systems.com. [212.224.83.171])
+        by mx.google.com with ESMTPS id fk12si7329329wjc.153.2015.06.17.04.45.29
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jun 2015 04:31:22 -0700 (PDT)
-Date: Wed, 17 Jun 2015 13:31:21 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH v4 6/6] arch, x86: pmem api for ensuring durability of
-	persistent memory updates
-Message-ID: <20150617113121.GC9246@lst.de>
-References: <20150611211354.10271.57950.stgit@dwillia2-desk3.amr.corp.intel.com> <20150611211947.10271.80768.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Wed, 17 Jun 2015 04:45:30 -0700 (PDT)
+Received: from ucsinet10.imt-systems.com (ucsinet10.imt-systems.com [212.224.83.165])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mx02.imt-systems.com (Postfix) with ESMTPS id 3mBPj42Z4hzMwm4L
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 13:45:28 +0200 (CEST)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	(authenticated bits=0)
+	by ucsinet10.imt-systems.com (8.14.7/8.14.7) with ESMTP id t5HBjSdZ020371
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 13:45:28 +0200
+Received: by wifx6 with SMTP id x6so50180682wif.0
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 04:45:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150611211947.10271.80768.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <557E6C0C.3050802@monom.org>
+References: <alpine.LSU.2.11.1506140944380.11018@eggly.anvils>
+	<557E6C0C.3050802@monom.org>
+Date: Wed, 17 Jun 2015 13:45:27 +0200
+Message-ID: <CAKSJeFKR+jWYiMiexvqGyBQe-=hGmq0DO0TZK-EQszTwcbmG4A@mail.gmail.com>
+Subject: Re: mm: shmem_zero_setup skip security check and lockdep conflict
+ with XFS
+From: Morten Stevens <mstevens@fedoraproject.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: arnd@arndb.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, jgross@suse.com, x86@kernel.org, toshi.kani@hp.com, linux-nvdimm@lists.01.org, benh@kernel.crashing.org, mcgrof@suse.com, konrad.wilk@oracle.com, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, mpe@ellerman.id.au, tj@kernel.org, paulus@samba.org, hch@lst.de
+To: Daniel Wagner <wagi@monom.org>
+Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Prarit Bhargava <prarit@redhat.com>, Morten Stevens <mstevens@fedoraproject.org>, Dave Chinner <david@fromorbit.com>, Eric Paris <eparis@redhat.com>, Eric Sandeen <esandeen@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This mess with arch_ methods and an ops vecor is almost unreadable.
+2015-06-15 8:09 GMT+02:00 Daniel Wagner <wagi@monom.org>:
+> On 06/14/2015 06:48 PM, Hugh Dickins wrote:
+>> It appears that, at some point last year, XFS made directory handling
+>> changes which bring it into lockdep conflict with shmem_zero_setup():
+>> it is surprising that mmap() can clone an inode while holding mmap_sem,
+>> but that has been so for many years.
+>>
+>> Since those few lockdep traces that I've seen all implicated selinux,
+>> I'm hoping that we can use the __shmem_file_setup(,,,S_PRIVATE) which
+>> v3.13's commit c7277090927a ("security: shmem: implement kernel private
+>> shmem inodes") introduced to avoid LSM checks on kernel-internal inodes:
+>> the mmap("/dev/zero") cloned inode is indeed a kernel-internal detail.
+>>
+>> This also covers the !CONFIG_SHMEM use of ramfs to support /dev/zero
+>> (and MAP_SHARED|MAP_ANONYMOUS).  I thought there were also drivers
+>> which cloned inode in mmap(), but if so, I cannot locate them now.
+>>
+>> Reported-and-tested-by: Prarit Bhargava <prarit@redhat.com>
+>> Reported-by: Daniel Wagner <wagi@monom.org>
+>
+> Reported-and-tested-by: Daniel Wagner <wagi@monom.org>
+>
+> Sorry for the long delay. It took me a while to figure out my original
+> setup. I could verify that this patch made the lockdep message go away
+> on 4.0-rc6 and also on 4.1-rc8.
 
-What's the problem with having something like:
+Yes, it's also fixed for me after applying this patch to 4.1-rc8.
 
-pmem_foo()
-{
-	if (arch_has_pmem)		// or sync_pmem
-		arch_pmem_foo();
-	generic_pmem_foo();
-}
+Best regards,
 
-This adds a branch at runtime, but that shoudn't really be any slower
-than an indirect call on architectures that matter.
+Morten
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
