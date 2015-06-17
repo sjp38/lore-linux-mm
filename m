@@ -1,46 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 4778E6B006E
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 03:59:38 -0400 (EDT)
-Received: by oial131 with SMTP id l131so28655511oia.3
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 00:59:38 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id px9si2187950obc.92.2015.06.17.00.59.37
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 35D0C6B0071
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 04:13:26 -0400 (EDT)
+Received: by wgbhy7 with SMTP id hy7so30048563wgb.2
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 01:13:25 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t5si28600783wiy.114.2015.06.17.01.13.23
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 17 Jun 2015 00:59:37 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v3 1/4] pagemap: check permissions and capabilities at
- open time
-Date: Wed, 17 Jun 2015 07:58:10 +0000
-Message-ID: <20150617075809.GB384@hori1.linux.bs1.fc.nec.co.jp>
-References: <20150609195333.21971.58194.stgit@zurg>
- <20150609200015.21971.25692.stgit@zurg>
-In-Reply-To: <20150609200015.21971.25692.stgit@zurg>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <4D66D730AA62554CA938E4CF12CCA0A0@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 17 Jun 2015 01:13:23 -0700 (PDT)
+Date: Wed, 17 Jun 2015 10:13:19 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [BUG] fs: inotify_handle_event() reading un-init memory
+Message-ID: <20150617081319.GA1614@quack.suse.cz>
+References: <20150616113300.10621.35439.stgit@devil>
+ <20150616135209.GD7038@quack.suse.cz>
+ <20150616222234.3ebc6402@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150616222234.3ebc6402@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-api@vger.kernel.org" <linux-api@vger.kernel.org>, Mark Williamson <mwilliamson@undo-software.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jun 09, 2015 at 11:00:15PM +0300, Konstantin Khlebnikov wrote:
-> From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
->=20
-> This patch moves permission checks from pagemap_read() into pagemap_open(=
-).
->=20
-> Pointer to mm is saved in file->private_data. This reference pins only
-> mm_struct itself. /proc/*/mem, maps, smaps already work in the same way.
->=20
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-> Link: http://lkml.kernel.org/r/CA+55aFyKpWrt_Ajzh1rzp_GcwZ4=3D6Y=3DkOv8hB=
-z172CFJp6L8Tg@mail.gmail.com
-                                                          =20
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>   =
+On Tue 16-06-15 22:22:34, Jesper Dangaard Brouer wrote:
+> 
+> On Tue, 16 Jun 2015 15:52:09 +0200 Jan Kara <jack@suse.cz> wrote:
+> 
+> > On Tue 16-06-15 13:33:18, Jesper Dangaard Brouer wrote:
+> > > Caught by kmemcheck.
+> > > 
+> > > Don't know the fix... just pointed at the bug.
+> > > 
+> > > Introduced in commit 7053aee26a3 ("fsnotify: do not share
+> > > events between notification groups").
+> > > ---
+> > >  fs/notify/inotify/inotify_fsnotify.c |    3 ++-
+> > >  1 file changed, 2 insertions(+), 1 deletion(-)
+> > > 
+> > > diff --git a/fs/notify/inotify/inotify_fsnotify.c b/fs/notify/inotify/inotify_fsnotify.c
+> > > index 2cd900c2c737..370d66dc4ddb 100644
+> > > --- a/fs/notify/inotify/inotify_fsnotify.c
+> > > +++ b/fs/notify/inotify/inotify_fsnotify.c
+> > > @@ -96,11 +96,12 @@ int inotify_handle_event(struct fsnotify_group *group,
+> > >  	i_mark = container_of(inode_mark, struct inotify_inode_mark,
+> > >  			      fsn_mark);
+> > >  
+> > > +	// new object alloc here
+> > >  	event = kmalloc(alloc_len, GFP_KERNEL);
+> > >  	if (unlikely(!event))
+> > >  		return -ENOMEM;
+> > >  
+> > > -	fsn_event = &event->fse;
+> > > +	fsn_event = &event->fse; // This looks wrong!?! read from un-init mem?
+> > 
+> > Where is here any read? This is just a pointer arithmetics where we add
+> > offset of 'fse' entry to 'event' address.
+> 
+> I was kmemcheck that complained, perhaps it is a false-positive?
+  May be. What was the kmemcheck warning you saw? And can you also attach
+disassembly of inotify_handle_event() from your kernel? Thanks!
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
