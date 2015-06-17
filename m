@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 300596B0073
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 10:28:57 -0400 (EDT)
-Received: by qcbfz6 with SMTP id fz6so14071708qcb.0
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 07:28:57 -0700 (PDT)
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id A088C6B0074
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 10:29:29 -0400 (EDT)
+Received: by qged89 with SMTP id d89so15763052qge.0
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 07:29:29 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b53si4478401qge.107.2015.06.17.07.28.56
+        by mx.google.com with ESMTPS id i35si4475036qgd.126.2015.06.17.07.29.28
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jun 2015 07:28:56 -0700 (PDT)
-Subject: [PATCH V2 2/6] slab: infrastructure for bulk object allocation and
- freeing
+        Wed, 17 Jun 2015 07:29:28 -0700 (PDT)
+Subject: [PATCH V2 3/6] slub bulk alloc: extract objects from the per cpu
+ slab
 From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Wed, 17 Jun 2015 16:27:53 +0200
-Message-ID: <20150617142741.11791.82931.stgit@devil>
+Date: Wed, 17 Jun 2015 16:28:24 +0200
+Message-ID: <20150617142803.11791.896.stgit@devil>
 In-Reply-To: <20150617142613.11791.76008.stgit@devil>
 References: <20150617142613.11791.76008.stgit@devil>
 MIME-Version: 1.0
@@ -24,211 +24,120 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-From: Christoph Lameter <cl@linux.com>
+First piece: acceleration of retrieval of per cpu objects
 
-Add the basic infrastructure for alloc/free operations on pointer arrays.
-It includes a generic function in the common slab code that is used in
-this infrastructure patch to create the unoptimized functionality for slab
-bulk operations.
+If we are allocating lots of objects then it is advantageous to disable
+interrupts and avoid the this_cpu_cmpxchg() operation to get these objects
+faster.
 
-Allocators can then provide optimized allocation functions for situations
-in which large numbers of objects are needed.  These optimization may
-avoid taking locks repeatedly and bypass metadata creation if all objects
-in slab pages can be used to provide the objects required.
+Note that we cannot do the fast operation if debugging is enabled, because
+we would have to add extra code to do all the debugging checks.  And it
+would not be fast anyway.
 
-Allocators can extend the skeletons provided and add their own code to the
-bulk alloc and free functions.  They can keep the generic allocation and
-freeing and just fall back to those if optimizations would not work (like
-for example when debugging is on).
+Note also that the requirement of having interrupts disabled
+avoids having to do processor flag operations.
+
+Allocate as many objects as possible in the fast way and then fall back to
+the generic implementation for the rest of the objects.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
 
 ---
-V2: fix kmem_cache_alloc_bulk calling itself
+V2:
+ - Merged several patches into this
+ - Basically rewritten entire function...
 
-In measurements[1] the fallback functions __kmem_cache_{free,alloc}_bulk
-have been copied from slab_common.c and forced "noinline" to force a
-function call like slab_common.c.
+Measurements on CPU CPU i7-4790K @ 4.00GHz
+Baseline normal fastpath (alloc+free cost): 42 cycles(tsc) 10.554 ns
 
-Bulk- fallback                   - just-invoking-callbacks
-  1 -  57 cycles(tsc) 14.500 ns  -  64 cycles(tsc) 16.121 ns
-  2 -  51 cycles(tsc) 12.760 ns  -  53 cycles(tsc) 13.422 ns
-  3 -  49 cycles(tsc) 12.345 ns  -  51 cycles(tsc) 12.855 ns
-  4 -  48 cycles(tsc) 12.110 ns  -  49 cycles(tsc) 12.494 ns
-  8 -  46 cycles(tsc) 11.596 ns  -  47 cycles(tsc) 11.768 ns
- 16 -  45 cycles(tsc) 11.357 ns  -  45 cycles(tsc) 11.459 ns
- 30 -  86 cycles(tsc) 21.622 ns  -  86 cycles(tsc) 21.639 ns
- 32 -  83 cycles(tsc) 20.838 ns  -  83 cycles(tsc) 20.849 ns
- 34 -  90 cycles(tsc) 22.509 ns  -  90 cycles(tsc) 22.516 ns
- 48 -  98 cycles(tsc) 24.692 ns  -  98 cycles(tsc) 24.660 ns
- 64 -  99 cycles(tsc) 24.775 ns  -  99 cycles(tsc) 24.848 ns
-128 - 105 cycles(tsc) 26.305 ns  - 104 cycles(tsc) 26.065 ns
-158 - 104 cycles(tsc) 26.214 ns  - 104 cycles(tsc) 26.139 ns
-250 - 105 cycles(tsc) 26.360 ns  - 105 cycles(tsc) 26.309 ns
+Bulk- fallback                   - this-patch
+  1 -  57 cycles(tsc) 14.432 ns  -  48 cycles(tsc) 12.155 ns  improved 15.8%
+  2 -  50 cycles(tsc) 12.746 ns  -  37 cycles(tsc)  9.390 ns  improved 26.0%
+  3 -  48 cycles(tsc) 12.180 ns  -  33 cycles(tsc)  8.417 ns  improved 31.2%
+  4 -  48 cycles(tsc) 12.015 ns  -  32 cycles(tsc)  8.045 ns  improved 33.3%
+  8 -  46 cycles(tsc) 11.526 ns  -  30 cycles(tsc)  7.699 ns  improved 34.8%
+ 16 -  45 cycles(tsc) 11.418 ns  -  32 cycles(tsc)  8.205 ns  improved 28.9%
+ 30 -  80 cycles(tsc) 20.246 ns  -  73 cycles(tsc) 18.328 ns  improved  8.8%
+ 32 -  79 cycles(tsc) 19.946 ns  -  72 cycles(tsc) 18.208 ns  improved  8.9%
+ 34 -  78 cycles(tsc) 19.659 ns  -  71 cycles(tsc) 17.987 ns  improved  9.0%
+ 48 -  86 cycles(tsc) 21.516 ns  -  82 cycles(tsc) 20.566 ns  improved  4.7%
+ 64 -  93 cycles(tsc) 23.423 ns  -  89 cycles(tsc) 22.480 ns  improved  4.3%
+128 - 100 cycles(tsc) 25.170 ns  -  99 cycles(tsc) 24.871 ns  improved  1.0%
+158 - 102 cycles(tsc) 25.549 ns  - 101 cycles(tsc) 25.375 ns  improved  1.0%
+250 - 101 cycles(tsc) 25.344 ns  - 100 cycles(tsc) 25.182 ns  improved  1.0%
 
-Measurements clearly show that the extra function call overhead in
-kmem_cache_{free,alloc}_bulk is measurable.  Why don't we make
-__kmem_cache_{free,alloc}_bulk inline?
+ mm/slub.c |   49 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 47 insertions(+), 2 deletions(-)
 
-[1] https://github.com/netoptimizer/prototype-kernel/blob/b4688559b/kernel/mm/slab_bulk_test01.c#L80
-
- include/linux/slab.h |   10 ++++++++++
- mm/slab.c            |   13 +++++++++++++
- mm/slab.h            |    9 +++++++++
- mm/slab_common.c     |   23 +++++++++++++++++++++++
- mm/slob.c            |   13 +++++++++++++
- mm/slub.c            |   14 ++++++++++++++
- 6 files changed, 82 insertions(+)
-
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index ffd24c830151..5db59c950ef7 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -290,6 +290,16 @@ void *__kmalloc(size_t size, gfp_t flags);
- void *kmem_cache_alloc(struct kmem_cache *, gfp_t flags);
- void kmem_cache_free(struct kmem_cache *, void *);
- 
-+/*
-+ * Bulk allocation and freeing operations. These are accellerated in an
-+ * allocator specific way to avoid taking locks repeatedly or building
-+ * metadata structures unnecessarily.
-+ *
-+ * Note that interrupts must be enabled when calling these functions.
-+ */
-+void kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
-+bool kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
-+
- #ifdef CONFIG_NUMA
- void *__kmalloc_node(size_t size, gfp_t flags, int node);
- void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
-diff --git a/mm/slab.c b/mm/slab.c
-index 7eb38dd1cefa..8d4edc4230db 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3415,6 +3415,19 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
+diff --git a/mm/slub.c b/mm/slub.c
+index ac5a196d5ea5..a92fdec57237 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2750,16 +2750,61 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
  }
- EXPORT_SYMBOL(kmem_cache_alloc);
+ EXPORT_SYMBOL(kmem_cache_free);
  
-+void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
-+{
-+	__kmem_cache_free_bulk(s, size, p);
-+}
-+EXPORT_SYMBOL(kmem_cache_free_bulk);
-+
-+bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
-+								void **p)
-+{
-+	return __kmem_cache_alloc_bulk(s, flags, size, p);
-+}
-+EXPORT_SYMBOL(kmem_cache_alloc_bulk);
-+
- #ifdef CONFIG_TRACING
- void *
- kmem_cache_alloc_trace(struct kmem_cache *cachep, gfp_t flags, size_t size)
-diff --git a/mm/slab.h b/mm/slab.h
-index 4c3ac12dd644..6a427a74cca5 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -162,6 +162,15 @@ void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *s);
- ssize_t slabinfo_write(struct file *file, const char __user *buffer,
- 		       size_t count, loff_t *ppos);
- 
-+/*
-+ * Generic implementation of bulk operations
-+ * These are useful for situations in which the allocator cannot
-+ * perform optimizations. In that case segments of the objecct listed
-+ * may be allocated or freed using these operations.
-+ */
-+void __kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
-+bool __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
-+
- #ifdef CONFIG_MEMCG_KMEM
- /*
-  * Iterate over all memcg caches of the given root cache. The caller must hold
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 999bb3424d44..f8acc2bdb88b 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -105,6 +105,29 @@ static inline int kmem_cache_sanity_check(const char *name, size_t size)
++/* Note that interrupts must be enabled when calling this function. */
+ void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
+ {
+ 	__kmem_cache_free_bulk(s, size, p);
  }
- #endif
+ EXPORT_SYMBOL(kmem_cache_free_bulk);
  
-+void __kmem_cache_free_bulk(struct kmem_cache *s, size_t nr, void **p)
-+{
-+	size_t i;
++/* Note that interrupts must be enabled when calling this function. */
+ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+-								void **p)
++			   void **p)
+ {
+-	return __kmem_cache_alloc_bulk(s, flags, size, p);
++	struct kmem_cache_cpu *c;
++	int i;
 +
-+	for (i = 0; i < nr; i++)
-+		kmem_cache_free(s, p[i]);
-+}
++	/* Debugging fallback to generic bulk */
++	if (kmem_cache_debug(s))
++		return __kmem_cache_alloc_bulk(s, flags, size, p);
 +
-+bool __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t nr,
-+								void **p)
-+{
-+	size_t i;
++	/*
++	 * Drain objects in the per cpu slab, while disabling local
++	 * IRQs, which protects against PREEMPT and interrupts
++	 * handlers invoking normal fastpath.
++	 */
++	local_irq_disable();
++	c = this_cpu_ptr(s->cpu_slab);
 +
-+	for (i = 0; i < nr; i++) {
++	for (i = 0; i < size; i++) {
++		void *object = c->freelist;
++
++		if (!object)
++			break;
++
++		c->freelist = get_freepointer(s, object);
++		p[i] = object;
++	}
++	c->tid = next_tid(c->tid);
++	local_irq_enable();
++
++	/* Clear memory outside IRQ disabled fastpath loop */
++	if (unlikely(flags & __GFP_ZERO)) {
++		int j;
++
++		for (j = 0; j < i; j++)
++			memset(p[j], 0, s->object_size);
++	}
++
++	/* Fallback to single elem alloc */
++	for (; i < size; i++) {
 +		void *x = p[i] = kmem_cache_alloc(s, flags);
-+		if (!x) {
++		if (unlikely(!x)) {
 +			__kmem_cache_free_bulk(s, i, p);
 +			return false;
 +		}
 +	}
 +	return true;
-+}
-+
- #ifdef CONFIG_MEMCG_KMEM
- void slab_init_memcg_params(struct kmem_cache *s)
- {
-diff --git a/mm/slob.c b/mm/slob.c
-index 4765f65019c7..165bbd3cd606 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -611,6 +611,19 @@ void kmem_cache_free(struct kmem_cache *c, void *b)
  }
- EXPORT_SYMBOL(kmem_cache_free);
+ EXPORT_SYMBOL(kmem_cache_alloc_bulk);
  
-+void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
-+{
-+	__kmem_cache_free_bulk(s, size, p);
-+}
-+EXPORT_SYMBOL(kmem_cache_free_bulk);
-+
-+bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
-+								void **p)
-+{
-+	return __kmem_cache_alloc_bulk(s, flags, size, p);
-+}
-+EXPORT_SYMBOL(kmem_cache_alloc_bulk);
-+
- int __kmem_cache_shutdown(struct kmem_cache *c)
- {
- 	/* No way to check for remaining objects */
-diff --git a/mm/slub.c b/mm/slub.c
-index 41624ccabc63..ac5a196d5ea5 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2750,6 +2750,20 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
- }
- EXPORT_SYMBOL(kmem_cache_free);
- 
-+void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
-+{
-+	__kmem_cache_free_bulk(s, size, p);
-+}
-+EXPORT_SYMBOL(kmem_cache_free_bulk);
-+
-+bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
-+								void **p)
-+{
-+	return __kmem_cache_alloc_bulk(s, flags, size, p);
-+}
-+EXPORT_SYMBOL(kmem_cache_alloc_bulk);
-+
-+
- /*
-  * Object placement in a slab is made very easy because we always start at
-  * offset 0. If we tune the size of the object to the alignment then we can
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
