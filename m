@@ -1,107 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 511DD6B0032
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 23:20:32 -0400 (EDT)
-Received: by qgeu36 with SMTP id u36so11583017qge.2
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 20:20:32 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r14si3086658qha.35.2015.06.16.20.20.31
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 9963A6B0032
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2015 23:43:49 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so28436370pdb.1
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 20:43:49 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id hb1si4142523pbd.184.2015.06.16.20.43.47
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jun 2015 20:20:31 -0700 (PDT)
-Message-ID: <5580E774.3070307@redhat.com>
-Date: Tue, 16 Jun 2015 23:20:20 -0400
-From: Rik van Riel <riel@redhat.com>
+        Tue, 16 Jun 2015 20:43:47 -0700 (PDT)
+Date: Tue, 16 Jun 2015 20:43:34 -0700
+From: Darren Hart <dvhart@infradead.org>
+Subject: Re: Possible broken MM code in dell-laptop.c?
+Message-ID: <20150617034334.GB29788@vmdeb7>
+References: <201506141105.07171@pali>
+ <20150615211816.GC16138@dhcp22.suse.cz>
+ <201506152327.59907@pali>
+ <20150616063346.GA24296@dhcp22.suse.cz>
+ <20150616071523.GB5863@pali>
 MIME-Version: 1.0
-Subject: Re: [RFC 3/3] mm: make swapin readahead to improve thp collapse rate
-References: <1434294283-8699-1-git-send-email-ebru.akagunduz@gmail.com>	<1434294283-8699-4-git-send-email-ebru.akagunduz@gmail.com> <20150616141540.adc40130139151bf19f07ff9@linux-foundation.org>
-In-Reply-To: <20150616141540.adc40130139151bf19f07ff9@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20150616071523.GB5863@pali>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com
+To: Pali =?iso-8859-1?Q?Roh=E1r?= <pali.rohar@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Hans de Goede <hdegoede@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Stuart Hayes <stuart_hayes@dell.com>, Matthew Garrett <mjg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, platform-driver-x86@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/16/2015 05:15 PM, Andrew Morton wrote:
-> On Sun, 14 Jun 2015 18:04:43 +0300 Ebru Akagunduz <ebru.akagunduz@gmail.com> wrote:
-> 
->> This patch makes swapin readahead to improve thp collapse rate.
->> When khugepaged scanned pages, there can be a few of the pages
->> in swap area.
->>
->> With the patch THP can collapse 4kB pages into a THP when
->> there are up to max_ptes_swap swap ptes in a 2MB range.
->>
->> The patch was tested with a test program that allocates
->> 800MB of memory, writes to it, and then sleeps. I force
->> the system to swap out all. Afterwards, the test program
->> touches the area by writing, it skips a page in each
->> 20 pages of the area.
->>
->> Without the patch, system did not swap in readahead.
->> THP rate was %47 of the program of the memory, it
->> did not change over time.
->>
->> With this patch, after 10 minutes of waiting khugepaged had
->> collapsed %99 of the program's memory.
->>
->> ...
->>
->> +/*
->> + * Bring missing pages in from swap, to complete THP collapse.
->> + * Only done if khugepaged_scan_pmd believes it is worthwhile.
->> + *
->> + * Called and returns without pte mapped or spinlocks held,
->> + * but with mmap_sem held to protect against vma changes.
->> + */
->> +
->> +static void __collapse_huge_page_swapin(struct mm_struct *mm,
->> +					struct vm_area_struct *vma,
->> +					unsigned long address, pmd_t *pmd,
->> +					pte_t *pte)
->> +{
->> +	unsigned long _address;
->> +	pte_t pteval = *pte;
->> +	int swap_pte = 0;
->> +
->> +	pte = pte_offset_map(pmd, address);
->> +	for (_address = address; _address < address + HPAGE_PMD_NR*PAGE_SIZE;
->> +	     pte++, _address += PAGE_SIZE) {
->> +		pteval = *pte;
->> +		if (is_swap_pte(pteval)) {
->> +			swap_pte++;
->> +			do_swap_page(mm, vma, _address, pte, pmd, 0x0, pteval);
->> +			/* pte is unmapped now, we need to map it */
->> +			pte = pte_offset_map(pmd, _address);
->> +		}
->> +	}
->> +	pte--;
->> +	pte_unmap(pte);
->> +	trace_mm_collapse_huge_page_swapin(mm, vma->vm_start, swap_pte);
->> +}
-> 
-> This is doing a series of synchronous reads.  That will be sloooow on
-> spinning disks.
->
-> This function should be significantly faster if it first gets all the
-> necessary I/O underway.  I don't think we have a function which exactly
-> does this.  Perhaps generalise swapin_readahead() or open-code
-> something like
+On Tue, Jun 16, 2015 at 09:15:23AM +0200, Pali Rohar wrote:
+> On Tuesday 16 June 2015 08:33:46 Michal Hocko wrote:
+> > On Mon 15-06-15 23:27:59, Pali Rohar wrote:
+> > > On Monday 15 June 2015 23:18:16 Michal Hocko wrote:
+> > > > On Sun 14-06-15 11:05:07, Pali Rohar wrote:
+> > > > > Hello,
+> > > > > 
+> > > > > in drivers/platform/x86/dell-laptop.c is this part of code:
+> > > > > 
+> > > > > static int __init dell_init(void)
+> > > > > {
+> > > > > ...
+> > > > > 
+> > > > > 	/*
+> > > > > 	
+> > > > > 	 * Allocate buffer below 4GB for SMI data--only 32-bit physical
+> > > > > 	 addr * is passed to SMI handler.
+> > > > > 	 */
+> > > > > 	
+> > > > > 	bufferpage = alloc_page(GFP_KERNEL | GFP_DMA32);
+> > > > 
+> > > > [...]
+> > > > 
+> > > > > 	buffer = page_address(bufferpage);
+> > > > 
+> > > > [...]
+> > > > 
+> > > > > fail_rfkill:
+> > > > > 	free_page((unsigned long)bufferpage);
+> > > > 
+> > > > This one should be __free_page because it consumes struct page* and
+> > > > it is the proper counter part for alloc_page. free_page, just to
+> > > > make it confusing, consumes an address which has to be translated to
+> > > > a struct page.
+> > > > 
+> > > > I have no idea why the API has been done this way and yeah, it is
+> > > > really confusing.
+> > > > 
+> > > > [...]
+> > > > 
+> > > > > static void __exit dell_exit(void)
+> > > > > {
+> > > > > ...
+> > > > > 
+> > > > > 	free_page((unsigned long)buffer);
+> > > 
+> > > So both, either:
+> > > 
+> > >  free_page((unsigned long)buffer);
+> > > 
+> > > or
+> > > 
+> > >  __free_page(bufferpage);
+> > > 
+> > > is correct?
+> > 
+> > Yes. Although I would use __free_page variant as both seem to be
+> > globally visible.
+> > 
 
-Looking at do_swap_page() and __lock_page_or_retry(), I guess
-there already is a way to do the above.
+Michal - thanks for the context.
 
-Passing a "flags" of FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT
-to do_swap_page() should result in do_swap_page() returning with
-the pte unmapped and the mmap_sem still held if the page was not
-immediately available to map into the pte (trylock_page succeeds).
+I'm surprised by your recommendation to use __free_page() out here in platform
+driver land.
 
-Ebru, can you try passing the above as the flags argument to
-do_swap_page(), and see what happens?
+I'd also prefer that the driver consistently free the same address to avoid
+confusion.
+
+For these reasons, free_page((unsigned long)buffer) seems like the better
+option.
+
+Can you elaborate on why you feel __free_page() is a better choice?
 
 -- 
-All rights reversed
+Darren Hart
+Intel Open Source Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
