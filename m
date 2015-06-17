@@ -1,157 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 475D46B0074
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 17:26:41 -0400 (EDT)
-Received: by ykar6 with SMTP id r6so51071010yka.2
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 14:26:41 -0700 (PDT)
-Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
-        by mx.google.com with ESMTPS id n7si2080444yha.35.2015.06.17.14.26.39
+Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
+	by kanga.kvack.org (Postfix) with ESMTP id B8B696B0074
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 17:32:06 -0400 (EDT)
+Received: by labbc20 with SMTP id bc20so42211613lab.1
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 14:32:06 -0700 (PDT)
+Received: from mail-lb0-x22d.google.com (mail-lb0-x22d.google.com. [2a00:1450:4010:c04::22d])
+        by mx.google.com with ESMTPS id o7si4688043lao.73.2015.06.17.14.32.04
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jun 2015 14:26:39 -0700 (PDT)
-Received: by ykar6 with SMTP id r6so51070572yka.2
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 14:26:39 -0700 (PDT)
-From: Larry Finger <Larry.Finger@lwfinger.net>
-Subject: [PATCH V3] mm: kmemleak_alloc_percpu() should follow the gfp from per_alloc()
-Date: Wed, 17 Jun 2015 16:26:33 -0500
-Message-Id: <1434576393-29598-1-git-send-email-Larry.Finger@lwfinger.net>
+        Wed, 17 Jun 2015 14:32:05 -0700 (PDT)
+Received: by lblr1 with SMTP id r1so40439933lbl.0
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 14:32:04 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CACRpkdZmHLMxosLXjyOPdkavo=UNzmTcHOLF5vV4cS1ULfbq6A@mail.gmail.com>
+References: <1431698344-28054-1-git-send-email-a.ryabinin@samsung.com>
+	<1431698344-28054-6-git-send-email-a.ryabinin@samsung.com>
+	<CACRpkdaRJJjCXR=vK1M2YhR26JZfGoBB+jcqz8r2MhERfxRzqA@mail.gmail.com>
+	<CAPAsAGy-r8Z2N09wKV+e0kLfbwxd-eWK6N5Xajsnqq9jfyWqcQ@mail.gmail.com>
+	<CACRpkdZmHLMxosLXjyOPdkavo=UNzmTcHOLF5vV4cS1ULfbq6A@mail.gmail.com>
+Date: Thu, 18 Jun 2015 00:32:04 +0300
+Message-ID: <CAPAsAGw-iawTpjJh66rQN5fqBFT6UBZCcv2eKx7JTqCXzhzpsw@mail.gmail.com>
+Subject: Re: [PATCH v2 5/5] arm64: add KASan support
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Larry Finger <Larry.Finger@lwfinger.net>, Martin KaFai Lau <kafai@fb.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: Linus Walleij <linus.walleij@linaro.org>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, David Keitel <dkeitel@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Beginning at commit d52d3997f843 ("ipv6: Create percpu rt6_info"), the
-following INFO splat is logged:
+2015-06-13 18:25 GMT+03:00 Linus Walleij <linus.walleij@linaro.org>:
+>
+> On Fri, Jun 12, 2015 at 8:14 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
+> > 2015-06-11 16:39 GMT+03:00 Linus Walleij <linus.walleij@linaro.org>:
+> >> On Fri, May 15, 2015 at 3:59 PM, Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
+> >>
+> >>> This patch adds arch specific code for kernel address sanitizer
+> >>> (see Documentation/kasan.txt).
+> >>
+> >> I looked closer at this again ... I am trying to get KASan up for
+> >> ARM(32) with some tricks and hacks.
+> >>
+> >
+> > I have some patches for that. They still need some polishing, but works for me.
+> > I could share after I get back to office on Tuesday.
+>
+> OK! I'd be happy to test!
+>
 
-===============================
-[ INFO: suspicious RCU usage. ]
-4.1.0-rc7-next-20150612 #1 Not tainted
--------------------------------
-kernel/sched/core.c:7318 Illegal context switch in RCU-bh read-side critical section!
-other info that might help us debug this:
-rcu_scheduler_active = 1, debug_locks = 0
- 3 locks held by systemd/1:
- #0:  (rtnl_mutex){+.+.+.}, at: [<ffffffff815f0c8f>] rtnetlink_rcv+0x1f/0x40
- #1:  (rcu_read_lock_bh){......}, at: [<ffffffff816a34e2>] ipv6_add_addr+0x62/0x540
- #2:  (addrconf_hash_lock){+...+.}, at: [<ffffffff816a3604>] ipv6_add_addr+0x184/0x540
-stack backtrace:
-CPU: 0 PID: 1 Comm: systemd Not tainted 4.1.0-rc7-next-20150612 #1
-Hardware name: TOSHIBA TECRA A50-A/TECRA A50-A, BIOS Version 4.20   04/17/2014
- 0000000000000001 ffff880224e07838 ffffffff817263a4 ffffffff810ccf2a
- ffff880224e08000 ffff880224e07868 ffffffff810b6827 0000000000000000
- ffffffff81a445d3 00000000000004f4 ffff88022682e100 ffff880224e07898
-Call Trace:
- [<ffffffff817263a4>] dump_stack+0x4c/0x6e
- [<ffffffff810ccf2a>] ? console_unlock+0x1ca/0x510
- [<ffffffff810b6827>] lockdep_rcu_suspicious+0xe7/0x120
- [<ffffffff8108cf05>] ___might_sleep+0x1d5/0x1f0
- [<ffffffff8108cf6d>] __might_sleep+0x4d/0x90
- [<ffffffff811f3789>] ? create_object+0x39/0x2e0
- [<ffffffff811da427>] kmem_cache_alloc+0x47/0x250
- [<ffffffff813c19ae>] ? find_next_zero_bit+0x1e/0x20
- [<ffffffff811f3789>] create_object+0x39/0x2e0
- [<ffffffff810b7eb6>] ? mark_held_locks+0x66/0x90
- [<ffffffff8172efab>] ? _raw_spin_unlock_irqrestore+0x4b/0x60
- [<ffffffff817193c1>] kmemleak_alloc_percpu+0x61/0xe0
- [<ffffffff811a26f0>] pcpu_alloc+0x370/0x630
+I've pushed it here : git://github.com/aryabinin/linux.git kasan/arm_v0
 
-Additional backtrace lines are truncated. In addition, the above splat is
-followed by several "BUG: sleeping function called from invalid context
-at mm/slub.c:1268" outputs. As suggested by Martin KaFai Lau, these are the
-clue to the fix. Routine kmemleak_alloc_percpu() always uses GFP_KERNEL
-for its allocations, whereas it should follow the gfp from its callers.
-
-Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
-Reviewed-by: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
-Signed-off-by: Larry Finger <Larry.Finger@lwfinger.net>
-Cc: Martin KaFai Lau <kafai@fb.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-To: Tejun Heo <tj@kernel.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: <stable@vger.kernel.org> # v3.18+
-Acked-by: Martin KaFai Lau <kafai@fb.com>
----
-V3   Modify kmemleak header for case where kmemleak is not selected
-V2 - Remove extraneous file added by mistake as noted by Catalin and Kamalesh
-     Comment revised and Stable added as suggested by Catalin
-     Wording changes in commit message suggested by Martin
- include/linux/kmemleak.h | 6 ++++--
- mm/kmemleak.c            | 9 +++++----
- mm/percpu.c              | 2 +-
- 3 files changed, 10 insertions(+), 7 deletions(-)
----
-
-diff --git a/include/linux/kmemleak.h b/include/linux/kmemleak.h
-index e705467..d0a1f99 100644
---- a/include/linux/kmemleak.h
-+++ b/include/linux/kmemleak.h
-@@ -28,7 +28,8 @@
- extern void kmemleak_init(void) __ref;
- extern void kmemleak_alloc(const void *ptr, size_t size, int min_count,
- 			   gfp_t gfp) __ref;
--extern void kmemleak_alloc_percpu(const void __percpu *ptr, size_t size) __ref;
-+extern void kmemleak_alloc_percpu(const void __percpu *ptr, size_t size,
-+				  gfp_t gfp) __ref;
- extern void kmemleak_free(const void *ptr) __ref;
- extern void kmemleak_free_part(const void *ptr, size_t size) __ref;
- extern void kmemleak_free_percpu(const void __percpu *ptr) __ref;
-@@ -71,7 +72,8 @@ static inline void kmemleak_alloc_recursive(const void *ptr, size_t size,
- 					    gfp_t gfp)
- {
- }
--static inline void kmemleak_alloc_percpu(const void __percpu *ptr, size_t size)
-+static inline void kmemleak_alloc_percpu(const void __percpu *ptr, size_t size,
-+					 gfp_t gfp)
- {
- }
- static inline void kmemleak_free(const void *ptr)
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index ca9e5a5..cf79f11 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -930,12 +930,13 @@ EXPORT_SYMBOL_GPL(kmemleak_alloc);
-  * kmemleak_alloc_percpu - register a newly allocated __percpu object
-  * @ptr:	__percpu pointer to beginning of the object
-  * @size:	size of the object
-+ * @gfp:	flags used for kmemleak internal memory allocations
-  *
-  * This function is called from the kernel percpu allocator when a new object
-- * (memory block) is allocated (alloc_percpu). It assumes GFP_KERNEL
-- * allocation.
-+ * (memory block) is allocated (alloc_percpu).
-  */
--void __ref kmemleak_alloc_percpu(const void __percpu *ptr, size_t size)
-+void __ref kmemleak_alloc_percpu(const void __percpu *ptr, size_t size,
-+				 gfp_t gfp)
- {
- 	unsigned int cpu;
- 
-@@ -948,7 +949,7 @@ void __ref kmemleak_alloc_percpu(const void __percpu *ptr, size_t size)
- 	if (kmemleak_enabled && ptr && !IS_ERR(ptr))
- 		for_each_possible_cpu(cpu)
- 			create_object((unsigned long)per_cpu_ptr(ptr, cpu),
--				      size, 0, GFP_KERNEL);
-+				      size, 0, gfp);
- 	else if (kmemleak_early_log)
- 		log_early(KMEMLEAK_ALLOC_PERCPU, ptr, size, 0);
- }
-diff --git a/mm/percpu.c b/mm/percpu.c
-index dfd0248..2dd7448 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -1030,7 +1030,7 @@ area_found:
- 		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
- 
- 	ptr = __addr_to_pcpu_ptr(chunk->base_addr + off);
--	kmemleak_alloc_percpu(ptr, size);
-+	kmemleak_alloc_percpu(ptr, size, gfp);
- 	return ptr;
- 
- fail_unlock:
--- 
-2.1.4
+It far from ready. Firstly I've tried it only in qemu and it works.
+Today, I've tried to run it on bare metal (exynos5420), but it hangs
+somewhere after early_irq_init().
+So, it probably doesn't  worth for trying/testing yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
