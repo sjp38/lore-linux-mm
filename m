@@ -1,52 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
-	by kanga.kvack.org (Postfix) with ESMTP id EEDAE6B0032
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 02:40:50 -0400 (EDT)
-Received: by lbbqq2 with SMTP id qq2so24719885lbb.3
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 23:40:50 -0700 (PDT)
-Received: from mail-la0-x229.google.com (mail-la0-x229.google.com. [2a00:1450:4010:c03::229])
-        by mx.google.com with ESMTPS id lh9si2636413lab.51.2015.06.16.23.40.48
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 743B16B0032
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 03:04:35 -0400 (EDT)
+Received: by pdjm12 with SMTP id m12so31748801pdj.3
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 00:04:35 -0700 (PDT)
+Received: from smtprelay.synopsys.com (smtprelay2.synopsys.com. [198.182.60.111])
+        by mx.google.com with ESMTPS id o7si4880119pap.19.2015.06.17.00.04.34
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jun 2015 23:40:49 -0700 (PDT)
-Received: by labko7 with SMTP id ko7so25796677lab.2
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 23:40:48 -0700 (PDT)
+        (version=TLSv1.1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 17 Jun 2015 00:04:34 -0700 (PDT)
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Subject: Re: [arc-linux-dev] [PATCH] stmmac: explicitly zero des0 & des1 on
+ init
+Date: Wed, 17 Jun 2015 07:03:25 +0000
+Message-ID: <C2D7FE5348E1B147BCA15975FBA23075665A5DED@IN01WEMBXB.internal.synopsys.com>
+References: <1434476441-18241-1-git-send-email-abrodkin@synopsys.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <CALYGNiNrEPffQwhjhqB6jor5b8w6BQ=KnAa3LrxQ6QFKERH_mQ@mail.gmail.com>
-References: <20150609200021.21971.13598.stgit@zurg>
-	<20150615055649.4485.92087.stgit@zurg>
-	<20150616142935.b8f679650e35534e75806399@linux-foundation.org>
-	<CALYGNiNrEPffQwhjhqB6jor5b8w6BQ=KnAa3LrxQ6QFKERH_mQ@mail.gmail.com>
-Date: Wed, 17 Jun 2015 09:40:48 +0300
-Message-ID: <CALYGNiNLxx4uDbpdhP2_F+TZiTbvky1LrPw+ORrQ_BVkOtL2tg@mail.gmail.com>
-Subject: Re: [PATCH v4] pagemap: switch to the new format and do some cleanup
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Mark Williamson <mwilliamson@undo-software.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Linux API <linux-api@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: "arc-linux-dev@synopsys.com" <arc-linux-dev@synopsys.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
+Cc: Alexey Brodkin <Alexey.Brodkin@synopsys.com>, Giuseppe Cavallaro <peppe.cavallaro@st.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Arnd Bergmann <arnd@arndb.de>
 
-On Wed, Jun 17, 2015 at 7:59 AM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
-> On Wed, Jun 17, 2015 at 12:29 AM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
->> On Mon, 15 Jun 2015 08:56:49 +0300 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
->>
->>> This patch removes page-shift bits (scheduled to remove since 3.11) and
->>> completes migration to the new bit layout. Also it cleans messy macro.
->>
->> hm, I can't find any kernel version to which this patch comes close to
->> applying.
->
-> This patchset applies to  4.1-rc8 and current mmotm without problems.
-> I guess you've tried pick this patch alone without previous changes.
++CC linux-arch, linux-mm, Arnd and Marek
 
-My bad. I've sent single v4 patch as a reply to v3 patch and forget
-'4/4' in subject.
-That's fourth patch in patchset.
+On Tuesday 16 June 2015 11:11 PM, Alexey Brodkin wrote:
 
-Here is v3 patchset cover letter: https://lkml.org/lkml/2015/6/9/804
-"[PATCHSET v3 0/4] pagemap: make useable for non-privilege users"
+Current implementtion of descriptor init procedure only takes care about
+ownership flag. While it is perfectly possible to have underlying memory
+filled with garbage on boot or driver installation.
+
+And randomly set flags in non-zeroed des0 and des1 fields may lead to
+unpredictable behavior of the GMAC DMA block.
+
+Solution to this problem is as simple as explicit zeroing of both des0
+and des1 fields of all buffer descriptors.
+
+Signed-off-by: Alexey Brodkin <abrodkin@synopsys.com><mailto:abrodkin@synop=
+sys.com>
+Cc: Giuseppe Cavallaro <peppe.cavallaro@st.com><mailto:peppe.cavallaro@st.c=
+om>
+Cc: arc-linux-dev@synopsys.com<mailto:arc-linux-dev@synopsys.com>
+Cc: linux-kernel@vger.kernel.org<mailto:linux-kernel@vger.kernel.org>
+Cc: stable@vger.kernel.org<mailto:stable@vger.kernel.org>
+
+FWIW, this was causing sporadic/random networking flakiness on ARC SDP plat=
+form (scheduled for upstream inclusion in next window)
+
+This also leads to an interesting question - should arch/*/dma_alloc_cohere=
+nt() and friends unconditionally zero out memory (vs. the current semantics=
+ of letting only doing it based on gfp, as requested by driver). This is th=
+e second instance we ran into stale descriptor memory, the first one was in=
+ dw_mmc driver which was recently fixed in upstream as well (although debug=
+ged independently by Alexey and using the upstream fix)
+
+http://www.spinics.net/lists/linux-mmc/msg31600.html
+
+The pros is better out of box experience (despite buggy drivers) while the =
+cons are they remain broken and perhaps increased boot time due to extra me=
+mzero....
+
+Thx,
+-Vineet
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
