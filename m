@@ -1,52 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E9FE56B0072
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 11:16:36 -0400 (EDT)
-Received: by wgv5 with SMTP id 5so39854036wgv.1
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 08:16:36 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id m6si9677796wif.81.2015.06.17.08.16.35
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id D9AF66B0072
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 11:24:20 -0400 (EDT)
+Received: by qgal13 with SMTP id l13so16332919qga.3
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 08:24:20 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b69si4657827qgb.50.2015.06.17.08.24.19
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 17 Jun 2015 08:16:35 -0700 (PDT)
-Date: Wed, 17 Jun 2015 17:15:57 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v4 6/6] arch, x86: pmem api for ensuring durability of
- persistent memory updates
-In-Reply-To: <CALCETrXXYyjKHi1ajR6aescmjSo5eds=5g_byWpzBRbBNdsgRQ@mail.gmail.com>
-Message-ID: <alpine.DEB.2.11.1506171714490.4107@nanos>
-References: <20150611211354.10271.57950.stgit@dwillia2-desk3.amr.corp.intel.com> <20150611211947.10271.80768.stgit@dwillia2-desk3.amr.corp.intel.com> <CALCETrXXYyjKHi1ajR6aescmjSo5eds=5g_byWpzBRbBNdsgRQ@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Jun 2015 08:24:19 -0700 (PDT)
+Date: Wed, 17 Jun 2015 17:24:13 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH V2 6/6] slub: add support for kmem_cache_debug in bulk
+ calls
+Message-ID: <20150617172413.5c111a63@redhat.com>
+In-Reply-To: <alpine.DEB.2.11.1506171006020.31991@east.gentwo.org>
+References: <20150617142613.11791.76008.stgit@devil>
+	<20150617142934.11791.85352.stgit@devil>
+	<alpine.DEB.2.11.1506171006020.31991@east.gentwo.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, Toshi Kani <toshi.kani@hp.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Michael Ellerman <mpe@ellerman.id.au>, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>, Christoph Hellwig <hch@lst.de>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, brouer@redhat.com
 
-On Wed, 17 Jun 2015, Andy Lutomirski wrote:
-> On Thu, Jun 11, 2015 at 2:19 PM, Dan Williams <dan.j.williams@intel.com> wrote:
-> > +static inline void arch_sync_pmem(void)
-> > +{
-> > +       wmb();
-> > +       pcommit_sfence();
-> > +}
+
+On Wed, 17 Jun 2015 10:08:28 -0500 (CDT) Christoph Lameter <cl@linux.com> wrote:
+
+> > Per request of Joonsoo Kim adding kmem debug support.
 > 
-> This function is non-intuitive to me.  It's really "arch-specific sync
-> pmem after one or more copies using arch_memcpy_to_pmem".  If normal
-> stores or memcpy to non-WC memory is used instead, then it's
-> insufficient if the memory is WB and it's unnecessarily slow if the
-> memory is WT or UC (the first sfence isn't needed).
+> > bulk- PREVIOUS                  - THIS-PATCH
+> >   1 -  43 cycles(tsc) 10.811 ns -  44 cycles(tsc) 11.236 ns  improved  -2.3%
+> >   2 -  27 cycles(tsc)  6.867 ns -  28 cycles(tsc)  7.019 ns  improved  -3.7%
+> >   3 -  21 cycles(tsc)  5.496 ns -  22 cycles(tsc)  5.526 ns  improved  -4.8%
+> >   4 -  24 cycles(tsc)  6.038 ns -  19 cycles(tsc)  4.786 ns  improved  20.8%
+> >   8 -  17 cycles(tsc)  4.280 ns -  18 cycles(tsc)  4.572 ns  improved  -5.9%
+> >  16 -  17 cycles(tsc)  4.483 ns -  18 cycles(tsc)  4.658 ns  improved  -5.9%
+> >  30 -  18 cycles(tsc)  4.531 ns -  18 cycles(tsc)  4.568 ns  improved   0.0%
+> >  32 -  58 cycles(tsc) 14.586 ns -  65 cycles(tsc) 16.454 ns  improved -12.1%
+> >  34 -  53 cycles(tsc) 13.391 ns -  63 cycles(tsc) 15.932 ns  improved -18.9%
+> >  48 -  65 cycles(tsc) 16.268 ns -  50 cycles(tsc) 12.506 ns  improved  23.1%
+> >  64 -  53 cycles(tsc) 13.440 ns -  63 cycles(tsc) 15.929 ns  improved -18.9%
+> > 128 -  79 cycles(tsc) 19.899 ns -  86 cycles(tsc) 21.583 ns  improved  -8.9%
+> > 158 -  90 cycles(tsc) 22.732 ns -  90 cycles(tsc) 22.552 ns  improved   0.0%
+> > 250 -  95 cycles(tsc) 23.916 ns -  98 cycles(tsc) 24.589 ns  improved  -3.2%
 > 
-> I would change the name and add documentation.  I'd also add a comment
-> about the wmb() being an SFENCE to flush pending non-temporal writes.
+> Hmmm.... Can we afford these regressions?
 
-Not "I'd also add ...".
+Do notice the "regression" is mostly within 1 cycle. Which I would not
+call a regression, given the accuracy of these measurements.
 
-Documentation of memory barriers are mandatory.
+The page-border cases 32,34,48,64 cannot be use to assess this.
 
-Thanks,
+We could look at the assembler code, to see if we can spot the extra
+instruction that does not get optimized away.
 
-	tglx
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
