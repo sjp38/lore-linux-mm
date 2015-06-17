@@ -1,58 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id B8B696B0074
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 17:32:06 -0400 (EDT)
-Received: by labbc20 with SMTP id bc20so42211613lab.1
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 14:32:06 -0700 (PDT)
-Received: from mail-lb0-x22d.google.com (mail-lb0-x22d.google.com. [2a00:1450:4010:c04::22d])
-        by mx.google.com with ESMTPS id o7si4688043lao.73.2015.06.17.14.32.04
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B9E66B0074
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 18:06:03 -0400 (EDT)
+Received: by pacgb13 with SMTP id gb13so45719424pac.1
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 15:06:03 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id z7si8251266pdm.46.2015.06.17.15.06.00
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jun 2015 14:32:05 -0700 (PDT)
-Received: by lblr1 with SMTP id r1so40439933lbl.0
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 14:32:04 -0700 (PDT)
+        Wed, 17 Jun 2015 15:06:02 -0700 (PDT)
+Message-ID: <5581EF1F.9000907@oracle.com>
+Date: Wed, 17 Jun 2015 15:05:19 -0700
+From: Mike Kravetz <mike.kravetz@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <CACRpkdZmHLMxosLXjyOPdkavo=UNzmTcHOLF5vV4cS1ULfbq6A@mail.gmail.com>
-References: <1431698344-28054-1-git-send-email-a.ryabinin@samsung.com>
-	<1431698344-28054-6-git-send-email-a.ryabinin@samsung.com>
-	<CACRpkdaRJJjCXR=vK1M2YhR26JZfGoBB+jcqz8r2MhERfxRzqA@mail.gmail.com>
-	<CAPAsAGy-r8Z2N09wKV+e0kLfbwxd-eWK6N5Xajsnqq9jfyWqcQ@mail.gmail.com>
-	<CACRpkdZmHLMxosLXjyOPdkavo=UNzmTcHOLF5vV4cS1ULfbq6A@mail.gmail.com>
-Date: Thu, 18 Jun 2015 00:32:04 +0300
-Message-ID: <CAPAsAGw-iawTpjJh66rQN5fqBFT6UBZCcv2eKx7JTqCXzhzpsw@mail.gmail.com>
-Subject: Re: [PATCH v2 5/5] arm64: add KASan support
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [RFC v4 PATCH 2/9] mm/hugetlb: expose hugetlb fault mutex for
+ use by fallocate
+References: <1434056500-2434-1-git-send-email-mike.kravetz@oracle.com>	 <1434056500-2434-3-git-send-email-mike.kravetz@oracle.com> <1434062766.3165.103.camel@stgolabs.net>
+In-Reply-To: <1434062766.3165.103.camel@stgolabs.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Walleij <linus.walleij@linaro.org>
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, David Keitel <dkeitel@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>
 
-2015-06-13 18:25 GMT+03:00 Linus Walleij <linus.walleij@linaro.org>:
+On 06/11/2015 03:46 PM, Davidlohr Bueso wrote:
+> On Thu, 2015-06-11 at 14:01 -0700, Mike Kravetz wrote:
+>>   /* Forward declaration */
+>>   static int hugetlb_acct_memory(struct hstate *h, long delta);
+>> @@ -3324,7 +3324,8 @@ static u32 fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
+>>   	unsigned long key[2];
+>>   	u32 hash;
+>>
+>> -	if (vma->vm_flags & VM_SHARED) {
+>> +	/* !vma implies this was called from hugetlbfs fallocate code */
+>> +	if (!vma || vma->vm_flags & VM_SHARED) {
 >
-> On Fri, Jun 12, 2015 at 8:14 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
-> > 2015-06-11 16:39 GMT+03:00 Linus Walleij <linus.walleij@linaro.org>:
-> >> On Fri, May 15, 2015 at 3:59 PM, Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
-> >>
-> >>> This patch adds arch specific code for kernel address sanitizer
-> >>> (see Documentation/kasan.txt).
-> >>
-> >> I looked closer at this again ... I am trying to get KASan up for
-> >> ARM(32) with some tricks and hacks.
-> >>
-> >
-> > I have some patches for that. They still need some polishing, but works for me.
-> > I could share after I get back to office on Tuesday.
->
-> OK! I'd be happy to test!
+> That !vma is icky, and really no need for it: hugetlbfs_fallocate(), for
+> example, already passes [pseudo]vma->vm_flags with VM_SHARED, and you
+> say it yourself in the comment. Do you see any reason why we cannot just
+> keep the vma->vm_flags & VM_SHARED check?
 >
 
-I've pushed it here : git://github.com/aryabinin/linux.git kasan/arm_v0
+Ah, I did not recall all the users of this code until I went to change
+it. The other user is truncate_hugapages() which will now be used for
+fallocate hole punch.  Truncate like fallocate is an inode operation
+and there is no specific vma.  I can create a pseudo-vma here as well
+just to pass the flag.  I guess that would at least be consistent with
+the other user.
 
-It far from ready. Firstly I've tried it only in qemu and it works.
-Today, I've tried to run it on bare metal (exynos5420), but it hangs
-somewhere after early_irq_init().
-So, it probably doesn't  worth for trying/testing yet.
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
