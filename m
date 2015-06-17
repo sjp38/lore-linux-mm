@@ -1,147 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
-	by kanga.kvack.org (Postfix) with ESMTP id E448C6B0072
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 12:18:38 -0400 (EDT)
-Received: by oiax193 with SMTP id x193so37997283oia.2
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 09:18:38 -0700 (PDT)
-Received: from mail-ob0-x236.google.com (mail-ob0-x236.google.com. [2607:f8b0:4003:c01::236])
-        by mx.google.com with ESMTPS id 203si2970125oic.114.2015.06.17.09.18.37
+Received: from mail-yh0-f47.google.com (mail-yh0-f47.google.com [209.85.213.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 15BDA6B0072
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 13:35:44 -0400 (EDT)
+Received: by yhpn97 with SMTP id n97so38926005yhp.0
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 10:35:43 -0700 (PDT)
+Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
+        by mx.google.com with ESMTPS id q66si1807186ywe.191.2015.06.17.10.35.37
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jun 2015 09:18:38 -0700 (PDT)
-Received: by obbgp2 with SMTP id gp2so36368058obb.2
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 09:18:37 -0700 (PDT)
-From: Larry Finger <Larry.Finger@lwfinger.net>
-Subject: [PATCH V2] mm: kmemleak_alloc_percpu() should follow the gfp from
-Date: Wed, 17 Jun 2015 11:18:20 -0500
-Message-Id: <1434557900-7965-1-git-send-email-Larry.Finger@lwfinger.net>
+        Wed, 17 Jun 2015 10:35:38 -0700 (PDT)
+Message-ID: <1434562513.11808.100.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v4 1/6] arch: unify ioremap prototypes and macro aliases
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 17 Jun 2015 11:35:13 -0600
+In-Reply-To: <20150611211918.10271.74243.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: 
+	<20150611211354.10271.57950.stgit@dwillia2-desk3.amr.corp.intel.com>
+	 <20150611211918.10271.74243.stgit@dwillia2-desk3.amr.corp.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Larry Finger <Larry.Finger@lwfinger.net>, Martin KaFai Lau <kafai@fb.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: arnd@arndb.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, jgross@suse.com, x86@kernel.org, konrad.wilk@oracle.com, benh@kernel.crashing.org, mcgrof@suse.com, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, mpe@ellerman.id.au, tj@kernel.org, paulus@samba.org, kbuild test robot <fengguang.wu@intel.com>, hch@lst.de
 
-Beginning at commit d52d3997f843 ("ipv6: Create percpu rt6_info"), the
-following INFO splat is logged:
+On Thu, 2015-06-11 at 17:19 -0400, Dan Williams wrote:
+> Some archs define the first parameter to ioremap() as unsigned long,
+> while the balance define it as resource_size_t.  Unify on
+> resource_size_t to enable passing ioremap function pointers.  Also, some
+> archs use function-like macros for defining ioremap aliases, but
+> asm-generic/iomap.h expects object-like macros, unify on the latter.
+> 
+ :
+> diff --git a/arch/ia64/include/asm/io.h b/arch/ia64/include/asm/io.h
+> index 80a7e34be009..8588ef767a44 100644
+> --- a/arch/ia64/include/asm/io.h
+> +++ b/arch/ia64/include/asm/io.h
+> @@ -424,8 +424,8 @@ __writeq (unsigned long val, volatile void __iomem *addr)
+>  
+>  # ifdef __KERNEL__
+>  
+> -extern void __iomem * ioremap(unsigned long offset, unsigned long size);
+> -extern void __iomem * ioremap_nocache (unsigned long offset, unsigned long size);
+> +extern void __iomem * ioremap(resource_size_t offset, unsigned long size);
+> +extern void __iomem * ioremap_nocache (resource_size_t offset, unsigned long size);
+>  extern void iounmap (volatile void __iomem *addr);
+>  extern void __iomem * early_ioremap (unsigned long phys_addr, unsigned long size);
+>  #define early_memremap(phys_addr, size)        early_ioremap(phys_addr, size)
 
-===============================
-[ INFO: suspicious RCU usage. ]
-4.1.0-rc7-next-20150612 #1 Not tainted
--------------------------------
-kernel/sched/core.c:7318 Illegal context switch in RCU-bh read-side critical section!
-other info that might help us debug this:
-rcu_scheduler_active = 1, debug_locks = 0
- 3 locks held by systemd/1:
- #0:  (rtnl_mutex){+.+.+.}, at: [<ffffffff815f0c8f>] rtnetlink_rcv+0x1f/0x40
- #1:  (rcu_read_lock_bh){......}, at: [<ffffffff816a34e2>] ipv6_add_addr+0x62/0x540
- #2:  (addrconf_hash_lock){+...+.}, at: [<ffffffff816a3604>] ipv6_add_addr+0x184/0x540
-stack backtrace:
-CPU: 0 PID: 1 Comm: systemd Not tainted 4.1.0-rc7-next-20150612 #1
-Hardware name: TOSHIBA TECRA A50-A/TECRA A50-A, BIOS Version 4.20   04/17/2014
- 0000000000000001 ffff880224e07838 ffffffff817263a4 ffffffff810ccf2a
- ffff880224e08000 ffff880224e07868 ffffffff810b6827 0000000000000000
- ffffffff81a445d3 00000000000004f4 ffff88022682e100 ffff880224e07898
-Call Trace:
- [<ffffffff817263a4>] dump_stack+0x4c/0x6e
- [<ffffffff810ccf2a>] ? console_unlock+0x1ca/0x510
- [<ffffffff810b6827>] lockdep_rcu_suspicious+0xe7/0x120
- [<ffffffff8108cf05>] ___might_sleep+0x1d5/0x1f0
- [<ffffffff8108cf6d>] __might_sleep+0x4d/0x90
- [<ffffffff811f3789>] ? create_object+0x39/0x2e0
- [<ffffffff811da427>] kmem_cache_alloc+0x47/0x250
- [<ffffffff813c19ae>] ? find_next_zero_bit+0x1e/0x20
- [<ffffffff811f3789>] create_object+0x39/0x2e0
- [<ffffffff810b7eb6>] ? mark_held_locks+0x66/0x90
- [<ffffffff8172efab>] ? _raw_spin_unlock_irqrestore+0x4b/0x60
- [<ffffffff817193c1>] kmemleak_alloc_percpu+0x61/0xe0
- [<ffffffff811a26f0>] pcpu_alloc+0x370/0x630
+This ia64 io.h also defines ioremap_cache().  Should this be also
+changed to resource_size_t?
 
-Additional backtrace lines are truncated. In addition, the above splat is
-followed by several "BUG: sleeping function called from invalid context
-at mm/slub.c:1268" outputs. As suggested by Martin KaFai Lau, these are the
-clue to the fix. Routine kmemleak_alloc_percpu() always uses GFP_KERNEL
-for its allocations, whereas it should follow the gfp from its callers.
+static inline void __iomem * ioremap_cache (unsigned long phys_addr,
+unsigned long size)
+{
+	return ioremap(phys_addr, size);
+}
 
-Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
-Reviewed-by: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
-Signed-off-by: Larry Finger <Larry.Finger@lwfinger.net>
-Cc: Martin KaFai Lau <kafai@fb.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-To: Tejun Heo <tj@kernel.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: <stable@vger.kernel.org> # v3.18+
-Acked-by: Martin KaFai Lau <kafai@fb.com>
----
-V2 - Remove extraneous file added by mistake as noted by Catalin and Kamalesh
-     Comment revised and Stable added as suggested by Catalin
-     Wording changes in commit message suggested by Martin
-
----
- include/linux/kmemleak.h | 3 ++-
- mm/kmemleak.c            | 9 +++++----
- mm/percpu.c              | 2 +-
- 3 files changed, 8 insertions(+), 6 deletions(-)
-
-diff --git a/include/linux/kmemleak.h b/include/linux/kmemleak.h
-index e705467..ec4437b 100644
---- a/include/linux/kmemleak.h
-+++ b/include/linux/kmemleak.h
-@@ -28,7 +28,8 @@
- extern void kmemleak_init(void) __ref;
- extern void kmemleak_alloc(const void *ptr, size_t size, int min_count,
- 			   gfp_t gfp) __ref;
--extern void kmemleak_alloc_percpu(const void __percpu *ptr, size_t size) __ref;
-+extern void kmemleak_alloc_percpu(const void __percpu *ptr, size_t size,
-+				  gfp_t gfp) __ref;
- extern void kmemleak_free(const void *ptr) __ref;
- extern void kmemleak_free_part(const void *ptr, size_t size) __ref;
- extern void kmemleak_free_percpu(const void __percpu *ptr) __ref;
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index ca9e5a5..cf79f11 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -930,12 +930,13 @@ EXPORT_SYMBOL_GPL(kmemleak_alloc);
-  * kmemleak_alloc_percpu - register a newly allocated __percpu object
-  * @ptr:	__percpu pointer to beginning of the object
-  * @size:	size of the object
-+ * @gfp:	flags used for kmemleak internal memory allocations
-  *
-  * This function is called from the kernel percpu allocator when a new object
-- * (memory block) is allocated (alloc_percpu). It assumes GFP_KERNEL
-- * allocation.
-+ * (memory block) is allocated (alloc_percpu).
-  */
--void __ref kmemleak_alloc_percpu(const void __percpu *ptr, size_t size)
-+void __ref kmemleak_alloc_percpu(const void __percpu *ptr, size_t size,
-+				 gfp_t gfp)
- {
- 	unsigned int cpu;
- 
-@@ -948,7 +949,7 @@ void __ref kmemleak_alloc_percpu(const void __percpu *ptr, size_t size)
- 	if (kmemleak_enabled && ptr && !IS_ERR(ptr))
- 		for_each_possible_cpu(cpu)
- 			create_object((unsigned long)per_cpu_ptr(ptr, cpu),
--				      size, 0, GFP_KERNEL);
-+				      size, 0, gfp);
- 	else if (kmemleak_early_log)
- 		log_early(KMEMLEAK_ALLOC_PERCPU, ptr, size, 0);
- }
-diff --git a/mm/percpu.c b/mm/percpu.c
-index dfd0248..2dd7448 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -1030,7 +1030,7 @@ area_found:
- 		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
- 
- 	ptr = __addr_to_pcpu_ptr(chunk->base_addr + off);
--	kmemleak_alloc_percpu(ptr, size);
-+	kmemleak_alloc_percpu(ptr, size, gfp);
- 	return ptr;
- 
- fail_unlock:
--- 
-2.1.4
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
