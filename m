@@ -1,43 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 763326B0032
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 00:59:35 -0400 (EDT)
-Received: by laka10 with SMTP id a10so24658349lak.0
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 21:59:34 -0700 (PDT)
-Received: from mail-lb0-x230.google.com (mail-lb0-x230.google.com. [2a00:1450:4010:c04::230])
-        by mx.google.com with ESMTPS id lv3si1383977lac.87.2015.06.16.21.59.33
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 295746B0032
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 02:09:05 -0400 (EDT)
+Received: by wgbhy7 with SMTP id hy7so27725515wgb.2
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 23:09:04 -0700 (PDT)
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com. [74.125.82.46])
+        by mx.google.com with ESMTPS id m2si7111160wib.0.2015.06.16.23.09.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jun 2015 21:59:34 -0700 (PDT)
-Received: by lblr1 with SMTP id r1so23704706lbl.0
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 21:59:33 -0700 (PDT)
+        Tue, 16 Jun 2015 23:09:02 -0700 (PDT)
+Received: by wgbhy7 with SMTP id hy7so27724954wgb.2
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 23:09:02 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20150616142935.b8f679650e35534e75806399@linux-foundation.org>
-References: <20150609200021.21971.13598.stgit@zurg>
-	<20150615055649.4485.92087.stgit@zurg>
-	<20150616142935.b8f679650e35534e75806399@linux-foundation.org>
-Date: Wed, 17 Jun 2015 07:59:33 +0300
-Message-ID: <CALYGNiNrEPffQwhjhqB6jor5b8w6BQ=KnAa3LrxQ6QFKERH_mQ@mail.gmail.com>
-Subject: Re: [PATCH v4] pagemap: switch to the new format and do some cleanup
-From: Konstantin Khlebnikov <koct9i@gmail.com>
+In-Reply-To: <1434460173-18427-5-git-send-email-b.michalska@samsung.com>
+References: <1434460173-18427-1-git-send-email-b.michalska@samsung.com> <1434460173-18427-5-git-send-email-b.michalska@samsung.com>
+From: Leon Romanovsky <leon@leon.nu>
+Date: Wed, 17 Jun 2015 09:08:41 +0300
+Message-ID: <CALq1K=L-DWP5avgXtc0p5=D_M8tXm+Y45DphP7G9QBYo-5sXFA@mail.gmail.com>
+Subject: Re: [RFC v3 4/4] shmem: Add support for generic FS events
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Mark Williamson <mwilliamson@undo-software.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Linux API <linux-api@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Beata Michalska <b.michalska@samsung.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, linux-api@vger.kernel.org, Greg Kroah <greg@kroah.com>, jack@suse.cz, tytso@mit.edu, adilger.kernel@dilger.ca, Hugh Dickins <hughd@google.com>, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, kyungmin.park@samsung.com, kmpark@infradead.org
 
-On Wed, Jun 17, 2015 at 12:29 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Mon, 15 Jun 2015 08:56:49 +0300 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
->
->> This patch removes page-shift bits (scheduled to remove since 3.11) and
->> completes migration to the new bit layout. Also it cleans messy macro.
->
-> hm, I can't find any kernel version to which this patch comes close to
-> applying.
+>         }
+> -       if (error == -ENOSPC && !once++) {
+> +       if (error == -ENOSPC) {
+> +               if (!once++) {
+>                 info = SHMEM_I(inode);
+>                 spin_lock(&info->lock);
+>                 shmem_recalc_inode(inode);
+>                 spin_unlock(&info->lock);
+>                 goto repeat;
+> +               } else {
+> +                       fs_event_notify(inode->i_sb, FS_WARN_ENOSPC);
+> +               }
+>         }
 
-This patchset applies to  4.1-rc8 and current mmotm without problems.
-I guess you've tried pick this patch alone without previous changes.
+Very minor remark, please fix indentation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
