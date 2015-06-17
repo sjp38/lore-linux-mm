@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id CB2746B0032
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 02:25:37 -0400 (EDT)
-Received: by qkhu186 with SMTP id u186so21376319qkh.0
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 23:25:37 -0700 (PDT)
+Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 192D76B0032
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 02:29:12 -0400 (EDT)
+Received: by qkhu186 with SMTP id u186so21408192qkh.0
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2015 23:29:11 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y184si3434220qky.75.2015.06.16.23.25.37
+        by mx.google.com with ESMTPS id h4si3433284qge.80.2015.06.16.23.29.11
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jun 2015 23:25:37 -0700 (PDT)
-Date: Wed, 17 Jun 2015 08:25:31 +0200
+        Tue, 16 Jun 2015 23:29:11 -0700 (PDT)
+Date: Wed, 17 Jun 2015 08:29:05 +0200
 From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH 4/7] slub: fix error path bug in kmem_cache_alloc_bulk
-Message-ID: <20150617082531.33eb524c@redhat.com>
-In-Reply-To: <20150616145109.5bbe850094519072d33e9047@linux-foundation.org>
+Subject: Re: [PATCH 6/7] slub: improve bulk alloc strategy
+Message-ID: <20150617082905.54fc0094@redhat.com>
+In-Reply-To: <20150616145336.1cacbfb88ff55b0e088676c3@linux-foundation.org>
 References: <20150615155053.18824.617.stgit@devil>
-	<20150615155226.18824.99.stgit@devil>
-	<20150616145109.5bbe850094519072d33e9047@linux-foundation.org>
+	<20150615155246.18824.3788.stgit@devil>
+	<20150616145336.1cacbfb88ff55b0e088676c3@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -25,25 +25,27 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, netdev@vger.kernel.org, Alexander Duyck <alexander.duyck@gmail.com>, brouer@redhat.com
 
-On Tue, 16 Jun 2015 14:51:09 -0700
+On Tue, 16 Jun 2015 14:53:36 -0700
 Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> On Mon, 15 Jun 2015 17:52:26 +0200 Jesper Dangaard Brouer <brouer@redhat.com> wrote:
+> On Mon, 15 Jun 2015 17:52:46 +0200 Jesper Dangaard Brouer <brouer@redhat.com> wrote:
 > 
-> > The current kmem_cache/SLAB bulking API need to release all objects
-> > in case the layer cannot satisfy the full request.
-> > 
-> > If __kmem_cache_alloc_bulk() fails, all allocated objects in array
-> > should be freed, but, __kmem_cache_alloc_bulk() can't know
-> > about objects allocated by this slub specific kmem_cache_alloc_bulk()
-> > function.
+[...]
+> > +			/* Invoke slow path one time, then retry fastpath
+> > +			 * as side-effect have updated c->freelist
+> > +			 */
 > 
-> Can we fold patches 2, 3 and 4 into a single patch?
+> That isn't very grammatical.
 > 
-> And maybe patch 5 as well.  I don't think we need all these
-> development-time increments in the permanent record.
+> Block comments are formatted
+> 
+> 	/*
+> 	 * like this
+> 	 */
+> 
+> please.
 
-I agree.  I'll fold them when submitting V2
+Sure, old habit, this comment style is just that we use in net/ tree.
 
 -- 
 Best regards,
