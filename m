@@ -1,69 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 743B16B0032
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 03:04:35 -0400 (EDT)
-Received: by pdjm12 with SMTP id m12so31748801pdj.3
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 00:04:35 -0700 (PDT)
-Received: from smtprelay.synopsys.com (smtprelay2.synopsys.com. [198.182.60.111])
-        by mx.google.com with ESMTPS id o7si4880119pap.19.2015.06.17.00.04.34
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D72C6B006E
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 03:10:38 -0400 (EDT)
+Received: by pdbnf5 with SMTP id nf5so32061010pdb.2
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 00:10:38 -0700 (PDT)
+Received: from mail-pd0-x22f.google.com (mail-pd0-x22f.google.com. [2607:f8b0:400e:c02::22f])
+        by mx.google.com with ESMTPS id og9si4871736pbc.66.2015.06.17.00.10.37
         for <linux-mm@kvack.org>
-        (version=TLSv1.1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 17 Jun 2015 00:04:34 -0700 (PDT)
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: Re: [arc-linux-dev] [PATCH] stmmac: explicitly zero des0 & des1 on
- init
-Date: Wed, 17 Jun 2015 07:03:25 +0000
-Message-ID: <C2D7FE5348E1B147BCA15975FBA23075665A5DED@IN01WEMBXB.internal.synopsys.com>
-References: <1434476441-18241-1-git-send-email-abrodkin@synopsys.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Jun 2015 00:10:37 -0700 (PDT)
+Received: by pdbki1 with SMTP id ki1so31917910pdb.1
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 00:10:37 -0700 (PDT)
+Date: Wed, 17 Jun 2015 16:11:02 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [RFC][PATCHv2 8/8] zsmalloc: register a shrinker to trigger
+ auto-compaction
+Message-ID: <20150617071102.GA3517@swordfish>
+References: <1433505838-23058-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1433505838-23058-9-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150616144730.GD31387@blaptop>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20150616144730.GD31387@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "arc-linux-dev@synopsys.com" <arc-linux-dev@synopsys.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
-Cc: Alexey Brodkin <Alexey.Brodkin@synopsys.com>, Giuseppe Cavallaro <peppe.cavallaro@st.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Arnd Bergmann <arnd@arndb.de>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-+CC linux-arch, linux-mm, Arnd and Marek
+Hello,
 
-On Tuesday 16 June 2015 11:11 PM, Alexey Brodkin wrote:
+On (06/16/15 23:47), Minchan Kim wrote:
+[..]
+> 
+> I like the idea but still have a concern to lack of fragmented zspages
+> during memory pressure because auto-compaction will prevent fragment
+> most of time. Surely, using fragment space as buffer in heavy memory
+> pressure is not intened design so it could be fragile but I'm afraid
+> this feature might accelrate it and it ends up having a problem and
+> change current behavior in zram as swap.
+> 
+> I hope you test this feature with considering my concern.
+> Of course, I will test it with enough time.
+> 
 
-Current implementtion of descriptor init procedure only takes care about
-ownership flag. While it is perfectly possible to have underlying memory
-filled with garbage on boot or driver installation.
+OK, to explore "compaction leaves no fragmentation in classes" I did some
+heavy testing today -- parallel copy/remove of the linux kernel, git, glibc;
+parallel builds (-j4), parallel clean ups (make clean); git gc, etc.
 
-And randomly set flags in non-zeroed des0 and des1 fields may lead to
-unpredictable behavior of the GMAC DMA block.
 
-Solution to this problem is as simple as explicit zeroing of both des0
-and des1 fields of all buffer descriptors.
+device's IO stats:
+cat /sys/block/zram0/stata??
+   277050        0  2216400     1463  8442846        0 67542768   106536        0   107810   108146
 
-Signed-off-by: Alexey Brodkin <abrodkin@synopsys.com><mailto:abrodkin@synop=
-sys.com>
-Cc: Giuseppe Cavallaro <peppe.cavallaro@st.com><mailto:peppe.cavallaro@st.c=
-om>
-Cc: arc-linux-dev@synopsys.com<mailto:arc-linux-dev@synopsys.com>
-Cc: linux-kernel@vger.kernel.org<mailto:linux-kernel@vger.kernel.org>
-Cc: stable@vger.kernel.org<mailto:stable@vger.kernel.org>
+device's MM stats:
+cat /sys/block/zram0/mm_stata??
+ 3095515136 2020518768 2057990144        0 2645716992     2030   182119
 
-FWIW, this was causing sporadic/random networking flakiness on ARC SDP plat=
-form (scheduled for upstream inclusion in next window)
 
-This also leads to an interesting question - should arch/*/dma_alloc_cohere=
-nt() and friends unconditionally zero out memory (vs. the current semantics=
- of letting only doing it based on gfp, as requested by driver). This is th=
-e second instance we ran into stale descriptor memory, the first one was in=
- dw_mmc driver which was recently fixed in upstream as well (although debug=
-ged independently by Alexey and using the upstream fix)
+We auto-compacted (mostly auto-compacted, because I triggered manual compaction
+less than 5 times)    182119  objects.
 
-http://www.spinics.net/lists/linux-mmc/msg31600.html
 
-The pros is better out of box experience (despite buggy drivers) while the =
-cons are they remain broken and perhaps increased boot time due to extra me=
-mzero....
+Now, during the compaction I also accounted the number of classes that ended up to
+be 'fully compacted' (class->OBJ_ALLOCATED) == class->OBJ_USED) and 'partially
+compacted'.
 
-Thx,
--Vineet
+
+And the results (after 1377 compactions) are:
+
+ pool compaction nr:1377 (full:487 part:35498)
+
+
+
+So, we 'fully compact'-ed only 487/(35498 + 487) == 0.0135
+
+roughtly ~1.35%
+
+This argument does not stand anymore. We leave 'holes' in classes in ~98% of the
+cases.
+
+
+
+code that I used to gather those stats:
+
+---
+
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 55cfda8..894773a 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -253,6 +253,9 @@ struct zs_pool {
+ #ifdef CONFIG_ZSMALLOC_STAT
+ 	struct dentry		*stat_dentry;
+ #endif
++	int			compaction_nr;
++	long			full_compact;
++	long			part_compact;
+ };
+ 
+ /*
+@@ -1717,6 +1720,7 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+ 	struct zs_compact_control cc;
+ 	struct page *src_page;
+ 	struct page *dst_page = NULL;
++	bool compacted = false;
+ 
+ 	spin_lock(&class->lock);
+ 	while ((src_page = isolate_source_page(class))) {
+@@ -1726,6 +1730,8 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+ 		if (!zs_can_compact(class))
+ 			break;
+ 
++		compacted = true;
++
+ 		cc.index = 0;
+ 		cc.s_page = src_page;
+ 
+@@ -1751,6 +1757,13 @@ out:
+ 	if (src_page)
+ 		putback_zspage(pool, class, src_page);
+ 
++	if (compacted) {
++		if (zs_stat_get(class, OBJ_ALLOCATED) == zs_stat_get(class, OBJ_USED))
++			pool->full_compact++;
++		else
++			pool->part_compact++;
++	}
++
+ 	spin_unlock(&class->lock);
+ }
+ 
+@@ -1767,6 +1780,11 @@ unsigned long zs_compact(struct zs_pool *pool)
+ 			continue;
+ 		__zs_compact(pool, class);
+ 	}
++
++	pool->compaction_nr++;
++	pr_err("pool compaction nr:%d (full:%ld part:%ld)\n", pool->compaction_nr,
++			pool->full_compact, pool->part_compact);
++
+ 	return pool->num_migrated;
+ }
+ EXPORT_SYMBOL_GPL(zs_compact);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
