@@ -1,52 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 32C086B0071
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 10:54:17 -0400 (EDT)
-Received: by wiwd19 with SMTP id d19so136298580wiw.0
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 07:54:16 -0700 (PDT)
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
-        by mx.google.com with ESMTPS id he1si9591267wib.34.2015.06.17.07.54.15
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F20F6B0071
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 10:56:48 -0400 (EDT)
+Received: by wifx6 with SMTP id x6so56448993wif.0
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 07:56:48 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fy6si30634454wib.38.2015.06.17.07.56.46
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jun 2015 07:54:15 -0700 (PDT)
-Received: by wicnd19 with SMTP id nd19so31753247wic.1
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 07:54:15 -0700 (PDT)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 17 Jun 2015 07:56:46 -0700 (PDT)
+Date: Wed, 17 Jun 2015 16:56:42 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 06/51] memcg: add mem_cgroup_root_css
+Message-ID: <20150617145642.GI25056@dhcp22.suse.cz>
+References: <1432329245-5844-1-git-send-email-tj@kernel.org>
+ <1432329245-5844-7-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20150617113121.GC9246@lst.de>
-References: <20150611211354.10271.57950.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<20150611211947.10271.80768.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<20150617113121.GC9246@lst.de>
-Date: Wed, 17 Jun 2015 07:54:14 -0700
-Message-ID: <CAPcyv4hkS+3iTqJkcuES13vZKNYdWKufAqjD3+Pf4BaZ88nZEQ@mail.gmail.com>
-Subject: Re: [PATCH v4 6/6] arch, x86: pmem api for ensuring durability of
- persistent memory updates
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1432329245-5844-7-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, Geert Uytterhoeven <geert@linux-m68k.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, mpe@ellerman.id.au, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
 
-On Wed, Jun 17, 2015 at 4:31 AM, Christoph Hellwig <hch@lst.de> wrote:
-> This mess with arch_ methods and an ops vecor is almost unreadable.
->
-> What's the problem with having something like:
->
-> pmem_foo()
-> {
->         if (arch_has_pmem)              // or sync_pmem
->                 arch_pmem_foo();
->         generic_pmem_foo();
-> }
->
-> This adds a branch at runtime, but that shoudn't really be any slower
-> than an indirect call on architectures that matter.
+On Fri 22-05-15 17:13:20, Tejun Heo wrote:
+> Add global mem_cgroup_root_css which points to the root memcg css.
 
-No doubt it's premature optimization, but it bothered me that we'll
-end up calling cpuid perhaps multiple times every i/o.  If it's just a
-readability concern I could wrap it in helpers.  Getting it upstream
-is my primary concern at this point so I have no strong attachment to
-the indirect calls if that's all that is preventing an ack.
+Is there any reason to using css rather than mem_cgroup other than the
+structure is not visible outside of memcontrol.c? Because I have a
+patchset which exports it. It is not merged yet so a move to mem_cgroup
+could be done later. I am just interested whether there is a stronger
+reason.
+
+> This will be used by cgroup writeback support.  If memcg is disabled,
+> it's defined as ERR_PTR(-EINVAL).
+
+Hmm. Why EINVAL? I can see only mm/backing-dev.c (in
+review-cgroup-writeback-switch-20150528 branch) which uses it and that
+shouldn't even try to compile if !CONFIG_MEMCG no? Otherwise we would
+simply blow up.
+
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> aCc: Michal Hocko <mhocko@suse.cz>
+> ---
+>  include/linux/memcontrol.h | 4 ++++
+>  mm/memcontrol.c            | 2 ++
+>  2 files changed, 6 insertions(+)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 5fe6411..294498f 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -68,6 +68,8 @@ enum mem_cgroup_events_index {
+>  };
+>  
+>  #ifdef CONFIG_MEMCG
+> +extern struct cgroup_subsys_state *mem_cgroup_root_css;
+> +
+>  void mem_cgroup_events(struct mem_cgroup *memcg,
+>  		       enum mem_cgroup_events_index idx,
+>  		       unsigned int nr);
+> @@ -196,6 +198,8 @@ void mem_cgroup_split_huge_fixup(struct page *head);
+>  #else /* CONFIG_MEMCG */
+>  struct mem_cgroup;
+>  
+> +#define mem_cgroup_root_css ((struct cgroup_subsys_state *)ERR_PTR(-EINVAL))
+> +
+>  static inline void mem_cgroup_events(struct mem_cgroup *memcg,
+>  				     enum mem_cgroup_events_index idx,
+>  				     unsigned int nr)
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index c23c1a3..b22a92b 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -77,6 +77,7 @@ EXPORT_SYMBOL(memory_cgrp_subsys);
+>  
+>  #define MEM_CGROUP_RECLAIM_RETRIES	5
+>  static struct mem_cgroup *root_mem_cgroup __read_mostly;
+> +struct cgroup_subsys_state *mem_cgroup_root_css __read_mostly;
+>  
+>  /* Whether the swap controller is active */
+>  #ifdef CONFIG_MEMCG_SWAP
+> @@ -4441,6 +4442,7 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+>  	/* root ? */
+>  	if (parent_css == NULL) {
+>  		root_mem_cgroup = memcg;
+> +		mem_cgroup_root_css = &memcg->css;
+>  		page_counter_init(&memcg->memory, NULL);
+>  		memcg->high = PAGE_COUNTER_MAX;
+>  		memcg->soft_limit = PAGE_COUNTER_MAX;
+> -- 
+> 2.4.0
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
