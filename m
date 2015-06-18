@@ -1,85 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 595776B0074
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 23:57:55 -0400 (EDT)
-Received: by pdbki1 with SMTP id ki1so56444755pdb.1
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 20:57:55 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id kj7si9392745pab.150.2015.06.17.20.57.54
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 56DDD6B0074
+	for <linux-mm@kvack.org>; Thu, 18 Jun 2015 01:58:11 -0400 (EDT)
+Received: by wgez8 with SMTP id z8so53958936wge.0
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 22:58:10 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cb3si12193918wjc.44.2015.06.17.22.58.09
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jun 2015 20:57:54 -0700 (PDT)
-Received: by pabvl15 with SMTP id vl15so5372920pab.1
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 20:57:54 -0700 (PDT)
-Date: Thu, 18 Jun 2015 12:58:20 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [RFC][PATCHv2 8/8] zsmalloc: register a shrinker to trigger
- auto-compaction
-Message-ID: <20150618035820.GE3422@swordfish>
-References: <1433505838-23058-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1433505838-23058-9-git-send-email-sergey.senozhatsky@gmail.com>
- <20150616144730.GD31387@blaptop>
- <20150616154529.GE20596@swordfish>
- <20150618015028.GA2370@bgram>
- <20150618023906.GC3422@swordfish>
- <20150618033922.GB2370@bgram>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 17 Jun 2015 22:58:09 -0700 (PDT)
+Message-ID: <55825DF0.9090903@suse.cz>
+Date: Thu, 18 Jun 2015 07:58:08 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150618033922.GB2370@bgram>
+Subject: Re: [RFC PATCH 00/12] mm: mirrored memory support for page buddy
+ allocations
+References: <55704A7E.5030507@huawei.com> <557FD5F8.10903@suse.cz> <557FDB9B.1090105@huawei.com> <557FF06A.3020000@suse.cz> <55821D85.3070208@huawei.com>
+In-Reply-To: <55821D85.3070208@huawei.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On (06/18/15 12:39), Minchan Kim wrote:
-[..]
-> > ah, I see.
-> > it doesn't hold the lock `until all the pages are done`. it holds it
-> > as long as zs_can_compact() returns > 0. hm, I'm not entirely sure that
-> > this patch set has increased the locking time (in average).
+On 18.6.2015 3:23, Xishi Qiu wrote:
+> On 2015/6/16 17:46, Vlastimil Babka wrote:
 > 
-> I see your point. Sorry for the consusing.
-> My point is not average but max time. I bet your patch will increase
-> it and it will affect others who want to allocate zspage in parallel on
-> another CPU.
+>> On 06/16/2015 10:17 AM, Xishi Qiu wrote:
+>>> On 2015/6/16 15:53, Vlastimil Babka wrote:
+>>>
+>>>> On 06/04/2015 02:54 PM, Xishi Qiu wrote:
+>>>>>
+>>>>> I think add a new migratetype is btter and easier than a new zone, so I use
+>>>>
+>>>> If the mirrored memory is in a single reasonably compact (no large holes) range
+>>>> (per NUMA node) and won't dynamically change its size, then zone might be a
+>>>> better option. For one thing, it will still allow distinguishing movable and
+>>>> unmovable allocations within the mirrored memory.
+>>>>
+>>>> We had enough fun with MIGRATE_CMA and all kinds of checks it added to allocator
+>>>> hot paths, and even CMA is now considering moving to a separate zone.
+>>>>
+>>>
+>>> Hi, how about the problem of this case:
+>>> e.g. node 0: 0-4G(dma and dma32)
+>>>      node 1: 4G-8G(normal), 8-12G(mirror), 12-16G(normal),
+>>> so more than one normal zone in a node? or normal zone just span the mirror zone?
+>>
+>> Normal zone can span the mirror zone just fine. However, it will result in zone
+>> scanners such as compaction to skip over the mirror zone inefficiently. Hmm...
 
-makes sense.
+On the other hand, it would skip just as inefficiently over MIGRATE_MIRROR
+pageblocks within a Normal zone. Since migrating pages between MIGRATE_MIRROR
+and other types pageblocks would violate what the allocations requested.
 
-[..]
-> > > Yes, it's not easy and I believe a few artificial testing are not enough
-> > > to prove no regression but we don't have any choice.
-> > > Actually, I think this patchset does make sense. Although it might have
-> > > a problem on situation heavy memory pressure by lacking of fragment space,
-> > 
-> > 
-> > I tested exactly this scenario yesterday (and sent an email). We leave `no holes'
-> > in classes only in ~1.35% of cases. so, no, this argument is not valid. we preserve
-> > fragmentation.
-> 
-> Thanks, Sergey.
-> 
-> I want to test by myself to simulate worst case scenario to make to use up
-> reserved memory by zram. For it, please fix below first and resubmit, please.
-> 
-> 1. doesn't hold lock until class compation is done.
->    It could prevent another allocation on another CPU.
->    I want to make worst case scenario and it needs it.
-> 
-> 2. No touch ZS_ALMOST_FULL waterline. It can put more zspages
->    in ZS_ALMOST_FULL list so it couldn't be selected by migration
->    source.
-> 
-> With new patchset, I want to watch min(free_pages of the system),
-> zram.max_used_pages, testing time and so on.
-> 
-> Really sorry for bothering you, Sergey but I think it's important
-> feature on zram so I want to be careful because risk management is
-> my role.
+Having separate zone instead would allow compaction to run specifically on the
+zone and defragment movable allocations there (i.e. userspace pages if/when
+userspace requesting mirrored memory is supported).
 
-ok. will take a day or two to gather new numbers.
+>>
+> 
+> Hi Vlastimil,
+> 
+> If there are many mirror regions in one node, then it will be many holes in the
+> normal zone, is this fine?
 
-	-ss
+Yeah, it doesn't matter how many holes there are.
+
+> Thanks,
+> Xishi Qiu
+> 
+>>
+>> .
+>>
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
