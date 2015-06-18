@@ -1,70 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D6A736B0074
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 21:26:01 -0400 (EDT)
-Received: by qkbp125 with SMTP id p125so32109419qkb.2
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 18:26:01 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id d68si6325411qka.18.2015.06.17.18.25.59
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C0C66B0074
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 21:33:45 -0400 (EDT)
+Received: by wicnd19 with SMTP id nd19so45652068wic.1
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 18:33:45 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bo1si11223527wjb.27.2015.06.17.18.33.43
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 17 Jun 2015 18:26:01 -0700 (PDT)
-Message-ID: <55821D85.3070208@huawei.com>
-Date: Thu, 18 Jun 2015 09:23:17 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH 00/12] mm: mirrored memory support for page buddy
- allocations
-References: <55704A7E.5030507@huawei.com> <557FD5F8.10903@suse.cz> <557FDB9B.1090105@huawei.com> <557FF06A.3020000@suse.cz>
-In-Reply-To: <557FF06A.3020000@suse.cz>
-Content-Type: text/plain; charset="windows-1252"
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 17 Jun 2015 18:33:44 -0700 (PDT)
+Message-ID: <1434591216.1903.44.camel@stgolabs.net>
+Subject: Re: [PATCH] mm: use srcu for shrinkers
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Wed, 17 Jun 2015 18:33:36 -0700
+In-Reply-To: <20150617074751.GC25056@dhcp22.suse.cz>
+References: <1434398602.1903.15.camel@stgolabs.net>
+	 <20150617074751.GC25056@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas
- Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2015/6/16 17:46, Vlastimil Babka wrote:
+On Wed, 2015-06-17 at 09:47 +0200, Michal Hocko wrote:
+> On the other hand using srcu is a neat idea. Shrinkers only need the
+> existence guarantee when racing with unregister. Register even shouldn't
+> be that interesting because such a shrinker wouldn't have much to
+> shrink anyway so we can safely miss it AFAIU. With the srcu read lock
+> we can finally get rid of the try_lock. I do not think you need an
+> ugly spin_is_locked as the replacement though. We have the existence
+> guarantee and that should be sufficient.
 
-> On 06/16/2015 10:17 AM, Xishi Qiu wrote:
->> On 2015/6/16 15:53, Vlastimil Babka wrote:
->>
->>> On 06/04/2015 02:54 PM, Xishi Qiu wrote:
->>>>
->>>> I think add a new migratetype is btter and easier than a new zone, so I use
->>>
->>> If the mirrored memory is in a single reasonably compact (no large holes) range
->>> (per NUMA node) and won't dynamically change its size, then zone might be a
->>> better option. For one thing, it will still allow distinguishing movable and
->>> unmovable allocations within the mirrored memory.
->>>
->>> We had enough fun with MIGRATE_CMA and all kinds of checks it added to allocator
->>> hot paths, and even CMA is now considering moving to a separate zone.
->>>
->>
->> Hi, how about the problem of this case:
->> e.g. node 0: 0-4G(dma and dma32)
->>      node 1: 4G-8G(normal), 8-12G(mirror), 12-16G(normal),
->> so more than one normal zone in a node? or normal zone just span the mirror zone?
-> 
-> Normal zone can span the mirror zone just fine. However, it will result in zone
-> scanners such as compaction to skip over the mirror zone inefficiently. Hmm...
-> 
+So the reason for the spin_is_locked check was that I was concerned
+about new reader(s) that come in while doing the registry. Currently
+this is forbidden by the trylock and fake-ish retry. But yes, perhaps I
+was being over safe and we shouldn't be blockling the reclaim simply
+because a shrinker is registering. And it would be cleaner to get rid of
+the whole retry idea and just use rcu guarantees.
 
-Hi Vlastimil,
-
-If there are many mirror regions in one node, then it will be many holes in the
-normal zone, is this fine?
+This is probably a little late in the game to try to push for 4.2, so
+I'll send a v2 with any other updates that might come up once the merge
+window closes.
 
 Thanks,
-Xishi Qiu
-
-> 
-> .
-> 
-
-
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
