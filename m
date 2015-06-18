@@ -1,204 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 4045D6B0074
-	for <linux-mm@kvack.org>; Thu, 18 Jun 2015 04:25:31 -0400 (EDT)
-Received: by pdjm12 with SMTP id m12so61465422pdj.3
-        for <linux-mm@kvack.org>; Thu, 18 Jun 2015 01:25:31 -0700 (PDT)
-Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
-        by mx.google.com with ESMTPS id mr5si10305239pbb.204.2015.06.18.01.25.29
+Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 251566B0074
+	for <linux-mm@kvack.org>; Thu, 18 Jun 2015 05:40:26 -0400 (EDT)
+Received: by oiax193 with SMTP id x193so53433382oia.2
+        for <linux-mm@kvack.org>; Thu, 18 Jun 2015 02:40:25 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id h144si4396131oib.126.2015.06.18.02.40.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 18 Jun 2015 01:25:30 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout1.w1.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0NQ400KVOSQD4K60@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 18 Jun 2015 09:25:25 +0100 (BST)
-Message-id: <55828064.5040301@samsung.com>
-Date: Thu, 18 Jun 2015 10:25:08 +0200
-From: Beata Michalska <b.michalska@samsung.com>
-MIME-version: 1.0
-Subject: Re: [RFC v3 1/4] fs: Add generic file system event notifications
-References: <1434460173-18427-1-git-send-email-b.michalska@samsung.com>
- <1434460173-18427-2-git-send-email-b.michalska@samsung.com>
- <20150617230605.GK10224@dastard>
-In-reply-to: <20150617230605.GK10224@dastard>
-Content-type: text/plain; charset=ISO-8859-1
-Content-transfer-encoding: 7bit
+        Thu, 18 Jun 2015 02:40:24 -0700 (PDT)
+Message-ID: <55829149.60807@huawei.com>
+Date: Thu, 18 Jun 2015 17:37:13 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH 00/12] mm: mirrored memory support for page buddy
+ allocations
+References: <55704A7E.5030507@huawei.com> <557FD5F8.10903@suse.cz> <557FDB9B.1090105@huawei.com> <557FF06A.3020000@suse.cz> <55821D85.3070208@huawei.com> <55825DF0.9090903@suse.cz>
+In-Reply-To: <55825DF0.9090903@suse.cz>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, greg@kroah.com, jack@suse.cz, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas
+ Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi,
+On 2015/6/18 13:58, Vlastimil Babka wrote:
 
-On 06/18/2015 01:06 AM, Dave Chinner wrote:
-> On Tue, Jun 16, 2015 at 03:09:30PM +0200, Beata Michalska wrote:
->> Introduce configurable generic interface for file
->> system-wide event notifications, to provide file
->> systems with a common way of reporting any potential
->> issues as they emerge.
+> On 18.6.2015 3:23, Xishi Qiu wrote:
+>> On 2015/6/16 17:46, Vlastimil Babka wrote:
 >>
->> The notifications are to be issued through generic
->> netlink interface by newly introduced multicast group.
+>>> On 06/16/2015 10:17 AM, Xishi Qiu wrote:
+>>>> On 2015/6/16 15:53, Vlastimil Babka wrote:
+>>>>
+>>>>> On 06/04/2015 02:54 PM, Xishi Qiu wrote:
+>>>>>>
+>>>>>> I think add a new migratetype is btter and easier than a new zone, so I use
+>>>>>
+>>>>> If the mirrored memory is in a single reasonably compact (no large holes) range
+>>>>> (per NUMA node) and won't dynamically change its size, then zone might be a
+>>>>> better option. For one thing, it will still allow distinguishing movable and
+>>>>> unmovable allocations within the mirrored memory.
+>>>>>
+>>>>> We had enough fun with MIGRATE_CMA and all kinds of checks it added to allocator
+>>>>> hot paths, and even CMA is now considering moving to a separate zone.
+>>>>>
+>>>>
+>>>> Hi, how about the problem of this case:
+>>>> e.g. node 0: 0-4G(dma and dma32)
+>>>>      node 1: 4G-8G(normal), 8-12G(mirror), 12-16G(normal),
+>>>> so more than one normal zone in a node? or normal zone just span the mirror zone?
+>>>
+>>> Normal zone can span the mirror zone just fine. However, it will result in zone
+>>> scanners such as compaction to skip over the mirror zone inefficiently. Hmm...
+> 
+> On the other hand, it would skip just as inefficiently over MIGRATE_MIRROR
+> pageblocks within a Normal zone. Since migrating pages between MIGRATE_MIRROR
+> and other types pageblocks would violate what the allocations requested.
+> 
+> Having separate zone instead would allow compaction to run specifically on the
+> zone and defragment movable allocations there (i.e. userspace pages if/when
+> userspace requesting mirrored memory is supported).
+> 
+>>>
 >>
->> Threshold notifications have been included, allowing
->> triggering an event whenever the amount of free space drops
->> below a certain level - or levels to be more precise as two
->> of them are being supported: the lower and the upper range.
->> The notifications work both ways: once the threshold level
->> has been reached, an event shall be generated whenever
->> the number of available blocks goes up again re-activating
->> the threshold.
+>> Hi Vlastimil,
 >>
->> The interface has been exposed through a vfs. Once mounted,
->> it serves as an entry point for the set-up where one can
->> register for particular file system events.
->>
->> Signed-off-by: Beata Michalska <b.michalska@samsung.com>
+>> If there are many mirror regions in one node, then it will be many holes in the
+>> normal zone, is this fine?
 > 
-> This has massive scalability problems:
-> 
->> + 4.3 Threshold notifications:
->> +
->> + #include <linux/fs_event.h>
->> + void fs_event_alloc_space(struct super_block *sb, u64 ncount);
->> + void fs_event_free_space(struct super_block *sb, u64 ncount);
->> +
->> + Each filesystme supporting the threshold notifications should call
->> + fs_event_alloc_space/fs_event_free_space respectively whenever the
->> + amount of available blocks changes.
->> + - sb:     the filesystem's super block
->> + - ncount: number of blocks being acquired/released
-> 
-> ... here.
-> 
->> + Note that to properly handle the threshold notifications the fs events
->> + interface needs to be kept up to date by the filesystems. Each should
->> + register fs_trace_operations to enable querying the current number of
->> + available blocks.
-> 
-> Have you noticed that the filesystems have percpu counters for
-> tracking global space usage? There's good reason for that - taking a
-> spinlock in such a hot accounting path causes severe contention.
-> 
->> +static void fs_event_send(struct fs_trace_entry *en, unsigned int event_id)
->> +{
->> +	size_t size = nla_total_size(sizeof(u32)) * 2 +
->> +		      nla_total_size(sizeof(u64));
->> +
->> +	fs_netlink_send_event(size, event_id, create_common_msg, en);
->> +}
->> +
->> +static void fs_event_send_thresh(struct fs_trace_entry *en,
->> +				  unsigned int event_id)
->> +{
->> +	size_t size = nla_total_size(sizeof(u32)) * 2 +
->> +		      nla_total_size(sizeof(u64)) * 2;
->> +
->> +	fs_netlink_send_event(size, event_id, create_thresh_msg, en);
->> +}
->> +
->> +void fs_event_notify(struct super_block *sb, unsigned int event_id)
->> +{
->> +	struct fs_trace_entry *en;
->> +
->> +	en = fs_trace_entry_get_rcu(sb);
->> +	if (!en)
->> +		return;
->> +
->> +	spin_lock(&en->lock);
->> +	if (atomic_read(&en->active) && (en->notify & FS_EVENT_GENERIC))
->> +		fs_event_send(en, event_id);
->> +	spin_unlock(&en->lock);
->> +	fs_trace_entry_put(en);
->> +}
->> +EXPORT_SYMBOL(fs_event_notify);
->> +
->> +void fs_event_alloc_space(struct super_block *sb, u64 ncount)
->> +{
->> +	struct fs_trace_entry *en;
->> +	s64 count;
->> +
->> +	en = fs_trace_entry_get_rcu(sb);
->> +	if (!en)
->> +		return;
-> 
-> Adds an atomic write to get the trace entry,
-> 
->> +	spin_lock(&en->lock);
-> 
-> a spin lock to lock the entry,
-> 
-> 
->> +	if (!atomic_read(&en->active) || !(en->notify & FS_EVENT_THRESH))
->> +		goto leave;
->> +	/*
->> +	 * we shouldn't drop below 0 here,
->> +	 * unless there is a sync issue somewhere (?)
->> +	 */
->> +	count = en->th.avail_space - ncount;
->> +	en->th.avail_space = count < 0 ? 0 : count;
->> +
->> +	if (en->th.avail_space > en->th.lrange)
->> +		/* Not 'even' close - leave */
->> +		goto leave;
->> +
->> +	if (en->th.avail_space > en->th.urange) {
->> +		/* Close enough - the lower range has been reached */
->> +		if (!(en->th.state & THRESH_LR_BEYOND)) {
->> +			/* Send notification */
->> +			fs_event_send_thresh(en, FS_THR_LRBELOW);
->> +			en->th.state &= ~THRESH_LR_BELOW;
->> +			en->th.state |= THRESH_LR_BEYOND;
->> +		}
->> +		goto leave;
-> 
-> Then puts the entire netlink send path inside this spinlock, which
-> includes memory allocation and all sorts of non-filesystem code
-> paths. And it may be inside critical filesystem locks as well....
-> 
-> Apart from the serialisation problem of the locking, adding
-> memory allocation and the network send path to filesystem code
-> that is effectively considered "innermost" filesystem code is going
-> to have all sorts of problems for various filesystems. In the XFS
-> case, we simply cannot execute this sort of function in the places
-> where we update global space accounting.
-> 
-> As it is, I think the basic concept of separate tracking of free
-> space if fundamentally flawed. What I think needs to be done is that
-> filesystems need access to the thresholds for events, and then the
-> filesystems call fs_event_send_thresh() themselves from appropriate
-> contexts (ie. without compromising locking, scalability, memory
-> allocation recursion constraints, etc).
-> 
-> e.g. instead of tracking every change in free space, a filesystem
-> might execute this once every few seconds from a workqueue:
-> 
-> 	event = fs_event_need_space_warning(sb, <fs_free_space>)
-> 	if (event)
-> 		fs_event_send_thresh(sb, event);
-> 
-> User still gets warnings about space usage, but there's no runtime
-> overhead or problems with lock/memory allocation contexts, etc.
-> 
-> Cheers,
-> 
-> Dave.
-> 
+> Yeah, it doesn't matter how many holes there are.
 
-Having fs to keep a firm hand on thresholds limits would indeed be
-far more sane approach though that would require each fs to
-add support for that and handle most of it on their own. Avoiding
-this was the main rationale behind this rfc.
+So mirror zone and normal zone will span each other, right?
 
-If fs people agree to that, I'll be more than willing to drop this
-in favour of the per-fs tracking solution. 
-Personally, I hope they will.
+e.g. node 1: 4G-8G(normal), 8-12G(mirror), 12-16G(normal), 16-24G(mirror), 24-28G(normal) ...
+normal: start=4G, size=28-4=24G,
+mirror: start=8G, size=24-8=16G,
 
+I think zone is defined according to the special address range, like 16M(DMA), 4G(DMA32),
+and is it appropriate to add a new mirror zone with a volatile physical address?
 
-Best Regards
-Beata 
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
