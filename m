@@ -1,250 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 833836B0074
-	for <linux-mm@kvack.org>; Thu, 18 Jun 2015 11:29:14 -0400 (EDT)
-Received: by wicnd19 with SMTP id nd19so64247747wic.1
-        for <linux-mm@kvack.org>; Thu, 18 Jun 2015 08:29:14 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id DE34F6B0074
+	for <linux-mm@kvack.org>; Thu, 18 Jun 2015 11:47:21 -0400 (EDT)
+Received: by wibdq8 with SMTP id dq8so91204375wib.1
+        for <linux-mm@kvack.org>; Thu, 18 Jun 2015 08:47:21 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cw1si15801401wib.20.2015.06.18.08.29.12
+        by mx.google.com with ESMTPS id pr9si14575126wjc.194.2015.06.18.08.47.19
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 18 Jun 2015 08:29:12 -0700 (PDT)
-Date: Thu, 18 Jun 2015 17:29:07 +0200
+        Thu, 18 Jun 2015 08:47:20 -0700 (PDT)
+Date: Thu, 18 Jun 2015 17:47:16 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RESEND PATCH V2 1/3] Add mmap flag to request pages are locked
- after page fault
-Message-ID: <20150618152907.GG5858@dhcp22.suse.cz>
-References: <1433942810-7852-1-git-send-email-emunson@akamai.com>
- <1433942810-7852-2-git-send-email-emunson@akamai.com>
+Subject: Re: [RFC V3] net: don't wait for order-3 page allocation
+Message-ID: <20150618154716.GH5858@dhcp22.suse.cz>
+References: <0099265406c32b9b9057de100404a4148d602cdd.1434066549.git.shli@fb.com>
+ <557AA834.8070503@suse.cz>
+ <alpine.DEB.2.10.1506171602300.8203@chino.kir.corp.google.com>
+ <20150618143019.GE5858@dhcp22.suse.cz>
+ <CANn89iLr2iNV3VjA4POPpfsmOpyB7jP2-wPiAkCOcA+Oh+2=5A@mail.gmail.com>
+ <20150618144311.GF5858@dhcp22.suse.cz>
+ <5582E240.8080704@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1433942810-7852-2-git-send-email-emunson@akamai.com>
+In-Reply-To: <5582E240.8080704@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Eric Dumazet <edumazet@google.com>, David Rientjes <rientjes@google.com>, Shaohua Li <shli@fb.com>, netdev <netdev@vger.kernel.org>, David Miller <davem@davemloft.net>, kernel-team <Kernel-team@fb.com>, clm@fb.com, linux-mm@kvack.org, dbavatar@gmail.com
 
-[Sorry for the late reply - I meant to answer in the previous threads
- but something always preempted me from that]
-
-On Wed 10-06-15 09:26:48, Eric B Munson wrote:
-> The cost of faulting in all memory to be locked can be very high when
-> working with large mappings.  If only portions of the mapping will be
-> used this can incur a high penalty for locking.
+On Thu 18-06-15 17:22:40, Vlastimil Babka wrote:
+> On 06/18/2015 04:43 PM, Michal Hocko wrote:
+> >On Thu 18-06-15 07:35:53, Eric Dumazet wrote:
+> >>On Thu, Jun 18, 2015 at 7:30 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> >>
+> >>>Abusing __GFP_NO_KSWAPD is a wrong way to go IMHO. It is true that the
+> >>>_current_ implementation of the allocator has this nasty and very subtle
+> >>>side effect but that doesn't mean it should be abused outside of the mm
+> >>>proper. Why shouldn't this path wake the kswapd and let it compact
+> >>>memory on the background to increase the success rate for the later
+> >>>high order allocations?
+> >>
+> >>I kind of agree.
+> >>
+> >>If kswapd is a problem (is it ???) we should fix it, instead of adding
+> >>yet another flag to some random locations attempting
+> >>memory allocations.
+> >
+> >No, kswapd is not a problem. The problem is ~__GFP_WAIT allocation can
+> >access some portion of the memory reserves (see gfp_to_alloc_flags resp.
+> >__zone_watermark_ok and ALLOC_HARDER). __GFP_NO_KSWAPD is just a dirty
+> >hack to not give that access which was introduced for THP AFAIR.
+> >
+> >The implicit access to memory reserves for non sleeping allocation has
+> >been there for ages and it might be not suitable for this particular
+> >path but that doesn't mean another gfp flag with a different side effect
+> >should be hijacked. We should either stop doing that implicit access to
+> >memory reserves and give __GFP_RESERVE or add the __GFP_NORESERVE. But
+> >that is a problem to be solved in the mm proper. Spreading subtle
+> >dependencies outside of mm will just make situation worse.
 > 
-> For the example of a large file, this is the usage pattern for a large
-> statical language model (probably applies to other statical or graphical
-> models as well).  For the security example, any application transacting
-> in data that cannot be swapped out (credit card data, medical records,
-> etc).
+> So you are not proposing to use these __GFP_RESERVE/NORESERVE flag outside
+> of mm, right? (besides, we distinguish several kinds of reserves, so what
+> exactly would the flag do?)
 
-Such a use case makes some sense to me but I am not sure the way you
-implement it is the right one. This is another mlock related flag for
-mmap with a different semantic. You do not want to prefault but e.g. is
-the readahead or fault around acceptable? I do not see anything in your
-patch to handle those...
+That is to be discussed. Most allocations already express their interest
+in memory reserves by __GFP_HIGH directly or by GFP_ATOMIC indirectly.
+So maybe we do not need any additional flag here. There are not that
+many ~__GFP_WAIT and most of them seem to require it _only_ because the
+context doesn't allow for sleeping (e.g. to prevent from deadlocks).
 
-Wouldn't it be much more reasonable and straightforward to have
-MAP_FAULTPOPULATE as a counterpart for MAP_POPULATE which would
-explicitly disallow any form of pre-faulting? It would be usable for
-other usecases than with MAP_LOCKED combination.
+> As that would be also subtle dependency. The
+> general problem I think is that we should want the mm users to specify
+> higher-level intentions (such as GFP_KERNEL) which would map to specific
+> directions (__GFP_*) for the allocator, and currently it's rather a mess of
+> both kinds of flags.
 
-> This patch introduces the ability to request that pages are not
-> pre-faulted, but are placed on the unevictable LRU when they are finally
-> faulted in.
-> 
-> To keep accounting checks out of the page fault path, users are billed
-> for the entire mapping lock as if MAP_LOCKED was used.
-> 
-> Signed-off-by: Eric B Munson <emunson@akamai.com>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: linux-alpha@vger.kernel.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mips@linux-mips.org
-> Cc: linux-parisc@vger.kernel.org
-> Cc: linuxppc-dev@lists.ozlabs.org
-> Cc: sparclinux@vger.kernel.org
-> Cc: linux-xtensa@linux-xtensa.org
-> Cc: linux-mm@kvack.org
-> Cc: linux-arch@vger.kernel.org
-> Cc: linux-api@vger.kernel.org
-> ---
->  arch/alpha/include/uapi/asm/mman.h   | 1 +
->  arch/mips/include/uapi/asm/mman.h    | 1 +
->  arch/parisc/include/uapi/asm/mman.h  | 1 +
->  arch/powerpc/include/uapi/asm/mman.h | 1 +
->  arch/sparc/include/uapi/asm/mman.h   | 1 +
->  arch/tile/include/uapi/asm/mman.h    | 1 +
->  arch/xtensa/include/uapi/asm/mman.h  | 1 +
->  include/linux/mm.h                   | 1 +
->  include/linux/mman.h                 | 3 ++-
->  include/uapi/asm-generic/mman.h      | 1 +
->  mm/mmap.c                            | 4 ++--
->  mm/swap.c                            | 3 ++-
->  12 files changed, 15 insertions(+), 4 deletions(-)
-> 
-> diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
-> index 0086b47..15e96e1 100644
-> --- a/arch/alpha/include/uapi/asm/mman.h
-> +++ b/arch/alpha/include/uapi/asm/mman.h
-> @@ -30,6 +30,7 @@
->  #define MAP_NONBLOCK	0x40000		/* do not block on IO */
->  #define MAP_STACK	0x80000		/* give out an address that is best suited for process/thread stacks */
->  #define MAP_HUGETLB	0x100000	/* create a huge page mapping */
-> +#define MAP_LOCKONFAULT	0x200000	/* Lock pages after they are faulted in, do not prefault */
->  
->  #define MS_ASYNC	1		/* sync memory asynchronously */
->  #define MS_SYNC		2		/* synchronous memory sync */
-> diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
-> index cfcb876..47846a5 100644
-> --- a/arch/mips/include/uapi/asm/mman.h
-> +++ b/arch/mips/include/uapi/asm/mman.h
-> @@ -48,6 +48,7 @@
->  #define MAP_NONBLOCK	0x20000		/* do not block on IO */
->  #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
->  #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
-> +#define MAP_LOCKONFAULT	0x100000	/* Lock pages after they are faulted in, do not prefault */
->  
->  /*
->   * Flags for msync
-> diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
-> index 294d251..1514cd7 100644
-> --- a/arch/parisc/include/uapi/asm/mman.h
-> +++ b/arch/parisc/include/uapi/asm/mman.h
-> @@ -24,6 +24,7 @@
->  #define MAP_NONBLOCK	0x20000		/* do not block on IO */
->  #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
->  #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
-> +#define MAP_LOCKONFAULT	0x100000	/* Lock pages after they are faulted in, do not prefault */
->  
->  #define MS_SYNC		1		/* synchronous memory sync */
->  #define MS_ASYNC	2		/* sync memory asynchronously */
-> diff --git a/arch/powerpc/include/uapi/asm/mman.h b/arch/powerpc/include/uapi/asm/mman.h
-> index 6ea26df..fce74fe 100644
-> --- a/arch/powerpc/include/uapi/asm/mman.h
-> +++ b/arch/powerpc/include/uapi/asm/mman.h
-> @@ -27,5 +27,6 @@
->  #define MAP_NONBLOCK	0x10000		/* do not block on IO */
->  #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
->  #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
-> +#define MAP_LOCKONFAULT	0x80000		/* Lock pages after they are faulted in, do not prefault */
->  
->  #endif /* _UAPI_ASM_POWERPC_MMAN_H */
-> diff --git a/arch/sparc/include/uapi/asm/mman.h b/arch/sparc/include/uapi/asm/mman.h
-> index 0b14df3..12425d8 100644
-> --- a/arch/sparc/include/uapi/asm/mman.h
-> +++ b/arch/sparc/include/uapi/asm/mman.h
-> @@ -22,6 +22,7 @@
->  #define MAP_NONBLOCK	0x10000		/* do not block on IO */
->  #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
->  #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
-> +#define MAP_LOCKONFAULT	0x80000		/* Lock pages after they are faulted in, do not prefault */
->  
->  
->  #endif /* _UAPI__SPARC_MMAN_H__ */
-> diff --git a/arch/tile/include/uapi/asm/mman.h b/arch/tile/include/uapi/asm/mman.h
-> index 81b8fc3..ec04eaf 100644
-> --- a/arch/tile/include/uapi/asm/mman.h
-> +++ b/arch/tile/include/uapi/asm/mman.h
-> @@ -29,6 +29,7 @@
->  #define MAP_DENYWRITE	0x0800		/* ETXTBSY */
->  #define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
->  #define MAP_HUGETLB	0x4000		/* create a huge page mapping */
-> +#define MAP_LOCKONFAULT	0x8000		/* Lock pages after they are faulted in, do not prefault */
->  
->  
->  /*
-> diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
-> index 201aec0..42d43cc 100644
-> --- a/arch/xtensa/include/uapi/asm/mman.h
-> +++ b/arch/xtensa/include/uapi/asm/mman.h
-> @@ -55,6 +55,7 @@
->  #define MAP_NONBLOCK	0x20000		/* do not block on IO */
->  #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
->  #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
-> +#define MAP_LOCKONFAULT	0x100000	/* Lock pages after they are faulted in, do not prefault */
->  #ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
->  # define MAP_UNINITIALIZED 0x4000000	/* For anonymous mmap, memory could be
->  					 * uninitialized */
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 0755b9f..3e31457 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -126,6 +126,7 @@ extern unsigned int kobjsize(const void *objp);
->  #define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
->  #define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */
->  
-> +#define VM_LOCKONFAULT	0x00001000	/* Lock the pages covered when they are faulted in */
->  #define VM_LOCKED	0x00002000
->  #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
->  
-> diff --git a/include/linux/mman.h b/include/linux/mman.h
-> index 16373c8..437264b 100644
-> --- a/include/linux/mman.h
-> +++ b/include/linux/mman.h
-> @@ -86,7 +86,8 @@ calc_vm_flag_bits(unsigned long flags)
->  {
->  	return _calc_vm_trans(flags, MAP_GROWSDOWN,  VM_GROWSDOWN ) |
->  	       _calc_vm_trans(flags, MAP_DENYWRITE,  VM_DENYWRITE ) |
-> -	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    );
-> +	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    ) |
-> +	       _calc_vm_trans(flags, MAP_LOCKONFAULT,VM_LOCKONFAULT);
->  }
->  
->  unsigned long vm_commit_limit(void);
-> diff --git a/include/uapi/asm-generic/mman.h b/include/uapi/asm-generic/mman.h
-> index e9fe6fd..fc4e586 100644
-> --- a/include/uapi/asm-generic/mman.h
-> +++ b/include/uapi/asm-generic/mman.h
-> @@ -12,6 +12,7 @@
->  #define MAP_NONBLOCK	0x10000		/* do not block on IO */
->  #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
->  #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
-> +#define MAP_LOCKONFAULT	0x80000		/* Lock pages after they are faulted in, do not prefault */
->  
->  /* Bits [26:31] are reserved, see mman-common.h for MAP_HUGETLB usage */
->  
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index bb50cac..ba1a6bf 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -1233,7 +1233,7 @@ static inline int mlock_future_check(struct mm_struct *mm,
->  	unsigned long locked, lock_limit;
->  
->  	/*  mlock MCL_FUTURE? */
-> -	if (flags & VM_LOCKED) {
-> +	if (flags & (VM_LOCKED | VM_LOCKONFAULT)) {
->  		locked = len >> PAGE_SHIFT;
->  		locked += mm->locked_vm;
->  		lock_limit = rlimit(RLIMIT_MEMLOCK);
-> @@ -1301,7 +1301,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
->  	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
->  			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
->  
-> -	if (flags & MAP_LOCKED)
-> +	if (flags & (MAP_LOCKED | MAP_LOCKONFAULT))
->  		if (!can_do_mlock())
->  			return -EPERM;
->  
-> diff --git a/mm/swap.c b/mm/swap.c
-> index a7251a8..07c905e 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -711,7 +711,8 @@ void lru_cache_add_active_or_unevictable(struct page *page,
->  {
->  	VM_BUG_ON_PAGE(PageLRU(page), page);
->  
-> -	if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED)) {
-> +	if (likely((vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) == 0) ||
-> +		   (vma->vm_flags & VM_SPECIAL)) {
->  		SetPageActive(page);
->  		lru_cache_add(page);
->  		return;
-> -- 
-> 1.9.1
-> 
+I agree. So I think that maybe we should drop that implicit access to
+memory reserves for ~__GFP_WAIT allocations and let it do what it is
+documented to do.
 
+> Clearly the intention here is "opportunistic allocation that should
+> not reclaim/compact, use reserves, wake up kswapd (?) because it's
+> better to fall back to smaller pages than wait") and we don't seem to
+> have a GFP_OPPORTUNISTIC flag for that. The allocation has to then
+> mask out __GFP_WAIT which however looks like an atomic allocation to
+> the allocator and give access to reserves, etc...
+
+I think simply dropping GFP_WAIT is a good way to express that. The
+fact that the current implementation gives access to memory reserves
+implicitly is just a detail and the user of the allocator shouldn't care
+about that.
 -- 
 Michal Hocko
 SUSE Labs
