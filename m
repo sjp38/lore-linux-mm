@@ -1,92 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 06DE56B0081
-	for <linux-mm@kvack.org>; Thu, 18 Jun 2015 16:33:41 -0400 (EDT)
-Received: by pdjn11 with SMTP id n11so74079834pdj.0
-        for <linux-mm@kvack.org>; Thu, 18 Jun 2015 13:33:40 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id d2si12784510pdn.45.2015.06.18.13.33.39
-        for <linux-mm@kvack.org>;
-        Thu, 18 Jun 2015 13:33:40 -0700 (PDT)
-Date: Thu, 18 Jun 2015 13:33:35 -0700
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: Re: [RFC PATCH 00/12] mm: mirrored memory support for page buddy
- allocations
-Message-ID: <20150618203335.GA3829@agluck-desk.sc.intel.com>
-References: <55704A7E.5030507@huawei.com>
- <557FD5F8.10903@suse.cz>
- <557FDB9B.1090105@huawei.com>
- <557FF06A.3020000@suse.cz>
- <55821D85.3070208@huawei.com>
- <55825DF0.9090903@suse.cz>
- <55829149.60807@huawei.com>
- <5582959E.4080402@suse.cz>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 26D3D6B0083
+	for <linux-mm@kvack.org>; Thu, 18 Jun 2015 17:14:56 -0400 (EDT)
+Received: by pdjn11 with SMTP id n11so74700863pdj.0
+        for <linux-mm@kvack.org>; Thu, 18 Jun 2015 14:14:55 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id u16si12877390pbs.49.2015.06.18.14.14.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Jun 2015 14:14:55 -0700 (PDT)
+Date: Thu, 18 Jun 2015 14:14:46 -0700
+From: Darren Hart <dvhart@infradead.org>
+Subject: Re: Possible broken MM code in dell-laptop.c?
+Message-ID: <20150618211446.GB70097@vmdeb7>
+References: <201506141105.07171@pali>
+ <20150615211816.GC16138@dhcp22.suse.cz>
+ <201506152327.59907@pali>
+ <20150616063346.GA24296@dhcp22.suse.cz>
+ <20150616071523.GB5863@pali>
+ <20150617034334.GB29788@vmdeb7>
+ <20150617071939.GA25056@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5582959E.4080402@suse.cz>
+In-Reply-To: <20150617071939.GA25056@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Pali =?iso-8859-1?Q?Roh=E1r?= <pali.rohar@gmail.com>, Hans de Goede <hdegoede@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Stuart Hayes <stuart_hayes@dell.com>, Matthew Garrett <mjg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, platform-driver-x86@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jun 18, 2015 at 11:55:42AM +0200, Vlastimil Babka wrote:
-> >>>If there are many mirror regions in one node, then it will be many holes in the
-> >>>normal zone, is this fine?
-> >>
-> >>Yeah, it doesn't matter how many holes there are.
-> >
-> >So mirror zone and normal zone will span each other, right?
-> >
-> >e.g. node 1: 4G-8G(normal), 8-12G(mirror), 12-16G(normal), 16-24G(mirror), 24-28G(normal) ...
-> >normal: start=4G, size=28-4=24G,
-> >mirror: start=8G, size=24-8=16G,
+On Wed, Jun 17, 2015 at 09:19:39AM +0200, Michal Hocko wrote:
+> On Tue 16-06-15 20:43:34, Darren Hart wrote:
+> [...]
+> > Michal - thanks for the context.
+> > 
+> > I'm surprised by your recommendation to use __free_page() out here in platform
+> > driver land.
+> > 
+> > I'd also prefer that the driver consistently free the same address to avoid
+> > confusion.
+> > 
+> > For these reasons, free_page((unsigned long)buffer) seems like the better
+> > option.
+> > 
+> > Can you elaborate on why you feel __free_page() is a better choice?
 > 
-> Yes, that works. It's somewhat unfortunate wrt performance that the hardware
-> does it like this though.
-
-With current Xeon h/w you can have one mirrored range per memory
-controller ... and there are two memory controllers on a cpu socket,
-so two mirrored ranges per node.  So a map might look like:
-
-SKT0: MC0: 0-2G Mirrored (but we may want to ignore mirror here to keep it for ZONE_DMA)
-SKT0: MC0: 2G-4G No memory ... I/O mapping area
-SKT0: MC0: 4G-34G Not mirrored
-SKT0: MC1: 34G-40G Mirrored
-SKT0: MC1: 40G-66G Not mirrored
-
-SKT1: MC0: 66G-70G Mirror
-SKT1: MC0: 70G-98G Not Mirrored
-SKT1: MC1: 98G-102G Mirror
-SKT1: MC1: 102G-130G Not Mirrored
-
-... and so on.
-
-> >I think zone is defined according to the special address range, like 16M(DMA), 4G(DMA32),
+> Well the allocation uses alloc_page and __free_page is the freeing
+> counterpart so it is natural to use it if the allocated page is
+> available. Which is the case here.
 > 
-> Traditionally yes. But then there is ZONE_MOVABLE, this year's LSF/MM we
-> discussed (and didn't outright deny) ZONE_CMA...
-> I'm not saying others will favour the new zone approach though, it's just my
-> opinion that it might be a better option than a new migratetype.
-
-If we are going to have lots of zones ... then perhaps we will
-need a fast way to look at a "struct page" and decide which zone
-it belongs to.  Complicated math on the address deosn't sound ideal.
-If the complex zone model is just for 64-bit, are there enough bits
-available in page->flags (3 bits for 8 options ... which we are close
-to filling now ... 4 bits for future breathing room).
-
-> >and is it appropriate to add a new mirror zone with a volatile physical address?
+> Anyway the code can be cleaned up by using __get_free_page for the
+> allocation, then you do not have to care about the struct page and get
+> the address right away without an additional code. free_page would be a
+> natural freeing path.
+> __get_free_page would be even a better API because it enforces that
+> the allocation is not from the highmem - which the driver already does
+> by not using __GFP_HIGHMEM.
 > 
-> By "volatile" you mean what, that the example above would change
-> dynamically? That would be rather challenging...
 
-If we hot-add another cpu together with on die memory controllers connected
-to more memory ... then some of the new memory might be mirrored.  Current
-h/w doesn't allow mirrored areas to grow/shrink (though if there are a lot
-of errors we may break a mirror so a whole range could lose the mirror attribute).
+Thank you Michal, I guess I'm just tripping over an API with mismatched __ and
+no __ prefix paired calls. Thanks for the clarification.
 
--Tony
+Pali, I'm fine with any of these options - it sounds as though __get_free_page()
+may be a general improvement.
+
+-- 
+Darren Hart
+Intel Open Source Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
