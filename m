@@ -1,55 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 6718C6B0074
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 19:53:40 -0400 (EDT)
-Received: by pdjm12 with SMTP id m12so51990850pdj.3
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 16:53:40 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id ot7si8525511pac.203.2015.06.17.16.53.39
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id C93696B0074
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 20:22:51 -0400 (EDT)
+Received: by igbqq3 with SMTP id qq3so3066979igb.0
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 17:22:51 -0700 (PDT)
+Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com. [2607:f8b0:4001:c03::22b])
+        by mx.google.com with ESMTPS id 2si5181181igt.56.2015.06.17.17.22.51
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jun 2015 16:53:39 -0700 (PDT)
-Received: by pabvl15 with SMTP id vl15so1283523pab.1
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 16:53:39 -0700 (PDT)
-Date: Thu, 18 Jun 2015 08:54:06 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [RFC][PATCH 2/5] mm/mempool: allow NULL `pool' pointer in
- mempool_destroy()
-Message-ID: <20150617235406.GB3422@swordfish>
-References: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1433851493-23685-3-git-send-email-sergey.senozhatsky@gmail.com>
- <alpine.DEB.2.10.1506171619370.8203@chino.kir.corp.google.com>
+        Wed, 17 Jun 2015 17:22:51 -0700 (PDT)
+Received: by iecrd14 with SMTP id rd14so44879679iec.3
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 17:22:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1506171619370.8203@chino.kir.corp.google.com>
+In-Reply-To: <CAKSJeFKR+jWYiMiexvqGyBQe-=hGmq0DO0TZK-EQszTwcbmG4A@mail.gmail.com>
+References: <alpine.LSU.2.11.1506140944380.11018@eggly.anvils>
+	<557E6C0C.3050802@monom.org>
+	<CAKSJeFKR+jWYiMiexvqGyBQe-=hGmq0DO0TZK-EQszTwcbmG4A@mail.gmail.com>
+Date: Thu, 18 Jun 2015 01:22:50 +0100
+Message-ID: <CANsGZ6aEKYgnGZyqO8VrpL8t=68Fwzt5WYbjtC7Nzq0uKPteUw@mail.gmail.com>
+Subject: Re: mm: shmem_zero_setup skip security check and lockdep conflict
+ with XFS
+From: Hugh Dickins <hughd@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sergey.senozhatsky.work@gmail.com
+To: Morten Stevens <mstevens@fedoraproject.org>
+Cc: Daniel Wagner <wagi@monom.org>, Linus Torvalds <torvalds@linux-foundation.org>, Prarit Bhargava <prarit@redhat.com>, Dave Chinner <david@fromorbit.com>, Eric Paris <eparis@redhat.com>, Eric Sandeen <esandeen@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On (06/17/15 16:21), David Rientjes wrote:
-[..]
-> > Tweak mempool_destroy() and NULL-check the pointer there.
-> > 
-> > Proposed by Andrew Morton.
-> > 
-> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> > Reported-by: Andrew Morton <akpm@linux-foundation.org>
-> > LKML-reference: https://lkml.org/lkml/2015/6/8/583
-> 
-> Acked-by: David Rientjes <rientjes@google.com>
-> 
-> I like how your patch series is enabling us to remove many lines from the 
-> source code.  But doing s/Reported-by/Suggested-by/ can also make your 
-> changelog two lines shorter ;)
-> 
+ Wed, Jun 17, 2015 at 12:45 PM, Morten Stevens
+<mstevens@fedoraproject.org> wrote:
+> 2015-06-15 8:09 GMT+02:00 Daniel Wagner <wagi@monom.org>:
+>> On 06/14/2015 06:48 PM, Hugh Dickins wrote:
+>>> It appears that, at some point last year, XFS made directory handling
+>>> changes which bring it into lockdep conflict with shmem_zero_setup():
+>>> it is surprising that mmap() can clone an inode while holding mmap_sem,
+>>> but that has been so for many years.
+>>>
+>>> Since those few lockdep traces that I've seen all implicated selinux,
+>>> I'm hoping that we can use the __shmem_file_setup(,,,S_PRIVATE) which
+>>> v3.13's commit c7277090927a ("security: shmem: implement kernel private
+>>> shmem inodes") introduced to avoid LSM checks on kernel-internal inodes:
+>>> the mmap("/dev/zero") cloned inode is indeed a kernel-internal detail.
+>>>
+>>> This also covers the !CONFIG_SHMEM use of ramfs to support /dev/zero
+>>> (and MAP_SHARED|MAP_ANONYMOUS).  I thought there were also drivers
+>>> which cloned inode in mmap(), but if so, I cannot locate them now.
+>>>
+>>> Reported-and-tested-by: Prarit Bhargava <prarit@redhat.com>
+>>> Reported-by: Daniel Wagner <wagi@monom.org>
+>>
+>> Reported-and-tested-by: Daniel Wagner <wagi@monom.org>
+>>
+>> Sorry for the long delay. It took me a while to figure out my original
+>> setup. I could verify that this patch made the lockdep message go away
+>> on 4.0-rc6 and also on 4.1-rc8.
+>
+> Yes, it's also fixed for me after applying this patch to 4.1-rc8.
 
-Thanks.
+Thank you - Hugh
 
-Oh, s/Reported-by/Suggested-by/ looks better, indeed.
-
-	-ss
+>
+> Best regards,
+>
+> Morten
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
