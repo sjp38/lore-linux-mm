@@ -1,85 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 97AFF6B0074
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 21:20:20 -0400 (EDT)
-Received: by igbsb11 with SMTP id sb11so49777117igb.0
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 18:20:20 -0700 (PDT)
-Received: from mail-ig0-x22c.google.com (mail-ig0-x22c.google.com. [2607:f8b0:4001:c05::22c])
-        by mx.google.com with ESMTPS id ej3si5309632icb.90.2015.06.17.18.20.20
+Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D6A736B0074
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2015 21:26:01 -0400 (EDT)
+Received: by qkbp125 with SMTP id p125so32109419qkb.2
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 18:26:01 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id d68si6325411qka.18.2015.06.17.18.25.59
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jun 2015 18:20:20 -0700 (PDT)
-Received: by igboe5 with SMTP id oe5so7095394igb.1
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2015 18:20:20 -0700 (PDT)
-Date: Wed, 17 Jun 2015 18:20:17 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC 3/4] mm, thp: try fault allocations only if we expect them
- to succeed
-In-Reply-To: <1431354940-30740-4-git-send-email-vbabka@suse.cz>
-Message-ID: <alpine.DEB.2.10.1506171802160.8203@chino.kir.corp.google.com>
-References: <1431354940-30740-1-git-send-email-vbabka@suse.cz> <1431354940-30740-4-git-send-email-vbabka@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 17 Jun 2015 18:26:01 -0700 (PDT)
+Message-ID: <55821D85.3070208@huawei.com>
+Date: Thu, 18 Jun 2015 09:23:17 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC PATCH 00/12] mm: mirrored memory support for page buddy
+ allocations
+References: <55704A7E.5030507@huawei.com> <557FD5F8.10903@suse.cz> <557FDB9B.1090105@huawei.com> <557FF06A.3020000@suse.cz>
+In-Reply-To: <557FF06A.3020000@suse.cz>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Alex Thorlton <athorlton@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas
+ Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 11 May 2015, Vlastimil Babka wrote:
+On 2015/6/16 17:46, Vlastimil Babka wrote:
 
-> Since we track THP availability for khugepaged THP collapses, we can use it
-> also for page fault THP allocations. If khugepaged with its sync compaction
-> is not able to allocate a hugepage, then it's unlikely that the less involved
-> attempt on page fault would succeed, and the cost could be higher than THP
-> benefits. Also clear the THP availability flag if we do attempt and fail to
-> allocate during page fault, and set the flag if we are freeing a large enough
-> page from any context. The latter doesn't include merges, as that's a fast
-> path and unlikely to make much difference.
+> On 06/16/2015 10:17 AM, Xishi Qiu wrote:
+>> On 2015/6/16 15:53, Vlastimil Babka wrote:
+>>
+>>> On 06/04/2015 02:54 PM, Xishi Qiu wrote:
+>>>>
+>>>> I think add a new migratetype is btter and easier than a new zone, so I use
+>>>
+>>> If the mirrored memory is in a single reasonably compact (no large holes) range
+>>> (per NUMA node) and won't dynamically change its size, then zone might be a
+>>> better option. For one thing, it will still allow distinguishing movable and
+>>> unmovable allocations within the mirrored memory.
+>>>
+>>> We had enough fun with MIGRATE_CMA and all kinds of checks it added to allocator
+>>> hot paths, and even CMA is now considering moving to a separate zone.
+>>>
+>>
+>> Hi, how about the problem of this case:
+>> e.g. node 0: 0-4G(dma and dma32)
+>>      node 1: 4G-8G(normal), 8-12G(mirror), 12-16G(normal),
+>> so more than one normal zone in a node? or normal zone just span the mirror zone?
+> 
+> Normal zone can span the mirror zone just fine. However, it will result in zone
+> scanners such as compaction to skip over the mirror zone inefficiently. Hmm...
 > 
 
-That depends on how long {scan,alloc}_sleep_millisecs are, so if 
-khugepaged fails to allocate a hugepage on all nodes, it sleeps for 
-alloc_sleep_millisecs (default 60s), and then there's immediate memory 
-freeing, thp page faults don't happen again for 60s.  That's scary to me 
-when thp_avail_nodes is clear, a large process terminates, and then 
-immediately starts back up.  None of its memory is faulted as thp and 
-depending on how large it is, khugepaged may fail to allocate hugepages 
-when it wakes back up so it never scans (the only reason why 
-thp_avail_nodes was clear before it terminated originally).
+Hi Vlastimil,
 
-I'm not sure that approach can work unless the inference of whether a 
-hugepage can be allocated at a given time is a very good indicator of 
-whether a hugepage can be allocated alloc_sleep_millisecs later, and I'm 
-afraid that's not the case.
+If there are many mirror regions in one node, then it will be many holes in the
+normal zone, is this fine?
 
-I'm very happy that you're looking at thp fault latency and the role that 
-khugepaged can play in accepting responsibility for defragmentation, 
-though.  It's an area that has caused me some trouble lately and I'd like 
-to be able to improve.
+Thanks,
+Xishi Qiu
 
-We see an immediate benefit when experimenting with doing synchronous 
-memory compactions of all memory every 15s.  That's done using a cronjob 
-rather than khugepaged, but the idea is the same.
+> 
+> .
+> 
 
-What would your thoughts be about doing something radical like
 
- - having khugepaged do synchronous memory compaction of all memory at
-   regulary intervals,
-
- - track how many pageblocks are free for thp memory to be allocated,
-
- - terminate collapsing if free pageblocks are below a threshold,
-
- - trigger a khugepaged wakeup at page fault when that number of 
-   pageblocks falls below a threshold,
-
- - determine the next full sync memory compaction based on how many
-   pageblocks were defragmented on the last wakeup, and
-
- - avoid memory compaction for all thp page faults.
-
-(I'd ignore what is actually the responsibility of khugepaged and what is 
-done in task work at this time.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
