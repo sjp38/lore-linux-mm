@@ -1,172 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id E7F4C6B0093
-	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 12:43:35 -0400 (EDT)
-Received: by pdbki1 with SMTP id ki1so94224046pdb.1
-        for <linux-mm@kvack.org>; Fri, 19 Jun 2015 09:43:35 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
-        by mx.google.com with ESMTP id bd4si17154100pbb.61.2015.06.19.09.43.34
-        for <linux-mm@kvack.org>;
-        Fri, 19 Jun 2015 09:43:35 -0700 (PDT)
-Date: Fri, 19 Jun 2015 12:43:33 -0400
-From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [RESEND PATCH V2 1/3] Add mmap flag to request pages are locked
- after page fault
-Message-ID: <20150619164333.GD2329@akamai.com>
-References: <1433942810-7852-1-git-send-email-emunson@akamai.com>
- <1433942810-7852-2-git-send-email-emunson@akamai.com>
- <20150618152907.GG5858@dhcp22.suse.cz>
- <20150618203048.GB2329@akamai.com>
- <20150619145708.GG4913@dhcp22.suse.cz>
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 4330C6B0093
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 13:02:04 -0400 (EDT)
+Received: by wibee9 with SMTP id ee9so15270897wib.0
+        for <linux-mm@kvack.org>; Fri, 19 Jun 2015 10:02:03 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id m6si5640749wif.81.2015.06.19.10.02.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Jun 2015 10:02:02 -0700 (PDT)
+Date: Fri, 19 Jun 2015 13:01:39 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC PATCH 00/25] Move LRU page reclaim from zones to nodes
+Message-ID: <20150619170139.GA11316@cmpxchg.org>
+References: <1433771791-30567-1-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="tEFtbjk+mNEviIIX"
-Content-Disposition: inline
-In-Reply-To: <20150619145708.GG4913@dhcp22.suse.cz>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
-
-
---tEFtbjk+mNEviIIX
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1433771791-30567-1-git-send-email-mgorman@suse.de>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 19 Jun 2015, Michal Hocko wrote:
+Hi Mel,
 
-> On Thu 18-06-15 16:30:48, Eric B Munson wrote:
-> > On Thu, 18 Jun 2015, Michal Hocko wrote:
-> [...]
-> > > Wouldn't it be much more reasonable and straightforward to have
-> > > MAP_FAULTPOPULATE as a counterpart for MAP_POPULATE which would
-> > > explicitly disallow any form of pre-faulting? It would be usable for
-> > > other usecases than with MAP_LOCKED combination.
-> >=20
-> > I don't see a clear case for it being more reasonable, it is one
-> > possible way to solve the problem.
->=20
-> MAP_FAULTPOPULATE would be usable for other cases as well. E.g. fault
-> around is all or nothing feature. Either all mappings (which support
-> this) fault around or none. There is no way to tell the kernel that
-> this particular mapping shouldn't fault around. I haven't seen such a
-> request yet but we have seen requests to have a way to opt out from
-> a global policy in the past (e.g. per-process opt out from THP). So
-> I can imagine somebody will come with a request to opt out from any
-> speculative operations on the mapped area in the future.
->=20
-> > But I think it leaves us in an even
-> > more akward state WRT VMA flags.  As you noted in your fix for the
-> > mmap() man page, one can get into a state where a VMA is VM_LOCKED, but
-> > not present.  Having VM_LOCKONFAULT states that this was intentional, if
-> > we go to using MAP_FAULTPOPULATE instead of MAP_LOCKONFAULT, we no
-> > longer set VM_LOCKONFAULT (unless we want to start mapping it to the
-> > presence of two MAP_ flags).  This can make detecting the MAP_LOCKED +
-> > populate failure state harder.
->=20
-> I am not sure I understand your point here. Could you be more specific
-> how would you check for that and what for?
+these are cool patches, I very much like the direction this is headed.
 
-My thought on detecting was that someone might want to know if they had
-a VMA that was VM_LOCKED but had not been made present becuase of a
-failure in mmap.  We don't have a way today, but adding VM_LOCKONFAULT
-is at least explicit about what is happening which would make detecting
-the VM_LOCKED but not present state easier.  This assumes that
-MAP_FAULTPOPULATE does not translate to a VMA flag, but it sounds like
-it would have to.
+On Mon, Jun 08, 2015 at 02:56:06PM +0100, Mel Gorman wrote:
+> This is an RFC series against 4.0 that moves LRUs from the zones to the
+> node. In concept, this is straight forward but there are a lot of details
+> so I'm posting it early to see what people think. The motivations are;
+> 
+> 1. Currently, reclaim on node 0 behaves differently to node 1 with subtly different
+>    aging rules. Workloads may exhibit different behaviour depending on what node
+>    it was scheduled on as a result.
 
->=20
-> From my understanding MAP_LOCKONFAULT is essentially
-> MAP_FAULTPOPULATE|MAP_LOCKED with a quite obvious semantic (unlike
-> single MAP_LOCKED unfortunately). I would love to also have
-> MAP_LOCKED|MAP_POPULATE (aka full mlock semantic) but I am really
-> skeptical considering how my previous attempt to make MAP_POPULATE
-> reasonable went.
+How so?  Don't we ultimately age pages in proportion to node size,
+regardless of how many zones they are broken into?
 
-Are you objecting to the addition of the VMA flag VM_LOCKONFAULT, or the
-new MAP_LOCKONFAULT flag (or both)?  If you prefer that MAP_LOCKED |
-MAP_FAULTPOPULATE means that VM_LOCKONFAULT is set, I am fine with that
-instead of introducing MAP_LOCKONFAULT.  I went with the new flag
-because to date, we have a one to one mapping of MAP_* to VM_* flags.
+> 2. The residency of a page partially depends on what zone the page was
+>    allocated from.  This is partially combatted by the fair zone allocation
+>    policy but that is a partial solution that introduces overhead in the
+>    page allocator paths.
 
->=20
-> > If this is the preferred path for mmap(), I am fine with that.=20
->=20
-> > However,
-> > I would like to see the new system calls that Andrew mentioned (and that
-> > I am testing patches for) go in as well.=20
->=20
-> mlock with flags sounds like a good step but I am not sure it will make
-> sense in the future. POSIX has screwed that and I am not sure how many
-> applications would use it. This ship has sailed long time ago.
+Yeah, it's ugly and I'm happy you're getting rid of this again.  That
+being said, in my tests it seemed like a complete solution to remove
+any influence from allocation placement on aging behavior.  Where do
+you still see aging artifacts?
 
-I don't know either, but the code is the question, right?  I know that
-we have at least one team that wants it here.
+> 3. kswapd and the page allocator play special games with the order they scan zones
+>    to avoid interfering with each other but it's unpredictable.
 
->=20
-> > That way we give users the
-> > ability to request VM_LOCKONFAULT for memory allocated using something
-> > other than mmap.
->=20
-> mmap(MAP_FAULTPOPULATE); mlock() would have the same semantic even
-> without changing mlock syscall.
+It would be good to recall here these interference issues, how they
+are currently coped with, and how your patches address them.
 
-That is true as long as MAP_FAULTPOPULATE set a flag in the VMA(s).  It
-doesn't cover the actual case I was asking about, which is how do I get
-lock on fault on malloc'd memory?
+> 4. The different scan activity and ordering for zone reclaim is very difficult
+>    to predict.
 
-> =20
-> > > > This patch introduces the ability to request that pages are not
-> > > > pre-faulted, but are placed on the unevictable LRU when they are fi=
-nally
-> > > > faulted in.
-> > > >=20
-> > > > To keep accounting checks out of the page fault path, users are bil=
-led
-> > > > for the entire mapping lock as if MAP_LOCKED was used.
-> > > >=20
-> > > > Signed-off-by: Eric B Munson <emunson@akamai.com>
-> > > > Cc: Michal Hocko <mhocko@suse.cz>
-> > > > Cc: linux-alpha@vger.kernel.org
-> > > > Cc: linux-kernel@vger.kernel.org
-> > > > Cc: linux-mips@linux-mips.org
-> > > > Cc: linux-parisc@vger.kernel.org
-> > > > Cc: linuxppc-dev@lists.ozlabs.org
-> > > > Cc: sparclinux@vger.kernel.org
-> > > > Cc: linux-xtensa@linux-xtensa.org
-> > > > Cc: linux-mm@kvack.org
-> > > > Cc: linux-arch@vger.kernel.org
-> > > > Cc: linux-api@vger.kernel.org
-> > > > ---
-> [...]
-> --=20
-> Michal Hocko
-> SUSE Labs
+I'm not sure what this means.
 
---tEFtbjk+mNEviIIX
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+> 5. slab shrinkers are node-based which makes relating page reclaim to
+>    slab reclaim harder than it should be.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
+Agreed.  And I'm sure dchinner also much prefers moving the VM towards
+a node model over moving the shrinkers towards the zone model.
 
-iQIcBAEBAgAGBQJVhEa1AAoJELbVsDOpoOa9G9AQAIFwslEVTMGceV83OYvdwX89
-JQHGpfvXIZh/BbujjzOFKIFk4BcZhVxGlkvrA9vg/0H3xbXyVg5DXK9hXwKAuGBn
-HquXUVb7DtDgLoEbJgBi/LLfJ2ADfIVeiIsUM3fGb/DBTiMqX3QOCM2x63JT9iG1
-xtg8hHQ/Ee2PAtR4GO6N4/PCbPWjOEJgdYjSp5avR57h2Keu8xTsHbYUK8CKA496
-Pf5SusNzWqwBewdMfr+bLYbs3U9njdLUeLaRGqQuYwETUaALEeL3CIzyyFpDtQjv
-WbCBng8aR8Mquz3ogYjz+FPrdftF90abox4yqb8o4V9qF5VW/JotgS/D/H327Lat
-SlwKimGCvvOisB01VPNQ03P5x6cwa1Ld2MPltOaTxIjxoSz5lIY8KEkXca37kFj8
-fzkR2fFcdb0RLSDWhk3vLNaZj7lcFkBTtx7YLoWLkj9/s3xiVtPmIC9vaMUvI3JZ
-QPcX6gENRnDDT+SMZP5giAM4yyJjc50ILXFXkhY4iJuRgK6i4iu61+LASLTqsjeu
-UqOfualtpXqLz1oaAgPOtwWxaGm6yr2SWMDuioRZ4oKjMZgPpnk5Yhshvos31MPa
-L4pp2SSSKfkFyyIyyD/3tFMFh70xtN5oG1h9IvUi563aMbPZ9pjQq1me6c0ItUxW
-tzFfJHu6+Vfws6lONsKF
-=6RVh
------END PGP SIGNATURE-----
+> The reason we have zone-based reclaim is that we used to have
+> large highmem zones in common configurations and it was necessary
+> to quickly find ZONE_NORMAL pages for reclaim. Today, this is much
+> less of a concern as machines with lots of memory will (or should) use
+> 64-bit kernels. Combinations of 32-bit hardware and 64-bit hardware are
+> rare. Machines that do use highmem should have relatively low highmem:lowmem
+> ratios than we worried about in the past.
+> 
+> Conceptually, moving to node LRUs should be easier to understand. The
+> page allocator plays fewer tricks to game reclaim and reclaim behaves
+> similarly on all nodes.
 
---tEFtbjk+mNEviIIX--
+Do you think it's feasible to serve the occasional address-restricted
+request from CMA, or a similar mechanism based on PFN ranges?  In the
+longterm, it would be great to eradicate struct zone entirely, and
+have the page allocator and reclaim talk about the same thing again
+without having to translate back and forth between zones and nodes.
+
+It would also be much better for DMA allocations that don't align with
+the zone model, such as 31-bit address requests, which currently have
+to play the lottery with GFP_DMA32 and fall back to GFP_DMA.
+
+> It was tested on a UMA (8 cores single socket) and a NUMA machine (48 cores,
+> 4 sockets). The page allocator tests showed marginal differences in aim9,
+> page fault microbenchmark, page allocator micro-benchmark and ebizzy. This
+> was expected as the affected paths are small in comparison to the overall
+> workloads.
+> 
+> I also tested using fstest on zero-length files to stress slab reclaim. It
+> showed no major differences in performance or stats.
+> 
+> A THP-based test case that stresses compaction was inconclusive. It showed
+> differences in the THP allocation success rate and both gains and losses in
+> the time it takes to allocate THP depending on the number of threads running.
+
+It would useful to include a "reasonable" highmem test here as well.
+
+> Tests did show there were differences in the pages allocated from each zone.
+> This is due to the fact the fair zone allocation policy is removed as with
+> node-based LRU reclaim, it *should* not be necessary. It would be preferable
+> if the original database workload that motivated the introduction of that
+> policy was retested with this series though.
+
+It's as simple as repeatedly reading a file that is ever-so-slightly
+bigger than the available memory.  The result should be a perfect
+tail-chasing scenario, with the entire file being served from disk
+every single time.  If parts of it get activated, that is a problem,
+because it means that some pages get aged differently than others.
+
+When I worked on the fair zone allocator, I hacked mincore() to report
+PG_active, to be extra sure about where the pages of interest are, but
+monitoring pgactivate during the test, or comparing its deltas between
+kernels, should be good enough.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
