@@ -1,129 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id A74926B0085
-	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 03:32:05 -0400 (EDT)
-Received: by wguu7 with SMTP id u7so10044739wgu.3
-        for <linux-mm@kvack.org>; Fri, 19 Jun 2015 00:32:05 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ib4si18345461wjb.47.2015.06.19.00.32.03
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CC7C6B0085
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 05:01:01 -0400 (EDT)
+Received: by pabvl15 with SMTP id vl15so35041117pab.1
+        for <linux-mm@kvack.org>; Fri, 19 Jun 2015 02:01:01 -0700 (PDT)
+Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com. [122.248.162.9])
+        by mx.google.com with ESMTPS id ml1si15453672pab.24.2015.06.19.02.00.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 19 Jun 2015 00:32:03 -0700 (PDT)
-Date: Fri, 19 Jun 2015 09:32:02 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 2/3] mm, oom: pass an oom order of -1 when triggered by
- sysrq
-Message-ID: <20150619073202.GD4913@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1506181555350.13736@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1506181556180.13736@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Fri, 19 Jun 2015 02:01:00 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 19 Jun 2015 14:30:57 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 9B083125805B
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 14:33:27 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t5J90meg60293360
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 14:30:50 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t5J90kDk012811
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 14:30:47 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm, thp: respect MPOL_PREFERRED policy with non-local node
+In-Reply-To: <1434639273-9527-1-git-send-email-vbabka@suse.cz>
+References: <1434639273-9527-1-git-send-email-vbabka@suse.cz>
+Date: Fri, 19 Jun 2015 14:30:43 +0530
+Message-ID: <871th89io4.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1506181556180.13736@chino.kir.corp.google.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.cz>
 
-On Thu 18-06-15 16:00:07, David Rientjes wrote:
-> The force_kill member of struct oom_context isn't needed if an order of
-> -1 is used instead.
+Vlastimil Babka <vbabka@suse.cz> writes:
 
-But this doesn't make much sense to me. It is not like we would _have_
-to spare few bytes here. The meaning of force_kill is clear while order
-with a weird value is a hack. It is harder to follow without any good
-reason.
+> Since commit 077fcf116c8c ("mm/thp: allocate transparent hugepages on local
+> node"), we handle THP allocations on page fault in a special way - for
+> non-interleave memory policies, the allocation is only attempted on the node
+> local to the current CPU, if the policy's nodemask allows the node.
+>
+> This is motivated by the assumption that THP benefits cannot offset the cost
+> of remote accesses, so it's better to fallback to base pages on the local node
+> (which might still be available, while huge pages are not due to
+> fragmentation) than to allocate huge pages on a remote node.
+>
+> The nodemask check prevents us from violating e.g. MPOL_BIND policies where
+> the local node is not among the allowed nodes. However, the current
+> implementation can still give surprising results for the MPOL_PREFERRED policy
+> when the preferred node is different than the current CPU's local node.
+>
+> In such case we should honor the preferred node and not use the local node,
+> which is what this patch does. If hugepage allocation on the preferred node
+> fails, we fall back to base pages and don't try other nodes, with the same
+> motivation as is done for the local node hugepage allocations.
+> The patch also moves the MPOL_INTERLEAVE check around to simplify the hugepage
+> specific test.
+>
+> The difference can be demonstrated using in-tree transhuge-stress test on the
+> following 2-node machine where half memory on one node was occupied to show
+> the difference.
+>
+>
+.....
 
-> This patch introduces no functional change.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  drivers/tty/sysrq.c | 3 +--
->  include/linux/oom.h | 1 -
->  mm/memcontrol.c     | 1 -
->  mm/oom_kill.c       | 5 ++---
->  mm/page_alloc.c     | 1 -
->  5 files changed, 3 insertions(+), 8 deletions(-)
-> 
-> diff --git a/drivers/tty/sysrq.c b/drivers/tty/sysrq.c
-> --- a/drivers/tty/sysrq.c
-> +++ b/drivers/tty/sysrq.c
-> @@ -358,8 +358,7 @@ static void moom_callback(struct work_struct *ignored)
->  		.zonelist = node_zonelist(first_memory_node, gfp_mask),
->  		.nodemask = NULL,
->  		.gfp_mask = gfp_mask,
-> -		.order = 0,
-> -		.force_kill = true,
-> +		.order = -1,
->  	};
->  
->  	mutex_lock(&oom_lock);
-> diff --git a/include/linux/oom.h b/include/linux/oom.h
-> --- a/include/linux/oom.h
-> +++ b/include/linux/oom.h
-> @@ -17,7 +17,6 @@ struct oom_control {
->  	nodemask_t	*nodemask;
->  	gfp_t		gfp_mask;
->  	int		order;
-> -	bool		force_kill;
->  };
->  
->  /*
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1550,7 +1550,6 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  		.nodemask = NULL,
->  		.gfp_mask = gfp_mask,
->  		.order = order,
-> -		.force_kill = false,
->  	};
->  	struct mem_cgroup *iter;
->  	unsigned long chosen_points = 0;
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -265,7 +265,7 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
->  	 * Don't allow any other task to have access to the reserves.
->  	 */
->  	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
-> -		if (!oc->force_kill)
-> +		if (oc->order != -1)
->  			return OOM_SCAN_ABORT;
->  	}
->  	if (!task->mm)
-> @@ -278,7 +278,7 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
->  	if (oom_task_origin(task))
->  		return OOM_SCAN_SELECT;
->  
-> -	if (task_will_free_mem(task) && !oc->force_kill)
-> +	if (task_will_free_mem(task) && oc->order != -1)
->  		return OOM_SCAN_ABORT;
->  
->  	return OOM_SCAN_OK;
-> @@ -718,7 +718,6 @@ void pagefault_out_of_memory(void)
->  		.nodemask = NULL,
->  		.gfp_mask = 0,
->  		.order = 0,
-> -		.force_kill = false,
->  	};
->  
->  	if (mem_cgroup_oom_synchronize(true))
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2685,7 +2685,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
->  		.nodemask = ac->nodemask,
->  		.gfp_mask = gfp_mask,
->  		.order = order,
-> -		.force_kill = false,
->  	};
->  	struct page *page;
->  
+> Without -p parameter, hugepage restriction to CPU-local node works as before.
+>
+> Fixes: 077fcf116c8c ("mm/thp: allocate transparent hugepages on local node")
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
 
--- 
-Michal Hocko
-SUSE Labs
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+  
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
