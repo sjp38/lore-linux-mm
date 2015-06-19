@@ -1,63 +1,316 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 495C26B0096
-	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 14:03:14 -0400 (EDT)
-Received: by wgez8 with SMTP id z8so95726528wge.0
-        for <linux-mm@kvack.org>; Fri, 19 Jun 2015 11:03:13 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id fu6si5358844wic.110.2015.06.19.11.03.12
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 33D2C6B0096
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 14:07:24 -0400 (EDT)
+Received: by qcmc1 with SMTP id c1so5217547qcm.2
+        for <linux-mm@kvack.org>; Fri, 19 Jun 2015 11:07:24 -0700 (PDT)
+Received: from mail-qk0-x229.google.com (mail-qk0-x229.google.com. [2607:f8b0:400d:c09::229])
+        by mx.google.com with ESMTPS id m202si11629117qhb.84.2015.06.19.11.07.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Jun 2015 11:03:12 -0700 (PDT)
-Date: Fri, 19 Jun 2015 14:02:56 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2] mm: memcontrol: bring back the VM_BUG_ON() in
- mem_cgroup_swapout()
-Message-ID: <20150619180256.GA11851@cmpxchg.org>
-References: <20150619163418.GA21040@linutronix.de>
- <20150619171118.GA11423@cmpxchg.org>
- <55844EE7.7070508@linutronix.de>
- <20150619172802.GA11492@cmpxchg.org>
- <20150619173612.GA7143@linutronix.de>
+        Fri, 19 Jun 2015 11:07:22 -0700 (PDT)
+Received: by qkhu186 with SMTP id u186so64912973qkh.0
+        for <linux-mm@kvack.org>; Fri, 19 Jun 2015 11:07:22 -0700 (PDT)
+Date: Fri, 19 Jun 2015 14:07:14 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [PATCH 06/36] HMM: add HMM page table v2.
+Message-ID: <20150619180713.GA17308@gmail.com>
+References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
+ <1432236705-4209-7-git-send-email-j.glisse@gmail.com>
+ <alpine.DEB.2.00.1506171724110.32592@mdh-linux64-2.nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20150619173612.GA7143@linutronix.de>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <alpine.DEB.2.00.1506171724110.32592@mdh-linux64-2.nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, tglx@linutronix.de, rostedt@goodmis.org, williams@redhat.com
+To: Mark Hairgrove <mhairgrove@nvidia.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, "joro@8bytes.org" <joro@8bytes.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>
 
-On Fri, Jun 19, 2015 at 07:36:12PM +0200, Sebastian Andrzej Siewior wrote:
-> Clark stumbled over a VM_BUG_ON() in -RT which was then was removed by
-> Johannes in commit f371763a79d ("mm: memcontrol: fix false-positive
-> VM_BUG_ON() on -rt"). The comment before that patch was a tiny bit
-> better than it is now. While the patch claimed to fix a false-postive on
-> -RT this was not the case. None of the -RT folks ACKed it and it was not a
-> false positive report. That was a *real* problem.
-> 
-> This patch updates the comment that is improper because it refers to
-> "disabled preemption" as a consequence of that lock being taken. A
-> spin_lock() disables preemption, true, but in this case the code relies on
-> the fact that the lock _also_ disables interrupts once it is acquired. And
-> this is the important detail (which was checked the VM_BUG_ON()) which needs
-> to be pointed out. This is the hint one needs while looking at the code. It
-> was explained by Johannes on the list that the per-CPU variables are protected
-> by local_irq_save(). The BUG_ON() was helpful. This code has been workarounded
-> in -RT in the meantime. I wouldn't mind running into more of those if the code
-> in question uses *special* kind of locking since now there is no
-> verification (in terms of lockdep or BUG_ON()) and therefore I bring the
-> VM_BUG_ON() check back in.
-> 
-> The two functions after the comment could also have a "local_irq_save()"
-> dance around them in order to serialize access to the per-CPU variables.
-> This has been avoided because the interrupts should be off.
-> 
-> Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+On Thu, Jun 18, 2015 at 07:06:08PM -0700, Mark Hairgrove wrote:
+> On Thu, 21 May 2015, j.glisse@gmail.com wrote:
 
-Much better, thanks.
+[...]
+> > +
+> > +static inline dma_addr_t hmm_pde_from_pfn(dma_addr_t pfn)
+> > +{
+> > +	return (pfn << PAGE_SHIFT) | HMM_PDE_VALID;
+> > +}
+> > +
+> > +static inline unsigned long hmm_pde_pfn(dma_addr_t pde)
+> > +{
+> > +	return (pde & HMM_PDE_VALID) ? pde >> PAGE_SHIFT : 0;
+> > +}
+> > +
+> 
+> Does hmm_pde_pfn return a dma_addr_t pfn or a system memory pfn?
+> 
+> The types between these two functions don't match. According to 
+> hmm_pde_from_pfn, both the pde and the pfn are supposed to be dma_addr_t. 
+> But hmm_pde_pfn returns an unsigned long as a pfn instead of a dma_addr_t. 
+> If hmm_pde_pfn sometimes used to get a dma_addr_t pfn then shouldn't it 
+> also return a dma_addr_t, since as you pointed out in the commit message, 
+> dma_addr_t might be bigger than an unsigned long?
+> 
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Yes internal it use dma_addr_t but for device driver that want to use
+physical system page address aka pfn i want them to use the specialize
+helper hmm_pte_from_pfn() and hmm_pte_pfn() so type casting happen in
+hmm and it make it easier to review device driver as device driver will
+be consistent ie either it wants to use pfn or it want to use dma_addr_t
+but not mix the 2.
+
+A latter patch add the hmm_pte_from_dma() and hmm_pte_dma_addr() helper
+for the dma case. So this patch only introduce the pfn version.
+
+> > [...]
+> > +
+> > +static inline dma_addr_t hmm_pte_from_pfn(dma_addr_t pfn)
+> > +{
+> > +	return (pfn << PAGE_SHIFT) | (1 << HMM_PTE_VALID_PFN_BIT);
+> > +}
+> > +
+> > +static inline unsigned long hmm_pte_pfn(dma_addr_t pte)
+> > +{
+> > +	return hmm_pte_test_valid_pfn(&pte) ? pte >> PAGE_SHIFT : 0;
+> > +}
+> 
+> Same question as hmm_pde_pfn above.
+
+See above.
+
+> 
+> > [...]
+> > +/* struct hmm_pt_iter - page table iterator states.
+> > + *
+> > + * @ptd: Array of directory struct page pointer for each levels.
+> > + * @ptdp: Array of pointer to mapped directory levels.
+> > + * @dead_directories: List of directories that died while walking page table.
+> > + * @cur: Current address.
+> > + */
+> > +struct hmm_pt_iter {
+> > +	struct page		*ptd[HMM_PT_MAX_LEVEL - 1];
+> > +	dma_addr_t		*ptdp[HMM_PT_MAX_LEVEL - 1];
+> 
+> These are sized to be HMM_PT_MAX_LEVEL - 1 rather than HMM_PT_MAX_LEVEL 
+> because the iterator doesn't store the top level, correct? This results in 
+> a lot of "level - 1" and "level - 2" logic when dealing with the iterator. 
+> Have you considered keeping the levels consistent to get rid of all the 
+> extra offset-by-1 logic?
+
+All this should be optimized away by the compiler thought i have not
+check the assembly.
+
+[...]
+> > + *
+> > + * @iter: Iterator states that currently protect the directory.
+> > + * @level: Level of the directory to reference.
+> > + *
+> > + * This function will reference a directory but it is illegal for refcount to
+> > + * be 0 as this helper should only be call when iterator is protecting the
+> > + * directory (ie iterator hold a reference for the directory).
+> > + *
+> > + * HMM user will call this with level = pt.llevel any other value is supicious
+> > + * outside of hmm_pt code.
+> > + */
+> > +static inline void hmm_pt_iter_directory_ref(struct hmm_pt_iter *iter,
+> > +					     char level)
+> > +{
+> > +	/* Nothing to do for root level. */
+> > +	if (!level)
+> > +		return;
+> > +
+> > +	if (!atomic_inc_not_zero(&iter->ptd[level - 1]->_mapcount))
+> > +		/* Illegal this should not happen. */
+> > +		BUG();
+> > +}
+> > +
+> > [...]
+> > +
+> > +int hmm_pt_init(struct hmm_pt *pt)
+> > +{
+> > +	unsigned directory_shift, i = 0, npgd;
+> > +
+> > +	pt->last &= PAGE_MASK;
+> > +	spin_lock_init(&pt->lock);
+> > +	/* Directory shift is the number of bits that a single directory level
+> > +	 * represent. For instance if PAGE_SIZE is 4096 and each entry takes 8
+> > +	 * bytes (sizeof(dma_addr_t) == 8) then directory_shift = 9.
+> > +	 */
+> > +	directory_shift = PAGE_SHIFT - ilog2(sizeof(dma_addr_t));
+> > +	/* Level 0 is the root level of the page table. It might use less
+> > +	 * bits than directory_shift but all sub-directory level will use all
+> > +	 * directory_shift bits.
+> > +	 *
+> > +	 * For instance if hmm_pt.last == (1 << 48), PAGE_SHIFT == 12 and
+> 
+> This example should say that hmm_pt.last == (1 << 48) - 1, since last is 
+> inclusive. Otherwise llevel will be 4.
+
+Yes correct i switched from exclusive to inclusive and forgot to update
+comment.
+
+> 
+> > +	 * sizeof(dma_addr_t) == 8 then :
+> > +	 *   directory_shift = 9
+> > +	 *   shift[0] = 39
+> > +	 *   shift[1] = 30
+> > +	 *   shift[2] = 21
+> > +	 *   shift[3] = 12
+> > +	 *   llevel = 3
+> > +	 *
+> > +	 * Note that shift[llevel] == PAGE_SHIFT because the last level
+> > +	 * correspond to the page table entry level (ignoring the case of huge
+> > +	 * page).
+> > +	 */
+> > +	pt->shift[0] = ((__fls(pt->last >> PAGE_SHIFT) / directory_shift) *
+> > +			directory_shift) + PAGE_SHIFT;
+> > +	while (pt->shift[i++] > PAGE_SHIFT)
+> > +		pt->shift[i] = pt->shift[i - 1] - directory_shift;
+> > +	pt->llevel = i - 1;
+> > +	pt->directory_mask = (1 << directory_shift) - 1;
+> > +
+> > +	for (i = 0; i <= pt->llevel; ++i)
+> > +		pt->mask[i] = ~((1UL << pt->shift[i]) - 1);
+> > +
+> > +	npgd = (pt->last >> pt->shift[0]) + 1;
+> > +	pt->pgd = kzalloc(npgd * sizeof(dma_addr_t), GFP_KERNEL);
+> > +	if (!pt->pgd)
+> > +		return -ENOMEM;
+> > +
+> > +	return 0;
+> > +}
+> > +EXPORT_SYMBOL(hmm_pt_init);
+> 
+> Does this need to be EXPORT_SYMBOL? It seems like a driver would never 
+> need to call this, only core hmm. Same question for hmm_pt_fini.
+> 
+
+Well i wanted to use that in the hmm_dummy driver, but i have mix feeling
+as using it in dummy driver allow to test it in more use case but at the
+same time a bug might be hidden because same code is use in dummy driver.
+I will probably juste use it in dummy driver.
+
+[...]
+> > + *
+> > + * @iter: Iterator states.
+> > + *
+> > + * This function will initialize iterator states. It must always be pair with a
+> > + * call to hmm_pt_iter_fini().
+> > + */
+> > +void hmm_pt_iter_init(struct hmm_pt_iter *iter)
+> > +{
+> > +	memset(iter->ptd, 0, sizeof(void *) * (HMM_PT_MAX_LEVEL - 1));
+> > +	memset(iter->ptdp, 0, sizeof(void *) * (HMM_PT_MAX_LEVEL - 1));
+> 
+> The memset sizes can simply be sizeof(iter->ptd) and sizeof(iter->ptdp).
+
+Yes i should have.
+
+> > +	INIT_LIST_HEAD(&iter->dead_directories);
+> > +}
+> > +EXPORT_SYMBOL(hmm_pt_iter_init);
+> > +
+> > +/* hmm_pt_iter_directory_unref_safe() - unref a directory that is safe to free.
+> > + *
+> > + * @iter: Iterator states.
+> > + * @pt: HMM page table.
+> > + * @level: Level of the directory to unref.
+> > + *
+> > + * This function will unreference a directory and add it to dead list if
+> > + * directory no longer have any reference. It will also clear the entry to
+> > + * that directory into the upper level directory as well as dropping ref
+> > + * on the upper directory.
+> > + */
+> > +static void hmm_pt_iter_directory_unref_safe(struct hmm_pt_iter *iter,
+> > +					     struct hmm_pt *pt,
+> > +					     unsigned level)
+> > +{
+> > +	struct page *upper_ptd;
+> > +	dma_addr_t *upper_ptdp;
+> > +
+> > +	/* Nothing to do for root level. */
+> > +	if (!level)
+> > +		return;
+> > +
+> > +	if (!atomic_dec_and_test(&iter->ptd[level - 1]->_mapcount))
+> > +		return;
+> > +
+> > +	upper_ptd = level > 1 ? iter->ptd[level - 2] : NULL;
+> > +	upper_ptdp = level > 1 ? iter->ptdp[level - 2] : pt->pgd;
+> > +	upper_ptdp = &upper_ptdp[hmm_pt_index(pt, iter->cur, level - 1)];
+> > +	hmm_pt_directory_lock(pt, upper_ptd, level - 1);
+> > +	/*
+> > +	 * There might be race btw decrementing reference count on a directory
+> > +	 * and another thread trying to fault in a new directory. To avoid
+> > +	 * erasing the new directory entry we need to check that the entry
+> > +	 * still correspond to the directory we are removing.
+> > +	 */
+> > +	if (hmm_pde_pfn(*upper_ptdp) == page_to_pfn(iter->ptd[level - 1]))
+> > +		*upper_ptdp = 0;
+> > +	hmm_pt_directory_unlock(pt, upper_ptd, level - 1);
+> > +
+> > +	/* Add it to delayed free list. */
+> > +	list_add_tail(&iter->ptd[level - 1]->lru, &iter->dead_directories);
+> > +
+> > +	/*
+> > +	 * The upper directory is not safe to unref as we have an extra ref and
+> 
+> This should be "IS safe to unref", correct?
+
+Yes (s/not/now) -> "is NOW safe to unref" /me blame my fingers.
+
+[...]
+> > +	/*
+> > +	 * Some iterator may have dereferenced a dead directory entry and looked
+> > +	 * up the struct page but haven't check yet the reference count. As all
+> > +	 * the above happen in rcu read critical section we know that we need
+> > +	 * to wait for grace period before being able to free any of the dead
+> > +	 * directory page.
+> > +	 */
+> > +	synchronize_rcu();
+> > +	list_for_each_entry_safe(ptd, tmp, &iter->dead_directories, lru) {
+> > +		list_del(&ptd->lru);
+> > +		atomic_set(&ptd->_mapcount, -1);
+> > +		__free_page(ptd);
+> > +	}
+> > +}
+> 
+> If I'm following this correctly, a migrate to the device will allocate HMM 
+> page tables and the subsequent migrate from the device will free them. 
+> Assuming that's the case, might thrashing of page allocations be a 
+> problem? What about keeping the HMM page tables around until the actual 
+> munmap() of the corresponding VA range?
+
+HMM page table is allocate anytime a device mirror a range ie migration to
+device is not a special case. When migrating to and from device, the HMM
+page table is allocated prior to the migration and outlive the migration
+back.
+
+That said the rational here is that i want to free HMM resources as early as
+possible mostly to support the use GPU on dataset onetime (ie dataset is use
+once and only once by the GPU). I think it will be a common and important use
+case and making sure we free resource early does not prevent other use case
+where dataset are use for longer time to work properly and efficiently.
+
+In a latter patch i add an helper so that device driver can discard a range
+ie tell HMM that they no longer using a range of address allowing HMM to
+free associated resources.
+
+However you are correct that currently some MM event will lead to HMM page
+table being free and then reallocated right after once again by the device.
+Which is obviously bad. But because i did not want to make this patch or
+this serie any more complex than it already is i did not include any mecanism
+to delay HMM page table directory reclaim. Such delayed reclaim mecanism is
+on my road map and i think i shared that roadmap with you. I think it is
+something we can optimize latter on. The important part here is that device
+driver knows that HMM page table need to be carefully accessed so that when
+agressive pruning of HMM page table happens it does not disrupt the device
+driver.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
