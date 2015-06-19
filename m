@@ -1,84 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id F1DC76B0087
-	for <linux-mm@kvack.org>; Thu, 18 Jun 2015 19:00:11 -0400 (EDT)
-Received: by iefd2 with SMTP id d2so8113325ief.2
-        for <linux-mm@kvack.org>; Thu, 18 Jun 2015 16:00:11 -0700 (PDT)
-Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com. [2607:f8b0:4001:c05::231])
-        by mx.google.com with ESMTPS id f16si576588igo.41.2015.06.18.16.00.11
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jun 2015 16:00:11 -0700 (PDT)
-Received: by igblz2 with SMTP id lz2so2266926igb.1
-        for <linux-mm@kvack.org>; Thu, 18 Jun 2015 16:00:11 -0700 (PDT)
-Date: Thu, 18 Jun 2015 16:00:09 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch 3/3] mm, oom: do not panic for oom kills triggered from
- sysrq
-In-Reply-To: <alpine.DEB.2.10.1506181555350.13736@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1506181556330.13736@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1506181555350.13736@chino.kir.corp.google.com>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E8636B0085
+	for <linux-mm@kvack.org>; Thu, 18 Jun 2015 20:05:27 -0400 (EDT)
+Received: by pdjn11 with SMTP id n11so77203798pdj.0
+        for <linux-mm@kvack.org>; Thu, 18 Jun 2015 17:05:27 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id rl7si13378929pab.173.2015.06.18.17.05.24
+        for <linux-mm@kvack.org>;
+        Thu, 18 Jun 2015 17:05:26 -0700 (PDT)
+Date: Fri, 19 Jun 2015 10:03:41 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [RFC v3 1/4] fs: Add generic file system event notifications
+Message-ID: <20150619000341.GM10224@dastard>
+References: <1434460173-18427-1-git-send-email-b.michalska@samsung.com>
+ <1434460173-18427-2-git-send-email-b.michalska@samsung.com>
+ <20150617230605.GK10224@dastard>
+ <55828064.5040301@samsung.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <55828064.5040301@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Beata Michalska <b.michalska@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, greg@kroah.com, jack@suse.cz, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
-Sysrq+f is used to kill a process either for debug or when the VM is
-otherwise unresponsive.
+On Thu, Jun 18, 2015 at 10:25:08AM +0200, Beata Michalska wrote:
+> On 06/18/2015 01:06 AM, Dave Chinner wrote:
+> > On Tue, Jun 16, 2015 at 03:09:30PM +0200, Beata Michalska wrote:
+> >> Introduce configurable generic interface for file
+> >> system-wide event notifications, to provide file
+> >> systems with a common way of reporting any potential
+> >> issues as they emerge.
+> >>
+> >> The notifications are to be issued through generic
+> >> netlink interface by newly introduced multicast group.
+> >>
+> >> Threshold notifications have been included, allowing
+> >> triggering an event whenever the amount of free space drops
+> >> below a certain level - or levels to be more precise as two
+> >> of them are being supported: the lower and the upper range.
+> >> The notifications work both ways: once the threshold level
+> >> has been reached, an event shall be generated whenever
+> >> the number of available blocks goes up again re-activating
+> >> the threshold.
+> >>
+> >> The interface has been exposed through a vfs. Once mounted,
+> >> it serves as an entry point for the set-up where one can
+> >> register for particular file system events.
+> >>
+> >> Signed-off-by: Beata Michalska <b.michalska@samsung.com>
+> > 
+> > This has massive scalability problems:
+....
+> > Have you noticed that the filesystems have percpu counters for
+> > tracking global space usage? There's good reason for that - taking a
+> > spinlock in such a hot accounting path causes severe contention.
+....
+> > Then puts the entire netlink send path inside this spinlock, which
+> > includes memory allocation and all sorts of non-filesystem code
+> > paths. And it may be inside critical filesystem locks as well....
+> > 
+> > Apart from the serialisation problem of the locking, adding
+> > memory allocation and the network send path to filesystem code
+> > that is effectively considered "innermost" filesystem code is going
+> > to have all sorts of problems for various filesystems. In the XFS
+> > case, we simply cannot execute this sort of function in the places
+> > where we update global space accounting.
+> > 
+> > As it is, I think the basic concept of separate tracking of free
+> > space if fundamentally flawed. What I think needs to be done is that
+> > filesystems need access to the thresholds for events, and then the
+> > filesystems call fs_event_send_thresh() themselves from appropriate
+> > contexts (ie. without compromising locking, scalability, memory
+> > allocation recursion constraints, etc).
+> > 
+> > e.g. instead of tracking every change in free space, a filesystem
+> > might execute this once every few seconds from a workqueue:
+> > 
+> > 	event = fs_event_need_space_warning(sb, <fs_free_space>)
+> > 	if (event)
+> > 		fs_event_send_thresh(sb, event);
+> > 
+> > User still gets warnings about space usage, but there's no runtime
+> > overhead or problems with lock/memory allocation contexts, etc.
+> 
+> Having fs to keep a firm hand on thresholds limits would indeed be
+> far more sane approach though that would require each fs to
+> add support for that and handle most of it on their own. Avoiding
+>> this was the main rationale behind this rfc.
+> If fs people agree to that, I'll be more than willing to drop this
+> in favour of the per-fs tracking solution. 
+> Personally, I hope they will.
 
-It is not intended to trigger a panic when no process may be killed.
+I was hoping that you'd think a little more about my suggestion and
+work out how to do background threshold event detection generically.
+I kind of left it as "an exercise for the reader" because it seems
+obvious to me.
 
-Avoid panicking the system for sysrq+f when no processes are killed.
+Hint: ->statfs allows you to get the total, free and used space
+from filesystems in a generic manner.
 
-Suggested-by: Michal Hocko <mhocko@suse.cz>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- Documentation/sysrq.txt | 3 ++-
- mm/oom_kill.c           | 7 +++++--
- 2 files changed, 7 insertions(+), 3 deletions(-)
+Cheers,
 
-diff --git a/Documentation/sysrq.txt b/Documentation/sysrq.txt
---- a/Documentation/sysrq.txt
-+++ b/Documentation/sysrq.txt
-@@ -75,7 +75,8 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
- 
- 'e'     - Send a SIGTERM to all processes, except for init.
- 
--'f'	- Will call oom_kill to kill a memory hog process.
-+'f'	- Will call the oom killer to kill a memory hog process, but do not
-+	  panic if nothing can be killed.
- 
- 'g'	- Used by kgdb (kernel debugger)
- 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -607,6 +607,9 @@ void check_panic_on_oom(struct oom_control *oc, enum oom_constraint constraint,
- 		if (constraint != CONSTRAINT_NONE)
- 			return;
- 	}
-+	/* Do not panic for oom kills triggered by sysrq */
-+	if (oc->order == -1)
-+		return;
- 	dump_header(oc, NULL, memcg);
- 	panic("Out of memory: %s panic_on_oom is enabled\n",
- 		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
-@@ -686,11 +689,11 @@ bool out_of_memory(struct oom_control *oc)
- 
- 	p = select_bad_process(oc, &points, totalpages);
- 	/* Found nothing?!?! Either we hang forever, or we panic. */
--	if (!p) {
-+	if (!p && oc->order != -1) {
- 		dump_header(oc, NULL, NULL);
- 		panic("Out of memory and no killable processes...\n");
- 	}
--	if (p != (void *)-1UL) {
-+	if (p && p != (void *)-1UL) {
- 		oom_kill_process(oc, p, points, totalpages, NULL,
- 				 "Out of memory");
- 		killed = 1;
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
