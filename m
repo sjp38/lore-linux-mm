@@ -1,106 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id EAAEE6B0096
-	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 13:22:51 -0400 (EDT)
-Received: by wibdq8 with SMTP id dq8so24666617wib.1
-        for <linux-mm@kvack.org>; Fri, 19 Jun 2015 10:22:51 -0700 (PDT)
-Received: from mail2.protonmail.ch (mail2.protonmail.ch. [185.70.40.22])
-        by mx.google.com with ESMTPS id m9si5697673wiy.89.2015.06.19.10.22.49
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id E1A846B0096
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 13:28:18 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so94928243pdb.1
+        for <linux-mm@kvack.org>; Fri, 19 Jun 2015 10:28:18 -0700 (PDT)
+Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
+        by mx.google.com with ESMTPS id u4si4255444pdh.9.2015.06.19.10.28.17
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Jun 2015 10:22:50 -0700 (PDT)
-Subject: Re: RAM encryption and key storing in CPU
-Date: Fri, 19 Jun 2015 13:22:49 -0400
-From: ngabor <ngabor@protonmail.ch>
-Reply-To: ngabor <ngabor@protonmail.ch>
-Message-ID: <bd3ea9df466ce9683c3c4ffdbce3d476@protonmail.ch>
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="b1_bd3ea9df466ce9683c3c4ffdbce3d476"
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 19 Jun 2015 10:28:17 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout4.w1.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0NQ700294CJ17Z20@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 19 Jun 2015 18:28:13 +0100 (BST)
+Message-id: <5584512B.5020301@samsung.com>
+Date: Fri, 19 Jun 2015 19:28:11 +0200
+From: Beata Michalska <b.michalska@samsung.com>
+MIME-version: 1.0
+Subject: Re: [RFC v3 1/4] fs: Add generic file system event notifications
+References: <1434460173-18427-1-git-send-email-b.michalska@samsung.com>
+ <1434460173-18427-2-git-send-email-b.michalska@samsung.com>
+ <20150617230605.GK10224@dastard> <55828064.5040301@samsung.com>
+ <20150619000341.GM10224@dastard>
+In-reply-to: <20150619000341.GM10224@dastard>
+Content-type: text/plain; charset=ISO-8859-1
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "bp@alien8.de" <bp@alien8.de>, "lizefan@huawei.com" <lizefan@huawei.com>, "tj@kernel.org" <tj@kernel.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, greg@kroah.com, jack@suse.cz, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
-This is a multi-part message in MIME format.
+On 06/19/2015 02:03 AM, Dave Chinner wrote:
+> On Thu, Jun 18, 2015 at 10:25:08AM +0200, Beata Michalska wrote:
+>> On 06/18/2015 01:06 AM, Dave Chinner wrote:
+>>> On Tue, Jun 16, 2015 at 03:09:30PM +0200, Beata Michalska wrote:
+>>>> Introduce configurable generic interface for file
+>>>> system-wide event notifications, to provide file
+>>>> systems with a common way of reporting any potential
+>>>> issues as they emerge.
+>>>>
+>>>> The notifications are to be issued through generic
+>>>> netlink interface by newly introduced multicast group.
+>>>>
+>>>> Threshold notifications have been included, allowing
+>>>> triggering an event whenever the amount of free space drops
+>>>> below a certain level - or levels to be more precise as two
+>>>> of them are being supported: the lower and the upper range.
+>>>> The notifications work both ways: once the threshold level
+>>>> has been reached, an event shall be generated whenever
+>>>> the number of available blocks goes up again re-activating
+>>>> the threshold.
+>>>>
+>>>> The interface has been exposed through a vfs. Once mounted,
+>>>> it serves as an entry point for the set-up where one can
+>>>> register for particular file system events.
+>>>>
+>>>> Signed-off-by: Beata Michalska <b.michalska@samsung.com>
+>>>
+>>> This has massive scalability problems:
+> ....
+>>> Have you noticed that the filesystems have percpu counters for
+>>> tracking global space usage? There's good reason for that - taking a
+>>> spinlock in such a hot accounting path causes severe contention.
+> ....
+>>> Then puts the entire netlink send path inside this spinlock, which
+>>> includes memory allocation and all sorts of non-filesystem code
+>>> paths. And it may be inside critical filesystem locks as well....
+>>>
+>>> Apart from the serialisation problem of the locking, adding
+>>> memory allocation and the network send path to filesystem code
+>>> that is effectively considered "innermost" filesystem code is going
+>>> to have all sorts of problems for various filesystems. In the XFS
+>>> case, we simply cannot execute this sort of function in the places
+>>> where we update global space accounting.
+>>>
+>>> As it is, I think the basic concept of separate tracking of free
+>>> space if fundamentally flawed. What I think needs to be done is that
+>>> filesystems need access to the thresholds for events, and then the
+>>> filesystems call fs_event_send_thresh() themselves from appropriate
+>>> contexts (ie. without compromising locking, scalability, memory
+>>> allocation recursion constraints, etc).
+>>>
+>>> e.g. instead of tracking every change in free space, a filesystem
+>>> might execute this once every few seconds from a workqueue:
+>>>
+>>> 	event = fs_event_need_space_warning(sb, <fs_free_space>)
+>>> 	if (event)
+>>> 		fs_event_send_thresh(sb, event);
+>>>
+>>> User still gets warnings about space usage, but there's no runtime
+>>> overhead or problems with lock/memory allocation contexts, etc.
+>>
+>> Having fs to keep a firm hand on thresholds limits would indeed be
+>> far more sane approach though that would require each fs to
+>> add support for that and handle most of it on their own. Avoiding
+>>> this was the main rationale behind this rfc.
+>> If fs people agree to that, I'll be more than willing to drop this
+>> in favour of the per-fs tracking solution. 
+>> Personally, I hope they will.
+> 
+> I was hoping that you'd think a little more about my suggestion and
+> work out how to do background threshold event detection generically.
+> I kind of left it as "an exercise for the reader" because it seems
+> obvious to me.
+> 
+> Hint: ->statfs allows you to get the total, free and used space
+> from filesystems in a generic manner.
+> 
+> Cheers,
+> 
+> Dave.
+> 
 
---b1_bd3ea9df466ce9683c3c4ffdbce3d476
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+I haven't given up on that, so yes, I'm still working on a more suitable
+generic solution.
+Background detection is one of the options, though it needs some more thoughts.
+Giving up the sync approach means less accuracy for the threshold notifications,
+but I guess this could be fine-tuned to get an acceptable level. Another bump:
+how this tuning is supposed to be done (additional config option maybe)? 
+The interface would have to keep it somehow sane - but what would 'sane' mean
+in this case (?) Also, I'm not sure whether single approach would server here
+well for all the potentially supported file systems so this would have to be
+properly adjusted (taking the threshold levels into consideration as well). 
+And still,it would require some form of synchronization with tracked fs so that
+this 'detection' is not being unnecessarily performed (i.e. while fs remains frozen).
 
-SGFsbG8/IDopCgoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQoKU3ViamVjdDog
-UmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUKClRpbWUgKEdNVCk6IE1h
-eSAyMyAyMDE1IDA5OjAxOjI2CgpGcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaAoKVG86IGxpbnV4
-LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5l
-bC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnCgoKCkFueSBjb21tZW50cz8KCgotLS0tLS0t
-LSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tCgpTdWJqZWN0OiBSQU0gZW5jcnlwdGlvbiBhbmQg
-a2V5IHN0b3JpbmcgaW4gQ1BVCgpUaW1lIChHTVQpOiBNYXkgMjEgMjAxNSAxMDoxNzoyNQoKRnJv
-bTogbmdhYm9yQHByb3Rvbm1haWwuY2gKClRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVu
-OC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0
-aW9uLm9yZwoKCgpIZWxsbywKCgoKPT09PT09PT09PQoKUHJvYmxlbToKCgoKRXZlcnl0aGluZyBp
-cyBzdG9yZWQgaW4gcGxhaW50ZXh0IGluIHRoZSBNZW1vcnkuCgoKClNvIGlmIGFsdGhvdWdoIGZ1
-bGwgZGlzYyBlbmNyeXB0aW9uIGlzIHVzZWQgb24gYSBMaW51eCBEZXNrdG9wLCBpdCBpcyBwb3Nz
-aWJsZSB0byBjb3B5IHRoZSBjb250ZW50IG9mIHRoZSBtZW1vcnksIHdoaWxlIHRoZSBub3RlYm9v
-ayB3YXMgb24gc3VzcGVuZCBvciBpdCB3YXMgcnVubmluZzoKCgoKaHR0cHM6Ly9jaXRwLnByaW5j
-ZXRvbi5lZHUvcmVzZWFyY2gvbWVtb3J5L21lZGlhLwoKCgo9PT09PT09PT09CgpTb2x1dGlvbjoK
-CgoKQ2FuIHdlIChvcHRpb25hbGx5KikgZW5jcnlwdCB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5
-IGFuZCBzdG9yZSB0aGUga2V5IGZvciBkZWNyeXB0aW9uIGluIHRoZSBDUFUgdG8gYXZvaWQgaW4g
-Z2VuZXJhbCB0aGVzZSBraW5kIG9mIGF0dGFja3M/CgoKCmh0dHBzOi8vd3d3MS5pbmZvcm1hdGlr
-LnVuaS1lcmxhbmdlbi5kZS90cmVzb3IKCgoKSXMgdGhpcyBzb2x1dGlvbiBhbHJlYWR5IGluIHRo
-ZSBMaW51eCBrZXJuZWw/IElmIHllcywgaG93IGNhbiBhIExpbnV4IGVuZHVzZXIgdHVybiBpdCBv
-bj8gSWYgbm8sIGhvdyBjYW4gd2UgZ2V0IHRoZSBjb2RlL2lkZWEgaW4gdGhlIG1haW5saW5lPyBX
-aGF0IGFyZSB0aGUgYXJndW1lbnRzIGFnYWluc3QgaXQ/CgoKCippZiBzb21lb25lIHdvdWxkIHdh
-bnQgdG8gaGFyZGVuIGl0J3MgTGludXggRGVza3RvcCAoc2luY2Ugbm90ZWJvb2tzIGNvdWxkIGJl
-IHN0b2xlbi4uKSBpdCBjb3VsZCB0dXJuIG9uIHRoaXMgZmVhdHVyZSB0byBhdm9pZCBhIHBvbGlj
-eSB0byBhbHdheXMgdHVybiBvZmYgdGhlIG5vdGVib29rIHdoaWxlIG5vdCB1c2luZyBpdC4KCgoK
-VGhhbmsgeW91IGZvciB5b3VyIGNvbW1lbnRzLg==
+There is also an idea of using an interface resembling the stackable fs:
+a transparent file system layered on top of the tracked one 
+(solely for the tracking purposes). This would simplify handling the trace 
+object's lifetime - no more list of registered traces.
+It would also give a way of tracking (to some extent) the changes in the amount
+of available space, which combined with tweaked background check could give
+a solution with less performance overhead than the original one.
+I'll try this one and see how it goes.
+
+Thank You for your feedback so far - I really appreciate it.
 
 
---b1_bd3ea9df466ce9683c3c4ffdbce3d476
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: base64
-
-PGRpdj5IYWxsbz8gOik8YnI+PC9kaXY+PGJsb2NrcXVvdGU+PGRpdj4tLS0tLS0tLSBPcmlnaW5h
-bCBNZXNzYWdlIC0tLS0tLS0tPGJyPjwvZGl2PjxkaXY+U3ViamVjdDogUmU6IFJBTSBlbmNyeXB0
-aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFU8YnI+PC9kaXY+PGRpdj5UaW1lIChHTVQpOiBNYXkg
-MjMgMjAxNSAwOTowMToyNjxicj48L2Rpdj48ZGl2PkZyb206IG5nYWJvckBwcm90b25tYWlsLmNo
-PGJyPjwvZGl2PjxkaXY+VG86IGxpbnV4LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXpl
-ZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5lbC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnPGJy
-PjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+QW55IGNvbW1lbnRzPyA8YnI+PC9kaXY+PGJsb2Nr
-cXVvdGU+PGRpdj4tLS0tLS0tLSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tPGJyPjwvZGl2Pjxk
-aXY+U3ViamVjdDogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVTxicj48L2Rp
-dj48ZGl2PlRpbWUgKEdNVCk6IE1heSAyMSAyMDE1IDEwOjE3OjI1PGJyPjwvZGl2PjxkaXY+RnJv
-bTogbmdhYm9yQHByb3Rvbm1haWwuY2g8YnI+PC9kaXY+PGRpdj5UbzogbGludXgtbW1Aa3ZhY2su
-b3JnLCBicEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xA
-bGludXgtZm91bmRhdGlvbi5vcmc8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5IZWxsbywg
-PGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+PT09PT09PT09PTxicj48L2Rpdj48ZGl2Pjxi
-PlByb2JsZW08L2I+OiA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5FdmVyeXRoaW5nIGlz
-IHN0b3JlZCBpbiBwbGFpbnRleHQgaW4gdGhlIE1lbW9yeS4gPGJyPjwvZGl2PjxkaXY+PGJyPjwv
-ZGl2PjxkaXY+U28gaWYgYWx0aG91Z2ggZnVsbCBkaXNjIGVuY3J5cHRpb24gaXMgdXNlZCBvbiBh
-IExpbnV4IERlc2t0b3AsIGl0IGlzIHBvc3NpYmxlIHRvIGNvcHkgdGhlIGNvbnRlbnQgb2YgdGhl
-IG1lbW9yeSwgd2hpbGUgdGhlIG5vdGVib29rIHdhcyBvbiBzdXNwZW5kIG9yIGl0IHdhcyBydW5u
-aW5nOiA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj48YSBocmVmPSJodHRwczovL2NpdHAu
-cHJpbmNldG9uLmVkdS9yZXNlYXJjaC9tZW1vcnkvbWVkaWEvIj5odHRwczovL2NpdHAucHJpbmNl
-dG9uLmVkdS9yZXNlYXJjaC9tZW1vcnkvbWVkaWEvPC9hPjxicj48L2Rpdj48ZGl2Pjxicj48L2Rp
-dj48ZGl2Pj09PT09PT09PT08YnI+PC9kaXY+PGRpdj48Yj5Tb2x1dGlvbjwvYj46IDxicj48L2Rp
-dj48ZGl2Pjxicj48L2Rpdj48ZGl2PkNhbiB3ZSAob3B0aW9uYWxseSopIGVuY3J5cHQgdGhlIGNv
-bnRlbnQgb2YgdGhlIG1lbW9yeSBhbmQgc3RvcmUgdGhlIGtleSBmb3IgZGVjcnlwdGlvbiBpbiB0
-aGUgQ1BVIHRvIGF2b2lkIGluIGdlbmVyYWwgdGhlc2Uga2luZCBvZiBhdHRhY2tzPyA8YnI+PC9k
-aXY+PGRpdj48YnI+PC9kaXY+PGRpdj48YSBocmVmPSJodHRwczovL3d3dzEuaW5mb3JtYXRpay51
-bmktZXJsYW5nZW4uZGUvdHJlc29yIj5odHRwczovL3d3dzEuaW5mb3JtYXRpay51bmktZXJsYW5n
-ZW4uZGUvdHJlc29yPC9hPjxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PklzIHRoaXMgc29s
-dXRpb24gYWxyZWFkeSBpbiB0aGUgTGludXgga2VybmVsPyBJZiB5ZXMsIGhvdyBjYW4gYSBMaW51
-eCBlbmR1c2VyIHR1cm4gaXQgb24/IElmIG5vLCBob3cgY2FuIHdlIGdldCB0aGUgY29kZS9pZGVh
-IGluIHRoZSBtYWlubGluZT8gV2hhdCBhcmUgdGhlIGFyZ3VtZW50cyBhZ2FpbnN0IGl0PyA8YnI+
-PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj4qaWYgc29tZW9uZSB3b3VsZCB3YW50IHRvIGhhcmRl
-biBpdCdzIExpbnV4IERlc2t0b3AgKHNpbmNlIG5vdGVib29rcyBjb3VsZCBiZSBzdG9sZW4uLikg
-aXQgY291bGQgdHVybiBvbiB0aGlzIGZlYXR1cmUgdG8gYXZvaWQgYSBwb2xpY3kgdG8gYWx3YXlz
-IHR1cm4gb2ZmIHRoZSBub3RlYm9vayB3aGlsZSBub3QgdXNpbmcgaXQuIDxicj48L2Rpdj48ZGl2
-Pjxicj48L2Rpdj48ZGl2PlRoYW5rIHlvdSBmb3IgeW91ciBjb21tZW50cy4gPGJyPjwvZGl2Pjwv
-YmxvY2txdW90ZT48L2Jsb2NrcXVvdGU+
+Best Regards
+Beata 
 
 
-
---b1_bd3ea9df466ce9683c3c4ffdbce3d476--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
