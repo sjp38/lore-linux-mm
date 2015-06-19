@@ -1,63 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id A6CDB6B0096
-	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 13:18:36 -0400 (EDT)
-Received: by wicgi11 with SMTP id gi11so24617080wic.0
-        for <linux-mm@kvack.org>; Fri, 19 Jun 2015 10:18:36 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id bq3si20943007wjc.50.2015.06.19.10.18.34
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id EAAEE6B0096
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 13:22:51 -0400 (EDT)
+Received: by wibdq8 with SMTP id dq8so24666617wib.1
+        for <linux-mm@kvack.org>; Fri, 19 Jun 2015 10:22:51 -0700 (PDT)
+Received: from mail2.protonmail.ch (mail2.protonmail.ch. [185.70.40.22])
+        by mx.google.com with ESMTPS id m9si5697673wiy.89.2015.06.19.10.22.49
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 19 Jun 2015 10:18:35 -0700 (PDT)
-Message-ID: <55844EE7.7070508@linutronix.de>
-Date: Fri, 19 Jun 2015 19:18:31 +0200
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Jun 2015 10:22:50 -0700 (PDT)
+Subject: Re: RAM encryption and key storing in CPU
+Date: Fri, 19 Jun 2015 13:22:49 -0400
+From: ngabor <ngabor@protonmail.ch>
+Reply-To: ngabor <ngabor@protonmail.ch>
+Message-ID: <bd3ea9df466ce9683c3c4ffdbce3d476@protonmail.ch>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: memcontrol: correct the comment in mem_cgroup_swapout()
-References: <20150619163418.GA21040@linutronix.de> <20150619171118.GA11423@cmpxchg.org>
-In-Reply-To: <20150619171118.GA11423@cmpxchg.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/alternative;
+	boundary="b1_bd3ea9df466ce9683c3c4ffdbce3d476"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, tglx@linutronix.de, rostedt@goodmis.org, williams@redhat.com
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "bp@alien8.de" <bp@alien8.de>, "lizefan@huawei.com" <lizefan@huawei.com>, "tj@kernel.org" <tj@kernel.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>
 
-On 06/19/2015 07:11 PM, Johannes Weiner wrote:
-> On Fri, Jun 19, 2015 at 06:34:18PM +0200, Sebastian Andrzej Siewior wrote:
->> Clark stumbled over a VM_BUG_ON() in -RT which was then was removed by
->> Johannes in commit f371763a79d ("mm: memcontrol: fix false-positive
->> VM_BUG_ON() on -rt"). The comment before that patch was a tiny bit
->> better than it is now. While the patch claimed to fix a false-postive on
->> -RT this was not the case. None of the -RT folks ACKed it and it was not a
->> false positive report. That was a *real* problem.
-> 
-> The real problem is that irqs_disabled() on -rt is returning false
-> negatives.  Having it return false within a spin_lock_irq() section is
-> broken.
+This is a multi-part message in MIME format.
 
-As I explained it in
-	http://www.spinics.net/lists/linux-rt-users/msg13499.html
-it is not.
+--b1_bd3ea9df466ce9683c3c4ffdbce3d476
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 
->> This patch updates the comment that is improper because it refers to
->> "disabled preemption" as a consequence of that lock being taken. A
->> spin_lock() disables preemption, true, but in this case the code relies on
->> the fact that the lock _also_ disables interrupts once it is acquired. And
->> this is the important detail (which was checked the VM_BUG_ON()) which needs
->> to be pointed out. This is the hint one needs while looking at the code. It
->> was explained by Johannes on the list that the per-CPU variables are protected
->> by local_irq_save(). The BUG_ON() was helpful. This code has been workarounded
->> in -RT in the meantime. I wouldn't mind running into more of those if the code
->> in question uses *special* kind of locking since now there is no no
->> verification (in terms of lockdep or BUG_ON()).
-> 
-> I'd be happy to re-instate the VM_BUG_ON that checks for disabled
-> interrupts as before, that was the most obvious documentation.
+SGFsbG8/IDopCgoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQoKU3ViamVjdDog
+UmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUKClRpbWUgKEdNVCk6IE1h
+eSAyMyAyMDE1IDA5OjAxOjI2CgpGcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaAoKVG86IGxpbnV4
+LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5l
+bC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnCgoKCkFueSBjb21tZW50cz8KCgotLS0tLS0t
+LSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tCgpTdWJqZWN0OiBSQU0gZW5jcnlwdGlvbiBhbmQg
+a2V5IHN0b3JpbmcgaW4gQ1BVCgpUaW1lIChHTVQpOiBNYXkgMjEgMjAxNSAxMDoxNzoyNQoKRnJv
+bTogbmdhYm9yQHByb3Rvbm1haWwuY2gKClRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVu
+OC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0
+aW9uLm9yZwoKCgpIZWxsbywKCgoKPT09PT09PT09PQoKUHJvYmxlbToKCgoKRXZlcnl0aGluZyBp
+cyBzdG9yZWQgaW4gcGxhaW50ZXh0IGluIHRoZSBNZW1vcnkuCgoKClNvIGlmIGFsdGhvdWdoIGZ1
+bGwgZGlzYyBlbmNyeXB0aW9uIGlzIHVzZWQgb24gYSBMaW51eCBEZXNrdG9wLCBpdCBpcyBwb3Nz
+aWJsZSB0byBjb3B5IHRoZSBjb250ZW50IG9mIHRoZSBtZW1vcnksIHdoaWxlIHRoZSBub3RlYm9v
+ayB3YXMgb24gc3VzcGVuZCBvciBpdCB3YXMgcnVubmluZzoKCgoKaHR0cHM6Ly9jaXRwLnByaW5j
+ZXRvbi5lZHUvcmVzZWFyY2gvbWVtb3J5L21lZGlhLwoKCgo9PT09PT09PT09CgpTb2x1dGlvbjoK
+CgoKQ2FuIHdlIChvcHRpb25hbGx5KikgZW5jcnlwdCB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5
+IGFuZCBzdG9yZSB0aGUga2V5IGZvciBkZWNyeXB0aW9uIGluIHRoZSBDUFUgdG8gYXZvaWQgaW4g
+Z2VuZXJhbCB0aGVzZSBraW5kIG9mIGF0dGFja3M/CgoKCmh0dHBzOi8vd3d3MS5pbmZvcm1hdGlr
+LnVuaS1lcmxhbmdlbi5kZS90cmVzb3IKCgoKSXMgdGhpcyBzb2x1dGlvbiBhbHJlYWR5IGluIHRo
+ZSBMaW51eCBrZXJuZWw/IElmIHllcywgaG93IGNhbiBhIExpbnV4IGVuZHVzZXIgdHVybiBpdCBv
+bj8gSWYgbm8sIGhvdyBjYW4gd2UgZ2V0IHRoZSBjb2RlL2lkZWEgaW4gdGhlIG1haW5saW5lPyBX
+aGF0IGFyZSB0aGUgYXJndW1lbnRzIGFnYWluc3QgaXQ/CgoKCippZiBzb21lb25lIHdvdWxkIHdh
+bnQgdG8gaGFyZGVuIGl0J3MgTGludXggRGVza3RvcCAoc2luY2Ugbm90ZWJvb2tzIGNvdWxkIGJl
+IHN0b2xlbi4uKSBpdCBjb3VsZCB0dXJuIG9uIHRoaXMgZmVhdHVyZSB0byBhdm9pZCBhIHBvbGlj
+eSB0byBhbHdheXMgdHVybiBvZmYgdGhlIG5vdGVib29rIHdoaWxlIG5vdCB1c2luZyBpdC4KCgoK
+VGhhbmsgeW91IGZvciB5b3VyIGNvbW1lbnRzLg==
 
-sure thing, patch follows in a jiffy or two.
 
-Sebastian
+--b1_bd3ea9df466ce9683c3c4ffdbce3d476
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+PGRpdj5IYWxsbz8gOik8YnI+PC9kaXY+PGJsb2NrcXVvdGU+PGRpdj4tLS0tLS0tLSBPcmlnaW5h
+bCBNZXNzYWdlIC0tLS0tLS0tPGJyPjwvZGl2PjxkaXY+U3ViamVjdDogUmU6IFJBTSBlbmNyeXB0
+aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFU8YnI+PC9kaXY+PGRpdj5UaW1lIChHTVQpOiBNYXkg
+MjMgMjAxNSAwOTowMToyNjxicj48L2Rpdj48ZGl2PkZyb206IG5nYWJvckBwcm90b25tYWlsLmNo
+PGJyPjwvZGl2PjxkaXY+VG86IGxpbnV4LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXpl
+ZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5lbC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnPGJy
+PjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+QW55IGNvbW1lbnRzPyA8YnI+PC9kaXY+PGJsb2Nr
+cXVvdGU+PGRpdj4tLS0tLS0tLSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tPGJyPjwvZGl2Pjxk
+aXY+U3ViamVjdDogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVTxicj48L2Rp
+dj48ZGl2PlRpbWUgKEdNVCk6IE1heSAyMSAyMDE1IDEwOjE3OjI1PGJyPjwvZGl2PjxkaXY+RnJv
+bTogbmdhYm9yQHByb3Rvbm1haWwuY2g8YnI+PC9kaXY+PGRpdj5UbzogbGludXgtbW1Aa3ZhY2su
+b3JnLCBicEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xA
+bGludXgtZm91bmRhdGlvbi5vcmc8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5IZWxsbywg
+PGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+PT09PT09PT09PTxicj48L2Rpdj48ZGl2Pjxi
+PlByb2JsZW08L2I+OiA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5FdmVyeXRoaW5nIGlz
+IHN0b3JlZCBpbiBwbGFpbnRleHQgaW4gdGhlIE1lbW9yeS4gPGJyPjwvZGl2PjxkaXY+PGJyPjwv
+ZGl2PjxkaXY+U28gaWYgYWx0aG91Z2ggZnVsbCBkaXNjIGVuY3J5cHRpb24gaXMgdXNlZCBvbiBh
+IExpbnV4IERlc2t0b3AsIGl0IGlzIHBvc3NpYmxlIHRvIGNvcHkgdGhlIGNvbnRlbnQgb2YgdGhl
+IG1lbW9yeSwgd2hpbGUgdGhlIG5vdGVib29rIHdhcyBvbiBzdXNwZW5kIG9yIGl0IHdhcyBydW5u
+aW5nOiA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj48YSBocmVmPSJodHRwczovL2NpdHAu
+cHJpbmNldG9uLmVkdS9yZXNlYXJjaC9tZW1vcnkvbWVkaWEvIj5odHRwczovL2NpdHAucHJpbmNl
+dG9uLmVkdS9yZXNlYXJjaC9tZW1vcnkvbWVkaWEvPC9hPjxicj48L2Rpdj48ZGl2Pjxicj48L2Rp
+dj48ZGl2Pj09PT09PT09PT08YnI+PC9kaXY+PGRpdj48Yj5Tb2x1dGlvbjwvYj46IDxicj48L2Rp
+dj48ZGl2Pjxicj48L2Rpdj48ZGl2PkNhbiB3ZSAob3B0aW9uYWxseSopIGVuY3J5cHQgdGhlIGNv
+bnRlbnQgb2YgdGhlIG1lbW9yeSBhbmQgc3RvcmUgdGhlIGtleSBmb3IgZGVjcnlwdGlvbiBpbiB0
+aGUgQ1BVIHRvIGF2b2lkIGluIGdlbmVyYWwgdGhlc2Uga2luZCBvZiBhdHRhY2tzPyA8YnI+PC9k
+aXY+PGRpdj48YnI+PC9kaXY+PGRpdj48YSBocmVmPSJodHRwczovL3d3dzEuaW5mb3JtYXRpay51
+bmktZXJsYW5nZW4uZGUvdHJlc29yIj5odHRwczovL3d3dzEuaW5mb3JtYXRpay51bmktZXJsYW5n
+ZW4uZGUvdHJlc29yPC9hPjxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PklzIHRoaXMgc29s
+dXRpb24gYWxyZWFkeSBpbiB0aGUgTGludXgga2VybmVsPyBJZiB5ZXMsIGhvdyBjYW4gYSBMaW51
+eCBlbmR1c2VyIHR1cm4gaXQgb24/IElmIG5vLCBob3cgY2FuIHdlIGdldCB0aGUgY29kZS9pZGVh
+IGluIHRoZSBtYWlubGluZT8gV2hhdCBhcmUgdGhlIGFyZ3VtZW50cyBhZ2FpbnN0IGl0PyA8YnI+
+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj4qaWYgc29tZW9uZSB3b3VsZCB3YW50IHRvIGhhcmRl
+biBpdCdzIExpbnV4IERlc2t0b3AgKHNpbmNlIG5vdGVib29rcyBjb3VsZCBiZSBzdG9sZW4uLikg
+aXQgY291bGQgdHVybiBvbiB0aGlzIGZlYXR1cmUgdG8gYXZvaWQgYSBwb2xpY3kgdG8gYWx3YXlz
+IHR1cm4gb2ZmIHRoZSBub3RlYm9vayB3aGlsZSBub3QgdXNpbmcgaXQuIDxicj48L2Rpdj48ZGl2
+Pjxicj48L2Rpdj48ZGl2PlRoYW5rIHlvdSBmb3IgeW91ciBjb21tZW50cy4gPGJyPjwvZGl2Pjwv
+YmxvY2txdW90ZT48L2Jsb2NrcXVvdGU+
+
+
+
+--b1_bd3ea9df466ce9683c3c4ffdbce3d476--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
