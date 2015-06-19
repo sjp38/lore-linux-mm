@@ -1,60 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C61A66B0088
-	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 09:58:25 -0400 (EDT)
-Received: by wguu7 with SMTP id u7so18252892wgu.3
-        for <linux-mm@kvack.org>; Fri, 19 Jun 2015 06:58:25 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 0216D6B008A
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 10:57:13 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so21618428wig.0
+        for <linux-mm@kvack.org>; Fri, 19 Jun 2015 07:57:12 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t7si4823676wix.46.2015.06.19.06.58.23
+        by mx.google.com with ESMTPS id a5si11695502wja.1.2015.06.19.07.57.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 19 Jun 2015 06:58:24 -0700 (PDT)
-Date: Fri, 19 Jun 2015 14:58:20 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 4/6] mm, compaction: always skip compound pages by order
- in migrate scanner
-Message-ID: <20150619135820.GC11809@suse.de>
-References: <1433928754-966-1-git-send-email-vbabka@suse.cz>
- <1433928754-966-5-git-send-email-vbabka@suse.cz>
+        Fri, 19 Jun 2015 07:57:10 -0700 (PDT)
+Date: Fri, 19 Jun 2015 16:57:08 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RESEND PATCH V2 1/3] Add mmap flag to request pages are locked
+ after page fault
+Message-ID: <20150619145708.GG4913@dhcp22.suse.cz>
+References: <1433942810-7852-1-git-send-email-emunson@akamai.com>
+ <1433942810-7852-2-git-send-email-emunson@akamai.com>
+ <20150618152907.GG5858@dhcp22.suse.cz>
+ <20150618203048.GB2329@akamai.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1433928754-966-5-git-send-email-vbabka@suse.cz>
+In-Reply-To: <20150618203048.GB2329@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
+To: Eric B Munson <emunson@akamai.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On Wed, Jun 10, 2015 at 11:32:32AM +0200, Vlastimil Babka wrote:
-> The compaction migrate scanner tries to skip compound pages by their order, to
-> reduce number of iterations for pages it cannot isolate. The check is only done
-> if PageLRU() is true, which means it applies to THP pages, but not e.g.
-> hugetlbfs pages or any other non-LRU compound pages, which we have to iterate
-> by base pages.
+On Thu 18-06-15 16:30:48, Eric B Munson wrote:
+> On Thu, 18 Jun 2015, Michal Hocko wrote:
+[...]
+> > Wouldn't it be much more reasonable and straightforward to have
+> > MAP_FAULTPOPULATE as a counterpart for MAP_POPULATE which would
+> > explicitly disallow any form of pre-faulting? It would be usable for
+> > other usecases than with MAP_LOCKED combination.
 > 
-> This limitation comes from the assumption that it's only safe to read
-> compound_order() when we have the zone's lru_lock and THP cannot be split under
-> us. But the only danger (after filtering out order values that are not below
-> MAX_ORDER, to prevent overflows) is that we skip too much or too little after
-> reading a bogus compound_order() due to a rare race. This is the same reasoning
-> as patch 99c0fd5e51c4 ("mm, compaction: skip buddy pages by their order in the
-> migrate scanner") introduced for unsafely reading PageBuddy() order.
-> 
-> After this patch, all pages are tested for PageCompound() and we skip them by
-> compound_order().  The test is done after the test for balloon_page_movable()
-> as we don't want to assume if balloon pages (or other pages with own isolation
-> and migration implementation if a generic API gets implemented) are compound
-> or not.
-> 
-> When tested with stress-highalloc from mmtests on 4GB system with 1GB hugetlbfs
-> pages, the vmstat compact_migrate_scanned count decreased by 15%.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> I don't see a clear case for it being more reasonable, it is one
+> possible way to solve the problem.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+MAP_FAULTPOPULATE would be usable for other cases as well. E.g. fault
+around is all or nothing feature. Either all mappings (which support
+this) fault around or none. There is no way to tell the kernel that
+this particular mapping shouldn't fault around. I haven't seen such a
+request yet but we have seen requests to have a way to opt out from
+a global policy in the past (e.g. per-process opt out from THP). So
+I can imagine somebody will come with a request to opt out from any
+speculative operations on the mapped area in the future.
 
+> But I think it leaves us in an even
+> more akward state WRT VMA flags.  As you noted in your fix for the
+> mmap() man page, one can get into a state where a VMA is VM_LOCKED, but
+> not present.  Having VM_LOCKONFAULT states that this was intentional, if
+> we go to using MAP_FAULTPOPULATE instead of MAP_LOCKONFAULT, we no
+> longer set VM_LOCKONFAULT (unless we want to start mapping it to the
+> presence of two MAP_ flags).  This can make detecting the MAP_LOCKED +
+> populate failure state harder.
+
+I am not sure I understand your point here. Could you be more specific
+how would you check for that and what for?
+
+>From my understanding MAP_LOCKONFAULT is essentially
+MAP_FAULTPOPULATE|MAP_LOCKED with a quite obvious semantic (unlike
+single MAP_LOCKED unfortunately). I would love to also have
+MAP_LOCKED|MAP_POPULATE (aka full mlock semantic) but I am really
+skeptical considering how my previous attempt to make MAP_POPULATE
+reasonable went.
+
+> If this is the preferred path for mmap(), I am fine with that. 
+
+> However,
+> I would like to see the new system calls that Andrew mentioned (and that
+> I am testing patches for) go in as well. 
+
+mlock with flags sounds like a good step but I am not sure it will make
+sense in the future. POSIX has screwed that and I am not sure how many
+applications would use it. This ship has sailed long time ago.
+
+> That way we give users the
+> ability to request VM_LOCKONFAULT for memory allocated using something
+> other than mmap.
+
+mmap(MAP_FAULTPOPULATE); mlock() would have the same semantic even
+without changing mlock syscall.
+ 
+> > > This patch introduces the ability to request that pages are not
+> > > pre-faulted, but are placed on the unevictable LRU when they are finally
+> > > faulted in.
+> > > 
+> > > To keep accounting checks out of the page fault path, users are billed
+> > > for the entire mapping lock as if MAP_LOCKED was used.
+> > > 
+> > > Signed-off-by: Eric B Munson <emunson@akamai.com>
+> > > Cc: Michal Hocko <mhocko@suse.cz>
+> > > Cc: linux-alpha@vger.kernel.org
+> > > Cc: linux-kernel@vger.kernel.org
+> > > Cc: linux-mips@linux-mips.org
+> > > Cc: linux-parisc@vger.kernel.org
+> > > Cc: linuxppc-dev@lists.ozlabs.org
+> > > Cc: sparclinux@vger.kernel.org
+> > > Cc: linux-xtensa@linux-xtensa.org
+> > > Cc: linux-mm@kvack.org
+> > > Cc: linux-arch@vger.kernel.org
+> > > Cc: linux-api@vger.kernel.org
+> > > ---
+[...]
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
