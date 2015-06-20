@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E60C6B009E
-	for <linux-mm@kvack.org>; Sat, 20 Jun 2015 07:28:37 -0400 (EDT)
-Received: by wicnd19 with SMTP id nd19so39061507wic.1
-        for <linux-mm@kvack.org>; Sat, 20 Jun 2015 04:28:36 -0700 (PDT)
-Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com. [2a00:1450:400c:c05::22b])
-        by mx.google.com with ESMTPS id j8si9602310wib.55.2015.06.20.04.28.35
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id E5C1E6B009F
+	for <linux-mm@kvack.org>; Sat, 20 Jun 2015 07:28:39 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so39119080wig.0
+        for <linux-mm@kvack.org>; Sat, 20 Jun 2015 04:28:39 -0700 (PDT)
+Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
+        by mx.google.com with ESMTPS id k8si9606716wiy.12.2015.06.20.04.28.37
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 20 Jun 2015 04:28:35 -0700 (PDT)
-Received: by wicnd19 with SMTP id nd19so39110249wic.1
-        for <linux-mm@kvack.org>; Sat, 20 Jun 2015 04:28:35 -0700 (PDT)
+        Sat, 20 Jun 2015 04:28:38 -0700 (PDT)
+Received: by wicnd19 with SMTP id nd19so39061701wic.1
+        for <linux-mm@kvack.org>; Sat, 20 Jun 2015 04:28:37 -0700 (PDT)
 From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Subject: [RFC v2 2/3] mm: make optimistic check for swapin readahead
-Date: Sat, 20 Jun 2015 14:28:05 +0300
-Message-Id: <1434799686-7929-3-git-send-email-ebru.akagunduz@gmail.com>
+Subject: [RFC v2 3/3] mm: make swapin readahead to improve thp collapse rate
+Date: Sat, 20 Jun 2015 14:28:06 +0300
+Message-Id: <1434799686-7929-4-git-send-email-ebru.akagunduz@gmail.com>
 In-Reply-To: <1434799686-7929-1-git-send-email-ebru.akagunduz@gmail.com>
 References: <1434799686-7929-1-git-send-email-ebru.akagunduz@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,113 +22,177 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, riel@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com, Ebru Akagunduz <ebru.akagunduz@gmail.com>
 
-This patch makes optimistic check for swapin readahead
-to increase thp collapse rate. Before getting swapped
-out pages to memory, checks them and allows up to a
-certain number. It also prints out using tracepoints
-amount of unmapped ptes.
+This patch makes swapin readahead to improve thp collapse rate.
+When khugepaged scanned pages, there can be a few of the pages
+in swap area.
+
+With the patch THP can collapse 4kB pages into a THP when
+there are up to max_ptes_swap swap ptes in a 2MB range.
+
+The patch was tested with a test program that allocates
+800MB of memory, writes to it, and then sleeps. I force
+the system to swap out all. Afterwards, the test program
+touches the area by writing, it skips a page in each
+20 pages of the area.
+
+Without the patch, system did not swap in readahead.
+THP rate was %47 of the program of the memory, it
+did not change over time.
+
+With this patch, after 10 minutes of waiting khugepaged had
+collapsed %99 of the program's memory.
 
 Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
 Changes in v2:
- - Nothing changed
+ - Use FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT flag
+   instead of 0x0 when called do_swap_page
+   from __collapse_huge_page_swapin
 
- include/trace/events/huge_memory.h | 11 +++++++----
- mm/huge_memory.c                   | 13 ++++++++++---
- 2 files changed, 17 insertions(+), 7 deletions(-)
+Test results:
 
+			After swapped out
+-------------------------------------------------------------------
+              | Anonymous | AnonHugePages | Swap      | Fraction  |
+-------------------------------------------------------------------
+With patch    | 265772 kB | 264192 kB     | 534232 kB |    %99    |
+-------------------------------------------------------------------
+Without patch | 238160 kB | 235520 kB     | 561844 kB |    %98    |
+-------------------------------------------------------------------
+
+                        After swapped in
+-------------------------------------------------------------------
+              | Anonymous | AnonHugePages | Swap      | Fraction  |
+-------------------------------------------------------------------
+With patch    | 532756 kB | 528384 kB     | 267248 kB |    %99    |
+-------------------------------------------------------------------
+Without patch | 499956 kB | 235520 kB     | 300048 kB |    %47    |
+-------------------------------------------------------------------
+
+ include/linux/mm.h                 |  4 ++++
+ include/trace/events/huge_memory.h | 24 ++++++++++++++++++++++++
+ mm/huge_memory.c                   | 37 +++++++++++++++++++++++++++++++++++++
+ mm/memory.c                        |  2 +-
+ 4 files changed, 66 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 7f47178..f66ff8a 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -29,6 +29,10 @@ struct user_struct;
+ struct writeback_control;
+ struct bdi_writeback;
+ 
++extern int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
++			unsigned long address, pte_t *page_table, pmd_t *pmd,
++			unsigned int flags, pte_t orig_pte);
++
+ #ifndef CONFIG_NEED_MULTIPLE_NODES	/* Don't use mapnrs, do it properly */
+ extern unsigned long max_mapnr;
+ 
 diff --git a/include/trace/events/huge_memory.h b/include/trace/events/huge_memory.h
-index 4b9049b..53c9f2e 100644
+index 53c9f2e..0117ab9 100644
 --- a/include/trace/events/huge_memory.h
 +++ b/include/trace/events/huge_memory.h
-@@ -9,9 +9,9 @@
- TRACE_EVENT(mm_khugepaged_scan_pmd,
- 
- 	TP_PROTO(struct mm_struct *mm, unsigned long vm_start, bool writable,
--		bool referenced, int none_or_zero, int collapse),
-+		bool referenced, int none_or_zero, int collapse, int unmapped),
- 
--	TP_ARGS(mm, vm_start, writable, referenced, none_or_zero, collapse),
-+	TP_ARGS(mm, vm_start, writable, referenced, none_or_zero, collapse, unmapped),
- 
- 	TP_STRUCT__entry(
- 		__field(struct mm_struct *, mm)
-@@ -20,6 +20,7 @@ TRACE_EVENT(mm_khugepaged_scan_pmd,
- 		__field(bool, referenced)
- 		__field(int, none_or_zero)
- 		__field(int, collapse)
-+		__field(int, unmapped)
- 	),
- 
- 	TP_fast_assign(
-@@ -29,15 +30,17 @@ TRACE_EVENT(mm_khugepaged_scan_pmd,
- 		__entry->referenced = referenced;
- 		__entry->none_or_zero = none_or_zero;
- 		__entry->collapse = collapse;
-+		__entry->unmapped = unmapped;
- 	),
- 
--	TP_printk("mm=%p, vm_start=%04lx, writable=%d, referenced=%d, none_or_zero=%d, collapse=%d",
-+	TP_printk("mm=%p, vm_start=%04lx, writable=%d, referenced=%d, none_or_zero=%d, collapse=%d, unmapped=%d",
- 		__entry->mm,
- 		__entry->vm_start,
- 		__entry->writable,
- 		__entry->referenced,
- 		__entry->none_or_zero,
--		__entry->collapse)
-+		__entry->collapse,
-+		__entry->unmapped)
+@@ -95,5 +95,29 @@ TRACE_EVENT(mm_collapse_huge_page_isolate,
+ 		__entry->writable)
  );
  
- TRACE_EVENT(mm_collapse_huge_page,
++TRACE_EVENT(mm_collapse_huge_page_swapin,
++
++	TP_PROTO(struct mm_struct *mm, unsigned long vm_start, int swap_pte),
++
++	TP_ARGS(mm, vm_start, swap_pte),
++
++	TP_STRUCT__entry(
++		__field(struct mm_struct *, mm)
++		__field(unsigned long, vm_start)
++		__field(int, swap_pte)
++	),
++
++	TP_fast_assign(
++		__entry->mm = mm;
++		__entry->vm_start = vm_start;
++		__entry->swap_pte = swap_pte;
++	),
++
++	TP_printk("mm=%p, vm_start=%04lx, swap_pte=%d",
++		__entry->mm,
++		__entry->vm_start,
++		__entry->swap_pte)
++);
++
+ #endif /* __HUGE_MEMORY_H */
+ #include <trace/define_trace.h>
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 9bb97fc..22bc0bf 100644
+index 22bc0bf..064fd72 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -24,6 +24,7 @@
- #include <linux/migrate.h>
- #include <linux/hashtable.h>
- #include <linux/userfaultfd_k.h>
-+#include <linux/swapops.h>
+@@ -2496,6 +2496,41 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
+ 	return true;
+ }
  
- #include <asm/tlb.h>
- #include <asm/pgalloc.h>
-@@ -2639,11 +2640,11 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- {
- 	pmd_t *pmd;
- 	pte_t *pte, *_pte;
--	int ret = 0, none_or_zero = 0;
-+	int ret = 0, none_or_zero = 0, unmapped = 0;
- 	struct page *page;
- 	unsigned long _address;
- 	spinlock_t *ptl;
--	int node = NUMA_NO_NODE;
-+	int node = NUMA_NO_NODE, max_ptes_swap = HPAGE_PMD_NR/8;
- 	bool writable = false, referenced = false;
- 
- 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-@@ -2657,6 +2658,12 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 	for (_address = address, _pte = pte; _pte < pte+HPAGE_PMD_NR;
- 	     _pte++, _address += PAGE_SIZE) {
- 		pte_t pteval = *_pte;
++/*
++ * Bring missing pages in from swap, to complete THP collapse.
++ * Only done if khugepaged_scan_pmd believes it is worthwhile.
++ *
++ * Called and returns without pte mapped or spinlocks held,
++ * but with mmap_sem held to protect against vma changes.
++ */
++
++static void __collapse_huge_page_swapin(struct mm_struct *mm,
++					struct vm_area_struct *vma,
++					unsigned long address, pmd_t *pmd,
++					pte_t *pte)
++{
++	unsigned long _address;
++	pte_t pteval = *pte;
++	int swap_pte = 0;
++
++	pte = pte_offset_map(pmd, address);
++	for (_address = address; _address < address + HPAGE_PMD_NR*PAGE_SIZE;
++	     pte++, _address += PAGE_SIZE) {
++		pteval = *pte;
 +		if (is_swap_pte(pteval)) {
-+			if (++unmapped <= max_ptes_swap)
-+				continue;
-+			else
-+				goto out_unmap;
++			swap_pte++;
++			do_swap_page(mm, vma, _address, pte, pmd,
++				     FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT,
++				     pteval);
++			/* pte is unmapped now, we need to map it */
++			pte = pte_offset_map(pmd, _address);
 +		}
- 		if (pte_none(pteval) || is_zero_pfn(pte_pfn(pteval))) {
- 			if (!userfaultfd_armed(vma) &&
- 			    ++none_or_zero <= khugepaged_max_ptes_none)
-@@ -2701,7 +2708,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- out_unmap:
- 	pte_unmap_unlock(pte, ptl);
- 	trace_mm_khugepaged_scan_pmd(mm, vma->vm_start, writable, referenced,
--				     none_or_zero, ret);
-+				     none_or_zero, ret, unmapped);
- 	if (ret) {
- 		node = khugepaged_find_target_node();
- 		/* collapse_huge_page will return with the mmap_sem released */
++	}
++	pte--;
++	pte_unmap(pte);
++	trace_mm_collapse_huge_page_swapin(mm, vma->vm_start, swap_pte);
++}
++
+ static void collapse_huge_page(struct mm_struct *mm,
+ 				   unsigned long address,
+ 				   struct page **hpage,
+@@ -2551,6 +2586,8 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	if (!pmd)
+ 		goto out;
+ 
++	__collapse_huge_page_swapin(mm, vma, address, pmd, pte);
++
+ 	anon_vma_lock_write(vma->anon_vma);
+ 
+ 	pte = pte_offset_map(pmd, address);
+diff --git a/mm/memory.c b/mm/memory.c
+index e1c45d0..d801dc5 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2443,7 +2443,7 @@ EXPORT_SYMBOL(unmap_mapping_range);
+  * We return with the mmap_sem locked or unlocked in the same cases
+  * as does filemap_fault().
+  */
+-static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
++int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		unsigned long address, pte_t *page_table, pmd_t *pmd,
+ 		unsigned int flags, pte_t orig_pte)
+ {
 -- 
 1.9.1
 
