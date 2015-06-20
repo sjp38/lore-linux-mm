@@ -1,154 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BB5B6B009C
-	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 19:21:23 -0400 (EDT)
-Received: by pabvl15 with SMTP id vl15so47935792pab.1
-        for <linux-mm@kvack.org>; Fri, 19 Jun 2015 16:21:23 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id hz6si18459600pbc.59.2015.06.19.16.21.20
-        for <linux-mm@kvack.org>;
-        Fri, 19 Jun 2015 16:21:22 -0700 (PDT)
-Date: Sat, 20 Jun 2015 09:21:17 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC v3 1/4] fs: Add generic file system event notifications
-Message-ID: <20150619232117.GN10224@dastard>
-References: <1434460173-18427-1-git-send-email-b.michalska@samsung.com>
- <1434460173-18427-2-git-send-email-b.michalska@samsung.com>
- <20150617230605.GK10224@dastard>
- <55828064.5040301@samsung.com>
- <20150619000341.GM10224@dastard>
- <5584512B.5020301@samsung.com>
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 623966B009C
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2015 22:34:55 -0400 (EDT)
+Received: by pdbki1 with SMTP id ki1so101930803pdb.1
+        for <linux-mm@kvack.org>; Fri, 19 Jun 2015 19:34:55 -0700 (PDT)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id uv9si19069630pac.126.2015.06.19.19.34.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 19 Jun 2015 19:34:54 -0700 (PDT)
+Date: Fri, 19 Jun 2015 19:34:45 -0700
+From: Mark Hairgrove <mhairgrove@nvidia.com>
+Subject: Re: [PATCH 06/36] HMM: add HMM page table v2.
+In-Reply-To: <20150619180713.GA17308@gmail.com>
+Message-ID: <alpine.DEB.2.00.1506191928060.19996@mdh-linux64-2.nvidia.com>
+References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com> <1432236705-4209-7-git-send-email-j.glisse@gmail.com> <alpine.DEB.2.00.1506171724110.32592@mdh-linux64-2.nvidia.com> <20150619180713.GA17308@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5584512B.5020301@samsung.com>
+Content-Type: text/plain; charset="US-ASCII"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Beata Michalska <b.michalska@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, greg@kroah.com, jack@suse.cz, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, "joro@8bytes.org" <joro@8bytes.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?ISO-8859-15?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>
 
-On Fri, Jun 19, 2015 at 07:28:11PM +0200, Beata Michalska wrote:
-> On 06/19/2015 02:03 AM, Dave Chinner wrote:
-> > On Thu, Jun 18, 2015 at 10:25:08AM +0200, Beata Michalska wrote:
-> >> On 06/18/2015 01:06 AM, Dave Chinner wrote:
-> >>> On Tue, Jun 16, 2015 at 03:09:30PM +0200, Beata Michalska wrote:
-> >>>> Introduce configurable generic interface for file
-> >>>> system-wide event notifications, to provide file
-> >>>> systems with a common way of reporting any potential
-> >>>> issues as they emerge.
-> >>>>
-> >>>> The notifications are to be issued through generic
-> >>>> netlink interface by newly introduced multicast group.
-> >>>>
-> >>>> Threshold notifications have been included, allowing
-> >>>> triggering an event whenever the amount of free space drops
-> >>>> below a certain level - or levels to be more precise as two
-> >>>> of them are being supported: the lower and the upper range.
-> >>>> The notifications work both ways: once the threshold level
-> >>>> has been reached, an event shall be generated whenever
-> >>>> the number of available blocks goes up again re-activating
-> >>>> the threshold.
-> >>>>
-> >>>> The interface has been exposed through a vfs. Once mounted,
-> >>>> it serves as an entry point for the set-up where one can
-> >>>> register for particular file system events.
-> >>>>
-> >>>> Signed-off-by: Beata Michalska <b.michalska@samsung.com>
-> >>>
-> >>> This has massive scalability problems:
-> > ....
-> >>> Have you noticed that the filesystems have percpu counters for
-> >>> tracking global space usage? There's good reason for that - taking a
-> >>> spinlock in such a hot accounting path causes severe contention.
-> > ....
-> >>> Then puts the entire netlink send path inside this spinlock, which
-> >>> includes memory allocation and all sorts of non-filesystem code
-> >>> paths. And it may be inside critical filesystem locks as well....
-> >>>
-> >>> Apart from the serialisation problem of the locking, adding
-> >>> memory allocation and the network send path to filesystem code
-> >>> that is effectively considered "innermost" filesystem code is going
-> >>> to have all sorts of problems for various filesystems. In the XFS
-> >>> case, we simply cannot execute this sort of function in the places
-> >>> where we update global space accounting.
-> >>>
-> >>> As it is, I think the basic concept of separate tracking of free
-> >>> space if fundamentally flawed. What I think needs to be done is that
-> >>> filesystems need access to the thresholds for events, and then the
-> >>> filesystems call fs_event_send_thresh() themselves from appropriate
-> >>> contexts (ie. without compromising locking, scalability, memory
-> >>> allocation recursion constraints, etc).
-> >>>
-> >>> e.g. instead of tracking every change in free space, a filesystem
-> >>> might execute this once every few seconds from a workqueue:
-> >>>
-> >>> 	event = fs_event_need_space_warning(sb, <fs_free_space>)
-> >>> 	if (event)
-> >>> 		fs_event_send_thresh(sb, event);
-> >>>
-> >>> User still gets warnings about space usage, but there's no runtime
-> >>> overhead or problems with lock/memory allocation contexts, etc.
-> >>
-> >> Having fs to keep a firm hand on thresholds limits would indeed be
-> >> far more sane approach though that would require each fs to
-> >> add support for that and handle most of it on their own. Avoiding
-> >>> this was the main rationale behind this rfc.
-> >> If fs people agree to that, I'll be more than willing to drop this
-> >> in favour of the per-fs tracking solution. 
-> >> Personally, I hope they will.
+
+
+On Fri, 19 Jun 2015, Jerome Glisse wrote:
+
+> On Thu, Jun 18, 2015 at 07:06:08PM -0700, Mark Hairgrove wrote:
+> > On Thu, 21 May 2015, j.glisse@gmail.com wrote:
+> 
+> [...]
+> > > +
+> > > +static inline dma_addr_t hmm_pde_from_pfn(dma_addr_t pfn)
+> > > +{
+> > > +	return (pfn << PAGE_SHIFT) | HMM_PDE_VALID;
+> > > +}
+> > > +
+> > > +static inline unsigned long hmm_pde_pfn(dma_addr_t pde)
+> > > +{
+> > > +	return (pde & HMM_PDE_VALID) ? pde >> PAGE_SHIFT : 0;
+> > > +}
+> > > +
 > > 
-> > I was hoping that you'd think a little more about my suggestion and
-> > work out how to do background threshold event detection generically.
-> > I kind of left it as "an exercise for the reader" because it seems
-> > obvious to me.
+> > Does hmm_pde_pfn return a dma_addr_t pfn or a system memory pfn?
 > > 
-> > Hint: ->statfs allows you to get the total, free and used space
-> > from filesystems in a generic manner.
-> > 
-> > Cheers,
-> > 
-> > Dave.
+> > The types between these two functions don't match. According to 
+> > hmm_pde_from_pfn, both the pde and the pfn are supposed to be dma_addr_t. 
+> > But hmm_pde_pfn returns an unsigned long as a pfn instead of a dma_addr_t. 
+> > If hmm_pde_pfn sometimes used to get a dma_addr_t pfn then shouldn't it 
+> > also return a dma_addr_t, since as you pointed out in the commit message, 
+> > dma_addr_t might be bigger than an unsigned long?
 > > 
 > 
-> I haven't given up on that, so yes, I'm still working on a more suitable
-> generic solution.
-> Background detection is one of the options, though it needs some more thoughts.
-> Giving up the sync approach means less accuracy for the threshold notifications,
-> but I guess this could be fine-tuned to get an acceptable level.
+> Yes internal it use dma_addr_t but for device driver that want to use
+> physical system page address aka pfn i want them to use the specialize
+> helper hmm_pte_from_pfn() and hmm_pte_pfn() so type casting happen in
+> hmm and it make it easier to review device driver as device driver will
+> be consistent ie either it wants to use pfn or it want to use dma_addr_t
+> but not mix the 2.
+> 
+> A latter patch add the hmm_pte_from_dma() and hmm_pte_dma_addr() helper
+> for the dma case. So this patch only introduce the pfn version.
 
-Accuracy really doesn't matter for threshold notifications - by the
-time the event is delivered to userspace it can already be wrong.
+So the only reason for hmm_pde_from_pfn to take in a dma_addr_t is to 
+avoid an (unsigned long) cast at the call sites?
 
-> Another bump:
-> how this tuning is supposed to be done (additional config option maybe)? 
 
-Why would you need to tune it at all? You can't *stop* the operation
-that is triggering the threshold, so a few seconds delay on delivery
-isn't going to make any difference to anyone....
+> > > [...]
+> > > +/* struct hmm_pt_iter - page table iterator states.
+> > > + *
+> > > + * @ptd: Array of directory struct page pointer for each levels.
+> > > + * @ptdp: Array of pointer to mapped directory levels.
+> > > + * @dead_directories: List of directories that died while walking page table.
+> > > + * @cur: Current address.
+> > > + */
+> > > +struct hmm_pt_iter {
+> > > +	struct page		*ptd[HMM_PT_MAX_LEVEL - 1];
+> > > +	dma_addr_t		*ptdp[HMM_PT_MAX_LEVEL - 1];
+> > 
+> > These are sized to be HMM_PT_MAX_LEVEL - 1 rather than HMM_PT_MAX_LEVEL 
+> > because the iterator doesn't store the top level, correct? This results in 
+> > a lot of "level - 1" and "level - 2" logic when dealing with the iterator. 
+> > Have you considered keeping the levels consistent to get rid of all the 
+> > extra offset-by-1 logic?
+> 
+> All this should be optimized away by the compiler thought i have not
+> check the assembly.
 
-You're overthinking this massively. All this needs is a work item
-per superblock, and when the thresholds are turned on it queues a
-self-repeating delayed work that calls ->statfs, checks against the
-configured threshold, issues an event if necessary, and then queues
-itself again to run next period. When the threshold is turned off,
-the work is cancelled.
+I was talking about code readability and maintainability rather than 
+performance. It's conceptually simpler to have consistent definitions of 
+"level" across both the iterator and the hmm_pt helpers even though the 
+iterator doesn't need to access the top level. This would turn "level-1" 
+and "level-2" into "level" and "level-1", which I think are simpler to 
+follow.
 
-Another option: a kernel thread that runs periodically and just
-calls iterate_supers() with a function that checks the sb for
-threshold events, and if configured runs ->statfs and does the work,
-otherwise skips the sb. That avoids all the lifetime issues with
-using workqueues, you don't need a struct work, etc.
 
-> There is also an idea of using an interface resembling the stackable fs:
+> [...]
+> > > +	/*
+> > > +	 * Some iterator may have dereferenced a dead directory entry and looked
+> > > +	 * up the struct page but haven't check yet the reference count. As all
+> > > +	 * the above happen in rcu read critical section we know that we need
+> > > +	 * to wait for grace period before being able to free any of the dead
+> > > +	 * directory page.
+> > > +	 */
+> > > +	synchronize_rcu();
+> > > +	list_for_each_entry_safe(ptd, tmp, &iter->dead_directories, lru) {
+> > > +		list_del(&ptd->lru);
+> > > +		atomic_set(&ptd->_mapcount, -1);
+> > > +		__free_page(ptd);
+> > > +	}
+> > > +}
+> > 
+> > If I'm following this correctly, a migrate to the device will allocate HMM 
+> > page tables and the subsequent migrate from the device will free them. 
+> > Assuming that's the case, might thrashing of page allocations be a 
+> > problem? What about keeping the HMM page tables around until the actual 
+> > munmap() of the corresponding VA range?
+> 
+> HMM page table is allocate anytime a device mirror a range ie migration to
+> device is not a special case. When migrating to and from device, the HMM
+> page table is allocated prior to the migration and outlive the migration
+> back.
+> 
+> That said the rational here is that i want to free HMM resources as early as
+> possible mostly to support the use GPU on dataset onetime (ie dataset is use
+> once and only once by the GPU). I think it will be a common and important use
+> case and making sure we free resource early does not prevent other use case
+> where dataset are use for longer time to work properly and efficiently.
+> 
+> In a latter patch i add an helper so that device driver can discard a range
+> ie tell HMM that they no longer using a range of address allowing HMM to
+> free associated resources.
+> 
+> However you are correct that currently some MM event will lead to HMM page
+> table being free and then reallocated right after once again by the device.
+> Which is obviously bad. But because i did not want to make this patch or
+> this serie any more complex than it already is i did not include any mecanism
+> to delay HMM page table directory reclaim. Such delayed reclaim mecanism is
+> on my road map and i think i shared that roadmap with you. I think it is
+> something we can optimize latter on. The important part here is that device
+> driver knows that HMM page table need to be carefully accessed so that when
+> agressive pruning of HMM page table happens it does not disrupt the device
+> driver.
 
-No. Just .... No.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Ok, works for me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
