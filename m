@@ -1,53 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 055CA6B009E
-	for <linux-mm@kvack.org>; Sat, 20 Jun 2015 12:25:37 -0400 (EDT)
-Received: by wicnd19 with SMTP id nd19so42781699wic.1
-        for <linux-mm@kvack.org>; Sat, 20 Jun 2015 09:25:36 -0700 (PDT)
-Received: from mail2-relais-roc.national.inria.fr (mail2-relais-roc.national.inria.fr. [192.134.164.83])
-        by mx.google.com with ESMTPS id i2si10657357wie.61.2015.06.20.09.25.34
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 20 Jun 2015 09:25:35 -0700 (PDT)
-Date: Sat, 20 Jun 2015 18:25:33 +0200 (CEST)
-From: Julia Lawall <julia.lawall@lip6.fr>
-Subject: Re: [RFC][PATCH 1/5] mm/slab_common: allow NULL cache pointer in
- kmem_cache_destroy()
-In-Reply-To: <20150617235205.GA3422@swordfish>
-Message-ID: <alpine.DEB.2.02.1506201824510.2067@localhost6.localdomain6>
-References: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com> <1433851493-23685-2-git-send-email-sergey.senozhatsky@gmail.com> <alpine.DEB.2.10.1506171613170.8203@chino.kir.corp.google.com> <20150617235205.GA3422@swordfish>
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id D60556B009E
+	for <linux-mm@kvack.org>; Sat, 20 Jun 2015 15:46:28 -0400 (EDT)
+Received: by wicnd19 with SMTP id nd19so44975922wic.1
+        for <linux-mm@kvack.org>; Sat, 20 Jun 2015 12:46:28 -0700 (PDT)
+Received: from johanna1.rokki.sonera.fi (mta-out1.inet.fi. [62.71.2.230])
+        by mx.google.com with ESMTP id ew11si26647619wjd.9.2015.06.20.12.46.26
+        for <linux-mm@kvack.org>;
+        Sat, 20 Jun 2015 12:46:27 -0700 (PDT)
+Date: Sat, 20 Jun 2015 22:46:12 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: Fix MAP_POPULATE and mlock() for DAX
+Message-ID: <20150620194612.GA5268@node.dhcp.inet.fi>
+References: <1434493710-11138-1-git-send-email-toshi.kani@hp.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1434493710-11138-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, Julia Lawall <julia.lawall@lip6.fr>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, willy@linux.intel.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
 
-
-
-On Thu, 18 Jun 2015, Sergey Senozhatsky wrote:
-
-> On (06/17/15 16:14), David Rientjes wrote:
-> [..]
-> > > 
-> > > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> > > Reported-by: Andrew Morton <akpm@linux-foundation.org>
-> > > LKML-reference: https://lkml.org/lkml/2015/6/8/583
-> > 
-> > Acked-by: David Rientjes <rientjes@google.com>
-> > 
-> > kmem_cache_destroy() isn't a fastpath, this is long overdue.  Now where's 
-> > the patch to remove the NULL checks from the callers? ;)
-> > 
+On Tue, Jun 16, 2015 at 04:28:30PM -0600, Toshi Kani wrote:
+> DAX has the following issues in a shared or read-only private
+> mmap'd file.
+>  - mmap(MAP_POPULATE) does not pre-fault
+>  - mlock() fails with -ENOMEM
 > 
-> Thanks.
+> DAX uses VM_MIXEDMAP for mmap'd files, which do not have struct
+> page associated with the ranges.  Both MAP_POPULATE and mlock()
+> call __mm_populate(), which in turn calls __get_user_pages().
+> Because __get_user_pages() requires a valid page returned from
+> follow_page_mask(), MAP_POPULATE and mlock(), i.e. FOLL_POPULATE,
+> fail in the first page.
 > 
-> Yes, Julia Lawall (Cc'd) already has a patch set ready for submission.
+> Change __get_user_pages() to proceed FOLL_POPULATE when the
+> translation is set but its page does not exist (-EFAULT), and
+> @pages is not requested.  With that, MAP_POPULATE and mlock()
+> set translations to the requested range and complete successfully.
+> 
+> MAP_POPULATE still provides a major performance improvement to
+> DAX as it will avoid page faults during initial access to the
+> pages.
+> 
+> mlock() continues to set VM_LOCKED to vma and populate the range.
+> Since there is no struct page, the range is pinned without marking
+> pages mlocked.
+> 
+> Note, MAP_POPULATE and mlock() already work for a write-able
+> private mmap'd file on DAX since populate_vma_page_range() breaks
+> COW, which allocates page caches.
 
-The patch for making these functions able to tolerate NULL doesn't seem to 
-be in linux-next yet, so I will wait until it appears.
+I don't think that's true in all cases.
 
-julia
+We would fail to break COW for mlock() if the mapping is populated with
+read-only entries by the mlock() time. In this case follow_page_mask()
+would fail with -EFAULT and faultin_page() will never executed.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
