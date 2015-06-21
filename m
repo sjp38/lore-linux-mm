@@ -1,39 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 13D986B006E
-	for <linux-mm@kvack.org>; Sun, 21 Jun 2015 15:20:21 -0400 (EDT)
-Received: by wiga1 with SMTP id a1so58930214wig.0
-        for <linux-mm@kvack.org>; Sun, 21 Jun 2015 12:20:20 -0700 (PDT)
-Received: from johanna4.rokki.sonera.fi (mta-out1.inet.fi. [62.71.2.230])
-        by mx.google.com with ESMTP id da6si15944813wib.118.2015.06.21.12.20.19
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 828E76B0032
+	for <linux-mm@kvack.org>; Sun, 21 Jun 2015 16:23:05 -0400 (EDT)
+Received: by wicgi11 with SMTP id gi11so58148660wic.0
+        for <linux-mm@kvack.org>; Sun, 21 Jun 2015 13:23:04 -0700 (PDT)
+Received: from johanna1.rokki.sonera.fi (mta-out1.inet.fi. [62.71.2.229])
+        by mx.google.com with ESMTP id wl7si31361811wjc.206.2015.06.21.13.23.03
         for <linux-mm@kvack.org>;
-        Sun, 21 Jun 2015 12:20:19 -0700 (PDT)
-Date: Sun, 21 Jun 2015 22:19:58 +0300
+        Sun, 21 Jun 2015 13:23:03 -0700 (PDT)
+Date: Sun, 21 Jun 2015 23:22:31 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC v2 3/3] mm: make swapin readahead to improve thp collapse
- rate
-Message-ID: <20150621191958.GA6766@node.dhcp.inet.fi>
-References: <1434799686-7929-1-git-send-email-ebru.akagunduz@gmail.com>
- <1434799686-7929-4-git-send-email-ebru.akagunduz@gmail.com>
- <20150621181131.GA6710@node.dhcp.inet.fi>
+Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
+Message-ID: <20150621202231.GB6766@node.dhcp.inet.fi>
+References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
+ <20150608174551.GA27558@gmail.com>
+ <20150609084739.GQ26425@suse.de>
+ <20150609103231.GA11026@gmail.com>
+ <20150609112055.GS26425@suse.de>
+ <20150609124328.GA23066@gmail.com>
+ <5577078B.2000503@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150621181131.GA6710@node.dhcp.inet.fi>
+In-Reply-To: <5577078B.2000503@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, riel@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com
+To: Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-On Sun, Jun 21, 2015 at 09:11:31PM +0300, Kirill A. Shutemov wrote:
-> On Sat, Jun 20, 2015 at 02:28:06PM +0300, Ebru Akagunduz wrote:
-> > +			/* pte is unmapped now, we need to map it */
-> > +			pte = pte_offset_map(pmd, _address);
+On Tue, Jun 09, 2015 at 08:34:35AM -0700, Dave Hansen wrote:
+> On 06/09/2015 05:43 AM, Ingo Molnar wrote:
+> > +static char tlb_flush_target[PAGE_SIZE] __aligned(4096);
+> > +static void fn_flush_tlb_one(void)
+> > +{
+> > +	unsigned long addr = (unsigned long)&tlb_flush_target;
+> > +
+> > +	tlb_flush_target[0]++;
+> > +	__flush_tlb_one(addr);
+> > +}
 > 
-> No, it's within the same pte page table. It should be mapped with
-> pte_offset_map() above.
+> So we've got an increment of a variable in kernel memory (which is
+> almost surely in the L1), then we flush that memory location, and repeat
+> the increment.
 
-Ahh.. do_swap_page() will unmap it. Probably worth rewording the comment.
+BTW, Ingo, have you disabled direct mapping of kernel memory with 2M/1G
+pages for the test? 
+
+I'm just thinking if there is chance that the test shooting out 1G tlb
+entry. In this case we're measure wrong thing.
 
 -- 
  Kirill A. Shutemov
