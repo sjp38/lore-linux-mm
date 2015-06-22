@@ -1,109 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 81C576B0032
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 06:43:47 -0400 (EDT)
-Received: by wiga1 with SMTP id a1so72593285wig.0
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 03:43:47 -0700 (PDT)
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com. [209.85.212.181])
-        by mx.google.com with ESMTPS id q20si19077962wiv.60.2015.06.22.03.43.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jun 2015 03:43:45 -0700 (PDT)
-Received: by wiga1 with SMTP id a1so72592652wig.0
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 03:43:45 -0700 (PDT)
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 03D786B0032
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 07:14:49 -0400 (EDT)
+Received: by wibdq8 with SMTP id dq8so71737464wib.1
+        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 04:14:48 -0700 (PDT)
+Received: from johanna4.rokki.sonera.fi (mta-out1.inet.fi. [62.71.2.229])
+        by mx.google.com with ESMTP id o19si34460568wjr.59.2015.06.22.04.14.46
+        for <linux-mm@kvack.org>;
+        Mon, 22 Jun 2015 04:14:47 -0700 (PDT)
+Date: Mon, 22 Jun 2015 14:14:34 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv6 29/36] thp: implement split_huge_pmd()
+Message-ID: <20150622111434.GC7934@node.dhcp.inet.fi>
+References: <1433351167-125878-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1433351167-125878-30-git-send-email-kirill.shutemov@linux.intel.com>
+ <557959BC.5000303@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <5587C9DA.7090909@arm.com>
-References: <1434725914-14300-1-git-send-email-vladimir.murzin@arm.com>
- <1434725914-14300-2-git-send-email-vladimir.murzin@arm.com>
- <CALq1K=J6ZKvBM5aqFGeE_hcZTrLxwuaP=N_8xb_no_LCjjTT9g@mail.gmail.com> <5587C9DA.7090909@arm.com>
-From: Leon Romanovsky <leon@leon.nu>
-Date: Mon, 22 Jun 2015 13:43:25 +0300
-Message-ID: <CALq1K=KeOEh4PRU9ZUiKsWnqkRZZTR2jz2oVUzLMjB1WyHPrpg@mail.gmail.com>
-Subject: Re: [PATCH 1/3] memtest: use kstrtouint instead of simple_strtoul
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <557959BC.5000303@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Murzin <vladimir.murzin@arm.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jun 22, 2015 at 11:39 AM, Vladimir Murzin
-<vladimir.murzin@arm.com> wrote:
-> On 20/06/15 07:55, Leon Romanovsky wrote:
->> On Fri, Jun 19, 2015 at 5:58 PM, Vladimir Murzin
->> <vladimir.murzin@arm.com> wrote:
->>> Since simple_strtoul is obsolete and memtest_pattern is type of int, use
->>> kstrtouint instead.
->>>
->>> Signed-off-by: Vladimir Murzin <vladimir.murzin@arm.com>
->>> ---
->>>  mm/memtest.c |   14 +++++++++-----
->>>  1 file changed, 9 insertions(+), 5 deletions(-)
->>>
->>> diff --git a/mm/memtest.c b/mm/memtest.c
->>> index 1997d93..895a43c 100644
->>> --- a/mm/memtest.c
->>> +++ b/mm/memtest.c
->>> @@ -88,14 +88,18 @@ static void __init do_one_pass(u64 pattern, phys_addr_t start, phys_addr_t end)
->>>  }
->>>
->>>  /* default is disabled */
->>> -static int memtest_pattern __initdata;
->>> +static unsigned int memtest_pattern __initdata;
->>>
->>>  static int __init parse_memtest(char *arg)
->>>  {
->>> -       if (arg)
->>> -               memtest_pattern = simple_strtoul(arg, NULL, 0);
->>> -       else
->>> -               memtest_pattern = ARRAY_SIZE(patterns);
->>> +       if (arg) {
->>> +               int err = kstrtouint(arg, 0, &memtest_pattern);
->>> +
->>> +               if (!err)
->>> +                       return 0;
->> kstrtouint returns 0 for success, in case of error you will fallback
->> and execute following line. It is definetely change of behaviour.
->
-> I'd be glad if you can elaborate more on use cases dependent on this
-> change? I can only imagine providing garbage to the memtest option with
-> only intention to shut it up... but it looks like the interface abuse
-> since "memtest=0" does exactly the same.
->
-> Since memtest is debugging option and numeric parameter is optional I
-> thought it was not harmful to fallback to default in case something is
-> wrong with the parameter.
-I would like to suggest you, in case of error, print warning and set
-memtest_pattern to be zero and return back to if(arg)..else
-construction.
+On Thu, Jun 11, 2015 at 11:49:48AM +0200, Vlastimil Babka wrote:
+> On 06/03/2015 07:06 PM, Kirill A. Shutemov wrote:
+> >Original split_huge_page() combined two operations: splitting PMDs into
+> >tables of PTEs and splitting underlying compound page. This patch
+> >implements split_huge_pmd() which split given PMD without splitting
+> >other PMDs this page mapped with or underlying compound page.
+> >
+> >Without tail page refcounting, implementation of split_huge_pmd() is
+> >pretty straight-forward.
+> >
+> >Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> >Tested-by: Sasha Levin <sasha.levin@oracle.com>
+> 
+> [...]
+> 
+> >+
+> >+	if (atomic_add_negative(-1, compound_mapcount_ptr(page))) {
+> >+		/* Last compound_mapcount is gone. */
+> >+		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
+> >+		if (PageDoubleMap(page)) {
+> >+			/* No need in mapcount reference anymore */
+> >+			ClearPageDoubleMap(page);
+> >+			for (i = 0; i < HPAGE_PMD_NR; i++)
+> >+				atomic_dec(&page[i]._mapcount);
+> >+		}
+> >+	} else if (!TestSetPageDoubleMap(page)) {
+> >+		/*
+> >+		 * The first PMD split for the compound page and we still
+> >+		 * have other PMD mapping of the page: bump _mapcount in
+> >+		 * every small page.
+> >+		 * This reference will go away with last compound_mapcount.
+> >+		 */
+> >+		for (i = 0; i < HPAGE_PMD_NR; i++)
+> >+			atomic_inc(&page[i]._mapcount);
+> 
+> The order of actions here means that between TestSetPageDoubleMap() and the
+> atomic incs, anyone calling page_mapcount() on one of the pages not
+> processed by the for loop yet, will see a value lower by 1 from what he
+> should see. I wonder if that can cause any trouble somewhere, especially if
+> there's only one other compound mapping and page_mapcount() will return 0
+> instead of 1?
 
->
-> Thanks
-> Vladimir
->
->>> +       }
->>> +
->>> +       memtest_pattern = ARRAY_SIZE(patterns);
->>>
->>>         return 0;
->>>  }
->>> --
->>> 1.7.9.5
->>>
->>> --
->>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>> see: http://www.linux-mm.org/ .
->>> Don't email: <a hrefmailto:"dont@kvack.org"> email@kvack.org </a>
->>
->>
->>
->
+Good catch. Thanks.
 
+What about this?
 
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 0f1f5731a893..cd0e6addb662 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2636,15 +2636,25 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+                        for (i = 0; i < HPAGE_PMD_NR; i++)
+                                atomic_dec(&page[i]._mapcount);
+                }
+-       } else if (!TestSetPageDoubleMap(page)) {
++       } else if (!PageDoubleMap(page)) {
+                /*
+                 * The first PMD split for the compound page and we still
+                 * have other PMD mapping of the page: bump _mapcount in
+                 * every small page.
++                *
+                 * This reference will go away with last compound_mapcount.
++                *
++                * Note, we need to increment mapcounts before setting
++                * PG_double_map to avoid false-negative page_mapped().
+                 */
+                for (i = 0; i < HPAGE_PMD_NR; i++)
+                        atomic_inc(&page[i]._mapcount);
++
++               if (TestSetPageDoubleMap(page)) {
++                       /* Race with another  __split_huge_pmd() for the page */
++                       for (i = 0; i < HPAGE_PMD_NR; i++)
++                               atomic_dec(&page[i]._mapcount);
++               }
+        }
+ 
+        smp_wmb(); /* make pte visible before pmd */
+
+> Conversely, when clearing PageDoubleMap() above (or in one of those rmap
+> functions IIRC), one could see mapcount inflated by one. But I guess that's
+> less dangerous.
+
+I think it's safe.
 
 -- 
-Leon Romanovsky | Independent Linux Consultant
-        www.leon.nu | leon@leon.nu
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
