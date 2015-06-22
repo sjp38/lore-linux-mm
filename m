@@ -1,92 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A2566B0032
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 15:04:01 -0400 (EDT)
-Received: by paceq1 with SMTP id eq1so115231789pac.3
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 12:04:00 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id a5si30853565pbu.40.2015.06.22.12.03.59
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 843286B0032
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 16:56:17 -0400 (EDT)
+Received: by obbop1 with SMTP id op1so27920847obb.2
+        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 13:56:17 -0700 (PDT)
+Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
+        by mx.google.com with ESMTPS id jj4si13432269obb.7.2015.06.22.13.56.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jun 2015 12:03:59 -0700 (PDT)
-Date: Mon, 22 Jun 2015 12:04:00 -0700
-From: Darren Hart <dvhart@infradead.org>
-Subject: Re: [PATCH 3/4] dell-laptop: Fix allocating & freeing SMI buffer page
-Message-ID: <20150622190400.GD58421@vmdeb7>
-References: <1434875967-13370-1-git-send-email-pali.rohar@gmail.com>
- <1434876063-13460-1-git-send-email-pali.rohar@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1434876063-13460-1-git-send-email-pali.rohar@gmail.com>
+        Mon, 22 Jun 2015 13:56:16 -0700 (PDT)
+Message-ID: <1435006555.11808.210.camel@misato.fc.hp.com>
+Subject: Re: [PATCH] mm: Fix MAP_POPULATE and mlock() for DAX
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Mon, 22 Jun 2015 14:55:55 -0600
+In-Reply-To: <20150620194612.GA5268@node.dhcp.inet.fi>
+References: <1434493710-11138-1-git-send-email-toshi.kani@hp.com>
+	 <20150620194612.GA5268@node.dhcp.inet.fi>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pali =?iso-8859-1?Q?Roh=E1r?= <pali.rohar@gmail.com>
-Cc: Matthew Garrett <mjg59@srcf.ucam.org>, Michal Hocko <mhocko@suse.cz>, platform-driver-x86@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, willy@linux.intel.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
 
-On Sun, Jun 21, 2015 at 10:41:03AM +0200, Pali Rohar wrote:
-> This commit fix kernel crash when probing for rfkill devices in dell-laptop
-> driver failed. Function free_page() was incorrectly used on struct page *
-> instead of virtual address of SMI buffer.
+On Sat, 2015-06-20 at 22:46 +0300, Kirill A. Shutemov wrote:
+> On Tue, Jun 16, 2015 at 04:28:30PM -0600, Toshi Kani wrote:
+> > DAX has the following issues in a shared or read-only private
+> > mmap'd file.
+> >  - mmap(MAP_POPULATE) does not pre-fault
+> >  - mlock() fails with -ENOMEM
+> > 
+> > DAX uses VM_MIXEDMAP for mmap'd files, which do not have struct
+> > page associated with the ranges.  Both MAP_POPULATE and mlock()
+> > call __mm_populate(), which in turn calls __get_user_pages().
+> > Because __get_user_pages() requires a valid page returned from
+> > follow_page_mask(), MAP_POPULATE and mlock(), i.e. FOLL_POPULATE,
+> > fail in the first page.
+> > 
+> > Change __get_user_pages() to proceed FOLL_POPULATE when the
+> > translation is set but its page does not exist (-EFAULT), and
+> > @pages is not requested.  With that, MAP_POPULATE and mlock()
+> > set translations to the requested range and complete successfully.
+> > 
+> > MAP_POPULATE still provides a major performance improvement to
+> > DAX as it will avoid page faults during initial access to the
+> > pages.
+> > 
+> > mlock() continues to set VM_LOCKED to vma and populate the range.
+> > Since there is no struct page, the range is pinned without marking
+> > pages mlocked.
+> > 
+> > Note, MAP_POPULATE and mlock() already work for a write-able
+> > private mmap'd file on DAX since populate_vma_page_range() breaks
+> > COW, which allocates page caches.
 > 
-> This commit also simplify allocating page for SMI buffer by using
-> __get_free_page() function instead of sequential call of functions
-> alloc_page() and page_address().
+> I don't think that's true in all cases.
 > 
-> Signed-off-by: Pali Rohar <pali.rohar@gmail.com>
+> We would fail to break COW for mlock() if the mapping is populated with
+> read-only entries by the mlock() time. In this case follow_page_mask()
+> would fail with -EFAULT and faultin_page() will never executed.
 
-Looks good - please resend with Cc to stable - that's the simplest path to
-inclusion in stable.
+No, mlock() always breaks COW as populate_vma_page_range() sets
+FOLL_WRITE in case of write-able private mmap.
 
-> ---
->  drivers/platform/x86/dell-laptop.c |    8 +++-----
->  1 file changed, 3 insertions(+), 5 deletions(-)
-> 
-> diff --git a/drivers/platform/x86/dell-laptop.c b/drivers/platform/x86/dell-laptop.c
-> index aaef335..0a91599 100644
-> --- a/drivers/platform/x86/dell-laptop.c
-> +++ b/drivers/platform/x86/dell-laptop.c
-> @@ -306,7 +306,6 @@ static const struct dmi_system_id dell_quirks[] __initconst = {
->  };
->  
->  static struct calling_interface_buffer *buffer;
-> -static struct page *bufferpage;
->  static DEFINE_MUTEX(buffer_mutex);
->  
->  static int hwswitch_state;
-> @@ -2097,12 +2096,11 @@ static int __init dell_init(void)
->  	 * Allocate buffer below 4GB for SMI data--only 32-bit physical addr
->  	 * is passed to SMI handler.
->  	 */
-> -	bufferpage = alloc_page(GFP_KERNEL | GFP_DMA32);
-> -	if (!bufferpage) {
-> +	buffer = (void *)__get_free_page(GFP_KERNEL | GFP_DMA32);
-> +	if (!buffer) {
->  		ret = -ENOMEM;
->  		goto fail_buffer;
->  	}
-> -	buffer = page_address(bufferpage);
->  
->  	ret = dell_setup_rfkill();
->  
-> @@ -2165,7 +2163,7 @@ static int __init dell_init(void)
->  fail_backlight:
->  	dell_cleanup_rfkill();
->  fail_rfkill:
-> -	free_page((unsigned long)bufferpage);
-> +	free_page((unsigned long)buffer);
->  fail_buffer:
->  	platform_device_del(platform_device);
->  fail_platform_device2:
-> -- 
-> 1.7.9.5
-> 
-> 
+  /*
+   * We want to touch writable mappings with a write fault in order
+   * to break COW, except for shared mappings because these don't COW
+   * and we would not want to dirty them for nothing.
+   */
+  if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
+           gup_flags |= FOLL_WRITE;
 
--- 
-Darren Hart
-Intel Open Source Technology Center
+Thanks,
+-Toshi
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
