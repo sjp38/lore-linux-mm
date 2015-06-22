@@ -1,86 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 196A06B0071
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 12:07:04 -0400 (EDT)
-Received: by wgqq4 with SMTP id q4so20630645wgq.1
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 09:07:03 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p6si20484195wic.107.2015.06.22.09.07.02
+Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
+	by kanga.kvack.org (Postfix) with ESMTP id DE18F6B0071
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 12:10:05 -0400 (EDT)
+Received: by lagi2 with SMTP id i2so23444328lag.2
+        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 09:10:05 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id qg11si20548474wic.73.2015.06.22.09.10.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 22 Jun 2015 09:07:02 -0700 (PDT)
-Message-ID: <558832A4.6060609@suse.cz>
-Date: Mon, 22 Jun 2015 18:07:00 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Jun 2015 09:10:04 -0700 (PDT)
+Date: Mon, 22 Jun 2015 18:10:02 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
+Message-ID: <20150622161002.GB8240@lst.de>
+References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com> <20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv6 36/36] thp: update documentation
-References: <1433351167-125878-1-git-send-email-kirill.shutemov@linux.intel.com> <1433351167-125878-37-git-send-email-kirill.shutemov@linux.intel.com> <55797F57.8040001@suse.cz> <20150622131827.GF7934@node.dhcp.inet.fi>
-In-Reply-To: <20150622131827.GF7934@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: arnd@arndb.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, jgross@suse.com, x86@kernel.org, toshi.kani@hp.com, linux-nvdimm@lists.01.org, benh@kernel.crashing.org, mcgrof@suse.com, konrad.wilk@oracle.com, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, mpe@ellerman.id.au, tj@kernel.org, paulus@samba.org, hch@lst.de
 
-On 06/22/2015 03:18 PM, Kirill A. Shutemov wrote:
-> On Thu, Jun 11, 2015 at 02:30:15PM +0200, Vlastimil Babka wrote:
->> On 06/03/2015 07:06 PM, Kirill A. Shutemov wrote:
->>> The patch updates Documentation/vm/transhuge.txt to reflect changes in
->>> THP design.
->>
->> One thing I'm missing is info about the deferred splitting.
->
-> Okay, I'll add this.
+On Mon, Jun 22, 2015 at 04:24:27AM -0400, Dan Williams wrote:
+> Some archs define the first parameter to ioremap() as unsigned long,
+> while the balance define it as resource_size_t.  Unify on
+> resource_size_t to enable passing ioremap function pointers.  Also, some
+> archs use function-like macros for defining ioremap aliases, but
+> asm-generic/io.h expects object-like macros, unify on the latter.
+> 
+> Move all handling of ioremap aliasing (i.e. ioremap_wt => ioremap) to
+> include/linux/io.h.  Add a check to include/linux/io.h to warn at
+> compile time if an arch violates expectations.
+> 
+> Kill ARCH_HAS_IOREMAP_WC and ARCH_HAS_IOREMAP_WT in favor of just
+> testing for ioremap_wc, and ioremap_wt being defined.  This arrangement
+> allows drivers to know when ioremap_<foo> are being re-directed to plain
+> ioremap.
+> 
+> Reported-by: kbuild test robot <fengguang.wu@intel.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-Thanks.
+Hmm, this is quite a bit of churn, and doesn't make the interface lot
+more obvious.
 
->>> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->>> ---
->>>   Documentation/vm/transhuge.txt | 124 +++++++++++++++++++++++------------------
->>>   1 file changed, 69 insertions(+), 55 deletions(-)
->>>
->>> diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
->>> index 6b31cfbe2a9a..2352b12cae93 100644
->>> --- a/Documentation/vm/transhuge.txt
->>> +++ b/Documentation/vm/transhuge.txt
->>> @@ -35,10 +35,10 @@ miss is going to run faster.
->>>
->>>   == Design ==
->>>
->>> -- "graceful fallback": mm components which don't have transparent
->>> -  hugepage knowledge fall back to breaking a transparent hugepage and
->>> -  working on the regular pages and their respective regular pmd/pte
->>> -  mappings
->>> +- "graceful fallback": mm components which don't have transparent hugepage
->>> +  knowledge fall back to breaking huge pmd mapping into table of ptes and,
->>> +  if nesessary, split a transparent hugepage. Therefore these components
->>
->>          necessary
->>> +
->>> +split_huge_page uses migration entries to stabilize page->_count and
->>> +page->_mapcount.
->>
->> Hm, what if there's some physical memory scanner taking page->_count pins? I
->> think compaction shouldn't be an issue, but maybe some others?
->
-> The only legitimate way scanner can get reference to a page is
-> get_page_unless_zero(), right?
+I guess it's enough to get the pmem related bits going, but I'd really
+prefer defining the ioremap* prototype in linux/io.h and requiring
+and out of line implementation in the architectures, it's not like
+it's a fast path.  And to avoid the ifdef mess make it something like:
 
-I think so.
+void __iomem *ioremap_flags(resource_size_t offset, unsigned long size,
+			unsigned long prot_val, unsigned flags);
 
-> All tail pages has zero ->_count until atomic_add() in
-> __split_huge_page_tail() -- get_page_unless_zero() will fail.
-> After the atomic_add() we don't care about ->_count value.
-> We already known how many references with should uncharge from
-> head page.
->
-> For head page get_page_unless_zero() will succeed and we don't
-> mind. It's clear where reference should go after split: it will
-> stay on head page.
+static inline void __iomem *ioremap(resource_size_t offset, unsigned long size)
+{
+	return ioremap_flags(offset, size, 0, 0);
+}
 
-I guess that works, but it's rather non-obvious thus worth documenting 
-somewhere.
+static inline void __iomem *ioremap_prot(resource_size_t offset,
+		unsigned long size, unsigned long prot_val)
+{
+	return ioremap_flags(offset, size, prot_val, 0);
+}
+
+static inline void __iomem *ioremap_nocache(resource_size_t offset,
+		unsigned long size)
+{
+	return ioremap_flags(offset, size, 0, IOREMAP_NOCACHE);
+}
+
+static inline void __iomem *ioremap_cache(resource_size_t offset,
+		unsigned long size)
+{
+	return ioremap_flags(offset, size, 0, IOREMAP_CACHE);
+}
+
+static inline void __iomem *ioremap_uc(resource_size_t offset,
+		unsigned long size)
+{
+	return ioremap_flags(offset, size, 0, IOREMAP_UC);
+}
+
+static inline void __iomem *ioremap_wc(resource_size_t offset,
+		unsigned long size)
+{
+	return ioremap_flags(offset, size, 0, IOREMAP_WC);
+}
+
+static inline void __iomem *ioremap_wt(resource_size_t offset,
+		unsigned long size)
+{
+	return ioremap_flags(offset, size, 0, IOREMAP_WT);
+}
+
+With all wrappers but ioremap() itself deprecated in the long run.
+
+Besides following the one API one prototype guideline this gives
+us one proper entry point for all the variants.  Additionally
+it can reject non-supported caching modes at run time, e.g. because
+different hardware may or may not support it.  Additionally it
+avoids the need for all these HAVE_IOREMAP_FOO defines, which need
+constant updating.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
