@@ -1,94 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 691336B006E
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 07:35:41 -0400 (EDT)
-Received: by wicnd19 with SMTP id nd19so73711636wic.1
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 04:35:40 -0700 (PDT)
-Received: from johanna2.rokki.sonera.fi (mta-out1.inet.fi. [62.71.2.230])
-        by mx.google.com with ESMTP id k1si19284175wif.77.2015.06.22.04.35.39
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 1344C6B006E
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 07:39:22 -0400 (EDT)
+Received: by wiwl6 with SMTP id l6so34284709wiw.0
+        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 04:39:21 -0700 (PDT)
+Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [146.101.78.143])
+        by mx.google.com with ESMTP id b14si34553779wjz.87.2015.06.22.04.39.20
         for <linux-mm@kvack.org>;
-        Mon, 22 Jun 2015 04:35:39 -0700 (PDT)
-Date: Mon, 22 Jun 2015 14:35:25 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv6 33/36] migrate_pages: try to split pages on qeueuing
-Message-ID: <20150622113525.GE7934@node.dhcp.inet.fi>
-References: <1433351167-125878-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1433351167-125878-34-git-send-email-kirill.shutemov@linux.intel.com>
- <55795477.90808@suse.cz>
+        Mon, 22 Jun 2015 04:39:20 -0700 (PDT)
+Message-ID: <5587F3E6.1070609@arm.com>
+Date: Mon, 22 Jun 2015 12:39:18 +0100
+From: Vladimir Murzin <vladimir.murzin@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55795477.90808@suse.cz>
+Subject: Re: [PATCH 1/3] memtest: use kstrtouint instead of simple_strtoul
+References: <1434725914-14300-1-git-send-email-vladimir.murzin@arm.com> <1434725914-14300-2-git-send-email-vladimir.murzin@arm.com> <CALq1K=J6ZKvBM5aqFGeE_hcZTrLxwuaP=N_8xb_no_LCjjTT9g@mail.gmail.com> <5587C9DA.7090909@arm.com> <CALq1K=KeOEh4PRU9ZUiKsWnqkRZZTR2jz2oVUzLMjB1WyHPrpg@mail.gmail.com>
+In-Reply-To: <CALq1K=KeOEh4PRU9ZUiKsWnqkRZZTR2jz2oVUzLMjB1WyHPrpg@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Leon Romanovsky <leon@leon.nu>
+Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Jun 11, 2015 at 11:27:19AM +0200, Vlastimil Babka wrote:
-> On 06/03/2015 07:06 PM, Kirill A. Shutemov wrote:
-> >We are not able to migrate THPs. It means it's not enough to split only
-> >PMD on migration -- we need to split compound page under it too.
-> >
-> >Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >---
-> >  mm/mempolicy.c | 37 +++++++++++++++++++++++++++++++++----
-> >  1 file changed, 33 insertions(+), 4 deletions(-)
-> >
-> >diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> >index 528f6c467cf1..0b1499c2f890 100644
-> >--- a/mm/mempolicy.c
-> >+++ b/mm/mempolicy.c
-> >@@ -489,14 +489,31 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
-> >  	struct page *page;
-> >  	struct queue_pages *qp = walk->private;
-> >  	unsigned long flags = qp->flags;
-> >-	int nid;
-> >+	int nid, ret;
-> >  	pte_t *pte;
-> >  	spinlock_t *ptl;
-> >
-> >-	split_huge_pmd(vma, pmd, addr);
-> >-	if (pmd_trans_unstable(pmd))
-> >-		return 0;
-> >+	if (pmd_trans_huge(*pmd)) {
-> >+		ptl = pmd_lock(walk->mm, pmd);
-> >+		if (pmd_trans_huge(*pmd)) {
-> >+			page = pmd_page(*pmd);
-> >+			if (is_huge_zero_page(page)) {
-> >+				spin_unlock(ptl);
-> >+				split_huge_pmd(vma, pmd, addr);
-> >+			} else {
-> >+				get_page(page);
-> >+				spin_unlock(ptl);
-> >+				lock_page(page);
-> >+				ret = split_huge_page(page);
-> >+				unlock_page(page);
-> >+				put_page(page);
-> >+				if (ret)
-> >+					return 0;
-> >+			}
-> >+		}
-> >+	}
-> >
-> >+retry:
-> >  	pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
-> >  	for (; addr != end; pte++, addr += PAGE_SIZE) {
-> >  		if (!pte_present(*pte))
-> >@@ -513,6 +530,18 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
-> >  		nid = page_to_nid(page);
-> >  		if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
-> >  			continue;
-> >+		if (PageTail(page) && PageAnon(page)) {
-> 
-> Hm, can it really happen that we stumble upon THP tail page here, without
-> first stumbling upon it in the previous hunk above? If so, when?
+On 22/06/15 11:43, Leon Romanovsky wrote:
+> On Mon, Jun 22, 2015 at 11:39 AM, Vladimir Murzin
+> <vladimir.murzin@arm.com> wrote:
+>> On 20/06/15 07:55, Leon Romanovsky wrote:
+>>> On Fri, Jun 19, 2015 at 5:58 PM, Vladimir Murzin
+>>> <vladimir.murzin@arm.com> wrote:
+>>>> Since simple_strtoul is obsolete and memtest_pattern is type of int, u=
+se
+>>>> kstrtouint instead.
+>>>>
+>>>> Signed-off-by: Vladimir Murzin <vladimir.murzin@arm.com>
+>>>> ---
+>>>>  mm/memtest.c |   14 +++++++++-----
+>>>>  1 file changed, 9 insertions(+), 5 deletions(-)
+>>>>
+>>>> diff --git a/mm/memtest.c b/mm/memtest.c
+>>>> index 1997d93..895a43c 100644
+>>>> --- a/mm/memtest.c
+>>>> +++ b/mm/memtest.c
+>>>> @@ -88,14 +88,18 @@ static void __init do_one_pass(u64 pattern, phys_a=
+ddr_t start, phys_addr_t end)
+>>>>  }
+>>>>
+>>>>  /* default is disabled */
+>>>> -static int memtest_pattern __initdata;
+>>>> +static unsigned int memtest_pattern __initdata;
+>>>>
+>>>>  static int __init parse_memtest(char *arg)
+>>>>  {
+>>>> -       if (arg)
+>>>> -               memtest_pattern =3D simple_strtoul(arg, NULL, 0);
+>>>> -       else
+>>>> -               memtest_pattern =3D ARRAY_SIZE(patterns);
+>>>> +       if (arg) {
+>>>> +               int err =3D kstrtouint(arg, 0, &memtest_pattern);
+>>>> +
+>>>> +               if (!err)
+>>>> +                       return 0;
+>>> kstrtouint returns 0 for success, in case of error you will fallback
+>>> and execute following line. It is definetely change of behaviour.
+>>
+>> I'd be glad if you can elaborate more on use cases dependent on this
+>> change? I can only imagine providing garbage to the memtest option with
+>> only intention to shut it up... but it looks like the interface abuse
+>> since "memtest=3D0" does exactly the same.
+>>
+>> Since memtest is debugging option and numeric parameter is optional I
+>> thought it was not harmful to fallback to default in case something is
+>> wrong with the parameter.
+> I would like to suggest you, in case of error, print warning and set
+> memtest_pattern to be zero and return back to if(arg)..else
+> construction.
 
-The first hunk catch PMD-mapped THP and here we deal with PTE-mapped.
-The scenario: fault in a THP, split PMD (not page) e.g. with mprotect()
-and then try to migrate.
+In case of kstrtouint() failure memtest_pattern is not altered, so I
+won't need extra assignment here... and I'm not sure I get your point
+with returning back to if(arg)...else
 
--- 
- Kirill A. Shutemov
+Anyway, I'd wait for other comments on what should be done here if anything=
+.
+
+Thanks
+Vladimir
+
+>=20
+>>
+>> Thanks
+>> Vladimir
+>>
+>>>> +       }
+>>>> +
+>>>> +       memtest_pattern =3D ARRAY_SIZE(patterns);
+>>>>
+>>>>         return 0;
+>>>>  }
+>>>> --
+>>>> 1.7.9.5
+>>>>
+>>>> --
+>>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>>> see: http://www.linux-mm.org/ .
+>>>> Don't email: <a hrefmailto:"dont@kvack.org"> email@kvack.org </a>
+>>>
+>>>
+>>>
+>>
+>=20
+>=20
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
