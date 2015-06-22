@@ -1,93 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id A71E26B0032
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 04:40:02 -0400 (EDT)
-Received: by wguu7 with SMTP id u7so62667253wgu.3
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 01:40:02 -0700 (PDT)
-Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [207.82.80.143])
-        by mx.google.com with ESMTP id cs3si18560325wib.117.2015.06.22.01.40.00
-        for <linux-mm@kvack.org>;
-        Mon, 22 Jun 2015 01:40:01 -0700 (PDT)
-Message-ID: <5587C9DA.7090909@arm.com>
-Date: Mon, 22 Jun 2015 09:39:54 +0100
-From: Vladimir Murzin <vladimir.murzin@arm.com>
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AA4C6B0032
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 04:46:05 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so69588772wig.0
+        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 01:46:04 -0700 (PDT)
+Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
+        by mx.google.com with ESMTPS id gn12si33817640wjc.137.2015.06.22.01.46.03
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Jun 2015 01:46:03 -0700 (PDT)
+Received: by wicgi11 with SMTP id gi11so67967311wic.0
+        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 01:46:03 -0700 (PDT)
+Date: Mon, 22 Jun 2015 10:46:01 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/4] dell-laptop: Fix allocating & freeing SMI buffer page
+Message-ID: <20150622084601.GE4430@dhcp22.suse.cz>
+References: <1434875967-13370-1-git-send-email-pali.rohar@gmail.com>
+ <1434876063-13460-1-git-send-email-pali.rohar@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] memtest: use kstrtouint instead of simple_strtoul
-References: <1434725914-14300-1-git-send-email-vladimir.murzin@arm.com> <1434725914-14300-2-git-send-email-vladimir.murzin@arm.com> <CALq1K=J6ZKvBM5aqFGeE_hcZTrLxwuaP=N_8xb_no_LCjjTT9g@mail.gmail.com>
-In-Reply-To: <CALq1K=J6ZKvBM5aqFGeE_hcZTrLxwuaP=N_8xb_no_LCjjTT9g@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1434876063-13460-1-git-send-email-pali.rohar@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Leon Romanovsky <leon@leon.nu>
-Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Pali =?iso-8859-1?Q?Roh=E1r?= <pali.rohar@gmail.com>
+Cc: Darren Hart <dvhart@infradead.org>, Matthew Garrett <mjg59@srcf.ucam.org>, platform-driver-x86@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 20/06/15 07:55, Leon Romanovsky wrote:
-> On Fri, Jun 19, 2015 at 5:58 PM, Vladimir Murzin
-> <vladimir.murzin@arm.com> wrote:
->> Since simple_strtoul is obsolete and memtest_pattern is type of int, use
->> kstrtouint instead.
->>
->> Signed-off-by: Vladimir Murzin <vladimir.murzin@arm.com>
->> ---
->>  mm/memtest.c |   14 +++++++++-----
->>  1 file changed, 9 insertions(+), 5 deletions(-)
->>
->> diff --git a/mm/memtest.c b/mm/memtest.c
->> index 1997d93..895a43c 100644
->> --- a/mm/memtest.c
->> +++ b/mm/memtest.c
->> @@ -88,14 +88,18 @@ static void __init do_one_pass(u64 pattern, phys_add=
-r_t start, phys_addr_t end)
->>  }
->>
->>  /* default is disabled */
->> -static int memtest_pattern __initdata;
->> +static unsigned int memtest_pattern __initdata;
->>
->>  static int __init parse_memtest(char *arg)
->>  {
->> -       if (arg)
->> -               memtest_pattern =3D simple_strtoul(arg, NULL, 0);
->> -       else
->> -               memtest_pattern =3D ARRAY_SIZE(patterns);
->> +       if (arg) {
->> +               int err =3D kstrtouint(arg, 0, &memtest_pattern);
->> +
->> +               if (!err)
->> +                       return 0;
-> kstrtouint returns 0 for success, in case of error you will fallback
-> and execute following line. It is definetely change of behaviour.
+On Sun 21-06-15 10:41:03, Pali Rohar wrote:
+> This commit fix kernel crash when probing for rfkill devices in dell-laptop
+> driver failed. Function free_page() was incorrectly used on struct page *
+> instead of virtual address of SMI buffer.
+> 
+> This commit also simplify allocating page for SMI buffer by using
+> __get_free_page() function instead of sequential call of functions
+> alloc_page() and page_address().
+> 
+> Signed-off-by: Pali Rohar <pali.rohar@gmail.com>
 
-I'd be glad if you can elaborate more on use cases dependent on this
-change? I can only imagine providing garbage to the memtest option with
-only intention to shut it up... but it looks like the interface abuse
-since "memtest=3D0" does exactly the same.
+Looks good to me.
+FWIW
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Since memtest is debugging option and numeric parameter is optional I
-thought it was not harmful to fallback to default in case something is
-wrong with the parameter.
+> ---
+>  drivers/platform/x86/dell-laptop.c |    8 +++-----
+>  1 file changed, 3 insertions(+), 5 deletions(-)
+> 
+> diff --git a/drivers/platform/x86/dell-laptop.c b/drivers/platform/x86/dell-laptop.c
+> index aaef335..0a91599 100644
+> --- a/drivers/platform/x86/dell-laptop.c
+> +++ b/drivers/platform/x86/dell-laptop.c
+> @@ -306,7 +306,6 @@ static const struct dmi_system_id dell_quirks[] __initconst = {
+>  };
+>  
+>  static struct calling_interface_buffer *buffer;
+> -static struct page *bufferpage;
+>  static DEFINE_MUTEX(buffer_mutex);
+>  
+>  static int hwswitch_state;
+> @@ -2097,12 +2096,11 @@ static int __init dell_init(void)
+>  	 * Allocate buffer below 4GB for SMI data--only 32-bit physical addr
+>  	 * is passed to SMI handler.
+>  	 */
+> -	bufferpage = alloc_page(GFP_KERNEL | GFP_DMA32);
+> -	if (!bufferpage) {
+> +	buffer = (void *)__get_free_page(GFP_KERNEL | GFP_DMA32);
+> +	if (!buffer) {
+>  		ret = -ENOMEM;
+>  		goto fail_buffer;
+>  	}
+> -	buffer = page_address(bufferpage);
+>  
+>  	ret = dell_setup_rfkill();
+>  
+> @@ -2165,7 +2163,7 @@ static int __init dell_init(void)
+>  fail_backlight:
+>  	dell_cleanup_rfkill();
+>  fail_rfkill:
+> -	free_page((unsigned long)bufferpage);
+> +	free_page((unsigned long)buffer);
+>  fail_buffer:
+>  	platform_device_del(platform_device);
+>  fail_platform_device2:
+> -- 
+> 1.7.9.5
+> 
 
-Thanks
-Vladimir
-
->> +       }
->> +
->> +       memtest_pattern =3D ARRAY_SIZE(patterns);
->>
->>         return 0;
->>  }
->> --
->> 1.7.9.5
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a hrefmailto:"dont@kvack.org"> email@kvack.org </a>
->=20
->=20
->=20
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
