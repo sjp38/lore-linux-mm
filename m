@@ -1,38 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 348E46B006E
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 12:01:09 -0400 (EDT)
-Received: by wiga1 with SMTP id a1so81352962wig.0
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 09:01:08 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id ei9si20464229wid.123.2015.06.22.09.01.06
+Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
+	by kanga.kvack.org (Postfix) with ESMTP id F2DAA6B0070
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 12:01:40 -0400 (EDT)
+Received: by lacny3 with SMTP id ny3so112722205lac.3
+        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 09:01:40 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j18si35700391wjn.172.2015.06.22.09.01.38
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jun 2015 09:01:07 -0700 (PDT)
-Date: Mon, 22 Jun 2015 18:01:06 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH v5 1/6] arch, drivers: don't include <asm/io.h>
-	directly, use <linux/io.h> instead
-Message-ID: <20150622160105.GA8240@lst.de>
-References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com> <20150622082422.35954.42399.stgit@dwillia2-desk3.jf.intel.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 22 Jun 2015 09:01:38 -0700 (PDT)
+Message-ID: <5588315D.5070804@suse.cz>
+Date: Mon, 22 Jun 2015 18:01:33 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150622082422.35954.42399.stgit@dwillia2-desk3.jf.intel.com>
+Subject: Re: [PATCHv6 29/36] thp: implement split_huge_pmd()
+References: <1433351167-125878-1-git-send-email-kirill.shutemov@linux.intel.com> <1433351167-125878-30-git-send-email-kirill.shutemov@linux.intel.com> <557959BC.5000303@suse.cz> <20150622111434.GC7934@node.dhcp.inet.fi>
+In-Reply-To: <20150622111434.GC7934@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: arnd@arndb.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, jgross@suse.com, x86@kernel.org, toshi.kani@hp.com, linux-nvdimm@lists.01.org, benh@kernel.crashing.org, mcgrof@suse.com, konrad.wilk@oracle.com, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, mpe@ellerman.id.au, tj@kernel.org, paulus@samba.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jun 22, 2015 at 04:24:22AM -0400, Dan Williams wrote:
-> Preparation for uniform definition of ioremap, ioremap_wc, ioremap_wt,
-> and ioremap_cache, tree-wide.
-> 
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+On 06/22/2015 01:14 PM, Kirill A. Shutemov wrote:
+> On Thu, Jun 11, 2015 at 11:49:48AM +0200, Vlastimil Babka wrote:
+>> On 06/03/2015 07:06 PM, Kirill A. Shutemov wrote:
+>>
+>> The order of actions here means that between TestSetPageDoubleMap() and the
+>> atomic incs, anyone calling page_mapcount() on one of the pages not
+>> processed by the for loop yet, will see a value lower by 1 from what he
+>> should see. I wonder if that can cause any trouble somewhere, especially if
+>> there's only one other compound mapping and page_mapcount() will return 0
+>> instead of 1?
+>
+> Good catch. Thanks.
+>
+> What about this?
+>
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 0f1f5731a893..cd0e6addb662 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2636,15 +2636,25 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+>                          for (i = 0; i < HPAGE_PMD_NR; i++)
+>                                  atomic_dec(&page[i]._mapcount);
+>                  }
+> -       } else if (!TestSetPageDoubleMap(page)) {
+> +       } else if (!PageDoubleMap(page)) {
+>                  /*
+>                   * The first PMD split for the compound page and we still
+>                   * have other PMD mapping of the page: bump _mapcount in
+>                   * every small page.
+> +                *
+>                   * This reference will go away with last compound_mapcount.
+> +                *
+> +                * Note, we need to increment mapcounts before setting
+> +                * PG_double_map to avoid false-negative page_mapped().
+>                   */
+>                  for (i = 0; i < HPAGE_PMD_NR; i++)
+>                          atomic_inc(&page[i]._mapcount);
+> +
+> +               if (TestSetPageDoubleMap(page)) {
+> +                       /* Race with another  __split_huge_pmd() for the page */
+> +                       for (i = 0; i < HPAGE_PMD_NR; i++)
+> +                               atomic_dec(&page[i]._mapcount);
+> +               }
+>          }
 
-Looks good,
+Yeah that should work.
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
+>          smp_wmb(); /* make pte visible before pmd */
+
+
+
+>
+>> Conversely, when clearing PageDoubleMap() above (or in one of those rmap
+>> functions IIRC), one could see mapcount inflated by one. But I guess that's
+>> less dangerous.
+>
+> I think it's safe.
+
+OK.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
