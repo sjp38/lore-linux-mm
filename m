@@ -1,17 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 485D16B0032
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 04:30:02 -0400 (EDT)
-Received: by paceq1 with SMTP id eq1so104858032pac.3
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 01:30:02 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id rx6si28521482pab.219.2015.06.22.01.30.00
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 1458D6B006C
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 04:30:07 -0400 (EDT)
+Received: by paceq1 with SMTP id eq1so104859484pac.3
+        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 01:30:06 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id kt9si28535706pab.169.2015.06.22.01.30.05
         for <linux-mm@kvack.org>;
-        Mon, 22 Jun 2015 01:30:01 -0700 (PDT)
-Subject: [PATCH v5 0/6] pmem api, generic ioremap_cache, and memremap
+        Mon, 22 Jun 2015 01:30:06 -0700 (PDT)
+Subject: [PATCH v5 1/6] arch, drivers: don't include <asm/io.h> directly,
+ use <linux/io.h> instead
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 22 Jun 2015 04:24:17 -0400
-Message-ID: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com>
+Date: Mon, 22 Jun 2015 04:24:22 -0400
+Message-ID: <20150622082422.35954.42399.stgit@dwillia2-desk3.jf.intel.com>
+In-Reply-To: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com>
+References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -20,140 +23,216 @@ List-ID: <linux-mm.kvack.org>
 To: arnd@arndb.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org
 Cc: jgross@suse.com, x86@kernel.org, toshi.kani@hp.com, linux-nvdimm@lists.01.org, benh@kernel.crashing.org, mcgrof@suse.com, konrad.wilk@oracle.com, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, mpe@ellerman.id.au, tj@kernel.org, paulus@samba.org, hch@lst.de
 
-The pmem api is responsible for shepherding data out to persistent
-media.  The pmem driver uses this api, when available, to assert that
-data is durable by the time bio_endio() is invoked.  When an
-architecture or cpu can not make persistence guarantees the driver warns
-and falls back to "best effort" implementation.
+Preparation for uniform definition of ioremap, ioremap_wc, ioremap_wt,
+and ioremap_cache, tree-wide.
 
-Changes since v4 [1]:
-
-1/ Christoph asked me to pull the dangling piece of yarn [2] and the
-whole sweater came apart, but for the better.  This finally unifies all
-the disparate ways archs had chosen to implement ioremap and friends,
-and uncovered several cases where drivers were incorrectly including
-<asm/io.h> instead of <linux/io.h>.
-
-2/ Drop pmem ops and introduce a cheap arch_has_pmem_api() conditional
-to use at each site where a pmem api call is made (Christoph and Andy)
-
-3/ Document the wmb(), "sfence", in the x86 implementation of
-arch_wmb_pmem() (Andy)
-
-4/ Document and rename arch_sync_pmem(), now named arch_wmb_pmem(). (Andy)
-
-This has been run through a defconfig build of all archs and is exposed
-to the kbuild robot via nvdimm.git.
-
-[1]: https://lists.01.org/pipermail/linux-nvdimm/2015-June/001189.html
-[2]: https://lists.01.org/pipermail/linux-nvdimm/2015-June/001208.html
-
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
+ arch/arm/mach-shmobile/pm-rcar.c            |    2 +-
+ arch/ia64/kernel/cyclone.c                  |    2 +-
+ drivers/isdn/icn/icn.h                      |    2 +-
+ drivers/mtd/devices/slram.c                 |    2 +-
+ drivers/mtd/nand/diskonchip.c               |    2 +-
+ drivers/mtd/onenand/generic.c               |    2 +-
+ drivers/scsi/sun3x_esp.c                    |    2 +-
+ drivers/staging/comedi/drivers/ii_pci20kc.c |    1 +
+ drivers/tty/serial/8250/8250_core.c         |    2 +-
+ drivers/video/fbdev/s1d13xxxfb.c            |    3 +--
+ drivers/video/fbdev/stifb.c                 |    1 +
+ include/linux/io-mapping.h                  |    2 +-
+ include/linux/mtd/map.h                     |    2 +-
+ include/video/vga.h                         |    2 +-
+ 14 files changed, 14 insertions(+), 13 deletions(-)
 
-Dan Williams (5):
-      arch, drivers: don't include <asm/io.h> directly, use <linux/io.h> instead
-      arch: unify ioremap prototypes and macro aliases
-      cleanup IORESOURCE_CACHEABLE vs ioremap()
-      devm: fix ioremap_cache() usage
-      arch: introduce memremap_cache() and memremap_wt()
-
-Ross Zwisler (1):
-      arch, x86: pmem api for ensuring durability of persistent memory updates
-
-
- arch/alpha/include/asm/io.h                 |    7 +-
- arch/arc/include/asm/io.h                   |    6 -
- arch/arm/Kconfig                            |    1 
- arch/arm/include/asm/io.h                   |   31 ++++++--
- arch/arm/mach-clps711x/board-cdb89712.c     |    2 
- arch/arm/mach-shmobile/pm-rcar.c            |    2 
- arch/arm64/Kconfig                          |    1 
- arch/arm64/include/asm/io.h                 |   23 ++++--
- arch/arm64/kernel/efi.c                     |    4 -
- arch/arm64/kernel/smp_spin_table.c          |   10 +-
- arch/avr32/include/asm/io.h                 |   22 +++--
- arch/avr32/mm/ioremap.c                     |    2 
- arch/cris/include/asm/io.h                  |    8 +-
- arch/cris/mm/ioremap.c                      |    2 
- arch/frv/Kconfig                            |    1 
- arch/frv/include/asm/io.h                   |   23 ++----
- arch/hexagon/include/asm/io.h               |    5 +
- arch/ia64/include/asm/io.h                  |   10 --
- arch/ia64/kernel/cyclone.c                  |    2 
- arch/ia64/mm/ioremap.c                      |    4 -
- arch/m32r/include/asm/io.h                  |    9 +-
- arch/m68k/Kconfig                           |    1 
- arch/m68k/include/asm/io_mm.h               |   21 +++--
- arch/m68k/include/asm/io_no.h               |   34 +++++---
- arch/m68k/include/asm/raw_io.h              |    3 -
- arch/m68k/mm/kmap.c                         |    2 
- arch/metag/Kconfig                          |    1 
- arch/metag/include/asm/io.h                 |   35 +++++----
- arch/microblaze/include/asm/io.h            |    6 -
- arch/microblaze/mm/pgtable.c                |    2 
- arch/mips/Kconfig                           |    1 
- arch/mips/include/asm/io.h                  |   42 ++++------
- arch/mn10300/include/asm/io.h               |   10 +-
- arch/nios2/include/asm/io.h                 |   15 +---
- arch/openrisc/include/asm/io.h              |    3 -
- arch/openrisc/mm/ioremap.c                  |    2 
- arch/parisc/include/asm/io.h                |    6 -
- arch/parisc/mm/ioremap.c                    |    2 
- arch/powerpc/Kconfig                        |    1 
- arch/powerpc/include/asm/io.h               |    7 +-
- arch/powerpc/kernel/pci_of_scan.c           |    2 
- arch/s390/include/asm/io.h                  |    8 +-
- arch/sh/include/asm/io.h                    |    9 ++
- arch/sparc/include/asm/io_32.h              |    7 --
- arch/sparc/include/asm/io_64.h              |    8 +-
- arch/sparc/kernel/ioport.c                  |    2 
- arch/sparc/kernel/pci.c                     |    3 -
- arch/tile/include/asm/io.h                  |   17 +++-
- arch/unicore32/include/asm/io.h             |   25 +++++-
- arch/x86/Kconfig                            |    2 
- arch/x86/include/asm/cacheflush.h           |   71 +++++++++++++++++
- arch/x86/include/asm/io.h                   |   15 +++-
- arch/x86/kernel/crash_dump_64.c             |    6 +
- arch/x86/kernel/kdebugfs.c                  |    8 +-
- arch/x86/kernel/ksysfs.c                    |   28 +++----
- arch/x86/mm/ioremap.c                       |   10 +-
- arch/xtensa/Kconfig                         |    1 
- arch/xtensa/include/asm/io.h                |   13 ++-
- drivers/acpi/apei/einj.c                    |    8 +-
- drivers/acpi/apei/erst.c                    |    4 -
- drivers/block/Kconfig                       |    1 
- drivers/block/pmem.c                        |   46 ++++++++++-
- drivers/firmware/google/memconsole.c        |    4 -
- drivers/isdn/icn/icn.h                      |    2 
- drivers/mtd/devices/slram.c                 |    2 
- drivers/mtd/nand/diskonchip.c               |    2 
- drivers/mtd/onenand/generic.c               |    2 
- drivers/net/ethernet/sfc/io.h               |    2 
- drivers/pci/probe.c                         |    3 -
- drivers/pnp/manager.c                       |    2 
- drivers/scsi/aic94xx/aic94xx_init.c         |    7 --
- drivers/scsi/arcmsr/arcmsr_hba.c            |    5 -
- drivers/scsi/mvsas/mv_init.c                |   15 +---
- drivers/scsi/sun3x_esp.c                    |    2 
- drivers/staging/comedi/drivers/ii_pci20kc.c |    1 
- drivers/tty/serial/8250/8250_core.c         |    2 
- drivers/video/fbdev/ocfb.c                  |    1 
- drivers/video/fbdev/s1d13xxxfb.c            |    3 -
- drivers/video/fbdev/stifb.c                 |    1 
- include/asm-generic/iomap.h                 |    8 --
- include/linux/compiler.h                    |    2 
- include/linux/device.h                      |    5 +
- include/linux/io-mapping.h                  |    2 
- include/linux/io.h                          |   64 ++++++++++++++++
- include/linux/mtd/map.h                     |    2 
- include/linux/pmem.h                        |  110 +++++++++++++++++++++++++++
- include/video/vga.h                         |    2 
- kernel/resource.c                           |   41 ++++++++++
- lib/Kconfig                                 |    8 ++
- lib/devres.c                                |   48 +++++-------
- lib/pci_iomap.c                             |    7 --
- 91 files changed, 684 insertions(+), 334 deletions(-)
- create mode 100644 include/linux/pmem.h
+diff --git a/arch/arm/mach-shmobile/pm-rcar.c b/arch/arm/mach-shmobile/pm-rcar.c
+index 00022ee56f80..9d3dde00c2fe 100644
+--- a/arch/arm/mach-shmobile/pm-rcar.c
++++ b/arch/arm/mach-shmobile/pm-rcar.c
+@@ -12,7 +12,7 @@
+ #include <linux/err.h>
+ #include <linux/mm.h>
+ #include <linux/spinlock.h>
+-#include <asm/io.h>
++#include <linux/io.h>
+ #include "pm-rcar.h"
+ 
+ /* SYSC */
+diff --git a/arch/ia64/kernel/cyclone.c b/arch/ia64/kernel/cyclone.c
+index 4826ff957a3d..5fa3848ba224 100644
+--- a/arch/ia64/kernel/cyclone.c
++++ b/arch/ia64/kernel/cyclone.c
+@@ -4,7 +4,7 @@
+ #include <linux/errno.h>
+ #include <linux/timex.h>
+ #include <linux/clocksource.h>
+-#include <asm/io.h>
++#include <linux/io.h>
+ 
+ /* IBM Summit (EXA) Cyclone counter code*/
+ #define CYCLONE_CBAR_ADDR 0xFEB00CD0
+diff --git a/drivers/isdn/icn/icn.h b/drivers/isdn/icn/icn.h
+index b713466997a0..f8f2e76d34bf 100644
+--- a/drivers/isdn/icn/icn.h
++++ b/drivers/isdn/icn/icn.h
+@@ -38,7 +38,7 @@ typedef struct icn_cdef {
+ #include <linux/errno.h>
+ #include <linux/fs.h>
+ #include <linux/major.h>
+-#include <asm/io.h>
++#include <linux/io.h>
+ #include <linux/kernel.h>
+ #include <linux/signal.h>
+ #include <linux/slab.h>
+diff --git a/drivers/mtd/devices/slram.c b/drivers/mtd/devices/slram.c
+index 2fc4957cbe7f..a70eb83e68f1 100644
+--- a/drivers/mtd/devices/slram.c
++++ b/drivers/mtd/devices/slram.c
+@@ -41,7 +41,7 @@
+ #include <linux/fs.h>
+ #include <linux/ioctl.h>
+ #include <linux/init.h>
+-#include <asm/io.h>
++#include <linux/io.h>
+ 
+ #include <linux/mtd/mtd.h>
+ 
+diff --git a/drivers/mtd/nand/diskonchip.c b/drivers/mtd/nand/diskonchip.c
+index f68a7bccecdc..c8f7c69c5204 100644
+--- a/drivers/mtd/nand/diskonchip.c
++++ b/drivers/mtd/nand/diskonchip.c
+@@ -24,7 +24,7 @@
+ #include <linux/rslib.h>
+ #include <linux/moduleparam.h>
+ #include <linux/slab.h>
+-#include <asm/io.h>
++#include <linux/io.h>
+ 
+ #include <linux/mtd/mtd.h>
+ #include <linux/mtd/nand.h>
+diff --git a/drivers/mtd/onenand/generic.c b/drivers/mtd/onenand/generic.c
+index 32a216d31141..ab7bda0bb245 100644
+--- a/drivers/mtd/onenand/generic.c
++++ b/drivers/mtd/onenand/generic.c
+@@ -18,7 +18,7 @@
+ #include <linux/mtd/mtd.h>
+ #include <linux/mtd/onenand.h>
+ #include <linux/mtd/partitions.h>
+-#include <asm/io.h>
++#include <linux/io.h>
+ 
+ /*
+  * Note: Driver name and platform data format have been updated!
+diff --git a/drivers/scsi/sun3x_esp.c b/drivers/scsi/sun3x_esp.c
+index e26e81de7c45..d50c5ed8f428 100644
+--- a/drivers/scsi/sun3x_esp.c
++++ b/drivers/scsi/sun3x_esp.c
+@@ -12,9 +12,9 @@
+ #include <linux/platform_device.h>
+ #include <linux/dma-mapping.h>
+ #include <linux/interrupt.h>
++#include <linux/io.h>
+ 
+ #include <asm/sun3x.h>
+-#include <asm/io.h>
+ #include <asm/dma.h>
+ #include <asm/dvma.h>
+ 
+diff --git a/drivers/staging/comedi/drivers/ii_pci20kc.c b/drivers/staging/comedi/drivers/ii_pci20kc.c
+index 0768bc42a5db..14ef1f67dd42 100644
+--- a/drivers/staging/comedi/drivers/ii_pci20kc.c
++++ b/drivers/staging/comedi/drivers/ii_pci20kc.c
+@@ -28,6 +28,7 @@
+  */
+ 
+ #include <linux/module.h>
++#include <linux/io.h>
+ #include "../comedidev.h"
+ 
+ /*
+diff --git a/drivers/tty/serial/8250/8250_core.c b/drivers/tty/serial/8250/8250_core.c
+index 4506e405c8f3..7b6c3d56b8c7 100644
+--- a/drivers/tty/serial/8250/8250_core.c
++++ b/drivers/tty/serial/8250/8250_core.c
+@@ -38,11 +38,11 @@
+ #include <linux/slab.h>
+ #include <linux/uaccess.h>
+ #include <linux/pm_runtime.h>
++#include <linux/io.h>
+ #ifdef CONFIG_SPARC
+ #include <linux/sunserialcore.h>
+ #endif
+ 
+-#include <asm/io.h>
+ #include <asm/irq.h>
+ 
+ #include "8250.h"
+diff --git a/drivers/video/fbdev/s1d13xxxfb.c b/drivers/video/fbdev/s1d13xxxfb.c
+index 83433cb0dfba..96aa46dc696c 100644
+--- a/drivers/video/fbdev/s1d13xxxfb.c
++++ b/drivers/video/fbdev/s1d13xxxfb.c
+@@ -32,8 +32,7 @@
+ #include <linux/spinlock_types.h>
+ #include <linux/spinlock.h>
+ #include <linux/slab.h>
+-
+-#include <asm/io.h>
++#include <linux/io.h>
+ 
+ #include <video/s1d13xxxfb.h>
+ 
+diff --git a/drivers/video/fbdev/stifb.c b/drivers/video/fbdev/stifb.c
+index 86621fabbb8b..158f19bcae44 100644
+--- a/drivers/video/fbdev/stifb.c
++++ b/drivers/video/fbdev/stifb.c
+@@ -64,6 +64,7 @@
+ #include <linux/fb.h>
+ #include <linux/init.h>
+ #include <linux/ioport.h>
++#include <linux/io.h>
+ 
+ #include <asm/grfioctl.h>	/* for HP-UX compatibility */
+ #include <asm/uaccess.h>
+diff --git a/include/linux/io-mapping.h b/include/linux/io-mapping.h
+index c27dde7215b5..e399029b68c5 100644
+--- a/include/linux/io-mapping.h
++++ b/include/linux/io-mapping.h
+@@ -21,7 +21,7 @@
+ #include <linux/types.h>
+ #include <linux/slab.h>
+ #include <linux/bug.h>
+-#include <asm/io.h>
++#include <linux/io.h>
+ #include <asm/page.h>
+ 
+ /*
+diff --git a/include/linux/mtd/map.h b/include/linux/mtd/map.h
+index 29975c73a953..366cf77953b5 100644
+--- a/include/linux/mtd/map.h
++++ b/include/linux/mtd/map.h
+@@ -27,9 +27,9 @@
+ #include <linux/string.h>
+ #include <linux/bug.h>
+ #include <linux/kernel.h>
++#include <linux/io.h>
+ 
+ #include <asm/unaligned.h>
+-#include <asm/io.h>
+ #include <asm/barrier.h>
+ 
+ #ifdef CONFIG_MTD_MAP_BANK_WIDTH_1
+diff --git a/include/video/vga.h b/include/video/vga.h
+index cac567f22e62..d334e64c1c19 100644
+--- a/include/video/vga.h
++++ b/include/video/vga.h
+@@ -18,7 +18,7 @@
+ #define __linux_video_vga_h__
+ 
+ #include <linux/types.h>
+-#include <asm/io.h>
++#include <linux/io.h>
+ #include <asm/vga.h>
+ #include <asm/byteorder.h>
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
