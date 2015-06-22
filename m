@@ -1,94 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AA4C6B0032
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 04:46:05 -0400 (EDT)
-Received: by wiga1 with SMTP id a1so69588772wig.0
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 01:46:04 -0700 (PDT)
-Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
-        by mx.google.com with ESMTPS id gn12si33817640wjc.137.2015.06.22.01.46.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jun 2015 01:46:03 -0700 (PDT)
-Received: by wicgi11 with SMTP id gi11so67967311wic.0
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 01:46:03 -0700 (PDT)
-Date: Mon, 22 Jun 2015 10:46:01 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/4] dell-laptop: Fix allocating & freeing SMI buffer page
-Message-ID: <20150622084601.GE4430@dhcp22.suse.cz>
-References: <1434875967-13370-1-git-send-email-pali.rohar@gmail.com>
- <1434876063-13460-1-git-send-email-pali.rohar@gmail.com>
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AE836B006C
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 04:46:31 -0400 (EDT)
+Received: by qcbcf1 with SMTP id cf1so22901305qcb.0
+        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 01:46:31 -0700 (PDT)
+Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [207.82.80.143])
+        by mx.google.com with ESMTP id 74si18454602qgp.63.2015.06.22.01.46.29
+        for <linux-mm@kvack.org>;
+        Mon, 22 Jun 2015 01:46:30 -0700 (PDT)
+Message-ID: <5587CB62.4030105@arm.com>
+Date: Mon, 22 Jun 2015 09:46:26 +0100
+From: Vladimir Murzin <vladimir.murzin@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1434876063-13460-1-git-send-email-pali.rohar@gmail.com>
+Subject: Re: [PATCH 2/3] memtest: cleanup log messages
+References: <1434725914-14300-1-git-send-email-vladimir.murzin@arm.com> <1434725914-14300-3-git-send-email-vladimir.murzin@arm.com> <CALq1K=KU5+s+u-py2oAh9U9iu3Z3yx9CbVNS8xNjpSd7o7639g@mail.gmail.com>
+In-Reply-To: <CALq1K=KU5+s+u-py2oAh9U9iu3Z3yx9CbVNS8xNjpSd7o7639g@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pali =?iso-8859-1?Q?Roh=E1r?= <pali.rohar@gmail.com>
-Cc: Darren Hart <dvhart@infradead.org>, Matthew Garrett <mjg59@srcf.ucam.org>, platform-driver-x86@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Leon Romanovsky <leon@leon.nu>
+Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Sun 21-06-15 10:41:03, Pali Rohar wrote:
-> This commit fix kernel crash when probing for rfkill devices in dell-laptop
-> driver failed. Function free_page() was incorrectly used on struct page *
-> instead of virtual address of SMI buffer.
-> 
-> This commit also simplify allocating page for SMI buffer by using
-> __get_free_page() function instead of sequential call of functions
-> alloc_page() and page_address().
-> 
-> Signed-off-by: Pali Rohar <pali.rohar@gmail.com>
+On 20/06/15 07:59, Leon Romanovsky wrote:
+> On Fri, Jun 19, 2015 at 5:58 PM, Vladimir Murzin
+> <vladimir.murzin@arm.com> wrote:
+>> - prefer pr_info(...  to printk(KERN_INFO ...
+>> - use %pa for phys_addr_t
+>> - use cpu_to_be64 while printing pattern in reserve_bad_mem()
+>>
+>> Signed-off-by: Vladimir Murzin <vladimir.murzin@arm.com>
+>> ---
+>>  mm/memtest.c |   14 +++++---------
+>>  1 file changed, 5 insertions(+), 9 deletions(-)
+>>
+>> diff --git a/mm/memtest.c b/mm/memtest.c
+>> index 895a43c..ccaed3e 100644
+>> --- a/mm/memtest.c
+>> +++ b/mm/memtest.c
+>> @@ -31,10 +31,8 @@ static u64 patterns[] __initdata =3D {
+>>
+>>  static void __init reserve_bad_mem(u64 pattern, phys_addr_t start_bad, =
+phys_addr_t end_bad)
+>>  {
+>> -       printk(KERN_INFO "  %016llx bad mem addr %010llx - %010llx reser=
+ved\n",
+>> -              (unsigned long long) pattern,
+>> -              (unsigned long long) start_bad,
+>> -              (unsigned long long) end_bad);
+>> +       pr_info("%016llx bad mem addr %pa - %pa reserved\n",
+>> +               cpu_to_be64(pattern), &start_bad, &end_bad);
+>>         memblock_reserve(start_bad, end_bad - start_bad);
+>>  }
+>>
+>> @@ -78,10 +76,8 @@ static void __init do_one_pass(u64 pattern, phys_addr=
+_t start, phys_addr_t end)
+>>                 this_start =3D clamp(this_start, start, end);
+>>                 this_end =3D clamp(this_end, start, end);
+>>                 if (this_start < this_end) {
+>> -                       printk(KERN_INFO "  %010llx - %010llx pattern %0=
+16llx\n",
+>> -                              (unsigned long long)this_start,
+>> -                              (unsigned long long)this_end,
+>> -                              (unsigned long long)cpu_to_be64(pattern))=
+;
+>> +                       pr_info("  %pa - %pa pattern %016llx\n",
+> s/(" %pa/("%pa
 
-Looks good to me.
-FWIW
-Acked-by: Michal Hocko <mhocko@suse.cz>
+I don't think so since these messages belong to the "early_memtest:" and
+this whitespace highlights where these logs come from.
 
-> ---
->  drivers/platform/x86/dell-laptop.c |    8 +++-----
->  1 file changed, 3 insertions(+), 5 deletions(-)
-> 
-> diff --git a/drivers/platform/x86/dell-laptop.c b/drivers/platform/x86/dell-laptop.c
-> index aaef335..0a91599 100644
-> --- a/drivers/platform/x86/dell-laptop.c
-> +++ b/drivers/platform/x86/dell-laptop.c
-> @@ -306,7 +306,6 @@ static const struct dmi_system_id dell_quirks[] __initconst = {
->  };
->  
->  static struct calling_interface_buffer *buffer;
-> -static struct page *bufferpage;
->  static DEFINE_MUTEX(buffer_mutex);
->  
->  static int hwswitch_state;
-> @@ -2097,12 +2096,11 @@ static int __init dell_init(void)
->  	 * Allocate buffer below 4GB for SMI data--only 32-bit physical addr
->  	 * is passed to SMI handler.
->  	 */
-> -	bufferpage = alloc_page(GFP_KERNEL | GFP_DMA32);
-> -	if (!bufferpage) {
-> +	buffer = (void *)__get_free_page(GFP_KERNEL | GFP_DMA32);
-> +	if (!buffer) {
->  		ret = -ENOMEM;
->  		goto fail_buffer;
->  	}
-> -	buffer = page_address(bufferpage);
->  
->  	ret = dell_setup_rfkill();
->  
-> @@ -2165,7 +2163,7 @@ static int __init dell_init(void)
->  fail_backlight:
->  	dell_cleanup_rfkill();
->  fail_rfkill:
-> -	free_page((unsigned long)bufferpage);
-> +	free_page((unsigned long)buffer);
->  fail_buffer:
->  	platform_device_del(platform_device);
->  fail_platform_device2:
-> -- 
-> 1.7.9.5
-> 
+Thanks
+Vladimir
 
--- 
-Michal Hocko
-SUSE Labs
+>> +                               &this_start, &this_end, cpu_to_be64(patt=
+ern));
+>>                         memtest(pattern, this_start, this_end - this_sta=
+rt);
+>>                 }
+>>         }
+>> @@ -114,7 +110,7 @@ void __init early_memtest(phys_addr_t start, phys_ad=
+dr_t end)
+>>         if (!memtest_pattern)
+>>                 return;
+>>
+>> -       printk(KERN_INFO "early_memtest: # of tests: %d\n", memtest_patt=
+ern);
+>> +       pr_info("early_memtest: # of tests: %u\n", memtest_pattern);
+>>         for (i =3D memtest_pattern-1; i < UINT_MAX; --i) {
+>>                 idx =3D i % ARRAY_SIZE(patterns);
+>>                 do_one_pass(patterns[idx], start, end);
+>> --
+>> 1.7.9.5
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a hrefmailto:"dont@kvack.org"> email@kvack.org </a>
+>=20
+>=20
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
