@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 021F56B0087
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 09:47:41 -0400 (EDT)
-Received: by pdbki1 with SMTP id ki1so7784138pdb.1
-        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 06:47:40 -0700 (PDT)
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 4763E6B0089
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 09:47:43 -0400 (EDT)
+Received: by pdjn11 with SMTP id n11so7806320pdj.0
+        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 06:47:43 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
         by mx.google.com with ESMTP id e5si34793303pdf.100.2015.06.23.06.47.18
         for <linux-mm@kvack.org>;
-        Tue, 23 Jun 2015 06:47:18 -0700 (PDT)
+        Tue, 23 Jun 2015 06:47:19 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv7 22/36] sparc, thp: remove infrastructure for handling splitting PMDs
-Date: Tue, 23 Jun 2015 16:46:32 +0300
-Message-Id: <1435067206-92901-23-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv7 19/36] mips, thp: remove infrastructure for handling splitting PMDs
+Date: Tue, 23 Jun 2015 16:46:29 +0300
+Message-Id: <1435067206-92901-20-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1435067206-92901-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1435067206-92901-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,74 +22,135 @@ Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van R
 With new refcounting we don't need to mark PMDs splitting. Let's drop
 code to handle this.
 
+pmdp_splitting_flush() is not needed too: on splitting PMD we will do
+pmdp_clear_flush() + set_pte_at(). pmdp_clear_flush() will do IPI as
+needed for fast_gup.
+
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/sparc/include/asm/pgtable_64.h | 16 ----------------
- arch/sparc/mm/fault_64.c            |  3 ---
- arch/sparc/mm/gup.c                 |  2 +-
- 3 files changed, 1 insertion(+), 20 deletions(-)
+ arch/mips/include/asm/pgtable-bits.h |  6 +-----
+ arch/mips/include/asm/pgtable.h      | 18 ------------------
+ arch/mips/mm/gup.c                   | 13 +------------
+ arch/mips/mm/pgtable-64.c            | 14 --------------
+ arch/mips/mm/tlbex.c                 |  1 -
+ 5 files changed, 2 insertions(+), 50 deletions(-)
 
-diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 9953d3c86e8b..46fcb17d226b 100644
---- a/arch/sparc/include/asm/pgtable_64.h
-+++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -661,13 +661,6 @@ static inline unsigned long pmd_trans_huge(pmd_t pmd)
- 	return pte_val(pte) & _PAGE_PMD_HUGE;
+diff --git a/arch/mips/include/asm/pgtable-bits.h b/arch/mips/include/asm/pgtable-bits.h
+index 91747c282bb3..403e4b226c36 100644
+--- a/arch/mips/include/asm/pgtable-bits.h
++++ b/arch/mips/include/asm/pgtable-bits.h
+@@ -120,17 +120,13 @@
+ /* huge tlb page */
+ #define _PAGE_HUGE_SHIFT	(_PAGE_MODIFIED_SHIFT + 1)
+ #define _PAGE_HUGE		(1 << _PAGE_HUGE_SHIFT)
+-#define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT + 1)
+-#define _PAGE_SPLITTING		(1 << _PAGE_SPLITTING_SHIFT)
+ #else
+ #define _PAGE_HUGE_SHIFT	(_PAGE_MODIFIED_SHIFT)
+ #define _PAGE_HUGE		({BUG(); 1; })	/* Dummy value */
+-#define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT)
+-#define _PAGE_SPLITTING		({BUG(); 1; })	/* Dummy value */
+ #endif
+ 
+ /* Page cannot be executed */
+-#define _PAGE_NO_EXEC_SHIFT	(cpu_has_rixi ? _PAGE_SPLITTING_SHIFT + 1 : _PAGE_SPLITTING_SHIFT)
++#define _PAGE_NO_EXEC_SHIFT	(cpu_has_rixi ? _PAGE_HUGE_SHIFT + 1 : _PAGE_HUGE_SHIFT)
+ #define _PAGE_NO_EXEC		({BUG_ON(!cpu_has_rixi); 1 << _PAGE_NO_EXEC_SHIFT; })
+ 
+ /* Page cannot be read */
+diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
+index 5dc360bfc1a7..a8ed1627bfc0 100644
+--- a/arch/mips/include/asm/pgtable.h
++++ b/arch/mips/include/asm/pgtable.h
+@@ -456,27 +456,9 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
+ 	return pmd;
  }
  
--static inline unsigned long pmd_trans_splitting(pmd_t pmd)
+-static inline int pmd_trans_splitting(pmd_t pmd)
 -{
--	pte_t pte = __pte(pmd_val(pmd));
--
--	return pmd_trans_huge(pmd) && pte_special(pte);
+-	return !!(pmd_val(pmd) & _PAGE_SPLITTING);
 -}
 -
- #define has_transparent_hugepage() 1
- 
- static inline pmd_t pmd_mkold(pmd_t pmd)
-@@ -724,15 +717,6 @@ static inline pmd_t pmd_mkwrite(pmd_t pmd)
- 	return __pmd(pte_val(pte));
- }
- 
 -static inline pmd_t pmd_mksplitting(pmd_t pmd)
 -{
--	pte_t pte = __pte(pmd_val(pmd));
+-	pmd_val(pmd) |= _PAGE_SPLITTING;
 -
--	pte = pte_mkspecial(pte);
--
--	return __pmd(pte_val(pte));
+-	return pmd;
 -}
 -
- static inline pgprot_t pmd_pgprot(pmd_t entry)
- {
- 	unsigned long val = pmd_val(entry);
-diff --git a/arch/sparc/mm/fault_64.c b/arch/sparc/mm/fault_64.c
-index 479823249429..a504a4d85ebd 100644
---- a/arch/sparc/mm/fault_64.c
-+++ b/arch/sparc/mm/fault_64.c
-@@ -113,9 +113,6 @@ static unsigned int get_user_insn(unsigned long tpc)
+ extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+ 		       pmd_t *pmdp, pmd_t pmd);
  
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 	if (pmd_trans_huge(*pmdp)) {
--		if (pmd_trans_splitting(*pmdp))
--			goto out_irq_enable;
+-#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+-/* Extern to avoid header file madness */
+-extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+-					unsigned long address,
+-					pmd_t *pmdp);
 -
- 		pa  = pmd_pfn(*pmdp) << PAGE_SHIFT;
- 		pa += tpc & ~HPAGE_MASK;
- 
-diff --git a/arch/sparc/mm/gup.c b/arch/sparc/mm/gup.c
-index 9091c5daa2e1..eb3d8e8ebc6b 100644
---- a/arch/sparc/mm/gup.c
-+++ b/arch/sparc/mm/gup.c
-@@ -114,7 +114,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+ #define __HAVE_ARCH_PMD_WRITE
+ static inline int pmd_write(pmd_t pmd)
+ {
+diff --git a/arch/mips/mm/gup.c b/arch/mips/mm/gup.c
+index 36a35115dc2e..1afd87c999b0 100644
+--- a/arch/mips/mm/gup.c
++++ b/arch/mips/mm/gup.c
+@@ -107,18 +107,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
  		pmd_t pmd = *pmdp;
  
  		next = pmd_addr_end(addr, end);
+-		/*
+-		 * The pmd_trans_splitting() check below explains why
+-		 * pmdp_splitting_flush has to flush the tlb, to stop
+-		 * this gup-fast code from running while we set the
+-		 * splitting bit in the pmd. Returning zero will take
+-		 * the slow path that will call wait_split_huge_page()
+-		 * if the pmd is still in splitting state. gup-fast
+-		 * can't because it has irq disabled and
+-		 * wait_split_huge_page() would never return as the
+-		 * tlb flush IPI wouldn't run.
+-		 */
 -		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
 +		if (pmd_none(pmd))
  			return 0;
- 		if (unlikely(pmd_large(pmd))) {
- 			if (!gup_huge_pmd(pmdp, pmd, addr, next,
+ 		if (unlikely(pmd_huge(pmd))) {
+ 			if (!gup_huge_pmd(pmd, addr, next, write, pages,nr))
+diff --git a/arch/mips/mm/pgtable-64.c b/arch/mips/mm/pgtable-64.c
+index e8adc0069d66..ce4473e7c0d2 100644
+--- a/arch/mips/mm/pgtable-64.c
++++ b/arch/mips/mm/pgtable-64.c
+@@ -62,20 +62,6 @@ void pmd_init(unsigned long addr, unsigned long pagetable)
+ }
+ #endif
+ 
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-
+-void pmdp_splitting_flush(struct vm_area_struct *vma,
+-			 unsigned long address,
+-			 pmd_t *pmdp)
+-{
+-	if (!pmd_trans_splitting(*pmdp)) {
+-		pmd_t pmd = pmd_mksplitting(*pmdp);
+-		set_pmd_at(vma->vm_mm, address, pmdp, pmd);
+-	}
+-}
+-
+-#endif
+-
+ pmd_t mk_pmd(struct page *page, pgprot_t prot)
+ {
+ 	pmd_t pmd;
+diff --git a/arch/mips/mm/tlbex.c b/arch/mips/mm/tlbex.c
+index d75ff73a2012..d12412bdd506 100644
+--- a/arch/mips/mm/tlbex.c
++++ b/arch/mips/mm/tlbex.c
+@@ -229,7 +229,6 @@ static void output_pgtable_bits_defines(void)
+ 	pr_define("_PAGE_MODIFIED_SHIFT %d\n", _PAGE_MODIFIED_SHIFT);
+ #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
+ 	pr_define("_PAGE_HUGE_SHIFT %d\n", _PAGE_HUGE_SHIFT);
+-	pr_define("_PAGE_SPLITTING_SHIFT %d\n", _PAGE_SPLITTING_SHIFT);
+ #endif
+ 	if (cpu_has_rixi) {
+ #ifdef _PAGE_NO_EXEC_SHIFT
 -- 
 2.1.4
 
