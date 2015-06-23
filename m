@@ -1,72 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C9FFB6B0032
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 05:50:44 -0400 (EDT)
-Received: by wgck11 with SMTP id k11so4717845wgc.0
-        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 02:50:44 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k8si24914829wia.75.2015.06.23.02.50.42
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D1DFA6B0032
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 06:08:00 -0400 (EDT)
+Received: by wgbhy7 with SMTP id hy7so5060609wgb.2
+        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 03:08:00 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id j4si24998449wix.18.2015.06.23.03.07.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 23 Jun 2015 02:50:43 -0700 (PDT)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH] ext4: replace open coded nofail allocation
-Date: Tue, 23 Jun 2015 11:50:37 +0200
-Message-Id: <1435053037-1451-1-git-send-email-mhocko@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Jun 2015 03:07:59 -0700 (PDT)
+Date: Tue, 23 Jun 2015 12:07:57 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
+Message-ID: <20150623100757.GA24894@lst.de>
+References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com> <20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com> <20150622161002.GB8240@lst.de> <CAPcyv4gSMixA6KNpqXR8pkEpff=Z-N+LbQmuxpiVLs4yMfqZSg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4gSMixA6KNpqXR8pkEpff=Z-N+LbQmuxpiVLs4yMfqZSg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@lst.de>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, Geert Uytterhoeven <geert@linux-m68k.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, mpe@ellerman.id.au, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>
 
-ext4_free_blocks is looping around the allocation request and mimics
-__GFP_NOFAIL behavior without any allocation fallback strategy. Let's
-remove the open coded loop and replace it with __GFP_NOFAIL. Without
-the flag the allocator has no way to find out never-fail requirement
-and cannot help in any way.
+On Mon, Jun 22, 2015 at 10:12:40AM -0700, Dan Williams wrote:
+> Is that an acked-by for this cycle with a request to go deeper for 4.3?
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
+I wouldn't really expect something this wide reaching to be picked up
+for this cycle, but if you manage to get it in:
 
-Hi Ted,
-I am sorry for seding these changes one at the time but I haven't found
-a proper way to find all of them automatically. So I am discovering
-them as I check the code due to other reasons.
-
-Thanks!
-
- fs/ext4/mballoc.c | 16 +++++-----------
- 1 file changed, 5 insertions(+), 11 deletions(-)
-
-diff --git a/fs/ext4/mballoc.c b/fs/ext4/mballoc.c
-index 8d1e60214ef0..41260489d3bc 100644
---- a/fs/ext4/mballoc.c
-+++ b/fs/ext4/mballoc.c
-@@ -4800,18 +4800,12 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
- 		/*
- 		 * blocks being freed are metadata. these blocks shouldn't
- 		 * be used until this transaction is committed
-+		 *
-+		 * We use __GFP_NOFAIL because ext4_free_blocks() is not allowed
-+		 * to fail.
- 		 */
--	retry:
--		new_entry = kmem_cache_alloc(ext4_free_data_cachep, GFP_NOFS);
--		if (!new_entry) {
--			/*
--			 * We use a retry loop because
--			 * ext4_free_blocks() is not allowed to fail.
--			 */
--			cond_resched();
--			congestion_wait(BLK_RW_ASYNC, HZ/50);
--			goto retry;
--		}
-+		new_entry = kmem_cache_alloc(ext4_free_data_cachep,
-+				GFP_NOFS|__GFP_NOFAIL);
- 		new_entry->efd_start_cluster = bit;
- 		new_entry->efd_group = block_group;
- 		new_entry->efd_count = count_clusters;
--- 
-2.1.4
+Acked-by: Christoph Hellwig <hch@lst.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
