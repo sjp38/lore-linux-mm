@@ -1,63 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CB786B0071
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 06:39:21 -0400 (EDT)
-Received: by wgbhy7 with SMTP id hy7so5747280wgb.2
-        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 03:39:20 -0700 (PDT)
-Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
-        by mx.google.com with ESMTPS id ce9si10305240wib.4.2015.06.23.03.39.19
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 23 Jun 2015 03:39:19 -0700 (PDT)
-Message-ID: <5589374D.9060009@nod.at>
-Date: Tue, 23 Jun 2015 12:39:09 +0200
-From: Richard Weinberger <richard@nod.at>
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id E1C3C6B0032
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 07:45:08 -0400 (EDT)
+Received: by wiwl6 with SMTP id l6so63803410wiw.0
+        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 04:45:08 -0700 (PDT)
+Received: from johanna4.rokki.sonera.fi (mta-out1.inet.fi. [62.71.2.230])
+        by mx.google.com with ESMTP id ju8si25372542wid.83.2015.06.23.04.45.06
+        for <linux-mm@kvack.org>;
+        Tue, 23 Jun 2015 04:45:07 -0700 (PDT)
+Date: Tue, 23 Jun 2015 14:44:53 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: Fix MAP_POPULATE and mlock() for DAX
+Message-ID: <20150623114453.GA8603@node.dhcp.inet.fi>
+References: <1434493710-11138-1-git-send-email-toshi.kani@hp.com>
+ <20150620194612.GA5268@node.dhcp.inet.fi>
+ <1435006555.11808.210.camel@misato.fc.hp.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 6/6] arch, x86: pmem api for ensuring durability of
- persistent memory updates
-References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com> <20150622082449.35954.91411.stgit@dwillia2-desk3.jf.intel.com> <20150622161754.GC8240@lst.de>
-In-Reply-To: <20150622161754.GC8240@lst.de>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1435006555.11808.210.camel@misato.fc.hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>
-Cc: arnd@arndb.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, jgross@suse.com, x86@kernel.org, toshi.kani@hp.com, linux-nvdimm@lists.01.org, benh@kernel.crashing.org, mcgrof@suse.com, konrad.wilk@oracle.com, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, mpe@ellerman.id.au, tj@kernel.org, paulus@samba.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, willy@linux.intel.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
 
-Am 22.06.2015 um 18:17 schrieb Christoph Hellwig:
->> +#ifdef ARCH_HAS_NOCACHE_UACCESS
+On Mon, Jun 22, 2015 at 02:55:55PM -0600, Toshi Kani wrote:
+> On Sat, 2015-06-20 at 22:46 +0300, Kirill A. Shutemov wrote:
+> > On Tue, Jun 16, 2015 at 04:28:30PM -0600, Toshi Kani wrote:
+> > > DAX has the following issues in a shared or read-only private
+> > > mmap'd file.
+> > >  - mmap(MAP_POPULATE) does not pre-fault
+> > >  - mlock() fails with -ENOMEM
+> > > 
+> > > DAX uses VM_MIXEDMAP for mmap'd files, which do not have struct
+> > > page associated with the ranges.  Both MAP_POPULATE and mlock()
+> > > call __mm_populate(), which in turn calls __get_user_pages().
+> > > Because __get_user_pages() requires a valid page returned from
+> > > follow_page_mask(), MAP_POPULATE and mlock(), i.e. FOLL_POPULATE,
+> > > fail in the first page.
+> > > 
+> > > Change __get_user_pages() to proceed FOLL_POPULATE when the
+> > > translation is set but its page does not exist (-EFAULT), and
+> > > @pages is not requested.  With that, MAP_POPULATE and mlock()
+> > > set translations to the requested range and complete successfully.
+> > > 
+> > > MAP_POPULATE still provides a major performance improvement to
+> > > DAX as it will avoid page faults during initial access to the
+> > > pages.
+> > > 
+> > > mlock() continues to set VM_LOCKED to vma and populate the range.
+> > > Since there is no struct page, the range is pinned without marking
+> > > pages mlocked.
+> > > 
+> > > Note, MAP_POPULATE and mlock() already work for a write-able
+> > > private mmap'd file on DAX since populate_vma_page_range() breaks
+> > > COW, which allocates page caches.
+> > 
+> > I don't think that's true in all cases.
+> > 
+> > We would fail to break COW for mlock() if the mapping is populated with
+> > read-only entries by the mlock() time. In this case follow_page_mask()
+> > would fail with -EFAULT and faultin_page() will never executed.
 > 
-> Seems like this is always define for x86 anyway?
+> No, mlock() always breaks COW as populate_vma_page_range() sets
+> FOLL_WRITE in case of write-able private mmap.
 > 
->> +/**
->> + * arch_memcpy_to_pmem - copy data to persistent memory
->> + * @dst: destination buffer for the copy
->> + * @src: source buffer for the copy
->> + * @n: length of the copy in bytes
->> + *
->> + * Copy data to persistent memory media via non-temporal stores so that
->> + * a subsequent arch_wmb_pmem() can flush cpu and memory controller
->> + * write buffers to guarantee durability.
->> + */
-> static inline void arch_memcpy_to_pmem(void __pmem *dst, const void *src, size_t n)
-> 
-> Too long line.  Also why not simply arch_copy_{from,to}_pmem?
-> 
->> +#else /* ARCH_HAS_NOCACHE_UACCESS i.e. ARCH=um */
-> 
-> Oh, UM.  I'd rather see UM fixed to provide these.
-> 
-> Richard, any chance you could look into it?
+>   /*
+>    * We want to touch writable mappings with a write fault in order
+>    * to break COW, except for shared mappings because these don't COW
+>    * and we would not want to dirty them for nothing.
+>    */
+>   if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
+>            gup_flags |= FOLL_WRITE;
 
-Not sure if I understand this correctly, is the plan to support pmem also on UML?
-At least drivers/block/pmem.c cannot work on UML as it depends on io memory.
+Okay, you're right it should work.
 
-Only x86 seems to have ARCH_HAS_NOCACHE_UACCESS, if UML would offer these methods
-what drivers need them? I'm still not sure where it would make sense on UML as
-uaccess on UML means ptrace() between host and guest process.
+What about doing this in more generic way? The totally untested patch
+below tries to make GUP work on DAX and other pfn maps when struct page
+is not required.
 
-Thanks,
-//richard
+Any comments?
+
+diff --git a/mm/gup.c b/mm/gup.c
+index 222d57e335f9..03645f400748 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -33,6 +33,30 @@ static struct page *no_page_table(struct vm_area_struct *vma,
+ 	return NULL;
+ }
+ 
++static int follow_pfn_pte(struct vm_area_struct *vma, unsigned long address,
++		pte_t *pte, unsigned int flags)
++{
++	/* No page to get reference */
++	if (flags & FOLL_GET)
++		return -EFAULT;
++
++	if (flags & FOLL_TOUCH) {
++		pte_t entry = *pte;
++
++		if (flags & FOLL_WRITE)
++			entry = pte_mkdirty(entry);
++		entry = pte_mkyoung(entry);
++
++		if (!pte_same(*pte, entry)) {
++			set_pte_at(vma->vm_mm, address, pte, entry);
++			update_mmu_cache(vma, address, pte);
++		}
++	}
++
++	/* Proper page table entry exists, but no corresponding struct page */
++	return -EEXIST;
++}
++
+ static struct page *follow_page_pte(struct vm_area_struct *vma,
+ 		unsigned long address, pmd_t *pmd, unsigned int flags)
+ {
+@@ -74,10 +98,21 @@ retry:
+ 
+ 	page = vm_normal_page(vma, address, pte);
+ 	if (unlikely(!page)) {
+-		if ((flags & FOLL_DUMP) ||
+-		    !is_zero_pfn(pte_pfn(pte)))
+-			goto bad_page;
+-		page = pte_page(pte);
++		if (flags & FOLL_DUMP) {
++			/* Avoid special (like zero) pages in core dumps */
++			page = ERR_PTR(-EFAULT);
++			goto out;
++		}
++
++		if (is_zero_pfn(pte_pfn(pte))) {
++			page = pte_page(pte);
++		} else {
++			int ret;
++
++			ret = follow_pfn_pte(vma, address, ptep, flags);
++			page = ERR_PTR(ret);
++			goto out;
++		}
+ 	}
+ 
+ 	if (flags & FOLL_GET)
+@@ -115,12 +150,9 @@ retry:
+ 			unlock_page(page);
+ 		}
+ 	}
++out:
+ 	pte_unmap_unlock(ptep, ptl);
+ 	return page;
+-bad_page:
+-	pte_unmap_unlock(ptep, ptl);
+-	return ERR_PTR(-EFAULT);
+-
+ no_page:
+ 	pte_unmap_unlock(ptep, ptl);
+ 	if (!pte_none(pte))
+@@ -490,9 +522,15 @@ retry:
+ 				goto next_page;
+ 			}
+ 			BUG();
+-		}
+-		if (IS_ERR(page))
++		} else if (PTR_ERR(page) == -EEXIST) {
++			/*
++			 * Proper page table entry exists, but no corresponding
++			 * struct page.
++			 */
++			goto next_page;
++		} else if (IS_ERR(page)) {
+ 			return i ? i : PTR_ERR(page);
++		}
+ 		if (pages) {
+ 			pages[i] = page;
+ 			flush_anon_page(vma, page, start);
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
