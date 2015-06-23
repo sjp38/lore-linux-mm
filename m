@@ -1,143 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A1BB6B00BD
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 09:55:33 -0400 (EDT)
-Received: by pdbki1 with SMTP id ki1so7911915pdb.1
-        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 06:55:32 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id l9si34766250pdj.235.2015.06.23.06.47.18
-        for <linux-mm@kvack.org>;
-        Tue, 23 Jun 2015 06:47:18 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv7 21/36] s390, thp: remove infrastructure for handling splitting PMDs
-Date: Tue, 23 Jun 2015 16:46:31 +0300
-Message-Id: <1435067206-92901-22-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1435067206-92901-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1435067206-92901-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id E2D9D6B0072
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 11:04:49 -0400 (EDT)
+Received: by wgbhy7 with SMTP id hy7so12261725wgb.2
+        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 08:04:49 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
+        by mx.google.com with ESMTPS id ga6si26350581wib.68.2015.06.23.08.04.47
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Jun 2015 08:04:48 -0700 (PDT)
+Received: by wicgi11 with SMTP id gi11so19749490wic.0
+        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 08:04:47 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20150623100757.GA24894@lst.de>
+References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com>
+	<20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com>
+	<20150622161002.GB8240@lst.de>
+	<CAPcyv4gSMixA6KNpqXR8pkEpff=Z-N+LbQmuxpiVLs4yMfqZSg@mail.gmail.com>
+	<20150623100757.GA24894@lst.de>
+Date: Tue, 23 Jun 2015 08:04:47 -0700
+Message-ID: <CAPcyv4hXwdsF0a1=FhK6wn5US9p-T9t7OxwVsiMiCM=M-a7o6Q@mail.gmail.com>
+Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, Geert Uytterhoeven <geert@linux-m68k.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, mpe@ellerman.id.au, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>
 
-With new refcounting we don't need to mark PMDs splitting. Let's drop
-code to handle this.
+On Tue, Jun 23, 2015 at 3:07 AM, Christoph Hellwig <hch@lst.de> wrote:
+> On Mon, Jun 22, 2015 at 10:12:40AM -0700, Dan Williams wrote:
+>> Is that an acked-by for this cycle with a request to go deeper for 4.3?
+>
+> I wouldn't really expect something this wide reaching to be picked up
+> for this cycle, but if you manage to get it in:
+>
+> Acked-by: Christoph Hellwig <hch@lst.de>
 
-pmdp_splitting_flush() is not needed too: on splitting PMD we will do
-pmdp_clear_flush() + set_pte_at(). pmdp_clear_flush() will do IPI as
-needed for fast_gup.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/s390/include/asm/pgtable.h | 15 +--------------
- arch/s390/mm/gup.c              | 11 +----------
- arch/s390/mm/pgtable.c          | 16 ----------------
- 3 files changed, 2 insertions(+), 40 deletions(-)
-
-diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-index cf7e7c6bab9d..06bf2f1367f9 100644
---- a/arch/s390/include/asm/pgtable.h
-+++ b/arch/s390/include/asm/pgtable.h
-@@ -380,7 +380,6 @@ static inline int is_module_addr(void *addr)
- 
- #define _SEGMENT_ENTRY_DIRTY	0x2000	/* SW segment dirty bit */
- #define _SEGMENT_ENTRY_YOUNG	0x1000	/* SW segment young bit */
--#define _SEGMENT_ENTRY_SPLIT	0x0800	/* THP splitting bit */
- #define _SEGMENT_ENTRY_LARGE	0x0400	/* STE-format control, large page */
- #define _SEGMENT_ENTRY_READ	0x0002	/* SW segment read bit */
- #define _SEGMENT_ENTRY_WRITE	0x0001	/* SW segment write bit */
-@@ -404,8 +403,6 @@ static inline int is_module_addr(void *addr)
-  * read-write, old segment table entries (origin!=0)
-  */
- 
--#define _SEGMENT_ENTRY_SPLIT_BIT 11	/* THP splitting bit number */
--
- /* Page status table bits for virtualization */
- #define PGSTE_ACC_BITS	0xf000000000000000UL
- #define PGSTE_FP_BIT	0x0800000000000000UL
-@@ -617,10 +614,6 @@ static inline int pmd_bad(pmd_t pmd)
- 	return (pmd_val(pmd) & ~_SEGMENT_ENTRY_BITS) != 0;
- }
- 
--#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
--extern void pmdp_splitting_flush(struct vm_area_struct *vma,
--				 unsigned long addr, pmd_t *pmdp);
--
- #define  __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
- extern int pmdp_set_access_flags(struct vm_area_struct *vma,
- 				 unsigned long address, pmd_t *pmdp,
-@@ -1494,7 +1487,7 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
- 	if (pmd_large(pmd)) {
- 		pmd_val(pmd) &= _SEGMENT_ENTRY_ORIGIN_LARGE |
- 			_SEGMENT_ENTRY_DIRTY | _SEGMENT_ENTRY_YOUNG |
--			_SEGMENT_ENTRY_LARGE | _SEGMENT_ENTRY_SPLIT;
-+			_SEGMENT_ENTRY_LARGE;
- 		pmd_val(pmd) |= massage_pgprot_pmd(newprot);
- 		if (!(pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY))
- 			pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
-@@ -1602,12 +1595,6 @@ extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
- #define __HAVE_ARCH_PGTABLE_WITHDRAW
- extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
- 
--static inline int pmd_trans_splitting(pmd_t pmd)
--{
--	return (pmd_val(pmd) & _SEGMENT_ENTRY_LARGE) &&
--		(pmd_val(pmd) & _SEGMENT_ENTRY_SPLIT);
--}
--
- static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
- 			      pmd_t *pmdp, pmd_t entry)
- {
-diff --git a/arch/s390/mm/gup.c b/arch/s390/mm/gup.c
-index dab30527ad41..83eb4629bdb2 100644
---- a/arch/s390/mm/gup.c
-+++ b/arch/s390/mm/gup.c
-@@ -104,16 +104,7 @@ static inline int gup_pmd_range(pud_t *pudp, pud_t pud, unsigned long addr,
- 		pmd = *pmdp;
- 		barrier();
- 		next = pmd_addr_end(addr, end);
--		/*
--		 * The pmd_trans_splitting() check below explains why
--		 * pmdp_splitting_flush() has to serialize with
--		 * smp_call_function() against our disabled IRQs, to stop
--		 * this gup-fast code from running while we set the
--		 * splitting bit in the pmd. Returning zero will take
--		 * the slow path that will call wait_split_huge_page()
--		 * if the pmd is still in splitting state.
--		 */
--		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
-+		if (pmd_none(pmd))
- 			return 0;
- 		if (unlikely(pmd_large(pmd))) {
- 			if (!gup_huge_pmd(pmdp, pmd, addr, next,
-diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
-index f76791eeb496..3224c01a3678 100644
---- a/arch/s390/mm/pgtable.c
-+++ b/arch/s390/mm/pgtable.c
-@@ -1421,22 +1421,6 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
- 	return 1;
- }
- 
--static void pmdp_splitting_flush_sync(void *arg)
--{
--	/* Simply deliver the interrupt */
--}
--
--void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
--			  pmd_t *pmdp)
--{
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
--	if (!test_and_set_bit(_SEGMENT_ENTRY_SPLIT_BIT,
--			      (unsigned long *) pmdp)) {
--		/* need to serialize against gup-fast (IRQ disabled) */
--		smp_call_function(pmdp_splitting_flush_sync, NULL, 1);
--	}
--}
--
- void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
- 				pgtable_t pgtable)
- {
--- 
-2.1.4
+Thanks, definitely a long shot at this point, but this is what one
+gets for fixing rather than working around broken base infrastructure.
+It would be unfortunate if we went another cycle with pmem having both
+poor performance and broken persistence guarantees.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
