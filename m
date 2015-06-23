@@ -1,102 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 09A126B0078
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 20:40:17 -0400 (EDT)
-Received: by pdcu2 with SMTP id u2so22735940pdc.3
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 17:40:16 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id po9si8581401pac.231.2015.06.22.17.40.12
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D0216B0032
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 00:42:37 -0400 (EDT)
+Received: by wicnd19 with SMTP id nd19so94282896wic.1
+        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 21:42:36 -0700 (PDT)
+Received: from mail2.protonmail.ch (mail2.protonmail.ch. [185.70.40.22])
+        by mx.google.com with ESMTPS id ge8si23638874wib.104.2015.06.22.21.42.35
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jun 2015 17:40:13 -0700 (PDT)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [RFC v5 PATCH 7/9] hugetlbfs: New huge_add_to_page_cache helper routine
-Date: Mon, 22 Jun 2015 17:38:37 -0700
-Message-Id: <1435019919-29225-8-git-send-email-mike.kravetz@oracle.com>
-In-Reply-To: <1435019919-29225-1-git-send-email-mike.kravetz@oracle.com>
-References: <1435019919-29225-1-git-send-email-mike.kravetz@oracle.com>
+        Mon, 22 Jun 2015 21:42:35 -0700 (PDT)
+Subject: ========== Re: RAM encryption and key storing in CPU ==========
+Date: Tue, 23 Jun 2015 00:42:34 -0400
+From: ngabor <ngabor@protonmail.ch>
+Reply-To: ngabor <ngabor@protonmail.ch>
+Message-ID: <dc73ac3a0141ca280733b0d5786299eb@protonmail.ch>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="b1_dc73ac3a0141ca280733b0d5786299eb"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "bp@alien8.de" <bp@alien8.de>, "lizefan@huawei.com" <lizefan@huawei.com>, "tj@kernel.org" <tj@kernel.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>
 
-Currently, there is  only a single place where hugetlbfs pages are
-added to the page cache.  The new fallocate code be adding a second
-one, so break the functionality out into its own helper.
+This is a multi-part message in MIME format.
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- include/linux/hugetlb.h |  2 ++
- mm/hugetlb.c            | 27 ++++++++++++++++++---------
- 2 files changed, 20 insertions(+), 9 deletions(-)
+--b1_dc73ac3a0141ca280733b0d5786299eb
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index e6ed378..71a24a7 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -330,6 +330,8 @@ struct huge_bootmem_page {
- struct page *alloc_huge_page_node(struct hstate *h, int nid);
- struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
- 				unsigned long addr, int avoid_reserve);
-+int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
-+			pgoff_t idx);
- 
- /* arch callback */
- int __init alloc_bootmem_huge_page(struct hstate *h);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index a485d9c..77712c8 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3239,6 +3239,23 @@ static bool hugetlbfs_pagecache_present(struct hstate *h,
- 	return page != NULL;
- }
- 
-+int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
-+			   pgoff_t idx)
-+{
-+	struct inode *inode = mapping->host;
-+	struct hstate *h = hstate_inode(inode);
-+	int err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
-+
-+	if (err)
-+		return err;
-+	ClearPagePrivate(page);
-+
-+	spin_lock(&inode->i_lock);
-+	inode->i_blocks += blocks_per_huge_page(h);
-+	spin_unlock(&inode->i_lock);
-+	return 0;
-+}
-+
- static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			   struct address_space *mapping, pgoff_t idx,
- 			   unsigned long address, pte_t *ptep, unsigned int flags)
-@@ -3286,21 +3303,13 @@ retry:
- 		set_page_huge_active(page);
- 
- 		if (vma->vm_flags & VM_MAYSHARE) {
--			int err;
--			struct inode *inode = mapping->host;
--
--			err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
-+			int err = huge_add_to_page_cache(page, mapping, idx);
- 			if (err) {
- 				put_page(page);
- 				if (err == -EEXIST)
- 					goto retry;
- 				goto out;
- 			}
--			ClearPagePrivate(page);
--
--			spin_lock(&inode->i_lock);
--			inode->i_blocks += blocks_per_huge_page(h);
--			spin_unlock(&inode->i_lock);
- 		} else {
- 			lock_page(page);
- 			if (unlikely(anon_vma_prepare(vma))) {
--- 
-2.1.0
+SXMgYW55Ym9keSByZWFkaW5nIHRoaXM/CgoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0t
+LS0tLQoKU3ViamVjdDogUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUK
+ClRpbWUgKEdNVCk6IEp1biAxOSAyMDE1IDE3OjIyOjQ5CgpGcm9tOiBuZ2Fib3JAcHJvdG9ubWFp
+bC5jaAoKVG86IGxpbnV4LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXplZmFuQGh1YXdl
+aS5jb20sIHRqQGtlcm5lbC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnCgoKCkhhbGxvPyA6
+KQoKCi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS0KClN1YmplY3Q6IFJlOiBSQU0g
+ZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVCgpUaW1lIChHTVQpOiBNYXkgMjMgMjAx
+NSAwOTowMToyNgoKRnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2gKClRvOiBsaW51eC1tbUBrdmFj
+ay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBj
+bEBsaW51eC1mb3VuZGF0aW9uLm9yZwoKCgpBbnkgY29tbWVudHM/CgoKLS0tLS0tLS0gT3JpZ2lu
+YWwgTWVzc2FnZSAtLS0tLS0tLQoKU3ViamVjdDogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9y
+aW5nIGluIENQVQoKVGltZSAoR01UKTogTWF5IDIxIDIwMTUgMTA6MTc6MjUKCkZyb206IG5nYWJv
+ckBwcm90b25tYWlsLmNoCgpUbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxp
+emVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmcK
+CgoKSGVsbG8sCgoKCj09PT09PT09PT0KClByb2JsZW06CgoKCkV2ZXJ5dGhpbmcgaXMgc3RvcmVk
+IGluIHBsYWludGV4dCBpbiB0aGUgTWVtb3J5LgoKCgpTbyBpZiBhbHRob3VnaCBmdWxsIGRpc2Mg
+ZW5jcnlwdGlvbiBpcyB1c2VkIG9uIGEgTGludXggRGVza3RvcCwgaXQgaXMgcG9zc2libGUgdG8g
+Y29weSB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5LCB3aGlsZSB0aGUgbm90ZWJvb2sgd2FzIG9u
+IHN1c3BlbmQgb3IgaXQgd2FzIHJ1bm5pbmc6CgoKCmh0dHBzOi8vY2l0cC5wcmluY2V0b24uZWR1
+L3Jlc2VhcmNoL21lbW9yeS9tZWRpYS8KCgoKPT09PT09PT09PQoKU29sdXRpb246CgoKCkNhbiB3
+ZSAob3B0aW9uYWxseSopIGVuY3J5cHQgdGhlIGNvbnRlbnQgb2YgdGhlIG1lbW9yeSBhbmQgc3Rv
+cmUgdGhlIGtleSBmb3IgZGVjcnlwdGlvbiBpbiB0aGUgQ1BVIHRvIGF2b2lkIGluIGdlbmVyYWwg
+dGhlc2Uga2luZCBvZiBhdHRhY2tzPwoKCgpodHRwczovL3d3dzEuaW5mb3JtYXRpay51bmktZXJs
+YW5nZW4uZGUvdHJlc29yCgoKCklzIHRoaXMgc29sdXRpb24gYWxyZWFkeSBpbiB0aGUgTGludXgg
+a2VybmVsPyBJZiB5ZXMsIGhvdyBjYW4gYSBMaW51eCBlbmR1c2VyIHR1cm4gaXQgb24/IElmIG5v
+LCBob3cgY2FuIHdlIGdldCB0aGUgY29kZS9pZGVhIGluIHRoZSBtYWlubGluZT8gV2hhdCBhcmUg
+dGhlIGFyZ3VtZW50cyBhZ2FpbnN0IGl0PwoKCgoqaWYgc29tZW9uZSB3b3VsZCB3YW50IHRvIGhh
+cmRlbiBpdCdzIExpbnV4IERlc2t0b3AgKHNpbmNlIG5vdGVib29rcyBjb3VsZCBiZSBzdG9sZW4u
+LikgaXQgY291bGQgdHVybiBvbiB0aGlzIGZlYXR1cmUgdG8gYXZvaWQgYSBwb2xpY3kgdG8gYWx3
+YXlzIHR1cm4gb2ZmIHRoZSBub3RlYm9vayB3aGlsZSBub3QgdXNpbmcgaXQuCgoKClRoYW5rIHlv
+dSBmb3IgeW91ciBjb21tZW50cy4=
+
+
+--b1_dc73ac3a0141ca280733b0d5786299eb
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+PGRpdj5JcyBhbnlib2R5IHJlYWRpbmcgdGhpcz8gPGJyPjwvZGl2PjxibG9ja3F1b3RlPjxkaXY+
+LS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLTxicj48L2Rpdj48ZGl2PlN1YmplY3Q6
+IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVPGJyPjwvZGl2PjxkaXY+
+VGltZSAoR01UKTogSnVuIDE5IDIwMTUgMTc6MjI6NDk8YnI+PC9kaXY+PGRpdj5Gcm9tOiBuZ2Fi
+b3JAcHJvdG9ubWFpbC5jaDxicj48L2Rpdj48ZGl2PlRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJw
+QGFsaWVuOC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1m
+b3VuZGF0aW9uLm9yZzxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkhhbGxvPyA6KTxicj48
+L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08
+YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5n
+IGluIENQVTxicj48L2Rpdj48ZGl2PlRpbWUgKEdNVCk6IE1heSAyMyAyMDE1IDA5OjAxOjI2PGJy
+PjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2g8YnI+PC9kaXY+PGRpdj5Ubzog
+bGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpA
+a2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmc8YnI+PC9kaXY+PGRpdj48YnI+PC9k
+aXY+PGRpdj5BbnkgY29tbWVudHM/IDxicj48L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0tLS0tLS0t
+IE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBSQU0gZW5j
+cnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVPGJyPjwvZGl2PjxkaXY+VGltZSAoR01UKTog
+TWF5IDIxIDIwMTUgMTA6MTc6MjU8YnI+PC9kaXY+PGRpdj5Gcm9tOiBuZ2Fib3JAcHJvdG9ubWFp
+bC5jaDxicj48L2Rpdj48ZGl2PlRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwg
+bGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9y
+Zzxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkhlbGxvLCA8YnI+PC9kaXY+PGRpdj48YnI+
+PC9kaXY+PGRpdj49PT09PT09PT09PGJyPjwvZGl2PjxkaXY+PGI+UHJvYmxlbTwvYj46IDxicj48
+L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkV2ZXJ5dGhpbmcgaXMgc3RvcmVkIGluIHBsYWludGV4
+dCBpbiB0aGUgTWVtb3J5LiA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5TbyBpZiBhbHRo
+b3VnaCBmdWxsIGRpc2MgZW5jcnlwdGlvbiBpcyB1c2VkIG9uIGEgTGludXggRGVza3RvcCwgaXQg
+aXMgcG9zc2libGUgdG8gY29weSB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5LCB3aGlsZSB0aGUg
+bm90ZWJvb2sgd2FzIG9uIHN1c3BlbmQgb3IgaXQgd2FzIHJ1bm5pbmc6IDxicj48L2Rpdj48ZGl2
+Pjxicj48L2Rpdj48ZGl2PjxhIGhyZWY9Imh0dHBzOi8vY2l0cC5wcmluY2V0b24uZWR1L3Jlc2Vh
+cmNoL21lbW9yeS9tZWRpYS8iPmh0dHBzOi8vY2l0cC5wcmluY2V0b24uZWR1L3Jlc2VhcmNoL21l
+bW9yeS9tZWRpYS88L2E+PGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+PT09PT09PT09PTxi
+cj48L2Rpdj48ZGl2PjxiPlNvbHV0aW9uPC9iPjogPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2Pjxk
+aXY+Q2FuIHdlIChvcHRpb25hbGx5KikgZW5jcnlwdCB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5
+IGFuZCBzdG9yZSB0aGUga2V5IGZvciBkZWNyeXB0aW9uIGluIHRoZSBDUFUgdG8gYXZvaWQgaW4g
+Z2VuZXJhbCB0aGVzZSBraW5kIG9mIGF0dGFja3M/IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48
+ZGl2PjxhIGhyZWY9Imh0dHBzOi8vd3d3MS5pbmZvcm1hdGlrLnVuaS1lcmxhbmdlbi5kZS90cmVz
+b3IiPmh0dHBzOi8vd3d3MS5pbmZvcm1hdGlrLnVuaS1lcmxhbmdlbi5kZS90cmVzb3I8L2E+PGJy
+PjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+SXMgdGhpcyBzb2x1dGlvbiBhbHJlYWR5IGluIHRo
+ZSBMaW51eCBrZXJuZWw/IElmIHllcywgaG93IGNhbiBhIExpbnV4IGVuZHVzZXIgdHVybiBpdCBv
+bj8gSWYgbm8sIGhvdyBjYW4gd2UgZ2V0IHRoZSBjb2RlL2lkZWEgaW4gdGhlIG1haW5saW5lPyBX
+aGF0IGFyZSB0aGUgYXJndW1lbnRzIGFnYWluc3QgaXQ/IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rp
+dj48ZGl2PippZiBzb21lb25lIHdvdWxkIHdhbnQgdG8gaGFyZGVuIGl0J3MgTGludXggRGVza3Rv
+cCAoc2luY2Ugbm90ZWJvb2tzIGNvdWxkIGJlIHN0b2xlbi4uKSBpdCBjb3VsZCB0dXJuIG9uIHRo
+aXMgZmVhdHVyZSB0byBhdm9pZCBhIHBvbGljeSB0byBhbHdheXMgdHVybiBvZmYgdGhlIG5vdGVi
+b29rIHdoaWxlIG5vdCB1c2luZyBpdC4gPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+VGhh
+bmsgeW91IGZvciB5b3VyIGNvbW1lbnRzLiA8YnI+PC9kaXY+PC9ibG9ja3F1b3RlPjwvYmxvY2tx
+dW90ZT48L2Jsb2NrcXVvdGU+
+
+
+
+--b1_dc73ac3a0141ca280733b0d5786299eb--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
