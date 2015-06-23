@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id C14D36B0075
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 20:40:14 -0400 (EDT)
-Received: by paceq1 with SMTP id eq1so119955791pac.3
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 17:40:14 -0700 (PDT)
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 09A126B0078
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 20:40:17 -0400 (EDT)
+Received: by pdcu2 with SMTP id u2so22735940pdc.3
+        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 17:40:16 -0700 (PDT)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id av1si31816004pbd.182.2015.06.22.17.40.12
+        by mx.google.com with ESMTPS id po9si8581401pac.231.2015.06.22.17.40.12
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 22 Jun 2015 17:40:13 -0700 (PDT)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [RFC v5 PATCH 6/9] mm/hugetlb: alloc_huge_page handle areas hole punched by fallocate
-Date: Mon, 22 Jun 2015 17:38:36 -0700
-Message-Id: <1435019919-29225-7-git-send-email-mike.kravetz@oracle.com>
+Subject: [RFC v5 PATCH 7/9] hugetlbfs: New huge_add_to_page_cache helper routine
+Date: Mon, 22 Jun 2015 17:38:37 -0700
+Message-Id: <1435019919-29225-8-git-send-email-mike.kravetz@oracle.com>
 In-Reply-To: <1435019919-29225-1-git-send-email-mike.kravetz@oracle.com>
 References: <1435019919-29225-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,109 +20,81 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-Areas hole punched by fallocate will not have entries in the
-region/reserve map.  However, shared mappings with min_size subpool
-reservations may still have reserved pages.  alloc_huge_page needs
-to handle this special case and do the proper accounting.
+Currently, there is  only a single place where hugetlbfs pages are
+added to the page cache.  The new fallocate code be adding a second
+one, so break the functionality out into its own helper.
 
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- mm/hugetlb.c | 54 +++++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 39 insertions(+), 15 deletions(-)
+ include/linux/hugetlb.h |  2 ++
+ mm/hugetlb.c            | 27 ++++++++++++++++++---------
+ 2 files changed, 20 insertions(+), 9 deletions(-)
 
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index e6ed378..71a24a7 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -330,6 +330,8 @@ struct huge_bootmem_page {
+ struct page *alloc_huge_page_node(struct hstate *h, int nid);
+ struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
+ 				unsigned long addr, int avoid_reserve);
++int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
++			pgoff_t idx);
+ 
+ /* arch callback */
+ int __init alloc_bootmem_huge_page(struct hstate *h);
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 9d2859f..a485d9c 100644
+index a485d9c..77712c8 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -1600,32 +1600,56 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	struct hugepage_subpool *spool = subpool_vma(vma);
- 	struct hstate *h = hstate_vma(vma);
- 	struct page *page;
--	long chg, commit;
-+	long map_chg, map_commit;
-+	long gbl_chg;
- 	int ret, idx;
- 	struct hugetlb_cgroup *h_cg;
- 
- 	idx = hstate_index(h);
- 	/*
--	 * Processes that did not create the mapping will have no
--	 * reserves and will not have accounted against subpool
--	 * limit. Check that the subpool limit can be made before
--	 * satisfying the allocation MAP_NORESERVE mappings may also
--	 * need pages and subpool limit allocated allocated if no reserve
--	 * mapping overlaps.
-+	 * Examine the region/reserve map to determine if the process
-+	 * has a reservation for the page to be allocated.  A return
-+	 * code of zero indicates a reservation exists (no change).
- 	 */
--	chg = vma_needs_reservation(h, vma, addr);
--	if (chg < 0)
-+	map_chg = gbl_chg = vma_needs_reservation(h, vma, addr);
-+	if (map_chg < 0)
- 		return ERR_PTR(-ENOMEM);
--	if (chg || avoid_reserve)
--		if (hugepage_subpool_get_pages(spool, 1) < 0)
-+
-+	/*
-+	 * Processes that did not create the mapping will have no
-+	 * reserves as indicated by the region/reserve map. Check
-+	 * that the allocation will not exceed the subpool limit.
-+	 * Allocations for MAP_NORESERVE mappings also need to be
-+	 * checked against any subpool limit.
-+	 */
-+	if (map_chg || avoid_reserve) {
-+		gbl_chg = hugepage_subpool_get_pages(spool, 1);
-+		if (gbl_chg < 0)
- 			return ERR_PTR(-ENOSPC);
- 
-+		/*
-+		 * Even though there was no reservation in the region/reserve
-+		 * map, there could be reservations associated with the
-+		 * subpool that can be used.  This would be indicated if the
-+		 * return value of hugepage_subpool_get_pages() is zero.
-+		 * However, if avoid_reserve is specified we still avoid even
-+		 * the subpool reservations.
-+		 */
-+		if (avoid_reserve)
-+			gbl_chg = 1;
-+	}
-+
- 	ret = hugetlb_cgroup_charge_cgroup(idx, pages_per_huge_page(h), &h_cg);
- 	if (ret)
- 		goto out_subpool_put;
- 
- 	spin_lock(&hugetlb_lock);
--	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, chg);
-+	/*
-+	 * glb_chg is passed to indicate whether or not a page must be taken
-+	 * from the global free pool (global change).  gbl_chg == 0 indicates
-+	 * a reservation exists for the allocation.
-+	 */
-+	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, gbl_chg);
- 	if (!page) {
- 		spin_unlock(&hugetlb_lock);
- 		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
-@@ -1641,8 +1665,8 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 
- 	set_page_private(page, (unsigned long)spool);
- 
--	commit = vma_commit_reservation(h, vma, addr);
--	if (unlikely(chg > commit)) {
-+	map_commit = vma_commit_reservation(h, vma, addr);
-+	if (unlikely(map_chg > map_commit)) {
- 		/*
- 		 * The page was added to the reservation map between
- 		 * vma_needs_reservation and vma_commit_reservation.
-@@ -1662,7 +1686,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- out_uncharge_cgroup:
- 	hugetlb_cgroup_uncharge_cgroup(idx, pages_per_huge_page(h), h_cg);
- out_subpool_put:
--	if (chg || avoid_reserve)
-+	if (map_chg || avoid_reserve)
- 		hugepage_subpool_put_pages(spool, 1);
- 	return ERR_PTR(-ENOSPC);
+@@ -3239,6 +3239,23 @@ static bool hugetlbfs_pagecache_present(struct hstate *h,
+ 	return page != NULL;
  }
+ 
++int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
++			   pgoff_t idx)
++{
++	struct inode *inode = mapping->host;
++	struct hstate *h = hstate_inode(inode);
++	int err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
++
++	if (err)
++		return err;
++	ClearPagePrivate(page);
++
++	spin_lock(&inode->i_lock);
++	inode->i_blocks += blocks_per_huge_page(h);
++	spin_unlock(&inode->i_lock);
++	return 0;
++}
++
+ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			   struct address_space *mapping, pgoff_t idx,
+ 			   unsigned long address, pte_t *ptep, unsigned int flags)
+@@ -3286,21 +3303,13 @@ retry:
+ 		set_page_huge_active(page);
+ 
+ 		if (vma->vm_flags & VM_MAYSHARE) {
+-			int err;
+-			struct inode *inode = mapping->host;
+-
+-			err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
++			int err = huge_add_to_page_cache(page, mapping, idx);
+ 			if (err) {
+ 				put_page(page);
+ 				if (err == -EEXIST)
+ 					goto retry;
+ 				goto out;
+ 			}
+-			ClearPagePrivate(page);
+-
+-			spin_lock(&inode->i_lock);
+-			inode->i_blocks += blocks_per_huge_page(h);
+-			spin_unlock(&inode->i_lock);
+ 		} else {
+ 			lock_page(page);
+ 			if (unlikely(anon_vma_prepare(vma))) {
 -- 
 2.1.0
 
