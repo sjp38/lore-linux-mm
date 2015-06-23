@@ -1,31 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D1FB6B006C
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 06:09:09 -0400 (EDT)
-Received: by wiwl6 with SMTP id l6so61520335wiw.0
-        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 03:09:08 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id es2si24987531wib.45.2015.06.23.03.09.07
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CB786B0071
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 06:39:21 -0400 (EDT)
+Received: by wgbhy7 with SMTP id hy7so5747280wgb.2
+        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 03:39:20 -0700 (PDT)
+Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
+        by mx.google.com with ESMTPS id ce9si10305240wib.4.2015.06.23.03.39.19
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Jun 2015 03:09:07 -0700 (PDT)
-Date: Tue, 23 Jun 2015 12:09:06 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH v5 6/6] arch, x86: pmem api for ensuring durability of
-	persistent memory updates
-Message-ID: <20150623100906.GD24894@lst.de>
-References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com> <20150622082449.35954.91411.stgit@dwillia2-desk3.jf.intel.com> <20150622161754.GC8240@lst.de> <CAPcyv4hweoNDZy8Q=dYbdGoY6wCNpAUFrsHvf9v1UpBqizhMHw@mail.gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 23 Jun 2015 03:39:19 -0700 (PDT)
+Message-ID: <5589374D.9060009@nod.at>
+Date: Tue, 23 Jun 2015 12:39:09 +0200
+From: Richard Weinberger <richard@nod.at>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4hweoNDZy8Q=dYbdGoY6wCNpAUFrsHvf9v1UpBqizhMHw@mail.gmail.com>
+Subject: Re: [PATCH v5 6/6] arch, x86: pmem api for ensuring durability of
+ persistent memory updates
+References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com> <20150622082449.35954.91411.stgit@dwillia2-desk3.jf.intel.com> <20150622161754.GC8240@lst.de>
+In-Reply-To: <20150622161754.GC8240@lst.de>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Christoph Hellwig <hch@lst.de>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, Geert Uytterhoeven <geert@linux-m68k.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, mpe@ellerman.id.au, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>, Richard Weinberger <richard@nod.at>
+To: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>
+Cc: arnd@arndb.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, jgross@suse.com, x86@kernel.org, toshi.kani@hp.com, linux-nvdimm@lists.01.org, benh@kernel.crashing.org, mcgrof@suse.com, konrad.wilk@oracle.com, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, mpe@ellerman.id.au, tj@kernel.org, paulus@samba.org
 
-Oh, and please move the ioremap selftest to a .c file instead of a
-header included by almost every driver.
+Am 22.06.2015 um 18:17 schrieb Christoph Hellwig:
+>> +#ifdef ARCH_HAS_NOCACHE_UACCESS
+> 
+> Seems like this is always define for x86 anyway?
+> 
+>> +/**
+>> + * arch_memcpy_to_pmem - copy data to persistent memory
+>> + * @dst: destination buffer for the copy
+>> + * @src: source buffer for the copy
+>> + * @n: length of the copy in bytes
+>> + *
+>> + * Copy data to persistent memory media via non-temporal stores so that
+>> + * a subsequent arch_wmb_pmem() can flush cpu and memory controller
+>> + * write buffers to guarantee durability.
+>> + */
+> static inline void arch_memcpy_to_pmem(void __pmem *dst, const void *src, size_t n)
+> 
+> Too long line.  Also why not simply arch_copy_{from,to}_pmem?
+> 
+>> +#else /* ARCH_HAS_NOCACHE_UACCESS i.e. ARCH=um */
+> 
+> Oh, UM.  I'd rather see UM fixed to provide these.
+> 
+> Richard, any chance you could look into it?
+
+Not sure if I understand this correctly, is the plan to support pmem also on UML?
+At least drivers/block/pmem.c cannot work on UML as it depends on io memory.
+
+Only x86 seems to have ARCH_HAS_NOCACHE_UACCESS, if UML would offer these methods
+what drivers need them? I'm still not sure where it would make sense on UML as
+uaccess on UML means ptrace() between host and guest process.
+
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
