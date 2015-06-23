@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 62F4F6B00B1
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 09:53:37 -0400 (EDT)
-Received: by pdbci14 with SMTP id ci14so7850351pdb.2
-        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 06:53:37 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id e5si34793303pdf.100.2015.06.23.06.47.22
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ECA16B00B4
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 09:53:46 -0400 (EDT)
+Received: by pdjn11 with SMTP id n11so7904804pdj.0
+        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 06:53:45 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id c11si34747513pat.225.2015.06.23.06.47.19
         for <linux-mm@kvack.org>;
-        Tue, 23 Jun 2015 06:47:23 -0700 (PDT)
+        Tue, 23 Jun 2015 06:47:20 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv7 34/36] thp: introduce deferred_split_huge_page()
-Date: Tue, 23 Jun 2015 16:46:44 +0300
-Message-Id: <1435067206-92901-35-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv7 26/36] mm: rework mapcount accounting to enable 4k mapping of THPs
+Date: Tue, 23 Jun 2015 16:46:36 +0300
+Message-Id: <1435067206-92901-27-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1435067206-92901-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1435067206-92901-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,329 +19,506 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Currently we don't split huge page on partial unmap. It's not an ideal
-situation. It can lead to memory overhead.
+We're going to allow mapping of individual 4k pages of THP compound.
+It means we need to track mapcount on per small page basis.
 
-Furtunately, we can detect partial unmap on page_remove_rmap(). But we
-cannot call split_huge_page() from there due to locking context.
+Straight-forward approach is to use ->_mapcount in all subpages to track
+how many time this subpage is mapped with PMDs or PTEs combined. But
+this is rather expensive: mapping or unmapping of a THP page with PMD
+would require HPAGE_PMD_NR atomic operations instead of single we have
+now.
 
-It's also counterproductive to do directly from munmap() codepath: in
-many cases we will hit this from exit(2) and splitting the huge page
-just to free it up in small pages is not what we really want.
+The idea is to store separately how many times the page was mapped as
+whole -- compound_mapcount. This frees up ->_mapcount in subpages to
+track PTE mapcount.
 
-The patch introduce deferred_split_huge_page() which put the huge page
-into queue for splitting. The splitting itself will happen when we get
-memory pressure via shrinker interface. The page will be dropped from
-list on freeing through compound page destructor.
+We use the same approach as with compound page destructor and compound
+order to store compound_mapcount: use space in first tail page,
+->mapping this time.
+
+Any time we map/unmap whole compound page (THP or hugetlb) -- we
+increment/decrement compound_mapcount. When we map part of compound page
+with PTE we operate on ->_mapcount of the subpage.
+
+page_mapcount() counts both: PTE and PMD mappings of the page.
+
+Basically, we have mapcount for a subpage spread over two counters.
+It makes tricky to detect when last mapcount for a page goes away.
+
+We introduced PageDoubleMap() for this. When we split THP PMD for the
+first time and there's other PMD mapping left we offset up ->_mapcount
+in all subpages by one and set PG_double_map on the compound page.
+These additional references go away with last compound_mapcount.
+
+This approach provides a way to detect when last mapcount goes away on
+per small page basis without introducing new overhead for most common
+cases.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Tested-by: Sasha Levin <sasha.levin@oracle.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- include/linux/huge_mm.h |   4 ++
- include/linux/mm.h      |   2 +
- mm/huge_memory.c        | 127 ++++++++++++++++++++++++++++++++++++++++++++++--
- mm/migrate.c            |   1 +
- mm/page_alloc.c         |   2 +-
- mm/rmap.c               |   7 ++-
- 6 files changed, 138 insertions(+), 5 deletions(-)
+ include/linux/mm.h         | 26 +++++++++++-
+ include/linux/mm_types.h   |  1 +
+ include/linux/page-flags.h | 37 +++++++++++++++++
+ include/linux/rmap.h       |  4 +-
+ mm/debug.c                 |  5 ++-
+ mm/huge_memory.c           |  2 +-
+ mm/hugetlb.c               |  4 +-
+ mm/memory.c                |  2 +-
+ mm/migrate.c               |  2 +-
+ mm/page_alloc.c            | 14 +++++--
+ mm/rmap.c                  | 98 +++++++++++++++++++++++++++++++++++-----------
+ 11 files changed, 160 insertions(+), 35 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 89981a042d85..c1cca36c73db 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -92,11 +92,14 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
- 
- extern unsigned long transparent_hugepage_flags;
- 
-+extern void prep_transhuge_page(struct page *page);
-+
- int split_huge_page_to_list(struct page *page, struct list_head *list);
- static inline int split_huge_page(struct page *page)
- {
- 	return split_huge_page_to_list(page, NULL);
- }
-+void deferred_split_huge_page(struct page *page);
- 
- void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long address);
-@@ -174,6 +177,7 @@ static inline int split_huge_page(struct page *page)
- {
- 	return 0;
- }
-+static inline void deferred_split_huge_page(struct page *page) {}
- #define split_huge_pmd(__vma, __pmd, __address)	\
- 	do { } while (0)
- static inline int hugepage_madvise(struct vm_area_struct *vma,
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0786ca13b17e..cd7da6d0e6fe 100644
+index 31cd5be081cf..7a3f95beff12 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -522,6 +522,8 @@ static inline void set_compound_order(struct page *page, unsigned long order)
- 	page[1].compound_order = order;
+@@ -403,6 +403,19 @@ static inline int is_vmalloc_or_module_addr(const void *x)
+ 
+ extern void kvfree(const void *addr);
+ 
++static inline atomic_t *compound_mapcount_ptr(struct page *page)
++{
++	return &page[1].compound_mapcount;
++}
++
++static inline int compound_mapcount(struct page *page)
++{
++	if (!PageCompound(page))
++		return 0;
++	page = compound_head(page);
++	return atomic_read(compound_mapcount_ptr(page)) + 1;
++}
++
+ /*
+  * The atomic page->_mapcount, starts from -1: so that transitions
+  * both from it and to it can be tracked, using atomic_inc_and_test
+@@ -415,8 +428,17 @@ static inline void page_mapcount_reset(struct page *page)
+ 
+ static inline int page_mapcount(struct page *page)
+ {
++	int ret;
+ 	VM_BUG_ON_PAGE(PageSlab(page), page);
+-	return atomic_read(&page->_mapcount) + 1;
++
++	ret = atomic_read(&page->_mapcount) + 1;
++	if (PageCompound(page)) {
++		page = compound_head(page);
++		ret += atomic_read(compound_mapcount_ptr(page)) + 1;
++		if (PageDoubleMap(page))
++			ret--;
++	}
++	return ret;
  }
  
-+void free_compound_page(struct page *page);
-+
- #ifdef CONFIG_MMU
+ static inline int page_count(struct page *page)
+@@ -898,7 +920,7 @@ static inline pgoff_t page_file_index(struct page *page)
+  */
+ static inline int page_mapped(struct page *page)
+ {
+-	return atomic_read(&(page)->_mapcount) >= 0;
++	return atomic_read(&(page)->_mapcount) + compound_mapcount(page) >= 0;
+ }
+ 
  /*
-  * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index bd8c83e2f466..8d0d77b726ca 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -71,6 +71,8 @@ static int khugepaged(void *none);
- static int khugepaged_slab_init(void);
- static void khugepaged_slab_exit(void);
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 4b51a59160ab..4d182cd14c1f 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -56,6 +56,7 @@ struct page {
+ 						 * see PAGE_MAPPING_ANON below.
+ 						 */
+ 		void *s_mem;			/* slab first object */
++		atomic_t compound_mapcount;	/* first tail page */
+ 	};
  
-+static void free_transhuge_page(struct page *page);
+ 	/* Second double word */
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 74b7cece1dfa..5959d646f3f0 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -127,6 +127,9 @@ enum pageflags {
+ 
+ 	/* SLOB */
+ 	PG_slob_free = PG_private,
 +
- #define MM_SLOTS_HASH_BITS 10
- static __read_mostly DEFINE_HASHTABLE(mm_slots_hash, MM_SLOTS_HASH_BITS);
- 
-@@ -105,6 +107,10 @@ static struct khugepaged_scan khugepaged_scan = {
- 	.mm_head = LIST_HEAD_INIT(khugepaged_scan.mm_head),
++	/* Compound pages. Stored in first tail page's flags */
++	PG_double_map = PG_private_2,
  };
  
-+static DEFINE_SPINLOCK(split_queue_lock);
-+static LIST_HEAD(split_queue);
-+static unsigned long split_queue_len;
-+static struct shrinker deferred_split_shrinker;
- 
- static int set_recommended_min_free_kbytes(void)
- {
-@@ -643,6 +649,9 @@ static int __init hugepage_init(void)
- 	err = register_shrinker(&huge_zero_page_shrinker);
- 	if (err)
- 		goto err_hzp_shrinker;
-+	err = register_shrinker(&deferred_split_shrinker);
-+	if (err)
-+		goto err_split_shrinker;
- 
- 	/*
- 	 * By default disable transparent hugepages on smaller systems,
-@@ -660,6 +669,8 @@ static int __init hugepage_init(void)
- 
- 	return 0;
- err_khugepaged:
-+	unregister_shrinker(&deferred_split_shrinker);
-+err_split_shrinker:
- 	unregister_shrinker(&huge_zero_page_shrinker);
- err_hzp_shrinker:
- 	khugepaged_slab_exit();
-@@ -716,6 +727,19 @@ static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
- 	return entry;
+ #ifndef __GENERATING_BOUNDS_H
+@@ -593,10 +596,44 @@ static inline int PageTransTail(struct page *page)
+ 	return PageTail(page);
  }
  
-+void prep_transhuge_page(struct page *page)
++/*
++ * PageDoubleMap indicates that the compound page is mapped with PTEs as well
++ * as PMDs.
++ *
++ * This is required for optimization of rmap oprations for THP: we can postpone
++ * per small page mapcount accounting (and its overhead from atomic operations)
++ * until the first PMD split.
++ *
++ * For the page PageDoubleMap means ->_mapcount in all sub-pages is offset up
++ * by one. This reference will go away with last compound_mapcount.
++ *
++ * See also __split_huge_pmd_locked() and page_remove_anon_compound_rmap().
++ */
++static inline int PageDoubleMap(struct page *page)
 +{
-+	/* we use page->lru in second tail page: assuming THP order >= 2 */
-+	BUILD_BUG_ON(HPAGE_PMD_ORDER < 2);
-+
-+	/*
-+	 *  ->lru in the first tail page is occupied by destructor
-+	 *  and order of the compound page
-+	 */
-+	INIT_LIST_HEAD(&page[2].lru);
-+	set_compound_page_dtor(page, free_transhuge_page);
++	VM_BUG_ON_PAGE(!PageHead(page), page);
++	return page[1].flags & PG_double_map;
 +}
 +
- static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 					struct vm_area_struct *vma,
- 					unsigned long haddr, pmd_t *pmd,
-@@ -868,6 +892,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		count_vm_event(THP_FAULT_FALLBACK);
- 		return VM_FAULT_FALLBACK;
- 	}
-+	prep_transhuge_page(page);
- 	return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page, gfp, flags);
++static inline int TestSetPageDoubleMap(struct page *page)
++{
++	VM_BUG_ON_PAGE(!PageHead(page), page);
++	return test_and_set_bit(PG_double_map, &page[1].flags);
++}
++
++static inline void ClearPageDoubleMap(struct page *page)
++{
++	VM_BUG_ON_PAGE(!PageHead(page), page);
++	clear_bit(PG_double_map, &page[1].flags);
++}
++
+ #else
+ TESTPAGEFLAG_FALSE(TransHuge)
+ TESTPAGEFLAG_FALSE(TransCompound)
+ TESTPAGEFLAG_FALSE(TransTail)
++TESTPAGEFLAG_FALSE(DoubleMap)
++	TESTSETFLAG_FALSE(DoubleMap)
++	CLEARPAGEFLAG_NOOP(DoubleMap)
+ #endif
+ 
+ /*
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 2bc86dc14305..1757854cd35c 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -181,9 +181,9 @@ void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,
+ void hugepage_add_new_anon_rmap(struct page *, struct vm_area_struct *,
+ 				unsigned long);
+ 
+-static inline void page_dup_rmap(struct page *page)
++static inline void page_dup_rmap(struct page *page, bool compound)
+ {
+-	atomic_inc(&page->_mapcount);
++	atomic_inc(compound ? compound_mapcount_ptr(page) : &page->_mapcount);
  }
  
-@@ -1120,7 +1145,9 @@ alloc:
+ /*
+diff --git a/mm/debug.c b/mm/debug.c
+index 9dfcd77e7354..4a82f639b964 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -80,9 +80,12 @@ static void dump_flags(unsigned long flags,
+ void dump_page_badflags(struct page *page, const char *reason,
+ 		unsigned long badflags)
+ {
+-	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
++	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx",
+ 		  page, atomic_read(&page->_count), page_mapcount(page),
+ 		  page->mapping, page->index);
++	if (PageCompound(page))
++		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
++	pr_cont("\n");
+ 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS);
+ 	dump_flags(page->flags, pageflag_names, ARRAY_SIZE(pageflag_names));
+ 	if (reason)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index efe52b5bd979..5b0a13d2f28c 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -917,7 +917,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 	src_page = pmd_page(pmd);
+ 	VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
+ 	get_page(src_page);
+-	page_dup_rmap(src_page);
++	page_dup_rmap(src_page, true);
+ 	add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
+ 
+ 	pmdp_set_wrprotect(src_mm, addr, src_pmd);
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 633fd8d19e31..cad96259ed44 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2795,7 +2795,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			entry = huge_ptep_get(src_pte);
+ 			ptepage = pte_page(entry);
+ 			get_page(ptepage);
+-			page_dup_rmap(ptepage);
++			page_dup_rmap(ptepage, true);
+ 			set_huge_pte_at(dst, addr, dst_pte, entry);
+ 		}
+ 		spin_unlock(src_ptl);
+@@ -3256,7 +3256,7 @@ retry:
+ 		ClearPagePrivate(page);
+ 		hugepage_add_new_anon_rmap(page, vma, address);
  	} else
- 		new_page = NULL;
- 
--	if (unlikely(!new_page)) {
-+	if (likely(new_page)) {
-+		prep_transhuge_page(new_page);
-+	} else {
- 		if (!page) {
- 			split_huge_pmd(vma, pmd, address);
- 			ret |= VM_FAULT_FALLBACK;
-@@ -2045,6 +2072,7 @@ khugepaged_alloc_page(struct page **hpage, gfp_t gfp, struct mm_struct *mm,
- 		return NULL;
- 	}
- 
-+	prep_transhuge_page(*hpage);
- 	count_vm_event(THP_COLLAPSE_ALLOC);
- 	return *hpage;
- }
-@@ -2056,8 +2084,12 @@ static int khugepaged_find_target_node(void)
- 
- static inline struct page *alloc_hugepage(int defrag)
- {
--	return alloc_pages(alloc_hugepage_gfpmask(defrag, 0),
--			   HPAGE_PMD_ORDER);
-+	struct page *page;
-+
-+	page = alloc_pages(alloc_hugepage_gfpmask(defrag, 0), HPAGE_PMD_ORDER);
-+	if (page)
-+		prep_transhuge_page(page);
-+	return page;
- }
- 
- static struct page *khugepaged_alloc_hugepage(bool *wait)
-@@ -2957,6 +2989,13 @@ static void __split_huge_page(struct page *page, struct list_head *list)
- 	spin_lock_irq(&zone->lru_lock);
- 	lruvec = mem_cgroup_page_lruvec(head, zone);
- 
-+	spin_lock(&split_queue_lock);
-+	if (!list_empty(&head[2].lru)) {
-+		split_queue_len--;
-+		list_del(&head[2].lru);
-+	}
-+	spin_unlock(&split_queue_lock);
-+
- 	/* complete memcg works before add pages to LRU */
- 	mem_cgroup_split_huge_fixup(head);
- 
-@@ -3068,3 +3107,85 @@ out:
- 	count_vm_event(!ret ? THP_SPLIT_PAGE : THP_SPLIT_PAGE_FAILED);
- 	return ret;
- }
-+
-+static void free_transhuge_page(struct page *page)
-+{
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&split_queue_lock, flags);
-+	if (!list_empty(&page[2].lru)) {
-+		split_queue_len--;
-+		list_del(&page[2].lru);
-+	}
-+	spin_unlock_irqrestore(&split_queue_lock, flags);
-+	free_compound_page(page);
-+}
-+
-+void deferred_split_huge_page(struct page *page)
-+{
-+	unsigned long flags;
-+
-+	VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-+
-+	spin_lock_irqsave(&split_queue_lock, flags);
-+	if (list_empty(&page[2].lru)) {
-+		list_add_tail(&page[2].lru, &split_queue);
-+		split_queue_len++;
-+	}
-+	spin_unlock_irqrestore(&split_queue_lock, flags);
-+}
-+
-+static unsigned long deferred_split_count(struct shrinker *shrink,
-+		struct shrink_control *sc)
-+{
-+	/*
-+	 * Split a page from split_queue will free up at least one page,
-+	 * at most HPAGE_PMD_NR - 1. We don't track exact number.
-+	 * Let's use HPAGE_PMD_NR / 2 as ballpark.
-+	 */
-+	return ACCESS_ONCE(split_queue_len) * HPAGE_PMD_NR / 2;
-+}
-+
-+static unsigned long deferred_split_scan(struct shrinker *shrink,
-+		struct shrink_control *sc)
-+{
-+	unsigned long flags;
-+	LIST_HEAD(list);
-+	struct page *page, *next;
-+	int split = 0;
-+
-+	spin_lock_irqsave(&split_queue_lock, flags);
-+	list_splice_init(&split_queue, &list);
-+
-+	/* Take pin on all head pages to avoid freeing them under us */
-+	list_for_each_entry_safe(page, next, &list, lru) {
-+		page = compound_head(page);
-+		/* race with put_compound_page() */
-+		if (!get_page_unless_zero(page)) {
-+			list_del_init(&page[2].lru);
-+			split_queue_len--;
-+		}
-+	}
-+	spin_unlock_irqrestore(&split_queue_lock, flags);
-+
-+	list_for_each_entry_safe(page, next, &list, lru) {
-+		lock_page(page);
-+		/* split_huge_page() removes page from list on success */
-+		if (!split_huge_page(page))
-+			split++;
-+		unlock_page(page);
-+		put_page(page);
-+	}
-+
-+	spin_lock_irqsave(&split_queue_lock, flags);
-+	list_splice_tail(&list, &split_queue);
-+	spin_unlock_irqrestore(&split_queue_lock, flags);
-+
-+	return split * HPAGE_PMD_NR / 2;
-+}
-+
-+static struct shrinker deferred_split_shrinker = {
-+	.count_objects = deferred_split_count,
-+	.scan_objects = deferred_split_scan,
-+	.seeks = DEFAULT_SEEKS,
-+};
+-		page_dup_rmap(page);
++		page_dup_rmap(page, true);
+ 	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
+ 				&& (vma->vm_flags & VM_SHARED)));
+ 	set_huge_pte_at(mm, address, ptep, new_pte);
+diff --git a/mm/memory.c b/mm/memory.c
+index ff2e8ed5b82a..cdc20d674675 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -867,7 +867,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 	page = vm_normal_page(vma, addr, pte);
+ 	if (page) {
+ 		get_page(page);
+-		page_dup_rmap(page);
++		page_dup_rmap(page, false);
+ 		if (PageAnon(page))
+ 			rss[MM_ANONPAGES]++;
+ 		else
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 8bb2107b8751..4c79c5447623 100644
+index 9cabb25fb16e..dfd24cb7afc6 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -1742,6 +1742,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 		HPAGE_PMD_ORDER);
- 	if (!new_page)
- 		goto out_fail;
-+	prep_transhuge_page(new_page);
- 
- 	isolated = numamigrate_isolate_page(pgdat, page);
- 	if (!isolated) {
+@@ -164,7 +164,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+ 		if (PageAnon(new))
+ 			hugepage_add_anon_rmap(new, vma, addr);
+ 		else
+-			page_dup_rmap(new);
++			page_dup_rmap(new, false);
+ 	} else if (PageAnon(new))
+ 		page_add_anon_rmap(new, vma, addr, false);
+ 	else
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1e1f5898172b..02815f91c3c3 100644
+index 014806d13138..1e1f5898172b 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -430,7 +430,7 @@ out:
-  * This usage means that zero-order pages may not be compound.
-  */
- 
--static void free_compound_page(struct page *page)
-+void free_compound_page(struct page *page)
- {
- 	__free_pages_ok(page, compound_order(page));
+@@ -452,6 +452,7 @@ void prep_compound_page(struct page *page, unsigned long order)
+ 		smp_wmb();
+ 		__SetPageTail(p);
+ 	}
++	atomic_set(compound_mapcount_ptr(page), -1);
  }
+ 
+ #ifdef CONFIG_DEBUG_PAGEALLOC
+@@ -716,7 +717,7 @@ static inline int free_pages_check(struct page *page)
+ 	const char *bad_reason = NULL;
+ 	unsigned long bad_flags = 0;
+ 
+-	if (unlikely(page_mapcount(page)))
++	if (unlikely(atomic_read(&page->_mapcount) != -1))
+ 		bad_reason = "nonzero mapcount";
+ 	if (unlikely(page->mapping != NULL))
+ 		bad_reason = "non-NULL mapping";
+@@ -825,7 +826,14 @@ static void free_one_page(struct zone *zone,
+ 
+ static int free_tail_pages_check(struct page *head_page, struct page *page)
+ {
+-	if (page->mapping != TAIL_MAPPING) {
++	/* mapping in first tail page is used for compound_mapcount() */
++	if (page - head_page == 1) {
++		if (unlikely(compound_mapcount(page))) {
++			bad_page(page, "nonzero compound_mapcount", 0);
++			page->mapping = NULL;
++			return 1;
++		}
++	} else if (page->mapping != TAIL_MAPPING) {
+ 		bad_page(page, "corrupted mapping in tail page", 0);
+ 		page->mapping = NULL;
+ 		return 1;
+@@ -1288,7 +1296,7 @@ static inline int check_new_page(struct page *page)
+ 	const char *bad_reason = NULL;
+ 	unsigned long bad_flags = 0;
+ 
+-	if (unlikely(page_mapcount(page)))
++	if (unlikely(atomic_read(&page->_mapcount) != -1))
+ 		bad_reason = "nonzero mapcount";
+ 	if (unlikely(page->mapping != NULL))
+ 		bad_reason = "non-NULL mapping";
 diff --git a/mm/rmap.c b/mm/rmap.c
-index 956305a8f5cc..1d138aada15c 100644
+index 0e3851661487..a7bc208375ac 100644
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -1204,8 +1204,10 @@ static void page_remove_anon_compound_rmap(struct page *page)
- 		nr = HPAGE_PMD_NR;
- 	}
- 
--	if (nr)
-+	if (nr) {
- 		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
-+		deferred_split_huge_page(page);
-+	}
+@@ -1035,7 +1035,7 @@ static void __page_check_anon_rmap(struct page *page,
+ 	 * over the call to page_add_new_anon_rmap.
+ 	 */
+ 	BUG_ON(page_anon_vma(page)->root != vma->anon_vma->root);
+-	BUG_ON(page->index != linear_page_index(vma, address));
++	BUG_ON(page_to_pgoff(page) != linear_page_index(vma, address));
+ #endif
  }
  
+@@ -1065,9 +1065,26 @@ void page_add_anon_rmap(struct page *page,
+ void do_page_add_anon_rmap(struct page *page,
+ 	struct vm_area_struct *vma, unsigned long address, int flags)
+ {
+-	int first = atomic_inc_and_test(&page->_mapcount);
++	bool compound = flags & RMAP_COMPOUND;
++	bool first;
++
++	if (PageTransCompound(page)) {
++		VM_BUG_ON_PAGE(!PageLocked(page), page);
++		if (compound) {
++			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
++			first = atomic_inc_and_test(compound_mapcount_ptr(page));
++		} else {
++			/* Anon THP always mapped first with PMD */
++			first = 0;
++			VM_BUG_ON_PAGE(!page_mapcount(page), page);
++			atomic_inc(&page->_mapcount);
++		}
++	} else {
++		VM_BUG_ON_PAGE(compound, page);
++		first = atomic_inc_and_test(&page->_mapcount);
++	}
++
+ 	if (first) {
+-		bool compound = flags & RMAP_COMPOUND;
+ 		int nr = compound ? hpage_nr_pages(page) : 1;
+ 		/*
+ 		 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
+@@ -1086,6 +1103,7 @@ void do_page_add_anon_rmap(struct page *page,
+ 		return;
+ 
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
++
+ 	/* address might be in next vma when migration races vma_adjust */
+ 	if (first)
+ 		__page_set_anon_rmap(page, vma, address,
+@@ -1112,10 +1130,16 @@ void page_add_new_anon_rmap(struct page *page,
+ 
+ 	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
+ 	SetPageSwapBacked(page);
+-	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
+ 	if (compound) {
+ 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
++		/* increment count (starts at -1) */
++		atomic_set(compound_mapcount_ptr(page), 0);
+ 		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
++	} else {
++		/* Anon THP always mapped first with PMD */
++		VM_BUG_ON_PAGE(PageTransCompound(page), page);
++		/* increment count (starts at -1) */
++		atomic_set(&page->_mapcount, 0);
+ 	}
+ 	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, nr);
+ 	__page_set_anon_rmap(page, vma, address, 1);
+@@ -1145,12 +1169,15 @@ static void page_remove_file_rmap(struct page *page)
+ 
+ 	memcg = mem_cgroup_begin_page_stat(page);
+ 
+-	/* page still mapped by someone else? */
+-	if (!atomic_add_negative(-1, &page->_mapcount))
++	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
++	if (unlikely(PageHuge(page))) {
++		/* hugetlb pages are always mapped with pmds */
++		atomic_dec(compound_mapcount_ptr(page));
+ 		goto out;
++	}
+ 
+-	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
+-	if (unlikely(PageHuge(page)))
++	/* page still mapped by someone else? */
++	if (!atomic_add_negative(-1, &page->_mapcount))
+ 		goto out;
+ 
+ 	/*
+@@ -1167,6 +1194,41 @@ out:
+ 	mem_cgroup_end_page_stat(memcg);
+ }
+ 
++static void page_remove_anon_compound_rmap(struct page *page)
++{
++	int i, nr;
++
++	if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
++		return;
++
++	/* Hugepages are not counted in NR_ANON_PAGES for now. */
++	if (unlikely(PageHuge(page)))
++		return;
++
++	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
++		return;
++
++	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
++
++	if (PageDoubleMap(page)) {
++		nr = 0;
++		ClearPageDoubleMap(page);
++		/*
++		 * Subpages can be mapped with PTEs too. Check how many of
++		 * themi are still mapped.
++		 */
++		for (i = 0; i < HPAGE_PMD_NR; i++) {
++			if (atomic_add_negative(-1, &page[i]._mapcount))
++				nr++;
++		}
++	} else {
++		nr = HPAGE_PMD_NR;
++	}
++
++	if (nr)
++		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
++}
++
  /**
-@@ -1240,6 +1242,9 @@ void page_remove_rmap(struct page *page, bool compound)
+  * page_remove_rmap - take down pte mapping from a page
+  * @page:	page to remove mapping from
+@@ -1176,33 +1238,25 @@ out:
+  */
+ void page_remove_rmap(struct page *page, bool compound)
+ {
+-	int nr = compound ? hpage_nr_pages(page) : 1;
+-
+ 	if (!PageAnon(page)) {
+ 		VM_BUG_ON_PAGE(compound && !PageHuge(page), page);
+ 		page_remove_file_rmap(page);
+ 		return;
+ 	}
+ 
++	if (compound)
++		return page_remove_anon_compound_rmap(page);
++
+ 	/* page still mapped by someone else? */
+ 	if (!atomic_add_negative(-1, &page->_mapcount))
+ 		return;
+ 
+-	/* Hugepages are not counted in NR_ANON_PAGES for now. */
+-	if (unlikely(PageHuge(page)))
+-		return;
+-
+ 	/*
+ 	 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
+ 	 * these counters are not modified in interrupt context, and
+ 	 * pte lock(a spinlock) is held, which implies preemption disabled.
+ 	 */
+-	if (compound) {
+-		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+-		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
+-	}
+-
+-	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
++	__dec_zone_page_state(page, NR_ANON_PAGES);
+ 
  	if (unlikely(PageMlocked(page)))
  		clear_page_mlock(page);
- 
-+	if (PageTransCompound(page))
-+		deferred_split_huge_page(compound_head(page));
-+
- 	/*
- 	 * It would be tidy to reset the PageAnon mapping here,
- 	 * but that might overwrite a racing page_add_anon_rmap
+@@ -1643,7 +1697,7 @@ void hugepage_add_anon_rmap(struct page *page,
+ 	BUG_ON(!PageLocked(page));
+ 	BUG_ON(!anon_vma);
+ 	/* address might be in next vma when migration races vma_adjust */
+-	first = atomic_inc_and_test(&page->_mapcount);
++	first = atomic_inc_and_test(compound_mapcount_ptr(page));
+ 	if (first)
+ 		__hugepage_set_anon_rmap(page, vma, address, 0);
+ }
+@@ -1652,7 +1706,7 @@ void hugepage_add_new_anon_rmap(struct page *page,
+ 			struct vm_area_struct *vma, unsigned long address)
+ {
+ 	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+-	atomic_set(&page->_mapcount, 0);
++	atomic_set(compound_mapcount_ptr(page), 0);
+ 	__hugepage_set_anon_rmap(page, vma, address, 1);
+ }
+ #endif /* CONFIG_HUGETLB_PAGE */
 -- 
 2.1.4
 
