@@ -1,118 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D0216B0032
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 00:42:37 -0400 (EDT)
-Received: by wicnd19 with SMTP id nd19so94282896wic.1
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 21:42:36 -0700 (PDT)
-Received: from mail2.protonmail.ch (mail2.protonmail.ch. [185.70.40.22])
-        by mx.google.com with ESMTPS id ge8si23638874wib.104.2015.06.22.21.42.35
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 70DBB6B0032
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 04:12:00 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so98430890wig.0
+        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 01:11:59 -0700 (PDT)
+Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
+        by mx.google.com with ESMTPS id r1si24469749wic.112.2015.06.23.01.11.58
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jun 2015 21:42:35 -0700 (PDT)
-Subject: ========== Re: RAM encryption and key storing in CPU ==========
-Date: Tue, 23 Jun 2015 00:42:34 -0400
-From: ngabor <ngabor@protonmail.ch>
-Reply-To: ngabor <ngabor@protonmail.ch>
-Message-ID: <dc73ac3a0141ca280733b0d5786299eb@protonmail.ch>
+        Tue, 23 Jun 2015 01:11:58 -0700 (PDT)
+Received: by wibdq8 with SMTP id dq8so8585640wib.1
+        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 01:11:58 -0700 (PDT)
+From: =?UTF-8?q?Pali=20Roh=C3=A1r?= <pali.rohar@gmail.com>
+Subject: [PATCH] dell-laptop: Fix allocating & freeing SMI buffer page
+Date: Tue, 23 Jun 2015 10:11:19 +0200
+Message-Id: <1435047079-949-1-git-send-email-pali.rohar@gmail.com>
+In-Reply-To: <1434876063-13460-1-git-send-email-pali.rohar@gmail.com>
+References: <1434876063-13460-1-git-send-email-pali.rohar@gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="b1_dc73ac3a0141ca280733b0d5786299eb"
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "bp@alien8.de" <bp@alien8.de>, "lizefan@huawei.com" <lizefan@huawei.com>, "tj@kernel.org" <tj@kernel.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>
+To: Darren Hart <dvhart@infradead.org>, Matthew Garrett <mjg59@srcf.ucam.org>, Michal Hocko <mhocko@suse.cz>
+Cc: platform-driver-x86@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?UTF-8?q?Pali=20Roh=C3=A1r?= <pali.rohar@gmail.com>, stable@vger.kernel.org
 
-This is a multi-part message in MIME format.
+This commit fix kernel crash when probing for rfkill devices in dell-laptop
+driver failed. Function free_page() was incorrectly used on struct page *
+instead of virtual address of SMI buffer.
 
---b1_dc73ac3a0141ca280733b0d5786299eb
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+This commit also simplify allocating page for SMI buffer by using
+__get_free_page() function instead of sequential call of functions
+alloc_page() and page_address().
 
-SXMgYW55Ym9keSByZWFkaW5nIHRoaXM/CgoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0t
-LS0tLQoKU3ViamVjdDogUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUK
-ClRpbWUgKEdNVCk6IEp1biAxOSAyMDE1IDE3OjIyOjQ5CgpGcm9tOiBuZ2Fib3JAcHJvdG9ubWFp
-bC5jaAoKVG86IGxpbnV4LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXplZmFuQGh1YXdl
-aS5jb20sIHRqQGtlcm5lbC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnCgoKCkhhbGxvPyA6
-KQoKCi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS0KClN1YmplY3Q6IFJlOiBSQU0g
-ZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVCgpUaW1lIChHTVQpOiBNYXkgMjMgMjAx
-NSAwOTowMToyNgoKRnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2gKClRvOiBsaW51eC1tbUBrdmFj
-ay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBj
-bEBsaW51eC1mb3VuZGF0aW9uLm9yZwoKCgpBbnkgY29tbWVudHM/CgoKLS0tLS0tLS0gT3JpZ2lu
-YWwgTWVzc2FnZSAtLS0tLS0tLQoKU3ViamVjdDogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9y
-aW5nIGluIENQVQoKVGltZSAoR01UKTogTWF5IDIxIDIwMTUgMTA6MTc6MjUKCkZyb206IG5nYWJv
-ckBwcm90b25tYWlsLmNoCgpUbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxp
-emVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmcK
-CgoKSGVsbG8sCgoKCj09PT09PT09PT0KClByb2JsZW06CgoKCkV2ZXJ5dGhpbmcgaXMgc3RvcmVk
-IGluIHBsYWludGV4dCBpbiB0aGUgTWVtb3J5LgoKCgpTbyBpZiBhbHRob3VnaCBmdWxsIGRpc2Mg
-ZW5jcnlwdGlvbiBpcyB1c2VkIG9uIGEgTGludXggRGVza3RvcCwgaXQgaXMgcG9zc2libGUgdG8g
-Y29weSB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5LCB3aGlsZSB0aGUgbm90ZWJvb2sgd2FzIG9u
-IHN1c3BlbmQgb3IgaXQgd2FzIHJ1bm5pbmc6CgoKCmh0dHBzOi8vY2l0cC5wcmluY2V0b24uZWR1
-L3Jlc2VhcmNoL21lbW9yeS9tZWRpYS8KCgoKPT09PT09PT09PQoKU29sdXRpb246CgoKCkNhbiB3
-ZSAob3B0aW9uYWxseSopIGVuY3J5cHQgdGhlIGNvbnRlbnQgb2YgdGhlIG1lbW9yeSBhbmQgc3Rv
-cmUgdGhlIGtleSBmb3IgZGVjcnlwdGlvbiBpbiB0aGUgQ1BVIHRvIGF2b2lkIGluIGdlbmVyYWwg
-dGhlc2Uga2luZCBvZiBhdHRhY2tzPwoKCgpodHRwczovL3d3dzEuaW5mb3JtYXRpay51bmktZXJs
-YW5nZW4uZGUvdHJlc29yCgoKCklzIHRoaXMgc29sdXRpb24gYWxyZWFkeSBpbiB0aGUgTGludXgg
-a2VybmVsPyBJZiB5ZXMsIGhvdyBjYW4gYSBMaW51eCBlbmR1c2VyIHR1cm4gaXQgb24/IElmIG5v
-LCBob3cgY2FuIHdlIGdldCB0aGUgY29kZS9pZGVhIGluIHRoZSBtYWlubGluZT8gV2hhdCBhcmUg
-dGhlIGFyZ3VtZW50cyBhZ2FpbnN0IGl0PwoKCgoqaWYgc29tZW9uZSB3b3VsZCB3YW50IHRvIGhh
-cmRlbiBpdCdzIExpbnV4IERlc2t0b3AgKHNpbmNlIG5vdGVib29rcyBjb3VsZCBiZSBzdG9sZW4u
-LikgaXQgY291bGQgdHVybiBvbiB0aGlzIGZlYXR1cmUgdG8gYXZvaWQgYSBwb2xpY3kgdG8gYWx3
-YXlzIHR1cm4gb2ZmIHRoZSBub3RlYm9vayB3aGlsZSBub3QgdXNpbmcgaXQuCgoKClRoYW5rIHlv
-dSBmb3IgeW91ciBjb21tZW50cy4=
+Signed-off-by: Pali RohA!r <pali.rohar@gmail.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+Cc: stable@vger.kernel.org
+---
+ drivers/platform/x86/dell-laptop.c |    8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
 
-
---b1_dc73ac3a0141ca280733b0d5786299eb
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: base64
-
-PGRpdj5JcyBhbnlib2R5IHJlYWRpbmcgdGhpcz8gPGJyPjwvZGl2PjxibG9ja3F1b3RlPjxkaXY+
-LS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLTxicj48L2Rpdj48ZGl2PlN1YmplY3Q6
-IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVPGJyPjwvZGl2PjxkaXY+
-VGltZSAoR01UKTogSnVuIDE5IDIwMTUgMTc6MjI6NDk8YnI+PC9kaXY+PGRpdj5Gcm9tOiBuZ2Fi
-b3JAcHJvdG9ubWFpbC5jaDxicj48L2Rpdj48ZGl2PlRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJw
-QGFsaWVuOC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1m
-b3VuZGF0aW9uLm9yZzxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkhhbGxvPyA6KTxicj48
-L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08
-YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5n
-IGluIENQVTxicj48L2Rpdj48ZGl2PlRpbWUgKEdNVCk6IE1heSAyMyAyMDE1IDA5OjAxOjI2PGJy
-PjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2g8YnI+PC9kaXY+PGRpdj5Ubzog
-bGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpA
-a2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmc8YnI+PC9kaXY+PGRpdj48YnI+PC9k
-aXY+PGRpdj5BbnkgY29tbWVudHM/IDxicj48L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0tLS0tLS0t
-IE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBSQU0gZW5j
-cnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVPGJyPjwvZGl2PjxkaXY+VGltZSAoR01UKTog
-TWF5IDIxIDIwMTUgMTA6MTc6MjU8YnI+PC9kaXY+PGRpdj5Gcm9tOiBuZ2Fib3JAcHJvdG9ubWFp
-bC5jaDxicj48L2Rpdj48ZGl2PlRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwg
-bGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9y
-Zzxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkhlbGxvLCA8YnI+PC9kaXY+PGRpdj48YnI+
-PC9kaXY+PGRpdj49PT09PT09PT09PGJyPjwvZGl2PjxkaXY+PGI+UHJvYmxlbTwvYj46IDxicj48
-L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkV2ZXJ5dGhpbmcgaXMgc3RvcmVkIGluIHBsYWludGV4
-dCBpbiB0aGUgTWVtb3J5LiA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5TbyBpZiBhbHRo
-b3VnaCBmdWxsIGRpc2MgZW5jcnlwdGlvbiBpcyB1c2VkIG9uIGEgTGludXggRGVza3RvcCwgaXQg
-aXMgcG9zc2libGUgdG8gY29weSB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5LCB3aGlsZSB0aGUg
-bm90ZWJvb2sgd2FzIG9uIHN1c3BlbmQgb3IgaXQgd2FzIHJ1bm5pbmc6IDxicj48L2Rpdj48ZGl2
-Pjxicj48L2Rpdj48ZGl2PjxhIGhyZWY9Imh0dHBzOi8vY2l0cC5wcmluY2V0b24uZWR1L3Jlc2Vh
-cmNoL21lbW9yeS9tZWRpYS8iPmh0dHBzOi8vY2l0cC5wcmluY2V0b24uZWR1L3Jlc2VhcmNoL21l
-bW9yeS9tZWRpYS88L2E+PGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+PT09PT09PT09PTxi
-cj48L2Rpdj48ZGl2PjxiPlNvbHV0aW9uPC9iPjogPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2Pjxk
-aXY+Q2FuIHdlIChvcHRpb25hbGx5KikgZW5jcnlwdCB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5
-IGFuZCBzdG9yZSB0aGUga2V5IGZvciBkZWNyeXB0aW9uIGluIHRoZSBDUFUgdG8gYXZvaWQgaW4g
-Z2VuZXJhbCB0aGVzZSBraW5kIG9mIGF0dGFja3M/IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48
-ZGl2PjxhIGhyZWY9Imh0dHBzOi8vd3d3MS5pbmZvcm1hdGlrLnVuaS1lcmxhbmdlbi5kZS90cmVz
-b3IiPmh0dHBzOi8vd3d3MS5pbmZvcm1hdGlrLnVuaS1lcmxhbmdlbi5kZS90cmVzb3I8L2E+PGJy
-PjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+SXMgdGhpcyBzb2x1dGlvbiBhbHJlYWR5IGluIHRo
-ZSBMaW51eCBrZXJuZWw/IElmIHllcywgaG93IGNhbiBhIExpbnV4IGVuZHVzZXIgdHVybiBpdCBv
-bj8gSWYgbm8sIGhvdyBjYW4gd2UgZ2V0IHRoZSBjb2RlL2lkZWEgaW4gdGhlIG1haW5saW5lPyBX
-aGF0IGFyZSB0aGUgYXJndW1lbnRzIGFnYWluc3QgaXQ/IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rp
-dj48ZGl2PippZiBzb21lb25lIHdvdWxkIHdhbnQgdG8gaGFyZGVuIGl0J3MgTGludXggRGVza3Rv
-cCAoc2luY2Ugbm90ZWJvb2tzIGNvdWxkIGJlIHN0b2xlbi4uKSBpdCBjb3VsZCB0dXJuIG9uIHRo
-aXMgZmVhdHVyZSB0byBhdm9pZCBhIHBvbGljeSB0byBhbHdheXMgdHVybiBvZmYgdGhlIG5vdGVi
-b29rIHdoaWxlIG5vdCB1c2luZyBpdC4gPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+VGhh
-bmsgeW91IGZvciB5b3VyIGNvbW1lbnRzLiA8YnI+PC9kaXY+PC9ibG9ja3F1b3RlPjwvYmxvY2tx
-dW90ZT48L2Jsb2NrcXVvdGU+
-
-
-
---b1_dc73ac3a0141ca280733b0d5786299eb--
+diff --git a/drivers/platform/x86/dell-laptop.c b/drivers/platform/x86/dell-laptop.c
+index d688d80..2c1d5f5 100644
+--- a/drivers/platform/x86/dell-laptop.c
++++ b/drivers/platform/x86/dell-laptop.c
+@@ -305,7 +305,6 @@ static const struct dmi_system_id dell_quirks[] __initconst = {
+ };
+ 
+ static struct calling_interface_buffer *buffer;
+-static struct page *bufferpage;
+ static DEFINE_MUTEX(buffer_mutex);
+ 
+ static int hwswitch_state;
+@@ -1896,12 +1895,11 @@ static int __init dell_init(void)
+ 	 * Allocate buffer below 4GB for SMI data--only 32-bit physical addr
+ 	 * is passed to SMI handler.
+ 	 */
+-	bufferpage = alloc_page(GFP_KERNEL | GFP_DMA32);
+-	if (!bufferpage) {
++	buffer = (void *)__get_free_page(GFP_KERNEL | GFP_DMA32);
++	if (!buffer) {
+ 		ret = -ENOMEM;
+ 		goto fail_buffer;
+ 	}
+-	buffer = page_address(bufferpage);
+ 
+ 	ret = dell_setup_rfkill();
+ 
+@@ -1965,7 +1963,7 @@ fail_backlight:
+ 	cancel_delayed_work_sync(&dell_rfkill_work);
+ 	dell_cleanup_rfkill();
+ fail_rfkill:
+-	free_page((unsigned long)bufferpage);
++	free_page((unsigned long)buffer);
+ fail_buffer:
+ 	platform_device_del(platform_device);
+ fail_platform_device2:
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
