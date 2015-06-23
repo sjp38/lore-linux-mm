@@ -1,60 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 592C16B0032
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 17:41:48 -0400 (EDT)
-Received: by qgal13 with SMTP id l13so8127701qga.3
-        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 14:41:48 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c5si23559956qgf.109.2015.06.23.14.41.47
+Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 941C96B0032
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2015 18:11:03 -0400 (EDT)
+Received: by oigx81 with SMTP id x81so17465733oig.1
+        for <linux-mm@kvack.org>; Tue, 23 Jun 2015 15:11:03 -0700 (PDT)
+Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
+        by mx.google.com with ESMTPS id q188si15940613oib.19.2015.06.23.15.11.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Jun 2015 14:41:47 -0700 (PDT)
-Date: Tue, 23 Jun 2015 23:41:41 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 10/23] userfaultfd: add new syscall to provide memory
- externalization
-Message-ID: <20150623214141.GB4312@redhat.com>
-References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
- <1431624680-20153-11-git-send-email-aarcange@redhat.com>
- <5589ACC3.3060401@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5589ACC3.3060401@intel.com>
+        Tue, 23 Jun 2015 15:11:02 -0700 (PDT)
+Message-ID: <1435097441.11808.281.camel@misato.fc.hp.com>
+Subject: Re: [PATCH] mm: Fix MAP_POPULATE and mlock() for DAX
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Tue, 23 Jun 2015 16:10:41 -0600
+In-Reply-To: <20150623114453.GA8603@node.dhcp.inet.fi>
+References: <1434493710-11138-1-git-send-email-toshi.kani@hp.com>
+	 <20150620194612.GA5268@node.dhcp.inet.fi>
+	 <1435006555.11808.210.camel@misato.fc.hp.com>
+	 <20150623114453.GA8603@node.dhcp.inet.fi>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, willy@linux.intel.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
 
-Hi Dave,
+On Tue, 2015-06-23 at 14:44 +0300, Kirill A. Shutemov wrote:
+> On Mon, Jun 22, 2015 at 02:55:55PM -0600, Toshi Kani wrote:
+> > On Sat, 2015-06-20 at 22:46 +0300, Kirill A. Shutemov wrote:
+> > > On Tue, Jun 16, 2015 at 04:28:30PM -0600, Toshi Kani wrote:
+> > > > DAX has the following issues in a shared or read-only private
+> > > > mmap'd file.
+> > > >  - mmap(MAP_POPULATE) does not pre-fault
+> > > >  - mlock() fails with -ENOMEM
+> > > > 
+> > > > DAX uses VM_MIXEDMAP for mmap'd files, which do not have struct
+> > > > page associated with the ranges.  Both MAP_POPULATE and mlock()
+> > > > call __mm_populate(), which in turn calls __get_user_pages().
+> > > > Because __get_user_pages() requires a valid page returned from
+> > > > follow_page_mask(), MAP_POPULATE and mlock(), i.e. FOLL_POPULATE,
+> > > > fail in the first page.
+> > > > 
+> > > > Change __get_user_pages() to proceed FOLL_POPULATE when the
+> > > > translation is set but its page does not exist (-EFAULT), and
+> > > > @pages is not requested.  With that, MAP_POPULATE and mlock()
+> > > > set translations to the requested range and complete successfully.
+> > > > 
+> > > > MAP_POPULATE still provides a major performance improvement to
+> > > > DAX as it will avoid page faults during initial access to the
+> > > > pages.
+> > > > 
+> > > > mlock() continues to set VM_LOCKED to vma and populate the range.
+> > > > Since there is no struct page, the range is pinned without marking
+> > > > pages mlocked.
+> > > > 
+> > > > Note, MAP_POPULATE and mlock() already work for a write-able
+> > > > private mmap'd file on DAX since populate_vma_page_range() breaks
+> > > > COW, which allocates page caches.
+> > > 
+> > > I don't think that's true in all cases.
+> > > 
+> > > We would fail to break COW for mlock() if the mapping is populated with
+> > > read-only entries by the mlock() time. In this case follow_page_mask()
+> > > would fail with -EFAULT and faultin_page() will never executed.
+> > 
+> > No, mlock() always breaks COW as populate_vma_page_range() sets
+> > FOLL_WRITE in case of write-able private mmap.
+> > 
+> >   /*
+> >    * We want to touch writable mappings with a write fault in order
+> >    * to break COW, except for shared mappings because these don't COW
+> >    * and we would not want to dirty them for nothing.
+> >    */
+> >   if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
+> >            gup_flags |= FOLL_WRITE;
+> 
+> Okay, you're right it should work.
+> 
+> What about doing this in more generic way? The totally untested patch
+> below tries to make GUP work on DAX and other pfn maps when struct page
+> is not required.
+> 
+> Any comments?
 
-On Tue, Jun 23, 2015 at 12:00:19PM -0700, Dave Hansen wrote:
-> Down in userfaultfd_wake_function(), it looks like you intended for a
-> len=0 to mean "wake all".  But the validate_range() that we do from
-> userspace has a !len check in it, which keeps us from passing a len=0 in
-> from userspace.
-> Was that "wake all" for some internal use, or is the check too strict?
+The changes look good to me.  I have also run my mmap() & mlock() tests
+and they passed with the changes.  (They can only exercise
+follow_pfn_pte() with FOLL_TOUCH, though.)
 
-It's for internal use or userfaultfd_release that has to wake them all
-(after setting ctx->released) if the uffd is closed. It avoids to
-enlarge the structure by depending on the invariant that userland
-cannot pass len=0.
-
-If we'd accept len=0 from userland as valid, I'd be safer if it does
-nothing like in madvise, I doubt we want to expose this non standard
-kernel internal behavior to userland.
-
-> I was trying to use the wake ioctl after an madvise() (as opposed to
-> filling things in using a userfd copy).
-
-madvise will return 0 if len=0, mremap would return -EINVAL if new_len
-is zero, mmap also returns -EINVAL if len is 0, not all MM syscalls
-are as permissive as madvise. Can't you pass the same len you pass to
-madvise to UFFDIO_WAKE (or just skip the call if the madvise len is
-zero)?
+Reviewed-by: Toshi Kani <toshi.kani@hp.com>
 
 Thanks,
-Andrea
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
