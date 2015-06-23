@@ -1,80 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 843286B0032
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 16:56:17 -0400 (EDT)
-Received: by obbop1 with SMTP id op1so27920847obb.2
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 13:56:17 -0700 (PDT)
-Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
-        by mx.google.com with ESMTPS id jj4si13432269obb.7.2015.06.22.13.56.16
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A8066B0032
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 20:39:38 -0400 (EDT)
+Received: by paceq1 with SMTP id eq1so119946941pac.3
+        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 17:39:37 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id an13si31941237pac.14.2015.06.22.17.39.35
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jun 2015 13:56:16 -0700 (PDT)
-Message-ID: <1435006555.11808.210.camel@misato.fc.hp.com>
-Subject: Re: [PATCH] mm: Fix MAP_POPULATE and mlock() for DAX
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 22 Jun 2015 14:55:55 -0600
-In-Reply-To: <20150620194612.GA5268@node.dhcp.inet.fi>
-References: <1434493710-11138-1-git-send-email-toshi.kani@hp.com>
-	 <20150620194612.GA5268@node.dhcp.inet.fi>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Mon, 22 Jun 2015 17:39:36 -0700 (PDT)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [RFC v5 PATCH 0/9] hugetlbfs: add fallocate support
+Date: Mon, 22 Jun 2015 17:38:30 -0700
+Message-Id: <1435019919-29225-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, willy@linux.intel.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Sat, 2015-06-20 at 22:46 +0300, Kirill A. Shutemov wrote:
-> On Tue, Jun 16, 2015 at 04:28:30PM -0600, Toshi Kani wrote:
-> > DAX has the following issues in a shared or read-only private
-> > mmap'd file.
-> >  - mmap(MAP_POPULATE) does not pre-fault
-> >  - mlock() fails with -ENOMEM
-> > 
-> > DAX uses VM_MIXEDMAP for mmap'd files, which do not have struct
-> > page associated with the ranges.  Both MAP_POPULATE and mlock()
-> > call __mm_populate(), which in turn calls __get_user_pages().
-> > Because __get_user_pages() requires a valid page returned from
-> > follow_page_mask(), MAP_POPULATE and mlock(), i.e. FOLL_POPULATE,
-> > fail in the first page.
-> > 
-> > Change __get_user_pages() to proceed FOLL_POPULATE when the
-> > translation is set but its page does not exist (-EFAULT), and
-> > @pages is not requested.  With that, MAP_POPULATE and mlock()
-> > set translations to the requested range and complete successfully.
-> > 
-> > MAP_POPULATE still provides a major performance improvement to
-> > DAX as it will avoid page faults during initial access to the
-> > pages.
-> > 
-> > mlock() continues to set VM_LOCKED to vma and populate the range.
-> > Since there is no struct page, the range is pinned without marking
-> > pages mlocked.
-> > 
-> > Note, MAP_POPULATE and mlock() already work for a write-able
-> > private mmap'd file on DAX since populate_vma_page_range() breaks
-> > COW, which allocates page caches.
-> 
-> I don't think that's true in all cases.
-> 
-> We would fail to break COW for mlock() if the mapping is populated with
-> read-only entries by the mlock() time. In this case follow_page_mask()
-> would fail with -EFAULT and faultin_page() will never executed.
+No major changes since last RFC.  Externalized existing hugetlb
+fault mutex code.  Added more comments to alloc_huge_page reservation
+handling as I could not come up with a good way to encapsulate.
+libhugetlbfs test cases and man page updates will be included with
+a later request for patch inclusion.
 
-No, mlock() always breaks COW as populate_vma_page_range() sets
-FOLL_WRITE in case of write-able private mmap.
+hugetlbfs is used today by applications that want a high degree of
+control over huge page usage.  Often, large hugetlbfs files are used
+to map a large number huge pages into the application processes.
+The applications know when page ranges within these large files will
+no longer be used, and ideally would like to release them back to
+the subpool or global pools for other uses.  The fallocate() system
+call provides an interface for preallocation and hole punching within
+files.  This patch set adds fallocate functionality to hugetlbfs.
 
-  /*
-   * We want to touch writable mappings with a write fault in order
-   * to break COW, except for shared mappings because these don't COW
-   * and we would not want to dirty them for nothing.
-   */
-  if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
-           gup_flags |= FOLL_WRITE;
+RFC v5:
+  Simply made existing hugetlb fault mutex hash routine available for
+    use by fallocate.
+  Unable to come up with good reservation encapsulation routines for
+    alloc_huge_page, so attempted to comment better.
+RFC v4:
+  Removed alloc_huge_page/hugetlb_reserve_pages race patches as already
+    in mmotm
+  Moved hugetlb_fix_reserve_counts in series as suggested by Naoya Horiguchi
+  Inline'ed hugetlb_fault_mutex routines as suggested by Davidlohr Bueso and
+    existing code changed to use new interfaces as suggested by Naoya
+  fallocate preallocation code cleaned up and made simpler
+  Modified alloc_huge_page to handle special case where allocation is
+    for a hole punched area with spool reserves
+RFC v3:
+  Folded in patch for alloc_huge_page/hugetlb_reserve_pages race
+    in current code
+  fallocate allocation and hole punch is synchronized with page
+    faults via existing mutex table
+   hole punch uses existing hugetlb_vmtruncate_list instead of more
+    generic unmap_mapping_range for unmapping
+   Error handling for the case when region_del() fails
+RFC v2:
+  Addressed alignment and error handling issues noticed by Hillf Danton
+  New region_del() routine for region tracking/resv_map of ranges
+  Fixed several issues found during more extensive testing
+  Error handling in region_del() when kmalloc() fails stills needs
+    to be addressed
+  madvise remove support remains
 
-Thanks,
--Toshi
+Mike Kravetz (9):
+  mm/hugetlb: add region_del() to delete a specific range of entries
+  mm/hugetlb: expose hugetlb fault mutex for use by fallocate
+  hugetlbfs: hugetlb_vmtruncate_list() needs to take a range to delete
+  hugetlbfs: truncate_hugepages() takes a range of pages
+  mm/hugetlb: vma_has_reserves() needs to handle fallocate hole punch
+  mm/hugetlb: alloc_huge_page handle areas hole punched by fallocate
+  hugetlbfs: New huge_add_to_page_cache helper routine
+  hugetlbfs: add hugetlbfs_fallocate()
+  mm: madvise allow remove operation for hugetlbfs
 
+ fs/hugetlbfs/inode.c    | 281 ++++++++++++++++++++++++++++++++++++++++++++----
+ include/linux/hugetlb.h |  14 ++-
+ mm/hugetlb.c            | 245 +++++++++++++++++++++++++++++------------
+ mm/madvise.c            |   2 +-
+ 4 files changed, 456 insertions(+), 86 deletions(-)
+
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
