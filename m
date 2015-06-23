@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 425786B0073
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 20:39:56 -0400 (EDT)
-Received: by pdjn11 with SMTP id n11so149216038pdj.0
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 17:39:56 -0700 (PDT)
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B4566B0074
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2015 20:40:13 -0400 (EDT)
+Received: by padev16 with SMTP id ev16so144699936pad.0
+        for <linux-mm@kvack.org>; Mon, 22 Jun 2015 17:40:13 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id lz6si31888103pdb.199.2015.06.22.17.39.53
+        by mx.google.com with ESMTPS id rj10si31910199pdb.132.2015.06.22.17.40.11
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jun 2015 17:39:55 -0700 (PDT)
+        Mon, 22 Jun 2015 17:40:12 -0700 (PDT)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [RFC v5 PATCH 9/9] mm: madvise allow remove operation for hugetlbfs
-Date: Mon, 22 Jun 2015 17:38:39 -0700
-Message-Id: <1435019919-29225-10-git-send-email-mike.kravetz@oracle.com>
+Subject: [RFC v5 PATCH 3/9] hugetlbfs: hugetlb_vmtruncate_list() needs to take a range to delete
+Date: Mon, 22 Jun 2015 17:38:33 -0700
+Message-Id: <1435019919-29225-4-git-send-email-mike.kravetz@oracle.com>
 In-Reply-To: <1435019919-29225-1-git-send-email-mike.kravetz@oracle.com>
 References: <1435019919-29225-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,28 +20,76 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-Now that we have hole punching support for hugetlbfs, we can
-also support the MADV_REMOVE interface to it.
+fallocate hole punch will want to unmap a specific range of pages.
+Modify the existing hugetlb_vmtruncate_list() routine to take a
+start/end range.  If end is 0, this indicates all pages after start
+should be unmapped.  This is the same as the existing truncate
+functionality.  Modify existing callers to add 0 as end of range.
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Since the routine will be used in hole punch as well as truncate
+operations, it is more appropriately renamed to hugetlb_vmdelete_list().
+
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- mm/madvise.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ fs/hugetlbfs/inode.c | 25 ++++++++++++++++++-------
+ 1 file changed, 18 insertions(+), 7 deletions(-)
 
-diff --git a/mm/madvise.c b/mm/madvise.c
-index d215ea9..3c1b7f0 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -467,7 +467,7 @@ static long madvise_remove(struct vm_area_struct *vma,
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index e5a93d8..e9d4c8d 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -374,11 +374,15 @@ static void hugetlbfs_evict_inode(struct inode *inode)
+ }
  
- 	*prev = NULL;	/* tell sys_madvise we drop mmap_sem */
+ static inline void
+-hugetlb_vmtruncate_list(struct rb_root *root, pgoff_t pgoff)
++hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
+ {
+ 	struct vm_area_struct *vma;
  
--	if (vma->vm_flags & (VM_LOCKED | VM_HUGETLB))
-+	if (vma->vm_flags & VM_LOCKED)
- 		return -EINVAL;
+-	vma_interval_tree_foreach(vma, root, pgoff, ULONG_MAX) {
++	/*
++	 * end == 0 indicates that the entire range after
++	 * start should be unmapped.
++	 */
++	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
+ 		unsigned long v_offset;
  
- 	f = vma->vm_file;
+ 		/*
+@@ -387,13 +391,20 @@ hugetlb_vmtruncate_list(struct rb_root *root, pgoff_t pgoff)
+ 		 * which overlap the truncated area starting at pgoff,
+ 		 * and no vma on a 32-bit arch can span beyond the 4GB.
+ 		 */
+-		if (vma->vm_pgoff < pgoff)
+-			v_offset = (pgoff - vma->vm_pgoff) << PAGE_SHIFT;
++		if (vma->vm_pgoff < start)
++			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
+ 		else
+ 			v_offset = 0;
+ 
+-		unmap_hugepage_range(vma, vma->vm_start + v_offset,
+-				     vma->vm_end, NULL);
++		if (end) {
++			end = ((end - start) << PAGE_SHIFT) +
++			       vma->vm_start + v_offset;
++			if (end > vma->vm_end)
++				end = vma->vm_end;
++		} else
++			end = vma->vm_end;
++
++		unmap_hugepage_range(vma, vma->vm_start + v_offset, end, NULL);
+ 	}
+ }
+ 
+@@ -409,7 +420,7 @@ static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
+ 	i_size_write(inode, offset);
+ 	i_mmap_lock_write(mapping);
+ 	if (!RB_EMPTY_ROOT(&mapping->i_mmap))
+-		hugetlb_vmtruncate_list(&mapping->i_mmap, pgoff);
++		hugetlb_vmdelete_list(&mapping->i_mmap, pgoff, 0);
+ 	i_mmap_unlock_write(mapping);
+ 	truncate_hugepages(inode, offset);
+ 	return 0;
 -- 
 2.1.0
 
