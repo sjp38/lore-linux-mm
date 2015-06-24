@@ -1,131 +1,252 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id CA9816B0032
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2015 10:01:18 -0400 (EDT)
-Received: by pactm7 with SMTP id tm7so29684553pac.2
-        for <linux-mm@kvack.org>; Wed, 24 Jun 2015 07:01:18 -0700 (PDT)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0069.outbound.protection.outlook.com. [157.56.112.69])
-        by mx.google.com with ESMTPS id z11si40000609pbt.122.2015.06.24.07.01.16
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 53BB06B0032
+	for <linux-mm@kvack.org>; Wed, 24 Jun 2015 11:31:21 -0400 (EDT)
+Received: by pdjn11 with SMTP id n11so32878159pdj.0
+        for <linux-mm@kvack.org>; Wed, 24 Jun 2015 08:31:21 -0700 (PDT)
+Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
+        by mx.google.com with ESMTPS id b1si40365144pbu.52.2015.06.24.08.31.18
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 24 Jun 2015 07:01:17 -0700 (PDT)
-Message-ID: <558AB7DC.20703@mellanox.com>
-Date: Wed, 24 Jun 2015 16:59:56 +0300
-From: Haggai Eran <haggaie@mellanox.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 33/36] IB/odp/hmm: add core infiniband structure and helper
- for ODP with HMM.
-References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
- <1432239792-5002-1-git-send-email-jglisse@redhat.com>
- <1432239792-5002-14-git-send-email-jglisse@redhat.com>
-In-Reply-To: <1432239792-5002-14-git-send-email-jglisse@redhat.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 24 Jun 2015 08:31:19 -0700 (PDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout4.w1.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0NQG003TOGG36T40@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 24 Jun 2015 16:31:15 +0100 (BST)
+Message-id: <558ACD3A.2020508@samsung.com>
+Date: Wed, 24 Jun 2015 17:31:06 +0200
+From: Beata Michalska <b.michalska@samsung.com>
+MIME-version: 1.0
+Subject: Re: [RFC v3 1/4] fs: Add generic file system event notifications
+References: <1434460173-18427-1-git-send-email-b.michalska@samsung.com>
+ <1434460173-18427-2-git-send-email-b.michalska@samsung.com>
+ <87oak5ebmx.fsf@openvz.org>
+In-reply-to: <87oak5ebmx.fsf@openvz.org>
+Content-type: text/plain; charset=UTF-8
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jglisse@redhat.com, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes
- Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van
- Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron
- Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul
- Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, linux-rdma@vger.kernel.org
+To: Dmitry Monakhov <dmonlist@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, greg@kroah.com, jack@suse.cz, tytso@mit.edu, adilger.kernel@dilger.ca, hughd@google.com, lczerner@redhat.com, hch@infradead.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, kmpark@infradead.org
 
-On 21/05/2015 23:23, jglisse@redhat.com wrote:
-> +int ib_umem_odp_get(struct ib_ucontext *context, struct ib_umem *umem)
-> +{
-> +	struct mm_struct *mm = get_task_mm(current);
-> +	struct ib_device *ib_device = context->device;
-> +	struct ib_mirror *ib_mirror;
-> +	struct pid *our_pid;
-> +	int ret;
-> +
-> +	if (!mm || !ib_device->hmm_ready)
-> +		return -EINVAL;
-> +
-> +	/* FIXME can this really happen ? */
-No, following Yann Droneaud's patch 8abaae62f3fd ("IB/core: disallow
-registering 0-sized memory region") ib_umem_get() checks against zero
-sized umems.
+On 06/24/2015 10:47 AM, Dmitry Monakhov wrote:
+> Beata Michalska <b.michalska@samsung.com> writes:
+> 
+>> Introduce configurable generic interface for file
+>> system-wide event notifications, to provide file
+>> systems with a common way of reporting any potential
+>> issues as they emerge.
+>>
+>> The notifications are to be issued through generic
+>> netlink interface by newly introduced multicast group.
+>>
+>> Threshold notifications have been included, allowing
+>> triggering an event whenever the amount of free space drops
+>> below a certain level - or levels to be more precise as two
+>> of them are being supported: the lower and the upper range.
+>> The notifications work both ways: once the threshold level
+>> has been reached, an event shall be generated whenever
+>> the number of available blocks goes up again re-activating
+>> the threshold.
+>>
+>> The interface has been exposed through a vfs. Once mounted,
+>> it serves as an entry point for the set-up where one can
+>> register for particular file system events.
+>>
+>> Signed-off-by: Beata Michalska <b.michalska@samsung.com>
+>> ---
+>>  Documentation/filesystems/events.txt |  232 ++++++++++
+>>  fs/Kconfig                           |    2 +
+>>  fs/Makefile                          |    1 +
+>>  fs/events/Kconfig                    |    7 +
+>>  fs/events/Makefile                   |    5 +
+>>  fs/events/fs_event.c                 |  809 ++++++++++++++++++++++++++++++++++
+>>  fs/events/fs_event.h                 |   22 +
+>>  fs/events/fs_event_netlink.c         |  104 +++++
+>>  fs/namespace.c                       |    1 +
+>>  include/linux/fs.h                   |    6 +-
+>>  include/linux/fs_event.h             |   72 +++
+>>  include/uapi/linux/Kbuild            |    1 +
+>>  include/uapi/linux/fs_event.h        |   58 +++
+>>  13 files changed, 1319 insertions(+), 1 deletion(-)
+>>  create mode 100644 Documentation/filesystems/events.txt
+>>  create mode 100644 fs/events/Kconfig
+>>  create mode 100644 fs/events/Makefile
+>>  create mode 100644 fs/events/fs_event.c
+>>  create mode 100644 fs/events/fs_event.h
+>>  create mode 100644 fs/events/fs_event_netlink.c
+>>  create mode 100644 include/linux/fs_event.h
+>>  create mode 100644 include/uapi/linux/fs_event.h
+>>
+>> diff --git a/Documentation/filesystems/events.txt b/Documentation/filesystems/events.txt
+>> new file mode 100644
+>> index 0000000..c2e6227
+>> --- /dev/null
+>> +++ b/Documentation/filesystems/events.txt
+>> @@ -0,0 +1,232 @@
+>> +
+>> +	Generic file system event notification interface
+>> +
+>> +Document created 23 April 2015 by Beata Michalska <b.michalska@samsung.com>
+>> +
+>> +1. The reason behind:
+>> +=====================
+>> +
+>> +There are many corner cases when things might get messy with the filesystems.
+>> +And it is not always obvious what and when went wrong. Sometimes you might
+>> +get some subtle hints that there is something going on - but by the time
+>> +you realise it, it might be too late as you are already out-of-space
+>> +or the filesystem has been remounted as read-only (i.e.). The generic
+>> +interface for the filesystem events fills the gap by providing a rather
+>> +easy way of real-time notifications triggered whenever something interesting
+>> +happens, allowing filesystems to report events in a common way, as they occur.
+>> +
+>> +2. How does it work:
+>> +====================
+>> +
+>> +The interface itself has been exposed as fstrace-type Virtual File System,
+>> +primarily to ease the process of setting up the configuration for the
+>> +notifications. So for starters, it needs to get mounted (obviously):
+>> +
+>> +	mount -t fstrace none /sys/fs/events
+>> +
+>> +This will unveil the single fstrace filesystem entry - the 'config' file,
+>> +through which the notification are being set-up.
+>> +
+>> +Activating notifications for particular filesystem is as straightforward
+>> +as writing into the 'config' file. Note that by default all events, despite
+>> +the actual filesystem type, are being disregarded.
+>> +
+>> +Synopsis of config:
+>> +------------------
+>> +
+>> +	MOUNT EVENT_TYPE [L1] [L2]
+>> +
+>> + MOUNT      : the filesystem's mount point
+>> + EVENT_TYPE : event types - currently two of them are being supported:
+>> +
+>> +	      * generic events ("G") covering most common warnings
+>> +	      and errors that might be reported by any filesystem;
+>> +	      this option does not take any arguments;
+>> +
+>> +	      * threshold notifications ("T") - events sent whenever
+>> +	      the amount of available space drops below certain level;
+>> +	      it is possible to specify two threshold levels though
+>> +	      only one is required to properly setup the notifications;
+>> +	      as those refer to the number of available blocks, the lower
+>> +	      level [L1] needs to be higher than the upper one [L2]
+>> +
+>> +Sample request could look like the following:
+>> +
+>> + echo /sample/mount/point G T 710000 500000 > /sys/fs/events/config
+>> +
+>> +Multiple request might be specified provided they are separated with semicolon.
+>> +
+>> +The configuration itself might be modified at any time. One can add/remove
+>> +particular event types for given fielsystem, modify the threshold levels,
+>> +and remove single or all entries from the 'config' file.
+>> +
+>> + - Adding new event type:
+>> +
+>> + $ echo MOUNT EVENT_TYPE > /sys/fs/events/config
+>> +
+>> +(Note that is is enough to provide the event type to be enabled without
+>> +the already set ones.)
+>> +
+>> + - Removing event type:
+>> +
+>> + $ echo '!MOUNT EVENT_TYPE' > /sys/fs/events/config
+>> +
+>> + - Updating threshold limits:
+>> +
+>> + $ echo MOUNT T L1 L2 > /sys/fs/events/config
+>> +
+>> + - Removing single entry:
+>> +
+>> + $ echo '!MOUNT' > /sys/fs/events/config
+>> +
+>> + - Removing all entries:
+>> +
+>> + $ echo > /sys/fs/events/config
+>> +
+>> +Reading the file will list all registered entries with their current set-up
+>> +along with some additional info like the filesystem type and the backing device
+>> +name if available.
+>> +
+>> +Final, though a very important note on the configuration: when and if the
+>> +actual events are being triggered falls way beyond the scope of the generic
+>> +filesystem events interface. It is up to a particular filesystem
+>> +implementation which events are to be supported - if any at all. So if
+>> +given filesystem does not support the event notifications, an attempt to
+>> +enable those through 'config' file will fail.
+>> +
+>> +
+>> +3. The generic netlink interface support:
+>> +=========================================
+>> +
+>> +Whenever an event notification is triggered (by given filesystem) the current
+>> +configuration is being validated to decide whether a userpsace notification
+>> +should be launched. If there has been no request (in a mean of 'config' file
+>> +entry) for given event, one will be silently disregarded. If, on the other
+>> +hand, someone is 'watching' given filesystem for specific events, a generic
+>> +netlink message will be sent. A dedicated multicast group has been provided
+>> +solely for this purpose so in order to receive such notifications, one should
+>> +subscribe to this new multicast group. As for now only the init network
+>> +namespace is being supported.
+>> +
+>> +3.1 Message format
+>> +
+>> +The FS_NL_C_EVENT shall be stored within the generic netlink message header
+>> +as the command field. The message payload will provide more detailed info:
+>> +the backing device major and minor numbers, the event code and the id of
+>> +the process which action led to the event occurrence. In case of threshold
+>> +notifications, the current number of available blocks will be included
+>> +in the payload as well.
+>> +
+>> +
+>> +	 0                   1                   2                   3
+>> +	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+>> +	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+>> +	|	            NETLINK MESSAGE HEADER			|
+>> +	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+>> +	| 		GENERIC NETLINK MESSAGE HEADER   		|
+>> +	| 	   (with FS_NL_C_EVENT as genlmsghdr cdm field)		|
+>> +	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+>> +	| 	      Optional user specific message header		|
+>> +	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+>> +	|		   GENERIC MESSAGE PAYLOAD:			|
+>> +	+---------------------------------------------------------------+
+>> +	| 		  FS_NL_A_EVENT_ID  (NLA_U32)			|
+>> +	+---------------------------------------------------------------+
+>> +	|	  	  FS_NL_A_DEV_MAJOR (NLA_U32)			|
+>> +	+---------------------------------------------------------------+
+>> +	| 	  	  FS_NL_A_DEV_MINOR (NLA_U32) 			|
+> 
+...
 
-> +	if (unlikely(ib_umem_start(umem) == ib_umem_end(umem)))
-> +		return -EINVAL;
-> +
-> +	/* Prevent creating ODP MRs in child processes */
-> +	rcu_read_lock();
-> +	our_pid = get_task_pid(current->group_leader, PIDTYPE_PID);
-> +	rcu_read_unlock();
-> +	put_pid(our_pid);
-> +	if (context->tgid != our_pid) {
-> +		mmput(mm);
-> +		return -EINVAL;
-> +	}
-> +
-> +	umem->hugetlb = 0;
-> +	umem->odp_data = kmalloc(sizeof(*umem->odp_data), GFP_KERNEL);
-> +	if (umem->odp_data == NULL) {
-> +		mmput(mm);
-> +		return -ENOMEM;
-> +	}
-> +	umem->odp_data->private = NULL;
-> +	umem->odp_data->umem = umem;
-> +
-> +	mutex_lock(&ib_device->hmm_mutex);
-> +	/* Is there an existing mirror for this process mm ? */
-> +	ib_mirror = ib_mirror_ref(context->ib_mirror);
-> +	if (!ib_mirror)
-> +		list_for_each_entry(ib_mirror, &ib_device->ib_mirrors, list) {
-> +			if (ib_mirror->base.hmm->mm != mm)
-> +				continue;
-> +			ib_mirror = ib_mirror_ref(ib_mirror);
-> +			break;
-> +		}
-> +
-> +	if (ib_mirror == NULL ||
-> +	    ib_mirror == list_first_entry(&ib_device->ib_mirrors,
-> +					  struct ib_mirror, list)) {
-Is the second check an attempt to check if the list_for_each_entry above
-passed through all the entries and didn't break? Maybe I missing
-something, but I think that would cause the ib_mirror to hold a pointer
-such that ib_mirror->list == ib_mirrors (point to the list head), and
-not to the first entry.
+>> +
+>> +static int create_common_msg(struct sk_buff *skb, void *data)
+>> +{
+>> +	struct fs_trace_entry *en = (struct fs_trace_entry *)data;
+>> +	struct super_block *sb = en->sb;
+>> +
+>> +	if (nla_put_u32(skb, FS_NL_A_DEV_MAJOR, MAJOR(sb->s_dev))
+>> +	||  nla_put_u32(skb, FS_NL_A_DEV_MINOR, MINOR(sb->s_dev)))
+>> +		return -EINVAL;
+> What about diskless(nfs,cifs,etc) filesystem? btrfs also has no
+> valid sb->s_dev  
 
-In any case, I think it would be more clear if you add another ib_mirror
-variable for iterating the ib_mirrors list.
+Those are using the anon ids, generated by get_anon_bdev
+(through set_anon_super). This id will be visible in
+/proc/self/mountinfo or through stat. i.e:
 
-> +		/* We need to create a new mirror. */
-> +		ib_mirror = kmalloc(sizeof(*ib_mirror), GFP_KERNEL);
-> +		if (ib_mirror == NULL) {
-> +			mutex_unlock(&ib_device->hmm_mutex);
-> +			mmput(mm);
-> +			return -ENOMEM;
-> +		}
-> +		kref_init(&ib_mirror->kref);
-> +		init_rwsem(&ib_mirror->hmm_mr_rwsem);
-> +		ib_mirror->umem_tree = RB_ROOT;
-> +		ib_mirror->ib_device = ib_device;
-> +
-> +		ib_mirror->base.device = &ib_device->hmm_dev;
-> +		ret = hmm_mirror_register(&ib_mirror->base);
-> +		if (ret) {
-> +			mutex_unlock(&ib_device->hmm_mutex);
-> +			kfree(ib_mirror);
-> +			mmput(mm);
-> +			return ret;
-> +		}
-> +
-> +		list_add(&ib_mirror->list, &ib_device->ib_mirrors);
-> +		context->ib_mirror = ib_mirror_ref(ib_mirror);
-> +	}
-> +	mutex_unlock(&ib_device->hmm_mutex);
-> +	umem->odp_data.ib_mirror = ib_mirror;
-> +
-> +	down_write(&ib_mirror->umem_rwsem);
-> +	rbt_ib_umem_insert(&umem->odp_data->interval_tree, &mirror->umem_tree);
-> +	up_write(&ib_mirror->umem_rwsem);
-> +
-> +	mmput(mm);
-> +	return 0;
-> +}
+30 22 0:21 / /root/fake_fs/btrfs rw,realtime - btrfs /dev/loop4 rw,nospace_cache
+
+
+Best Regards
+Beata
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
