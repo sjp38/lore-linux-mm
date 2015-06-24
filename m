@@ -1,316 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id BC42A6B0038
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2015 18:50:32 -0400 (EDT)
-Received: by ieqy10 with SMTP id y10so43306417ieq.0
-        for <linux-mm@kvack.org>; Wed, 24 Jun 2015 15:50:32 -0700 (PDT)
-Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
-        by mx.google.com with ESMTP id r5si2644310igg.4.2015.06.24.15.50.31
-        for <linux-mm@kvack.org>;
-        Wed, 24 Jun 2015 15:50:32 -0700 (PDT)
-Date: Wed, 24 Jun 2015 17:50:28 -0500
-From: Nathan Zimmer <nzimmer@sgi.com>
-Subject: Re: [PATCH] mm: meminit: Finish initialisation of struct pages
-	before basic setup
-Message-ID: <20150624225028.GA97166@asylum.americas.sgi.com>
-References: <20150513163157.GR2462@suse.de> <1431597783.26797.1@cpanel21.proisp.no>
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E74A6B0038
+	for <linux-mm@kvack.org>; Wed, 24 Jun 2015 19:43:24 -0400 (EDT)
+Received: by obbop1 with SMTP id op1so36828383obb.2
+        for <linux-mm@kvack.org>; Wed, 24 Jun 2015 16:43:24 -0700 (PDT)
+Received: from mail-ob0-x22d.google.com (mail-ob0-x22d.google.com. [2607:f8b0:4003:c01::22d])
+        by mx.google.com with ESMTPS id o24si18437167oik.62.2015.06.24.16.43.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Jun 2015 16:43:23 -0700 (PDT)
+Received: by obpn3 with SMTP id n3so36905789obp.0
+        for <linux-mm@kvack.org>; Wed, 24 Jun 2015 16:43:23 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="Kj7319i9nmIyA2yE"
-Content-Disposition: inline
-In-Reply-To: <1431597783.26797.1@cpanel21.proisp.no>
+In-Reply-To: <20150624152518.d3a5408f2bde405df1e6e5c4@linux-foundation.org>
+References: <CAA25o9SCnDYZ6vXWQWEWGDiwpV9rf+S_3Np8nJrWqHJ1x6-kMg@mail.gmail.com>
+	<20150624152518.d3a5408f2bde405df1e6e5c4@linux-foundation.org>
+Date: Wed, 24 Jun 2015 16:43:23 -0700
+Message-ID: <CAA25o9RNLr4Gk_4m56bAf7_RBsObrccFWPtd-9jwuHg1NLdRTA@mail.gmail.com>
+Subject: Re: extremely long blockages when doing random writes to SSD
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel J Blueman <daniel@numascale.com>
-Cc: Mel Gorman <mgorman@suse.de>, nzimmer <nzimmer@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Steffen Persvold <sp@numascale.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
+
+Kernel version is 3.8.
+
+I am not using a file system, I am writing directly into a partition.
+
+Here's the little test app.  I call it "random-write" but you're
+welcome to call it whatever you wish.
+
+My apologies for the copyright notice.
+
+/* Copyright 2015 The Chromium OS Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
+#define _FILE_OFFSET_BITS 64
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
+
+#define PAGE_SIZE 4096
+#define GIGA (1024 * 1024 * 1024)
+
+typedef u_int8_t u8;
+typedef u_int64_t u64;
+
+typedef char bool;
+const bool true = 1;
+const bool false = 0;
 
 
---Kj7319i9nmIyA2yE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+void permute_randomly(u64 *offsets, int offset_count) {
+  int i;
+  for (i = 0; i < offset_count; i++) {
+    int r = random() % (offset_count - i) + i;
+    u64 t = offsets[r];
+    offsets[r] = offsets[i];
+    offsets[i] = t;
+  }
+}
 
-My apologies for taking so long to get back to this.
+u8 page[4096];
+off_t offsets[2 * (GIGA / PAGE_SIZE)];
 
-I think I did locate two potential sources of slowdown.
-One is the set_cpus_allowed_ptr as I have noted previously.
-However I only notice that on the very largest boxes.
-I did cobble together a patch that seems to help.
+int main(int ac, char **av) {
+  u64 i;
+  int out;
 
-The other spot I suspect is the zone lock in free_one_page.
-I haven't been able to give that much thought as of yet though.
+  /* Make "page" slightly non-empty, why not. */
+  page[4] = 1;
+  page[34] = 1;
+  page[234] = 1;
+  page[1234] = 1;
 
-Daniel do you mind seeing if the attached patch helps out?
+  for (i = 0; i < sizeof(offsets) / sizeof(offsets[0]); i++) {
+    offsets[i] = i * PAGE_SIZE;
+  }
 
-Thanks,
-Nate
+  permute_randomly(offsets, sizeof(offsets) / sizeof(offsets[0]));
 
-On Thu, May 14, 2015 at 06:03:03PM +0800, Daniel J Blueman wrote:
-> On Thu, May 14, 2015 at 12:31 AM, Mel Gorman <mgorman@suse.de> wrote:
->> On Wed, May 13, 2015 at 10:53:33AM -0500, nzimmer wrote:
->>>  I am just noticed a hang on my largest box.
->>>  I can only reproduce with large core counts, if I turn down the
->>>  number of cpus it doesn't have an issue.
->>>
+  if (ac < 2) {
+    fprintf(stderr, "usage: %s <device>\n", av[0]);
+    exit(1);
+  }
+
+  out = open(av[1], O_WRONLY);
+  if (out < 0) {
+    perror(av[1]);
+    exit(1);
+  }
+
+  for (i = 0; i < sizeof(offsets) / sizeof(offsets[0]); i++) {
+    int rc;
+    if (lseek(out, offsets[i], SEEK_SET) < 0) {
+      perror("lseek");
+      exit(1);
+    }
+    rc = write(out, page, sizeof(page));
+    if (rc < 0) {
+      perror("write");
+      exit(1);
+    } else if (rc != sizeof(page)) {
+      fprintf(stderr, "wrote %d bytes, expected %d\n", rc, sizeof(page));
+      exit(1);
+    }
+  }
+}
+
+On Wed, Jun 24, 2015 at 3:25 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Wed, 24 Jun 2015 14:54:09 -0700 Luigi Semenzato <semenzato@google.com> wrote:
+>
+>> Greetings,
 >>
->> Odd. The number of core counts should make little a difference as only
->> one CPU per node should be in use. Does sysrq+t give any indication how
->> or where it is hanging?
+>> we have an app that writes 4k blocks to an SSD partition with more or
+>> less random seeks.  (For the curious: it's called "update engine" and
+>> it's used to install a new Chrome OS version in the background.)  The
+>> total size of the writes can be a few hundred megabytes.  During this
+>> time, we see that other apps, such as the browser, block for seconds,
+>> or tens of seconds.
+>>
+>> I have reproduced this behavior with a small program that writes 2GB
+>> worth of 4k blocks randomly to the SSD partition.  I can get apps to
+>> block for over 2 minutes, at which point our hang detector triggers
+>> and panics the kernel.
+>>
+>> CPU: Intel Haswell i7
+>> RAM: 4GB
+>> SSD: 16GB SanDisk
+>> kernel: 3.8
+>>
+>> >From /proc/meminfo I see that the "Buffers:" entry easily gets over
+>> 1GB.  The problem goes away completely, as expected, if I use O_SYNC
+>> when doing the random writes, but then the average size of the I/O
+>> requests goes down a lot, also as expected.
+>>
+>> First of all, it seems that there may be some kind of resource
+>> management bug.  Maybe it has been fixed in later kernels?  But, if
+>> not, is there any way of encouraging some in-between behavior?  That
+>> is, limit the allocation of I/O buffers to a smaller amount, which
+>> still give the system a chance to do some coalescing, but perhaps
+>> avoid the extreme badness that we are seeing?
+>>
 >
-> I was seeing the same behaviour of 1000ms increasing to 5500ms [1]; this 
-> suggests either lock contention or O(n) behaviour.
+> What kernel version?
 >
-> Nathan, can you check with this ordering of patches from Andrew's cache 
-> [2]? I was getting hanging until I a found them all.
+> Are you able to share that little test app with us?
 >
-> I'll follow up with timing data.
+> Which filesystem is being used and with what mount options etc?
 >
-> Thanks,
->  Daniel
 >
-> -- [1]
->
-> [   73.076117] node 2 initialised, 7732961 pages in 1060ms
-> [   73.077184] node 38 initialised, 7732961 pages in 1060ms
-> [   73.079626] node 146 initialised, 7732961 pages in 1050ms
-> [   73.093488] node 62 initialised, 7732961 pages in 1080ms
-> [   73.091557] node 3 initialised, 7732962 pages in 1080ms
-> [   73.100000] node 186 initialised, 7732961 pages in 1040ms
-> [   73.095731] node 4 initialised, 7732961 pages in 1080ms
-> [   73.090289] node 50 initialised, 7732961 pages in 1080ms
-> [   73.094005] node 158 initialised, 7732961 pages in 1050ms
-> [   73.095421] node 159 initialised, 7732962 pages in 1050ms
-> [   73.090324] node 52 initialised, 7732961 pages in 1080ms
-> [   73.099056] node 5 initialised, 7732962 pages in 1080ms
-> [   73.090116] node 160 initialised, 7732961 pages in 1050ms
-> [   73.161051] node 157 initialised, 7732962 pages in 1120ms
-> [   73.193565] node 161 initialised, 7732962 pages in 1160ms
-> [   73.212456] node 26 initialised, 7732961 pages in 1200ms
-> [   73.222904] node 0 initialised, 6686488 pages in 1210ms
-> [   73.242165] node 140 initialised, 7732961 pages in 1210ms
-> [   73.254230] node 156 initialised, 7732961 pages in 1220ms
-> [   73.284634] node 1 initialised, 7732962 pages in 1270ms
-> [   73.305301] node 141 initialised, 7732962 pages in 1280ms
-> [   73.322845] node 28 initialised, 7732961 pages in 1310ms
-> [   73.321757] node 142 initialised, 7732961 pages in 1290ms
-> [   73.327677] node 138 initialised, 7732961 pages in 1300ms
-> [   73.413597] node 176 initialised, 7732961 pages in 1370ms
-> [   73.455552] node 139 initialised, 7732962 pages in 1420ms
-> [   73.475356] node 143 initialised, 7732962 pages in 1440ms
-> [   73.547202] node 32 initialised, 7732961 pages in 1530ms
-> [   73.579591] node 104 initialised, 7732961 pages in 1560ms
-> [   73.618065] node 174 initialised, 7732961 pages in 1570ms
-> [   73.624918] node 178 initialised, 7732961 pages in 1580ms
-> [   73.649024] node 175 initialised, 7732962 pages in 1610ms
-> [   73.654110] node 105 initialised, 7732962 pages in 1630ms
-> [   73.670589] node 106 initialised, 7732961 pages in 1650ms
-> [   73.739682] node 102 initialised, 7732961 pages in 1720ms
-> [   73.769639] node 86 initialised, 7732961 pages in 1750ms
-> [   73.775573] node 44 initialised, 7732961 pages in 1760ms
-> [   73.772955] node 177 initialised, 7732962 pages in 1740ms
-> [   73.804390] node 34 initialised, 7732961 pages in 1790ms
-> [   73.819370] node 30 initialised, 7732961 pages in 1810ms
-> [   73.847882] node 98 initialised, 7732961 pages in 1830ms
-> [   73.867545] node 33 initialised, 7732962 pages in 1860ms
-> [   73.877964] node 107 initialised, 7732962 pages in 1860ms
-> [   73.906256] node 103 initialised, 7732962 pages in 1880ms
-> [   73.945581] node 100 initialised, 7732961 pages in 1930ms
-> [   73.947024] node 96 initialised, 7732961 pages in 1930ms
-> [   74.186208] node 116 initialised, 7732961 pages in 2170ms
-> [   74.220838] node 68 initialised, 7732961 pages in 2210ms
-> [   74.252341] node 46 initialised, 7732961 pages in 2240ms
-> [   74.274795] node 118 initialised, 7732961 pages in 2260ms
-> [   74.337544] node 14 initialised, 7732961 pages in 2320ms
-> [   74.350819] node 22 initialised, 7732961 pages in 2340ms
-> [   74.350332] node 69 initialised, 7732962 pages in 2340ms
-> [   74.362683] node 211 initialised, 7732962 pages in 2310ms
-> [   74.360617] node 70 initialised, 7732961 pages in 2340ms
-> [   74.369137] node 66 initialised, 7732961 pages in 2360ms
-> [   74.378242] node 115 initialised, 7732962 pages in 2360ms
-> [   74.404221] node 213 initialised, 7732962 pages in 2350ms
-> [   74.420901] node 210 initialised, 7732961 pages in 2370ms
-> [   74.430049] node 35 initialised, 7732962 pages in 2420ms
-> [   74.436007] node 48 initialised, 7732961 pages in 2420ms
-> [   74.480595] node 71 initialised, 7732962 pages in 2460ms
-> [   74.485700] node 67 initialised, 7732962 pages in 2480ms
-> [   74.502627] node 31 initialised, 7732962 pages in 2490ms
-> [   74.542220] node 16 initialised, 7732961 pages in 2530ms
-> [   74.547936] node 128 initialised, 7732961 pages in 2520ms
-> [   74.634374] node 214 initialised, 7732961 pages in 2580ms
-> [   74.654389] node 88 initialised, 7732961 pages in 2630ms
-> [   74.722833] node 117 initialised, 7732962 pages in 2700ms
-> [   74.735002] node 148 initialised, 7732961 pages in 2700ms
-> [   74.742725] node 12 initialised, 7732961 pages in 2730ms
-> [   74.749319] node 194 initialised, 7732961 pages in 2700ms
-> [   74.767979] node 24 initialised, 7732961 pages in 2750ms
-> [   74.769465] node 114 initialised, 7732961 pages in 2750ms
-> [   74.796973] node 134 initialised, 7732961 pages in 2770ms
-> [   74.818164] node 15 initialised, 7732962 pages in 2810ms
-> [   74.844852] node 18 initialised, 7732961 pages in 2830ms
-> [   74.866123] node 110 initialised, 7732961 pages in 2850ms
-> [   74.898255] node 215 initialised, 7730688 pages in 2840ms
-> [   74.903623] node 136 initialised, 7732961 pages in 2880ms
-> [   74.911107] node 144 initialised, 7732961 pages in 2890ms
-> [   74.918757] node 212 initialised, 7732961 pages in 2870ms
-> [   74.935333] node 182 initialised, 7732961 pages in 2880ms
-> [   74.958147] node 42 initialised, 7732961 pages in 2950ms
-> [   74.964989] node 108 initialised, 7732961 pages in 2950ms
-> [   74.965482] node 112 initialised, 7732961 pages in 2950ms
-> [   75.034787] node 184 initialised, 7732961 pages in 2980ms
-> [   75.051242] node 45 initialised, 7732962 pages in 3040ms
-> [   75.047169] node 152 initialised, 7732961 pages in 3020ms
-> [   75.062834] node 179 initialised, 7732962 pages in 3010ms
-> [   75.076528] node 145 initialised, 7732962 pages in 3040ms
-> [   75.076613] node 25 initialised, 7732962 pages in 3070ms
-> [   75.073086] node 164 initialised, 7732961 pages in 3040ms
-> [   75.079674] node 149 initialised, 7732962 pages in 3050ms
-> [   75.092015] node 113 initialised, 7732962 pages in 3070ms
-> [   75.096325] node 80 initialised, 7732961 pages in 3080ms
-> [   75.131380] node 92 initialised, 7732961 pages in 3110ms
-> [   75.142147] node 10 initialised, 7732961 pages in 3130ms
-> [   75.151041] node 51 initialised, 7732962 pages in 3140ms
-> [   75.159074] node 130 initialised, 7732961 pages in 3130ms
-> [   75.162616] node 166 initialised, 7732961 pages in 3130ms
-> [   75.193557] node 82 initialised, 7732961 pages in 3170ms
-> [   75.254801] node 84 initialised, 7732961 pages in 3240ms
-> [   75.303028] node 64 initialised, 7732961 pages in 3290ms
-> [   75.299739] node 49 initialised, 7732962 pages in 3290ms
-> [   75.314231] node 21 initialised, 7732962 pages in 3300ms
-> [   75.371298] node 53 initialised, 7732962 pages in 3360ms
-> [   75.394569] node 95 initialised, 7732962 pages in 3380ms
-> [   75.441101] node 23 initialised, 7732962 pages in 3430ms
-> [   75.433080] node 19 initialised, 7732962 pages in 3430ms
-> [   75.446076] node 173 initialised, 7732962 pages in 3410ms
-> [   75.445816] node 99 initialised, 7732962 pages in 3430ms
-> [   75.470330] node 87 initialised, 7732962 pages in 3450ms
-> [   75.502334] node 8 initialised, 7732961 pages in 3490ms
-> [   75.508300] node 206 initialised, 7732961 pages in 3460ms
-> [   75.540253] node 132 initialised, 7732961 pages in 3510ms
-> [   75.615453] node 183 initialised, 7732962 pages in 3560ms
-> [   75.632576] node 78 initialised, 7732961 pages in 3610ms
-> [   75.647753] node 85 initialised, 7732962 pages in 3620ms
-> [   75.688955] node 90 initialised, 7732961 pages in 3670ms
-> [   75.694522] node 200 initialised, 7732961 pages in 3640ms
-> [   75.688790] node 43 initialised, 7732962 pages in 3680ms
-> [   75.694540] node 94 initialised, 7732961 pages in 3680ms
-> [   75.697149] node 29 initialised, 7732962 pages in 3690ms
-> [   75.693590] node 111 initialised, 7732962 pages in 3680ms
-> [   75.715829] node 56 initialised, 7732961 pages in 3700ms
-> [   75.718427] node 97 initialised, 7732962 pages in 3700ms
-> [   75.741643] node 147 initialised, 7732962 pages in 3710ms
-> [   75.773613] node 170 initialised, 7732961 pages in 3740ms
-> [   75.802874] node 208 initialised, 7732961 pages in 3750ms
-> [   75.804409] node 58 initialised, 7732961 pages in 3790ms
-> [   75.853438] node 126 initialised, 7732961 pages in 3830ms
-> [   75.888167] node 167 initialised, 7732962 pages in 3850ms
-> [   75.912656] node 172 initialised, 7732961 pages in 3870ms
-> [   75.956540] node 93 initialised, 7732962 pages in 3940ms
-> [   75.988819] node 127 initialised, 7732962 pages in 3960ms
-> [   76.062198] node 201 initialised, 7732962 pages in 4010ms
-> [   76.091769] node 47 initialised, 7732962 pages in 4080ms
-> [   76.119749] node 162 initialised, 7732961 pages in 4080ms
-> [   76.122797] node 6 initialised, 7732961 pages in 4110ms
-> [   76.225916] node 153 initialised, 7732962 pages in 4190ms
-> [   76.219855] node 81 initialised, 7732962 pages in 4200ms
-> [   76.236116] node 150 initialised, 7732961 pages in 4210ms
-> [   76.245349] node 180 initialised, 7732961 pages in 4190ms
-> [   76.248827] node 17 initialised, 7732962 pages in 4240ms
-> [   76.258801] node 13 initialised, 7732962 pages in 4250ms
-> [   76.259943] node 122 initialised, 7732961 pages in 4240ms
-> [   76.277480] node 196 initialised, 7732961 pages in 4230ms
-> [   76.320830] node 41 initialised, 7732962 pages in 4310ms
-> [   76.351667] node 129 initialised, 7732962 pages in 4320ms
-> [   76.353488] node 202 initialised, 7732961 pages in 4310ms
-> [   76.376753] node 165 initialised, 7732962 pages in 4340ms
-> [   76.381807] node 124 initialised, 7732961 pages in 4350ms
-> [   76.419952] node 171 initialised, 7732962 pages in 4380ms
-> [   76.431242] node 168 initialised, 7732961 pages in 4390ms
-> [   76.441324] node 89 initialised, 7732962 pages in 4420ms
-> [   76.440720] node 155 initialised, 7732962 pages in 4400ms
-> [   76.459715] node 120 initialised, 7732961 pages in 4440ms
-> [   76.483986] node 205 initialised, 7732962 pages in 4430ms
-> [   76.493284] node 151 initialised, 7732962 pages in 4460ms
-> [   76.491437] node 60 initialised, 7732961 pages in 4480ms
-> [   76.526620] node 74 initialised, 7732961 pages in 4510ms
-> [   76.543761] node 131 initialised, 7732962 pages in 4510ms
-> [   76.549562] node 39 initialised, 7732962 pages in 4540ms
-> [   76.563861] node 11 initialised, 7732962 pages in 4550ms
-> [   76.598775] node 54 initialised, 7732961 pages in 4590ms
-> [   76.602006] node 123 initialised, 7732962 pages in 4570ms
-> [   76.619856] node 76 initialised, 7732961 pages in 4600ms
-> [   76.631418] node 198 initialised, 7732961 pages in 4580ms
-> [   76.665415] node 188 initialised, 7732961 pages in 4610ms
-> [   76.669178] node 63 initialised, 7732962 pages in 4660ms
-> [   76.683646] node 101 initialised, 7732962 pages in 4670ms
-> [   76.710780] node 192 initialised, 7732961 pages in 4660ms
-> [   76.736743] node 121 initialised, 7732962 pages in 4720ms
-> [   76.743800] node 199 initialised, 7732962 pages in 4700ms
-> [   76.750663] node 20 initialised, 7732961 pages in 4740ms
-> [   76.763045] node 135 initialised, 7732962 pages in 4730ms
-> [   76.768216] node 137 initialised, 7732962 pages in 4740ms
-> [   76.800135] node 181 initialised, 7732962 pages in 4750ms
-> [   76.811215] node 27 initialised, 7732962 pages in 4800ms
-> [   76.857405] node 125 initialised, 7732962 pages in 4820ms
-> [   76.853750] node 163 initialised, 7732962 pages in 4820ms
-> [   76.882975] node 59 initialised, 7732962 pages in 4870ms
-> [   76.920121] node 9 initialised, 7732962 pages in 4910ms
-> [   76.934824] node 189 initialised, 7732962 pages in 4880ms
-> [   76.951223] node 154 initialised, 7732961 pages in 4920ms
-> [   76.953897] node 203 initialised, 7732962 pages in 4900ms
-> [   76.952558] node 75 initialised, 7732962 pages in 4930ms
-> [   76.985480] node 119 initialised, 7732962 pages in 4970ms
-> [   77.036089] node 195 initialised, 7732962 pages in 4980ms
-> [   77.039996] node 55 initialised, 7732962 pages in 5030ms
-> [   77.067989] node 109 initialised, 7732962 pages in 5040ms
-> [   77.066236] node 7 initialised, 7732962 pages in 5060ms
-> [   77.068709] node 65 initialised, 7732962 pages in 5060ms
-> [   77.097859] node 79 initialised, 7732962 pages in 5080ms
-> [   77.096219] node 169 initialised, 7732962 pages in 5060ms
-> [   77.125113] node 83 initialised, 7732962 pages in 5110ms
-> [   77.139507] node 37 initialised, 7732962 pages in 5130ms
-> [   77.143280] node 77 initialised, 7732962 pages in 5120ms
-> [   77.226494] node 73 initialised, 7732962 pages in 5200ms
-> [   77.281584] node 190 initialised, 7732961 pages in 5230ms
-> [   77.314794] node 204 initialised, 7732961 pages in 5260ms
-> [   77.328577] node 72 initialised, 7732961 pages in 5310ms
-> [   77.335743] node 36 initialised, 7732961 pages in 5320ms
-> [   77.360573] node 40 initialised, 7732961 pages in 5350ms
-> [   77.368712] node 207 initialised, 7732962 pages in 5320ms
-> [   77.387708] node 91 initialised, 7732962 pages in 5370ms
-> [   77.385143] node 57 initialised, 7732962 pages in 5380ms
-> [   77.391785] node 191 initialised, 7732962 pages in 5340ms
-> [   77.479970] node 185 initialised, 7732962 pages in 5430ms
-> [   77.491865] node 61 initialised, 7732962 pages in 5480ms
-> [   77.489255] node 133 initialised, 7732962 pages in 5460ms
-> [   77.502111] node 197 initialised, 7732962 pages in 5450ms
-> [   77.507136] node 193 initialised, 7732962 pages in 5460ms
-> [   77.523739] node 209 initialised, 7732962 pages in 5470ms
-> [   77.537131] node 187 initialised, 7732962 pages in 5490ms
->
-> -- [2]
->
-> http://ozlabs.org/~akpm/mmots/broken-out/memblock-introduce-a-for_each_reserved_mem_region-iterator.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-move-page-initialization-into-a-separate-function.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-only-set-page-reserved-in-the-memblock-region.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-page_alloc-pass-pfn-to-__free_pages_bootmem.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-make-__early_pfn_to_nid-smp-safe-and-introduce-meminit_pfn_in_nid.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-inline-some-helper-functions.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-inline-some-helper-functions-fix.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-initialise-a-subset-of-struct-pages-if-config_deferred_struct_page_init-is-set.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-initialise-remaining-struct-pages-in-parallel-with-kswapd.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-minimise-number-of-pfn-page-lookups-during-initialisation.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/x86-mm-enable-deferred-struct-page-initialisation-on-x86-64.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-free-pages-in-large-chunks-where-possible.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-reduce-number-of-times-pageblocks-are-set-during-struct-page-init.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-remove-mminit_verify_page_links.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-initialise-a-subset-of-struct-pages-if-config_deferred_struct_page_init-is-set-fix.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-finish-initialisation-of-struct-pages-before-basic-setup.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-finish-initialisation-of-struct-pages-before-basic-setup-fix.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-reduce-number-of-times-pageblocks-are-set-during-struct-page-init-fix.patch
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-meminit-inline-some-helper-functions-fix2.patch
 >
 
---Kj7319i9nmIyA2yE
-Content-Type: text/x-patch; charset=us-ascii
-Content-Disposition: attachment; filename="0001-Avoid-the-contention-in-set_cpus_allowed.patch"
-
-
---Kj7319i9nmIyA2yE--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
