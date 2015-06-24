@@ -1,82 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id A01286B0032
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2015 05:47:45 -0400 (EDT)
-Received: by wicnd19 with SMTP id nd19so129486687wic.1
-        for <linux-mm@kvack.org>; Wed, 24 Jun 2015 02:47:45 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 20si45987376wjq.25.2015.06.24.02.47.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 24 Jun 2015 02:47:44 -0700 (PDT)
-Date: Wed, 24 Jun 2015 11:47:42 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RESEND PATCH V2 1/3] Add mmap flag to request pages are locked
- after page fault
-Message-ID: <20150624094742.GD32756@dhcp22.suse.cz>
-References: <1433942810-7852-1-git-send-email-emunson@akamai.com>
- <1433942810-7852-2-git-send-email-emunson@akamai.com>
- <20150618152907.GG5858@dhcp22.suse.cz>
- <20150618203048.GB2329@akamai.com>
- <20150619145708.GG4913@dhcp22.suse.cz>
- <20150619164333.GD2329@akamai.com>
- <20150622123826.GF4430@dhcp22.suse.cz>
- <20150622141806.GE2329@akamai.com>
- <558954DD.4060405@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <558954DD.4060405@suse.cz>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 69F106B0032
+	for <linux-mm@kvack.org>; Wed, 24 Jun 2015 06:24:03 -0400 (EDT)
+Received: by pabvl15 with SMTP id vl15so26539402pab.1
+        for <linux-mm@kvack.org>; Wed, 24 Jun 2015 03:24:03 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id dd8si35030800pdb.122.2015.06.24.03.24.02
+        for <linux-mm@kvack.org>;
+        Wed, 24 Jun 2015 03:24:02 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm: fix status code move_pages() returns for zero page
+Date: Wed, 24 Jun 2015 13:23:48 +0300
+Message-Id: <1435141428-98266-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Eric B Munson <emunson@akamai.com>, Andrew Morton <akpm@linux-foundation.org>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>
 
-On Tue 23-06-15 14:45:17, Vlastimil Babka wrote:
-> On 06/22/2015 04:18 PM, Eric B Munson wrote:
-> >On Mon, 22 Jun 2015, Michal Hocko wrote:
-> >
-> >>On Fri 19-06-15 12:43:33, Eric B Munson wrote:
-[...]
-> >>>My thought on detecting was that someone might want to know if they had
-> >>>a VMA that was VM_LOCKED but had not been made present becuase of a
-> >>>failure in mmap.  We don't have a way today, but adding VM_LOCKONFAULT
-> >>>is at least explicit about what is happening which would make detecting
-> >>>the VM_LOCKED but not present state easier.
-> >>
-> >>One could use /proc/<pid>/pagemap to query the residency.
-> 
-> I think that's all too much complex scenario for a little gain. If someone
-> knows that mmap(MAP_LOCKED|MAP_POPULATE) is not perfect, he should either
-> mlock() separately from mmap(), or fault the range manually with a for loop.
-> Why try to detect if the corner case was hit?
+Man page for move_pages(2) specifies that status code for zero page is
+supposed to be -EFAULT. Currently kernel return -ENOENT in this case.
 
-No idea. I have just offered a way to do that. I do not think it is
-anyhow useful but who knows... I do agree that the mlock should be used
-for the full mlock semantic.
+follow_page() can do it for us, if we would ask for FOLL_DUMP.
 
-> >>>This assumes that
-> >>>MAP_FAULTPOPULATE does not translate to a VMA flag, but it sounds like
-> >>>it would have to.
-> >>
-> >>Yes, it would have to have a VM flag for the vma.
-> 
-> So with your approach, VM_LOCKED flag is enough, right? The new MAP_ /
-> MLOCK_ flags just cause setting VM_LOCKED to not fault the whole vma, but
-> otherwise nothing changes.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Hugh Dickins <hughd@google.com>
+---
+ mm/migrate.c | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)
 
-VM_FAULTPOPULATE would have to be sticky to prevent from other
-speculative poppulation of the mapping. I mean, is it OK to have a new
-mlock semantic (on fault) which might still populate&lock memory which
-hasn't been faulted directly? Who knows what kind of speculative things
-we will do in the future and then find out that the semantic of
-lock-on-fault is not usable anymore.
-
-[...]
-
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 236ee25e79d9..d3529d620a5b 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1222,7 +1222,9 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
+ 		if (!vma || pp->addr < vma->vm_start || !vma_migratable(vma))
+ 			goto set_status;
+ 
+-		page = follow_page(vma, pp->addr, FOLL_GET|FOLL_SPLIT);
++		/* FOLL_DUMP to ignore special (like zero) pages */
++		page = follow_page(vma, pp->addr,
++				FOLL_GET | FOLL_SPLIT | FOLL_DUMP);
+ 
+ 		err = PTR_ERR(page);
+ 		if (IS_ERR(page))
+@@ -1232,10 +1234,6 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
+ 		if (!page)
+ 			goto set_status;
+ 
+-		/* Use PageReserved to check for zero page */
+-		if (PageReserved(page))
+-			goto put_and_set;
+-
+ 		pp->page = page;
+ 		err = page_to_nid(page);
+ 
+@@ -1392,18 +1390,14 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
+ 		if (!vma || addr < vma->vm_start)
+ 			goto set_status;
+ 
+-		page = follow_page(vma, addr, 0);
++		/* FOLL_DUMP to ignore special (like zero) pages */
++		page = follow_page(vma, addr, FOLL_DUMP);
+ 
+ 		err = PTR_ERR(page);
+ 		if (IS_ERR(page))
+ 			goto set_status;
+ 
+-		err = -ENOENT;
+-		/* Use PageReserved to check for zero page */
+-		if (!page || PageReserved(page))
+-			goto set_status;
+-
+-		err = page_to_nid(page);
++		err = page ? page_to_nid(page) : -ENOENT;
+ set_status:
+ 		*status = err;
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
