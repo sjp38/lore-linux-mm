@@ -1,47 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 36BBE6B0032
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2015 05:16:53 -0400 (EDT)
-Received: by wgck11 with SMTP id k11so30779717wgc.0
-        for <linux-mm@kvack.org>; Wed, 24 Jun 2015 02:16:52 -0700 (PDT)
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A01286B0032
+	for <linux-mm@kvack.org>; Wed, 24 Jun 2015 05:47:45 -0400 (EDT)
+Received: by wicnd19 with SMTP id nd19so129486687wic.1
+        for <linux-mm@kvack.org>; Wed, 24 Jun 2015 02:47:45 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id iy7si1769135wic.58.2015.06.24.02.16.50
+        by mx.google.com with ESMTPS id 20si45987376wjq.25.2015.06.24.02.47.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 24 Jun 2015 02:16:51 -0700 (PDT)
-Date: Wed, 24 Jun 2015 11:16:50 +0200
+        Wed, 24 Jun 2015 02:47:44 -0700 (PDT)
+Date: Wed, 24 Jun 2015 11:47:42 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Write throughput impaired by touching dirty_ratio
-Message-ID: <20150624091650.GC32756@dhcp22.suse.cz>
-References: <1506191513210.2879@stax.localdomain>
- <558A69F8.2080304@suse.cz>
+Subject: Re: [RESEND PATCH V2 1/3] Add mmap flag to request pages are locked
+ after page fault
+Message-ID: <20150624094742.GD32756@dhcp22.suse.cz>
+References: <1433942810-7852-1-git-send-email-emunson@akamai.com>
+ <1433942810-7852-2-git-send-email-emunson@akamai.com>
+ <20150618152907.GG5858@dhcp22.suse.cz>
+ <20150618203048.GB2329@akamai.com>
+ <20150619145708.GG4913@dhcp22.suse.cz>
+ <20150619164333.GD2329@akamai.com>
+ <20150622123826.GF4430@dhcp22.suse.cz>
+ <20150622141806.GE2329@akamai.com>
+ <558954DD.4060405@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <558A69F8.2080304@suse.cz>
+In-Reply-To: <558954DD.4060405@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Hills <mark@xwax.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Eric B Munson <emunson@akamai.com>, Andrew Morton <akpm@linux-foundation.org>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On Wed 24-06-15 10:27:36, Vlastimil Babka wrote:
-> [add some CC's]
-> 
-> On 06/19/2015 05:16 PM, Mark Hills wrote:
+On Tue 23-06-15 14:45:17, Vlastimil Babka wrote:
+> On 06/22/2015 04:18 PM, Eric B Munson wrote:
+> >On Mon, 22 Jun 2015, Michal Hocko wrote:
+> >
+> >>On Fri 19-06-15 12:43:33, Eric B Munson wrote:
 [...]
-> > The system is an HP xw6600, running i686 kernel. This happens whether 
+> >>>My thought on detecting was that someone might want to know if they had
+> >>>a VMA that was VM_LOCKED but had not been made present becuase of a
+> >>>failure in mmap.  We don't have a way today, but adding VM_LOCKONFAULT
+> >>>is at least explicit about what is happening which would make detecting
+> >>>the VM_LOCKED but not present state easier.
+> >>
+> >>One could use /proc/<pid>/pagemap to query the residency.
+> 
+> I think that's all too much complex scenario for a little gain. If someone
+> knows that mmap(MAP_LOCKED|MAP_POPULATE) is not perfect, he should either
+> mlock() separately from mmap(), or fault the range manually with a for loop.
+> Why try to detect if the corner case was hit?
 
-How many CPUs does the machine have?
+No idea. I have just offered a way to do that. I do not think it is
+anyhow useful but who knows... I do agree that the mlock should be used
+for the full mlock semantic.
 
-> > internal SATA HDD, SSD or external USB drive is used. I first saw this on 
-> > kernel 4.0.4, and 4.0.5 is also affected.
+> >>>This assumes that
+> >>>MAP_FAULTPOPULATE does not translate to a VMA flag, but it sounds like
+> >>>it would have to.
+> >>
+> >>Yes, it would have to have a VM flag for the vma.
+> 
+> So with your approach, VM_LOCKED flag is enough, right? The new MAP_ /
+> MLOCK_ flags just cause setting VM_LOCKED to not fault the whole vma, but
+> otherwise nothing changes.
 
-OK so this is 32b kernel which might be the most important part. What is
-the value of /proc/sys/vm/highmem_is_dirtyable? Also how does your low
-mem vs higmem look when you are setting the ratio (cat /proc/zoneinfo)?
+VM_FAULTPOPULATE would have to be sticky to prevent from other
+speculative poppulation of the mapping. I mean, is it OK to have a new
+mlock semantic (on fault) which might still populate&lock memory which
+hasn't been faulted directly? Who knows what kind of speculative things
+we will do in the future and then find out that the semantic of
+lock-on-fault is not usable anymore.
 
-It seems Vlastimil is right and a bogus ratelimit_pages is calculated
-and your writers are throttled every few pages.
+[...]
+
 -- 
 Michal Hocko
 SUSE Labs
