@@ -1,138 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D9EC6B007B
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 17:46:02 -0400 (EDT)
-Received: by wicnd19 with SMTP id nd19so1747924wic.1
-        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 14:46:01 -0700 (PDT)
-Received: from jazz.pogo.org.uk (jazz.pogo.org.uk. [2001:41c8:51:8a7::167])
-        by mx.google.com with ESMTPS id t17si12489618wjr.208.2015.06.25.14.46.00
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EE866B007B
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 17:50:03 -0400 (EDT)
+Received: by pdcu2 with SMTP id u2so61283111pdc.3
+        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 14:50:03 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id g2si46992580pdp.243.2015.06.25.14.50.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jun 2015 14:46:00 -0700 (PDT)
-Date: Thu, 25 Jun 2015 22:45:57 +0100 (BST)
-From: Mark Hills <mark@xwax.org>
-Subject: Re: Write throughput impaired by touching dirty_ratio
-In-Reply-To: <20150625092056.GB17237@dhcp22.suse.cz>
-Message-ID: <1506252136260.2115@stax.localdomain>
-References: <1506191513210.2879@stax.localdomain> <558A69F8.2080304@suse.cz> <1506242140070.1867@stax.localdomain> <20150625092056.GB17237@dhcp22.suse.cz>
+        Thu, 25 Jun 2015 14:50:02 -0700 (PDT)
+Date: Thu, 25 Jun 2015 23:49:50 +0200
+From: Daniel Kiper <daniel.kiper@oracle.com>
+Subject: Re: [PATCHv1 8/8] xen/balloon: use hotplugged pages for foreign
+ mappings etc.
+Message-ID: <20150625214950.GR14050@olila.local.net-space.pl>
+References: <1435252263-31952-1-git-send-email-david.vrabel@citrix.com>
+ <1435252263-31952-9-git-send-email-david.vrabel@citrix.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1435252263-31952-9-git-send-email-david.vrabel@citrix.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Vrabel <david.vrabel@citrix.com>
+Cc: xen-devel@lists.xenproject.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 25 Jun 2015, Michal Hocko wrote:
+On Thu, Jun 25, 2015 at 06:11:03PM +0100, David Vrabel wrote:
+> alloc_xenballooned_pages() is used to get ballooned pages to back
+> foreign mappings etc.  Instead of having to balloon out real pages,
+> use (if supported) hotplugged memory.
+>
+> This makes more memory available to the guest and reduces
+> fragmentation in the p2m.
+>
+> If userspace is lacking a udev rule (or similar) to online hotplugged
+> regions automatically, alloc_xenballooned_pages() will timeout and
+> fall back to the old behaviour of ballooning out pages.
+>
+> Signed-off-by: David Vrabel <david.vrabel@citrix.com>
 
-> On Wed 24-06-15 23:26:49, Mark Hills wrote:
-> [...]
-> > To test, I flipped the vm_highmem_is_dirtyable (which had no effect until 
-> > I forced it to re-evaluate ratelimit_pages):
-> > 
-> >   $ echo 1 > /proc/sys/vm/highmem_is_dirtyable
-> >   $ echo 21 > /proc/sys/vm/dirty_ratio
-> >   $ echo 20 > /proc/sys/vm/dirty_ratio 
-> > 
-> >   crash> rd -d ratelimit_pages
-> >   c148b618:          2186 
-> > 
-> > The value is now healthy, more so than even the value we started 
-> > with on bootup.
-> 
-> From your /proc/zoneinfo:
-> > Node 0, zone  HighMem
-> >   pages free     2536526
-> >         min      128
-> >         low      37501
-> >         high     74874
-> >         scanned  0
-> >         spanned  3214338
-> >         present  3017668
-> >         managed  3017668
-> 
-> You have 11G of highmem. Which is a lot wrt. the the lowmem
-> 
-> > Node 0, zone   Normal
-> >   pages free     37336
-> >         min      4789
-> >         low      5986
-> >         high     7183
-> >         scanned  0
-> >         spanned  123902
-> >         present  123902
-> >         managed  96773
-> 
-> which is only 378M! So something had to eat portion of the lowmem.
-> I think it is a bad idea to use 32b kernel with that amount of memory in
-> general. The lowmem pressure is even worse by the fact that something is
-> eating already precious amount of lowmem.
+In general Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com> but...
 
-Yup, that's the ""vmalloc=512M" kernel parameter.
+> ---
+>  drivers/xen/balloon.c |   32 ++++++++++++++++++++++++++------
+>  include/xen/balloon.h |    1 +
+>  2 files changed, 27 insertions(+), 6 deletions(-)
+>
+> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+> index 95c261c..a26c5f3 100644
+> --- a/drivers/xen/balloon.c
+> +++ b/drivers/xen/balloon.c
+> @@ -97,6 +97,7 @@ static xen_pfn_t frame_list[PAGE_SIZE / sizeof(unsigned long)];
+>
+>  /* List of ballooned pages, threaded through the mem_map array. */
+>  static LIST_HEAD(ballooned_pages);
+> +static DECLARE_WAIT_QUEUE_HEAD(balloon_wq);
+>
+>  /* Main work function, always executed in process context. */
+>  static void balloon_process(struct work_struct *work);
+> @@ -125,6 +126,7 @@ static void __balloon_append(struct page *page)
+>  		list_add(&page->lru, &ballooned_pages);
+>  		balloon_stats.balloon_low++;
+>  	}
+> +	wake_up(&balloon_wq);
+>  }
+>
+>  static void balloon_append(struct page *page)
+> @@ -247,7 +249,8 @@ static enum bp_state reserve_additional_memory(void)
+>  	int nid, rc;
+>  	unsigned long balloon_hotplug;
+>
+> -	credit = balloon_stats.target_pages - balloon_stats.total_pages;
+> +	credit = balloon_stats.target_pages + balloon_stats.target_unpopulated
+> +		- balloon_stats.total_pages;
+>
+>  	/*
+>  	 * Already hotplugged enough pages?  Wait for them to be
+> @@ -328,7 +331,7 @@ static struct notifier_block xen_memory_nb = {
+>  static enum bp_state reserve_additional_memory(void)
+>  {
+>  	balloon_stats.target_pages = balloon_stats.current_pages;
+> -	return BP_DONE;
+> +	return BP_ECANCELED;
+>  }
+>  #endif /* CONFIG_XEN_BALLOON_MEMORY_HOTPLUG */
+>
+> @@ -532,13 +535,31 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
+>  {
+>  	int pgno = 0;
+>  	struct page *page;
+> +
+>  	mutex_lock(&balloon_mutex);
+> +
+> +	balloon_stats.target_unpopulated += nr_pages;
+> +
+>  	while (pgno < nr_pages) {
+>  		page = balloon_retrieve(true);
+>  		if (page) {
+>  			pages[pgno++] = page;
+>  		} else {
+>  			enum bp_state st;
+> +
+> +			st = reserve_additional_memory();
+> +			if (st != BP_ECANCELED) {
 
-That was a requirement for my NVidia GPU to work, but now I have an AMD 
-card so I have been able to remove that. It now gives me ~730M, and 
-provided some relieve to ratelimit_pages; now at 63 (when dirty_ratio is 
-set to 20 after boot)
+...think if you use BP_ECANCELED in patch #6...
 
-> What is the reason to stick with 32b kernel anyway?
-
-Because it's ideal for finding edge cases and bugs in kernels :-)
-
-The real reason is more practical. I never had a problem with the 32-bit 
-one, and as my OS is quite home-grown and evolved over 10+ years, I 
-haven't wanted to start again or reinstall.
-
-This is the first time I've been aware of any problem or notable 
-performance impact -- the PAE kernel has worked very well for me.
-
-The only reason I have so much RAM is that RAM is cheap, and it's a great 
-disk cache. I'd be more likely to remove some of the RAM than reinstall!
-
-Perhaps someone could kindly explain why don't I have the same problem if 
-I have, say 1.5G of RAM? Is it because the page table for 12G is large and 
-sits in the lowmem?
-
-> > My questions and observations are:
-> > 
-> > * What does highmem_is_dirtyable actually mean, and should it really 
-> >   default to 1?
-> 
-> It says whether highmem should be considered dirtyable. It is not by
-> default. See more for motivation in 195cf453d2c3 ("mm/page-writeback:
-> highmem_is_dirtyable option").
-
-Thank you, this explanation is useful.
-
-I know very little about the constraints on highmem and lowmem, though I 
-can make an educated guess (and reading http://linux-mm.org/HighMemory)
-
-I do have some questions though, perhaps if someone would be happy to 
-explain.
-
-What is the "excessive scanning" mentioned in that patch, and why it is 
-any more than I would expect a 64-bit kernel to be doing? ie. what is the 
-practical downside of me doing:
-
-  $ echo 1073741824 > /proc/sys/vm/dirty_bytes
-
-Also, is VMSPLIT_2G likely to be appropriate here if the kernel is 
-managing larger amounts of total RAM? I enabled it and it increases the 
-lowmem. Is this a simple tradeoff I am making now between user and kernel 
-space?
-
-I'm not trying to sit in the dark ages, but the bad I/O throttling is the 
-only real problem I have suffered by staying 32-bit, and a small tweak has 
-restored sanity. So it's reasonable to question the logic that is in use.
-
-For example, if we're saying that ratelimit_pages is dependent truly on 
-free lowmem, then surely it needs to be periodically re-evaluated as the 
-system is put to use? Setting 'dirty_ratio' implies that it's a ratio of a 
-fixed, unchanging value.
-
-Many thanks
-
--- 
-Mark
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
