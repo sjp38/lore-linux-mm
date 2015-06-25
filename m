@@ -1,123 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B84B6B0038
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 05:30:32 -0400 (EDT)
-Received: by wiwl6 with SMTP id l6so12141200wiw.0
-        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 02:30:31 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id as8si51707668wjc.92.2015.06.25.02.30.30
+Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
+	by kanga.kvack.org (Postfix) with ESMTP id DC40C6B006E
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 05:54:27 -0400 (EDT)
+Received: by oigx81 with SMTP id x81so48733554oig.1
+        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 02:54:27 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id 136si2142410oia.75.2015.06.25.02.54.25
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 25 Jun 2015 02:30:31 -0700 (PDT)
-Message-ID: <558BCA35.80605@suse.cz>
-Date: Thu, 25 Jun 2015 11:30:29 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 25 Jun 2015 02:54:27 -0700 (PDT)
+Message-ID: <558BCD95.2090201@huawei.com>
+Date: Thu, 25 Jun 2015 17:44:53 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Subject: Re: Write throughput impaired by touching dirty_ratio
-References: <1506191513210.2879@stax.localdomain> <558A69F8.2080304@suse.cz> <1506242140070.1867@stax.localdomain>
-In-Reply-To: <1506242140070.1867@stax.localdomain>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Subject: Re: [RFC PATCH 10/12] mm: add the buddy system interface
+References: <55704A7E.5030507@huawei.com> <55704CC4.8040707@huawei.com> <557691E0.5020203@jp.fujitsu.com> <5576BA2B.6060907@huawei.com> <5577A9A9.7010108@jp.fujitsu.com>
+In-Reply-To: <5577A9A9.7010108@jp.fujitsu.com>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Hills <mark@xwax.org>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas
+ Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 06/25/2015 12:26 AM, Mark Hills wrote:
-> On Wed, 24 Jun 2015, Vlastimil Babka wrote:
->
->> [add some CC's]
->>
->> On 06/19/2015 05:16 PM, Mark Hills wrote:
->>
->> Hmm, so the only thing that dirty_ratio_handler() changes except the
->> vm_dirty_ratio itself, is ratelimit_pages through writeback_set_ratelimit(). So
->> I assume the problem is with ratelimit_pages. There's num_online_cpus() used in
->> the calculation, which I think would differ between the initial system state
->> (where we are called by page_writeback_init()) and later when all CPU's are
->> onlined. But I don't see CPU onlining code updating the limit (unlike memory
->> hotplug which does that), so that's suspicious.
->>
->> Another suspicious thing is that global_dirty_limits() looks at current
->> process's flag. It seems odd to me that the process calling the sysctl would
->> determine a value global to the system.
->
-> Yes, I also spotted this. The fragment of code is:
->
->    	tsk = current;
-> 	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
-> 		background += background / 4;
-> 		dirty += dirty / 4;
-> 	}
->
-> It seems to imply the code was not always used from the /proc interface.
-> It's relevant in a moment...
->
->> If you are brave enough (and have kernel configured properly and with
->> debuginfo),
->
-> I'm brave... :) I hadn't seen this tool before, thanks for introducing me
-> to it, I will use it more now, I'm sure.
+On 2015/6/10 11:06, Kamezawa Hiroyuki wrote:
 
-Ok I admit I didn't expect so much outcome from my suggestion. Good job :)
-
->> you can verify how value of ratelimit_pages variable changes on the live
->> system, using the crash tool. Just start it, and if everything works,
->> you can inspect the live system. It's a bit complicated since there are
->> two static variables called "ratelimit_pages" in the kernel so we can't
->> print them easily (or I don't know how). First we have to get the
->> variable address:
+> On 2015/06/09 19:04, Xishi Qiu wrote:
+>> On 2015/6/9 15:12, Kamezawa Hiroyuki wrote:
 >>
->> crash> sym ratelimit_pages
->> ffffffff81e67200 (d) ratelimit_pages
->> ffffffff81ef4638 (d) ratelimit_pages
->>
->> One will be absurdly high (probably less on your 32bit) so it's not the one we want:
->>
->> crash> rd -d ffffffff81ef4638 1
->> ffffffff81ef4638:    4294967328768
->>
->> The second will have a smaller value:
->> (my system after boot with dirty ratio = 20)
->> crash> rd -d ffffffff81e67200 1
->> ffffffff81e67200:             1577
->>
->> (after changing to 21)
->> crash> rd -d ffffffff81e67200 1
->> ffffffff81e67200:             1570
->>
->> (after changing back to 20)
->> crash> rd -d ffffffff81e67200 1
->> ffffffff81e67200:             1496
->
-> In my case there's only one such symbol (perhaps because this kernel
-> config is quite slimmed down?)
->
->    crash> sym ratelimit_pages
->    c148b618 (d) ratelimit_pages
->
->    (bootup with dirty_ratio 20)
->    crash> rd -d ratelimit_pages
->    c148b618:            78
-
-With just one symbol you can use
-crash> p ratelimit_pages
-
-This will take the type properly into account, while rd will print full 
-32bit/64bit depending on your kernel, which might be larger than the 
-actual variable. But if there are more symbols of same name, "p" will 
-somehow randomly pick one of them and don't even warn about it.
-
-[snip]
-
+>>> On 2015/06/04 22:04, Xishi Qiu wrote:
+>>>> Add the buddy system interface for address range mirroring feature.
+>>>> Allocate mirrored pages in MIGRATE_MIRROR list. If there is no mirrored pages
+>>>> left, use other types pages.
+>>>>
+>>>> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+>>>> ---
+>>>>    mm/page_alloc.c | 40 +++++++++++++++++++++++++++++++++++++++-
+>>>>    1 file changed, 39 insertions(+), 1 deletion(-)
+>>>>
+>>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>>> index d4d2066..0fb55288 100644
+>>>> --- a/mm/page_alloc.c
+>>>> +++ b/mm/page_alloc.c
+>>>> @@ -599,6 +599,26 @@ static inline bool is_mirror_pfn(unsigned long pfn)
+>>>>
+>>>>        return false;
+>>>>    }
+>>>> +
+>>>> +static inline bool change_to_mirror(gfp_t gfp_flags, int high_zoneidx)
+>>>> +{
+>>>> +    /*
+>>>> +     * Do not alloc mirrored memory below 4G, because 0-4G is
+>>>> +     * all mirrored by default, and the list is always empty.
+>>>> +     */
+>>>> +    if (high_zoneidx < ZONE_NORMAL)
+>>>> +        return false;
+>>>> +
+>>>> +    /* Alloc mirrored memory for only kernel */
+>>>> +    if (gfp_flags & __GFP_MIRROR)
+>>>> +        return true;
+>>>
+>>> GFP_KERNEL itself should imply mirror, I think.
 >>>
 >>
->
-> Thanks, I hope you find this useful.
+>> Hi Kame,
+>>
+>> How about like this: #define GFP_KERNEL (__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_MIRROR) ?
+>>
+> 
+> Hm.... it cannot cover GFP_ATOMIC at el.
+> 
+> I guess, mirrored memory should be allocated if !__GFP_HIGHMEM or !__GFP_MOVABLE
 
-Yes, thanks, nice analysis. Since Michal already replied and has more 
-experience with the reclaim code and dirty throttling, I won't try 
-adding more.
+
+Hi Kame,
+
+Can we distinguish allocations form user or kernel only by GFP flags?
+
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
