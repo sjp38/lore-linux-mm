@@ -1,169 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BA4D6B0038
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 14:17:01 -0400 (EDT)
-Received: by obpn3 with SMTP id n3so52385864obp.0
-        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 11:17:00 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id o10si20414019obi.22.2015.06.25.11.17.00
+Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FFE66B0038
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 14:24:55 -0400 (EDT)
+Received: by oigx81 with SMTP id x81so58835841oig.1
+        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 11:24:54 -0700 (PDT)
+Received: from mail-oi0-x231.google.com (mail-oi0-x231.google.com. [2607:f8b0:4003:c06::231])
+        by mx.google.com with ESMTPS id m8si18729889oeq.104.2015.06.25.11.24.54
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jun 2015 11:17:00 -0700 (PDT)
-Date: Thu, 25 Jun 2015 20:16:51 +0200
-From: Daniel Kiper <daniel.kiper@oracle.com>
-Subject: Re: [PATCHv1 4/8] xen/balloon: find non-conflicting regions to place
- hotplugged memory
-Message-ID: <20150625181651.GL14050@olila.local.net-space.pl>
-References: <1435252263-31952-1-git-send-email-david.vrabel@citrix.com>
- <1435252263-31952-5-git-send-email-david.vrabel@citrix.com>
+        Thu, 25 Jun 2015 11:24:54 -0700 (PDT)
+Received: by oiax193 with SMTP id x193so58851840oia.2
+        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 11:24:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1435252263-31952-5-git-send-email-david.vrabel@citrix.com>
+In-Reply-To: <CAA25o9RNLr4Gk_4m56bAf7_RBsObrccFWPtd-9jwuHg1NLdRTA@mail.gmail.com>
+References: <CAA25o9SCnDYZ6vXWQWEWGDiwpV9rf+S_3Np8nJrWqHJ1x6-kMg@mail.gmail.com>
+	<20150624152518.d3a5408f2bde405df1e6e5c4@linux-foundation.org>
+	<CAA25o9RNLr4Gk_4m56bAf7_RBsObrccFWPtd-9jwuHg1NLdRTA@mail.gmail.com>
+Date: Thu, 25 Jun 2015 11:24:53 -0700
+Message-ID: <CAA25o9ShiKyPTBYbVooA=azb+XO9PWFtididoyPa4s-v56mvBg@mail.gmail.com>
+Subject: Re: extremely long blockages when doing random writes to SSD
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Vrabel <david.vrabel@citrix.com>
-Cc: xen-devel@lists.xenproject.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 
-On Thu, Jun 25, 2015 at 06:10:59PM +0100, David Vrabel wrote:
-> Instead of placing hotplugged memory at the end of RAM (which may
-> conflict with PCI devices or reserved regions) use allocate_resource()
-> to get a new, suitably aligned resource that does not conflict.
->
-> Signed-off-by: David Vrabel <david.vrabel@citrix.com>
+I looked at this some more and I am not sure that there is any bug, or
+other possible tuning.
 
-In general Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+While the random-write process runs, iostat -x -k 1 reports these numbers:
 
-but two nitpicks below...
+average queue size: around 300
+average write wait: typically 200 to 400 ms, but can be over 1000 ms
+average read wait: typically 50 to 100 ms
 
-> ---
->  drivers/xen/balloon.c |   63 +++++++++++++++++++++++++++++++++++++++++--------
->  1 file changed, 53 insertions(+), 10 deletions(-)
->
-> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-> index fd93369..d0121ee 100644
-> --- a/drivers/xen/balloon.c
-> +++ b/drivers/xen/balloon.c
-> @@ -54,6 +54,7 @@
->  #include <linux/memory.h>
->  #include <linux/memory_hotplug.h>
->  #include <linux/percpu-defs.h>
-> +#include <linux/slab.h>
->
->  #include <asm/page.h>
->  #include <asm/pgalloc.h>
-> @@ -208,6 +209,42 @@ static bool balloon_is_inflated(void)
->  		return false;
->  }
->
-> +static struct resource *additional_memory_resource(phys_addr_t size)
-> +{
-> +	struct resource *res;
-> +	int ret;
-> +
-> +	res = kzalloc(sizeof(*res), GFP_KERNEL);
-> +	if (!res)
-> +		return NULL;
-> +
-> +	res->name = "System RAM";
-> +	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-> +
-> +	ret = allocate_resource(&iomem_resource, res,
-> +				size, 0, -1,
-> +				PAGES_PER_SECTION * PAGE_SIZE, NULL, NULL);
-> +	if (ret < 0) {
-> +		pr_err("Cannot allocate new System RAM resource\n");
-> +		kfree(res);
-> +		return NULL;
-> +	}
-> +
-> +	return res;
-> +}
-> +
-> +static void release_memory_resource(struct resource *resource)
-> +{
-> +	if (!resource)
-> +		return;
+(more info at crbug.com/414709)
 
-Please add one empty line here.
+The read latency may be enough to explain the jank.  In addition, the
+browser can do fsyncs, and I think that those will block for a long
+time.
 
-> +	/*
-> +	 * No need to reset region to identity mapped since we now
-> +	 * know that no I/O can be in this region
-> +	 */
-> +	release_resource(resource);
-> +	kfree(resource);
-> +}
-> +
->  /*
->   * reserve_additional_memory() adds memory region of size >= credit above
->   * max_pfn. New region is section aligned and size is modified to be multiple
-> @@ -221,13 +258,17 @@ static bool balloon_is_inflated(void)
->
->  static enum bp_state reserve_additional_memory(long credit)
->  {
-> +	struct resource *resource;
->  	int nid, rc;
-> -	u64 hotplug_start_paddr;
-> -	unsigned long balloon_hotplug = credit;
-> +	unsigned long balloon_hotplug;
-> +
-> +	balloon_hotplug = round_up(credit, PAGES_PER_SECTION);
-> +
-> +	resource = additional_memory_resource(balloon_hotplug * PAGE_SIZE);
-> +	if (!resource)
-> +		goto err;
->
-> -	hotplug_start_paddr = PFN_PHYS(SECTION_ALIGN_UP(max_pfn));
-> -	balloon_hotplug = round_up(balloon_hotplug, PAGES_PER_SECTION);
-> -	nid = memory_add_physaddr_to_nid(hotplug_start_paddr);
-> +	nid = memory_add_physaddr_to_nid(resource->start);
->
->  #ifdef CONFIG_XEN_HAVE_PVMMU
->          /*
-> @@ -242,21 +283,20 @@ static enum bp_state reserve_additional_memory(long credit)
->  	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
->  		unsigned long pfn, i;
->
-> -		pfn = PFN_DOWN(hotplug_start_paddr);
-> +		pfn = PFN_DOWN(resource->start);
->  		for (i = 0; i < balloon_hotplug; i++) {
->  			if (!set_phys_to_machine(pfn + i, INVALID_P2M_ENTRY)) {
->  				pr_warn("set_phys_to_machine() failed, no memory added\n");
-> -				return BP_ECANCELED;
-> +				goto err;
->  			}
->                  }
->  	}
->  #endif
->
-> -	rc = add_memory(nid, hotplug_start_paddr, balloon_hotplug << PAGE_SHIFT);
-> -
-> +	rc = add_memory_resource(nid, resource);
->  	if (rc) {
->  		pr_warn("Cannot add additional memory (%i)\n", rc);
-> -		return BP_ECANCELED;
-> +		goto err;
->  	}
->
->  	balloon_hotplug -= credit;
-> @@ -265,6 +305,9 @@ static enum bp_state reserve_additional_memory(long credit)
->  	balloon_stats.balloon_hotplug = balloon_hotplug;
->
->  	return BP_DONE;
+Ionice doesn't seem to make a difference.  I suspect that once the
+blocks are in the output queue, it's first-come/first-serve.  Is this
+correct or am I confused?
 
-Ditto.
+We can fix this on the application side but only partially.  The OS
+version updater can use O_SYNC.  The problem is that his can happen in
+a number of situations, such as when simply downloading a large file,
+and in other code we don't control.
 
-> +  err:
-> +	release_memory_resource(resource);
-> +	return BP_ECANCELED;
->  }
+On Wed, Jun 24, 2015 at 4:43 PM, Luigi Semenzato <semenzato@google.com> wrote:
+> Kernel version is 3.8.
 >
->  static void xen_online_page(struct page *page)
-> --
-> 1.7.10.4
-
-Daniel
+> I am not using a file system, I am writing directly into a partition.
+>
+> Here's the little test app.  I call it "random-write" but you're
+> welcome to call it whatever you wish.
+>
+> My apologies for the copyright notice.
+>
+> /* Copyright 2015 The Chromium OS Authors. All rights reserved.
+>  * Use of this source code is governed by a BSD-style license that can be
+>  * found in the LICENSE file.
+>  */
+>
+> #define _FILE_OFFSET_BITS 64
+> #include <fcntl.h>
+> #include <stdio.h>
+> #include <stdlib.h>
+> #include <string.h>
+> #include <strings.h>
+> #include <unistd.h>
+> #include <sys/stat.h>
+> #include <sys/time.h>
+> #include <sys/types.h>
+>
+> #define PAGE_SIZE 4096
+> #define GIGA (1024 * 1024 * 1024)
+>
+> typedef u_int8_t u8;
+> typedef u_int64_t u64;
+>
+> typedef char bool;
+> const bool true = 1;
+> const bool false = 0;
+>
+>
+> void permute_randomly(u64 *offsets, int offset_count) {
+>   int i;
+>   for (i = 0; i < offset_count; i++) {
+>     int r = random() % (offset_count - i) + i;
+>     u64 t = offsets[r];
+>     offsets[r] = offsets[i];
+>     offsets[i] = t;
+>   }
+> }
+>
+> u8 page[4096];
+> off_t offsets[2 * (GIGA / PAGE_SIZE)];
+>
+> int main(int ac, char **av) {
+>   u64 i;
+>   int out;
+>
+>   /* Make "page" slightly non-empty, why not. */
+>   page[4] = 1;
+>   page[34] = 1;
+>   page[234] = 1;
+>   page[1234] = 1;
+>
+>   for (i = 0; i < sizeof(offsets) / sizeof(offsets[0]); i++) {
+>     offsets[i] = i * PAGE_SIZE;
+>   }
+>
+>   permute_randomly(offsets, sizeof(offsets) / sizeof(offsets[0]));
+>
+>   if (ac < 2) {
+>     fprintf(stderr, "usage: %s <device>\n", av[0]);
+>     exit(1);
+>   }
+>
+>   out = open(av[1], O_WRONLY);
+>   if (out < 0) {
+>     perror(av[1]);
+>     exit(1);
+>   }
+>
+>   for (i = 0; i < sizeof(offsets) / sizeof(offsets[0]); i++) {
+>     int rc;
+>     if (lseek(out, offsets[i], SEEK_SET) < 0) {
+>       perror("lseek");
+>       exit(1);
+>     }
+>     rc = write(out, page, sizeof(page));
+>     if (rc < 0) {
+>       perror("write");
+>       exit(1);
+>     } else if (rc != sizeof(page)) {
+>       fprintf(stderr, "wrote %d bytes, expected %d\n", rc, sizeof(page));
+>       exit(1);
+>     }
+>   }
+> }
+>
+> On Wed, Jun 24, 2015 at 3:25 PM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+>> On Wed, 24 Jun 2015 14:54:09 -0700 Luigi Semenzato <semenzato@google.com> wrote:
+>>
+>>> Greetings,
+>>>
+>>> we have an app that writes 4k blocks to an SSD partition with more or
+>>> less random seeks.  (For the curious: it's called "update engine" and
+>>> it's used to install a new Chrome OS version in the background.)  The
+>>> total size of the writes can be a few hundred megabytes.  During this
+>>> time, we see that other apps, such as the browser, block for seconds,
+>>> or tens of seconds.
+>>>
+>>> I have reproduced this behavior with a small program that writes 2GB
+>>> worth of 4k blocks randomly to the SSD partition.  I can get apps to
+>>> block for over 2 minutes, at which point our hang detector triggers
+>>> and panics the kernel.
+>>>
+>>> CPU: Intel Haswell i7
+>>> RAM: 4GB
+>>> SSD: 16GB SanDisk
+>>> kernel: 3.8
+>>>
+>>> >From /proc/meminfo I see that the "Buffers:" entry easily gets over
+>>> 1GB.  The problem goes away completely, as expected, if I use O_SYNC
+>>> when doing the random writes, but then the average size of the I/O
+>>> requests goes down a lot, also as expected.
+>>>
+>>> First of all, it seems that there may be some kind of resource
+>>> management bug.  Maybe it has been fixed in later kernels?  But, if
+>>> not, is there any way of encouraging some in-between behavior?  That
+>>> is, limit the allocation of I/O buffers to a smaller amount, which
+>>> still give the system a chance to do some coalescing, but perhaps
+>>> avoid the extreme badness that we are seeing?
+>>>
+>>
+>> What kernel version?
+>>
+>> Are you able to share that little test app with us?
+>>
+>> Which filesystem is being used and with what mount options etc?
+>>
+>>
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
