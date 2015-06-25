@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
-	by kanga.kvack.org (Postfix) with ESMTP id D67656B0075
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 13:11:55 -0400 (EDT)
-Received: by ykdr198 with SMTP id r198so43932397ykd.3
-        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 10:11:55 -0700 (PDT)
+Received: from mail-yh0-f49.google.com (mail-yh0-f49.google.com [209.85.213.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F7816B0078
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 13:11:58 -0400 (EDT)
+Received: by yhjh26 with SMTP id h26so9987728yhj.3
+        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 10:11:58 -0700 (PDT)
 Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
-        by mx.google.com with ESMTPS id o130si11743678ykf.72.2015.06.25.10.11.52
+        by mx.google.com with ESMTPS id u5si11737715ykf.174.2015.06.25.10.11.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 25 Jun 2015 10:11:53 -0700 (PDT)
+        Thu, 25 Jun 2015 10:11:52 -0700 (PDT)
 From: David Vrabel <david.vrabel@citrix.com>
-Subject: [PATCHv1 8/8] xen/balloon: use hotplugged pages for foreign mappings etc.
-Date: Thu, 25 Jun 2015 18:11:03 +0100
-Message-ID: <1435252263-31952-9-git-send-email-david.vrabel@citrix.com>
+Subject: [PATCHv1 4/8] xen/balloon: find non-conflicting regions to place hotplugged memory
+Date: Thu, 25 Jun 2015 18:10:59 +0100
+Message-ID: <1435252263-31952-5-git-send-email-david.vrabel@citrix.com>
 In-Reply-To: <1435252263-31952-1-git-send-email-david.vrabel@citrix.com>
 References: <1435252263-31952-1-git-send-email-david.vrabel@citrix.com>
 MIME-Version: 1.0
@@ -22,128 +22,129 @@ List-ID: <linux-mm.kvack.org>
 To: xen-devel@lists.xenproject.org
 Cc: David Vrabel <david.vrabel@citrix.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daniel Kiper <daniel.kiper@oracle.com>
 
-alloc_xenballooned_pages() is used to get ballooned pages to back
-foreign mappings etc.  Instead of having to balloon out real pages,
-use (if supported) hotplugged memory.
-
-This makes more memory available to the guest and reduces
-fragmentation in the p2m.
-
-If userspace is lacking a udev rule (or similar) to online hotplugged
-regions automatically, alloc_xenballooned_pages() will timeout and
-fall back to the old behaviour of ballooning out pages.
+Instead of placing hotplugged memory at the end of RAM (which may
+conflict with PCI devices or reserved regions) use allocate_resource()
+to get a new, suitably aligned resource that does not conflict.
 
 Signed-off-by: David Vrabel <david.vrabel@citrix.com>
 ---
- drivers/xen/balloon.c |   32 ++++++++++++++++++++++++++------
- include/xen/balloon.h |    1 +
- 2 files changed, 27 insertions(+), 6 deletions(-)
+ drivers/xen/balloon.c |   63 +++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 53 insertions(+), 10 deletions(-)
 
 diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index 95c261c..a26c5f3 100644
+index fd93369..d0121ee 100644
 --- a/drivers/xen/balloon.c
 +++ b/drivers/xen/balloon.c
-@@ -97,6 +97,7 @@ static xen_pfn_t frame_list[PAGE_SIZE / sizeof(unsigned long)];
+@@ -54,6 +54,7 @@
+ #include <linux/memory.h>
+ #include <linux/memory_hotplug.h>
+ #include <linux/percpu-defs.h>
++#include <linux/slab.h>
  
- /* List of ballooned pages, threaded through the mem_map array. */
- static LIST_HEAD(ballooned_pages);
-+static DECLARE_WAIT_QUEUE_HEAD(balloon_wq);
- 
- /* Main work function, always executed in process context. */
- static void balloon_process(struct work_struct *work);
-@@ -125,6 +126,7 @@ static void __balloon_append(struct page *page)
- 		list_add(&page->lru, &ballooned_pages);
- 		balloon_stats.balloon_low++;
- 	}
-+	wake_up(&balloon_wq);
+ #include <asm/page.h>
+ #include <asm/pgalloc.h>
+@@ -208,6 +209,42 @@ static bool balloon_is_inflated(void)
+ 		return false;
  }
  
- static void balloon_append(struct page *page)
-@@ -247,7 +249,8 @@ static enum bp_state reserve_additional_memory(void)
- 	int nid, rc;
- 	unsigned long balloon_hotplug;
++static struct resource *additional_memory_resource(phys_addr_t size)
++{
++	struct resource *res;
++	int ret;
++
++	res = kzalloc(sizeof(*res), GFP_KERNEL);
++	if (!res)
++		return NULL;
++
++	res->name = "System RAM";
++	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
++
++	ret = allocate_resource(&iomem_resource, res,
++				size, 0, -1,
++				PAGES_PER_SECTION * PAGE_SIZE, NULL, NULL);
++	if (ret < 0) {
++		pr_err("Cannot allocate new System RAM resource\n");
++		kfree(res);
++		return NULL;
++	}
++
++	return res;
++}
++
++static void release_memory_resource(struct resource *resource)
++{
++	if (!resource)
++		return;
++	/*
++	 * No need to reset region to identity mapped since we now
++	 * know that no I/O can be in this region
++	 */
++	release_resource(resource);
++	kfree(resource);
++}
++
+ /*
+  * reserve_additional_memory() adds memory region of size >= credit above
+  * max_pfn. New region is section aligned and size is modified to be multiple
+@@ -221,13 +258,17 @@ static bool balloon_is_inflated(void)
  
--	credit = balloon_stats.target_pages - balloon_stats.total_pages;
-+	credit = balloon_stats.target_pages + balloon_stats.target_unpopulated
-+		- balloon_stats.total_pages;
- 
- 	/*
- 	 * Already hotplugged enough pages?  Wait for them to be
-@@ -328,7 +331,7 @@ static struct notifier_block xen_memory_nb = {
- static enum bp_state reserve_additional_memory(void)
+ static enum bp_state reserve_additional_memory(long credit)
  {
- 	balloon_stats.target_pages = balloon_stats.current_pages;
--	return BP_DONE;
++	struct resource *resource;
+ 	int nid, rc;
+-	u64 hotplug_start_paddr;
+-	unsigned long balloon_hotplug = credit;
++	unsigned long balloon_hotplug;
++
++	balloon_hotplug = round_up(credit, PAGES_PER_SECTION);
++
++	resource = additional_memory_resource(balloon_hotplug * PAGE_SIZE);
++	if (!resource)
++		goto err;
+ 
+-	hotplug_start_paddr = PFN_PHYS(SECTION_ALIGN_UP(max_pfn));
+-	balloon_hotplug = round_up(balloon_hotplug, PAGES_PER_SECTION);
+-	nid = memory_add_physaddr_to_nid(hotplug_start_paddr);
++	nid = memory_add_physaddr_to_nid(resource->start);
+ 
+ #ifdef CONFIG_XEN_HAVE_PVMMU
+         /*
+@@ -242,21 +283,20 @@ static enum bp_state reserve_additional_memory(long credit)
+ 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+ 		unsigned long pfn, i;
+ 
+-		pfn = PFN_DOWN(hotplug_start_paddr);
++		pfn = PFN_DOWN(resource->start);
+ 		for (i = 0; i < balloon_hotplug; i++) {
+ 			if (!set_phys_to_machine(pfn + i, INVALID_P2M_ENTRY)) {
+ 				pr_warn("set_phys_to_machine() failed, no memory added\n");
+-				return BP_ECANCELED;
++				goto err;
+ 			}
+                 }
+ 	}
+ #endif
+ 
+-	rc = add_memory(nid, hotplug_start_paddr, balloon_hotplug << PAGE_SHIFT);
+-
++	rc = add_memory_resource(nid, resource);
+ 	if (rc) {
+ 		pr_warn("Cannot add additional memory (%i)\n", rc);
+-		return BP_ECANCELED;
++		goto err;
+ 	}
+ 
+ 	balloon_hotplug -= credit;
+@@ -265,6 +305,9 @@ static enum bp_state reserve_additional_memory(long credit)
+ 	balloon_stats.balloon_hotplug = balloon_hotplug;
+ 
+ 	return BP_DONE;
++  err:
++	release_memory_resource(resource);
 +	return BP_ECANCELED;
  }
- #endif /* CONFIG_XEN_BALLOON_MEMORY_HOTPLUG */
  
-@@ -532,13 +535,31 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
- {
- 	int pgno = 0;
- 	struct page *page;
-+
- 	mutex_lock(&balloon_mutex);
-+
-+	balloon_stats.target_unpopulated += nr_pages;
-+
- 	while (pgno < nr_pages) {
- 		page = balloon_retrieve(true);
- 		if (page) {
- 			pages[pgno++] = page;
- 		} else {
- 			enum bp_state st;
-+
-+			st = reserve_additional_memory();
-+			if (st != BP_ECANCELED) {
-+				int ret;
-+
-+				mutex_unlock(&balloon_mutex);
-+				ret = wait_event_timeout(balloon_wq,
-+					!list_empty(&ballooned_pages),
-+					msecs_to_jiffies(100));
-+				mutex_lock(&balloon_mutex);
-+				if (ret > 0)
-+					continue;
-+			}
-+
- 			st = decrease_reservation(nr_pages - pgno, GFP_USER);
- 			if (st != BP_DONE)
- 				goto out_undo;
-@@ -547,11 +568,8 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
- 	mutex_unlock(&balloon_mutex);
- 	return 0;
-  out_undo:
--	while (pgno)
--		balloon_append(pages[--pgno]);
--	/* Free the memory back to the kernel soon */
--	schedule_delayed_work(&balloon_worker, 0);
- 	mutex_unlock(&balloon_mutex);
-+	free_xenballooned_pages(pgno, pages);
- 	return -ENOMEM;
- }
- EXPORT_SYMBOL(alloc_xenballooned_pages);
-@@ -572,6 +590,8 @@ void free_xenballooned_pages(int nr_pages, struct page **pages)
- 			balloon_append(pages[i]);
- 	}
- 
-+	balloon_stats.target_unpopulated -= nr_pages;
-+
- 	/* The balloon may be too large now. Shrink it if needed. */
- 	if (current_credit())
- 		schedule_delayed_work(&balloon_worker, 0);
-diff --git a/include/xen/balloon.h b/include/xen/balloon.h
-index 83efdeb..d1767df 100644
---- a/include/xen/balloon.h
-+++ b/include/xen/balloon.h
-@@ -8,6 +8,7 @@ struct balloon_stats {
- 	/* We aim for 'current allocation' == 'target allocation'. */
- 	unsigned long current_pages;
- 	unsigned long target_pages;
-+	unsigned long target_unpopulated;
- 	/* Number of pages in high- and low-memory balloons. */
- 	unsigned long balloon_low;
- 	unsigned long balloon_high;
+ static void xen_online_page(struct page *page)
 -- 
 1.7.10.4
 
