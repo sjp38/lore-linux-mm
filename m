@@ -1,55 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 95ECA6B0038
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 16:57:49 -0400 (EDT)
-Received: by wiga1 with SMTP id a1so889052wig.0
-        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 13:57:49 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fh9si10680328wib.20.2015.06.25.13.57.47
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 328C16B006E
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 17:18:51 -0400 (EDT)
+Received: by pdjn11 with SMTP id n11so60926551pdj.0
+        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 14:18:50 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id gp1si44919302pbd.238.2015.06.25.14.18.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 25 Jun 2015 13:57:48 -0700 (PDT)
-Date: Thu, 25 Jun 2015 21:57:44 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: meminit: Finish initialisation of struct pages
- before basic setup
-Message-ID: <20150625205744.GE26927@suse.de>
-References: <20150513163157.GR2462@suse.de>
- <1431597783.26797.1@cpanel21.proisp.no>
- <20150624225028.GA97166@asylum.americas.sgi.com>
- <20150625204855.GC26927@suse.de>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Jun 2015 14:18:50 -0700 (PDT)
+Date: Thu, 25 Jun 2015 23:18:34 +0200
+From: Daniel Kiper <daniel.kiper@oracle.com>
+Subject: Re: [PATCHv1 6/8] xen/balloon: only hotplug additional memory if
+ required
+Message-ID: <20150625211834.GO14050@olila.local.net-space.pl>
+References: <1435252263-31952-1-git-send-email-david.vrabel@citrix.com>
+ <1435252263-31952-7-git-send-email-david.vrabel@citrix.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150625204855.GC26927@suse.de>
+In-Reply-To: <1435252263-31952-7-git-send-email-david.vrabel@citrix.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nathan Zimmer <nzimmer@sgi.com>
-Cc: Daniel J Blueman <daniel@numascale.com>, Andrew Morton <akpm@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Steffen Persvold <sp@numascale.com>
+To: David Vrabel <david.vrabel@citrix.com>
+Cc: xen-devel@lists.xenproject.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Jun 25, 2015 at 09:48:55PM +0100, Mel Gorman wrote:
-> On Wed, Jun 24, 2015 at 05:50:28PM -0500, Nathan Zimmer wrote:
-> > My apologies for taking so long to get back to this.
-> > 
-> > I think I did locate two potential sources of slowdown.
-> > One is the set_cpus_allowed_ptr as I have noted previously.
-> > However I only notice that on the very largest boxes.
-> > I did cobble together a patch that seems to help.
-> > 
-> 
-> If you are using kthread_create_on_node(), is it even necessary to call
-> set_cpus_allowed_ptr() at all?
-> 
+On Thu, Jun 25, 2015 at 06:11:01PM +0100, David Vrabel wrote:
+> Now that we track the total number of pages (included hotplugged
+> regions), it is easy to determine if more memory needs to be
+> hotplugged.
+>
+> Signed-off-by: David Vrabel <david.vrabel@citrix.com>
+> ---
+>  drivers/xen/balloon.c |   16 +++++++++++++---
+>  1 file changed, 13 insertions(+), 3 deletions(-)
+>
+> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+> index 960ac79..dd41da8 100644
+> --- a/drivers/xen/balloon.c
+> +++ b/drivers/xen/balloon.c
+> @@ -241,12 +241,22 @@ static void release_memory_resource(struct resource *resource)
+>   * bit set). Real size of added memory is established at page onlining stage.
+>   */
+>
+> -static enum bp_state reserve_additional_memory(long credit)
+> +static enum bp_state reserve_additional_memory(void)
+>  {
+> +	long credit;
+>  	struct resource *resource;
+>  	int nid, rc;
+>  	unsigned long balloon_hotplug;
+>
+> +	credit = balloon_stats.target_pages - balloon_stats.total_pages;
+> +
+> +	/*
+> +	 * Already hotplugged enough pages?  Wait for them to be
+> +	 * onlined.
+> +	 */
 
-That aside, are you aware of any failure with this series as it currently
-stands in Andrew's tree that this patch is meant to address?  It seems
-like a nice follow-on that would boot faster on very large machines but
-if it's addressing a regression then it's very important as the series
-cannot be merged with known critical failures.
+Comment is wrong or at least misleading. Both values does not depend on onlining.
 
--- 
-Mel Gorman
-SUSE Labs
+> +	if (credit <= 0)
+> +		return BP_EAGAIN;
+
+Not BP_EAGAIN for sure. It should be BP_DONE but then balloon_process() will go
+into loop until memory is onlined at least up to balloon_stats.target_pages.
+BP_ECANCELED does work but it is misleading because it is not an error. So, maybe
+we should introduce BP_STOP (or something like that) which works like BP_ECANCELED
+and is not BP_ECANCELED.
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
