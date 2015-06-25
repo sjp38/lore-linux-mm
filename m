@@ -1,152 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f49.google.com (mail-yh0-f49.google.com [209.85.213.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F7816B0078
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 13:11:58 -0400 (EDT)
-Received: by yhjh26 with SMTP id h26so9987728yhj.3
-        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 10:11:58 -0700 (PDT)
-Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
-        by mx.google.com with ESMTPS id u5si11737715ykf.174.2015.06.25.10.11.52
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A388C6B006E
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 13:25:57 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so170834067wig.0
+        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 10:25:57 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e1si53864105wjp.38.2015.06.25.10.25.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 25 Jun 2015 10:11:52 -0700 (PDT)
-From: David Vrabel <david.vrabel@citrix.com>
-Subject: [PATCHv1 4/8] xen/balloon: find non-conflicting regions to place hotplugged memory
-Date: Thu, 25 Jun 2015 18:10:59 +0100
-Message-ID: <1435252263-31952-5-git-send-email-david.vrabel@citrix.com>
-In-Reply-To: <1435252263-31952-1-git-send-email-david.vrabel@citrix.com>
-References: <1435252263-31952-1-git-send-email-david.vrabel@citrix.com>
+        Thu, 25 Jun 2015 10:25:56 -0700 (PDT)
+Date: Thu, 25 Jun 2015 18:25:50 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH 00/10] redesign compaction algorithm
+Message-ID: <20150625172550.GA26927@suse.de>
+References: <1435193121-25880-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20150625110314.GJ11809@suse.de>
+ <CAAmzW4OnE7A6sxEDFRcp9jbuxkYkJvJw_PH1TBFtS0nZOmrVGg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CAAmzW4OnE7A6sxEDFRcp9jbuxkYkJvJw_PH1TBFtS0nZOmrVGg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: xen-devel@lists.xenproject.org
-Cc: David Vrabel <david.vrabel@citrix.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daniel Kiper <daniel.kiper@oracle.com>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>
 
-Instead of placing hotplugged memory at the end of RAM (which may
-conflict with PCI devices or reserved regions) use allocate_resource()
-to get a new, suitably aligned resource that does not conflict.
+On Fri, Jun 26, 2015 at 02:11:17AM +0900, Joonsoo Kim wrote:
+> > Global state is required because there can be parallel compaction
+> > attempts. The global state requires locking to avoid two parallel
+> > compaction attempts selecting the same pageblock for migrating to and
+> > from.
+> 
+> I used skip-bit to prevent selecting same pageblock for migrating to
+> and from. If freepage scanner isolates some pages, skip-bit is set
+> on that pageblock. Migration scanner checks skip-bit before scanning
+> and will avoid to scan that marked pageblock.
+> 
 
-Signed-off-by: David Vrabel <david.vrabel@citrix.com>
----
- drivers/xen/balloon.c |   63 +++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 53 insertions(+), 10 deletions(-)
+That will need locking or migration scanner could start just before the
+skip bit is set.
 
-diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index fd93369..d0121ee 100644
---- a/drivers/xen/balloon.c
-+++ b/drivers/xen/balloon.c
-@@ -54,6 +54,7 @@
- #include <linux/memory.h>
- #include <linux/memory_hotplug.h>
- #include <linux/percpu-defs.h>
-+#include <linux/slab.h>
- 
- #include <asm/page.h>
- #include <asm/pgalloc.h>
-@@ -208,6 +209,42 @@ static bool balloon_is_inflated(void)
- 		return false;
- }
- 
-+static struct resource *additional_memory_resource(phys_addr_t size)
-+{
-+	struct resource *res;
-+	int ret;
-+
-+	res = kzalloc(sizeof(*res), GFP_KERNEL);
-+	if (!res)
-+		return NULL;
-+
-+	res->name = "System RAM";
-+	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-+
-+	ret = allocate_resource(&iomem_resource, res,
-+				size, 0, -1,
-+				PAGES_PER_SECTION * PAGE_SIZE, NULL, NULL);
-+	if (ret < 0) {
-+		pr_err("Cannot allocate new System RAM resource\n");
-+		kfree(res);
-+		return NULL;
-+	}
-+
-+	return res;
-+}
-+
-+static void release_memory_resource(struct resource *resource)
-+{
-+	if (!resource)
-+		return;
-+	/*
-+	 * No need to reset region to identity mapped since we now
-+	 * know that no I/O can be in this region
-+	 */
-+	release_resource(resource);
-+	kfree(resource);
-+}
-+
- /*
-  * reserve_additional_memory() adds memory region of size >= credit above
-  * max_pfn. New region is section aligned and size is modified to be multiple
-@@ -221,13 +258,17 @@ static bool balloon_is_inflated(void)
- 
- static enum bp_state reserve_additional_memory(long credit)
- {
-+	struct resource *resource;
- 	int nid, rc;
--	u64 hotplug_start_paddr;
--	unsigned long balloon_hotplug = credit;
-+	unsigned long balloon_hotplug;
-+
-+	balloon_hotplug = round_up(credit, PAGES_PER_SECTION);
-+
-+	resource = additional_memory_resource(balloon_hotplug * PAGE_SIZE);
-+	if (!resource)
-+		goto err;
- 
--	hotplug_start_paddr = PFN_PHYS(SECTION_ALIGN_UP(max_pfn));
--	balloon_hotplug = round_up(balloon_hotplug, PAGES_PER_SECTION);
--	nid = memory_add_physaddr_to_nid(hotplug_start_paddr);
-+	nid = memory_add_physaddr_to_nid(resource->start);
- 
- #ifdef CONFIG_XEN_HAVE_PVMMU
-         /*
-@@ -242,21 +283,20 @@ static enum bp_state reserve_additional_memory(long credit)
- 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
- 		unsigned long pfn, i;
- 
--		pfn = PFN_DOWN(hotplug_start_paddr);
-+		pfn = PFN_DOWN(resource->start);
- 		for (i = 0; i < balloon_hotplug; i++) {
- 			if (!set_phys_to_machine(pfn + i, INVALID_P2M_ENTRY)) {
- 				pr_warn("set_phys_to_machine() failed, no memory added\n");
--				return BP_ECANCELED;
-+				goto err;
- 			}
-                 }
- 	}
- #endif
- 
--	rc = add_memory(nid, hotplug_start_paddr, balloon_hotplug << PAGE_SHIFT);
--
-+	rc = add_memory_resource(nid, resource);
- 	if (rc) {
- 		pr_warn("Cannot add additional memory (%i)\n", rc);
--		return BP_ECANCELED;
-+		goto err;
- 	}
- 
- 	balloon_hotplug -= credit;
-@@ -265,6 +305,9 @@ static enum bp_state reserve_additional_memory(long credit)
- 	balloon_stats.balloon_hotplug = balloon_hotplug;
- 
- 	return BP_DONE;
-+  err:
-+	release_memory_resource(resource);
-+	return BP_ECANCELED;
- }
- 
- static void xen_online_page(struct page *page)
+> 
+> > This global state then needs to be reset on each compaction cycle. The
+> > difficulty then is that there is a potential ping-pong effect. A pageblock
+> > that was previously a migration target for the free scanner may become a
+> > migration source for the migration scanner. Having the scanners operate
+> > in opposite directions and meet in the middle avoided this problem.
+> 
+> I admit that this patchset causes ping-pong effect between each compaction
+> cycle, because skip-bit is reset on each compaction cycle. But, I think that
+> we don't need to worry about it. We should make high order page up to
+> PAGE_COSTLY_ORDER by any means. If compaction fails, we need to
+> reclaim some pages and this would cause file I/O. It is more bad than
+> ping-pong effect on compaction.
+> 
+
+That's debatable because the assumption is that the compaction will
+definitly allow forward progress. Copying pages back and forth without
+forward progress will chew CPU. There is a cost with reclaiming to allow
+compaction but that's the price to pay if high-order kernel allocations
+are required. In the case of THP, we can give up quickly at least.
+
+> > I'm not saying the current design is perfect but it avoids a number of
+> > problems that are worth keeping in mind. Regressions in this area will
+> > look like higher system CPU time with most of the additional time spent
+> > in compaction.
+> >
+> >> 2) Compaction capability is highly depends on amount of free memory.
+> >> If there is 50 MB free memory on 4 GB system, migrate scanner can
+> >> migrate 50 MB used pages at maximum and then will meet free scanner.
+> >> If compaction can't make enough high order freepages during this
+> >> amount of work, compaction would fail. There is no way to escape this
+> >> failure situation in current algorithm and it will scan same region and
+> >> fail again and again. And then, it goes into compaction deferring logic
+> >> and will be deferred for some times.
+> >>
+> >
+> > This is why reclaim/compaction exists. When this situation occurs, the
+> > kernel is meant to reclaim some order-0 pages and try again. Initially
+> > it was lumpy reclaim that was used but it severely disrupted the system.
+> 
+> No, current kernel implementation doesn't reclaim pages in this situation.
+> Watermark check for order 0 would be passed in this case and reclaim logic
+> regards this state as compact_ready and there is no need to reclaim. Even if
+> we change it to reclaim some pages in this case, there are usually parallel
+> tasks who want to use more memory so free memory size wouldn't increase
+> as much as we need and compaction wouldn't succeed.
+> 
+
+It could though. Reclaim/compaction is entered for orders higher than
+PAGE_ALLOC_COSTLY_ORDER and when scan priority is sufficiently high.
+That could be adjusted if you have a viable case where orders <
+PAGE_ALLOC_COSTLY_ORDER must succeed and currently requires excessive
+reclaim instead of relying on compaction.
+
+> >> 3) Compaction capability is highly depends on migratetype of memory,
+> >> because freepage scanner doesn't scan unmovable pageblock.
+> >>
+> >
+> > For a very good reason. Unmovable allocation requests that fallback to
+> > other pageblocks are the worst in terms of fragmentation avoidance. The
+> > more of these events there are, the more the system will decay. If there
+> > are many of these events then a compaction benchmark may start with high
+> > success rates but decay over time.
+> >
+> > Very broadly speaking, the more the mm_page_alloc_extfrag tracepoint
+> > triggers with alloc_migratetype == MIGRATE_UNMOVABLE, the faster the
+> > system is decaying. Having the freepage scanner select unmovable
+> > pageblocks will trigger this event more frequently.
+> >
+> > The unfortunate impact is that selecting unmovable blocks from the free
+> > csanner will improve compaction success rates for high-order kernel
+> > allocations early in the lifetime of the system but later fail high-order
+> > allocation requests as more pageblocks get converted to unmovable. It
+> > might be ok for kernel allocations but THP will eventually have a 100%
+> > failure rate.
+> 
+> I wrote rationale in the patch itself. We already use non-movable pageblock
+> for migration scanner. It empties non-movable pageblock so number of
+> freepage on non-movable pageblock will increase. Using non-movable
+> pageblock for freepage scanner negates this effect so number of freepage
+> on non-movable pageblock will be balanced. Could you tell me in detail
+> how freepage scanner select unmovable pageblocks will cause
+> more fragmentation? Possibly, I don't understand effect of this patch
+> correctly and need some investigation. :)
+> 
+
+The long-term success rate of fragmentation avoidance depends on
+minimsing the number of UNMOVABLE allocation requests that use a
+pageblock belonging to another migratetype. Once such a fallback occurs,
+that pageblock potentially can never be used for a THP allocation again.
+
+Lets say there is an unmovable pageblock with 500 free pages in it. If
+the freepage scanner uses that pageblock and allocates all 500 free
+pages then the next unmovable allocation request needs a new pageblock.
+If one is not completely free then it will fallback to using a
+RECLAIMABLE or MOVABLE pageblock forever contaminating it.
+
+Do that enough times and fragmentation avoidance breaks down.
+
+Your scheme of migrating to UNMOVABLE blocks may allow order-3 allocations
+to success as long as there are enough MOVABLE pageblocks to move pages
+from but eventually it'll stop working. THP-sized allocations would be the
+first to notice. That might not matter on a mobile but it matters elsewhere.
+
 -- 
-1.7.10.4
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
