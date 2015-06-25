@@ -1,103 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 103396B0038
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 18:04:31 -0400 (EDT)
-Received: by igin14 with SMTP id n14so1753360igi.1
-        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 15:04:30 -0700 (PDT)
-Received: from mail-ie0-x22a.google.com (mail-ie0-x22a.google.com. [2607:f8b0:4001:c03::22a])
-        by mx.google.com with ESMTPS id p20si5461485igs.34.2015.06.25.15.04.30
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BE3D6B0038
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 18:57:40 -0400 (EDT)
+Received: by padev16 with SMTP id ev16so57502355pad.0
+        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 15:57:40 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id ew8si47261108pac.28.2015.06.25.15.57.39
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jun 2015 15:04:30 -0700 (PDT)
-Received: by iecvh10 with SMTP id vh10so64045867iec.3
-        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 15:04:30 -0700 (PDT)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 25 Jun 2015 15:57:39 -0700 (PDT)
+Date: Thu, 25 Jun 2015 15:57:29 -0700
+From: Mark Hairgrove <mhairgrove@nvidia.com>
+Subject: Re: [PATCH 06/36] HMM: add HMM page table v2.
+In-Reply-To: <1432236705-4209-7-git-send-email-j.glisse@gmail.com>
+Message-ID: <alpine.DEB.2.00.1506251540170.28614@mdh-linux64-2.nvidia.com>
+References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com> <1432236705-4209-7-git-send-email-j.glisse@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <558C5342.9020702@suse.cz>
-References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
-	<20150608174551.GA27558@gmail.com>
-	<20150609084739.GQ26425@suse.de>
-	<20150609103231.GA11026@gmail.com>
-	<20150609112055.GS26425@suse.de>
-	<20150609124328.GA23066@gmail.com>
-	<5577078B.2000503@intel.com>
-	<20150621202231.GB6766@node.dhcp.inet.fi>
-	<20150625114819.GA20478@gmail.com>
-	<CA+55aFykFDZBEP+fBeqF85jSVuhWVjL5SW_22FTCMrCeoihauw@mail.gmail.com>
-	<558C5342.9020702@suse.cz>
-Date: Thu, 25 Jun 2015 15:04:30 -0700
-Message-ID: <CA+55aFx_ZvnrWWXm9fn+gD4Jcdcr3VwvcC61xJP6xVZzJjxVCg@mail.gmail.com>
-Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: multipart/mixed;
+	boundary="8323329-1316507227-1435273057=:28614"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm <linux-mm@kvack.org>, Borislav Petkov <bp@alien8.de>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, H Peter Anvin <hpa@zytor.com>, Andi Kleen <andi@firstfloor.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, LKML <linux-kernel@vger.kernel.org>
+To: "j.glisse@gmail.com" <j.glisse@gmail.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, "joro@8bytes.org" <joro@8bytes.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?ISO-8859-15?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>
 
-On Thu, Jun 25, 2015 at 12:15 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
->>   [..]  even aside from that, Intel seems to do particularly well at the
->> "next page" TLB fill case
->
-> AFAIK that's because they also cache partial translations, so if the first 3
-> levels are the same (as they mostly are for the "next page" scenario) it will
-> only have to look at the last level of pages tables. AMD does that too.
+--8323329-1316507227-1435273057=:28614
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8BIT
 
-In the tests I did long ago, Intel seemed to do even more than that.
 
-Now, it's admittedly somewhat hard to do a good job at TLB fill cost
-measurement with any aggressively out-of-order core (lots of
-asynchronous and potentially speculative stuff going on), so without
-any real knowledge about what is going on it's kind of hard to say.
-But I had an old TLB benchmark (long lost now, so I can't re-run it to
-check on this) that implied that when Intel brings in a new TLB entry,
-they brought it in 32 bytes at a time, and would then look up the
-adjacent entries in that aligned half-cache-line in just a single
-cycle.
 
-(This was back in the P6/P4/Core Duo kinds of days - we're talking
-10-15 years ago.  The tests I did mapped the constant zero-page in a
-big area, so that the effects of the D$ would be minimized, and I'd
-basically *only* see the TLB miss costs. I also did things like
-measure the costs of the micro-fault that happens when marking a page
-table entry entry dirty for the first time etc, which was absolutely
-horrendously slow on a P4).
+On Thu, 21 May 2015, j.glisse@gmail.com wrote:
 
-Now, it could have been other effects too - things like multiple
-outstanding TLB misses in parallel due to prefetching TLB entries
-could possibly cause similar patterns, although I distinctly remember
-that effect of aligned 8-entry entries. So the simplest explanation
-*seemed* to be a very special single-entry 32-byte "L0 cache" for TLB
-fills (and 32 bytes would probably match the L1 fetch width into the
-core).
+> From: JA(C)rA'me Glisse <jglisse@redhat.com>
+> 
+> [...]
+> +
+> +void hmm_pt_iter_init(struct hmm_pt_iter *iter);
+> +void hmm_pt_iter_fini(struct hmm_pt_iter *iter, struct hmm_pt *pt);
+> +unsigned long hmm_pt_iter_next(struct hmm_pt_iter *iter,
+> +			       struct hmm_pt *pt,
+> +			       unsigned long addr,
+> +			       unsigned long end);
+> +dma_addr_t *hmm_pt_iter_update(struct hmm_pt_iter *iter,
+> +			       struct hmm_pt *pt,
+> +			       unsigned long addr);
+> +dma_addr_t *hmm_pt_iter_fault(struct hmm_pt_iter *iter,
+> +			      struct hmm_pt *pt,
+> +			      unsigned long addr);
 
-That's in *addition* to the fact that the upper level entries are
-cached in the TLB.
+I've got a few more thoughts on hmm_pt_iter after looking at some of the 
+later patches. I think I've convinced myself that this patch functionally 
+works as-is, but I've got some suggestions and questions about the design.
 
-As mentioned earlier, from my Transmeta days I have some insight into
-what old pre-NT Windows used to do. The GDI protection traversal
-seemed to flush the whole TLB for every GDI kernel entry, and some of
-the graphics benchmarks (remember: this was back in the days when
-unaccelerated VGA graphics was still a big deal) would literally blow
-the TLB away every 5-10k instructions. So it actually makes sense that
-Intel and AMD spent a *lot* of effort on making TLB fills go fast,
-because those GDI benchmarks were important back then. It was all the
-basic old 2D window handling and font drawing etc benchmarking.
+Right now there are these three major functions:
 
-None of the RISC vendors ever cared, they had absolutely crap
-hardware, and instead encouraged their SW partners (particularly
-databases) to change the software to use large-pages and any trick
-possible to avoid TLB misses. Their compilers would schedule loads
-early and stores late, because the whole memory subsystem was a toy.
-TLB misses would break the whole pipeline etc. Truly crap hardware,
-and people still look up to it. Sad.
+1) hmm_pt_iter_update(addr)
+   - Returns the hmm_pte * for addr, or NULL if none exists.
 
-In the Windows world, that wasn't an option: when Microsoft said
-"jump", Intel and AMD both said "how high?". As a result, x86 is a
-*lot* more well-rounded than any RISC I have ever seen, because
-Intel/AMD were simply forced to run any crap software, rather than
-having software writers optimize for what they were good at.
+2) hmm_pt_iter_fault(addr)
+   - Returns the hmm_pte * for addr, allocating a new one if none exists.
 
-                       Linus
+3) hmm_pt_iter_next(addr, end)
+   - Returns the next possibly-valid address. The caller must use
+     hmm_pt_iter_update to check if there really is an hmm_pte there.
+
+In my view, there are two sources of confusion here:
+- Naming. "update" shares a name with the HMM mirror callback, and it also
+  implies that the page tables are "updated" as a result of the call. 
+  "fault" likewise implies that the function handles a fault in some way.
+  Neither of these implications are true.
+
+- hmm_pt_iter_next and hmm_pt_iter_update have some overlapping
+  functionality when compared to traditional iterators, requiring the 
+  callers to all do this sort of thing:
+
+        hmm_pte = hmm_pt_iter_update(&iter, &mirror->pt, addr);
+        if (!hmm_pte) {
+            addr = hmm_pt_iter_next(&iter, &mirror->pt,
+                        addr, event->end);
+            continue;
+        }
+
+Wouldn't it be more efficient and simpler to have _next do all the 
+iteration internally so it always returns the next valid entry? Then you 
+could combine _update and _next into a single function, something along 
+these lines (which also addresses the naming concern):
+
+void hmm_pt_iter_init(iter, pt, start, end);
+unsigned long hmm_pt_iter_next(iter, hmm_pte *);
+unsigned long hmm_pt_iter_next_alloc(iter, hmm_pte *);
+
+hmm_pt_iter_next would return the address and ptep of the next valid 
+entry, taking the place of the existing _update and _next functions. 
+hmm_pt_iter_next_alloc takes the place of _fault.
+
+Also, since the _next functions don't take in an address, the iterator 
+doesn't have to handle the input addr being different from iter->cur.
+
+The logical extent of this is a callback approach like mm_walk. That would 
+be nice because the caller wouldn't have to worry about making the _init 
+and _fini calls. I assume you didn't go with this approach because 
+sometimes you need to iterate over hmm_pt while doing an mm_walk itself, 
+and you didn't want the overhead of nesting those?
+
+Finally, another minor thing I just noticed: shouldn't hmm_pt.h include 
+<linux/bitops.h> since it uses all of the clear/set/test bit APIs?
+--8323329-1316507227-1435273057=:28614--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
