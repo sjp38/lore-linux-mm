@@ -1,57 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E6806B0038
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 10:26:36 -0400 (EDT)
-Received: by lbbpo10 with SMTP id po10so46645501lbb.3
-        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 07:26:35 -0700 (PDT)
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com. [209.85.217.175])
-        by mx.google.com with ESMTPS id mk5si24822223lbc.47.2015.06.25.07.26.34
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C24D6B0038
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 10:37:13 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so166464195wig.0
+        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 07:37:12 -0700 (PDT)
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com. [195.75.94.110])
+        by mx.google.com with ESMTPS id fx12si53008261wjc.192.2015.06.25.07.37.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jun 2015 07:26:34 -0700 (PDT)
-Received: by lbbvz5 with SMTP id vz5so46645435lbb.0
-        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 07:26:33 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150625141638.GF2329@akamai.com>
-References: <1433942810-7852-1-git-send-email-emunson@akamai.com>
- <20150610145929.b22be8647887ea7091b09ae1@linux-foundation.org>
- <5579DFBA.80809@akamai.com> <20150611123424.4bb07cffd0e5bb146cc92231@linux-foundation.org>
- <557ACAFC.90608@suse.cz> <20150615144356.GB12300@akamai.com>
- <55895956.5020707@suse.cz> <20150625141638.GF2329@akamai.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Thu, 25 Jun 2015 07:26:14 -0700
-Message-ID: <CALCETrW5LWgcuezfNDGYmivydsM2U36MLS6n1ardmLgsSrAdmQ@mail.gmail.com>
-Subject: Re: [RESEND PATCH V2 0/3] Allow user to request memory to be locked
- on page fault
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Thu, 25 Jun 2015 07:37:12 -0700 (PDT)
+Received: from /spool/local
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dingel@linux.vnet.ibm.com>;
+	Thu, 25 Jun 2015 15:37:10 +0100
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 605051B08023
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 15:38:13 +0100 (BST)
+Received: from d06av06.portsmouth.uk.ibm.com (d06av06.portsmouth.uk.ibm.com [9.149.37.217])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t5PEb8GF40435744
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 14:37:08 GMT
+Received: from d06av06.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t5P9UH7j014267
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 05:30:17 -0400
+From: Dominik Dingel <dingel@linux.vnet.ibm.com>
+Subject: [PATCH] s390/mm: change HPAGE_SHIFT type to int
+Date: Thu, 25 Jun 2015 16:37:01 +0200
+Message-Id: <1435243021-65315-1-git-send-email-dingel@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Shuah Khan <shuahkh@osg.samsung.com>, Michal Hocko <mhocko@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, linux-alpha@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MIPS Mailing List <linux-mips@linux-mips.org>, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, Dominik Dingel <dingel@linux.vnet.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Michael Holzheu <holzheu@linux.vnet.ibm.com>, linux-s390@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Jun 25, 2015 at 7:16 AM, Eric B Munson <emunson@akamai.com> wrote:
-> On Tue, 23 Jun 2015, Vlastimil Babka wrote:
->
->> On 06/15/2015 04:43 PM, Eric B Munson wrote:
->> >>
->> >>If the new LOCKONFAULT functionality is indeed desired (I haven't
->> >>still decided myself) then I agree that would be the cleanest way.
->> >
->> >Do you disagree with the use cases I have listed or do you think there
->> >is a better way of addressing those cases?
->>
->> I'm somewhat sceptical about the security one. Are security
->> sensitive buffers that large to matter? The performance one is more
->> convincing and I don't see a better way, so OK.
->
-> They can be, the two that come to mind are medical images and high
-> resolution sensor data.
+With making HPAGE_SHIFT an unsigned integer we also accidentally changed pageblock_order.
+In order to avoid compiler warnings we make HPAGE_SHFIT an int again.
 
-I think we've been handling sensitive memory pages wrong forever.  We
-shouldn't lock them into memory; we should flag them as sensitive and
-encrypt them if they're ever written out to disk.
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Dominik Dingel <dingel@linux.vnet.ibm.com>
+---
+ arch/s390/include/asm/page.h | 2 +-
+ arch/s390/mm/pgtable.c       | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
---Andy
+diff --git a/arch/s390/include/asm/page.h b/arch/s390/include/asm/page.h
+index 0844b78..dd34523 100644
+--- a/arch/s390/include/asm/page.h
++++ b/arch/s390/include/asm/page.h
+@@ -20,7 +20,7 @@
+ #include <asm/setup.h>
+ #ifndef __ASSEMBLY__
+ 
+-extern unsigned int HPAGE_SHIFT;
++extern int HPAGE_SHIFT;
+ #define HPAGE_SIZE	(1UL << HPAGE_SHIFT)
+ #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
+ #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
+diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
+index f76791e..1bae5dd 100644
+--- a/arch/s390/mm/pgtable.c
++++ b/arch/s390/mm/pgtable.c
+@@ -36,7 +36,7 @@
+ #endif
+ 
+ 
+-unsigned int HPAGE_SHIFT;
++int HPAGE_SHIFT;
+ 
+ unsigned long *crst_table_alloc(struct mm_struct *mm)
+ {
+-- 
+2.3.8
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
