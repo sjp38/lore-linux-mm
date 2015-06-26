@@ -1,55 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id DDC946B0038
-	for <linux-mm@kvack.org>; Fri, 26 Jun 2015 05:09:03 -0400 (EDT)
-Received: by wiga1 with SMTP id a1so11789470wig.0
-        for <linux-mm@kvack.org>; Fri, 26 Jun 2015 02:09:03 -0700 (PDT)
-Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
-        by mx.google.com with ESMTPS id f18si57340501wjz.182.2015.06.26.02.09.02
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jun 2015 02:09:02 -0700 (PDT)
-Received: by wicnd19 with SMTP id nd19so11758705wic.1
-        for <linux-mm@kvack.org>; Fri, 26 Jun 2015 02:09:02 -0700 (PDT)
-Date: Fri, 26 Jun 2015 11:08:56 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/3] TLB flush multiple pages per IPI v5
-Message-ID: <20150626090856.GA31657@gmail.com>
-References: <1433767854-24408-1-git-send-email-mgorman@suse.de>
- <20150608174551.GA27558@gmail.com>
- <20150609084739.GQ26425@suse.de>
- <20150609103231.GA11026@gmail.com>
- <20150609112055.GS26425@suse.de>
- <20150609124328.GA23066@gmail.com>
- <5577078B.2000503@intel.com>
- <20150621202231.GB6766@node.dhcp.inet.fi>
- <20150625114819.GA20478@gmail.com>
- <558C4C8E.5010107@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <558C4C8E.5010107@intel.com>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 85A2C6B0038
+	for <linux-mm@kvack.org>; Fri, 26 Jun 2015 05:57:03 -0400 (EDT)
+Received: by pdcu2 with SMTP id u2so72258807pdc.3
+        for <linux-mm@kvack.org>; Fri, 26 Jun 2015 02:57:03 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id p8si48826186pdj.90.2015.06.26.02.57.01
+        for <linux-mm@kvack.org>;
+        Fri, 26 Jun 2015 02:57:02 -0700 (PDT)
+From: Gioh Kim <gioh.kim@lge.com>
+Subject: [RFCv2 0/5] enable migration of driver pages
+Date: Fri, 26 Jun 2015 18:58:25 +0900
+Message-Id: <1435312710-15108-1-git-send-email-gioh.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Andi Kleen <andi@firstfloor.org>, H Peter Anvin <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>
+To: jlayton@poochiereds.net, bfields@fieldses.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, viro@zeniv.linux.org.uk, mst@redhat.com, koct9i@gmail.com, minchan@kernel.org, aquini@redhat.com, linux-fsdevel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, Gioh Kim <gioh.kim@lge.com>
 
+Hello,
 
-* Dave Hansen <dave.hansen@intel.com> wrote:
+This series try to enable migration of non-LRU pages, such as driver's page.
 
-> On 06/25/2015 04:48 AM, Ingo Molnar wrote:
->
-> > I've updated the benchmarks with 4K flushes as well. Changes to the previous 
-> > measurement:
-> 
-> Did you push these out somewhere?  The tip tmp.fpu branch hasn't seen any 
-> updates.
+My ARM-based platform occured severe fragmentation problem after long-term
+(several days) test. Sometimes even order-3 page allocation failed. It has
+memory size 512MB ~ 1024MB. 30% ~ 40% memory is consumed for graphic processing
+and 20~30 memory is reserved for zram.
 
-Not yet, I still don't trust the numbers.
+I found that many pages of GPU driver and zram are non-movable pages. So I
+reported Minchan Kim, the maintainer of zram, and he made the internal 
+compaction logic of zram. And I made the internal compaction of GPU driver.
 
-Thanks,
+They reduced some fragmentation but they are not enough effective.
+They are activated by its own interface, /sys, so they are not cooperative
+with kernel compaction. If there is too much fragmentation and kernel starts
+to compaction, zram and GPU driver cannot work with the kernel compaction.
 
-	Ingo
+The first this patch adds a generic isolate/migrate/putback callbacks for page
+address-space. The zram and GPU, and any other modules can register
+its own migration method. The kernel compaction can call the registered
+migration when it works. Therefore all page in the system can be migrated
+at once.
+
+The 2nd the generic migration callbacks are applied into balloon driver.
+My gpu driver code is not open so I apply generic migration into balloon
+to show how it works. I've tested it with qemu enabled by kvm like followings:
+- turn on Ubuntu 14.04 with 1G memory on qemu.
+- do kernel building
+- after several seconds check more than 512MB is used with free command
+- command "balloon 512" in qemu monitor
+- check hundreds MB of pages are migrated
+
+Next kernel compaction code can call generic migration callbacks instead of
+balloon driver interface.
+Finally calling migration of balloon driver is removed.
+
+This patch-set is based on v4.1
+
+Gioh Kim (5):
+  mm/compaction: enable driver page migration
+  fs/anon_inode: get a new inode
+  mm/balloon: apply driver page migratable into balloon driver
+  mm/compaction: compaction calls generic migration
+  mm: remove direct calling of migration
+
+ drivers/virtio/virtio_balloon.c        |  4 ++++
+ fs/anon_inodes.c                       |  6 ++++++
+ fs/proc/page.c                         |  3 +++
+ include/linux/anon_inodes.h            |  1 +
+ include/linux/balloon_compaction.h     | 33 +++++++++++++++++++++------------
+ include/linux/compaction.h             | 11 +++++++++++
+ include/linux/fs.h                     |  2 ++
+ include/linux/page-flags.h             | 19 +++++++++++++++++++
+ include/linux/pagemap.h                | 27 +++++++++++++++++++++++++++
+ include/uapi/linux/kernel-page-flags.h |  2 +-
+ mm/balloon_compaction.c                | 25 ++++++++++++++++---------
+ mm/compaction.c                        |  9 +++++----
+ mm/migrate.c                           | 24 ++++++------------------
+ 13 files changed, 122 insertions(+), 44 deletions(-)
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
