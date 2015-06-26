@@ -1,133 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 596F46B0038
-	for <linux-mm@kvack.org>; Fri, 26 Jun 2015 04:35:38 -0400 (EDT)
-Received: by pdbci14 with SMTP id ci14so70980507pdb.2
-        for <linux-mm@kvack.org>; Fri, 26 Jun 2015 01:35:38 -0700 (PDT)
-Received: from mgwym04.jp.fujitsu.com (mgwym04.jp.fujitsu.com. [211.128.242.43])
-        by mx.google.com with ESMTPS id bw10si49351433pdb.206.2015.06.26.01.35.36
+Received: from mail-yh0-f46.google.com (mail-yh0-f46.google.com [209.85.213.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 873336B0038
+	for <linux-mm@kvack.org>; Fri, 26 Jun 2015 04:56:36 -0400 (EDT)
+Received: by yhnv31 with SMTP id v31so40444706yhn.1
+        for <linux-mm@kvack.org>; Fri, 26 Jun 2015 01:56:36 -0700 (PDT)
+Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
+        by mx.google.com with ESMTPS id b185si12668287ywd.207.2015.06.26.01.56.35
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jun 2015 01:35:37 -0700 (PDT)
-Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
-	by yt-mxq.gw.nic.fujitsu.com (Postfix) with ESMTP id 0298FAC05CA
-	for <linux-mm@kvack.org>; Fri, 26 Jun 2015 17:35:33 +0900 (JST)
-Message-ID: <558D0E9B.8030405@jp.fujitsu.com>
-Date: Fri, 26 Jun 2015 17:34:35 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 26 Jun 2015 01:56:35 -0700 (PDT)
+Message-ID: <558D13BF.9030907@citrix.com>
+Date: Fri, 26 Jun 2015 09:56:31 +0100
+From: David Vrabel <david.vrabel@citrix.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 10/12] mm: add the buddy system interface
-References: <55704A7E.5030507@huawei.com> <55704CC4.8040707@huawei.com> <557691E0.5020203@jp.fujitsu.com> <5576BA2B.6060907@huawei.com> <5577A9A9.7010108@jp.fujitsu.com> <558BCD95.2090201@huawei.com> <558C94BB.1060304@jp.fujitsu.com> <558CAE43.4090702@huawei.com>
-In-Reply-To: <558CAE43.4090702@huawei.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Subject: Re: [Xen-devel] [PATCHv1 6/8] xen/balloon: only hotplug additional
+ memory if required
+References: <1435252263-31952-1-git-send-email-david.vrabel@citrix.com>
+	<1435252263-31952-7-git-send-email-david.vrabel@citrix.com>
+ <20150625211834.GO14050@olila.local.net-space.pl>
+In-Reply-To: <20150625211834.GO14050@olila.local.net-space.pl>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Daniel Kiper <daniel.kiper@oracle.com>, David Vrabel <david.vrabel@citrix.com>
+Cc: linux-mm@kvack.org, xen-devel@lists.xenproject.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org
 
-On 2015/06/26 10:43, Xishi Qiu wrote:
-> On 2015/6/26 7:54, Kamezawa Hiroyuki wrote:
->
->> On 2015/06/25 18:44, Xishi Qiu wrote:
->>> On 2015/6/10 11:06, Kamezawa Hiroyuki wrote:
->>>
->>>> On 2015/06/09 19:04, Xishi Qiu wrote:
->>>>> On 2015/6/9 15:12, Kamezawa Hiroyuki wrote:
->>>>>
->>>>>> On 2015/06/04 22:04, Xishi Qiu wrote:
->>>>>>> Add the buddy system interface for address range mirroring feature.
->>>>>>> Allocate mirrored pages in MIGRATE_MIRROR list. If there is no mirrored pages
->>>>>>> left, use other types pages.
->>>>>>>
->>>>>>> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->>>>>>> ---
->>>>>>>      mm/page_alloc.c | 40 +++++++++++++++++++++++++++++++++++++++-
->>>>>>>      1 file changed, 39 insertions(+), 1 deletion(-)
->>>>>>>
->>>>>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>>>>>> index d4d2066..0fb55288 100644
->>>>>>> --- a/mm/page_alloc.c
->>>>>>> +++ b/mm/page_alloc.c
->>>>>>> @@ -599,6 +599,26 @@ static inline bool is_mirror_pfn(unsigned long pfn)
->>>>>>>
->>>>>>>          return false;
->>>>>>>      }
->>>>>>> +
->>>>>>> +static inline bool change_to_mirror(gfp_t gfp_flags, int high_zoneidx)
->>>>>>> +{
->>>>>>> +    /*
->>>>>>> +     * Do not alloc mirrored memory below 4G, because 0-4G is
->>>>>>> +     * all mirrored by default, and the list is always empty.
->>>>>>> +     */
->>>>>>> +    if (high_zoneidx < ZONE_NORMAL)
->>>>>>> +        return false;
->>>>>>> +
->>>>>>> +    /* Alloc mirrored memory for only kernel */
->>>>>>> +    if (gfp_flags & __GFP_MIRROR)
->>>>>>> +        return true;
->>>>>>
->>>>>> GFP_KERNEL itself should imply mirror, I think.
->>>>>>
->>>>>
->>>>> Hi Kame,
->>>>>
->>>>> How about like this: #define GFP_KERNEL (__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_MIRROR) ?
->>>>>
->>>>
->>>> Hm.... it cannot cover GFP_ATOMIC at el.
->>>>
->>>> I guess, mirrored memory should be allocated if !__GFP_HIGHMEM or !__GFP_MOVABLE
->>>
->>>
->>> Hi Kame,
->>>
->>> Can we distinguish allocations form user or kernel only by GFP flags?
->>>
+On 25/06/15 22:18, Daniel Kiper wrote:
+> On Thu, Jun 25, 2015 at 06:11:01PM +0100, David Vrabel wrote:
+>> Now that we track the total number of pages (included hotplugged
+>> regions), it is easy to determine if more memory needs to be
+>> hotplugged.
 >>
->> Allocation from user and file caches are now *always* done with __GFP_MOVABLE.
+>> Signed-off-by: David Vrabel <david.vrabel@citrix.com>
+>> ---
+>>  drivers/xen/balloon.c |   16 +++++++++++++---
+>>  1 file changed, 13 insertions(+), 3 deletions(-)
 >>
->> By this, pages will be allocated from MIGRATE_MOVABLE migration type.
->> MOVABLE migration type means it's can
->> be the target for page compaction or memory-hot-remove.
+>> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+>> index 960ac79..dd41da8 100644
+>> --- a/drivers/xen/balloon.c
+>> +++ b/drivers/xen/balloon.c
+>> @@ -241,12 +241,22 @@ static void release_memory_resource(struct resource *resource)
+>>   * bit set). Real size of added memory is established at page onlining stage.
+>>   */
 >>
->> Thanks,
->> -Kame
+>> -static enum bp_state reserve_additional_memory(long credit)
+>> +static enum bp_state reserve_additional_memory(void)
+>>  {
+>> +	long credit;
+>>  	struct resource *resource;
+>>  	int nid, rc;
+>>  	unsigned long balloon_hotplug;
 >>
->
-> So if we want all kernel memory allocated from mirror, how about change like this?
-> __alloc_pages_nodemask()
->    gfpflags_to_migratetype()
->      if (!(gfp_mask & __GFP_MOVABLE))
-> 	return MIGRATE_MIRROR
+>> +	credit = balloon_stats.target_pages - balloon_stats.total_pages;
+>> +
+>> +	/*
+>> +	 * Already hotplugged enough pages?  Wait for them to be
+>> +	 * onlined.
+>> +	 */
+> 
+> Comment is wrong or at least misleading. Both values does not depend on onlining.
 
-Maybe used with jump label can reduce performance impact.
-==
-static inline bool memory_mirror_enabled(void)
-{
-         return static_key_false(&memory_mirror_enabled);
-}
+If we get here and credit <=0 then the balloon is empty and we have
+already hotplugged enough sections to reach target.  We need to wait for
+userspace to online the sections that already exist.
 
+>> +	if (credit <= 0)
+>> +		return BP_EAGAIN;
+> 
+> Not BP_EAGAIN for sure. It should be BP_DONE but then balloon_process() will go
+> into loop until memory is onlined at least up to balloon_stats.target_pages.
+> BP_ECANCELED does work but it is misleading because it is not an error. So, maybe
+> we should introduce BP_STOP (or something like that) which works like BP_ECANCELED
+> and is not BP_ECANCELED.
 
+We don't want to spin while waiting for userspace to online a new
+section so BP_EAGAIN is correct here as it causes the balloon process to
+be rescheduled at a later time.
 
-gfpflags_to_migratetype()
-   if (memory_mirror_enabled()) { /* We want to mirror all unmovable pages */
-       if (!(gfp_mask & __GFP_MOVABLE))
-            return MIGRATE_MIRROR
-   }
-==
-
-BTW, I think current memory compaction code scans ranges of MOVABLE migrate type.
-So, if you use other migration type than MOVABLE for user pages, you may see
-page fragmentation. If you want to expand this MIRROR to user pages, please check
-mm/compaction.c
-
-
-Thanks,
--Kame
-
-
-
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
