@@ -1,64 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 97E436B0038
-	for <linux-mm@kvack.org>; Fri, 26 Jun 2015 06:10:52 -0400 (EDT)
-Received: by pdbci14 with SMTP id ci14so72489555pdb.2
-        for <linux-mm@kvack.org>; Fri, 26 Jun 2015 03:10:52 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id qr9si48728152pbc.92.2015.06.26.03.10.50
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 27EA26B0038
+	for <linux-mm@kvack.org>; Fri, 26 Jun 2015 06:16:06 -0400 (EDT)
+Received: by wiwl6 with SMTP id l6so41173128wiw.0
+        for <linux-mm@kvack.org>; Fri, 26 Jun 2015 03:16:05 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id pg3si2075105wic.30.2015.06.26.03.16.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 26 Jun 2015 03:10:51 -0700 (PDT)
-Message-ID: <558D24C1.5020901@huawei.com>
-Date: Fri, 26 Jun 2015 18:09:05 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 26 Jun 2015 03:16:05 -0700 (PDT)
+Date: Fri, 26 Jun 2015 11:16:00 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: meminit: Finish initialisation of struct pages
+ before basic setup
+Message-ID: <20150626101600.GG26927@suse.de>
+References: <20150513163157.GR2462@suse.de>
+ <1431597783.26797.1@cpanel21.proisp.no>
+ <20150624225028.GA97166@asylum.americas.sgi.com>
 MIME-Version: 1.0
-Subject: [PATCH] mm: fix set pageblock migratetype when boot
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20150624225028.GA97166@asylum.americas.sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, iamjoonsoo.kim@lge.com, David Rientjes <rientjes@google.com>, sasha.levin@oracle.com
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>
+To: Nathan Zimmer <nzimmer@sgi.com>
+Cc: Daniel J Blueman <daniel@numascale.com>, Andrew Morton <akpm@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Dave Hansen <dave.hansen@intel.com>, Scott Norton <scott.norton@hp.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Steffen Persvold <sp@numascale.com>
 
-memmap_init_zone()
-	...
-	if ((z->zone_start_pfn <= pfn)
-	    && (pfn < zone_end_pfn(z))
-	    && !(pfn & (pageblock_nr_pages - 1)))
-		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
-	...
+On Wed, Jun 24, 2015 at 05:50:28PM -0500, Nathan Zimmer wrote:
+> From e18aa6158a60c2134b4eef93c856f3b5b250b122 Mon Sep 17 00:00:00 2001
+> From: Nathan Zimmer <nzimmer@sgi.com>
+> Date: Thu, 11 Jun 2015 10:47:39 -0500
+> Subject: [RFC] Avoid the contention in set_cpus_allowed
+> 
+> Noticing some scaling issues at larger box sizes (64 nodes+) I found that in some
+> cases we are spending significant amounts of time in set_cpus_allowed_ptr.
+> 
+> My assumption is that it is getting stuck on migration.
+> So if we create the thread on the target node and restrict cpus before we start
+> the thread then we don't have to suffer migration.
+> 
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Waiman Long <waiman.long@hp.com
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: Scott Norton <scott.norton@hp.com>
+> Cc: Daniel J Blueman <daniel@numascale.com>
+> Signed-off-by: Nathan Zimmer <nzimmer@sgi.com>
+> 
 
-If the pfn does not align to pageblock, it will not init the migratetype.
-So call it for every page, it will takes more time, but it doesn't matter, 
-this function will be called only in boot or hotadd memory.
+I asked yesterday if set_cpus_allowed_ptr() was required and I made a
+mistake because it is. The node parameter for kthread_create_on_node()
+controls where it gets created but not how it is scheduled after that.
+Sorry for the noise. The patch makes sense to me now, lets see if it
+helps Daniel.
 
-e.g.
-[  223.679446]   node   0: [mem 0x00001000-0x00099fff]
-[  223.679449]   node   0: [mem 0x00100000-0xbf78ffff]
-[  223.680486]   node   0: [mem 0x100000000-0x27fffffff]
 
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
----
- mm/page_alloc.c |    3 +--
- 1 files changed, 1 insertions(+), 2 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ebffa0e..a1df227 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4210,8 +4210,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		 * pfn out of zone.
- 		 */
- 		if ((z->zone_start_pfn <= pfn)
--		    && (pfn < zone_end_pfn(z))
--		    && !(pfn & (pageblock_nr_pages - 1)))
-+		    && (pfn < zone_end_pfn(z)))
- 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
- 
- 		INIT_LIST_HEAD(&page->lru);
 -- 
-1.7.1
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
