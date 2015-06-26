@@ -1,117 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id A3CFB6B0038
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 21:53:21 -0400 (EDT)
-Received: by pdjn11 with SMTP id n11so64725239pdj.0
-        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 18:53:21 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id bi1si29861053pbb.130.2015.06.25.18.53.19
+Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 697D06B0038
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 22:07:48 -0400 (EDT)
+Received: by oigx81 with SMTP id x81so65905313oig.1
+        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 19:07:48 -0700 (PDT)
+Received: from mail-ob0-x22a.google.com (mail-ob0-x22a.google.com. [2607:f8b0:4003:c01::22a])
+        by mx.google.com with ESMTPS id p204si21091701oib.133.2015.06.25.19.07.47
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 25 Jun 2015 18:53:20 -0700 (PDT)
-Message-ID: <558CAE43.4090702@huawei.com>
-Date: Fri, 26 Jun 2015 09:43:31 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Jun 2015 19:07:47 -0700 (PDT)
+Received: by obbop1 with SMTP id op1so58616197obb.2
+        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 19:07:47 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 10/12] mm: add the buddy system interface
-References: <55704A7E.5030507@huawei.com> <55704CC4.8040707@huawei.com> <557691E0.5020203@jp.fujitsu.com> <5576BA2B.6060907@huawei.com> <5577A9A9.7010108@jp.fujitsu.com> <558BCD95.2090201@huawei.com> <558C94BB.1060304@jp.fujitsu.com>
-In-Reply-To: <558C94BB.1060304@jp.fujitsu.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20150625184135.GB26927@suse.de>
+References: <1435193121-25880-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<20150625110314.GJ11809@suse.de>
+	<CAAmzW4OnE7A6sxEDFRcp9jbuxkYkJvJw_PH1TBFtS0nZOmrVGg@mail.gmail.com>
+	<20150625172550.GA26927@suse.de>
+	<CAAmzW4PMWOaAa0bd7xVr5Jz=xVgqMw8G=UFOwhUGuyLL9EFbHA@mail.gmail.com>
+	<20150625184135.GB26927@suse.de>
+Date: Fri, 26 Jun 2015 11:07:47 +0900
+Message-ID: <CAAmzW4OuArqzavsPY3_3u5OnnO=ZY1HSnUT4Rgoq2ytd+n89xQ@mail.gmail.com>
+Subject: Re: [RFC PATCH 00/10] redesign compaction algorithm
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, nao.horiguchi@gmail.com, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas
- Gleixner <tglx@linutronix.de>, mingo@elte.hu, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, "Luck, Tony" <tony.luck@intel.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>
 
-On 2015/6/26 7:54, Kamezawa Hiroyuki wrote:
-
-> On 2015/06/25 18:44, Xishi Qiu wrote:
->> On 2015/6/10 11:06, Kamezawa Hiroyuki wrote:
+2015-06-26 3:41 GMT+09:00 Mel Gorman <mgorman@suse.de>:
+> On Fri, Jun 26, 2015 at 03:14:39AM +0900, Joonsoo Kim wrote:
+>> > It could though. Reclaim/compaction is entered for orders higher than
+>> > PAGE_ALLOC_COSTLY_ORDER and when scan priority is sufficiently high.
+>> > That could be adjusted if you have a viable case where orders <
+>> > PAGE_ALLOC_COSTLY_ORDER must succeed and currently requires excessive
+>> > reclaim instead of relying on compaction.
 >>
->>> On 2015/06/09 19:04, Xishi Qiu wrote:
->>>> On 2015/6/9 15:12, Kamezawa Hiroyuki wrote:
->>>>
->>>>> On 2015/06/04 22:04, Xishi Qiu wrote:
->>>>>> Add the buddy system interface for address range mirroring feature.
->>>>>> Allocate mirrored pages in MIGRATE_MIRROR list. If there is no mirrored pages
->>>>>> left, use other types pages.
->>>>>>
->>>>>> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->>>>>> ---
->>>>>>     mm/page_alloc.c | 40 +++++++++++++++++++++++++++++++++++++++-
->>>>>>     1 file changed, 39 insertions(+), 1 deletion(-)
->>>>>>
->>>>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>>>>> index d4d2066..0fb55288 100644
->>>>>> --- a/mm/page_alloc.c
->>>>>> +++ b/mm/page_alloc.c
->>>>>> @@ -599,6 +599,26 @@ static inline bool is_mirror_pfn(unsigned long pfn)
->>>>>>
->>>>>>         return false;
->>>>>>     }
->>>>>> +
->>>>>> +static inline bool change_to_mirror(gfp_t gfp_flags, int high_zoneidx)
->>>>>> +{
->>>>>> +    /*
->>>>>> +     * Do not alloc mirrored memory below 4G, because 0-4G is
->>>>>> +     * all mirrored by default, and the list is always empty.
->>>>>> +     */
->>>>>> +    if (high_zoneidx < ZONE_NORMAL)
->>>>>> +        return false;
->>>>>> +
->>>>>> +    /* Alloc mirrored memory for only kernel */
->>>>>> +    if (gfp_flags & __GFP_MIRROR)
->>>>>> +        return true;
->>>>>
->>>>> GFP_KERNEL itself should imply mirror, I think.
->>>>>
->>>>
->>>> Hi Kame,
->>>>
->>>> How about like this: #define GFP_KERNEL (__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_MIRROR) ?
->>>>
->>>
->>> Hm.... it cannot cover GFP_ATOMIC at el.
->>>
->>> I guess, mirrored memory should be allocated if !__GFP_HIGHMEM or !__GFP_MOVABLE
+>> Yes. I saw this problem in real situation. In ARM, order-2 allocation
+>> is requested
+>> in fork(), so it should be succeed. But, there is not enough order-2 freepage,
+>> so reclaim/compaction begins. Compaction fails repeatedly although
+>> I didn't check exact reason.
+>
+> That should be identified and repaired prior to reimplementing
+> compaction because it's important.
+
+Unfortunately, I got report a long time ago and I don't have any real
+environment
+to reproduce it. What I have remembered is that there are too many unmovable
+allocations from graphic driver and zram and they really makes fragmented
+memory. In that time, problem is solved by ad-hoc approach such as killing
+many apps. But, it's sub-optimal and loosing performance greatly so I imitate
+this effect in my benchmark and try to solve it by this patchset.
+
+>> >> >> 3) Compaction capability is highly depends on migratetype of memory,
+>> >> >> because freepage scanner doesn't scan unmovable pageblock.
+>> >> >>
+>> >> >
+>> >> > For a very good reason. Unmovable allocation requests that fallback to
+>> >> > other pageblocks are the worst in terms of fragmentation avoidance. The
+>> >> > more of these events there are, the more the system will decay. If there
+>> >> > are many of these events then a compaction benchmark may start with high
+>> >> > success rates but decay over time.
+>> >> >
+>> >> > Very broadly speaking, the more the mm_page_alloc_extfrag tracepoint
+>> >> > triggers with alloc_migratetype == MIGRATE_UNMOVABLE, the faster the
+>> >> > system is decaying. Having the freepage scanner select unmovable
+>> >> > pageblocks will trigger this event more frequently.
+>> >> >
+>> >> > The unfortunate impact is that selecting unmovable blocks from the free
+>> >> > csanner will improve compaction success rates for high-order kernel
+>> >> > allocations early in the lifetime of the system but later fail high-order
+>> >> > allocation requests as more pageblocks get converted to unmovable. It
+>> >> > might be ok for kernel allocations but THP will eventually have a 100%
+>> >> > failure rate.
+>> >>
+>> >> I wrote rationale in the patch itself. We already use non-movable pageblock
+>> >> for migration scanner. It empties non-movable pageblock so number of
+>> >> freepage on non-movable pageblock will increase. Using non-movable
+>> >> pageblock for freepage scanner negates this effect so number of freepage
+>> >> on non-movable pageblock will be balanced. Could you tell me in detail
+>> >> how freepage scanner select unmovable pageblocks will cause
+>> >> more fragmentation? Possibly, I don't understand effect of this patch
+>> >> correctly and need some investigation. :)
+>> >>
+>> >
+>> > The long-term success rate of fragmentation avoidance depends on
+>> > minimsing the number of UNMOVABLE allocation requests that use a
+>> > pageblock belonging to another migratetype. Once such a fallback occurs,
+>> > that pageblock potentially can never be used for a THP allocation again.
+>> >
+>> > Lets say there is an unmovable pageblock with 500 free pages in it. If
+>> > the freepage scanner uses that pageblock and allocates all 500 free
+>> > pages then the next unmovable allocation request needs a new pageblock.
+>> > If one is not completely free then it will fallback to using a
+>> > RECLAIMABLE or MOVABLE pageblock forever contaminating it.
 >>
+>> Yes, I can imagine that situation. But, as I said above, we already use
+>> non-movable pageblock for migration scanner. While unmovable
+>> pageblock with 500 free pages fills, some other unmovable pageblock
+>> with some movable pages will be emptied. Number of freepage
+>> on non-movable would be maintained so fallback doesn't happen.
 >>
->> Hi Kame,
+>> Anyway, it is better to investigate this effect. I will do it and attach
+>> result on next submission.
 >>
->> Can we distinguish allocations form user or kernel only by GFP flags?
->>
-> 
-> Allocation from user and file caches are now *always* done with __GFP_MOVABLE.
-> 
-> By this, pages will be allocated from MIGRATE_MOVABLE migration type.
-> MOVABLE migration type means it's can
-> be the target for page compaction or memory-hot-remove.
-> 
-> Thanks,
-> -Kame
-> 
+>
+> Lets say we have X unmovable pageblocks and Y pageblocks overall. If the
+> migration scanner takes movable pages from X then there is more space for
+> unmovable allocations without having to increase X -- this is good. If
+> the free scanner uses the X pageblocks as targets then they can fill. The
+> next unmovable allocation then falls back to another pageblock and we
+> either have X+1 unmovable pageblocks (full steal) or a mixed pageblock
+> (partial steal) that cannot be used for THP. Do this enough times and
+> X == Y and all THP allocations fail.
 
-So if we want all kernel memory allocated from mirror, how about change like this?
-__alloc_pages_nodemask()
-  gfpflags_to_migratetype()
-    if (!(gfp_mask & __GFP_MOVABLE))
-	return MIGRATE_MIRROR
+This was similar with my understanding but different conclusion.
 
-Thanks,
-Xishi Qiu
+As number of unmovable pageblocks, X, which is filled by movable pages
+due to this compaction change increases, reclaimed/migrated out pages
+from them also increase. And, then, further unmovable allocation request
+will use this free space and eventually these pageblocks are totally filled
+by unmovable allocation. Therefore, I guess, in the long-term, increasing X
+is saturated and X == Y will not happen.
 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> .
-> 
-
-
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
