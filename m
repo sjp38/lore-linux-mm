@@ -1,65 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A7286B006C
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 21:44:52 -0400 (EDT)
-Received: by qgev13 with SMTP id v13so31095326qge.1
-        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 18:44:52 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g32si31366091qgg.124.2015.06.25.18.44.51
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id A06F96B0038
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2015 21:46:16 -0400 (EDT)
+Received: by ieqy10 with SMTP id y10so66700321ieq.0
+        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 18:46:16 -0700 (PDT)
+Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com. [2607:f8b0:4001:c05::233])
+        by mx.google.com with ESMTPS id mf1si54914igb.43.2015.06.25.18.46.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jun 2015 18:44:51 -0700 (PDT)
-Message-ID: <558CAE7C.9000105@redhat.com>
-Date: Thu, 25 Jun 2015 21:44:28 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [RFC v2 3/3] mm: make swapin readahead to improve thp collapse
- rate
-References: <1434799686-7929-1-git-send-email-ebru.akagunduz@gmail.com> <1434799686-7929-4-git-send-email-ebru.akagunduz@gmail.com> <20150621181131.GA6710@node.dhcp.inet.fi> <558766E4.5020801@redhat.com> <558AA37E.20106@suse.cz>
-In-Reply-To: <558AA37E.20106@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+        Thu, 25 Jun 2015 18:46:16 -0700 (PDT)
+Received: by igblr2 with SMTP id lr2so4372792igb.0
+        for <linux-mm@kvack.org>; Thu, 25 Jun 2015 18:46:16 -0700 (PDT)
+From: Nicholas Krause <xerofoify@gmail.com>
+Subject: [PATCH] mm:Change function return from int to bool for the function is_page_busy
+Date: Thu, 25 Jun 2015 21:46:10 -0400
+Message-Id: <1435283170-17056-1-git-send-email-xerofoify@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com
+To: akpm@linux-foundation.org
+Cc: bigeasy@linutronix.de, paulmcquad@gmail.com, khalasa@piap.pl, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/24/2015 08:33 AM, Vlastimil Babka wrote:
-> On 06/22/2015 03:37 AM, Rik van Riel wrote:
->> On 06/21/2015 02:11 PM, Kirill A. Shutemov wrote:
->>> On Sat, Jun 20, 2015 at 02:28:06PM +0300, Ebru Akagunduz wrote:
->>>> +	__collapse_huge_page_swapin(mm, vma, address, pmd, pte);
->>>> +
->>>
->>> And now the pages we swapped in are not isolated, right?
->>> What prevents them from being swapped out again or whatever?
->>
->> Nothing, but __collapse_huge_page_isolate is run with the
->> appropriate locks to ensure that once we actually collapse
->> the THP, things are present.
->>
->> The way do_swap_page is called, khugepaged does not even
->> wait for pages to be brought in from swap. It just maps
->> in pages that are in the swap cache, and which can be
->> immediately locked (without waiting).
->>
->> It will also start IO on pages that are not in memory
->> yet, and will hopefully get those next round.
-> 
-> Hm so what if the process is slightly larger than available memory and really
-> doesn't touch the swapped out pages that much? Won't that just be thrashing and
-> next round you find them swapped out again?
+This makes the function is_page_busy's return bool rather then
+an int now due to this particular function's single return
+statement only ever evaulating to either one or zero.
 
-Yes, it might.
+Signed-off-by: Nicholas Krause <xerofoify@gmail.com>
+---
+ mm/dmapool.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-However, all the policy smarts are in patch 2/3, not in
-patch 3/3 (which has the mechanism).
-
-I suspect the code could use some more smarts, but I am
-not quite sure what they should be...
-
+diff --git a/mm/dmapool.c b/mm/dmapool.c
+index fd5fe43..59d10d1 100644
+--- a/mm/dmapool.c
++++ b/mm/dmapool.c
+@@ -242,7 +242,7 @@ static struct dma_page *pool_alloc_page(struct dma_pool *pool, gfp_t mem_flags)
+ 	return page;
+ }
+ 
+-static inline int is_page_busy(struct dma_page *page)
++static inline bool is_page_busy(struct dma_page *page)
+ {
+ 	return page->in_use != 0;
+ }
 -- 
-All rights reversed
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
