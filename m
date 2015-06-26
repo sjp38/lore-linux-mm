@@ -1,61 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 138306B0038
-	for <linux-mm@kvack.org>; Fri, 26 Jun 2015 07:26:48 -0400 (EDT)
-Received: by wgck11 with SMTP id k11so86076584wgc.0
-        for <linux-mm@kvack.org>; Fri, 26 Jun 2015 04:26:47 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id eo2si57942489wjd.180.2015.06.26.04.26.45
+Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 119BD6B0038
+	for <linux-mm@kvack.org>; Fri, 26 Jun 2015 08:46:57 -0400 (EDT)
+Received: by oigx81 with SMTP id x81so74334364oig.1
+        for <linux-mm@kvack.org>; Fri, 26 Jun 2015 05:46:56 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id r67si6065901oie.56.2015.06.26.05.46.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 26 Jun 2015 04:26:46 -0700 (PDT)
-Message-ID: <558D368F.8030900@huawei.com>
-Date: Fri, 26 Jun 2015 19:25:03 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Jun 2015 05:46:54 -0700 (PDT)
+Date: Fri, 26 Jun 2015 14:46:44 +0200
+From: Daniel Kiper <daniel.kiper@oracle.com>
+Subject: Re: [Xen-devel] [PATCHv1 6/8] xen/balloon: only hotplug additional
+ memory if required
+Message-ID: <20150626124644.GS14050@olila.local.net-space.pl>
+References: <1435252263-31952-1-git-send-email-david.vrabel@citrix.com>
+ <1435252263-31952-7-git-send-email-david.vrabel@citrix.com>
+ <20150625211834.GO14050@olila.local.net-space.pl>
+ <558D13BF.9030907@citrix.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix set pageblock migratetype when boot
-References: <558D24C1.5020901@huawei.com> <20150626110424.GI26927@suse.de>
-In-Reply-To: <20150626110424.GI26927@suse.de>
-Content-Type: text/plain; charset="ISO-8859-15"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <558D13BF.9030907@citrix.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, iamjoonsoo.kim@lge.com, David Rientjes <rientjes@google.com>, sasha.levin@oracle.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Vrabel <david.vrabel@citrix.com>
+Cc: linux-mm@kvack.org, xen-devel@lists.xenproject.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org
 
-On 2015/6/26 19:04, Mel Gorman wrote:
+On Fri, Jun 26, 2015 at 09:56:31AM +0100, David Vrabel wrote:
+> On 25/06/15 22:18, Daniel Kiper wrote:
+> > On Thu, Jun 25, 2015 at 06:11:01PM +0100, David Vrabel wrote:
+> >> Now that we track the total number of pages (included hotplugged
+> >> regions), it is easy to determine if more memory needs to be
+> >> hotplugged.
+> >>
+> >> Signed-off-by: David Vrabel <david.vrabel@citrix.com>
+> >> ---
+> >>  drivers/xen/balloon.c |   16 +++++++++++++---
+> >>  1 file changed, 13 insertions(+), 3 deletions(-)
+> >>
+> >> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+> >> index 960ac79..dd41da8 100644
+> >> --- a/drivers/xen/balloon.c
+> >> +++ b/drivers/xen/balloon.c
+> >> @@ -241,12 +241,22 @@ static void release_memory_resource(struct resource *resource)
+> >>   * bit set). Real size of added memory is established at page onlining stage.
+> >>   */
+> >>
+> >> -static enum bp_state reserve_additional_memory(long credit)
+> >> +static enum bp_state reserve_additional_memory(void)
+> >>  {
+> >> +	long credit;
+> >>  	struct resource *resource;
+> >>  	int nid, rc;
+> >>  	unsigned long balloon_hotplug;
+> >>
+> >> +	credit = balloon_stats.target_pages - balloon_stats.total_pages;
+> >> +
+> >> +	/*
+> >> +	 * Already hotplugged enough pages?  Wait for them to be
+> >> +	 * onlined.
+> >> +	 */
+> >
+> > Comment is wrong or at least misleading. Both values does not depend on onlining.
+>
+> If we get here and credit <=0 then the balloon is empty and we have
 
-> On Fri, Jun 26, 2015 at 06:09:05PM +0800, Xishi Qiu wrote:
->> memmap_init_zone()
->> 	...
->> 	if ((z->zone_start_pfn <= pfn)
->> 	    && (pfn < zone_end_pfn(z))
->> 	    && !(pfn & (pageblock_nr_pages - 1)))
->> 		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
->> 	...
->>
->> If the pfn does not align to pageblock, it will not init the migratetype.
-> 
-> What important impact does that have? It should leave a partial pageblock
-> as MIGRATE_UNMOVABLE which is fine by me.
-> 
+Right.
 
-Hi Mel,
+> already hotplugged enough sections to reach target.  We need to wait for
 
-The impact is less, it's OK to ignore it.
+OK.
 
-Thanks,
-Xishi Qiu
+> userspace to online the sections that already exist.
 
->> So call it for every page, it will takes more time, but it doesn't matter, 
->> this function will be called only in boot or hotadd memory.
->>
-> 
-> It's a lot of additional overhead to add to memory initialisation. It
-> would need to be for an excellent reason with no alternative solution.
-> 
+This is not true. You do not need to online sections to reserve new
+memory region. Onlining does not change balloon_stats.target_pages
+nor balloon_stats.total_pages. You must increase balloon_stats.target_pages
+above balloon_stats.total_pages to reserve new memory region. And
+balloon_stats.target_pages increase is not related to onlining.
 
+> >> +	if (credit <= 0)
+> >> +		return BP_EAGAIN;
+> >
+> > Not BP_EAGAIN for sure. It should be BP_DONE but then balloon_process() will go
+> > into loop until memory is onlined at least up to balloon_stats.target_pages.
+> > BP_ECANCELED does work but it is misleading because it is not an error. So, maybe
+> > we should introduce BP_STOP (or something like that) which works like BP_ECANCELED
+> > and is not BP_ECANCELED.
+>
+> We don't want to spin while waiting for userspace to online a new
 
+Right.
+
+> section so BP_EAGAIN is correct here as it causes the balloon process to
+> be rescheduled at a later time.
+
+And this is wrong. We do not want that balloon process wakes up and
+looks for onlined pages. Onlinig may happen long time after memory
+reservation. So, it means that until all needed sections are not onlined
+then balloon process will be woken up for nothing (I assume that nobody
+changes balloon_stats.target_pages). xen_memory_notifier() does work
+for us. It wakes up balloon process after onlinig and then it can
+do relevant work.
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
