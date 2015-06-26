@@ -1,78 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 59E646B0038
-	for <linux-mm@kvack.org>; Fri, 26 Jun 2015 12:15:41 -0400 (EDT)
-Received: by igblr2 with SMTP id lr2so16654167igb.0
-        for <linux-mm@kvack.org>; Fri, 26 Jun 2015 09:15:41 -0700 (PDT)
-Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com. [2607:f8b0:4001:c03::22e])
-        by mx.google.com with ESMTPS id nx10si15701725icc.45.2015.06.26.09.15.40
+Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 174546B0038
+	for <linux-mm@kvack.org>; Fri, 26 Jun 2015 12:30:41 -0400 (EDT)
+Received: by qkeo142 with SMTP id o142so57813445qke.1
+        for <linux-mm@kvack.org>; Fri, 26 Jun 2015 09:30:40 -0700 (PDT)
+Received: from mail-qg0-x236.google.com (mail-qg0-x236.google.com. [2607:f8b0:400d:c04::236])
+        by mx.google.com with ESMTPS id h82si33418442qhc.103.2015.06.26.09.30.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jun 2015 09:15:40 -0700 (PDT)
-Received: by iebrt9 with SMTP id rt9so78965484ieb.2
-        for <linux-mm@kvack.org>; Fri, 26 Jun 2015 09:15:40 -0700 (PDT)
-From: Nicholas Krause <xerofoify@gmail.com>
-Subject: [PATCH] mm:Make the function vma_has_reserves bool
-Date: Fri, 26 Jun 2015 12:15:35 -0400
-Message-Id: <1435335335-16007-1-git-send-email-xerofoify@gmail.com>
+        Fri, 26 Jun 2015 09:30:40 -0700 (PDT)
+Received: by qgev13 with SMTP id v13so36979290qge.1
+        for <linux-mm@kvack.org>; Fri, 26 Jun 2015 09:30:39 -0700 (PDT)
+Date: Fri, 26 Jun 2015 12:30:31 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [PATCH 06/36] HMM: add HMM page table v2.
+Message-ID: <20150626163030.GA3748@gmail.com>
+References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
+ <1432236705-4209-7-git-send-email-j.glisse@gmail.com>
+ <alpine.DEB.2.00.1506251540170.28614@mdh-linux64-2.nvidia.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <alpine.DEB.2.00.1506251540170.28614@mdh-linux64-2.nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: n-horiguchi@ah.jp.nec.com, rientjes@google.com, dave@stgolabs.net, mike.kravetz@oracle.com, lcapitulino@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mark Hairgrove <mhairgrove@nvidia.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, "joro@8bytes.org" <joro@8bytes.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>
 
-This makes the function vma_has_reserves bool now due to this
-particular function only returning either one or zero as its
-return value.
+On Thu, Jun 25, 2015 at 03:57:29PM -0700, Mark Hairgrove wrote:
+> On Thu, 21 May 2015, j.glisse@gmail.com wrote:
+> > From: Jerome Glisse <jglisse@redhat.com>
+> > [...]
+> > +
+> > +void hmm_pt_iter_init(struct hmm_pt_iter *iter);
+> > +void hmm_pt_iter_fini(struct hmm_pt_iter *iter, struct hmm_pt *pt);
+> > +unsigned long hmm_pt_iter_next(struct hmm_pt_iter *iter,
+> > +			       struct hmm_pt *pt,
+> > +			       unsigned long addr,
+> > +			       unsigned long end);
+> > +dma_addr_t *hmm_pt_iter_update(struct hmm_pt_iter *iter,
+> > +			       struct hmm_pt *pt,
+> > +			       unsigned long addr);
+> > +dma_addr_t *hmm_pt_iter_fault(struct hmm_pt_iter *iter,
+> > +			      struct hmm_pt *pt,
+> > +			      unsigned long addr);
+> 
+> I've got a few more thoughts on hmm_pt_iter after looking at some of the 
+> later patches. I think I've convinced myself that this patch functionally 
+> works as-is, but I've got some suggestions and questions about the design.
+> 
+> Right now there are these three major functions:
+> 
+> 1) hmm_pt_iter_update(addr)
+>    - Returns the hmm_pte * for addr, or NULL if none exists.
+> 
+> 2) hmm_pt_iter_fault(addr)
+>    - Returns the hmm_pte * for addr, allocating a new one if none exists.
+> 
+> 3) hmm_pt_iter_next(addr, end)
+>    - Returns the next possibly-valid address. The caller must use
+>      hmm_pt_iter_update to check if there really is an hmm_pte there.
+> 
+> In my view, there are two sources of confusion here:
+> - Naming. "update" shares a name with the HMM mirror callback, and it also
+>   implies that the page tables are "updated" as a result of the call. 
+>   "fault" likewise implies that the function handles a fault in some way.
+>   Neither of these implications are true.
 
-Signed-off-by: Nicholas Krause <xerofoify@gmail.com>
----
- mm/hugetlb.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+Maybe hmm_pt_iter_walk & hmm_pt_iter_populate are better name ?
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 75c0eef..0c34b40 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -616,7 +616,7 @@ void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
- }
- 
- /* Returns true if the VMA has associated reserve pages */
--static int vma_has_reserves(struct vm_area_struct *vma, long chg)
-+static bool vma_has_reserves(struct vm_area_struct *vma, long chg)
- {
- 	if (vma->vm_flags & VM_NORESERVE) {
- 		/*
-@@ -629,23 +629,23 @@ static int vma_has_reserves(struct vm_area_struct *vma, long chg)
- 		 * properly, so add work-around here.
- 		 */
- 		if (vma->vm_flags & VM_MAYSHARE && chg == 0)
--			return 1;
-+			return true;
- 		else
--			return 0;
-+			return false;
- 	}
- 
- 	/* Shared mappings always use reserves */
- 	if (vma->vm_flags & VM_MAYSHARE)
--		return 1;
-+		return true;
- 
- 	/*
- 	 * Only the process that called mmap() has reserves for
- 	 * private mappings.
- 	 */
- 	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER))
--		return 1;
-+		return true;
- 
--	return 0;
-+	return false;
- }
- 
- static void enqueue_huge_page(struct hstate *h, struct page *page)
--- 
-2.1.4
+
+> - hmm_pt_iter_next and hmm_pt_iter_update have some overlapping
+>   functionality when compared to traditional iterators, requiring the 
+>   callers to all do this sort of thing:
+> 
+>         hmm_pte = hmm_pt_iter_update(&iter, &mirror->pt, addr);
+>         if (!hmm_pte) {
+>             addr = hmm_pt_iter_next(&iter, &mirror->pt,
+>                         addr, event->end);
+>             continue;
+>         }
+> 
+> Wouldn't it be more efficient and simpler to have _next do all the 
+> iteration internally so it always returns the next valid entry? Then you 
+> could combine _update and _next into a single function, something along 
+> these lines (which also addresses the naming concern):
+> 
+> void hmm_pt_iter_init(iter, pt, start, end);
+> unsigned long hmm_pt_iter_next(iter, hmm_pte *);
+> unsigned long hmm_pt_iter_next_alloc(iter, hmm_pte *);
+> 
+> hmm_pt_iter_next would return the address and ptep of the next valid 
+> entry, taking the place of the existing _update and _next functions. 
+> hmm_pt_iter_next_alloc takes the place of _fault.
+> 
+> Also, since the _next functions don't take in an address, the iterator 
+> doesn't have to handle the input addr being different from iter->cur.
+
+It would still need to do the same kind of test, this test is really to
+know when you switch from one directory to the next and to drop and take
+reference accordingly.
+
+
+> The logical extent of this is a callback approach like mm_walk. That would 
+> be nice because the caller wouldn't have to worry about making the _init 
+> and _fini calls. I assume you didn't go with this approach because 
+> sometimes you need to iterate over hmm_pt while doing an mm_walk itself, 
+> and you didn't want the overhead of nesting those?
+
+Correct i do not want to do a hmm_pt_walk inside a mm_walk, that sounded and
+looked bad in my mind. That being said i could add a hmm_pt_walk like mm_walk
+for device driver and simply have it using the hmm_pt_iter internally.
+
+
+> Finally, another minor thing I just noticed: shouldn't hmm_pt.h include 
+> <linux/bitops.h> since it uses all of the clear/set/test bit APIs?
+
+Good catch, i forgot that.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
