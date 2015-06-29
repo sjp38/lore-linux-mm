@@ -1,66 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 70EE46B006E
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 11:52:17 -0400 (EDT)
-Received: by wiwl6 with SMTP id l6so104271142wiw.0
-        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 08:52:16 -0700 (PDT)
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AA096B006E
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 11:55:08 -0400 (EDT)
+Received: by wibdq8 with SMTP id dq8so76421495wib.1
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 08:55:07 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id oy8si74258473wjb.145.2015.06.29.08.52.15
+        by mx.google.com with ESMTPS id e7si13795894wiy.79.2015.06.29.08.55.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 29 Jun 2015 08:52:15 -0700 (PDT)
-Date: Mon, 29 Jun 2015 17:52:14 +0200
+        Mon, 29 Jun 2015 08:55:06 -0700 (PDT)
+Date: Mon, 29 Jun 2015 17:55:05 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm:Return proper error code return if call to
- kzalloc_node falis in the function alloc_mem_cgroup_per_zone_info
-Message-ID: <20150629155214.GD4612@dhcp22.suse.cz>
-References: <1435592813-24499-1-git-send-email-xerofoify@gmail.com>
+Subject: Re: [PATCH] mm:Make the function alloc_mem_cgroup_per_zone_info bool
+Message-ID: <20150629155504.GE4612@dhcp22.suse.cz>
+References: <1435587233-27976-1-git-send-email-xerofoify@gmail.com>
+ <20150629150311.GC4612@dhcp22.suse.cz>
+ <3320C010-248A-4296-A5E4-30D9E7B3E611@gmail.com>
+ <20150629153623.GC4617@dhcp22.suse.cz>
+ <559167D8.80803@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1435592813-24499-1-git-send-email-xerofoify@gmail.com>
+In-Reply-To: <559167D8.80803@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Krause <xerofoify@gmail.com>
+To: nick <xerofoify@gmail.com>
 Cc: hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 29-06-15 11:46:53, Nicholas Krause wrote:
-> This changes us returning the value of one to -ENOMEM when the call
-> for allocating memory with the function kzalloc_node fails in order
-> to better comply with kernel coding pratices of returning this
-> particular error code when memory allocations that are unrecoverable
-> occur.
+On Mon 29-06-15 11:44:24, nick wrote:
+[...]
+> Here is a patch series I have been trying to merge for a bug in the
+> gma500 other the last few patches. There are other patches I have like
+> this lying around.
 
-I do not see any point in such a patch. Let me repeat, and hopefully for
-the last time, the patch has to make _sense_ and the changelog should
-provide a _justification_ for the change. None of this is true for this
-patch.
-
-> Signed-off-by: Nicholas Krause <xerofoify@gmail.com>
-
-I am not interested in changes like this in the code I maintain.
-
-> ---
->  mm/memcontrol.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index acb93c5..4e80811 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4442,7 +4442,7 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
->  		tmp = -1;
->  	pn = kzalloc_node(sizeof(*pn), GFP_KERNEL, tmp);
->  	if (!pn)
-> -		return 1;
-> +		return -ENOMEM;
->  
->  	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
->  		mz = &pn->zoneinfo[zone];
-> -- 
-> 2.1.4
-> 
-
+I am not interested in looking at random and unrelated patches. I am
+also not thrilled about random cleanups which do not have an additional
+value. I will not repeat that again and will start ignoring patches like
+that. I have tried to help you but this seems pointless investment of my
+time.
 -- 
 Michal Hocko
 SUSE Labs
