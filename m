@@ -1,72 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F0836B0070
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 02:53:05 -0400 (EDT)
-Received: by pdbep18 with SMTP id ep18so89652041pdb.1
-        for <linux-mm@kvack.org>; Sun, 28 Jun 2015 23:53:04 -0700 (PDT)
-Received: from mgwkm01.jp.fujitsu.com (mgwkm01.jp.fujitsu.com. [202.219.69.168])
-        by mx.google.com with ESMTPS id qm10si62972049pdb.138.2015.06.28.23.53.03
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A7306B0032
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 03:07:03 -0400 (EDT)
+Received: by pdbci14 with SMTP id ci14so111566338pdb.2
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 00:07:02 -0700 (PDT)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id ct3si62845770pbc.99.2015.06.29.00.07.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 Jun 2015 23:53:04 -0700 (PDT)
-Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
-	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id 64226AC037F
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 15:52:59 +0900 (JST)
-Message-ID: <5590EAA9.5090104@jp.fujitsu.com>
-Date: Mon, 29 Jun 2015 15:50:17 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+        Mon, 29 Jun 2015 00:07:02 -0700 (PDT)
+Received: by pabvl15 with SMTP id vl15so100905125pab.1
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 00:07:01 -0700 (PDT)
+Date: Mon, 29 Jun 2015 16:07:11 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC][PATCHv3 7/7] zsmalloc: register a shrinker to trigger
+ auto-compaction
+Message-ID: <20150629070711.GD13179@bbox>
+References: <1434628004-11144-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1434628004-11144-8-git-send-email-sergey.senozhatsky@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC v2 PATCH 1/8] mm: add a new config to manage the code
-References: <558E084A.60900@huawei.com> <558E0913.7020501@huawei.com>
-In-Reply-To: <558E0913.7020501@huawei.com>
-Content-Type: multipart/mixed;
- boundary="------------030208070301040603070806"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1434628004-11144-8-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, "Luck, Tony" <tony.luck@intel.com>, Hanjun Guo <guohanjun@huawei.com>, Xiexiuqi <xiexiuqi@huawei.com>, leon@leon.nu, Dave Hansen <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-This is a multi-part message in MIME format.
---------------030208070301040603070806
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
-
-On 2015/06/27 11:23, Xishi Qiu wrote:
-> This patch introduces a new config called "CONFIG_ACPI_MIRROR_MEMORY", set it
-                                              CONFIG_MEMORY_MIRROR
-> off by default.
->
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+On Thu, Jun 18, 2015 at 08:46:44PM +0900, Sergey Senozhatsky wrote:
+> Perform automatic pool compaction by a shrinker when system
+> is getting tight on memory.
+> 
+> User-space has a very little knowledge regarding zsmalloc fragmentation
+> and basically has no mechanism to tell whether compaction will result
+> in any memory gain. Another issue is that user space is not always
+> aware of the fact that system is getting tight on memory. Which leads
+> to very uncomfortable scenarios when user space may start issuing
+> compaction 'randomly' or from crontab (for example). Fragmentation
+> is not always necessarily bad, allocated and unused objects, after all,
+> may be filled with the data later, w/o the need of allocating a new
+> zspage. On the other hand, we obviously don't want to waste memory
+> when systems needs it.
+> 
+> Compaction now has a relatively quick pool scan so we are able to
+> estimate the number of pages that will be freed easily, which makes it
+> possible to call this function from a shrinker->count_objects() callback.
+> We also abort compaction as soon as we detect that we can't free any
+> pages any more, preventing wasteful objects migrations.
+> 
+> Minchan Kim proposed to use the shrinker (the original patch was too
+> aggressive and was attempting to perform compaction for every
+> ALMOST_EMPTY zspage).
+> 
+> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Suggested-by: Minchan Kim <minchan@kernel.org>
 > ---
->   mm/Kconfig | 8 ++++++++
->   1 file changed, 8 insertions(+)
->
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 390214d..c40bb8b 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -200,6 +200,14 @@ config MEMORY_HOTREMOVE
->   	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
->   	depends on MIGRATION
->
-> +config MEMORY_MIRROR
+>  mm/zsmalloc.c | 78 +++++++++++++++++++++++++++++++++++++++++++++++++++++------
+>  1 file changed, 71 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index c9aea0a..692b7dc 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -247,7 +247,9 @@ struct zs_pool {
+>  	atomic_long_t		pages_allocated;
+>  	/* How many objects were migrated */
+>  	unsigned long		num_migrated;
+> -
+> +	/* Compact classes */
+> +	struct shrinker		shrinker;
+> +	bool			shrinker_enabled;
+>  #ifdef CONFIG_ZSMALLOC_STAT
+>  	struct dentry		*stat_dentry;
+>  #endif
+> @@ -1730,12 +1732,9 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+>  
+>  		while ((dst_page = isolate_target_page(class))) {
+>  			cc.d_page = dst_page;
+> -			/*
+> -			 * If there is no more space in dst_page, resched
+> -			 * and see if anyone had allocated another zspage.
+> -			 */
+> +
+>  			if (!migrate_zspage(pool, class, &cc))
+> -				break;
+> +				goto out;
 
-   In following patches, you use CONFIG_MEMORY_MIRROR.
+It should retry with another target_page instead of going out.
 
-I think the name is too generic besides it's depends on ACPI.
-But I'm not sure address based memory mirror is planned in other platform.
+>  
+>  			putback_zspage(pool, class, dst_page);
+>  		}
+> @@ -1750,7 +1749,9 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+>  		cond_resched();
+>  		spin_lock(&class->lock);
+>  	}
+> -
+> +out:
+> +	if (dst_page)
+> +		putback_zspage(pool, class, dst_page);
+>  	if (src_page)
+>  		putback_zspage(pool, class, src_page);
+>  
+> @@ -1774,6 +1775,65 @@ unsigned long zs_compact(struct zs_pool *pool)
+>  }
+>  EXPORT_SYMBOL_GPL(zs_compact);
+>  
+> +static unsigned long zs_shrinker_scan(struct shrinker *shrinker,
+> +		struct shrink_control *sc)
+> +{
+> +	unsigned long freed;
+> +	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
+> +			shrinker);
+> +
+> +	freed = pool->num_migrated;
+> +	/* Compact classes and calculate compaction delta */
+> +	freed = zs_compact(pool) - freed;
 
-So, hmm. How about dividing the config into 2 parts like attached ? (just an example)
+Returns migrated object count.
 
-Thanks,
--Kame
+> +
+> +	return freed ? freed : SHRINK_STOP;
+> +}
+> +
+> +static unsigned long zs_shrinker_count(struct shrinker *shrinker,
+> +		struct shrink_control *sc)
+> +{
+> +	int i;
+> +	struct size_class *class;
+> +	unsigned long to_free = 0;
+> +	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
+> +			shrinker);
+> +
+> +	if (!pool->shrinker_enabled)
+> +		return 0;
+> +
+> +	for (i = zs_size_classes - 1; i >= 0; i--) {
+> +		class = pool->size_class[i];
+> +		if (!class)
+> +			continue;
+> +		if (class->index != i)
+> +			continue;
+> +
+> +		spin_lock(&class->lock);
+> +		to_free += zs_can_compact(class);
 
---------------030208070301040603070806
-Content-Type: text/plain; charset=Shift_JIS;
- name="0001-add-a-new-config-option-for-memory-mirror.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
- filename*0="0001-add-a-new-config-option-for-memory-mirror.patch"
+But it returns wasted_obj / max_obj_per_zspage?
 
+> +		spin_unlock(&class->lock);
+> +	}
+> +
+> +	return to_free;
+> +}
+> +
+> +static void zs_unregister_shrinker(struct zs_pool *pool)
+> +{
+> +	if (pool->shrinker_enabled) {
+> +		unregister_shrinker(&pool->shrinker);
+> +		pool->shrinker_enabled = false;
+> +	}
+> +}
+> +
+> +static int zs_register_shrinker(struct zs_pool *pool)
+> +{
+> +	pool->shrinker.scan_objects = zs_shrinker_scan;
+> +	pool->shrinker.count_objects = zs_shrinker_count;
+> +	pool->shrinker.batch = 0;
+> +	pool->shrinker.seeks = DEFAULT_SEEKS;
+> +
+> +	return register_shrinker(&pool->shrinker);
+> +}
+> +
+>  /**
+>   * zs_create_pool - Creates an allocation pool to work from.
+>   * @flags: allocation flags used to allocate pool metadata
+> @@ -1859,6 +1919,9 @@ struct zs_pool *zs_create_pool(char *name, gfp_t flags)
+>  	if (zs_pool_stat_create(name, pool))
+>  		goto err;
+>  
+> +	/* Not critical, we still can use the pool */
+> +	if (zs_register_shrinker(pool) == 0)
+> +		pool->shrinker_enabled = true;
+>  	return pool;
+>  
+>  err:
+> @@ -1871,6 +1934,7 @@ void zs_destroy_pool(struct zs_pool *pool)
+>  {
+>  	int i;
+>  
+> +	zs_unregister_shrinker(pool);
+>  	zs_pool_stat_destroy(pool);
+>  
+>  	for (i = 0; i < zs_size_classes; i++) {
+> -- 
+> 2.4.4
+> 
 
---------------030208070301040603070806--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
