@@ -1,149 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 10B456B006E
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 02:45:37 -0400 (EDT)
-Received: by pactm7 with SMTP id tm7so100137886pac.2
-        for <linux-mm@kvack.org>; Sun, 28 Jun 2015 23:45:36 -0700 (PDT)
-Received: from mail-pd0-x234.google.com (mail-pd0-x234.google.com. [2607:f8b0:400e:c02::234])
-        by mx.google.com with ESMTPS id a8si22443185pdl.110.2015.06.28.23.45.36
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 783FB6B006E
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 02:52:09 -0400 (EDT)
+Received: by pabvl15 with SMTP id vl15so100693725pab.1
+        for <linux-mm@kvack.org>; Sun, 28 Jun 2015 23:52:09 -0700 (PDT)
+Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com. [2607:f8b0:400e:c02::22d])
+        by mx.google.com with ESMTPS id rt15si62884906pab.240.2015.06.28.23.52.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 Jun 2015 23:45:36 -0700 (PDT)
-Received: by pdjn11 with SMTP id n11so111617376pdj.0
-        for <linux-mm@kvack.org>; Sun, 28 Jun 2015 23:45:35 -0700 (PDT)
-Date: Mon, 29 Jun 2015 15:45:46 +0900
+        Sun, 28 Jun 2015 23:52:08 -0700 (PDT)
+Received: by pdjn11 with SMTP id n11so111718296pdj.0
+        for <linux-mm@kvack.org>; Sun, 28 Jun 2015 23:52:08 -0700 (PDT)
+Date: Mon, 29 Jun 2015 15:52:18 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC][PATCHv3 4/7] zsmalloc: introduce zs_can_compact() function
-Message-ID: <20150629064546.GB13179@bbox>
+Subject: Re: [RFC][PATCHv3 2/7] zsmalloc: partial page ordering within a
+ fullness_list
+Message-ID: <20150629065218.GC13179@bbox>
 References: <1434628004-11144-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1434628004-11144-5-git-send-email-sergey.senozhatsky@gmail.com>
+ <1434628004-11144-3-git-send-email-sergey.senozhatsky@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1434628004-11144-5-git-send-email-sergey.senozhatsky@gmail.com>
+In-Reply-To: <1434628004-11144-3-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Thu, Jun 18, 2015 at 08:46:41PM +0900, Sergey Senozhatsky wrote:
-> This function checks if class compaction will free any pages.
-> Rephrasing -- do we have enough unused objects to form at least
-> one ZS_EMPTY page and free it. It aborts compaction if class
-> compaction will not result in any (further) savings.
+On Thu, Jun 18, 2015 at 08:46:39PM +0900, Sergey Senozhatsky wrote:
+> We want to see more ZS_FULL pages and less ZS_ALMOST_{FULL, EMPTY}
+> pages. Put a page with higher ->inuse count first within its
+> ->fullness_list, which will give us better chances to fill up this
+> page with new objects (find_get_zspage() return ->fullness_list head
+> for new object allocation), so some zspages will become
+> ZS_ALMOST_FULL/ZS_FULL quicker.
 > 
-> EXAMPLE (this debug output is not part of this patch set):
+> It performs a trivial and cheap ->inuse compare which does not slow
+> down zsmalloc, and in the worst case it keeps the list pages not in
+> any particular order, just like we do it now.
 > 
-> -- class size
-> -- number of allocated objects
-> -- number of used objects
-> -- max objects per zspage
-> -- pages per zspage
-> -- estimated number of pages that will be freed
-> 
-> [..]
-> class-512 objs:544 inuse:540 maxobj-per-zspage:8  pages-per-zspage:1 zspages-to-free:0
->  ... class-512 compaction is useless. break
-> class-496 objs:660 inuse:570 maxobj-per-zspage:33 pages-per-zspage:4 zspages-to-free:2
-> class-496 objs:627 inuse:570 maxobj-per-zspage:33 pages-per-zspage:4 zspages-to-free:1
-> class-496 objs:594 inuse:570 maxobj-per-zspage:33 pages-per-zspage:4 zspages-to-free:0
->  ... class-496 compaction is useless. break
-> class-448 objs:657 inuse:617 maxobj-per-zspage:9  pages-per-zspage:1 zspages-to-free:4
-> class-448 objs:648 inuse:617 maxobj-per-zspage:9  pages-per-zspage:1 zspages-to-free:3
-> class-448 objs:639 inuse:617 maxobj-per-zspage:9  pages-per-zspage:1 zspages-to-free:2
-> class-448 objs:630 inuse:617 maxobj-per-zspage:9  pages-per-zspage:1 zspages-to-free:1
-> class-448 objs:621 inuse:617 maxobj-per-zspage:9  pages-per-zspage:1 zspages-to-free:0
->  ... class-448 compaction is useless. break
-> class-432 objs:728 inuse:685 maxobj-per-zspage:28 pages-per-zspage:3 zspages-to-free:1
-> class-432 objs:700 inuse:685 maxobj-per-zspage:28 pages-per-zspage:3 zspages-to-free:0
->  ... class-432 compaction is useless. break
-> class-416 objs:819 inuse:705 maxobj-per-zspage:39 pages-per-zspage:4 zspages-to-free:2
-> class-416 objs:780 inuse:705 maxobj-per-zspage:39 pages-per-zspage:4 zspages-to-free:1
-> class-416 objs:741 inuse:705 maxobj-per-zspage:39 pages-per-zspage:4 zspages-to-free:0
->  ... class-416 compaction is useless. break
-> class-400 objs:690 inuse:674 maxobj-per-zspage:10 pages-per-zspage:1 zspages-to-free:1
-> class-400 objs:680 inuse:674 maxobj-per-zspage:10 pages-per-zspage:1 zspages-to-free:0
->  ... class-400 compaction is useless. break
-> class-384 objs:736 inuse:709 maxobj-per-zspage:32 pages-per-zspage:3 zspages-to-free:0
->  ... class-384 compaction is useless. break
-> [..]
-> 
-> Every "compaction is useless" indicates that we saved CPU cycles.
-> 
-> class-512 has
-> 	544	object allocated
-> 	540	objects used
-> 	8	objects per-page
-> 
-> Even if we have a ALMOST_EMPTY zspage, we still don't have enough room to
-> migrate all of its objects and free this zspage; so compaction will not
-> make a lot of sense, it's better to just leave it as is.
+> A more expensive solution could sort fullness_list by ->inuse count.
 > 
 > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 > ---
->  mm/zsmalloc.c | 25 +++++++++++++++++++++++++
->  1 file changed, 25 insertions(+)
+>  mm/zsmalloc.c | 12 ++++++++++--
+>  1 file changed, 10 insertions(+), 2 deletions(-)
 > 
 > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index 4b6f12e..18e10a4 100644
+> index 7d816c2..6e2ebb6 100644
 > --- a/mm/zsmalloc.c
 > +++ b/mm/zsmalloc.c
-> @@ -1684,6 +1684,28 @@ static struct page *isolate_source_page(struct size_class *class)
->  	return page;
->  }
+> @@ -659,8 +659,16 @@ static void insert_zspage(struct page *page, struct size_class *class,
+>  		return;
 >  
-> +/*
-> + * Make sure that we actually can compact this class,
-> + * IOW if migration will release at least one szpage.
+>  	head = &class->fullness_list[fullness];
+> -	if (*head)
+> -		list_add_tail(&page->lru, &(*head)->lru);
+> +	if (*head) {
+> +		/*
+> +		 * We want to see more ZS_FULL pages and less almost
+> +		 * empty/full. Put pages with higher ->inuse first.
+> +		 */
+> +		if (page->inuse < (*head)->inuse)
+> +			list_add_tail(&page->lru, &(*head)->lru);
+> +		else
+> +			list_add(&page->lru, &(*head)->lru);
+> +	}
 
-                                                 zspage,
-
-> + *
-> + * Should be called under class->lock
-
-Please comment about return.
-
-> + */
-> +static unsigned long zs_can_compact(struct size_class *class)
-> +{
-> +	/*
-> +	 * Calculate how many unused allocated objects we
-> +	 * have and see if we can free any zspages. Otherwise,
-> +	 * compaction can just move objects back and forth w/o
-> +	 * any memory gain.
-> +	 */
-> +	unsigned long obj_wasted = zs_stat_get(class, OBJ_ALLOCATED) -
-> +		zs_stat_get(class, OBJ_USED);
-> +
-
-I want to check one more thing.
-
-We could have lots of ZS_ALMOST_FULL but no ZS_ALMOST_EMPTY.
-In this implementation, compaction cannot have a source so
-it would better to bail out.
-IOW,
-
-      if (!zs_stat_get(class, CLASS_ALMOST_EMPTY))
-              return 0;
-
-> +	obj_wasted /= get_maxobj_per_zspage(class->size,
-> +			class->pages_per_zspage);
-> +	return obj_wasted;
-> +}
-> +
->  static unsigned long __zs_compact(struct zs_pool *pool,
->  				struct size_class *class)
->  {
-> @@ -1697,6 +1719,9 @@ static unsigned long __zs_compact(struct zs_pool *pool,
 >  
->  		BUG_ON(!is_first_page(src_page));
->  
-> +		if (!zs_can_compact(class))
-> +			break;
-> +
->  		cc.index = 0;
->  		cc.s_page = src_page;
->  
+>  	*head = page;
+
+Why do you want to always put @page in the head?
+How about this?
+
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index e8cb31c..1c5fde9 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -658,21 +658,25 @@ static void insert_zspage(struct page *page, struct size_class *class,
+        if (fullness >= _ZS_NR_FULLNESS_GROUPS)
+                return;
+
++       zs_stat_inc(class, fullness == ZS_ALMOST_EMPTY ?
++                       CLASS_ALMOST_EMPTY : CLASS_ALMOST_FULL, 1);
++
+        head = &class->fullness_list[fullness];
+-       if (*head) {
+-               /*
+-                * We want to see more ZS_FULL pages and less almost
+-                * empty/full. Put pages with higher ->inuse first.
+-                */
+-               if (page->inuse < (*head)->inuse)
+-                       list_add_tail(&page->lru, &(*head)->lru);
+-               else
+-                       list_add(&page->lru, &(*head)->lru);
++       if (!*head) {
++               *head = page;
++               return;
+        }
+
+-       *head = page;
+-       zs_stat_inc(class, fullness == ZS_ALMOST_EMPTY ?
+-                       CLASS_ALMOST_EMPTY : CLASS_ALMOST_FULL, 1);
++       /*
++        * We want to see more ZS_FULL pages and less almost
++        * empty/full. Put pages with higher ->inuse first.
++        */
++       list_add_tail(&page->lru, &(*head)->lru);
++       if (page->inuse >= (*head)->inuse)
++               *head = page;
+ }
+
+ /*
+-- 
+1.7.9.5
+
+
+
+
+>  	zs_stat_inc(class, fullness == ZS_ALMOST_EMPTY ?
 > -- 
 > 2.4.4
 > 
