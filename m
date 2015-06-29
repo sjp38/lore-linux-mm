@@ -1,103 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F8CD6B0032
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 08:19:46 -0400 (EDT)
-Received: by wgck11 with SMTP id k11so139957226wgc.0
-        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 05:19:45 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a5si64734663wja.1.2015.06.29.05.19.43
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 02D116B0032
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 09:40:07 -0400 (EDT)
+Received: by pabvl15 with SMTP id vl15so105792342pab.1
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 06:40:06 -0700 (PDT)
+Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com. [2607:f8b0:400e:c02::22b])
+        by mx.google.com with ESMTPS id yf4si64375025pbc.185.2015.06.29.06.40.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 29 Jun 2015 05:19:44 -0700 (PDT)
-Date: Mon, 29 Jun 2015 14:19:40 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: Make zone_reclaim() return ZONE_RECLAIM_NOSCAN not
- zero
-Message-ID: <20150629121940.GB4617@dhcp22.suse.cz>
-References: <1435286348-26366-1-git-send-email-sh.yoon@lge.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Jun 2015 06:40:05 -0700 (PDT)
+Received: by pdbci14 with SMTP id ci14so117113436pdb.2
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 06:40:05 -0700 (PDT)
+Date: Mon, 29 Jun 2015 22:39:56 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC][PATCHv3 7/7] zsmalloc: register a shrinker to trigger
+ auto-compaction
+Message-ID: <20150629133956.GA15331@blaptop>
+References: <1434628004-11144-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1434628004-11144-8-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150629070711.GD13179@bbox>
+ <20150629085744.GA549@swordfish>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1435286348-26366-1-git-send-email-sh.yoon@lge.com>
+In-Reply-To: <20150629085744.GA549@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sh.yoon@lge.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, seungho1.park@lge.com
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 26-06-15 11:39:08, sh.yoon@lge.com wrote:
-> From: "sh.yoon" <sh.yoon@lge.com>
+Hi Sergey,
+
+Sorry for too late reply.
+
+On Mon, Jun 29, 2015 at 05:57:44PM +0900, Sergey Senozhatsky wrote:
+> Hello,
 > 
-> When zone watermark is not ok in get_page_from_freelist(), we call
-> zone_reclaim(). But !CONFIG_NUMA system`s zone_reclaim() just returns zero.
-> Zero means ZONE_RECLAIM_SOME and check zone watermark again needlessly.
-
-The return value might be indeed confusing, but
-
-> To avoid needless zone watermark check, change it as ZONE_RECLAIM_NOSCAN.
-
-this shouldn't happen because zone_reclaim_mode is always 0 for
-!CONFIG_NUMA so we do not even get to call zone_reclaim. So this part of
-the changelog is misleading.
-
-> Signed-off-by: sh.yoon <sh.yoon@lge.com>
-> ---
->  include/linux/swap.h | 7 ++++++-
->  mm/internal.h        | 5 -----
->  2 files changed, 6 insertions(+), 6 deletions(-)
+> thanks for review.
 > 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 3887472..e04e435 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -332,6 +332,11 @@ extern int vm_swappiness;
->  extern int remove_mapping(struct address_space *mapping, struct page *page);
->  extern unsigned long vm_total_pages;
->  
-> +#define ZONE_RECLAIM_NOSCAN	-2
-> +#define ZONE_RECLAIM_FULL	-1
-> +#define ZONE_RECLAIM_SOME	0
-> +#define ZONE_RECLAIM_SUCCESS	1
-> +
->  #ifdef CONFIG_NUMA
->  extern int zone_reclaim_mode;
->  extern int sysctl_min_unmapped_ratio;
-> @@ -341,7 +346,7 @@ extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
->  #define zone_reclaim_mode 0
->  static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
->  {
-> -	return 0;
-> +	return ZONE_RECLAIM_NOSCAN;
->  }
->  #endif
->  
-> diff --git a/mm/internal.h b/mm/internal.h
-> index a25e359..d8ec7f8 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -397,11 +397,6 @@ static inline void mminit_validate_memmodel_limits(unsigned long *start_pfn,
->  }
->  #endif /* CONFIG_SPARSEMEM */
->  
-> -#define ZONE_RECLAIM_NOSCAN	-2
-> -#define ZONE_RECLAIM_FULL	-1
-> -#define ZONE_RECLAIM_SOME	0
-> -#define ZONE_RECLAIM_SUCCESS	1
-> -
->  extern int hwpoison_filter(struct page *p);
->  
->  extern u32 hwpoison_filter_dev_major;
-> -- 
-> 2.1.4
+> On (06/29/15 16:07), Minchan Kim wrote:
+> [..]
+> > >  			if (!migrate_zspage(pool, class, &cc))
+> > > -				break;
+> > > +				goto out;
+> > 
+> > It should retry with another target_page instead of going out.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> yep.
+> 
+> [..]
+> > > +static unsigned long zs_shrinker_scan(struct shrinker *shrinker,
+> > > +		struct shrink_control *sc)
+> > > +{
+> [..]
+> > 
+> > Returns migrated object count.
+> > 
+> [..]
+> > > +static unsigned long zs_shrinker_count(struct shrinker *shrinker,
+> > > +		struct shrink_control *sc)
+> > > +{
+> [..]
+> > 
+> > But it returns wasted_obj / max_obj_per_zspage?
+> > 
+> 
+> Good catch.
+> So,  __zs_compact() and zs_shrinker_count() are ok. Returning
+> "wasted_obj / max_obj_per_zspage" from zs_can_compact() makes
+> sense there. The only place is zs_shrinker_scan()->zs_compact().
+
+I want to make zs_can_compact return freeable page unit.
+
+ie,
+
+        return obj_wasted * class->pages_per_zspage;
+  
+and let's make __zs_compact returns the number of freed pages.
+
+IOW, I like your (c).
+
+> 
+> Hm, I can think of:
+> 
+> (a) We can change zs_compact() to return the total number of
+> freed zspages. That will not really change a user visible
+> interface. We export (fwiw) the number of compacted objects
+> in mm_stat. Basically, this is internal zsmalloc() counter and
+> no user space program can ever do anything with that data. From
+> that prospective we will just replace one senseless number with
+> another (equally meaningless) one.
+> 
+> 
+> (b) replace zs_compact() call in zs_shrinker_scan() with a class loop
+> 
+> 1764         int i;
+> 1765         unsigned long nr_migrated = 0;
+> 1766         struct size_class *class;
+> 1767
+> 1768         for (i = zs_size_classes - 1; i >= 0; i--) {
+> 1769                 class = pool->size_class[i];
+> 1770                 if (!class)
+> 1771                         continue;
+> 1772                 if (class->index != i)
+> 1773                         continue;
+> 1774                 nr_migrated += __zs_compact(pool, class);
+> 1775         }
+> 1776
+> 1777         return nr_migrated;
+> 
+> But on every iteration increment nr_migrated with
+> 		"nr_migrated += just_migrated / max_obj_per_zspage"
+> 
+> (which will be unnecessary if zs_compact() will return the number of freed
+> zspages).
+> 
+> So, (b) is mostly fine, except that we already have several pool->size_class
+> loops, with same `if (!class)' and `if (class->index...)' checks; and it
+> asks for some sort of refactoring or... a tricky for_each_class() define.
+> 
+> 
+> In both cases, however, we don't tell anything valuable to user space.
+> Thus,
+> 
+> (c) Return from zs_compact() the number of pages (PAGE_SIZE) freed.
+> And change compaction to operate in terms of pages (PAGE_SIZE). At
+> least mm_stat::compacted will turn into something useful for user
+> space.
+
+Yes.
+
+Thanks.
+
+> 
+> 	-ss
 
 -- 
-Michal Hocko
-SUSE Labs
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
