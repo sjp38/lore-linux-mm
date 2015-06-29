@@ -1,56 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id CB9136B0073
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 05:06:06 -0400 (EDT)
-Received: by pdjn11 with SMTP id n11so113802872pdj.0
-        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 02:06:06 -0700 (PDT)
-Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com. [2607:f8b0:400e:c02::22e])
-        by mx.google.com with ESMTPS id gr5si63355318pbb.23.2015.06.29.02.06.05
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F8CD6B0032
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 08:19:46 -0400 (EDT)
+Received: by wgck11 with SMTP id k11so139957226wgc.0
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 05:19:45 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a5si64734663wja.1.2015.06.29.05.19.43
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jun 2015 02:06:05 -0700 (PDT)
-Received: by pdcu2 with SMTP id u2so113492486pdc.3
-        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 02:06:05 -0700 (PDT)
-Date: Mon, 29 Jun 2015 18:06:34 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [RFC][PATCHv3 3/7] zsmalloc: always keep per-class stats
-Message-ID: <20150629090634.GC549@swordfish>
-References: <1434628004-11144-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1434628004-11144-4-git-send-email-sergey.senozhatsky@gmail.com>
- <20150629064029.GA13179@bbox>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 29 Jun 2015 05:19:44 -0700 (PDT)
+Date: Mon, 29 Jun 2015 14:19:40 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: Make zone_reclaim() return ZONE_RECLAIM_NOSCAN not
+ zero
+Message-ID: <20150629121940.GB4617@dhcp22.suse.cz>
+References: <1435286348-26366-1-git-send-email-sh.yoon@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150629064029.GA13179@bbox>
+In-Reply-To: <1435286348-26366-1-git-send-email-sh.yoon@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: sh.yoon@lge.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, seungho1.park@lge.com
 
-On (06/29/15 15:40), Minchan Kim wrote:
-> On Thu, Jun 18, 2015 at 08:46:40PM +0900, Sergey Senozhatsky wrote:
-> > Always account per-class `zs_size_stat' stats. This data will
-> > help us make better decisions during compaction. We are especially
-> > interested in OBJ_ALLOCATED and OBJ_USED, which can tell us if
-> > class compaction will result in any memory gain.
-> > 
-> > For instance, we know the number of allocated objects in the class,
-> > the number of objects being used (so we also know how many objects
-> > are not used) and the number of objects per-page. So we can ensure
-> > if we have enough unused objects to form at least one ZS_EMPTY
-> > zspage during compaction.
-> > 
-> > We calculate this value on per-class basis so we can calculate a
-> > total number of zspages that can be released. Which is exactly what
-> > a shrinker wants to know.
-> > 
-> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Acked-by: Minchan Kim <minchan@kernel.org>
+On Fri 26-06-15 11:39:08, sh.yoon@lge.com wrote:
+> From: "sh.yoon" <sh.yoon@lge.com>
 > 
+> When zone watermark is not ok in get_page_from_freelist(), we call
+> zone_reclaim(). But !CONFIG_NUMA system`s zone_reclaim() just returns zero.
+> Zero means ZONE_RECLAIM_SOME and check zone watermark again needlessly.
 
-thanks.
+The return value might be indeed confusing, but
 
-	-ss
+> To avoid needless zone watermark check, change it as ZONE_RECLAIM_NOSCAN.
+
+this shouldn't happen because zone_reclaim_mode is always 0 for
+!CONFIG_NUMA so we do not even get to call zone_reclaim. So this part of
+the changelog is misleading.
+
+> Signed-off-by: sh.yoon <sh.yoon@lge.com>
+> ---
+>  include/linux/swap.h | 7 ++++++-
+>  mm/internal.h        | 5 -----
+>  2 files changed, 6 insertions(+), 6 deletions(-)
+> 
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 3887472..e04e435 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -332,6 +332,11 @@ extern int vm_swappiness;
+>  extern int remove_mapping(struct address_space *mapping, struct page *page);
+>  extern unsigned long vm_total_pages;
+>  
+> +#define ZONE_RECLAIM_NOSCAN	-2
+> +#define ZONE_RECLAIM_FULL	-1
+> +#define ZONE_RECLAIM_SOME	0
+> +#define ZONE_RECLAIM_SUCCESS	1
+> +
+>  #ifdef CONFIG_NUMA
+>  extern int zone_reclaim_mode;
+>  extern int sysctl_min_unmapped_ratio;
+> @@ -341,7 +346,7 @@ extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
+>  #define zone_reclaim_mode 0
+>  static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
+>  {
+> -	return 0;
+> +	return ZONE_RECLAIM_NOSCAN;
+>  }
+>  #endif
+>  
+> diff --git a/mm/internal.h b/mm/internal.h
+> index a25e359..d8ec7f8 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -397,11 +397,6 @@ static inline void mminit_validate_memmodel_limits(unsigned long *start_pfn,
+>  }
+>  #endif /* CONFIG_SPARSEMEM */
+>  
+> -#define ZONE_RECLAIM_NOSCAN	-2
+> -#define ZONE_RECLAIM_FULL	-1
+> -#define ZONE_RECLAIM_SOME	0
+> -#define ZONE_RECLAIM_SUCCESS	1
+> -
+>  extern int hwpoison_filter(struct page *p);
+>  
+>  extern u32 hwpoison_filter_dev_major;
+> -- 
+> 2.1.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
