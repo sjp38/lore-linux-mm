@@ -1,130 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 783FB6B006E
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 02:52:09 -0400 (EDT)
-Received: by pabvl15 with SMTP id vl15so100693725pab.1
-        for <linux-mm@kvack.org>; Sun, 28 Jun 2015 23:52:09 -0700 (PDT)
-Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com. [2607:f8b0:400e:c02::22d])
-        by mx.google.com with ESMTPS id rt15si62884906pab.240.2015.06.28.23.52.08
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F0836B0070
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 02:53:05 -0400 (EDT)
+Received: by pdbep18 with SMTP id ep18so89652041pdb.1
+        for <linux-mm@kvack.org>; Sun, 28 Jun 2015 23:53:04 -0700 (PDT)
+Received: from mgwkm01.jp.fujitsu.com (mgwkm01.jp.fujitsu.com. [202.219.69.168])
+        by mx.google.com with ESMTPS id qm10si62972049pdb.138.2015.06.28.23.53.03
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 Jun 2015 23:52:08 -0700 (PDT)
-Received: by pdjn11 with SMTP id n11so111718296pdj.0
-        for <linux-mm@kvack.org>; Sun, 28 Jun 2015 23:52:08 -0700 (PDT)
-Date: Mon, 29 Jun 2015 15:52:18 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC][PATCHv3 2/7] zsmalloc: partial page ordering within a
- fullness_list
-Message-ID: <20150629065218.GC13179@bbox>
-References: <1434628004-11144-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1434628004-11144-3-git-send-email-sergey.senozhatsky@gmail.com>
+        Sun, 28 Jun 2015 23:53:04 -0700 (PDT)
+Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
+	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id 64226AC037F
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 15:52:59 +0900 (JST)
+Message-ID: <5590EAA9.5090104@jp.fujitsu.com>
+Date: Mon, 29 Jun 2015 15:50:17 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1434628004-11144-3-git-send-email-sergey.senozhatsky@gmail.com>
+Subject: Re: [RFC v2 PATCH 1/8] mm: add a new config to manage the code
+References: <558E084A.60900@huawei.com> <558E0913.7020501@huawei.com>
+In-Reply-To: <558E0913.7020501@huawei.com>
+Content-Type: multipart/mixed;
+ boundary="------------030208070301040603070806"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, "Luck, Tony" <tony.luck@intel.com>, Hanjun Guo <guohanjun@huawei.com>, Xiexiuqi <xiexiuqi@huawei.com>, leon@leon.nu, Dave Hansen <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 18, 2015 at 08:46:39PM +0900, Sergey Senozhatsky wrote:
-> We want to see more ZS_FULL pages and less ZS_ALMOST_{FULL, EMPTY}
-> pages. Put a page with higher ->inuse count first within its
-> ->fullness_list, which will give us better chances to fill up this
-> page with new objects (find_get_zspage() return ->fullness_list head
-> for new object allocation), so some zspages will become
-> ZS_ALMOST_FULL/ZS_FULL quicker.
-> 
-> It performs a trivial and cheap ->inuse compare which does not slow
-> down zsmalloc, and in the worst case it keeps the list pages not in
-> any particular order, just like we do it now.
-> 
-> A more expensive solution could sort fullness_list by ->inuse count.
-> 
-> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+This is a multi-part message in MIME format.
+--------------030208070301040603070806
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
+
+On 2015/06/27 11:23, Xishi Qiu wrote:
+> This patch introduces a new config called "CONFIG_ACPI_MIRROR_MEMORY", set it
+                                              CONFIG_MEMORY_MIRROR
+> off by default.
+>
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
 > ---
->  mm/zsmalloc.c | 12 ++++++++++--
->  1 file changed, 10 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index 7d816c2..6e2ebb6 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -659,8 +659,16 @@ static void insert_zspage(struct page *page, struct size_class *class,
->  		return;
->  
->  	head = &class->fullness_list[fullness];
-> -	if (*head)
-> -		list_add_tail(&page->lru, &(*head)->lru);
-> +	if (*head) {
-> +		/*
-> +		 * We want to see more ZS_FULL pages and less almost
-> +		 * empty/full. Put pages with higher ->inuse first.
-> +		 */
-> +		if (page->inuse < (*head)->inuse)
-> +			list_add_tail(&page->lru, &(*head)->lru);
-> +		else
-> +			list_add(&page->lru, &(*head)->lru);
-> +	}
+>   mm/Kconfig | 8 ++++++++
+>   1 file changed, 8 insertions(+)
+>
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 390214d..c40bb8b 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -200,6 +200,14 @@ config MEMORY_HOTREMOVE
+>   	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
+>   	depends on MIGRATION
+>
+> +config MEMORY_MIRROR
 
->  
->  	*head = page;
+   In following patches, you use CONFIG_MEMORY_MIRROR.
 
-Why do you want to always put @page in the head?
-How about this?
+I think the name is too generic besides it's depends on ACPI.
+But I'm not sure address based memory mirror is planned in other platform.
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index e8cb31c..1c5fde9 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -658,21 +658,25 @@ static void insert_zspage(struct page *page, struct size_class *class,
-        if (fullness >= _ZS_NR_FULLNESS_GROUPS)
-                return;
+So, hmm. How about dividing the config into 2 parts like attached ? (just an example)
 
-+       zs_stat_inc(class, fullness == ZS_ALMOST_EMPTY ?
-+                       CLASS_ALMOST_EMPTY : CLASS_ALMOST_FULL, 1);
-+
-        head = &class->fullness_list[fullness];
--       if (*head) {
--               /*
--                * We want to see more ZS_FULL pages and less almost
--                * empty/full. Put pages with higher ->inuse first.
--                */
--               if (page->inuse < (*head)->inuse)
--                       list_add_tail(&page->lru, &(*head)->lru);
--               else
--                       list_add(&page->lru, &(*head)->lru);
-+       if (!*head) {
-+               *head = page;
-+               return;
-        }
+Thanks,
+-Kame
 
--       *head = page;
--       zs_stat_inc(class, fullness == ZS_ALMOST_EMPTY ?
--                       CLASS_ALMOST_EMPTY : CLASS_ALMOST_FULL, 1);
-+       /*
-+        * We want to see more ZS_FULL pages and less almost
-+        * empty/full. Put pages with higher ->inuse first.
-+        */
-+       list_add_tail(&page->lru, &(*head)->lru);
-+       if (page->inuse >= (*head)->inuse)
-+               *head = page;
- }
-
- /*
--- 
-1.7.9.5
+--------------030208070301040603070806
+Content-Type: text/plain; charset=Shift_JIS;
+ name="0001-add-a-new-config-option-for-memory-mirror.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename*0="0001-add-a-new-config-option-for-memory-mirror.patch"
 
 
-
-
->  	zs_stat_inc(class, fullness == ZS_ALMOST_EMPTY ?
-> -- 
-> 2.4.4
-> 
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--------------030208070301040603070806--
