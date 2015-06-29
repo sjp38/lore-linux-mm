@@ -1,143 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 02D116B0032
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 09:40:07 -0400 (EDT)
-Received: by pabvl15 with SMTP id vl15so105792342pab.1
-        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 06:40:06 -0700 (PDT)
-Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com. [2607:f8b0:400e:c02::22b])
-        by mx.google.com with ESMTPS id yf4si64375025pbc.185.2015.06.29.06.40.05
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D7796B0070
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 10:13:57 -0400 (EDT)
+Received: by igcsj18 with SMTP id sj18so80905834igc.1
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 07:13:57 -0700 (PDT)
+Received: from mail-ie0-x236.google.com (mail-ie0-x236.google.com. [2607:f8b0:4001:c03::236])
+        by mx.google.com with ESMTPS id b16si12502288icr.6.2015.06.29.07.13.56
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jun 2015 06:40:05 -0700 (PDT)
-Received: by pdbci14 with SMTP id ci14so117113436pdb.2
-        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 06:40:05 -0700 (PDT)
-Date: Mon, 29 Jun 2015 22:39:56 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC][PATCHv3 7/7] zsmalloc: register a shrinker to trigger
- auto-compaction
-Message-ID: <20150629133956.GA15331@blaptop>
-References: <1434628004-11144-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1434628004-11144-8-git-send-email-sergey.senozhatsky@gmail.com>
- <20150629070711.GD13179@bbox>
- <20150629085744.GA549@swordfish>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150629085744.GA549@swordfish>
+        Mon, 29 Jun 2015 07:13:56 -0700 (PDT)
+Received: by iebmu5 with SMTP id mu5so115563908ieb.1
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 07:13:56 -0700 (PDT)
+From: Nicholas Krause <xerofoify@gmail.com>
+Subject: [PATCH] mm:Make the function alloc_mem_cgroup_per_zone_info bool
+Date: Mon, 29 Jun 2015 10:13:53 -0400
+Message-Id: <1435587233-27976-1-git-send-email-xerofoify@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: hannes@cmpxchg.org
+Cc: mhocko@suse.cz, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Sergey,
+This makes the function alloc_mem_cgroup_per_zone_info have a
+return type of bool now due to this particular function always
+returning either one or zero as its return value.
 
-Sorry for too late reply.
+Signed-off-by: Nicholas Krause <xerofoify@gmail.com>
+---
+ mm/memcontrol.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-On Mon, Jun 29, 2015 at 05:57:44PM +0900, Sergey Senozhatsky wrote:
-> Hello,
-> 
-> thanks for review.
-> 
-> On (06/29/15 16:07), Minchan Kim wrote:
-> [..]
-> > >  			if (!migrate_zspage(pool, class, &cc))
-> > > -				break;
-> > > +				goto out;
-> > 
-> > It should retry with another target_page instead of going out.
-> 
-> yep.
-> 
-> [..]
-> > > +static unsigned long zs_shrinker_scan(struct shrinker *shrinker,
-> > > +		struct shrink_control *sc)
-> > > +{
-> [..]
-> > 
-> > Returns migrated object count.
-> > 
-> [..]
-> > > +static unsigned long zs_shrinker_count(struct shrinker *shrinker,
-> > > +		struct shrink_control *sc)
-> > > +{
-> [..]
-> > 
-> > But it returns wasted_obj / max_obj_per_zspage?
-> > 
-> 
-> Good catch.
-> So,  __zs_compact() and zs_shrinker_count() are ok. Returning
-> "wasted_obj / max_obj_per_zspage" from zs_can_compact() makes
-> sense there. The only place is zs_shrinker_scan()->zs_compact().
-
-I want to make zs_can_compact return freeable page unit.
-
-ie,
-
-        return obj_wasted * class->pages_per_zspage;
-  
-and let's make __zs_compact returns the number of freed pages.
-
-IOW, I like your (c).
-
-> 
-> Hm, I can think of:
-> 
-> (a) We can change zs_compact() to return the total number of
-> freed zspages. That will not really change a user visible
-> interface. We export (fwiw) the number of compacted objects
-> in mm_stat. Basically, this is internal zsmalloc() counter and
-> no user space program can ever do anything with that data. From
-> that prospective we will just replace one senseless number with
-> another (equally meaningless) one.
-> 
-> 
-> (b) replace zs_compact() call in zs_shrinker_scan() with a class loop
-> 
-> 1764         int i;
-> 1765         unsigned long nr_migrated = 0;
-> 1766         struct size_class *class;
-> 1767
-> 1768         for (i = zs_size_classes - 1; i >= 0; i--) {
-> 1769                 class = pool->size_class[i];
-> 1770                 if (!class)
-> 1771                         continue;
-> 1772                 if (class->index != i)
-> 1773                         continue;
-> 1774                 nr_migrated += __zs_compact(pool, class);
-> 1775         }
-> 1776
-> 1777         return nr_migrated;
-> 
-> But on every iteration increment nr_migrated with
-> 		"nr_migrated += just_migrated / max_obj_per_zspage"
-> 
-> (which will be unnecessary if zs_compact() will return the number of freed
-> zspages).
-> 
-> So, (b) is mostly fine, except that we already have several pool->size_class
-> loops, with same `if (!class)' and `if (class->index...)' checks; and it
-> asks for some sort of refactoring or... a tricky for_each_class() define.
-> 
-> 
-> In both cases, however, we don't tell anything valuable to user space.
-> Thus,
-> 
-> (c) Return from zs_compact() the number of pages (PAGE_SIZE) freed.
-> And change compaction to operate in terms of pages (PAGE_SIZE). At
-> least mm_stat::compacted will turn into something useful for user
-> space.
-
-Yes.
-
-Thanks.
-
-> 
-> 	-ss
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index acb93c5..35d86d2 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4425,7 +4425,7 @@ static struct cftype mem_cgroup_legacy_files[] = {
+ 	{ },	/* terminate */
+ };
+ 
+-static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
++static bool alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+ {
+ 	struct mem_cgroup_per_node *pn;
+ 	struct mem_cgroup_per_zone *mz;
+@@ -4442,7 +4442,7 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+ 		tmp = -1;
+ 	pn = kzalloc_node(sizeof(*pn), GFP_KERNEL, tmp);
+ 	if (!pn)
+-		return 1;
++		return true;
+ 
+ 	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+ 		mz = &pn->zoneinfo[zone];
+@@ -4452,7 +4452,7 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+ 		mz->memcg = memcg;
+ 	}
+ 	memcg->nodeinfo[node] = pn;
+-	return 0;
++	return false;
+ }
+ 
+ static void free_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
 -- 
-Kind regards,
-Minchan Kim
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
