@@ -1,46 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AA096B006E
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 11:55:08 -0400 (EDT)
-Received: by wibdq8 with SMTP id dq8so76421495wib.1
-        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 08:55:07 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e7si13795894wiy.79.2015.06.29.08.55.05
+Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 5642D6B0032
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 17:48:35 -0400 (EDT)
+Received: by obbop1 with SMTP id op1so113855046obb.2
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 14:48:35 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id c204si27606286oih.6.2015.06.29.14.48.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 29 Jun 2015 08:55:06 -0700 (PDT)
-Date: Mon, 29 Jun 2015 17:55:05 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm:Make the function alloc_mem_cgroup_per_zone_info bool
-Message-ID: <20150629155504.GE4612@dhcp22.suse.cz>
-References: <1435587233-27976-1-git-send-email-xerofoify@gmail.com>
- <20150629150311.GC4612@dhcp22.suse.cz>
- <3320C010-248A-4296-A5E4-30D9E7B3E611@gmail.com>
- <20150629153623.GC4617@dhcp22.suse.cz>
- <559167D8.80803@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Jun 2015 14:48:34 -0700 (PDT)
+Message-ID: <5591BD0F.7050809@oracle.com>
+Date: Mon, 29 Jun 2015 14:47:59 -0700
+From: Mike Kravetz <mike.kravetz@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <559167D8.80803@gmail.com>
+Subject: Re: [RFC v5 PATCH 1/9] mm/hugetlb: add region_del() to delete a specific
+ range of entries
+References: <1435019919-29225-1-git-send-email-mike.kravetz@oracle.com> <1435019919-29225-2-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1435019919-29225-2-git-send-email-mike.kravetz@oracle.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: nick <xerofoify@gmail.com>
-Cc: hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>
 
-On Mon 29-06-15 11:44:24, nick wrote:
-[...]
-> Here is a patch series I have been trying to merge for a bug in the
-> gma500 other the last few patches. There are other patches I have like
-> this lying around.
+On 06/22/2015 05:38 PM, Mike Kravetz wrote:
+> fallocate hole punch will want to remove a specific range of pages.
+> The existing region_truncate() routine deletes all region/reserve
+> map entries after a specified offset.  region_del() will provide
+> this same functionality if the end of region is specified as -1.
+> Hence, region_del() can replace region_truncate().
+>
+> Unlike region_truncate(), region_del() can return an error in the
+> rare case where it can not allocate memory for a region descriptor.
+> This ONLY happens in the case where an existing region must be split.
+> Current callers passing -1 as end of range will never experience
+> this error and do not need to deal with error handling.  Future
+> callers of region_del() (such as fallocate hole punch) will need to
+> handle this error.
 
-I am not interested in looking at random and unrelated patches. I am
-also not thrilled about random cleanups which do not have an additional
-value. I will not repeat that again and will start ignoring patches like
-that. I have tried to help you but this seems pointless investment of my
-time.
+Unfortunately, this new region_del() functionality required for hole
+punch conflicts with existing region_chg()/region_add() assumptions.
+
+region_chg/region_add is something like a two step commit process for
+adding new region entries.  region_chg is first called to determine
+the changes required for the new entry.  If the new entry can be
+represented by expanding an existing region, no changes are made to
+the map in region_chg.  If the new entry is not adjacent to an
+existing region, a placeholder is created during region_chg.  Later
+when region_add is called, the assumption is that a region (real or
+placeholder) can be expanded to represent the new entry.  Since
+all required entries already exist in the map, region_add can not
+fail.
+
+It is possible for the new region_del to modify the map between the
+region_chg and region_add calls.  It can not modify the same map
+entry being added by region_chg/region_add as that is protected by
+the fault mutex.  However, it can modify an entry adjacent to the
+new entry.  The entry could be modified so that it is no longer
+adjacent to the new entry.  As a result, when region_add is called
+it will not find a region which can be expanded to represent the
+new entry.
+
+In this situation, region_add only needs to add a new region to
+the map.  However, to do so would require allocating a new region
+descriptor.  The allocation could fail which would result in
+region_add failing.
+
+I'm thinking about having a cache of region descriptors pre-allocated
+to handle this (rare) situation.  The number of descriptors needed
+in the cache would correspond to the number of page faults in
+progress (between region_chg and region_add).  region_chg would make
+sure there are sufficient descriptors and allocate one if needed.
+Error handling for region_chg ENOMEM already exists.  A sufficient
+number of entries would be pre-allocated such that in the normal
+case no allocation would be necessary.
+
+Thoughts?
 -- 
-Michal Hocko
-SUSE Labs
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
