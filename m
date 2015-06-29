@@ -1,84 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id C66EC6B006C
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 10:51:00 -0400 (EDT)
-Received: by qkbp125 with SMTP id p125so95582828qkb.2
-        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 07:51:00 -0700 (PDT)
-Received: from mail-qk0-x22f.google.com (mail-qk0-x22f.google.com. [2607:f8b0:400d:c09::22f])
-        by mx.google.com with ESMTPS id k90si41963923qkh.51.2015.06.29.07.51.00
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BA2F6B0032
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 11:03:14 -0400 (EDT)
+Received: by widjy10 with SMTP id jy10so6134306wid.1
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 08:03:13 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c6si13547990wie.78.2015.06.29.08.03.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jun 2015 07:51:00 -0700 (PDT)
-Received: by qkeo142 with SMTP id o142so95613665qke.1
-        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 07:50:59 -0700 (PDT)
-Date: Mon, 29 Jun 2015 10:50:54 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH 07/36] HMM: add per mirror page table v3.
-Message-ID: <20150629145053.GB2173@gmail.com>
-References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
- <1432236705-4209-8-git-send-email-j.glisse@gmail.com>
- <alpine.DEB.2.00.1506251557480.28614@mdh-linux64-2.nvidia.com>
- <20150626164338.GB3748@gmail.com>
- <alpine.DEB.2.00.1506261958010.22464@mdh-linux64-2.nvidia.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 29 Jun 2015 08:03:12 -0700 (PDT)
+Date: Mon, 29 Jun 2015 17:03:11 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm:Make the function alloc_mem_cgroup_per_zone_info bool
+Message-ID: <20150629150311.GC4612@dhcp22.suse.cz>
+References: <1435587233-27976-1-git-send-email-xerofoify@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.00.1506261958010.22464@mdh-linux64-2.nvidia.com>
+In-Reply-To: <1435587233-27976-1-git-send-email-xerofoify@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Hairgrove <mhairgrove@nvidia.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, "joro@8bytes.org" <joro@8bytes.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>
+To: Nicholas Krause <xerofoify@gmail.com>
+Cc: hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jun 26, 2015 at 08:02:03PM -0700, Mark Hairgrove wrote:
-> On Fri, 26 Jun 2015, Jerome Glisse wrote:
-> > On Thu, Jun 25, 2015 at 04:05:48PM -0700, Mark Hairgrove wrote:
-> > > On Thu, 21 May 2015, j.glisse@gmail.com wrote:
-> > > > From: Jerome Glisse <jglisse@redhat.com>
-> > > > [...]
-> > > >  
-> > > > +	/* update() - update device mmu following an event.
-> > > > +	 *
-> > > > +	 * @mirror: The mirror that link process address space with the device.
-> > > > +	 * @event: The event that triggered the update.
-> > > > +	 * Returns: 0 on success or error code {-EIO, -ENOMEM}.
-> > > > +	 *
-> > > > +	 * Called to update device page table for a range of address.
-> > > > +	 * The event type provide the nature of the update :
-> > > > +	 *   - Range is no longer valid (munmap).
-> > > > +	 *   - Range protection changes (mprotect, COW, ...).
-> > > > +	 *   - Range is unmapped (swap, reclaim, page migration, ...).
-> > > > +	 *   - Device page fault.
-> > > > +	 *   - ...
-> > > > +	 *
-> > > > +	 * Thought most device driver only need to use pte_mask as it reflects
-> > > > +	 * change that will happen to the HMM page table ie :
-> > > > +	 *   new_pte = old_pte & event->pte_mask;
-> > > 
-> > > Documentation request: It would be useful to break down exactly what is 
-> > > required from the driver for each event type here, and what extra 
-> > > information is provided by the type that isn't provided by the pte_mask.
-> > 
-> > Mostly event tell you if you need to free or not the device page table for
-> > the range, which is not something you can infer from the pte_mask reliably.
-> > Difference btw migration and munmap for instance, same pte_mask but range
-> > is still valid in the migration case it will just be backed by a new set of
-> > pages.
+On Mon 29-06-15 10:13:53, Nicholas Krause wrote:
+[...]
+> -static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+> +static bool alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+>  {
+>  	struct mem_cgroup_per_node *pn;
+>  	struct mem_cgroup_per_zone *mz;
+> @@ -4442,7 +4442,7 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+>  		tmp = -1;
+>  	pn = kzalloc_node(sizeof(*pn), GFP_KERNEL, tmp);
+>  	if (!pn)
+> -		return 1;
+> +		return true;
+
+Have you tried to think about the semantic of the function? The function
+has returned 0 to signal the success which is pretty common. It could have
+returned -ENOMEM for the allocation failure which would be much more
+nicer than 1.
+
+After your change we have bool semantic where the success is reported by
+false while failure is true. Doest this make any sense to you? Because
+it doesn't make to me and it only shows that this is a mechanical
+conversion without deeper thinking about consequences.
+
+Nacked-by: Michal Hocko <mhocko@suse.cz>
+
+Btw. I can see your other patches which trying to do similar. I would
+strongly discourage you from this path. Try to understand the code and
+focus on changes which would actually make any improvements to the code
+base. Doing stylist changes which do not help readability and neither
+help compiler to generate a better code is simply waste of your and
+reviewers time.
+
+>  	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+>  		mz = &pn->zoneinfo[zone];
+> @@ -4452,7 +4452,7 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+>  		mz->memcg = memcg;
+>  	}
+>  	memcg->nodeinfo[node] = pn;
+> -	return 0;
+> +	return false;
+>  }
+>  
+>  static void free_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+> -- 
+> 2.1.4
 > 
-> Given that event->pte_mask and event->type provide redundant information, 
-> are they both necessary?
 
-Like said, you can not infer event->type from pte_mask but you can infer
-pte_mask from event->type. The idea is behind providing pte_mask is that
-simple driver can just use that with the iter walk and simply mask the HMM
-page table entry they read ((*ptep) & pte_mask) to repopulate the device
-page table.
-
-So yes pte_mask is redundant but i think it will be useful for a range of
-device driver.
-
-Cheers,
-Jerome
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
