@@ -1,84 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 5642D6B0032
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 17:48:35 -0400 (EDT)
-Received: by obbop1 with SMTP id op1so113855046obb.2
-        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 14:48:35 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id c204si27606286oih.6.2015.06.29.14.48.34
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jun 2015 14:48:34 -0700 (PDT)
-Message-ID: <5591BD0F.7050809@oracle.com>
-Date: Mon, 29 Jun 2015 14:47:59 -0700
-From: Mike Kravetz <mike.kravetz@oracle.com>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 56E556B0032
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 19:12:02 -0400 (EDT)
+Received: by pdbep18 with SMTP id ep18so102541650pdb.1
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 16:12:01 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id ty5si66710962pac.54.2015.06.29.16.12.00
+        for <linux-mm@kvack.org>;
+        Mon, 29 Jun 2015 16:12:01 -0700 (PDT)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [RFC v2 PATCH 7/8] mm: add the buddy system interface
+Date: Mon, 29 Jun 2015 23:11:30 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F32AA124A@ORSMSX114.amr.corp.intel.com>
+References: <558E084A.60900@huawei.com> <558E0A28.6060607@huawei.com>
+In-Reply-To: <558E0A28.6060607@huawei.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [RFC v5 PATCH 1/9] mm/hugetlb: add region_del() to delete a specific
- range of entries
-References: <1435019919-29225-1-git-send-email-mike.kravetz@oracle.com> <1435019919-29225-2-git-send-email-mike.kravetz@oracle.com>
-In-Reply-To: <1435019919-29225-2-git-send-email-mike.kravetz@oracle.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>
+To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Hanjun Guo <guohanjun@huawei.com>, Xiexiuqi <xiexiuqi@huawei.com>, "leon@leon.nu" <leon@leon.nu>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Hansen, Dave" <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 06/22/2015 05:38 PM, Mike Kravetz wrote:
-> fallocate hole punch will want to remove a specific range of pages.
-> The existing region_truncate() routine deletes all region/reserve
-> map entries after a specified offset.  region_del() will provide
-> this same functionality if the end of region is specified as -1.
-> Hence, region_del() can replace region_truncate().
->
-> Unlike region_truncate(), region_del() can return an error in the
-> rare case where it can not allocate memory for a region descriptor.
-> This ONLY happens in the case where an existing region must be split.
-> Current callers passing -1 as end of range will never experience
-> this error and do not need to deal with error handling.  Future
-> callers of region_del() (such as fallocate hole punch) will need to
-> handle this error.
+> @@ -814,7 +814,7 @@ int __init_memblock memblock_clear_hotplug(phys_addr_=
+t base, phys_addr_t size)
+>   */
+>  int __init_memblock memblock_mark_mirror(phys_addr_t base, phys_addr_t s=
+ize)
+>  {
+> -	system_has_some_mirror =3D true;
+> +	static_key_slow_inc(&system_has_mirror);
+>=20
+>  	return memblock_setclr_flag(base, size, 1, MEMBLOCK_MIRROR);
+>  }
 
-Unfortunately, this new region_del() functionality required for hole
-punch conflicts with existing region_chg()/region_add() assumptions.
+This generates some WARN_ON noise when called from efi_find_mirror():
 
-region_chg/region_add is something like a two step commit process for
-adding new region entries.  region_chg is first called to determine
-the changes required for the new entry.  If the new entry can be
-represented by expanding an existing region, no changes are made to
-the map in region_chg.  If the new entry is not adjacent to an
-existing region, a placeholder is created during region_chg.  Later
-when region_add is called, the assumption is that a region (real or
-placeholder) can be expanded to represent the new entry.  Since
-all required entries already exist in the map, region_add can not
-fail.
+[    0.000000] e820: last_pfn =3D 0x7b800 max_arch_pfn =3D 0x400000000
+[    0.000000] ------------[ cut here ]------------
+[    0.000000] WARNING: CPU: 0 PID: 0 at kernel/jump_label.c:61 static_key_=
+slow_inc+0x57/0xc0()
+[    0.000000] static_key_slow_inc used before call to jump_label_init
+[    0.000000] Modules linked in:
 
-It is possible for the new region_del to modify the map between the
-region_chg and region_add calls.  It can not modify the same map
-entry being added by region_chg/region_add as that is protected by
-the fault mutex.  However, it can modify an entry adjacent to the
-new entry.  The entry could be modified so that it is no longer
-adjacent to the new entry.  As a result, when region_add is called
-it will not find a region which can be expanded to represent the
-new entry.
+[    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.1.0 #4
+[    0.000000] Hardware name: Intel Corporation BRICKLAND/BRICKLAND, BIOS B=
+RHSXSD1.86B.0065.R01.1505011640 05/01/2015
+[    0.000000]  0000000000000000 ee366a8dff38f745 ffffffff81997d68 ffffffff=
+816683b4
+[    0.000000]  0000000000000000 ffffffff81997dc0 ffffffff81997da8 ffffffff=
+8107b0aa
+[    0.000000]  ffffffff81d48822 ffffffff81f281a0 0000000040000000 0000001f=
+cb7a4000
+[    0.000000] Call Trace:
+[    0.000000]  [<ffffffff816683b4>] dump_stack+0x45/0x57
+[    0.000000]  [<ffffffff8107b0aa>] warn_slowpath_common+0x8a/0xc0
+[    0.000000]  [<ffffffff8107b135>] warn_slowpath_fmt+0x55/0x70
+[    0.000000]  [<ffffffff81660273>] ? memblock_add_range+0x175/0x19e
+[    0.000000]  [<ffffffff81176c57>] static_key_slow_inc+0x57/0xc0
+[    0.000000]  [<ffffffff81660655>] memblock_mark_mirror+0x19/0x33
+[    0.000000]  [<ffffffff81b12c18>] efi_find_mirror+0x59/0xdd
+[    0.000000]  [<ffffffff81afb8a6>] setup_arch+0x642/0xccf
+[    0.000000]  [<ffffffff81af3120>] ? early_idt_handler_array+0x120/0x120
+[    0.000000]  [<ffffffff81663480>] ? printk+0x55/0x6b
+[    0.000000]  [<ffffffff81af3120>] ? early_idt_handler_array+0x120/0x120
+[    0.000000]  [<ffffffff81af3d93>] start_kernel+0xe8/0x4eb
+[    0.000000]  [<ffffffff81af3120>] ? early_idt_handler_array+0x120/0x120
+[    0.000000]  [<ffffffff81af3120>] ? early_idt_handler_array+0x120/0x120
+[    0.000000]  [<ffffffff81af35ee>] x86_64_start_reservations+0x2a/0x2c
+[    0.000000]  [<ffffffff81af373c>] x86_64_start_kernel+0x14c/0x16f
+[    0.000000] ---[ end trace baa7fa0514e3bc58 ]---
+[    0.000000] ------------[ cut here ]------------
 
-In this situation, region_add only needs to add a new region to
-the map.  However, to do so would require allocating a new region
-descriptor.  The allocation could fail which would result in
-region_add failing.
 
-I'm thinking about having a cache of region descriptors pre-allocated
-to handle this (rare) situation.  The number of descriptors needed
-in the cache would correspond to the number of page faults in
-progress (between region_chg and region_add).  region_chg would make
-sure there are sufficient descriptors and allocate one if needed.
-Error handling for region_chg ENOMEM already exists.  A sufficient
-number of entries would be pre-allocated such that in the normal
-case no allocation would be necessary.
 
-Thoughts?
--- 
-Mike Kravetz
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
