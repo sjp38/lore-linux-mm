@@ -1,200 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A7306B0032
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 03:07:03 -0400 (EDT)
-Received: by pdbci14 with SMTP id ci14so111566338pdb.2
-        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 00:07:02 -0700 (PDT)
-Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
-        by mx.google.com with ESMTPS id ct3si62845770pbc.99.2015.06.29.00.07.01
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 23DAD6B0032
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 03:34:35 -0400 (EDT)
+Received: by pdbep18 with SMTP id ep18so90311062pdb.1
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 00:34:34 -0700 (PDT)
+Received: from mgwkm01.jp.fujitsu.com (mgwkm01.jp.fujitsu.com. [202.219.69.168])
+        by mx.google.com with ESMTPS id h7si63086091pat.180.2015.06.29.00.34.32
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jun 2015 00:07:02 -0700 (PDT)
-Received: by pabvl15 with SMTP id vl15so100905125pab.1
-        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 00:07:01 -0700 (PDT)
-Date: Mon, 29 Jun 2015 16:07:11 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC][PATCHv3 7/7] zsmalloc: register a shrinker to trigger
- auto-compaction
-Message-ID: <20150629070711.GD13179@bbox>
-References: <1434628004-11144-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1434628004-11144-8-git-send-email-sergey.senozhatsky@gmail.com>
+        Mon, 29 Jun 2015 00:34:33 -0700 (PDT)
+Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
+	by kw-mxoi2.gw.nic.fujitsu.com (Postfix) with ESMTP id 72AA0AC03FC
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 16:34:30 +0900 (JST)
+Message-ID: <5590F4A7.4030606@jp.fujitsu.com>
+Date: Mon, 29 Jun 2015 16:32:55 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1434628004-11144-8-git-send-email-sergey.senozhatsky@gmail.com>
+Subject: Re: [RFC v2 PATCH 2/8] mm: introduce MIGRATE_MIRROR to manage the
+ mirrored pages
+References: <558E084A.60900@huawei.com> <558E0948.2010104@huawei.com>
+In-Reply-To: <558E0948.2010104@huawei.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, "Luck, Tony" <tony.luck@intel.com>, Hanjun Guo <guohanjun@huawei.com>, Xiexiuqi <xiexiuqi@huawei.com>, leon@leon.nu, Dave Hansen <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 18, 2015 at 08:46:44PM +0900, Sergey Senozhatsky wrote:
-> Perform automatic pool compaction by a shrinker when system
-> is getting tight on memory.
-> 
-> User-space has a very little knowledge regarding zsmalloc fragmentation
-> and basically has no mechanism to tell whether compaction will result
-> in any memory gain. Another issue is that user space is not always
-> aware of the fact that system is getting tight on memory. Which leads
-> to very uncomfortable scenarios when user space may start issuing
-> compaction 'randomly' or from crontab (for example). Fragmentation
-> is not always necessarily bad, allocated and unused objects, after all,
-> may be filled with the data later, w/o the need of allocating a new
-> zspage. On the other hand, we obviously don't want to waste memory
-> when systems needs it.
-> 
-> Compaction now has a relatively quick pool scan so we are able to
-> estimate the number of pages that will be freed easily, which makes it
-> possible to call this function from a shrinker->count_objects() callback.
-> We also abort compaction as soon as we detect that we can't free any
-> pages any more, preventing wasteful objects migrations.
-> 
-> Minchan Kim proposed to use the shrinker (the original patch was too
-> aggressive and was attempting to perform compaction for every
-> ALMOST_EMPTY zspage).
-> 
-> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Suggested-by: Minchan Kim <minchan@kernel.org>
+On 2015/06/27 11:24, Xishi Qiu wrote:
+> This patch introduces a new migratetype called "MIGRATE_MIRROR", it is used to
+> allocate mirrored pages.
+> When cat /proc/pagetypeinfo, you can see the count of free mirrored blocks.
+>
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+
+My fear about this approarch is that this may break something existing.
+
+Now, when we add MIGRATE_MIRROR type, we'll hide attributes of pageblocks as
+MIGRATE_UNMOVABOLE, MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE.
+
+Logically, MIRROR attribute is independent from page mobility and this overwrites
+will make some information lost.
+
+Then,
+
 > ---
->  mm/zsmalloc.c | 78 +++++++++++++++++++++++++++++++++++++++++++++++++++++------
->  1 file changed, 71 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index c9aea0a..692b7dc 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -247,7 +247,9 @@ struct zs_pool {
->  	atomic_long_t		pages_allocated;
->  	/* How many objects were migrated */
->  	unsigned long		num_migrated;
-> -
-> +	/* Compact classes */
-> +	struct shrinker		shrinker;
-> +	bool			shrinker_enabled;
->  #ifdef CONFIG_ZSMALLOC_STAT
->  	struct dentry		*stat_dentry;
->  #endif
-> @@ -1730,12 +1732,9 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
->  
->  		while ((dst_page = isolate_target_page(class))) {
->  			cc.d_page = dst_page;
-> -			/*
-> -			 * If there is no more space in dst_page, resched
-> -			 * and see if anyone had allocated another zspage.
-> -			 */
-> +
->  			if (!migrate_zspage(pool, class, &cc))
-> -				break;
-> +				goto out;
+>   include/linux/mmzone.h | 9 +++++++++
+>   mm/page_alloc.c        | 3 +++
+>   mm/vmstat.c            | 3 +++
+>   3 files changed, 15 insertions(+)
+>
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 54d74f6..54e891a 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -39,6 +39,9 @@ enum {
+>   	MIGRATE_UNMOVABLE,
+>   	MIGRATE_RECLAIMABLE,
+>   	MIGRATE_MOVABLE,
+> +#ifdef CONFIG_MEMORY_MIRROR
+> +	MIGRATE_MIRROR,
+> +#endif
 
-It should retry with another target_page instead of going out.
+I think
+         MIGRATE_MIRROR_UNMOVABLE,
+         MIGRATE_MIRROR_RECLAIMABLE,
+         MIGRATE_MIRROR_MOVABLE,         <== adding this may need discuss.
+         MIGRATE_MIRROR_RESERVED,        <== reserved pages should be maintained per mirrored/unmirrored.
 
->  
->  			putback_zspage(pool, class, dst_page);
->  		}
-> @@ -1750,7 +1749,9 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
->  		cond_resched();
->  		spin_lock(&class->lock);
->  	}
-> -
-> +out:
-> +	if (dst_page)
-> +		putback_zspage(pool, class, dst_page);
->  	if (src_page)
->  		putback_zspage(pool, class, src_page);
->  
-> @@ -1774,6 +1775,65 @@ unsigned long zs_compact(struct zs_pool *pool)
->  }
->  EXPORT_SYMBOL_GPL(zs_compact);
->  
-> +static unsigned long zs_shrinker_scan(struct shrinker *shrinker,
-> +		struct shrink_control *sc)
-> +{
-> +	unsigned long freed;
-> +	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
-> +			shrinker);
-> +
-> +	freed = pool->num_migrated;
-> +	/* Compact classes and calculate compaction delta */
-> +	freed = zs_compact(pool) - freed;
+should be added with the following fallback list.
 
-Returns migrated object count.
+/*
+  * MIRROR page range is defined by firmware at boot. The range is limited
+  * and is used only for kernel memory mirroring.
+  */
+[MIGRATE_UNMOVABLE_MIRROR]   = {MIGRATE_RECLAIMABLE_MIRROR, MIGRATE_RESERVE}
+[MIGRATE_RECLAIMABLE_MIRROR] = {MIGRATE_UNMOVABLE_MIRROR, MIGRATE_RESERVE}
 
-> +
-> +	return freed ? freed : SHRINK_STOP;
-> +}
-> +
-> +static unsigned long zs_shrinker_count(struct shrinker *shrinker,
-> +		struct shrink_control *sc)
-> +{
-> +	int i;
-> +	struct size_class *class;
-> +	unsigned long to_free = 0;
-> +	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
-> +			shrinker);
-> +
-> +	if (!pool->shrinker_enabled)
-> +		return 0;
-> +
-> +	for (i = zs_size_classes - 1; i >= 0; i--) {
-> +		class = pool->size_class[i];
-> +		if (!class)
-> +			continue;
-> +		if (class->index != i)
-> +			continue;
-> +
-> +		spin_lock(&class->lock);
-> +		to_free += zs_can_compact(class);
+Then, we'll not lose the original information of "Reclaiable Pages".
 
-But it returns wasted_obj / max_obj_per_zspage?
+One problem here is whteher we should have MIGRATE_RESERVE_MIRROR.
 
-> +		spin_unlock(&class->lock);
-> +	}
+If we never allow users to allocate mirrored memory, we should have MIGRATE_RESERVE_MIRROR.
+But it seems to require much more code change to do that.
+
+Creating a zone or adding an attribues to zones are another design choice.
+
+Anyway, your patch doesn't takes care of reserved memory calculation at this point.
+Please check setup_zone_migrate_reserve() That will be a problem.
+
+Thanks,
+-Kame
+
+>   	MIGRATE_PCPTYPES,	/* the number of types on the pcp lists */
+>   	MIGRATE_RESERVE = MIGRATE_PCPTYPES,
+>   #ifdef CONFIG_CMA
+> @@ -69,6 +72,12 @@ enum {
+>   #  define is_migrate_cma(migratetype) false
+>   #endif
+>
+> +#ifdef CONFIG_MEMORY_MIRROR
+> +#  define is_migrate_mirror(migratetype) unlikely((migratetype) == MIGRATE_MIRROR)
+> +#else
+> +#  define is_migrate_mirror(migratetype) false
+> +#endif
 > +
-> +	return to_free;
-> +}
-> +
-> +static void zs_unregister_shrinker(struct zs_pool *pool)
-> +{
-> +	if (pool->shrinker_enabled) {
-> +		unregister_shrinker(&pool->shrinker);
-> +		pool->shrinker_enabled = false;
-> +	}
-> +}
-> +
-> +static int zs_register_shrinker(struct zs_pool *pool)
-> +{
-> +	pool->shrinker.scan_objects = zs_shrinker_scan;
-> +	pool->shrinker.count_objects = zs_shrinker_count;
-> +	pool->shrinker.batch = 0;
-> +	pool->shrinker.seeks = DEFAULT_SEEKS;
-> +
-> +	return register_shrinker(&pool->shrinker);
-> +}
-> +
->  /**
->   * zs_create_pool - Creates an allocation pool to work from.
->   * @flags: allocation flags used to allocate pool metadata
-> @@ -1859,6 +1919,9 @@ struct zs_pool *zs_create_pool(char *name, gfp_t flags)
->  	if (zs_pool_stat_create(name, pool))
->  		goto err;
->  
-> +	/* Not critical, we still can use the pool */
-> +	if (zs_register_shrinker(pool) == 0)
-> +		pool->shrinker_enabled = true;
->  	return pool;
->  
->  err:
-> @@ -1871,6 +1934,7 @@ void zs_destroy_pool(struct zs_pool *pool)
->  {
->  	int i;
->  
-> +	zs_unregister_shrinker(pool);
->  	zs_pool_stat_destroy(pool);
->  
->  	for (i = 0; i < zs_size_classes; i++) {
-> -- 
-> 2.4.4
-> 
+>   #define for_each_migratetype_order(order, type) \
+>   	for (order = 0; order < MAX_ORDER; order++) \
+>   		for (type = 0; type < MIGRATE_TYPES; type++)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index ebffa0e..6e4d79f 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3216,6 +3216,9 @@ static void show_migration_types(unsigned char type)
+>   		[MIGRATE_UNMOVABLE]	= 'U',
+>   		[MIGRATE_RECLAIMABLE]	= 'E',
+>   		[MIGRATE_MOVABLE]	= 'M',
+> +#ifdef CONFIG_MEMORY_MIRROR
+> +		[MIGRATE_MIRROR]	= 'O',
+> +#endif
+>   		[MIGRATE_RESERVE]	= 'R',
+>   #ifdef CONFIG_CMA
+>   		[MIGRATE_CMA]		= 'C',
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 4f5cd97..d0323e0 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -901,6 +901,9 @@ static char * const migratetype_names[MIGRATE_TYPES] = {
+>   	"Unmovable",
+>   	"Reclaimable",
+>   	"Movable",
+> +#ifdef CONFIG_MEMORY_MIRROR
+> +	"Mirror",
+> +#endif
+>   	"Reserve",
+>   #ifdef CONFIG_CMA
+>   	"CMA",
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
