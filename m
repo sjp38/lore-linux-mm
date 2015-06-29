@@ -1,136 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id A084B6B0032
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 03:40:34 -0400 (EDT)
-Received: by paceq1 with SMTP id eq1so100934513pac.3
-        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 00:40:34 -0700 (PDT)
-Received: from mgwym04.jp.fujitsu.com (mgwym04.jp.fujitsu.com. [211.128.242.43])
-        by mx.google.com with ESMTPS id qz9si63130864pab.204.2015.06.29.00.40.32
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id EA38E6B006E
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 04:57:18 -0400 (EDT)
+Received: by paceq1 with SMTP id eq1so101955445pac.3
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 01:57:18 -0700 (PDT)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id cg2si63271628pbb.101.2015.06.29.01.57.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jun 2015 00:40:33 -0700 (PDT)
-Received: from m3050.s.css.fujitsu.com (msm.b.css.fujitsu.com [10.134.21.208])
-	by yt-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id 13AE0AC01B7
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 16:40:29 +0900 (JST)
-Message-ID: <5590F648.2080808@jp.fujitsu.com>
-Date: Mon, 29 Jun 2015 16:39:52 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+        Mon, 29 Jun 2015 01:57:18 -0700 (PDT)
+Received: by pabvl15 with SMTP id vl15so102385831pab.1
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 01:57:17 -0700 (PDT)
+Date: Mon, 29 Jun 2015 17:57:44 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [RFC][PATCHv3 7/7] zsmalloc: register a shrinker to trigger
+ auto-compaction
+Message-ID: <20150629085744.GA549@swordfish>
+References: <1434628004-11144-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1434628004-11144-8-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150629070711.GD13179@bbox>
 MIME-Version: 1.0
-Subject: Re: [RFC v2 PATCH 4/8] mm: add mirrored memory to buddy system
-References: <558E084A.60900@huawei.com> <558E09A1.2090102@huawei.com>
-In-Reply-To: <558E09A1.2090102@huawei.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150629070711.GD13179@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, "Luck, Tony" <tony.luck@intel.com>, Hanjun Guo <guohanjun@huawei.com>, Xiexiuqi <xiexiuqi@huawei.com>, leon@leon.nu, Dave Hansen <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On 2015/06/27 11:25, Xishi Qiu wrote:
-> Before free bootmem, set mirrored pageblock's migratetype to MIGRATE_MIRROR, so
-> they could free to buddy system's MIGRATE_MIRROR list.
-> When set reserved memory, skip the mirrored memory.
->
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->   include/linux/memblock.h |  3 +++
->   mm/memblock.c            | 21 +++++++++++++++++++++
->   mm/nobootmem.c           |  3 +++
->   mm/page_alloc.c          |  3 +++
->   4 files changed, 30 insertions(+)
->
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index 97f71ca..53be030 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -81,6 +81,9 @@ int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
->   int memblock_clear_hotplug(phys_addr_t base, phys_addr_t size);
->   int memblock_mark_mirror(phys_addr_t base, phys_addr_t size);
->   ulong choose_memblock_flags(void);
-> +#ifdef CONFIG_MEMORY_MIRROR
-> +void memblock_mark_migratemirror(void);
-> +#endif
->
->   /* Low level functions */
->   int memblock_add_range(struct memblock_type *type,
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 7612876..0d0b210 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -19,6 +19,7 @@
->   #include <linux/debugfs.h>
->   #include <linux/seq_file.h>
->   #include <linux/memblock.h>
-> +#include <linux/page-isolation.h>
->
->   #include <asm-generic/sections.h>
->   #include <linux/io.h>
-> @@ -818,6 +819,26 @@ int __init_memblock memblock_mark_mirror(phys_addr_t base, phys_addr_t size)
->   	return memblock_setclr_flag(base, size, 1, MEMBLOCK_MIRROR);
->   }
->
-> +#ifdef CONFIG_MEMORY_MIRROR
-> +void __init_memblock memblock_mark_migratemirror(void)
-> +{
-> +	unsigned long start_pfn, end_pfn, pfn;
-> +	int i, node;
-> +	struct page *page;
-> +
-> +	printk(KERN_DEBUG "Mirrored memory:\n");
-> +	for_each_mirror_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn,
-> +				&node) {
-> +		printk(KERN_DEBUG "  node %3d: [mem %#010llx-%#010llx]\n",
-> +			node, PFN_PHYS(start_pfn), PFN_PHYS(end_pfn) - 1);
-> +		for (pfn = start_pfn; pfn < end_pfn;
-> +				pfn += pageblock_nr_pages) {
-> +			page = pfn_to_page(pfn);
-> +			set_pageblock_migratetype(page, MIGRATE_MIRROR);
-> +		}
-> +	}
-> +}
-> +#endif
->
->   /**
->    * __next__mem_range - next function for for_each_free_mem_range() etc.
-> diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-> index 5258386..31aa6d4 100644
-> --- a/mm/nobootmem.c
-> +++ b/mm/nobootmem.c
-> @@ -129,6 +129,9 @@ static unsigned long __init free_low_memory_core_early(void)
->   	u64 i;
->
->   	memblock_clear_hotplug(0, -1);
-> +#ifdef CONFIG_MEMORY_MIRROR
-> +	memblock_mark_migratemirror();
-> +#endif
->
->   	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end,
->   				NULL)
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6e4d79f..aea78a5 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4118,6 +4118,9 @@ static void setup_zone_migrate_reserve(struct zone *zone)
->
->   		block_migratetype = get_pageblock_migratetype(page);
->
-> +		if (is_migrate_mirror(block_migratetype))
-> +			continue;
-> +
+Hello,
 
-If mirrored area will not have reserved memory, this should break the page allocator's
-logic.
+thanks for review.
 
-I think both of mirrored and unmirrored range should have reserved area.
+On (06/29/15 16:07), Minchan Kim wrote:
+[..]
+> >  			if (!migrate_zspage(pool, class, &cc))
+> > -				break;
+> > +				goto out;
+> 
+> It should retry with another target_page instead of going out.
 
-Thanks,
--Kame
+yep.
 
->   		/* Only test what is necessary when the reserves are not met */
->   		if (reserve > 0) {
->   			/*
->
+[..]
+> > +static unsigned long zs_shrinker_scan(struct shrinker *shrinker,
+> > +		struct shrink_control *sc)
+> > +{
+[..]
+> 
+> Returns migrated object count.
+> 
+[..]
+> > +static unsigned long zs_shrinker_count(struct shrinker *shrinker,
+> > +		struct shrink_control *sc)
+> > +{
+[..]
+> 
+> But it returns wasted_obj / max_obj_per_zspage?
+> 
 
+Good catch.
+So,  __zs_compact() and zs_shrinker_count() are ok. Returning
+"wasted_obj / max_obj_per_zspage" from zs_can_compact() makes
+sense there. The only place is zs_shrinker_scan()->zs_compact().
+
+Hm, I can think of:
+
+(a) We can change zs_compact() to return the total number of
+freed zspages. That will not really change a user visible
+interface. We export (fwiw) the number of compacted objects
+in mm_stat. Basically, this is internal zsmalloc() counter and
+no user space program can ever do anything with that data. From
+that prospective we will just replace one senseless number with
+another (equally meaningless) one.
+
+
+(b) replace zs_compact() call in zs_shrinker_scan() with a class loop
+
+1764         int i;
+1765         unsigned long nr_migrated = 0;
+1766         struct size_class *class;
+1767
+1768         for (i = zs_size_classes - 1; i >= 0; i--) {
+1769                 class = pool->size_class[i];
+1770                 if (!class)
+1771                         continue;
+1772                 if (class->index != i)
+1773                         continue;
+1774                 nr_migrated += __zs_compact(pool, class);
+1775         }
+1776
+1777         return nr_migrated;
+
+But on every iteration increment nr_migrated with
+		"nr_migrated += just_migrated / max_obj_per_zspage"
+
+(which will be unnecessary if zs_compact() will return the number of freed
+zspages).
+
+So, (b) is mostly fine, except that we already have several pool->size_class
+loops, with same `if (!class)' and `if (class->index...)' checks; and it
+asks for some sort of refactoring or... a tricky for_each_class() define.
+
+
+In both cases, however, we don't tell anything valuable to user space.
+Thus,
+
+(c) Return from zs_compact() the number of pages (PAGE_SIZE) freed.
+And change compaction to operate in terms of pages (PAGE_SIZE). At
+least mm_stat::compacted will turn into something useful for user
+space.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
