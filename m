@@ -1,166 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id AE9C16B0032
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 05:37:58 -0400 (EDT)
-Received: by wgjx7 with SMTP id x7so4421610wgj.2
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 02:37:58 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 9683B6B006C
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 05:42:00 -0400 (EDT)
+Received: by wicgi11 with SMTP id gi11so11023403wic.0
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 02:42:00 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fy8si78820424wjb.94.2015.06.30.02.37.56
+        by mx.google.com with ESMTPS id bl10si18407070wib.9.2015.06.30.02.41.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 30 Jun 2015 02:37:57 -0700 (PDT)
-Date: Tue, 30 Jun 2015 11:37:51 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 22/51] writeback: add {CONFIG|BDI_CAP|FS}_CGROUP_WRITEBACK
-Message-ID: <20150630093751.GH7252@quack.suse.cz>
-References: <1432329245-5844-1-git-send-email-tj@kernel.org>
- <1432329245-5844-23-git-send-email-tj@kernel.org>
+        Tue, 30 Jun 2015 02:41:59 -0700 (PDT)
+Date: Tue, 30 Jun 2015 10:41:50 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC v2 PATCH 0/8] mm: mirrored memory support for page buddy
+ allocations
+Message-ID: <20150630094149.GA6812@suse.de>
+References: <558E084A.60900@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1432329245-5844-23-git-send-email-tj@kernel.org>
+In-Reply-To: <558E084A.60900@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, "Luck, Tony" <tony.luck@intel.com>, Hanjun Guo <guohanjun@huawei.com>, Xiexiuqi <xiexiuqi@huawei.com>, leon@leon.nu, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 22-05-15 17:13:36, Tejun Heo wrote:
-> cgroup writeback requires support from both bdi and filesystem sides.
-> Add BDI_CAP_CGROUP_WRITEBACK and FS_CGROUP_WRITEBACK to indicate
-> support and enable BDI_CAP_CGROUP_WRITEBACK on block based bdi's by
-> default.  Also, define CONFIG_CGROUP_WRITEBACK which is enabled if
-> both MEMCG and BLK_CGROUP are enabled.
+On Sat, Jun 27, 2015 at 10:19:54AM +0800, Xishi Qiu wrote:
+> Intel Xeon processor E7 v3 product family-based platforms introduces support
+> for partial memory mirroring called as 'Address Range Mirroring'. This feature
+> allows BIOS to specify a subset of total available memory to be mirrored (and
+> optionally also specify whether to mirror the range 0-4 GB). This capability
+> allows user to make an appropriate tradeoff between non-mirrored memory range
+> and mirrored memory range thus optimizing total available memory and still
+> achieving highly reliable memory range for mission critical workloads and/or
+> kernel space.
 > 
-> inode_cgwb_enabled() which determines whether a given inode's both bdi
-> and fs support cgroup writeback is added.
+> Tony has already send a patchset to supprot this feature at boot time.
+> https://lkml.org/lkml/2015/5/8/521
+> This patchset is based on Tony's, it can support the feature after boot time.
+> Use mirrored memory for all kernel allocations.
 > 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> Cc: Jens Axboe <axboe@kernel.dk>
-> Cc: Jan Kara <jack@suse.cz>
 
-Hum, you later changed this to use a per-sb flag instead of a per-fs-type
-flag, right? We could do it as well here but OK.
+This is my first time glancing through the series so I'm not aware of any
+past discussion. Hopefully there are no repeats. Broadly speaking though
+I'm not comfortable with the series.
 
-One more question - what does prevent us from supporting CGROUP_WRITEBACK
-for all bdis capable of writeback? I guess the reason is that currently
-blkcgs are bound to request_queue and we have to have blkcg(s) for
-CGROUP_WRITEBACK to work, am I right? But in principle tracking writeback
-state and doing writeback per memcg doesn't seem to be bound to any device
-properties so we could do that right?
+First and foremost, there is uncontrolled access to the memory because
+it's any kernel request. This includes even short-lived ones that do not
+need mirroring such as network buffers or caches. Network network traffic
+can be retried, caches can be reconstructed from disk etc.  Kernel page
+tables, struct page corruption etc are much harder to recover from.
 
-Anyway, this patch looks good. You can add:
+Who are the expected users of this memory and how are they meant to be
+prioritised? What happens if they fail to be mirrored? What happens if the
+mirrored memory is all used up and a high priority request arrives? Is there
+any prioritisation of one subsystem over another? What about boot-memory
+allocations, should they ever use mirrored memory? The expected users are
+important and this series does not address it.
 
-Reviewed-by: Jan Kara <jack@suse.com>
+Callers do not specify the flag, you just assume that kernel allocations
+must be mirrored. If the allocation request fails, then you assume it was
+MIGRATE_RECLAIMABLE later in the series. This is wrong as it'll break
+fragmentation avoidance on machines with mirrored memory. Even if you
+were to use migrate types to handle mirrored memory, you need to treat
+mirrored memory as a type of reserve or else as a first preference for
+allocations requested.
 
-								Honza
+The fact that this will be used by very few machines but affects the memory
+footprint of the page allocator is a general concern. When active, it affects
+the fast paths for all users whether they care about mirroring or not.
 
-> ---
->  block/blk-core.c            |  2 +-
->  include/linux/backing-dev.h | 32 +++++++++++++++++++++++++++++++-
->  include/linux/fs.h          |  1 +
->  init/Kconfig                |  5 +++++
->  4 files changed, 38 insertions(+), 2 deletions(-)
-> 
-> diff --git a/block/blk-core.c b/block/blk-core.c
-> index f46688f..e0f726f 100644
-> --- a/block/blk-core.c
-> +++ b/block/blk-core.c
-> @@ -620,7 +620,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
->  
->  	q->backing_dev_info.ra_pages =
->  			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
-> -	q->backing_dev_info.capabilities = 0;
-> +	q->backing_dev_info.capabilities = BDI_CAP_CGROUP_WRITEBACK;
->  	q->backing_dev_info.name = "block";
->  	q->node = node_id;
->  
-> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-> index bfdaa18..6bb3123 100644
-> --- a/include/linux/backing-dev.h
-> +++ b/include/linux/backing-dev.h
-> @@ -134,12 +134,15 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
->   * BDI_CAP_NO_WRITEBACK:   Don't write pages back
->   * BDI_CAP_NO_ACCT_WB:     Don't automatically account writeback pages
->   * BDI_CAP_STRICTLIMIT:    Keep number of dirty pages below bdi threshold.
-> + *
-> + * BDI_CAP_CGROUP_WRITEBACK: Supports cgroup-aware writeback.
->   */
->  #define BDI_CAP_NO_ACCT_DIRTY	0x00000001
->  #define BDI_CAP_NO_WRITEBACK	0x00000002
->  #define BDI_CAP_NO_ACCT_WB	0x00000004
->  #define BDI_CAP_STABLE_WRITES	0x00000008
->  #define BDI_CAP_STRICTLIMIT	0x00000010
-> +#define BDI_CAP_CGROUP_WRITEBACK 0x00000020
->  
->  #define BDI_CAP_NO_ACCT_AND_WRITEBACK \
->  	(BDI_CAP_NO_WRITEBACK | BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_ACCT_WB)
-> @@ -229,4 +232,31 @@ static inline int bdi_sched_wait(void *word)
->  	return 0;
->  }
->  
-> -#endif		/* _LINUX_BACKING_DEV_H */
-> +#ifdef CONFIG_CGROUP_WRITEBACK
-> +
-> +/**
-> + * inode_cgwb_enabled - test whether cgroup writeback is enabled on an inode
-> + * @inode: inode of interest
-> + *
-> + * cgroup writeback requires support from both the bdi and filesystem.
-> + * Test whether @inode has both.
-> + */
-> +static inline bool inode_cgwb_enabled(struct inode *inode)
-> +{
-> +	struct backing_dev_info *bdi = inode_to_bdi(inode);
-> +
-> +	return bdi_cap_account_dirty(bdi) &&
-> +		(bdi->capabilities & BDI_CAP_CGROUP_WRITEBACK) &&
-> +		(inode->i_sb->s_type->fs_flags & FS_CGROUP_WRITEBACK);
-> +}
-> +
-> +#else	/* CONFIG_CGROUP_WRITEBACK */
-> +
-> +static inline bool inode_cgwb_enabled(struct inode *inode)
-> +{
-> +	return false;
-> +}
-> +
-> +#endif	/* CONFIG_CGROUP_WRITEBACK */
-> +
-> +#endif	/* _LINUX_BACKING_DEV_H */
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index ce100b87..74e0ae0 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -1897,6 +1897,7 @@ struct file_system_type {
->  #define FS_HAS_SUBTYPE		4
->  #define FS_USERNS_MOUNT		8	/* Can be mounted by userns root */
->  #define FS_USERNS_DEV_MOUNT	16 /* A userns mount does not imply MNT_NODEV */
-> +#define FS_CGROUP_WRITEBACK	32	/* Supports cgroup-aware writeback */
->  #define FS_RENAME_DOES_D_MOVE	32768	/* FS will handle d_move() during rename() internally. */
->  	struct dentry *(*mount) (struct file_system_type *, int,
->  		       const char *, void *);
-> diff --git a/init/Kconfig b/init/Kconfig
-> index dc24dec..d4f7633 100644
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -1141,6 +1141,11 @@ config DEBUG_BLK_CGROUP
->  	Enable some debugging help. Currently it exports additional stat
->  	files in a cgroup which can be useful for debugging.
->  
-> +config CGROUP_WRITEBACK
-> +	bool
-> +	depends on MEMCG && BLK_CGROUP
-> +	default y
-> +
->  endif # CGROUPS
->  
->  config CHECKPOINT_RESTORE
-> -- 
-> 2.4.0
-> 
+If all free memory is in the MIGRATE_MIRROR then all user-space requests
+will be rejected but reclaim will not make any progress if the zone
+is balanced. The system may go prematurely OOM as no progress is made.
+Getting around this is tricky and affects a few fast paths. Generally, the
+easiest approach would be zone-based but I recognise that it has problems
+of its own.
+
+Basically, overall I feel this series is the wrong approach but not knowing
+who the users are making is much harder to judge. I strongly suspect that
+if mirrored memory is to be properly used then it needs to be available
+before the page allocator is even active. Once active, there needs to
+be controlled access for allocation requests that are really critical
+to mirror and not just all kernel allocations. None of that would use a
+MIGRATE_TYPE approach. It would be alterations to the bootmem allocator and
+access to an explicit reserve that is not accounted for as "free memory"
+and accessed via an explicit GFP flag.
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
