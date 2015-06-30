@@ -1,92 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CF916B0032
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 15:07:58 -0400 (EDT)
-Received: by pacws9 with SMTP id ws9so9941924pac.0
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 12:07:57 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id d14si10192779pbu.163.2015.06.30.12.07.56
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 4737F6B0032
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 15:29:48 -0400 (EDT)
+Received: by pabvl15 with SMTP id vl15so10026077pab.1
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 12:29:47 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id b15si71674336pat.20.2015.06.30.12.29.46
         for <linux-mm@kvack.org>;
-        Tue, 30 Jun 2015 12:07:56 -0700 (PDT)
-Date: Wed, 1 Jul 2015 03:08:08 +0800
+        Tue, 30 Jun 2015 12:29:47 -0700 (PDT)
+Date: Wed, 1 Jul 2015 03:29:55 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [next:master 13549/13557] arch/arm/mach-socfpga/pm.c:59:13: warning:
- assignment makes pointer from integer without a cast
-Message-ID: <201507010306.B2v3YXJO%fengguang.wu@intel.com>
+Subject: [next:master 13555/13557] arch/arm/mach-socfpga/pm.c:59:2: error:
+ implicit declaration of function 'get_gen_pool'
+Message-ID: <201507010353.7OFKD0bz%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="KsGdsel6WgEHnImy"
+Content-Type: multipart/mixed; boundary="J2SCkAp4GZ/dPZZf"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Zapolskiy <vladimir_zapolskiy@mentor.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>
 
 
---KsGdsel6WgEHnImy
+--J2SCkAp4GZ/dPZZf
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
 tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
 head:   87dd3f17d47090b0ea00fecd50187eaf9f1b914c
-commit: 1624300f08d19703c8b2df299f55095db74cc2cd [13549/13557] genalloc: rename dev_get_gen_pool() to gen_pool_get()
+commit: 2747a652ba082d2545196cdc694d700ee81a2467 [13555/13557] genalloc-rename-dev_get_gen_pool-to-gen_pool_get-fix
 config: arm-allyesconfig (attached as .config)
 reproduce:
   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
   chmod +x ~/bin/make.cross
-  git checkout 1624300f08d19703c8b2df299f55095db74cc2cd
+  git checkout 2747a652ba082d2545196cdc694d700ee81a2467
   # save the attached .config to linux build tree
   make.cross ARCH=arm 
 
-All warnings (new ones prefixed by >>):
+All error/warnings (new ones prefixed by >>):
 
    arch/arm/mach-socfpga/pm.c: In function 'socfpga_setup_ocram_self_refresh':
-   arch/arm/mach-socfpga/pm.c:59:2: error: implicit declaration of function 'dev_get_gen_pool' [-Werror=implicit-function-declaration]
-     ocram_pool = dev_get_gen_pool(&pdev->dev);
+>> arch/arm/mach-socfpga/pm.c:59:2: error: implicit declaration of function 'get_gen_pool' [-Werror=implicit-function-declaration]
+     ocram_pool = get_gen_pool(&pdev->dev);
      ^
->> arch/arm/mach-socfpga/pm.c:59:13: warning: assignment makes pointer from integer without a cast
-     ocram_pool = dev_get_gen_pool(&pdev->dev);
+   arch/arm/mach-socfpga/pm.c:59:13: warning: assignment makes pointer from integer without a cast
+     ocram_pool = get_gen_pool(&pdev->dev);
                 ^
    cc1: some warnings being treated as errors
 
-vim +59 arch/arm/mach-socfpga/pm.c
+vim +/get_gen_pool +59 arch/arm/mach-socfpga/pm.c
 
-44fd8c7d Alan Tull 2015-06-05  43  	void __iomem *suspend_ocram_base;
-44fd8c7d Alan Tull 2015-06-05  44  	int ret = 0;
-44fd8c7d Alan Tull 2015-06-05  45  
-44fd8c7d Alan Tull 2015-06-05  46  	np = of_find_compatible_node(NULL, NULL, "mmio-sram");
-44fd8c7d Alan Tull 2015-06-05  47  	if (!np) {
-44fd8c7d Alan Tull 2015-06-05  48  		pr_err("%s: Unable to find mmio-sram in dtb\n", __func__);
-44fd8c7d Alan Tull 2015-06-05  49  		return -ENODEV;
-44fd8c7d Alan Tull 2015-06-05  50  	}
-44fd8c7d Alan Tull 2015-06-05  51  
-44fd8c7d Alan Tull 2015-06-05  52  	pdev = of_find_device_by_node(np);
-44fd8c7d Alan Tull 2015-06-05  53  	if (!pdev) {
-44fd8c7d Alan Tull 2015-06-05  54  		pr_warn("%s: failed to find ocram device!\n", __func__);
-44fd8c7d Alan Tull 2015-06-05  55  		ret = -ENODEV;
-44fd8c7d Alan Tull 2015-06-05  56  		goto put_node;
-44fd8c7d Alan Tull 2015-06-05  57  	}
-44fd8c7d Alan Tull 2015-06-05  58  
-44fd8c7d Alan Tull 2015-06-05 @59  	ocram_pool = dev_get_gen_pool(&pdev->dev);
-44fd8c7d Alan Tull 2015-06-05  60  	if (!ocram_pool) {
-44fd8c7d Alan Tull 2015-06-05  61  		pr_warn("%s: ocram pool unavailable!\n", __func__);
-44fd8c7d Alan Tull 2015-06-05  62  		ret = -ENODEV;
-44fd8c7d Alan Tull 2015-06-05  63  		goto put_node;
-44fd8c7d Alan Tull 2015-06-05  64  	}
-44fd8c7d Alan Tull 2015-06-05  65  
-44fd8c7d Alan Tull 2015-06-05  66  	ocram_base = gen_pool_alloc(ocram_pool, socfpga_sdram_self_refresh_sz);
-44fd8c7d Alan Tull 2015-06-05  67  	if (!ocram_base) {
-
-:::::: The code at line 59 was first introduced by commit
-:::::: 44fd8c7d4005f660f48679439f0a54225ba234a4 ARM: socfpga: support suspend to ram
-
-:::::: TO: Alan Tull <atull@opensource.altera.com>
-:::::: CC: Kevin Hilman <khilman@linaro.org>
+    53		if (!pdev) {
+    54			pr_warn("%s: failed to find ocram device!\n", __func__);
+    55			ret = -ENODEV;
+    56			goto put_node;
+    57		}
+    58	
+  > 59		ocram_pool = get_gen_pool(&pdev->dev);
+    60		if (!ocram_pool) {
+    61			pr_warn("%s: ocram pool unavailable!\n", __func__);
+    62			ret = -ENODEV;
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---KsGdsel6WgEHnImy
+--J2SCkAp4GZ/dPZZf
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: attachment; filename=".config"
 
@@ -9823,7 +9802,7 @@ CONFIG_FONT_10x18=y
 CONFIG_ARCH_HAS_SG_CHAIN=y
 CONFIG_VIRTUALIZATION=y
 
---KsGdsel6WgEHnImy--
+--J2SCkAp4GZ/dPZZf--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
