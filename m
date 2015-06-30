@@ -1,206 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 04C976B0032
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 10:50:49 -0400 (EDT)
-Received: by wgck11 with SMTP id k11so12066732wgc.0
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 07:50:48 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 4783C6B0032
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 11:03:01 -0400 (EDT)
+Received: by wicgi11 with SMTP id gi11so19570852wic.0
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 08:03:00 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k16si71994288wjr.0.2015.06.30.07.50.46
+        by mx.google.com with ESMTPS id lk1si19844630wic.42.2015.06.30.08.02.59
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 30 Jun 2015 07:50:47 -0700 (PDT)
-Date: Tue, 30 Jun 2015 16:50:41 +0200
+        Tue, 30 Jun 2015 08:02:59 -0700 (PDT)
+Date: Tue, 30 Jun 2015 17:02:54 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 27/51] writeback: make congestion functions per
- bdi_writeback
-Message-ID: <20150630145041.GM7252@quack.suse.cz>
+Subject: Re: [PATCH 28/51] writeback, blkcg: restructure
+ blk_{set|clear}_queue_congested()
+Message-ID: <20150630150254.GN7252@quack.suse.cz>
 References: <1432329245-5844-1-git-send-email-tj@kernel.org>
- <1432329245-5844-28-git-send-email-tj@kernel.org>
+ <1432329245-5844-29-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1432329245-5844-28-git-send-email-tj@kernel.org>
+In-Reply-To: <1432329245-5844-29-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>
 Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
 
-On Fri 22-05-15 17:13:41, Tejun Heo wrote:
-> Currently, all congestion functions take bdi (backing_dev_info) and
-> always operate on the root wb (bdi->wb) and the congestion state from
-> the block layer is propagated only for the root blkcg.  This patch
-> introduces {set|clear}_wb_congested() and wb_congested() which take a
-> bdi_writeback_congested and bdi_writeback respectively.  The bdi
-> counteparts are now wrappers invoking the wb based functions on
-> @bdi->wb.
+On Fri 22-05-15 17:13:42, Tejun Heo wrote:
+> blk_{set|clear}_queue_congested() take @q and set or clear,
+> respectively, the congestion state of its bdi's root wb.  Because bdi
+> used to be able to handle congestion state only on the root wb, the
+> callers of those functions tested whether the congestion is on the
+> root blkcg and skipped if not.
 > 
-> While converting clear_bdi_congested() to clear_wb_congested(), the
-> local variable declaration order between @wqh and @bit is swapped for
-> cosmetic reason.
+> This is cumbersome and makes implementation of per cgroup
+> bdi_writeback congestion state propagation difficult.  This patch
+> renames blk_{set|clear}_queue_congested() to
+> blk_{set|clear}_congested(), and makes them take request_list instead
+> of request_queue and test whether the specified request_list is the
+> root one before updating bdi_writeback congestion state.  This makes
+> the tests in the callers unnecessary and simplifies them.
 > 
-> This patch just adds the new wb based functions.  The following
-> patches will apply them.
+> As there are no external users of these functions, the definitions are
+> moved from include/linux/blkdev.h to block/blk-core.c.
+> 
+> This patch doesn't introduce any noticeable behavior difference.
 
-Looks good to me. You can add:
+Looks good. You can add:
 
 Reviewed-by: Jan Kara <jack@suse.com>
+
+BTW, I'd prefer if this was merged with the following patch. I was
+wondering for a while about the condition at the beginning of
+blk_clear_congested() only to learn it gets modified to the one I'd expect
+in the following patch :)
 
 								Honza
 
 > 
-> v2: Updated for bdi_writeback_congested.
-> 
 > Signed-off-by: Tejun Heo <tj@kernel.org>
-> Reviewed-by: Jan Kara <jack@suse.cz>
 > Cc: Jens Axboe <axboe@kernel.dk>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Vivek Goyal <vgoyal@redhat.com>
 > ---
->  include/linux/backing-dev-defs.h | 14 +++++++++++--
->  include/linux/backing-dev.h      | 45 +++++++++++++++++++++++-----------------
->  mm/backing-dev.c                 | 22 ++++++++++----------
->  3 files changed, 49 insertions(+), 32 deletions(-)
+>  block/blk-core.c       | 62 ++++++++++++++++++++++++++++++--------------------
+>  include/linux/blkdev.h | 19 ----------------
+>  2 files changed, 37 insertions(+), 44 deletions(-)
 > 
-> diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-> index a1e9c40..eb38676 100644
-> --- a/include/linux/backing-dev-defs.h
-> +++ b/include/linux/backing-dev-defs.h
-> @@ -163,7 +163,17 @@ enum {
->  	BLK_RW_SYNC	= 1,
->  };
+> diff --git a/block/blk-core.c b/block/blk-core.c
+> index e0f726f..b457c4f 100644
+> --- a/block/blk-core.c
+> +++ b/block/blk-core.c
+> @@ -63,6 +63,28 @@ struct kmem_cache *blk_requestq_cachep;
+>   */
+>  static struct workqueue_struct *kblockd_workqueue;
 >  
-> -void clear_bdi_congested(struct backing_dev_info *bdi, int sync);
-> -void set_bdi_congested(struct backing_dev_info *bdi, int sync);
-> +void clear_wb_congested(struct bdi_writeback_congested *congested, int sync);
-> +void set_wb_congested(struct bdi_writeback_congested *congested, int sync);
-> +
-> +static inline void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
+> +static void blk_clear_congested(struct request_list *rl, int sync)
 > +{
-> +	clear_wb_congested(bdi->wb.congested, sync);
+> +	if (rl != &rl->q->root_rl)
+> +		return;
+> +#ifdef CONFIG_CGROUP_WRITEBACK
+> +	clear_wb_congested(rl->blkg->wb_congested, sync);
+> +#else
+> +	clear_wb_congested(rl->q->backing_dev_info.wb.congested, sync);
+> +#endif
 > +}
 > +
-> +static inline void set_bdi_congested(struct backing_dev_info *bdi, int sync)
+> +static void blk_set_congested(struct request_list *rl, int sync)
 > +{
-> +	set_wb_congested(bdi->wb.congested, sync);
+> +	if (rl != &rl->q->root_rl)
+> +		return;
+> +#ifdef CONFIG_CGROUP_WRITEBACK
+> +	set_wb_congested(rl->blkg->wb_congested, sync);
+> +#else
+> +	set_wb_congested(rl->q->backing_dev_info.wb.congested, sync);
+> +#endif
 > +}
->  
->  #endif	/* __LINUX_BACKING_DEV_DEFS_H */
-> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-> index 8ae59df..2c498a2 100644
-> --- a/include/linux/backing-dev.h
-> +++ b/include/linux/backing-dev.h
-> @@ -167,27 +167,13 @@ static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
->  	return sb->s_bdi;
->  }
->  
-> -static inline int bdi_congested(struct backing_dev_info *bdi, int bdi_bits)
-> +static inline int wb_congested(struct bdi_writeback *wb, int cong_bits)
+> +
+>  void blk_queue_congestion_threshold(struct request_queue *q)
 >  {
-> -	if (bdi->congested_fn)
-> -		return bdi->congested_fn(bdi->congested_data, bdi_bits);
-> -	return (bdi->wb.congested->state & bdi_bits);
+>  	int nr;
+> @@ -841,13 +863,8 @@ static void __freed_request(struct request_list *rl, int sync)
+>  {
+>  	struct request_queue *q = rl->q;
+>  
+> -	/*
+> -	 * bdi isn't aware of blkcg yet.  As all async IOs end up root
+> -	 * blkcg anyway, just use root blkcg state.
+> -	 */
+> -	if (rl == &q->root_rl &&
+> -	    rl->count[sync] < queue_congestion_off_threshold(q))
+> -		blk_clear_queue_congested(q, sync);
+> +	if (rl->count[sync] < queue_congestion_off_threshold(q))
+> +		blk_clear_congested(rl, sync);
+>  
+>  	if (rl->count[sync] + 1 <= q->nr_requests) {
+>  		if (waitqueue_active(&rl->wait[sync]))
+> @@ -880,25 +897,25 @@ static void freed_request(struct request_list *rl, unsigned int flags)
+>  int blk_update_nr_requests(struct request_queue *q, unsigned int nr)
+>  {
+>  	struct request_list *rl;
+> +	int on_thresh, off_thresh;
+>  
+>  	spin_lock_irq(q->queue_lock);
+>  	q->nr_requests = nr;
+>  	blk_queue_congestion_threshold(q);
+> +	on_thresh = queue_congestion_on_threshold(q);
+> +	off_thresh = queue_congestion_off_threshold(q);
+>  
+> -	/* congestion isn't cgroup aware and follows root blkcg for now */
+> -	rl = &q->root_rl;
+> -
+> -	if (rl->count[BLK_RW_SYNC] >= queue_congestion_on_threshold(q))
+> -		blk_set_queue_congested(q, BLK_RW_SYNC);
+> -	else if (rl->count[BLK_RW_SYNC] < queue_congestion_off_threshold(q))
+> -		blk_clear_queue_congested(q, BLK_RW_SYNC);
+> +	blk_queue_for_each_rl(rl, q) {
+> +		if (rl->count[BLK_RW_SYNC] >= on_thresh)
+> +			blk_set_congested(rl, BLK_RW_SYNC);
+> +		else if (rl->count[BLK_RW_SYNC] < off_thresh)
+> +			blk_clear_congested(rl, BLK_RW_SYNC);
+>  
+> -	if (rl->count[BLK_RW_ASYNC] >= queue_congestion_on_threshold(q))
+> -		blk_set_queue_congested(q, BLK_RW_ASYNC);
+> -	else if (rl->count[BLK_RW_ASYNC] < queue_congestion_off_threshold(q))
+> -		blk_clear_queue_congested(q, BLK_RW_ASYNC);
+> +		if (rl->count[BLK_RW_ASYNC] >= on_thresh)
+> +			blk_set_congested(rl, BLK_RW_ASYNC);
+> +		else if (rl->count[BLK_RW_ASYNC] < off_thresh)
+> +			blk_clear_congested(rl, BLK_RW_ASYNC);
+>  
+> -	blk_queue_for_each_rl(rl, q) {
+>  		if (rl->count[BLK_RW_SYNC] >= q->nr_requests) {
+>  			blk_set_rl_full(rl, BLK_RW_SYNC);
+>  		} else {
+> @@ -1008,12 +1025,7 @@ static struct request *__get_request(struct request_list *rl, int rw_flags,
+>  				}
+>  			}
+>  		}
+> -		/*
+> -		 * bdi isn't aware of blkcg yet.  As all async IOs end up
+> -		 * root blkcg anyway, just use root blkcg state.
+> -		 */
+> -		if (rl == &q->root_rl)
+> -			blk_set_queue_congested(q, is_sync);
+> +		blk_set_congested(rl, is_sync);
+>  	}
+>  
+>  	/*
+> diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+> index 89bdef0..3d1065c 100644
+> --- a/include/linux/blkdev.h
+> +++ b/include/linux/blkdev.h
+> @@ -794,25 +794,6 @@ extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
+>  
+>  extern void blk_queue_bio(struct request_queue *q, struct bio *bio);
+>  
+> -/*
+> - * A queue has just exitted congestion.  Note this in the global counter of
+> - * congested queues, and wake up anyone who was waiting for requests to be
+> - * put back.
+> - */
+> -static inline void blk_clear_queue_congested(struct request_queue *q, int sync)
+> -{
+> -	clear_bdi_congested(&q->backing_dev_info, sync);
 > -}
 > -
-> -static inline int bdi_read_congested(struct backing_dev_info *bdi)
+> -/*
+> - * A queue has just entered congestion.  Flag that in the queue's VM-visible
+> - * state flags and increment the global gounter of congested queues.
+> - */
+> -static inline void blk_set_queue_congested(struct request_queue *q, int sync)
 > -{
-> -	return bdi_congested(bdi, 1 << WB_sync_congested);
+> -	set_bdi_congested(&q->backing_dev_info, sync);
 > -}
 > -
-> -static inline int bdi_write_congested(struct backing_dev_info *bdi)
-> -{
-> -	return bdi_congested(bdi, 1 << WB_async_congested);
-> -}
-> +	struct backing_dev_info *bdi = wb->bdi;
->  
-> -static inline int bdi_rw_congested(struct backing_dev_info *bdi)
-> -{
-> -	return bdi_congested(bdi, (1 << WB_sync_congested) |
-> -				  (1 << WB_async_congested));
-> +	if (bdi->congested_fn)
-> +		return bdi->congested_fn(bdi->congested_data, cong_bits);
-> +	return wb->congested->state & cong_bits;
->  }
->  
->  long congestion_wait(int sync, long timeout);
-> @@ -454,4 +440,25 @@ static inline void wb_blkcg_offline(struct blkcg *blkcg)
->  
->  #endif	/* CONFIG_CGROUP_WRITEBACK */
->  
-> +static inline int bdi_congested(struct backing_dev_info *bdi, int cong_bits)
-> +{
-> +	return wb_congested(&bdi->wb, cong_bits);
-> +}
-> +
-> +static inline int bdi_read_congested(struct backing_dev_info *bdi)
-> +{
-> +	return bdi_congested(bdi, 1 << WB_sync_congested);
-> +}
-> +
-> +static inline int bdi_write_congested(struct backing_dev_info *bdi)
-> +{
-> +	return bdi_congested(bdi, 1 << WB_async_congested);
-> +}
-> +
-> +static inline int bdi_rw_congested(struct backing_dev_info *bdi)
-> +{
-> +	return bdi_congested(bdi, (1 << WB_sync_congested) |
-> +				  (1 << WB_async_congested));
-> +}
-> +
->  #endif	/* _LINUX_BACKING_DEV_H */
-> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> index 4c9386c..5029c4a 100644
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
-> @@ -896,31 +896,31 @@ static wait_queue_head_t congestion_wqh[2] = {
->  		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
->  		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
->  	};
-> -static atomic_t nr_bdi_congested[2];
-> +static atomic_t nr_wb_congested[2];
->  
-> -void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
-> +void clear_wb_congested(struct bdi_writeback_congested *congested, int sync)
->  {
-> -	enum wb_state bit;
->  	wait_queue_head_t *wqh = &congestion_wqh[sync];
-> +	enum wb_state bit;
->  
->  	bit = sync ? WB_sync_congested : WB_async_congested;
-> -	if (test_and_clear_bit(bit, &bdi->wb.congested->state))
-> -		atomic_dec(&nr_bdi_congested[sync]);
-> +	if (test_and_clear_bit(bit, &congested->state))
-> +		atomic_dec(&nr_wb_congested[sync]);
->  	smp_mb__after_atomic();
->  	if (waitqueue_active(wqh))
->  		wake_up(wqh);
->  }
-> -EXPORT_SYMBOL(clear_bdi_congested);
-> +EXPORT_SYMBOL(clear_wb_congested);
->  
-> -void set_bdi_congested(struct backing_dev_info *bdi, int sync)
-> +void set_wb_congested(struct bdi_writeback_congested *congested, int sync)
->  {
->  	enum wb_state bit;
->  
->  	bit = sync ? WB_sync_congested : WB_async_congested;
-> -	if (!test_and_set_bit(bit, &bdi->wb.congested->state))
-> -		atomic_inc(&nr_bdi_congested[sync]);
-> +	if (!test_and_set_bit(bit, &congested->state))
-> +		atomic_inc(&nr_wb_congested[sync]);
->  }
-> -EXPORT_SYMBOL(set_bdi_congested);
-> +EXPORT_SYMBOL(set_wb_congested);
->  
->  /**
->   * congestion_wait - wait for a backing_dev to become uncongested
-> @@ -979,7 +979,7 @@ long wait_iff_congested(struct zone *zone, int sync, long timeout)
->  	 * encountered in the current zone, yield if necessary instead
->  	 * of sleeping on the congestion queue
->  	 */
-> -	if (atomic_read(&nr_bdi_congested[sync]) == 0 ||
-> +	if (atomic_read(&nr_wb_congested[sync]) == 0 ||
->  	    !test_bit(ZONE_CONGESTED, &zone->flags)) {
->  		cond_resched();
->  
+>  extern void blk_start_queue(struct request_queue *q);
+>  extern void blk_stop_queue(struct request_queue *q);
+>  extern void blk_sync_queue(struct request_queue *q);
 > -- 
 > 2.4.0
 > 
