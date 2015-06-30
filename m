@@ -1,101 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 47DBD6B0032
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 07:54:04 -0400 (EDT)
-Received: by wiwl6 with SMTP id l6so129384109wiw.0
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 04:54:03 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ce9si18991821wib.4.2015.06.30.04.54.01
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id B3CE76B0032
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 08:33:14 -0400 (EDT)
+Received: by pdbep18 with SMTP id ep18so5650359pdb.1
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 05:33:14 -0700 (PDT)
+Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com. [2607:f8b0:400e:c02::22e])
+        by mx.google.com with ESMTPS id ff5si69951131pac.199.2015.06.30.05.33.13
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 30 Jun 2015 04:54:02 -0700 (PDT)
-Date: Tue, 30 Jun 2015 12:53:53 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC v2 PATCH 0/8] mm: mirrored memory support for page buddy
- allocations
-Message-ID: <20150630115353.GB6812@suse.de>
-References: <558E084A.60900@huawei.com>
- <20150630094149.GA6812@suse.de>
- <20150630104654.GA24932@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20150630104654.GA24932@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Jun 2015 05:33:13 -0700 (PDT)
+Received: by pdjd13 with SMTP id d13so5692817pdj.0
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 05:33:13 -0700 (PDT)
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: [PATCH] zsmalloc: partial page ordering within a fullness_list
+Date: Tue, 30 Jun 2015 21:32:22 +0900
+Message-Id: <1435667542-8142-1-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, "Luck, Tony" <tony.luck@intel.com>, Hanjun Guo <guohanjun@huawei.com>, Xiexiuqi <xiexiuqi@huawei.com>, leon@leon.nu, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Tue, Jun 30, 2015 at 12:46:54PM +0200, Ingo Molnar wrote:
-> 
-> * Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > [...]
-> > 
-> > Basically, overall I feel this series is the wrong approach but not knowing who 
-> > the users are making is much harder to judge. I strongly suspect that if 
-> > mirrored memory is to be properly used then it needs to be available before the 
-> > page allocator is even active. Once active, there needs to be controlled access 
-> > for allocation requests that are really critical to mirror and not just all 
-> > kernel allocations. None of that would use a MIGRATE_TYPE approach. It would be 
-> > alterations to the bootmem allocator and access to an explicit reserve that is 
-> > not accounted for as "free memory" and accessed via an explicit GFP flag.
-> 
-> So I think the main goal is to avoid kernel crashes when a #MC memory fault 
-> arrives on a piece of memory that is owned by the kernel.
-> 
+We want to see more ZS_FULL pages and less ZS_ALMOST_{FULL, EMPTY}
+pages. Put a page with higher ->inuse count first within its
+->fullness_list, which will give us better chances to fill up this
+page with new objects (find_get_zspage() return ->fullness_list head
+for new object allocation), so some zspages will become
+ZS_ALMOST_FULL/ZS_FULL quicker.
 
-Sounds logical. In that case, bootmem awareness would be crucial.
-Enabling support in just the page allocator is too late.
+It performs a trivial and cheap ->inuse compare which does not
+slow down zsmalloc and in the worst case keeps the list pages in
+no particular order.
 
-> In that sense 'protecting' all kernel allocations is natural: we don't know how to 
-> recover from faults that affect kernel memory.
-> 
+A more expensive solution could sort fullness_list by ->inuse count.
 
-It potentially uses all mirrored memory on memory that does not need that
-sort of guarantee. For example, if there was a MC on memory backing the
-inode cache then potentially that is recoverable as long as the inodes
-were not dirty. That's a minor detail as the kernel could later protect
-only MIGRATE_UNMOVABLE requests instead of all kernel allocations if fatal
-MC in kernel space could be distinguished from non-fatal checks.
+[Minchan Kim: code adjustments]
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+---
+ mm/zsmalloc.c | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)
 
-Bootmem awareness is much more important either way. If that was addressed
-then potentially a MIGRATE_UNMOVABLE_MIRROR type could be created that
-is only used for MIGRATE_UNMOVABLE allocations and never for user-space.
-That misses MIGRATE_RECLAIMABLE so if that is required then we need
-something else that both preserves fragmentation avoidance and avoid
-introducing loads of new migratetypes.
-
-Reclaim-related issues could be partially avoided by forbidding use from
-userspace and accounting for the size of MIGRATE_UNMOVABLE_MIRROR during
-watermark checks.
-
-> We do know how to recover from faults that affect user-space memory alone.
-> 
-> So if a mechanism is in place that prioritizes 3 groups of allocators:
-> 
->   - non-recoverable memory (kernel allocations mostly)
-> 
-
-So bootmem at the very least followed by MIGRATE_UNMOVABLE requests whether
-they are accounted for by zones of MIGRATE_TYPES.
-
->   - high priority user memory (critical apps that must never fail)
-> 
-
-This one is problematic with a MIGRATE_TYPE-based approach such as the one in
-this series. If a high priority requires memory and MIGRATE_MIRROR is full
-then some of it must be reclaimed. With a MIGRATE_TYPE approach, the kernel
-may reclaim a lot of unnecessary memory trying to free some MIGRATE_MIRROR
-memory with no guarantee of success. It'll look like unnecessary thrashing
-from userspace but difficult to diagnose as reclaim stats are per-zone based.
-Dealing with this needs either a zone-based approach or a lot of surgery
-to reclaim (similar to what the node-based LRU series does actually when
-it skips pages when the caller requires lowmem pages).
-
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 0a7f81a..3538b8c 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -658,13 +658,22 @@ static void insert_zspage(struct page *page, struct size_class *class,
+ 	if (fullness >= _ZS_NR_FULLNESS_GROUPS)
+ 		return;
+ 
+-	head = &class->fullness_list[fullness];
+-	if (*head)
+-		list_add_tail(&page->lru, &(*head)->lru);
+-
+-	*head = page;
+ 	zs_stat_inc(class, fullness == ZS_ALMOST_EMPTY ?
+ 			CLASS_ALMOST_EMPTY : CLASS_ALMOST_FULL, 1);
++
++	head = &class->fullness_list[fullness];
++	if (!*head) {
++		*head = page;
++		return;
++	}
++
++	/*
++	 * We want to see more ZS_FULL pages and less almost
++	 * empty/full. Put pages with higher ->inuse first.
++	 */
++	list_add_tail(&page->lru, &(*head)->lru);
++	if (page->inuse >= (*head)->inuse)
++		*head = page;
+ }
+ 
+ /*
 -- 
-Mel Gorman
-SUSE Labs
+2.5.0.rc0.3.g912bd49
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
