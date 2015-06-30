@@ -1,178 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id F17916B0032
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 19:34:13 -0400 (EDT)
-Received: by pabvl15 with SMTP id vl15so12646501pab.1
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 16:34:13 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id bn1si64085pbc.96.2015.06.30.16.34.11
-        for <linux-mm@kvack.org>;
-        Tue, 30 Jun 2015 16:34:12 -0700 (PDT)
-Subject: [RFC][PATCH] fs: do not prefault sys_write() user buffer pages
-From: Dave Hansen <dave@sr71.net>
-Date: Tue, 30 Jun 2015 16:34:12 -0700
-Message-Id: <20150630233412.67FFD865@viggo.jf.intel.com>
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C635A6B006E
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 19:35:49 -0400 (EDT)
+Received: by igcur8 with SMTP id ur8so77295570igc.0
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 16:35:49 -0700 (PDT)
+Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com. [2607:f8b0:4001:c05::233])
+        by mx.google.com with ESMTPS id sb10si18949igb.13.2015.06.30.16.35.47
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Jun 2015 16:35:47 -0700 (PDT)
+Received: by igcsj18 with SMTP id sj18so120439070igc.1
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 16:35:47 -0700 (PDT)
+Date: Tue, 30 Jun 2015 16:35:45 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 05/11] mm: debug: dump page into a string rather than
+ directly on screen
+In-Reply-To: <1431623414-1905-6-git-send-email-sasha.levin@oracle.com>
+Message-ID: <alpine.DEB.2.10.1506301627030.5359@chino.kir.corp.google.com>
+References: <1431623414-1905-1-git-send-email-sasha.levin@oracle.com> <1431623414-1905-6-git-send-email-sasha.levin@oracle.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave@sr71.net
-Cc: dave.hansen@linux.intel.com, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, mhocko@suse.cz, axboe@fb.com, tj@kernel.org, neilb@suse.de, matthew.r.wilcox@intel.com, cassella@cray.com, gthelen@google.com, ak@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kirill@shutemov.name
 
+On Thu, 14 May 2015, Sasha Levin wrote:
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+> diff --git a/include/linux/mmdebug.h b/include/linux/mmdebug.h
+> index 202ebdf..8b3f5a0 100644
+> --- a/include/linux/mmdebug.h
+> +++ b/include/linux/mmdebug.h
+> @@ -7,9 +7,7 @@ struct page;
+>  struct vm_area_struct;
+>  struct mm_struct;
+>  
+> -extern void dump_page(struct page *page, const char *reason);
+> -extern void dump_page_badflags(struct page *page, const char *reason,
+> -			       unsigned long badflags);
+> +char *format_page(struct page *page, char *buf, char *end);
+>  
+>  #ifdef CONFIG_DEBUG_VM
+>  char *format_vma(const struct vm_area_struct *vma, char *buf, char *end);
+> @@ -18,7 +16,7 @@ char *format_mm(const struct mm_struct *mm, char *buf, char *end);
+>  #define VM_BUG_ON_PAGE(cond, page)					\
+>  	do {								\
+>  		if (unlikely(cond)) {					\
+> -			dump_page(page, "VM_BUG_ON_PAGE(" __stringify(cond)")");\
+> +			pr_emerg("%pZp", page);				\
+>  			BUG();						\
+>  		}							\
+>  	} while (0)
+> diff --git a/lib/vsprintf.c b/lib/vsprintf.c
+> index 595bf50..1f045ae 100644
+> --- a/lib/vsprintf.c
+> +++ b/lib/vsprintf.c
+> @@ -1382,6 +1382,8 @@ char *mm_pointer(char *buf, char *end, const void *ptr,
+>  	switch (fmt[1]) {
+>  	case 'm':
+>  		return format_mm(ptr, buf, end);
+> +	case 'p':
+> +		return format_page(ptr, buf, end);
+>  	case 'v':
+>  		return format_vma(ptr, buf, end);
+>  	default:
+> @@ -1482,9 +1484,10 @@ int kptr_restrict __read_mostly;
+>   *        (legacy clock framework) of the clock
+>   * - 'Cr' For a clock, it prints the current rate of the clock
+>   * - 'T' task_struct->comm
+> - * - 'Z[mv]' Outputs a readable version of a type of memory management struct:
+> + * - 'Z[mpv]' Outputs a readable version of a type of memory management struct:
+>   *		v struct vm_area_struct
+>   *		m struct mm_struct
+> + *		p struct page
+>   *
+>   * Note: The difference between 'S' and 'F' is that on ia64 and ppc64
+>   * function pointers are really function descriptors, which contain a
+> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+> index fcad832..88b3cae 100644
+> --- a/mm/balloon_compaction.c
+> +++ b/mm/balloon_compaction.c
+> @@ -187,7 +187,7 @@ void balloon_page_putback(struct page *page)
+>  		put_page(page);
+>  	} else {
+>  		WARN_ON(1);
+> -		dump_page(page, "not movable balloon page");
+> +		pr_alert("Not movable balloon page:\n%pZp", page);
+>  	}
+>  	unlock_page(page);
+>  }
 
-=== Short summary ====
+I don't know how others feel, but this looks strange to me and seems like 
+it's only a result of how we must now dump page information 
+(dump_page(page) is no longer available, we must do pr_alert("%pZp", 
+page)).
 
-iov_iter_fault_in_readable() works around a really rare case
-and we can avoid the deadlock it addresses in another way:
-disable page faults and work around copy failures by faulting
-after the copy in a slow path instead of before in a hot one.
+Since we're relying on print formats, this would arguably be better as
 
-I have a little microbenchmark that does repeated, small writes
-to tmpfs.  This patch speeds that micro up by 6.2%.
+	pr_alert("Not movable balloon page:\n");
+	pr_alert("%pZp", page);
 
-=== Long version ===
+to avoid introducing newlines into potentially lengthy messages that need 
+a specified loglevel like you've done above.
 
-When doing a sys_write() we have a source buffer in userspace
-and then a target file page.
+But that's not much different than the existing dump_page() 
+implementation.
 
-If both of those are the same physical page, there is a potential
-deadlock that we avoid.  It would happen something like this:
+So for this to be worth it, it seems like we'd need a compelling usecase 
+for something like pr_alert("%pZp %pZv", page, vma) and I'm not sure we're 
+ever actually going to see that.  I would argue that
 
-1. We start the write to the file
-2. Allocate page cache page and set it !Uptodate
-3. Touch the userspace buffer to copy in the user data
-4. Page fault (since source of the write not yet mapped)
-5. Page fault code tries to lock the page and deadlocks
+	dump_page(page);
+	dump_vma(vma);
 
-(more details on this below)
+would be simpler in such circumstances.
 
-To avoid this, we prefault the page to guarantee that this fault
-does not occur.  But, this prefault comes at a cost.  It is one
-of the most expensive things that we do in a hot write() path
-(especially if we compare it to the read path).  It is working
-around a pretty rare case.
+I do understand the problem with the current VM_BUG_ON_PAGE() and 
+VM_BUG_ON_VMA() stuff, and it compels me to ask about just going back to 
+the normal
 
-To fix this, it's pretty simple.  We move the "prefault"
-code to run after we attempt the copy.  We explicitly disable
-page faults _during_ the copy, detect the copy failure,
-then execute the "prefault" ouside of where the page lock
-needs to be held.
+	VM_BUG_ON(cond);
 
-iov_iter_copy_from_user_atomic() actually already has an
-implicit pagefault_disable() inside of it (at least on
-x86), but we add an explicit one.  I don't think we can
-depend on every kmap_atomic() implementation to
-pagefault_disable() for eternity.
-
-===================================================
-
-The stack trace when this happens looks like this:
-
-[<ffffffff81172130>] wait_on_page_bit_killable+0xc0/0xd0
-[<ffffffff811721c4>] __lock_page_or_retry+0x84/0xa0
-[<ffffffff811723cd>] filemap_fault+0x1ed/0x3d0
-[<ffffffff81197841>] __do_fault+0x41/0xc0
-[<ffffffff8119b8db>] handle_mm_fault+0x9bb/0x1210
-[<ffffffff8109945f>] __do_page_fault+0x17f/0x3d0
-[<ffffffff810996bc>] do_page_fault+0xc/0x10
-[<ffffffff8183ba92>] page_fault+0x22/0x30
-[<ffffffff8116ff1a>] generic_perform_write+0xca/0x1a0
-[<ffffffff81171e30>] __generic_file_write_iter+0x190/0x1f0
-[<ffffffff8126d659>] ext4_file_write_iter+0xe9/0x460
-[<ffffffff811d027a>] __vfs_write+0xaa/0xe0
-[<ffffffff811d0ae6>] vfs_write+0xa6/0x1a0
-[<ffffffff811d1726>] SyS_write+0x46/0xa0
-[<ffffffff81839f17>] entry_SYSCALL_64_fastpath+0x12/0x6a
-[<ffffffffffffffff>] 0xffffffffffffffff
-
-(Note, this does *NOT* happen in practice today because
- the kmap_atomic() does a pagefault_disable().  The trace
- above was obtained by taking out the pagefault_disable().)
-
-You can trigger the deadlock with this little code snippet:
-
-	fd = open("foo", O_RDWR);
-	fdmap = mmap(NULL, len, PROT_WRITE|PROT_READ, MAP_SHARED, fd, 0);
-	write(fd, &fdmap[0], 1);
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Jens Axboe <axboe@fb.com>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: NeilBrown <neilb@suse.de>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: Paul Cassella <cassella@cray.com>
-Cc: Greg Thelen <gthelen@google.com>
-Cc: Andi Kleen <ak@linux.intel.com>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
-
- b/mm/filemap.c |   34 ++++++++++++++++++----------------
- 1 file changed, 18 insertions(+), 16 deletions(-)
-
-diff -puN mm/filemap.c~dont-prefault-on-write mm/filemap.c
---- a/mm/filemap.c~dont-prefault-on-write	2015-06-30 16:22:07.432935843 -0700
-+++ b/mm/filemap.c	2015-06-30 16:22:07.437936070 -0700
-@@ -2473,21 +2473,6 @@ ssize_t generic_perform_write(struct fil
- 						iov_iter_count(i));
- 
- again:
--		/*
--		 * Bring in the user page that we will copy from _first_.
--		 * Otherwise there's a nasty deadlock on copying from the
--		 * same page as we're writing to, without it being marked
--		 * up-to-date.
--		 *
--		 * Not only is this an optimisation, but it is also required
--		 * to check that the address is actually valid, when atomic
--		 * usercopies are used, below.
--		 */
--		if (unlikely(iov_iter_fault_in_readable(i, bytes))) {
--			status = -EFAULT;
--			break;
--		}
--
- 		status = a_ops->write_begin(file, mapping, pos, bytes, flags,
- 						&page, &fsdata);
- 		if (unlikely(status < 0))
-@@ -2495,8 +2480,17 @@ again:
- 
- 		if (mapping_writably_mapped(mapping))
- 			flush_dcache_page(page);
--
-+		/*
-+		 * 'page' is now locked.  If we are trying to copy from a
-+		 * mapping of 'page' in userspace, the copy might fault and
-+		 * would need PageUptodate() to complete.  But, page can not be
-+		 * made Uptodate without acquiring the page lock, which we hold.
-+		 * Deadlock.  Avoid with pagefault_disable().  Fix up below with
-+		 * iov_iter_fault_in_readable().
-+		 */
-+		pagefault_disable();
- 		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
-+		pagefault_enable();
- 		flush_dcache_page(page);
- 
- 		status = a_ops->write_end(file, mapping, pos, bytes, copied,
-@@ -2519,6 +2513,14 @@ again:
- 			 */
- 			bytes = min_t(unsigned long, PAGE_CACHE_SIZE - offset,
- 						iov_iter_single_seg_count(i));
-+			/*
-+			 * This is the fallback to recover if the copy from
-+			 * userspace above faults.
-+			 */
-+			if (unlikely(iov_iter_fault_in_readable(i, bytes))) {
-+				status = -EFAULT;
-+				break;
-+			}
- 			goto again;
- 		}
- 		pos += copied;
-_
+coupled with dump_page(), dump_vma(), dump_whatever().  It all seems so 
+much simpler to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
