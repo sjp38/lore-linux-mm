@@ -1,66 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id E683A6B0032
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 22:01:29 -0400 (EDT)
-Received: by pdbci14 with SMTP id ci14so126479766pdb.2
-        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 19:01:29 -0700 (PDT)
-Received: from mgwym01.jp.fujitsu.com (mgwym01.jp.fujitsu.com. [211.128.242.40])
-        by mx.google.com with ESMTPS id z1si67346118pda.165.2015.06.29.19.01.28
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D41616B0032
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2015 22:53:26 -0400 (EDT)
+Received: by igrv9 with SMTP id v9so3565314igr.1
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2015 19:53:26 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id a63si3957526ioe.50.2015.06.29.19.53.25
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jun 2015 19:01:29 -0700 (PDT)
-Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
-	by yt-mxoi2.gw.nic.fujitsu.com (Postfix) with ESMTP id 4DC79AC0219
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 11:01:25 +0900 (JST)
-Message-ID: <5591F862.7030706@jp.fujitsu.com>
-Date: Tue, 30 Jun 2015 11:01:06 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 29 Jun 2015 19:53:26 -0700 (PDT)
+Message-ID: <55920384.7030301@huawei.com>
+Date: Tue, 30 Jun 2015 10:48:36 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [RFC v2 PATCH 7/8] mm: add the buddy system interface
-References: <558E084A.60900@huawei.com> <558E0A28.6060607@huawei.com> <3908561D78D1C84285E8C5FCA982C28F32AA124A@ORSMSX114.amr.corp.intel.com> <5591EA50.1000000@jp.fujitsu.com> <5591F18E.3060504@huawei.com>
-In-Reply-To: <5591F18E.3060504@huawei.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Subject: Re: [RFC v2 PATCH 0/8] mm: mirrored memory support for page buddy
+ allocations
+References: <558E084A.60900@huawei.com> <559161EF.7050405@intel.com> <5591F042.1020304@huawei.com> <5591F64A.3040108@intel.com>
+In-Reply-To: <5591F64A.3040108@intel.com>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: "Luck, Tony" <tony.luck@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Hanjun Guo <guohanjun@huawei.com>, Xiexiuqi <xiexiuqi@huawei.com>, "leon@leon.nu" <leon@leon.nu>, "Hansen, Dave" <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, "Luck, Tony" <tony.luck@intel.com>, Hanjun Guo <guohanjun@huawei.com>, Xiexiuqi <xiexiuqi@huawei.com>, leon@leon.nu, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 2015/06/30 10:31, Xishi Qiu wrote:
-> On 2015/6/30 9:01, Kamezawa Hiroyuki wrote:
->
->> On 2015/06/30 8:11, Luck, Tony wrote:
->>>> @@ -814,7 +814,7 @@ int __init_memblock memblock_clear_hotplug(phys_addr_t base, phys_addr_t size)
->>>>     */
->>>>    int __init_memblock memblock_mark_mirror(phys_addr_t base, phys_addr_t size)
->>>>    {
->>>> -    system_has_some_mirror = true;
->>>> +    static_key_slow_inc(&system_has_mirror);
+On 2015/6/30 9:52, Dave Hansen wrote:
+
+> On 06/29/2015 06:26 PM, Xishi Qiu wrote:
+>>>> Has there been any performance analysis done on this code?  I'm always
+>>>> nervous when I see page_alloc.c churn.
 >>>>
->>>>        return memblock_setclr_flag(base, size, 1, MEMBLOCK_MIRROR);
->>>>    }
->>>
->>> This generates some WARN_ON noise when called from efi_find_mirror():
->>>
->>
->> It seems jump_label_init() is called after memory initialization. (init/main.c::start_kernel())
->> So, it may be difficut to use static_key function for our purpose because
->> kernel memory allocation may occur before jump_label is ready.
->>
->> Thanks,
->> -Kame
->>
->
-> Hi Kame,
->
-> How about like this? Use static bool in bootmem, and use jump label in buddy system.
-> This means we use two variable to do it.
->
+>> Not yet, which benchmark do you suggest?
+> 
+> mmtests is always a good place to start.  aim9.  I'm partial to
+> will-it-scale.
+> 
 
-I think it can be done but it should be done in separated patch with enough comment/changelog.
+I see, thank you.
 
-Thanks,
--Kame
+> 
+> 
+> .
+> 
 
 
 
