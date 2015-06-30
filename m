@@ -1,190 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id F1B8A6B0032
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 12:48:30 -0400 (EDT)
-Received: by wiar9 with SMTP id r9so42783307wia.1
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 09:48:30 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fm10si80741862wjc.203.2015.06.30.09.48.28
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 30 Jun 2015 09:48:28 -0700 (PDT)
-Date: Tue, 30 Jun 2015 18:48:24 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 33/51] writeback: make bdi_has_dirty_io() take multiple
- bdi_writeback's into account
-Message-ID: <20150630164824.GU7252@quack.suse.cz>
-References: <1432329245-5844-1-git-send-email-tj@kernel.org>
- <1432329245-5844-34-git-send-email-tj@kernel.org>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 445BE6B0032
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 14:12:42 -0400 (EDT)
+Received: by paceq1 with SMTP id eq1so9073014pac.3
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 11:12:41 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id hu9si71343445pdb.252.2015.06.30.11.12.40
+        for <linux-mm@kvack.org>;
+        Tue, 30 Jun 2015 11:12:40 -0700 (PDT)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [RFC v2 PATCH 0/8] mm: mirrored memory support for page buddy
+ allocations
+Date: Tue, 30 Jun 2015 18:12:35 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F32AA1974@ORSMSX114.amr.corp.intel.com>
+References: <558E084A.60900@huawei.com> <20150630094149.GA6812@suse.de>
+ <20150630104654.GA24932@gmail.com> <20150630115353.GB6812@suse.de>
+In-Reply-To: <20150630115353.GB6812@suse.de>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1432329245-5844-34-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
+To: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Hanjun Guo <guohanjun@huawei.com>, Xiexiuqi <xiexiuqi@huawei.com>, "leon@leon.nu" <leon@leon.nu>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Hansen,
+ Dave" <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 22-05-15 17:13:47, Tejun Heo wrote:
-> bdi_has_dirty_io() used to only reflect whether the root wb
-> (bdi_writeback) has dirty inodes.  For cgroup writeback support, it
-> needs to take all active wb's into account.  If any wb on the bdi has
-> dirty inodes, bdi_has_dirty_io() should return true.
-> 
-> To achieve that, as inode_wb_list_{move|del}_locked() now keep track
-> of the dirty state transition of each wb, the number of dirty wbs can
-> be counted in the bdi; however, bdi is already aggregating
-> wb->avg_write_bandwidth which can easily be guaranteed to be > 0 when
-> there are any dirty inodes by ensuring wb->avg_write_bandwidth can't
-> dip below 1.  bdi_has_dirty_io() can simply test whether
-> bdi->tot_write_bandwidth is zero or not.
-> 
-> While this bumps the value of wb->avg_write_bandwidth to one when it
-> used to be zero, this shouldn't cause any meaningful behavior
-> difference.
-> 
-> bdi_has_dirty_io() is made an inline function which tests whether
-> ->tot_write_bandwidth is non-zero.  Also, WARN_ON_ONCE()'s on its
-> value are added to inode_wb_list_{move|del}_locked().
+> Sounds logical. In that case, bootmem awareness would be crucial.
+> Enabling support in just the page allocator is too late.
 
-It looks OK although I find using total write bandwidth to detect whether
-any wb has any dirty IO rather hacky. Frankly I'd prefer to just iterate
-all wbs from bdi_has_dirty_io() since that isn't performance critical
-and we iterate all wbs in those paths anyway... Hmm?
+Andrew already applied some patches from me that I think covered bootmem
+mirror allocations:
 
-								Honza
+commit fc6daaf93151877748f8096af6b3fddb147f22d6
+    mm/memblock: add extra "flags" to memblock to allow selection of memory=
+ based on attribute
+commit a3f5bafcc04aaf62990e0cf3ced1cc6d8dc6fe95
+    mm/memblock: allocate boot time data structures from mirrored memory
+commit b05b9f5f9dcf593a0e9327676b78e6c17b4218e8
+    x86, mirror: x86 enabling - find mirrored memory ranges
 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> Cc: Jens Axboe <axboe@kernel.dk>
-> Cc: Jan Kara <jack@suse.cz>
-> ---
->  fs/fs-writeback.c                |  5 +++--
->  include/linux/backing-dev-defs.h |  8 ++++++--
->  include/linux/backing-dev.h      | 10 +++++++++-
->  mm/backing-dev.c                 |  5 -----
->  mm/page-writeback.c              | 10 +++++++---
->  5 files changed, 25 insertions(+), 13 deletions(-)
-> 
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index bbccf68..c98d392 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -99,6 +99,7 @@ static bool wb_io_lists_populated(struct bdi_writeback *wb)
->  		return false;
->  	} else {
->  		set_bit(WB_has_dirty_io, &wb->state);
-> +		WARN_ON_ONCE(!wb->avg_write_bandwidth);
->  		atomic_long_add(wb->avg_write_bandwidth,
->  				&wb->bdi->tot_write_bandwidth);
->  		return true;
-> @@ -110,8 +111,8 @@ static void wb_io_lists_depopulated(struct bdi_writeback *wb)
->  	if (wb_has_dirty_io(wb) && list_empty(&wb->b_dirty) &&
->  	    list_empty(&wb->b_io) && list_empty(&wb->b_more_io)) {
->  		clear_bit(WB_has_dirty_io, &wb->state);
-> -		atomic_long_sub(wb->avg_write_bandwidth,
-> -				&wb->bdi->tot_write_bandwidth);
-> +		WARN_ON_ONCE(atomic_long_sub_return(wb->avg_write_bandwidth,
-> +					&wb->bdi->tot_write_bandwidth) < 0);
->  	}
->  }
->  
-> diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-> index d631a61..8c857d7 100644
-> --- a/include/linux/backing-dev-defs.h
-> +++ b/include/linux/backing-dev-defs.h
-> @@ -98,7 +98,7 @@ struct bdi_writeback {
->  	unsigned long dirtied_stamp;
->  	unsigned long written_stamp;	/* pages written at bw_time_stamp */
->  	unsigned long write_bandwidth;	/* the estimated write bandwidth */
-> -	unsigned long avg_write_bandwidth; /* further smoothed write bw */
-> +	unsigned long avg_write_bandwidth; /* further smoothed write bw, > 0 */
->  
->  	/*
->  	 * The base dirty throttle rate, re-calculated on every 200ms.
-> @@ -142,7 +142,11 @@ struct backing_dev_info {
->  	unsigned int min_ratio;
->  	unsigned int max_ratio, max_prop_frac;
->  
-> -	atomic_long_t tot_write_bandwidth; /* sum of active avg_write_bw */
-> +	/*
-> +	 * Sum of avg_write_bw of wbs with dirty inodes.  > 0 if there are
-> +	 * any dirty wbs, which is depended upon by bdi_has_dirty().
-> +	 */
-> +	atomic_long_t tot_write_bandwidth;
->  
->  	struct bdi_writeback wb;  /* the root writeback info for this bdi */
->  	struct bdi_writeback_congested wb_congested; /* its congested state */
-> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-> index 3c8403c..0839e44 100644
-> --- a/include/linux/backing-dev.h
-> +++ b/include/linux/backing-dev.h
-> @@ -29,7 +29,6 @@ void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
->  			enum wb_reason reason);
->  void bdi_start_background_writeback(struct backing_dev_info *bdi);
->  void wb_workfn(struct work_struct *work);
-> -bool bdi_has_dirty_io(struct backing_dev_info *bdi);
->  void wb_wakeup_delayed(struct bdi_writeback *wb);
->  
->  extern spinlock_t bdi_lock;
-> @@ -42,6 +41,15 @@ static inline bool wb_has_dirty_io(struct bdi_writeback *wb)
->  	return test_bit(WB_has_dirty_io, &wb->state);
->  }
->  
-> +static inline bool bdi_has_dirty_io(struct backing_dev_info *bdi)
-> +{
-> +	/*
-> +	 * @bdi->tot_write_bandwidth is guaranteed to be > 0 if there are
-> +	 * any dirty wbs.  See wb_update_write_bandwidth().
-> +	 */
-> +	return atomic_long_read(&bdi->tot_write_bandwidth);
-> +}
-> +
->  static inline void __add_wb_stat(struct bdi_writeback *wb,
->  				 enum wb_stat_item item, s64 amount)
->  {
-> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> index 161ddf1..d2f16fc9 100644
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
-> @@ -256,11 +256,6 @@ static int __init default_bdi_init(void)
->  }
->  subsys_initcall(default_bdi_init);
->  
-> -bool bdi_has_dirty_io(struct backing_dev_info *bdi)
-> -{
-> -	return wb_has_dirty_io(&bdi->wb);
-> -}
-> -
->  /*
->   * This function is used when the first inode for this wb is marked dirty. It
->   * wakes-up the corresponding bdi thread which should then take care of the
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index c95eb24..99b8846 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -881,9 +881,13 @@ static void wb_update_write_bandwidth(struct bdi_writeback *wb,
->  		avg += (old - avg) >> 3;
->  
->  out:
-> -	if (wb_has_dirty_io(wb))
-> -		atomic_long_add(avg - wb->avg_write_bandwidth,
-> -				&wb->bdi->tot_write_bandwidth);
-> +	/* keep avg > 0 to guarantee that tot > 0 if there are dirty wbs */
-> +	avg = max(avg, 1LU);
-> +	if (wb_has_dirty_io(wb)) {
-> +		long delta = avg - wb->avg_write_bandwidth;
-> +		WARN_ON_ONCE(atomic_long_add_return(delta,
-> +					&wb->bdi->tot_write_bandwidth) <= 0);
-> +	}
->  	wb->write_bandwidth = bw;
->  	wb->avg_write_bandwidth = avg;
->  }
-> -- 
-> 2.4.0
-> 
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+If I missed something, please let me know.
+
+
+>> In that sense 'protecting' all kernel allocations is natural: we don't k=
+now how to=20
+>> recover from faults that affect kernel memory.
+>>=20
+>
+> It potentially uses all mirrored memory on memory that does not need that
+> sort of guarantee. For example, if there was a MC on memory backing the
+> inode cache then potentially that is recoverable as long as the inodes
+> were not dirty.
+
+Right now this is hard to do.  On Intel we get a broadcast machine check th=
+at
+may catch bystander cpus holding locks that we might need to look at kernel
+structures to make decisions on what we just lost.  That may get easier wit=
+h
+local machine check (only the logical cpu that tried to consume the corrupt
+data gets the machine check ... patches for Linux are in for basic support =
+of
+this ... waiting for h/w that does it).
+
+
+> That's a minor detail as the kernel could later protect
+> only MIGRATE_UNMOVABLE requests instead of all kernel allocations if fata=
+l
+> MC in kernel space could be distinguished from non-fatal checks.
+
+So the immediate use case is large memory servers (hundred+ Gbytes to
+TBytes) running some applications that use most of memory in user mode
+(like a database).  We mirror enough memory to cover *all* the kernel alloc=
+ations
+so that a bad memory access with be fixed from the mirror for kernel, or re=
+sult
+in SIGBUS to a process for user page ... either way we don't crash the syst=
+em.
+
+Perhaps in the future we might find some places in the kernel where we can
+cover a lot of memory without too many code changes ... e.g. things like
+pagecopy().  At that time we'd have to think about allocation priorities.
+
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
