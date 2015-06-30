@@ -1,156 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 10D3A6B0032
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 05:21:35 -0400 (EDT)
-Received: by wibdq8 with SMTP id dq8so10472897wib.1
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 02:21:34 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fb4si18247544wib.102.2015.06.30.02.21.33
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 743406B0032
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 05:35:48 -0400 (EDT)
+Received: by oiax193 with SMTP id x193so3078835oia.2
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 02:35:48 -0700 (PDT)
+Received: from szxga03-in.huawei.com ([119.145.14.66])
+        by mx.google.com with ESMTPS id m132si26000853oig.33.2015.06.30.02.35.46
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 30 Jun 2015 02:21:33 -0700 (PDT)
-Date: Tue, 30 Jun 2015 11:21:27 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 21/51] bdi: separate out congested state into a separate
- struct
-Message-ID: <20150630092127.GG7252@quack.suse.cz>
-References: <1432329245-5844-1-git-send-email-tj@kernel.org>
- <1432329245-5844-22-git-send-email-tj@kernel.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 30 Jun 2015 02:35:47 -0700 (PDT)
+Message-ID: <55925FD5.7030205@huawei.com>
+Date: Tue, 30 Jun 2015 17:22:29 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1432329245-5844-22-git-send-email-tj@kernel.org>
+Subject: Re: [RFC v2 PATCH 2/8] mm: introduce MIGRATE_MIRROR to manage the
+ mirrored pages
+References: <558E084A.60900@huawei.com> <558E0948.2010104@huawei.com> <5590F4A7.4030606@jp.fujitsu.com> <559202E2.8060609@huawei.com> <55924AEF.4050107@jp.fujitsu.com>
+In-Reply-To: <55924AEF.4050107@jp.fujitsu.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, "Luck, Tony" <tony.luck@intel.com>, Hanjun Guo <guohanjun@huawei.com>, Xiexiuqi <xiexiuqi@huawei.com>, leon@leon.nu, Dave Hansen <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 22-05-15 17:13:35, Tejun Heo wrote:
-> Currently, a wb's (bdi_writeback) congestion state is carried in its
-> ->state field; however, cgroup writeback support will require multiple
-> wb's sharing the same congestion state.  This patch separates out
-> congestion state into its own struct - struct bdi_writeback_congested.
-> A new field wb field, wb_congested, points to its associated congested
-> struct.  The default wb, bdi->wb, always points to bdi->wb_congested.
+On 2015/6/30 15:53, Kamezawa Hiroyuki wrote:
+
+> On 2015/06/30 11:45, Xishi Qiu wrote:
+>> On 2015/6/29 15:32, Kamezawa Hiroyuki wrote:
+>>
+>>> On 2015/06/27 11:24, Xishi Qiu wrote:
+>>>> This patch introduces a new migratetype called "MIGRATE_MIRROR", it is used to
+>>>> allocate mirrored pages.
+>>>> When cat /proc/pagetypeinfo, you can see the count of free mirrored blocks.
+>>>>
+>>>> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+>>>
+>>> My fear about this approarch is that this may break something existing.
+>>>
+>>> Now, when we add MIGRATE_MIRROR type, we'll hide attributes of pageblocks as
+>>> MIGRATE_UNMOVABOLE, MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE.
+>>>
+>>> Logically, MIRROR attribute is independent from page mobility and this overwrites
+>>> will make some information lost.
+>>>
+>>> Then,
+>>>
+>>>> ---
+>>>>    include/linux/mmzone.h | 9 +++++++++
+>>>>    mm/page_alloc.c        | 3 +++
+>>>>    mm/vmstat.c            | 3 +++
+>>>>    3 files changed, 15 insertions(+)
+>>>>
+>>>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>>>> index 54d74f6..54e891a 100644
+>>>> --- a/include/linux/mmzone.h
+>>>> +++ b/include/linux/mmzone.h
+>>>> @@ -39,6 +39,9 @@ enum {
+>>>>        MIGRATE_UNMOVABLE,
+>>>>        MIGRATE_RECLAIMABLE,
+>>>>        MIGRATE_MOVABLE,
+>>>> +#ifdef CONFIG_MEMORY_MIRROR
+>>>> +    MIGRATE_MIRROR,
+>>>> +#endif
+>>>
+>>> I think
+>>>          MIGRATE_MIRROR_UNMOVABLE,
+>>>          MIGRATE_MIRROR_RECLAIMABLE,
+>>>          MIGRATE_MIRROR_MOVABLE,         <== adding this may need discuss.
+>>>          MIGRATE_MIRROR_RESERVED,        <== reserved pages should be maintained per mirrored/unmirrored.
+>>>
+>>
+>> Hi Kame,
+>>
+>> You mean add 3 or 4 new migratetype?
+>>
 > 
-> While this patch adds a layer of indirection, it doesn't introduce any
-> behavior changes.
+> yes. But please check how NR_MIGRATETYPE_BITS will be.
+> I think this will not have big impact in x86-64 .
 > 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-
-Looks good. You can add:
-
-Reviewed-by: Jan Kara <jack@suse.com>
-
-								Honza
-
-> ---
->  include/linux/backing-dev-defs.h | 14 ++++++++++++--
->  include/linux/backing-dev.h      |  2 +-
->  mm/backing-dev.c                 |  7 +++++--
->  3 files changed, 18 insertions(+), 5 deletions(-)
+>>> should be added with the following fallback list.
+>>>
+>>> /*
+>>>   * MIRROR page range is defined by firmware at boot. The range is limited
+>>>   * and is used only for kernel memory mirroring.
+>>>   */
+>>> [MIGRATE_UNMOVABLE_MIRROR]   = {MIGRATE_RECLAIMABLE_MIRROR, MIGRATE_RESERVE}
+>>> [MIGRATE_RECLAIMABLE_MIRROR] = {MIGRATE_UNMOVABLE_MIRROR, MIGRATE_RESERVE}
+>>>
+>>
+>> Why not like this:
+>> {MIGRATE_RECLAIMABLE_MIRROR, MIGRATE_MIRROR_RESERVED, MIGRATE_RESERVE}
+>>
 > 
-> diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-> index aa18c4b..9e9eafa 100644
-> --- a/include/linux/backing-dev-defs.h
-> +++ b/include/linux/backing-dev-defs.h
-> @@ -16,12 +16,15 @@ struct dentry;
->   * Bits in bdi_writeback.state
->   */
->  enum wb_state {
-> -	WB_async_congested,	/* The async (write) queue is getting full */
-> -	WB_sync_congested,	/* The sync queue is getting full */
->  	WB_registered,		/* bdi_register() was done */
->  	WB_writeback_running,	/* Writeback is in progress */
->  };
->  
-> +enum wb_congested_state {
-> +	WB_async_congested,	/* The async (write) queue is getting full */
-> +	WB_sync_congested,	/* The sync queue is getting full */
-> +};
-> +
->  typedef int (congested_fn)(void *, int);
->  
->  enum wb_stat_item {
-> @@ -34,6 +37,10 @@ enum wb_stat_item {
->  
->  #define WB_STAT_BATCH (8*(1+ilog2(nr_cpu_ids)))
->  
-> +struct bdi_writeback_congested {
-> +	unsigned long state;		/* WB_[a]sync_congested flags */
-> +};
-> +
->  struct bdi_writeback {
->  	struct backing_dev_info *bdi;	/* our parent bdi */
->  
-> @@ -48,6 +55,8 @@ struct bdi_writeback {
->  
->  	struct percpu_counter stat[NR_WB_STAT_ITEMS];
->  
-> +	struct bdi_writeback_congested *congested;
-> +
->  	unsigned long bw_time_stamp;	/* last time write bw is updated */
->  	unsigned long dirtied_stamp;
->  	unsigned long written_stamp;	/* pages written at bw_time_stamp */
-> @@ -84,6 +93,7 @@ struct backing_dev_info {
->  	unsigned int max_ratio, max_prop_frac;
->  
->  	struct bdi_writeback wb;  /* default writeback info for this bdi */
-> +	struct bdi_writeback_congested wb_congested;
->  
->  	struct device *dev;
->  
-> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-> index 7857820..bfdaa18 100644
-> --- a/include/linux/backing-dev.h
-> +++ b/include/linux/backing-dev.h
-> @@ -167,7 +167,7 @@ static inline int bdi_congested(struct backing_dev_info *bdi, int bdi_bits)
->  {
->  	if (bdi->congested_fn)
->  		return bdi->congested_fn(bdi->congested_data, bdi_bits);
-> -	return (bdi->wb.state & bdi_bits);
-> +	return (bdi->wb.congested->state & bdi_bits);
->  }
->  
->  static inline int bdi_read_congested(struct backing_dev_info *bdi)
-> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> index 805b287..5ec7658 100644
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
-> @@ -383,6 +383,9 @@ int bdi_init(struct backing_dev_info *bdi)
->  	if (err)
->  		return err;
->  
-> +	bdi->wb_congested.state = 0;
-> +	bdi->wb.congested = &bdi->wb_congested;
-> +
->  	return 0;
->  }
->  EXPORT_SYMBOL(bdi_init);
-> @@ -504,7 +507,7 @@ void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
->  	wait_queue_head_t *wqh = &congestion_wqh[sync];
->  
->  	bit = sync ? WB_sync_congested : WB_async_congested;
-> -	if (test_and_clear_bit(bit, &bdi->wb.state))
-> +	if (test_and_clear_bit(bit, &bdi->wb.congested->state))
->  		atomic_dec(&nr_bdi_congested[sync]);
->  	smp_mb__after_atomic();
->  	if (waitqueue_active(wqh))
-> @@ -517,7 +520,7 @@ void set_bdi_congested(struct backing_dev_info *bdi, int sync)
->  	enum wb_state bit;
->  
->  	bit = sync ? WB_sync_congested : WB_async_congested;
-> -	if (!test_and_set_bit(bit, &bdi->wb.state))
-> +	if (!test_and_set_bit(bit, &bdi->wb.congested->state))
->  		atomic_inc(&nr_bdi_congested[sync]);
->  }
->  EXPORT_SYMBOL(set_bdi_congested);
-> -- 
-> 2.4.0
+>  My mistake.
+> [MIGRATE_UNMOVABLE_MIRROR]   = {MIGRATE_RECLAIMABLE_MIRROR, MIGRATE_RESERVE_MIRROR}
+> [MIGRATE_RECLAIMABLE_MIRROR] = {MIGRATE_UNMOVABLE_MIRROR, MIGRATE_RESERVE_MIRROR}
 > 
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+> was my intention. This means mirrored memory and unmirrored memory is separated completely.
+> 
+> But this should affect kswapd or other memory reclaim logic.
+> 
+> for example, kswapd stops free pages are more than hi watermark.
+> But mirrored/unmirrored pages exhausted cases are not handled in this series.
+> You need some extra check in memory reclaim logic if you go with migration_type.
+> 
+
+OK, I understand. Thank you for your suggestion.
+
+Thanks,
+Xishi Qiu
+
+> 
+> 
+>>> Then, we'll not lose the original information of "Reclaiable Pages".
+>>>
+>>> One problem here is whteher we should have MIGRATE_RESERVE_MIRROR.
+>>>
+>>> If we never allow users to allocate mirrored memory, we should have MIGRATE_RESERVE_MIRROR.
+>>> But it seems to require much more code change to do that.
+>>>
+>>> Creating a zone or adding an attribues to zones are another design choice.
+>>>
+>>
+>> If we add a new zone, mirror_zone will span others, I'm worry about this
+>> maybe have problems.
+> 
+> Yes. that's problem. And zoneid bit is very limited resource.
+> (....But memory reclaim logic can be unchanged.)
+> 
+> Anyway, I'd like to see your solution with above changes 1st rather than adding zones.
+> 
+> Thanks,
+> -Kame
+> 
+> 
+> 
+> .
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
