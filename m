@@ -1,165 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 246DB6B0085
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 08:37:18 -0400 (EDT)
-Received: by pdbci14 with SMTP id ci14so5651825pdb.2
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 05:37:17 -0700 (PDT)
-Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com. [2607:f8b0:400e:c02::235])
-        by mx.google.com with ESMTPS id e5si29574659pdf.100.2015.06.30.05.37.17
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 335256B0032
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 10:17:50 -0400 (EDT)
+Received: by wiwl6 with SMTP id l6so133860028wiw.0
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 07:17:49 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id az10si19620885wib.65.2015.06.30.07.17.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jun 2015 05:37:17 -0700 (PDT)
-Received: by pdbci14 with SMTP id ci14so5651640pdb.2
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 05:37:17 -0700 (PDT)
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: [RFC][PATCHv4 7/7] zsmalloc: register a shrinker to trigger auto-compaction
-Date: Tue, 30 Jun 2015 21:35:58 +0900
-Message-Id: <1435667758-14075-8-git-send-email-sergey.senozhatsky@gmail.com>
-In-Reply-To: <1435667758-14075-1-git-send-email-sergey.senozhatsky@gmail.com>
-References: <1435667758-14075-1-git-send-email-sergey.senozhatsky@gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 30 Jun 2015 07:17:48 -0700 (PDT)
+Date: Tue, 30 Jun 2015 16:17:42 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 25/51] writeback: attribute stats to the matching
+ per-cgroup bdi_writeback
+Message-ID: <20150630141742.GK7252@quack.suse.cz>
+References: <1432329245-5844-1-git-send-email-tj@kernel.org>
+ <1432329245-5844-26-git-send-email-tj@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1432329245-5844-26-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
 
-Perform automatic pool compaction by a shrinker when system
-is getting tight on memory.
+On Fri 22-05-15 17:13:39, Tejun Heo wrote:
+> Until now, all WB_* stats were accounted against the root wb
+> (bdi_writeback), now that multiple wb (bdi_writeback) support is in
+> place, let's attributes the stats to the respective per-cgroup wb's.
+> 
+> As no filesystem has FS_CGROUP_WRITEBACK yet, this doesn't lead to
+> visible behavior differences.
+> 
+> v2: Updated for per-inode wb association.
+> 
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Cc: Jens Axboe <axboe@kernel.dk>
+> Cc: Jan Kara <jack@suse.cz>
 
-User-space has a very little knowledge regarding zsmalloc fragmentation
-and basically has no mechanism to tell whether compaction will result
-in any memory gain. Another issue is that user space is not always
-aware of the fact that system is getting tight on memory. Which leads
-to very uncomfortable scenarios when user space may start issuing
-compaction 'randomly' or from crontab (for example). Fragmentation
-is not always necessarily bad, allocated and unused objects, after all,
-may be filled with the data later, w/o the need of allocating a new
-zspage. On the other hand, we obviously don't want to waste memory
-when the system needs it.
+Looks good. You can add:
 
-Compaction now has a relatively quick pool scan so we are able to
-estimate the number of pages that will be freed easily, which makes it
-possible to call this function from a shrinker->count_objects() callback.
-We also abort compaction as soon as we detect that we can't free any
-pages any more, preventing wasteful objects migrations.
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-Minchan Kim proposed to use the shrinker (the original patch was too
-aggressive and was attempting to perform compaction for every
-ALMOST_EMPTY zspage).
+								Honza
 
-Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Suggested-by: Minchan Kim <minchan@kernel.org>
----
- mm/zsmalloc.c | 74 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 73 insertions(+), 1 deletion(-)
-
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 51165df..dfc2d93 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -247,7 +247,9 @@ struct zs_pool {
- 	atomic_long_t		pages_allocated;
- 	/* How many pages were migrated (freed) */
- 	unsigned long		num_migrated;
--
-+	/* Compact classes */
-+	struct shrinker		shrinker;
-+	bool			shrinker_enabled;
- #ifdef CONFIG_ZSMALLOC_STAT
- 	struct dentry		*stat_dentry;
- #endif
-@@ -1784,6 +1786,69 @@ unsigned long zs_compact(struct zs_pool *pool)
- }
- EXPORT_SYMBOL_GPL(zs_compact);
- 
-+static unsigned long zs_shrinker_scan(struct shrinker *shrinker,
-+		struct shrink_control *sc)
-+{
-+	unsigned long pages_freed;
-+	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
-+			shrinker);
-+
-+	pages_freed = pool->num_migrated;
-+	/*
-+	 * Compact classes and calculate compaction delta.
-+	 * Can run concurrently with a manually triggered
-+	 * (by user) compaction.
-+	 */
-+	pages_freed = zs_compact(pool) - pages_freed;
-+
-+	return pages_freed ? pages_freed : SHRINK_STOP;
-+}
-+
-+static unsigned long zs_shrinker_count(struct shrinker *shrinker,
-+		struct shrink_control *sc)
-+{
-+	int i;
-+	struct size_class *class;
-+	unsigned long pages_to_free = 0;
-+	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
-+			shrinker);
-+
-+	if (!pool->shrinker_enabled)
-+		return 0;
-+
-+	for (i = zs_size_classes - 1; i >= 0; i--) {
-+		class = pool->size_class[i];
-+		if (!class)
-+			continue;
-+		if (class->index != i)
-+			continue;
-+
-+		spin_lock(&class->lock);
-+		pages_to_free += zs_can_compact(class);
-+		spin_unlock(&class->lock);
-+	}
-+
-+	return pages_to_free;
-+}
-+
-+static void zs_unregister_shrinker(struct zs_pool *pool)
-+{
-+	if (pool->shrinker_enabled) {
-+		unregister_shrinker(&pool->shrinker);
-+		pool->shrinker_enabled = false;
-+	}
-+}
-+
-+static int zs_register_shrinker(struct zs_pool *pool)
-+{
-+	pool->shrinker.scan_objects = zs_shrinker_scan;
-+	pool->shrinker.count_objects = zs_shrinker_count;
-+	pool->shrinker.batch = 0;
-+	pool->shrinker.seeks = DEFAULT_SEEKS;
-+
-+	return register_shrinker(&pool->shrinker);
-+}
-+
- /**
-  * zs_create_pool - Creates an allocation pool to work from.
-  * @flags: allocation flags used to allocate pool metadata
-@@ -1869,6 +1934,12 @@ struct zs_pool *zs_create_pool(char *name, gfp_t flags)
- 	if (zs_pool_stat_create(name, pool))
- 		goto err;
- 
-+	/*
-+	 * Not critical, we still can use the pool
-+	 * and user can trigger compaction manually.
-+	 */
-+	if (zs_register_shrinker(pool) == 0)
-+		pool->shrinker_enabled = true;
- 	return pool;
- 
- err:
-@@ -1881,6 +1952,7 @@ void zs_destroy_pool(struct zs_pool *pool)
- {
- 	int i;
- 
-+	zs_unregister_shrinker(pool);
- 	zs_pool_stat_destroy(pool);
- 
- 	for (i = 0; i < zs_size_classes; i++) {
+> ---
+>  mm/page-writeback.c | 24 +++++++++++++++---------
+>  1 file changed, 15 insertions(+), 9 deletions(-)
+> 
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index 9b95cf8..4d0a9da 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -2130,7 +2130,7 @@ void account_page_cleaned(struct page *page, struct address_space *mapping,
+>  	if (mapping_cap_account_dirty(mapping)) {
+>  		mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_DIRTY);
+>  		dec_zone_page_state(page, NR_FILE_DIRTY);
+> -		dec_wb_stat(&inode_to_bdi(mapping->host)->wb, WB_RECLAIMABLE);
+> +		dec_wb_stat(inode_to_wb(mapping->host), WB_RECLAIMABLE);
+>  		task_io_account_cancelled_write(PAGE_CACHE_SIZE);
+>  	}
+>  }
+> @@ -2191,10 +2191,13 @@ EXPORT_SYMBOL(__set_page_dirty_nobuffers);
+>  void account_page_redirty(struct page *page)
+>  {
+>  	struct address_space *mapping = page->mapping;
+> +
+>  	if (mapping && mapping_cap_account_dirty(mapping)) {
+> +		struct bdi_writeback *wb = inode_to_wb(mapping->host);
+> +
+>  		current->nr_dirtied--;
+>  		dec_zone_page_state(page, NR_DIRTIED);
+> -		dec_wb_stat(&inode_to_bdi(mapping->host)->wb, WB_DIRTIED);
+> +		dec_wb_stat(wb, WB_DIRTIED);
+>  	}
+>  }
+>  EXPORT_SYMBOL(account_page_redirty);
+> @@ -2373,8 +2376,7 @@ int clear_page_dirty_for_io(struct page *page)
+>  		if (TestClearPageDirty(page)) {
+>  			mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_DIRTY);
+>  			dec_zone_page_state(page, NR_FILE_DIRTY);
+> -			dec_wb_stat(&inode_to_bdi(mapping->host)->wb,
+> -				    WB_RECLAIMABLE);
+> +			dec_wb_stat(inode_to_wb(mapping->host), WB_RECLAIMABLE);
+>  			ret = 1;
+>  		}
+>  		mem_cgroup_end_page_stat(memcg);
+> @@ -2392,7 +2394,8 @@ int test_clear_page_writeback(struct page *page)
+>  
+>  	memcg = mem_cgroup_begin_page_stat(page);
+>  	if (mapping) {
+> -		struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
+> +		struct inode *inode = mapping->host;
+> +		struct backing_dev_info *bdi = inode_to_bdi(inode);
+>  		unsigned long flags;
+>  
+>  		spin_lock_irqsave(&mapping->tree_lock, flags);
+> @@ -2402,8 +2405,10 @@ int test_clear_page_writeback(struct page *page)
+>  						page_index(page),
+>  						PAGECACHE_TAG_WRITEBACK);
+>  			if (bdi_cap_account_writeback(bdi)) {
+> -				__dec_wb_stat(&bdi->wb, WB_WRITEBACK);
+> -				__wb_writeout_inc(&bdi->wb);
+> +				struct bdi_writeback *wb = inode_to_wb(inode);
+> +
+> +				__dec_wb_stat(wb, WB_WRITEBACK);
+> +				__wb_writeout_inc(wb);
+>  			}
+>  		}
+>  		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+> @@ -2427,7 +2432,8 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
+>  
+>  	memcg = mem_cgroup_begin_page_stat(page);
+>  	if (mapping) {
+> -		struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
+> +		struct inode *inode = mapping->host;
+> +		struct backing_dev_info *bdi = inode_to_bdi(inode);
+>  		unsigned long flags;
+>  
+>  		spin_lock_irqsave(&mapping->tree_lock, flags);
+> @@ -2437,7 +2443,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
+>  						page_index(page),
+>  						PAGECACHE_TAG_WRITEBACK);
+>  			if (bdi_cap_account_writeback(bdi))
+> -				__inc_wb_stat(&bdi->wb, WB_WRITEBACK);
+> +				__inc_wb_stat(inode_to_wb(inode), WB_WRITEBACK);
+>  		}
+>  		if (!PageDirty(page))
+>  			radix_tree_tag_clear(&mapping->page_tree,
+> -- 
+> 2.4.0
+> 
 -- 
-2.5.0.rc0.3.g912bd49
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
