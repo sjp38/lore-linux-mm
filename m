@@ -1,43 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id E6C076B0032
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 18:47:01 -0400 (EDT)
-Received: by igblr2 with SMTP id lr2so22953051igb.0
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 15:47:01 -0700 (PDT)
-Received: from mail-ig0-x22a.google.com (mail-ig0-x22a.google.com. [2607:f8b0:4001:c05::22a])
-        by mx.google.com with ESMTPS id d9si12562735igc.16.2015.06.30.15.47.00
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id E60036B0032
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 18:50:26 -0400 (EDT)
+Received: by igblr2 with SMTP id lr2so22996458igb.0
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 15:50:26 -0700 (PDT)
+Received: from mail-ig0-x22e.google.com (mail-ig0-x22e.google.com. [2607:f8b0:4001:c05::22e])
+        by mx.google.com with ESMTPS id w14si331162icl.37.2015.06.30.15.50.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jun 2015 15:47:00 -0700 (PDT)
-Received: by igcur8 with SMTP id ur8so76540244igc.0
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 15:47:00 -0700 (PDT)
-Date: Tue, 30 Jun 2015 15:46:58 -0700 (PDT)
+        Tue, 30 Jun 2015 15:50:26 -0700 (PDT)
+Received: by igblr2 with SMTP id lr2so85700700igb.0
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 15:50:26 -0700 (PDT)
+Date: Tue, 30 Jun 2015 15:50:24 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/3] mm, oom: organize oom context into struct
-In-Reply-To: <20150619001423.GA5628@swordfish>
-Message-ID: <alpine.DEB.2.10.1506301546270.24266@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1506181555350.13736@chino.kir.corp.google.com> <20150619001423.GA5628@swordfish>
+Subject: Re: [patch 2/3] mm, oom: pass an oom order of -1 when triggered by
+ sysrq
+In-Reply-To: <20150619073202.GD4913@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1506301547200.24266@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1506181555350.13736@chino.kir.corp.google.com> <alpine.DEB.2.10.1506181556180.13736@chino.kir.corp.google.com> <20150619073202.GD4913@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 19 Jun 2015, Sergey Senozhatsky wrote:
+On Fri, 19 Jun 2015, Michal Hocko wrote:
 
-> > There are essential elements to an oom context that are passed around to
-> > multiple functions.
-> > 
-> > Organize these elements into a new struct, struct oom_context, that
-> > specifies the context for an oom condition.
-> > 
+> > The force_kill member of struct oom_context isn't needed if an order of
+> > -1 is used instead.
 > 
-> s/oom_context/oom_control/ ?
+> But this doesn't make much sense to me. It is not like we would _have_
+> to spare few bytes here. The meaning of force_kill is clear while order
+> with a weird value is a hack. It is harder to follow without any good
+> reason.
 > 
 
-I think it would be confused with the existing memory.oom_control for 
-memcg.
+To me, this is the same as treating order == -1 as special in 
+struct compact_control meaning that it was triggered from the command line 
+and we really want to fully compact memory.  It seems to have a nice 
+symmetry.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
