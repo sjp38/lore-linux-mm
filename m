@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id EB35A6B0073
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 08:36:57 -0400 (EDT)
-Received: by pdjd13 with SMTP id d13so5740632pdj.0
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 05:36:57 -0700 (PDT)
-Received: from mail-pd0-x234.google.com (mail-pd0-x234.google.com. [2607:f8b0:400e:c02::234])
-        by mx.google.com with ESMTPS id ek1si65361997pbb.161.2015.06.30.05.36.56
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B4F26B0075
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 08:37:02 -0400 (EDT)
+Received: by pabvl15 with SMTP id vl15so5102219pab.1
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 05:37:01 -0700 (PDT)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id fj8si70067209pdb.93.2015.06.30.05.37.00
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jun 2015 05:36:57 -0700 (PDT)
-Received: by pdbci14 with SMTP id ci14so5647138pdb.2
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 05:36:56 -0700 (PDT)
+        Tue, 30 Jun 2015 05:37:01 -0700 (PDT)
+Received: by paceq1 with SMTP id eq1so5029553pac.3
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 05:37:00 -0700 (PDT)
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: [RFC][PATCHv4 2/7] zsmalloc: always keep per-class stats
-Date: Tue, 30 Jun 2015 21:35:53 +0900
-Message-Id: <1435667758-14075-3-git-send-email-sergey.senozhatsky@gmail.com>
+Subject: [RFC][PATCHv4 3/7] zsmalloc: introduce zs_can_compact() function
+Date: Tue, 30 Jun 2015 21:35:54 +0900
+Message-Id: <1435667758-14075-4-git-send-email-sergey.senozhatsky@gmail.com>
 In-Reply-To: <1435667758-14075-1-git-send-email-sergey.senozhatsky@gmail.com>
 References: <1435667758-14075-1-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,131 +22,105 @@ List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Always account per-class `zs_size_stat' stats. This data will
-help us make better decisions during compaction. We are especially
-interested in OBJ_ALLOCATED and OBJ_USED, which can tell us if
-class compaction will result in any memory gain.
+This function checks if class compaction will free any pages.
+Rephrasing -- do we have enough unused objects to form at least
+one ZS_EMPTY page and free it. It aborts compaction if class
+compaction will not result in any (further) savings.
 
-For instance, we know the number of allocated objects in the class,
-the number of objects being used (so we also know how many objects
-are not used) and the number of objects per-page. So we can ensure
-if we have enough unused objects to form at least one ZS_EMPTY
-zspage during compaction.
+EXAMPLE (this debug output is not part of this patch set):
 
-We calculate this value on per-class basis so we can calculate a
-total number of zspages that can be released. Which is exactly what
-a shrinker wants to know.
+-- class size
+-- number of allocated objects
+-- number of used objects
+-- max objects per zspage
+-- pages per zspage
+-- estimated number of pages that will be freed
+
+[..]
+class-512 objs:544 inuse:540 maxobj-per-zspage:8  pages-per-zspage:1 zspages-to-free:0
+ ... class-512 compaction is useless. break
+class-496 objs:660 inuse:570 maxobj-per-zspage:33 pages-per-zspage:4 zspages-to-free:2
+class-496 objs:627 inuse:570 maxobj-per-zspage:33 pages-per-zspage:4 zspages-to-free:1
+class-496 objs:594 inuse:570 maxobj-per-zspage:33 pages-per-zspage:4 zspages-to-free:0
+ ... class-496 compaction is useless. break
+class-448 objs:657 inuse:617 maxobj-per-zspage:9  pages-per-zspage:1 zspages-to-free:4
+class-448 objs:648 inuse:617 maxobj-per-zspage:9  pages-per-zspage:1 zspages-to-free:3
+class-448 objs:639 inuse:617 maxobj-per-zspage:9  pages-per-zspage:1 zspages-to-free:2
+class-448 objs:630 inuse:617 maxobj-per-zspage:9  pages-per-zspage:1 zspages-to-free:1
+class-448 objs:621 inuse:617 maxobj-per-zspage:9  pages-per-zspage:1 zspages-to-free:0
+ ... class-448 compaction is useless. break
+class-432 objs:728 inuse:685 maxobj-per-zspage:28 pages-per-zspage:3 zspages-to-free:1
+class-432 objs:700 inuse:685 maxobj-per-zspage:28 pages-per-zspage:3 zspages-to-free:0
+ ... class-432 compaction is useless. break
+class-416 objs:819 inuse:705 maxobj-per-zspage:39 pages-per-zspage:4 zspages-to-free:2
+class-416 objs:780 inuse:705 maxobj-per-zspage:39 pages-per-zspage:4 zspages-to-free:1
+class-416 objs:741 inuse:705 maxobj-per-zspage:39 pages-per-zspage:4 zspages-to-free:0
+ ... class-416 compaction is useless. break
+class-400 objs:690 inuse:674 maxobj-per-zspage:10 pages-per-zspage:1 zspages-to-free:1
+class-400 objs:680 inuse:674 maxobj-per-zspage:10 pages-per-zspage:1 zspages-to-free:0
+ ... class-400 compaction is useless. break
+class-384 objs:736 inuse:709 maxobj-per-zspage:32 pages-per-zspage:3 zspages-to-free:0
+ ... class-384 compaction is useless. break
+[..]
+
+Every "compaction is useless" indicates that we saved CPU cycles.
+
+class-512 has
+	544	object allocated
+	540	objects used
+	8	objects per-page
+
+Even if we have a ALMOST_EMPTY zspage, we still don't have enough room to
+migrate all of its objects and free this zspage; so compaction will not
+make a lot of sense, it's better to just leave it as is.
 
 Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Acked-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/zsmalloc.c | 48 ++++++++++++------------------------------------
- 1 file changed, 12 insertions(+), 36 deletions(-)
+ mm/zsmalloc.c | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
 
 diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 2aecdb3..036baa8 100644
+index 036baa8..b7410c1 100644
 --- a/mm/zsmalloc.c
 +++ b/mm/zsmalloc.c
-@@ -169,14 +169,12 @@ enum zs_stat_type {
- 	NR_ZS_STAT_TYPE,
- };
- 
--#ifdef CONFIG_ZSMALLOC_STAT
--
--static struct dentry *zs_stat_root;
--
- struct zs_size_stat {
- 	unsigned long objs[NR_ZS_STAT_TYPE];
- };
- 
-+#ifdef CONFIG_ZSMALLOC_STAT
-+static struct dentry *zs_stat_root;
- #endif
- 
- /*
-@@ -201,25 +199,21 @@ static int zs_size_classes;
- static const int fullness_threshold_frac = 4;
- 
- struct size_class {
-+	spinlock_t		lock;
-+	struct page		*fullness_list[_ZS_NR_FULLNESS_GROUPS];
- 	/*
- 	 * Size of objects stored in this class. Must be multiple
- 	 * of ZS_ALIGN.
- 	 */
--	int size;
--	unsigned int index;
-+	int			size;
-+	unsigned int		index;
- 
- 	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
--	int pages_per_zspage;
--	/* huge object: pages_per_zspage == 1 && maxobj_per_zspage == 1 */
--	bool huge;
--
--#ifdef CONFIG_ZSMALLOC_STAT
--	struct zs_size_stat stats;
--#endif
--
--	spinlock_t lock;
-+	int			pages_per_zspage;
-+	struct zs_size_stat	stats;
- 
--	struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
-+	/* huge object: pages_per_zspage == 1 && maxobj_per_zspage == 1 */
-+	bool			huge;
- };
- 
- /*
-@@ -441,8 +435,6 @@ static int get_size_class_index(int size)
- 	return min(zs_size_classes - 1, idx);
+@@ -1685,6 +1685,28 @@ static struct page *isolate_source_page(struct size_class *class)
+ 	return page;
  }
  
--#ifdef CONFIG_ZSMALLOC_STAT
--
- static inline void zs_stat_inc(struct size_class *class,
- 				enum zs_stat_type type, unsigned long cnt)
- {
-@@ -461,6 +453,8 @@ static inline unsigned long zs_stat_get(struct size_class *class,
- 	return class->stats.objs[type];
- }
- 
-+#ifdef CONFIG_ZSMALLOC_STAT
++/*
++ *
++ * Based on the number of unused allocated objects calculate
++ * and return the number of pages that we can free.
++ *
++ * Should be called under class->lock.
++ */
++static unsigned long zs_can_compact(struct size_class *class)
++{
++	unsigned long obj_wasted;
 +
- static int __init zs_stat_init(void)
++	if (!zs_stat_get(class, CLASS_ALMOST_EMPTY))
++		return 0;
++
++	obj_wasted = zs_stat_get(class, OBJ_ALLOCATED) -
++		zs_stat_get(class, OBJ_USED);
++
++	obj_wasted /= get_maxobj_per_zspage(class->size,
++			class->pages_per_zspage);
++	return obj_wasted * get_pages_per_zspage(class->size);
++}
++
+ static unsigned long __zs_compact(struct zs_pool *pool,
+ 				struct size_class *class)
  {
- 	if (!debugfs_initialized())
-@@ -576,23 +570,6 @@ static void zs_pool_stat_destroy(struct zs_pool *pool)
- }
+@@ -1698,6 +1720,9 @@ static unsigned long __zs_compact(struct zs_pool *pool,
  
- #else /* CONFIG_ZSMALLOC_STAT */
--
--static inline void zs_stat_inc(struct size_class *class,
--				enum zs_stat_type type, unsigned long cnt)
--{
--}
--
--static inline void zs_stat_dec(struct size_class *class,
--				enum zs_stat_type type, unsigned long cnt)
--{
--}
--
--static inline unsigned long zs_stat_get(struct size_class *class,
--				enum zs_stat_type type)
--{
--	return 0;
--}
--
- static int __init zs_stat_init(void)
- {
- 	return 0;
-@@ -610,7 +587,6 @@ static inline int zs_pool_stat_create(char *name, struct zs_pool *pool)
- static inline void zs_pool_stat_destroy(struct zs_pool *pool)
- {
- }
--
- #endif
+ 		BUG_ON(!is_first_page(src_page));
  
++		if (!zs_can_compact(class))
++			break;
++
+ 		cc.index = 0;
+ 		cc.s_page = src_page;
  
 -- 
 2.5.0.rc0.3.g912bd49
