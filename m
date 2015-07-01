@@ -1,83 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 376396B0032
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 20:11:07 -0400 (EDT)
-Received: by pdcu2 with SMTP id u2so14804359pdc.3
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 17:11:06 -0700 (PDT)
-Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
-        by mx.google.com with ESMTPS id ws2si173008pab.124.2015.06.30.17.11.05
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jun 2015 17:11:05 -0700 (PDT)
-Received: by pdbci14 with SMTP id ci14so14535293pdb.2
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 17:11:05 -0700 (PDT)
-Date: Wed, 1 Jul 2015 09:11:34 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [patch 1/3] mm, oom: organize oom context into struct
-Message-ID: <20150701001134.GA654@swordfish>
-References: <alpine.DEB.2.10.1506181555350.13736@chino.kir.corp.google.com>
- <20150619001423.GA5628@swordfish>
- <alpine.DEB.2.10.1506301546270.24266@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1506301546270.24266@chino.kir.corp.google.com>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 448C06B0032
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 21:18:07 -0400 (EDT)
+Received: by pdbep18 with SMTP id ep18so15518237pdb.1
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 18:18:07 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id p5si390702par.165.2015.06.30.18.18.05
+        for <linux-mm@kvack.org>;
+        Tue, 30 Jun 2015 18:18:06 -0700 (PDT)
+From: minkyung88.kim@lge.com
+Subject: [PATCH] fix: decrease NR_FREE_PAGES when isolate page from buddy
+Date: Wed,  1 Jul 2015 10:17:58 +0900
+Message-Id: <1435713478-19646-1-git-send-email-minkyung88.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Seungho Park <seungho1.park@lge.com>, kmk3210@gmail.com, "minkyung88.kim" <minkyung88.kim@lge.com>
 
-On (06/30/15 15:46), David Rientjes wrote:
-> > > There are essential elements to an oom context that are passed around to
-> > > multiple functions.
-> > > 
-> > > Organize these elements into a new struct, struct oom_context, that
-> > > specifies the context for an oom condition.
-> > > 
-> > 
-> > s/oom_context/oom_control/ ?
-> > 
-> 
-> I think it would be confused with the existing memory.oom_control for 
-> memcg.
-> 
+From: "minkyung88.kim" <minkyung88.kim@lge.com>
 
-Hello David,
+NR_FREEPAGE should be decreased when pages are isolated from buddy.
+Therefore fix the count.
 
-Sorry, I meant that in commit message you say
+Signed-off-by: minkyung88.kim <minkyung88.kim@lge.com>
+---
+ mm/page_isolation.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
-:Organize these elements into a new struct, struct oom_context, that
-:specifies the context for an oom condition.
-
-but define and use `struct oom_control' (not `struct oom_context')
-
-[..]
-
-+       const gfp_t gfp_mask = GFP_KERNEL;
-+       struct oom_control oc = {
-+               .zonelist = node_zonelist(first_memory_node, gfp_mask),
-+               .nodemask = NULL,
-+               .gfp_mask = gfp_mask,
-+               .order = 0,
-+               .force_kill = true,
-+       };
-+
-
-[..]
-
-+struct oom_control {
-+       struct zonelist *zonelist;
-+       nodemask_t      *nodemask;
-+       gfp_t           gfp_mask;
-+       int             order;
-+       bool            force_kill;
-+};
-
-[..]
-
-etc.
-
-	-ss
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 303c908..16cc172 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -233,10 +233,14 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
+ 			 */
+ 			if (get_freepage_migratetype(page) != MIGRATE_ISOLATE) {
+ 				struct page *end_page;
++				struct zone *zone = page_zone(page);
++				int mt = get_freepage_migratetype(page);
++				unsigned long nr_pages;
+ 
+ 				end_page = page + (1 << page_order(page)) - 1;
+-				move_freepages(page_zone(page), page, end_page,
++				nr_pages = move_freepages(zone, page, end_page,
+ 						MIGRATE_ISOLATE);
++				__mod_zone_freepage_state(zone, -nr_pages, mt);
+ 			}
+ 			pfn += 1 << page_order(page);
+ 		}
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
