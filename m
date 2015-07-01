@@ -1,157 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 1845F6B006E
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 03:55:23 -0400 (EDT)
-Received: by pacws9 with SMTP id ws9so19491753pac.0
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 00:55:22 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id pr7si2048938pdb.236.2015.07.01.00.55.21
-        for <linux-mm@kvack.org>;
-        Wed, 01 Jul 2015 00:55:22 -0700 (PDT)
-Message-ID: <55939CF2.6080108@cn.fujitsu.com>
-Date: Wed, 1 Jul 2015 15:55:30 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D9A36B0032
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 04:10:29 -0400 (EDT)
+Received: by wgqq4 with SMTP id q4so29589055wgq.1
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 01:10:28 -0700 (PDT)
+Received: from pandora.arm.linux.org.uk ([2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id e7si23955124wiy.79.2015.07.01.01.10.26
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 01 Jul 2015 01:10:27 -0700 (PDT)
+Date: Wed, 1 Jul 2015 09:09:15 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
+Message-ID: <20150701080915.GJ7557@n2100.arm.linux.org.uk>
+References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com>
+ <20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com>
+ <20150622161002.GB8240@lst.de>
+ <CAPcyv4h5OXyRvZvLGD5ZknO-YUPn675YGv0XdtW1QOO9qmZsug@mail.gmail.com>
+ <20150701062352.GA3739@lst.de>
+ <CAMuHMdUO4uSWH1Qc0SfDTLuXbiG2N9fq8Tf6j+3RoqVKdPugbA@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] mem-hotplug: Handle node hole when initializing numa_meminfo.
-References: <1435720614-16480-1-git-send-email-tangchen@cn.fujitsu.com> <559387EF.5050701@huawei.com>
-In-Reply-To: <559387EF.5050701@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAMuHMdUO4uSWH1Qc0SfDTLuXbiG2N9fq8Tf6j+3RoqVKdPugbA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, dyoung@redhat.com, isimatu.yasuaki@jp.fujitsu.com, yasu.isimatu@gmail.com, lcapitulino@redhat.com, will.deacon@arm.com, tony.luck@intel.com, vladimir.murzin@arm.com, fabf@skynet.be, kuleshovmail@gmail.com, bhe@redhat.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, Linux MM <linux-mm@kvack.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Michael Ellerman <mpe@ellerman.id.au>, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
+On Wed, Jul 01, 2015 at 08:55:57AM +0200, Geert Uytterhoeven wrote:
+> On Wed, Jul 1, 2015 at 8:23 AM, Christoph Hellwig <hch@lst.de> wrote:
+> >> One useful feature of the ifdef mess as implemented in the patch is
+> >> that you could test for whether ioremap_cache() is actually
+> >> implemented or falls back to default ioremap().  I think for
+> >> completeness archs should publish an ioremap type capabilities mask
+> >> for drivers that care... (I can imagine pmem caring), or default to
+> >> being permissive if something like IOREMAP_STRICT is not set.  There's
+> >> also the wrinkle of archs that can only support certain types of
+> >> mappings at a given alignment.
+> >
+> > I think doing this at runtime might be a better idea.  E.g. a
+> > ioremap_flags with the CACHED argument will return -EOPNOTSUP unless
+> > actually implemented.  On various architectures different CPUs or
+> > boards will have different capabilities in this area.
+> 
+> So it would be the responsibility of the caller to fall back from
+> ioremap(..., CACHED) to ioremap(..., UNCACHED)?
+> I.e. all drivers using it should be changed...
 
-On 07/01/2015 02:25 PM, Xishi Qiu wrote:
-> On 2015/7/1 11:16, Tang Chen wrote:
->
->> When parsing SRAT, all memory ranges are added into numa_meminfo.
->> In numa_init(), before entering numa_cleanup_meminfo(), all possible
->> memory ranges are in numa_meminfo. And numa_cleanup_meminfo() removes
->> all ranges over max_pfn or empty.
->>
->> But, this only works if the nodes are continuous. Let's have a look
->> at the following example:
->>
->> We have an SRAT like this:
->> SRAT: Node 0 PXM 0 [mem 0x00000000-0x5fffffff]
->> SRAT: Node 0 PXM 0 [mem 0x100000000-0x1ffffffffff]
->> SRAT: Node 1 PXM 1 [mem 0x20000000000-0x3ffffffffff]
->> SRAT: Node 4 PXM 2 [mem 0x40000000000-0x5ffffffffff] hotplug
->> SRAT: Node 5 PXM 3 [mem 0x60000000000-0x7ffffffffff] hotplug
->> SRAT: Node 2 PXM 4 [mem 0x80000000000-0x9ffffffffff] hotplug
->> SRAT: Node 3 PXM 5 [mem 0xa0000000000-0xbffffffffff] hotplug
->> SRAT: Node 6 PXM 6 [mem 0xc0000000000-0xdffffffffff] hotplug
->> SRAT: Node 7 PXM 7 [mem 0xe0000000000-0xfffffffffff] hotplug
->>
->> On boot, only node 0,1,2,3 exist.
->>
->> And the numa_meminfo will look like this:
->> numa_meminfo.nr_blks = 9
->> 1. on node 0: [0, 60000000]
->> 2. on node 0: [100000000, 20000000000]
->> 3. on node 1: [20000000000, 40000000000]
->> 4. on node 4: [40000000000, 60000000000]
->> 5. on node 5: [60000000000, 80000000000]
->> 6. on node 2: [80000000000, a0000000000]
->> 7. on node 3: [a0000000000, a0800000000]
->> 8. on node 6: [c0000000000, a0800000000]
->> 9. on node 7: [e0000000000, a0800000000]
->>
->> And numa_cleanup_meminfo() will merge 1 and 2, and remove 8,9 because
->> the end address is over max_pfn, which is a0800000000. But 4 and 5
->> are not removed because their end addresses are less then max_pfn.
->> But in fact, node 4 and 5 don't exist.
->>
->> In a word, numa_cleanup_meminfo() is not able to handle holes between nodes.
->>
->> Since memory ranges in node 4 and 5 are in numa_meminfo, in numa_register_memblks(),
->> node 4 and 5 will be mistakenly set to online.
->>
->> In this patch, we use memblock_overlaps_region() to check if ranges in
->> numa_meminfo overlap with ranges in memory_block. Since memory_block contains
->> all available memory at boot time, if they overlap, it means the ranges
->> exist. If not, then remove them from numa_meminfo.
->>
-> Hi Tang Chen,
->
-> What's the impact of this problem?
->
-> Command "numactl --hard" will show an empty node(no cpu and no memory,
-> but pgdat is created), right?
+Another important point here is to define what the properties of the
+mappings are.  It's no good just saying "uncached".
 
-On my box, if I run lscpu, the output looks like this:
+We've recently been around this over the PMEM driver and the broken
+addition of ioremap_wt() on ARM...
 
-NUMA node0 CPU(s):     0-14,128-142
-NUMA node1 CPU(s):     15-29,143-157
-NUMA node2 CPU(s):
-NUMA node3 CPU(s):
-NUMA node4 CPU(s):     62-76,190-204
-NUMA node5 CPU(s):     78-92,206-220
+By "properties" I mean stuff like whether unaligned accesses permitted,
+any kind of atomic access (eg, xchg, cmpxchg, etc).
 
-Node 2 and 3 are not exist, but they are online.
+This matters: on ARM, a mapping suitable for a device does not support
+unaligned accesses or atomic accesses - only "memory-like" mappings
+support those.  However, memory-like mappings are not required to
+preserve access size, number of accesses, etc which makes them unsuitable
+for device registers.
 
-Thanks.
+The problem with ioremap_uncached() in particular is that we have LDD
+and other documentation telling people to use it to map device registers,
+so we can't define ioremap_uncached() on ARM to have memory-like
+properties, and it doesn't support unaligned accesses.
 
->
-> Thanks,
-> Xishi Qiu
->
->> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
->> ---
->>   arch/x86/mm/numa.c       | 6 ++++--
->>   include/linux/memblock.h | 2 ++
->>   mm/memblock.c            | 2 +-
->>   3 files changed, 7 insertions(+), 3 deletions(-)
->>
->> diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
->> index 4053bb5..0c55cc5 100644
->> --- a/arch/x86/mm/numa.c
->> +++ b/arch/x86/mm/numa.c
->> @@ -246,8 +246,10 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
->>   		bi->start = max(bi->start, low);
->>   		bi->end = min(bi->end, high);
->>   
->> -		/* and there's no empty block */
->> -		if (bi->start >= bi->end)
->> +		/* and there's no empty or non-exist block */
->> +		if (bi->start >= bi->end ||
->> +		    memblock_overlaps_region(&memblock.memory,
->> +			bi->start, bi->end - bi->start) == -1)
->>   			numa_remove_memblk_from(i--, mi);
->>   	}
->>   
->> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
->> index 0215ffd..3bf6cc1 100644
->> --- a/include/linux/memblock.h
->> +++ b/include/linux/memblock.h
->> @@ -77,6 +77,8 @@ int memblock_remove(phys_addr_t base, phys_addr_t size);
->>   int memblock_free(phys_addr_t base, phys_addr_t size);
->>   int memblock_reserve(phys_addr_t base, phys_addr_t size);
->>   void memblock_trim_memory(phys_addr_t align);
->> +long memblock_overlaps_region(struct memblock_type *type,
->> +			      phys_addr_t base, phys_addr_t size);
->>   int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
->>   int memblock_clear_hotplug(phys_addr_t base, phys_addr_t size);
->>   int memblock_mark_mirror(phys_addr_t base, phys_addr_t size);
->> diff --git a/mm/memblock.c b/mm/memblock.c
->> index 1b444c7..55b5f9f 100644
->> --- a/mm/memblock.c
->> +++ b/mm/memblock.c
->> @@ -91,7 +91,7 @@ static unsigned long __init_memblock memblock_addrs_overlap(phys_addr_t base1, p
->>   	return ((base1 < (base2 + size2)) && (base2 < (base1 + size1)));
->>   }
->>   
->> -static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
->> +long __init_memblock memblock_overlaps_region(struct memblock_type *type,
->>   					phys_addr_t base, phys_addr_t size)
->>   {
->>   	unsigned long i;
->
->
-> .
->
+I have a series of patches which fix up 32-bit ARM for the broken
+ioremap_wt() stuff that was merged during this merge window, which I
+intend to push out into linux-next at some point (possibly during the
+merge window, if not after -rc1) which also move ioremap*() out of line
+on ARM but more importantly, adds a load of documentation about the
+properties of the resulting mapping on ARM.
+
+-- 
+FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
