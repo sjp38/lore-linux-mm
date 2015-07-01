@@ -1,57 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AAC46B0255
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 17:29:59 -0400 (EDT)
-Received: by igblr2 with SMTP id lr2so44036260igb.0
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 14:29:59 -0700 (PDT)
-Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com. [2607:f8b0:4001:c05::232])
-        by mx.google.com with ESMTPS id x12si3833389ici.80.2015.07.01.14.29.58
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jul 2015 14:29:58 -0700 (PDT)
-Received: by igcsj18 with SMTP id sj18so145978414igc.1
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 14:29:58 -0700 (PDT)
-Date: Wed, 1 Jul 2015 14:29:57 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/3] mm, oom: organize oom context into struct
-In-Reply-To: <20150701001134.GA654@swordfish>
-Message-ID: <alpine.DEB.2.10.1507011429460.14014@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1506181555350.13736@chino.kir.corp.google.com> <20150619001423.GA5628@swordfish> <alpine.DEB.2.10.1506301546270.24266@chino.kir.corp.google.com> <20150701001134.GA654@swordfish>
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ABE06B0257
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 17:34:36 -0400 (EDT)
+Received: by wgqq4 with SMTP id q4so47409459wgq.1
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 14:34:35 -0700 (PDT)
+Received: from johanna4.inet.fi (mta-out1.inet.fi. [62.71.2.229])
+        by mx.google.com with ESMTP id og6si6170962wic.45.2015.07.01.14.34.34
+        for <linux-mm@kvack.org>;
+        Wed, 01 Jul 2015 14:34:34 -0700 (PDT)
+Date: Thu, 2 Jul 2015 00:34:30 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 05/11] mm: debug: dump page into a string rather than
+ directly on screen
+Message-ID: <20150701213430.GA21490@node.dhcp.inet.fi>
+References: <1431623414-1905-1-git-send-email-sasha.levin@oracle.com>
+ <1431623414-1905-6-git-send-email-sasha.levin@oracle.com>
+ <alpine.DEB.2.10.1506301627030.5359@chino.kir.corp.google.com>
+ <55943DC1.6010209@oracle.com>
+ <alpine.DEB.2.10.1507011422070.14014@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1507011422070.14014@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Wed, 1 Jul 2015, Sergey Senozhatsky wrote:
-
-> On (06/30/15 15:46), David Rientjes wrote:
-> > > > There are essential elements to an oom context that are passed around to
-> > > > multiple functions.
-> > > > 
-> > > > Organize these elements into a new struct, struct oom_context, that
-> > > > specifies the context for an oom condition.
-> > > > 
+On Wed, Jul 01, 2015 at 02:25:56PM -0700, David Rientjes wrote:
+> On Wed, 1 Jul 2015, Sasha Levin wrote:
+> 
+> > On 06/30/2015 07:35 PM, David Rientjes wrote:
+> > > I don't know how others feel, but this looks strange to me and seems like 
+> > > it's only a result of how we must now dump page information 
+> > > (dump_page(page) is no longer available, we must do pr_alert("%pZp", 
+> > > page)).
 > > > 
-> > > s/oom_context/oom_control/ ?
+> > > Since we're relying on print formats, this would arguably be better as
 > > > 
+> > > 	pr_alert("Not movable balloon page:\n");
+> > > 	pr_alert("%pZp", page);
+> > > 
+> > > to avoid introducing newlines into potentially lengthy messages that need 
+> > > a specified loglevel like you've done above.
+> > > 
+> > > But that's not much different than the existing dump_page() 
+> > > implementation.
+> > > 
+> > > So for this to be worth it, it seems like we'd need a compelling usecase 
+> > > for something like pr_alert("%pZp %pZv", page, vma) and I'm not sure we're 
+> > > ever actually going to see that.  I would argue that
+> > > 
+> > > 	dump_page(page);
+> > > 	dump_vma(vma);
+> > > 
+> > > would be simpler in such circumstances.
 > > 
-> > I think it would be confused with the existing memory.oom_control for 
-> > memcg.
+> > I think we can find usecases where we want to dump more information than what's
+> > contained in just one page/vma/mm struct. Things like the following from mm/gup.c:
+> > 
+> > 	VM_BUG_ON_PAGE(compound_head(page) != head, page);
+> > 
+> > Where seeing 'head' would be interesting as well.
 > > 
 > 
-> Hello David,
+> I think it's a debate about whether this would be better off handled as
 > 
-> Sorry, I meant that in commit message you say
-> 
-> :Organize these elements into a new struct, struct oom_context, that
-> :specifies the context for an oom condition.
-> 
-> but define and use `struct oom_control' (not `struct oom_context')
-> 
+> 	if (VM_BUG_ON(compound_head(page) != head)) {
+> 		dump_page(page);
+> 		dump_page(head);
 
-Oh, point very well taken, thank you.
+Huh? How would we reach this, if VM_BUG_ON() will trigger BUG()?
+
+> 	}
+> 
+> and avoid VM_BUG_ON_PAGE() and the new print formats entirely.  We can 
+> improve upon existing VM_BUG_ON(), and BUG_ON() itself since the VM isn't 
+> anything special in this regard, to print diagnostic information that may 
+> be helpful, but I don't feel like adding special VM_BUG_ON_*() macros or 
+> printing formats makes any of this simpler.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
