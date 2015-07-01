@@ -1,83 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D9A36B0032
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 04:10:29 -0400 (EDT)
-Received: by wgqq4 with SMTP id q4so29589055wgq.1
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 01:10:28 -0700 (PDT)
-Received: from pandora.arm.linux.org.uk ([2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id e7si23955124wiy.79.2015.07.01.01.10.26
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C0F46B0032
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 04:15:35 -0400 (EDT)
+Received: by wgqq4 with SMTP id q4so29702019wgq.1
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 01:15:35 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id pj2si2076642wjb.37.2015.07.01.01.15.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 01 Jul 2015 01:10:27 -0700 (PDT)
-Date: Wed, 1 Jul 2015 09:09:15 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
-Message-ID: <20150701080915.GJ7557@n2100.arm.linux.org.uk>
-References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com>
- <20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com>
- <20150622161002.GB8240@lst.de>
- <CAPcyv4h5OXyRvZvLGD5ZknO-YUPn675YGv0XdtW1QOO9qmZsug@mail.gmail.com>
- <20150701062352.GA3739@lst.de>
- <CAMuHMdUO4uSWH1Qc0SfDTLuXbiG2N9fq8Tf6j+3RoqVKdPugbA@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 01 Jul 2015 01:15:34 -0700 (PDT)
+Date: Wed, 1 Jul 2015 10:15:28 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 41/51] writeback: make wakeup_flusher_threads() handle
+ multiple bdi_writeback's
+Message-ID: <20150701081528.GB7252@quack.suse.cz>
+References: <1432329245-5844-1-git-send-email-tj@kernel.org>
+ <1432329245-5844-42-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAMuHMdUO4uSWH1Qc0SfDTLuXbiG2N9fq8Tf6j+3RoqVKdPugbA@mail.gmail.com>
+In-Reply-To: <1432329245-5844-42-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, Linux MM <linux-mm@kvack.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Michael Ellerman <mpe@ellerman.id.au>, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
 
-On Wed, Jul 01, 2015 at 08:55:57AM +0200, Geert Uytterhoeven wrote:
-> On Wed, Jul 1, 2015 at 8:23 AM, Christoph Hellwig <hch@lst.de> wrote:
-> >> One useful feature of the ifdef mess as implemented in the patch is
-> >> that you could test for whether ioremap_cache() is actually
-> >> implemented or falls back to default ioremap().  I think for
-> >> completeness archs should publish an ioremap type capabilities mask
-> >> for drivers that care... (I can imagine pmem caring), or default to
-> >> being permissive if something like IOREMAP_STRICT is not set.  There's
-> >> also the wrinkle of archs that can only support certain types of
-> >> mappings at a given alignment.
-> >
-> > I think doing this at runtime might be a better idea.  E.g. a
-> > ioremap_flags with the CACHED argument will return -EOPNOTSUP unless
-> > actually implemented.  On various architectures different CPUs or
-> > boards will have different capabilities in this area.
+On Fri 22-05-15 17:13:55, Tejun Heo wrote:
+> wakeup_flusher_threads() currently only starts writeback on the root
+> wb (bdi_writeback).  For cgroup writeback support, update the function
+> to wake up all wbs and distribute the number of pages to write
+> according to the proportion of each wb's write bandwidth, which is
+> implemented in wb_split_bdi_pages().
 > 
-> So it would be the responsibility of the caller to fall back from
-> ioremap(..., CACHED) to ioremap(..., UNCACHED)?
-> I.e. all drivers using it should be changed...
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Cc: Jens Axboe <axboe@kernel.dk>
+> Cc: Jan Kara <jack@suse.cz>
 
-Another important point here is to define what the properties of the
-mappings are.  It's no good just saying "uncached".
+I was looking at who uses wakeup_flusher_threads(). There are two usecases:
 
-We've recently been around this over the PMEM driver and the broken
-addition of ioremap_wt() on ARM...
+1) sync() - we want to writeback everything
+2) We want to relieve memory pressure by cleaning and subsequently
+   reclaiming pages.
 
-By "properties" I mean stuff like whether unaligned accesses permitted,
-any kind of atomic access (eg, xchg, cmpxchg, etc).
+Neither of these cares about number of pages too much if you write enough.
+So similarly as we don't split the passed nr_pages argument among bdis, I
+wouldn't split the nr_pages among wbs. Just pass the nr_pages to each wb
+and be done with that...
 
-This matters: on ARM, a mapping suitable for a device does not support
-unaligned accesses or atomic accesses - only "memory-like" mappings
-support those.  However, memory-like mappings are not required to
-preserve access size, number of accesses, etc which makes them unsuitable
-for device registers.
+								Honza
 
-The problem with ioremap_uncached() in particular is that we have LDD
-and other documentation telling people to use it to map device registers,
-so we can't define ioremap_uncached() on ARM to have memory-like
-properties, and it doesn't support unaligned accesses.
-
-I have a series of patches which fix up 32-bit ARM for the broken
-ioremap_wt() stuff that was merged during this merge window, which I
-intend to push out into linux-next at some point (possibly during the
-merge window, if not after -rc1) which also move ioremap*() out of line
-on ARM but more importantly, adds a load of documentation about the
-properties of the resulting mapping on ARM.
-
+> ---
+>  fs/fs-writeback.c | 48 ++++++++++++++++++++++++++++++++++++++++++++++--
+>  1 file changed, 46 insertions(+), 2 deletions(-)
+> 
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index 92aaf64..508e10c 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -198,6 +198,41 @@ int inode_congested(struct inode *inode, int cong_bits)
+>  }
+>  EXPORT_SYMBOL_GPL(inode_congested);
+>  
+> +/**
+> + * wb_split_bdi_pages - split nr_pages to write according to bandwidth
+> + * @wb: target bdi_writeback to split @nr_pages to
+> + * @nr_pages: number of pages to write for the whole bdi
+> + *
+> + * Split @wb's portion of @nr_pages according to @wb's write bandwidth in
+> + * relation to the total write bandwidth of all wb's w/ dirty inodes on
+> + * @wb->bdi.
+> + */
+> +static long wb_split_bdi_pages(struct bdi_writeback *wb, long nr_pages)
+> +{
+> +	unsigned long this_bw = wb->avg_write_bandwidth;
+> +	unsigned long tot_bw = atomic_long_read(&wb->bdi->tot_write_bandwidth);
+> +
+> +	if (nr_pages == LONG_MAX)
+> +		return LONG_MAX;
+> +
+> +	/*
+> +	 * This may be called on clean wb's and proportional distribution
+> +	 * may not make sense, just use the original @nr_pages in those
+> +	 * cases.  In general, we wanna err on the side of writing more.
+> +	 */
+> +	if (!tot_bw || this_bw >= tot_bw)
+> +		return nr_pages;
+> +	else
+> +		return DIV_ROUND_UP_ULL((u64)nr_pages * this_bw, tot_bw);
+> +}
+> +
+> +#else	/* CONFIG_CGROUP_WRITEBACK */
+> +
+> +static long wb_split_bdi_pages(struct bdi_writeback *wb, long nr_pages)
+> +{
+> +	return nr_pages;
+> +}
+> +
+>  #endif	/* CONFIG_CGROUP_WRITEBACK */
+>  
+>  void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
+> @@ -1187,8 +1222,17 @@ void wakeup_flusher_threads(long nr_pages, enum wb_reason reason)
+>  		nr_pages = get_nr_dirty_pages();
+>  
+>  	rcu_read_lock();
+> -	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list)
+> -		wb_start_writeback(&bdi->wb, nr_pages, false, reason);
+> +	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
+> +		struct bdi_writeback *wb;
+> +		struct wb_iter iter;
+> +
+> +		if (!bdi_has_dirty_io(bdi))
+> +			continue;
+> +
+> +		bdi_for_each_wb(wb, bdi, &iter, 0)
+> +			wb_start_writeback(wb, wb_split_bdi_pages(wb, nr_pages),
+> +					   false, reason);
+> +	}
+>  	rcu_read_unlock();
+>  }
+>  
+> -- 
+> 2.4.0
+> 
 -- 
-FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
-according to speedtest.net.
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
