@@ -1,46 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 743EC6B006E
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 19:49:28 -0400 (EDT)
-Received: by igrv9 with SMTP id v9so23697513igr.1
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 16:49:27 -0700 (PDT)
-Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com. [2607:f8b0:4001:c03::234])
-        by mx.google.com with ESMTPS id zx8si47061igc.15.2015.06.30.16.49.27
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 376396B0032
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 20:11:07 -0400 (EDT)
+Received: by pdcu2 with SMTP id u2so14804359pdc.3
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 17:11:06 -0700 (PDT)
+Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
+        by mx.google.com with ESMTPS id ws2si173008pab.124.2015.06.30.17.11.05
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jun 2015 16:49:27 -0700 (PDT)
-Received: by ieqy10 with SMTP id y10so23703543ieq.0
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 16:49:27 -0700 (PDT)
-Date: Tue, 30 Jun 2015 16:49:25 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC V3] net: don't wait for order-3 page allocation
-In-Reply-To: <20150618154716.GH5858@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1506301646500.5359@chino.kir.corp.google.com>
-References: <0099265406c32b9b9057de100404a4148d602cdd.1434066549.git.shli@fb.com> <557AA834.8070503@suse.cz> <alpine.DEB.2.10.1506171602300.8203@chino.kir.corp.google.com> <20150618143019.GE5858@dhcp22.suse.cz> <CANn89iLr2iNV3VjA4POPpfsmOpyB7jP2-wPiAkCOcA+Oh+2=5A@mail.gmail.com>
- <20150618144311.GF5858@dhcp22.suse.cz> <5582E240.8080704@suse.cz> <20150618154716.GH5858@dhcp22.suse.cz>
+        Tue, 30 Jun 2015 17:11:05 -0700 (PDT)
+Received: by pdbci14 with SMTP id ci14so14535293pdb.2
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 17:11:05 -0700 (PDT)
+Date: Wed, 1 Jul 2015 09:11:34 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [patch 1/3] mm, oom: organize oom context into struct
+Message-ID: <20150701001134.GA654@swordfish>
+References: <alpine.DEB.2.10.1506181555350.13736@chino.kir.corp.google.com>
+ <20150619001423.GA5628@swordfish>
+ <alpine.DEB.2.10.1506301546270.24266@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1506301546270.24266@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Eric Dumazet <edumazet@google.com>, Shaohua Li <shli@fb.com>, netdev <netdev@vger.kernel.org>, David Miller <davem@davemloft.net>, kernel-team <Kernel-team@fb.com>, clm@fb.com, linux-mm@kvack.org, dbavatar@gmail.com
+To: David Rientjes <rientjes@google.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 18 Jun 2015, Michal Hocko wrote:
-
-> That is to be discussed. Most allocations already express their interest
-> in memory reserves by __GFP_HIGH directly or by GFP_ATOMIC indirectly.
-> So maybe we do not need any additional flag here. There are not that
-> many ~__GFP_WAIT and most of them seem to require it _only_ because the
-> context doesn't allow for sleeping (e.g. to prevent from deadlocks).
+On (06/30/15 15:46), David Rientjes wrote:
+> > > There are essential elements to an oom context that are passed around to
+> > > multiple functions.
+> > > 
+> > > Organize these elements into a new struct, struct oom_context, that
+> > > specifies the context for an oom condition.
+> > > 
+> > 
+> > s/oom_context/oom_control/ ?
+> > 
+> 
+> I think it would be confused with the existing memory.oom_control for 
+> memcg.
 > 
 
-We're talking about a patch that is being backported to stable.  
-Regardless of what improvements can be made to specify that an allocation 
-shouldn't be able to access reserves (and what belongs solely in the page 
-allocator proper) independent of __GFP_NO_KSWAPD, that can be cleaned up 
-at a later time.  I don't anticipate that cleanup to be backported to 
-stable, and my primary concern here is the ability for this allocations to 
-now access, and possibly deplete, memory reserves.
+Hello David,
+
+Sorry, I meant that in commit message you say
+
+:Organize these elements into a new struct, struct oom_context, that
+:specifies the context for an oom condition.
+
+but define and use `struct oom_control' (not `struct oom_context')
+
+[..]
+
++       const gfp_t gfp_mask = GFP_KERNEL;
++       struct oom_control oc = {
++               .zonelist = node_zonelist(first_memory_node, gfp_mask),
++               .nodemask = NULL,
++               .gfp_mask = gfp_mask,
++               .order = 0,
++               .force_kill = true,
++       };
++
+
+[..]
+
++struct oom_control {
++       struct zonelist *zonelist;
++       nodemask_t      *nodemask;
++       gfp_t           gfp_mask;
++       int             order;
++       bool            force_kill;
++};
+
+[..]
+
+etc.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
