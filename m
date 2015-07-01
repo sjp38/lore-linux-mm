@@ -1,91 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F2D26B0032
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 12:47:35 -0400 (EDT)
-Received: by widjy10 with SMTP id jy10so62974624wid.1
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 09:47:34 -0700 (PDT)
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
-        by mx.google.com with ESMTPS id hf9si26287836wib.39.2015.07.01.09.47.32
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id EA3F86B0032
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 13:45:20 -0400 (EDT)
+Received: by igblr2 with SMTP id lr2so103056403igb.0
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 10:45:20 -0700 (PDT)
+Received: from mail-ie0-x231.google.com (mail-ie0-x231.google.com. [2607:f8b0:4001:c03::231])
+        by mx.google.com with ESMTPS id lg1si3282713icc.64.2015.07.01.10.45.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jul 2015 09:47:32 -0700 (PDT)
-Received: by widjy10 with SMTP id jy10so62973657wid.1
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 09:47:31 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150701080915.GJ7557@n2100.arm.linux.org.uk>
-References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com>
-	<20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com>
-	<20150622161002.GB8240@lst.de>
-	<CAPcyv4h5OXyRvZvLGD5ZknO-YUPn675YGv0XdtW1QOO9qmZsug@mail.gmail.com>
-	<20150701062352.GA3739@lst.de>
-	<CAMuHMdUO4uSWH1Qc0SfDTLuXbiG2N9fq8Tf6j+3RoqVKdPugbA@mail.gmail.com>
-	<20150701080915.GJ7557@n2100.arm.linux.org.uk>
-Date: Wed, 1 Jul 2015 09:47:31 -0700
-Message-ID: <CAPcyv4iaf77KMffTseMbYEcK_BJTpGsY=PmeJyDGR9N2yBAKVg@mail.gmail.com>
-Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+        Wed, 01 Jul 2015 10:45:20 -0700 (PDT)
+Received: by iecuq6 with SMTP id uq6so39778567iec.2
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 10:45:20 -0700 (PDT)
+From: Nicholas Krause <xerofoify@gmail.com>
+Subject: [PATCH] mm:Make the function set_recommended_min_free_kbytes have a return type of void
+Date: Wed,  1 Jul 2015 13:45:15 -0400
+Message-Id: <1435772715-9534-1-git-send-email-xerofoify@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Christoph Hellwig <hch@lst.de>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, Linux MM <linux-mm@kvack.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Michael Ellerman <mpe@ellerman.id.au>, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: akpm@linux-foundation.org
+Cc: kirill.shutemov@linux.intel.com, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, ebru.akagunduz@gmail.com, hannes@cmpxchg.org, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 1, 2015 at 1:09 AM, Russell King - ARM Linux
-<linux@arm.linux.org.uk> wrote:
-> On Wed, Jul 01, 2015 at 08:55:57AM +0200, Geert Uytterhoeven wrote:
->> On Wed, Jul 1, 2015 at 8:23 AM, Christoph Hellwig <hch@lst.de> wrote:
->> >> One useful feature of the ifdef mess as implemented in the patch is
->> >> that you could test for whether ioremap_cache() is actually
->> >> implemented or falls back to default ioremap().  I think for
->> >> completeness archs should publish an ioremap type capabilities mask
->> >> for drivers that care... (I can imagine pmem caring), or default to
->> >> being permissive if something like IOREMAP_STRICT is not set.  There's
->> >> also the wrinkle of archs that can only support certain types of
->> >> mappings at a given alignment.
->> >
->> > I think doing this at runtime might be a better idea.  E.g. a
->> > ioremap_flags with the CACHED argument will return -EOPNOTSUP unless
->> > actually implemented.  On various architectures different CPUs or
->> > boards will have different capabilities in this area.
->>
->> So it would be the responsibility of the caller to fall back from
->> ioremap(..., CACHED) to ioremap(..., UNCACHED)?
->> I.e. all drivers using it should be changed...
->
-> Another important point here is to define what the properties of the
-> mappings are.  It's no good just saying "uncached".
->
-> We've recently been around this over the PMEM driver and the broken
-> addition of ioremap_wt() on ARM...
->
-> By "properties" I mean stuff like whether unaligned accesses permitted,
-> any kind of atomic access (eg, xchg, cmpxchg, etc).
->
-> This matters: on ARM, a mapping suitable for a device does not support
-> unaligned accesses or atomic accesses - only "memory-like" mappings
-> support those.  However, memory-like mappings are not required to
-> preserve access size, number of accesses, etc which makes them unsuitable
-> for device registers.
+This makes the function set_recommended_min_free_kbytes have a
+return type of void now due to this particular function never
+needing to signal it's call if it fails due to this function
+always completing successfully without issue.
 
-I'm proposing that we explicitly switch "memory-like" use cases over
-to a separate set of "memremap()" apis, as these are no longer
-"__iomem" [1].
+Signed-off-by: Nicholas Krause <xerofoify@gmail.com>
+---
+ mm/huge_memory.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-> The problem with ioremap_uncached() in particular is that we have LDD
-> and other documentation telling people to use it to map device registers,
-> so we can't define ioremap_uncached() on ARM to have memory-like
-> properties, and it doesn't support unaligned accesses.
->
-> I have a series of patches which fix up 32-bit ARM for the broken
-> ioremap_wt() stuff that was merged during this merge window, which I
-> intend to push out into linux-next at some point (possibly during the
-> merge window, if not after -rc1) which also move ioremap*() out of line
-> on ARM but more importantly, adds a load of documentation about the
-> properties of the resulting mapping on ARM.
-
-Sounds good, I'll look for that before proceeding on this clean up.
-
-[1]: https://lists.01.org/pipermail/linux-nvdimm/2015-June/001331.html
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index c107094..914a72a 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -104,7 +104,7 @@ static struct khugepaged_scan khugepaged_scan = {
+ };
+ 
+ 
+-static int set_recommended_min_free_kbytes(void)
++static void set_recommended_min_free_kbytes(void)
+ {
+ 	struct zone *zone;
+ 	int nr_zones = 0;
+@@ -139,7 +139,6 @@ static int set_recommended_min_free_kbytes(void)
+ 		min_free_kbytes = recommended_min;
+ 	}
+ 	setup_per_zone_wmarks();
+-	return 0;
+ }
+ 
+ static int start_stop_khugepaged(void)
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
