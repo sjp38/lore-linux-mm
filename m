@@ -1,71 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DD2B6B0032
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 02:17:36 -0400 (EDT)
-Received: by widjy10 with SMTP id jy10so48043521wid.1
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 23:17:35 -0700 (PDT)
-Received: from mail-wg0-x236.google.com (mail-wg0-x236.google.com. [2a00:1450:400c:c00::236])
-        by mx.google.com with ESMTPS id by10si1515551wjb.148.2015.06.30.23.17.34
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 099D76B006C
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 02:24:06 -0400 (EDT)
+Received: by widjy10 with SMTP id jy10so48153540wid.1
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 23:24:05 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id ep10si1579582wjd.66.2015.06.30.23.24.03
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jun 2015 23:17:34 -0700 (PDT)
-Received: by wgqq4 with SMTP id q4so27278392wgq.1
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 23:17:33 -0700 (PDT)
-Date: Wed, 1 Jul 2015 08:17:31 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm, vmscan: Do not wait for page writeback for GFP_NOFS
- allocations
-Message-ID: <20150701061731.GB6286@dhcp22.suse.cz>
-References: <1435677437-16717-1-git-send-email-mhocko@suse.cz>
+        Tue, 30 Jun 2015 23:24:04 -0700 (PDT)
+Date: Wed, 1 Jul 2015 08:23:52 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
+Message-ID: <20150701062352.GA3739@lst.de>
+References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com> <20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com> <20150622161002.GB8240@lst.de> <CAPcyv4h5OXyRvZvLGD5ZknO-YUPn675YGv0XdtW1QOO9qmZsug@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1435677437-16717-1-git-send-email-mhocko@suse.cz>
+In-Reply-To: <CAPcyv4h5OXyRvZvLGD5ZknO-YUPn675YGv0XdtW1QOO9qmZsug@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nikolay Borisov <kernel@kyup.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Marian Marinov <mm@1h.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-ext4@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@lst.de>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, Geert Uytterhoeven <geert@linux-m68k.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, mpe@ellerman.id.au, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Tue 30-06-15 17:17:17, Michal Hocko wrote:
-[...]
-> Hi,
-> the issue has been reported http://marc.info/?l=linux-kernel&m=143522730927480.
-> This obviously requires a patch ot make ext4_ext_grow_indepth call
-> sb_getblk with the GFP_NOFS mask but that one makes sense on its own
-> and Ted has mentioned he will push it. I haven't marked the patch for
-> stable yet. This is the first time the issue has been reported and
-> ext4 writeout code has changed considerably in 3.11 and I am not sure
-> the issue was present before. e62e384e9da8 which has introduced the
-> wait_on_page_writeback has been merged in 3.6 which is quite some time
-> ago. If we go with stable I would suggest marking it for 3.11+ and it
-> should obviously go with the ext4_ext_grow_indepth fix.
+On Tue, Jun 30, 2015 at 03:57:16PM -0700, Dan Williams wrote:
+> > void __iomem *ioremap_flags(resource_size_t offset, unsigned long size,
+> >                         unsigned long prot_val, unsigned flags);
+> 
+> Doesn't 'flags' imply a specific 'prot_val'?
 
-After Dave's additional explanation
-(http://marc.info/?l=linux-ext4&m=143570521212215) it is clear that the
-lack of __GFP_FS check was wrong from the very beginning. XFS is doing
-the similar thing from before the e62e384e9da8 was merged. I guess we
-were just lucky not to hit this problem sooner.
+Looks like the values are arch specific.  So as a first step I'd like
+to keep them separate.  As a second step we could look into unifying
+the actual ioremap implementations which look mostly the same.  Once
+that is done we could look into collapsing the flags and prot_val
+arguments.
 
-That being said I think the patch should be marked for stable and the
-changelog updated:
+> One useful feature of the ifdef mess as implemented in the patch is
+> that you could test for whether ioremap_cache() is actually
+> implemented or falls back to default ioremap().  I think for
+> completeness archs should publish an ioremap type capabilities mask
+> for drivers that care... (I can imagine pmem caring), or default to
+> being permissive if something like IOREMAP_STRICT is not set.  There's
+> also the wrinkle of archs that can only support certain types of
+> mappings at a given alignment.
 
-As per David Chinner the xfs is doing similar thing since 2.6.15 already
-so ext4 is not the only affected filesystem. Moreover he notes:
-: For example: IO completion might require unwritten extent conversion
-: which executes filesystem transactions and GFP_NOFS allocations. The
-: writeback flag on the pages can not be cleared until unwritten
-: extent conversion completes. Hence memory reclaim cannot wait on
-: page writeback to complete in GFP_NOFS context because it is not
-: safe to do so, memcg reclaim or otherwise.
-
-Cc: stable # 3.6+
-Fixes: e62e384e9da8 ("memcg: prevent OOM with too many dirty pages")
-
-Andrew let me know whether I should repost the patch with the updated
-changelog or you can take it from here.
--- 
-Michal Hocko
-SUSE Labs
+I think doing this at runtime might be a better idea.  E.g. a
+ioremap_flags with the CACHED argument will return -EOPNOTSUP unless
+actually implemented.  On various architectures different CPUs or
+boards will have different capabilities in this area.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
