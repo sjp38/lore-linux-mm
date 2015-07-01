@@ -1,130 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B4216B006E
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 03:50:16 -0400 (EDT)
-Received: by wibdq8 with SMTP id dq8so37100059wib.1
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 00:50:14 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ht6si2568230wib.102.2015.07.01.00.50.12
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 01 Jul 2015 00:50:13 -0700 (PDT)
-Date: Wed, 1 Jul 2015 09:50:09 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 40/51] writeback: make bdi_start_background_writeback()
- take bdi_writeback instead of backing_dev_info
-Message-ID: <20150701075009.GA7252@quack.suse.cz>
-References: <1432329245-5844-1-git-send-email-tj@kernel.org>
- <1432329245-5844-41-git-send-email-tj@kernel.org>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 1845F6B006E
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 03:55:23 -0400 (EDT)
+Received: by pacws9 with SMTP id ws9so19491753pac.0
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 00:55:22 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id pr7si2048938pdb.236.2015.07.01.00.55.21
+        for <linux-mm@kvack.org>;
+        Wed, 01 Jul 2015 00:55:22 -0700 (PDT)
+Message-ID: <55939CF2.6080108@cn.fujitsu.com>
+Date: Wed, 1 Jul 2015 15:55:30 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1432329245-5844-41-git-send-email-tj@kernel.org>
+Subject: Re: [PATCH 1/1] mem-hotplug: Handle node hole when initializing numa_meminfo.
+References: <1435720614-16480-1-git-send-email-tangchen@cn.fujitsu.com> <559387EF.5050701@huawei.com>
+In-Reply-To: <559387EF.5050701@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, dyoung@redhat.com, isimatu.yasuaki@jp.fujitsu.com, yasu.isimatu@gmail.com, lcapitulino@redhat.com, will.deacon@arm.com, tony.luck@intel.com, vladimir.murzin@arm.com, fabf@skynet.be, kuleshovmail@gmail.com, bhe@redhat.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 22-05-15 17:13:54, Tejun Heo wrote:
-> bdi_start_background_writeback() currently takes @bdi and kicks the
-> root wb (bdi_writeback).  In preparation for cgroup writeback support,
-> make it take wb instead.
-> 
-> This patch doesn't make any functional difference.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> Cc: Jens Axboe <axboe@kernel.dk>
-> Cc: Jan Kara <jack@suse.cz>
-> ---
->  fs/fs-writeback.c           | 12 ++++++------
->  include/linux/backing-dev.h |  2 +-
->  mm/page-writeback.c         |  4 ++--
->  3 files changed, 9 insertions(+), 9 deletions(-)
-> 
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index 45baf6c..92aaf64 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -228,23 +228,23 @@ void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
->  }
->  
->  /**
-> - * bdi_start_background_writeback - start background writeback
-> - * @bdi: the backing device to write from
-> + * wb_start_background_writeback - start background writeback
-> + * @wb: bdi_writback to write from
->   *
->   * Description:
->   *   This makes sure WB_SYNC_NONE background writeback happens. When
-> - *   this function returns, it is only guaranteed that for given BDI
-> + *   this function returns, it is only guaranteed that for given wb
->   *   some IO is happening if we are over background dirty threshold.
->   *   Caller need not hold sb s_umount semaphore.
->   */
-> -void bdi_start_background_writeback(struct backing_dev_info *bdi)
-> +void wb_start_background_writeback(struct bdi_writeback *wb)
->  {
->  	/*
->  	 * We just wake up the flusher thread. It will perform background
->  	 * writeback as soon as there is no other work to do.
->  	 */
-> -	trace_writeback_wake_background(bdi);
-> -	wb_wakeup(&bdi->wb);
-> +	trace_writeback_wake_background(wb->bdi);
-> +	wb_wakeup(wb);
 
-Can we add a memcg id of the wb to the tracepoint please? Because just bdi
-needn't be enough when debugging stuff...
+On 07/01/2015 02:25 PM, Xishi Qiu wrote:
+> On 2015/7/1 11:16, Tang Chen wrote:
+>
+>> When parsing SRAT, all memory ranges are added into numa_meminfo.
+>> In numa_init(), before entering numa_cleanup_meminfo(), all possible
+>> memory ranges are in numa_meminfo. And numa_cleanup_meminfo() removes
+>> all ranges over max_pfn or empty.
+>>
+>> But, this only works if the nodes are continuous. Let's have a look
+>> at the following example:
+>>
+>> We have an SRAT like this:
+>> SRAT: Node 0 PXM 0 [mem 0x00000000-0x5fffffff]
+>> SRAT: Node 0 PXM 0 [mem 0x100000000-0x1ffffffffff]
+>> SRAT: Node 1 PXM 1 [mem 0x20000000000-0x3ffffffffff]
+>> SRAT: Node 4 PXM 2 [mem 0x40000000000-0x5ffffffffff] hotplug
+>> SRAT: Node 5 PXM 3 [mem 0x60000000000-0x7ffffffffff] hotplug
+>> SRAT: Node 2 PXM 4 [mem 0x80000000000-0x9ffffffffff] hotplug
+>> SRAT: Node 3 PXM 5 [mem 0xa0000000000-0xbffffffffff] hotplug
+>> SRAT: Node 6 PXM 6 [mem 0xc0000000000-0xdffffffffff] hotplug
+>> SRAT: Node 7 PXM 7 [mem 0xe0000000000-0xfffffffffff] hotplug
+>>
+>> On boot, only node 0,1,2,3 exist.
+>>
+>> And the numa_meminfo will look like this:
+>> numa_meminfo.nr_blks = 9
+>> 1. on node 0: [0, 60000000]
+>> 2. on node 0: [100000000, 20000000000]
+>> 3. on node 1: [20000000000, 40000000000]
+>> 4. on node 4: [40000000000, 60000000000]
+>> 5. on node 5: [60000000000, 80000000000]
+>> 6. on node 2: [80000000000, a0000000000]
+>> 7. on node 3: [a0000000000, a0800000000]
+>> 8. on node 6: [c0000000000, a0800000000]
+>> 9. on node 7: [e0000000000, a0800000000]
+>>
+>> And numa_cleanup_meminfo() will merge 1 and 2, and remove 8,9 because
+>> the end address is over max_pfn, which is a0800000000. But 4 and 5
+>> are not removed because their end addresses are less then max_pfn.
+>> But in fact, node 4 and 5 don't exist.
+>>
+>> In a word, numa_cleanup_meminfo() is not able to handle holes between nodes.
+>>
+>> Since memory ranges in node 4 and 5 are in numa_meminfo, in numa_register_memblks(),
+>> node 4 and 5 will be mistakenly set to online.
+>>
+>> In this patch, we use memblock_overlaps_region() to check if ranges in
+>> numa_meminfo overlap with ranges in memory_block. Since memory_block contains
+>> all available memory at boot time, if they overlap, it means the ranges
+>> exist. If not, then remove them from numa_meminfo.
+>>
+> Hi Tang Chen,
+>
+> What's the impact of this problem?
+>
+> Command "numactl --hard" will show an empty node(no cpu and no memory,
+> but pgdat is created), right?
 
-Otherwise the patch looks good. You can add:
+On my box, if I run lscpu, the output looks like this:
 
-Reviewed-by: Jan Kara <jack@suse.com>
+NUMA node0 CPU(s):     0-14,128-142
+NUMA node1 CPU(s):     15-29,143-157
+NUMA node2 CPU(s):
+NUMA node3 CPU(s):
+NUMA node4 CPU(s):     62-76,190-204
+NUMA node5 CPU(s):     78-92,206-220
 
-								Honza
->  }
->  
->  /*
-> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-> index f04956c..9cc11e5 100644
-> --- a/include/linux/backing-dev.h
-> +++ b/include/linux/backing-dev.h
-> @@ -27,7 +27,7 @@ void bdi_unregister(struct backing_dev_info *bdi);
->  int __must_check bdi_setup_and_register(struct backing_dev_info *, char *);
->  void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
->  			bool range_cyclic, enum wb_reason reason);
-> -void bdi_start_background_writeback(struct backing_dev_info *bdi);
-> +void wb_start_background_writeback(struct bdi_writeback *wb);
->  void wb_workfn(struct work_struct *work);
->  void wb_wakeup_delayed(struct bdi_writeback *wb);
->  
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index e3b5c1d..70cf98d 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -1456,7 +1456,7 @@ static void balance_dirty_pages(struct address_space *mapping,
->  		}
->  
->  		if (unlikely(!writeback_in_progress(wb)))
-> -			bdi_start_background_writeback(bdi);
-> +			wb_start_background_writeback(wb);
->  
->  		if (!strictlimit)
->  			wb_dirty_limits(wb, dirty_thresh, background_thresh,
-> @@ -1588,7 +1588,7 @@ static void balance_dirty_pages(struct address_space *mapping,
->  		return;
->  
->  	if (nr_reclaimable > background_thresh)
-> -		bdi_start_background_writeback(bdi);
-> +		wb_start_background_writeback(wb);
->  }
->  
->  static DEFINE_PER_CPU(int, bdp_ratelimits);
-> -- 
-> 2.4.0
-> 
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Node 2 and 3 are not exist, but they are online.
+
+Thanks.
+
+>
+> Thanks,
+> Xishi Qiu
+>
+>> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+>> ---
+>>   arch/x86/mm/numa.c       | 6 ++++--
+>>   include/linux/memblock.h | 2 ++
+>>   mm/memblock.c            | 2 +-
+>>   3 files changed, 7 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+>> index 4053bb5..0c55cc5 100644
+>> --- a/arch/x86/mm/numa.c
+>> +++ b/arch/x86/mm/numa.c
+>> @@ -246,8 +246,10 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
+>>   		bi->start = max(bi->start, low);
+>>   		bi->end = min(bi->end, high);
+>>   
+>> -		/* and there's no empty block */
+>> -		if (bi->start >= bi->end)
+>> +		/* and there's no empty or non-exist block */
+>> +		if (bi->start >= bi->end ||
+>> +		    memblock_overlaps_region(&memblock.memory,
+>> +			bi->start, bi->end - bi->start) == -1)
+>>   			numa_remove_memblk_from(i--, mi);
+>>   	}
+>>   
+>> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+>> index 0215ffd..3bf6cc1 100644
+>> --- a/include/linux/memblock.h
+>> +++ b/include/linux/memblock.h
+>> @@ -77,6 +77,8 @@ int memblock_remove(phys_addr_t base, phys_addr_t size);
+>>   int memblock_free(phys_addr_t base, phys_addr_t size);
+>>   int memblock_reserve(phys_addr_t base, phys_addr_t size);
+>>   void memblock_trim_memory(phys_addr_t align);
+>> +long memblock_overlaps_region(struct memblock_type *type,
+>> +			      phys_addr_t base, phys_addr_t size);
+>>   int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
+>>   int memblock_clear_hotplug(phys_addr_t base, phys_addr_t size);
+>>   int memblock_mark_mirror(phys_addr_t base, phys_addr_t size);
+>> diff --git a/mm/memblock.c b/mm/memblock.c
+>> index 1b444c7..55b5f9f 100644
+>> --- a/mm/memblock.c
+>> +++ b/mm/memblock.c
+>> @@ -91,7 +91,7 @@ static unsigned long __init_memblock memblock_addrs_overlap(phys_addr_t base1, p
+>>   	return ((base1 < (base2 + size2)) && (base2 < (base1 + size1)));
+>>   }
+>>   
+>> -static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
+>> +long __init_memblock memblock_overlaps_region(struct memblock_type *type,
+>>   					phys_addr_t base, phys_addr_t size)
+>>   {
+>>   	unsigned long i;
+>
+>
+> .
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
