@@ -1,84 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 369396B0253
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 15:30:22 -0400 (EDT)
-Received: by obdbs4 with SMTP id bs4so35198204obd.3
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 12:30:22 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id ou13si2431341oeb.43.2015.07.01.12.30.21
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id CD8426B0253
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 15:32:13 -0400 (EDT)
+Received: by wgjx7 with SMTP id x7so45124844wgj.2
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 12:32:13 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fx4si26933786wib.75.2015.07.01.12.26.44
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jul 2015 12:30:21 -0700 (PDT)
-Message-ID: <55943DC1.6010209@oracle.com>
-Date: Wed, 01 Jul 2015 15:21:37 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 01 Jul 2015 12:26:45 -0700 (PDT)
+Date: Wed, 1 Jul 2015 21:26:40 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 50/51] mpage: make __mpage_writepage() honor cgroup
+ writeback
+Message-ID: <20150701192640.GL7252@quack.suse.cz>
+References: <1432329245-5844-1-git-send-email-tj@kernel.org>
+ <1432329245-5844-51-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/11] mm: debug: dump page into a string rather than
- directly on screen
-References: <1431623414-1905-1-git-send-email-sasha.levin@oracle.com> <1431623414-1905-6-git-send-email-sasha.levin@oracle.com> <alpine.DEB.2.10.1506301627030.5359@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1506301627030.5359@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1432329245-5844-51-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kirill@shutemov.name
+To: Tejun Heo <tj@kernel.org>
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
 
-On 06/30/2015 07:35 PM, David Rientjes wrote:
-> I don't know how others feel, but this looks strange to me and seems like 
-> it's only a result of how we must now dump page information 
-> (dump_page(page) is no longer available, we must do pr_alert("%pZp", 
-> page)).
+On Fri 22-05-15 17:14:04, Tejun Heo wrote:
+> __mpage_writepage() is used to implement mpage_writepages() which in
+> turn is used for ->writepages() of various filesystems.  All writeback
+> logic is now updated to handle cgroup writeback and the block cgroup
+> to issue IOs for is encoded in writeback_control and can be retrieved
+> from the inode; however, __mpage_writepage() currently ignores the
+> blkcg indicated by the inode and issues all bio's without explicit
+> blkcg association.
 > 
-> Since we're relying on print formats, this would arguably be better as
+> This patch updates __mpage_writepage() so that the issued bio's are
+> associated with inode_to_writeback_blkcg_css(inode).
 > 
-> 	pr_alert("Not movable balloon page:\n");
-> 	pr_alert("%pZp", page);
+> v2: Updated for per-inode wb association.
+
+Looks good. You can add:
+
+Reviewed-by: Jan Kara <jack@suse.com>
+
+								Honza
+ 
 > 
-> to avoid introducing newlines into potentially lengthy messages that need 
-> a specified loglevel like you've done above.
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Cc: Jens Axboe <axboe@kernel.dk>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> ---
+>  fs/mpage.c | 2 ++
+>  1 file changed, 2 insertions(+)
 > 
-> But that's not much different than the existing dump_page() 
-> implementation.
+> diff --git a/fs/mpage.c b/fs/mpage.c
+> index 3e79220..a3ccb0b 100644
+> --- a/fs/mpage.c
+> +++ b/fs/mpage.c
+> @@ -605,6 +605,8 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
+>  				bio_get_nr_vecs(bdev), GFP_NOFS|__GFP_HIGH);
+>  		if (bio == NULL)
+>  			goto confused;
+> +
+> +		bio_associate_blkcg(bio, inode_to_wb_blkcg_css(inode));
+>  	}
+>  
+>  	/*
+> -- 
+> 2.4.0
 > 
-> So for this to be worth it, it seems like we'd need a compelling usecase 
-> for something like pr_alert("%pZp %pZv", page, vma) and I'm not sure we're 
-> ever actually going to see that.  I would argue that
-> 
-> 	dump_page(page);
-> 	dump_vma(vma);
-> 
-> would be simpler in such circumstances.
-
-I think we can find usecases where we want to dump more information than what's
-contained in just one page/vma/mm struct. Things like the following from mm/gup.c:
-
-	VM_BUG_ON_PAGE(compound_head(page) != head, page);
-
-Where seeing 'head' would be interesting as well.
-
-Or for VMAs, from include/linux/rmap.h:
-
-	VM_BUG_ON_VMA(vma->anon_vma != next->anon_vma, vma);
-
-Would it be interesting to see both vma, and next? Probably.
-
-Or opportunities to add information from other variables, such as in:
-
-	VM_BUG_ON_PAGE(stable_node->kpfn != page_to_pfn(oldpage), oldpage);
-
-Is stable_node->kpfn interesting? Might be.
-
-
-We *could* go ahead and open code all of that, but that's not happening, It's not
-intuitive and people just slap VM_BUG_ON()s and hope they can figure it out when
-those VM_BUG_ON()s happen.
-
-Are there any pieces of code that open code what you suggested?
-
-
-Thanks,
-Sasha
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
