@@ -1,64 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id BB6E06B0032
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 03:28:03 -0400 (EDT)
-Received: by wiga1 with SMTP id a1so117294297wig.0
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 00:28:03 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dk2si23766071wib.80.2015.07.01.00.28.02
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 427C86B006C
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 03:28:36 -0400 (EDT)
+Received: by wibdq8 with SMTP id dq8so36602588wib.1
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 00:28:36 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id md9si2547191wic.10.2015.07.01.00.28.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 01 Jul 2015 00:28:02 -0700 (PDT)
-Date: Wed, 1 Jul 2015 09:27:57 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 36/51] writeback: implement bdi_for_each_wb()
-Message-ID: <20150701072757.GW7252@quack.suse.cz>
-References: <1432329245-5844-1-git-send-email-tj@kernel.org>
- <1432329245-5844-37-git-send-email-tj@kernel.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Jul 2015 00:28:35 -0700 (PDT)
+Date: Wed, 1 Jul 2015 09:28:28 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
+Message-ID: <20150701072828.GA4881@lst.de>
+References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com> <20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com> <20150622161002.GB8240@lst.de> <CAPcyv4h5OXyRvZvLGD5ZknO-YUPn675YGv0XdtW1QOO9qmZsug@mail.gmail.com> <20150701062352.GA3739@lst.de> <CAMuHMdUO4uSWH1Qc0SfDTLuXbiG2N9fq8Tf6j+3RoqVKdPugbA@mail.gmail.com> <20150701065948.GA4355@lst.de> <CAMuHMdXqjmo2T3V=msZySVSu2j4YjyE7FnVXWTjySEyfYLSg1A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1432329245-5844-37-git-send-email-tj@kernel.org>
+In-Reply-To: <CAMuHMdXqjmo2T3V=msZySVSu2j4YjyE7FnVXWTjySEyfYLSg1A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, Linux MM <linux-mm@kvack.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Michael Ellerman <mpe@ellerman.id.au>, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Fri 22-05-15 17:13:50, Tejun Heo wrote:
-> This will be used to implement bdi-wide operations which should be
-> distributed across all its cgroup bdi_writebacks.
+On Wed, Jul 01, 2015 at 09:19:29AM +0200, Geert Uytterhoeven wrote:
+> >> So it would be the responsibility of the caller to fall back from
+> >> ioremap(..., CACHED) to ioremap(..., UNCACHED)?
+> >> I.e. all drivers using it should be changed...
+> >
+> > All of the zero users we currently have will need to be changed, yes.
 > 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> Cc: Jens Axboe <axboe@kernel.dk>
-> Cc: Jan Kara <jack@suse.cz>
+> Good. Less work to convert all of these ;-)
 
-One comment below.
-
-> @@ -445,6 +500,14 @@ static inline void wb_blkcg_offline(struct blkcg *blkcg)
->  {
->  }
->  
-> +struct wb_iter {
-> +	int		next_id;
-> +};
-> +
-> +#define bdi_for_each_wb(wb_cur, bdi, iter, start_blkcg_id)		\
-> +	for ((iter)->next_id = (start_blkcg_id);			\
-> +	     ({	(wb_cur) = !(iter)->next_id++ ? &(bdi)->wb : NULL; }); )
-> +
-
-This looks quite confusing. Won't it be easier to understand as:
-
-struct wb_iter {
-} __attribute__ ((unused));
-
-#define bdi_for_each_wb(wb_cur, bdi, iter, start_blkcg_id) \
-  if (((wb_cur) = (!start_blkcg_id ? &(bdi)->wb : NULL)))
-
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+And I didn't have enough coffee yet.  We of course have a few users of
+ioremap_cache(), and two implememantions but no users of ioremap_cached().
+Looks like the implementations can't even agree on the name.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
