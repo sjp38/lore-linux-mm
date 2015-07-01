@@ -1,67 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id B15826B0032
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 03:19:31 -0400 (EDT)
-Received: by widjy10 with SMTP id jy10so49227887wid.1
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 00:19:31 -0700 (PDT)
-Received: from mail-wg0-x22b.google.com (mail-wg0-x22b.google.com. [2a00:1450:400c:c00::22b])
-        by mx.google.com with ESMTPS id k8si2455475wia.75.2015.07.01.00.19.29
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id BB6E06B0032
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 03:28:03 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so117294297wig.0
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 00:28:03 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dk2si23766071wib.80.2015.07.01.00.28.02
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jul 2015 00:19:30 -0700 (PDT)
-Received: by wgck11 with SMTP id k11so28547577wgc.0
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 00:19:29 -0700 (PDT)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 01 Jul 2015 00:28:02 -0700 (PDT)
+Date: Wed, 1 Jul 2015 09:27:57 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 36/51] writeback: implement bdi_for_each_wb()
+Message-ID: <20150701072757.GW7252@quack.suse.cz>
+References: <1432329245-5844-1-git-send-email-tj@kernel.org>
+ <1432329245-5844-37-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20150701065948.GA4355@lst.de>
-References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com>
-	<20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com>
-	<20150622161002.GB8240@lst.de>
-	<CAPcyv4h5OXyRvZvLGD5ZknO-YUPn675YGv0XdtW1QOO9qmZsug@mail.gmail.com>
-	<20150701062352.GA3739@lst.de>
-	<CAMuHMdUO4uSWH1Qc0SfDTLuXbiG2N9fq8Tf6j+3RoqVKdPugbA@mail.gmail.com>
-	<20150701065948.GA4355@lst.de>
-Date: Wed, 1 Jul 2015 09:19:29 +0200
-Message-ID: <CAMuHMdXqjmo2T3V=msZySVSu2j4YjyE7FnVXWTjySEyfYLSg1A@mail.gmail.com>
-Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1432329245-5844-37-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, Linux MM <linux-mm@kvack.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Michael Ellerman <mpe@ellerman.id.au>, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
 
-On Wed, Jul 1, 2015 at 8:59 AM, Christoph Hellwig <hch@lst.de> wrote:
-> On Wed, Jul 01, 2015 at 08:55:57AM +0200, Geert Uytterhoeven wrote:
->> >
->> > I think doing this at runtime might be a better idea.  E.g. a
->> > ioremap_flags with the CACHED argument will return -EOPNOTSUP unless
->> > actually implemented.  On various architectures different CPUs or
->> > boards will have different capabilities in this area.
->>
->> So it would be the responsibility of the caller to fall back from
->> ioremap(..., CACHED) to ioremap(..., UNCACHED)?
->> I.e. all drivers using it should be changed...
->
-> All of the zero users we currently have will need to be changed, yes.
+On Fri 22-05-15 17:13:50, Tejun Heo wrote:
+> This will be used to implement bdi-wide operations which should be
+> distributed across all its cgroup bdi_writebacks.
+> 
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Cc: Jens Axboe <axboe@kernel.dk>
+> Cc: Jan Kara <jack@suse.cz>
 
-Good. Less work to convert all of these ;-)
+One comment below.
 
-> Note that I propose to leave ioremap(), aka ioremap_flags(..., 0) as
-> a default that always has to work, -EOPNOTSUP is only a valid return
-> value for non-default flaga.
+> @@ -445,6 +500,14 @@ static inline void wb_blkcg_offline(struct blkcg *blkcg)
+>  {
+>  }
+>  
+> +struct wb_iter {
+> +	int		next_id;
+> +};
+> +
+> +#define bdi_for_each_wb(wb_cur, bdi, iter, start_blkcg_id)		\
+> +	for ((iter)->next_id = (start_blkcg_id);			\
+> +	     ({	(wb_cur) = !(iter)->next_id++ ? &(bdi)->wb : NULL; }); )
+> +
 
-OK.
+This looks quite confusing. Won't it be easier to understand as:
 
-Gr{oetje,eeting}s,
+struct wb_iter {
+} __attribute__ ((unused));
 
-                        Geert
+#define bdi_for_each_wb(wb_cur, bdi, iter, start_blkcg_id) \
+  if (((wb_cur) = (!start_blkcg_id ? &(bdi)->wb : NULL)))
 
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
