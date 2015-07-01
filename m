@@ -1,44 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E9E176B006C
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 02:59:51 -0400 (EDT)
-Received: by wgjx7 with SMTP id x7so27989874wgj.2
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 23:59:51 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id ge4si2382856wib.56.2015.06.30.23.59.49
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C6676B006C
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 03:00:14 -0400 (EDT)
+Received: by wgck11 with SMTP id k11so28141184wgc.0
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 00:00:14 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d9si1710152wja.101.2015.07.01.00.00.12
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jun 2015 23:59:50 -0700 (PDT)
-Date: Wed, 1 Jul 2015 08:59:48 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
-Message-ID: <20150701065948.GA4355@lst.de>
-References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com> <20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com> <20150622161002.GB8240@lst.de> <CAPcyv4h5OXyRvZvLGD5ZknO-YUPn675YGv0XdtW1QOO9qmZsug@mail.gmail.com> <20150701062352.GA3739@lst.de> <CAMuHMdUO4uSWH1Qc0SfDTLuXbiG2N9fq8Tf6j+3RoqVKdPugbA@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 01 Jul 2015 00:00:12 -0700 (PDT)
+Date: Wed, 1 Jul 2015 09:00:07 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 35/51] writeback: make bdi->min/max_ratio handling cgroup
+ writeback aware
+Message-ID: <20150701070007.GV7252@quack.suse.cz>
+References: <1432329245-5844-1-git-send-email-tj@kernel.org>
+ <1432329245-5844-36-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAMuHMdUO4uSWH1Qc0SfDTLuXbiG2N9fq8Tf6j+3RoqVKdPugbA@mail.gmail.com>
+In-Reply-To: <1432329245-5844-36-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, Linux MM <linux-mm@kvack.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Michael Ellerman <mpe@ellerman.id.au>, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
 
-On Wed, Jul 01, 2015 at 08:55:57AM +0200, Geert Uytterhoeven wrote:
-> >
-> > I think doing this at runtime might be a better idea.  E.g. a
-> > ioremap_flags with the CACHED argument will return -EOPNOTSUP unless
-> > actually implemented.  On various architectures different CPUs or
-> > boards will have different capabilities in this area.
+On Fri 22-05-15 17:13:49, Tejun Heo wrote:
+> bdi->min/max_ratio are user-configurable per-bdi knobs which regulate
+> dirty limit of each bdi.  For cgroup writeback, they need to be
+> further distributed across wb's (bdi_writeback's) belonging to the
+> configured bdi.
 > 
-> So it would be the responsibility of the caller to fall back from
-> ioremap(..., CACHED) to ioremap(..., UNCACHED)?
-> I.e. all drivers using it should be changed...
+> This patch introduces wb_min_max_ratio() which distributes
+> bdi->min/max_ratio according to a wb's proportion in the total active
+> bandwidth of its bdi.
+> 
+> v2: Update wb_min_max_ratio() to fix a bug where both min and max were
+>     assigned the min value and avoid calculations when possible.
+> 
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Cc: Jens Axboe <axboe@kernel.dk>
+> Cc: Jan Kara <jack@suse.cz>
 
-All of the zero users we currently have will need to be changed, yes.
+Looks good. You can add:
 
-Note that I propose to leave ioremap(), aka ioremap_flags(..., 0) as
-a default that always has to work, -EOPNOTSUP is only a valid return
-value for non-default flaga.
+Reviewed-by: Jan Kara <jack@suse.com>
+
+								Honza
+
+> ---
+>  mm/page-writeback.c | 50 ++++++++++++++++++++++++++++++++++++++++++++++----
+>  1 file changed, 46 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index 99b8846..9b55f12 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -155,6 +155,46 @@ static unsigned long writeout_period_time = 0;
+>   */
+>  #define VM_COMPLETIONS_PERIOD_LEN (3*HZ)
+>  
+> +#ifdef CONFIG_CGROUP_WRITEBACK
+> +
+> +static void wb_min_max_ratio(struct bdi_writeback *wb,
+> +			     unsigned long *minp, unsigned long *maxp)
+> +{
+> +	unsigned long this_bw = wb->avg_write_bandwidth;
+> +	unsigned long tot_bw = atomic_long_read(&wb->bdi->tot_write_bandwidth);
+> +	unsigned long long min = wb->bdi->min_ratio;
+> +	unsigned long long max = wb->bdi->max_ratio;
+> +
+> +	/*
+> +	 * @wb may already be clean by the time control reaches here and
+> +	 * the total may not include its bw.
+> +	 */
+> +	if (this_bw < tot_bw) {
+> +		if (min) {
+> +			min *= this_bw;
+> +			do_div(min, tot_bw);
+> +		}
+> +		if (max < 100) {
+> +			max *= this_bw;
+> +			do_div(max, tot_bw);
+> +		}
+> +	}
+> +
+> +	*minp = min;
+> +	*maxp = max;
+> +}
+> +
+> +#else	/* CONFIG_CGROUP_WRITEBACK */
+> +
+> +static void wb_min_max_ratio(struct bdi_writeback *wb,
+> +			     unsigned long *minp, unsigned long *maxp)
+> +{
+> +	*minp = wb->bdi->min_ratio;
+> +	*maxp = wb->bdi->max_ratio;
+> +}
+> +
+> +#endif	/* CONFIG_CGROUP_WRITEBACK */
+> +
+>  /*
+>   * In a memory zone, there is a certain amount of pages we consider
+>   * available for the page cache, which is essentially the number of
+> @@ -539,9 +579,9 @@ static unsigned long hard_dirty_limit(unsigned long thresh)
+>   */
+>  unsigned long wb_dirty_limit(struct bdi_writeback *wb, unsigned long dirty)
+>  {
+> -	struct backing_dev_info *bdi = wb->bdi;
+>  	u64 wb_dirty;
+>  	long numerator, denominator;
+> +	unsigned long wb_min_ratio, wb_max_ratio;
+>  
+>  	/*
+>  	 * Calculate this BDI's share of the dirty ratio.
+> @@ -552,9 +592,11 @@ unsigned long wb_dirty_limit(struct bdi_writeback *wb, unsigned long dirty)
+>  	wb_dirty *= numerator;
+>  	do_div(wb_dirty, denominator);
+>  
+> -	wb_dirty += (dirty * bdi->min_ratio) / 100;
+> -	if (wb_dirty > (dirty * bdi->max_ratio) / 100)
+> -		wb_dirty = dirty * bdi->max_ratio / 100;
+> +	wb_min_max_ratio(wb, &wb_min_ratio, &wb_max_ratio);
+> +
+> +	wb_dirty += (dirty * wb_min_ratio) / 100;
+> +	if (wb_dirty > (dirty * wb_max_ratio) / 100)
+> +		wb_dirty = dirty * wb_max_ratio / 100;
+>  
+>  	return wb_dirty;
+>  }
+> -- 
+> 2.4.0
+> 
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
