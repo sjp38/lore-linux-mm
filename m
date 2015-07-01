@@ -1,109 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D1A66B0032
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 22:51:24 -0400 (EDT)
-Received: by pdbci14 with SMTP id ci14so16784611pdb.2
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 19:51:24 -0700 (PDT)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id kx14si756686pab.155.2015.06.30.19.51.23
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 30 Jun 2015 19:51:23 -0700 (PDT)
-Date: Tue, 30 Jun 2015 19:51:12 -0700
-From: Mark Hairgrove <mhairgrove@nvidia.com>
-Subject: Re: [PATCH 06/36] HMM: add HMM page table v2.
-In-Reply-To: <20150629144305.GA2173@gmail.com>
-Message-ID: <alpine.DEB.2.00.1506301946190.31456@mdh-linux64-2.nvidia.com>
-References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com> <1432236705-4209-7-git-send-email-j.glisse@gmail.com> <alpine.DEB.2.00.1506251540170.28614@mdh-linux64-2.nvidia.com> <20150626163030.GA3748@gmail.com> <alpine.DEB.2.00.1506261827090.20890@mdh-linux64-2.nvidia.com>
- <20150629144305.GA2173@gmail.com>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 83A7B6B006E
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2015 23:16:49 -0400 (EDT)
+Received: by pabvl15 with SMTP id vl15so15411973pab.1
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2015 20:16:49 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id pw8si898240pdb.85.2015.06.30.20.16.47
+        for <linux-mm@kvack.org>;
+        Tue, 30 Jun 2015 20:16:48 -0700 (PDT)
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [PATCH 1/1] mem-hotplug: Handle node hole when initializing numa_meminfo.
+Date: Wed, 1 Jul 2015 11:16:54 +0800
+Message-ID: <1435720614-16480-1-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="8323329-43040936-1435719081=:31456"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, "joro@8bytes.org" <joro@8bytes.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?ISO-8859-15?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>
+To: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, dyoung@redhat.com, isimatu.yasuaki@jp.fujitsu.com, yasu.isimatu@gmail.com, lcapitulino@redhat.com, qiuxishi@huawei.com, will.deacon@arm.com, tony.luck@intel.com, vladimir.murzin@arm.com, fabf@skynet.be, kuleshovmail@gmail.com, bhe@redhat.com
+Cc: x86@kernel.org, tangchen@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
---8323329-43040936-1435719081=:31456
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
+When parsing SRAT, all memory ranges are added into numa_meminfo.
+In numa_init(), before entering numa_cleanup_meminfo(), all possible
+memory ranges are in numa_meminfo. And numa_cleanup_meminfo() removes
+all ranges over max_pfn or empty.
 
+But, this only works if the nodes are continuous. Let's have a look
+at the following example:
 
+We have an SRAT like this:
+SRAT: Node 0 PXM 0 [mem 0x00000000-0x5fffffff]
+SRAT: Node 0 PXM 0 [mem 0x100000000-0x1ffffffffff]
+SRAT: Node 1 PXM 1 [mem 0x20000000000-0x3ffffffffff]
+SRAT: Node 4 PXM 2 [mem 0x40000000000-0x5ffffffffff] hotplug
+SRAT: Node 5 PXM 3 [mem 0x60000000000-0x7ffffffffff] hotplug
+SRAT: Node 2 PXM 4 [mem 0x80000000000-0x9ffffffffff] hotplug
+SRAT: Node 3 PXM 5 [mem 0xa0000000000-0xbffffffffff] hotplug
+SRAT: Node 6 PXM 6 [mem 0xc0000000000-0xdffffffffff] hotplug
+SRAT: Node 7 PXM 7 [mem 0xe0000000000-0xfffffffffff] hotplug
 
-On Mon, 29 Jun 2015, Jerome Glisse wrote:
+On boot, only node 0,1,2,3 exist.
 
-> [...]
-> 
-> Iterator is what protect against concurrent freeing of the directory so it
-> has to return to caller on directory boundary (for 64bits arch with 64bits
-> pte it has return every 512 entries). Otherwise pt_iter_fini() would have
-> to walk over the whole directory range again just to drop reference and this
-> doesn't sound like a good idea.
+And the numa_meminfo will look like this:
+numa_meminfo.nr_blks = 9
+1. on node 0: [0, 60000000]
+2. on node 0: [100000000, 20000000000]
+3. on node 1: [20000000000, 40000000000]
+4. on node 4: [40000000000, 60000000000]
+5. on node 5: [60000000000, 80000000000]
+6. on node 2: [80000000000, a0000000000]
+7. on node 3: [a0000000000, a0800000000]
+8. on node 6: [c0000000000, a0800000000]
+9. on node 7: [e0000000000, a0800000000]
 
-I don't understand why it would have to return to the caller to unprotect 
-the directory. The iterator would simply drop the reference to the 
-previous directory, take a reference on the next one, and keep searching 
-for a valid entry.
+And numa_cleanup_meminfo() will merge 1 and 2, and remove 8,9 because
+the end address is over max_pfn, which is a0800000000. But 4 and 5
+are not removed because their end addresses are less then max_pfn.
+But in fact, node 4 and 5 don't exist.
 
-Why would pt_iter_fini have to walk over the entire range? The iterator 
-would keep at most one directory per level referenced. _fini would walk 
-the per-level ptd array and unprotect each level, the same way it does 
-now.
+In a word, numa_cleanup_meminfo() is not able to handle holes between nodes.
 
+Since memory ranges in node 4 and 5 are in numa_meminfo, in numa_register_memblks(),
+node 4 and 5 will be mistakenly set to online.
 
-> 
-> So really with what you are asking it whould be:
-> 
-> hmm_pt_iter_init(&iter, start, end);
-> for(next=pt_iter_next(&iter,&ptep); next<end; next=pt_iter_next(&iter,&ptep))
-> {
->    // Here ptep is valid until next address. Above you have to call
->    // pt_iter_next() to switch to next directory.
->    addr = max(start, next - (~HMM_PMD_MASK + 1));
->    for (; addr < next; addr += PAGE_SIZE, ptep++) {
->       // access ptep
->    }
-> }
-> 
-> My point is that internally pt_iter_next() will do the exact same test it is
-> doing now btw cur and addr. Just that the addr is no longer explicit but iter
-> infer it.
+In this patch, we use memblock_overlaps_region() to check if ranges in
+numa_meminfo overlap with ranges in memory_block. Since memory_block contains
+all available memory at boot time, if they overlap, it means the ranges
+exist. If not, then remove them from numa_meminfo.
 
-But this way, the iteration across directories is more efficient because 
-the iterator can simply walk the directory array. Take a directory that 
-has one valid entry at the very end. The existing iteration will do this:
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+---
+ arch/x86/mm/numa.c       | 6 ++++--
+ include/linux/memblock.h | 2 ++
+ mm/memblock.c            | 2 +-
+ 3 files changed, 7 insertions(+), 3 deletions(-)
 
-hmm_pt_iter_next(dir_addr[0], end)
-    Walk up the ptd array
-    Compute level start and end and compare them to dir_addr[0]
-    Compute dir_addr[1] using addr and pt->mask
-    Return dir_addr[1]
-hmm_pt_iter_update(dir_addr[1])
-    Walk up the ptd array, compute level start and end
-    Compute level index of dir_addr[1]
-    Read entry for dir_addr[1]
-    Return NULL
-hmm_pt_iter_next(dir_addr[1], end)
-    ...
-And so on 511 times until the last entry is read.
-
-This is really more suited to a for loop iteration, which it could be if 
-this were fully contained within the _next call.
-
-> 
-> > If _next only returned to the caller when it hit a valid hmm_pte (or end), 
-> > then only one function would be needed (_next) instead of two 
-> > (_update/_walk and _next).
-> 
-> On the valid entry side, this is because when you are walking the page table
-> you have no garanty that the entry will not be clear below you (in case of
-> concurrent invalidation). The only garanty you have is that if you are able
-> to read a valid entry from the update() callback then this entry is valid
-> until you get a new update() callback telling you otherwise.
-> 
-> Cheers,
-> Jerome
-> 
---8323329-43040936-1435719081=:31456--
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 4053bb5..0c55cc5 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -246,8 +246,10 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
+ 		bi->start = max(bi->start, low);
+ 		bi->end = min(bi->end, high);
+ 
+-		/* and there's no empty block */
+-		if (bi->start >= bi->end)
++		/* and there's no empty or non-exist block */
++		if (bi->start >= bi->end ||
++		    memblock_overlaps_region(&memblock.memory,
++			bi->start, bi->end - bi->start) == -1)
+ 			numa_remove_memblk_from(i--, mi);
+ 	}
+ 
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 0215ffd..3bf6cc1 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -77,6 +77,8 @@ int memblock_remove(phys_addr_t base, phys_addr_t size);
+ int memblock_free(phys_addr_t base, phys_addr_t size);
+ int memblock_reserve(phys_addr_t base, phys_addr_t size);
+ void memblock_trim_memory(phys_addr_t align);
++long memblock_overlaps_region(struct memblock_type *type,
++			      phys_addr_t base, phys_addr_t size);
+ int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
+ int memblock_clear_hotplug(phys_addr_t base, phys_addr_t size);
+ int memblock_mark_mirror(phys_addr_t base, phys_addr_t size);
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 1b444c7..55b5f9f 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -91,7 +91,7 @@ static unsigned long __init_memblock memblock_addrs_overlap(phys_addr_t base1, p
+ 	return ((base1 < (base2 + size2)) && (base2 < (base1 + size1)));
+ }
+ 
+-static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
++long __init_memblock memblock_overlaps_region(struct memblock_type *type,
+ 					phys_addr_t base, phys_addr_t size)
+ {
+ 	unsigned long i;
+-- 
+1.8.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
