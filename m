@@ -1,85 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id DFBBF6B0259
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 17:37:21 -0400 (EDT)
-Received: by igblr2 with SMTP id lr2so107241690igb.0
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 14:37:21 -0700 (PDT)
-Received: from mail-ig0-x22e.google.com (mail-ig0-x22e.google.com. [2607:f8b0:4001:c05::22e])
-        by mx.google.com with ESMTPS id h196si3523025ioe.6.2015.07.01.14.37.21
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E3786B0253
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 18:33:40 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so137660207wig.0
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 15:33:40 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id el3si27688346wib.24.2015.07.01.15.33.38
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jul 2015 14:37:21 -0700 (PDT)
-Received: by igcur8 with SMTP id ur8so103002667igc.0
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 14:37:21 -0700 (PDT)
-Date: Wed, 1 Jul 2015 14:37:19 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v2 3/3] mm, oom: organize oom context into struct
-In-Reply-To: <alpine.DEB.2.10.1507011435150.14014@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1507011436360.14014@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1506181555350.13736@chino.kir.corp.google.com> <alpine.DEB.2.10.1507011435150.14014@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 01 Jul 2015 15:33:38 -0700 (PDT)
+Message-ID: <55946AC1.9050300@suse.cz>
+Date: Thu, 02 Jul 2015 00:33:37 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 05/11] mm: debug: dump page into a string rather than
+ directly on screen
+References: <1431623414-1905-1-git-send-email-sasha.levin@oracle.com> <1431623414-1905-6-git-send-email-sasha.levin@oracle.com> <alpine.DEB.2.10.1506301627030.5359@chino.kir.corp.google.com> <55943DC1.6010209@oracle.com> <alpine.DEB.2.10.1507011422070.14014@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1507011422070.14014@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>, Sasha Levin <sasha.levin@oracle.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kirill@shutemov.name
 
-Sysrq+f is used to kill a process either for debug or when the VM is
-otherwise unresponsive.
+On 1.7.2015 23:25, David Rientjes wrote:
+> On Wed, 1 Jul 2015, Sasha Levin wrote:
+> 
+>> On 06/30/2015 07:35 PM, David Rientjes wrote:
+>>
+>> I think we can find usecases where we want to dump more information than what's
+>> contained in just one page/vma/mm struct. Things like the following from mm/gup.c:
+>>
+>> 	VM_BUG_ON_PAGE(compound_head(page) != head, page);
+>>
+>> Where seeing 'head' would be interesting as well.
+>>
+> 
+> I think it's a debate about whether this would be better off handled as
+> 
+> 	if (VM_BUG_ON(compound_head(page) != head)) {
+> 		dump_page(page);
+> 		dump_page(head);
+> 	}
+> 
+> and avoid VM_BUG_ON_PAGE() and the new print formats entirely.  We can 
+> improve upon existing VM_BUG_ON(), and BUG_ON() itself since the VM isn't 
+> anything special in this regard,
 
-It is not intended to trigger a panic when no process may be killed.
+Well, BUG_ON() is just evaluating a condition that results in executing the UD2
+instruction, which traps and the handler prints everything. The file:line info
+it prints is emitted in a different section, and the handler has to search for
+it to print it, using the trapping address. This all to minimize impact on I$,
+branch predictors and whatnot.
 
-Avoid panicking the system for sysrq+f when no processes are killed.
+VM_BUG_ON_PAGE() etc have to actually emit the extra printing code before
+triggering UD2. I'm not sure if there's a way to extend the generic mechanism
+here. The file:line info would have to also include information about the extra
+things we want to dump, and where the handler would find the necessary pointers
+(in the registers saved on UD2 exception, or stack). This could probably be done
+with some dwarf debuginfo magic but we know how unreliable that can be. Some of
+the data might already be discarded in the non-error path doesn't need it, so it
+would have to make sure to store it somewhere for the error purposes.
 
-Suggested-by: Michal Hocko <mhocko@suse.cz>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- v2: no change
+Now we seem to accept that VM_BUG_ON* is more intrusive than BUG_ON() and it's
+not expected to be enabled in default distro kernels etc., so it can afford to
+pollute the code with extra prints...
 
- Documentation/sysrq.txt | 3 ++-
- mm/oom_kill.c           | 7 +++++--
- 2 files changed, 7 insertions(+), 3 deletions(-)
-
-diff --git a/Documentation/sysrq.txt b/Documentation/sysrq.txt
---- a/Documentation/sysrq.txt
-+++ b/Documentation/sysrq.txt
-@@ -75,7 +75,8 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
- 
- 'e'     - Send a SIGTERM to all processes, except for init.
- 
--'f'	- Will call oom_kill to kill a memory hog process.
-+'f'	- Will call the oom killer to kill a memory hog process, but do not
-+	  panic if nothing can be killed.
- 
- 'g'	- Used by kgdb (kernel debugger)
- 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -607,6 +607,9 @@ void check_panic_on_oom(struct oom_control *oc, enum oom_constraint constraint,
- 		if (constraint != CONSTRAINT_NONE)
- 			return;
- 	}
-+	/* Do not panic for oom kills triggered by sysrq */
-+	if (oc->order == -1)
-+		return;
- 	dump_header(oc, NULL, memcg);
- 	panic("Out of memory: %s panic_on_oom is enabled\n",
- 		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
-@@ -686,11 +689,11 @@ bool out_of_memory(struct oom_control *oc)
- 
- 	p = select_bad_process(oc, &points, totalpages);
- 	/* Found nothing?!?! Either we hang forever, or we panic. */
--	if (!p) {
-+	if (!p && oc->order != -1) {
- 		dump_header(oc, NULL, NULL);
- 		panic("Out of memory and no killable processes...\n");
- 	}
--	if (p != (void *)-1UL) {
-+	if (p && p != (void *)-1UL) {
- 		oom_kill_process(oc, p, points, totalpages, NULL,
- 				 "Out of memory");
- 		killed = 1;
+> to print diagnostic information that may 
+> be helpful, but I don't feel like adding special VM_BUG_ON_*() macros or 
+> printing formats makes any of this simpler.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
