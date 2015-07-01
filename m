@@ -1,168 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 095576B006E
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 11:41:02 -0400 (EDT)
-Received: by wibdq8 with SMTP id dq8so49282612wib.1
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 08:41:01 -0700 (PDT)
+Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 797E76B0032
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 12:04:45 -0400 (EDT)
+Received: by lbbpo10 with SMTP id po10so15841234lbb.3
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 09:04:44 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j18si3982253wjn.172.2015.07.01.08.40.59
+        by mx.google.com with ESMTPS id e14si4152368wjq.46.2015.07.01.09.04.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 01 Jul 2015 08:40:59 -0700 (PDT)
-Date: Wed, 1 Jul 2015 17:40:58 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Write throughput impaired by touching dirty_ratio
-Message-ID: <20150701154058.GC6287@dhcp22.suse.cz>
-References: <1506191513210.2879@stax.localdomain>
- <558A69F8.2080304@suse.cz>
- <1506242140070.1867@stax.localdomain>
- <20150625092056.GB17237@dhcp22.suse.cz>
- <1506252136260.2115@stax.localdomain>
+        Wed, 01 Jul 2015 09:04:43 -0700 (PDT)
+Date: Wed, 1 Jul 2015 18:04:37 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 44/51] writeback: implement bdi_wait_for_completion()
+Message-ID: <20150701160437.GG7252@quack.suse.cz>
+References: <1432329245-5844-1-git-send-email-tj@kernel.org>
+ <1432329245-5844-45-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1506252136260.2115@stax.localdomain>
+In-Reply-To: <1432329245-5844-45-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Hills <mark@xwax.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
 
-On Thu 25-06-15 22:45:57, Mark Hills wrote:
-> On Thu, 25 Jun 2015, Michal Hocko wrote:
+On Fri 22-05-15 17:13:58, Tejun Heo wrote:
+> If the completion of a wb_writeback_work can be waited upon by setting
+> its ->done to a struct completion and waiting on it; however, for
+> cgroup writeback support, it's necessary to issue multiple work items
+> to multiple bdi_writebacks and wait for the completion of all.
 > 
-> > On Wed 24-06-15 23:26:49, Mark Hills wrote:
-> > [...]
-> > > To test, I flipped the vm_highmem_is_dirtyable (which had no effect until 
-> > > I forced it to re-evaluate ratelimit_pages):
-> > > 
-> > >   $ echo 1 > /proc/sys/vm/highmem_is_dirtyable
-> > >   $ echo 21 > /proc/sys/vm/dirty_ratio
-> > >   $ echo 20 > /proc/sys/vm/dirty_ratio 
-> > > 
-> > >   crash> rd -d ratelimit_pages
-> > >   c148b618:          2186 
-> > > 
-> > > The value is now healthy, more so than even the value we started 
-> > > with on bootup.
-> > 
-> > From your /proc/zoneinfo:
-> > > Node 0, zone  HighMem
-> > >   pages free     2536526
-> > >         min      128
-> > >         low      37501
-> > >         high     74874
-> > >         scanned  0
-> > >         spanned  3214338
-> > >         present  3017668
-> > >         managed  3017668
-> > 
-> > You have 11G of highmem. Which is a lot wrt. the the lowmem
-> > 
-> > > Node 0, zone   Normal
-> > >   pages free     37336
-> > >         min      4789
-> > >         low      5986
-> > >         high     7183
-> > >         scanned  0
-> > >         spanned  123902
-> > >         present  123902
-> > >         managed  96773
-> > 
-> > which is only 378M! So something had to eat portion of the lowmem.
-> > I think it is a bad idea to use 32b kernel with that amount of memory in
-> > general. The lowmem pressure is even worse by the fact that something is
-> > eating already precious amount of lowmem.
+> This patch implements wb_completion which can wait for multiple work
+> items and replaces the struct completion with it.  It can be defined
+> using DEFINE_WB_COMPLETION_ONSTACK(), used for multiple work items and
+> waited for by wb_wait_for_completion().
 > 
-> Yup, that's the ""vmalloc=512M" kernel parameter.
+> Nobody currently issues multiple work items and this patch doesn't
+> introduce any behavior changes.
 
-I see.
+I'd find it better to extend completions to allow doing what you need. It
+isn't that special. It seems it would be enough to implement
 
-> That was a requirement for my NVidia GPU to work, but now I have an AMD 
-> card so I have been able to remove that. It now gives me ~730M, and 
-> provided some relieve to ratelimit_pages; now at 63 (when dirty_ratio is 
-> set to 20 after boot)
+void wait_for_completions(struct completion *x, int n);
+
+where @n is the number of completions to wait for. And the implementation
+can stay as is, only in do_wait_for_common() we change checks for x->done ==
+0 to "x->done < n". That's about it...
+
+								Honza
+
+
 > 
-> > What is the reason to stick with 32b kernel anyway?
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Cc: Jens Axboe <axboe@kernel.dk>
+> Cc: Jan Kara <jack@suse.cz>
+> ---
+>  fs/fs-writeback.c                | 58 +++++++++++++++++++++++++++++++---------
+>  include/linux/backing-dev-defs.h |  2 ++
+>  mm/backing-dev.c                 |  1 +
+>  3 files changed, 49 insertions(+), 12 deletions(-)
 > 
-> Because it's ideal for finding edge cases and bugs in kernels :-)
-
-OK, then good luck ;)
-
-> The real reason is more practical. I never had a problem with the 32-bit 
-> one, and as my OS is quite home-grown and evolved over 10+ years, I 
-> haven't wanted to start again or reinstall.
-
-I can understand that. I was using PAE kernel for ages as well even
-though I was aware of all the problems. It wasn't such a big deal
-because I didn't have much more than 4G on my machines. But it simply
-stopped being practical and I have moved on.
-
-> This is the first time I've been aware of any problem or notable 
-> performance impact -- the PAE kernel has worked very well for me.
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index 22f1def..d7d4a1b 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -34,6 +34,10 @@
+>   */
+>  #define MIN_WRITEBACK_PAGES	(4096UL >> (PAGE_CACHE_SHIFT - 10))
+>  
+> +struct wb_completion {
+> +	atomic_t		cnt;
+> +};
+> +
+>  /*
+>   * Passed into wb_writeback(), essentially a subset of writeback_control
+>   */
+> @@ -51,10 +55,23 @@ struct wb_writeback_work {
+>  	enum wb_reason reason;		/* why was writeback initiated? */
+>  
+>  	struct list_head list;		/* pending work list */
+> -	struct completion *done;	/* set if the caller waits */
+> +	struct wb_completion *done;	/* set if the caller waits */
+>  };
+>  
+>  /*
+> + * If one wants to wait for one or more wb_writeback_works, each work's
+> + * ->done should be set to a wb_completion defined using the following
+> + * macro.  Once all work items are issued with wb_queue_work(), the caller
+> + * can wait for the completion of all using wb_wait_for_completion().  Work
+> + * items which are waited upon aren't freed automatically on completion.
+> + */
+> +#define DEFINE_WB_COMPLETION_ONSTACK(cmpl)				\
+> +	struct wb_completion cmpl = {					\
+> +		.cnt		= ATOMIC_INIT(1),			\
+> +	}
+> +
+> +
+> +/*
+>   * If an inode is constantly having its pages dirtied, but then the
+>   * updates stop dirtytime_expire_interval seconds in the past, it's
+>   * possible for the worst case time between when an inode has its
+> @@ -161,17 +178,34 @@ static void wb_queue_work(struct bdi_writeback *wb,
+>  	trace_writeback_queue(wb->bdi, work);
+>  
+>  	spin_lock_bh(&wb->work_lock);
+> -	if (!test_bit(WB_registered, &wb->state)) {
+> -		if (work->done)
+> -			complete(work->done);
+> +	if (!test_bit(WB_registered, &wb->state))
+>  		goto out_unlock;
+> -	}
+> +	if (work->done)
+> +		atomic_inc(&work->done->cnt);
+>  	list_add_tail(&work->list, &wb->work_list);
+>  	mod_delayed_work(bdi_wq, &wb->dwork, 0);
+>  out_unlock:
+>  	spin_unlock_bh(&wb->work_lock);
+>  }
+>  
+> +/**
+> + * wb_wait_for_completion - wait for completion of bdi_writeback_works
+> + * @bdi: bdi work items were issued to
+> + * @done: target wb_completion
+> + *
+> + * Wait for one or more work items issued to @bdi with their ->done field
+> + * set to @done, which should have been defined with
+> + * DEFINE_WB_COMPLETION_ONSTACK().  This function returns after all such
+> + * work items are completed.  Work items which are waited upon aren't freed
+> + * automatically on completion.
+> + */
+> +static void wb_wait_for_completion(struct backing_dev_info *bdi,
+> +				   struct wb_completion *done)
+> +{
+> +	atomic_dec(&done->cnt);		/* put down the initial count */
+> +	wait_event(bdi->wb_waitq, !atomic_read(&done->cnt));
+> +}
+> +
+>  #ifdef CONFIG_CGROUP_WRITEBACK
+>  
+>  /**
+> @@ -1143,7 +1177,7 @@ static long wb_do_writeback(struct bdi_writeback *wb)
+>  
+>  	set_bit(WB_writeback_running, &wb->state);
+>  	while ((work = get_next_work_item(wb)) != NULL) {
+> -		struct completion *done = work->done;
+> +		struct wb_completion *done = work->done;
+>  
+>  		trace_writeback_exec(wb->bdi, work);
+>  
+> @@ -1151,8 +1185,8 @@ static long wb_do_writeback(struct bdi_writeback *wb)
+>  
+>  		if (work->auto_free)
+>  			kfree(work);
+> -		if (done)
+> -			complete(done);
+> +		if (done && atomic_dec_and_test(&done->cnt))
+> +			wake_up_all(&wb->bdi->wb_waitq);
+>  	}
+>  
+>  	/*
+> @@ -1518,7 +1552,7 @@ void writeback_inodes_sb_nr(struct super_block *sb,
+>  			    unsigned long nr,
+>  			    enum wb_reason reason)
+>  {
+> -	DECLARE_COMPLETION_ONSTACK(done);
+> +	DEFINE_WB_COMPLETION_ONSTACK(done);
+>  	struct wb_writeback_work work = {
+>  		.sb			= sb,
+>  		.sync_mode		= WB_SYNC_NONE,
+> @@ -1533,7 +1567,7 @@ void writeback_inodes_sb_nr(struct super_block *sb,
+>  		return;
+>  	WARN_ON(!rwsem_is_locked(&sb->s_umount));
+>  	wb_queue_work(&bdi->wb, &work);
+> -	wait_for_completion(&done);
+> +	wb_wait_for_completion(bdi, &done);
+>  }
+>  EXPORT_SYMBOL(writeback_inodes_sb_nr);
+>  
+> @@ -1600,7 +1634,7 @@ EXPORT_SYMBOL(try_to_writeback_inodes_sb);
+>   */
+>  void sync_inodes_sb(struct super_block *sb)
+>  {
+> -	DECLARE_COMPLETION_ONSTACK(done);
+> +	DEFINE_WB_COMPLETION_ONSTACK(done);
+>  	struct wb_writeback_work work = {
+>  		.sb		= sb,
+>  		.sync_mode	= WB_SYNC_ALL,
+> @@ -1618,7 +1652,7 @@ void sync_inodes_sb(struct super_block *sb)
+>  	WARN_ON(!rwsem_is_locked(&sb->s_umount));
+>  
+>  	wb_queue_work(&bdi->wb, &work);
+> -	wait_for_completion(&done);
+> +	wb_wait_for_completion(bdi, &done);
+>  
+>  	wait_sb_inodes(sb);
+>  }
+> diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
+> index 8c857d7..97a92fa 100644
+> --- a/include/linux/backing-dev-defs.h
+> +++ b/include/linux/backing-dev-defs.h
+> @@ -155,6 +155,8 @@ struct backing_dev_info {
+>  	struct rb_root cgwb_congested_tree; /* their congested states */
+>  	atomic_t usage_cnt; /* counts both cgwbs and cgwb_contested's */
+>  #endif
+> +	wait_queue_head_t wb_waitq;
+> +
+>  	struct device *dev;
+>  
+>  	struct timer_list laptop_mode_wb_timer;
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index d2f16fc9..ad5608d 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -768,6 +768,7 @@ int bdi_init(struct backing_dev_info *bdi)
+>  	bdi->max_ratio = 100;
+>  	bdi->max_prop_frac = FPROP_FRAC_BASE;
+>  	INIT_LIST_HEAD(&bdi->bdi_list);
+> +	init_waitqueue_head(&bdi->wb_waitq);
+>  
+>  	err = wb_init(&bdi->wb, bdi, GFP_KERNEL);
+>  	if (err)
+> -- 
+> 2.4.0
 > 
-> The only reason I have so much RAM is that RAM is cheap, and it's a great 
-> disk cache. I'd be more likely to remove some of the RAM than reinstall!
-
-Well, you do not have to reinstall the whole system. You should be able
-to install 64b kernel only.
- 
-> Perhaps someone could kindly explain why don't I have the same problem if 
-> I have, say 1.5G of RAM? Is it because the page table for 12G is large and 
-> sits in the lowmem?
-
-I've tried to explain some of the issues in the other email. Some of the
-problems (e.g. performance where each highmem page has to be mapped when
-the kernel want's to access it) do not depend on the amount of memory
-but some of them do (e.g. struct pages which scale with the amount of
-memory).
-
-> > > My questions and observations are:
-> > > 
-> > > * What does highmem_is_dirtyable actually mean, and should it really 
-> > >   default to 1?
-> > 
-> > It says whether highmem should be considered dirtyable. It is not by
-> > default. See more for motivation in 195cf453d2c3 ("mm/page-writeback:
-> > highmem_is_dirtyable option").
-> 
-> Thank you, this explanation is useful.
-> 
-> I know very little about the constraints on highmem and lowmem, though I 
-> can make an educated guess (and reading http://linux-mm.org/HighMemory)
-> 
-> I do have some questions though, perhaps if someone would be happy to 
-> explain.
-> 
-> What is the "excessive scanning" mentioned in that patch, and why it is 
-> any more than I would expect a 64-bit kernel to be doing?
-
-This is a good question! It wasn't obvious to me as well so I took my
-pickaxe and a showel and dig into the history.
-The highmem has been removed from the dirty throttling code back in
-2005 by Andrea and Rik (https://lkml.org/lkml/2004/12/20/111) because
-some mappings couldn't use highmem (e.g. dd of=block_device) and
-so they didn't get throttled properly made a huge memory pressure
-on lowmem and could even cause an OOM killer. The code still
-considered highmem dirtyable for highmem capable mappings but that
-has been later removed by Linus because it has caused other problems
-(http://marc.info/?l=git-commits-head&m=117013324728709).
-
-> ie. what is the practical downside of me doing:
-> 
->   $ echo 1073741824 > /proc/sys/vm/dirty_bytes
-
-You could end up having the full lowmem dirty for lowmem only mappings.
-
-> Also, is VMSPLIT_2G likely to be appropriate here if the kernel is 
-> managing larger amounts of total RAM? I enabled it and it increases the 
-> lowmem. Is this a simple tradeoff I am making now between user and kernel 
-> space?
-
-Your userspace will get only 2G of address space. If this is sufficient
-for you then it will help to your lowmem pressure.
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
