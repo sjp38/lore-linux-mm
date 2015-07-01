@@ -1,62 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id A3A796B006E
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 12:09:24 -0400 (EDT)
-Received: by wiwl6 with SMTP id l6so170253001wiw.0
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 09:09:24 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ht7si4114436wjb.176.2015.07.01.09.09.22
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F2D26B0032
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 12:47:35 -0400 (EDT)
+Received: by widjy10 with SMTP id jy10so62974624wid.1
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 09:47:34 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
+        by mx.google.com with ESMTPS id hf9si26287836wib.39.2015.07.01.09.47.32
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 01 Jul 2015 09:09:23 -0700 (PDT)
-Date: Wed, 1 Jul 2015 18:09:18 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 44/51] writeback: implement bdi_wait_for_completion()
-Message-ID: <20150701160918.GH7252@quack.suse.cz>
-References: <1432329245-5844-1-git-send-email-tj@kernel.org>
- <1432329245-5844-45-git-send-email-tj@kernel.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Jul 2015 09:47:32 -0700 (PDT)
+Received: by widjy10 with SMTP id jy10so62973657wid.1
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 09:47:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1432329245-5844-45-git-send-email-tj@kernel.org>
+In-Reply-To: <20150701080915.GJ7557@n2100.arm.linux.org.uk>
+References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com>
+	<20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com>
+	<20150622161002.GB8240@lst.de>
+	<CAPcyv4h5OXyRvZvLGD5ZknO-YUPn675YGv0XdtW1QOO9qmZsug@mail.gmail.com>
+	<20150701062352.GA3739@lst.de>
+	<CAMuHMdUO4uSWH1Qc0SfDTLuXbiG2N9fq8Tf6j+3RoqVKdPugbA@mail.gmail.com>
+	<20150701080915.GJ7557@n2100.arm.linux.org.uk>
+Date: Wed, 1 Jul 2015 09:47:31 -0700
+Message-ID: <CAPcyv4iaf77KMffTseMbYEcK_BJTpGsY=PmeJyDGR9N2yBAKVg@mail.gmail.com>
+Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Christoph Hellwig <hch@lst.de>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Luis Rodriguez <mcgrof@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Andy Lutomirski <luto@amacapital.net>, Linux MM <linux-mm@kvack.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Michael Ellerman <mpe@ellerman.id.au>, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Fri 22-05-15 17:13:58, Tejun Heo wrote:
-> If the completion of a wb_writeback_work can be waited upon by setting
-> its ->done to a struct completion and waiting on it; however, for
-> cgroup writeback support, it's necessary to issue multiple work items
-> to multiple bdi_writebacks and wait for the completion of all.
-> 
-> This patch implements wb_completion which can wait for multiple work
-> items and replaces the struct completion with it.  It can be defined
-> using DEFINE_WB_COMPLETION_ONSTACK(), used for multiple work items and
-> waited for by wb_wait_for_completion().
-> 
-> Nobody currently issues multiple work items and this patch doesn't
-> introduce any behavior changes.
+On Wed, Jul 1, 2015 at 1:09 AM, Russell King - ARM Linux
+<linux@arm.linux.org.uk> wrote:
+> On Wed, Jul 01, 2015 at 08:55:57AM +0200, Geert Uytterhoeven wrote:
+>> On Wed, Jul 1, 2015 at 8:23 AM, Christoph Hellwig <hch@lst.de> wrote:
+>> >> One useful feature of the ifdef mess as implemented in the patch is
+>> >> that you could test for whether ioremap_cache() is actually
+>> >> implemented or falls back to default ioremap().  I think for
+>> >> completeness archs should publish an ioremap type capabilities mask
+>> >> for drivers that care... (I can imagine pmem caring), or default to
+>> >> being permissive if something like IOREMAP_STRICT is not set.  There's
+>> >> also the wrinkle of archs that can only support certain types of
+>> >> mappings at a given alignment.
+>> >
+>> > I think doing this at runtime might be a better idea.  E.g. a
+>> > ioremap_flags with the CACHED argument will return -EOPNOTSUP unless
+>> > actually implemented.  On various architectures different CPUs or
+>> > boards will have different capabilities in this area.
+>>
+>> So it would be the responsibility of the caller to fall back from
+>> ioremap(..., CACHED) to ioremap(..., UNCACHED)?
+>> I.e. all drivers using it should be changed...
+>
+> Another important point here is to define what the properties of the
+> mappings are.  It's no good just saying "uncached".
+>
+> We've recently been around this over the PMEM driver and the broken
+> addition of ioremap_wt() on ARM...
+>
+> By "properties" I mean stuff like whether unaligned accesses permitted,
+> any kind of atomic access (eg, xchg, cmpxchg, etc).
+>
+> This matters: on ARM, a mapping suitable for a device does not support
+> unaligned accesses or atomic accesses - only "memory-like" mappings
+> support those.  However, memory-like mappings are not required to
+> preserve access size, number of accesses, etc which makes them unsuitable
+> for device registers.
 
-One more thing...
+I'm proposing that we explicitly switch "memory-like" use cases over
+to a separate set of "memremap()" apis, as these are no longer
+"__iomem" [1].
 
-> @@ -161,17 +178,34 @@ static void wb_queue_work(struct bdi_writeback *wb,
->  	trace_writeback_queue(wb->bdi, work);
->  
->  	spin_lock_bh(&wb->work_lock);
-> -	if (!test_bit(WB_registered, &wb->state)) {
-> -		if (work->done)
-> -			complete(work->done);
-> +	if (!test_bit(WB_registered, &wb->state))
->  		goto out_unlock;
+> The problem with ioremap_uncached() in particular is that we have LDD
+> and other documentation telling people to use it to map device registers,
+> so we can't define ioremap_uncached() on ARM to have memory-like
+> properties, and it doesn't support unaligned accesses.
+>
+> I have a series of patches which fix up 32-bit ARM for the broken
+> ioremap_wt() stuff that was merged during this merge window, which I
+> intend to push out into linux-next at some point (possibly during the
+> merge window, if not after -rc1) which also move ioremap*() out of line
+> on ARM but more importantly, adds a load of documentation about the
+> properties of the resulting mapping on ARM.
 
-This seems like a change in behavior. Previously unregistered wbs just
-completed the work->done, now you don't complete them. Is that intentional?
+Sounds good, I'll look for that before proceeding on this clean up.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+[1]: https://lists.01.org/pipermail/linux-nvdimm/2015-June/001331.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
