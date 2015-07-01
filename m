@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D98146B0258
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 17:37:16 -0400 (EDT)
-Received: by igblr2 with SMTP id lr2so44146169igb.0
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 14:37:16 -0700 (PDT)
-Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com. [2607:f8b0:4001:c05::229])
-        by mx.google.com with ESMTPS id if9si3856544igb.26.2015.07.01.14.37.16
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id DFBBF6B0259
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 17:37:21 -0400 (EDT)
+Received: by igblr2 with SMTP id lr2so107241690igb.0
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 14:37:21 -0700 (PDT)
+Received: from mail-ig0-x22e.google.com (mail-ig0-x22e.google.com. [2607:f8b0:4001:c05::22e])
+        by mx.google.com with ESMTPS id h196si3523025ioe.6.2015.07.01.14.37.21
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jul 2015 14:37:16 -0700 (PDT)
-Received: by igcur8 with SMTP id ur8so103001096igc.0
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 14:37:16 -0700 (PDT)
-Date: Wed, 1 Jul 2015 14:37:14 -0700 (PDT)
+        Wed, 01 Jul 2015 14:37:21 -0700 (PDT)
+Received: by igcur8 with SMTP id ur8so103002667igc.0
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 14:37:21 -0700 (PDT)
+Date: Wed, 1 Jul 2015 14:37:19 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch v2 2/3] mm, oom: organize oom context into struct
+Subject: [patch v2 3/3] mm, oom: organize oom context into struct
 In-Reply-To: <alpine.DEB.2.10.1507011435150.14014@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1507011436080.14014@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1507011436360.14014@chino.kir.corp.google.com>
 References: <alpine.DEB.2.10.1506181555350.13736@chino.kir.corp.google.com> <alpine.DEB.2.10.1507011435150.14014@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -24,98 +24,62 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-The force_kill member of struct oom_control isn't needed if an order of
--1 is used instead.  This is the same as order == -1 in
-struct compact_control which requires full memory compaction.
+Sysrq+f is used to kill a process either for debug or when the VM is
+otherwise unresponsive.
 
-This patch introduces no functional change.
+It is not intended to trigger a panic when no process may be killed.
 
+Avoid panicking the system for sysrq+f when no processes are killed.
+
+Suggested-by: Michal Hocko <mhocko@suse.cz>
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- v2: fix changelog typo per Sergey
+ v2: no change
 
- drivers/tty/sysrq.c | 3 +--
- include/linux/oom.h | 1 -
- mm/memcontrol.c     | 1 -
- mm/oom_kill.c       | 5 ++---
- mm/page_alloc.c     | 1 -
- 5 files changed, 3 insertions(+), 8 deletions(-)
+ Documentation/sysrq.txt | 3 ++-
+ mm/oom_kill.c           | 7 +++++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/tty/sysrq.c b/drivers/tty/sysrq.c
---- a/drivers/tty/sysrq.c
-+++ b/drivers/tty/sysrq.c
-@@ -358,8 +358,7 @@ static void moom_callback(struct work_struct *ignored)
- 		.zonelist = node_zonelist(first_memory_node, gfp_mask),
- 		.nodemask = NULL,
- 		.gfp_mask = gfp_mask,
--		.order = 0,
--		.force_kill = true,
-+		.order = -1,
- 	};
+diff --git a/Documentation/sysrq.txt b/Documentation/sysrq.txt
+--- a/Documentation/sysrq.txt
++++ b/Documentation/sysrq.txt
+@@ -75,7 +75,8 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
  
- 	mutex_lock(&oom_lock);
-diff --git a/include/linux/oom.h b/include/linux/oom.h
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -17,7 +17,6 @@ struct oom_control {
- 	nodemask_t	*nodemask;
- 	gfp_t		gfp_mask;
- 	int		order;
--	bool		force_kill;
- };
+ 'e'     - Send a SIGTERM to all processes, except for init.
  
- /*
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1550,7 +1550,6 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 		.nodemask = NULL,
- 		.gfp_mask = gfp_mask,
- 		.order = order,
--		.force_kill = false,
- 	};
- 	struct mem_cgroup *iter;
- 	unsigned long chosen_points = 0;
+-'f'	- Will call oom_kill to kill a memory hog process.
++'f'	- Will call the oom killer to kill a memory hog process, but do not
++	  panic if nothing can be killed.
+ 
+ 'g'	- Used by kgdb (kernel debugger)
+ 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -265,7 +265,7 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
- 	 * Don't allow any other task to have access to the reserves.
- 	 */
- 	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
--		if (!oc->force_kill)
-+		if (oc->order != -1)
- 			return OOM_SCAN_ABORT;
+@@ -607,6 +607,9 @@ void check_panic_on_oom(struct oom_control *oc, enum oom_constraint constraint,
+ 		if (constraint != CONSTRAINT_NONE)
+ 			return;
  	}
- 	if (!task->mm)
-@@ -278,7 +278,7 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
- 	if (oom_task_origin(task))
- 		return OOM_SCAN_SELECT;
++	/* Do not panic for oom kills triggered by sysrq */
++	if (oc->order == -1)
++		return;
+ 	dump_header(oc, NULL, memcg);
+ 	panic("Out of memory: %s panic_on_oom is enabled\n",
+ 		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
+@@ -686,11 +689,11 @@ bool out_of_memory(struct oom_control *oc)
  
--	if (task_will_free_mem(task) && !oc->force_kill)
-+	if (task_will_free_mem(task) && oc->order != -1)
- 		return OOM_SCAN_ABORT;
- 
- 	return OOM_SCAN_OK;
-@@ -718,7 +718,6 @@ void pagefault_out_of_memory(void)
- 		.nodemask = NULL,
- 		.gfp_mask = 0,
- 		.order = 0,
--		.force_kill = false,
- 	};
- 
- 	if (mem_cgroup_oom_synchronize(true))
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2685,7 +2685,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 		.nodemask = ac->nodemask,
- 		.gfp_mask = gfp_mask,
- 		.order = order,
--		.force_kill = false,
- 	};
- 	struct page *page;
- 
+ 	p = select_bad_process(oc, &points, totalpages);
+ 	/* Found nothing?!?! Either we hang forever, or we panic. */
+-	if (!p) {
++	if (!p && oc->order != -1) {
+ 		dump_header(oc, NULL, NULL);
+ 		panic("Out of memory and no killable processes...\n");
+ 	}
+-	if (p != (void *)-1UL) {
++	if (p && p != (void *)-1UL) {
+ 		oom_kill_process(oc, p, points, totalpages, NULL,
+ 				 "Out of memory");
+ 		killed = 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
