@@ -1,59 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 69F6C6B0032
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 10:30:47 -0400 (EDT)
-Received: by qkhu186 with SMTP id u186so30561736qkh.0
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 07:30:47 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 9si2406270qkq.48.2015.07.01.07.30.46
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id ABD776B0032
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 11:07:20 -0400 (EDT)
+Received: by qgii30 with SMTP id i30so19930844qgi.1
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 08:07:20 -0700 (PDT)
+Received: from mail-qk0-x22c.google.com (mail-qk0-x22c.google.com. [2607:f8b0:400d:c09::22c])
+        by mx.google.com with ESMTPS id j9si2523713qhc.78.2015.07.01.08.07.18
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jul 2015 07:30:46 -0700 (PDT)
-Message-ID: <5593F98C.4010406@redhat.com>
-Date: Wed, 01 Jul 2015 10:30:36 -0400
-From: Rik van Riel <riel@redhat.com>
+        Wed, 01 Jul 2015 08:07:18 -0700 (PDT)
+Received: by qkhu186 with SMTP id u186so31444733qkh.0
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 08:07:18 -0700 (PDT)
+Date: Wed, 1 Jul 2015 11:07:08 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [PATCH 06/36] HMM: add HMM page table v2.
+Message-ID: <20150701150707.GA9313@gmail.com>
+References: <1432236705-4209-1-git-send-email-j.glisse@gmail.com>
+ <1432236705-4209-7-git-send-email-j.glisse@gmail.com>
+ <alpine.DEB.2.00.1506251540170.28614@mdh-linux64-2.nvidia.com>
+ <20150626163030.GA3748@gmail.com>
+ <alpine.DEB.2.00.1506261827090.20890@mdh-linux64-2.nvidia.com>
+ <20150629144305.GA2173@gmail.com>
+ <alpine.DEB.2.00.1506301946190.31456@mdh-linux64-2.nvidia.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm, vmscan: Do not wait for page writeback for GFP_NOFS
- allocations
-References: <1435677437-16717-1-git-send-email-mhocko@suse.cz> <20150701061731.GB6286@dhcp22.suse.cz> <20150701133715.GA6287@dhcp22.suse.cz>
-In-Reply-To: <20150701133715.GA6287@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <alpine.DEB.2.00.1506301946190.31456@mdh-linux64-2.nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Nikolay Borisov <kernel@kyup.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Marian Marinov <mm@1h.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-ext4@vger.kernel.org
+To: Mark Hairgrove <mhairgrove@nvidia.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, "joro@8bytes.org" <joro@8bytes.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>
 
-On 07/01/2015 09:37 AM, Michal Hocko wrote:
-
-> Fix this issue by limiting the wait to reclaim triggered by __GFP_FS
-> allocations to make sure we are not called from filesystem paths which
-> might be doing exactly this kind of IO optimizations. The page fault
-> path, which is the only path that triggers memcg oom killer since 3.12,
-> shouldn't require GFP_NOFS and so we shouldn't reintroduce the premature
-> OOM killer issue which was originally addressed by the heuristic.
+On Tue, Jun 30, 2015 at 07:51:12PM -0700, Mark Hairgrove wrote:
+> On Mon, 29 Jun 2015, Jerome Glisse wrote:
+> > [...]
+> > 
+> > Iterator is what protect against concurrent freeing of the directory so it
+> > has to return to caller on directory boundary (for 64bits arch with 64bits
+> > pte it has return every 512 entries). Otherwise pt_iter_fini() would have
+> > to walk over the whole directory range again just to drop reference and this
+> > doesn't sound like a good idea.
 > 
-> As per David Chinner the xfs is doing similar thing since 2.6.15 already
-> so ext4 is not the only affected filesystem. Moreover he notes:
-> : For example: IO completion might require unwritten extent conversion
-> : which executes filesystem transactions and GFP_NOFS allocations. The
-> : writeback flag on the pages can not be cleared until unwritten
-> : extent conversion completes. Hence memory reclaim cannot wait on
-> : page writeback to complete in GFP_NOFS context because it is not
-> : safe to do so, memcg reclaim or otherwise.
+> I don't understand why it would have to return to the caller to unprotect 
+> the directory. The iterator would simply drop the reference to the 
+> previous directory, take a reference on the next one, and keep searching 
+> for a valid entry.
+> 
+> Why would pt_iter_fini have to walk over the entire range? The iterator 
+> would keep at most one directory per level referenced. _fini would walk 
+> the per-level ptd array and unprotect each level, the same way it does 
+> now.
 
-I remember fixing something like this back in the 2.2
-days. Funny how these bugs keep coming back.
+I think here we are just misunderstanding each other. I am saying that
+iterator have to return on directory boundary (ie when switching from one
+directory to the next). The return part is not only for protection it is
+also by design because iterator function should not test the page table
+entry as different code path have different synchronization requirement.
 
-> Cc: stable # 3.6+
-> Fixes: c3b94f44fcb0 ("memcg: further prevent OOM with too many dirty pages")
-> Reported-by: Nikolay Borisov <kernel@kyup.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+> > So really with what you are asking it whould be:
+> > 
+> > hmm_pt_iter_init(&iter, start, end);
+> > for(next=pt_iter_next(&iter,&ptep); next<end; next=pt_iter_next(&iter,&ptep))
+> > {
+> >    // Here ptep is valid until next address. Above you have to call
+> >    // pt_iter_next() to switch to next directory.
+> >    addr = max(start, next - (~HMM_PMD_MASK + 1));
+> >    for (; addr < next; addr += PAGE_SIZE, ptep++) {
+> >       // access ptep
+> >    }
+> > }
+> > 
+> > My point is that internally pt_iter_next() will do the exact same test it is
+> > doing now btw cur and addr. Just that the addr is no longer explicit but iter
+> > infer it.
+> 
+> But this way, the iteration across directories is more efficient because 
+> the iterator can simply walk the directory array. Take a directory that 
+> has one valid entry at the very end. The existing iteration will do this:
+> 
+> hmm_pt_iter_next(dir_addr[0], end)
+>     Walk up the ptd array
+>     Compute level start and end and compare them to dir_addr[0]
+>     Compute dir_addr[1] using addr and pt->mask
+>     Return dir_addr[1]
+> hmm_pt_iter_update(dir_addr[1])
+>     Walk up the ptd array, compute level start and end
+>     Compute level index of dir_addr[1]
+>     Read entry for dir_addr[1]
+>     Return NULL
+> hmm_pt_iter_next(dir_addr[1], end)
+>     ...
+> And so on 511 times until the last entry is read.
+> 
+> This is really more suited to a for loop iteration, which it could be if 
+> this were fully contained within the _next call.
 
--- 
-All rights reversed
+No, existing code does not necessarily do that. Current use pattern is :
+
+for (addr = start; addr < end;) {
+   ptep = hmm_pt_iter_update(iter, addr);
+   if (!ptep) {
+     addr = hmm_pt_iter_next(iter, addr, end);
+     continue;
+   }
+   next = hmm_pt_level_next(pt, addr, end);
+   for (; addr < next; addr += PAGE_SIZE, ptep++) {
+     // Process addr using ptep.
+   }
+}
+
+The inner loop is on directory boundary ie 512 entries on 64bits arch.
+It is that way because on some case you do not want the iterator to
+control the address, the outer loop might be accessing several different
+mirror page table each might have different gap. So you really want to
+have explicit address provided to the iterator function.
+
+Also iterator can not really test for valid entry as locking requirement
+and synchronization with other thread is different depending on which
+code path is walking the page table. So testing inside the iterator
+function is kind of pointless has the performed test might be no longer
+revealent by the time it returns pointer and address to the caller.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
