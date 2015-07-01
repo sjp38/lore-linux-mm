@@ -1,87 +1,1900 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id AAAC86B006E
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 03:32:45 -0400 (EDT)
-Received: by wiar9 with SMTP id r9so59633276wia.1
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 00:32:45 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ce7si1853283wjc.102.2015.07.01.00.32.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 01 Jul 2015 00:32:44 -0700 (PDT)
-Date: Wed, 1 Jul 2015 09:32:40 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 38/51] writeback: make laptop_mode_timer_fn() handle
- multiple bdi_writeback's
-Message-ID: <20150701073240.GY7252@quack.suse.cz>
-References: <1432329245-5844-1-git-send-email-tj@kernel.org>
- <1432329245-5844-39-git-send-email-tj@kernel.org>
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FBE06B006E
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 03:47:15 -0400 (EDT)
+Received: by wicgi11 with SMTP id gi11so37087013wic.0
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 00:47:15 -0700 (PDT)
+Received: from mailhub1.si.c-s.fr (2.236.17.93.rev.sfr.net. [93.17.236.2])
+        by mx.google.com with ESMTP id ga2si1904969wjb.135.2015.07.01.00.47.12
+        for <linux-mm@kvack.org>;
+        Wed, 01 Jul 2015 00:47:13 -0700 (PDT)
+Message-ID: <55939AFF.2030907@c-s.fr>
+Date: Wed, 01 Jul 2015 09:47:11 +0200
+From: leroy christophe <christophe.leroy@c-s.fr>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1432329245-5844-39-git-send-email-tj@kernel.org>
+Subject: Re: [HELP/RFC] Moving ppc8xx microcode patch from micropatch.c to
+ firmware
+References: <5592FE50.2080000@c-s.fr>
+In-Reply-To: <5592FE50.2080000@c-s.fr>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-firmware@kernel.org, Ming Lei <ming.lei@canonical.com>, Scott Wood <scottwood@freescale.com>, linux-mm@kvack.org
 
-On Fri 22-05-15 17:13:52, Tejun Heo wrote:
-> For cgroup writeback support, all bdi-wide operations should be
-> distributed to all its wb's (bdi_writeback's).
-> 
-> This patch updates laptop_mode_timer_fn() so that it invokes
-> wb_start_writeback() on all wb's rather than just the root one.  As
-> the intent is writing out all dirty data, there's no reason to split
-> the number of pages to write.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> Cc: Jens Axboe <axboe@kernel.dk>
-> Cc: Jan Kara <jack@suse.cz>
 
-Looks good. You can add:
+Le 30/06/2015 22:38, christophe leroy a A(C)crit :
+> I'm trying to move the 3 microcode patches included in 
+> arch/powerpc/sysdev/micropatch.c into the firmware directory in order 
+> to use request_firmware() and then be able to add additional 
+> micropatch that I need to relocate SMC2 on my MPC885.
+I've now been able to get it compiled in, was due to Makefile item 
+written fw_shipped- instead of fw-shipped-
 
-Reviewed-by: Jan Kara <jack@suse.com>
+I'm now facing an Oops for NULL pointer in kmem_cache_alloc() after a 
+call to kzalloc(sizeof(*firmware), GFP_KERNEL) in 
+_request_firmware_prepare() (drivers/base/firmware_class.c)
 
-								Honza
+Is that due to cpm_reset() being called too early ? Shouldn't kzalloc() 
+allocate memory from the bootmem pool in that case ?
 
+[    0.000000] Unable to handle kernel paging request for data at 
+address 0x00000000
+[    0.000000] Faulting instruction address: 0xc00a77cc
+[    0.000000] Oops: Kernel access of bad area, sig: 11 [#1]
+[    0.000000] PREEMPT CMPC885
+[    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 
+3.18.17-local-knld-998-g9c4c6b6-svn-dirty #1022
+[    0.000000] task: c04dc3d0 ti: c04fc000 task.ti: c04fc000
+[    0.000000] NIP: c00a77cc LR: c01bc3b8 CTR: 00000000
+[    0.000000] REGS: c04fde20 TRAP: 0300   Not tainted 
+(3.18.17-local-knld-998-g9c4c6b6-svn-dirty)
+[    0.000000] MSR: 00001032 <ME,IR,DR,RI>  CR: 93d55d35  XER: a000fb40
+[    0.000000] DAR: 00000000 DSISR: c0000000
+GPR00: c01bc3b8 c04fded0 c04dc3d0 00000000 000080d0 00000000 00000009 
+01ffffff
+GPR08: 00000000 00200002 c0510000 00000158 53d55d39 00000000 00000000 
+07ff94e8
+GPR16: 00000000 07bb5d70 00000000 07ff81f4 c0534468 c04fdf68 00000000 
+00000009
+GPR24: 07ffb3a0 00000000 00000001 000080d0 07ffb3a0 00000000 c04fc000 
+c0410878
+[    0.000000] NIP [c00a77cc] kmem_cache_alloc+0x28/0x120
+[    0.000000] LR [c01bc3b8] _request_firmware+0x58/0xa14
+[    0.000000] Call Trace:
+[    0.000000] [c04fded0] [c045f588] ___alloc_bootmem_nopanic+0x34/0x64 
+(unreliable)
+[    0.000000] [c04fdef0] [c01bc3b8] _request_firmware+0x58/0xa14
+[    0.000000] [c04fdf60] [c0458678] cpm_load_patch+0x34/0xac
+[    0.000000] [c04fdf80] [c0458620] cpm_reset+0x5c/0x80
+[    0.000000] [c04fdf90] [c0458c1c] cmpc885_setup_arch+0x10/0x30
+[    0.000000] [c04fdfa0] [c0457cbc] setup_arch+0x130/0x168
+[    0.000000] [c04fdfb0] [c045469c] start_kernel+0x84/0x37c
+[    0.000000] [c04fdff0] [c0002214] start_here+0x38/0x98
+[    0.000000] Instruction dump:
+[    0.000000] 7c832378 4e800020 7c0802a6 9421ffe0 bf61000c 90010024 
+7c7d1b78 7c9b2378
+[    0.000000] 543e0024 813e000c 39290001 913e000c <83fd0000> 839f0004 
+813e000c 3929ffff
+[    0.000000] ---[ end trace dc8fa200cb88537f ]---
+
+
+
+>
+> I have written the below patch in order to test the principle, but the 
+> firmware never gets included in my kernel, allthough I have set the 
+> below CONFIG items:
+>
+> # CONFIG_NO_UCODE_PATCH is not set
+> CONFIG_USB_SOF_UCODE_PATCH=y
+> # CONFIG_I2C_SPI_UCODE_PATCH is not set
+> # CONFIG_I2C_SPI_SMC1_UCODE_PATCH is not set
+> CONFIG_UCODE_PATCH=y
+> #
+> # Generic Driver Options
+> #
+> # CONFIG_UEVENT_HELPER is not set
+> CONFIG_DEVTMPFS=y
+> CONFIG_DEVTMPFS_MOUNT=y
+> # CONFIG_STANDALONE is not set
+> # CONFIG_PREVENT_FIRMWARE_BUILD is not set
+> CONFIG_FW_LOADER=y
+> CONFIG_FIRMWARE_IN_KERNEL=y
+> CONFIG_EXTRA_FIRMWARE=""
+> CONFIG_FW_LOADER_USER_HELPER=y
+> CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y
+>
+> Can anybody help in finding what's wrong there ?
+>
+> Christophe
+>
 > ---
->  mm/page-writeback.c | 12 +++++++++---
->  1 file changed, 9 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 6301af2..682e3a6 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -1723,14 +1723,20 @@ void laptop_mode_timer_fn(unsigned long data)
->  	struct request_queue *q = (struct request_queue *)data;
->  	int nr_pages = global_page_state(NR_FILE_DIRTY) +
->  		global_page_state(NR_UNSTABLE_NFS);
-> +	struct bdi_writeback *wb;
-> +	struct wb_iter iter;
->  
->  	/*
->  	 * We want to write everything out, not just down to the dirty
->  	 * threshold
->  	 */
-> -	if (bdi_has_dirty_io(&q->backing_dev_info))
-> -		wb_start_writeback(&q->backing_dev_info.wb, nr_pages, true,
-> -				   WB_REASON_LAPTOP_TIMER);
-> +	if (!bdi_has_dirty_io(&q->backing_dev_info))
-> +		return;
-> +
-> +	bdi_for_each_wb(wb, &q->backing_dev_info, &iter, 0)
-> +		if (wb_has_dirty_io(wb))
-> +			wb_start_writeback(wb, nr_pages, true,
-> +					   WB_REASON_LAPTOP_TIMER);
->  }
->  
->  /*
-> -- 
-> 2.4.0
-> 
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+>  arch/powerpc/sysdev/micropatch.c         | 655 
+> ++-----------------------------
+>  firmware/Makefile                        |   3 +
+>  firmware/freescale/i2c_spi.bin.ihex      | 257 ++++++++++++
+>  firmware/freescale/i2c_spi_smc1.bin.ihex | 257 ++++++++++++
+>  firmware/freescale/usb_sof.bin.ihex      | 513 ++++++++++++++++++++++++
+>  5 files changed, 1065 insertions(+), 620 deletions(-)
+>  create mode 100644 firmware/freescale/i2c_spi.bin.ihex
+>  create mode 100644 firmware/freescale/i2c_spi_smc1.bin.ihex
+>  create mode 100644 firmware/freescale/usb_sof.bin.ihex
+>
+> diff --git a/arch/powerpc/sysdev/micropatch.c 
+> b/arch/powerpc/sysdev/micropatch.c
+> index 6727dc5..c24780c 100644
+> --- a/arch/powerpc/sysdev/micropatch.c
+> +++ b/arch/powerpc/sysdev/micropatch.c
+> @@ -12,6 +12,8 @@
+>  #include <linux/string.h>
+>  #include <linux/mm.h>
+>  #include <linux/interrupt.h>
+> +#include <linux/firmware.h>
+> +#include <linux/module.h>
+>  #include <asm/irq.h>
+>  #include <asm/page.h>
+>  #include <asm/pgtable.h>
+> @@ -19,652 +21,69 @@
+>  #include <asm/cpm.h>
+>  #include <asm/cpm1.h>
+>
+> -/*
+> - * I2C/SPI relocation patch arrays.
+> - */
+> -
+> -#ifdef CONFIG_I2C_SPI_UCODE_PATCH
+> -
+> -static uint patch_2000[] __initdata = {
+> -    0x7FFFEFD9,
+> -    0x3FFD0000,
+> -    0x7FFB49F7,
+> -    0x7FF90000,
+> -    0x5FEFADF7,
+> -    0x5F89ADF7,
+> -    0x5FEFAFF7,
+> -    0x5F89AFF7,
+> -    0x3A9CFBC8,
+> -    0xE7C0EDF0,
+> -    0x77C1E1BB,
+> -    0xF4DC7F1D,
+> -    0xABAD932F,
+> -    0x4E08FDCF,
+> -    0x6E0FAFF8,
+> -    0x7CCF76CF,
+> -    0xFD1FF9CF,
+> -    0xABF88DC6,
+> -    0xAB5679F7,
+> -    0xB0937383,
+> -    0xDFCE79F7,
+> -    0xB091E6BB,
+> -    0xE5BBE74F,
+> -    0xB3FA6F0F,
+> -    0x6FFB76CE,
+> -    0xEE0DF9CF,
+> -    0x2BFBEFEF,
+> -    0xCFEEF9CF,
+> -    0x76CEAD24,
+> -    0x90B2DF9A,
+> -    0x7FDDD0BF,
+> -    0x4BF847FD,
+> -    0x7CCF76CE,
+> -    0xCFEF7E1F,
+> -    0x7F1D7DFD,
+> -    0xF0B6EF71,
+> -    0x7FC177C1,
+> -    0xFBC86079,
+> -    0xE722FBC8,
+> -    0x5FFFDFFF,
+> -    0x5FB2FFFB,
+> -    0xFBC8F3C8,
+> -    0x94A67F01,
+> -    0x7F1D5F39,
+> -    0xAFE85F5E,
+> -    0xFFDFDF96,
+> -    0xCB9FAF7D,
+> -    0x5FC1AFED,
+> -    0x8C1C5FC1,
+> -    0xAFDD5FC3,
+> -    0xDF9A7EFD,
+> -    0xB0B25FB2,
+> -    0xFFFEABAD,
+> -    0x5FB2FFFE,
+> -    0x5FCE600B,
+> -    0xE6BB600B,
+> -    0x5FCEDFC6,
+> -    0x27FBEFDF,
+> -    0x5FC8CFDE,
+> -    0x3A9CE7C0,
+> -    0xEDF0F3C8,
+> -    0x7F0154CD,
+> -    0x7F1D2D3D,
+> -    0x363A7570,
+> -    0x7E0AF1CE,
+> -    0x37EF2E68,
+> -    0x7FEE10EC,
+> -    0xADF8EFDE,
+> -    0xCFEAE52F,
+> -    0x7D0FE12B,
+> -    0xF1CE5F65,
+> -    0x7E0A4DF8,
+> -    0xCFEA5F72,
+> -    0x7D0BEFEE,
+> -    0xCFEA5F74,
+> -    0xE522EFDE,
+> -    0x5F74CFDA,
+> -    0x0B627385,
+> -    0xDF627E0A,
+> -    0x30D8145B,
+> -    0xBFFFF3C8,
+> -    0x5FFFDFFF,
+> -    0xA7F85F5E,
+> -    0xBFFE7F7D,
+> -    0x10D31450,
+> -    0x5F36BFFF,
+> -    0xAF785F5E,
+> -    0xBFFDA7F8,
+> -    0x5F36BFFE,
+> -    0x77FD30C0,
+> -    0x4E08FDCF,
+> -    0xE5FF6E0F,
+> -    0xAFF87E1F,
+> -    0x7E0FFD1F,
+> -    0xF1CF5F1B,
+> -    0xABF80D5E,
+> -    0x5F5EFFEF,
+> -    0x79F730A2,
+> -    0xAFDD5F34,
+> -    0x47F85F34,
+> -    0xAFED7FDD,
+> -    0x50B24978,
+> -    0x47FD7F1D,
+> -    0x7DFD70AD,
+> -    0xEF717EC1,
+> -    0x6BA47F01,
+> -    0x2D267EFD,
+> -    0x30DE5F5E,
+> -    0xFFFD5F5E,
+> -    0xFFEF5F5E,
+> -    0xFFDF0CA0,
+> -    0xAFED0A9E,
+> -    0xAFDD0C3A,
+> -    0x5F3AAFBD,
+> -    0x7FBDB082,
+> -    0x5F8247F8
+> -};
+> -
+> -static uint patch_2f00[] __initdata = {
+> -    0x3E303430,
+> -    0x34343737,
+> -    0xABF7BF9B,
+> -    0x994B4FBD,
+> -    0xBD599493,
+> -    0x349FFF37,
+> -    0xFB9B177D,
+> -    0xD9936956,
+> -    0xBBFDD697,
+> -    0xBDD2FD11,
+> -    0x31DB9BB3,
+> -    0x63139637,
+> -    0x93733693,
+> -    0x193137F7,
+> -    0x331737AF,
+> -    0x7BB9B999,
+> -    0xBB197957,
+> -    0x7FDFD3D5,
+> -    0x73B773F7,
+> -    0x37933B99,
+> -    0x1D115316,
+> -    0x99315315,
+> -    0x31694BF4,
+> -    0xFBDBD359,
+> -    0x31497353,
+> -    0x76956D69,
+> -    0x7B9D9693,
+> -    0x13131979,
+> -    0x79376935
+> -};
+> -#endif
+> -
+> -/*
+> - * I2C/SPI/SMC1 relocation patch arrays.
+> - */
+> -
+> -#ifdef CONFIG_I2C_SPI_SMC1_UCODE_PATCH
+> +MODULE_FIRMWARE("freescale/i2c_spi.bin");
+> +MODULE_FIRMWARE("freescale/i2c_spi_smc1.bin");
+> +MODULE_FIRMWARE("freescale/usb_sof.bin");
+>
+> -static uint patch_2000[] __initdata = {
+> -    0x3fff0000,
+> -    0x3ffd0000,
+> -    0x3ffb0000,
+> -    0x3ff90000,
+> -    0x5f13eff8,
+> -    0x5eb5eff8,
+> -    0x5f88adf7,
+> -    0x5fefadf7,
+> -    0x3a9cfbc8,
+> -    0x77cae1bb,
+> -    0xf4de7fad,
+> -    0xabae9330,
+> -    0x4e08fdcf,
+> -    0x6e0faff8,
+> -    0x7ccf76cf,
+> -    0xfdaff9cf,
+> -    0xabf88dc8,
+> -    0xab5879f7,
+> -    0xb0925d8d,
+> -    0xdfd079f7,
+> -    0xb090e6bb,
+> -    0xe5bbe74f,
+> -    0x9e046f0f,
+> -    0x6ffb76ce,
+> -    0xee0cf9cf,
+> -    0x2bfbefef,
+> -    0xcfeef9cf,
+> -    0x76cead23,
+> -    0x90b3df99,
+> -    0x7fddd0c1,
+> -    0x4bf847fd,
+> -    0x7ccf76ce,
+> -    0xcfef77ca,
+> -    0x7eaf7fad,
+> -    0x7dfdf0b7,
+> -    0xef7a7fca,
+> -    0x77cafbc8,
+> -    0x6079e722,
+> -    0xfbc85fff,
+> -    0xdfff5fb3,
+> -    0xfffbfbc8,
+> -    0xf3c894a5,
+> -    0xe7c9edf9,
+> -    0x7f9a7fad,
+> -    0x5f36afe8,
+> -    0x5f5bffdf,
+> -    0xdf95cb9e,
+> -    0xaf7d5fc3,
+> -    0xafed8c1b,
+> -    0x5fc3afdd,
+> -    0x5fc5df99,
+> -    0x7efdb0b3,
+> -    0x5fb3fffe,
+> -    0xabae5fb3,
+> -    0xfffe5fd0,
+> -    0x600be6bb,
+> -    0x600b5fd0,
+> -    0xdfc827fb,
+> -    0xefdf5fca,
+> -    0xcfde3a9c,
+> -    0xe7c9edf9,
+> -    0xf3c87f9e,
+> -    0x54ca7fed,
+> -    0x2d3a3637,
+> -    0x756f7e9a,
+> -    0xf1ce37ef,
+> -    0x2e677fee,
+> -    0x10ebadf8,
+> -    0xefdecfea,
+> -    0xe52f7d9f,
+> -    0xe12bf1ce,
+> -    0x5f647e9a,
+> -    0x4df8cfea,
+> -    0x5f717d9b,
+> -    0xefeecfea,
+> -    0x5f73e522,
+> -    0xefde5f73,
+> -    0xcfda0b61,
+> -    0x5d8fdf61,
+> -    0xe7c9edf9,
+> -    0x7e9a30d5,
+> -    0x1458bfff,
+> -    0xf3c85fff,
+> -    0xdfffa7f8,
+> -    0x5f5bbffe,
+> -    0x7f7d10d0,
+> -    0x144d5f33,
+> -    0xbfffaf78,
+> -    0x5f5bbffd,
+> -    0xa7f85f33,
+> -    0xbffe77fd,
+> -    0x30bd4e08,
+> -    0xfdcfe5ff,
+> -    0x6e0faff8,
+> -    0x7eef7e9f,
+> -    0xfdeff1cf,
+> -    0x5f17abf8,
+> -    0x0d5b5f5b,
+> -    0xffef79f7,
+> -    0x309eafdd,
+> -    0x5f3147f8,
+> -    0x5f31afed,
+> -    0x7fdd50af,
+> -    0x497847fd,
+> -    0x7f9e7fed,
+> -    0x7dfd70a9,
+> -    0xef7e7ece,
+> -    0x6ba07f9e,
+> -    0x2d227efd,
+> -    0x30db5f5b,
+> -    0xfffd5f5b,
+> -    0xffef5f5b,
+> -    0xffdf0c9c,
+> -    0xafed0a9a,
+> -    0xafdd0c37,
+> -    0x5f37afbd,
+> -    0x7fbdb081,
+> -    0x5f8147f8,
+> -    0x3a11e710,
+> -    0xedf0ccdd,
+> -    0xf3186d0a,
+> -    0x7f0e5f06,
+> -    0x7fedbb38,
+> -    0x3afe7468,
+> -    0x7fedf4fc,
+> -    0x8ffbb951,
+> -    0xb85f77fd,
+> -    0xb0df5ddd,
+> -    0xdefe7fed,
+> -    0x90e1e74d,
+> -    0x6f0dcbf7,
+> -    0xe7decfed,
+> -    0xcb74cfed,
+> -    0xcfeddf6d,
+> -    0x91714f74,
+> -    0x5dd2deef,
+> -    0x9e04e7df,
+> -    0xefbb6ffb,
+> -    0xe7ef7f0e,
+> -    0x9e097fed,
+> -    0xebdbeffa,
+> -    0xeb54affb,
+> -    0x7fea90d7,
+> -    0x7e0cf0c3,
+> -    0xbffff318,
+> -    0x5fffdfff,
+> -    0xac59efea,
+> -    0x7fce1ee5,
+> -    0xe2ff5ee1,
+> -    0xaffbe2ff,
+> -    0x5ee3affb,
+> -    0xf9cc7d0f,
+> -    0xaef8770f,
+> -    0x7d0fb0c6,
+> -    0xeffbbfff,
+> -    0xcfef5ede,
+> -    0x7d0fbfff,
+> -    0x5ede4cf8,
+> -    0x7fddd0bf,
+> -    0x49f847fd,
+> -    0x7efdf0bb,
+> -    0x7fedfffd,
+> -    0x7dfdf0b7,
+> -    0xef7e7e1e,
+> -    0x5ede7f0e,
+> -    0x3a11e710,
+> -    0xedf0ccab,
+> -    0xfb18ad2e,
+> -    0x1ea9bbb8,
+> -    0x74283b7e,
+> -    0x73c2e4bb,
+> -    0x2ada4fb8,
+> -    0xdc21e4bb,
+> -    0xb2a1ffbf,
+> -    0x5e2c43f8,
+> -    0xfc87e1bb,
+> -    0xe74ffd91,
+> -    0x6f0f4fe8,
+> -    0xc7ba32e2,
+> -    0xf396efeb,
+> -    0x600b4f78,
+> -    0xe5bb760b,
+> -    0x53acaef8,
+> -    0x4ef88b0e,
+> -    0xcfef9e09,
+> -    0xabf8751f,
+> -    0xefef5bac,
+> -    0x741f4fe8,
+> -    0x751e760d,
+> -    0x7fdbf081,
+> -    0x741cafce,
+> -    0xefcc7fce,
+> -    0x751e70ac,
+> -    0x741ce7bb,
+> -    0x3372cfed,
+> -    0xafdbefeb,
+> -    0xe5bb760b,
+> -    0x53f2aef8,
+> -    0xafe8e7eb,
+> -    0x4bf8771e,
+> -    0x7e247fed,
+> -    0x4fcbe2cc,
+> -    0x7fbc30a9,
+> -    0x7b0f7a0f,
+> -    0x34d577fd,
+> -    0x308b5db7,
+> -    0xde553e5f,
+> -    0xaf78741f,
+> -    0x741f30f0,
+> -    0xcfef5e2c,
+> -    0x741f3eac,
+> -    0xafb8771e,
+> -    0x5e677fed,
+> -    0x0bd3e2cc,
+> -    0x741ccfec,
+> -    0xe5ca53cd,
+> -    0x6fcb4f74,
+> -    0x5dadde4b,
+> -    0x2ab63d38,
+> -    0x4bb3de30,
+> -    0x751f741c,
+> -    0x6c42effa,
+> -    0xefea7fce,
+> -    0x6ffc30be,
+> -    0xefec3fca,
+> -    0x30b3de2e,
+> -    0xadf85d9e,
+> -    0xaf7daefd,
+> -    0x5d9ede2e,
+> -    0x5d9eafdd,
+> -    0x761f10ac,
+> -    0x1da07efd,
+> -    0x30adfffe,
+> -    0x4908fb18,
+> -    0x5fffdfff,
+> -    0xafbb709b,
+> -    0x4ef85e67,
+> -    0xadf814ad,
+> -    0x7a0f70ad,
+> -    0xcfef50ad,
+> -    0x7a0fde30,
+> -    0x5da0afed,
+> -    0x3c12780f,
+> -    0xefef780f,
+> -    0xefef790f,
+> -    0xa7f85e0f,
+> -    0xffef790f,
+> -    0xefef790f,
+> -    0x14adde2e,
+> -    0x5d9eadfd,
+> -    0x5e2dfffb,
+> -    0xe79addfd,
+> -    0xeff96079,
+> -    0x607ae79a,
+> -    0xddfceff9,
+> -    0x60795dff,
+> -    0x607acfef,
+> -    0xefefefdf,
+> -    0xefbfef7f,
+> -    0xeeffedff,
+> -    0xebffe7ff,
+> -    0xafefafdf,
+> -    0xafbfaf7f,
+> -    0xaeffadff,
+> -    0xabffa7ff,
+> -    0x6fef6fdf,
+> -    0x6fbf6f7f,
+> -    0x6eff6dff,
+> -    0x6bff67ff,
+> -    0x2fef2fdf,
+> -    0x2fbf2f7f,
+> -    0x2eff2dff,
+> -    0x2bff27ff,
+> -    0x4e08fd1f,
+> -    0xe5ff6e0f,
+> -    0xaff87eef,
+> -    0x7e0ffdef,
+> -    0xf11f6079,
+> -    0xabf8f542,
+> -    0x7e0af11c,
+> -    0x37cfae3a,
+> -    0x7fec90be,
+> -    0xadf8efdc,
+> -    0xcfeae52f,
+> -    0x7d0fe12b,
+> -    0xf11c6079,
+> -    0x7e0a4df8,
+> -    0xcfea5dc4,
+> -    0x7d0befec,
+> -    0xcfea5dc6,
+> -    0xe522efdc,
+> -    0x5dc6cfda,
+> -    0x4e08fd1f,
+> -    0x6e0faff8,
+> -    0x7c1f761f,
+> -    0xfdeff91f,
+> -    0x6079abf8,
+> -    0x761cee24,
+> -    0xf91f2bfb,
+> -    0xefefcfec,
+> -    0xf91f6079,
+> -    0x761c27fb,
+> -    0xefdf5da7,
+> -    0xcfdc7fdd,
+> -    0xd09c4bf8,
+> -    0x47fd7c1f,
+> -    0x761ccfcf,
+> -    0x7eef7fed,
+> -    0x7dfdf093,
+> -    0xef7e7f1e,
+> -    0x771efb18,
+> -    0x6079e722,
+> -    0xe6bbe5bb,
+> -    0xae0ae5bb,
+> -    0x600bae85,
+> -    0xe2bbe2bb,
+> -    0xe2bbe2bb,
+> -    0xaf02e2bb,
+> -    0xe2bb2ff9,
+> -    0x6079e2bb
+> -};
+> -
+> -static uint patch_2f00[] __initdata = {
+> -    0x30303030,
+> -    0x3e3e3434,
+> -    0xabbf9b99,
+> -    0x4b4fbdbd,
+> -    0x59949334,
+> -    0x9fff37fb,
+> -    0x9b177dd9,
+> -    0x936956bb,
+> -    0xfbdd697b,
+> -    0xdd2fd113,
+> -    0x1db9f7bb,
+> -    0x36313963,
+> -    0x79373369,
+> -    0x3193137f,
+> -    0x7331737a,
+> -    0xf7bb9b99,
+> -    0x9bb19795,
+> -    0x77fdfd3d,
+> -    0x573b773f,
+> -    0x737933f7,
+> -    0xb991d115,
+> -    0x31699315,
+> -    0x31531694,
+> -    0xbf4fbdbd,
+> -    0x35931497,
+> -    0x35376956,
+> -    0xbd697b9d,
+> -    0x96931313,
+> -    0x19797937,
+> -    0x6935af78,
+> -    0xb9b3baa3,
+> -    0xb8788683,
+> -    0x368f78f7,
+> -    0x87778733,
+> -    0x3ffffb3b,
+> -    0x8e8f78b8,
+> -    0x1d118e13,
+> -    0xf3ff3f8b,
+> -    0x6bd8e173,
+> -    0xd1366856,
+> -    0x68d1687b,
+> -    0x3daf78b8,
+> -    0x3a3a3f87,
+> -    0x8f81378f,
+> -    0xf876f887,
+> -    0x77fd8778,
+> -    0x737de8d6,
+> -    0xbbf8bfff,
+> -    0xd8df87f7,
+> -    0xfd876f7b,
+> -    0x8bfff8bd,
+> -    0x8683387d,
+> -    0xb873d87b,
+> -    0x3b8fd7f8,
+> -    0xf7338883,
+> -    0xbb8ee1f8,
+> -    0xef837377,
+> -    0x3337b836,
+> -    0x817d11f8,
+> -    0x7378b878,
+> -    0xd3368b7d,
+> -    0xed731b7d,
+> -    0x833731f3,
+> -    0xf22f3f23
+> -};
+> -
+> -static uint patch_2e00[] __initdata = {
+> -    0x27eeeeee,
+> -    0xeeeeeeee,
+> -    0xeeeeeeee,
+> -    0xeeeeeeee,
+> -    0xee4bf4fb,
+> -    0xdbd259bb,
+> -    0x1979577f,
+> -    0xdfd2d573,
+> -    0xb773f737,
+> -    0x4b4fbdbd,
+> -    0x25b9b177,
+> -    0xd2d17376,
+> -    0x956bbfdd,
+> -    0x697bdd2f,
+> -    0xff9f79ff,
+> -    0xff9ff22f
+> -};
+> -#endif
+> +static int cpm_copy_firmware(unsigned char *dpmem, char *file)
+> +{
+> +    const struct firmware *fw;
+> +    uint *src;
+> +    int i;
+>
+> -/*
+> - *  USB SOF patch arrays.
+> - */
+> +    if (request_firmware_direct(&fw, file, NULL)) {
+> +        printk("%s microcode patch not found\n", file);
+> +        return -1;
+> +    }
+>
+> -#ifdef CONFIG_USB_SOF_UCODE_PATCH
+> +    for (i = 0, src = (uint*)fw->data; i < fw->size >> 2; i++)
+> +        *dpmem++ = *src++;
+>
+> -static uint patch_2000[] __initdata = {
+> -    0x7fff0000,
+> -    0x7ffd0000,
+> -    0x7ffb0000,
+> -    0x49f7ba5b,
+> -    0xba383ffb,
+> -    0xf9b8b46d,
+> -    0xe5ab4e07,
+> -    0xaf77bffe,
+> -    0x3f7bbf79,
+> -    0xba5bba38,
+> -    0xe7676076,
+> -    0x60750000
+> -};
+> -
+> -static uint patch_2f00[] __initdata = {
+> -    0x3030304c,
+> -    0xcab9e441,
+> -    0xa1aaf220
+> -};
+> -#endif
+> +    return 0;
+> +}
+>
+>  void __init cpm_load_patch(cpm8xx_t *cp)
+>  {
+> -    volatile uint        *dp;        /* Dual-ported RAM. */
+>      volatile cpm8xx_t    *commproc;
+>  #if defined(CONFIG_I2C_SPI_UCODE_PATCH) || \
+>      defined(CONFIG_I2C_SPI_SMC1_UCODE_PATCH)
+>      volatile iic_t        *iip;
+>      volatile struct spi_pram *spp;
+> +    int    i;
+>  #ifdef CONFIG_I2C_SPI_SMC1_UCODE_PATCH
+>      volatile smc_uart_t    *smp;
+>  #endif
+>  #endif
+> -    int    i;
+>
+>      commproc = cp;
+>
+> -#ifdef CONFIG_USB_SOF_UCODE_PATCH
+>      commproc->cp_rccr = 0;
+>
+> -    dp = (uint *)(commproc->cp_dpmem);
+> -    for (i=0; i<(sizeof(patch_2000)/4); i++)
+> -        *dp++ = patch_2000[i];
+> -
+> -    dp = (uint *)&(commproc->cp_dpmem[0x0f00]);
+> -    for (i=0; i<(sizeof(patch_2f00)/4); i++)
+> -        *dp++ = patch_2f00[i];
+> +#ifdef CONFIG_USB_SOF_UCODE_PATCH
+> +    if (cpm_copy_firmware((unsigned char*)commproc->cp_dpmem,
+> +        "freescale/usb_sof.bin"))
+> +        return;
+>
+>      commproc->cp_rccr = 0x0009;
+>
+>      printk("USB SOF microcode patch installed\n");
+>  #endif /* CONFIG_USB_SOF_UCODE_PATCH */
+>
+> -#if defined(CONFIG_I2C_SPI_UCODE_PATCH) || \
+> -    defined(CONFIG_I2C_SPI_SMC1_UCODE_PATCH)
+> +#ifdef CONFIG_I2C_SPI_UCODE_PATCH
+> +    if (cpm_copy_firmware((unsigned char*)commproc->cp_dpmem,
+> +        "freescale/i2c_spi.bin"))
+> +        return;
+>
+> -    commproc->cp_rccr = 0;
+> +#endif
+> +#ifdef CONFIG_I2C_SPI_SMC1_UCODE_PATCH
+> +    if (cpm_copy_firmware((unsigned char*)commproc->cp_dpmem,
+> +        "freescale/i2c_spi_smc1.bin"))
+> +        return;
+>
+> -    dp = (uint *)(commproc->cp_dpmem);
+> -    for (i=0; i<(sizeof(patch_2000)/4); i++)
+> -        *dp++ = patch_2000[i];
+> +#endif
+>
+> -    dp = (uint *)&(commproc->cp_dpmem[0x0f00]);
+> -    for (i=0; i<(sizeof(patch_2f00)/4); i++)
+> -        *dp++ = patch_2f00[i];
+> +#if defined(CONFIG_I2C_SPI_UCODE_PATCH) || \
+> +    defined(CONFIG_I2C_SPI_SMC1_UCODE_PATCH)
+>
+>      iip = (iic_t *)&commproc->cp_dparam[PROFF_IIC];
+>  # define RPBASE 0x0500
+> @@ -688,10 +107,6 @@ void __init cpm_load_patch(cpm8xx_t *cp)
+>
+>  # if defined(CONFIG_I2C_SPI_SMC1_UCODE_PATCH)
+>
+> -    dp = (uint *)&(commproc->cp_dpmem[0x0e00]);
+> -    for (i=0; i<(sizeof(patch_2e00)/4); i++)
+> -        *dp++ = patch_2e00[i];
+> -
+>      commproc->cp_cpmcr1 = 0x8080;
+>      commproc->cp_cpmcr2 = 0x808a;
+>      commproc->cp_cpmcr3 = 0x8028;
+> diff --git a/firmware/Makefile b/firmware/Makefile
+> index e297e1b..1454d27 100644
+> --- a/firmware/Makefile
+> +++ b/firmware/Makefile
+> @@ -135,6 +135,9 @@ fw-shipped-$(CONFIG_USB_SERIAL_XIRCOM) += 
+> keyspan_pda/xircom_pgs.fw
+>  fw-shipped-$(CONFIG_USB_VICAM) += vicam/firmware.fw
+>  fw-shipped-$(CONFIG_VIDEO_CPIA2) += cpia2/stv0672_vp4.bin
+>  fw-shipped-$(CONFIG_YAM) += yam/1200.bin yam/9600.bin
+> +fw_shipped-$(CONFIG_USB_SOF_UCODE_PATCH) += freescale/usb_sof.bin
+> +fw_shipped-$(CONFIG_I2C_SPI_UCODE_PATCH) += freescale/i2c_spi.bin
+> +fw_shipped-$(CONFIG_I2C_SPI_SMC1_UCODE_PATCH) += 
+> freescale/i2c_spi_smc1.bin
+>
+>  fw-shipped-all := $(fw-shipped-y) $(fw-shipped-m) $(fw-shipped-)
+>
+> diff --git a/firmware/freescale/i2c_spi.bin.ihex 
+> b/firmware/freescale/i2c_spi.bin.ihex
+> new file mode 100644
+> index 0000000..d9fe26a
+> --- /dev/null
+> +++ b/firmware/freescale/i2c_spi.bin.ihex
+> @@ -0,0 +1,257 @@
+> +:100000007FFFEFD93FFD00007FFB49F77FF900003C
+> +:100010005FEFADF75F89ADF75FEFAFF75F89AFF7E0
+> +:100020003A9CFBC8E7C0EDF077C1E1BBF4DC7F1D73
+> +:10003000ABAD932F4E08FDCF6E0FAFF87CCF76CFD0
+> +:10004000FD1FF9CFABF88DC6AB5679F7B09373832C
+> +:10005000DFCE79F7B091E6BBE5BBE74FB3FA6F0FA0
+> +:100060006FFB76CEEE0DF9CF2BFBEFEFCFEEF9CF96
+> +:1000700076CEAD2490B2DF9A7FDDD0BF4BF847FD3E
+> +:100080007CCF76CECFEF7E1F7F1D7DFDF0B6EF716A
+> +:100090007FC177C1FBC86079E722FBC85FFFDFFF44
+> +:1000A0005FB2FFFBFBC8F3C894A67F017F1D5F39D9
+> +:1000B000AFE85F5EFFDFDF96CB9FAF7D5FC1AFED47
+> +:1000C0008C1C5FC1AFDD5FC3DF9A7EFDB0B25FB253
+> +:1000D000FFFEABAD5FB2FFFE5FCE600BE6BB600B19
+> +:1000E0005FCEDFC627FBEFDF5FC8CFDE3A9CE7C0FD
+> +:1000F000EDF0F3C87F0154CD7F1D2D3D363A75706C
+> +:100100007E0AF1CE37EF2E687FEE10ECADF8EFDE11
+> +:10011000CFEAE52F7D0FE12BF1CE5F657E0A4DF82A
+> +:10012000CFEA5F727D0BEFEECFEA5F74E522EFDE80
+> +:100130005F74CFDA0B627385DF627E0A30D8145B9E
+> +:10014000BFFFF3C85FFFDFFFA7F85F5EBFFE7F7DE5
+> +:1001500010D314505F36BFFFAF785F5EBFFDA7F8C6
+> +:100160005F36BFFE77FD30C04E08FDCFE5FF6E0F56
+> +:10017000AFF87E1F7E0FFD1FF1CF5F1BABF80D5E4A
+> +:100180005F5EFFEF79F730A2AFDD5F3447F85F3491
+> +:10019000AFED7FDD50B2497847FD7F1D7DFD70AD2D
+> +:1001A000EF717EC16BA47F012D267EFD30DE5F5E88
+> +:1001B000FFFD5F5EFFEF5F5EFFDF0CA0AFED0A9E0D
+> +:1001C000AFDD0C3A5F3AAFBD7FBDB0825F8247F8CA
+> +:1001D000000000000000000000000000000000001F
+> +:1001E000000000000000000000000000000000000F
+> +:1001F00000000000000000000000000000000000FF
+> +:1002000000000000000000000000000000000000EE
+> +:1002100000000000000000000000000000000000DE
+> +:1002200000000000000000000000000000000000CE
+> +:1002300000000000000000000000000000000000BE
+> +:1002400000000000000000000000000000000000AE
+> +:10025000000000000000000000000000000000009E
+> +:10026000000000000000000000000000000000008E
+> +:10027000000000000000000000000000000000007E
+> +:10028000000000000000000000000000000000006E
+> +:10029000000000000000000000000000000000005E
+> +:1002A000000000000000000000000000000000004E
+> +:1002B000000000000000000000000000000000003E
+> +:1002C000000000000000000000000000000000002E
+> +:1002D000000000000000000000000000000000001E
+> +:1002E000000000000000000000000000000000000E
+> +:1002F00000000000000000000000000000000000FE
+> +:1003000000000000000000000000000000000000ED
+> +:1003100000000000000000000000000000000000DD
+> +:1003200000000000000000000000000000000000CD
+> +:1003300000000000000000000000000000000000BD
+> +:1003400000000000000000000000000000000000AD
+> +:10035000000000000000000000000000000000009D
+> +:10036000000000000000000000000000000000008D
+> +:10037000000000000000000000000000000000007D
+> +:10038000000000000000000000000000000000006D
+> +:10039000000000000000000000000000000000005D
+> +:1003A000000000000000000000000000000000004D
+> +:1003B000000000000000000000000000000000003D
+> +:1003C000000000000000000000000000000000002D
+> +:1003D000000000000000000000000000000000001D
+> +:1003E000000000000000000000000000000000000D
+> +:1003F00000000000000000000000000000000000FD
+> +:1004000000000000000000000000000000000000EC
+> +:1004100000000000000000000000000000000000DC
+> +:1004200000000000000000000000000000000000CC
+> +:1004300000000000000000000000000000000000BC
+> +:1004400000000000000000000000000000000000AC
+> +:10045000000000000000000000000000000000009C
+> +:10046000000000000000000000000000000000008C
+> +:10047000000000000000000000000000000000007C
+> +:10048000000000000000000000000000000000006C
+> +:10049000000000000000000000000000000000005C
+> +:1004A000000000000000000000000000000000004C
+> +:1004B000000000000000000000000000000000003C
+> +:1004C000000000000000000000000000000000002C
+> +:1004D000000000000000000000000000000000001C
+> +:1004E000000000000000000000000000000000000C
+> +:1004F00000000000000000000000000000000000FC
+> +:1005000000000000000000000000000000000000EB
+> +:1005100000000000000000000000000000000000DB
+> +:1005200000000000000000000000000000000000CB
+> +:1005300000000000000000000000000000000000BB
+> +:1005400000000000000000000000000000000000AB
+> +:10055000000000000000000000000000000000009B
+> +:10056000000000000000000000000000000000008B
+> +:10057000000000000000000000000000000000007B
+> +:10058000000000000000000000000000000000006B
+> +:10059000000000000000000000000000000000005B
+> +:1005A000000000000000000000000000000000004B
+> +:1005B000000000000000000000000000000000003B
+> +:1005C000000000000000000000000000000000002B
+> +:1005D000000000000000000000000000000000001B
+> +:1005E000000000000000000000000000000000000B
+> +:1005F00000000000000000000000000000000000FB
+> +:1006000000000000000000000000000000000000EA
+> +:1006100000000000000000000000000000000000DA
+> +:1006200000000000000000000000000000000000CA
+> +:1006300000000000000000000000000000000000BA
+> +:1006400000000000000000000000000000000000AA
+> +:10065000000000000000000000000000000000009A
+> +:10066000000000000000000000000000000000008A
+> +:10067000000000000000000000000000000000007A
+> +:10068000000000000000000000000000000000006A
+> +:10069000000000000000000000000000000000005A
+> +:1006A000000000000000000000000000000000004A
+> +:1006B000000000000000000000000000000000003A
+> +:1006C000000000000000000000000000000000002A
+> +:1006D000000000000000000000000000000000001A
+> +:1006E000000000000000000000000000000000000A
+> +:1006F00000000000000000000000000000000000FA
+> +:1007000000000000000000000000000000000000E9
+> +:1007100000000000000000000000000000000000D9
+> +:1007200000000000000000000000000000000000C9
+> +:1007300000000000000000000000000000000000B9
+> +:1007400000000000000000000000000000000000A9
+> +:100750000000000000000000000000000000000099
+> +:100760000000000000000000000000000000000089
+> +:100770000000000000000000000000000000000079
+> +:100780000000000000000000000000000000000069
+> +:100790000000000000000000000000000000000059
+> +:1007A0000000000000000000000000000000000049
+> +:1007B0000000000000000000000000000000000039
+> +:1007C0000000000000000000000000000000000029
+> +:1007D0000000000000000000000000000000000019
+> +:1007E0000000000000000000000000000000000009
+> +:1007F00000000000000000000000000000000000F9
+> +:1008000000000000000000000000000000000000E8
+> +:1008100000000000000000000000000000000000D8
+> +:1008200000000000000000000000000000000000C8
+> +:1008300000000000000000000000000000000000B8
+> +:1008400000000000000000000000000000000000A8
+> +:100850000000000000000000000000000000000098
+> +:100860000000000000000000000000000000000088
+> +:100870000000000000000000000000000000000078
+> +:100880000000000000000000000000000000000068
+> +:100890000000000000000000000000000000000058
+> +:1008A0000000000000000000000000000000000048
+> +:1008B0000000000000000000000000000000000038
+> +:1008C0000000000000000000000000000000000028
+> +:1008D0000000000000000000000000000000000018
+> +:1008E0000000000000000000000000000000000008
+> +:1008F00000000000000000000000000000000000F8
+> +:1009000000000000000000000000000000000000E7
+> +:1009100000000000000000000000000000000000D7
+> +:1009200000000000000000000000000000000000C7
+> +:1009300000000000000000000000000000000000B7
+> +:1009400000000000000000000000000000000000A7
+> +:100950000000000000000000000000000000000097
+> +:100960000000000000000000000000000000000087
+> +:100970000000000000000000000000000000000077
+> +:100980000000000000000000000000000000000067
+> +:100990000000000000000000000000000000000057
+> +:1009A0000000000000000000000000000000000047
+> +:1009B0000000000000000000000000000000000037
+> +:1009C0000000000000000000000000000000000027
+> +:1009D0000000000000000000000000000000000017
+> +:1009E0000000000000000000000000000000000007
+> +:1009F00000000000000000000000000000000000F7
+> +:100A000000000000000000000000000000000000E6
+> +:100A100000000000000000000000000000000000D6
+> +:100A200000000000000000000000000000000000C6
+> +:100A300000000000000000000000000000000000B6
+> +:100A400000000000000000000000000000000000A6
+> +:100A50000000000000000000000000000000000096
+> +:100A60000000000000000000000000000000000086
+> +:100A70000000000000000000000000000000000076
+> +:100A80000000000000000000000000000000000066
+> +:100A90000000000000000000000000000000000056
+> +:100AA0000000000000000000000000000000000046
+> +:100AB0000000000000000000000000000000000036
+> +:100AC0000000000000000000000000000000000026
+> +:100AD0000000000000000000000000000000000016
+> +:100AE0000000000000000000000000000000000006
+> +:100AF00000000000000000000000000000000000F6
+> +:100B000000000000000000000000000000000000E5
+> +:100B100000000000000000000000000000000000D5
+> +:100B200000000000000000000000000000000000C5
+> +:100B300000000000000000000000000000000000B5
+> +:100B400000000000000000000000000000000000A5
+> +:100B50000000000000000000000000000000000095
+> +:100B60000000000000000000000000000000000085
+> +:100B70000000000000000000000000000000000075
+> +:100B80000000000000000000000000000000000065
+> +:100B90000000000000000000000000000000000055
+> +:100BA0000000000000000000000000000000000045
+> +:100BB0000000000000000000000000000000000035
+> +:100BC0000000000000000000000000000000000025
+> +:100BD0000000000000000000000000000000000015
+> +:100BE0000000000000000000000000000000000005
+> +:100BF00000000000000000000000000000000000F5
+> +:100C000000000000000000000000000000000000E4
+> +:100C100000000000000000000000000000000000D4
+> +:100C200000000000000000000000000000000000C4
+> +:100C300000000000000000000000000000000000B4
+> +:100C400000000000000000000000000000000000A4
+> +:100C50000000000000000000000000000000000094
+> +:100C60000000000000000000000000000000000084
+> +:100C70000000000000000000000000000000000074
+> +:100C80000000000000000000000000000000000064
+> +:100C90000000000000000000000000000000000054
+> +:100CA0000000000000000000000000000000000044
+> +:100CB0000000000000000000000000000000000034
+> +:100CC0000000000000000000000000000000000024
+> +:100CD0000000000000000000000000000000000014
+> +:100CE0000000000000000000000000000000000004
+> +:100CF00000000000000000000000000000000000F4
+> +:100D000000000000000000000000000000000000E3
+> +:100D100000000000000000000000000000000000D3
+> +:100D200000000000000000000000000000000000C3
+> +:100D300000000000000000000000000000000000B3
+> +:100D400000000000000000000000000000000000A3
+> +:100D50000000000000000000000000000000000093
+> +:100D60000000000000000000000000000000000083
+> +:100D70000000000000000000000000000000000073
+> +:100D80000000000000000000000000000000000063
+> +:100D90000000000000000000000000000000000053
+> +:100DA0000000000000000000000000000000000043
+> +:100DB0000000000000000000000000000000000033
+> +:100DC0000000000000000000000000000000000023
+> +:100DD0000000000000000000000000000000000013
+> +:100DE0000000000000000000000000000000000003
+> +:100DF00000000000000000000000000000000000F3
+> +:100E000000000000000000000000000000000000E2
+> +:100E100000000000000000000000000000000000D2
+> +:100E200000000000000000000000000000000000C2
+> +:100E300000000000000000000000000000000000B2
+> +:100E400000000000000000000000000000000000A2
+> +:100E50000000000000000000000000000000000092
+> +:100E60000000000000000000000000000000000082
+> +:100E70000000000000000000000000000000000072
+> +:100E80000000000000000000000000000000000062
+> +:100E90000000000000000000000000000000000052
+> +:100EA0000000000000000000000000000000000042
+> +:100EB0000000000000000000000000000000000032
+> +:100EC0000000000000000000000000000000000022
+> +:100ED0000000000000000000000000000000000012
+> +:100EE0000000000000000000000000000000000002
+> +:100EF00000000000000000000000000000000000F2
+> +:100F00003E30343034343737ABF7BF9B994B4FBD4D
+> +:100F1000BD599493349FFF37FB9B177DD993695636
+> +:100F2000BBFDD697BDD2FD1131DB9BB36313963762
+> +:100F300093733693193137F7331737AF7BB9B999B4
+> +:100F4000BB1979577FDFD3D573B773F737933B99C5
+> +:100F50001D1153169931531531694BF4FBDBD359ED
+> +:100F60003149735376956D697B9D96931313197967
+> +:100F70007937693500000000000000000000000023
+> +:100F80000000000000000000000000000000000061
+> +:100F90000000000000000000000000000000000051
+> +:100FA0000000000000000000000000000000000041
+> +:100FB0000000000000000000000000000000000031
+> +:100FC0000000000000000000000000000000000021
+> +:100FD0000000000000000000000000000000000011
+> +:100FE0000000000000000000000000000000000001
+> +:100FF00000000000000000000000000000000000F1
+> +:00000001FF
+> diff --git a/firmware/freescale/i2c_spi_smc1.bin.ihex 
+> b/firmware/freescale/i2c_spi_smc1.bin.ihex
+> new file mode 100644
+> index 0000000..96fe6e0
+> --- /dev/null
+> +++ b/firmware/freescale/i2c_spi_smc1.bin.ihex
+> @@ -0,0 +1,257 @@
+> +:100000003FFF00003FFD00003FFB00003FF9000004
+> +:100010005F13EFF85EB5EFF85F88ADF75FEFADF710
+> +:100020003A9CFBC877CAE1BBF4DE7FADABAE933040
+> +:100030004E08FDCF6E0FAFF87CCF76CFFDAFF9CF76
+> +:10004000ABF88DC8AB5879F7B0925D8DDFD079F7FA
+> +:10005000B090E6BBE5BBE74F9E046F0F6FFB76CE1B
+> +:10006000EE0CF9CF2BFBEFEFCFEEF9CF76CEAD2331
+> +:1000700090B3DF997FDDD0C14BF847FD7CCF76CEC2
+> +:10008000CFEF77CA7EAF7FAD7DFDF0B7EF7A7FCA45
+> +:1000900077CAFBC86079E722FBC85FFFDFFF5FB369
+> +:1000A000FFFBFBC8F3C894A5E7C9EDF97F9A7FADC4
+> +:1000B0005F36AFE85F5BFFDFDF95CB9EAF7D5FC351
+> +:1000C000AFED8C1B5FC3AFDD5FC5DF997EFDB0B3C5
+> +:1000D0005FB3FFFEABAE5FB3FFFE5FD0600BE6BB6E
+> +:1000E000600B5FD0DFC827FBEFDF5FCACFDE3A9C33
+> +:1000F000E7C9EDF9F3C87F9E54CA7FED2D3A363734
+> +:10010000756F7E9AF1CE37EF2E677FEE10EBADF86C
+> +:10011000EFDECFEAE52F7D9FE12BF1CE5F647E9A83
+> +:100120004DF8CFEA5F717D9BEFEECFEA5F73E5227A
+> +:10013000EFDE5F73CFDA0B615D8FDF61E7C9EDF949
+> +:100140007E9A30D51458BFFFF3C85FFFDFFFA7F8D2
+> +:100150005F5BBFFE7F7D10D0144D5F33BFFFAF7874
+> +:100160005F5BBFFDA7F85F33BFFE77FD30BD4E0874
+> +:10017000FDCFE5FF6E0FAFF87EEF7E9FFDEFF1CF75
+> +:100180005F17ABF80D5B5F5BFFEF79F7309EAFDD7C
+> +:100190005F3147F85F31AFED7FDD50AF497847FD04
+> +:1001A0007F9E7FED7DFD70A9EF7E7ECE6BA07F9E52
+> +:1001B0002D227EFD30DB5F5BFFFD5F5BFFEF5F5B52
+> +:1001C000FFDF0C9CAFED0A9AAFDD0C375F37AFBD98
+> +:1001D0007FBDB0815F8147F83A11E710EDF0CCDDCB
+> +:1001E000F3186D0A7F0E5F067FEDBB383AFE746828
+> +:1001F0007FEDF4FC8FFBB951B85F77FDB0DF5DDDBB
+> +:10020000DEFE7FED90E1E74D6F0DCBF7E7DECFED42
+> +:10021000CB74CFEDCFEDDF6D91714F745DD2DEEF1A
+> +:100220009E04E7DFEFBB6FFBE7EF7F0E9E097FEDDC
+> +:10023000EBDBEFFAEB54AFFB7FEA90D77E0CF0C319
+> +:10024000BFFFF3185FFFDFFFAC59EFEA7FCE1EE57B
+> +:10025000E2FF5EE1AFFBE2FF5EE3AFFBF9CC7D0FB7
+> +:10026000AEF8770F7D0FB0C6EFFBBFFFCFEF5EDEBE
+> +:100270007D0FBFFF5EDE4CF87FDDD0BF49F847FD44
+> +:100280007EFDF0BB7FEDFFFD7DFDF0B7EF7E7E1EB6
+> +:100290005EDE7F0E3A11E710EDF0CCABFB18AD2E11
+> +:1002A0001EA9BBB874283B7E73C2E4BB2ADA4FB8E0
+> +:1002B000DC21E4BBB2A1FFBF5E2C43F8FC87E1BBAD
+> +:1002C000E74FFD916F0F4FE8C7BA32E2F396EFEBBD
+> +:1002D000600B4F78E5BB760B53ACAEF84EF88B0E47
+> +:1002E000CFEF9E09ABF8751FEFEF5BAC741F4FE8C3
+> +:1002F000751E760D7FDBF081741CAFCEEFCC7FCE08
+> +:10030000751E70AC741CE7BB3372CFEDAFDBEFEB47
+> +:10031000E5BB760B53F2AEF8AFE8E7EB4BF8771E90
+> +:100320007E247FED4FCBE2CC7FBC30A97B0F7A0FD0
+> +:1003300034D577FD308B5DB7DE553E5FAF78741FE7
+> +:10034000741F30F0CFEF5E2C741F3EACAFB8771E39
+> +:100350005E677FED0BD3E2CC741CCFECE5CA53CDC6
+> +:100360006FCB4F745DADDE4B2AB63D384BB3DE30FC
+> +:10037000751F741C6C42EFFAEFEA7FCE6FFC30BE43
+> +:10038000EFEC3FCA30B3DE2EADF85D9EAF7DAEFD23
+> +:100390005D9EDE2E5D9EAFDD761F10AC1DA07EFD46
+> +:1003A00030ADFFFE4908FB185FFFDFFFAFBB709B5E
+> +:1003B0004EF85E67ADF814AD7A0F70ADCFEF50AD6B
+> +:1003C0007A0FDE305DA0AFED3C12780FEFEF780FC3
+> +:1003D000EFEF790FA7F85E0FFFEF790FEFEF790FCF
+> +:1003E00014ADDE2E5D9EADFD5E2DFFFBE79ADDFDBB
+> +:1003F000EFF96079607AE79ADDFCEFF960795DFFEB
+> +:10040000607ACFEFEFEFEFDFEFBFEF7FEEFFEDFFB3
+> +:10041000EBFFE7FFAFEFAFDFAFBFAF7FAEFFADFFEB
+> +:10042000ABFFA7FF6FEF6FDF6FBF6F7F6EFF6DFFDB
+> +:100430006BFF67FF2FEF2FDF2FBF2F7F2EFF2DFFCB
+> +:100440002BFF27FF4E08FD1FE5FF6E0FAFF87EEF75
+> +:100450007E0FFDEFF11F6079ABF8F5427E0AF11CCB
+> +:1004600037CFAE3A7FEC90BEADF8EFDCCFEAE52FA8
+> +:100470007D0FE12BF11C60797E0A4DF8CFEA5DC457
+> +:100480007D0BEFECCFEA5DC6E522EFDC5DC6CFDA8F
+> +:100490004E08FD1F6E0FAFF87C1F761FFDEFF91F92
+> +:1004A0006079ABF8761CEE24F91F2BFBEFEFCFEC55
+> +:1004B000F91F6079761C27FBEFDF5DA7CFDC7FDDBE
+> +:1004C000D09C4BF847FD7C1F761CCFCF7EEF7FED95
+> +:1004D0007DFDF093EF7E7F1E771EFB186079E7228B
+> +:1004E000E6BBE5BBAE0AE5BB600BAE85E2BBE2BB9B
+> +:1004F000E2BBE2BBAF02E2BBE2BB2FF96079E2BB39
+> +:1005000000000000000000000000000000000000EB
+> +:1005100000000000000000000000000000000000DB
+> +:1005200000000000000000000000000000000000CB
+> +:1005300000000000000000000000000000000000BB
+> +:1005400000000000000000000000000000000000AB
+> +:10055000000000000000000000000000000000009B
+> +:10056000000000000000000000000000000000008B
+> +:10057000000000000000000000000000000000007B
+> +:10058000000000000000000000000000000000006B
+> +:10059000000000000000000000000000000000005B
+> +:1005A000000000000000000000000000000000004B
+> +:1005B000000000000000000000000000000000003B
+> +:1005C000000000000000000000000000000000002B
+> +:1005D000000000000000000000000000000000001B
+> +:1005E000000000000000000000000000000000000B
+> +:1005F00000000000000000000000000000000000FB
+> +:1006000000000000000000000000000000000000EA
+> +:1006100000000000000000000000000000000000DA
+> +:1006200000000000000000000000000000000000CA
+> +:1006300000000000000000000000000000000000BA
+> +:1006400000000000000000000000000000000000AA
+> +:10065000000000000000000000000000000000009A
+> +:10066000000000000000000000000000000000008A
+> +:10067000000000000000000000000000000000007A
+> +:10068000000000000000000000000000000000006A
+> +:10069000000000000000000000000000000000005A
+> +:1006A000000000000000000000000000000000004A
+> +:1006B000000000000000000000000000000000003A
+> +:1006C000000000000000000000000000000000002A
+> +:1006D000000000000000000000000000000000001A
+> +:1006E000000000000000000000000000000000000A
+> +:1006F00000000000000000000000000000000000FA
+> +:1007000000000000000000000000000000000000E9
+> +:1007100000000000000000000000000000000000D9
+> +:1007200000000000000000000000000000000000C9
+> +:1007300000000000000000000000000000000000B9
+> +:1007400000000000000000000000000000000000A9
+> +:100750000000000000000000000000000000000099
+> +:100760000000000000000000000000000000000089
+> +:100770000000000000000000000000000000000079
+> +:100780000000000000000000000000000000000069
+> +:100790000000000000000000000000000000000059
+> +:1007A0000000000000000000000000000000000049
+> +:1007B0000000000000000000000000000000000039
+> +:1007C0000000000000000000000000000000000029
+> +:1007D0000000000000000000000000000000000019
+> +:1007E0000000000000000000000000000000000009
+> +:1007F00000000000000000000000000000000000F9
+> +:1008000000000000000000000000000000000000E8
+> +:1008100000000000000000000000000000000000D8
+> +:1008200000000000000000000000000000000000C8
+> +:1008300000000000000000000000000000000000B8
+> +:1008400000000000000000000000000000000000A8
+> +:100850000000000000000000000000000000000098
+> +:100860000000000000000000000000000000000088
+> +:100870000000000000000000000000000000000078
+> +:100880000000000000000000000000000000000068
+> +:100890000000000000000000000000000000000058
+> +:1008A0000000000000000000000000000000000048
+> +:1008B0000000000000000000000000000000000038
+> +:1008C0000000000000000000000000000000000028
+> +:1008D0000000000000000000000000000000000018
+> +:1008E0000000000000000000000000000000000008
+> +:1008F00000000000000000000000000000000000F8
+> +:1009000000000000000000000000000000000000E7
+> +:1009100000000000000000000000000000000000D7
+> +:1009200000000000000000000000000000000000C7
+> +:1009300000000000000000000000000000000000B7
+> +:1009400000000000000000000000000000000000A7
+> +:100950000000000000000000000000000000000097
+> +:100960000000000000000000000000000000000087
+> +:100970000000000000000000000000000000000077
+> +:100980000000000000000000000000000000000067
+> +:100990000000000000000000000000000000000057
+> +:1009A0000000000000000000000000000000000047
+> +:1009B0000000000000000000000000000000000037
+> +:1009C0000000000000000000000000000000000027
+> +:1009D0000000000000000000000000000000000017
+> +:1009E0000000000000000000000000000000000007
+> +:1009F00000000000000000000000000000000000F7
+> +:100A000000000000000000000000000000000000E6
+> +:100A100000000000000000000000000000000000D6
+> +:100A200000000000000000000000000000000000C6
+> +:100A300000000000000000000000000000000000B6
+> +:100A400000000000000000000000000000000000A6
+> +:100A50000000000000000000000000000000000096
+> +:100A60000000000000000000000000000000000086
+> +:100A70000000000000000000000000000000000076
+> +:100A80000000000000000000000000000000000066
+> +:100A90000000000000000000000000000000000056
+> +:100AA0000000000000000000000000000000000046
+> +:100AB0000000000000000000000000000000000036
+> +:100AC0000000000000000000000000000000000026
+> +:100AD0000000000000000000000000000000000016
+> +:100AE0000000000000000000000000000000000006
+> +:100AF00000000000000000000000000000000000F6
+> +:100B000000000000000000000000000000000000E5
+> +:100B100000000000000000000000000000000000D5
+> +:100B200000000000000000000000000000000000C5
+> +:100B300000000000000000000000000000000000B5
+> +:100B400000000000000000000000000000000000A5
+> +:100B50000000000000000000000000000000000095
+> +:100B60000000000000000000000000000000000085
+> +:100B70000000000000000000000000000000000075
+> +:100B80000000000000000000000000000000000065
+> +:100B90000000000000000000000000000000000055
+> +:100BA0000000000000000000000000000000000045
+> +:100BB0000000000000000000000000000000000035
+> +:100BC0000000000000000000000000000000000025
+> +:100BD0000000000000000000000000000000000015
+> +:100BE0000000000000000000000000000000000005
+> +:100BF00000000000000000000000000000000000F5
+> +:100C000000000000000000000000000000000000E4
+> +:100C100000000000000000000000000000000000D4
+> +:100C200000000000000000000000000000000000C4
+> +:100C300000000000000000000000000000000000B4
+> +:100C400000000000000000000000000000000000A4
+> +:100C50000000000000000000000000000000000094
+> +:100C60000000000000000000000000000000000084
+> +:100C70000000000000000000000000000000000074
+> +:100C80000000000000000000000000000000000064
+> +:100C90000000000000000000000000000000000054
+> +:100CA0000000000000000000000000000000000044
+> +:100CB0000000000000000000000000000000000034
+> +:100CC0000000000000000000000000000000000024
+> +:100CD0000000000000000000000000000000000014
+> +:100CE0000000000000000000000000000000000004
+> +:100CF00000000000000000000000000000000000F4
+> +:100D000000000000000000000000000000000000E3
+> +:100D100000000000000000000000000000000000D3
+> +:100D200000000000000000000000000000000000C3
+> +:100D300000000000000000000000000000000000B3
+> +:100D400000000000000000000000000000000000A3
+> +:100D50000000000000000000000000000000000093
+> +:100D60000000000000000000000000000000000083
+> +:100D70000000000000000000000000000000000073
+> +:100D80000000000000000000000000000000000063
+> +:100D90000000000000000000000000000000000053
+> +:100DA0000000000000000000000000000000000043
+> +:100DB0000000000000000000000000000000000033
+> +:100DC0000000000000000000000000000000000023
+> +:100DD0000000000000000000000000000000000013
+> +:100DE0000000000000000000000000000000000003
+> +:100DF00000000000000000000000000000000000F3
+> +:100E000027EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEC9
+> +:100E1000EE4BF4FBDBD259BB1979577FDFD2D57388
+> +:100E2000B773F7374B4FBDBD25B9B177D2D17376C4
+> +:100E3000956BBFDD697BDD2FFF9F79FFFF9FF22F51
+> +:100E400000000000000000000000000000000000A2
+> +:100E50000000000000000000000000000000000092
+> +:100E60000000000000000000000000000000000082
+> +:100E70000000000000000000000000000000000072
+> +:100E80000000000000000000000000000000000062
+> +:100E90000000000000000000000000000000000052
+> +:100EA0000000000000000000000000000000000042
+> +:100EB0000000000000000000000000000000000032
+> +:100EC0000000000000000000000000000000000022
+> +:100ED0000000000000000000000000000000000012
+> +:100EE0000000000000000000000000000000000002
+> +:100EF00000000000000000000000000000000000F2
+> +:100F0000303030303E3E3434ABBF9B994B4FBDBD8B
+> +:100F1000599493349FFF37FB9B177DD9936956BB38
+> +:100F2000FBDD697BDD2FD1131DB9F7BB363139638A
+> +:100F3000793733693193137F7331737AF7BB9B9998
+> +:100F40009BB1979577FDFD3D573B773F737933F71D
+> +:100F5000B991D1153169931531531694BF4FBDBD69
+> +:100F60003593149735376956BD697B9D9693131356
+> +:100F7000197979376935AF78B9B3BAA3B878868368
+> +:100F8000368F78F7877787333FFFFB3B8E8F78B8B4
+> +:100F90001D118E13F3FF3F8B6BD8E173D13668566A
+> +:100FA00068D1687B3DAF78B83A3A3F878F81378FF9
+> +:100FB000F876F88777FD8778737DE8D6BBF8BFFFB2
+> +:100FC000D8DF87F7FD876F7B8BFFF8BD8683387D81
+> +:100FD000B873D87B3B8FD7F8F7338883BB8EE1F8A3
+> +:100FE000EF8373773337B836817D11F87378B8782B
+> +:100FF000D3368B7DED731B7D833731F3F22F3F2387
+> +:00000001FF
+> diff --git a/firmware/freescale/usb_sof.bin.ihex 
+> b/firmware/freescale/usb_sof.bin.ihex
+> new file mode 100644
+> index 0000000..69fb776
+> --- /dev/null
+> +++ b/firmware/freescale/usb_sof.bin.ihex
+> @@ -0,0 +1,513 @@
+> +:100000007FFF00007FFD00007FFB000049F7BA5B27
+> +:10001000BA383FFBF9B8B46DE5AB4E07AF77BFFE1A
+> +:100020003F7BBF79BA5BBA38E767607660750000DE
+> +:1000300000000000000000000000000000000000C0
+> +:1000400000000000000000000000000000000000B0
+> +:1000500000000000000000000000000000000000A0
+> +:100060000000000000000000000000000000000090
+> +:100070000000000000000000000000000000000080
+> +:100080000000000000000000000000000000000070
+> +:100090000000000000000000000000000000000060
+> +:1000A0000000000000000000000000000000000050
+> +:1000B0000000000000000000000000000000000040
+> +:1000C0000000000000000000000000000000000030
+> +:1000D0000000000000000000000000000000000020
+> +:1000E0000000000000000000000000000000000010
+> +:1000F0000000000000000000000000000000000000
+> +:1001000000000000000000000000000000000000EF
+> +:1001100000000000000000000000000000000000DF
+> +:1001200000000000000000000000000000000000CF
+> +:1001300000000000000000000000000000000000BF
+> +:1001400000000000000000000000000000000000AF
+> +:10015000000000000000000000000000000000009F
+> +:10016000000000000000000000000000000000008F
+> +:10017000000000000000000000000000000000007F
+> +:10018000000000000000000000000000000000006F
+> +:10019000000000000000000000000000000000005F
+> +:1001A000000000000000000000000000000000004F
+> +:1001B000000000000000000000000000000000003F
+> +:1001C000000000000000000000000000000000002F
+> +:1001D000000000000000000000000000000000001F
+> +:1001E000000000000000000000000000000000000F
+> +:1001F00000000000000000000000000000000000FF
+> +:1002000000000000000000000000000000000000EE
+> +:1002100000000000000000000000000000000000DE
+> +:1002200000000000000000000000000000000000CE
+> +:1002300000000000000000000000000000000000BE
+> +:1002400000000000000000000000000000000000AE
+> +:10025000000000000000000000000000000000009E
+> +:10026000000000000000000000000000000000008E
+> +:10027000000000000000000000000000000000007E
+> +:10028000000000000000000000000000000000006E
+> +:10029000000000000000000000000000000000005E
+> +:1002A000000000000000000000000000000000004E
+> +:1002B000000000000000000000000000000000003E
+> +:1002C000000000000000000000000000000000002E
+> +:1002D000000000000000000000000000000000001E
+> +:1002E000000000000000000000000000000000000E
+> +:1002F00000000000000000000000000000000000FE
+> +:1003000000000000000000000000000000000000ED
+> +:1003100000000000000000000000000000000000DD
+> +:1003200000000000000000000000000000000000CD
+> +:1003300000000000000000000000000000000000BD
+> +:1003400000000000000000000000000000000000AD
+> +:10035000000000000000000000000000000000009D
+> +:10036000000000000000000000000000000000008D
+> +:10037000000000000000000000000000000000007D
+> +:10038000000000000000000000000000000000006D
+> +:10039000000000000000000000000000000000005D
+> +:1003A000000000000000000000000000000000004D
+> +:1003B000000000000000000000000000000000003D
+> +:1003C000000000000000000000000000000000002D
+> +:1003D000000000000000000000000000000000001D
+> +:1003E000000000000000000000000000000000000D
+> +:1003F00000000000000000000000000000000000FD
+> +:1004000000000000000000000000000000000000EC
+> +:1004100000000000000000000000000000000000DC
+> +:1004200000000000000000000000000000000000CC
+> +:1004300000000000000000000000000000000000BC
+> +:1004400000000000000000000000000000000000AC
+> +:10045000000000000000000000000000000000009C
+> +:10046000000000000000000000000000000000008C
+> +:10047000000000000000000000000000000000007C
+> +:10048000000000000000000000000000000000006C
+> +:10049000000000000000000000000000000000005C
+> +:1004A000000000000000000000000000000000004C
+> +:1004B000000000000000000000000000000000003C
+> +:1004C000000000000000000000000000000000002C
+> +:1004D000000000000000000000000000000000001C
+> +:1004E000000000000000000000000000000000000C
+> +:1004F00000000000000000000000000000000000FC
+> +:1005000000000000000000000000000000000000EB
+> +:1005100000000000000000000000000000000000DB
+> +:1005200000000000000000000000000000000000CB
+> +:1005300000000000000000000000000000000000BB
+> +:1005400000000000000000000000000000000000AB
+> +:10055000000000000000000000000000000000009B
+> +:10056000000000000000000000000000000000008B
+> +:10057000000000000000000000000000000000007B
+> +:10058000000000000000000000000000000000006B
+> +:10059000000000000000000000000000000000005B
+> +:1005A000000000000000000000000000000000004B
+> +:1005B000000000000000000000000000000000003B
+> +:1005C000000000000000000000000000000000002B
+> +:1005D000000000000000000000000000000000001B
+> +:1005E000000000000000000000000000000000000B
+> +:1005F00000000000000000000000000000000000FB
+> +:1006000000000000000000000000000000000000EA
+> +:1006100000000000000000000000000000000000DA
+> +:1006200000000000000000000000000000000000CA
+> +:1006300000000000000000000000000000000000BA
+> +:1006400000000000000000000000000000000000AA
+> +:10065000000000000000000000000000000000009A
+> +:10066000000000000000000000000000000000008A
+> +:10067000000000000000000000000000000000007A
+> +:10068000000000000000000000000000000000006A
+> +:10069000000000000000000000000000000000005A
+> +:1006A000000000000000000000000000000000004A
+> +:1006B000000000000000000000000000000000003A
+> +:1006C000000000000000000000000000000000002A
+> +:1006D000000000000000000000000000000000001A
+> +:1006E000000000000000000000000000000000000A
+> +:1006F00000000000000000000000000000000000FA
+> +:1007000000000000000000000000000000000000E9
+> +:1007100000000000000000000000000000000000D9
+> +:1007200000000000000000000000000000000000C9
+> +:1007300000000000000000000000000000000000B9
+> +:1007400000000000000000000000000000000000A9
+> +:100750000000000000000000000000000000000099
+> +:100760000000000000000000000000000000000089
+> +:100770000000000000000000000000000000000079
+> +:100780000000000000000000000000000000000069
+> +:100790000000000000000000000000000000000059
+> +:1007A0000000000000000000000000000000000049
+> +:1007B0000000000000000000000000000000000039
+> +:1007C0000000000000000000000000000000000029
+> +:1007D0000000000000000000000000000000000019
+> +:1007E0000000000000000000000000000000000009
+> +:1007F00000000000000000000000000000000000F9
+> +:1008000000000000000000000000000000000000E8
+> +:1008100000000000000000000000000000000000D8
+> +:1008200000000000000000000000000000000000C8
+> +:1008300000000000000000000000000000000000B8
+> +:1008400000000000000000000000000000000000A8
+> +:100850000000000000000000000000000000000098
+> +:100860000000000000000000000000000000000088
+> +:100870000000000000000000000000000000000078
+> +:100880000000000000000000000000000000000068
+> +:100890000000000000000000000000000000000058
+> +:1008A0000000000000000000000000000000000048
+> +:1008B0000000000000000000000000000000000038
+> +:1008C0000000000000000000000000000000000028
+> +:1008D0000000000000000000000000000000000018
+> +:1008E0000000000000000000000000000000000008
+> +:1008F00000000000000000000000000000000000F8
+> +:1009000000000000000000000000000000000000E7
+> +:1009100000000000000000000000000000000000D7
+> +:1009200000000000000000000000000000000000C7
+> +:1009300000000000000000000000000000000000B7
+> +:1009400000000000000000000000000000000000A7
+> +:100950000000000000000000000000000000000097
+> +:100960000000000000000000000000000000000087
+> +:100970000000000000000000000000000000000077
+> +:100980000000000000000000000000000000000067
+> +:100990000000000000000000000000000000000057
+> +:1009A0000000000000000000000000000000000047
+> +:1009B0000000000000000000000000000000000037
+> +:1009C0000000000000000000000000000000000027
+> +:1009D0000000000000000000000000000000000017
+> +:1009E0000000000000000000000000000000000007
+> +:1009F00000000000000000000000000000000000F7
+> +:100A000000000000000000000000000000000000E6
+> +:100A100000000000000000000000000000000000D6
+> +:100A200000000000000000000000000000000000C6
+> +:100A300000000000000000000000000000000000B6
+> +:100A400000000000000000000000000000000000A6
+> +:100A50000000000000000000000000000000000096
+> +:100A60000000000000000000000000000000000086
+> +:100A70000000000000000000000000000000000076
+> +:100A80000000000000000000000000000000000066
+> +:100A90000000000000000000000000000000000056
+> +:100AA0000000000000000000000000000000000046
+> +:100AB0000000000000000000000000000000000036
+> +:100AC0000000000000000000000000000000000026
+> +:100AD0000000000000000000000000000000000016
+> +:100AE0000000000000000000000000000000000006
+> +:100AF00000000000000000000000000000000000F6
+> +:100B000000000000000000000000000000000000E5
+> +:100B100000000000000000000000000000000000D5
+> +:100B200000000000000000000000000000000000C5
+> +:100B300000000000000000000000000000000000B5
+> +:100B400000000000000000000000000000000000A5
+> +:100B50000000000000000000000000000000000095
+> +:100B60000000000000000000000000000000000085
+> +:100B70000000000000000000000000000000000075
+> +:100B80000000000000000000000000000000000065
+> +:100B90000000000000000000000000000000000055
+> +:100BA0000000000000000000000000000000000045
+> +:100BB0000000000000000000000000000000000035
+> +:100BC0000000000000000000000000000000000025
+> +:100BD0000000000000000000000000000000000015
+> +:100BE0000000000000000000000000000000000005
+> +:100BF00000000000000000000000000000000000F5
+> +:100C000000000000000000000000000000000000E4
+> +:100C100000000000000000000000000000000000D4
+> +:100C200000000000000000000000000000000000C4
+> +:100C300000000000000000000000000000000000B4
+> +:100C400000000000000000000000000000000000A4
+> +:100C50000000000000000000000000000000000094
+> +:100C60000000000000000000000000000000000084
+> +:100C70000000000000000000000000000000000074
+> +:100C80000000000000000000000000000000000064
+> +:100C90000000000000000000000000000000000054
+> +:100CA0000000000000000000000000000000000044
+> +:100CB0000000000000000000000000000000000034
+> +:100CC0000000000000000000000000000000000024
+> +:100CD0000000000000000000000000000000000014
+> +:100CE0000000000000000000000000000000000004
+> +:100CF00000000000000000000000000000000000F4
+> +:100D000000000000000000000000000000000000E3
+> +:100D100000000000000000000000000000000000D3
+> +:100D200000000000000000000000000000000000C3
+> +:100D300000000000000000000000000000000000B3
+> +:100D400000000000000000000000000000000000A3
+> +:100D50000000000000000000000000000000000093
+> +:100D60000000000000000000000000000000000083
+> +:100D70000000000000000000000000000000000073
+> +:100D80000000000000000000000000000000000063
+> +:100D90000000000000000000000000000000000053
+> +:100DA0000000000000000000000000000000000043
+> +:100DB0000000000000000000000000000000000033
+> +:100DC0000000000000000000000000000000000023
+> +:100DD0000000000000000000000000000000000013
+> +:100DE0000000000000000000000000000000000003
+> +:100DF00000000000000000000000000000000000F3
+> +:100E000000000000000000000000000000000000E2
+> +:100E100000000000000000000000000000000000D2
+> +:100E200000000000000000000000000000000000C2
+> +:100E300000000000000000000000000000000000B2
+> +:100E400000000000000000000000000000000000A2
+> +:100E50000000000000000000000000000000000092
+> +:100E60000000000000000000000000000000000082
+> +:100E70000000000000000000000000000000000072
+> +:100E80000000000000000000000000000000000062
+> +:100E90000000000000000000000000000000000052
+> +:100EA0000000000000000000000000000000000042
+> +:100EB0000000000000000000000000000000000032
+> +:100EC0000000000000000000000000000000000022
+> +:100ED0000000000000000000000000000000000012
+> +:100EE0000000000000000000000000000000000002
+> +:100EF00000000000000000000000000000000000F2
+> +:100F00003030304CCAB9E441A1AAF2200000000000
+> +:100F100000000000000000000000000000000000D1
+> +:100F200000000000000000000000000000000000C1
+> +:100F300000000000000000000000000000000000B1
+> +:100F400000000000000000000000000000000000A1
+> +:100F50000000000000000000000000000000000091
+> +:100F60000000000000000000000000000000000081
+> +:100F70000000000000000000000000000000000071
+> +:100F80000000000000000000000000000000000061
+> +:100F90000000000000000000000000000000000051
+> +:100FA0000000000000000000000000000000000041
+> +:100FB0000000000000000000000000000000000031
+> +:100FC0000000000000000000000000000000000021
+> +:100FD0000000000000000000000000000000000011
+> +:100FE0000000000000000000000000000000000001
+> +:100FF00000000000000000000000000000000000F1
+> +:1010000000000000000000000000000000000000E0
+> +:1010100000000000000000000000000000000000D0
+> +:1010200000000000000000000000000000000000C0
+> +:1010300000000000000000000000000000000000B0
+> +:1010400000000000000000000000000000000000A0
+> +:101050000000000000000000000000000000000090
+> +:101060000000000000000000000000000000000080
+> +:101070000000000000000000000000000000000070
+> +:101080000000000000000000000000000000000060
+> +:101090000000000000000000000000000000000050
+> +:1010A0000000000000000000000000000000000040
+> +:1010B0000000000000000000000000000000000030
+> +:1010C0000000000000000000000000000000000020
+> +:1010D0000000000000000000000000000000000010
+> +:1010E0000000000000000000000000000000000000
+> +:1010F00000000000000000000000000000000000F0
+> +:1011000000000000000000000000000000000000DF
+> +:1011100000000000000000000000000000000000CF
+> +:1011200000000000000000000000000000000000BF
+> +:1011300000000000000000000000000000000000AF
+> +:10114000000000000000000000000000000000009F
+> +:10115000000000000000000000000000000000008F
+> +:10116000000000000000000000000000000000007F
+> +:10117000000000000000000000000000000000006F
+> +:10118000000000000000000000000000000000005F
+> +:10119000000000000000000000000000000000004F
+> +:1011A000000000000000000000000000000000003F
+> +:1011B000000000000000000000000000000000002F
+> +:1011C000000000000000000000000000000000001F
+> +:1011D000000000000000000000000000000000000F
+> +:1011E00000000000000000000000000000000000FF
+> +:1011F00000000000000000000000000000000000EF
+> +:1012000000000000000000000000000000000000DE
+> +:1012100000000000000000000000000000000000CE
+> +:1012200000000000000000000000000000000000BE
+> +:1012300000000000000000000000000000000000AE
+> +:10124000000000000000000000000000000000009E
+> +:10125000000000000000000000000000000000008E
+> +:10126000000000000000000000000000000000007E
+> +:10127000000000000000000000000000000000006E
+> +:10128000000000000000000000000000000000005E
+> +:10129000000000000000000000000000000000004E
+> +:1012A000000000000000000000000000000000003E
+> +:1012B000000000000000000000000000000000002E
+> +:1012C000000000000000000000000000000000001E
+> +:1012D000000000000000000000000000000000000E
+> +:1012E00000000000000000000000000000000000FE
+> +:1012F00000000000000000000000000000000000EE
+> +:1013000000000000000000000000000000000000DD
+> +:1013100000000000000000000000000000000000CD
+> +:1013200000000000000000000000000000000000BD
+> +:1013300000000000000000000000000000000000AD
+> +:10134000000000000000000000000000000000009D
+> +:10135000000000000000000000000000000000008D
+> +:10136000000000000000000000000000000000007D
+> +:10137000000000000000000000000000000000006D
+> +:10138000000000000000000000000000000000005D
+> +:10139000000000000000000000000000000000004D
+> +:1013A000000000000000000000000000000000003D
+> +:1013B000000000000000000000000000000000002D
+> +:1013C000000000000000000000000000000000001D
+> +:1013D000000000000000000000000000000000000D
+> +:1013E00000000000000000000000000000000000FD
+> +:1013F00000000000000000000000000000000000ED
+> +:1014000000000000000000000000000000000000DC
+> +:1014100000000000000000000000000000000000CC
+> +:1014200000000000000000000000000000000000BC
+> +:1014300000000000000000000000000000000000AC
+> +:10144000000000000000000000000000000000009C
+> +:10145000000000000000000000000000000000008C
+> +:10146000000000000000000000000000000000007C
+> +:10147000000000000000000000000000000000006C
+> +:10148000000000000000000000000000000000005C
+> +:10149000000000000000000000000000000000004C
+> +:1014A000000000000000000000000000000000003C
+> +:1014B000000000000000000000000000000000002C
+> +:1014C000000000000000000000000000000000001C
+> +:1014D000000000000000000000000000000000000C
+> +:1014E00000000000000000000000000000000000FC
+> +:1014F00000000000000000000000000000000000EC
+> +:1015000000000000000000000000000000000000DB
+> +:1015100000000000000000000000000000000000CB
+> +:1015200000000000000000000000000000000000BB
+> +:1015300000000000000000000000000000000000AB
+> +:10154000000000000000000000000000000000009B
+> +:10155000000000000000000000000000000000008B
+> +:10156000000000000000000000000000000000007B
+> +:10157000000000000000000000000000000000006B
+> +:10158000000000000000000000000000000000005B
+> +:10159000000000000000000000000000000000004B
+> +:1015A000000000000000000000000000000000003B
+> +:1015B000000000000000000000000000000000002B
+> +:1015C000000000000000000000000000000000001B
+> +:1015D000000000000000000000000000000000000B
+> +:1015E00000000000000000000000000000000000FB
+> +:1015F00000000000000000000000000000000000EB
+> +:1016000000000000000000000000000000000000DA
+> +:1016100000000000000000000000000000000000CA
+> +:1016200000000000000000000000000000000000BA
+> +:1016300000000000000000000000000000000000AA
+> +:10164000000000000000000000000000000000009A
+> +:10165000000000000000000000000000000000008A
+> +:10166000000000000000000000000000000000007A
+> +:10167000000000000000000000000000000000006A
+> +:10168000000000000000000000000000000000005A
+> +:10169000000000000000000000000000000000004A
+> +:1016A000000000000000000000000000000000003A
+> +:1016B000000000000000000000000000000000002A
+> +:1016C000000000000000000000000000000000001A
+> +:1016D000000000000000000000000000000000000A
+> +:1016E00000000000000000000000000000000000FA
+> +:1016F00000000000000000000000000000000000EA
+> +:1017000000000000000000000000000000000000D9
+> +:1017100000000000000000000000000000000000C9
+> +:1017200000000000000000000000000000000000B9
+> +:1017300000000000000000000000000000000000A9
+> +:101740000000000000000000000000000000000099
+> +:101750000000000000000000000000000000000089
+> +:101760000000000000000000000000000000000079
+> +:101770000000000000000000000000000000000069
+> +:101780000000000000000000000000000000000059
+> +:101790000000000000000000000000000000000049
+> +:1017A0000000000000000000000000000000000039
+> +:1017B0000000000000000000000000000000000029
+> +:1017C0000000000000000000000000000000000019
+> +:1017D0000000000000000000000000000000000009
+> +:1017E00000000000000000000000000000000000F9
+> +:1017F00000000000000000000000000000000000E9
+> +:1018000000000000000000000000000000000000D8
+> +:1018100000000000000000000000000000000000C8
+> +:1018200000000000000000000000000000000000B8
+> +:1018300000000000000000000000000000000000A8
+> +:101840000000000000000000000000000000000098
+> +:101850000000000000000000000000000000000088
+> +:101860000000000000000000000000000000000078
+> +:101870000000000000000000000000000000000068
+> +:101880000000000000000000000000000000000058
+> +:101890000000000000000000000000000000000048
+> +:1018A0000000000000000000000000000000000038
+> +:1018B0000000000000000000000000000000000028
+> +:1018C0000000000000000000000000000000000018
+> +:1018D0000000000000000000000000000000000008
+> +:1018E00000000000000000000000000000000000F8
+> +:1018F00000000000000000000000000000000000E8
+> +:1019000000000000000000000000000000000000D7
+> +:1019100000000000000000000000000000000000C7
+> +:1019200000000000000000000000000000000000B7
+> +:1019300000000000000000000000000000000000A7
+> +:101940000000000000000000000000000000000097
+> +:101950000000000000000000000000000000000087
+> +:101960000000000000000000000000000000000077
+> +:101970000000000000000000000000000000000067
+> +:101980000000000000000000000000000000000057
+> +:101990000000000000000000000000000000000047
+> +:1019A0000000000000000000000000000000000037
+> +:1019B0000000000000000000000000000000000027
+> +:1019C0000000000000000000000000000000000017
+> +:1019D0000000000000000000000000000000000007
+> +:1019E00000000000000000000000000000000000F7
+> +:1019F00000000000000000000000000000000000E7
+> +:101A000000000000000000000000000000000000D6
+> +:101A100000000000000000000000000000000000C6
+> +:101A200000000000000000000000000000000000B6
+> +:101A300000000000000000000000000000000000A6
+> +:101A40000000000000000000000000000000000096
+> +:101A50000000000000000000000000000000000086
+> +:101A60000000000000000000000000000000000076
+> +:101A70000000000000000000000000000000000066
+> +:101A80000000000000000000000000000000000056
+> +:101A90000000000000000000000000000000000046
+> +:101AA0000000000000000000000000000000000036
+> +:101AB0000000000000000000000000000000000026
+> +:101AC0000000000000000000000000000000000016
+> +:101AD0000000000000000000000000000000000006
+> +:101AE00000000000000000000000000000000000F6
+> +:101AF00000000000000000000000000000000000E6
+> +:101B000000000000000000000000000000000000D5
+> +:101B100000000000000000000000000000000000C5
+> +:101B200000000000000000000000000000000000B5
+> +:101B300000000000000000000000000000000000A5
+> +:101B40000000000000000000000000000000000095
+> +:101B50000000000000000000000000000000000085
+> +:101B60000000000000000000000000000000000075
+> +:101B70000000000000000000000000000000000065
+> +:101B80000000000000000000000000000000000055
+> +:101B90000000000000000000000000000000000045
+> +:101BA0000000000000000000000000000000000035
+> +:101BB0000000000000000000000000000000000025
+> +:101BC0000000000000000000000000000000000015
+> +:101BD0000000000000000000000000000000000005
+> +:101BE00000000000000000000000000000000000F5
+> +:101BF00000000000000000000000000000000000E5
+> +:101C000000000000000000000000000000000000D4
+> +:101C100000000000000000000000000000000000C4
+> +:101C200000000000000000000000000000000000B4
+> +:101C300000000000000000000000000000000000A4
+> +:101C40000000000000000000000000000000000094
+> +:101C50000000000000000000000000000000000084
+> +:101C60000000000000000000000000000000000074
+> +:101C70000000000000000000000000000000000064
+> +:101C80000000000000000000000000000000000054
+> +:101C90000000000000000000000000000000000044
+> +:101CA0000000000000000000000000000000000034
+> +:101CB0000000000000000000000000000000000024
+> +:101CC0000000000000000000000000000000000014
+> +:101CD0000000000000000000000000000000000004
+> +:101CE00000000000000000000000000000000000F4
+> +:101CF00000000000000000000000000000000000E4
+> +:101D000000000000000000000000000000000000D3
+> +:101D100000000000000000000000000000000000C3
+> +:101D200000000000000000000000000000000000B3
+> +:101D300000000000000000000000000000000000A3
+> +:101D40000000000000000000000000000000000093
+> +:101D50000000000000000000000000000000000083
+> +:101D60000000000000000000000000000000000073
+> +:101D70000000000000000000000000000000000063
+> +:101D80000000000000000000000000000000000053
+> +:101D90000000000000000000000000000000000043
+> +:101DA0000000000000000000000000000000000033
+> +:101DB0000000000000000000000000000000000023
+> +:101DC0000000000000000000000000000000000013
+> +:101DD0000000000000000000000000000000000003
+> +:101DE00000000000000000000000000000000000F3
+> +:101DF00000000000000000000000000000000000E3
+> +:101E000000000000000000000000000000000000D2
+> +:101E100000000000000000000000000000000000C2
+> +:101E200000000000000000000000000000000000B2
+> +:101E300000000000000000000000000000000000A2
+> +:101E40000000000000000000000000000000000092
+> +:101E50000000000000000000000000000000000082
+> +:101E60000000000000000000000000000000000072
+> +:101E70000000000000000000000000000000000062
+> +:101E80000000000000000000000000000000000052
+> +:101E90000000000000000000000000000000000042
+> +:101EA0000000000000000000000000000000000032
+> +:101EB0000000000000000000000000000000000022
+> +:101EC0000000000000000000000000000000000012
+> +:101ED0000000000000000000000000000000000002
+> +:101EE00000000000000000000000000000000000F2
+> +:101EF00000000000000000000000000000000000E2
+> +:101F000000000000000000000000000000000000D1
+> +:101F100000000000000000000000000000000000C1
+> +:101F200000000000000000000000000000000000B1
+> +:101F300000000000000000000000000000000000A1
+> +:101F40000000000000000000000000000000000091
+> +:101F50000000000000000000000000000000000081
+> +:101F60000000000000000000000000000000000071
+> +:101F70000000000000000000000000000000000061
+> +:101F80000000000000000000000000000000000051
+> +:101F90000000000000000000000000000000000041
+> +:101FA0000000000000000000000000000000000031
+> +:101FB0000000000000000000000000000000000021
+> +:101FC0000000000000000000000000000000000011
+> +:101FD0000000000000000000000000000000000001
+> +:101FE00000000000000000000000000000000000F1
+> +:101FF00000000000000000000000000000000000E1
+> +:00000001FF
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
