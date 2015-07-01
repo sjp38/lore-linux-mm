@@ -1,76 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id EA9B36B0032
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 04:20:20 -0400 (EDT)
-Received: by wibdq8 with SMTP id dq8so37817907wib.1
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 01:20:20 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ga6si2725746wib.68.2015.07.01.01.20.19
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 01 Jul 2015 01:20:19 -0700 (PDT)
-Date: Wed, 1 Jul 2015 10:20:15 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 42/51] writeback: make wakeup_dirtytime_writeback()
- handle multiple bdi_writeback's
-Message-ID: <20150701082015.GC7252@quack.suse.cz>
-References: <1432329245-5844-1-git-send-email-tj@kernel.org>
- <1432329245-5844-43-git-send-email-tj@kernel.org>
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 59FDF6B0032
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 04:53:10 -0400 (EDT)
+Received: by wguu7 with SMTP id u7so30519800wgu.3
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 01:53:09 -0700 (PDT)
+Received: from johanna1.inet.fi (mta-out1.inet.fi. [62.71.2.229])
+        by mx.google.com with ESMTP id fi8si24191326wib.10.2015.07.01.01.53.08
+        for <linux-mm@kvack.org>;
+        Wed, 01 Jul 2015 01:53:08 -0700 (PDT)
+Date: Wed, 1 Jul 2015 11:53:04 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 05/11] mm: debug: dump page into a string rather than
+ directly on screen
+Message-ID: <20150701085304.GA18268@node.dhcp.inet.fi>
+References: <1431623414-1905-1-git-send-email-sasha.levin@oracle.com>
+ <1431623414-1905-6-git-send-email-sasha.levin@oracle.com>
+ <alpine.DEB.2.10.1506301627030.5359@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1432329245-5844-43-git-send-email-tj@kernel.org>
+In-Reply-To: <alpine.DEB.2.10.1506301627030.5359@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru, Theodore Ts'o <tytso@mit.edu>
+To: David Rientjes <rientjes@google.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Fri 22-05-15 17:13:56, Tejun Heo wrote:
-> wakeup_dirtytime_writeback() currently only starts writeback on the
-> root wb (bdi_writeback).  For cgroup writeback support, update the
-> function to check all wbs.
+On Tue, Jun 30, 2015 at 04:35:45PM -0700, David Rientjes wrote:
+> I do understand the problem with the current VM_BUG_ON_PAGE() and 
+> VM_BUG_ON_VMA() stuff, and it compels me to ask about just going back to 
+> the normal
 > 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> Cc: Jens Axboe <axboe@kernel.dk>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Theodore Ts'o <tytso@mit.edu>
-
-Looks good. You can add:
-
-Reviewed-by: Jan Kara <jack@suse.com>
-
-								Honza
-
-> ---
->  fs/fs-writeback.c | 9 ++++++---
->  1 file changed, 6 insertions(+), 3 deletions(-)
+> 	VM_BUG_ON(cond);
 > 
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index 508e10c..8ae212e 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -1260,9 +1260,12 @@ static void wakeup_dirtytime_writeback(struct work_struct *w)
->  
->  	rcu_read_lock();
->  	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
-> -		if (list_empty(&bdi->wb.b_dirty_time))
-> -			continue;
-> -		wb_wakeup(&bdi->wb);
-> +		struct bdi_writeback *wb;
-> +		struct wb_iter iter;
-> +
-> +		bdi_for_each_wb(wb, bdi, &iter, 0)
-> +			if (!list_empty(&bdi->wb.b_dirty_time))
-> +				wb_wakeup(&bdi->wb);
->  	}
->  	rcu_read_unlock();
->  	schedule_delayed_work(&dirtytime_work, dirtytime_expire_interval * HZ);
-> -- 
-> 2.4.0
-> 
+> coupled with dump_page(), dump_vma(), dump_whatever().  It all seems so 
+> much simpler to me.
+
+Is there a sensible way to couple them? I don't see much, except opencode
+VM_BUG_ON():
+
+	if (IS_ENABLED(CONFIG_DEBUG_VM) && cond) {
+		dump_page(...);
+		dump_vma(...);
+		dump_whatever();
+		BUG();
+	}
+
+That's too verbose to me to be usable.
+
+BTW, I also tried[1] to solve this problem too, but people doesn't like
+either.
+
+[1] http://lkml.kernel.org/g/1412163121-4295-1-git-send-email-kirill.shutemov@linux.intel.com
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
