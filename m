@@ -1,99 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 06D9F6B0253
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 19:00:22 -0400 (EDT)
-Received: by oigx81 with SMTP id x81so43277044oig.1
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 16:00:21 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id j188si2735485oif.115.2015.07.01.16.00.21
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id A4E0A6B0253
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 19:19:25 -0400 (EDT)
+Received: by pabvl15 with SMTP id vl15so29981042pab.1
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 16:19:25 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id ig4si5712661pbb.82.2015.07.01.16.19.24
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jul 2015 16:00:21 -0700 (PDT)
-Message-ID: <55946EA9.2080805@oracle.com>
-Date: Wed, 01 Jul 2015 18:50:17 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 01 Jul 2015 16:19:24 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mempolicy: get rid of duplicated check for
+ vma(VM_PFNMAP) in queue_pages_range()
+Date: Wed, 1 Jul 2015 23:18:46 +0000
+Message-ID: <20150701231845.GA3018@hori1.linux.bs1.fc.nec.co.jp>
+References: <20150701183058.GD32640@redhat.com>
+In-Reply-To: <20150701183058.GD32640@redhat.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <F38E895D1AE66746B6AA623AE2B6CD10@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/11] mm: debug: dump page into a string rather than
- directly on screen
-References: <1431623414-1905-1-git-send-email-sasha.levin@oracle.com> <1431623414-1905-6-git-send-email-sasha.levin@oracle.com> <alpine.DEB.2.10.1506301627030.5359@chino.kir.corp.google.com> <55943DC1.6010209@oracle.com> <alpine.DEB.2.10.1507011422070.14014@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1507011422070.14014@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kirill@shutemov.name
+To: Aristeu Rozanski <aris@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Dave Hansen <dave.hansen@intel.com>, Pavel Emelyanov <xemul@parallels.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 07/01/2015 05:25 PM, David Rientjes wrote:
-> On Wed, 1 Jul 2015, Sasha Levin wrote:
-> 
->> On 06/30/2015 07:35 PM, David Rientjes wrote:
->>> I don't know how others feel, but this looks strange to me and seems like 
->>> it's only a result of how we must now dump page information 
->>> (dump_page(page) is no longer available, we must do pr_alert("%pZp", 
->>> page)).
->>>
->>> Since we're relying on print formats, this would arguably be better as
->>>
->>> 	pr_alert("Not movable balloon page:\n");
->>> 	pr_alert("%pZp", page);
->>>
->>> to avoid introducing newlines into potentially lengthy messages that need 
->>> a specified loglevel like you've done above.
->>>
->>> But that's not much different than the existing dump_page() 
->>> implementation.
->>>
->>> So for this to be worth it, it seems like we'd need a compelling usecase 
->>> for something like pr_alert("%pZp %pZv", page, vma) and I'm not sure we're 
->>> ever actually going to see that.  I would argue that
->>>
->>> 	dump_page(page);
->>> 	dump_vma(vma);
->>>
->>> would be simpler in such circumstances.
->>
->> I think we can find usecases where we want to dump more information than what's
->> contained in just one page/vma/mm struct. Things like the following from mm/gup.c:
->>
->> 	VM_BUG_ON_PAGE(compound_head(page) != head, page);
->>
->> Where seeing 'head' would be interesting as well.
->>
-> 
-> I think it's a debate about whether this would be better off handled as
-> 
-> 	if (VM_BUG_ON(compound_head(page) != head)) {
-> 		dump_page(page);
-> 		dump_page(head);
-> 	}
+On Wed, Jul 01, 2015 at 02:30:58PM -0400, Aristeu Rozanski wrote:
+> This check was introduced as part of
+> 	6f4576e3687 - mempolicy: apply page table walker on queue_pages_range()
+> which got duplicated by
+> 	48684a65b4e - mm: pagewalk: fix misbehavior of walk_page_range for vma(V=
+M_PFNMAP)
+> by reintroducing it earlier on queue_page_test_walk()
+>=20
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Pavel Emelyanov <xemul@parallels.com>
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Signed-off-by: Aristeu Rozanski <aris@redhat.com>
 
-Since we'd BUG at VM_BUG_ON(), this would be something closer to:
+Thank you for finding and fixing this.
 
-	if (unlikely(compound_head(page) != head)) {
-		dump_page(page);
-		dump_page(head);
-		VM_BUG_ON(1);
-	}
+Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-But my point here was that while one *could* do it that way, no one does because
-it's not intuitive. We both agree that in the example above it would be useful to
-see both 'page' and 'head', and yet the code that was written didn't dump any of
-them. Why? No one wants to write debug code unless it's easy and short.
-
-> and avoid VM_BUG_ON_PAGE() and the new print formats entirely.  We can 
-> improve upon existing VM_BUG_ON(), and BUG_ON() itself since the VM isn't 
-> anything special in this regard, to print diagnostic information that may 
-> be helpful, but I don't feel like adding special VM_BUG_ON_*() macros or 
-> printing formats makes any of this simpler.
-
-This patchset actually kills the VM_BUG_ON_*() macros for exactly that reason:
-VM isn't special at all and doesn't need it's own magic code in the form of
-VM_BUG_ON_*() macros and dump_*() functions.
-
-
-Thanks,
-Sasha
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 99d4c1d..9885d07 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -608,9 +608,6 @@ static int queue_pages_test_walk(unsigned long start,=
+ unsigned long end,
+> =20
+>  	qp->prev =3D vma;
+> =20
+> -	if (vma->vm_flags & VM_PFNMAP)
+> -		return 1;
+> -
+>  	if (flags & MPOL_MF_LAZY) {
+>  		/* Similar to task_numa_work, skip inaccessible VMAs */
+>  		if (vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
