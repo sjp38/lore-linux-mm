@@ -1,189 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 530BB9003CE
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2015 11:02:20 -0400 (EDT)
-Received: by qkhu186 with SMTP id u186so53645918qkh.0
-        for <linux-mm@kvack.org>; Thu, 02 Jul 2015 08:02:20 -0700 (PDT)
-Received: from mail-qk0-x22a.google.com (mail-qk0-x22a.google.com. [2607:f8b0:400d:c09::22a])
-        by mx.google.com with ESMTPS id b9si6630559qkh.16.2015.07.02.08.02.19
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B47F9003CE
+	for <linux-mm@kvack.org>; Thu,  2 Jul 2015 11:13:30 -0400 (EDT)
+Received: by wgqq4 with SMTP id q4so66030046wgq.1
+        for <linux-mm@kvack.org>; Thu, 02 Jul 2015 08:13:30 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o5si4235540wiz.39.2015.07.02.08.13.27
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Jul 2015 08:02:19 -0700 (PDT)
-Received: by qkeo142 with SMTP id o142so53718058qke.1
-        for <linux-mm@kvack.org>; Thu, 02 Jul 2015 08:02:19 -0700 (PDT)
-Message-ID: <5595527a.0b32370a.6c7e.01ee@mx.google.com>
-Date: Thu, 02 Jul 2015 08:02:18 -0700 (PDT)
-From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
-Subject: Re: [PATCH 1/1] mem-hotplug: Handle node hole when initializing
- numa_meminfo.
-In-Reply-To: <55939CF2.6080108@cn.fujitsu.com>
-References: <1435720614-16480-1-git-send-email-tangchen@cn.fujitsu.com>
-	<559387EF.5050701@huawei.com>
-	<55939CF2.6080108@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 02 Jul 2015 08:13:28 -0700 (PDT)
+Date: Thu, 2 Jul 2015 17:13:21 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm, vmscan: Do not wait for page writeback for GFP_NOFS
+ allocations
+Message-ID: <20150702151321.GE12547@dhcp22.suse.cz>
+References: <1435677437-16717-1-git-send-email-mhocko@suse.cz>
+ <20150701061731.GB6286@dhcp22.suse.cz>
+ <20150701133715.GA6287@dhcp22.suse.cz>
+ <20150702142551.GB9456@thunk.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150702142551.GB9456@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, dyoung@redhat.com, isimatu.yasuaki@jp.fujitsu.com, lcapitulino@redhat.com, will.deacon@arm.com, tony.luck@intel.com, vladimir.murzin@arm.com, fabf@skynet.be, kuleshovmail@gmail.com, bhe@redhat.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Nikolay Borisov <kernel@kyup.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Marian Marinov <mm@1h.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-ext4@vger.kernel.org
 
-Hi Tang,
+On Thu 02-07-15 10:25:51, Theodore Ts'o wrote:
+> On Wed, Jul 01, 2015 at 03:37:15PM +0200, Michal Hocko wrote:
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 37e90db1520b..6c44d424968e 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -995,7 +995,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  				goto keep_locked;
+> >  
+> >  			/* Case 3 above */
+> > -			} else {
+> > +			} else if (sc->gfp_mask & __GFP_FS) {
+> >  				wait_on_page_writeback(page);
+> >  			}
+> >  		}
+> 
+> Um, I've just taken a closer look at this code now that I'm back from
+> vacation, and I'm not sure this is right.  This Case 3 code occurs
+> inside an
+> 
+> 	if (PageWriteback(page)) {
+> 	    ...
+> 	}
+> 
+> conditional, and if I'm not mistaken, if the flow of control exits
+> this conditional, it is assumed that the page is *not* under writeback.
+> This patch will assume the page has been cleaned if __GFP_FS is set,
+> which could lead to a dirty page getting dropped, so I believe this is
+> a bug.  No?
 
-> On my box, if I run lscpu, the output looks like this:
-> 
-> NUMA node0 CPU(s):     0-14,128-142
-> NUMA node1 CPU(s):     15-29,143-157
-> NUMA node2 CPU(s):
-> NUMA node3 CPU(s):
-> NUMA node4 CPU(s):     62-76,190-204
-> NUMA node5 CPU(s):     78-92,206-220
-> 
-> Node 2 and 3 are not exist, but they are online.
+Yes you are right! My bad. I should have noticed that. Sorry about that.
 
-According your description of patch, node 4 and 5 are mistakenly
-set to online. Why does lscpu show the above result?
+> It would seem to me that a better fix would be to change the Case 2
+> handling:
+> 
+> 			/* Case 2 above */
+> 			} else if (global_reclaim(sc) ||
+> -			    !PageReclaim(page) || !(sc->gfp_mask & __GFP_IO)) {
+> +			    !PageReclaim(page) || !(sc->gfp_mask & __GFP_FS)) {
 
-Thanks,
-Yasuaki Ishimatsu
+OK, this should work because the loopback path should clear both
+__GFP_IO and __GFP_FS. I would be tempted to use may_enter_fs here
+as the original patch which introduced wait_on_page_writeback did
+but this sounds more clear.
 
-On Wed, 1 Jul 2015 15:55:30 +0800
-Tang Chen <tangchen@cn.fujitsu.com> wrote:
+> 				/*
+> 				 * This is slightly racy - end_page_writeback()
+> 				 * might have just cleared PageReclaim, then
+> 				 * setting PageReclaim here end up interpreted
+> 				 * as PageReadahead - but that does not matter
+> 				 * enough to care.  What we do want is for this
+> 				 * page to have PageReclaim set next time memcg
+> 				 * reclaim reaches the tests above, so it will
+> 				 * then wait_on_page_writeback() to avoid OOM;
+> 				 * and it's also appropriate in global reclaim.
+> 				 */
+> 				SetPageReclaim(page);
+> 				nr_writeback++;
+> 
+> 				goto keep_locked;
+> 
+> 
+> Am I missing something?
 
-> 
-> On 07/01/2015 02:25 PM, Xishi Qiu wrote:
-> > On 2015/7/1 11:16, Tang Chen wrote:
-> >
-> >> When parsing SRAT, all memory ranges are added into numa_meminfo.
-> >> In numa_init(), before entering numa_cleanup_meminfo(), all possible
-> >> memory ranges are in numa_meminfo. And numa_cleanup_meminfo() removes
-> >> all ranges over max_pfn or empty.
-> >>
-> >> But, this only works if the nodes are continuous. Let's have a look
-> >> at the following example:
-> >>
-> >> We have an SRAT like this:
-> >> SRAT: Node 0 PXM 0 [mem 0x00000000-0x5fffffff]
-> >> SRAT: Node 0 PXM 0 [mem 0x100000000-0x1ffffffffff]
-> >> SRAT: Node 1 PXM 1 [mem 0x20000000000-0x3ffffffffff]
-> >> SRAT: Node 4 PXM 2 [mem 0x40000000000-0x5ffffffffff] hotplug
-> >> SRAT: Node 5 PXM 3 [mem 0x60000000000-0x7ffffffffff] hotplug
-> >> SRAT: Node 2 PXM 4 [mem 0x80000000000-0x9ffffffffff] hotplug
-> >> SRAT: Node 3 PXM 5 [mem 0xa0000000000-0xbffffffffff] hotplug
-> >> SRAT: Node 6 PXM 6 [mem 0xc0000000000-0xdffffffffff] hotplug
-> >> SRAT: Node 7 PXM 7 [mem 0xe0000000000-0xfffffffffff] hotplug
-> >>
-> >> On boot, only node 0,1,2,3 exist.
-> >>
-> >> And the numa_meminfo will look like this:
-> >> numa_meminfo.nr_blks = 9
-> >> 1. on node 0: [0, 60000000]
-> >> 2. on node 0: [100000000, 20000000000]
-> >> 3. on node 1: [20000000000, 40000000000]
-> >> 4. on node 4: [40000000000, 60000000000]
-> >> 5. on node 5: [60000000000, 80000000000]
-> >> 6. on node 2: [80000000000, a0000000000]
-> >> 7. on node 3: [a0000000000, a0800000000]
-> >> 8. on node 6: [c0000000000, a0800000000]
-> >> 9. on node 7: [e0000000000, a0800000000]
-> >>
-> >> And numa_cleanup_meminfo() will merge 1 and 2, and remove 8,9 because
-> >> the end address is over max_pfn, which is a0800000000. But 4 and 5
-> >> are not removed because their end addresses are less then max_pfn.
-> >> But in fact, node 4 and 5 don't exist.
-> >>
-> >> In a word, numa_cleanup_meminfo() is not able to handle holes between nodes.
-> >>
-> >> Since memory ranges in node 4 and 5 are in numa_meminfo, in numa_register_memblks(),
-> >> node 4 and 5 will be mistakenly set to online.
-> >>
-> >> In this patch, we use memblock_overlaps_region() to check if ranges in
-> >> numa_meminfo overlap with ranges in memory_block. Since memory_block contains
-> >> all available memory at boot time, if they overlap, it means the ranges
-> >> exist. If not, then remove them from numa_meminfo.
-> >>
-> > Hi Tang Chen,
-> >
-> > What's the impact of this problem?
-> >
-> > Command "numactl --hard" will show an empty node(no cpu and no memory,
-> > but pgdat is created), right?
-> 
-> On my box, if I run lscpu, the output looks like this:
-> 
-> NUMA node0 CPU(s):     0-14,128-142
-> NUMA node1 CPU(s):     15-29,143-157
-> NUMA node2 CPU(s):
-> NUMA node3 CPU(s):
-> NUMA node4 CPU(s):     62-76,190-204
-> NUMA node5 CPU(s):     78-92,206-220
-> 
-> Node 2 and 3 are not exist, but they are online.
-> 
-> Thanks.
-> 
-> >
-> > Thanks,
-> > Xishi Qiu
-> >
-> >> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-> >> ---
-> >>   arch/x86/mm/numa.c       | 6 ++++--
-> >>   include/linux/memblock.h | 2 ++
-> >>   mm/memblock.c            | 2 +-
-> >>   3 files changed, 7 insertions(+), 3 deletions(-)
-> >>
-> >> diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-> >> index 4053bb5..0c55cc5 100644
-> >> --- a/arch/x86/mm/numa.c
-> >> +++ b/arch/x86/mm/numa.c
-> >> @@ -246,8 +246,10 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
-> >>   		bi->start = max(bi->start, low);
-> >>   		bi->end = min(bi->end, high);
-> >>   
-> >> -		/* and there's no empty block */
-> >> -		if (bi->start >= bi->end)
-> >> +		/* and there's no empty or non-exist block */
-> >> +		if (bi->start >= bi->end ||
-> >> +		    memblock_overlaps_region(&memblock.memory,
-> >> +			bi->start, bi->end - bi->start) == -1)
-> >>   			numa_remove_memblk_from(i--, mi);
-> >>   	}
-> >>   
-> >> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> >> index 0215ffd..3bf6cc1 100644
-> >> --- a/include/linux/memblock.h
-> >> +++ b/include/linux/memblock.h
-> >> @@ -77,6 +77,8 @@ int memblock_remove(phys_addr_t base, phys_addr_t size);
-> >>   int memblock_free(phys_addr_t base, phys_addr_t size);
-> >>   int memblock_reserve(phys_addr_t base, phys_addr_t size);
-> >>   void memblock_trim_memory(phys_addr_t align);
-> >> +long memblock_overlaps_region(struct memblock_type *type,
-> >> +			      phys_addr_t base, phys_addr_t size);
-> >>   int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
-> >>   int memblock_clear_hotplug(phys_addr_t base, phys_addr_t size);
-> >>   int memblock_mark_mirror(phys_addr_t base, phys_addr_t size);
-> >> diff --git a/mm/memblock.c b/mm/memblock.c
-> >> index 1b444c7..55b5f9f 100644
-> >> --- a/mm/memblock.c
-> >> +++ b/mm/memblock.c
-> >> @@ -91,7 +91,7 @@ static unsigned long __init_memblock memblock_addrs_overlap(phys_addr_t base1, p
-> >>   	return ((base1 < (base2 + size2)) && (base2 < (base1 + size1)));
-> >>   }
-> >>   
-> >> -static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
-> >> +long __init_memblock memblock_overlaps_region(struct memblock_type *type,
-> >>   					phys_addr_t base, phys_addr_t size)
-> >>   {
-> >>   	unsigned long i;
-> >
-> >
-> > .
-> >
-> 
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+You are not missing anything and thanks for the double checking. This
+was wery well spotted!
+The updated patch with the full changelog:
+---
