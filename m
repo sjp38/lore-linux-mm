@@ -1,372 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D4FE9003CE
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2015 04:47:36 -0400 (EDT)
-Received: by wibdq8 with SMTP id dq8so66704453wib.1
-        for <linux-mm@kvack.org>; Thu, 02 Jul 2015 01:47:35 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 818339003CE
+	for <linux-mm@kvack.org>; Thu,  2 Jul 2015 05:52:40 -0400 (EDT)
+Received: by wiwl6 with SMTP id l6so191177340wiw.0
+        for <linux-mm@kvack.org>; Thu, 02 Jul 2015 02:52:40 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hf10si8343279wib.2.2015.07.02.01.47.23
+        by mx.google.com with ESMTPS id gb5si7943627wjb.21.2015.07.02.02.52.37
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 02 Jul 2015 01:47:24 -0700 (PDT)
+        Thu, 02 Jul 2015 02:52:38 -0700 (PDT)
+Message-ID: <559509E4.3010708@suse.cz>
+Date: Thu, 02 Jul 2015 11:52:36 +0200
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC 3/4] mm, thp: check for hugepage availability in khugepaged
-Date: Thu,  2 Jul 2015 10:46:34 +0200
-Message-Id: <1435826795-13777-4-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1435826795-13777-1-git-send-email-vbabka@suse.cz>
-References: <1435826795-13777-1-git-send-email-vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [PATCH] fix: decrease NR_FREE_PAGES when isolate page from buddy
+References: <1435713478-19646-1-git-send-email-minkyung88.kim@lge.com>
+In-Reply-To: <1435713478-19646-1-git-send-email-minkyung88.kim@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>
+To: minkyung88.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Seungho Park <seungho1.park@lge.com>, kmk3210@gmail.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>
 
-Khugepaged could be scanning for collapse candidates uselessly, if it cannot
-allocate a hugepage for the actual collapse event. The hugepage preallocation
-mechanism has prevented this, but only for !NUMA configurations.  It was
-removed by the previous patch, and this patch replaces it with a more generic
-mechanism.
+[+CC Joonsoo and Minchan]
 
-The patch itroduces a thp_avail_nodes nodemask, which initially assumes that
-hugepage can be allocated on any node. Whenever khugepaged fails to allocate
-a hugepage, it clears the corresponding node bit. Before scanning for collapse
-candidates, it checks the availability on all nodes and wakes up kcompactd
-on nodes that have their bit cleared. Kcompactd sets the bit back in case of
-a successful compaction.
+On 07/01/2015 03:17 AM, minkyung88.kim@lge.com wrote:
+> From: "minkyung88.kim" <minkyung88.kim@lge.com>
+>
+> NR_FREEPAGE should be decreased when pages are isolated from buddy.
+> Therefore fix the count.
 
-During the scaning, khugepaged avoids collapsing on nodes with the bit
-cleared. If no nodes have hugepages available, collapse scanning is skipped
-altogether.
+Did you really observe an accounting bug and this patch fixed it, or is 
+it just because of code inspection?
 
-During testing, the patch did not show much difference in preventing
-thp_collapse_failed events from khugepaged, but this can be attributed to the
-sync compaction, which only khugepaged is allowed to use, and which is
-heavyweight enough to succeed frequently enough nowadays. The next patch will
-however extend the nodemask check to page fault context, where it has much
-larger impact. Also, with the possible future plan to convert THP collapsing
-to task_work context, this patch is also a preparation to avoid useless
-scanning or heavyweight THP allocations in that context.
+The patched code has this comment:
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- include/linux/compaction.h |  2 ++
- include/linux/mmzone.h     |  4 ++++
- mm/compaction.c            | 38 +++++++++++++++++++++++++++--
- mm/huge_memory.c           | 60 ++++++++++++++++++++++++++++++++++++++++------
- mm/internal.h              | 39 ++++++++++++++++++++++++++++++
- mm/vmscan.c                |  7 ++++++
- 6 files changed, 141 insertions(+), 9 deletions(-)
-
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index a2525d8..9c1cdb3 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -53,6 +53,8 @@ extern bool compaction_restarting(struct zone *zone, int order);
- 
- extern int kcompactd_run(int nid);
- extern void kcompactd_stop(int nid);
-+extern bool kcompactd_work_requested(pg_data_t *pgdat);
-+extern void wakeup_kcompactd(int nid, bool want_thp);
- 
- #else
- static inline unsigned long try_to_compact_pages(gfp_t gfp_mask,
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index bc96a23..4532585 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -766,6 +766,10 @@ typedef struct pglist_data {
- 	struct task_struct *kcompactd;
- 	wait_queue_head_t kcompactd_wait;
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	bool kcompactd_want_thp;
-+#endif
-+
- } pg_data_t;
- 
- #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
-diff --git a/mm/compaction.c b/mm/compaction.c
-index fcbc093..027a2e0 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1723,8 +1723,13 @@ void compaction_unregister_node(struct node *node)
- /*
-  * Has any special work been requested of kcompactd?
+/*
+  * If race between isolatation and allocation happens,
+  * some free pages could be in MIGRATE_MOVABLE list
+  * although pageblock's migratation type of the page
+  * is MIGRATE_ISOLATE. Catch it and move the page into
+  * MIGRATE_ISOLATE list.
   */
--static bool kcompactd_work_requested(pg_data_t *pgdat)
-+bool kcompactd_work_requested(pg_data_t *pgdat)
- {
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	if (pgdat->kcompactd_want_thp)
-+		return true;
-+#endif
-+
- 	return false;
- }
- 
-@@ -1738,6 +1743,13 @@ static void kcompactd_do_work(pg_data_t *pgdat)
- 	 * With no special task, compact all zones so that a pageblock-order
- 	 * page is allocatable. Wake up kswapd if there's not enough free
- 	 * memory for compaction.
-+	 *
-+	 * //TODO: with thp requested, just do the same thing as usual. We
-+	 * could try really allocating a hugepage, but that would be
-+	 * reclaim+compaction. If kswapd reclaim and kcompactd compaction
-+	 * cannot yield a hugepage, it probably means the system is busy
-+	 * enough with allocation/reclaim and being aggressive about THP
-+	 * would be of little benefit?
- 	 */
- 	int zoneid;
- 	struct zone *zone;
-@@ -1747,6 +1759,15 @@ static void kcompactd_do_work(pg_data_t *pgdat)
- 		.ignore_skip_hint = true,
- 	};
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	/*
-+	 * Clear the flag regardless of success. If somebody still wants a
-+	 * hugepage, they will set it again.
-+	 */
-+	if (pgdat->kcompactd_want_thp)
-+		pgdat->kcompactd_want_thp = false;
-+#endif
-+
- 	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
- 
- 		int suitable;
-@@ -1778,13 +1799,26 @@ static void kcompactd_do_work(pg_data_t *pgdat)
- 		compact_zone(zone, &cc);
- 
- 		if (zone_watermark_ok(zone, cc.order,
--						low_wmark_pages(zone), 0, 0))
-+						low_wmark_pages(zone), 0, 0)) {
- 			compaction_defer_reset(zone, cc.order, false);
-+			thp_avail_set(pgdat->node_id);
-+		}
- 
- 		VM_BUG_ON(!list_empty(&cc.freepages));
- 		VM_BUG_ON(!list_empty(&cc.migratepages));
- 	}
-+}
-+
-+void wakeup_kcompactd(int nid, bool want_thp)
-+{
-+	pg_data_t *pgdat = NODE_DATA(nid);
-+
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	if (want_thp)
-+		pgdat->kcompactd_want_thp = true;
-+#endif
- 
-+	wake_up_interruptible(&pgdat->kcompactd_wait);
- }
- 
- /*
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 6d83d05..885cb4e 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -22,6 +22,7 @@
- #include <linux/mman.h>
- #include <linux/pagemap.h>
- #include <linux/migrate.h>
-+#include <linux/compaction.h>
- #include <linux/hashtable.h>
- 
- #include <asm/tlb.h>
-@@ -103,6 +104,7 @@ static struct khugepaged_scan khugepaged_scan = {
- 	.mm_head = LIST_HEAD_INIT(khugepaged_scan.mm_head),
- };
- 
-+nodemask_t thp_avail_nodes = NODE_MASK_ALL;
- 
- static int set_recommended_min_free_kbytes(void)
- {
-@@ -2273,6 +2275,14 @@ static bool khugepaged_scan_abort(int nid)
- 	int i;
- 
- 	/*
-+	 * If it's clear that we are going to select a node where THP
-+	 * allocation is unlikely to succeed, abort
-+	 */
-+	if (khugepaged_node_load[nid] == (HPAGE_PMD_NR / 2) &&
-+				!node_isset(nid, thp_avail_nodes))
-+		return true;
-+
-+	/*
- 	 * If zone_reclaim_mode is disabled, then no extra effort is made to
- 	 * allocate memory locally.
- 	 */
-@@ -2346,6 +2356,7 @@ static struct page
- 	if (unlikely(!*hpage)) {
- 		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
- 		*hpage = ERR_PTR(-ENOMEM);
-+		node_clear(node, thp_avail_nodes);
- 		return NULL;
- 	}
- 
-@@ -2353,6 +2364,31 @@ static struct page
- 	return *hpage;
- }
- 
-+/*
-+ * Return true, if THP should be allocatable on at least one node.
-+ * Wake up kcompactd for nodes where THP is not available.
-+ */
-+static bool khugepaged_check_nodes(void)
-+{
-+	bool ret = false;
-+	int nid;
-+
-+	for_each_online_node(nid) {
-+		if (node_isset(nid, thp_avail_nodes)) {
-+			ret = true;
-+			continue;
-+		}
-+
-+		/*
-+		 * Tell kcompactd we want a hugepage available. It will
-+		 * set the thp_avail_nodes when successful.
-+		 */
-+		wakeup_kcompactd(nid, true);
-+	}
-+
-+	return ret;
-+}
-+
- static bool hugepage_vma_check(struct vm_area_struct *vma)
- {
- 	if ((!(vma->vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
-@@ -2580,6 +2616,10 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 	pte_unmap_unlock(pte, ptl);
- 	if (ret) {
- 		node = khugepaged_find_target_node();
-+		if (!node_isset(node, thp_avail_nodes)) {
-+			ret = 0;
-+			goto out;
-+		}
- 		/* collapse_huge_page will return with the mmap_sem released */
- 		collapse_huge_page(mm, address, hpage, vma, node);
- 	}
-@@ -2730,12 +2770,16 @@ static int khugepaged_wait_event(void)
- 		kthread_should_stop();
- }
- 
--static void khugepaged_do_scan(void)
-+/* Return false if THP allocation failed, true otherwise */
-+static bool khugepaged_do_scan(void)
- {
- 	struct page *hpage = NULL;
- 	unsigned int progress = 0, pass_through_head = 0;
- 	unsigned int pages = READ_ONCE(khugepaged_pages_to_scan);
- 
-+	if (!khugepaged_check_nodes())
-+		return false;
-+
- 	while (progress < pages) {
- 		cond_resched();
- 
-@@ -2754,14 +2798,14 @@ static void khugepaged_do_scan(void)
- 		spin_unlock(&khugepaged_mm_lock);
- 
- 		/* THP allocation has failed during collapse */
--		if (IS_ERR(hpage)) {
--			khugepaged_alloc_sleep();
--			break;
--		}
-+		if (IS_ERR(hpage))
-+			return false;
- 	}
- 
- 	if (!IS_ERR_OR_NULL(hpage))
- 		put_page(hpage);
-+
-+	return true;
- }
- 
- static void khugepaged_wait_work(void)
-@@ -2790,8 +2834,10 @@ static int khugepaged(void *none)
- 	set_user_nice(current, MAX_NICE);
- 
- 	while (!kthread_should_stop()) {
--		khugepaged_do_scan();
--		khugepaged_wait_work();
-+		if (khugepaged_do_scan())
-+			khugepaged_wait_work();
-+		else
-+			khugepaged_alloc_sleep();
- 	}
- 
- 	spin_lock(&khugepaged_mm_lock);
-diff --git a/mm/internal.h b/mm/internal.h
-index a25e359..6d9a711 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -162,6 +162,45 @@ extern bool is_free_buddy_page(struct page *page);
- #endif
- extern int user_min_free_kbytes;
- 
-+/*
-+ * in mm/huge_memory.c
-+ */
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+
-+extern nodemask_t thp_avail_nodes;
-+
-+static inline bool thp_avail_isset(int nid)
-+{
-+	return node_isset(nid, thp_avail_nodes);
-+}
-+
-+static inline void thp_avail_set(int nid)
-+{
-+	node_set(nid, thp_avail_nodes);
-+}
-+
-+static inline void thp_avail_clear(int nid)
-+{
-+	node_clear(nid, thp_avail_nodes);
-+}
-+
-+#else
-+
-+static inline bool thp_avail_isset(int nid)
-+{
-+	return true;
-+}
-+
-+static inline void thp_avail_set(int nid)
-+{
-+}
-+
-+static inline void thp_avail_clear(int nid)
-+{
-+}
-+
-+#endif
-+
- #if defined CONFIG_COMPACTION || defined CONFIG_CMA
- 
- /*
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 5e8eadd..d91e4d0 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3322,6 +3322,13 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
- 		 */
- 		reset_isolation_suitable(pgdat);
- 
-+		/*
-+		 * If kcompactd has work to do, it's possible that it was
-+		 * waiting for kswapd to reclaim enough memory first.
-+		 */
-+		if (kcompactd_work_requested(pgdat))
-+			wakeup_kcompactd(pgdat->node_id, false);
-+
- 		if (!kthread_should_stop())
- 			schedule();
- 
--- 
-2.4.3
+
+This is from 2012 and I'm not sure if it still applies. Joonsoo's series 
+last year was to eliminate these races, see e.g. 51bb1a4093 
+("mm/page_alloc: add freepage on isolate pageblock to correct buddy list").
+
+So I think that this piece of code shouldn't be useful anymore. Well, 
+actually I think it can trigger, but it's a false positive and (before 
+your patch) result in basically a no-op. The reason is that the value of 
+get_freepage_migratetype(page) is a just an optimization used only for 
+pages on pcplists. It's not guaranteed to be correct for pages in the 
+buddy free lists (and it can get stale even on the pcplists).
+
+Now, the code from Joonsoo's patch mentioned above does this in
+free_pcppages_bulk():
+
+mt = get_freepage_migratetype(page);
+if (unlikely(has_isolate_pageblock(zone)))
+         mt = get_pageblock_migratetype(page);
+
+/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+__free_one_page(page, page_to_pfn(page), zone, 0, mt);
+
+So if get_freepage_migratetype(page) returns e.g. MIGRATE_MOVABLE but 
+the pageblock is MIGRATE_ISOLATE, it will catch this and tell 
+__free_one_page() the correct migratetype. However, nothing will update 
+the freepage's migratetype by set_freepage_migratetype(), because it 
+would be a pointless waste of CPU cycles. The page however goes to the 
+correct MIGRATE_ISOLATE list. (note that this is likely not the only way 
+how freepage_migratetype can be perceived as incorrect)
+
+That means the code you are patching can really find the page where 
+get_freepage_migratetype(page) will return MIGRATE_MOVABLE, i.e. != 
+MIGRATE_ISOLATE will be true. But the move_freepages() call would be a 
+no-op, as the page is already on the correct list and the accounting of 
+freepages is correct.
+
+So my conclusion is that after your patch, the freepage accounting could 
+actually get broken, not fixed. But I may be wrong. Hopefully Joonsoo 
+can verify this :)
+
+If that's true, then the whole test you are patching should be dropped. 
+Also we should make it clearer that get_freepage_migratetype() is only 
+used for pages on pcplists (and even there it may differ from 
+pageblock's migratetype and also from the pcplist the page is actually 
+on, in cases of page stealing), as this is not the first confusion.
+We should also drop the usage set_freepage_migratetype() from 
+move_freepages() while at it.
+Now the last usage of get_freepage_migratetype() outside of page_alloc.c 
+is the page isolation code and I argue it's wrong. So after that is 
+removed, we can actually also make the functions internal to page_alloc.c.
+
+> Signed-off-by: minkyung88.kim <minkyung88.kim@lge.com>
+> ---
+>   mm/page_isolation.c | 6 +++++-
+>   1 file changed, 5 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> index 303c908..16cc172 100644
+> --- a/mm/page_isolation.c
+> +++ b/mm/page_isolation.c
+> @@ -233,10 +233,14 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
+>   			 */
+>   			if (get_freepage_migratetype(page) != MIGRATE_ISOLATE) {
+>   				struct page *end_page;
+> +				struct zone *zone = page_zone(page);
+> +				int mt = get_freepage_migratetype(page);
+> +				unsigned long nr_pages;
+>
+>   				end_page = page + (1 << page_order(page)) - 1;
+> -				move_freepages(page_zone(page), page, end_page,
+> +				nr_pages = move_freepages(zone, page, end_page,
+>   						MIGRATE_ISOLATE);
+> +				__mod_zone_freepage_state(zone, -nr_pages, mt);
+>   			}
+>   			pfn += 1 << page_order(page);
+>   		}
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
