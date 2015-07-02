@@ -1,125 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 818339003CE
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2015 05:52:40 -0400 (EDT)
-Received: by wiwl6 with SMTP id l6so191177340wiw.0
-        for <linux-mm@kvack.org>; Thu, 02 Jul 2015 02:52:40 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gb5si7943627wjb.21.2015.07.02.02.52.37
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 45F8C9003CE
+	for <linux-mm@kvack.org>; Thu,  2 Jul 2015 07:59:04 -0400 (EDT)
+Received: by lbbpo10 with SMTP id po10so30462761lbb.3
+        for <linux-mm@kvack.org>; Thu, 02 Jul 2015 04:59:03 -0700 (PDT)
+Received: from mail-lb0-x232.google.com (mail-lb0-x232.google.com. [2a00:1450:4010:c04::232])
+        by mx.google.com with ESMTPS id ci12si4295063lad.24.2015.07.02.04.59.01
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 02 Jul 2015 02:52:38 -0700 (PDT)
-Message-ID: <559509E4.3010708@suse.cz>
-Date: Thu, 02 Jul 2015 11:52:36 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Jul 2015 04:59:02 -0700 (PDT)
+Received: by lbcpe5 with SMTP id pe5so30439037lbc.2
+        for <linux-mm@kvack.org>; Thu, 02 Jul 2015 04:59:01 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] fix: decrease NR_FREE_PAGES when isolate page from buddy
-References: <1435713478-19646-1-git-send-email-minkyung88.kim@lge.com>
-In-Reply-To: <1435713478-19646-1-git-send-email-minkyung88.kim@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CABYiri9W5qM3PRyNua3pNO+eP=nz--TbYzTQ0Z8WseKTygz8HA@mail.gmail.com>
+References: <CABYiri9MEbEnZikqTU3d=w6rxtsgumH2gJ++Qzi1yZKGn6it+Q@mail.gmail.com>
+ <20150224001228.GA11456@amt.cnet> <CABYiri_U7oB==4-cxegjVQJ_dX62d0tX=D0cUAPTpV_xjCukEw@mail.gmail.com>
+ <alpine.LSU.2.11.1503281705040.13543@eggly.anvils> <CABYiri9W5qM3PRyNua3pNO+eP=nz--TbYzTQ0Z8WseKTygz8HA@mail.gmail.com>
+From: Andrey Korolyov <andrey@xdel.ru>
+Date: Thu, 2 Jul 2015 14:58:41 +0300
+Message-ID: <CABYiri8zwGibcRndsBc7D8F21PwzKKoDhuLhEtnfzVw_rYdR7w@mail.gmail.com>
+Subject: Re: copy_huge_page: unable to handle kernel NULL pointer dereference
+ at 0000000000000008
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minkyung88.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: Seungho Park <seungho1.park@lge.com>, kmk3210@gmail.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Greg KH <gregkh@linuxfoundation.org>, Jiri Slaby <jslaby@suse.cz>, Luis Henriques <luis.henriques@canonical.com>, Marcelo Tosatti <mtosatti@redhat.com>, stable@vger.kernel.org, linux-mm@kvack.org, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, wanpeng.li@linux.intel.com, jipan yang <jipan.yang@gmail.com>
 
-[+CC Joonsoo and Minchan]
-
-On 07/01/2015 03:17 AM, minkyung88.kim@lge.com wrote:
-> From: "minkyung88.kim" <minkyung88.kim@lge.com>
+>> But you are very appositely mistaken: copy_huge_page() used to make
+>> the same mistake, and Dave Hansen fixed it back in v3.13, but the fix
+>> never went to the stable trees.
+>>
+>> commit 30b0a105d9f7141e4cbf72ae5511832457d89788
+>> Author: Dave Hansen <dave.hansen@linux.intel.com>
+>> Date:   Thu Nov 21 14:31:58 2013 -0800
+>>
+>>     mm: thp: give transparent hugepage code a separate copy_page
+>>
+>>     Right now, the migration code in migrate_page_copy() uses copy_huge_page()
+>>     for hugetlbfs and thp pages:
+>>
+>>            if (PageHuge(page) || PageTransHuge(page))
+>>                     copy_huge_page(newpage, page);
+>>
+>>     So, yay for code reuse.  But:
+>>
+>>       void copy_huge_page(struct page *dst, struct page *src)
+>>       {
+>>             struct hstate *h = page_hstate(src);
+>>
+>>     and a non-hugetlbfs page has no page_hstate().  This works 99% of the
+>>     time because page_hstate() determines the hstate from the page order
+>>     alone.  Since the page order of a THP page matches the default hugetlbfs
+>>     page order, it works.
+>>
+>>     But, if you change the default huge page size on the boot command-line
+>>     (say default_hugepagesz=1G), then we might not even *have* a 2MB hstate
+>>     so page_hstate() returns null and copy_huge_page() oopses pretty fast
+>>     since copy_huge_page() dereferences the hstate:
+>>
+>>       void copy_huge_page(struct page *dst, struct page *src)
+>>       {
+>>             struct hstate *h = page_hstate(src);
+>>             if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
+>>       ...
+>>
+>>     Mel noticed that the migration code is really the only user of these
+>>     functions.  This moves all the copy code over to migrate.c and makes
+>>     copy_huge_page() work for THP by checking for it explicitly.
+>>
+>>     I believe the bug was introduced in commit b32967ff101a ("mm: numa: Add
+>>     THP migration for the NUMA working set scanning fault case")
+>>
+>>     [akpm@linux-foundation.org: fix coding-style and comment text, per Naoya Horiguchi]
+>>     Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+>>     Acked-by: Mel Gorman <mgorman@suse.de>
+>>     Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>>     Cc: Hillf Danton <dhillf@gmail.com>
+>>     Cc: Andrea Arcangeli <aarcange@redhat.com>
+>>     Tested-by: Dave Jiang <dave.jiang@intel.com>
+>>     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>>     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+>>
 >
-> NR_FREEPAGE should be decreased when pages are isolated from buddy.
-> Therefore fix the count.
+> Thanks, the issue is fixed on 3.10 with trivial patch modification.
 
-Did you really observe an accounting bug and this patch fixed it, or is 
-it just because of code inspection?
-
-The patched code has this comment:
-
-/*
-  * If race between isolatation and allocation happens,
-  * some free pages could be in MIGRATE_MOVABLE list
-  * although pageblock's migratation type of the page
-  * is MIGRATE_ISOLATE. Catch it and move the page into
-  * MIGRATE_ISOLATE list.
-  */
-
-This is from 2012 and I'm not sure if it still applies. Joonsoo's series 
-last year was to eliminate these races, see e.g. 51bb1a4093 
-("mm/page_alloc: add freepage on isolate pageblock to correct buddy list").
-
-So I think that this piece of code shouldn't be useful anymore. Well, 
-actually I think it can trigger, but it's a false positive and (before 
-your patch) result in basically a no-op. The reason is that the value of 
-get_freepage_migratetype(page) is a just an optimization used only for 
-pages on pcplists. It's not guaranteed to be correct for pages in the 
-buddy free lists (and it can get stale even on the pcplists).
-
-Now, the code from Joonsoo's patch mentioned above does this in
-free_pcppages_bulk():
-
-mt = get_freepage_migratetype(page);
-if (unlikely(has_isolate_pageblock(zone)))
-         mt = get_pageblock_migratetype(page);
-
-/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
-__free_one_page(page, page_to_pfn(page), zone, 0, mt);
-
-So if get_freepage_migratetype(page) returns e.g. MIGRATE_MOVABLE but 
-the pageblock is MIGRATE_ISOLATE, it will catch this and tell 
-__free_one_page() the correct migratetype. However, nothing will update 
-the freepage's migratetype by set_freepage_migratetype(), because it 
-would be a pointless waste of CPU cycles. The page however goes to the 
-correct MIGRATE_ISOLATE list. (note that this is likely not the only way 
-how freepage_migratetype can be perceived as incorrect)
-
-That means the code you are patching can really find the page where 
-get_freepage_migratetype(page) will return MIGRATE_MOVABLE, i.e. != 
-MIGRATE_ISOLATE will be true. But the move_freepages() call would be a 
-no-op, as the page is already on the correct list and the accounting of 
-freepages is correct.
-
-So my conclusion is that after your patch, the freepage accounting could 
-actually get broken, not fixed. But I may be wrong. Hopefully Joonsoo 
-can verify this :)
-
-If that's true, then the whole test you are patching should be dropped. 
-Also we should make it clearer that get_freepage_migratetype() is only 
-used for pages on pcplists (and even there it may differ from 
-pageblock's migratetype and also from the pcplist the page is actually 
-on, in cases of page stealing), as this is not the first confusion.
-We should also drop the usage set_freepage_migratetype() from 
-move_freepages() while at it.
-Now the last usage of get_freepage_migratetype() outside of page_alloc.c 
-is the page isolation code and I argue it's wrong. So after that is 
-removed, we can actually also make the functions internal to page_alloc.c.
-
-> Signed-off-by: minkyung88.kim <minkyung88.kim@lge.com>
-> ---
->   mm/page_isolation.c | 6 +++++-
->   1 file changed, 5 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index 303c908..16cc172 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -233,10 +233,14 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
->   			 */
->   			if (get_freepage_migratetype(page) != MIGRATE_ISOLATE) {
->   				struct page *end_page;
-> +				struct zone *zone = page_zone(page);
-> +				int mt = get_freepage_migratetype(page);
-> +				unsigned long nr_pages;
->
->   				end_page = page + (1 << page_order(page)) - 1;
-> -				move_freepages(page_zone(page), page, end_page,
-> +				nr_pages = move_freepages(zone, page, end_page,
->   						MIGRATE_ISOLATE);
-> +				__mod_zone_freepage_state(zone, -nr_pages, mt);
->   			}
->   			pfn += 1 << page_order(page);
->   		}
->
+Ping? 3.10 still misses that..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
