@@ -1,97 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B47F9003CE
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2015 11:13:30 -0400 (EDT)
-Received: by wgqq4 with SMTP id q4so66030046wgq.1
-        for <linux-mm@kvack.org>; Thu, 02 Jul 2015 08:13:30 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o5si4235540wiz.39.2015.07.02.08.13.27
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E7C49003CE
+	for <linux-mm@kvack.org>; Thu,  2 Jul 2015 11:39:30 -0400 (EDT)
+Received: by obpn3 with SMTP id n3so52005622obp.0
+        for <linux-mm@kvack.org>; Thu, 02 Jul 2015 08:39:30 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id z10si4753971obs.83.2015.07.02.08.39.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 02 Jul 2015 08:13:28 -0700 (PDT)
-Date: Thu, 2 Jul 2015 17:13:21 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm, vmscan: Do not wait for page writeback for GFP_NOFS
- allocations
-Message-ID: <20150702151321.GE12547@dhcp22.suse.cz>
-References: <1435677437-16717-1-git-send-email-mhocko@suse.cz>
- <20150701061731.GB6286@dhcp22.suse.cz>
- <20150701133715.GA6287@dhcp22.suse.cz>
- <20150702142551.GB9456@thunk.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150702142551.GB9456@thunk.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Jul 2015 08:39:29 -0700 (PDT)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [PATCH 02/10] mm/hugetlb: add region_del() to delete a specific range of entries
+Date: Thu,  2 Jul 2015 08:38:38 -0700
+Message-Id: <1435851526-4200-3-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1435851526-4200-1-git-send-email-mike.kravetz@oracle.com>
+References: <1435851526-4200-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: Nikolay Borisov <kernel@kyup.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Marian Marinov <mm@1h.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-ext4@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Thu 02-07-15 10:25:51, Theodore Ts'o wrote:
-> On Wed, Jul 01, 2015 at 03:37:15PM +0200, Michal Hocko wrote:
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 37e90db1520b..6c44d424968e 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -995,7 +995,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> >  				goto keep_locked;
-> >  
-> >  			/* Case 3 above */
-> > -			} else {
-> > +			} else if (sc->gfp_mask & __GFP_FS) {
-> >  				wait_on_page_writeback(page);
-> >  			}
-> >  		}
-> 
-> Um, I've just taken a closer look at this code now that I'm back from
-> vacation, and I'm not sure this is right.  This Case 3 code occurs
-> inside an
-> 
-> 	if (PageWriteback(page)) {
-> 	    ...
-> 	}
-> 
-> conditional, and if I'm not mistaken, if the flow of control exits
-> this conditional, it is assumed that the page is *not* under writeback.
-> This patch will assume the page has been cleaned if __GFP_FS is set,
-> which could lead to a dirty page getting dropped, so I believe this is
-> a bug.  No?
+fallocate hole punch will want to remove a specific range of pages.
+The existing region_truncate() routine deletes all region/reserve
+map entries after a specified offset.  region_del() will provide
+this same functionality if the end of region is specified as -1.
+Hence, region_del() can replace region_truncate().
 
-Yes you are right! My bad. I should have noticed that. Sorry about that.
+Unlike region_truncate(), region_del() can return an error in the
+rare case where it can not allocate memory for a region descriptor.
+This ONLY happens in the case where an existing region must be split.
+Current callers passing -1 as end of range will never experience
+this error and do not need to deal with error handling.  Future
+callers of region_del() (such as fallocate hole punch) will need to
+handle this error.
 
-> It would seem to me that a better fix would be to change the Case 2
-> handling:
-> 
-> 			/* Case 2 above */
-> 			} else if (global_reclaim(sc) ||
-> -			    !PageReclaim(page) || !(sc->gfp_mask & __GFP_IO)) {
-> +			    !PageReclaim(page) || !(sc->gfp_mask & __GFP_FS)) {
-
-OK, this should work because the loopback path should clear both
-__GFP_IO and __GFP_FS. I would be tempted to use may_enter_fs here
-as the original patch which introduced wait_on_page_writeback did
-but this sounds more clear.
-
-> 				/*
-> 				 * This is slightly racy - end_page_writeback()
-> 				 * might have just cleared PageReclaim, then
-> 				 * setting PageReclaim here end up interpreted
-> 				 * as PageReadahead - but that does not matter
-> 				 * enough to care.  What we do want is for this
-> 				 * page to have PageReclaim set next time memcg
-> 				 * reclaim reaches the tests above, so it will
-> 				 * then wait_on_page_writeback() to avoid OOM;
-> 				 * and it's also appropriate in global reclaim.
-> 				 */
-> 				SetPageReclaim(page);
-> 				nr_writeback++;
-> 
-> 				goto keep_locked;
-> 
-> 
-> Am I missing something?
-
-You are not missing anything and thanks for the double checking. This
-was wery well spotted!
-The updated patch with the full changelog:
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
+ mm/hugetlb.c | 101 ++++++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 75 insertions(+), 26 deletions(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 189c0d7..e8c7f68 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -460,43 +460,92 @@ static void region_abort(struct resv_map *resv, long f, long t)
+ }
+ 
+ /*
+- * Truncate the reserve map at index 'end'.  Modify/truncate any
+- * region which contains end.  Delete any regions past end.
+- * Return the number of huge pages removed from the map.
++ * Delete the specified range [f, t) from the reserve map.  If the
++ * t parameter is -1, this indicates that ALL regions after f should
++ * be deleted.  Locate the regions which intersect [f, t) and either
++ * trim, delete or split the existing regions.
++ *
++ * Returns the number of huge pages deleted from the reserve map.
++ * In the normal case, the return value is zero or more.  In the
++ * case where a region must be split, a new region descriptor must
++ * be allocated.  If the allocation fails, -ENOMEM will be returned.
++ * NOTE: If the parameter t == -1, then we will never split a region
++ * and possibly return -ENOMEM.  Callers specifying t == -1 do not
++ * need to check for -ENOMEM error.
+  */
+-static long region_truncate(struct resv_map *resv, long end)
++static long region_del(struct resv_map *resv, long f, long t)
+ {
+ 	struct list_head *head = &resv->regions;
+ 	struct file_region *rg, *trg;
+-	long chg = 0;
++	struct file_region *nrg = NULL;
++	long del = 0;
+ 
++	if (t == -1)
++		t = LONG_MAX;
++retry:
+ 	spin_lock(&resv->lock);
+-	/* Locate the region we are either in or before. */
+-	list_for_each_entry(rg, head, link)
+-		if (end <= rg->to)
++	list_for_each_entry_safe(rg, trg, head, link) {
++		if (rg->to <= f)
++			continue;
++		if (rg->from >= t)
+ 			break;
+-	if (&rg->link == head)
+-		goto out;
+ 
+-	/* If we are in the middle of a region then adjust it. */
+-	if (end > rg->from) {
+-		chg = rg->to - end;
+-		rg->to = end;
+-		rg = list_entry(rg->link.next, typeof(*rg), link);
+-	}
++		if (f > rg->from && t < rg->to) { /* Must split region */
++			/*
++			 * Check for an entry in the cache before dropping
++			 * lock and attempting allocation.
++			 */
++			if (!nrg &&
++			    resv->rgn_cache_count > resv->adds_in_progress) {
++				nrg = list_first_entry(&resv->rgn_cache,
++							struct file_region,
++							link);
++				list_del(&nrg->link);
++				resv->rgn_cache_count--;
++			}
+ 
+-	/* Drop any remaining regions. */
+-	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
+-		if (&rg->link == head)
++			if (!nrg) {
++				spin_unlock(&resv->lock);
++				nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
++				if (!nrg)
++					return -ENOMEM;
++				goto retry;
++			}
++
++			del += t - f;
++
++			/* New entry for end of split region */
++			nrg->from = t;
++			nrg->to = rg->to;
++			INIT_LIST_HEAD(&nrg->link);
++
++			/* Original entry is trimmed */
++			rg->to = f;
++
++			list_add(&nrg->link, &rg->link);
++			nrg = NULL;
+ 			break;
+-		chg += rg->to - rg->from;
+-		list_del(&rg->link);
+-		kfree(rg);
++		}
++
++		if (f <= rg->from && t >= rg->to) { /* Remove entire region */
++			del += rg->to - rg->from;
++			list_del(&rg->link);
++			kfree(rg);
++			continue;
++		}
++
++		if (f <= rg->from) {	/* Trim beginning of region */
++			del += t - rg->from;
++			rg->from = t;
++		} else {		/* Trim end of region */
++			del += rg->to - f;
++			rg->to = f;
++		}
+ 	}
+ 
+-out:
+ 	spin_unlock(&resv->lock);
+-	return chg;
++	kfree(nrg);
++	return del;
+ }
+ 
+ /*
+@@ -647,7 +696,7 @@ void resv_map_release(struct kref *ref)
+ 	struct file_region *rg, *trg;
+ 
+ 	/* Clear out any active regions before we release the map. */
+-	region_truncate(resv_map, 0);
++	region_del(resv_map, 0, -1);
+ 
+ 	/* ... and any entries left in the cache */
+ 	list_for_each_entry_safe(rg, trg, head, link)
+@@ -3868,7 +3917,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
+ 	long gbl_reserve;
+ 
+ 	if (resv_map)
+-		chg = region_truncate(resv_map, offset);
++		chg = region_del(resv_map, offset, -1);
+ 	spin_lock(&inode->i_lock);
+ 	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
+ 	spin_unlock(&inode->i_lock);
+-- 
+2.1.0
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
