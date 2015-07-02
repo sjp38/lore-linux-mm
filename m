@@ -1,28 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 19B686B0255
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 21:26:55 -0400 (EDT)
-Received: by qgeg89 with SMTP id g89so26993671qge.3
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 18:26:54 -0700 (PDT)
-Received: from mail-qk0-x22e.google.com (mail-qk0-x22e.google.com. [2607:f8b0:400d:c09::22e])
-        by mx.google.com with ESMTPS id k8si4583190qkh.27.2015.07.01.18.26.54
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 89DDB9003C7
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 21:38:19 -0400 (EDT)
+Received: by qgeg89 with SMTP id g89so27077623qge.3
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 18:38:19 -0700 (PDT)
+Received: from mail-qk0-x236.google.com (mail-qk0-x236.google.com. [2607:f8b0:400d:c09::236])
+        by mx.google.com with ESMTPS id k87si4615686qkh.23.2015.07.01.18.38.18
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jul 2015 18:26:54 -0700 (PDT)
-Received: by qkei195 with SMTP id i195so42509389qke.3
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 18:26:54 -0700 (PDT)
-Date: Wed, 1 Jul 2015 21:26:51 -0400
+        Wed, 01 Jul 2015 18:38:18 -0700 (PDT)
+Received: by qkei195 with SMTP id i195so42646205qke.3
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 18:38:18 -0700 (PDT)
+Date: Wed, 1 Jul 2015 21:38:15 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 26/51] writeback: let balance_dirty_pages() work on the
- matching cgroup bdi_writeback
-Message-ID: <20150702012651.GD26440@mtj.duckdns.org>
+Subject: Re: [PATCH 28/51] writeback, blkcg: restructure
+ blk_{set|clear}_queue_congested()
+Message-ID: <20150702013815.GE26440@mtj.duckdns.org>
 References: <1432329245-5844-1-git-send-email-tj@kernel.org>
- <1432329245-5844-27-git-send-email-tj@kernel.org>
- <20150630143100.GL7252@quack.suse.cz>
+ <1432329245-5844-29-git-send-email-tj@kernel.org>
+ <20150630150254.GN7252@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150630143100.GL7252@quack.suse.cz>
+In-Reply-To: <20150630150254.GN7252@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>
@@ -30,28 +30,35 @@ Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, hch@infradead.org, hannes@cmp
 
 Hello, Jan.
 
-On Tue, Jun 30, 2015 at 04:31:00PM +0200, Jan Kara wrote:
-...
-> > +	if (inode_cgwb_enabled(inode))
-> > +		wb = wb_get_create_current(bdi, GFP_KERNEL);
-> > +	if (!wb)
-> > +		wb = &bdi->wb;
-> > +
-> 
-> So this effectively adds a radix tree lookup (of wb belonging to memcg) for
-> every set_page_dirty() call. That seems relatively costly to me. And all
+On Tue, Jun 30, 2015 at 05:02:54PM +0200, Jan Kara wrote:
+> BTW, I'd prefer if this was merged with the following patch. I was
+> wondering for a while about the condition at the beginning of
+> blk_clear_congested() only to learn it gets modified to the one I'd expect
+> in the following patch :)
 
-Hmmm... idk, radix tree lookups should be cheap especially when
-shallow and set_page_dirty().  It's a glorified array indexing.  If
-not, we should really be improving radix tree implementation.  That
-said,
+The patches are already merged, it's a bit too late to discuss but I
+usually try to keep each step quite granular.  e.g. I try hard to
+avoid combining code relocation / restructuring with actual functional
+changes so that the code change A -> B -> C where B is functionally
+identical to A and C is different from B only where the actual
+functional changes occur.
 
-> that just to check wb->dirty_exceeded. Cannot we just use inode_to_wb()
-> instead? I understand results may be different if multiple memcgs share an
-> inode and that's the reason why you use wb_get_create_current(), right?
-> But for dirty_exceeded check it may be good enough?
+I think your argument is that as C is the final form, introducing B is
+actually harder for reviewing.  I have to disagree with that pretty
+strongly.  When you only think about the functional transformations A
+-> C might seem easier but given that we also want to verify the
+changes - both during development and review - it's far more
+beneficial to go through the intermediate stage as that isolates
+functional changes from mere code transformation.
 
-Yeah, that probably should work.  I'll think more about it.
+Another thing to consider is that there's a difference when one is
+reviewing a patch series as a whole tracking the development of big
+picture and later when somebody tries to debug or bisect a bug the
+patchset introduces.  At that point, the general larger flow isn't
+really in the picture and combining structural and functional changes
+may make understanding what's going on significantly harder in
+addition to making such errors more likely and less detectable in the
+first place.
 
 Thanks.
 
