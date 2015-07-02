@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 39B55280246
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2015 11:39:34 -0400 (EDT)
-Received: by oiaf66 with SMTP id f66so27079518oia.3
-        for <linux-mm@kvack.org>; Thu, 02 Jul 2015 08:39:34 -0700 (PDT)
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 38ECB280246
+	for <linux-mm@kvack.org>; Thu,  2 Jul 2015 11:39:36 -0400 (EDT)
+Received: by obdbs4 with SMTP id bs4so52195980obd.3
+        for <linux-mm@kvack.org>; Thu, 02 Jul 2015 08:39:36 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id w186si4760526oia.86.2015.07.02.08.39.33
+        by mx.google.com with ESMTPS id u74si4768042oie.50.2015.07.02.08.39.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 02 Jul 2015 08:39:33 -0700 (PDT)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH 04/10] hugetlbfs: hugetlb_vmtruncate_list() needs to take a range to delete
-Date: Thu,  2 Jul 2015 08:38:40 -0700
-Message-Id: <1435851526-4200-5-git-send-email-mike.kravetz@oracle.com>
+Subject: [PATCH 03/10] mm/hugetlb: expose hugetlb fault mutex for use by fallocate
+Date: Thu,  2 Jul 2015 08:38:39 -0700
+Message-Id: <1435851526-4200-4-git-send-email-mike.kravetz@oracle.com>
 In-Reply-To: <1435851526-4200-1-git-send-email-mike.kravetz@oracle.com>
 References: <1435851526-4200-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,76 +20,111 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-fallocate hole punch will want to unmap a specific range of pages.
-Modify the existing hugetlb_vmtruncate_list() routine to take a
-start/end range.  If end is 0, this indicates all pages after start
-should be unmapped.  This is the same as the existing truncate
-functionality.  Modify existing callers to add 0 as end of range.
-
-Since the routine will be used in hole punch as well as truncate
-operations, it is more appropriately renamed to hugetlb_vmdelete_list().
+hugetlb page faults are currently synchronized by the table of
+mutexes (htlb_fault_mutex_table).  fallocate code will need to
+synchronize with the page fault code when it allocates or
+deletes pages.  Expose interfaces so that fallocate operations
+can be synchronized with page faults.  Minor name changes to
+be more consistent with other global hugetlb symbols.
 
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- fs/hugetlbfs/inode.c | 25 ++++++++++++++++++-------
- 1 file changed, 18 insertions(+), 7 deletions(-)
+ include/linux/hugetlb.h |  5 +++++
+ mm/hugetlb.c            | 20 ++++++++++----------
+ 2 files changed, 15 insertions(+), 10 deletions(-)
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index e5a93d8..e9d4c8d 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -374,11 +374,15 @@ static void hugetlbfs_evict_inode(struct inode *inode)
- }
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index f9c8cb2..43e8511f 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -88,6 +88,11 @@ int dequeue_hwpoisoned_huge_page(struct page *page);
+ bool isolate_huge_page(struct page *page, struct list_head *list);
+ void putback_active_hugepage(struct page *page);
+ void free_huge_page(struct page *page);
++extern struct mutex *hugetlb_fault_mutex_table;
++u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
++				struct vm_area_struct *vma,
++				struct address_space *mapping,
++				pgoff_t idx, unsigned long address);
  
- static inline void
--hugetlb_vmtruncate_list(struct rb_root *root, pgoff_t pgoff)
-+hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
- {
- 	struct vm_area_struct *vma;
+ #ifdef CONFIG_ARCH_WANT_HUGE_PMD_SHARE
+ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud);
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index e8c7f68..21e957b 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -64,7 +64,7 @@ DEFINE_SPINLOCK(hugetlb_lock);
+  * prevent spurious OOMs when the hugepage pool is fully utilized.
+  */
+ static int num_fault_mutexes;
+-static struct mutex *htlb_fault_mutex_table ____cacheline_aligned_in_smp;
++struct mutex *hugetlb_fault_mutex_table ____cacheline_aligned_in_smp;
  
--	vma_interval_tree_foreach(vma, root, pgoff, ULONG_MAX) {
-+	/*
-+	 * end == 0 indicates that the entire range after
-+	 * start should be unmapped.
-+	 */
-+	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
- 		unsigned long v_offset;
- 
- 		/*
-@@ -387,13 +391,20 @@ hugetlb_vmtruncate_list(struct rb_root *root, pgoff_t pgoff)
- 		 * which overlap the truncated area starting at pgoff,
- 		 * and no vma on a 32-bit arch can span beyond the 4GB.
- 		 */
--		if (vma->vm_pgoff < pgoff)
--			v_offset = (pgoff - vma->vm_pgoff) << PAGE_SHIFT;
-+		if (vma->vm_pgoff < start)
-+			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
- 		else
- 			v_offset = 0;
- 
--		unmap_hugepage_range(vma, vma->vm_start + v_offset,
--				     vma->vm_end, NULL);
-+		if (end) {
-+			end = ((end - start) << PAGE_SHIFT) +
-+			       vma->vm_start + v_offset;
-+			if (end > vma->vm_end)
-+				end = vma->vm_end;
-+		} else
-+			end = vma->vm_end;
-+
-+		unmap_hugepage_range(vma, vma->vm_start + v_offset, end, NULL);
+ /* Forward declaration */
+ static int hugetlb_acct_memory(struct hstate *h, long delta);
+@@ -2481,7 +2481,7 @@ static void __exit hugetlb_exit(void)
  	}
+ 
+ 	kobject_put(hugepages_kobj);
+-	kfree(htlb_fault_mutex_table);
++	kfree(hugetlb_fault_mutex_table);
+ }
+ module_exit(hugetlb_exit);
+ 
+@@ -2514,12 +2514,12 @@ static int __init hugetlb_init(void)
+ #else
+ 	num_fault_mutexes = 1;
+ #endif
+-	htlb_fault_mutex_table =
++	hugetlb_fault_mutex_table =
+ 		kmalloc(sizeof(struct mutex) * num_fault_mutexes, GFP_KERNEL);
+-	BUG_ON(!htlb_fault_mutex_table);
++	BUG_ON(!hugetlb_fault_mutex_table);
+ 
+ 	for (i = 0; i < num_fault_mutexes; i++)
+-		mutex_init(&htlb_fault_mutex_table[i]);
++		mutex_init(&hugetlb_fault_mutex_table[i]);
+ 	return 0;
+ }
+ module_init(hugetlb_init);
+@@ -3453,7 +3453,7 @@ backout_unlocked:
  }
  
-@@ -409,7 +420,7 @@ static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
- 	i_size_write(inode, offset);
- 	i_mmap_lock_write(mapping);
- 	if (!RB_EMPTY_ROOT(&mapping->i_mmap))
--		hugetlb_vmtruncate_list(&mapping->i_mmap, pgoff);
-+		hugetlb_vmdelete_list(&mapping->i_mmap, pgoff, 0);
- 	i_mmap_unlock_write(mapping);
- 	truncate_hugepages(inode, offset);
- 	return 0;
+ #ifdef CONFIG_SMP
+-static u32 fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
++u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
+ 			    struct vm_area_struct *vma,
+ 			    struct address_space *mapping,
+ 			    pgoff_t idx, unsigned long address)
+@@ -3478,7 +3478,7 @@ static u32 fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
+  * For uniprocesor systems we always use a single mutex, so just
+  * return 0 and avoid the hashing overhead.
+  */
+-static u32 fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
++u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
+ 			    struct vm_area_struct *vma,
+ 			    struct address_space *mapping,
+ 			    pgoff_t idx, unsigned long address)
+@@ -3526,8 +3526,8 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	 * get spurious allocation failures if two CPUs race to instantiate
+ 	 * the same page in the page cache.
+ 	 */
+-	hash = fault_mutex_hash(h, mm, vma, mapping, idx, address);
+-	mutex_lock(&htlb_fault_mutex_table[hash]);
++	hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping, idx, address);
++	mutex_lock(&hugetlb_fault_mutex_table[hash]);
+ 
+ 	entry = huge_ptep_get(ptep);
+ 	if (huge_pte_none(entry)) {
+@@ -3612,7 +3612,7 @@ out_ptl:
+ 		put_page(pagecache_page);
+ 	}
+ out_mutex:
+-	mutex_unlock(&htlb_fault_mutex_table[hash]);
++	mutex_unlock(&hugetlb_fault_mutex_table[hash]);
+ 	/*
+ 	 * Generally it's safe to hold refcount during waiting page lock. But
+ 	 * here we just wait to defer the next page fault to avoid busy loop and
 -- 
 2.1.0
 
