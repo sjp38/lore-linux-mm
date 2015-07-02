@@ -1,36 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 6012C6B025D
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 23:38:09 -0400 (EDT)
-Received: by paceq1 with SMTP id eq1so32964882pac.3
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 20:38:09 -0700 (PDT)
-Received: from out21.biz.mail.alibaba.com (out114-136.biz.mail.alibaba.com. [205.204.114.136])
-        by mx.google.com with ESMTP id hu1si6693551pbb.37.2015.07.01.20.38.05
-        for <linux-mm@kvack.org>;
-        Wed, 01 Jul 2015 20:38:07 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 72FD26B025E
+	for <linux-mm@kvack.org>; Thu,  2 Jul 2015 02:00:47 -0400 (EDT)
+Received: by wgjx7 with SMTP id x7so53504572wgj.2
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 23:00:46 -0700 (PDT)
+Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com. [2a00:1450:400c:c05::234])
+        by mx.google.com with ESMTPS id ei9si7717183wid.123.2015.07.01.23.00.44
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Jul 2015 23:00:45 -0700 (PDT)
+Received: by wibdq8 with SMTP id dq8so63119650wib.1
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 23:00:44 -0700 (PDT)
+Date: Thu, 2 Jul 2015 08:00:42 +0200
+From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: [patch v2 1/3] mm, oom: organize oom context into struct
-Date: Thu, 02 Jul 2015 11:37:47 +0800
-Message-ID: <01e801d0b478$77c57990$67506cb0$@alibaba-inc.com>
+Message-ID: <20150702060041.GA3989@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1506181555350.13736@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1507011435150.14014@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1507011435150.14014@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, 'Sergey Senozhatsky' <sergey.senozhatsky.work@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-> Subject: [patch v2 1/3] mm, oom: organize oom context into struct
-[patch v2 2/3] mm, oom: organize oom context into struct
-[patch v2 3/3] mm, oom: organize oom context into struct
+JFYI. I have added this patch of yours into my series which is fixing
+other sysrq+f issue and it is waiting for the merge window to close.
 
-I am wondering if a redelivery is needed for the same 3 subject lines.
-
-Hillf
-> 
+On Wed 01-07-15 14:37:07, David Rientjes wrote:
 > There are essential elements to an oom context that are passed around to
 > multiple functions.
 > 
@@ -55,7 +54,7 @@ Hillf
 > --- a/drivers/tty/sysrq.c
 > +++ b/drivers/tty/sysrq.c
 > @@ -353,9 +353,17 @@ static struct sysrq_key_op sysrq_term_op = {
-> 
+>  
 >  static void moom_callback(struct work_struct *ignored)
 >  {
 > +	const gfp_t gfp_mask = GFP_KERNEL;
@@ -80,7 +79,7 @@ Hillf
 > @@ -12,6 +12,14 @@ struct notifier_block;
 >  struct mem_cgroup;
 >  struct task_struct;
-> 
+>  
 > +struct oom_control {
 > +	struct zonelist *zonelist;
 > +	nodemask_t	*nodemask;
@@ -93,7 +92,7 @@ Hillf
 >   * Types of limitations to the nodes from which allocations may occur
 >   */
 > @@ -57,21 +65,18 @@ extern unsigned long oom_badness(struct task_struct *p,
-> 
+>  
 >  extern int oom_kills_count(void);
 >  extern void note_oom_kill(void);
 > -extern void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
@@ -102,25 +101,25 @@ Hillf
 > -			     struct mem_cgroup *memcg, nodemask_t *nodemask,
 > -			     const char *message);
 > +			     struct mem_cgroup *memcg, const char *message);
-> 
+>  
 > -extern void check_panic_on_oom(enum oom_constraint constraint, gfp_t gfp_mask,
 > -			       int order, const nodemask_t *nodemask,
 > +extern void check_panic_on_oom(struct oom_control *oc,
 > +			       enum oom_constraint constraint,
 >  			       struct mem_cgroup *memcg);
-> 
+>  
 > -extern enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
 > -		unsigned long totalpages, const nodemask_t *nodemask,
 > -		bool force_kill);
 > +extern enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
 > +		struct task_struct *task, unsigned long totalpages);
-> 
+>  
 > -extern bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 > -		int order, nodemask_t *mask, bool force_kill);
 > +extern bool out_of_memory(struct oom_control *oc);
-> 
+>  
 >  extern void exit_oom_victim(void);
-> 
+>  
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
@@ -141,14 +140,14 @@ Hillf
 > @@ -1563,7 +1570,7 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 >  		goto unlock;
 >  	}
-> 
+>  
 > -	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL, memcg);
 > +	check_panic_on_oom(&oc, CONSTRAINT_MEMCG, memcg);
 >  	totalpages = mem_cgroup_get_limit(memcg) ? : 1;
 >  	for_each_mem_cgroup_tree(iter, memcg) {
 >  		struct css_task_iter it;
 > @@ -1571,8 +1578,7 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> 
+>  
 >  		css_task_iter_start(&iter->css, &it);
 >  		while ((task = css_task_iter_next(&it))) {
 > -			switch (oom_scan_process_thread(task, totalpages, NULL,
@@ -158,7 +157,7 @@ Hillf
 >  				if (chosen)
 >  					put_task_struct(chosen);
 > @@ -1610,8 +1616,8 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> 
+>  
 >  	if (chosen) {
 >  		points = chosen_points * 1000 / totalpages;
 > -		oom_kill_process(chosen, gfp_mask, order, points, totalpages,
@@ -187,10 +186,10 @@ Hillf
 > +	enum zone_type high_zoneidx = gfp_zone(oc->gfp_mask);
 >  	bool cpuset_limited = false;
 >  	int nid;
-> 
+>  
 >  	/* Default to all available memory */
 >  	*totalpages = totalram_pages + total_swap_pages;
-> 
+>  
 > -	if (!zonelist)
 > +	if (!oc->zonelist)
 >  		return CONSTRAINT_NONE;
@@ -202,7 +201,7 @@ Hillf
 > -	if (gfp_mask & __GFP_THISNODE)
 > +	if (oc->gfp_mask & __GFP_THISNODE)
 >  		return CONSTRAINT_NONE;
-> 
+>  
 >  	/*
 > @@ -224,17 +223,18 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
 >  	 * the page allocator means a mempolicy is in effect.  Cpuset policy
@@ -217,7 +216,7 @@ Hillf
 >  			*totalpages += node_spanned_pages(nid);
 >  		return CONSTRAINT_MEMORY_POLICY;
 >  	}
-> 
+>  
 >  	/* Check this allocation failure is caused by cpuset's wall function */
 > -	for_each_zone_zonelist_nodemask(zone, z, zonelist,
 > -			high_zoneidx, nodemask)
@@ -226,7 +225,7 @@ Hillf
 > +			high_zoneidx, oc->nodemask)
 > +		if (!cpuset_zone_allowed(zone, oc->gfp_mask))
 >  			cpuset_limited = true;
-> 
+>  
 >  	if (cpuset_limited) {
 > @@ -246,20 +246,18 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
 >  	return CONSTRAINT_NONE;
@@ -242,7 +241,7 @@ Hillf
 >  	return CONSTRAINT_NONE;
 >  }
 >  #endif
-> 
+>  
 > -enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
 > -		unsigned long totalpages, const nodemask_t *nodemask,
 > -		bool force_kill)
@@ -252,7 +251,7 @@ Hillf
 > -	if (oom_unkillable_task(task, NULL, nodemask))
 > +	if (oom_unkillable_task(task, NULL, oc->nodemask))
 >  		return OOM_SCAN_CONTINUE;
-> 
+>  
 >  	/*
 > @@ -267,7 +265,7 @@ enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
 >  	 * Don't allow any other task to have access to the reserves.
@@ -266,11 +265,11 @@ Hillf
 > @@ -280,7 +278,7 @@ enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
 >  	if (oom_task_origin(task))
 >  		return OOM_SCAN_SELECT;
-> 
+>  
 > -	if (task_will_free_mem(task) && !force_kill)
 > +	if (task_will_free_mem(task) && !oc->force_kill)
 >  		return OOM_SCAN_ABORT;
-> 
+>  
 >  	return OOM_SCAN_OK;
 > @@ -289,12 +287,9 @@ enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
 >  /*
@@ -290,7 +289,7 @@ Hillf
 > @@ -304,8 +299,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
 >  	for_each_process_thread(g, p) {
 >  		unsigned int points;
-> 
+>  
 > -		switch (oom_scan_process_thread(p, totalpages, nodemask,
 > -						force_kill)) {
 > +		switch (oom_scan_process_thread(oc, p, totalpages)) {
@@ -309,7 +308,7 @@ Hillf
 > @@ -380,13 +374,13 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
 >  	rcu_read_unlock();
 >  }
-> 
+>  
 > -static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
 > -			struct mem_cgroup *memcg, const nodemask_t *nodemask)
 > +static void dump_header(struct oom_control *oc, struct task_struct *p,
@@ -330,7 +329,7 @@ Hillf
 > -		dump_tasks(memcg, nodemask);
 > +		dump_tasks(memcg, oc->nodemask);
 >  }
-> 
+>  
 >  /*
 > @@ -487,10 +481,9 @@ void oom_killer_enable(void)
 >   * Must be called while holding a reference to p, which will be released upon
@@ -347,11 +346,11 @@ Hillf
 >  	struct task_struct *child;
 > @@ -514,7 +507,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 >  	task_unlock(p);
-> 
+>  
 >  	if (__ratelimit(&oom_rs))
 > -		dump_header(p, gfp_mask, order, memcg, nodemask);
 > +		dump_header(oc, p, memcg);
-> 
+>  
 >  	task_lock(p);
 >  	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
 > @@ -537,7 +530,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
@@ -384,7 +383,7 @@ Hillf
 >  }
 > @@ -635,22 +627,16 @@ int unregister_oom_notifier(struct notifier_block *nb)
 >  EXPORT_SYMBOL_GPL(unregister_oom_notifier);
-> 
+>  
 >  /**
 > - * __out_of_memory - kill the "best" process when we run out of memory
 > - * @zonelist: zonelist pointer
@@ -420,7 +419,7 @@ Hillf
 > +	if (constraint != CONSTRAINT_MEMORY_POLICY)
 > +		oc->nodemask = NULL;
 > +	check_panic_on_oom(oc, constraint, NULL);
-> 
+>  
 >  	if (sysctl_oom_kill_allocating_task && current->mm &&
 > -	    !oom_unkillable_task(current, NULL, nodemask) &&
 > +	    !oom_unkillable_task(current, NULL, oc->nodemask) &&
@@ -432,7 +431,7 @@ Hillf
 >  				 "Out of memory (oom_kill_allocating_task)");
 >  		goto out;
 >  	}
-> 
+>  
 > -	p = select_bad_process(&points, totalpages, mpol_mask, force_kill);
 > +	p = select_bad_process(oc, &points, totalpages);
 >  	/* Found nothing?!?! Either we hang forever, or we panic. */
@@ -463,10 +462,10 @@ Hillf
 > +
 >  	if (mem_cgroup_oom_synchronize(true))
 >  		return;
-> 
+>  
 >  	if (!mutex_trylock(&oom_lock))
 >  		return;
-> 
+>  
 > -	if (!out_of_memory(NULL, 0, 0, NULL, false)) {
 > +	if (!out_of_memory(&oc)) {
 >  		/*
@@ -487,7 +486,7 @@ Hillf
 > +		.force_kill = false,
 > +	};
 >  	struct page *page;
-> 
+>  
 >  	*did_some_progress = 0;
 > @@ -2731,8 +2738,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 >  			goto out;
@@ -499,12 +498,10 @@ Hillf
 >  		*did_some_progress = 1;
 >  out:
 >  	mutex_unlock(&oom_lock);
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
 
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
