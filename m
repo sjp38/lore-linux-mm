@@ -1,49 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E49FB9003CE
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 23:07:26 -0400 (EDT)
-Received: by qkhu186 with SMTP id u186so43607082qkh.0
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 20:07:26 -0700 (PDT)
-Received: from mail-qg0-x229.google.com (mail-qg0-x229.google.com. [2607:f8b0:400d:c04::229])
-        by mx.google.com with ESMTPS id 143si4837114qhw.9.2015.07.01.20.07.26
+Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com [209.85.220.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A95CF9003CE
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2015 23:08:31 -0400 (EDT)
+Received: by qkhu186 with SMTP id u186so43618353qkh.0
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 20:08:31 -0700 (PDT)
+Received: from mail-qk0-x22a.google.com (mail-qk0-x22a.google.com. [2607:f8b0:400d:c09::22a])
+        by mx.google.com with ESMTPS id i65si4829366qkh.58.2015.07.01.20.08.30
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jul 2015 20:07:26 -0700 (PDT)
-Received: by qgii30 with SMTP id i30so27717132qgi.1
-        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 20:07:26 -0700 (PDT)
-Date: Wed, 1 Jul 2015 23:07:23 -0400
+        Wed, 01 Jul 2015 20:08:31 -0700 (PDT)
+Received: by qkhu186 with SMTP id u186so43618251qkh.0
+        for <linux-mm@kvack.org>; Wed, 01 Jul 2015 20:08:30 -0700 (PDT)
+Date: Wed, 1 Jul 2015 23:08:28 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 45/51] writeback: implement wb_wait_for_single_work()
-Message-ID: <20150702030723.GN26440@mtj.duckdns.org>
+Subject: Re: [PATCH 51/51] ext2: enable cgroup writeback support
+Message-ID: <20150702030828.GO26440@mtj.duckdns.org>
 References: <1432329245-5844-1-git-send-email-tj@kernel.org>
- <1432329245-5844-46-git-send-email-tj@kernel.org>
- <20150701190735.GI7252@quack.suse.cz>
+ <1432329245-5844-52-git-send-email-tj@kernel.org>
+ <20150701192912.GN7252@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150701190735.GI7252@quack.suse.cz>
+In-Reply-To: <20150701192912.GN7252@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>
-Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru, linux-ext4@vger.kernel.org
 
-Hello,
+On Wed, Jul 01, 2015 at 09:29:12PM +0200, Jan Kara wrote:
+> On Fri 22-05-15 17:14:05, Tejun Heo wrote:
+> > Writeback now supports cgroup writeback and the generic writeback,
+> > buffer, libfs, and mpage helpers that ext2 uses are all updated to
+> > work with cgroup writeback.
+> > 
+> > This patch enables cgroup writeback for ext2 by adding
+> > FS_CGROUP_WRITEBACK to its ->fs_flags.
+> > 
+> > Signed-off-by: Tejun Heo <tj@kernel.org>
+> > Cc: Jens Axboe <axboe@kernel.dk>
+> > Cc: Jan Kara <jack@suse.cz>
+> > Cc: linux-ext4@vger.kernel.org
+> 
+> Hallelujah!
+> 
+> Reviewed-by: Jan Kara <jack@suse.com>
 
-On Wed, Jul 01, 2015 at 09:07:35PM +0200, Jan Kara wrote:
-> I don't understand, why is the special handling with single_wait,
-> single_done necessary. When we fail to allocate work and thus use the
-> base_work for submission, we can still use the standard completion mechanism
-> to wait for work to finish, can't we?
-
-Indeed.  I'm not sure why I didn't do that.  I'll try.
-
-> BTW: Again it would be easier for me to review this if the implementation
-> of this function was in one patch with the use of it so that one can see
-> how it gets used...
-
-Same point on this one as before.
-
-Thanks.
+Hooray!  Thanks a lot for going through all the patches!  :)
 
 -- 
 tejun
