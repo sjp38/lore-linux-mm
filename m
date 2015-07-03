@@ -1,199 +1,263 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 89ED7280254
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2015 21:25:58 -0400 (EDT)
-Received: by pdbep18 with SMTP id ep18so54170578pdb.1
-        for <linux-mm@kvack.org>; Thu, 02 Jul 2015 18:25:58 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id n7si11767336pap.46.2015.07.02.18.25.56
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D3DC280254
+	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 00:21:41 -0400 (EDT)
+Received: by pacws9 with SMTP id ws9so51651147pac.0
+        for <linux-mm@kvack.org>; Thu, 02 Jul 2015 21:21:40 -0700 (PDT)
+Received: from out21.biz.mail.alibaba.com (out21.biz.mail.alibaba.com. [205.204.114.132])
+        by mx.google.com with ESMTP id y13si12370789pdi.119.2015.07.02.21.21.38
         for <linux-mm@kvack.org>;
-        Thu, 02 Jul 2015 18:25:57 -0700 (PDT)
-Message-ID: <5595E4AD.8020502@cn.fujitsu.com>
-Date: Fri, 3 Jul 2015 09:26:05 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+        Thu, 02 Jul 2015 21:21:39 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1435851526-4200-1-git-send-email-mike.kravetz@oracle.com> <1435851526-4200-2-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1435851526-4200-2-git-send-email-mike.kravetz@oracle.com>
+Subject: Re: [PATCH 01/10] mm/hugetlb: add cache of descriptors to resv_map for region_add
+Date: Fri, 03 Jul 2015 12:21:18 +0800
+Message-ID: <008301d0b547$b62a10e0$227e32a0$@alibaba-inc.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] mem-hotplug: Handle node hole when initializing numa_meminfo.
-References: <1435720614-16480-1-git-send-email-tangchen@cn.fujitsu.com>	<559387EF.5050701@huawei.com>	<55939CF2.6080108@cn.fujitsu.com> <5595527a.0b32370a.6c7e.01ee@mx.google.com>
-In-Reply-To: <5595527a.0b32370a.6c7e.01ee@mx.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, dyoung@redhat.com, isimatu.yasuaki@jp.fujitsu.com, lcapitulino@redhat.com, will.deacon@arm.com, tony.luck@intel.com, vladimir.murzin@arm.com, fabf@skynet.be, kuleshovmail@gmail.com, bhe@redhat.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: 'Mike Kravetz' <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+Cc: 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'David Rientjes' <rientjes@google.com>, 'Hugh Dickins' <hughd@google.com>, 'Davidlohr Bueso' <dave@stgolabs.net>, 'Aneesh Kumar' <aneesh.kumar@linux.vnet.ibm.com>, 'Christoph Hellwig' <hch@infradead.org>
 
+> 
+> fallocate hole punch will want to remove a specific range of
+> pages.  When pages are removed, their associated entries in
+> the region/reserve map will also be removed.  This will break
+> an assumption in the region_chg/region_add calling sequence.
+> If a new region descriptor must be allocated, it is done as
+> part of the region_chg processing.  In this way, region_add
+> can not fail because it does not need to attempt an allocation.
+> 
+> To prepare for fallocate hole punch, create a "cache" of
+> descriptors that can be used by region_add if necessary.
+> region_chg will ensure there are sufficient entries in the
+> cache.  It will be necessary to track the number of in progress
+> add operations to know a sufficient number of descriptors
+> reside in the cache.  A new routine region_abort is added to
+> adjust this in progress count when add operations are aborted.
+> vma_abort_reservation is also added for callers creating
+> reservations with vma_needs_reservation/vma_commit_reservation.
+> 
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
+>  include/linux/hugetlb.h |   3 +
+>  mm/hugetlb.c            | 166 ++++++++++++++++++++++++++++++++++++++++++------
+>  2 files changed, 150 insertions(+), 19 deletions(-)
+> 
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 2050261..f9c8cb2 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -35,6 +35,9 @@ struct resv_map {
+>  	struct kref refs;
+>  	spinlock_t lock;
+>  	struct list_head regions;
+> +	long adds_in_progress;
+> +	struct list_head rgn_cache;
+> +	long rgn_cache_count;
+>  };
+>  extern struct resv_map *resv_map_alloc(void);
+>  void resv_map_release(struct kref *ref);
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index a8c3087..189c0d7 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -240,11 +240,14 @@ struct file_region {
+> 
+>  /*
+>   * Add the huge page range represented by [f, t) to the reserve
+> - * map.  Existing regions will be expanded to accommodate the
+> - * specified range.  We know only existing regions need to be
+> - * expanded, because region_add is only called after region_chg
+> - * with the same range.  If a new file_region structure must
+> - * be allocated, it is done in region_chg.
+> + * map.  In the normal case, existing regions will be expanded
+> + * to accommodate the specified range.  Sufficient regions should
+> + * exist for expansion due to the previous call to region_chg
+> + * with the same range.  However, it is possible that region_del
+> + * could have been called after region_chg and modifed the map
+> + * in such a way that no region exists to be expanded.  In this
+> + * case, pull a region descriptor from the cache associated with
+> + * the map and use that for the new range.
+>   *
+>   * Return the number of new huge pages added to the map.  This
+>   * number is greater than or equal to zero.
+> @@ -261,6 +264,27 @@ static long region_add(struct resv_map *resv, long f, long t)
+>  		if (f <= rg->to)
+>  			break;
+> 
+> +	if (&rg->link == head || t < rg->from) {
+> +		/*
+> +		 * No region exits which can be expanded to include the
 
-On 07/02/2015 11:02 PM, Yasuaki Ishimatsu wrote:
-> Hi Tang,
->
->> On my box, if I run lscpu, the output looks like this:
->>
->> NUMA node0 CPU(s):     0-14,128-142
->> NUMA node1 CPU(s):     15-29,143-157
->> NUMA node2 CPU(s):
->> NUMA node3 CPU(s):
->> NUMA node4 CPU(s):     62-76,190-204
->> NUMA node5 CPU(s):     78-92,206-220
->>
->> Node 2 and 3 are not exist, but they are online.
-> According your description of patch, node 4 and 5 are mistakenly
+s/exits/exists/ ?
+> +		 * specified range.  Pull a region descriptor from the
+> +		 * cache, and use it for this range.
+> +		 */
+> +		VM_BUG_ON(!resv->rgn_cache_count);
+> +
+> +		resv->rgn_cache_count--;
+> +		nrg = list_first_entry(&resv->rgn_cache, struct file_region,
+> +					link);
+> +		list_del(&nrg->link);
+> +
+> +		nrg->from = f;
+> +		nrg->to = t;
+> +		list_add(&nrg->link, rg->link.prev);
+> +
+> +		add += t - f;
+> +		goto out_locked;
+> +	}
+> +
+>  	/* Round our left edge to the current segment if it encloses us. */
+>  	if (f > rg->from)
+>  		f = rg->from;
+> @@ -294,6 +318,8 @@ static long region_add(struct resv_map *resv, long f, long t)
+>  	add += t - nrg->to;		/* Added to end of region */
+>  	nrg->to = t;
+> 
+> +out_locked:
+> +	resv->adds_in_progress--;
+>  	spin_unlock(&resv->lock);
+>  	VM_BUG_ON(add < 0);
+>  	return add;
+> @@ -312,11 +338,16 @@ static long region_add(struct resv_map *resv, long f, long t)
+>   * so that the subsequent region_add call will have all the
+>   * regions it needs and will not fail.
+>   *
+> + * Upon entry, region_chg will also examine the cache of
+> + * region descriptors associated with the map.  If there
+> + * not enough descriptors cached, one will be allocated
+> + * for the in progress add operation.
+> + *
+>   * Returns the number of huge pages that need to be added
+>   * to the existing reservation map for the range [f, t).
+>   * This number is greater or equal to zero.  -ENOMEM is
+> - * returned if a new file_region structure is needed and can
+> - * not be allocated.
+> + * returned if a new file_region structure or cache entry
+> + * is needed and can not be allocated.
+>   */
+>  static long region_chg(struct resv_map *resv, long f, long t)
+>  {
+> @@ -326,6 +357,30 @@ static long region_chg(struct resv_map *resv, long f, long t)
+> 
+>  retry:
+>  	spin_lock(&resv->lock);
+> +	resv->adds_in_progress++;
+> +
+> +	/*
+> +	 * Check for sufficient descriptors in the cache to accommodate
+> +	 * the number of in progress add operations.
+> +	 */
+> +	if (resv->adds_in_progress > resv->rgn_cache_count) {
+> +		struct file_region *trg;
+> +
+> +		VM_BUG_ON(resv->adds_in_progress - resv->rgn_cache_count > 1);
+> +		/* Must drop lock to allocate a new descriptor. */
+> +		resv->adds_in_progress--;
+> +		spin_unlock(&resv->lock);
+> +
+> +		trg = kmalloc(sizeof(*trg), GFP_KERNEL);
+> +		if (!trg)
+> +			return -ENOMEM;
+> +
+> +		spin_lock(&resv->lock);
+> +		resv->adds_in_progress++;
+> +		list_add(&trg->link, &resv->rgn_cache);
+> +		resv->rgn_cache_count++;
+> +	}
+> +
+>  	/* Locate the region we are before or in. */
+>  	list_for_each_entry(rg, head, link)
+>  		if (f <= rg->to)
+> @@ -336,6 +391,7 @@ retry:
+>  	 * size such that we can guarantee to record the reservation. */
+>  	if (&rg->link == head || t < rg->from) {
+>  		if (!nrg) {
+> +			resv->adds_in_progress--;
+>  			spin_unlock(&resv->lock);
+>  			nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+>  			if (!nrg)
+> @@ -385,6 +441,25 @@ out_nrg:
+>  }
+> 
+>  /*
+> + * Abort the in progress add operation.  The adds_in_progress field
+> + * of the resv_map keeps track of the operations in progress between
+> + * calls to region_chg and region_add.  Operations are sometimes
+> + * aborted after the call to region_chg.  In such cases, region_abort
+> + * is called to decrement the adds_in_progress counter.
+> + *
+> + * NOTE: The range arguments [f, t) are not needed or used in this
+> + * routine.  They are kept to make reading the calling code easier as
+> + * arguments will match the associated region_chg call.
+> + */
+> +static void region_abort(struct resv_map *resv, long f, long t)
+> +{
+> +	spin_lock(&resv->lock);
+> +	VM_BUG_ON(!resv->rgn_cache_count);
+> +	resv->adds_in_progress--;
+> +	spin_unlock(&resv->lock);
+> +}
+> +
+> +/*
+>   * Truncate the reserve map at index 'end'.  Modify/truncate any
+>   * region which contains end.  Delete any regions past end.
+>   * Return the number of huge pages removed from the map.
+> @@ -544,22 +619,42 @@ static void set_vma_private_data(struct vm_area_struct *vma,
+>  struct resv_map *resv_map_alloc(void)
+>  {
+>  	struct resv_map *resv_map = kmalloc(sizeof(*resv_map), GFP_KERNEL);
+> -	if (!resv_map)
+> +	struct file_region *rg = kmalloc(sizeof(*rg), GFP_KERNEL);
+> +
+> +	if (!resv_map || !rg) {
+> +		kfree(resv_map);
+> +		kfree(rg);
+>  		return NULL;
+> +	}
+> 
+>  	kref_init(&resv_map->refs);
+>  	spin_lock_init(&resv_map->lock);
+>  	INIT_LIST_HEAD(&resv_map->regions);
+> 
+> +	resv_map->adds_in_progress = 0;
+> +
+> +	INIT_LIST_HEAD(&resv_map->rgn_cache);
+> +	list_add(&rg->link, &resv_map->rgn_cache);
+> +	resv_map->rgn_cache_count = 1;
+> +
+>  	return resv_map;
+>  }
+> 
+>  void resv_map_release(struct kref *ref)
+>  {
+>  	struct resv_map *resv_map = container_of(ref, struct resv_map, refs);
+> +	struct list_head *head = &resv_map->regions;
+> +	struct file_region *rg, *trg;
+> 
+>  	/* Clear out any active regions before we release the map. */
+>  	region_truncate(resv_map, 0);
+> +
+> +	/* ... and any entries left in the cache */
+> +	list_for_each_entry_safe(rg, trg, head, link)
+> +		list_del(&rg->link);
+> +
 
-Not node 4 and 5, it is node 2 and 3 which are mistakenly set online.
-> set to online. Why does lscpu show the above result?
-
-Well, actually not only lscpu gives the strange result, under 
-/sys/device/system/node,
-interfaces for node 2 and 3 are also created.
-
-I haven't read lscpu code, so I'm not sure how lscpu handles nodes. But 
-obviously,
-node 2 and 3 are set online, which is incorrect.
-
-For now, I only found that in numa_cleanup_meminfo(), memory above 
-max_pfn is removed,
-but holes between nodes are not removed.
-
-I think libraries are not able to handle this problem since nodes are 
-set online in kernel.
-Seeing from user space, there is no hole.
-
-Thanks.
-
->
-> Thanks,
-> Yasuaki Ishimatsu
->
-> On Wed, 1 Jul 2015 15:55:30 +0800
-> Tang Chen <tangchen@cn.fujitsu.com> wrote:
->
->> On 07/01/2015 02:25 PM, Xishi Qiu wrote:
->>> On 2015/7/1 11:16, Tang Chen wrote:
->>>
->>>> When parsing SRAT, all memory ranges are added into numa_meminfo.
->>>> In numa_init(), before entering numa_cleanup_meminfo(), all possible
->>>> memory ranges are in numa_meminfo. And numa_cleanup_meminfo() removes
->>>> all ranges over max_pfn or empty.
->>>>
->>>> But, this only works if the nodes are continuous. Let's have a look
->>>> at the following example:
->>>>
->>>> We have an SRAT like this:
->>>> SRAT: Node 0 PXM 0 [mem 0x00000000-0x5fffffff]
->>>> SRAT: Node 0 PXM 0 [mem 0x100000000-0x1ffffffffff]
->>>> SRAT: Node 1 PXM 1 [mem 0x20000000000-0x3ffffffffff]
->>>> SRAT: Node 4 PXM 2 [mem 0x40000000000-0x5ffffffffff] hotplug
->>>> SRAT: Node 5 PXM 3 [mem 0x60000000000-0x7ffffffffff] hotplug
->>>> SRAT: Node 2 PXM 4 [mem 0x80000000000-0x9ffffffffff] hotplug
->>>> SRAT: Node 3 PXM 5 [mem 0xa0000000000-0xbffffffffff] hotplug
->>>> SRAT: Node 6 PXM 6 [mem 0xc0000000000-0xdffffffffff] hotplug
->>>> SRAT: Node 7 PXM 7 [mem 0xe0000000000-0xfffffffffff] hotplug
->>>>
->>>> On boot, only node 0,1,2,3 exist.
->>>>
->>>> And the numa_meminfo will look like this:
->>>> numa_meminfo.nr_blks = 9
->>>> 1. on node 0: [0, 60000000]
->>>> 2. on node 0: [100000000, 20000000000]
->>>> 3. on node 1: [20000000000, 40000000000]
->>>> 4. on node 4: [40000000000, 60000000000]
->>>> 5. on node 5: [60000000000, 80000000000]
->>>> 6. on node 2: [80000000000, a0000000000]
->>>> 7. on node 3: [a0000000000, a0800000000]
->>>> 8. on node 6: [c0000000000, a0800000000]
->>>> 9. on node 7: [e0000000000, a0800000000]
->>>>
->>>> And numa_cleanup_meminfo() will merge 1 and 2, and remove 8,9 because
->>>> the end address is over max_pfn, which is a0800000000. But 4 and 5
->>>> are not removed because their end addresses are less then max_pfn.
->>>> But in fact, node 4 and 5 don't exist.
->>>>
->>>> In a word, numa_cleanup_meminfo() is not able to handle holes between nodes.
->>>>
->>>> Since memory ranges in node 4 and 5 are in numa_meminfo, in numa_register_memblks(),
->>>> node 4 and 5 will be mistakenly set to online.
->>>>
->>>> In this patch, we use memblock_overlaps_region() to check if ranges in
->>>> numa_meminfo overlap with ranges in memory_block. Since memory_block contains
->>>> all available memory at boot time, if they overlap, it means the ranges
->>>> exist. If not, then remove them from numa_meminfo.
->>>>
->>> Hi Tang Chen,
->>>
->>> What's the impact of this problem?
->>>
->>> Command "numactl --hard" will show an empty node(no cpu and no memory,
->>> but pgdat is created), right?
->> On my box, if I run lscpu, the output looks like this:
->>
->> NUMA node0 CPU(s):     0-14,128-142
->> NUMA node1 CPU(s):     15-29,143-157
->> NUMA node2 CPU(s):
->> NUMA node3 CPU(s):
->> NUMA node4 CPU(s):     62-76,190-204
->> NUMA node5 CPU(s):     78-92,206-220
->>
->> Node 2 and 3 are not exist, but they are online.
->>
->> Thanks.
->>
->>> Thanks,
->>> Xishi Qiu
->>>
->>>> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
->>>> ---
->>>>    arch/x86/mm/numa.c       | 6 ++++--
->>>>    include/linux/memblock.h | 2 ++
->>>>    mm/memblock.c            | 2 +-
->>>>    3 files changed, 7 insertions(+), 3 deletions(-)
->>>>
->>>> diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
->>>> index 4053bb5..0c55cc5 100644
->>>> --- a/arch/x86/mm/numa.c
->>>> +++ b/arch/x86/mm/numa.c
->>>> @@ -246,8 +246,10 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
->>>>    		bi->start = max(bi->start, low);
->>>>    		bi->end = min(bi->end, high);
->>>>    
->>>> -		/* and there's no empty block */
->>>> -		if (bi->start >= bi->end)
->>>> +		/* and there's no empty or non-exist block */
->>>> +		if (bi->start >= bi->end ||
->>>> +		    memblock_overlaps_region(&memblock.memory,
->>>> +			bi->start, bi->end - bi->start) == -1)
->>>>    			numa_remove_memblk_from(i--, mi);
->>>>    	}
->>>>    
->>>> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
->>>> index 0215ffd..3bf6cc1 100644
->>>> --- a/include/linux/memblock.h
->>>> +++ b/include/linux/memblock.h
->>>> @@ -77,6 +77,8 @@ int memblock_remove(phys_addr_t base, phys_addr_t size);
->>>>    int memblock_free(phys_addr_t base, phys_addr_t size);
->>>>    int memblock_reserve(phys_addr_t base, phys_addr_t size);
->>>>    void memblock_trim_memory(phys_addr_t align);
->>>> +long memblock_overlaps_region(struct memblock_type *type,
->>>> +			      phys_addr_t base, phys_addr_t size);
->>>>    int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
->>>>    int memblock_clear_hotplug(phys_addr_t base, phys_addr_t size);
->>>>    int memblock_mark_mirror(phys_addr_t base, phys_addr_t size);
->>>> diff --git a/mm/memblock.c b/mm/memblock.c
->>>> index 1b444c7..55b5f9f 100644
->>>> --- a/mm/memblock.c
->>>> +++ b/mm/memblock.c
->>>> @@ -91,7 +91,7 @@ static unsigned long __init_memblock memblock_addrs_overlap(phys_addr_t base1, p
->>>>    	return ((base1 < (base2 + size2)) && (base2 < (base1 + size1)));
->>>>    }
->>>>    
->>>> -static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
->>>> +long __init_memblock memblock_overlaps_region(struct memblock_type *type,
->>>>    					phys_addr_t base, phys_addr_t size)
->>>>    {
->>>>    	unsigned long i;
->>>
->>> .
->>>
-> .
->
+I am wondering if `cache' is rgn_cache.
+And rg should be freed if yes.
+> +	VM_BUG_ON(resv_map->adds_in_progress);
+> +
+>  	kfree(resv_map);
+>  }
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
