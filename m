@@ -1,136 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 812C8280257
-	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 03:15:09 -0400 (EDT)
-Received: by pabvl15 with SMTP id vl15so53084360pab.1
-        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 00:15:09 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id ly3si12945520pdb.228.2015.07.03.00.15.07
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E0EC280257
+	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 03:20:45 -0400 (EDT)
+Received: by pdbci14 with SMTP id ci14so58917817pdb.2
+        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 00:20:44 -0700 (PDT)
+Received: from out4133-34.mail.aliyun.com (out4133-34.mail.aliyun.com. [42.120.133.34])
+        by mx.google.com with ESMTP id z7si13030417pdm.46.2015.07.03.00.20.40
         for <linux-mm@kvack.org>;
-        Fri, 03 Jul 2015 00:15:08 -0700 (PDT)
-Message-ID: <55963678.3040200@lge.com>
-Date: Fri, 03 Jul 2015 16:15:04 +0900
-From: =?UTF-8?B?Iuq5gOuvvOqyvS/so7zsnoTsl7Dqtazsm5AvU1cgUGxhdGZvcm0o7JewKQ==?=
- =?UTF-8?B?QU9U7YyAKG1pbmt5dW5nODgua2ltQGxnZS5jb20pIg==?=
- <minkyung88.kim@lge.com>
+        Fri, 03 Jul 2015 00:20:41 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1435851526-4200-1-git-send-email-mike.kravetz@oracle.com> <1435851526-4200-3-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1435851526-4200-3-git-send-email-mike.kravetz@oracle.com>
+Subject: Re: [PATCH 02/10] mm/hugetlb: add region_del() to delete a specific range of entries
+Date: Fri, 03 Jul 2015 15:20:34 +0800
+Message-ID: <011301d0b560$c0ffc5a0$42ff50e0$@alibaba-inc.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] fix: decrease NR_FREE_PAGES when isolate page from buddy
-References: <1435713478-19646-1-git-send-email-minkyung88.kim@lge.com> <559509E4.3010708@suse.cz>
-In-Reply-To: <559509E4.3010708@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: Seungho Park <seungho1.park@lge.com>, kmk3210@gmail.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>
+To: 'Mike Kravetz' <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+Cc: 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'David Rientjes' <rientjes@google.com>, 'Hugh Dickins' <hughd@google.com>, 'Davidlohr Bueso' <dave@stgolabs.net>, 'Aneesh Kumar' <aneesh.kumar@linux.vnet.ibm.com>, 'Christoph Hellwig' <hch@infradead.org>
 
-As Vlastimil Babka expalin, this patch is useless and working not correctly.
-Thank you for your review :)
+> fallocate hole punch will want to remove a specific range of pages.
+> The existing region_truncate() routine deletes all region/reserve
+> map entries after a specified offset.  region_del() will provide
+> this same functionality if the end of region is specified as -1.
+> Hence, region_del() can replace region_truncate().
+> 
+> Unlike region_truncate(), region_del() can return an error in the
+> rare case where it can not allocate memory for a region descriptor.
+> This ONLY happens in the case where an existing region must be split.
+> Current callers passing -1 as end of range will never experience
+> this error and do not need to deal with error handling.  Future
+> callers of region_del() (such as fallocate hole punch) will need to
+> handle this error.
+> 
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
+>  mm/hugetlb.c | 101 ++++++++++++++++++++++++++++++++++++++++++++---------------
+>  1 file changed, 75 insertions(+), 26 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 189c0d7..e8c7f68 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -460,43 +460,92 @@ static void region_abort(struct resv_map *resv, long f, long t)
+>  }
+> 
+>  /*
+> - * Truncate the reserve map at index 'end'.  Modify/truncate any
+> - * region which contains end.  Delete any regions past end.
+> - * Return the number of huge pages removed from the map.
+> + * Delete the specified range [f, t) from the reserve map.  If the
+> + * t parameter is -1, this indicates that ALL regions after f should
+> + * be deleted.  Locate the regions which intersect [f, t) and either
+> + * trim, delete or split the existing regions.
+> + *
+> + * Returns the number of huge pages deleted from the reserve map.
+> + * In the normal case, the return value is zero or more.  In the
+> + * case where a region must be split, a new region descriptor must
+> + * be allocated.  If the allocation fails, -ENOMEM will be returned.
+> + * NOTE: If the parameter t == -1, then we will never split a region
+> + * and possibly return -ENOMEM.  Callers specifying t == -1 do not
+> + * need to check for -ENOMEM error.
+>   */
+> -static long region_truncate(struct resv_map *resv, long end)
+> +static long region_del(struct resv_map *resv, long f, long t)
+>  {
+>  	struct list_head *head = &resv->regions;
+>  	struct file_region *rg, *trg;
+> -	long chg = 0;
+> +	struct file_region *nrg = NULL;
+> +	long del = 0;
+> 
+> +	if (t == -1)
+> +		t = LONG_MAX;
 
-2015-07-02 i??i?? 6:52i?? Vlastimil Babka i?'(e??) i?' e,?:
-> [+CC Joonsoo and Minchan]
->
-> On 07/01/2015 03:17 AM, minkyung88.kim@lge.com wrote:
->> From: "minkyung88.kim" <minkyung88.kim@lge.com>
->>
->> NR_FREEPAGE should be decreased when pages are isolated from buddy.
->> Therefore fix the count.
->
-> Did you really observe an accounting bug and this patch fixed it, or 
-> is it just because of code inspection?
->
-> The patched code has this comment:
->
-> /*
->  * If race between isolatation and allocation happens,
->  * some free pages could be in MIGRATE_MOVABLE list
->  * although pageblock's migratation type of the page
->  * is MIGRATE_ISOLATE. Catch it and move the page into
->  * MIGRATE_ISOLATE list.
->  */
->
-> This is from 2012 and I'm not sure if it still applies. Joonsoo's 
-> series last year was to eliminate these races, see e.g. 51bb1a4093 
-> ("mm/page_alloc: add freepage on isolate pageblock to correct buddy 
-> list").
->
-> So I think that this piece of code shouldn't be useful anymore. Well, 
-> actually I think it can trigger, but it's a false positive and (before 
-> your patch) result in basically a no-op. The reason is that the value 
-> of get_freepage_migratetype(page) is a just an optimization used only 
-> for pages on pcplists. It's not guaranteed to be correct for pages in 
-> the buddy free lists (and it can get stale even on the pcplists).
->
-> Now, the code from Joonsoo's patch mentioned above does this in
-> free_pcppages_bulk():
->
-> mt = get_freepage_migratetype(page);
-> if (unlikely(has_isolate_pageblock(zone)))
->         mt = get_pageblock_migratetype(page);
->
-> /* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
-> __free_one_page(page, page_to_pfn(page), zone, 0, mt);
->
-> So if get_freepage_migratetype(page) returns e.g. MIGRATE_MOVABLE but 
-> the pageblock is MIGRATE_ISOLATE, it will catch this and tell 
-> __free_one_page() the correct migratetype. However, nothing will 
-> update the freepage's migratetype by set_freepage_migratetype(), 
-> because it would be a pointless waste of CPU cycles. The page however 
-> goes to the correct MIGRATE_ISOLATE list. (note that this is likely 
-> not the only way how freepage_migratetype can be perceived as incorrect)
->
-> That means the code you are patching can really find the page where 
-> get_freepage_migratetype(page) will return MIGRATE_MOVABLE, i.e. != 
-> MIGRATE_ISOLATE will be true. But the move_freepages() call would be a 
-> no-op, as the page is already on the correct list and the accounting 
-> of freepages is correct.
->
-> So my conclusion is that after your patch, the freepage accounting 
-> could actually get broken, not fixed. But I may be wrong. Hopefully 
-> Joonsoo can verify this :)
->
-> If that's true, then the whole test you are patching should be 
-> dropped. Also we should make it clearer that 
-> get_freepage_migratetype() is only used for pages on pcplists (and 
-> even there it may differ from pageblock's migratetype and also from 
-> the pcplist the page is actually on, in cases of page stealing), as 
-> this is not the first confusion.
-> We should also drop the usage set_freepage_migratetype() from 
-> move_freepages() while at it.
-> Now the last usage of get_freepage_migratetype() outside of 
-> page_alloc.c is the page isolation code and I argue it's wrong. So 
-> after that is removed, we can actually also make the functions 
-> internal to page_alloc.c.
->
->> Signed-off-by: minkyung88.kim <minkyung88.kim@lge.com>
->> ---
->>   mm/page_isolation.c | 6 +++++-
->>   1 file changed, 5 insertions(+), 1 deletion(-)
->>
->> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
->> index 303c908..16cc172 100644
->> --- a/mm/page_isolation.c
->> +++ b/mm/page_isolation.c
->> @@ -233,10 +233,14 @@ __test_page_isolated_in_pageblock(unsigned long 
->> pfn, unsigned long end_pfn,
->>                */
->>               if (get_freepage_migratetype(page) != MIGRATE_ISOLATE) {
->>                   struct page *end_page;
->> +                struct zone *zone = page_zone(page);
->> +                int mt = get_freepage_migratetype(page);
->> +                unsigned long nr_pages;
->>
->>                   end_page = page + (1 << page_order(page)) - 1;
->> -                move_freepages(page_zone(page), page, end_page,
->> +                nr_pages = move_freepages(zone, page, end_page,
->>                           MIGRATE_ISOLATE);
->> +                __mod_zone_freepage_state(zone, -nr_pages, mt);
->>               }
->>               pfn += 1 << page_order(page);
->>           }
->>
->
->
+Why not use 
+> +retry:
+>  	spin_lock(&resv->lock);
+> -	/* Locate the region we are either in or before. */
+> -	list_for_each_entry(rg, head, link)
+> -		if (end <= rg->to)
+> +	list_for_each_entry_safe(rg, trg, head, link) {
+> +		if (rg->to <= f)
+> +			continue;
+> +		if (rg->from >= t)
+>  			break;
+> -	if (&rg->link == head)
+> -		goto out;
+> 
+> -	/* If we are in the middle of a region then adjust it. */
+> -	if (end > rg->from) {
+> -		chg = rg->to - end;
+> -		rg->to = end;
+> -		rg = list_entry(rg->link.next, typeof(*rg), link);
+> -	}
+> +		if (f > rg->from && t < rg->to) { /* Must split region */
+> +			/*
+> +			 * Check for an entry in the cache before dropping
+> +			 * lock and attempting allocation.
+> +			 */
+> +			if (!nrg &&
+> +			    resv->rgn_cache_count > resv->adds_in_progress) {
+> +				nrg = list_first_entry(&resv->rgn_cache,
+> +							struct file_region,
+> +							link);
+> +				list_del(&nrg->link);
+> +				resv->rgn_cache_count--;
+> +			}
+> 
+> -	/* Drop any remaining regions. */
+> -	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
+> -		if (&rg->link == head)
+> +			if (!nrg) {
+> +				spin_unlock(&resv->lock);
+> +				nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+> +				if (!nrg)
+> +					return -ENOMEM;
+> +				goto retry;
+> +			}
+> +
+> +			del += t - f;
+> +
+> +			/* New entry for end of split region */
+> +			nrg->from = t;
+> +			nrg->to = rg->to;
+> +			INIT_LIST_HEAD(&nrg->link);
+> +
+> +			/* Original entry is trimmed */
+> +			rg->to = f;
+> +
+> +			list_add(&nrg->link, &rg->link);
+> +			nrg = NULL;
+>  			break;
+> -		chg += rg->to - rg->from;
+> -		list_del(&rg->link);
+> -		kfree(rg);
+> +		}
+> +
+> +		if (f <= rg->from && t >= rg->to) { /* Remove entire region */
+> +			del += rg->to - rg->from;
+> +			list_del(&rg->link);
+> +			kfree(rg);
+> +			continue;
+> +		}
+> +
+> +		if (f <= rg->from) {	/* Trim beginning of region */
+> +			del += t - rg->from;
+> +			rg->from = t;
+> +		} else {		/* Trim end of region */
+> +			del += rg->to - f;
+> +			rg->to = f;
+> +		}
+>  	}
+> 
+> -out:
+>  	spin_unlock(&resv->lock);
+> -	return chg;
+> +	kfree(nrg);
+> +	return del;
+>  }
+> 
+>  /*
+> @@ -647,7 +696,7 @@ void resv_map_release(struct kref *ref)
+>  	struct file_region *rg, *trg;
+> 
+>  	/* Clear out any active regions before we release the map. */
+> -	region_truncate(resv_map, 0);
+> +	region_del(resv_map, 0, -1);
+
+LONG_MAX is not selected, why?
+> 
+>  	/* ... and any entries left in the cache */
+>  	list_for_each_entry_safe(rg, trg, head, link)
+> @@ -3868,7 +3917,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
+>  	long gbl_reserve;
+> 
+>  	if (resv_map)
+> -		chg = region_truncate(resv_map, offset);
+> +		chg = region_del(resv_map, offset, -1);
+>  	spin_lock(&inode->i_lock);
+>  	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
+>  	spin_unlock(&inode->i_lock);
+> --
+> 2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
