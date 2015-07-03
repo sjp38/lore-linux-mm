@@ -1,65 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B157280260
-	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 12:52:09 -0400 (EDT)
-Received: by igrv9 with SMTP id v9so80518710igr.1
-        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 09:52:09 -0700 (PDT)
-Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com. [2607:f8b0:4001:c05::229])
-        by mx.google.com with ESMTPS id 63si9209909iog.101.2015.07.03.09.52.08
+Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
+	by kanga.kvack.org (Postfix) with ESMTP id E8E32280260
+	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 13:02:14 -0400 (EDT)
+Received: by ykdr198 with SMTP id r198so99997324ykd.3
+        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 10:02:14 -0700 (PDT)
+Received: from mail-yk0-x230.google.com (mail-yk0-x230.google.com. [2607:f8b0:4002:c07::230])
+        by mx.google.com with ESMTPS id e126si6637254ywb.47.2015.07.03.10.02.13
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Jul 2015 09:52:08 -0700 (PDT)
-Received: by igrv9 with SMTP id v9so80518554igr.1
-        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 09:52:08 -0700 (PDT)
-Message-ID: <5596BDB6.5060708@gmail.com>
-Date: Fri, 03 Jul 2015 12:52:06 -0400
-From: nick <xerofoify@gmail.com>
+        Fri, 03 Jul 2015 10:02:13 -0700 (PDT)
+Received: by ykdy1 with SMTP id y1so100322073ykd.2
+        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 10:02:13 -0700 (PDT)
+Date: Fri, 3 Jul 2015 13:02:10 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 44/51] writeback: implement bdi_wait_for_completion()
+Message-ID: <20150703170210.GD5273@mtj.duckdns.org>
+References: <1432329245-5844-1-git-send-email-tj@kernel.org>
+ <1432329245-5844-45-git-send-email-tj@kernel.org>
+ <20150701160437.GG7252@quack.suse.cz>
+ <20150702030624.GM26440@mtj.duckdns.org>
+ <20150703123642.GL23329@quack.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm:Make the function zap_huge_pmd bool
-References: <1435775277-27381-1-git-send-email-xerofoify@gmail.com> <20150702072621.GB12547@dhcp22.suse.cz> <20150702160341.GC9456@thunk.org> <55956204.2060006@gmail.com> <20150703144635.GE9456@thunk.org> <5596A20F.6010509@gmail.com> <20150703150117.GA3688@dhcp22.suse.cz> <5596A42F.60901@gmail.com> <20150703164944.GG9456@thunk.org>
-In-Reply-To: <20150703164944.GG9456@thunk.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150703123642.GL23329@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Michal Hocko <mhocko@suse.cz>, akpm@linux-foundation.org, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, sasha.levin@oracle.com, Yalin.Wang@sonymobile.com, jmarchan@redhat.com, kirill@shutemov.name, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, ebru.akagunduz@gmail.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
 
+Hello,
 
+On Fri, Jul 03, 2015 at 02:36:42PM +0200, Jan Kara wrote:
+> Let me phrase my objection this differently: Instead of implementing custom
+> synchronization mechanism, you could as well do:
+> 
+> int count_submitted;	/* Number of submitted works we want to wait for */
+> struct completion done;
+> ...
+> submit works with 'done' as completion.
+> ...
+> while (count_submitted--)
+> 	wait_for_completion(&done);
+> 
+> And we could also easily optimize that loop and put it in
+> kernel/sched/completion.c. The less synchronization mechanisms we have the
+> better I'd think...
 
-On 2015-07-03 12:49 PM, Theodore Ts'o wrote:
-> On Fri, Jul 03, 2015 at 11:03:11AM -0400, nick wrote:
->>
->> The reason I am doing this is Ted is trying to find a bug that I
->> fixed in order to prove to Greg Kroah Hartman I have
->> changed. Otherwise I would be pushing this through the drm
->> maintainer(s).
-> 
-> I am trying to determine if you have changed.  Your comment justifying
-> your lack of testing because "it's hard to test" is ample evidence
-> that you have *not* changed.
-> 
-> Simply coming up with a commit that happens to be correct is a
-> necessary, but not sufficient condition.  Especially when you feel
-> that you need to send dozens of low-value patches and hope that one of
-> them is correct, and then use that as "proof".  It's the attitude
-> which is problem, not whether or not you can manage to come up with a
-> correct patch.
-> 
-> I've described to you what you need to do in order to demonstrate that
-> you have the attitude and inclinations in order to be a kernel
-> developer that a maintainer can trust as being capable of authoring a
-> patch that doesn't create more problems than whatever benefits it
-> might have.  I respectfully ask that you try to work on that, and stop
-> bothering me (and everyone else).
-> 
-> Best regards,
-> 
-> 						- Ted
-> 
-Ted,
-I agree with you 100 percent. The reason I can't test this is I don't have the
-hardware otherwise I would have tested it by now.
-Nick
+And what I'm trying to say is that we most likely don't want to build
+it around completions.  We really don't want to roll "event count" and
+"wakeup count" into the same mechanism.  There's nothing completion
+provides that such event counting mechanism needs or wants.  It isn't
+that attractive from the completion side either.  The main reason we
+have completions is for stupid simple synchronizations and we wanna
+keep it simple.
+
+I do agree that we might want a generic "event count" mechanism but at
+the same time combining a counter and wait_event is usually pretty
+trivial.  Maybe atomic_t + waitqueue is a useful enough abstraction
+but then we would eventually end up having to deal with all the
+different types of waits and timeouts.  We might end up with a lot of
+thin wrappers which really don't do much of anything.
+
+If you can think of a good way to abstract this, please go head.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
