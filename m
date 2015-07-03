@@ -1,149 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CC9F280260
-	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 10:11:50 -0400 (EDT)
-Received: by widjy10 with SMTP id jy10so111147816wid.1
-        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 07:11:49 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cw1si15451707wib.20.2015.07.03.07.11.47
+Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
+	by kanga.kvack.org (Postfix) with ESMTP id E4310280260
+	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 10:46:44 -0400 (EDT)
+Received: by ykdv136 with SMTP id v136so97584682ykd.0
+        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 07:46:44 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id u131si1322994ywb.36.2015.07.03.07.46.43
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 03 Jul 2015 07:11:48 -0700 (PDT)
-Message-ID: <55969822.9060907@suse.cz>
-Date: Fri, 03 Jul 2015 16:11:46 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 03 Jul 2015 07:46:44 -0700 (PDT)
+Date: Fri, 3 Jul 2015 10:46:35 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH] mm:Make the function zap_huge_pmd bool
+Message-ID: <20150703144635.GE9456@thunk.org>
+References: <1435775277-27381-1-git-send-email-xerofoify@gmail.com>
+ <20150702072621.GB12547@dhcp22.suse.cz>
+ <20150702160341.GC9456@thunk.org>
+ <55956204.2060006@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] fix: decrease NR_FREE_PAGES when isolate page from buddy
-References: <1435713478-19646-1-git-send-email-minkyung88.kim@lge.com> <559509E4.3010708@suse.cz> <55963678.3040200@lge.com>
-In-Reply-To: <55963678.3040200@lge.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <55956204.2060006@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?Iuq5gOuvvOqyvS/so7zsnoTsl7Dqtazsm5AvU1cgUGxhdGZvcm0o7JewKUFP?= =?UTF-8?B?VO2MgChtaW5reXVuZzg4LmtpbUBsZ2UuY29tKSI=?= <minkyung88.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: Seungho Park <seungho1.park@lge.com>, kmk3210@gmail.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>
+To: nick <xerofoify@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, akpm@linux-foundation.org, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, sasha.levin@oracle.com, Yalin.Wang@sonymobile.com, jmarchan@redhat.com, kirill@shutemov.name, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, ebru.akagunduz@gmail.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 3.7.2015 9:15, "e1?e? 1/4 e2 1/2 /iGBP 1/4 i??i??eu!i??/SW Platform(i??)AOTi??
-(minkyung88.kim@lge.com)" wrote:
-> As Vlastimil Babka expalin, this patch is useless and working not correctly.
-> Thank you for your review :)
+On Thu, Jul 02, 2015 at 12:08:36PM -0400, nick wrote:
+> I looked into that patch further and would were correct it was wrong.
+> However here is a bug fix for the drm driver code that somebody else
+> stated was right but haven gotten a reply to from the maintainer and
+> have tried resending.
 
-Thanks for reminding us of the code that should be cleaned up :)
-I have the patches almost ready and will send them later on.
+Hi Nick,
 
-Thanks.
+Don't bother sending more low-value patches like this; they don't
+impress me.  Send me a patch that fixes a deep bug, where you can
+demonstrate that you understand the underlying design of the code, can
+point out a flaw, and then explain why your patch is an improvement,
+and documents how you tested it.  Or do something beyond changing
+return values or return types, and optimize some performance-critical
+part of the kernel, and in the commit description, explain why it
+improves things, how you measured the performance improvement, and why
+this is applicable in a real-life situation.
 
-> 2015-07-02 i??i?? 6:52i?? Vlastimil Babka i?'(e??) i?' e,?:
->> [+CC Joonsoo and Minchan]
->>
->> On 07/01/2015 03:17 AM, minkyung88.kim@lge.com wrote:
->>> From: "minkyung88.kim" <minkyung88.kim@lge.com>
->>>
->>> NR_FREEPAGE should be decreased when pages are isolated from buddy.
->>> Therefore fix the count.
->>
->> Did you really observe an accounting bug and this patch fixed it, or 
->> is it just because of code inspection?
->>
->> The patched code has this comment:
->>
->> /*
->>  * If race between isolatation and allocation happens,
->>  * some free pages could be in MIGRATE_MOVABLE list
->>  * although pageblock's migratation type of the page
->>  * is MIGRATE_ISOLATE. Catch it and move the page into
->>  * MIGRATE_ISOLATE list.
->>  */
->>
->> This is from 2012 and I'm not sure if it still applies. Joonsoo's 
->> series last year was to eliminate these races, see e.g. 51bb1a4093 
->> ("mm/page_alloc: add freepage on isolate pageblock to correct buddy 
->> list").
->>
->> So I think that this piece of code shouldn't be useful anymore. Well, 
->> actually I think it can trigger, but it's a false positive and (before 
->> your patch) result in basically a no-op. The reason is that the value 
->> of get_freepage_migratetype(page) is a just an optimization used only 
->> for pages on pcplists. It's not guaranteed to be correct for pages in 
->> the buddy free lists (and it can get stale even on the pcplists).
->>
->> Now, the code from Joonsoo's patch mentioned above does this in
->> free_pcppages_bulk():
->>
->> mt = get_freepage_migratetype(page);
->> if (unlikely(has_isolate_pageblock(zone)))
->>         mt = get_pageblock_migratetype(page);
->>
->> /* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
->> __free_one_page(page, page_to_pfn(page), zone, 0, mt);
->>
->> So if get_freepage_migratetype(page) returns e.g. MIGRATE_MOVABLE but 
->> the pageblock is MIGRATE_ISOLATE, it will catch this and tell 
->> __free_one_page() the correct migratetype. However, nothing will 
->> update the freepage's migratetype by set_freepage_migratetype(), 
->> because it would be a pointless waste of CPU cycles. The page however 
->> goes to the correct MIGRATE_ISOLATE list. (note that this is likely 
->> not the only way how freepage_migratetype can be perceived as incorrect)
->>
->> That means the code you are patching can really find the page where 
->> get_freepage_migratetype(page) will return MIGRATE_MOVABLE, i.e. != 
->> MIGRATE_ISOLATE will be true. But the move_freepages() call would be a 
->> no-op, as the page is already on the correct list and the accounting 
->> of freepages is correct.
->>
->> So my conclusion is that after your patch, the freepage accounting 
->> could actually get broken, not fixed. But I may be wrong. Hopefully 
->> Joonsoo can verify this :)
->>
->> If that's true, then the whole test you are patching should be 
->> dropped. Also we should make it clearer that 
->> get_freepage_migratetype() is only used for pages on pcplists (and 
->> even there it may differ from pageblock's migratetype and also from 
->> the pcplist the page is actually on, in cases of page stealing), as 
->> this is not the first confusion.
->> We should also drop the usage set_freepage_migratetype() from 
->> move_freepages() while at it.
->> Now the last usage of get_freepage_migratetype() outside of 
->> page_alloc.c is the page isolation code and I argue it's wrong. So 
->> after that is removed, we can actually also make the functions 
->> internal to page_alloc.c.
->>
->>> Signed-off-by: minkyung88.kim <minkyung88.kim@lge.com>
->>> ---
->>>   mm/page_isolation.c | 6 +++++-
->>>   1 file changed, 5 insertions(+), 1 deletion(-)
->>>
->>> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
->>> index 303c908..16cc172 100644
->>> --- a/mm/page_isolation.c
->>> +++ b/mm/page_isolation.c
->>> @@ -233,10 +233,14 @@ __test_page_isolated_in_pageblock(unsigned long 
->>> pfn, unsigned long end_pfn,
->>>                */
->>>               if (get_freepage_migratetype(page) != MIGRATE_ISOLATE) {
->>>                   struct page *end_page;
->>> +                struct zone *zone = page_zone(page);
->>> +                int mt = get_freepage_migratetype(page);
->>> +                unsigned long nr_pages;
->>>
->>>                   end_page = page + (1 << page_order(page)) - 1;
->>> -                move_freepages(page_zone(page), page, end_page,
->>> +                nr_pages = move_freepages(zone, page, end_page,
->>>                           MIGRATE_ISOLATE);
->>> +                __mod_zone_freepage_state(zone, -nr_pages, mt);
->>>               }
->>>               pfn += 1 << page_order(page);
->>>           }
->>>
->>
->>
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Even a broken clock can be right twice a day, and the fact that it is
+possible that you can author a correct patch isn't all that
+impressive.  You need to understand deep understanding of the code you
+are modifying, and or else it's not worth my time to go through a
+large number of low-value patches that don't really improve the code
+base much, when the risk that you have accidentally introduced a bug
+is high given that (a) you've demonstrated an inability to explain
+some of your patches, and (b) in many cases, you have no fear about
+sending patches that you can't personally test.  These two
+shortcomings in combination are fatal.
+
+If you can demonstrate that you can become a thoughtful and careful
+coder, I would be most pleased to argue to Greg K-H that you have
+turned over a new leaf.  To date, however, you have not demonstrated
+any of the above, and you've made me regret that I've tried to waste
+time looking at your patches that you've sent me in the hopes of
+convincing me that you've really changed --- when it's clear you
+haven't.  I do hope that, one day, you will be able to be a good
+coder.  But that day is clearly not today.
+
+Best regards,
+
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
