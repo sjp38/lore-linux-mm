@@ -1,72 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 370DB280257
-	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 08:36:50 -0400 (EDT)
-Received: by wgqq4 with SMTP id q4so87480092wgq.1
-        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 05:36:49 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l2si15007679wic.16.2015.07.03.05.36.47
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 345CA280260
+	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 08:46:21 -0400 (EDT)
+Received: by wicgi11 with SMTP id gi11so99445833wic.0
+        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 05:46:20 -0700 (PDT)
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com. [195.75.94.110])
+        by mx.google.com with ESMTPS id w6si36277251wix.76.2015.07.03.05.46.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 03 Jul 2015 05:36:48 -0700 (PDT)
-Date: Fri, 3 Jul 2015 14:36:42 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 44/51] writeback: implement bdi_wait_for_completion()
-Message-ID: <20150703123642.GL23329@quack.suse.cz>
-References: <1432329245-5844-1-git-send-email-tj@kernel.org>
- <1432329245-5844-45-git-send-email-tj@kernel.org>
- <20150701160437.GG7252@quack.suse.cz>
- <20150702030624.GM26440@mtj.duckdns.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150702030624.GM26440@mtj.duckdns.org>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Fri, 03 Jul 2015 05:46:19 -0700 (PDT)
+Received: from /spool/local
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dingel@linux.vnet.ibm.com>;
+	Fri, 3 Jul 2015 13:46:18 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 4C0FE1B0806E
+	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 13:47:25 +0100 (BST)
+Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t63CkGpL28246206
+	for <linux-mm@kvack.org>; Fri, 3 Jul 2015 12:46:16 GMT
+Received: from d06av09.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t63CkFGx006500
+	for <linux-mm@kvack.org>; Fri, 3 Jul 2015 06:46:16 -0600
+From: Dominik Dingel <dingel@linux.vnet.ibm.com>
+Subject: [PATCH 0/4] s390/mm: Fixup hugepage sw-emulated code removal
+Date: Fri,  3 Jul 2015 14:46:05 +0200
+Message-Id: <1435927569-41132-1-git-send-email-dingel@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Jan Kara <jack@suse.cz>, axboe@kernel.dk, linux-kernel@vger.kernel.org, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
+To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, Dominik Dingel <dingel@linux.vnet.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Michael Holzheu <holzheu@linux.vnet.ibm.com>, linux-s390@vger.kernel.org, linux-mm@kvack.org, Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
-On Wed 01-07-15 23:06:24, Tejun Heo wrote:
-> Hello, Jan.
-> 
-> On Wed, Jul 01, 2015 at 06:04:37PM +0200, Jan Kara wrote:
-> > I'd find it better to extend completions to allow doing what you need. It
-> > isn't that special. It seems it would be enough to implement
-> > 
-> > void wait_for_completions(struct completion *x, int n);
-> > 
-> > where @n is the number of completions to wait for. And the implementation
-> > can stay as is, only in do_wait_for_common() we change checks for x->done ==
-> > 0 to "x->done < n". That's about it...
-> 
-> I don't know.  While I agree that it'd be nice to have a generic event
-> count & trigger mechanism in the kernel, I don't think extending
-> completion is a good idea - the count then works both ways as the
-> event counter && listener counter and effectively becomes a semaphore
-> which usually doesn't end well.  There are very few cases where we
-> want the counter works both ways and I personally think we'd be far
-> better served if those rare cases implement something custom rather
-> than generic mechanism becoming cryptic trying to cover everything.
+Heiko noticed that the current check for hugepage support on s390 is a little bit to
+harsh as systems which do not support will crash.
+The reason is that pageblock_order can now get negative when we set HPAGE_SHIFT to 0.
+To avoid all this and to avoid opening another can of worms with enabling 
+HUGETLB_PAGE_SIZE_VARIABLE I think it would be best to simply allow architectures to
+define their own hugepages_supported().
 
-Let me phrase my objection this differently: Instead of implementing custom
-synchronization mechanism, you could as well do:
+Thanks
+    Dominik
 
-int count_submitted;	/* Number of submitted works we want to wait for */
-struct completion done;
-...
-submit works with 'done' as completion.
-...
-while (count_submitted--)
-	wait_for_completion(&done);
+Dominik Dingel (4):
+  Revert "s390/mm: change HPAGE_SHIFT type to int"
+  Revert "s390/mm: make hugepages_supported a boot time decision"
+  mm: hugetlb: allow hugepages_supported to be architecture specific
+  s390/hugetlb: add hugepages_supported define
 
-And we could also easily optimize that loop and put it in
-kernel/sched/completion.c. The less synchronization mechanisms we have the
-better I'd think...
+ arch/s390/include/asm/hugetlb.h |  1 +
+ arch/s390/include/asm/page.h    |  8 ++++----
+ arch/s390/kernel/setup.c        |  2 --
+ arch/s390/mm/pgtable.c          |  2 --
+ include/linux/hugetlb.h         | 17 ++++++++---------
+ 5 files changed, 13 insertions(+), 17 deletions(-)
 
-								Honza
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+2.3.8
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
