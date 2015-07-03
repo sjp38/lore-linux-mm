@@ -1,85 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id B4CF9280257
-	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 05:40:21 -0400 (EDT)
-Received: by pdbep18 with SMTP id ep18so61157677pdb.1
-        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 02:40:21 -0700 (PDT)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id qv6si13490859pab.172.2015.07.03.02.40.18
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CA73280257
+	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 06:50:05 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so174795750wig.0
+        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 03:50:04 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l15si13886482wjq.63.2015.07.03.03.50.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 03 Jul 2015 02:40:19 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0NQW009O2O747Q00@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 03 Jul 2015 10:40:16 +0100 (BST)
-From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-Subject: [PATCH 2/2] mm: zbud: Constify the zbud_ops
-Date: Fri, 03 Jul 2015 18:40:13 +0900
-Message-id: <1435916413-6475-2-git-send-email-k.kozlowski@samsung.com>
-In-reply-to: <1435916413-6475-1-git-send-email-k.kozlowski@samsung.com>
-References: <1435916413-6475-1-git-send-email-k.kozlowski@samsung.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 03 Jul 2015 03:50:03 -0700 (PDT)
+Date: Fri, 3 Jul 2015 12:49:57 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 22/51] writeback: add {CONFIG|BDI_CAP|FS}_CGROUP_WRITEBACK
+Message-ID: <20150703104957.GH23329@quack.suse.cz>
+References: <1432329245-5844-1-git-send-email-tj@kernel.org>
+ <1432329245-5844-23-git-send-email-tj@kernel.org>
+ <20150630093751.GH7252@quack.suse.cz>
+ <20150702011056.GC26440@mtj.duckdns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150702011056.GC26440@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Krzysztof Kozlowski <k.kozlowski@samsung.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Jan Kara <jack@suse.cz>, axboe@kernel.dk, linux-kernel@vger.kernel.org, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
 
-The structure zbud_ops is not modified so make the pointer to it as
-pointer to const.
+On Wed 01-07-15 21:10:56, Tejun Heo wrote:
+> Hello, Jan.
+> 
+> On Tue, Jun 30, 2015 at 11:37:51AM +0200, Jan Kara wrote:
+> > Hum, you later changed this to use a per-sb flag instead of a per-fs-type
+> > flag, right? We could do it as well here but OK.
+> 
+> The commits were already in stable branch at that point and landed in
+> mainline during this merge window, so I'm afraid the review points
+> will have to be addressed as additional patches.
 
-Signed-off-by: Krzysztof Kozlowski <k.kozlowski@samsung.com>
----
- include/linux/zbud.h | 2 +-
- mm/zbud.c            | 6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+Yeah, I know but I just didn't get to the series earlier. Anyway, I didn't
+find fundamental issues so it's easy to change things in followup patches.
 
-diff --git a/include/linux/zbud.h b/include/linux/zbud.h
-index f9d41a6e361f..e183a0a65ac1 100644
---- a/include/linux/zbud.h
-+++ b/include/linux/zbud.h
-@@ -9,7 +9,7 @@ struct zbud_ops {
- 	int (*evict)(struct zbud_pool *pool, unsigned long handle);
- };
- 
--struct zbud_pool *zbud_create_pool(gfp_t gfp, struct zbud_ops *ops);
-+struct zbud_pool *zbud_create_pool(gfp_t gfp, const struct zbud_ops *ops);
- void zbud_destroy_pool(struct zbud_pool *pool);
- int zbud_alloc(struct zbud_pool *pool, size_t size, gfp_t gfp,
- 	unsigned long *handle);
-diff --git a/mm/zbud.c b/mm/zbud.c
-index 6f8158d64864..fa48bcdff9d5 100644
---- a/mm/zbud.c
-+++ b/mm/zbud.c
-@@ -96,7 +96,7 @@ struct zbud_pool {
- 	struct list_head buddied;
- 	struct list_head lru;
- 	u64 pages_nr;
--	struct zbud_ops *ops;
-+	const struct zbud_ops *ops;
- #ifdef CONFIG_ZPOOL
- 	struct zpool *zpool;
- 	const struct zpool_ops *zpool_ops;
-@@ -133,7 +133,7 @@ static int zbud_zpool_evict(struct zbud_pool *pool, unsigned long handle)
- 		return -ENOENT;
- }
- 
--static struct zbud_ops zbud_zpool_ops = {
-+static const struct zbud_ops zbud_zpool_ops = {
- 	.evict =	zbud_zpool_evict
- };
- 
-@@ -302,7 +302,7 @@ static int num_free_chunks(struct zbud_header *zhdr)
-  * Return: pointer to the new zbud pool or NULL if the metadata allocation
-  * failed.
-  */
--struct zbud_pool *zbud_create_pool(gfp_t gfp, struct zbud_ops *ops)
-+struct zbud_pool *zbud_create_pool(gfp_t gfp, const struct zbud_ops *ops)
- {
- 	struct zbud_pool *pool;
- 	int i;
+> > One more question - what does prevent us from supporting CGROUP_WRITEBACK
+> > for all bdis capable of writeback? I guess the reason is that currently
+> > blkcgs are bound to request_queue and we have to have blkcg(s) for
+> > CGROUP_WRITEBACK to work, am I right? But in principle tracking writeback
+> > state and doing writeback per memcg doesn't seem to be bound to any device
+> > properties so we could do that right?
+> 
+> The main issue is that cgroup should somehow know how the processes
+> are mapped to the underlying IO layer - the IO domain should somehow
+> be defined.  We can introduce an intermediate abstraction which maps
+> to blkcg and whatever other cgroup controllers which may define cgroup
+> IO domains but given that such cases would be fairly niche, I think
+> we'd be better off making those corner cases represent themselves
+> using blkcg rather than introducing an additional layer.
+
+Well, unless there is some specific mapping for the device, we could just
+fall back to attributing everything to the root cgroup. We would still
+account dirty pages in memcg, throttle writers in memcg when there are too
+many dirty pages, issue writeback for inodes in memcg with enough dirty
+pages etc. Just all IO from different memcgs would be equal so no
+separation would be there. But it would still seem better that just
+ignoring the split of dirty pages among memcgs as we do now... Thoughts?
+
+								Honza
 -- 
-1.9.1
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
