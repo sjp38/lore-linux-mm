@@ -1,55 +1,287 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 40D39280260
-	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 13:07:13 -0400 (EDT)
-Received: by ykdr198 with SMTP id r198so100096132ykd.3
-        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 10:07:13 -0700 (PDT)
-Received: from mail-yk0-x231.google.com (mail-yk0-x231.google.com. [2607:f8b0:4002:c07::231])
-        by mx.google.com with ESMTPS id p127si6633179ywc.99.2015.07.03.10.07.12
+Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 0548A280260
+	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 13:12:49 -0400 (EDT)
+Received: by obpn3 with SMTP id n3so72510980obp.0
+        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 10:12:48 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id mp3si7262993obb.59.2015.07.03.10.12.47
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Jul 2015 10:07:12 -0700 (PDT)
-Received: by ykdv136 with SMTP id v136so100491243ykd.0
-        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 10:07:12 -0700 (PDT)
-Date: Fri, 3 Jul 2015 13:07:10 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 30/51] writeback: implement and use inode_congested()
-Message-ID: <20150703170710.GF5273@mtj.duckdns.org>
-References: <1432329245-5844-1-git-send-email-tj@kernel.org>
- <1432329245-5844-31-git-send-email-tj@kernel.org>
- <20150630152105.GP7252@quack.suse.cz>
- <20150702014634.GF26440@mtj.duckdns.org>
- <20150703121721.GJ23329@quack.suse.cz>
+        Fri, 03 Jul 2015 10:12:48 -0700 (PDT)
+Message-ID: <5596C269.8000908@oracle.com>
+Date: Fri, 03 Jul 2015 10:12:09 -0700
+From: Mike Kravetz <mike.kravetz@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150703121721.GJ23329@quack.suse.cz>
+Subject: Re: [PATCH 01/10] mm/hugetlb: add cache of descriptors to resv_map
+ for region_add
+References: <1435851526-4200-1-git-send-email-mike.kravetz@oracle.com> <1435851526-4200-2-git-send-email-mike.kravetz@oracle.com> <008301d0b547$b62a10e0$227e32a0$@alibaba-inc.com>
+In-Reply-To: <008301d0b547$b62a10e0$227e32a0$@alibaba-inc.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
+To: Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+Cc: 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'David Rientjes' <rientjes@google.com>, 'Hugh Dickins' <hughd@google.com>, 'Davidlohr Bueso' <dave@stgolabs.net>, 'Aneesh Kumar' <aneesh.kumar@linux.vnet.ibm.com>, 'Christoph Hellwig' <hch@infradead.org>
 
-On Fri, Jul 03, 2015 at 02:17:21PM +0200, Jan Kara wrote:
-> On Wed 01-07-15 21:46:34, Tejun Heo wrote:
-> > Hello,
-> > 
-> > On Tue, Jun 30, 2015 at 05:21:05PM +0200, Jan Kara wrote:
-> > > Hum, is there any point in supporting NULL inode with inode_congested()?
-> > > That would look more like a programming bug than anything... Otherwise the
-> > > patch looks good to me so you can add:
-> > 
-> > Those are inherited from the existing usages and all for swapper
-> > space.  I think we should have a dummy inode instead of scattering
-> > NULL mapping->host test all over the place but that's for another day.
-> 
->   Ah, OK. A comment about this would be nice.
+On 07/02/2015 09:21 PM, Hillf Danton wrote:
+>>
+>> fallocate hole punch will want to remove a specific range of
+>> pages.  When pages are removed, their associated entries in
+>> the region/reserve map will also be removed.  This will break
+>> an assumption in the region_chg/region_add calling sequence.
+>> If a new region descriptor must be allocated, it is done as
+>> part of the region_chg processing.  In this way, region_add
+>> can not fail because it does not need to attempt an allocation.
+>>
+>> To prepare for fallocate hole punch, create a "cache" of
+>> descriptors that can be used by region_add if necessary.
+>> region_chg will ensure there are sufficient entries in the
+>> cache.  It will be necessary to track the number of in progress
+>> add operations to know a sufficient number of descriptors
+>> reside in the cache.  A new routine region_abort is added to
+>> adjust this in progress count when add operations are aborted.
+>> vma_abort_reservation is also added for callers creating
+>> reservations with vma_needs_reservation/vma_commit_reservation.
+>>
+>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+>> ---
+>>   include/linux/hugetlb.h |   3 +
+>>   mm/hugetlb.c            | 166 ++++++++++++++++++++++++++++++++++++++++++------
+>>   2 files changed, 150 insertions(+), 19 deletions(-)
+>>
+>> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+>> index 2050261..f9c8cb2 100644
+>> --- a/include/linux/hugetlb.h
+>> +++ b/include/linux/hugetlb.h
+>> @@ -35,6 +35,9 @@ struct resv_map {
+>>   	struct kref refs;
+>>   	spinlock_t lock;
+>>   	struct list_head regions;
+>> +	long adds_in_progress;
+>> +	struct list_head rgn_cache;
+>> +	long rgn_cache_count;
+>>   };
+>>   extern struct resv_map *resv_map_alloc(void);
+>>   void resv_map_release(struct kref *ref);
+>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> index a8c3087..189c0d7 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -240,11 +240,14 @@ struct file_region {
+>>
+>>   /*
+>>    * Add the huge page range represented by [f, t) to the reserve
+>> - * map.  Existing regions will be expanded to accommodate the
+>> - * specified range.  We know only existing regions need to be
+>> - * expanded, because region_add is only called after region_chg
+>> - * with the same range.  If a new file_region structure must
+>> - * be allocated, it is done in region_chg.
+>> + * map.  In the normal case, existing regions will be expanded
+>> + * to accommodate the specified range.  Sufficient regions should
+>> + * exist for expansion due to the previous call to region_chg
+>> + * with the same range.  However, it is possible that region_del
+>> + * could have been called after region_chg and modifed the map
+>> + * in such a way that no region exists to be expanded.  In this
+>> + * case, pull a region descriptor from the cache associated with
+>> + * the map and use that for the new range.
+>>    *
+>>    * Return the number of new huge pages added to the map.  This
+>>    * number is greater than or equal to zero.
+>> @@ -261,6 +264,27 @@ static long region_add(struct resv_map *resv, long f, long t)
+>>   		if (f <= rg->to)
+>>   			break;
+>>
+>> +	if (&rg->link == head || t < rg->from) {
+>> +		/*
+>> +		 * No region exits which can be expanded to include the
+>
+> s/exits/exists/ ?
 
-Will add.
+Yes, that is a typo and should be exists.
 
-Thanks!
+>> +		 * specified range.  Pull a region descriptor from the
+>> +		 * cache, and use it for this range.
+>> +		 */
+>> +		VM_BUG_ON(!resv->rgn_cache_count);
+>> +
+>> +		resv->rgn_cache_count--;
+>> +		nrg = list_first_entry(&resv->rgn_cache, struct file_region,
+>> +					link);
+>> +		list_del(&nrg->link);
+>> +
+>> +		nrg->from = f;
+>> +		nrg->to = t;
+>> +		list_add(&nrg->link, rg->link.prev);
+>> +
+>> +		add += t - f;
+>> +		goto out_locked;
+>> +	}
+>> +
+>>   	/* Round our left edge to the current segment if it encloses us. */
+>>   	if (f > rg->from)
+>>   		f = rg->from;
+>> @@ -294,6 +318,8 @@ static long region_add(struct resv_map *resv, long f, long t)
+>>   	add += t - nrg->to;		/* Added to end of region */
+>>   	nrg->to = t;
+>>
+>> +out_locked:
+>> +	resv->adds_in_progress--;
+>>   	spin_unlock(&resv->lock);
+>>   	VM_BUG_ON(add < 0);
+>>   	return add;
+>> @@ -312,11 +338,16 @@ static long region_add(struct resv_map *resv, long f, long t)
+>>    * so that the subsequent region_add call will have all the
+>>    * regions it needs and will not fail.
+>>    *
+>> + * Upon entry, region_chg will also examine the cache of
+>> + * region descriptors associated with the map.  If there
+>> + * not enough descriptors cached, one will be allocated
+>> + * for the in progress add operation.
+>> + *
+>>    * Returns the number of huge pages that need to be added
+>>    * to the existing reservation map for the range [f, t).
+>>    * This number is greater or equal to zero.  -ENOMEM is
+>> - * returned if a new file_region structure is needed and can
+>> - * not be allocated.
+>> + * returned if a new file_region structure or cache entry
+>> + * is needed and can not be allocated.
+>>    */
+>>   static long region_chg(struct resv_map *resv, long f, long t)
+>>   {
+>> @@ -326,6 +357,30 @@ static long region_chg(struct resv_map *resv, long f, long t)
+>>
+>>   retry:
+>>   	spin_lock(&resv->lock);
+>> +	resv->adds_in_progress++;
+>> +
+>> +	/*
+>> +	 * Check for sufficient descriptors in the cache to accommodate
+>> +	 * the number of in progress add operations.
+>> +	 */
+>> +	if (resv->adds_in_progress > resv->rgn_cache_count) {
+>> +		struct file_region *trg;
+>> +
+>> +		VM_BUG_ON(resv->adds_in_progress - resv->rgn_cache_count > 1);
+>> +		/* Must drop lock to allocate a new descriptor. */
+>> +		resv->adds_in_progress--;
+>> +		spin_unlock(&resv->lock);
+>> +
+>> +		trg = kmalloc(sizeof(*trg), GFP_KERNEL);
+>> +		if (!trg)
+>> +			return -ENOMEM;
+>> +
+>> +		spin_lock(&resv->lock);
+>> +		resv->adds_in_progress++;
+>> +		list_add(&trg->link, &resv->rgn_cache);
+>> +		resv->rgn_cache_count++;
+>> +	}
+>> +
+>>   	/* Locate the region we are before or in. */
+>>   	list_for_each_entry(rg, head, link)
+>>   		if (f <= rg->to)
+>> @@ -336,6 +391,7 @@ retry:
+>>   	 * size such that we can guarantee to record the reservation. */
+>>   	if (&rg->link == head || t < rg->from) {
+>>   		if (!nrg) {
+>> +			resv->adds_in_progress--;
+>>   			spin_unlock(&resv->lock);
+>>   			nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+>>   			if (!nrg)
+>> @@ -385,6 +441,25 @@ out_nrg:
+>>   }
+>>
+>>   /*
+>> + * Abort the in progress add operation.  The adds_in_progress field
+>> + * of the resv_map keeps track of the operations in progress between
+>> + * calls to region_chg and region_add.  Operations are sometimes
+>> + * aborted after the call to region_chg.  In such cases, region_abort
+>> + * is called to decrement the adds_in_progress counter.
+>> + *
+>> + * NOTE: The range arguments [f, t) are not needed or used in this
+>> + * routine.  They are kept to make reading the calling code easier as
+>> + * arguments will match the associated region_chg call.
+>> + */
+>> +static void region_abort(struct resv_map *resv, long f, long t)
+>> +{
+>> +	spin_lock(&resv->lock);
+>> +	VM_BUG_ON(!resv->rgn_cache_count);
+>> +	resv->adds_in_progress--;
+>> +	spin_unlock(&resv->lock);
+>> +}
+>> +
+>> +/*
+>>    * Truncate the reserve map at index 'end'.  Modify/truncate any
+>>    * region which contains end.  Delete any regions past end.
+>>    * Return the number of huge pages removed from the map.
+>> @@ -544,22 +619,42 @@ static void set_vma_private_data(struct vm_area_struct *vma,
+>>   struct resv_map *resv_map_alloc(void)
+>>   {
+>>   	struct resv_map *resv_map = kmalloc(sizeof(*resv_map), GFP_KERNEL);
+>> -	if (!resv_map)
+>> +	struct file_region *rg = kmalloc(sizeof(*rg), GFP_KERNEL);
+>> +
+>> +	if (!resv_map || !rg) {
+>> +		kfree(resv_map);
+>> +		kfree(rg);
+>>   		return NULL;
+>> +	}
+>>
+>>   	kref_init(&resv_map->refs);
+>>   	spin_lock_init(&resv_map->lock);
+>>   	INIT_LIST_HEAD(&resv_map->regions);
+>>
+>> +	resv_map->adds_in_progress = 0;
+>> +
+>> +	INIT_LIST_HEAD(&resv_map->rgn_cache);
+>> +	list_add(&rg->link, &resv_map->rgn_cache);
+>> +	resv_map->rgn_cache_count = 1;
+>> +
+>>   	return resv_map;
+>>   }
+>>
+>>   void resv_map_release(struct kref *ref)
+>>   {
+>>   	struct resv_map *resv_map = container_of(ref, struct resv_map, refs);
+>> +	struct list_head *head = &resv_map->regions;
+>> +	struct file_region *rg, *trg;
+>>
+>>   	/* Clear out any active regions before we release the map. */
+>>   	region_truncate(resv_map, 0);
+>> +
+>> +	/* ... and any entries left in the cache */
+>> +	list_for_each_entry_safe(rg, trg, head, link)
+>> +		list_del(&rg->link);
+>> +
+>
+> I am wondering if `cache' is rgn_cache.
+> And rg should be freed if yes.
+
+Good catch.
+
+It should be:
+
+	struct list_head *head = &resv_map->rgn_cache;
+
+and
+
+	list_for_each_entry_safe(rg, trg, head, link) {
+		list_del(&rg->link);
+		kfree(rg);
+	}
+
+As is, it will leak memory and not free entries in the cache.
+
+I will fix this in the next revision.
 
 -- 
-tejun
+Mike Kravetz
+
+>> +	VM_BUG_ON(resv_map->adds_in_progress);
+>> +
+>>   	kfree(resv_map);
+>>   }
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
