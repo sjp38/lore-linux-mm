@@ -1,79 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 179EC28027A
-	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 14:39:18 -0400 (EDT)
-Received: by pacws9 with SMTP id ws9so61631918pac.0
-        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 11:39:17 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id jy8si15469496pbb.80.2015.07.03.11.39.15
+Received: from mail-yk0-f179.google.com (mail-yk0-f179.google.com [209.85.160.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 086F028027A
+	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 14:45:11 -0400 (EDT)
+Received: by ykdy1 with SMTP id y1so102121008ykd.2
+        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 11:45:10 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id q6si6819381ykb.10.2015.07.03.11.45.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Jul 2015 11:39:16 -0700 (PDT)
-Date: Fri, 3 Jul 2015 14:38:09 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory
- feature
-Message-ID: <20150703183809.GA6781@cmpxchg.org>
-References: <1435929607-3435-1-git-send-email-pintu.k@samsung.com>
+        Fri, 03 Jul 2015 11:45:08 -0700 (PDT)
+Date: Fri, 3 Jul 2015 14:45:02 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH] mm:Make the function zap_huge_pmd bool
+Message-ID: <20150703184501.GJ9456@thunk.org>
+References: <1435775277-27381-1-git-send-email-xerofoify@gmail.com>
+ <20150702072621.GB12547@dhcp22.suse.cz>
+ <20150702160341.GC9456@thunk.org>
+ <55956204.2060006@gmail.com>
+ <20150703144635.GE9456@thunk.org>
+ <5596A20F.6010509@gmail.com>
+ <20150703150117.GA3688@dhcp22.suse.cz>
+ <5596A42F.60901@gmail.com>
+ <20150703164944.GG9456@thunk.org>
+ <5596BDB6.5060708@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1435929607-3435-1-git-send-email-pintu.k@samsung.com>
+In-Reply-To: <5596BDB6.5060708@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pintu Kumar <pintu.k@samsung.com>
-Cc: corbet@lwn.net, akpm@linux-foundation.org, vbabka@suse.cz, gorcunov@openvz.org, mhocko@suse.cz, emunson@akamai.com, kirill.shutemov@linux.intel.com, standby24x7@gmail.com, vdavydov@parallels.com, hughd@google.com, minchan@kernel.org, tj@kernel.org, rientjes@google.com, xypron.glpk@gmx.de, dzickus@redhat.com, prarit@redhat.com, ebiederm@xmission.com, rostedt@goodmis.org, uobergfe@redhat.com, paulmck@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, ddstreet@ieee.org, sasha.levin@oracle.com, koct9i@gmail.com, mgorman@suse.de, cj@linux.com, opensource.ganesh@gmail.com, vinmenon@codeaurora.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, cpgs@samsung.com, pintu_agarwal@yahoo.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, iqbal.ams@samsung.com
+To: nick <xerofoify@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, akpm@linux-foundation.org, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, sasha.levin@oracle.com, Yalin.Wang@sonymobile.com, jmarchan@redhat.com, kirill@shutemov.name, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, ebru.akagunduz@gmail.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jul 03, 2015 at 06:50:07PM +0530, Pintu Kumar wrote:
-> This patch provides 2 things:
-> 1. Add new control called shrink_memory in /proc/sys/vm/.
-> This control can be used to aggressively reclaim memory system-wide
-> in one shot from the user space. A value of 1 will instruct the
-> kernel to reclaim as much as totalram_pages in the system.
-> Example: echo 1 > /proc/sys/vm/shrink_memory
-> 
-> 2. Enable shrink_all_memory API in kernel with new CONFIG_SHRINK_MEMORY.
-> Currently, shrink_all_memory function is used only during hibernation.
-> With the new config we can make use of this API for non-hibernation case
-> also without disturbing the hibernation case.
-> 
-> The detailed paper was presented in Embedded Linux Conference, Mar-2015
-> http://events.linuxfoundation.org/sites/events/files/slides/
-> %5BELC-2015%5D-System-wide-Memory-Defragmenter.pdf
-> 
-> Scenarios were this can be used and helpful are:
-> 1) Can be invoked just after system boot-up is finished.
+On Fri, Jul 03, 2015 at 12:52:06PM -0400, nick wrote:
+> I agree with you 100 percent. The reason I can't test this is I don't have the
+> hardware otherwise I would have tested it by now.
 
-The allocator automatically reclaims when memory is needed, that's why
-the metrics quoted in those slides, free pages and fragmentation level,
-don't really mean much.  We don't care how much memory is free or how
-fragmented it is UNTIL somebody actually asks for it.  The only metric
-that counts is the allocation success ratio (and possibly the latency).
+Then don't send the patch out.  Work on some other piece of part of
+the kernel, or better yet, some other userspace code where testing is
+easier.  It's really quite simple.
 
-> 2) Can be invoked just before entering entire system suspend.
+You don't have the technical skills, or at this point, the reputation,
+to send patches without tesitng them first.  The fact that sometimes
+people like Linus will send out a patch labelled with "COMPLETELY
+UNTESTED", is because he's skilled and trusted enough that he can get
+away with it.  You have neither of those advantages.
 
-Why is that?  Suspend already allocates as much as it needs to create
-the system image.
+Best regards,
 
-> 3) Can be invoked from kernel when order-4 pages starts failing.
-
-We have compaction for that, and compaction invokes page reclaim
-automatically to satisfy its need for free pages.
-
-> 4) Can be helpful to completely avoid or delay the kerenl OOM condition.
-
-That's not how OOM works.  An OOM is triggered when there is demand for
-memory but no more pages to reclaim, telling the kernel to look harder
-will not change that.
-
-> 5) Can be developed as a system-tool to quickly defragment entire system
->    from user space, without the need to kill any application.
-
-Again, the kernel automatically reclaims and compacts memory on demand.
-If the existing mechanisms don't do this properly, and you have actual
-problems with them, they should be reported and fixed, not bypassed.
-But the metrics you seem to base this change on are not representative
-of something that should matter in practice.
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
