@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id BFA1E280281
-	for <linux-mm@kvack.org>; Sat,  4 Jul 2015 14:49:38 -0400 (EDT)
-Received: by lagx9 with SMTP id x9so115392881lag.1
-        for <linux-mm@kvack.org>; Sat, 04 Jul 2015 11:49:38 -0700 (PDT)
-Received: from mail-la0-x22c.google.com (mail-la0-x22c.google.com. [2a00:1450:4010:c03::22c])
-        by mx.google.com with ESMTPS id er7si10717015lac.153.2015.07.04.11.49.36
+Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
+	by kanga.kvack.org (Postfix) with ESMTP id D8BDA280281
+	for <linux-mm@kvack.org>; Sat,  4 Jul 2015 14:55:40 -0400 (EDT)
+Received: by lagc2 with SMTP id c2so115533802lag.3
+        for <linux-mm@kvack.org>; Sat, 04 Jul 2015 11:55:40 -0700 (PDT)
+Received: from mail-la0-x236.google.com (mail-la0-x236.google.com. [2a00:1450:4010:c03::236])
+        by mx.google.com with ESMTPS id f6si10761884lae.45.2015.07.04.11.55.38
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 04 Jul 2015 11:49:36 -0700 (PDT)
-Received: by laar3 with SMTP id r3so115555590laa.0
-        for <linux-mm@kvack.org>; Sat, 04 Jul 2015 11:49:36 -0700 (PDT)
+        Sat, 04 Jul 2015 11:55:38 -0700 (PDT)
+Received: by lagc2 with SMTP id c2so115533476lag.3
+        for <linux-mm@kvack.org>; Sat, 04 Jul 2015 11:55:38 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1435312710-15108-2-git-send-email-gioh.kim@lge.com>
+In-Reply-To: <1435312710-15108-4-git-send-email-gioh.kim@lge.com>
 References: <1435312710-15108-1-git-send-email-gioh.kim@lge.com>
-	<1435312710-15108-2-git-send-email-gioh.kim@lge.com>
-Date: Sat, 4 Jul 2015 21:49:35 +0300
-Message-ID: <CALYGNiM0f7DeHij5=8BXuVzOwUUjdkhSwhRPUdd=sZFZQUAG=g@mail.gmail.com>
-Subject: Re: [RFCv2 1/5] mm/compaction: enable driver page migration
+	<1435312710-15108-4-git-send-email-gioh.kim@lge.com>
+Date: Sat, 4 Jul 2015 21:55:38 +0300
+Message-ID: <CALYGNiPFpgNi=Z+GvhJKpkJPAKQEKyC01Mam-DFPuoghyr5mrA@mail.gmail.com>
+Subject: Re: [RFCv2 3/5] mm/balloon: apply driver page migratable into balloon
 From: Konstantin Khlebnikov <koct9i@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -26,150 +26,235 @@ To: Gioh Kim <gioh.kim@lge.com>
 Cc: Jeff Layton <jlayton@poochiereds.net>, Bruce Fields <bfields@fieldses.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Al Viro <viro@zeniv.linux.org.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Minchan Kim <minchan@kernel.org>, Rafael Aquini <aquini@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, virtualization@lists.linux-foundation.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
 On Fri, Jun 26, 2015 at 12:58 PM, Gioh Kim <gioh.kim@lge.com> wrote:
-> Add framework to register callback functions and
-> check pages migratable.
-> There are some modes of page isolation so that isolate interface
-> has an arguments of page address and isolation mode.
+> Apply driver page migration into balloon driver.
 >
 > Signed-off-by: Gioh Kim <gioh.kim@lge.com>
 > ---
->  include/linux/compaction.h | 11 +++++++++++
->  include/linux/fs.h         |  2 ++
->  include/linux/page-flags.h | 19 +++++++++++++++++++
->  include/linux/pagemap.h    | 27 +++++++++++++++++++++++++++
->  4 files changed, 59 insertions(+)
+>  drivers/virtio/virtio_balloon.c        |  3 +++
+>  fs/proc/page.c                         |  3 +++
+>  include/linux/balloon_compaction.h     | 33 +++++++++++++++++++++------------
+>  include/uapi/linux/kernel-page-flags.h |  2 +-
+>  mm/balloon_compaction.c                | 19 +++++++++++++++++--
+>  5 files changed, 45 insertions(+), 15 deletions(-)
 >
-> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-> index aa8f61c..4e91a07 100644
-> --- a/include/linux/compaction.h
-> +++ b/include/linux/compaction.h
-> @@ -1,6 +1,9 @@
->  #ifndef _LINUX_COMPACTION_H
->  #define _LINUX_COMPACTION_H
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> index 82e80e0..c49b553 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -505,6 +505,9 @@ static int virtballoon_probe(struct virtio_device *vdev)
+>         balloon_devinfo_init(&vb->vb_dev_info);
+>  #ifdef CONFIG_BALLOON_COMPACTION
+>         vb->vb_dev_info.migratepage = virtballoon_migratepage;
+> +       vb->vb_dev_info.inode = anon_inode_new();
+> +       vb->vb_dev_info.inode->i_mapping->a_ops = &balloon_aops;
+> +       mapping_set_migratable(vb->vb_dev_info.inode->i_mapping);
+>  #endif
 >
-> +#include <linux/pagemap.h>
-> +#include <linux/mm.h>
+>         err = init_vqs(vb);
+> diff --git a/fs/proc/page.c b/fs/proc/page.c
+> index 7eee2d8..2dc3673 100644
+> --- a/fs/proc/page.c
+> +++ b/fs/proc/page.c
+> @@ -146,6 +146,9 @@ u64 stable_page_flags(struct page *page)
+>         if (PageBalloon(page))
+>                 u |= 1 << KPF_BALLOON;
+>
+> +       if (PageMigratable(page))
+> +               u |= 1 << KPF_MIGRATABLE;
 > +
->  /* Return values for compact_zone() and try_to_compact_pages() */
->  /* compaction didn't start as it was deferred due to past failures */
->  #define COMPACT_DEFERRED       0
-> @@ -51,6 +54,10 @@ extern void compaction_defer_reset(struct zone *zone, int order,
->                                 bool alloc_success);
->  extern bool compaction_restarting(struct zone *zone, int order);
+>         u |= kpf_copy_bit(k, KPF_LOCKED,        PG_locked);
 >
-> +static inline bool driver_page_migratable(struct page *page)
-> +{
-> +       return PageMigratable(page) && mapping_migratable(page->mapping);
-> +}
->  #else
->  static inline unsigned long try_to_compact_pages(gfp_t gfp_mask,
->                         unsigned int order, int alloc_flags,
-> @@ -83,6 +90,10 @@ static inline bool compaction_deferred(struct zone *zone, int order)
->         return true;
->  }
+>         u |= kpf_copy_bit(k, KPF_SLAB,          PG_slab);
+> diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+> index 9b0a15d..e8a3670 100644
+> --- a/include/linux/balloon_compaction.h
+> +++ b/include/linux/balloon_compaction.h
+> @@ -48,6 +48,7 @@
+>  #include <linux/migrate.h>
+>  #include <linux/gfp.h>
+>  #include <linux/err.h>
+> +#include <linux/fs.h>
 >
-> +static inline bool driver_page_migratable(struct page *page)
-> +{
-> +       return false
-> +}
->  #endif /* CONFIG_COMPACTION */
->
->  #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index a0653e5..2cc4b24 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -396,6 +396,8 @@ struct address_space_operations {
->          */
->         int (*migratepage) (struct address_space *,
->                         struct page *, struct page *, enum migrate_mode);
-> +       bool (*isolatepage) (struct page *, isolate_mode_t);
-> +       void (*putbackpage) (struct page *);
->         int (*launder_page) (struct page *);
->         int (*is_partially_uptodate) (struct page *, unsigned long,
->                                         unsigned long);
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 91b7f9b..c8a66de 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -649,6 +649,25 @@ static inline void __ClearPageBalloon(struct page *page)
->         atomic_set(&page->_mapcount, -1);
->  }
->
-> +#define PAGE_MIGRATABLE_MAPCOUNT_VALUE (-255)
-> +
-> +static inline int PageMigratable(struct page *page)
-> +{
-> +       return atomic_read(&page->_mapcount) == PAGE_MIGRATABLE_MAPCOUNT_VALUE;
-> +}
-
-I don't like the name. It's boring and overused.
-Let's call it "mobile" PageMobile() That will be fun.
-
-> +
-> +static inline void __SetPageMigratable(struct page *page)
-> +{
-> +       VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
-> +       atomic_set(&page->_mapcount, PAGE_MIGRATABLE_MAPCOUNT_VALUE);
-> +}
-> +
-> +static inline void __ClearPageMigratable(struct page *page)
-> +{
-> +       VM_BUG_ON_PAGE(!PageMigratable(page), page);
-> +       atomic_set(&page->_mapcount, -1);
-> +}
-> +
 >  /*
->   * If network-based swap is enabled, sl*b must keep track of whether pages
->   * were allocated from pfmemalloc reserves.
-> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-> index 3e95fb6..a306798 100644
-> --- a/include/linux/pagemap.h
-> +++ b/include/linux/pagemap.h
-> @@ -25,8 +25,35 @@ enum mapping_flags {
->         AS_MM_ALL_LOCKS = __GFP_BITS_SHIFT + 2, /* under mm_take_all_locks() */
->         AS_UNEVICTABLE  = __GFP_BITS_SHIFT + 3, /* e.g., ramdisk, SHM_LOCK */
->         AS_EXITING      = __GFP_BITS_SHIFT + 4, /* final truncate in progress */
-> +       AS_MIGRATABLE   = __GFP_BITS_SHIFT + 5,
-
-I think this is redudant. Mark at page should be enough.
-That inode should just provide way for calling migration methods, that's all.
-
+>   * Balloon device information descriptor.
+> @@ -62,6 +63,7 @@ struct balloon_dev_info {
+>         struct list_head pages;         /* Pages enqueued & handled to Host */
+>         int (*migratepage)(struct balloon_dev_info *, struct page *newpage,
+>                         struct page *page, enum migrate_mode mode);
+> +       struct inode *inode;
 >  };
 >
-> +static inline void mapping_set_migratable(struct address_space *mapping)
-> +{
-> +       set_bit(AS_MIGRATABLE, &mapping->flags);
-> +}
-> +
-> +static inline void mapping_clear_migratable(struct address_space *mapping)
-> +{
-> +       clear_bit(AS_MIGRATABLE, &mapping->flags);
-> +}
-> +
-> +static inline int __mapping_ops(struct address_space *mapping)
-> +{
-> +       /* migrating page should define all following methods */
-> +       return mapping->a_ops &&
-> +               mapping->a_ops->migratepage &&
-> +               mapping->a_ops->isolatepage &&
-> +               mapping->a_ops->putbackpage;
-> +}
-
-This is sanity check or debug? You already have mark right at page.
-You could check them with VM_BUG_ON in some place.
-
-> +
-> +static inline int mapping_migratable(struct address_space *mapping)
-> +{
-> +       if (mapping && __mapping_ops(mapping))
-> +               return test_bit(AS_MIGRATABLE, &mapping->flags);
-> +       return !!mapping;
-> +}
-> +
->  static inline void mapping_set_error(struct address_space *mapping, int error)
+>  extern struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info);
+> @@ -73,24 +75,28 @@ static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
+>         spin_lock_init(&balloon->pages_lock);
+>         INIT_LIST_HEAD(&balloon->pages);
+>         balloon->migratepage = NULL;
+> +       balloon->inode = NULL;
+>  }
+>
+>  #ifdef CONFIG_BALLOON_COMPACTION
+> -extern bool balloon_page_isolate(struct page *page);
+> +extern const struct address_space_operations balloon_aops;
+> +extern bool balloon_page_isolate(struct page *page,
+> +                                isolate_mode_t mode);
+>  extern void balloon_page_putback(struct page *page);
+> -extern int balloon_page_migrate(struct page *newpage,
+> +extern int balloon_page_migrate(struct address_space *mapping,
+> +                               struct page *newpage,
+>                                 struct page *page, enum migrate_mode mode);
+>
+>  /*
+> - * __is_movable_balloon_page - helper to perform @page PageBalloon tests
+> + * __is_movable_balloon_page - helper to perform @page PageMigratable tests
+>   */
+>  static inline bool __is_movable_balloon_page(struct page *page)
 >  {
->         if (unlikely(error)) {
+> -       return PageBalloon(page);
+> +       return PageMigratable(page);
+>  }
+>
+>  /*
+> - * balloon_page_movable - test PageBalloon to identify balloon pages
+> + * balloon_page_movable - test PageMigratable to identify balloon pages
+>   *                       and PagePrivate to check that the page is not
+>   *                       isolated and can be moved by compaction/migration.
+>   *
+> @@ -99,7 +105,7 @@ static inline bool __is_movable_balloon_page(struct page *page)
+>   */
+>  static inline bool balloon_page_movable(struct page *page)
+>  {
+> -       return PageBalloon(page) && PagePrivate(page);
+> +       return PageMigratable(page) && PagePrivate(page);
+>  }
+>
+>  /*
+> @@ -108,7 +114,7 @@ static inline bool balloon_page_movable(struct page *page)
+>   */
+>  static inline bool isolated_balloon_page(struct page *page)
+>  {
+> -       return PageBalloon(page);
+> +       return PageMigratable(page);
+>  }
+>
+>  /*
+> @@ -123,7 +129,8 @@ static inline bool isolated_balloon_page(struct page *page)
+>  static inline void balloon_page_insert(struct balloon_dev_info *balloon,
+>                                        struct page *page)
+>  {
+> -       __SetPageBalloon(page);
+> +       page->mapping = balloon->inode->i_mapping;
+> +       __SetPageMigratable(page);
+>         SetPagePrivate(page);
+>         set_page_private(page, (unsigned long)balloon);
+>         list_add(&page->lru, &balloon->pages);
+> @@ -139,7 +146,8 @@ static inline void balloon_page_insert(struct balloon_dev_info *balloon,
+>   */
+>  static inline void balloon_page_delete(struct page *page)
+>  {
+> -       __ClearPageBalloon(page);
+> +       page->mapping = NULL;
+> +       __ClearPageMigratable(page);
+
+Please leave balloon pages marked as balloon.
+Just check them in migration code like:
+if (PageBalloon(page) || PageMobile(page)) ...
+
+
+>         set_page_private(page, 0);
+>         if (PagePrivate(page)) {
+>                 ClearPagePrivate(page);
+> @@ -166,13 +174,13 @@ static inline gfp_t balloon_mapping_gfp_mask(void)
+>  static inline void balloon_page_insert(struct balloon_dev_info *balloon,
+>                                        struct page *page)
+>  {
+> -       __SetPageBalloon(page);
+> +       __SetPageMigratable(page);
+>         list_add(&page->lru, &balloon->pages);
+>  }
+>
+>  static inline void balloon_page_delete(struct page *page)
+>  {
+> -       __ClearPageBalloon(page);
+> +       __ClearPageMigratable(page);
+>         list_del(&page->lru);
+>  }
+>
+> @@ -191,7 +199,8 @@ static inline bool isolated_balloon_page(struct page *page)
+>         return false;
+>  }
+>
+> -static inline bool balloon_page_isolate(struct page *page)
+> +static inline bool balloon_page_isolate(struct page *page,
+> +                                       isolate_mode_t mode)
+>  {
+>         return false;
+>  }
+> diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
+> index a6c4962..65db3a6 100644
+> --- a/include/uapi/linux/kernel-page-flags.h
+> +++ b/include/uapi/linux/kernel-page-flags.h
+> @@ -33,6 +33,6 @@
+>  #define KPF_THP                        22
+>  #define KPF_BALLOON            23
+>  #define KPF_ZERO_PAGE          24
+> -
+> +#define KPF_MIGRATABLE         25
+>
+>  #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
+> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+> index fcad832..df72846 100644
+> --- a/mm/balloon_compaction.c
+> +++ b/mm/balloon_compaction.c
+> @@ -131,7 +131,7 @@ static inline void __putback_balloon_page(struct page *page)
+>  }
+>
+>  /* __isolate_lru_page() counterpart for a ballooned page */
+> -bool balloon_page_isolate(struct page *page)
+> +bool balloon_page_isolate(struct page *page, isolate_mode_t mode)
+>  {
+>         /*
+>          * Avoid burning cycles with pages that are yet under __free_pages(),
+> @@ -175,6 +175,9 @@ bool balloon_page_isolate(struct page *page)
+>  /* putback_lru_page() counterpart for a ballooned page */
+>  void balloon_page_putback(struct page *page)
+>  {
+> +       if (!isolated_balloon_page(page))
+> +               return;
+> +
+>         /*
+>          * 'lock_page()' stabilizes the page and prevents races against
+>          * concurrent isolation threads attempting to re-isolate it.
+> @@ -193,12 +196,16 @@ void balloon_page_putback(struct page *page)
+>  }
+>
+>  /* move_to_new_page() counterpart for a ballooned page */
+> -int balloon_page_migrate(struct page *newpage,
+> +int balloon_page_migrate(struct address_space *mapping,
+> +                        struct page *newpage,
+>                          struct page *page, enum migrate_mode mode)
+>  {
+>         struct balloon_dev_info *balloon = balloon_page_device(page);
+>         int rc = -EAGAIN;
+>
+> +       if (!isolated_balloon_page(page))
+> +               return rc;
+> +
+>         /*
+>          * Block others from accessing the 'newpage' when we get around to
+>          * establishing additional references. We should be the only one
+> @@ -218,4 +225,12 @@ int balloon_page_migrate(struct page *newpage,
+>         unlock_page(newpage);
+>         return rc;
+>  }
+> +
+> +/* define the balloon_mapping->a_ops callback to allow balloon page migration */
+> +const struct address_space_operations balloon_aops = {
+> +       .migratepage = balloon_page_migrate,
+> +       .isolatepage = balloon_page_isolate,
+> +       .putbackpage = balloon_page_putback,
+> +};
+> +EXPORT_SYMBOL_GPL(balloon_aops);
+>  #endif /* CONFIG_BALLOON_COMPACTION */
 > --
 > 1.9.1
 >
