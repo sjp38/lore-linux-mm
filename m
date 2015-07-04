@@ -1,246 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 3210E280281
-	for <linux-mm@kvack.org>; Fri,  3 Jul 2015 18:12:27 -0400 (EDT)
-Received: by ykfy125 with SMTP id y125so105474693ykf.1
-        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 15:12:27 -0700 (PDT)
-Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
-        by mx.google.com with ESMTPS id 187si7143100ykr.93.2015.07.03.15.12.26
+Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 84BCB280281
+	for <linux-mm@kvack.org>; Sat,  4 Jul 2015 02:05:10 -0400 (EDT)
+Received: by qkei195 with SMTP id i195so85117319qke.3
+        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 23:05:10 -0700 (PDT)
+Received: from nm28.bullet.mail.bf1.yahoo.com (nm28.bullet.mail.bf1.yahoo.com. [98.139.212.187])
+        by mx.google.com with ESMTPS id n35si13127014qge.91.2015.07.03.23.05.09
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Jul 2015 15:12:26 -0700 (PDT)
-Received: by ykfy125 with SMTP id y125so105474410ykf.1
-        for <linux-mm@kvack.org>; Fri, 03 Jul 2015 15:12:25 -0700 (PDT)
-Date: Fri, 3 Jul 2015 18:12:23 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH block/for-4.3] writeback: remove
- wb_writeback_work->single_wait/done
-Message-ID: <20150703221223.GH5273@mtj.duckdns.org>
-References: <1432329245-5844-1-git-send-email-tj@kernel.org>
- <1432329245-5844-46-git-send-email-tj@kernel.org>
- <20150701190735.GI7252@quack.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 03 Jul 2015 23:05:09 -0700 (PDT)
+Date: Sat, 4 Jul 2015 06:04:37 +0000 (UTC)
+From: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Message-ID: <1643824843.2299688.1435989877460.JavaMail.yahoo@mail.yahoo.com>
+In-Reply-To: <20150703183809.GA6781@cmpxchg.org>
+References: <20150703183809.GA6781@cmpxchg.org>
+Subject: Re: [PATCH 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory
+ feature
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150701190735.GI7252@quack.suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
+To: Johannes Weiner <hannes@cmpxchg.org>, Pintu Kumar <pintu.k@samsung.com>
+Cc: "corbet@lwn.net" <corbet@lwn.net>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "gorcunov@openvz.org" <gorcunov@openvz.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "emunson@akamai.com" <emunson@akamai.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "standby24x7@gmail.com" <standby24x7@gmail.com>, "vdavydov@parallels.com" <vdavydov@parallels.com>, "hughd@google.com" <hughd@google.com>, "minchan@kernel.org" <minchan@kernel.org>, "tj@kernel.org" <tj@kernel.org>, "rientjes@google.com" <rientjes@google.com>, "xypron.glpk@gmx.de" <xypron.glpk@gmx.de>, "dzickus@redhat.com" <dzickus@redhat.com>, "prarit@redhat.com" <prarit@redhat.com>, "ebiederm@xmission.com" <ebiederm@xmission.com>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "uobergfe@redhat.com" <uobergfe@redhat.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "ddstreet@ieee.org" <ddstreet@ieee.org>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "koct9i@gmail.com" <koct9i@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "cj@linux.com" <cj@linux.com>, "opensource.ganesh@gmail.com" <opensource.ganesh@gmail.com>, "vinmenon@codeaurora.org" <vinmenon@codeaurora.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, "cpgs@samsung.com" <cpgs@samsung.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>, "rohit.kr@samsung.com" <rohit.kr@samsung.com>, "iqbal.ams@samsung.com" <iqbal.ams@samsung.com>
 
-Hello, Jan.
+Hi,
 
-So, something like the following.  It depends on other changes so
-won't apply as-is.  I'll repost it as part of a patchset once -rc1
-drops.
+Thanks for reviewing the patch.
+Please find my comments inline.
 
-Thanks!
+>________________________________
+> From: Johannes Weiner <hannes@cmpxchg.org>
+>To: Pintu Kumar <pintu.k@samsung.com> 
+>Cc: corbet@lwn.net; akpm@linux-foundation.org; vbabka@suse.cz; gorcunov@openvz.org; mhocko@suse.cz; emunson@akamai.com; kirill.shutemov@linux.intel.com; standby24x7@gmail.com; vdavydov@parallels.com; hughd@google.com; minchan@kernel.org; tj@kernel.org; rientjes@google.com; xypron.glpk@gmx.de; dzickus@redhat.com; prarit@redhat.com; ebiederm@xmission.com; rostedt@goodmis.org; uobergfe@redhat.com; paulmck@linux.vnet.ibm.com; iamjoonsoo.kim@lge.com; ddstreet@ieee.org; sasha.levin@oracle.com; koct9i@gmail.com; mgorman@suse.de; cj@linux.com; opensource.ganesh@gmail.com; vinmenon@codeaurora.org; linux-doc@vger.kernel.org; linux-kernel@vger.kernel.org; linux-mm@kvack.org; linux-pm@vger.kernel.org; cpgs@samsung.com; pintu_agarwal@yahoo.com; vishnu.ps@samsung.com; rohit.kr@samsung.com; iqbal.ams@samsung.com 
+>Sent: Saturday, 4 July 2015 12:08 AM
+>Subject: Re: [PATCH 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory feature
+> 
+>
+>On Fri, Jul 03, 2015 at 06:50:07PM +0530, Pintu Kumar wrote:
+>> This patch provides 2 things:
+>> 1. Add new control called shrink_memory in /proc/sys/vm/.
+>> This control can be used to aggressively reclaim memory system-wide
+>> in one shot from the user space. A value of 1 will instruct the
+>> kernel to reclaim as much as totalram_pages in the system.
+>> Example: echo 1 > /proc/sys/vm/shrink_memory
+>> 
+>> 2. Enable shrink_all_memory API in kernel with new CONFIG_SHRINK_MEMORY.
+>> Currently, shrink_all_memory function is used only during hibernation.
+>> With the new config we can make use of this API for non-hibernation case
+>> also without disturbing the hibernation case.
+>> 
+>> The detailed paper was presented in Embedded Linux Conference, Mar-2015
+>> http://events.linuxfoundation.org/sites/events/files/slides/
+>> %5BELC-2015%5D-System-wide-Memory-Defragmenter.pdf
+>> 
+>> Scenarios were this can be used and helpful are:
+>> 1) Can be invoked just after system boot-up is finished.
+>
+>The allocator automatically reclaims when memory is needed, that's why
+>the metrics quoted in those slides, free pages and fragmentation level,
+>don't really mean much.  We don't care how much memory is free or how
+>fragmented it is UNTIL somebody actually asks for it.  The only metric
+>that counts is the allocation success ratio (and possibly the latency).
 
------- 8< ------
-wb_writeback_work->single_wait/done are used for the wait mechanism
-for synchronous wb_work (wb_writeback_work) items which are issued
-when bdi_split_work_to_wbs() fails to allocate memory for asynchronous
-wb_work items; however, there's no reason to use a separate wait
-mechanism for this.  bdi_split_work_to_wbs() can simply use on-stack
-fallback wb_work item and separate wb_completion to wait for it.
+>
 
-This patch removes wb_work->single_wait/done and the related code and
-make bdi_split_work_to_wbs() use on-stack fallback wb_work and
-wb_completion instead.
+Yes, the allocator automatically reclaims memory but in the slowpath. Also it reclaims only to satisfy the current allocation needs. That means for all future higher-order allocations the system will be entering slowpath again and again. Over a point of time (with multiple application launch), the higher-orders (2^4 and above) will be gone. The system entering slowpath means that the first allocation attempt has already failed. Then in slowpath the sequence is: kswapd -> compaction -> then direct reclaim. Thus entering slowpath again and again will be a costly operation. 
 
-Signed-off-by: Tejun Heo <tj@kernel.org>
-Suggested-by: Jan Kara <jack@suse.cz>
----
- fs/fs-writeback.c |  116 +++++++++++++-----------------------------------------
- 1 file changed, 30 insertions(+), 86 deletions(-)
+Thus keeping free memory ready in higher-order pages will be helpful for succeeding first allocation attempt.
 
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -53,8 +53,6 @@ struct wb_writeback_work {
- 	unsigned int for_background:1;
- 	unsigned int for_sync:1;	/* sync(2) WB_SYNC_ALL writeback */
- 	unsigned int auto_free:1;	/* free on completion */
--	unsigned int single_wait:1;
--	unsigned int single_done:1;
- 	enum wb_reason reason;		/* why was writeback initiated? */
- 
- 	struct list_head list;		/* pending work list */
-@@ -181,11 +179,8 @@ static void wb_queue_work(struct bdi_wri
- 	trace_writeback_queue(wb->bdi, work);
- 
- 	spin_lock_bh(&wb->work_lock);
--	if (!test_bit(WB_registered, &wb->state)) {
--		if (work->single_wait)
--			work->single_done = 1;
-+	if (!test_bit(WB_registered, &wb->state))
- 		goto out_unlock;
--	}
- 	if (work->done)
- 		atomic_inc(&work->done->cnt);
- 	list_add_tail(&work->list, &wb->work_list);
-@@ -737,32 +732,6 @@ int inode_congested(struct inode *inode,
- EXPORT_SYMBOL_GPL(inode_congested);
- 
- /**
-- * wb_wait_for_single_work - wait for completion of a single bdi_writeback_work
-- * @bdi: bdi the work item was issued to
-- * @work: work item to wait for
-- *
-- * Wait for the completion of @work which was issued to one of @bdi's
-- * bdi_writeback's.  The caller must have set @work->single_wait before
-- * issuing it.  This wait operates independently fo
-- * wb_wait_for_completion() and also disables automatic freeing of @work.
-- */
--static void wb_wait_for_single_work(struct backing_dev_info *bdi,
--				    struct wb_writeback_work *work)
--{
--	if (WARN_ON_ONCE(!work->single_wait))
--		return;
--
--	wait_event(bdi->wb_waitq, work->single_done);
--
--	/*
--	 * Paired with smp_wmb() in wb_do_writeback() and ensures that all
--	 * modifications to @work prior to assertion of ->single_done is
--	 * visible to the caller once this function returns.
--	 */
--	smp_rmb();
--}
--
--/**
-  * wb_split_bdi_pages - split nr_pages to write according to bandwidth
-  * @wb: target bdi_writeback to split @nr_pages to
-  * @nr_pages: number of pages to write for the whole bdi
-@@ -791,38 +760,6 @@ static long wb_split_bdi_pages(struct bd
- }
- 
- /**
-- * wb_clone_and_queue_work - clone a wb_writeback_work and issue it to a wb
-- * @wb: target bdi_writeback
-- * @base_work: source wb_writeback_work
-- *
-- * Try to make a clone of @base_work and issue it to @wb.  If cloning
-- * succeeds, %true is returned; otherwise, @base_work is issued directly
-- * and %false is returned.  In the latter case, the caller is required to
-- * wait for @base_work's completion using wb_wait_for_single_work().
-- *
-- * A clone is auto-freed on completion.  @base_work never is.
-- */
--static bool wb_clone_and_queue_work(struct bdi_writeback *wb,
--				    struct wb_writeback_work *base_work)
--{
--	struct wb_writeback_work *work;
--
--	work = kmalloc(sizeof(*work), GFP_ATOMIC);
--	if (work) {
--		*work = *base_work;
--		work->auto_free = 1;
--		work->single_wait = 0;
--	} else {
--		work = base_work;
--		work->auto_free = 0;
--		work->single_wait = 1;
--	}
--	work->single_done = 0;
--	wb_queue_work(wb, work);
--	return work != base_work;
--}
--
--/**
-  * bdi_split_work_to_wbs - split a wb_writeback_work to all wb's of a bdi
-  * @bdi: target backing_dev_info
-  * @base_work: wb_writeback_work to issue
-@@ -837,7 +774,6 @@ static void bdi_split_work_to_wbs(struct
- 				  struct wb_writeback_work *base_work,
- 				  bool skip_if_busy)
- {
--	long nr_pages = base_work->nr_pages;
- 	int next_memcg_id = 0;
- 	struct bdi_writeback *wb;
- 	struct wb_iter iter;
-@@ -849,17 +785,39 @@ static void bdi_split_work_to_wbs(struct
- restart:
- 	rcu_read_lock();
- 	bdi_for_each_wb(wb, bdi, &iter, next_memcg_id) {
-+		DEFINE_WB_COMPLETION_ONSTACK(fallback_work_done);
-+		struct wb_writeback_work fallback_work;
-+		struct wb_writeback_work *work;
-+		long nr_pages;
-+
- 		if (!wb_has_dirty_io(wb) ||
- 		    (skip_if_busy && writeback_in_progress(wb)))
- 			continue;
- 
--		base_work->nr_pages = wb_split_bdi_pages(wb, nr_pages);
--		if (!wb_clone_and_queue_work(wb, base_work)) {
--			next_memcg_id = wb->memcg_css->id + 1;
--			rcu_read_unlock();
--			wb_wait_for_single_work(bdi, base_work);
--			goto restart;
-+		nr_pages = wb_split_bdi_pages(wb, base_work->nr_pages);
-+
-+		work = kmalloc(sizeof(*work), GFP_ATOMIC);
-+		if (work) {
-+			*work = *base_work;
-+			work->nr_pages = nr_pages;
-+			work->auto_free = 1;
-+			wb_queue_work(wb, work);
-+			continue;
- 		}
-+
-+		/* alloc failed, execute synchronously using on-stack fallback */
-+		work = &fallback_work;
-+		*work = *base_work;
-+		work->nr_pages = nr_pages;
-+		work->auto_free = 0;
-+		work->done = &fallback_work_done;
-+
-+		wb_queue_work(wb, work);
-+
-+		next_memcg_id = wb->memcg_css->id + 1;
-+		rcu_read_unlock();
-+		wb_wait_for_completion(bdi, &fallback_work_done);
-+		goto restart;
- 	}
- 	rcu_read_unlock();
- }
-@@ -901,8 +859,6 @@ static void bdi_split_work_to_wbs(struct
- 	if (bdi_has_dirty_io(bdi) &&
- 	    (!skip_if_busy || !writeback_in_progress(&bdi->wb))) {
- 		base_work->auto_free = 0;
--		base_work->single_wait = 0;
--		base_work->single_done = 0;
- 		wb_queue_work(&bdi->wb, base_work);
- 	}
- }
-@@ -1793,26 +1749,14 @@ static long wb_do_writeback(struct bdi_w
- 	set_bit(WB_writeback_running, &wb->state);
- 	while ((work = get_next_work_item(wb)) != NULL) {
- 		struct wb_completion *done = work->done;
--		bool need_wake_up = false;
- 
- 		trace_writeback_exec(wb->bdi, work);
- 
- 		wrote += wb_writeback(wb, work);
- 
--		if (work->single_wait) {
--			WARN_ON_ONCE(work->auto_free);
--			/* paired w/ rmb in wb_wait_for_single_work() */
--			smp_wmb();
--			work->single_done = 1;
--			need_wake_up = true;
--		} else if (work->auto_free) {
-+		if (work->auto_free)
- 			kfree(work);
--		}
--
- 		if (done && atomic_dec_and_test(&done->cnt))
--			need_wake_up = true;
--
--		if (need_wake_up)
- 			wake_up_all(&wb->bdi->wb_waitq);
- 	}
- 
+This is important at least in the embedded world with IOMMU (order 8,4,0) allocation.
+For example: in the Android ION system-heap driver.
+I will cover this example in the next patch set.
+
+For now, it is just about implementing a command, in user space.
+# echo 1 > /proc/sys/vm/shrink_memory
+
+If somebody interested they can use it by enabling CONFIG_SHRINK_MEMORY.
+
+
+The scenario that is discussed here is about:
+Invoking shrink_memory from user space, as soon as the system boot is finished.
+Because as per my observation, the buffer+caches that is accumulated during boot-up is not very helpful for the system for later application launch.
+Thus reclaiming all memory in shot after the boot-up will help grab higher-order pages and freeing lots of memory. Also the reclaimed memory stays in as actual free memory. The cached that gets accumulated after the application launch will be having more hits.
+It is like a little advanced version of drop_caches.
+
+>> 2) Can be invoked just before entering entire system suspend.
+>
+>Why is that?  Suspend already allocates as much as it needs to create
+
+>the system image.
+
+Sorry, but I think you got it wrong here. We are not talking about snapshot image creation part that comes under hibernation.
+We are talking about the mobile world, where the system gets suspended when it is kept idle for longer time. The hibernation part does not comes here.
+The idea is that the shrink_memory can be best utilized when the system is not doing any useful stuffs and going from idle to suspend. In this scenario, we can check the state of free memory and perform the system-wide reclaim if necessary. Thus when the system resume again, it will have enough memory as free.
+Again, this is mainly for embedded world where hibernation is not enabled.
+For normal world, it already does it during hibernation snapshot image creation.
+
+Anyways, its an idea that people can utilize it if required and not always enabled.
+
+>
+>> 3) Can be invoked from kernel when order-4 pages starts failing.
+>
+>We have compaction for that, and compaction invokes page reclaim
+
+>automatically to satisfy its need for free pages.
+
+It is not always true. Compaction may not be always successful. Again it is related to slowpath. When order-4 starts failing very often that means all higher-orders becomes 0. Thus system will be entering slowpath again and again, doing swap, compaction, reclaim most of the time.
+And even for compaction, there is a knob in user space to call compaction from user space:
+#echo 1 > /proc/sys/vm/compact_memory
+
+
+Similarly, we can have an interface for direct reclaim from user space.
+>
+>> 4) Can be helpful to completely avoid or delay the kerenl OOM condition.
+>
+>That's not how OOM works.  An OOM is triggered when there is demand for
+>memory but no more pages to reclaim, telling the kernel to look harder
+>will not change that.
+
+>
+Yes, I know this. I am not talking about calling shrink_memory after OOM. 
+
+Rather much before OOM when the first attempt of higher-order starts failing.
+This will delay the OOM to a much later stage.
+
+Already explained above.
+>
+>> 5) Can be developed as a system-tool to quickly defragment entire system
+>>    from user space, without the need to kill any application.
+>
+>Again, the kernel automatically reclaims and compacts memory on demand.
+>If the existing mechanisms don't do this properly, and you have actual
+>problems with them, they should be reported and fixed, not bypassed.
+>But the metrics you seem to base this change on are not representative
+
+>of something that should matter in practice.
+
+It is not always guaranteed that compaction/reclaim _did_some_progress_ always yield some results on the fly. It takes sometime to get sync with the free memory.
+Thus keeping the free list ready before hand will be much more helpful.
+
+Anyways, the use case here is to develop a system utility which can perform compaction/reclaim/compaction aggressively.
+Its an additional idea that somebody interested can develop.
+
+>
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
