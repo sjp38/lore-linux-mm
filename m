@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id DBDEF280281
-	for <linux-mm@kvack.org>; Sat,  4 Jul 2015 14:13:05 -0400 (EDT)
-Received: by lagx9 with SMTP id x9so114934498lag.1
-        for <linux-mm@kvack.org>; Sat, 04 Jul 2015 11:13:05 -0700 (PDT)
-Received: from mail-la0-x236.google.com (mail-la0-x236.google.com. [2a00:1450:4010:c03::236])
-        by mx.google.com with ESMTPS id lc7si10660522lac.115.2015.07.04.11.13.03
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id BFA1E280281
+	for <linux-mm@kvack.org>; Sat,  4 Jul 2015 14:49:38 -0400 (EDT)
+Received: by lagx9 with SMTP id x9so115392881lag.1
+        for <linux-mm@kvack.org>; Sat, 04 Jul 2015 11:49:38 -0700 (PDT)
+Received: from mail-la0-x22c.google.com (mail-la0-x22c.google.com. [2a00:1450:4010:c03::22c])
+        by mx.google.com with ESMTPS id er7si10717015lac.153.2015.07.04.11.49.36
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 04 Jul 2015 11:13:04 -0700 (PDT)
-Received: by lagc2 with SMTP id c2so115003230lag.3
-        for <linux-mm@kvack.org>; Sat, 04 Jul 2015 11:13:03 -0700 (PDT)
+        Sat, 04 Jul 2015 11:49:36 -0700 (PDT)
+Received: by laar3 with SMTP id r3so115555590laa.0
+        for <linux-mm@kvack.org>; Sat, 04 Jul 2015 11:49:36 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1435312710-15108-5-git-send-email-gioh.kim@lge.com>
+In-Reply-To: <1435312710-15108-2-git-send-email-gioh.kim@lge.com>
 References: <1435312710-15108-1-git-send-email-gioh.kim@lge.com>
-	<1435312710-15108-5-git-send-email-gioh.kim@lge.com>
-Date: Sat, 4 Jul 2015 21:13:03 +0300
-Message-ID: <CALYGNiPSXP5f9hnYjmHJrg7GQE+fM0RuKQOSu7QpWO5EmbiGoQ@mail.gmail.com>
-Subject: Re: [RFCv2 4/5] mm/compaction: compaction calls generic migration
+	<1435312710-15108-2-git-send-email-gioh.kim@lge.com>
+Date: Sat, 4 Jul 2015 21:49:35 +0300
+Message-ID: <CALYGNiM0f7DeHij5=8BXuVzOwUUjdkhSwhRPUdd=sZFZQUAG=g@mail.gmail.com>
+Subject: Re: [RFCv2 1/5] mm/compaction: enable driver page migration
 From: Konstantin Khlebnikov <koct9i@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -26,134 +26,150 @@ To: Gioh Kim <gioh.kim@lge.com>
 Cc: Jeff Layton <jlayton@poochiereds.net>, Bruce Fields <bfields@fieldses.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Al Viro <viro@zeniv.linux.org.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Minchan Kim <minchan@kernel.org>, Rafael Aquini <aquini@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, virtualization@lists.linux-foundation.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
 On Fri, Jun 26, 2015 at 12:58 PM, Gioh Kim <gioh.kim@lge.com> wrote:
-> Compaction calls interfaces of driver page migration
-> instead of calling balloon migration directly.
+> Add framework to register callback functions and
+> check pages migratable.
+> There are some modes of page isolation so that isolate interface
+> has an arguments of page address and isolation mode.
 >
 > Signed-off-by: Gioh Kim <gioh.kim@lge.com>
 > ---
->  drivers/virtio/virtio_balloon.c |  1 +
->  mm/compaction.c                 |  9 +++++----
->  mm/migrate.c                    | 21 ++++++++++++---------
->  3 files changed, 18 insertions(+), 13 deletions(-)
+>  include/linux/compaction.h | 11 +++++++++++
+>  include/linux/fs.h         |  2 ++
+>  include/linux/page-flags.h | 19 +++++++++++++++++++
+>  include/linux/pagemap.h    | 27 +++++++++++++++++++++++++++
+>  4 files changed, 59 insertions(+)
 >
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> index c49b553..5e5cbea 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -30,6 +30,7 @@
->  #include <linux/balloon_compaction.h>
->  #include <linux/oom.h>
->  #include <linux/wait.h>
-> +#include <linux/anon_inodes.h>
+> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+> index aa8f61c..4e91a07 100644
+> --- a/include/linux/compaction.h
+> +++ b/include/linux/compaction.h
+> @@ -1,6 +1,9 @@
+>  #ifndef _LINUX_COMPACTION_H
+>  #define _LINUX_COMPACTION_H
 >
+> +#include <linux/pagemap.h>
+> +#include <linux/mm.h>
+> +
+>  /* Return values for compact_zone() and try_to_compact_pages() */
+>  /* compaction didn't start as it was deferred due to past failures */
+>  #define COMPACT_DEFERRED       0
+> @@ -51,6 +54,10 @@ extern void compaction_defer_reset(struct zone *zone, int order,
+>                                 bool alloc_success);
+>  extern bool compaction_restarting(struct zone *zone, int order);
+>
+> +static inline bool driver_page_migratable(struct page *page)
+> +{
+> +       return PageMigratable(page) && mapping_migratable(page->mapping);
+> +}
+>  #else
+>  static inline unsigned long try_to_compact_pages(gfp_t gfp_mask,
+>                         unsigned int order, int alloc_flags,
+> @@ -83,6 +90,10 @@ static inline bool compaction_deferred(struct zone *zone, int order)
+>         return true;
+>  }
+>
+> +static inline bool driver_page_migratable(struct page *page)
+> +{
+> +       return false
+> +}
+>  #endif /* CONFIG_COMPACTION */
+>
+>  #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index a0653e5..2cc4b24 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -396,6 +396,8 @@ struct address_space_operations {
+>          */
+>         int (*migratepage) (struct address_space *,
+>                         struct page *, struct page *, enum migrate_mode);
+> +       bool (*isolatepage) (struct page *, isolate_mode_t);
+> +       void (*putbackpage) (struct page *);
+>         int (*launder_page) (struct page *);
+>         int (*is_partially_uptodate) (struct page *, unsigned long,
+>                                         unsigned long);
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index 91b7f9b..c8a66de 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -649,6 +649,25 @@ static inline void __ClearPageBalloon(struct page *page)
+>         atomic_set(&page->_mapcount, -1);
+>  }
+>
+> +#define PAGE_MIGRATABLE_MAPCOUNT_VALUE (-255)
+> +
+> +static inline int PageMigratable(struct page *page)
+> +{
+> +       return atomic_read(&page->_mapcount) == PAGE_MIGRATABLE_MAPCOUNT_VALUE;
+> +}
+
+I don't like the name. It's boring and overused.
+Let's call it "mobile" PageMobile() That will be fun.
+
+> +
+> +static inline void __SetPageMigratable(struct page *page)
+> +{
+> +       VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
+> +       atomic_set(&page->_mapcount, PAGE_MIGRATABLE_MAPCOUNT_VALUE);
+> +}
+> +
+> +static inline void __ClearPageMigratable(struct page *page)
+> +{
+> +       VM_BUG_ON_PAGE(!PageMigratable(page), page);
+> +       atomic_set(&page->_mapcount, -1);
+> +}
+> +
 >  /*
->   * Balloon device works in 4K page units.  So each page is pointed to by
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 16e1b57..cc5ec81 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -14,7 +14,7 @@
->  #include <linux/backing-dev.h>
->  #include <linux/sysctl.h>
->  #include <linux/sysfs.h>
-> -#include <linux/balloon_compaction.h>
-> +#include <linux/compaction.h>
->  #include <linux/page-isolation.h>
->  #include <linux/kasan.h>
->  #include "internal.h"
-> @@ -714,12 +714,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
->
->                 /*
->                  * Check may be lockless but that's ok as we recheck later.
-> -                * It's possible to migrate LRU pages and balloon pages
-> +                * It's possible to migrate LRU pages and driver pages
->                  * Skip any other type of page
->                  */
->                 if (!PageLRU(page)) {
-> -                       if (unlikely(balloon_page_movable(page))) {
-> -                               if (balloon_page_isolate(page)) {
-> +                       if (unlikely(driver_page_migratable(page))) {
-> +                               if (page->mapping->a_ops->isolatepage(page,
-> +                                                               isolate_mode)) {
+>   * If network-based swap is enabled, sl*b must keep track of whether pages
+>   * were allocated from pfmemalloc reserves.
+> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+> index 3e95fb6..a306798 100644
+> --- a/include/linux/pagemap.h
+> +++ b/include/linux/pagemap.h
+> @@ -25,8 +25,35 @@ enum mapping_flags {
+>         AS_MM_ALL_LOCKS = __GFP_BITS_SHIFT + 2, /* under mm_take_all_locks() */
+>         AS_UNEVICTABLE  = __GFP_BITS_SHIFT + 3, /* e.g., ramdisk, SHM_LOCK */
+>         AS_EXITING      = __GFP_BITS_SHIFT + 4, /* final truncate in progress */
+> +       AS_MIGRATABLE   = __GFP_BITS_SHIFT + 5,
 
-Dereferencing page->mapping isn't safe here.
-Page could be "truncated" from mapping at any time.
+I think this is redudant. Mark at page should be enough.
+That inode should just provide way for calling migration methods, that's all.
 
-As you can see  balloon_page_isolate() calls get_page_unless_zero,
-trylock_page and only after that checks balloon_page_movable again.
+>  };
+>
+> +static inline void mapping_set_migratable(struct address_space *mapping)
+> +{
+> +       set_bit(AS_MIGRATABLE, &mapping->flags);
+> +}
+> +
+> +static inline void mapping_clear_migratable(struct address_space *mapping)
+> +{
+> +       clear_bit(AS_MIGRATABLE, &mapping->flags);
+> +}
+> +
+> +static inline int __mapping_ops(struct address_space *mapping)
+> +{
+> +       /* migrating page should define all following methods */
+> +       return mapping->a_ops &&
+> +               mapping->a_ops->migratepage &&
+> +               mapping->a_ops->isolatepage &&
+> +               mapping->a_ops->putbackpage;
+> +}
 
-Existing code already does similar unsafe dereference in
-__isolate_lru_page(): page->mapping->a_ops->migratepage
+This is sanity check or debug? You already have mark right at page.
+You could check them with VM_BUG_ON in some place.
 
->                                         /* Successfully isolated */
->                                         goto isolate_success;
->                                 }
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 236ee25..a0bc1e4 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -35,7 +35,7 @@
->  #include <linux/hugetlb.h>
->  #include <linux/hugetlb_cgroup.h>
->  #include <linux/gfp.h>
-> -#include <linux/balloon_compaction.h>
-> +#include <linux/compaction.h>
->  #include <linux/mmu_notifier.h>
->
->  #include <asm/tlbflush.h>
-> @@ -76,7 +76,7 @@ int migrate_prep_local(void)
->   * from where they were once taken off for compaction/migration.
->   *
->   * This function shall be used whenever the isolated pageset has been
-> - * built from lru, balloon, hugetlbfs page. See isolate_migratepages_range()
-> + * built from lru, driver, hugetlbfs page. See isolate_migratepages_range()
->   * and isolate_huge_page().
->   */
->  void putback_movable_pages(struct list_head *l)
-> @@ -92,8 +92,8 @@ void putback_movable_pages(struct list_head *l)
->                 list_del(&page->lru);
->                 dec_zone_page_state(page, NR_ISOLATED_ANON +
->                                 page_is_file_cache(page));
-> -               if (unlikely(isolated_balloon_page(page)))
-> -                       balloon_page_putback(page);
-> +               if (unlikely(driver_page_migratable(page)))
-> +                       page->mapping->a_ops->putbackpage(page);
->                 else
->                         putback_lru_page(page);
->         }
-> @@ -844,15 +844,18 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
->                 }
->         }
->
-> -       if (unlikely(isolated_balloon_page(page))) {
-> +       if (unlikely(driver_page_migratable(page))) {
->                 /*
-> -                * A ballooned page does not need any special attention from
-> +                * A driver page does not need any special attention from
->                  * physical to virtual reverse mapping procedures.
->                  * Skip any attempt to unmap PTEs or to remap swap cache,
->                  * in order to avoid burning cycles at rmap level, and perform
->                  * the page migration right away (proteced by page lock).
->                  */
-> -               rc = balloon_page_migrate(newpage, page, mode);
-> +               rc = page->mapping->a_ops->migratepage(page->mapping,
-> +                                                      newpage,
-> +                                                      page,
-> +                                                      mode);
->                 goto out_unlock;
->         }
->
-> @@ -962,8 +965,8 @@ out:
->         if (rc != MIGRATEPAGE_SUCCESS && put_new_page) {
->                 ClearPageSwapBacked(newpage);
->                 put_new_page(newpage, private);
-> -       } else if (unlikely(__is_movable_balloon_page(newpage))) {
-> -               /* drop our reference, page already in the balloon */
-> +       } else if (unlikely(driver_page_migratable(newpage))) {
-> +               /* drop our reference */
->                 put_page(newpage);
->         } else
->                 putback_lru_page(newpage);
+> +
+> +static inline int mapping_migratable(struct address_space *mapping)
+> +{
+> +       if (mapping && __mapping_ops(mapping))
+> +               return test_bit(AS_MIGRATABLE, &mapping->flags);
+> +       return !!mapping;
+> +}
+> +
+>  static inline void mapping_set_error(struct address_space *mapping, int error)
+>  {
+>         if (unlikely(error)) {
 > --
 > 1.9.1
 >
