@@ -1,70 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 442D8280291
-	for <linux-mm@kvack.org>; Sun,  5 Jul 2015 11:44:49 -0400 (EDT)
-Received: by wiwl6 with SMTP id l6so264536965wiw.0
-        for <linux-mm@kvack.org>; Sun, 05 Jul 2015 08:44:48 -0700 (PDT)
-Received: from johanna2.inet.fi (mta-out1.inet.fi. [62.71.2.229])
-        by mx.google.com with ESMTP id df4si47477753wib.111.2015.07.05.08.44.46
-        for <linux-mm@kvack.org>;
-        Sun, 05 Jul 2015 08:44:47 -0700 (PDT)
-Date: Sun, 5 Jul 2015 18:44:41 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: avoid setting up anonymous pages into file mapping
-Message-ID: <20150705154441.GA4682@node.dhcp.inet.fi>
-References: <1435932447-84377-1-git-send-email-kirill.shutemov@linux.intel.com>
- <55994A08.3030308@plexistor.com>
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id F0A7E280291
+	for <linux-mm@kvack.org>; Sun,  5 Jul 2015 12:38:17 -0400 (EDT)
+Received: by widjy10 with SMTP id jy10so142688380wid.1
+        for <linux-mm@kvack.org>; Sun, 05 Jul 2015 09:38:17 -0700 (PDT)
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com. [209.85.212.173])
+        by mx.google.com with ESMTPS id lg1si25767447wjc.136.2015.07.05.09.38.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 05 Jul 2015 09:38:16 -0700 (PDT)
+Received: by widjy10 with SMTP id jy10so142688123wid.1
+        for <linux-mm@kvack.org>; Sun, 05 Jul 2015 09:38:15 -0700 (PDT)
+Message-ID: <55995D75.4020001@plexistor.com>
+Date: Sun, 05 Jul 2015 19:38:13 +0300
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55994A08.3030308@plexistor.com>
+Subject: Re: [PATCH] mm: avoid setting up anonymous pages into file mapping
+References: <1435932447-84377-1-git-send-email-kirill.shutemov@linux.intel.com> <55994A08.3030308@plexistor.com> <20150705154441.GA4682@node.dhcp.inet.fi>
+In-Reply-To: <20150705154441.GA4682@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Boaz Harrosh <boaz@plexistor.com>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Sun, Jul 05, 2015 at 06:15:20PM +0300, Boaz Harrosh wrote:
-> On 07/03/2015 05:07 PM, Kirill A. Shutemov wrote:
-> > Reading page fault handler code I've noticed that under right
-> > circumstances kernel would map anonymous pages into file mappings:
-> > if the VMA doesn't have vm_ops->fault() and the VMA wasn't fully
-> > populated on ->mmap(), kernel would handle page fault to not populated
-> > pte with do_anonymous_page().
-> > 
-> > There's chance that it was done intentionally, but I don't see good
-> > justification for this. We just hide bugs in broken drivers.
-> > 
+On 07/05/2015 06:44 PM, Kirill A. Shutemov wrote:
+>> Again that could mean a theoretical regression for some in-tree driver,
+>> do you know of any such driver?
 > 
-> Have you done a preliminary audit for these broken drivers? If they actually
-> exist in-tree then this patch is a regression for them.
-
-No, I didn't check drivers.
-
-On other hand, if such driver exists it has security issue. If you're
-able to setup zero page into file mapping, you can make it writable with
-security implications.
-
-> We need to look for vm_ops without an .fault = . Perhaps define a
-> map_annonimous() for those to revert to the old behavior, if any
-> actually exist.
-
-No. Drivers should be fixed properly.
-
-> > Let's change page fault handler to use do_anonymous_page() only on
-> > anonymous VMA (->vm_ops == NULL).
-> > 
-> > For file mappings without vm_ops->fault() page fault on pte_none() entry
-> > would lead to SIGBUS.
-> > 
+> I did very little testing with the patch: boot kvm with Fedora and run
+> trinity there for a while. More testing is required.
 > 
-> Again that could mean a theoretical regression for some in-tree driver,
-> do you know of any such driver?
 
-I did very little testing with the patch: boot kvm with Fedora and run
-trinity there for a while. More testing is required.
+It seems more likely to be a bug in some obscure real HW driver, then
+anything virtualized.
 
--- 
- Kirill A. Shutemov
+Let me run a quick search and see if I can see any obvious candidates
+for this ...
+
+<arch/x86/kernel/vsyscall_64.c>
+static struct vm_operations_struct gate_vma_ops = {
+	.name = gate_vma_name,
+};
+
+Perhaps it was done for this one
+</arch/x86/kernel/vsyscall_64.c>
+
+<arch/x86/mm/mpx.c>
+static struct vm_operations_struct mpx_vma_ops = {
+	.name = mpx_mapping_name,
+};
+
+Or this
+
+</arch/x86/mm/mpx.c>
+
+<more>
+static const struct vm_operations_struct pci_mmap_ops = {
+
+static const struct vm_operations_struct mmap_mem_ops = {
+
+...
+</more>
+
+I was looking in-tree for any vm_operations_struct declaration without a .fault
+member, there are these above and a slue of HW drivers that only have an .open
+and .close so those might populate at open time and never actually ever fault.
+
+Please have a quick look, I did not. I agree about the possible security badness.
+
+Thanks
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
