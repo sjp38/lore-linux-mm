@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com [209.85.220.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 3510B280291
-	for <linux-mm@kvack.org>; Sat,  4 Jul 2015 22:17:30 -0400 (EDT)
-Received: by qkbp125 with SMTP id p125so96079538qkb.2
-        for <linux-mm@kvack.org>; Sat, 04 Jul 2015 19:17:30 -0700 (PDT)
-Received: from nm44-vm9.bullet.mail.bf1.yahoo.com (nm44-vm9.bullet.mail.bf1.yahoo.com. [216.109.115.45])
-        by mx.google.com with ESMTPS id z102si16078825qkg.53.2015.07.04.19.17.26
+Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CA60280291
+	for <linux-mm@kvack.org>; Sun,  5 Jul 2015 04:23:17 -0400 (EDT)
+Received: by qkeo142 with SMTP id o142so99320940qke.1
+        for <linux-mm@kvack.org>; Sun, 05 Jul 2015 01:23:17 -0700 (PDT)
+Received: from nm47-vm8.bullet.mail.bf1.yahoo.com (nm47-vm8.bullet.mail.bf1.yahoo.com. [216.109.115.143])
+        by mx.google.com with ESMTPS id j88si16750113qkh.113.2015.07.05.01.23.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 04 Jul 2015 19:17:27 -0700 (PDT)
-Date: Sun, 5 Jul 2015 02:15:06 +0000 (UTC)
+        Sun, 05 Jul 2015 01:23:16 -0700 (PDT)
+Date: Sun, 5 Jul 2015 08:20:16 +0000 (UTC)
 From: PINTU KUMAR <pintu_agarwal@yahoo.com>
 Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Message-ID: <32721799.2647113.1436062506299.JavaMail.yahoo@mail.yahoo.com>
+Message-ID: <122973238.2709954.1436084416779.JavaMail.yahoo@mail.yahoo.com>
 In-Reply-To: <169308.1436040527@turing-police.cc.vt.edu>
 References: <169308.1436040527@turing-police.cc.vt.edu>
 Subject: Re: [PATCH 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory
@@ -71,6 +71,7 @@ Cc: "corbet@lwn.net" <corbet@lwn.net>, "akpm@linux-foundation.org" <akpm@linux-f
 
 Ok, got it. Thanks for pointing this out.
 I will handle HIBERNATION & SHRINK_MEMORY case and send again.
+Do you have any special suggestions on how this can be handled?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
