@@ -1,77 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CA60280291
-	for <linux-mm@kvack.org>; Sun,  5 Jul 2015 04:23:17 -0400 (EDT)
-Received: by qkeo142 with SMTP id o142so99320940qke.1
-        for <linux-mm@kvack.org>; Sun, 05 Jul 2015 01:23:17 -0700 (PDT)
-Received: from nm47-vm8.bullet.mail.bf1.yahoo.com (nm47-vm8.bullet.mail.bf1.yahoo.com. [216.109.115.143])
-        by mx.google.com with ESMTPS id j88si16750113qkh.113.2015.07.05.01.23.15
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 6719E280291
+	for <linux-mm@kvack.org>; Sun,  5 Jul 2015 11:15:25 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so209809122wig.0
+        for <linux-mm@kvack.org>; Sun, 05 Jul 2015 08:15:24 -0700 (PDT)
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com. [74.125.82.42])
+        by mx.google.com with ESMTPS id bb4si26090826wib.124.2015.07.05.08.15.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 05 Jul 2015 01:23:16 -0700 (PDT)
-Date: Sun, 5 Jul 2015 08:20:16 +0000 (UTC)
-From: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Message-ID: <122973238.2709954.1436084416779.JavaMail.yahoo@mail.yahoo.com>
-In-Reply-To: <169308.1436040527@turing-police.cc.vt.edu>
-References: <169308.1436040527@turing-police.cc.vt.edu>
-Subject: Re: [PATCH 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory
- feature
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 05 Jul 2015 08:15:23 -0700 (PDT)
+Received: by wgjx7 with SMTP id x7so120922232wgj.2
+        for <linux-mm@kvack.org>; Sun, 05 Jul 2015 08:15:22 -0700 (PDT)
+Message-ID: <55994A08.3030308@plexistor.com>
+Date: Sun, 05 Jul 2015 18:15:20 +0300
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] mm: avoid setting up anonymous pages into file mapping
+References: <1435932447-84377-1-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1435932447-84377-1-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Valdis.Kletnieks@vt.edu" <Valdis.Kletnieks@vt.edu>, Pintu Kumar <pintu.k@samsung.com>
-Cc: "corbet@lwn.net" <corbet@lwn.net>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "gorcunov@openvz.org" <gorcunov@openvz.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "emunson@akamai.com" <emunson@akamai.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "standby24x7@gmail.com" <standby24x7@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "vdavydov@parallels.com" <vdavydov@parallels.com>, "hughd@google.com" <hughd@google.com>, "minchan@kernel.org" <minchan@kernel.org>, "tj@kernel.org" <tj@kernel.org>, "rientjes@google.com" <rientjes@google.com>, "xypron.glpk@gmx.de" <xypron.glpk@gmx.de>, "dzickus@redhat.com" <dzickus@redhat.com>, "prarit@redhat.com" <prarit@redhat.com>, "ebiederm@xmission.com" <ebiederm@xmission.com>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "uobergfe@redhat.com" <uobergfe@redhat.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "ddstreet@ieee.org" <ddstreet@ieee.org>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "koct9i@gmail.com" <koct9i@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "cj@linux.com" <cj@linux.com>, "opensource.ganesh@gmail.com" <opensource.ganesh@gmail.com>, "vinmenon@codeaurora.org" <vinmenon@codeaurora.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, "cpgs@samsung.com" <cpgs@samsung.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>, "rohit.kr@samsung.com" <rohit.kr@samsung.com>, "iqbal.ams@samsung.com" <iqbal.ams@samsung.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-
-
-
-
------ Original Message -----
-> From: "Valdis.Kletnieks@vt.edu" <Valdis.Kletnieks@vt.edu>
-> To: Pintu Kumar <pintu.k@samsung.com>
-> Cc: corbet@lwn.net; akpm@linux-foundation.org; vbabka@suse.cz; gorcunov@openvz.org; mhocko@suse.cz; emunson@akamai.com; kirill.shutemov@linux.intel.com; standby24x7@gmail.com; hannes@cmpxchg.org; vdavydov@parallels.com; hughd@google.com; minchan@kernel.org; tj@kernel.org; rientjes@google.com; xypron.glpk@gmx.de; dzickus@redhat.com; prarit@redhat.com; ebiederm@xmission.com; rostedt@goodmis.org; uobergfe@redhat.com; paulmck@linux.vnet.ibm.com; iamjoonsoo.kim@lge.com; ddstreet@ieee.org; sasha.levin@oracle.com; koct9i@gmail.com; mgorman@suse.de; cj@linux.com; opensource.ganesh@gmail.com; vinmenon@codeaurora.org; linux-doc@vger.kernel.org; linux-kernel@vger.kernel.org; linux-mm@kvack.org; linux-pm@vger.kernel.org; cpgs@samsung.com; pintu_agarwal@yahoo.com; vishnu.ps@samsung.com; rohit.kr@samsung.com; iqbal.ams@samsung.com
-> Sent: Sunday, 5 July 2015 1:38 AM
-> Subject: Re: [PATCH 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory feature
+On 07/03/2015 05:07 PM, Kirill A. Shutemov wrote:
+> Reading page fault handler code I've noticed that under right
+> circumstances kernel would map anonymous pages into file mappings:
+> if the VMA doesn't have vm_ops->fault() and the VMA wasn't fully
+> populated on ->mmap(), kernel would handle page fault to not populated
+> pte with do_anonymous_page().
 > 
-> On Fri, 03 Jul 2015 18:50:07 +0530, Pintu Kumar said:
-> 
->>  This patch provides 2 things:
-> 
->>  2. Enable shrink_all_memory API in kernel with new CONFIG_SHRINK_MEMORY.
->>  Currently, shrink_all_memory function is used only during hibernation.
->>  With the new config we can make use of this API for non-hibernation case
->>  also without disturbing the hibernation case.
-> 
->>  --- a/mm/vmscan.c
->>  +++ b/mm/vmscan.c
-> 
->>  @@ -3571,12 +3571,17 @@ unsigned long shrink_all_memory(unsigned long 
-> nr_to_reclaim)
->>       struct reclaim_state reclaim_state;
->>       struct scan_control sc = {
->>           .nr_to_reclaim = nr_to_reclaim,
->>  +#ifdef CONFIG_SHRINK_MEMORY
->>  +        .gfp_mask = (GFP_HIGHUSER_MOVABLE | GFP_RECLAIM_MASK),
->>  +        .hibernation_mode = 0,
->>  +#else
->>           .gfp_mask = GFP_HIGHUSER_MOVABLE,
->>  +        .hibernation_mode = 1,
->>  +#endif
-> 
-> 
-> That looks like a bug just waiting to happen.  What happens if we
-> call an actual hibernation mode in a SHRINK_MEMORY=y kernel, and it finds
-> an extra gfp mask bit set, and hibernation_mode set to an unexpected value?
-
+> There's chance that it was done intentionally, but I don't see good
+> justification for this. We just hide bugs in broken drivers.
 > 
 
+Have you done a preliminary audit for these broken drivers? If they actually
+exist in-tree then this patch is a regression for them.
 
-Ok, got it. Thanks for pointing this out.
-I will handle HIBERNATION & SHRINK_MEMORY case and send again.
-Do you have any special suggestions on how this can be handled?
+We need to look for vm_ops without an .fault = . Perhaps define a
+map_annonimous() for those to revert to the old behavior, if any
+actually exist.
+
+> Let's change page fault handler to use do_anonymous_page() only on
+> anonymous VMA (->vm_ops == NULL).
+> 
+> For file mappings without vm_ops->fault() page fault on pte_none() entry
+> would lead to SIGBUS.
+> 
+
+Again that could mean a theoretical regression for some in-tree driver,
+do you know of any such driver?
+
+Thanks
+Boaz
+
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  mm/memory.c | 15 +++++++++------
+>  1 file changed, 9 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 8a2fc9945b46..f3ee782059e3 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3115,6 +3115,9 @@ static int do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  			- vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+>  
+>  	pte_unmap(page_table);
+> +
+> +	if (unlikely(!vma->vm_ops->fault))
+> +		return VM_FAULT_SIGBUS;
+>  	if (!(flags & FAULT_FLAG_WRITE))
+>  		return do_read_fault(mm, vma, address, pmd, pgoff, flags,
+>  				orig_pte);
+> @@ -3260,13 +3263,13 @@ static int handle_pte_fault(struct mm_struct *mm,
+>  	barrier();
+>  	if (!pte_present(entry)) {
+>  		if (pte_none(entry)) {
+> -			if (vma->vm_ops) {
+> -				if (likely(vma->vm_ops->fault))
+> -					return do_fault(mm, vma, address, pte,
+> -							pmd, flags, entry);
+> +			if (!vma->vm_ops) {
+> +				return do_anonymous_page(mm, vma, address, pte,
+> +						pmd, flags);
+> +			} else {
+> +				return do_fault(mm, vma, address, pte, pmd,
+> +						flags, entry);
+>  			}
+> -			return do_anonymous_page(mm, vma, address,
+> -						 pte, pmd, flags);
+>  		}
+>  		return do_swap_page(mm, vma, address,
+>  					pte, pmd, flags, entry);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
