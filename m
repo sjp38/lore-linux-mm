@@ -1,40 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C283280246
-	for <linux-mm@kvack.org>; Sun,  5 Jul 2015 17:06:04 -0400 (EDT)
-Received: by ykdr198 with SMTP id r198so132759870ykd.3
-        for <linux-mm@kvack.org>; Sun, 05 Jul 2015 14:06:04 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id o189si11183512ywb.71.2015.07.05.14.06.03
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 4719E28029D
+	for <linux-mm@kvack.org>; Sun,  5 Jul 2015 20:17:35 -0400 (EDT)
+Received: by wiwl6 with SMTP id l6so270030988wiw.0
+        for <linux-mm@kvack.org>; Sun, 05 Jul 2015 17:17:34 -0700 (PDT)
+Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com. [2a00:1450:400c:c05::232])
+        by mx.google.com with ESMTPS id tm3si27313325wjc.126.2015.07.05.17.17.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 Jul 2015 14:06:03 -0700 (PDT)
-Date: Sun, 5 Jul 2015 17:06:00 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: [PATCH] ext4: replace open coded nofail allocation
-Message-ID: <20150705210600.GD8628@thunk.org>
-References: <1435053037-1451-1-git-send-email-mhocko@suse.cz>
+        Sun, 05 Jul 2015 17:17:33 -0700 (PDT)
+Received: by wiclp1 with SMTP id lp1so6643167wic.0
+        for <linux-mm@kvack.org>; Sun, 05 Jul 2015 17:17:33 -0700 (PDT)
+From: Nicolai Stange <nicstange@gmail.com>
+Subject: [PATCH] mm/page_alloc: deferred meminit: replace rwsem with completion
+Date: Mon, 06 Jul 2015 02:17:30 +0200
+Message-ID: <87k2uecf6t.fsf@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1435053037-1451-1-git-send-email-mhocko@suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jun 23, 2015 at 11:50:37AM +0200, Michal Hocko wrote:
-> ext4_free_blocks is looping around the allocation request and mimics
-> __GFP_NOFAIL behavior without any allocation fallback strategy. Let's
-> remove the open coded loop and replace it with __GFP_NOFAIL. Without
-> the flag the allocator has no way to find out never-fail requirement
-> and cannot help in any way.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Commit 0e1cc95b4cc7
+  ("mm: meminit: finish initialisation of struct pages before basic setup")
+introduced a rwsem to signal completion of the initialization workers.
 
-Thanks, applied.
+Lockdep complains about possible recursive locking:
+  =============================================
+  [ INFO: possible recursive locking detected ]
+  4.1.0-12802-g1dc51b8 #3 Not tainted
+  ---------------------------------------------
+  swapper/0/1 is trying to acquire lock:
+  (pgdat_init_rwsem){++++.+},
+    at: [<ffffffff8424c7fb>] page_alloc_init_late+0xc7/0xe6
 
-					- Ted
+  but task is already holding lock:
+  (pgdat_init_rwsem){++++.+},
+    at: [<ffffffff8424c772>] page_alloc_init_late+0x3e/0xe6
+
+Replace the rwsem by a completion together with an atomic
+"outstanding work counter".
+
+Signed-off-by: Nicolai Stange <nicstange@gmail.com>
+---
+ mm/page_alloc.c | 34 +++++++++++++++++++++++++++-------
+ 1 file changed, 27 insertions(+), 7 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 506eac8..3886e66 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -18,7 +18,9 @@
+ #include <linux/mm.h>
+ #include <linux/swap.h>
+ #include <linux/interrupt.h>
+-#include <linux/rwsem.h>
++#include <linux/completion.h>
++#include <linux/atomic.h>
++#include <asm/barrier.h>
+ #include <linux/pagemap.h>
+ #include <linux/jiffies.h>
+ #include <linux/bootmem.h>
+@@ -1062,7 +1064,20 @@ static void __init deferred_free_range(struct page *page,
+ 		__free_pages_boot_core(page, pfn, 0);
+ }
+ 
+-static __initdata DECLARE_RWSEM(pgdat_init_rwsem);
++/* counter and completion tracking outstanding deferred_init_memmap()
++   threads */
++static atomic_t pgdat_init_n_undone __initdata;
++static __initdata DECLARE_COMPLETION(pgdat_init_all_done_comp);
++
++static inline void __init pgdat_init_report_one_done(void)
++{
++	/* Write barrier is paired with read barrier in
++	   page_alloc_init_late(). It makes all writes visible to
++	   readers seeing our decrement on pgdat_init_n_undone. */
++	smp_wmb();
++	if (atomic_dec_and_test(&pgdat_init_n_undone))
++		complete(&pgdat_init_all_done_comp);
++}
+ 
+ /* Initialise remaining memory on a node */
+ static int __init deferred_init_memmap(void *data)
+@@ -1079,7 +1094,7 @@ static int __init deferred_init_memmap(void *data)
+ 	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
+ 
+ 	if (first_init_pfn == ULONG_MAX) {
+-		up_read(&pgdat_init_rwsem);
++		pgdat_init_report_one_done();
+ 		return 0;
+ 	}
+ 
+@@ -1179,7 +1194,8 @@ free_range:
+ 
+ 	pr_info("node %d initialised, %lu pages in %ums\n", nid, nr_pages,
+ 					jiffies_to_msecs(jiffies - start));
+-	up_read(&pgdat_init_rwsem);
++
++	pgdat_init_report_one_done();
+ 	return 0;
+ }
+ 
+@@ -1187,14 +1203,18 @@ void __init page_alloc_init_late(void)
+ {
+ 	int nid;
+ 
++	/* There will be num_node_state(N_MEMORY) threads */
++	atomic_set(&pgdat_init_n_undone, num_node_state(N_MEMORY));
+ 	for_each_node_state(nid, N_MEMORY) {
+-		down_read(&pgdat_init_rwsem);
+ 		kthread_run(deferred_init_memmap, NODE_DATA(nid), "pgdatinit%d", nid);
+ 	}
+ 
+ 	/* Block until all are initialised */
+-	down_write(&pgdat_init_rwsem);
+-	up_write(&pgdat_init_rwsem);
++	wait_for_completion(&pgdat_init_all_done_comp);
++
++	/* Paired with write barrier in deferred_init_memmap(),
++	   ensures a consistent view of all its writes. */
++	smp_rmb();
+ }
+ #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
+ 
+-- 
+2.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
