@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 011BE2802AF
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 09:40:11 -0400 (EDT)
-Received: by wgqq4 with SMTP id q4so140830538wgq.1
-        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 06:40:10 -0700 (PDT)
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F43F2802AF
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 09:40:13 -0400 (EDT)
+Received: by wguu7 with SMTP id u7so140862470wgu.3
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 06:40:12 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bo1si30329328wjb.27.2015.07.06.06.40.04
+        by mx.google.com with ESMTPS id pd7si30909930wic.106.2015.07.06.06.40.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 06 Jul 2015 06:40:04 -0700 (PDT)
+        Mon, 06 Jul 2015 06:40:05 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 3/4] mm: Defer flush of writable TLB entries
-Date: Mon,  6 Jul 2015 14:39:55 +0100
-Message-Id: <1436189996-7220-4-git-send-email-mgorman@suse.de>
+Subject: [PATCH 4/4] mm: Increase SWAP_CLUSTER_MAX to batch TLB flushes
+Date: Mon,  6 Jul 2015 14:39:56 +0100
+Message-Id: <1436189996-7220-5-git-send-email-mgorman@suse.de>
 In-Reply-To: <1436189996-7220-1-git-send-email-mgorman@suse.de>
 References: <1436189996-7220-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,138 +20,60 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-If a PTE is unmapped and it's dirty then it was writable recently. Due
-to deferred TLB flushing, it's best to assume a writable TLB cache entry
-exists. With that assumption, the TLB must be flushed before any IO can
-start or the page is freed to avoid lost writes or data corruption. This
-patch defers flushing of potentially writable TLBs as long as possible.
+Pages that are unmapped for reclaim must be flushed before being freed to
+avoid corruption due to a page being freed and reallocated while a stale
+TLB entry exists. When reclaiming mapped pages, the requires one IPI per
+SWAP_CLUSTER_MAX. This patch increases SWAP_CLUSTER_MAX to 256 so more
+pages can be flushed with a single IPI. This number was selected because
+it reduced IPIs for TLB shootdowns by 40% on a workload that is dominated
+by mapped pages.
+
+Note that it is expected that doubling SWAP_CLUSTER_MAX would not always
+halve the IPIs as it is workload dependent. Reclaim efficiency was not 100%
+on this workload which was picked for being IPI-intensive and was closer to
+35%. More importantly, reclaim does not always isolate in SWAP_CLUSTER_MAX
+pages. The LRU lists for a zone may be small, the priority can be low
+and even when reclaiming a lot of pages, the last isolation may not be
+exactly SWAP_CLUSTER_MAX.
+
+There are a few potential issues with increasing SWAP_CLUSTER_MAX.
+
+1. LRU lock hold times increase slightly because more pages are being
+   isolated.
+2. There are slight timing changes due to more pages having to be
+   processed before they are freed. There is a slight risk that more
+   pages than are necessary get reclaimed.
+3. There is a risk that too_many_isolated checks will be easier to
+   trigger resulting in a HZ/10 stall.
+4. The rotation rate of active->inactive is slightly faster but there
+   should be fewer rotations before the lists get balanced so it
+   shouldn't matter.
+5. More pages are reclaimed in a single pass if zone_reclaim_mode is
+   active but that thing sucks hard when it's enabled no matter what
+6. More pages are isolated for compaction so page hold times there
+   are longer while they are being copied
+
+It's unlikely any of these will be problems but worth keeping in mind if
+there are any reclaim-related bug reports in the near future.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
-Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/sched.h |  7 +++++++
- mm/internal.h         |  4 ++++
- mm/rmap.c             | 28 +++++++++++++++++++++-------
- mm/vmscan.c           |  7 ++++++-
- 4 files changed, 38 insertions(+), 8 deletions(-)
+ include/linux/swap.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 1a83fb44ab34..e769d5b4975c 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1351,6 +1351,13 @@ struct tlbflush_unmap_batch {
- 
- 	/* True if any bit in cpumask is set */
- 	bool flush_required;
-+
-+	/*
-+	 * If true then the PTE was dirty when unmapped. The entry must be
-+	 * flushed before IO is initiated or a stale TLB entry potentially
-+	 * allows an update without redirtying the page.
-+	 */
-+	bool writable;
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 38874729dc5f..89b648665877 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -154,7 +154,7 @@ enum {
+ 	SWP_SCANNING	= (1 << 10),	/* refcount in scan_swap_map */
  };
  
- struct task_struct {
-diff --git a/mm/internal.h b/mm/internal.h
-index bd6372ac5f7f..1195dd2d6a2b 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -431,10 +431,14 @@ struct tlbflush_unmap_batch;
- 
- #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
- void try_to_unmap_flush(void);
-+void try_to_unmap_flush_dirty(void);
- #else
- static inline void try_to_unmap_flush(void)
- {
- }
-+static inline void try_to_unmap_flush_dirty(void)
-+{
-+}
- 
- #endif /* CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH */
- #endif	/* __MM_INTERNAL_H */
-diff --git a/mm/rmap.c b/mm/rmap.c
-index d54f47666af5..85a8aea2d593 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -625,16 +625,34 @@ void try_to_unmap_flush(void)
- 	}
- 	cpumask_clear(&tlb_ubc->cpumask);
- 	tlb_ubc->flush_required = false;
-+	tlb_ubc->writable = false;
- 	put_cpu();
- }
- 
-+/* Flush iff there are potentially writable TLB entries that can race with IO */
-+void try_to_unmap_flush_dirty(void)
-+{
-+	struct tlbflush_unmap_batch *tlb_ubc = &current->tlb_ubc;
-+
-+	if (tlb_ubc->writable)
-+		try_to_unmap_flush();
-+}
-+
- static void set_tlb_ubc_flush_pending(struct mm_struct *mm,
--		struct page *page)
-+		struct page *page, bool writable)
- {
- 	struct tlbflush_unmap_batch *tlb_ubc = &current->tlb_ubc;
- 
- 	cpumask_or(&tlb_ubc->cpumask, &tlb_ubc->cpumask, mm_cpumask(mm));
- 	tlb_ubc->flush_required = true;
-+
-+	/*
-+	 * If the PTE was dirty then it's best to assume it's writable. The
-+	 * caller must use try_to_unmap_flush_dirty() or try_to_unmap_flush()
-+	 * before the page is queued for IO.
-+	 */
-+	if (writable)
-+		tlb_ubc->writable = true;
- }
+-#define SWAP_CLUSTER_MAX 32UL
++#define SWAP_CLUSTER_MAX 256UL
+ #define COMPACT_CLUSTER_MAX SWAP_CLUSTER_MAX
  
  /*
-@@ -657,7 +675,7 @@ static bool should_defer_flush(struct mm_struct *mm, enum ttu_flags flags)
- }
- #else
- static void set_tlb_ubc_flush_pending(struct mm_struct *mm,
--		struct page *page)
-+		struct page *page, bool writable)
- {
- }
- 
-@@ -1314,11 +1332,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 		 */
- 		pteval = ptep_get_and_clear(mm, address, pte);
- 
--		/* Potentially writable TLBs must be flushed before IO */
--		if (pte_dirty(pteval))
--			flush_tlb_page(vma, address);
--		else
--			set_tlb_ubc_flush_pending(mm, page);
-+		set_tlb_ubc_flush_pending(mm, page, pte_dirty(pteval));
- 	} else {
- 		pteval = ptep_clear_flush(vma, address, pte);
- 	}
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e4f1df1052a2..b5c5dc0997a1 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1102,7 +1102,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			if (!sc->may_writepage)
- 				goto keep_locked;
- 
--			/* Page is dirty, try to write it out here */
-+			/*
-+			 * Page is dirty. Flush the TLB if a writable entry
-+			 * potentially exists to avoid CPU writes after IO
-+			 * starts and then write it out here.
-+			 */
-+			try_to_unmap_flush_dirty();
- 			switch (pageout(page, mapping, sc)) {
- 			case PAGE_KEEP:
- 				goto keep_locked;
 -- 
 2.3.5
 
