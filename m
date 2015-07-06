@@ -1,96 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id C75E42802C8
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 15:26:04 -0400 (EDT)
-Received: by igcsj18 with SMTP id sj18so242961504igc.1
-        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 12:26:04 -0700 (PDT)
-Received: from mail1.windriver.com (mail1.windriver.com. [147.11.146.13])
-        by mx.google.com with ESMTPS id b18si14171305igr.17.2015.07.06.12.26.03
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id C66582802C8
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 15:32:55 -0400 (EDT)
+Received: by oiyy130 with SMTP id y130so125555561oiy.0
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 12:32:55 -0700 (PDT)
+Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
+        by mx.google.com with ESMTPS id az3si14438341obb.45.2015.07.06.12.32.54
         for <linux-mm@kvack.org>
-        (version=TLSv1.1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 06 Jul 2015 12:26:04 -0700 (PDT)
-Date: Mon, 6 Jul 2015 15:25:26 -0400
-From: Paul Gortmaker <paul.gortmaker@windriver.com>
-Subject: Re: [PATCH v2] mm: nommu: fix typos in comment blocks
-Message-ID: <20150706192525.GA16724@windriver.com>
-References: <1436155277-21769-1-git-send-email-yamada.masahiro@socionext.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Jul 2015 12:32:55 -0700 (PDT)
+Received: by oiab3 with SMTP id b3so7265641oia.1
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 12:32:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <1436155277-21769-1-git-send-email-yamada.masahiro@socionext.com>
+From: Sumit Gupta <sumit.g.007@gmail.com>
+Date: Tue, 7 Jul 2015 01:02:15 +0530
+Message-ID: <CANDtUrcogw-CWPQBjHunhJRLGae2F3+g1D2oyF__wAp42PTKYw@mail.gmail.com>
+Subject: MM: Query about different memory types(mem_types)__mmu.c
+Content-Type: multipart/alternative; boundary=089e013d085ae64b4a051a39f8f6
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Masahiro Yamada <yamada.masahiro@socionext.com>
-Cc: linux-mm@kvack.org, Davidlohr Bueso <dave@stgolabs.net>, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Christoph Hellwig <hch@lst.de>, Leon Romanovsky <leon@leon.nu>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-[[PATCH v2] mm: nommu: fix typos in comment blocks] On 06/07/2015 (Mon 13:01) Masahiro Yamada wrote:
+--089e013d085ae64b4a051a39f8f6
+Content-Type: text/plain; charset=UTF-8
 
-> continguos -> contiguous
-> 
-> Signed-off-by: Masahiro Yamada <yamada.masahiro@socionext.com>
+Hi All,
 
-I'd suggested this go via the trivial tree, but instead I see it is in
-my inbox now, and still in everyone else's inbox, and yet not Cc'd to
-the trivial tree, which leaves me confused...
+I have been exploring ARM reference manual about ARM weak memory model and
+mmu page table setting from some time.
+I think i understand different memory types, mmu settings for page/section,
+TEX, AP, B, C, S bits well.
+My target is to to dig further and fully understand setting of all
+parameters for different memory types in ARM
+[File mmu.c: "static struct mem_type mem_types"].
 
-Paul.
---
+But i am not able to find any good source to refer for fully understanding
+all below parameters.
+Could you please help me to understand mappings for below mem types. If you
+can point me to some references which can help me understand more.
+
+Thankyou in advance for your help.
 
 
-> ---
-> 
-> Changes in v2:
->   -  Remove '.' from the end of the subject
-> 
->  mm/nommu.c | 10 +++++-----
->  1 file changed, 5 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index 58ea364..0b34f40 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -324,12 +324,12 @@ long vwrite(char *buf, char *addr, unsigned long count)
->  }
->  
->  /*
-> - *	vmalloc  -  allocate virtually continguos memory
-> + *	vmalloc  -  allocate virtually contiguous memory
->   *
->   *	@size:		allocation size
->   *
->   *	Allocate enough pages to cover @size from the page level
-> - *	allocator and map them into continguos kernel virtual space.
-> + *	allocator and map them into contiguous kernel virtual space.
->   *
->   *	For tight control over page level allocator and protection flags
->   *	use __vmalloc() instead.
-> @@ -341,12 +341,12 @@ void *vmalloc(unsigned long size)
->  EXPORT_SYMBOL(vmalloc);
->  
->  /*
-> - *	vzalloc - allocate virtually continguos memory with zero fill
-> + *	vzalloc - allocate virtually contiguous memory with zero fill
->   *
->   *	@size:		allocation size
->   *
->   *	Allocate enough pages to cover @size from the page level
-> - *	allocator and map them into continguos kernel virtual space.
-> + *	allocator and map them into contiguous kernel virtual space.
->   *	The memory allocated is set to zero.
->   *
->   *	For tight control over page level allocator and protection flags
-> @@ -420,7 +420,7 @@ void *vmalloc_exec(unsigned long size)
->   *	@size:		allocation size
->   *
->   *	Allocate enough 32bit PA addressable pages to cover @size from the
-> - *	page level allocator and map them into continguos kernel virtual space.
-> + *	page level allocator and map them into contiguous kernel virtual space.
->   */
->  void *vmalloc_32(unsigned long size)
->  {
-> -- 
-> 1.9.1
-> 
+        [MT_DEVICE] = {           /* Strongly ordered / ARMv6 shared device
+*/
+                .prot_pte       = PROT_PTE_DEVICE | L_PTE_MT_DEV_SHARED |
+                                  L_PTE_SHARED,
+                .prot_pte_s2    = s2_policy(PROT_PTE_S2_DEVICE) |
+                                  s2_policy(L_PTE_S2_MT_DEV_SHARED) |
+                                  L_PTE_SHARED,
+                .prot_l1        = PMD_TYPE_TABLE,
+                .prot_sect      = PROT_SECT_DEVICE | PMD_SECT_S,
+                .domain         = DOMAIN_IO,
+        },
+............
+       [MT_MEMORY_RW] = {
+                .prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
+                             L_PTE_XN,
+                .prot_l1   = PMD_TYPE_TABLE,
+                .prot_sect = PMD_TYPE_SECT | PMD_SECT_AP_WRITE,
+                .domain    = DOMAIN_KERNEL,
+        },
+............
+        [MT_MEMORY_DMA_READY] = {
+                .prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
+                                L_PTE_XN,
+                .prot_l1   = PMD_TYPE_TABLE,
+                .domain    = DOMAIN_KERNEL,
+        },
+
+Regards,
+Sumit Gupta
+
+--089e013d085ae64b4a051a39f8f6
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div style=3D"font-size:12.8000001907349px">Hi All,</div><=
+div style=3D"font-size:12.8000001907349px"><br></div><div style=3D"font-siz=
+e:12.8000001907349px">I have been exploring ARM reference manual about ARM =
+weak memory model and mmu page table setting from some time.=C2=A0</div><di=
+v style=3D"font-size:12.8000001907349px"><span style=3D"font-size:12.800000=
+1907349px">I think i understand different memory types, mmu settings for pa=
+ge/section, TEX, AP, B, C, S bits well.</span></div><div style=3D"font-size=
+:12.8000001907349px">My target is to to dig further and fully understand se=
+tting of all parameters for different memory types in ARM</div><div style=
+=3D"font-size:12.8000001907349px">[File mmu.c: &quot;static struct mem_type=
+ mem_types&quot;].=C2=A0</div><div style=3D"font-size:12.8000001907349px"><=
+br></div><div style=3D"font-size:12.8000001907349px">But i am not able to f=
+ind any good source to refer for fully understanding all below parameters.<=
+/div><div style=3D"font-size:12.8000001907349px">Could you please help me t=
+o understand mappings for below mem types. If you can point me to some refe=
+rences which can help me understand more.</div><div style=3D"font-size:12.8=
+000001907349px"><br></div><div style=3D"font-size:12.8000001907349px">Thank=
+you in advance for your help.</div><div style=3D"font-size:12.8000001907349=
+px"><br></div><div style=3D"font-size:12.8000001907349px"><br></div><div st=
+yle=3D"font-size:12.8000001907349px">=C2=A0 =C2=A0 =C2=A0 =C2=A0 [MT_DEVICE=
+] =3D { =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* Strongly ordered / ARMv6 shar=
+ed device */</div><div style=3D"font-size:12.8000001907349px">=C2=A0 =C2=A0=
+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .prot_pte =C2=A0 =C2=A0 =C2=A0 =
+=3D PROT_PTE_DEVICE | L_PTE_MT_DEV_SHARED |</div><div style=3D"font-size:12=
+.8000001907349px">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 L_PTE_SHARED=
+,</div><div style=3D"font-size:12.8000001907349px">=C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .prot_pte_s2 =C2=A0 =C2=A0=3D s2_policy(PRO=
+T_PTE_S2_DEVICE) |</div><div style=3D"font-size:12.8000001907349px">=C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 s2_policy(L_PTE_S2_MT_DEV_SHARED) |<=
+/div><div style=3D"font-size:12.8000001907349px">=C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 L_PTE_SHARED,</div><div style=3D"font-size:12.80000019=
+07349px">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .prot_l1 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0=3D PMD_TYPE_TABLE,</div><div style=3D"font-size=
+:12.8000001907349px">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 .prot_sect =C2=A0 =C2=A0 =C2=A0=3D PROT_SECT_DEVICE | PMD_SECT_S,</div>=
+<div style=3D"font-size:12.8000001907349px">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 .domain =C2=A0 =C2=A0 =C2=A0 =C2=A0 =3D DOMAIN_IO,=
+</div><div style=3D"font-size:12.8000001907349px">=C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 },</div><div style=3D"font-size:12.8000001907349px">............</div><=
+div style=3D"font-size:12.8000001907349px">=C2=A0 =C2=A0 =C2=A0 =C2=A0[MT_M=
+EMORY_RW] =3D {</div><div style=3D"font-size:12.8000001907349px">=C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .prot_pte =C2=A0=3D L_PTE_PRE=
+SENT | L_PTE_YOUNG | L_PTE_DIRTY |</div><div style=3D"font-size:12.80000019=
+07349px">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0L_PTE_XN,</div><div style=3D"font-siz=
+e:12.8000001907349px">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 .prot_l1 =C2=A0 =3D PMD_TYPE_TABLE,</div><div style=3D"font-size:12.800=
+0001907349px">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .prot=
+_sect =3D PMD_TYPE_SECT | PMD_SECT_AP_WRITE,</div><div style=3D"font-size:1=
+2.8000001907349px">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+.domain =C2=A0 =C2=A0=3D DOMAIN_KERNEL,</div><div style=3D"font-size:12.800=
+0001907349px">=C2=A0 =C2=A0 =C2=A0 =C2=A0 },</div><div style=3D"font-size:1=
+2.8000001907349px">............</div><div style=3D"font-size:12.80000019073=
+49px">=C2=A0 =C2=A0 =C2=A0 =C2=A0 [MT_MEMORY_DMA_READY] =3D {</div><div sty=
+le=3D"font-size:12.8000001907349px">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 .prot_pte =C2=A0=3D L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_D=
+IRTY |</div><div style=3D"font-size:12.8000001907349px">=C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 L_PTE_XN,</div><div style=3D"font-size:12.800000190734=
+9px">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .prot_l1 =C2=
+=A0 =3D PMD_TYPE_TABLE,</div><div style=3D"font-size:12.8000001907349px">=
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .domain =C2=A0 =C2=
+=A0=3D DOMAIN_KERNEL,</div><div style=3D"font-size:12.8000001907349px">=C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 },</div><div style=3D"font-size:12.8000001907349px=
+"><br></div><div style=3D"font-size:12.8000001907349px">Regards,</div><div =
+style=3D"font-size:12.8000001907349px">Sumit Gupta</div><div style=3D"font-=
+size:12.8000001907349px"><br></div></div>
+
+--089e013d085ae64b4a051a39f8f6--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
