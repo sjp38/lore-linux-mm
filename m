@@ -1,57 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 084A228029D
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 04:21:53 -0400 (EDT)
-Received: by wgjx7 with SMTP id x7so133006446wgj.2
-        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 01:21:52 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id eo8si29690595wib.7.2015.07.06.01.21.50
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 398B5280253
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 06:26:09 -0400 (EDT)
+Received: by pacgz10 with SMTP id gz10so19681196pac.3
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 03:26:09 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id vw7si28254446pbc.193.2015.07.06.03.26.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 06 Jul 2015 01:21:51 -0700 (PDT)
-Date: Mon, 6 Jul 2015 09:21:43 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm/page_alloc: deferred meminit: replace rwsem with
- completion
-Message-ID: <20150706082143.GG6812@suse.de>
-References: <87k2uecf6t.fsf@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 06 Jul 2015 03:26:07 -0700 (PDT)
+Message-ID: <559A56FD.6010701@huawei.com>
+Date: Mon, 6 Jul 2015 18:22:53 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <87k2uecf6t.fsf@gmail.com>
+Subject: Re: [PATCH 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory feature
+References: <1435929607-3435-1-git-send-email-pintu.k@samsung.com>
+In-Reply-To: <1435929607-3435-1-git-send-email-pintu.k@samsung.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolai Stange <nicstange@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pintu Kumar <pintu.k@samsung.com>
+Cc: corbet@lwn.net, akpm@linux-foundation.org, vbabka@suse.cz, gorcunov@openvz.org, mhocko@suse.cz, emunson@akamai.com, kirill.shutemov@linux.intel.com, standby24x7@gmail.com, hannes@cmpxchg.org, vdavydov@parallels.com, hughd@google.com, minchan@kernel.org, tj@kernel.org, rientjes@google.com, xypron.glpk@gmx.de, dzickus@redhat.com, prarit@redhat.com, ebiederm@xmission.com, rostedt@goodmis.org, uobergfe@redhat.com, paulmck@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, ddstreet@ieee.org, sasha.levin@oracle.com, koct9i@gmail.com, mgorman@suse.de, cj@linux.com, opensource.ganesh@gmail.com, vinmenon@codeaurora.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, cpgs@samsung.com, pintu_agarwal@yahoo.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, iqbal.ams@samsung.com
 
-On Mon, Jul 06, 2015 at 02:17:30AM +0200, Nicolai Stange wrote:
-> Commit 0e1cc95b4cc7
->   ("mm: meminit: finish initialisation of struct pages before basic setup")
-> introduced a rwsem to signal completion of the initialization workers.
-> 
-> Lockdep complains about possible recursive locking:
->   =============================================
->   [ INFO: possible recursive locking detected ]
->   4.1.0-12802-g1dc51b8 #3 Not tainted
->   ---------------------------------------------
->   swapper/0/1 is trying to acquire lock:
->   (pgdat_init_rwsem){++++.+},
->     at: [<ffffffff8424c7fb>] page_alloc_init_late+0xc7/0xe6
-> 
->   but task is already holding lock:
->   (pgdat_init_rwsem){++++.+},
->     at: [<ffffffff8424c772>] page_alloc_init_late+0x3e/0xe6
-> 
-> Replace the rwsem by a completion together with an atomic
-> "outstanding work counter".
-> 
-> Signed-off-by: Nicolai Stange <nicstange@gmail.com>
+On 2015/7/3 21:20, Pintu Kumar wrote:
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+> This patch provides 2 things:
+> 1. Add new control called shrink_memory in /proc/sys/vm/.
+> This control can be used to aggressively reclaim memory system-wide
+> in one shot from the user space. A value of 1 will instruct the
+> kernel to reclaim as much as totalram_pages in the system.
+> Example: echo 1 > /proc/sys/vm/shrink_memory
+> 
+> 2. Enable shrink_all_memory API in kernel with new CONFIG_SHRINK_MEMORY.
+> Currently, shrink_all_memory function is used only during hibernation.
+> With the new config we can make use of this API for non-hibernation case
+> also without disturbing the hibernation case.
+> 
+> The detailed paper was presented in Embedded Linux Conference, Mar-2015
+> http://events.linuxfoundation.org/sites/events/files/slides/
+> %5BELC-2015%5D-System-wide-Memory-Defragmenter.pdf
+> 
+> Scenarios were this can be used and helpful are:
+> 1) Can be invoked just after system boot-up is finished.
+> 2) Can be invoked just before entering entire system suspend.
+> 3) Can be invoked from kernel when order-4 pages starts failing.
+> 4) Can be helpful to completely avoid or delay the kerenl OOM condition.
+> 5) Can be developed as a system-tool to quickly defragment entire system
+>    from user space, without the need to kill any application.
+> 
 
--- 
-Mel Gorman
-SUSE Labs
+Hi Pintu,
+
+How about increase min_free_kbytes and Android lowmemorykiller's level?
+
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
