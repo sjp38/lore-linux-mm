@@ -1,100 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 700E72802BD
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 10:37:49 -0400 (EDT)
-Received: by igrv9 with SMTP id v9so116765329igr.1
-        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 07:37:49 -0700 (PDT)
-Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
-        by mx.google.com with ESMTPS id s8si12975967igd.59.2015.07.06.07.37.48
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BB4D2802BF
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 11:12:00 -0400 (EDT)
+Received: by wiwl6 with SMTP id l6so287875042wiw.0
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 08:12:00 -0700 (PDT)
+Received: from mail-wg0-x22e.google.com (mail-wg0-x22e.google.com. [2a00:1450:400c:c00::22e])
+        by mx.google.com with ESMTPS id lg1si30686369wjc.136.2015.07.06.08.11.58
         for <linux-mm@kvack.org>
-        (version=TLSv1.1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 06 Jul 2015 07:37:48 -0700 (PDT)
-Date: Mon, 6 Jul 2015 10:37:13 -0400
-From: Paul Gortmaker <paul.gortmaker@windriver.com>
-Subject: Re: [PATCH v2] mm: nommu: fix typos in comment blocks
-Message-ID: <20150706143713.GF11898@windriver.com>
-References: <1436155277-21769-1-git-send-email-yamada.masahiro@socionext.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Jul 2015 08:11:59 -0700 (PDT)
+Received: by wguu7 with SMTP id u7so143362475wgu.3
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 08:11:58 -0700 (PDT)
+From: Nicolai Stange <nicstange@gmail.com>
+Subject: Re: [PATCH] mm/page_alloc: deferred meminit: replace rwsem with completion
+References: <87k2uecf6t.fsf@gmail.com> <20150706082143.GG6812@suse.de>
+Date: Mon, 06 Jul 2015 17:11:55 +0200
+In-Reply-To: <20150706082143.GG6812@suse.de> (Mel Gorman's message of "Mon, 6
+	Jul 2015 09:21:43 +0100")
+Message-ID: <87y4itxqv8.fsf@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <1436155277-21769-1-git-send-email-yamada.masahiro@socionext.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Masahiro Yamada <yamada.masahiro@socionext.com>
-Cc: linux-mm@kvack.org, Davidlohr Bueso <dave@stgolabs.net>, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Christoph Hellwig <hch@lst.de>, Leon Romanovsky <leon@leon.nu>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Nicolai Stange <nicstange@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-[[PATCH v2] mm: nommu: fix typos in comment blocks] On 06/07/2015 (Mon 13:01) Masahiro Yamada wrote:
+Mel Gorman <mgorman@suse.de> writes:
+> Acked-by: Mel Gorman <mgorman@suse.de>
 
-> continguos -> contiguous
-> 
-> Signed-off-by: Masahiro Yamada <yamada.masahiro@socionext.com>
-
-Perhaps in the future, it might not be a bad idea to feed such changes
-like this in via the trivial tree?   From MAINTAINERS:
-
-TRIVIAL PATCHES
-M:      Jiri Kosina <trivial@kernel.org>
-T:      git
-git://git.kernel.org/pub/scm/linux/kernel/git/jikos/trivial.git
-S:      Maintained
-
-Paul.
---
-
-> ---
-> 
-> Changes in v2:
->   -  Remove '.' from the end of the subject
-> 
->  mm/nommu.c | 10 +++++-----
->  1 file changed, 5 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index 58ea364..0b34f40 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -324,12 +324,12 @@ long vwrite(char *buf, char *addr, unsigned long count)
->  }
->  
->  /*
-> - *	vmalloc  -  allocate virtually continguos memory
-> + *	vmalloc  -  allocate virtually contiguous memory
->   *
->   *	@size:		allocation size
->   *
->   *	Allocate enough pages to cover @size from the page level
-> - *	allocator and map them into continguos kernel virtual space.
-> + *	allocator and map them into contiguous kernel virtual space.
->   *
->   *	For tight control over page level allocator and protection flags
->   *	use __vmalloc() instead.
-> @@ -341,12 +341,12 @@ void *vmalloc(unsigned long size)
->  EXPORT_SYMBOL(vmalloc);
->  
->  /*
-> - *	vzalloc - allocate virtually continguos memory with zero fill
-> + *	vzalloc - allocate virtually contiguous memory with zero fill
->   *
->   *	@size:		allocation size
->   *
->   *	Allocate enough pages to cover @size from the page level
-> - *	allocator and map them into continguos kernel virtual space.
-> + *	allocator and map them into contiguous kernel virtual space.
->   *	The memory allocated is set to zero.
->   *
->   *	For tight control over page level allocator and protection flags
-> @@ -420,7 +420,7 @@ void *vmalloc_exec(unsigned long size)
->   *	@size:		allocation size
->   *
->   *	Allocate enough 32bit PA addressable pages to cover @size from the
-> - *	page level allocator and map them into continguos kernel virtual space.
-> + *	page level allocator and map them into contiguous kernel virtual space.
->   */
->  void *vmalloc_32(unsigned long size)
->  {
-> -- 
-> 1.9.1
-> 
+Thank you!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
