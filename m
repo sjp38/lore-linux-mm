@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E29428029D
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 00:00:04 -0400 (EDT)
-Received: by pacgz10 with SMTP id gz10so14378124pac.3
-        for <linux-mm@kvack.org>; Sun, 05 Jul 2015 21:00:04 -0700 (PDT)
-Received: from conuserg009-v.nifty.com (conuserg009.nifty.com. [202.248.44.35])
-        by mx.google.com with ESMTPS id qn16si21379006pab.235.2015.07.05.21.00.03
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id A771828029D
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 00:01:34 -0400 (EDT)
+Received: by pdbdz6 with SMTP id dz6so2494188pdb.0
+        for <linux-mm@kvack.org>; Sun, 05 Jul 2015 21:01:34 -0700 (PDT)
+Received: from conuserg011-v.nifty.com (conuserg011.nifty.com. [202.248.44.37])
+        by mx.google.com with ESMTPS id v1si26784050pdi.105.2015.07.05.21.01.33
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 05 Jul 2015 21:00:03 -0700 (PDT)
+        Sun, 05 Jul 2015 21:01:33 -0700 (PDT)
 From: Masahiro Yamada <yamada.masahiro@socionext.com>
-Subject: [PATCH] mm: nommu: fix typos in comment blocks.
-Date: Mon,  6 Jul 2015 12:59:32 +0900
-Message-Id: <1436155172-21625-1-git-send-email-yamada.masahiro@socionext.com>
+Subject: [PATCH v2] mm: nommu: fix typos in comment blocks
+Date: Mon,  6 Jul 2015 13:01:17 +0900
+Message-Id: <1436155277-21769-1-git-send-email-yamada.masahiro@socionext.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
@@ -22,6 +22,9 @@ continguos -> contiguous
 
 Signed-off-by: Masahiro Yamada <yamada.masahiro@socionext.com>
 ---
+
+Changes in v2:
+  -  Remove '.' from the end of the subject
 
  mm/nommu.c | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
