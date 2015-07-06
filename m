@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 526C52802A5
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 08:19:17 -0400 (EDT)
-Received: by pdbdz6 with SMTP id dz6so10050169pdb.0
-        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 05:19:17 -0700 (PDT)
-Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com. [2607:f8b0:400e:c02::231])
-        by mx.google.com with ESMTPS id ig4si28751387pbb.82.2015.07.06.05.19.16
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 480B32802A5
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 08:19:21 -0400 (EDT)
+Received: by pactm7 with SMTP id tm7so94865916pac.2
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 05:19:21 -0700 (PDT)
+Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com. [2607:f8b0:400e:c02::236])
+        by mx.google.com with ESMTPS id qp7si28838029pac.120.2015.07.06.05.19.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jul 2015 05:19:16 -0700 (PDT)
-Received: by pdbep18 with SMTP id ep18so105291593pdb.1
-        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 05:19:16 -0700 (PDT)
+        Mon, 06 Jul 2015 05:19:20 -0700 (PDT)
+Received: by pdbci14 with SMTP id ci14so105265930pdb.2
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 05:19:19 -0700 (PDT)
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: [PATCH v5 6/7] zsmalloc: account the number of compacted pages
-Date: Mon,  6 Jul 2015 21:17:49 +0900
-Message-Id: <1436185070-1940-7-git-send-email-sergey.senozhatsky@gmail.com>
+Subject: [PATCH v5 7/7] zsmalloc: register a shrinker to trigger auto-compaction
+Date: Mon,  6 Jul 2015 21:17:50 +0900
+Message-Id: <1436185070-1940-8-git-send-email-sergey.senozhatsky@gmail.com>
 In-Reply-To: <1436185070-1940-1-git-send-email-sergey.senozhatsky@gmail.com>
 References: <1436185070-1940-1-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,128 +22,142 @@ List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey@kvack.org, "Senozhatsky <sergey.senozhatsky.work"@gmail.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Compaction returns back to zram the number of migrated objects,
-which is quite uninformative -- we have objects of different
-sizes so user space cannot obtain any valuable data from that
-number. Change compaction to operate in terms of pages and
-return back to compaction issuer the number of pages that
-were freed during compaction. So from now on `num_compacted'
-column in zram<id>/mm_stat represents more meaningful value:
-the number of freed (compacted) pages.
+Perform automatic pool compaction by a shrinker when system
+is getting tight on memory.
 
-Return first_page's fullness_group from putback_zspage(),
-so we now for sure know that putback_zspage() has issued
-free_zspage() and we must update compaction stats.
+User-space has a very little knowledge regarding zsmalloc fragmentation
+and basically has no mechanism to tell whether compaction will result
+in any memory gain. Another issue is that user space is not always
+aware of the fact that system is getting tight on memory. Which leads
+to very uncomfortable scenarios when user space may start issuing
+compaction 'randomly' or from crontab (for example). Fragmentation
+is not always necessarily bad, allocated and unused objects, after all,
+may be filled with the data later, w/o the need of allocating a new
+zspage. On the other hand, we obviously don't want to waste memory
+when the system needs it.
 
-Update documentation.
+Compaction now has a relatively quick pool scan so we are able to
+estimate the number of pages that will be freed easily, which makes it
+possible to call this function from a shrinker->count_objects() callback.
+We also abort compaction as soon as we detect that we can't free any
+pages any more, preventing wasteful objects migrations.
+
+Minchan Kim proposed to use the shrinker (the original patch was too
+aggressive and was attempting to perform compaction for every
+ALMOST_EMPTY zspage).
 
 Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Suggested-by: Minchan Kim <minchan@kernel.org>
 ---
- Documentation/blockdev/zram.txt |  3 ++-
- mm/zsmalloc.c                   | 27 +++++++++++++++++----------
- 2 files changed, 19 insertions(+), 11 deletions(-)
+ mm/zsmalloc.c | 74 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 73 insertions(+), 1 deletion(-)
 
-diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
-index c4de576..71f4744 100644
---- a/Documentation/blockdev/zram.txt
-+++ b/Documentation/blockdev/zram.txt
-@@ -144,7 +144,8 @@ mem_used_max      RW    the maximum amount memory zram have consumed to
-                         store compressed data
- mem_limit         RW    the maximum amount of memory ZRAM can use to store
-                         the compressed data
--num_migrated      RO    the number of objects migrated migrated by compaction
-+num_migrated      RO    the number of pages freed during compaction
-+                        (available only via zram<id>/mm_stat node)
- compact           WO    trigger memory compaction
- 
- WARNING
 diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index e0f508a..a761733 100644
+index a761733..e557c16 100644
 --- a/mm/zsmalloc.c
 +++ b/mm/zsmalloc.c
-@@ -245,7 +245,7 @@ struct zs_pool {
- 	/* Allocation flags used when growing pool */
- 	gfp_t			flags;
+@@ -247,7 +247,9 @@ struct zs_pool {
  	atomic_long_t		pages_allocated;
--	/* How many objects were migrated */
-+	/* How many pages were migrated (freed) */
+ 	/* How many pages were migrated (freed) */
  	unsigned long		num_migrated;
- 
- #ifdef CONFIG_ZSMALLOC_STAT
-@@ -1596,8 +1596,6 @@ struct zs_compact_control {
- 	 /* Starting object index within @s_page which used for live object
- 	  * in the subpage. */
- 	int index;
--	/* How many of objects were migrated */
--	int nr_migrated;
- };
- 
- static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
-@@ -1634,7 +1632,6 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
- 		record_obj(handle, free_obj);
- 		unpin_tag(handle);
- 		obj_free(pool, class, used_obj);
--		cc->nr_migrated++;
- 	}
- 
- 	/* Remember last position in this iteration */
-@@ -1660,8 +1657,17 @@ static struct page *isolate_target_page(struct size_class *class)
- 	return page;
- }
- 
--static void putback_zspage(struct zs_pool *pool, struct size_class *class,
--				struct page *first_page)
-+/*
-+ * putback_zspage - add @first_page into right class's fullness list
-+ * @pool: target pool
-+ * @class: destination class
-+ * @first_page: target page
-+ *
-+ * Return @fist_page's fullness_group
-+ */
-+static enum fullness_group putback_zspage(struct zs_pool *pool,
-+			struct size_class *class,
-+			struct page *first_page)
- {
- 	enum fullness_group fullness;
- 
-@@ -1679,6 +1685,8 @@ static void putback_zspage(struct zs_pool *pool, struct size_class *class,
- 
- 		free_zspage(first_page);
- 	}
-+
-+	return fullness;
- }
- 
- static struct page *isolate_source_page(struct size_class *class)
-@@ -1720,7 +1728,6 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
- 	struct page *src_page;
- 	struct page *dst_page = NULL;
- 
--	cc.nr_migrated = 0;
- 	spin_lock(&class->lock);
- 	while ((src_page = isolate_source_page(class))) {
- 
-@@ -1749,7 +1756,9 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
- 			break;
- 
- 		putback_zspage(pool, class, dst_page);
--		putback_zspage(pool, class, src_page);
-+		if (putback_zspage(pool, class, src_page) == ZS_EMPTY)
-+			pool->num_migrated +=
-+				get_pages_per_zspage(class->size);
- 		spin_unlock(&class->lock);
- 		cond_resched();
- 		spin_lock(&class->lock);
-@@ -1758,8 +1767,6 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
- 	if (src_page)
- 		putback_zspage(pool, class, src_page);
- 
--	pool->num_migrated += cc.nr_migrated;
 -
- 	spin_unlock(&class->lock);
++	/* Compact classes */
++	struct shrinker		shrinker;
++	bool			shrinker_enabled;
+ #ifdef CONFIG_ZSMALLOC_STAT
+ 	struct dentry		*stat_dentry;
+ #endif
+@@ -1787,6 +1789,69 @@ unsigned long zs_compact(struct zs_pool *pool)
  }
+ EXPORT_SYMBOL_GPL(zs_compact);
  
++static unsigned long zs_shrinker_scan(struct shrinker *shrinker,
++		struct shrink_control *sc)
++{
++	unsigned long pages_freed;
++	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
++			shrinker);
++
++	pages_freed = pool->num_migrated;
++	/*
++	 * Compact classes and calculate compaction delta.
++	 * Can run concurrently with a manually triggered
++	 * (by user) compaction.
++	 */
++	pages_freed = zs_compact(pool) - pages_freed;
++
++	return pages_freed ? pages_freed : SHRINK_STOP;
++}
++
++static unsigned long zs_shrinker_count(struct shrinker *shrinker,
++		struct shrink_control *sc)
++{
++	int i;
++	struct size_class *class;
++	unsigned long pages_to_free = 0;
++	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
++			shrinker);
++
++	if (!pool->shrinker_enabled)
++		return 0;
++
++	for (i = zs_size_classes - 1; i >= 0; i--) {
++		class = pool->size_class[i];
++		if (!class)
++			continue;
++		if (class->index != i)
++			continue;
++
++		spin_lock(&class->lock);
++		pages_to_free += zs_can_compact(class);
++		spin_unlock(&class->lock);
++	}
++
++	return pages_to_free;
++}
++
++static void zs_unregister_shrinker(struct zs_pool *pool)
++{
++	if (pool->shrinker_enabled) {
++		unregister_shrinker(&pool->shrinker);
++		pool->shrinker_enabled = false;
++	}
++}
++
++static int zs_register_shrinker(struct zs_pool *pool)
++{
++	pool->shrinker.scan_objects = zs_shrinker_scan;
++	pool->shrinker.count_objects = zs_shrinker_count;
++	pool->shrinker.batch = 0;
++	pool->shrinker.seeks = DEFAULT_SEEKS;
++
++	return register_shrinker(&pool->shrinker);
++}
++
+ /**
+  * zs_create_pool - Creates an allocation pool to work from.
+  * @flags: allocation flags used to allocate pool metadata
+@@ -1872,6 +1937,12 @@ struct zs_pool *zs_create_pool(char *name, gfp_t flags)
+ 	if (zs_pool_stat_create(name, pool))
+ 		goto err;
+ 
++	/*
++	 * Not critical, we still can use the pool
++	 * and user can trigger compaction manually.
++	 */
++	if (zs_register_shrinker(pool) == 0)
++		pool->shrinker_enabled = true;
+ 	return pool;
+ 
+ err:
+@@ -1884,6 +1955,7 @@ void zs_destroy_pool(struct zs_pool *pool)
+ {
+ 	int i;
+ 
++	zs_unregister_shrinker(pool);
+ 	zs_pool_stat_destroy(pool);
+ 
+ 	for (i = 0; i < zs_size_classes; i++) {
 -- 
 2.5.0.rc0.3.g912bd49
 
