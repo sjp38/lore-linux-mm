@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 47B622802A5
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 08:19:08 -0400 (EDT)
-Received: by pddu5 with SMTP id u5so17834213pdd.3
-        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 05:19:08 -0700 (PDT)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id wb8si28877713pac.11.2015.07.06.05.19.07
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 4278B2802A5
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 08:19:13 -0400 (EDT)
+Received: by pdbep18 with SMTP id ep18so105290928pdb.1
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 05:19:13 -0700 (PDT)
+Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com. [2607:f8b0:400e:c02::229])
+        by mx.google.com with ESMTPS id fx5si3004119pdb.170.2015.07.06.05.19.11
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jul 2015 05:19:07 -0700 (PDT)
-Received: by pactm7 with SMTP id tm7so94862889pac.2
-        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 05:19:07 -0700 (PDT)
+        Mon, 06 Jul 2015 05:19:11 -0700 (PDT)
+Received: by pdbep18 with SMTP id ep18so105290522pdb.1
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 05:19:11 -0700 (PDT)
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: [PATCH v5 4/7] zsmalloc: cosmetic compaction code adjustments
-Date: Mon,  6 Jul 2015 21:17:47 +0900
-Message-Id: <1436185070-1940-5-git-send-email-sergey.senozhatsky@gmail.com>
+Subject: [PATCH v5 5/7] zsmalloc/zram: store compaction stats in zspool
+Date: Mon,  6 Jul 2015 21:17:48 +0900
+Message-Id: <1436185070-1940-6-git-send-email-sergey.senozhatsky@gmail.com>
 In-Reply-To: <1436185070-1940-1-git-send-email-sergey.senozhatsky@gmail.com>
 References: <1436185070-1940-1-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,68 +22,239 @@ List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey@kvack.org, "Senozhatsky <sergey.senozhatsky.work"@gmail.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Change zs_object_copy() argument order to be (DST, SRC) rather
-than (SRC, DST). copy/move functions usually have (to, from)
-arguments order.
+`zs_compact_control' accounts the number of migrated objects but
+it has a limited lifespan -- we lose it as soon as zs_compaction()
+returns back to zram. It was fine, because (a) zram had it's own
+counter of migrated objects and (b) only zram could trigger
+compaction. However, this does not work for automatic pool
+compaction (not issued by zram). To account objects migrated
+during auto-compaction (issued by the shrinker) we need to store
+this number in zs_pool.
 
-Rename alloc_target_page() to isolate_target_page(). This
-function doesn't allocate anything, it isolates target page,
-pretty much like isolate_source_page().
-
-Tweak __zs_compact() comment.
+A new zsmalloc zs_get_num_migrated() symbol exports zs_pool's
+->num_migrated counter, so we better start using it, rather than
+continue keeping zram's own `num_migrated' copy in zram_stats.
 
 Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Acked-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/zsmalloc.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ drivers/block/zram/zram_drv.c | 12 ++++++------
+ drivers/block/zram/zram_drv.h |  1 -
+ include/linux/zsmalloc.h      |  1 +
+ mm/zsmalloc.c                 | 44 ++++++++++++++++++++++---------------------
+ 4 files changed, 30 insertions(+), 28 deletions(-)
 
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index fb655e8..28ad3f8 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -388,7 +388,6 @@ static ssize_t comp_algorithm_store(struct device *dev,
+ static ssize_t compact_store(struct device *dev,
+ 		struct device_attribute *attr, const char *buf, size_t len)
+ {
+-	unsigned long nr_migrated;
+ 	struct zram *zram = dev_to_zram(dev);
+ 	struct zram_meta *meta;
+ 
+@@ -399,8 +398,7 @@ static ssize_t compact_store(struct device *dev,
+ 	}
+ 
+ 	meta = zram->meta;
+-	nr_migrated = zs_compact(meta->mem_pool);
+-	atomic64_add(nr_migrated, &zram->stats.num_migrated);
++	zs_compact(meta->mem_pool);
+ 	up_read(&zram->init_lock);
+ 
+ 	return len;
+@@ -428,13 +426,15 @@ static ssize_t mm_stat_show(struct device *dev,
+ 		struct device_attribute *attr, char *buf)
+ {
+ 	struct zram *zram = dev_to_zram(dev);
+-	u64 orig_size, mem_used = 0;
++	u64 orig_size, mem_used = 0, num_migrated = 0;
+ 	long max_used;
+ 	ssize_t ret;
+ 
+ 	down_read(&zram->init_lock);
+-	if (init_done(zram))
++	if (init_done(zram)) {
+ 		mem_used = zs_get_total_pages(zram->meta->mem_pool);
++		num_migrated = zs_get_num_migrated(zram->meta->mem_pool);
++	}
+ 
+ 	orig_size = atomic64_read(&zram->stats.pages_stored);
+ 	max_used = atomic_long_read(&zram->stats.max_used_pages);
+@@ -447,7 +447,7 @@ static ssize_t mm_stat_show(struct device *dev,
+ 			zram->limit_pages << PAGE_SHIFT,
+ 			max_used << PAGE_SHIFT,
+ 			(u64)atomic64_read(&zram->stats.zero_pages),
+-			(u64)atomic64_read(&zram->stats.num_migrated));
++			num_migrated);
+ 	up_read(&zram->init_lock);
+ 
+ 	return ret;
+diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+index 6dbe2df..8e92339 100644
+--- a/drivers/block/zram/zram_drv.h
++++ b/drivers/block/zram/zram_drv.h
+@@ -78,7 +78,6 @@ struct zram_stats {
+ 	atomic64_t compr_data_size;	/* compressed size of pages stored */
+ 	atomic64_t num_reads;	/* failed + successful */
+ 	atomic64_t num_writes;	/* --do-- */
+-	atomic64_t num_migrated;	/* no. of migrated object */
+ 	atomic64_t failed_reads;	/* can happen when memory is too low */
+ 	atomic64_t failed_writes;	/* can happen when memory is too low */
+ 	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
+diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
+index 1338190..e878875 100644
+--- a/include/linux/zsmalloc.h
++++ b/include/linux/zsmalloc.h
+@@ -47,6 +47,7 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
+ void zs_unmap_object(struct zs_pool *pool, unsigned long handle);
+ 
+ unsigned long zs_get_total_pages(struct zs_pool *pool);
++unsigned long zs_get_num_migrated(struct zs_pool *pool);
+ unsigned long zs_compact(struct zs_pool *pool);
+ 
+ #endif
 diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index b7410c1..ce1484e 100644
+index ce1484e..e0f508a 100644
 --- a/mm/zsmalloc.c
 +++ b/mm/zsmalloc.c
-@@ -1480,7 +1480,7 @@ void zs_free(struct zs_pool *pool, unsigned long handle)
+@@ -237,16 +237,19 @@ struct link_free {
+ };
+ 
+ struct zs_pool {
+-	char *name;
++	char			*name;
+ 
+-	struct size_class **size_class;
+-	struct kmem_cache *handle_cachep;
++	struct size_class	**size_class;
++	struct kmem_cache	*handle_cachep;
+ 
+-	gfp_t flags;	/* allocation flags used when growing pool */
+-	atomic_long_t pages_allocated;
++	/* Allocation flags used when growing pool */
++	gfp_t			flags;
++	atomic_long_t		pages_allocated;
++	/* How many objects were migrated */
++	unsigned long		num_migrated;
+ 
+ #ifdef CONFIG_ZSMALLOC_STAT
+-	struct dentry *stat_dentry;
++	struct dentry		*stat_dentry;
+ #endif
+ };
+ 
+@@ -1221,6 +1224,12 @@ unsigned long zs_get_total_pages(struct zs_pool *pool)
  }
- EXPORT_SYMBOL_GPL(zs_free);
+ EXPORT_SYMBOL_GPL(zs_get_total_pages);
  
--static void zs_object_copy(unsigned long src, unsigned long dst,
-+static void zs_object_copy(unsigned long dst, unsigned long src,
- 				struct size_class *class)
- {
- 	struct page *s_page, *d_page;
-@@ -1621,7 +1621,7 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
++unsigned long zs_get_num_migrated(struct zs_pool *pool)
++{
++	return pool->num_migrated;
++}
++EXPORT_SYMBOL_GPL(zs_get_num_migrated);
++
+ /**
+  * zs_map_object - get address of allocated object from handle.
+  * @pool: pool from which the object was allocated
+@@ -1587,7 +1596,7 @@ struct zs_compact_control {
+ 	 /* Starting object index within @s_page which used for live object
+ 	  * in the subpage. */
+ 	int index;
+-	/* how many of objects are migrated */
++	/* How many of objects were migrated */
+ 	int nr_migrated;
+ };
  
- 		used_obj = handle_to_obj(handle);
- 		free_obj = obj_malloc(d_page, class, handle);
--		zs_object_copy(used_obj, free_obj, class);
-+		zs_object_copy(free_obj, used_obj, class);
- 		index++;
+@@ -1599,7 +1608,6 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+ 	struct page *s_page = cc->s_page;
+ 	struct page *d_page = cc->d_page;
+ 	unsigned long index = cc->index;
+-	int nr_migrated = 0;
+ 	int ret = 0;
+ 
+ 	while (1) {
+@@ -1626,13 +1634,12 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
  		record_obj(handle, free_obj);
  		unpin_tag(handle);
-@@ -1637,7 +1637,7 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+ 		obj_free(pool, class, used_obj);
+-		nr_migrated++;
++		cc->nr_migrated++;
+ 	}
+ 
+ 	/* Remember last position in this iteration */
+ 	cc->s_page = s_page;
+ 	cc->index = index;
+-	cc->nr_migrated = nr_migrated;
+ 
  	return ret;
  }
+@@ -1707,14 +1714,13 @@ static unsigned long zs_can_compact(struct size_class *class)
+ 	return obj_wasted * get_pages_per_zspage(class->size);
+ }
  
--static struct page *alloc_target_page(struct size_class *class)
-+static struct page *isolate_target_page(struct size_class *class)
+-static unsigned long __zs_compact(struct zs_pool *pool,
+-				struct size_class *class)
++static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+ {
+ 	struct zs_compact_control cc;
+ 	struct page *src_page;
+ 	struct page *dst_page = NULL;
+-	unsigned long nr_total_migrated = 0;
+ 
++	cc.nr_migrated = 0;
+ 	spin_lock(&class->lock);
+ 	while ((src_page = isolate_source_page(class))) {
+ 
+@@ -1736,7 +1742,6 @@ static unsigned long __zs_compact(struct zs_pool *pool,
+ 				break;
+ 
+ 			putback_zspage(pool, class, dst_page);
+-			nr_total_migrated += cc.nr_migrated;
+ 		}
+ 
+ 		/* Stop if we couldn't find slot */
+@@ -1746,7 +1751,6 @@ static unsigned long __zs_compact(struct zs_pool *pool,
+ 		putback_zspage(pool, class, dst_page);
+ 		putback_zspage(pool, class, src_page);
+ 		spin_unlock(&class->lock);
+-		nr_total_migrated += cc.nr_migrated;
+ 		cond_resched();
+ 		spin_lock(&class->lock);
+ 	}
+@@ -1754,15 +1758,14 @@ static unsigned long __zs_compact(struct zs_pool *pool,
+ 	if (src_page)
+ 		putback_zspage(pool, class, src_page);
+ 
+-	spin_unlock(&class->lock);
++	pool->num_migrated += cc.nr_migrated;
+ 
+-	return nr_total_migrated;
++	spin_unlock(&class->lock);
+ }
+ 
+ unsigned long zs_compact(struct zs_pool *pool)
  {
  	int i;
- 	struct page *page;
-@@ -1726,11 +1726,11 @@ static unsigned long __zs_compact(struct zs_pool *pool,
- 		cc.index = 0;
- 		cc.s_page = src_page;
+-	unsigned long nr_migrated = 0;
+ 	struct size_class *class;
  
--		while ((dst_page = alloc_target_page(class))) {
-+		while ((dst_page = isolate_target_page(class))) {
- 			cc.d_page = dst_page;
- 			/*
--			 * If there is no more space in dst_page, try to
--			 * allocate another zspage.
-+			 * If there is no more space in dst_page, resched
-+			 * and see if anyone had allocated another zspage.
- 			 */
- 			if (!migrate_zspage(pool, class, &cc))
- 				break;
+ 	for (i = zs_size_classes - 1; i >= 0; i--) {
+@@ -1771,10 +1774,9 @@ unsigned long zs_compact(struct zs_pool *pool)
+ 			continue;
+ 		if (class->index != i)
+ 			continue;
+-		nr_migrated += __zs_compact(pool, class);
++		__zs_compact(pool, class);
+ 	}
+-
+-	return nr_migrated;
++	return pool->num_migrated;
+ }
+ EXPORT_SYMBOL_GPL(zs_compact);
+ 
 -- 
 2.5.0.rc0.3.g912bd49
 
