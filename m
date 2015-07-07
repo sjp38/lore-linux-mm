@@ -1,231 +1,227 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 14A426B0038
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 12:07:11 -0400 (EDT)
-Received: by wifm2 with SMTP id m2so64297052wif.1
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 09:07:10 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gc2si3645812wjb.102.2015.07.07.09.07.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 07 Jul 2015 09:07:08 -0700 (PDT)
-Date: Tue, 7 Jul 2015 18:07:03 +0200
-From: "Luis R. Rodriguez" <mcgrof@suse.com>
-Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
-Message-ID: <20150707160703.GR7021@wotan.suse.de>
-References: <20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com>
- <20150622161002.GB8240@lst.de>
- <CAPcyv4h5OXyRvZvLGD5ZknO-YUPn675YGv0XdtW1QOO9qmZsug@mail.gmail.com>
- <20150701062352.GA3739@lst.de>
- <CAMuHMdUO4uSWH1Qc0SfDTLuXbiG2N9fq8Tf6j+3RoqVKdPugbA@mail.gmail.com>
- <20150701065948.GA4355@lst.de>
- <CAMuHMdXqjmo2T3V=msZySVSu2j4YjyE7FnVXWTjySEyfYLSg1A@mail.gmail.com>
- <20150701072828.GA4881@lst.de>
- <20150707095012.GQ7021@wotan.suse.de>
- <20150707101330.GJ7557@n2100.arm.linux.org.uk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150707101330.GJ7557@n2100.arm.linux.org.uk>
+Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com [209.85.220.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EB346B0038
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 13:03:51 -0400 (EDT)
+Received: by qkeo142 with SMTP id o142so144455461qke.1
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 10:03:51 -0700 (PDT)
+Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
+        by mx.google.com with ESMTP id m2si25553610qhb.129.2015.07.07.10.03.50
+        for <linux-mm@kvack.org>;
+        Tue, 07 Jul 2015 10:03:50 -0700 (PDT)
+From: Eric B Munson <emunson@akamai.com>
+Subject: [PATCH V3 0/5] Allow user to request memory to be locked on page fault
+Date: Tue,  7 Jul 2015 13:03:38 -0400
+Message-Id: <1436288623-13007-1-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Christoph Hellwig <hch@lst.de>, Andy Lutomirski <luto@amacapital.net>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Julia Lawall <julia.lawall@lip6.fr>, Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Linux MM <linux-mm@kvack.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Michael Ellerman <mpe@ellerman.id.au>, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>, mcgrof@do-not-panic.com, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Eric B Munson <emunson@akamai.com>, Shuah Khan <shuahkh@osg.samsung.com>, Michal Hocko <mhocko@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On Tue, Jul 07, 2015 at 11:13:30AM +0100, Russell King - ARM Linux wrote:
-> On Tue, Jul 07, 2015 at 11:50:12AM +0200, Luis R. Rodriguez wrote:
-> > mcgrof@ergon ~/linux-next (git::kill-mtrr)$ git grep ioremap_nocache drivers/| wc -l
-> > 359
-> 
-> Yes, it's because we have:
-> (a) LDD telling people they should be using ioremap_nocache() for mapping
->     devices.
+mlock() allows a user to control page out of program memory, but this
+comes at the cost of faulting in the entire mapping when it is
+allocated.  For large mappings where the entire area is not necessary
+this is not ideal.  Instead of forcing all locked pages to be present
+when they are allocated, this set creates a middle ground.  Pages are
+marked to be placed on the unevictable LRU (locked) when they are first
+used, but they are not faulted in by the mlock call.
 
-Sounds like LDD could use some love from ARM folks. Not a requirement if we
-set out on this semantics / grammar / documentation crusade appropriatley.
+This series introduces a new mlock() system call that takes a flags
+argument along with the start address and size.  This flags argument
+gives the caller the ability to request memory be locked in the
+traditional way, or to be locked after the page is faulted in.  New
+calls are added for munlock() and munlockall() which give the called a
+way to specify which flags are supposed to be cleared.  A new MCL flag
+is added to mirror the lock on fault behavior from mlock() in
+mlockall().  Finally, a flag for mmap() is added that allows a user to
+specify that the covered are should not be paged out, but only after the
+memory has been used the first time.
 
-> (b) We have documentation in the Documentation/ subdirectory telling people
->     to use ioremap_nocache() for the same.
+There are two main use cases that this set covers.  The first is the
+security focussed mlock case.  A buffer is needed that cannot be written
+to swap.  The maximum size is known, but on average the memory used is
+significantly less than this maximum.  With lock on fault, the buffer
+is guaranteed to never be paged out without consuming the maximum size
+every time such a buffer is created.
 
-That obviously needs to be fixed, I take it you're on it.
+The second use case is focussed on performance.  Portions of a large
+file are needed and we want to keep the used portions in memory once
+accessed.  This is the case for large graphical models where the path
+through the graph is not known until run time.  The entire graph is
+unlikely to be used in a given invocation, but once a node has been
+used it needs to stay resident for further processing.  Given these
+constraints we have a number of options.  We can potentially waste a
+large amount of memory by mlocking the entire region (this can also
+cause a significant stall at startup as the entire file is read in).
+We can mlock every page as we access them without tracking if the page
+is already resident but this introduces large overhead for each access.
+The third option is mapping the entire region with PROT_NONE and using
+a signal handler for SIGSEGV to mprotect(PROT_READ) and mlock() the
+needed page.  Doing this page at a time adds a significant performance
+penalty.  Batching can be used to mitigate this overhead, but in order
+to safely avoid trying to mprotect pages outside of the mapping, the
+boundaries of each mapping to be used in this way must be tracked and
+available to the signal handler.  This is precisely what the mm system
+in the kernel should already be doing.
 
-> > This is part of the work I've been doing lately. The
-> > eventual goal once we have the write-combing areas properly split with
-> > ioremap_wc() and using the new proper preferred architecture agnostic modifier
-> > (arch_phys_wc_add()) is to change the default ioremap behaviour on x86 to use
-> > strong UC for PAT enabled systems for *both* ioremap() and ioremap_nocache().
-> 
-> Please note that on ARM, ioremap_wc() gives what's termed in ARM ARM
-> speak "normal memory, non-cacheable" - which can be subject to speculation,
-> write combining, multiple accesses, etc.  The important point is that
-> such mapping is not suitable for device registers, but is suitable for
-> device regions that have "memory like" properties (iow, a chunk of RAM,
-> like video drivers.)  It does support unaligned accesses.
+For mlock(MLOCK_ONFAULT) and mmap(MAP_LOCKONFAULT) the user is charged
+against RLIMIT_MEMLOCK as if mlock(MLOCK_LOCKED) or mmap(MAP_LOCKED) was
+used, so when the VMA is created not when the pages are faulted in.  For
+mlockall(MCL_ONFAULT) the user is charged as if MCL_FUTURE was used.
+This decision was made to keep the accounting checks out of the page
+fault path.
 
-Thanks that helps.
+To illustrate the benefit of this set I wrote a test program that mmaps
+a 5 GB file filled with random data and then makes 15,000,000 accesses
+to random addresses in that mapping.  The test program was run 20 times
+for each setup.  Results are reported for two program portions, setup
+and execution.  The setup phase is calling mmap and optionally mlock on
+the entire region.  For most experiments this is trivial, but it
+highlights the cost of faulting in the entire region.  Results are
+averages across the 20 runs in milliseconds.
 
-> > Because of these grammatical issues and the issues with
-> > unaligned access with ARM I think its important we put some effort
-> > to care a bit more about defining clear semantics through grammar
-> > for new APIs or as we rewrite APIs. We have tools to do this these
-> > days, best make use of them.
-> 
-> I'm in support of anything which more clearly specifies the requirements
-> for these APIs.
+mmap with mlock(MLOCK_LOCKED) on entire range:
+Setup avg:      8228.666
+Processing avg: 8274.257
 
-Great!
+mmap with mlock(MLOCK_LOCKED) before each access:
+Setup avg:      0.113
+Processing avg: 90993.552
 
-> > While we're at it and reconsidering all this, a few items I wish for
-> > us to address as well then, most of them related to grammar, some
-> > procedural clarification:
-> > 
-> >   * Document it as not supported to have overlapping ioremap() calls.
-> >     No one seems to have a clue if this should work, but clearly this
-> >     is just a bad idea. I don't see why we should support the complexity
-> >     of having this. It seems we can write grammar rules to prevent this.
-> 
-> On ARM, we (probably) have a lot of cases where ioremap() is used multiple
-> times for the same physical address space, so we shouldn't rule out having
-> multiple mappings of the same type.
+mmap with PROT_NONE and signal handler and batch size of 1 page:
+With the default value in max_map_count, this gets ENOMEM as I attempt
+to change the permissions, after upping the sysctl significantly I get:
+Setup avg:      0.058
+Processing avg: 69488.073
 
-Why is that done? Don't worry if you are not sure why but only speculate of the
-practice's existence (sloppy drivers or lazy driver developers). FWIW for x86
-IIRC I ended up concluding that overlapping ioremap() calls with the same type
-would work but not if they differ in type.  Although I haven't written a
-grammer rule to hunt down overlapping ioremap() I suspected its use was likely
-odd and likely should be reconsidered. Would this be true for ARM too ? Or are
-you saying this should be a feature ? I don't expect an answer now but I'm
-saying we *should* all together decide on this, and if you're inclined to
-believe that this should ideally be avoided I'd like to hear that. If you feel
-strongly though this should be a feature I would like to know why.
+mmap with PROT_NONE and signal handler and batch size of 8 pages:
+Setup avg:      0.068
+Processing avg: 38204.116
 
-> However, differing types would be a problem on ARM.
+mmap with PROT_NONE and signal handler and batch size of 16 pages:
+Setup avg:      0.044
+Processing avg: 29671.180
 
-Great.
+mmap with mlock(MLOCK_ONFAULT) on entire range:
+Setup avg:      0.189
+Processing avg: 17904.899
 
-> >   * We seem to care about device drivers / kernel code doing unaligned
-> >     accesses with certain ioremap() variants. At least for ARM you should
-> >     not do unaligned accesses on ioremap_nocache() areas.
-> 
-> ... and ioremap() areas.
-> 
-> If we can stop the "abuse" of ioremap_nocache() to map device registers,
+The signal handler in the batch cases faulted in memory in two steps to
+avoid having to know the start and end of the faulting mapping.  The
+first step covers the page that caused the fault as we know that it will
+be possible to lock.  The second step speculatively tries to mlock and
+mprotect the batch size - 1 pages that follow.  There may be a clever
+way to avoid this without having the program track each mapping to be
+covered by this handeler in a globally accessible structure, but I could
+not find it.  It should be noted that with a large enough batch size
+this two step fault handler can still cause the program to crash if it
+reaches far beyond the end of the mapping.
 
-OK when *should* ioremap_nocache() be used then ? That is, we can easily write
-a rule to go and switch drivers away from ioremap_nocache() but do we have a
-grammatical white-list for when its intended goal was appropriate ?  For x86
-the goal is to use it for MMIO registers, keep in mind we'd ideally want an
-effective ioremap_uc() on those long term, we just can't go flipping the switch
-just yet unless we get all the write-combined areas right first and smake sure
-that we split them out. That's the effort I've been working on lately.
+These results show that if the developer knows that a majority of the
+mapping will be used, it is better to try and fault it in at once,
+otherwise MAP_LOCKONFAULT is significantly faster.
 
-> then we could potentially switch ioremap_nocache() to be a normal-memory
-> like mapping, which would allow it to support unaligned accesses.
+The performance cost of these patches are minimal on the two benchmarks
+I have tested (stream and kernbench).  The following are the average
+values across 20 runs of stream and 10 runs of kernbench after a warmup
+run whose results were discarded.
 
-Great. Can you elaborate on why that could happen *iff* the abuse stops ?
+Avg throughput in MB/s from stream using 1000000 element arrays
+Test     4.2-rc1      4.2-rc1+lock-on-fault
+Copy:    10,566.5     10,421
+Scale:   10,685       10,503.5
+Add:     12,044.1     11,814.2
+Triad:   12,064.8     11,846.3
 
-> >     I am not sure
-> >     if we can come up with grammar to vet for / warn for unaligned access
-> >     type of code in driver code on some memory area when some ioremap()
-> >     variant is used, but this could be looked into. I believe we may
-> >     want rules for unaligned access maybe in general, and not attached
-> >     to certain calls due to performance considerations, so this work
-> >     may be welcomed regardless (refer to
-> >     Documentation/unaligned-memory-access.txt)
-> >     
-> >   * We seem to want to be pedantic about adding new ioremap() variants, the
-> >     unaligned issue on ARM is one reason, do we ideally then want *all*
-> >     architecture maintainers to provide an Acked-by for any new ioremap
-> >     variants ?
-> 
-> /If/ we get the current mess sorted out so that we have a safe fallback,
-> and we have understanding of the different architecture variants (iow,
-> documented what the safe fallback is) I don't see any reason why we'd
-> need acks from arch maintainers. 
+Kernbench optimal load
+                 4.2-rc1  4.2-rc1+lock-on-fault
+Elapsed Time     78.453   78.991
+User Time        64.2395  65.2355
+System Time      9.7335   9.7085
+Context Switches 22211.5  22412.1
+Sleeps           14965.3  14956.1
 
-Great, that's the scalable solution so we should strive for this then as
-it seems attainable.
+---
 
-> Unfortunately, we're not in that
-> situation today, because of the poorly documented mess that ioremap*()
-> currently is (and yes, I'm partly to blame for that too by not documenting
-> ARMs behaviour here.)
+Changes from V2:
 
-So you're saying the mess is yours to begin with :) ?
+Added new system calls for mlock, munlock, and munlockall with added
+flags arguments for controlling how memory is locked or unlocked.
 
-> I have some patches (prepared last week, I was going to push them out
-> towards the end of the merge window) which address that, but unfortunately
-> the ARM autobuilders have been giving a number of seemingly random boot
-> failures, and I'm not yet sure what's going on... so I'm holding that
-> back until stuff has settled down.
+Eric B Munson (5):
+  mm: mlock: Refactor mlock, munlock, and munlockall code
+  mm: mlock: Add new mlock, munlock, and munlockall system calls
+  mm: mlock: Introduce VM_LOCKONFAULT and add mlock flags to enable it
+  mm: mmap: Add mmap flag to request VM_LOCKONFAULT
+  selftests: vm: Add tests for lock on fault
 
-OK sounds like sorting that out will take some time. What are we to do
-in the meantime ? Would a default safe return -EOPNOTSUPP be a good
-deafult for variants until we get the semantics all settled out ?
+ arch/alpha/include/asm/unistd.h             |   2 +-
+ arch/alpha/include/uapi/asm/mman.h          |   5 +
+ arch/alpha/kernel/systbls.S                 |   3 +
+ arch/arm/kernel/calls.S                     |   3 +
+ arch/arm64/include/asm/unistd32.h           |   6 +
+ arch/avr32/kernel/syscall_table.S           |   3 +
+ arch/blackfin/mach-common/entry.S           |   3 +
+ arch/cris/arch-v10/kernel/entry.S           |   3 +
+ arch/cris/arch-v32/kernel/entry.S           |   3 +
+ arch/frv/kernel/entry.S                     |   3 +
+ arch/ia64/kernel/entry.S                    |   3 +
+ arch/m32r/kernel/entry.S                    |   3 +
+ arch/m32r/kernel/syscall_table.S            |   3 +
+ arch/m68k/kernel/syscalltable.S             |   3 +
+ arch/microblaze/kernel/syscall_table.S      |   3 +
+ arch/mips/include/uapi/asm/mman.h           |   8 +
+ arch/mips/kernel/scall32-o32.S              |   3 +
+ arch/mips/kernel/scall64-64.S               |   3 +
+ arch/mips/kernel/scall64-n32.S              |   3 +
+ arch/mips/kernel/scall64-o32.S              |   3 +
+ arch/mn10300/kernel/entry.S                 |   3 +
+ arch/parisc/include/uapi/asm/mman.h         |   5 +
+ arch/powerpc/include/uapi/asm/mman.h        |   5 +
+ arch/s390/kernel/syscalls.S                 |   3 +
+ arch/sh/kernel/syscalls_32.S                |   3 +
+ arch/sparc/include/uapi/asm/mman.h          |   5 +
+ arch/sparc/kernel/systbls_32.S              |   2 +-
+ arch/sparc/kernel/systbls_64.S              |   4 +-
+ arch/tile/include/uapi/asm/mman.h           |   8 +
+ arch/x86/entry/syscalls/syscall_32.tbl      |   3 +
+ arch/x86/entry/syscalls/syscall_64.tbl      |   3 +
+ arch/xtensa/include/uapi/asm/mman.h         |   8 +
+ arch/xtensa/include/uapi/asm/unistd.h       |  10 +-
+ fs/proc/task_mmu.c                          |   1 +
+ include/linux/mm.h                          |   1 +
+ include/linux/mman.h                        |   3 +-
+ include/linux/syscalls.h                    |   4 +
+ include/uapi/asm-generic/mman.h             |   5 +
+ include/uapi/asm-generic/unistd.h           |   8 +-
+ kernel/sys_ni.c                             |   3 +
+ mm/mlock.c                                  | 135 +++++++++--
+ mm/mmap.c                                   |   6 +-
+ mm/swap.c                                   |   3 +-
+ tools/testing/selftests/vm/Makefile         |   2 +
+ tools/testing/selftests/vm/lock-on-fault.c  | 342 ++++++++++++++++++++++++++++
+ tools/testing/selftests/vm/on-fault-limit.c |  47 ++++
+ tools/testing/selftests/vm/run_vmtests      |  22 ++
+ 47 files changed, 681 insertions(+), 32 deletions(-)
+ create mode 100644 tools/testing/selftests/vm/lock-on-fault.c
+ create mode 100644 tools/testing/selftests/vm/on-fault-limit.c
 
-> Another issue is... the use of memcpy()/memset() directly on memory
-> returned from ioremap*().  The pmem driver does this.  This fails sparse
-> checks.  However, years ago, x86 invented the memcpy_fromio()/memcpy_toio()
-> memset_io() functions, which took a __iomem pointer (which /presumably/
-> means they're supposed to operate on the memory associated with an
-> ioremap'd region.)
-> 
-> Should these functions always be used for mappings via ioremap*(), and
-> the standard memcpy()/memset() be avoided?  To me, that sounds like a
-> very good thing, because that gives us more control over the
-> implementation of the functions used to access ioremap'd regions,
-> and the arch can decide to prevent GCC inlining its own memset() or
-> memcpy() code if desired.
+Cc: Shuah Khan <shuahkh@osg.samsung.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-alpha@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mips@linux-mips.org
+Cc: linux-parisc@vger.kernel.org
+Cc: linuxppc-dev@lists.ozlabs.org
+Cc: sparclinux@vger.kernel.org
+Cc: linux-xtensa@linux-xtensa.org
+Cc: linux-mm@kvack.org
+Cc: linux-arch@vger.kernel.org
+Cc: linux-api@vger.kernel.org
 
-I think Ben might like this for PowerPC as well, although the atomic
-read / write thing would also require revising. I'm pretty confident
-we can use grammar to go and fix these offenders if we deem this as
-desirable.
-
-Lastly, a small point I'd like to make is that in my ioremap_wc() crusade to
-vet for things I found that the drivers that I had the biggest amount of issue
-with were ancient and decrepit, perhaps now staging material drivers. Of 4
-drivers that I had issues with two had code commented out (now removed, the
-fusion driver), one driver was deprecated and we now reached the decision to
-remove it from Linux (outbound via staging for ~2 releases as an accepted
-driver removal policy, as Greg clarified) this is the ipath driver, another had
-some oddball firmware which didn't even allow to expose the write-combined
-address offset and was used for some old DVR setup maybe only some folks in
-India are using, and lastly atyfb for which we ended up adding ioremap_uc() for
-to help work around some MTRR corner case use cases to match a suitable
-replacement with PAT.
-
-This is a long winded way of saying that old crappy drivers had an impact on
-setting the pace for sane semantics and collateral evolutions (in the form of
-accepted required grammatical changes, to use ioremap_uc() with
-arch_phys_wc_add()) to clean things up, and I think that if we want to grow
-faster and leaner we must grow with grammar but that also should likely mean
-more readily accepting removal of ancient crappy drivers. If folks agree
-one way to make this explicit is for example to send to staging drivers
-which are enabled for all architectures which do tons of unaligned accesses,
-and for staging drivers to be only enabled via Kconfig for architectures
-which are known to work.
-
-If we want clear semantics / grammar rules / checks defined for a set of
-ioremap() calls and family of calls having a clean slate of drivers should make
-defining semantics, grammer rules and enforcing them much easier, just as
-then maing collateral evolutions to then go out and fix only a set of drivers.
-Moore's law should have implications not only on accepted growth but also
-on deprecation, if we haven't been deprecating hardware fast enough and
-not giving old drivers major love it should only affect us, specially as
-our hardware evolves even faster.
-
-So if we want to be pedantic about semantics / grammar lets flush down the
-toilet more drivers and faster and if we're iffy about them we can put them on
-the staging corner.
-
-> Note that on x86, these three functions are merely wrappers around
-> standard memcpy()/memset(), so there should be no reason why pmem.c
-> couldn't be updated to use these accessors instead.
-
-Great.
-
-  Luis
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
