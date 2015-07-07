@@ -1,68 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A7246B025A
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 06:27:44 -0400 (EDT)
-Received: by obbgp5 with SMTP id gp5so13288921obb.0
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 03:27:44 -0700 (PDT)
-Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
-        by mx.google.com with ESMTPS id j6si3423726obu.78.2015.07.07.03.27.43
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 115BD6B0038
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 07:14:13 -0400 (EDT)
+Received: by qgef3 with SMTP id f3so32250119qge.0
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 04:14:12 -0700 (PDT)
+Received: from mail-qk0-x22b.google.com (mail-qk0-x22b.google.com. [2607:f8b0:400d:c09::22b])
+        by mx.google.com with ESMTPS id 123si24456404qhv.14.2015.07.07.04.14.12
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Jul 2015 03:27:43 -0700 (PDT)
-Received: by oiaf66 with SMTP id f66so106352533oia.3
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 03:27:43 -0700 (PDT)
+        Tue, 07 Jul 2015 04:14:12 -0700 (PDT)
+Received: by qkhu186 with SMTP id u186so136930848qkh.0
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 04:14:12 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20150707101330.GJ7557@n2100.arm.linux.org.uk>
-References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com>
-	<20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com>
-	<20150622161002.GB8240@lst.de>
-	<CAPcyv4h5OXyRvZvLGD5ZknO-YUPn675YGv0XdtW1QOO9qmZsug@mail.gmail.com>
-	<20150701062352.GA3739@lst.de>
-	<CAMuHMdUO4uSWH1Qc0SfDTLuXbiG2N9fq8Tf6j+3RoqVKdPugbA@mail.gmail.com>
-	<20150701065948.GA4355@lst.de>
-	<CAMuHMdXqjmo2T3V=msZySVSu2j4YjyE7FnVXWTjySEyfYLSg1A@mail.gmail.com>
-	<20150701072828.GA4881@lst.de>
-	<20150707095012.GQ7021@wotan.suse.de>
-	<20150707101330.GJ7557@n2100.arm.linux.org.uk>
-Date: Tue, 7 Jul 2015 12:27:43 +0200
-Message-ID: <CAMuHMdX539+TRrZ+NtQNzJecVgT_Mc=CTZggixtcUg_GsFMjoQ@mail.gmail.com>
-Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
-From: Geert Uytterhoeven <geert@linux-m68k.org>
+In-Reply-To: <1436261425-29881-4-git-send-email-tangchen@cn.fujitsu.com>
+References: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com>
+	<1436261425-29881-4-git-send-email-tangchen@cn.fujitsu.com>
+Date: Tue, 7 Jul 2015 14:14:12 +0300
+Message-ID: <CAChTCPw6ZLs7XgApfN1exeB6TVcQji6ryq+HrK-admp=FGfiTA@mail.gmail.com>
+Subject: Re: [PATCH 3/5] x86, acpi, cpu-hotplug: Introduce apicid_to_cpuid[]
+ array to store persistent cpuid <-> apicid mapping.
+From: =?UTF-8?Q?Mika_Penttil=C3=A4?= <mika.j.penttila@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: "Luis R. Rodriguez" <mcgrof@suse.com>, Christoph Hellwig <hch@lst.de>, Andy Lutomirski <luto@amacapital.net>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Julia Lawall <julia.lawall@lip6.fr>, Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Linux MM <linux-mm@kvack.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Michael Ellerman <mpe@ellerman.id.au>, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>, "Luis R. Rodriguez" <mcgrof@do-not-panic.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: rjw@rjwysocki.net, gongzhaogang@inspur.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Jul 7, 2015 at 12:13 PM, Russell King - ARM Linux
-<linux@arm.linux.org.uk> wrote:
-> Another issue is... the use of memcpy()/memset() directly on memory
-> returned from ioremap*().  The pmem driver does this.  This fails sparse
-> checks.  However, years ago, x86 invented the memcpy_fromio()/memcpy_toio()
-> memset_io() functions, which took a __iomem pointer (which /presumably/
-> means they're supposed to operate on the memory associated with an
-> ioremap'd region.)
+I think you forgot to reserve CPU 0 for BSP in cpuid mask.
+
+--Mika
+
+On Tue, Jul 7, 2015 at 12:30 PM, Tang Chen <tangchen@cn.fujitsu.com> wrote:
+> From: Gu Zheng <guz.fnst@cn.fujitsu.com>
 >
-> Should these functions always be used for mappings via ioremap*(), and
-> the standard memcpy()/memset() be avoided?  To me, that sounds like a
-> very good thing, because that gives us more control over the
-> implementation of the functions used to access ioremap'd regions,
-> and the arch can decide to prevent GCC inlining its own memset() or
-> memcpy() code if desired.
-
-Yes they should. Not doing that is a typical portability bug (works on x86,
-not everywhere).
-
-Gr{oetje,eeting}s,
-
-                        Geert
-
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+> In this patch, we introduce a new static array named apicid_to_cpuid[],
+> which is large enough to store info for all possible cpus.
+>
+> And then, we modify the cpuid calculation. In generic_processor_info(),
+> it simply finds the next unused cpuid. And it is also why the cpuid <-> nodeid
+> mapping changes with node hotplug.
+>
+> After this patch, we find the next unused cpuid, map it to an apicid,
+> and store the mapping in apicid_to_cpuid[], so that cpuid <-> apicid
+> mapping will be persistent.
+>
+> And finally we will use this array to make cpuid <-> nodeid persistent.
+>
+> cpuid <-> apicid mapping is established at local apic registeration time.
+> But non-present or disabled cpus are ignored.
+>
+> In this patch, we establish all possible cpuid <-> apicid mapping when
+> registering local apic.
+>
+>
+> Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
+> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+> ---
+>  arch/x86/include/asm/mpspec.h |  1 +
+>  arch/x86/kernel/acpi/boot.c   |  6 ++----
+>  arch/x86/kernel/apic/apic.c   | 47 ++++++++++++++++++++++++++++++++++++++++---
+>  3 files changed, 47 insertions(+), 7 deletions(-)
+>
+> diff --git a/arch/x86/include/asm/mpspec.h b/arch/x86/include/asm/mpspec.h
+> index b07233b..db902d8 100644
+> --- a/arch/x86/include/asm/mpspec.h
+> +++ b/arch/x86/include/asm/mpspec.h
+> @@ -86,6 +86,7 @@ static inline void early_reserve_e820_mpc_new(void) { }
+>  #endif
+>
+>  int generic_processor_info(int apicid, int version);
+> +int __generic_processor_info(int apicid, int version, bool enabled);
+>
+>  #define PHYSID_ARRAY_SIZE      BITS_TO_LONGS(MAX_LOCAL_APIC)
+>
+> diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
+> index e49ee24..bcc85b2 100644
+> --- a/arch/x86/kernel/acpi/boot.c
+> +++ b/arch/x86/kernel/acpi/boot.c
+> @@ -174,15 +174,13 @@ static int acpi_register_lapic(int id, u8 enabled)
+>                 return -EINVAL;
+>         }
+>
+> -       if (!enabled) {
+> +       if (!enabled)
+>                 ++disabled_cpus;
+> -               return -EINVAL;
+> -       }
+>
+>         if (boot_cpu_physical_apicid != -1U)
+>                 ver = apic_version[boot_cpu_physical_apicid];
+>
+> -       return generic_processor_info(id, ver);
+> +       return __generic_processor_info(id, ver, enabled);
+>  }
+>
+>  static int __init
+> diff --git a/arch/x86/kernel/apic/apic.c b/arch/x86/kernel/apic/apic.c
+> index a9c9830..c744ffb 100644
+> --- a/arch/x86/kernel/apic/apic.c
+> +++ b/arch/x86/kernel/apic/apic.c
+> @@ -1977,7 +1977,38 @@ void disconnect_bsp_APIC(int virt_wire_setup)
+>         apic_write(APIC_LVT1, value);
+>  }
+>
+> -static int __generic_processor_info(int apicid, int version, bool enabled)
+> +/*
+> + * Logic cpu number(cpuid) to local APIC id persistent mappings.
+> + * Do not clear the mapping even if cpu is hot-removed.
+> + */
+> +static int apicid_to_cpuid[] = {
+> +       [0 ... NR_CPUS - 1] = -1,
+> +};
+> +
+> +/*
+> + * Internal cpu id bits, set the bit once cpu present, and never clear it.
+> + */
+> +static cpumask_t cpuid_mask = CPU_MASK_NONE;
+> +
+> +static int get_cpuid(int apicid)
+> +{
+> +       int free_id, i;
+> +
+> +       free_id = cpumask_next_zero(-1, &cpuid_mask);
+> +       if (free_id >= nr_cpu_ids)
+> +               return -1;
+> +
+> +       for (i = 0; i < free_id; i++)
+> +               if (apicid_to_cpuid[i] == apicid)
+> +                       return i;
+> +
+> +       apicid_to_cpuid[free_id] = apicid;
+> +       cpumask_set_cpu(free_id, &cpuid_mask);
+> +
+> +       return free_id;
+> +}
+> +
+> +int __generic_processor_info(int apicid, int version, bool enabled)
+>  {
+>         int cpu, max = nr_cpu_ids;
+>         bool boot_cpu_detected = physid_isset(boot_cpu_physical_apicid,
+> @@ -2058,8 +2089,18 @@ static int __generic_processor_info(int apicid, int version, bool enabled)
+>                  * for BSP.
+>                  */
+>                 cpu = 0;
+> -       } else
+> -               cpu = cpumask_next_zero(-1, cpu_present_mask);
+> +       } else {
+> +               cpu = get_cpuid(apicid);
+> +               if (cpu < 0) {
+> +                       int thiscpu = max + disabled_cpus;
+> +
+> +                       pr_warning("  Processor %d/0x%x ignored.\n",
+> +                                  thiscpu, apicid);
+> +                       if (enabled)
+> +                               disabled_cpus++;
+> +                       return -EINVAL;
+> +               }
+> +       }
+>
+>         /*
+>          * Validate version
+> --
+> 1.9.3
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
