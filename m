@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id B454F6B0259
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 05:30:21 -0400 (EDT)
-Received: by pdbci14 with SMTP id ci14so122701874pdb.2
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 02:30:21 -0700 (PDT)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id C92436B025A
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 05:30:25 -0400 (EDT)
+Received: by pacgz10 with SMTP id gz10so36805761pac.3
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 02:30:25 -0700 (PDT)
 Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id rl6si20908134pbc.99.2015.07.07.02.30.19
+        by mx.google.com with ESMTP id bf7si33731027pdb.153.2015.07.07.02.30.23
         for <linux-mm@kvack.org>;
-        Tue, 07 Jul 2015 02:30:20 -0700 (PDT)
+        Tue, 07 Jul 2015 02:30:24 -0700 (PDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 3/5] x86, acpi, cpu-hotplug: Introduce apicid_to_cpuid[] array to store persistent cpuid <-> apicid mapping.
-Date: Tue, 7 Jul 2015 17:30:23 +0800
-Message-ID: <1436261425-29881-4-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH 5/5] x86, acpi, cpu-hotplug: Set persistent cpuid <-> nodeid mapping when booting.
+Date: Tue, 7 Jul 2015 17:30:25 +0800
+Message-ID: <1436261425-29881-6-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
@@ -23,133 +23,149 @@ Cc: tangchen@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-k
 
 From: Gu Zheng <guz.fnst@cn.fujitsu.com>
 
-In this patch, we introduce a new static array named apicid_to_cpuid[],
-which is large enough to store info for all possible cpus.
-
-And then, we modify the cpuid calculation. In generic_processor_info(),
-it simply finds the next unused cpuid. And it is also why the cpuid <-> nodeid
-mapping changes with node hotplug.
-
-After this patch, we find the next unused cpuid, map it to an apicid,
-and store the mapping in apicid_to_cpuid[], so that cpuid <-> apicid
-mapping will be persistent.
-
-And finally we will use this array to make cpuid <-> nodeid persistent.
-
-cpuid <-> apicid mapping is established at local apic registeration time.
-But non-present or disabled cpus are ignored.
-
-In this patch, we establish all possible cpuid <-> apicid mapping when
-registering local apic.
+This patch set the persistent cpuid <-> nodeid mapping for all enabled/disabled
+processors at boot time via an additional acpi namespace walk for processors.
 
 
 Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- arch/x86/include/asm/mpspec.h |  1 +
- arch/x86/kernel/acpi/boot.c   |  6 ++----
- arch/x86/kernel/apic/apic.c   | 47 ++++++++++++++++++++++++++++++++++++++++---
- 3 files changed, 47 insertions(+), 7 deletions(-)
+ arch/ia64/kernel/acpi.c       |  2 +-
+ arch/x86/kernel/acpi/boot.c   |  2 +-
+ drivers/acpi/bus.c            |  3 ++
+ drivers/acpi/processor_core.c | 65 +++++++++++++++++++++++++++++++++++++++++++
+ include/linux/acpi.h          |  2 ++
+ 5 files changed, 72 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/include/asm/mpspec.h b/arch/x86/include/asm/mpspec.h
-index b07233b..db902d8 100644
---- a/arch/x86/include/asm/mpspec.h
-+++ b/arch/x86/include/asm/mpspec.h
-@@ -86,6 +86,7 @@ static inline void early_reserve_e820_mpc_new(void) { }
- #endif
- 
- int generic_processor_info(int apicid, int version);
-+int __generic_processor_info(int apicid, int version, bool enabled);
- 
- #define PHYSID_ARRAY_SIZE	BITS_TO_LONGS(MAX_LOCAL_APIC)
- 
+diff --git a/arch/ia64/kernel/acpi.c b/arch/ia64/kernel/acpi.c
+index b1698bc..7db5563 100644
+--- a/arch/ia64/kernel/acpi.c
++++ b/arch/ia64/kernel/acpi.c
+@@ -796,7 +796,7 @@ int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
+  *  ACPI based hotplug CPU support
+  */
+ #ifdef CONFIG_ACPI_HOTPLUG_CPU
+-static int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
++int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+ {
+ #ifdef CONFIG_ACPI_NUMA
+ 	/*
 diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
-index e49ee24..bcc85b2 100644
+index bcc85b2..b9a1aa1 100644
 --- a/arch/x86/kernel/acpi/boot.c
 +++ b/arch/x86/kernel/acpi/boot.c
-@@ -174,15 +174,13 @@ static int acpi_register_lapic(int id, u8 enabled)
- 		return -EINVAL;
- 	}
+@@ -695,7 +695,7 @@ static void __init acpi_set_irq_model_ioapic(void)
+ #ifdef CONFIG_ACPI_HOTPLUG_CPU
+ #include <acpi/processor.h>
  
--	if (!enabled) {
-+	if (!enabled)
- 		++disabled_cpus;
--		return -EINVAL;
--	}
- 
- 	if (boot_cpu_physical_apicid != -1U)
- 		ver = apic_version[boot_cpu_physical_apicid];
- 
--	return generic_processor_info(id, ver);
-+	return __generic_processor_info(id, ver, enabled);
+-static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
++void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+ {
+ #ifdef CONFIG_ACPI_NUMA
+ 	int nid;
+diff --git a/drivers/acpi/bus.c b/drivers/acpi/bus.c
+index 513e7230e..fd03885 100644
+--- a/drivers/acpi/bus.c
++++ b/drivers/acpi/bus.c
+@@ -700,6 +700,9 @@ static int __init acpi_init(void)
+ 	acpi_debugfs_init();
+ 	acpi_sleep_proc_init();
+ 	acpi_wakeup_device_init();
++#ifdef CONFIG_ACPI_HOTPLUG_CPU
++	acpi_set_processor_mapping();
++#endif
+ 	return 0;
  }
  
- static int __init
-diff --git a/arch/x86/kernel/apic/apic.c b/arch/x86/kernel/apic/apic.c
-index a9c9830..c744ffb 100644
---- a/arch/x86/kernel/apic/apic.c
-+++ b/arch/x86/kernel/apic/apic.c
-@@ -1977,7 +1977,38 @@ void disconnect_bsp_APIC(int virt_wire_setup)
- 	apic_write(APIC_LVT1, value);
+diff --git a/drivers/acpi/processor_core.c b/drivers/acpi/processor_core.c
+index 824b98b..45580ff 100644
+--- a/drivers/acpi/processor_core.c
++++ b/drivers/acpi/processor_core.c
+@@ -261,6 +261,71 @@ int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)
  }
+ EXPORT_SYMBOL_GPL(acpi_get_cpuid);
  
--static int __generic_processor_info(int apicid, int version, bool enabled)
-+/*
-+ * Logic cpu number(cpuid) to local APIC id persistent mappings.
-+ * Do not clear the mapping even if cpu is hot-removed.
-+ */
-+static int apicid_to_cpuid[] = {
-+	[0 ... NR_CPUS - 1] = -1,
-+};
-+
-+/*
-+ * Internal cpu id bits, set the bit once cpu present, and never clear it.
-+ */
-+static cpumask_t cpuid_mask = CPU_MASK_NONE;
-+
-+static int get_cpuid(int apicid)
++#ifdef CONFIG_ACPI_HOTPLUG_CPU
++static bool map_processor(acpi_handle handle, int *phys_id, int *cpuid)
 +{
-+	int free_id, i;
++	int type;
++	u32 acpi_id;
++	acpi_status status;
++	acpi_object_type acpi_type;
++	unsigned long long tmp;
++	union acpi_object object = { 0 };
++	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
 +
-+	free_id = cpumask_next_zero(-1, &cpuid_mask);
-+	if (free_id >= nr_cpu_ids)
-+		return -1;
++	status = acpi_get_type(handle, &acpi_type);
++	if (ACPI_FAILURE(status))
++		return false;
 +
-+	for (i = 0; i < free_id; i++)
-+		if (apicid_to_cpuid[i] == apicid)
-+			return i;
++	switch (acpi_type) {
++	case ACPI_TYPE_PROCESSOR:
++		status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
++		if (ACPI_FAILURE(status))
++			return false;
++		acpi_id = object.processor.proc_id;
++		break;
++	case ACPI_TYPE_DEVICE:
++		status = acpi_evaluate_integer(handle, "_UID", NULL, &tmp);
++		if (ACPI_FAILURE(status))
++			return false;
++		acpi_id = tmp;
++		break;
++	default:
++		return false;
++	}
 +
-+	apicid_to_cpuid[free_id] = apicid;
-+	cpumask_set_cpu(free_id, &cpuid_mask);
++	type = (acpi_type == ACPI_TYPE_DEVICE) ? 1 : 0;
 +
-+	return free_id;
++	*phys_id = __acpi_get_phys_id(handle, type, acpi_id, false);
++	*cpuid = acpi_map_cpuid(*phys_id, acpi_id);
++	if (*cpuid == -1)
++		return false;
++
++	return true;
 +}
 +
-+int __generic_processor_info(int apicid, int version, bool enabled)
- {
- 	int cpu, max = nr_cpu_ids;
- 	bool boot_cpu_detected = physid_isset(boot_cpu_physical_apicid,
-@@ -2058,8 +2089,18 @@ static int __generic_processor_info(int apicid, int version, bool enabled)
- 		 * for BSP.
- 		 */
- 		cpu = 0;
--	} else
--		cpu = cpumask_next_zero(-1, cpu_present_mask);
-+	} else {
-+		cpu = get_cpuid(apicid);
-+		if (cpu < 0) {
-+			int thiscpu = max + disabled_cpus;
++static acpi_status __init
++set_processor_node_mapping(acpi_handle handle, u32 lvl, void *context,
++			   void **rv)
++{
++	u32 apic_id;
++	int cpu_id;
 +
-+			pr_warning("  Processor %d/0x%x ignored.\n",
-+				   thiscpu, apicid);
-+			if (enabled)
-+				disabled_cpus++;
-+			return -EINVAL;
-+		}
-+	}
++	if (!map_processor(handle, &apic_id, &cpu_id))
++		return AE_ERROR;
++
++	acpi_map_cpu2node(handle, cpu_id, apic_id);
++	return AE_OK;
++}
++
++void __init acpi_set_processor_mapping(void)
++{
++	/* Set persistent cpu <-> node mapping for all processors. */
++	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
++			    ACPI_UINT32_MAX, set_processor_node_mapping,
++			    NULL, NULL, NULL);
++}
++#endif
++
+ #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
+ static int get_ioapic_id(struct acpi_subtable_header *entry, u32 gsi_base,
+ 			 u64 *phys_addr, int *ioapic_id)
+diff --git a/include/linux/acpi.h b/include/linux/acpi.h
+index 1618cdf..fe3bd4b 100644
+--- a/include/linux/acpi.h
++++ b/include/linux/acpi.h
+@@ -172,6 +172,8 @@ static inline bool invalid_phys_cpuid(phys_cpuid_t phys_id)
+ /* Arch dependent functions for cpu hotplug support */
+ int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu);
+ int acpi_unmap_cpu(int cpu);
++void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid);
++void __init acpi_set_processor_mapping(void);
+ #endif /* CONFIG_ACPI_HOTPLUG_CPU */
  
- 	/*
- 	 * Validate version
+ #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
 -- 
 1.9.3
 
