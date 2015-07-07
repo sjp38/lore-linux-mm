@@ -1,73 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FE166B0038
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 11:01:52 -0400 (EDT)
-Received: by pdbdz6 with SMTP id dz6so32541146pdb.0
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 08:01:51 -0700 (PDT)
-Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com. [2607:f8b0:400e:c02::22e])
-        by mx.google.com with ESMTPS id kn10si34964232pbd.243.2015.07.07.08.01.51
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 46BFD6B0038
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 11:03:31 -0400 (EDT)
+Received: by pddu5 with SMTP id u5so39807608pdd.3
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 08:03:31 -0700 (PDT)
+Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com. [2607:f8b0:400e:c02::235])
+        by mx.google.com with ESMTPS id v4si3982445pbs.198.2015.07.07.08.03.29
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Jul 2015 08:01:51 -0700 (PDT)
-Received: by pdbci14 with SMTP id ci14so127249631pdb.2
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 08:01:50 -0700 (PDT)
-Date: Wed, 8 Jul 2015 00:01:43 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v6 7/7] zsmalloc: use shrinker to trigger auto-compaction
-Message-ID: <20150707150143.GC23003@blaptop>
+        Tue, 07 Jul 2015 08:03:30 -0700 (PDT)
+Received: by pdbep18 with SMTP id ep18so127293477pdb.1
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 08:03:29 -0700 (PDT)
+Date: Wed, 8 Jul 2015 00:02:39 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH v6 5/7] zsmalloc/zram: introduce zs_pool_stats api
+Message-ID: <20150707150239.GD1450@swordfish>
 References: <1436270221-17844-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1436270221-17844-8-git-send-email-sergey.senozhatsky@gmail.com>
- <20150707134445.GD3898@blaptop>
- <20150707144107.GC1450@swordfish>
+ <1436270221-17844-6-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150707133638.GB3898@blaptop>
+ <20150707143256.GB1450@swordfish>
+ <20150707144845.GB23003@blaptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150707144107.GC1450@swordfish>
+In-Reply-To: <20150707144845.GB23003@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Tue, Jul 07, 2015 at 11:41:07PM +0900, Sergey Senozhatsky wrote:
-> On (07/07/15 22:44), Minchan Kim wrote:
-> [..]
-> > IMO, there is no value to maintain just in case of
-> > failing register_shrinker in practice.
-> > 
-> > Let's remove shrinker_enabled and abort pool creation if shrinker register
-> > is failed.
+On (07/07/15 23:48), Minchan Kim wrote:
+[..]
+> I have been used white space.
+> As well, when I look at current code under mm which I'm getting used,
+> almost everything use just white space.
 > 
-> But why would we do this? Yes, it's kinda-sorta bad -- we were not
-> able to register zspool shrinker, so there will be no automatic
-> compaction... And that's it.
-> 
-> It does not affect zsmalloc/zram functionality by any means. Including
-> compaction itself -- user still has a way to compact zspool (manually).
-> And in some scenarios user will never even see automatic compaction in
-> action (assuming that there is a plenty of RAM available).
-> 
-> Can you explain your decision?
 
-I don't think it would fail in *real practice*.
-Althout it might happen, what does zram could help in that cases?
+OK, don't want to engage into a meaningless discussion here.
+I'll rollback those hunks.
 
-If it were failed, it means there is already little memory on the system
-so zram could not be helpful for those environment.
-IOW, zram should be enabled earlier.
-
-If you want it strongly, please reproduce such failing and prove that
-zram was helpful for the system.
-
-on that situation.
-
-
-
-> 
-> 	-ss
-
--- 
-Kind regards,
-Minchan Kim
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
