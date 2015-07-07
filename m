@@ -1,65 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 689006B0038
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 18:37:03 -0400 (EDT)
-Received: by iebmu5 with SMTP id mu5so144055880ieb.1
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 15:37:03 -0700 (PDT)
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B6A46B0038
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 18:41:08 -0400 (EDT)
+Received: by igrv9 with SMTP id v9so152964039igr.1
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 15:41:08 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v68si661275ioi.40.2015.07.07.15.37.02
+        by mx.google.com with ESMTPS id hu6si18075671igb.44.2015.07.07.15.41.07
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Jul 2015 15:37:02 -0700 (PDT)
-Date: Tue, 7 Jul 2015 15:37:01 -0700
+        Tue, 07 Jul 2015 15:41:07 -0700 (PDT)
+Date: Tue, 7 Jul 2015 15:41:06 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFCv3 0/5] enable migration of driver pages
-Message-Id: <20150707153701.bfcde75108d1fb8aaedc8134@linux-foundation.org>
-In-Reply-To: <1436243785-24105-1-git-send-email-gioh.kim@lge.com>
-References: <1436243785-24105-1-git-send-email-gioh.kim@lge.com>
+Subject: Re: [PATCH] mm:Change unlabeled block of code to a else block in
+ the function dma_pool_free
+Message-Id: <20150707154106.cd2f4e024a11c02993f02298@linux-foundation.org>
+In-Reply-To: <1436225431-5880-1-git-send-email-xerofoify@gmail.com>
+References: <1436225431-5880-1-git-send-email-xerofoify@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>
-Cc: jlayton@poochiereds.net, bfields@fieldses.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, viro@zeniv.linux.org.uk, mst@redhat.com, koct9i@gmail.com, minchan@kernel.org, aquini@redhat.com, linux-fsdevel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, gunho.lee@lge.com, Gioh Kim <gurugio@hanmail.net>
+To: Nicholas Krause <xerofoify@gmail.com>
+Cc: khalasa@piap.pl, bigeasy@linutronix.de, paulmcquad@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue,  7 Jul 2015 13:36:20 +0900 Gioh Kim <gioh.kim@lge.com> wrote:
+On Mon,  6 Jul 2015 19:30:31 -0400 Nicholas Krause <xerofoify@gmail.com> wrote:
 
-> From: Gioh Kim <gurugio@hanmail.net>
+> This fixes the unlabeled block of code after the if statement that
+> executes if the passed dma variable of type dma_addr_t minus the
+> structure pointer page's dma member is equal to the variable offset
+> into a else block as this block should run when the if statement check
 > 
-> Hello,
+> Signed-off-by: Nicholas Krause <xerofoify@gmail.com>
+> ---
+>  mm/dmapool.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
 > 
-> This series try to enable migration of non-LRU pages, such as driver's page.
-> 
-> My ARM-based platform occured severe fragmentation problem after long-term
-> (several days) test. Sometimes even order-3 page allocation failed. It has
-> memory size 512MB ~ 1024MB. 30% ~ 40% memory is consumed for graphic processing
-> and 20~30 memory is reserved for zram.
-> 
-> I found that many pages of GPU driver and zram are non-movable pages. So I
-> reported Minchan Kim, the maintainer of zram, and he made the internal 
-> compaction logic of zram. And I made the internal compaction of GPU driver.
-> 
-> They reduced some fragmentation but they are not enough effective.
-> They are activated by its own interface, /sys, so they are not cooperative
-> with kernel compaction. If there is too much fragmentation and kernel starts
-> to compaction, zram and GPU driver cannot work with the kernel compaction.
->
-> ...
->
-> This patch set is tested:
-> - turn on Ubuntu 14.04 with 1G memory on qemu.
-> - do kernel building
-> - after several seconds check more than 512MB is used with free command
-> - command "balloon 512" in qemu monitor
-> - check hundreds MB of pages are migrated
+> diff --git a/mm/dmapool.c b/mm/dmapool.c
+> index fd5fe43..ce7ff4b 100644
+> --- a/mm/dmapool.c
+> +++ b/mm/dmapool.c
+> @@ -434,8 +434,7 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma)
+>  			       "dma_pool_free %s, %p (bad vaddr)/%Lx\n",
+>  			       pool->name, vaddr, (unsigned long long)dma);
+>  		return;
+> -	}
+> -	{
+> +	} else {
+>  		unsigned int chain = page->offset;
+>  		while (chain < pool->allocation) {
+>  			if (chain != offset) {
 
-OK, but what happens if the balloon driver is not used to force
-compaction?  Does your test machine successfully compact pages on
-demand, so those order-3 allocations now succeed?
-
-Why are your changes to the GPU driver not included in this patch series?
-
+This patch has no effect?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
