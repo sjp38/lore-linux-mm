@@ -1,182 +1,255 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id CB3F66B0038
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 09:44:53 -0400 (EDT)
-Received: by pdbci14 with SMTP id ci14so126193133pdb.2
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 06:44:53 -0700 (PDT)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id lh4si34644519pbc.245.2015.07.07.06.44.52
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id AA2786B0038
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 09:47:16 -0400 (EDT)
+Received: by pdbep18 with SMTP id ep18so126241585pdb.1
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 06:47:16 -0700 (PDT)
+Received: from mail-pd0-x22c.google.com (mail-pd0-x22c.google.com. [2607:f8b0:400e:c02::22c])
+        by mx.google.com with ESMTPS id w8si34799491pdr.164.2015.07.07.06.47.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Jul 2015 06:44:52 -0700 (PDT)
-Received: by pactm7 with SMTP id tm7so113673916pac.2
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 06:44:52 -0700 (PDT)
-Date: Tue, 7 Jul 2015 22:44:46 +0900
+        Tue, 07 Jul 2015 06:47:15 -0700 (PDT)
+Received: by pdbci14 with SMTP id ci14so126225156pdb.2
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 06:47:15 -0700 (PDT)
+Date: Tue, 7 Jul 2015 22:47:08 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v6 7/7] zsmalloc: use shrinker to trigger auto-compaction
-Message-ID: <20150707134445.GD3898@blaptop>
-References: <1436270221-17844-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1436270221-17844-8-git-send-email-sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH v2] mm: show proportional swap share of the mapping
+Message-ID: <20150707134708.GE3898@blaptop>
+References: <1434373614-1041-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1436270221-17844-8-git-send-email-sergey.senozhatsky@gmail.com>
+In-Reply-To: <1434373614-1041-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Bongkyu Kim <bongkyu.kim@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Jonathan Corbet <corbet@lwn.net>
 
-On Tue, Jul 07, 2015 at 08:57:01PM +0900, Sergey Senozhatsky wrote:
-> Perform automatic pool compaction by a shrinker when system
-> is getting tight on memory.
+It seems merge windows is closed so bump up.
+
+On Mon, Jun 15, 2015 at 10:06:54PM +0900, Minchan Kim wrote:
+> We want to know per-process workingset size for smart memory management
+> on userland and we use swap(ex, zram) heavily to maximize memory efficiency
+> so workingset includes swap as well as RSS.
 > 
-> User-space has a very little knowledge regarding zsmalloc fragmentation
-> and basically has no mechanism to tell whether compaction will result
-> in any memory gain. Another issue is that user space is not always
-> aware of the fact that system is getting tight on memory. Which leads
-> to very uncomfortable scenarios when user space may start issuing
-> compaction 'randomly' or from crontab (for example). Fragmentation
-> is not always necessarily bad, allocated and unused objects, after all,
-> may be filled with the data later, w/o the need of allocating a new
-> zspage. On the other hand, we obviously don't want to waste memory
-> when the system needs it.
+> On such system, if there are lots of shared anonymous pages, it's
+> really hard to figure out exactly how many each process consumes
+> memory(ie, rss + wap) if the system has lots of shared anonymous
+> memory(e.g, android).
 > 
-> Compaction now has a relatively quick pool scan so we are able to
-> estimate the number of pages that will be freed easily, which makes it
-> possible to call this function from a shrinker->count_objects() callback.
-> We also abort compaction as soon as we detect that we can't free any
-> pages any more, preventing wasteful objects migrations.
+> This patch introduces SwapPss field on /proc/<pid>/smaps so we can get
+> more exact workingset size per process.
 > 
-> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Suggested-by: Minchan Kim <minchan@kernel.org>
-
-
-There is one suggestion. Please see below.
-
+> Bongkyu tested it. Result is below.
+> 
+> 1. 50M used swap
+> SwapTotal: 461976 kB
+> SwapFree: 411192 kB
+> 
+> $ adb shell cat /proc/*/smaps | grep "SwapPss:" | awk '{sum += $2} END {print sum}';
+> 48236
+> $ adb shell cat /proc/*/smaps | grep "Swap:" | awk '{sum += $2} END {print sum}';
+> 141184
+> 
+> 2. 240M used swap
+> SwapTotal: 461976 kB
+> SwapFree: 216808 kB
+> 
+> $ adb shell cat /proc/*/smaps | grep "SwapPss:" | awk '{sum += $2} END {print sum}';
+> 230315
+> $ adb shell cat /proc/*/smaps | grep "Swap:" | awk '{sum += $2} END {print sum}';
+> 1387744
+> 
+> * from v1
+>   * add more description - Andrew
+>   * swp_swacount fix on !CONFIG_SWP - Sergey
+>   * add what PSS is to proc.txt - Andrew
+>     * Bring quote from lwn.net - Corbet
+>       * http://lwn.net/Articles/230975/
+> 
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+> Cc: Jonathan Corbet <corbet@lwn.net>
+> Report-and-Tested-by: Bongkyu Kim <bongkyu.kim@lge.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 > ---
->  mm/zsmalloc.c | 74 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 74 insertions(+)
+>  Documentation/filesystems/proc.txt | 18 +++++++++++-----
+>  fs/proc/task_mmu.c                 | 18 ++++++++++++++--
+>  include/linux/swap.h               |  6 ++++++
+>  mm/swapfile.c                      | 42 ++++++++++++++++++++++++++++++++++++++
+>  4 files changed, 77 insertions(+), 7 deletions(-)
 > 
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index 13f2c4a..83b2e97 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -247,6 +247,10 @@ struct zs_pool {
->  	atomic_long_t		pages_allocated;
->  
->  	struct zs_pool_stats	stats;
+> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+> index c3b6b301d8b0..cfc765e6cfa6 100644
+> --- a/Documentation/filesystems/proc.txt
+> +++ b/Documentation/filesystems/proc.txt
+> @@ -423,6 +423,7 @@ Private_Dirty:         0 kB
+>  Referenced:          892 kB
+>  Anonymous:             0 kB
+>  Swap:                  0 kB
+> +SwapPss:               0 kB
+>  KernelPageSize:        4 kB
+>  MMUPageSize:           4 kB
+>  Locked:              374 kB
+> @@ -432,16 +433,23 @@ the first of these lines shows the same information as is displayed for the
+>  mapping in /proc/PID/maps.  The remaining lines show the size of the mapping
+>  (size), the amount of the mapping that is currently resident in RAM (RSS), the
+>  process' proportional share of this mapping (PSS), the number of clean and
+> -dirty private pages in the mapping.  Note that even a page which is part of a
+> -MAP_SHARED mapping, but has only a single pte mapped, i.e.  is currently used
+> -by only one process, is accounted as private and not as shared.  "Referenced"
+> -indicates the amount of memory currently marked as referenced or accessed.
+> +dirty private pages in the mapping.
 > +
-> +	/* Compact classes */
-> +	struct shrinker		shrinker;
-> +	bool			shrinker_enabled;
->  #ifdef CONFIG_ZSMALLOC_STAT
->  	struct dentry		*stat_dentry;
->  #endif
-> @@ -1787,6 +1791,69 @@ void zs_pool_stats(struct zs_pool *pool, struct zs_pool_stats *stats)
+> +The "proportional set size" (PSS) of a process is the count of pages it has
+> +in memory, where each page is divided by the number of processes sharing it.
+> +So if a process has 1000 pages all to itself, and 1000 shared with one other
+> +process, its PSS will be 1500.
+> +Note that even a page which is part of a MAP_SHARED mapping, but has only
+> +a single pte mapped, i.e.  is currently used by only one process, is accounted
+> +as private and not as shared.
+> +"Referenced" indicates the amount of memory currently marked as referenced or
+> +accessed.
+>  "Anonymous" shows the amount of memory that does not belong to any file.  Even
+>  a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
+>  and a page is modified, the file page is replaced by a private anonymous copy.
+>  "Swap" shows how much would-be-anonymous memory is also used, but out on
+>  swap.
+> -
+> +"SwapPss" shows proportional swap share of this mapping.
+>  "VmFlags" field deserves a separate description. This member represents the kernel
+>  flags associated with the particular virtual memory area in two letter encoded
+>  manner. The codes are the following:
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 6dee68d013ff..d537899f4b25 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -446,6 +446,7 @@ struct mem_size_stats {
+>  	unsigned long anonymous_thp;
+>  	unsigned long swap;
+>  	u64 pss;
+> +	u64 swap_pss;
+>  };
+>  
+>  static void smaps_account(struct mem_size_stats *mss, struct page *page,
+> @@ -492,9 +493,20 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
+>  	} else if (is_swap_pte(*pte)) {
+>  		swp_entry_t swpent = pte_to_swp_entry(*pte);
+>  
+> -		if (!non_swap_entry(swpent))
+> +		if (!non_swap_entry(swpent)) {
+> +			int mapcount;
+> +
+>  			mss->swap += PAGE_SIZE;
+> -		else if (is_migration_entry(swpent))
+> +			mapcount = swp_swapcount(swpent);
+> +			if (mapcount >= 2) {
+> +				u64 pss_delta = (u64)PAGE_SIZE << PSS_SHIFT;
+> +
+> +				do_div(pss_delta, mapcount);
+> +				mss->swap_pss += pss_delta;
+> +			} else {
+> +				mss->swap_pss += (u64)PAGE_SIZE << PSS_SHIFT;
+> +			}
+> +		} else if (is_migration_entry(swpent))
+>  			page = migration_entry_to_page(swpent);
+>  	}
+>  
+> @@ -638,6 +650,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+>  		   "Anonymous:      %8lu kB\n"
+>  		   "AnonHugePages:  %8lu kB\n"
+>  		   "Swap:           %8lu kB\n"
+> +		   "SwapPss:        %8lu kB\n"
+>  		   "KernelPageSize: %8lu kB\n"
+>  		   "MMUPageSize:    %8lu kB\n"
+>  		   "Locked:         %8lu kB\n",
+> @@ -652,6 +665,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+>  		   mss.anonymous >> 10,
+>  		   mss.anonymous_thp >> 10,
+>  		   mss.swap >> 10,
+> +		   (unsigned long)(mss.swap_pss >> (10 + PSS_SHIFT)),
+>  		   vma_kernel_pagesize(vma) >> 10,
+>  		   vma_mmu_pagesize(vma) >> 10,
+>  		   (vma->vm_flags & VM_LOCKED) ?
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index cee108cbe2d5..afc9eb3cba48 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -432,6 +432,7 @@ extern unsigned int count_swap_pages(int, int);
+>  extern sector_t map_swap_page(struct page *, struct block_device **);
+>  extern sector_t swapdev_block(int, pgoff_t);
+>  extern int page_swapcount(struct page *);
+> +extern int swp_swapcount(swp_entry_t entry);
+>  extern struct swap_info_struct *page_swap_info(struct page *);
+>  extern int reuse_swap_page(struct page *);
+>  extern int try_to_free_swap(struct page *);
+> @@ -523,6 +524,11 @@ static inline int page_swapcount(struct page *page)
+>  	return 0;
 >  }
->  EXPORT_SYMBOL_GPL(zs_pool_stats);
 >  
-> +static unsigned long zs_shrinker_scan(struct shrinker *shrinker,
-> +		struct shrink_control *sc)
+> +static inline int swp_swapcount(swp_entry_t entry)
 > +{
-> +	unsigned long pages_freed;
-> +	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
-> +			shrinker);
-> +
-> +	pages_freed = pool->stats.pages_compacted;
-> +	/*
-> +	 * Compact classes and calculate compaction delta.
-> +	 * Can run concurrently with a manually triggered
-> +	 * (by user) compaction.
-> +	 */
-> +	pages_freed = zs_compact(pool) - pages_freed;
-> +
-> +	return pages_freed ? pages_freed : SHRINK_STOP;
+> +	return 0;
 > +}
 > +
-> +static unsigned long zs_shrinker_count(struct shrinker *shrinker,
-> +		struct shrink_control *sc)
+>  #define reuse_swap_page(page)	(page_mapcount(page) == 1)
+>  
+>  static inline int try_to_free_swap(struct page *page)
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index a7e72103f23b..7a6bd1e5a8e9 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -875,6 +875,48 @@ int page_swapcount(struct page *page)
+>  }
+>  
+>  /*
+> + * How many references to @entry are currently swapped out?
+> + * This considers COUNT_CONTINUED so it returns exact answer.
+> + */
+> +int swp_swapcount(swp_entry_t entry)
 > +{
-> +	int i;
-> +	struct size_class *class;
-> +	unsigned long pages_to_free = 0;
-> +	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
-> +			shrinker);
+> +	int count, tmp_count, n;
+> +	struct swap_info_struct *p;
+> +	struct page *page;
+> +	pgoff_t offset;
+> +	unsigned char *map;
 > +
-> +	if (!pool->shrinker_enabled)
+> +	p = swap_info_get(entry);
+> +	if (!p)
 > +		return 0;
 > +
-> +	for (i = zs_size_classes - 1; i >= 0; i--) {
-> +		class = pool->size_class[i];
-> +		if (!class)
-> +			continue;
-> +		if (class->index != i)
-> +			continue;
+> +	count = swap_count(p->swap_map[swp_offset(entry)]);
+> +	if (!(count & COUNT_CONTINUED))
+> +		goto out;
 > +
-> +		spin_lock(&class->lock);
-> +		pages_to_free += zs_can_compact(class);
-> +		spin_unlock(&class->lock);
-> +	}
+> +	count &= ~COUNT_CONTINUED;
+> +	n = SWAP_MAP_MAX + 1;
 > +
-> +	return pages_to_free;
+> +	offset = swp_offset(entry);
+> +	page = vmalloc_to_page(p->swap_map + offset);
+> +	offset &= ~PAGE_MASK;
+> +	VM_BUG_ON(page_private(page) != SWP_CONTINUED);
+> +
+> +	do {
+> +		page = list_entry(page->lru.next, struct page, lru);
+> +		map = kmap_atomic(page) + offset;
+> +		tmp_count = *map;
+> +		kunmap_atomic(map);
+> +
+> +		count += (tmp_count & ~COUNT_CONTINUED) * n;
+> +		n *= (SWAP_CONT_MAX + 1);
+> +	} while (tmp_count & COUNT_CONTINUED);
+> +out:
+> +	spin_unlock(&p->lock);
+> +	return count;
 > +}
 > +
-> +static void zs_unregister_shrinker(struct zs_pool *pool)
-> +{
-> +	if (pool->shrinker_enabled) {
-> +		unregister_shrinker(&pool->shrinker);
-> +		pool->shrinker_enabled = false;
-> +	}
-> +}
-> +
-> +static int zs_register_shrinker(struct zs_pool *pool)
-> +{
-> +	pool->shrinker.scan_objects = zs_shrinker_scan;
-> +	pool->shrinker.count_objects = zs_shrinker_count;
-> +	pool->shrinker.batch = 0;
-> +	pool->shrinker.seeks = DEFAULT_SEEKS;
-> +
-> +	return register_shrinker(&pool->shrinker);
-> +}
-> +
->  /**
->   * zs_create_pool - Creates an allocation pool to work from.
->   * @flags: allocation flags used to allocate pool metadata
-> @@ -1872,6 +1939,12 @@ struct zs_pool *zs_create_pool(char *name, gfp_t flags)
->  	if (zs_pool_stat_create(name, pool))
->  		goto err;
->  
-> +	/*
-> +	 * Not critical, we still can use the pool
-> +	 * and user can trigger compaction manually.
-> +	 */
-> +	if (zs_register_shrinker(pool) == 0)
-> +		pool->shrinker_enabled = true;
-
-IMO, there is no value to maintain just in case of
-failing register_shrinker in practice.
-
-Let's remove shrinker_enabled and abort pool creation if shrinker register
-is failed.
-
-Tomorrow, I will test this patchset and add Acked-by if it pass.
-
-Thanks!
-
-
->  	return pool;
->  
->  err:
-> @@ -1884,6 +1957,7 @@ void zs_destroy_pool(struct zs_pool *pool)
->  {
->  	int i;
->  
-> +	zs_unregister_shrinker(pool);
->  	zs_pool_stat_destroy(pool);
->  
->  	for (i = 0; i < zs_size_classes; i++) {
+> +/*
+>   * We can write to an anon page without COW if there are no other references
+>   * to it.  And as a side-effect, free up its swap: because the old content
+>   * on disk will never be read, and seeking back there to write new content
 > -- 
-> 2.4.5
+> 1.9.1
 > 
 
 -- 
