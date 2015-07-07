@@ -1,59 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 09F7F2802C8
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 21:23:16 -0400 (EDT)
-Received: by pacgz10 with SMTP id gz10so30097344pac.3
-        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 18:23:15 -0700 (PDT)
-Received: from conssluserg004-v.nifty.com (conssluserg004.nifty.com. [202.248.44.42])
-        by mx.google.com with ESMTPS id am4si31723012pad.93.2015.07.06.18.23.13
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id E411C6B0038
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 21:55:53 -0400 (EDT)
+Received: by pdbdz6 with SMTP id dz6so20736491pdb.0
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 18:55:53 -0700 (PDT)
+Received: from szxga02-in.huawei.com ([119.145.14.65])
+        by mx.google.com with ESMTPS id lp2si31876083pab.4.2015.07.06.18.55.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 06 Jul 2015 18:23:14 -0700 (PDT)
-Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178]) (authenticated)
-	by conssluserg004-v.nifty.com with ESMTP id t671MvTD022309
-	for <linux-mm@kvack.org>; Tue, 7 Jul 2015 10:22:57 +0900
-Received: by ykeo3 with SMTP id o3so44287966yke.0
-        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 18:22:56 -0700 (PDT)
+        Mon, 06 Jul 2015 18:55:52 -0700 (PDT)
+Message-ID: <559B2D89.2070802@huawei.com>
+Date: Tue, 7 Jul 2015 09:38:17 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20150706192525.GA16724@windriver.com>
-References: <1436155277-21769-1-git-send-email-yamada.masahiro@socionext.com>
-	<20150706192525.GA16724@windriver.com>
-Date: Tue, 7 Jul 2015 10:22:56 +0900
-Message-ID: <CAK7LNARUiVAaBTRPECeZrwfVMU=r6Pggc+eGx+6TUnzfufH98w@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: nommu: fix typos in comment blocks
-From: Masahiro Yamada <yamada.masahiro@socionext.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory feature
+References: <1435929607-3435-1-git-send-email-pintu.k@samsung.com> <559A56FD.6010701@huawei.com> <0ffe01d0b7f4$dd2706d0$97751470$@samsung.com>
+In-Reply-To: <0ffe01d0b7f4$dd2706d0$97751470$@samsung.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Gortmaker <paul.gortmaker@windriver.com>
-Cc: linux-mm@kvack.org, Davidlohr Bueso <dave@stgolabs.net>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Joonsoo Kim <js1304@gmail.com>, Christoph Hellwig <hch@lst.de>, Leon Romanovsky <leon@leon.nu>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: PINTU KUMAR <pintu.k@samsung.com>
+Cc: corbet@lwn.net, akpm@linux-foundation.org, vbabka@suse.cz, gorcunov@openvz.org, mhocko@suse.cz, emunson@akamai.com, kirill.shutemov@linux.intel.com, standby24x7@gmail.com, hannes@cmpxchg.org, vdavydov@parallels.com, hughd@google.com, minchan@kernel.org, tj@kernel.org, rientjes@google.com, xypron.glpk@gmx.de, dzickus@redhat.com, prarit@redhat.com, ebiederm@xmission.com, rostedt@goodmis.org, uobergfe@redhat.com, paulmck@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, ddstreet@ieee.org, sasha.levin@oracle.com, koct9i@gmail.com, mgorman@suse.de, cj@linux.com, opensource.ganesh@gmail.com, vinmenon@codeaurora.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, cpgs@samsung.com, pintu_agarwal@yahoo.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, iqbal.ams@samsung.com
 
-Hi Paul
+On 2015/7/6 22:03, PINTU KUMAR wrote:
 
-2015-07-07 4:25 GMT+09:00 Paul Gortmaker <paul.gortmaker@windriver.com>:
-> [[PATCH v2] mm: nommu: fix typos in comment blocks] On 06/07/2015 (Mon 13:01) Masahiro Yamada wrote:
->
->> continguos -> contiguous
+> Hi,
+> 
+>> -----Original Message-----
+>> From: Xishi Qiu [mailto:qiuxishi@huawei.com]
+>> Sent: Monday, July 06, 2015 3:53 PM
+>> To: Pintu Kumar
+>> Cc: corbet@lwn.net; akpm@linux-foundation.org; vbabka@suse.cz;
+>> gorcunov@openvz.org; mhocko@suse.cz; emunson@akamai.com;
+>> kirill.shutemov@linux.intel.com; standby24x7@gmail.com;
+>> hannes@cmpxchg.org; vdavydov@parallels.com; hughd@google.com;
+>> minchan@kernel.org; tj@kernel.org; rientjes@google.com;
+>> xypron.glpk@gmx.de; dzickus@redhat.com; prarit@redhat.com;
+>> ebiederm@xmission.com; rostedt@goodmis.org; uobergfe@redhat.com;
+>> paulmck@linux.vnet.ibm.com; iamjoonsoo.kim@lge.com; ddstreet@ieee.org;
+>> sasha.levin@oracle.com; koct9i@gmail.com; mgorman@suse.de; cj@linux.com;
+>> opensource.ganesh@gmail.com; vinmenon@codeaurora.org; linux-
+>> doc@vger.kernel.org; linux-kernel@vger.kernel.org; linux-mm@kvack.org; linux-
+>> pm@vger.kernel.org; cpgs@samsung.com; pintu_agarwal@yahoo.com;
+>> vishnu.ps@samsung.com; rohit.kr@samsung.com; iqbal.ams@samsung.com
+>> Subject: Re: [PATCH 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory
+>> feature
 >>
->> Signed-off-by: Masahiro Yamada <yamada.masahiro@socionext.com>
->
-> I'd suggested this go via the trivial tree, but instead I see it is in
-> my inbox now, and still in everyone else's inbox, and yet not Cc'd to
-> the trivial tree, which leaves me confused...
->
-> Paul.
+>> On 2015/7/3 21:20, Pintu Kumar wrote:
+>>
+>>> This patch provides 2 things:
+>>> 1. Add new control called shrink_memory in /proc/sys/vm/.
+>>> This control can be used to aggressively reclaim memory system-wide in
+>>> one shot from the user space. A value of 1 will instruct the kernel to
+>>> reclaim as much as totalram_pages in the system.
+>>> Example: echo 1 > /proc/sys/vm/shrink_memory
+>>>
+>>> 2. Enable shrink_all_memory API in kernel with new
+>> CONFIG_SHRINK_MEMORY.
+>>> Currently, shrink_all_memory function is used only during hibernation.
+>>> With the new config we can make use of this API for non-hibernation
+>>> case also without disturbing the hibernation case.
+>>>
+>>> The detailed paper was presented in Embedded Linux Conference,
+>>> Mar-2015 http://events.linuxfoundation.org/sites/events/files/slides/
+>>> %5BELC-2015%5D-System-wide-Memory-Defragmenter.pdf
+>>>
+>>> Scenarios were this can be used and helpful are:
+>>> 1) Can be invoked just after system boot-up is finished.
+>>> 2) Can be invoked just before entering entire system suspend.
+>>> 3) Can be invoked from kernel when order-4 pages starts failing.
+>>> 4) Can be helpful to completely avoid or delay the kerenl OOM condition.
+>>> 5) Can be developed as a system-tool to quickly defragment entire system
+>>>    from user space, without the need to kill any application.
+>>>
+>>
+>> Hi Pintu,
+>>
+>> How about increase min_free_kbytes and Android lowmemorykiller's level?
+>>
+> Thanks for the review.
+> Actually in Tizen, we don't use Android LMK and we wanted to delay the LMK with
+> aggressive direct_reclaim offline.
+> And increasing min_free value also may not help much.
+> Currently, in our case free memory never falls below 10MB, with 512MB RAM
+> configuration.
+> 
+
+How about the performance as you reclaim so much memory?
+(e.g. shrink page cache, use zram, ksm, compaction...)
+When launching the same app next time, it may be slow, right?
+
+How about use cgroup to manage the apps, but I don't know how to do the detail.
+
+Thanks,
+Xishi Qiu
+
+> 
+> 
 
 
-I found more misspelled "contiguous" in other files,
-so this patch has been replaced with the following:
-
-https://lkml.org/lkml/2015/7/6/954
-
-The new one has been sent to Jiri Kosina.
-
--- 
-Best Regards
-Masahiro Yamada
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
