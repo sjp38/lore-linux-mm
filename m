@@ -1,494 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C4286B0259
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 13:04:02 -0400 (EDT)
-Received: by qgeg89 with SMTP id g89so87287783qge.3
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 10:04:02 -0700 (PDT)
-Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
-        by mx.google.com with ESMTP id g196si25576148qhc.80.2015.07.07.10.03.51
-        for <linux-mm@kvack.org>;
-        Tue, 07 Jul 2015 10:03:52 -0700 (PDT)
-From: Eric B Munson <emunson@akamai.com>
-Subject: [PATCH V3 5/5] selftests: vm: Add tests for lock on fault
-Date: Tue,  7 Jul 2015 13:03:43 -0400
-Message-Id: <1436288623-13007-6-git-send-email-emunson@akamai.com>
-In-Reply-To: <1436288623-13007-1-git-send-email-emunson@akamai.com>
-References: <1436288623-13007-1-git-send-email-emunson@akamai.com>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F7786B0038
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 15:19:51 -0400 (EDT)
+Received: by widjy10 with SMTP id jy10so197680050wid.1
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 12:19:50 -0700 (PDT)
+Received: from mail-wg0-x235.google.com (mail-wg0-x235.google.com. [2a00:1450:400c:c00::235])
+        by mx.google.com with ESMTPS id r5si44054wix.25.2015.07.07.12.19.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Jul 2015 12:19:49 -0700 (PDT)
+Received: by wgck11 with SMTP id k11so176720703wgc.0
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 12:19:49 -0700 (PDT)
+MIME-Version: 1.0
+Date: Tue, 7 Jul 2015 12:19:48 -0700
+Message-ID: <CAOvWMLakCarg_4V9qPrG-TSUdqqBCBXMhJ3gHUXKNWf0Ym7YGQ@mail.gmail.com>
+Subject: Filebench failure on ramdisk with Ext4-DAX
+From: Andiry Xu <andiry@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric B Munson <emunson@akamai.com>, Shuah Khan <shuahkh@osg.samsung.com>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+To: Matthew Wilcox <willy@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Andiry Xu <andiry.xu@gmail.com>
 
-Test the mmap() flag, and the mlockall() flag.  These tests ensure that
-pages are not faulted in until they are accessed, that the pages are
-unevictable once faulted in, and that VMA splitting and merging works
-with the new VM flag.  The second test ensures that mlock limits are
-respected.  Note that the limit test needs to be run a normal user.
+Hi,
 
-Signed-off-by: Eric B Munson <emunson@akamai.com>
-Cc: Shuah Khan <shuahkh@osg.samsung.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-api@vger.kernel.org
----
- tools/testing/selftests/vm/Makefile         |   2 +
- tools/testing/selftests/vm/lock-on-fault.c  | 342 ++++++++++++++++++++++++++++
- tools/testing/selftests/vm/on-fault-limit.c |  47 ++++
- tools/testing/selftests/vm/run_vmtests      |  22 ++
- 4 files changed, 413 insertions(+)
- create mode 100644 tools/testing/selftests/vm/lock-on-fault.c
- create mode 100644 tools/testing/selftests/vm/on-fault-limit.c
+I am running into failures when run filebench on ramdisk(/dev/ram0)
+with Ext4-DAX.
+The kernel version is 4.0, and I also verified it occurs on 4.2-rc1.
 
-diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
-index 231b9a0..01b4a90 100644
---- a/tools/testing/selftests/vm/Makefile
-+++ b/tools/testing/selftests/vm/Makefile
-@@ -5,7 +5,9 @@ BINARIES = compaction_test
- BINARIES += hugepage-mmap
- BINARIES += hugepage-shm
- BINARIES += hugetlbfstest
-+BINARIES += lock-on-fault
- BINARIES += map_hugetlb
-+BINARIES += on-fault-limit
- BINARIES += thuge-gen
- BINARIES += transhuge-stress
- 
-diff --git a/tools/testing/selftests/vm/lock-on-fault.c b/tools/testing/selftests/vm/lock-on-fault.c
-new file mode 100644
-index 0000000..6e0cdc7
---- /dev/null
-+++ b/tools/testing/selftests/vm/lock-on-fault.c
-@@ -0,0 +1,342 @@
-+#include <sys/mman.h>
-+#include <stdio.h>
-+#include <unistd.h>
-+#include <string.h>
-+#include <sys/time.h>
-+#include <sys/resource.h>
-+
-+struct vm_boundaries {
-+	unsigned long start;
-+	unsigned long end;
-+};
-+
-+static int get_vm_area(unsigned long addr, struct vm_boundaries *area)
-+{
-+	FILE *file;
-+	int ret = 1;
-+	char line[1024] = {0};
-+	char *end_addr;
-+	char *stop;
-+	unsigned long start;
-+	unsigned long end;
-+
-+	if (!area)
-+		return ret;
-+
-+	file = fopen("/proc/self/maps", "r");
-+	if (!file) {
-+		perror("fopen");
-+		return ret;
-+	}
-+
-+	memset(area, 0, sizeof(struct vm_boundaries));
-+
-+	while(fgets(line, 1024, file)) {
-+		end_addr = strchr(line, '-');
-+		if (!end_addr) {
-+			printf("cannot parse /proc/self/maps\n");
-+			goto out;
-+		}
-+		*end_addr = '\0';
-+		end_addr++;
-+		stop = strchr(end_addr, ' ');
-+		if (!stop) {
-+			printf("cannot parse /proc/self/maps\n");
-+			goto out;
-+		}
-+		stop = '\0';
-+
-+		sscanf(line, "%lx", &start);
-+		sscanf(end_addr, "%lx", &end);
-+
-+		if (start <= addr && end > addr) {
-+			area->start = start;
-+			area->end = end;
-+			ret = 0;
-+			goto out;
-+		}
-+	}
-+out:
-+	fclose(file);
-+	return ret;
-+}
-+
-+static unsigned long get_pageflags(unsigned long addr)
-+{
-+	FILE *file;
-+	unsigned long pfn;
-+	unsigned long offset;
-+
-+	file = fopen("/proc/self/pagemap", "r");
-+	if (!file) {
-+		perror("fopen");
-+		_exit(1);
-+	}
-+
-+	offset = addr / getpagesize() * sizeof(unsigned long);
-+	if (fseek(file, offset, SEEK_SET)) {
-+		perror("fseek");
-+		_exit(1);
-+	}
-+
-+	if (fread(&pfn, sizeof(unsigned long), 1, file) != 1) {
-+		perror("fread");
-+		_exit(1);
-+	}
-+
-+	fclose(file);
-+	return pfn;
-+}
-+
-+static unsigned long get_kpageflags(unsigned long pfn)
-+{
-+	unsigned long flags;
-+	FILE *file;
-+
-+	file = fopen("/proc/kpageflags", "r");
-+	if (!file) {
-+		perror("fopen");
-+		_exit(1);
-+	}
-+
-+	if (fseek(file, pfn * sizeof(unsigned long), SEEK_SET)) {
-+		perror("fseek");
-+		_exit(1);
-+	}
-+
-+	if (fread(&flags, sizeof(unsigned long), 1, file) != 1) {
-+		perror("fread");
-+		_exit(1);
-+	}
-+
-+	fclose(file);
-+	return flags;
-+}
-+
-+#define PRESENT_BIT	0x8000000000000000
-+#define PFN_MASK	0x007FFFFFFFFFFFFF
-+#define UNEVICTABLE_BIT	(1UL << 18)
-+
-+static int test_mmap(int flags)
-+{
-+	unsigned long page1_flags;
-+	unsigned long page2_flags;
-+	void *map;
-+	unsigned long page_size = getpagesize();
-+
-+	map = mmap(NULL, 2 * page_size, PROT_READ | PROT_WRITE, flags, 0, 0);
-+	if (map == MAP_FAILED) {
-+		perror("mmap()");
-+		return 1;
-+	}
-+
-+	/* Write something into the first page to ensure it is present */
-+	*(char *)map = 1;
-+
-+	page1_flags = get_pageflags((unsigned long)map);
-+	page2_flags = get_pageflags((unsigned long)map + page_size);
-+
-+	/* page2_flags should not be present */
-+	if (page2_flags & PRESENT_BIT) {
-+		printf("page map says 0x%lx\n", page2_flags);
-+		printf("present is    0x%lx\n", PRESENT_BIT);
-+		return 1;
-+	}
-+
-+	/* page1_flags should be present */
-+	if (page1_flags & PRESENT_BIT == 0) {
-+		printf("page map says 0x%lx\n", page1_flags);
-+		printf("present is    0x%lx\n", PRESENT_BIT);
-+		return 1;
-+	}
-+
-+	page1_flags = get_kpageflags(page1_flags & PFN_MASK);
-+
-+	/* page1_flags now contains the entry from kpageflags for the first
-+	 * page, the unevictable bit should be set */
-+	if (page1_flags & UNEVICTABLE_BIT == 0) {
-+		printf("kpageflags says 0x%lx\n", page1_flags);
-+		printf("unevictable is  0x%lx\n", UNEVICTABLE_BIT);
-+		return 1;
-+	}
-+
-+	munmap(map, 2 * page_size);
-+	return 0;
-+}
-+
-+static int test_munlock(int flags)
-+{
-+	int ret = 1;
-+	void *map;
-+	unsigned long page1_flags;
-+	unsigned long page2_flags;
-+	unsigned long page3_flags;
-+	unsigned long page_size = getpagesize();
-+
-+	map = mmap(NULL, 3 * page_size, PROT_READ | PROT_WRITE, flags, 0, 0);
-+	if (map == MAP_FAILED) {
-+		perror("mmap()");
-+		return ret;
-+	}
-+
-+	if (munlock(map + page_size, page_size)) {
-+		perror("munlock()");
-+		goto out;
-+	}
-+
-+	page1_flags = get_pageflags((unsigned long)map);
-+	page2_flags = get_pageflags((unsigned long)map + page_size);
-+	page3_flags = get_pageflags((unsigned long)map + page_size * 2);
-+
-+	/* No pages should be present */
-+	if ((page1_flags & PRESENT_BIT) || (page2_flags & PRESENT_BIT) ||
-+	    (page3_flags & PRESENT_BIT)) {
-+		printf("Page was made present by munlock()\n");
-+		goto out;
-+	}
-+
-+	/* Write something to each page so that they are faulted in */
-+	*(char*)map = 1;
-+	*(char*)(map + page_size) = 1;
-+	*(char*)(map + page_size * 2) = 1;
-+
-+	page1_flags = get_pageflags((unsigned long)map);
-+	page2_flags = get_pageflags((unsigned long)map + page_size);
-+	page3_flags = get_pageflags((unsigned long)map + page_size * 2);
-+
-+	page1_flags = get_kpageflags(page1_flags & PFN_MASK);
-+	page2_flags = get_kpageflags(page2_flags & PFN_MASK);
-+	page3_flags = get_kpageflags(page3_flags & PFN_MASK);
-+
-+	/* Pages 1 and 3 should be unevictable */
-+	if (!(page1_flags & UNEVICTABLE_BIT)) {
-+		printf("Missing unevictable bit on lock on fault page1\n");
-+		goto out;
-+	}
-+	if (!(page3_flags & UNEVICTABLE_BIT)) {
-+		printf("Missing unevictable bit on lock on fault page3\n");
-+		goto out;
-+	}
-+
-+	/* Page 2 should not be unevictable */
-+	if (page2_flags & UNEVICTABLE_BIT) {
-+		printf("Unlocked page is still marked unevictable\n");
-+		goto out;
-+	}
-+
-+	ret = 0;
-+
-+out:
-+	munmap(map, 3 * page_size);
-+	return ret;
-+}
-+
-+static int test_vma_management(int flags)
-+{
-+	int ret = 1;
-+	void *map;
-+	unsigned long page_size = getpagesize();
-+	struct vm_boundaries page1;
-+	struct vm_boundaries page2;
-+	struct vm_boundaries page3;
-+
-+	map = mmap(NULL, 3 * page_size, PROT_READ | PROT_WRITE, flags, 0, 0);
-+	if (map == MAP_FAILED) {
-+		perror("mmap()");
-+		return ret;
-+	}
-+
-+	if (get_vm_area((unsigned long)map, &page1) ||
-+	    get_vm_area((unsigned long)map + page_size, &page2) ||
-+	    get_vm_area((unsigned long)map + page_size * 2, &page3)) {
-+		printf("couldn't find mapping in /proc/self/maps\n");
-+		goto out;
-+	}
-+
-+	/*
-+	 * Before we unlock a portion, we need to that all three pages are in
-+	 * the same VMA.  If they are not we abort this test (Note that this is
-+	 * not a failure)
-+	 */
-+	if (page1.start != page2.start || page2.start != page3.start) {
-+		printf("VMAs are not merged to start, aborting test\n");
-+		ret = 0;
-+		goto out;
-+	}
-+
-+	if (munlock(map + page_size, page_size)) {
-+		perror("munlock()");
-+		goto out;
-+	}
-+
-+	if (get_vm_area((unsigned long)map, &page1) ||
-+	    get_vm_area((unsigned long)map + page_size, &page2) ||
-+	    get_vm_area((unsigned long)map + page_size * 2, &page3)) {
-+		printf("couldn't find mapping in /proc/self/maps\n");
-+		goto out;
-+	}
-+
-+	/* All three VMAs should be different */
-+	if (page1.start == page2.start || page2.start == page3.start) {
-+		printf("failed to split VMA for munlock\n");
-+		goto out;
-+	}
-+
-+	/* Now unlock the first and third page and check the VMAs again */
-+	if (munlock(map, page_size * 3)) {
-+		perror("munlock()");
-+		goto out;
-+	}
-+
-+	if (get_vm_area((unsigned long)map, &page1) ||
-+	    get_vm_area((unsigned long)map + page_size, &page2) ||
-+	    get_vm_area((unsigned long)map + page_size * 2, &page3)) {
-+		printf("couldn't find mapping in /proc/self/maps\n");
-+		goto out;
-+	}
-+
-+	/* Now all three VMAs should be the same */
-+	if (page1.start != page2.start || page2.start != page3.start) {
-+		printf("failed to merge VMAs after munlock\n");
-+		goto out;
-+	}
-+
-+	ret = 0;
-+out:
-+	munmap(map, 3 * page_size);
-+	return ret;
-+}
-+
-+#ifndef MCL_ONFAULT
-+#define MCL_ONFAULT (MCL_FUTURE << 1)
-+#endif
-+
-+static int test_mlockall(int (test_function)(int flags))
-+{
-+	int ret = 1;
-+
-+	if (mlockall(MCL_ONFAULT)) {
-+		perror("mlockall");
-+		return ret;
-+	}
-+
-+	ret = test_function(MAP_PRIVATE | MAP_ANONYMOUS);
-+	munlockall();
-+	return ret;
-+}
-+
-+#ifndef MAP_LOCKONFAULT
-+#define MAP_LOCKONFAULT (MAP_HUGETLB << 1)
-+#endif
-+
-+int main(int argc, char **argv)
-+{
-+	int ret = 0;
-+	ret += test_mmap(MAP_PRIVATE | MAP_ANONYMOUS | MAP_LOCKONFAULT);
-+	ret += test_mlockall(test_mmap);
-+	ret += test_munlock(MAP_PRIVATE | MAP_ANONYMOUS | MAP_LOCKONFAULT);
-+	ret += test_mlockall(test_munlock);
-+	ret += test_vma_management(MAP_PRIVATE | MAP_ANONYMOUS | MAP_LOCKONFAULT);
-+	ret += test_mlockall(test_vma_management);
-+	return ret;
-+}
-diff --git a/tools/testing/selftests/vm/on-fault-limit.c b/tools/testing/selftests/vm/on-fault-limit.c
-new file mode 100644
-index 0000000..ed2a109
---- /dev/null
-+++ b/tools/testing/selftests/vm/on-fault-limit.c
-@@ -0,0 +1,47 @@
-+#include <sys/mman.h>
-+#include <stdio.h>
-+#include <unistd.h>
-+#include <string.h>
-+#include <sys/time.h>
-+#include <sys/resource.h>
-+
-+#ifndef MCL_ONFAULT
-+#define MCL_ONFAULT (MCL_FUTURE << 1)
-+#endif
-+
-+static int test_limit(void)
-+{
-+	int ret = 1;
-+	struct rlimit lims;
-+	void *map;
-+
-+	if (getrlimit(RLIMIT_MEMLOCK, &lims)) {
-+		perror("getrlimit");
-+		return ret;
-+	}
-+
-+	if (mlockall(MCL_ONFAULT)) {
-+		perror("mlockall");
-+		return ret;
-+	}
-+
-+	map = mmap(NULL, 2 * lims.rlim_max, PROT_READ | PROT_WRITE,
-+		   MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE, 0, 0);
-+	if (map != MAP_FAILED)
-+		printf("mmap should have failed, but didn't\n");
-+	else {
-+		ret = 0;
-+		munmap(map, 2 * lims.rlim_max);
-+	}
-+
-+	munlockall();
-+	return ret;
-+}
-+
-+int main(int argc, char **argv)
-+{
-+	int ret = 0;
-+
-+	ret += test_limit();
-+	return ret;
-+}
-diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
-index 49ece11..45241df 100755
---- a/tools/testing/selftests/vm/run_vmtests
-+++ b/tools/testing/selftests/vm/run_vmtests
-@@ -102,4 +102,26 @@ else
- 	echo "[PASS]"
- fi
- 
-+echo "--------------------"
-+echo "running lock-on-fault"
-+echo "--------------------"
-+./lock-on-fault
-+if [ $? -ne 0 ]; then
-+	echo "[FAIL]"
-+	exitcode=1
-+else
-+	echo "[PASS]"
-+fi
-+
-+echo "--------------------"
-+echo "running on-fault-limit"
-+echo "--------------------"
-+sudo -u nobody ./on-fault-limit
-+if [ $? -ne 0 ]; then
-+	echo "[FAIL]"
-+	exitcode=1
-+else
-+	echo "[PASS]"
-+fi
-+
- exit $exitcode
--- 
-1.9.1
+The issue reproduction steps:
+
+// Set ramdisk size to 2GB
+# mkfs.ext4 /dev/ram0
+# mount -o dax /dev/ram0 /mnt/ramdisk
+# filebench
+filebench> load fileserver
+filebench> set $dir=/mnt/ramdisk
+filebench> run 30
+
+And filebench fails in a few seconds like this:
+
+8163: 22.992: Failed to pre-allocate file
+/mnt/ramdisk/bigfileset/00000001/00000006/00000001/00000024/00000005/00000002/00000006:
+No such file or directory on line 128
+ 8163: 22.992: Failed to create filesets on line 128
+
+Or like this:
+
+8141: 16.372: Failed to write 51967 bytes on fd 23: Success
+ 8151: 16.372: Failed to write 136735 bytes on fd 18: Success
+ 8148: 16.372: Failed to write 123317 bytes on fd 31: Success
+ 8141: 16.381: filereaderthread-36: flowop wrtfile1-1 failed
+ 8151: 16.381: filereaderthread-46: flowop wrtfile1-1 failed
+ 8148: 16.381: filereaderthread-43: flowop wrtfile1-1 failed
+ 8098: 16.521: Run took 1 seconds...
+ 8098: 16.521: NO VALID RESULTS! Filebench run terminated prematurely on line 65
+ 8098: 16.521: Shutting down processes
+
+Sometimes it succeeds, but the chance is low. The failure rate is 80%+.
+
+Note:
+The issues does not occur with normal Ext4.
+The issues does not occur with Ext4-DAX on pmem driver (from 01org/prd).
+
+The only significant difference between brd.c and pmem.c is that brd.c
+uses alloc_page() and pmem.c reserved memory range and uses ioremap()
+to get virtual address. I assume that the memcpy
+operation(copy_from/to_user) directly between user buffer and page by
+alloc_page() does not work correctly somehow. I wonder if this is a
+bug? If it is, how to fix it? Thanks.
+
+Thanks,
+Andiry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
