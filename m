@@ -1,140 +1,299 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 63E206B0038
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 09:21:47 -0400 (EDT)
-Received: by pddu5 with SMTP id u5so38416252pdd.3
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 06:21:47 -0700 (PDT)
-Received: from mail-pd0-x22c.google.com (mail-pd0-x22c.google.com. [2607:f8b0:400e:c02::22c])
-        by mx.google.com with ESMTPS id nk17si34711509pdb.116.2015.07.07.06.21.46
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id EB1276B0038
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 09:36:46 -0400 (EDT)
+Received: by pdbdz6 with SMTP id dz6so31348316pdb.0
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 06:36:46 -0700 (PDT)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id fm2si34741697pab.148.2015.07.07.06.36.45
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Jul 2015 06:21:46 -0700 (PDT)
-Received: by pdbci14 with SMTP id ci14so125881887pdb.2
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 06:21:45 -0700 (PDT)
-Date: Tue, 7 Jul 2015 22:21:36 +0900
+        Tue, 07 Jul 2015 06:36:45 -0700 (PDT)
+Received: by pacws9 with SMTP id ws9so114974391pac.0
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 06:36:45 -0700 (PDT)
+Date: Tue, 7 Jul 2015 22:36:38 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v6 3/7] zsmalloc: introduce zs_can_compact() function
-Message-ID: <20150707132136.GA3898@blaptop>
+Subject: Re: [PATCH v6 5/7] zsmalloc/zram: introduce zs_pool_stats api
+Message-ID: <20150707133638.GB3898@blaptop>
 References: <1436270221-17844-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1436270221-17844-4-git-send-email-sergey.senozhatsky@gmail.com>
+ <1436270221-17844-6-git-send-email-sergey.senozhatsky@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1436270221-17844-4-git-send-email-sergey.senozhatsky@gmail.com>
+In-Reply-To: <1436270221-17844-6-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Tue, Jul 07, 2015 at 08:56:57PM +0900, Sergey Senozhatsky wrote:
-> This function checks if class compaction will free any pages.
-> Rephrasing -- do we have enough unused objects to form at least
-> one ZS_EMPTY page and free it. It aborts compaction if class
-> compaction will not result in any (further) savings.
+On Tue, Jul 07, 2015 at 08:56:59PM +0900, Sergey Senozhatsky wrote:
+> `zs_compact_control' accounts the number of migrated objects but
+> it has a limited lifespan -- we lose it as soon as zs_compaction()
+> returns back to zram. It worked fine, because (a) zram had it's own
+> counter of migrated objects and (b) only zram could trigger
+> compaction. However, this does not work for automatic pool
+> compaction (not issued by zram). To account objects migrated
+> during auto-compaction (issued by the shrinker) we need to store
+> this number in zs_pool.
 > 
-> EXAMPLE (this debug output is not part of this patch set):
+> Define a new `struct zs_pool_stats' structure to keep zs_pool's
+> stats there. It provides only `num_migrated', as of this writing,
+> but it surely can be extended.
 > 
-> -- class size
-> -- number of allocated objects
-> -- number of used objects
-> -- max objects per zspage
-> -- pages per zspage
-> -- estimated number of pages that will be freed
+> A new zsmalloc zs_pool_stats() symbol exports zs_pool's stats
+> back to caller.
 > 
-> [..]
-> class-512 objs:544 inuse:540 maxobj-per-zspage:8  pages-per-zspage:1 zspages-to-free:0
->  ... class-512 compaction is useless. break
-> class-496 objs:660 inuse:570 maxobj-per-zspage:33 pages-per-zspage:4 zspages-to-free:2
-> class-496 objs:627 inuse:570 maxobj-per-zspage:33 pages-per-zspage:4 zspages-to-free:1
-> class-496 objs:594 inuse:570 maxobj-per-zspage:33 pages-per-zspage:4 zspages-to-free:0
->  ... class-496 compaction is useless. break
-> class-448 objs:657 inuse:617 maxobj-per-zspage:9  pages-per-zspage:1 zspages-to-free:4
-> class-448 objs:648 inuse:617 maxobj-per-zspage:9  pages-per-zspage:1 zspages-to-free:3
-> class-448 objs:639 inuse:617 maxobj-per-zspage:9  pages-per-zspage:1 zspages-to-free:2
-> class-448 objs:630 inuse:617 maxobj-per-zspage:9  pages-per-zspage:1 zspages-to-free:1
-> class-448 objs:621 inuse:617 maxobj-per-zspage:9  pages-per-zspage:1 zspages-to-free:0
->  ... class-448 compaction is useless. break
-> class-432 objs:728 inuse:685 maxobj-per-zspage:28 pages-per-zspage:3 zspages-to-free:1
-> class-432 objs:700 inuse:685 maxobj-per-zspage:28 pages-per-zspage:3 zspages-to-free:0
->  ... class-432 compaction is useless. break
-> class-416 objs:819 inuse:705 maxobj-per-zspage:39 pages-per-zspage:4 zspages-to-free:2
-> class-416 objs:780 inuse:705 maxobj-per-zspage:39 pages-per-zspage:4 zspages-to-free:1
-> class-416 objs:741 inuse:705 maxobj-per-zspage:39 pages-per-zspage:4 zspages-to-free:0
->  ... class-416 compaction is useless. break
-> class-400 objs:690 inuse:674 maxobj-per-zspage:10 pages-per-zspage:1 zspages-to-free:1
-> class-400 objs:680 inuse:674 maxobj-per-zspage:10 pages-per-zspage:1 zspages-to-free:0
->  ... class-400 compaction is useless. break
-> class-384 objs:736 inuse:709 maxobj-per-zspage:32 pages-per-zspage:3 zspages-to-free:0
->  ... class-384 compaction is useless. break
-> [..]
-> 
-> Every "compaction is useless" indicates that we saved CPU cycles.
-> 
-> class-512 has
-> 	544	object allocated
-> 	540	objects used
-> 	8	objects per-page
-> 
-> Even if we have a ALMOST_EMPTY zspage, we still don't have enough room to
-> migrate all of its objects and free this zspage; so compaction will not
-> make a lot of sense, it's better to just leave it as is.
+> Use zs_pool_stats() in zram and remove `num_migrated' from
+> zram_stats.
 > 
 > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Acked-by: Minchan Kim <minchan@kernel.org>
-
-A nit below.
-
+> Suggested-by: Minchan Kim <minchan@kernel.org>
 > ---
->  mm/zsmalloc.c | 25 +++++++++++++++++++++++++
->  1 file changed, 25 insertions(+)
+>  drivers/block/zram/zram_drv.c | 11 ++++++-----
+>  drivers/block/zram/zram_drv.h |  1 -
+>  include/linux/zsmalloc.h      |  6 ++++++
+>  mm/zsmalloc.c                 | 42 ++++++++++++++++++++++--------------------
+>  4 files changed, 34 insertions(+), 26 deletions(-)
 > 
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> index fb655e8..aa22fe07 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -388,7 +388,6 @@ static ssize_t comp_algorithm_store(struct device *dev,
+>  static ssize_t compact_store(struct device *dev,
+>  		struct device_attribute *attr, const char *buf, size_t len)
+>  {
+> -	unsigned long nr_migrated;
+>  	struct zram *zram = dev_to_zram(dev);
+>  	struct zram_meta *meta;
+>  
+> @@ -399,8 +398,7 @@ static ssize_t compact_store(struct device *dev,
+>  	}
+>  
+>  	meta = zram->meta;
+> -	nr_migrated = zs_compact(meta->mem_pool);
+> -	atomic64_add(nr_migrated, &zram->stats.num_migrated);
+> +	zs_compact(meta->mem_pool);
+>  	up_read(&zram->init_lock);
+>  
+>  	return len;
+> @@ -428,13 +426,16 @@ static ssize_t mm_stat_show(struct device *dev,
+>  		struct device_attribute *attr, char *buf)
+>  {
+>  	struct zram *zram = dev_to_zram(dev);
+> +	struct zs_pool_stats pool_stats = {0};
+
+Does it work even if first member of the structure is non-scalar?
+Personally I prefer memset for initliazation.
+I believe modern compiler would optimize that quite well.
+
+
+>  	u64 orig_size, mem_used = 0;
+>  	long max_used;
+>  	ssize_t ret;
+>  
+>  	down_read(&zram->init_lock);
+> -	if (init_done(zram))
+> +	if (init_done(zram)) {
+>  		mem_used = zs_get_total_pages(zram->meta->mem_pool);
+> +		zs_pool_stats(zram->meta->mem_pool, &pool_stats);
+> +	}
+>  
+>  	orig_size = atomic64_read(&zram->stats.pages_stored);
+>  	max_used = atomic_long_read(&zram->stats.max_used_pages);
+> @@ -447,7 +448,7 @@ static ssize_t mm_stat_show(struct device *dev,
+>  			zram->limit_pages << PAGE_SHIFT,
+>  			max_used << PAGE_SHIFT,
+>  			(u64)atomic64_read(&zram->stats.zero_pages),
+> -			(u64)atomic64_read(&zram->stats.num_migrated));
+> +			pool_stats.num_migrated);
+>  	up_read(&zram->init_lock);
+>  
+>  	return ret;
+> diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+> index 6dbe2df..8e92339 100644
+> --- a/drivers/block/zram/zram_drv.h
+> +++ b/drivers/block/zram/zram_drv.h
+> @@ -78,7 +78,6 @@ struct zram_stats {
+>  	atomic64_t compr_data_size;	/* compressed size of pages stored */
+>  	atomic64_t num_reads;	/* failed + successful */
+>  	atomic64_t num_writes;	/* --do-- */
+> -	atomic64_t num_migrated;	/* no. of migrated object */
+>  	atomic64_t failed_reads;	/* can happen when memory is too low */
+>  	atomic64_t failed_writes;	/* can happen when memory is too low */
+>  	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
+> diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
+> index 1338190..9340fce 100644
+> --- a/include/linux/zsmalloc.h
+> +++ b/include/linux/zsmalloc.h
+> @@ -34,6 +34,11 @@ enum zs_mapmode {
+>  	 */
+>  };
+>  
+> +struct zs_pool_stats {
+> +	/* How many objects were migrated */
+> +	u64		num_migrated;
+> +};
+> +
+>  struct zs_pool;
+>  
+>  struct zs_pool *zs_create_pool(char *name, gfp_t flags);
+> @@ -49,4 +54,5 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle);
+>  unsigned long zs_get_total_pages(struct zs_pool *pool);
+>  unsigned long zs_compact(struct zs_pool *pool);
+>  
+> +void zs_pool_stats(struct zs_pool *pool, struct zs_pool_stats *stats);
+>  #endif
 > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index 036baa8..b7410c1 100644
+> index ce1484e..db3cb2d 100644
 > --- a/mm/zsmalloc.c
 > +++ b/mm/zsmalloc.c
-> @@ -1685,6 +1685,28 @@ static struct page *isolate_source_page(struct size_class *class)
->  	return page;
+> @@ -237,16 +237,18 @@ struct link_free {
+>  };
+>  
+>  struct zs_pool {
+> -	char *name;
+> +	char			*name;
+
+huge tab?
+
+>  
+> -	struct size_class **size_class;
+> -	struct kmem_cache *handle_cachep;
+> +	struct size_class	**size_class;
+> +	struct kmem_cache	*handle_cachep;
+
+tab?
+tab?
+
+>  
+> -	gfp_t flags;	/* allocation flags used when growing pool */
+> -	atomic_long_t pages_allocated;
+
+Why changes comment position?
+
+> +	/* Allocation flags used when growing pool */
+> +	gfp_t			flags;
+> +	atomic_long_t		pages_allocated;
+>  
+
+Why blank line?
+
+> +	struct zs_pool_stats	stats;
+>  #ifdef CONFIG_ZSMALLOC_STAT
+> -	struct dentry *stat_dentry;
+> +	struct dentry		*stat_dentry;
+
+Tab.
+
+>  #endif
+>  };
+>  
+> @@ -1587,7 +1589,7 @@ struct zs_compact_control {
+>  	 /* Starting object index within @s_page which used for live object
+>  	  * in the subpage. */
+>  	int index;
+> -	/* how many of objects are migrated */
+> +	/* How many of objects were migrated */
+>  	int nr_migrated;
+>  };
+>  
+> @@ -1599,7 +1601,6 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+>  	struct page *s_page = cc->s_page;
+>  	struct page *d_page = cc->d_page;
+>  	unsigned long index = cc->index;
+> -	int nr_migrated = 0;
+>  	int ret = 0;
+>  
+>  	while (1) {
+> @@ -1626,13 +1627,12 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+>  		record_obj(handle, free_obj);
+>  		unpin_tag(handle);
+>  		obj_free(pool, class, used_obj);
+> -		nr_migrated++;
+> +		cc->nr_migrated++;
+>  	}
+>  
+>  	/* Remember last position in this iteration */
+>  	cc->s_page = s_page;
+>  	cc->index = index;
+> -	cc->nr_migrated = nr_migrated;
+>  
+>  	return ret;
+>  }
+> @@ -1707,14 +1707,13 @@ static unsigned long zs_can_compact(struct size_class *class)
+>  	return obj_wasted * get_pages_per_zspage(class->size);
 >  }
 >  
-> +/*
-> + *
-> + * Based on the number of unused allocated objects calculate
-> + * and return the number of pages that we can free.
-> + *
-> + * Should be called under class->lock.
-> + */
-> +static unsigned long zs_can_compact(struct size_class *class)
-> +{
-> +	unsigned long obj_wasted;
-> +
-> +	if (!zs_stat_get(class, CLASS_ALMOST_EMPTY))
-> +		return 0;
-> +
-> +	obj_wasted = zs_stat_get(class, OBJ_ALLOCATED) -
-> +		zs_stat_get(class, OBJ_USED);
-> +
-> +	obj_wasted /= get_maxobj_per_zspage(class->size,
-> +			class->pages_per_zspage);
-
-Normally, I insert blank line before last return and I look at
-other code under mm, it seems to be a common rule.
-
-> +	return obj_wasted * get_pages_per_zspage(class->size);
-> +}
-> +
->  static unsigned long __zs_compact(struct zs_pool *pool,
->  				struct size_class *class)
+> -static unsigned long __zs_compact(struct zs_pool *pool,
+> -				struct size_class *class)
+> +static void __zs_compact(struct zs_pool *pool, struct size_class *class)
 >  {
-> @@ -1698,6 +1720,9 @@ static unsigned long __zs_compact(struct zs_pool *pool,
+>  	struct zs_compact_control cc;
+>  	struct page *src_page;
+>  	struct page *dst_page = NULL;
+> -	unsigned long nr_total_migrated = 0;
 >  
->  		BUG_ON(!is_first_page(src_page));
+> +	cc.nr_migrated = 0;
+>  	spin_lock(&class->lock);
+>  	while ((src_page = isolate_source_page(class))) {
 >  
-> +		if (!zs_can_compact(class))
-> +			break;
+> @@ -1736,7 +1735,6 @@ static unsigned long __zs_compact(struct zs_pool *pool,
+>  				break;
+>  
+>  			putback_zspage(pool, class, dst_page);
+> -			nr_total_migrated += cc.nr_migrated;
+>  		}
+>  
+>  		/* Stop if we couldn't find slot */
+> @@ -1746,7 +1744,6 @@ static unsigned long __zs_compact(struct zs_pool *pool,
+>  		putback_zspage(pool, class, dst_page);
+>  		putback_zspage(pool, class, src_page);
+>  		spin_unlock(&class->lock);
+> -		nr_total_migrated += cc.nr_migrated;
+>  		cond_resched();
+>  		spin_lock(&class->lock);
+>  	}
+> @@ -1754,15 +1751,14 @@ static unsigned long __zs_compact(struct zs_pool *pool,
+>  	if (src_page)
+>  		putback_zspage(pool, class, src_page);
+>  
+> -	spin_unlock(&class->lock);
+> +	pool->stats.num_migrated += cc.nr_migrated;
+>  
+> -	return nr_total_migrated;
+> +	spin_unlock(&class->lock);
+>  }
+>  
+>  unsigned long zs_compact(struct zs_pool *pool)
+>  {
+>  	int i;
+> -	unsigned long nr_migrated = 0;
+>  	struct size_class *class;
+>  
+>  	for (i = zs_size_classes - 1; i >= 0; i--) {
+> @@ -1771,13 +1767,19 @@ unsigned long zs_compact(struct zs_pool *pool)
+>  			continue;
+>  		if (class->index != i)
+>  			continue;
+> -		nr_migrated += __zs_compact(pool, class);
+> +		__zs_compact(pool, class);
+>  	}
+>  
+> -	return nr_migrated;
+> +	return pool->stats.num_migrated;
+>  }
+>  EXPORT_SYMBOL_GPL(zs_compact);
+>  
+> +void zs_pool_stats(struct zs_pool *pool, struct zs_pool_stats *stats)
+> +{
+> +	memcpy(stats, &pool->stats, sizeof(struct zs_pool_stats));
+> +}
+> +EXPORT_SYMBOL_GPL(zs_pool_stats);
 > +
->  		cc.index = 0;
->  		cc.s_page = src_page;
->  
+>  /**
+>   * zs_create_pool - Creates an allocation pool to work from.
+>   * @flags: allocation flags used to allocate pool metadata
 > -- 
 > 2.4.5
 > 
