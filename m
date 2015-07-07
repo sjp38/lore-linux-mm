@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
-	by kanga.kvack.org (Postfix) with ESMTP id DB43A6B0258
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 11:11:44 -0400 (EDT)
-Received: by ykdr198 with SMTP id r198so180194799ykd.3
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 08:11:44 -0700 (PDT)
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C4B36B025B
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 11:12:27 -0400 (EDT)
+Received: by qgii30 with SMTP id i30so85697697qgi.1
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 08:12:27 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 65si25237003qks.95.2015.07.07.08.11.43
+        by mx.google.com with ESMTPS id f64si25287353qkf.8.2015.07.07.08.12.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Jul 2015 08:11:44 -0700 (PDT)
-Date: Tue, 7 Jul 2015 11:11:42 -0400 (EDT)
+        Tue, 07 Jul 2015 08:12:26 -0700 (PDT)
+Date: Tue, 7 Jul 2015 11:12:24 -0400 (EDT)
 From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: [PATCH 5/7] dm-thin: use kvmalloc
+Subject: [PATCH 6/7] dm-stats: use kvmalloc_node
 In-Reply-To: <alpine.LRH.2.02.1507071058350.23387@file01.intranet.prod.int.rdu2.redhat.com>
-Message-ID: <alpine.LRH.2.02.1507071111190.23387@file01.intranet.prod.int.rdu2.redhat.com>
+Message-ID: <alpine.LRH.2.02.1507071111460.23387@file01.intranet.prod.int.rdu2.redhat.com>
 References: <alpine.LRH.2.02.1507071058350.23387@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -22,47 +22,32 @@ List-ID: <linux-mm.kvack.org>
 To: Mike Snitzer <msnitzer@redhat.com>
 Cc: "Alasdair G. Kergon" <agk@redhat.com>, Edward Thornber <thornber@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Vivek Goyal <vgoyal@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dm-devel@redhat.com
 
-Make dm-thin use kvmalloc instead of kmalloc because there was a reported
-allocation failure - see
-https://bugzilla.redhat.com/show_bug.cgi?id=1225370
+Use kvmalloc_node just to clean up the code and remove duplicated logic.
 
 Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
 
 ---
- drivers/md/dm-thin.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ drivers/md/dm-stats.c |    7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
 
-Index: linux-4.2-rc1/drivers/md/dm-thin.c
+Index: linux-4.1/drivers/md/dm-stats.c
 ===================================================================
---- linux-4.2-rc1.orig/drivers/md/dm-thin.c	2015-07-06 17:32:35.000000000 +0200
-+++ linux-4.2-rc1/drivers/md/dm-thin.c	2015-07-06 17:36:28.000000000 +0200
-@@ -2791,7 +2791,7 @@ static void __pool_destroy(struct pool *
- 	mempool_destroy(pool->mapping_pool);
- 	dm_deferred_set_destroy(pool->shared_read_ds);
- 	dm_deferred_set_destroy(pool->all_io_ds);
--	kfree(pool);
-+	kvfree(pool);
- }
+--- linux-4.1.orig/drivers/md/dm-stats.c	2015-07-02 19:21:39.000000000 +0200
++++ linux-4.1/drivers/md/dm-stats.c	2015-07-02 19:23:00.000000000 +0200
+@@ -146,12 +146,7 @@ static void *dm_stats_kvzalloc(size_t al
+ 	if (!claim_shared_memory(alloc_size))
+ 		return NULL;
  
- static struct kmem_cache *_new_mapping_cache;
-@@ -2813,7 +2813,7 @@ static struct pool *pool_create(struct m
- 		return (struct pool *)pmd;
- 	}
+-	if (alloc_size <= KMALLOC_MAX_SIZE) {
+-		p = kzalloc_node(alloc_size, GFP_KERNEL | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN, node);
+-		if (p)
+-			return p;
+-	}
+-	p = vzalloc_node(alloc_size, node);
++	p = kvmalloc_node(alloc_size, GFP_KERNEL | __GFP_ZERO, node);
+ 	if (p)
+ 		return p;
  
--	pool = kmalloc(sizeof(*pool), GFP_KERNEL);
-+	pool = kvmalloc(sizeof(*pool), GFP_KERNEL);
- 	if (!pool) {
- 		*error = "Error allocating memory for pool";
- 		err_p = ERR_PTR(-ENOMEM);
-@@ -2908,7 +2908,7 @@ bad_wq:
- bad_kcopyd_client:
- 	dm_bio_prison_destroy(pool->prison);
- bad_prison:
--	kfree(pool);
-+	kvfree(pool);
- bad_pool:
- 	if (dm_pool_metadata_close(pmd))
- 		DMWARN("%s: dm_pool_metadata_close() failed.", __func__);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
