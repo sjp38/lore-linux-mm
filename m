@@ -1,105 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id E411C6B0038
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 21:55:53 -0400 (EDT)
-Received: by pdbdz6 with SMTP id dz6so20736491pdb.0
-        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 18:55:53 -0700 (PDT)
-Received: from szxga02-in.huawei.com ([119.145.14.65])
-        by mx.google.com with ESMTPS id lp2si31876083pab.4.2015.07.06.18.55.45
+Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EE5C6B0038
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 00:14:54 -0400 (EDT)
+Received: by oiyy130 with SMTP id y130so133083502oiy.0
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 21:14:53 -0700 (PDT)
+Received: from mail-oi0-x22b.google.com (mail-oi0-x22b.google.com. [2607:f8b0:4003:c06::22b])
+        by mx.google.com with ESMTPS id y66si15271221oig.105.2015.07.06.21.14.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 06 Jul 2015 18:55:52 -0700 (PDT)
-Message-ID: <559B2D89.2070802@huawei.com>
-Date: Tue, 7 Jul 2015 09:38:17 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Jul 2015 21:14:53 -0700 (PDT)
+Received: by oiab3 with SMTP id b3so14785113oia.1
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 21:14:53 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory feature
-References: <1435929607-3435-1-git-send-email-pintu.k@samsung.com> <559A56FD.6010701@huawei.com> <0ffe01d0b7f4$dd2706d0$97751470$@samsung.com>
-In-Reply-To: <0ffe01d0b7f4$dd2706d0$97751470$@samsung.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+From: Sumit Gupta <sumit.g.007@gmail.com>
+Date: Tue, 7 Jul 2015 09:44:13 +0530
+Message-ID: <CANDtUrdRXh9MUJTzWuUu=ZpGk+zbh0Mp06N58-+kefWKVOeo8g@mail.gmail.com>
+Subject: MM: Query about different memory types(mem_types)__mmu.c
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: PINTU KUMAR <pintu.k@samsung.com>
-Cc: corbet@lwn.net, akpm@linux-foundation.org, vbabka@suse.cz, gorcunov@openvz.org, mhocko@suse.cz, emunson@akamai.com, kirill.shutemov@linux.intel.com, standby24x7@gmail.com, hannes@cmpxchg.org, vdavydov@parallels.com, hughd@google.com, minchan@kernel.org, tj@kernel.org, rientjes@google.com, xypron.glpk@gmx.de, dzickus@redhat.com, prarit@redhat.com, ebiederm@xmission.com, rostedt@goodmis.org, uobergfe@redhat.com, paulmck@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, ddstreet@ieee.org, sasha.levin@oracle.com, koct9i@gmail.com, mgorman@suse.de, cj@linux.com, opensource.ganesh@gmail.com, vinmenon@codeaurora.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, cpgs@samsung.com, pintu_agarwal@yahoo.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, iqbal.ams@samsung.com
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2015/7/6 22:03, PINTU KUMAR wrote:
+Hi All,
 
-> Hi,
-> 
->> -----Original Message-----
->> From: Xishi Qiu [mailto:qiuxishi@huawei.com]
->> Sent: Monday, July 06, 2015 3:53 PM
->> To: Pintu Kumar
->> Cc: corbet@lwn.net; akpm@linux-foundation.org; vbabka@suse.cz;
->> gorcunov@openvz.org; mhocko@suse.cz; emunson@akamai.com;
->> kirill.shutemov@linux.intel.com; standby24x7@gmail.com;
->> hannes@cmpxchg.org; vdavydov@parallels.com; hughd@google.com;
->> minchan@kernel.org; tj@kernel.org; rientjes@google.com;
->> xypron.glpk@gmx.de; dzickus@redhat.com; prarit@redhat.com;
->> ebiederm@xmission.com; rostedt@goodmis.org; uobergfe@redhat.com;
->> paulmck@linux.vnet.ibm.com; iamjoonsoo.kim@lge.com; ddstreet@ieee.org;
->> sasha.levin@oracle.com; koct9i@gmail.com; mgorman@suse.de; cj@linux.com;
->> opensource.ganesh@gmail.com; vinmenon@codeaurora.org; linux-
->> doc@vger.kernel.org; linux-kernel@vger.kernel.org; linux-mm@kvack.org; linux-
->> pm@vger.kernel.org; cpgs@samsung.com; pintu_agarwal@yahoo.com;
->> vishnu.ps@samsung.com; rohit.kr@samsung.com; iqbal.ams@samsung.com
->> Subject: Re: [PATCH 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory
->> feature
->>
->> On 2015/7/3 21:20, Pintu Kumar wrote:
->>
->>> This patch provides 2 things:
->>> 1. Add new control called shrink_memory in /proc/sys/vm/.
->>> This control can be used to aggressively reclaim memory system-wide in
->>> one shot from the user space. A value of 1 will instruct the kernel to
->>> reclaim as much as totalram_pages in the system.
->>> Example: echo 1 > /proc/sys/vm/shrink_memory
->>>
->>> 2. Enable shrink_all_memory API in kernel with new
->> CONFIG_SHRINK_MEMORY.
->>> Currently, shrink_all_memory function is used only during hibernation.
->>> With the new config we can make use of this API for non-hibernation
->>> case also without disturbing the hibernation case.
->>>
->>> The detailed paper was presented in Embedded Linux Conference,
->>> Mar-2015 http://events.linuxfoundation.org/sites/events/files/slides/
->>> %5BELC-2015%5D-System-wide-Memory-Defragmenter.pdf
->>>
->>> Scenarios were this can be used and helpful are:
->>> 1) Can be invoked just after system boot-up is finished.
->>> 2) Can be invoked just before entering entire system suspend.
->>> 3) Can be invoked from kernel when order-4 pages starts failing.
->>> 4) Can be helpful to completely avoid or delay the kerenl OOM condition.
->>> 5) Can be developed as a system-tool to quickly defragment entire system
->>>    from user space, without the need to kill any application.
->>>
->>
->> Hi Pintu,
->>
->> How about increase min_free_kbytes and Android lowmemorykiller's level?
->>
-> Thanks for the review.
-> Actually in Tizen, we don't use Android LMK and we wanted to delay the LMK with
-> aggressive direct_reclaim offline.
-> And increasing min_free value also may not help much.
-> Currently, in our case free memory never falls below 10MB, with 512MB RAM
-> configuration.
-> 
+I have been exploring ARM reference manual about ARM weak memory model
+and mmu page table setting from some time.
+I think i understand different memory types, mmu settings for
+page/section, TEX, AP, B, C, S bits well.
+My target is to to dig further and fully understand setting of all
+parameters for different memory types in ARM
+[File mmu.c: "static struct mem_type mem_types"].
 
-How about the performance as you reclaim so much memory?
-(e.g. shrink page cache, use zram, ksm, compaction...)
-When launching the same app next time, it may be slow, right?
+But i am not able to find any good source to refer for fully
+understanding all below parameters.
+Could you please help me to understand mappings for below mem types.
+If you can point me to some references which can help me understand
+more.
 
-How about use cgroup to manage the apps, but I don't know how to do the detail.
-
-Thanks,
-Xishi Qiu
-
-> 
-> 
+Thank you in advance for your help.
 
 
+        [MT_DEVICE] = {           /* Strongly ordered / ARMv6 shared device */
+                .prot_pte       = PROT_PTE_DEVICE | L_PTE_MT_DEV_SHARED |
+                                  L_PTE_SHARED,
+                .prot_pte_s2    = s2_policy(PROT_PTE_S2_DEVICE) |
+                                  s2_policy(L_PTE_S2_MT_DEV_SHARED) |
+                                  L_PTE_SHARED,
+                .prot_l1        = PMD_TYPE_TABLE,
+                .prot_sect      = PROT_SECT_DEVICE | PMD_SECT_S,
+                .domain         = DOMAIN_IO,
+        },
+............
+       [MT_MEMORY_RW] = {
+                .prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
+                             L_PTE_XN,
+                .prot_l1   = PMD_TYPE_TABLE,
+                .prot_sect = PMD_TYPE_SECT | PMD_SECT_AP_WRITE,
+                .domain    = DOMAIN_KERNEL,
+        },
+............
+        [MT_MEMORY_DMA_READY] = {
+                .prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
+                                L_PTE_XN,
+                .prot_l1   = PMD_TYPE_TABLE,
+                .domain    = DOMAIN_KERNEL,
+        },
+
+Regards,
+Sumit Gupta
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
