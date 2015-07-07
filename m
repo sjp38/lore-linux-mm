@@ -1,158 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id CCEE46B0253
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 05:30:05 -0400 (EDT)
-Received: by pacgz10 with SMTP id gz10so36800603pac.3
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 02:30:05 -0700 (PDT)
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 5881C6B0254
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 05:30:07 -0400 (EDT)
+Received: by pdbdz6 with SMTP id dz6so27861843pdb.0
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 02:30:07 -0700 (PDT)
 Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id nt5si33614692pbc.196.2015.07.07.02.30.03
+        by mx.google.com with ESMTP id nt5si33614692pbc.196.2015.07.07.02.30.05
         for <linux-mm@kvack.org>;
-        Tue, 07 Jul 2015 02:30:04 -0700 (PDT)
+        Tue, 07 Jul 2015 02:30:06 -0700 (PDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 0/5] Make cpuid <-> nodeid mapping persistent.
-Date: Tue, 7 Jul 2015 17:30:20 +0800
-Message-ID: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH 1/5] x86, gfp: Cache best near node for memory allocation.
+Date: Tue, 7 Jul 2015 17:30:21 +0800
+Message-ID: <1436261425-29881-2-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tj@kernel.org, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, laijs@cn.fujitsu.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, qiaonuohan@cn.fujitsu.com
-Cc: tangchen@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: tangchen@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>
 
-[Problem]
+From: Gu Zheng <guz.fnst@cn.fujitsu.com>
 
-cpuid <-> nodeid mapping is firstly established at boot time. And workqueue caches
-the mapping in wq_numa_possible_cpumask in wq_numa_init() at boot time.
+In current code, all possible cpus are mapped to the best near online
+node if the node they reside in is offline in init_cpu_to_node().
 
-When doing node online/offline, cpuid <-> nodeid mapping is established/destroyed,
-which means, cpuid <-> nodeid mapping will change if node hotplug happens. But
-workqueue does not update wq_numa_possible_cpumask.
-
-So here is the problem:
-
-Assume we have the following cpuid <-> nodeid in the beginning:
-
-  Node | CPU
-------------------------
-node 0 |  0-14, 60-74
-node 1 | 15-29, 75-89
-node 2 | 30-44, 90-104
-node 3 | 45-59, 105-119
-
-and we hot-remove node2 and node3, it becomes:
-
-  Node | CPU
-------------------------
-node 0 |  0-14, 60-74
-node 1 | 15-29, 75-89
-
-and we hot-add node4 and node5, it becomes:
-
-  Node | CPU
-------------------------
-node 0 |  0-14, 60-74
-node 1 | 15-29, 75-89
-node 4 | 30-59
-node 5 | 90-119
-
-But in wq_numa_possible_cpumask, cpu30 is still mapped to node2, and the like.
-
-When a pool workqueue is initialized, if its cpumask belongs to a node, its
-pool->node will be mapped to that node. And memory used by this workqueue will
-also be allocated on that node.
-
-static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs){
-...
-        /* if cpumask is contained inside a NUMA node, we belong to that node */
-        if (wq_numa_enabled) {
-                for_each_node(node) {
-                        if (cpumask_subset(pool->attrs->cpumask,
-                                           wq_numa_possible_cpumask[node])) {
-                                pool->node = node;
-                                break;
-                        }
-                }
-        }
-
-Since wq_numa_possible_cpumask is not updated, it could be mapped to an offline node,
-which will lead to memory allocation failure:
-
- SLUB: Unable to allocate memory on node 2 (gfp=0x80d0)
-  cache: kmalloc-192, object size: 192, buffer size: 192, default order: 1, min order: 0
-  node 0: slabs: 6172, objs: 259224, free: 245741
-  node 1: slabs: 3261, objs: 136962, free: 127656
-
-It happens here:
-
-create_worker(struct worker_pool *pool)
- |--> worker = alloc_worker(pool->node);
-
-static struct worker *alloc_worker(int node)
+init_cpu_to_node()
 {
-        struct worker *worker;
-
-        worker = kzalloc_node(sizeof(*worker), GFP_KERNEL, node); --> Here, useing the wrong node.
-
-        ......
-
-        return worker;
+	......
+	for_each_possible_cpu(cpu) {
+		......
+		if (!node_online(node))
+			node = find_near_online_node(node);
+		numa_set_node(cpu, node);
+	}
 }
 
-[Solution]
+Why doing this is to prevent memory allocation failure if the cpu is
+online but there is no memory on that node.
 
-To fix this problem, we establish cpuid <-> nodeid mapping for all the possible
-cpus at boot time, and make it invariable. And according to init_cpu_to_node(),
-cpuid <-> nodeid mapping is based on apicid <-> nodeid mapping and cpuid <-> apicid
-mapping. So the key point is obtaining all cpus' apicid.
+But since cpuid <-> nodeid mapping will fix after this patch-set, doing
+so in initialization pharse makes no sense any more. The best near online
+node for each cpu should be cached somewhere.
 
-apicid can be obtained by _MAT (Multiple APIC Table Entry) method or found in
-MADT (Multiple APIC Description Table). So we finish the job in the following steps:
-
-1. Enable apic registeration flow to handle both enabled and disabled cpus.
-   This is done by introducing an extra parameter to generic_processor_info to let the
-   caller control if disabled cpus are ignored.
-
-2. Introduce a new array storing all possible cpuid <-> apicid mapping. And also modify
-   the way cpuid is calculated. Establish all possible cpuid <-> apicid mapping when
-   registering local apic. Store the mapping in the array introduced above.
-
-4. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
-   This is also done by introducing an extra parameter to these apis to let the caller
-   control if disabled cpus are ignored.
-
-5. Establish all possible cpuid <-> nodeid mapping.
-   This is done via an additional acpi namespace walk for processors.
+In this patch, a per-cpu cache named x86_cpu_to_near_online_node is
+introduced to store these info, and make use of them when memory allocation
+fails in alloc_pages_node() and alloc_pages_exact_node().
 
 
-For previous discussion, please refer to:
-https://lkml.org/lkml/2015/2/27/145
-https://lkml.org/lkml/2015/3/25/989
-https://lkml.org/lkml/2015/5/14/244
+Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+---
+ arch/x86/include/asm/topology.h |  2 ++
+ arch/x86/mm/numa.c              | 57 ++++++++++++++++++++++++++---------------
+ include/linux/gfp.h             | 12 ++++++++-
+ 3 files changed, 50 insertions(+), 21 deletions(-)
 
-
-Gu Zheng (5):
-  x86, gfp: Cache best near node for memory allocation.
-  x86, acpi, cpu-hotplug: Enable acpi to register all possible cpus at
-    boot time.
-  x86, acpi, cpu-hotplug: Introduce apicid_to_cpuid[] array to store
-    persistent cpuid <-> apicid mapping.
-  x86, acpi, cpu-hotplug: Enable MADT APIs to return disabled apicid.
-  x86, acpi, cpu-hotplug: Set persistent cpuid <-> nodeid mapping when
-    booting.
-
- arch/ia64/kernel/acpi.c         |   2 +-
- arch/x86/include/asm/mpspec.h   |   1 +
- arch/x86/include/asm/topology.h |   2 +
- arch/x86/kernel/acpi/boot.c     |   8 +--
- arch/x86/kernel/apic/apic.c     |  71 ++++++++++++++++++++---
- arch/x86/mm/numa.c              |  57 ++++++++++++-------
- drivers/acpi/acpi_processor.c   |   5 +-
- drivers/acpi/bus.c              |   3 +
- drivers/acpi/processor_core.c   | 122 +++++++++++++++++++++++++++++++++-------
- include/linux/acpi.h            |   2 +
- include/linux/gfp.h             |  12 +++-
- 11 files changed, 227 insertions(+), 58 deletions(-)
-
+diff --git a/arch/x86/include/asm/topology.h b/arch/x86/include/asm/topology.h
+index 0fb4648..e3e22b2 100644
+--- a/arch/x86/include/asm/topology.h
++++ b/arch/x86/include/asm/topology.h
+@@ -82,6 +82,8 @@ static inline const struct cpumask *cpumask_of_node(int node)
+ }
+ #endif
+ 
++extern int get_near_online_node(int node);
++
+ extern void setup_node_to_cpumask_map(void);
+ 
+ /*
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 4053bb5..13bd0d7 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -69,6 +69,7 @@ int numa_cpu_node(int cpu)
+ 	return NUMA_NO_NODE;
+ }
+ 
++cpumask_t node_to_cpuid_mask_map[MAX_NUMNODES];
+ cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
+ EXPORT_SYMBOL(node_to_cpumask_map);
+ 
+@@ -78,6 +79,31 @@ EXPORT_SYMBOL(node_to_cpumask_map);
+ DEFINE_EARLY_PER_CPU(int, x86_cpu_to_node_map, NUMA_NO_NODE);
+ EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_node_map);
+ 
++/*
++ * Map cpu index to the best near online node. The best near online node
++ * is the backup node for memory allocation on offline node.
++ */
++DEFINE_PER_CPU(int, x86_cpu_to_near_online_node);
++EXPORT_PER_CPU_SYMBOL(x86_cpu_to_near_online_node);
++
++static int find_near_online_node(int node)
++{
++	int n, val;
++	int min_val = INT_MAX;
++	int best_node = -1;
++
++	for_each_online_node(n) {
++		val = node_distance(node, n);
++
++		if (val < min_val) {
++			min_val = val;
++			best_node = n;
++		}
++	}
++
++	return best_node;
++}
++
+ void numa_set_node(int cpu, int node)
+ {
+ 	int *cpu_to_node_map = early_per_cpu_ptr(x86_cpu_to_node_map);
+@@ -95,7 +121,11 @@ void numa_set_node(int cpu, int node)
+ 		return;
+ 	}
+ #endif
++
++	per_cpu(x86_cpu_to_near_online_node, cpu) =
++			find_near_online_node(numa_cpu_node(cpu));
+ 	per_cpu(x86_cpu_to_node_map, cpu) = node;
++	cpumask_set_cpu(cpu, &node_to_cpuid_mask_map[numa_cpu_node(cpu)]);
+ 
+ 	set_cpu_numa_node(cpu, node);
+ }
+@@ -105,6 +135,13 @@ void numa_clear_node(int cpu)
+ 	numa_set_node(cpu, NUMA_NO_NODE);
+ }
+ 
++int get_near_online_node(int node)
++{
++	return per_cpu(x86_cpu_to_near_online_node,
++		       cpumask_first(&node_to_cpuid_mask_map[node]));
++}
++EXPORT_SYMBOL(get_near_online_node);
++
+ /*
+  * Allocate node_to_cpumask_map based on number of available nodes
+  * Requires node_possible_map to be valid.
+@@ -702,24 +739,6 @@ void __init x86_numa_init(void)
+ 	numa_init(dummy_numa_init);
+ }
+ 
+-static __init int find_near_online_node(int node)
+-{
+-	int n, val;
+-	int min_val = INT_MAX;
+-	int best_node = -1;
+-
+-	for_each_online_node(n) {
+-		val = node_distance(node, n);
+-
+-		if (val < min_val) {
+-			min_val = val;
+-			best_node = n;
+-		}
+-	}
+-
+-	return best_node;
+-}
+-
+ /*
+  * Setup early cpu_to_node.
+  *
+@@ -746,8 +765,6 @@ void __init init_cpu_to_node(void)
+ 
+ 		if (node == NUMA_NO_NODE)
+ 			continue;
+-		if (!node_online(node))
+-			node = find_near_online_node(node);
+ 		numa_set_node(cpu, node);
+ 	}
+ }
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 6ba7cf2..4a18b21 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -307,13 +307,23 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+ 	if (nid < 0)
+ 		nid = numa_node_id();
+ 
++#if IS_ENABLED(CONFIG_X86) && IS_ENABLED(CONFIG_NUMA)
++	if (!node_online(nid))
++		nid = get_near_online_node(nid);
++#endif
++
+ 	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+ }
+ 
+ static inline struct page *alloc_pages_exact_node(int nid, gfp_t gfp_mask,
+ 						unsigned int order)
+ {
+-	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
++	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
++
++#if IS_ENABLED(CONFIG_X86) && IS_ENABLED(CONFIG_NUMA)
++	if (!node_online(nid))
++		nid = get_near_online_node(nid);
++#endif
+ 
+ 	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+ }
 -- 
 1.9.3
 
