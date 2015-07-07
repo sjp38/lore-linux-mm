@@ -1,45 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 46BFD6B0038
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 11:03:31 -0400 (EDT)
-Received: by pddu5 with SMTP id u5so39807608pdd.3
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 08:03:31 -0700 (PDT)
-Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com. [2607:f8b0:400e:c02::235])
-        by mx.google.com with ESMTPS id v4si3982445pbs.198.2015.07.07.08.03.29
+Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 584AA6B0038
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 11:08:59 -0400 (EDT)
+Received: by qkei195 with SMTP id i195so141852575qke.3
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 08:08:59 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r187si9240524qha.27.2015.07.07.08.08.58
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Jul 2015 08:03:30 -0700 (PDT)
-Received: by pdbep18 with SMTP id ep18so127293477pdb.1
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 08:03:29 -0700 (PDT)
-Date: Wed, 8 Jul 2015 00:02:39 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH v6 5/7] zsmalloc/zram: introduce zs_pool_stats api
-Message-ID: <20150707150239.GD1450@swordfish>
-References: <1436270221-17844-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1436270221-17844-6-git-send-email-sergey.senozhatsky@gmail.com>
- <20150707133638.GB3898@blaptop>
- <20150707143256.GB1450@swordfish>
- <20150707144845.GB23003@blaptop>
+        Tue, 07 Jul 2015 08:08:58 -0700 (PDT)
+Date: Tue, 7 Jul 2015 11:08:54 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: [PATCH 0/7] mm: reliable memory allocation with kvmalloc
+Message-ID: <alpine.LRH.2.02.1507071058350.23387@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150707144845.GB23003@blaptop>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Mike Snitzer <msnitzer@redhat.com>
+Cc: "Alasdair G. Kergon" <agk@redhat.com>, Edward Thornber <thornber@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Vivek Goyal <vgoyal@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dm-devel@redhat.com
 
-On (07/07/15 23:48), Minchan Kim wrote:
-[..]
-> I have been used white space.
-> As well, when I look at current code under mm which I'm getting used,
-> almost everything use just white space.
-> 
+This patchset introduces function kvmalloc and kvmalloc_node. These 
+functions allow reliable allocation of objects of arbitrary size. They 
+attempt to do allocation with kmalloc and if it fails, use vmalloc. Memory 
+allocated with these functions should be freed with kvfree.
 
-OK, don't want to engage into a meaningless discussion here.
-I'll rollback those hunks.
+The patchset makes modification to device mapper to use these functions.
 
-	-ss
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
