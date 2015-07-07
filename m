@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B4D09003C7
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 00:34:50 -0400 (EDT)
-Received: by pddu5 with SMTP id u5so30611464pdd.3
-        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 21:34:50 -0700 (PDT)
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 256049003C7
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 00:34:52 -0400 (EDT)
+Received: by pabvl15 with SMTP id vl15so106360438pab.1
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 21:34:51 -0700 (PDT)
 Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id cq9si32532159pad.1.2015.07.06.21.34.48
+        by mx.google.com with ESMTP id kr4si32353472pbc.172.2015.07.06.21.34.50
         for <linux-mm@kvack.org>;
-        Mon, 06 Jul 2015 21:34:49 -0700 (PDT)
+        Mon, 06 Jul 2015 21:34:51 -0700 (PDT)
 From: Gioh Kim <gioh.kim@lge.com>
-Subject: [RFCv3 1/5] fs/anon_inodes: new interface to create new inode
-Date: Tue,  7 Jul 2015 13:36:21 +0900
-Message-Id: <1436243785-24105-2-git-send-email-gioh.kim@lge.com>
+Subject: [RFCv3 2/5] mm/compaction: enable mobile-page migration
+Date: Tue,  7 Jul 2015 13:36:22 +0900
+Message-Id: <1436243785-24105-3-git-send-email-gioh.kim@lge.com>
 In-Reply-To: <1436243785-24105-1-git-send-email-gioh.kim@lge.com>
 References: <1436243785-24105-1-git-send-email-gioh.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -21,46 +21,190 @@ Cc: gunho.lee@lge.com, akpm@linux-foundation.org, Gioh Kim <gurugio@hanmail.net>
 
 From: Gioh Kim <gurugio@hanmail.net>
 
-The anon_inodes has already complete interfaces to create manage
-many anonymous inodes but don't have interface to get
-new inode. Other sub-modules can create anonymous inode
-without creating and mounting it's own pseudo filesystem.
+Add framework to register callback functions and check page mobility.
+There are some modes for page isolation so that isolate interface
+has arguments of page address and isolation mode while putback
+interface has only page address as argument.
 
 Signed-off-by: Gioh Kim <gioh.kim@lge.com>
 ---
- fs/anon_inodes.c            | 6 ++++++
- include/linux/anon_inodes.h | 1 +
- 2 files changed, 7 insertions(+)
+ fs/proc/page.c                         |  3 ++
+ include/linux/compaction.h             | 76 ++++++++++++++++++++++++++++++++++
+ include/linux/fs.h                     |  2 +
+ include/linux/page-flags.h             | 19 +++++++++
+ include/uapi/linux/kernel-page-flags.h |  1 +
+ 5 files changed, 101 insertions(+)
 
-diff --git a/fs/anon_inodes.c b/fs/anon_inodes.c
-index 80ef38c..1d51f96 100644
---- a/fs/anon_inodes.c
-+++ b/fs/anon_inodes.c
-@@ -162,6 +162,12 @@ err_put_unused_fd:
- }
- EXPORT_SYMBOL_GPL(anon_inode_getfd);
+diff --git a/fs/proc/page.c b/fs/proc/page.c
+index 7eee2d8..a4f5a00 100644
+--- a/fs/proc/page.c
++++ b/fs/proc/page.c
+@@ -146,6 +146,9 @@ u64 stable_page_flags(struct page *page)
+ 	if (PageBalloon(page))
+ 		u |= 1 << KPF_BALLOON;
  
-+struct inode *anon_inode_new(void)
-+{
-+	return alloc_anon_inode(anon_inode_mnt->mnt_sb);
-+}
-+EXPORT_SYMBOL_GPL(anon_inode_new);
++	if (PageMobile(page))
++		u |= 1 << KPF_MOBILE;
 +
- static int __init anon_inode_init(void)
- {
- 	anon_inode_mnt = kern_mount(&anon_inode_fs_type);
-diff --git a/include/linux/anon_inodes.h b/include/linux/anon_inodes.h
-index 8013a45..ddbd67f 100644
---- a/include/linux/anon_inodes.h
-+++ b/include/linux/anon_inodes.h
-@@ -15,6 +15,7 @@ struct file *anon_inode_getfile(const char *name,
- 				void *priv, int flags);
- int anon_inode_getfd(const char *name, const struct file_operations *fops,
- 		     void *priv, int flags);
-+struct inode *anon_inode_new(void);
+ 	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
  
- #endif /* _LINUX_ANON_INODES_H */
+ 	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index aa8f61c..c375a89 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -1,6 +1,9 @@
+ #ifndef _LINUX_COMPACTION_H
+ #define _LINUX_COMPACTION_H
  
++#include <linux/page-flags.h>
++#include <linux/pagemap.h>
++
+ /* Return values for compact_zone() and try_to_compact_pages() */
+ /* compaction didn't start as it was deferred due to past failures */
+ #define COMPACT_DEFERRED	0
+@@ -51,6 +54,66 @@ extern void compaction_defer_reset(struct zone *zone, int order,
+ 				bool alloc_success);
+ extern bool compaction_restarting(struct zone *zone, int order);
+ 
++static inline bool mobile_page(struct page *page)
++{
++	return page->mapping &&	page->mapping->a_ops &&
++		(PageMobile(page) || PageBalloon(page));
++}
++
++static inline bool isolate_mobilepage(struct page *page, isolate_mode_t mode)
++{
++	bool ret;
++
++	/*
++	 * Avoid burning cycles with pages that are yet under __free_pages(),
++	 * or just got freed under us.
++	 *
++	 * In case we 'win' a race for a mobile page being freed under us and
++	 * raise its refcount preventing __free_pages() from doing its job
++	 * the put_page() at the end of this block will take care of
++	 * release this page, thus avoiding a nasty leakage.
++	 */
++	if (likely(get_page_unless_zero(page))) {
++		/*
++		 * As mobile pages are not isolated from LRU lists, concurrent
++		 * compaction threads can race against page migration functions
++		 * as well as race against the releasing a page.
++		 *
++		 * In order to avoid having an already isolated mobile page
++		 * being (wrongly) re-isolated while it is under migration,
++		 * or to avoid attempting to isolate pages being released,
++		 * lets be sure we have the page lock
++		 * before proceeding with the mobile page isolation steps.
++		 */
++		if (likely(trylock_page(page))) {
++			if (mobile_page(page) &&
++			    page->mapping->a_ops->isolatepage) {
++				ret = page->mapping->a_ops->isolatepage(page,
++									mode);
++				unlock_page(page);
++				return ret;
++			}
++			unlock_page(page);
++		}
++		put_page(page);
++	}
++	return false;
++}
++
++static inline void putback_mobilepage(struct page *page)
++{
++	/*
++	 * 'lock_page()' stabilizes the page and prevents races against
++	 * concurrent isolation threads attempting to re-isolate it.
++	 */
++	lock_page(page);
++	if (mobile_page(page) && page->mapping->a_ops->putbackpage) {
++		page->mapping->a_ops->putbackpage(page);
++		/* drop the extra ref count taken for mobile page isolation */
++		put_page(page);
++	}
++	unlock_page(page);
++}
+ #else
+ static inline unsigned long try_to_compact_pages(gfp_t gfp_mask,
+ 			unsigned int order, int alloc_flags,
+@@ -83,6 +146,19 @@ static inline bool compaction_deferred(struct zone *zone, int order)
+ 	return true;
+ }
+ 
++static inline bool mobile_page(struct page *page)
++{
++	return false;
++}
++
++static inline bool isolate_mobilepage(struct page *page, isolate_mode_t mode)
++{
++	return false;
++}
++
++static inline void putback_mobilepage(struct page *page)
++{
++}
+ #endif /* CONFIG_COMPACTION */
+ 
+ #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 35ec87e..33c9aa5 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -395,6 +395,8 @@ struct address_space_operations {
+ 	 */
+ 	int (*migratepage) (struct address_space *,
+ 			struct page *, struct page *, enum migrate_mode);
++	bool (*isolatepage) (struct page *, isolate_mode_t);
++	void (*putbackpage) (struct page *);
+ 	int (*launder_page) (struct page *);
+ 	int (*is_partially_uptodate) (struct page *, unsigned long,
+ 					unsigned long);
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index f34e040..abef145 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -582,6 +582,25 @@ static inline void __ClearPageBalloon(struct page *page)
+ 	atomic_set(&page->_mapcount, -1);
+ }
+ 
++#define PAGE_MOBILE_MAPCOUNT_VALUE (-255)
++
++static inline int PageMobile(struct page *page)
++{
++	return atomic_read(&page->_mapcount) == PAGE_MOBILE_MAPCOUNT_VALUE;
++}
++
++static inline void __SetPageMobile(struct page *page)
++{
++	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
++	atomic_set(&page->_mapcount, PAGE_MOBILE_MAPCOUNT_VALUE);
++}
++
++static inline void __ClearPageMobile(struct page *page)
++{
++	VM_BUG_ON_PAGE(!PageMobile(page), page);
++	atomic_set(&page->_mapcount, -1);
++}
++
+ /*
+  * If network-based swap is enabled, sl*b must keep track of whether pages
+  * were allocated from pfmemalloc reserves.
+diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
+index a6c4962..d50d9e8 100644
+--- a/include/uapi/linux/kernel-page-flags.h
++++ b/include/uapi/linux/kernel-page-flags.h
+@@ -33,6 +33,7 @@
+ #define KPF_THP			22
+ #define KPF_BALLOON		23
+ #define KPF_ZERO_PAGE		24
++#define KPF_MOBILE		25
+ 
+ 
+ #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
 -- 
 2.1.4
 
