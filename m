@@ -1,51 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 349292802C8
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 19:30:36 -0400 (EDT)
-Received: by iecuq6 with SMTP id uq6so123705360iec.2
-        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 16:30:36 -0700 (PDT)
-Received: from mail-ie0-x230.google.com (mail-ie0-x230.google.com. [2607:f8b0:4001:c03::230])
-        by mx.google.com with ESMTPS id g20si14253947igt.61.2015.07.06.16.30.35
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 09F7F2802C8
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2015 21:23:16 -0400 (EDT)
+Received: by pacgz10 with SMTP id gz10so30097344pac.3
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 18:23:15 -0700 (PDT)
+Received: from conssluserg004-v.nifty.com (conssluserg004.nifty.com. [202.248.44.42])
+        by mx.google.com with ESMTPS id am4si31723012pad.93.2015.07.06.18.23.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jul 2015 16:30:35 -0700 (PDT)
-Received: by iecvh10 with SMTP id vh10so123908196iec.3
-        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 16:30:35 -0700 (PDT)
-From: Nicholas Krause <xerofoify@gmail.com>
-Subject: [PATCH] mm:Change unlabeled block of code to a else block in the function dma_pool_free
-Date: Mon,  6 Jul 2015 19:30:31 -0400
-Message-Id: <1436225431-5880-1-git-send-email-xerofoify@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 06 Jul 2015 18:23:14 -0700 (PDT)
+Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178]) (authenticated)
+	by conssluserg004-v.nifty.com with ESMTP id t671MvTD022309
+	for <linux-mm@kvack.org>; Tue, 7 Jul 2015 10:22:57 +0900
+Received: by ykeo3 with SMTP id o3so44287966yke.0
+        for <linux-mm@kvack.org>; Mon, 06 Jul 2015 18:22:56 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20150706192525.GA16724@windriver.com>
+References: <1436155277-21769-1-git-send-email-yamada.masahiro@socionext.com>
+	<20150706192525.GA16724@windriver.com>
+Date: Tue, 7 Jul 2015 10:22:56 +0900
+Message-ID: <CAK7LNARUiVAaBTRPECeZrwfVMU=r6Pggc+eGx+6TUnzfufH98w@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: nommu: fix typos in comment blocks
+From: Masahiro Yamada <yamada.masahiro@socionext.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: khalasa@piap.pl, bigeasy@linutronix.de, paulmcquad@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Paul Gortmaker <paul.gortmaker@windriver.com>
+Cc: linux-mm@kvack.org, Davidlohr Bueso <dave@stgolabs.net>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Joonsoo Kim <js1304@gmail.com>, Christoph Hellwig <hch@lst.de>, Leon Romanovsky <leon@leon.nu>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 
-This fixes the unlabeled block of code after the if statement that
-executes if the passed dma variable of type dma_addr_t minus the
-structure pointer page's dma member is equal to the variable offset
-into a else block as this block should run when the if statement check
+Hi Paul
 
-Signed-off-by: Nicholas Krause <xerofoify@gmail.com>
----
- mm/dmapool.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+2015-07-07 4:25 GMT+09:00 Paul Gortmaker <paul.gortmaker@windriver.com>:
+> [[PATCH v2] mm: nommu: fix typos in comment blocks] On 06/07/2015 (Mon 13:01) Masahiro Yamada wrote:
+>
+>> continguos -> contiguous
+>>
+>> Signed-off-by: Masahiro Yamada <yamada.masahiro@socionext.com>
+>
+> I'd suggested this go via the trivial tree, but instead I see it is in
+> my inbox now, and still in everyone else's inbox, and yet not Cc'd to
+> the trivial tree, which leaves me confused...
+>
+> Paul.
 
-diff --git a/mm/dmapool.c b/mm/dmapool.c
-index fd5fe43..ce7ff4b 100644
---- a/mm/dmapool.c
-+++ b/mm/dmapool.c
-@@ -434,8 +434,7 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma)
- 			       "dma_pool_free %s, %p (bad vaddr)/%Lx\n",
- 			       pool->name, vaddr, (unsigned long long)dma);
- 		return;
--	}
--	{
-+	} else {
- 		unsigned int chain = page->offset;
- 		while (chain < pool->allocation) {
- 			if (chain != offset) {
+
+I found more misspelled "contiguous" in other files,
+so this patch has been replaced with the following:
+
+https://lkml.org/lkml/2015/7/6/954
+
+The new one has been sent to Jiri Kosina.
+
 -- 
-2.1.4
+Best Regards
+Masahiro Yamada
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
