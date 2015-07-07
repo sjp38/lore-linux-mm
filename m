@@ -1,174 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id AD2AC6B0254
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 03:02:26 -0400 (EDT)
-Received: by pacgz10 with SMTP id gz10so34710584pac.3
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 00:02:26 -0700 (PDT)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id rk3si32986826pbc.149.2015.07.07.00.02.25
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C33569003C7
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 04:05:45 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so249005507wig.0
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 01:05:45 -0700 (PDT)
+Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
+        by mx.google.com with ESMTPS id du7si35341453wib.95.2015.07.07.01.05.40
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 07 Jul 2015 00:02:25 -0700 (PDT)
-Received: from epcpsbgr3.samsung.com
- (u143.gpu120.samsung.co.kr [203.254.230.143])
- by mailout2.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
- 64bit (built May  5 2014))
- with ESMTP id <0NR303271VJWHM50@mailout2.samsung.com> for linux-mm@kvack.org;
- Tue, 07 Jul 2015 16:02:20 +0900 (KST)
-From: PINTU KUMAR <pintu.k@samsung.com>
-References: <1435929607-3435-1-git-send-email-pintu.k@samsung.com>
- <559A56FD.6010701@huawei.com> <0ffe01d0b7f4$dd2706d0$97751470$@samsung.com>
- <559B2D89.2070802@huawei.com>
-In-reply-to: <559B2D89.2070802@huawei.com>
-Subject: RE: [PATCH 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory feature
-Date: Tue, 07 Jul 2015 12:30:39 +0530
-Message-id: <10f201d0b882$c9dc9480$5d95bd80$@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Content-language: en-us
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Jul 2015 01:05:44 -0700 (PDT)
+Received: by wibdq8 with SMTP id dq8so174655858wib.1
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 01:05:40 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1436218475.2658.14.camel@freescale.com>
+References: <1433917639-31699-1-git-send-email-wenweitaowenwei@gmail.com>
+	<1433917639-31699-7-git-send-email-wenweitaowenwei@gmail.com>
+	<1435873760.10531.11.camel@freescale.com>
+	<CAD=trs9bjbeG=NF0UjFBTvL23rF8rry5myhKi_a-rFL4u=7EuQ@mail.gmail.com>
+	<1436218475.2658.14.camel@freescale.com>
+Date: Tue, 7 Jul 2015 16:05:39 +0800
+Message-ID: <CAD=trs-c0qrajh1GN3H97FNR-xhVg86MPM8AsWQLR61+2myxFw@mail.gmail.com>
+Subject: Re: [RFC PATCH 6/6] powerpc/kvm: change the condition of identifying
+ hugetlb vm
+From: wenwei tao <wenweitaowenwei@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Xishi Qiu' <qiuxishi@huawei.com>
-Cc: corbet@lwn.net, akpm@linux-foundation.org, vbabka@suse.cz, gorcunov@openvz.org, mhocko@suse.cz, emunson@akamai.com, kirill.shutemov@linux.intel.com, standby24x7@gmail.com, hannes@cmpxchg.org, vdavydov@parallels.com, hughd@google.com, minchan@kernel.org, tj@kernel.org, rientjes@google.com, xypron.glpk@gmx.de, dzickus@redhat.com, prarit@redhat.com, ebiederm@xmission.com, rostedt@goodmis.org, uobergfe@redhat.com, paulmck@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, ddstreet@ieee.org, sasha.levin@oracle.com, koct9i@gmail.com, mgorman@suse.de, cj@linux.com, opensource.ganesh@gmail.com, vinmenon@codeaurora.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, cpgs@samsung.com, pintu_agarwal@yahoo.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, iqbal.ams@samsung.com, pintu.ping@gmail.com
+To: Scott Wood <scottwood@freescale.com>
+Cc: Izik Eidus <izik.eidus@ravellosystems.com>, aarcange@redhat.com, chrisw@sous-sol.org, Hugh Dickins <hughd@google.com>, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org
 
-Hi,
+Hi Scott
 
-> -----Original Message-----
-> From: Xishi Qiu [mailto:qiuxishi@huawei.com]
-> Sent: Tuesday, July 07, 2015 7:08 AM
-> To: PINTU KUMAR
-> Cc: corbet@lwn.net; akpm@linux-foundation.org; vbabka@suse.cz;
-> gorcunov@openvz.org; mhocko@suse.cz; emunson@akamai.com;
-> kirill.shutemov@linux.intel.com; standby24x7@gmail.com;
-> hannes@cmpxchg.org; vdavydov@parallels.com; hughd@google.com;
-> minchan@kernel.org; tj@kernel.org; rientjes@google.com;
-> xypron.glpk@gmx.de; dzickus@redhat.com; prarit@redhat.com;
-> ebiederm@xmission.com; rostedt@goodmis.org; uobergfe@redhat.com;
-> paulmck@linux.vnet.ibm.com; iamjoonsoo.kim@lge.com; ddstreet@ieee.org;
-> sasha.levin@oracle.com; koct9i@gmail.com; mgorman@suse.de; cj@linux.com;
-> opensource.ganesh@gmail.com; vinmenon@codeaurora.org; linux-
-> doc@vger.kernel.org; linux-kernel@vger.kernel.org; linux-mm@kvack.org; linux-
-> pm@vger.kernel.org; cpgs@samsung.com; pintu_agarwal@yahoo.com;
-> vishnu.ps@samsung.com; rohit.kr@samsung.com; iqbal.ams@samsung.com
-> Subject: Re: [PATCH 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory
-> feature
-> 
-> On 2015/7/6 22:03, PINTU KUMAR wrote:
-> 
-> > Hi,
-> >
-> >> -----Original Message-----
-> >> From: Xishi Qiu [mailto:qiuxishi@huawei.com]
-> >> Sent: Monday, July 06, 2015 3:53 PM
-> >> To: Pintu Kumar
-> >> Cc: corbet@lwn.net; akpm@linux-foundation.org; vbabka@suse.cz;
-> >> gorcunov@openvz.org; mhocko@suse.cz; emunson@akamai.com;
-> >> kirill.shutemov@linux.intel.com; standby24x7@gmail.com;
-> >> hannes@cmpxchg.org; vdavydov@parallels.com; hughd@google.com;
-> >> minchan@kernel.org; tj@kernel.org; rientjes@google.com;
-> >> xypron.glpk@gmx.de; dzickus@redhat.com; prarit@redhat.com;
-> >> ebiederm@xmission.com; rostedt@goodmis.org; uobergfe@redhat.com;
-> >> paulmck@linux.vnet.ibm.com; iamjoonsoo.kim@lge.com;
-> >> ddstreet@ieee.org; sasha.levin@oracle.com; koct9i@gmail.com;
-> >> mgorman@suse.de; cj@linux.com; opensource.ganesh@gmail.com;
-> >> vinmenon@codeaurora.org; linux- doc@vger.kernel.org;
-> >> linux-kernel@vger.kernel.org; linux-mm@kvack.org; linux-
-> >> pm@vger.kernel.org; cpgs@samsung.com; pintu_agarwal@yahoo.com;
-> >> vishnu.ps@samsung.com; rohit.kr@samsung.com; iqbal.ams@samsung.com
-> >> Subject: Re: [PATCH 1/1] kernel/sysctl.c: Add
-> >> /proc/sys/vm/shrink_memory feature
-> >>
-> >> On 2015/7/3 21:20, Pintu Kumar wrote:
-> >>
-> >>> This patch provides 2 things:
-> >>> 1. Add new control called shrink_memory in /proc/sys/vm/.
-> >>> This control can be used to aggressively reclaim memory system-wide
-> >>> in one shot from the user space. A value of 1 will instruct the
-> >>> kernel to reclaim as much as totalram_pages in the system.
-> >>> Example: echo 1 > /proc/sys/vm/shrink_memory
-> >>>
-> >>> 2. Enable shrink_all_memory API in kernel with new
-> >> CONFIG_SHRINK_MEMORY.
-> >>> Currently, shrink_all_memory function is used only during hibernation.
-> >>> With the new config we can make use of this API for non-hibernation
-> >>> case also without disturbing the hibernation case.
-> >>>
-> >>> The detailed paper was presented in Embedded Linux Conference,
-> >>> Mar-2015
-> >>> http://events.linuxfoundation.org/sites/events/files/slides/
-> >>> %5BELC-2015%5D-System-wide-Memory-Defragmenter.pdf
-> >>>
-> >>> Scenarios were this can be used and helpful are:
-> >>> 1) Can be invoked just after system boot-up is finished.
-> >>> 2) Can be invoked just before entering entire system suspend.
-> >>> 3) Can be invoked from kernel when order-4 pages starts failing.
-> >>> 4) Can be helpful to completely avoid or delay the kerenl OOM condition.
-> >>> 5) Can be developed as a system-tool to quickly defragment entire system
-> >>>    from user space, without the need to kill any application.
-> >>>
-> >>
-> >> Hi Pintu,
-> >>
-> >> How about increase min_free_kbytes and Android lowmemorykiller's level?
-> >>
-> > Thanks for the review.
-> > Actually in Tizen, we don't use Android LMK and we wanted to delay the
-> > LMK with aggressive direct_reclaim offline.
-> > And increasing min_free value also may not help much.
-> > Currently, in our case free memory never falls below 10MB, with 512MB
-> > RAM configuration.
-> >
-> 
-> How about the performance as you reclaim so much memory?
-> (e.g. shrink page cache, use zram, ksm, compaction...) When launching the same
-> app next time, it may be slow, right?
-> 
-Yes, obviously, there will be slight degrade in performance for relaunch of
-application.
-But, it will be better that the first launch.
-Please check the following data:
-Browser Launch:
-01-01 12:06:26.550
-01-01 12:06:28.340
-Time taken: 1790 ms
+I understand what you said.
 
-Relaunch:
-01-01 12:09:08.130
-01-01 12:09:08.380
-Time: 250ms
+I will use the function 'is_vm_hugetlb_page()' to hide the bit
+combinations according to your comments in the next version of patch
+set.
 
-After shrink_memory again:
-01-01 12:12:17.280
-01-01 12:12:17.770
-Time: 490ms
+But for the situation like below, there isn't an obvious structure
+'vma', using 'is_vm_hugetlb_page()' maybe costly or even not possible.
+void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+                unsigned long end, unsigned long vmflag)
+{
+    ...
 
-The main point here is that the killing is avoided and application data is
-retained.
-Also, when the memory pressure situation arises leading to slowpath again and
-again, 
-We will be already in the performance degraded state.
-Instead of continuous performance degradation, a one time is better.
-
-> How about use cgroup to manage the apps, but I don't know how to do the
-> detail.
-> 
-Yes, we already use cgroups, vmpressure, to manage memory threshold for reclaim,
-swap and kill.
-Even cgroup also have a similar force_reclaim mechanism, to reclaim pages within
-groups for a particular threshold.
-But, that is at a later stages and also it does not care about order of the
-pages.
-It does not perform system-wide reclaim.
+    if (end == TLB_FLUSH_ALL || tlb_flushall_shift == -1
+                    || vmflag & VM_HUGETLB) {
+        local_flush_tlb();
+        goto flush_all;
+    }
+...
+}
 
 
-> Thanks,
-> Xishi Qiu
-> 
-> >
-> >
-> 
+Thank you
+Wenwei
 
+2015-07-07 5:34 GMT+08:00 Scott Wood <scottwood@freescale.com>:
+> On Fri, 2015-07-03 at 16:47 +0800, wenwei tao wrote:
+>> Hi Scott
+>>
+>> Thank you for your comments.
+>>
+>> Kernel already has that function: is_vm_hugetlb_page() , but the
+>> original code didn't use it,
+>> in order to keep the coding style of the original code, I didn't use it
+>> either.
+>>
+>> For the sentence like: "vma->vm_flags & VM_HUGETLB" , hiding it behind
+>> 'is_vm_hugetlb_page()' is ok,
+>> but the sentence like: "vma->vm_flags &
+>> (VM_LOCKED|VM_HUGETLB|VM_PFNMAP)" appears in the patch 2/6,
+>> is it better to hide the bit combinations behind the
+>> is_vm_hugetlb_page() ?  In my patch I just replaced it with
+>> "vma->vm_flags & (VM_LOCKED|VM_PFNMAP) ||  (vma->vm_flags &
+>> (VM_HUGETLB|VM_MERGEABLE)) == VM_HUGETLB".
+>
+> If you're going to do non-obvious things with the flags, it should be done in
+> one place rather than throughout the code.  Why would you do the above and
+> not "vma->vm_flags & (VM_LOCKED | VM_PFNMAP) || is_vm_hugetlb_page(vma)"?
+>
+> -Scott
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
