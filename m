@@ -1,99 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com [209.85.220.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 7276B6B0255
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 09:23:04 -0400 (EDT)
-Received: by qkhu186 with SMTP id u186so162634835qkh.0
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 06:23:04 -0700 (PDT)
-Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
-        by mx.google.com with ESMTP id g193si2646801qhc.81.2015.07.08.06.23.03
-        for <linux-mm@kvack.org>;
-        Wed, 08 Jul 2015 06:23:03 -0700 (PDT)
-Date: Wed, 8 Jul 2015 09:23:02 -0400
-From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [PATCH V3 0/5] Allow user to request memory to be locked on page
- fault
-Message-ID: <20150708132302.GB4669@akamai.com>
-References: <1436288623-13007-1-git-send-email-emunson@akamai.com>
- <20150707141613.f945c98279dcb71c9743d5f2@linux-foundation.org>
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 77ACF6B0038
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 11:25:14 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so15982368pdr.2
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 08:25:14 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id pa10si4639482pdb.114.2015.07.08.08.25.13
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Jul 2015 08:25:13 -0700 (PDT)
+Date: Wed, 8 Jul 2015 17:25:07 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [mm: meminit]  WARNING: CPU: 1 PID: 15 at
+ kernel/locking/lockdep.c:3382 lock_release()
+Message-ID: <20150708152507.GG12596@twins.programming.kicks-ass.net>
+References: <559be1ee.oKzhDxqT1ZZpBUZm%fengguang.wu@intel.com>
+ <20150708103213.GO6812@suse.de>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="3uo+9/B/ebqu+fSQ"
-Content-Disposition: inline
-In-Reply-To: <20150707141613.f945c98279dcb71c9743d5f2@linux-foundation.org>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shuah Khan <shuahkh@osg.samsung.com>, Michal Hocko <mhocko@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
-
-
---3uo+9/B/ebqu+fSQ
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20150708103213.GO6812@suse.de>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: kernel test robot <fengguang.wu@intel.com>, LKP <lkp@01.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nicolai Stange <nicstange@gmail.com>
 
-On Tue, 07 Jul 2015, Andrew Morton wrote:
+On Wed, Jul 08, 2015 at 11:32:13AM +0100, Mel Gorman wrote:
+> From: Nicolai Stange <nicstange@gmail.com>
+> Subject: Re: [PATCH] mm/page_alloc: deferred meminit: replace rwsem with completion
+> 
+> Commit 0e1cc95b4cc7
+>   ("mm: meminit: finish initialisation of struct pages before basic setup")
+> introduced a rwsem to signal completion of the initialization workers.
+> 
+> Lockdep complains about possible recursive locking:
+>   =============================================
+>   [ INFO: possible recursive locking detected ]
+>   4.1.0-12802-g1dc51b8 #3 Not tainted
+>   ---------------------------------------------
+>   swapper/0/1 is trying to acquire lock:
+>   (pgdat_init_rwsem){++++.+},
+>     at: [<ffffffff8424c7fb>] page_alloc_init_late+0xc7/0xe6
+> 
+>   but task is already holding lock:
+>   (pgdat_init_rwsem){++++.+},
+>     at: [<ffffffff8424c772>] page_alloc_init_late+0x3e/0xe6
+> 
+> Replace the rwsem by a completion together with an atomic
+> "outstanding work counter".
+> 
+> Signed-off-by: Nicolai Stange <nicstange@gmail.com>
+> Acked-by: Mel Gorman <mgorman@suse.de>
+> ---
+>  mm/page_alloc.c | 34 +++++++++++++++++++++++++++-------
+>  1 file changed, 27 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 506eac8..3886e66 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -18,7 +18,9 @@
+>  #include <linux/mm.h>
+>  #include <linux/swap.h>
+>  #include <linux/interrupt.h>
+> -#include <linux/rwsem.h>
+> +#include <linux/completion.h>
+> +#include <linux/atomic.h>
+> +#include <asm/barrier.h>
+>  #include <linux/pagemap.h>
+>  #include <linux/jiffies.h>
+>  #include <linux/bootmem.h>
+> @@ -1062,7 +1064,20 @@ static void __init deferred_free_range(struct page *page,
+>  		__free_pages_boot_core(page, pfn, 0);
+>  }
+>  
+> -static __initdata DECLARE_RWSEM(pgdat_init_rwsem);
+> +/* counter and completion tracking outstanding deferred_init_memmap()
+> +   threads */
 
-> On Tue,  7 Jul 2015 13:03:38 -0400 Eric B Munson <emunson@akamai.com> wro=
-te:
->=20
-> > mlock() allows a user to control page out of program memory, but this
-> > comes at the cost of faulting in the entire mapping when it is
-> > allocated.  For large mappings where the entire area is not necessary
-> > this is not ideal.  Instead of forcing all locked pages to be present
-> > when they are allocated, this set creates a middle ground.  Pages are
-> > marked to be placed on the unevictable LRU (locked) when they are first
-> > used, but they are not faulted in by the mlock call.
-> >=20
-> > This series introduces a new mlock() system call that takes a flags
-> > argument along with the start address and size.  This flags argument
-> > gives the caller the ability to request memory be locked in the
-> > traditional way, or to be locked after the page is faulted in.  New
-> > calls are added for munlock() and munlockall() which give the called a
-> > way to specify which flags are supposed to be cleared.  A new MCL flag
-> > is added to mirror the lock on fault behavior from mlock() in
-> > mlockall().  Finally, a flag for mmap() is added that allows a user to
-> > specify that the covered are should not be paged out, but only after the
-> > memory has been used the first time.
->=20
-> Thanks for sticking with this.  Adding new syscalls is a bit of a
-> hassle but I do think we end up with a better interface - the existing
-> mlock/munlock/mlockall interfaces just aren't appropriate for these
-> things.
->=20
-> I don't know whether these syscalls should be documented via new
-> manpages, or if we should instead add them to the existing
-> mlock/munlock/mlockall manpages.  Michael, could you please advise?
->=20
+Wrong comment style.
 
-Thanks for adding the series.  I owe you several updates (getting the
-new syscall right for all architectures and a set of tests for the new
-syscalls).  Would you prefer a new pair of patches or I update this set?
+> +static atomic_t pgdat_init_n_undone __initdata;
+> +static __initdata DECLARE_COMPLETION(pgdat_init_all_done_comp);
+> +
+> +static inline void __init pgdat_init_report_one_done(void)
+> +{
+> +	/* Write barrier is paired with read barrier in
+> +	   page_alloc_init_late(). It makes all writes visible to
+> +	   readers seeing our decrement on pgdat_init_n_undone. */
 
-Eric
+Wrong comment style.
 
---3uo+9/B/ebqu+fSQ
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+> +	smp_wmb();
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
+Pointless barrier, because
 
-iQIcBAEBAgAGBQJVnSQ2AAoJELbVsDOpoOa9jHcP/RLEmYajmHZ/hRFflieosbLl
-xfDDa3xIpZh7VCBCdjAu96XR7jc5Af66dF7GpeB2Vqv/PAI739slpzUqyaXSdEK9
-1HpgGkjAHYagYa/BSLRpmDCYKGph2zWsKEUK0xrCaRKbAwytEk2rw863ZoFHM4tv
-sftQYCqhB5bkdEQuVu4Hl9D7k9CnrshKl5rURSe+Ub5nj44W47IUyjFugRDi1eRO
-WbddZd8e9av7Qte7l1rtQMxch/L4WM5LICujQx9FrNiz0Cb/flG6v3JvW1G50fym
-NINBwp64GAbE4jYxpvn5zvIHc9IU8G1As6B7tcXTBzPnjx1zQQuxP7pTmpVoAsVQ
-dhJndlDWt3RhdcPz2QDtd9EbUvDdyeLmeyWciB1cx7CZbxnwzqiSXMVzswEqbXiq
-RPTEON/PJ3IsyeQ1Pi/Ygnf/LQVwQtYAut+fZZKUIEofARkUGf6V2ReWDdrBB2t5
-zdOL4Qgr+GNGpaPqp3kr+vcF7ouIFa7ldH7OblI9yqQHufVFX8slDLtial6j4xXa
-D6oU0KUJCjusSpSTbm+KxFPuaC1O+v4lit/GoMvIcdFC6CS5a/hZK+e1QNfOFCh3
-uwVDY1DpI0Qq4ESNAFgjyf/HgiKZUPwvTy5zeq42esGbvhBHgIl62NCrk96JYCoO
-nkBCH/HT50sOYD+mO/s8
-=+7yp
------END PGP SIGNATURE-----
+> +	if (atomic_dec_and_test(&pgdat_init_n_undone))
 
---3uo+9/B/ebqu+fSQ--
+implies a full memory barrier, furthermore see below.
+
+> +		complete(&pgdat_init_all_done_comp);
+> +}
+>  
+>  /* Initialise remaining memory on a node */
+>  static int __init deferred_init_memmap(void *data)
+
+
+> @@ -1187,14 +1203,18 @@ void __init page_alloc_init_late(void)
+>  {
+>  	int nid;
+>  
+> +	/* There will be num_node_state(N_MEMORY) threads */
+> +	atomic_set(&pgdat_init_n_undone, num_node_state(N_MEMORY));
+>  	for_each_node_state(nid, N_MEMORY) {
+> -		down_read(&pgdat_init_rwsem);
+>  		kthread_run(deferred_init_memmap, NODE_DATA(nid), "pgdatinit%d", nid);
+>  	}
+>  
+>  	/* Block until all are initialised */
+> -	down_write(&pgdat_init_rwsem);
+> -	up_write(&pgdat_init_rwsem);
+> +	wait_for_completion(&pgdat_init_all_done_comp);
+> +
+> +	/* Paired with write barrier in deferred_init_memmap(),
+> +	   ensures a consistent view of all its writes. */
+
+Wrong comment style
+
+> +	smp_rmb();
+
+Wrong barrier, IF you want a barrier it should be before
+wait_for_completion, such that if you observe complete, you then must
+also observe whatever happened prior to the completion.
+
+But I would argue a completion had better imply that anyway.
+
+>  }
+>  #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
