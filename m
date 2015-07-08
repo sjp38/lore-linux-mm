@@ -1,79 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id B15C86B0038
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 04:02:41 -0400 (EDT)
-Received: by pdbdz6 with SMTP id dz6so46790673pdb.0
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 01:02:41 -0700 (PDT)
-Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com. [202.81.31.140])
-        by mx.google.com with ESMTPS id pv10si2747451pbc.93.2015.07.08.01.02.39
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DB7B6B0038
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 04:12:56 -0400 (EDT)
+Received: by wibdq8 with SMTP id dq8so204700363wib.1
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 01:12:56 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r7si1882237wix.23.2015.07.08.01.12.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Wed, 08 Jul 2015 01:02:40 -0700 (PDT)
-Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
-	Wed, 8 Jul 2015 18:02:34 +1000
-Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 706242CE8040
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 18:02:32 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t6882Oxr50069634
-	for <linux-mm@kvack.org>; Wed, 8 Jul 2015 18:02:33 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t6881w6R017351
-	for <linux-mm@kvack.org>; Wed, 8 Jul 2015 18:01:58 +1000
-From: Wei Yang <weiyang@linux.vnet.ibm.com>
-Subject: [PATCH] mm/memblock: WARN_ON when nid differs from overlap region
-Date: Wed,  8 Jul 2015 16:01:28 +0800
-Message-Id: <1436342488-19851-1-git-send-email-weiyang@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 08 Jul 2015 01:12:55 -0700 (PDT)
+Date: Wed, 8 Jul 2015 10:12:49 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH block/for-4.3] writeback: explain why @inode is allowed
+ to be NULL for inode_congested()
+Message-ID: <20150708081248.GA725@quack.suse.cz>
+References: <1432329245-5844-1-git-send-email-tj@kernel.org>
+ <1432329245-5844-31-git-send-email-tj@kernel.org>
+ <20150630152105.GP7252@quack.suse.cz>
+ <20150702014634.GF26440@mtj.duckdns.org>
+ <20150703121721.GJ23329@quack.suse.cz>
+ <20150704151200.GA13251@mtj.duckdns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150704151200.GA13251@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, tj@kernel.org
-Cc: linux-mm@kvack.org, Wei Yang <weiyang@linux.vnet.ibm.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Jan Kara <jack@suse.cz>, axboe@kernel.dk, linux-kernel@vger.kernel.org, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, gthelen@google.com, khlebnikov@yandex-team.ru
 
-Each memblock_region has nid to indicates the Node ID of this range. For
-the overlap case, memblock_add_range() inserts the lower part and leave the
-upper part as indicated in the overlapped region.
+On Sat 04-07-15 11:12:00, Tejun Heo wrote:
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Suggested-by: Jan Kara <jack@suse.cz>
+> ---
+> Hello,
+> 
+> So, something like this.  I'll resend this patch as part of a patch
+> series once -rc1 drops.
+  Looks good. Thanks!
 
-If the nid of the new range differs from the overlapped region, the
-information recorded is not correct.
+								Honza
 
-This patch adds a WARN_ON when the nid of the new range differs from the
-overlapped region.
-
----
-
-I am not familiar with the lower level topology, maybe this case will not
-happen. 
-
-If current implementation is based on the assumption, that overlapped
-ranges' nid and flags are the same, I would suggest to add a comment to
-indicates this background.
-
-If the assumption is not correct, I suggest to add a WARN_ON or BUG_ON to
-indicates this case.
-
-Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
----
- mm/memblock.c |    3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 9318b56..09efe70 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -540,6 +540,9 @@ repeat:
- 		 * area, insert that portion.
- 		 */
- 		if (rbase > base) {
-+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-+			WARN_ON(nid != memblock_get_region_node(rgn));
-+#endif
- 			nr_new++;
- 			if (insert)
- 				memblock_insert_region(type, i++, base,
+>  fs/fs-writeback.c |    5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+> 
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -700,7 +700,7 @@ void wbc_account_io(struct writeback_con
+>  
+>  /**
+>   * inode_congested - test whether an inode is congested
+> - * @inode: inode to test for congestion
+> + * @inode: inode to test for congestion (may be NULL)
+>   * @cong_bits: mask of WB_[a]sync_congested bits to test
+>   *
+>   * Tests whether @inode is congested.  @cong_bits is the mask of congestion
+> @@ -710,6 +710,9 @@ void wbc_account_io(struct writeback_con
+>   * determined by whether the cgwb (cgroup bdi_writeback) for the blkcg
+>   * associated with @inode is congested; otherwise, the root wb's congestion
+>   * state is used.
+> + *
+> + * @inode is allowed to be NULL as this function is often called on
+> + * mapping->host which is NULL for the swapper space.
+>   */
+>  int inode_congested(struct inode *inode, int cong_bits)
+>  {
 -- 
-1.7.9.5
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
