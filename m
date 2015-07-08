@@ -1,62 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id DCACB6B0038
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 17:17:53 -0400 (EDT)
-Received: by obdbs4 with SMTP id bs4so159524855obd.3
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 14:17:53 -0700 (PDT)
-Received: from vena.lwn.net (tex.lwn.net. [70.33.254.29])
-        by mx.google.com with ESMTPS id n206si2535297oif.97.2015.07.08.14.17.52
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D07216B0038
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 18:48:00 -0400 (EDT)
+Received: by lbcpe5 with SMTP id pe5so64820674lbc.2
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 15:48:00 -0700 (PDT)
+Received: from mail-la0-x22b.google.com (mail-la0-x22b.google.com. [2a00:1450:4010:c03::22b])
+        by mx.google.com with ESMTPS id sj10si2850004lac.29.2015.07.08.15.47.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 08 Jul 2015 14:17:52 -0700 (PDT)
-Date: Wed, 8 Jul 2015 15:17:50 -0600
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [PATCH V3 3/5] mm: mlock: Introduce VM_LOCKONFAULT and add
- mlock flags to enable it
-Message-ID: <20150708151750.75e65859@lwn.net>
-In-Reply-To: <20150708203456.GC4669@akamai.com>
-References: <1436288623-13007-1-git-send-email-emunson@akamai.com>
-	<1436288623-13007-4-git-send-email-emunson@akamai.com>
-	<20150708132351.61c13db6@lwn.net>
-	<20150708203456.GC4669@akamai.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Jul 2015 15:47:58 -0700 (PDT)
+Received: by laar3 with SMTP id r3so235456240laa.0
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 15:47:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <559C6CA6.1050809@lge.com>
+References: <1436243785-24105-1-git-send-email-gioh.kim@lge.com>
+	<20150707153701.bfcde75108d1fb8aaedc8134@linux-foundation.org>
+	<559C68B3.3010105@lge.com>
+	<20150707170746.1b91ba0d07382cbc9ba3db92@linux-foundation.org>
+	<559C6CA6.1050809@lge.com>
+Date: Thu, 9 Jul 2015 08:47:57 +1000
+Message-ID: <CAPM=9txmUJ58=CAxDhf12Y3Y8wz7CGBy-Bd4pQ8YAAKDsCxU8w@mail.gmail.com>
+Subject: Re: [RFCv3 0/5] enable migration of driver pages
+From: Dave Airlie <airlied@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: Gioh Kim <gioh.kim@lge.com>, dri-devel <dri-devel@lists.freedesktop.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, jlayton@poochiereds.net, bfields@fieldses.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, Al Viro <viro@zeniv.linux.org.uk>, "Michael S. Tsirkin" <mst@redhat.com>, koct9i@gmail.com, minchan@kernel.org, aquini@redhat.com, linux-fsdevel@vger.kernel.org, "open list:VIRTIO CORE, NET..." <virtualization@lists.linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "open list:ABI/API" <linux-api@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, gunho.lee@lge.com, Gioh Kim <gurugio@hanmail.net>
 
-On Wed, 8 Jul 2015 16:34:56 -0400
-Eric B Munson <emunson@akamai.com> wrote:
+>>
+>>
+>> Can the various in-kernel GPU drivers benefit from this?  If so, wiring
+>> up one or more of those would be helpful?
+>
+>
+> I'm sure that other in-kernel GPU drivers can have benefit.
+> It must be helpful.
+>
+> If I was familiar with other in-kernel GPU drivers code, I tried to patch
+> them.
+> It's too bad.
 
-> > Quick, possibly dumb question: I've been beating my head against these =
-for
-> > a little bit, and I can't figure out what's supposed to happen in this
-> > case:
-> >=20
-> > 	mlock2(addr, len, MLOCK_ONFAULT);
-> > 	munlock2(addr, len, MLOCK_LOCKED);
-> >=20
-> > It looks to me like it will clear VM_LOCKED without actually unlocking =
-any
-> > pages.  Is that the intended result? =20
->=20
-> This is not quite right, what happens when you call munlock2(addr, len,
-> MLOCK_LOCKED); is we call apply_vma_flags(addr, len, VM_LOCKED, false).
+I'll bring dri-devel into the loop here.
 
-=46rom your explanation, it looks like what I said *was* right...what I was
-missing was the fact that VM_LOCKED isn't set in the first place.  So that
-call would be a no-op, clearing a flag that's already cleared.
+ARM GPU developers please take a look at this stuff, Laurent, Rob,
+Eric I suppose.
 
-One other question...if I call mlock2(MLOCK_ONFAULT) on a range that
-already has resident pages, I believe that those pages will not be locked
-until they are reclaimed and faulted back in again, right?  I suspect that
-could be surprising to users.
+Daniel Vetter you might have some opinions as well.
 
-Thanks,
-
-jon
+Dave.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
