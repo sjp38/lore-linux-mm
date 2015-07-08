@@ -1,165 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D8A636B0259
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 07:33:14 -0400 (EDT)
-Received: by pacgz10 with SMTP id gz10so56840077pac.3
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 04:33:14 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id c8si3623405pat.194.2015.07.08.04.33.13
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 146D76B0038
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 07:58:21 -0400 (EDT)
+Received: by wgxm20 with SMTP id m20so10336547wgx.3
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 04:58:20 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k1si2871529wif.77.2015.07.08.04.58.18
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jul 2015 04:33:14 -0700 (PDT)
-Received: by pabvl15 with SMTP id vl15so130332805pab.1
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 04:33:13 -0700 (PDT)
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: [PATCH v7 7/7] zsmalloc: use shrinker to trigger auto-compaction
-Date: Wed,  8 Jul 2015 20:31:53 +0900
-Message-Id: <1436355113-12417-8-git-send-email-sergey.senozhatsky@gmail.com>
-In-Reply-To: <1436355113-12417-1-git-send-email-sergey.senozhatsky@gmail.com>
-References: <1436355113-12417-1-git-send-email-sergey.senozhatsky@gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 08 Jul 2015 04:58:18 -0700 (PDT)
+Date: Wed, 8 Jul 2015 13:58:15 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 2/2] mm: Allow GFP_IOFS for page_cache_read page cache
+ allocation
+Message-ID: <20150708115815.GB18030@dhcp22.suse.cz>
+References: <1433163603-13229-1-git-send-email-mhocko@suse.cz>
+ <1433163603-13229-3-git-send-email-mhocko@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1433163603-13229-3-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org
 
-Perform automatic pool compaction by a shrinker when system
-is getting tight on memory.
+Does anybody have a better idea how to deal with the issue mentioned in
+the patch? Or is it considered uninteresting and not worth bothering?  I
+am not worried about the current state but if we want to allow GFP_NOFS
+allocations to fail (I have a series of patches to do so and plan
+to post an RFC soon) to actually allow the user of the allocator to
+have fallback strategies then we do not want to keep this side way to
+premature OOM killer open, right?
 
-User-space has a very little knowledge regarding zsmalloc fragmentation
-and basically has no mechanism to tell whether compaction will result
-in any memory gain. Another issue is that user space is not always
-aware of the fact that system is getting tight on memory. Which leads
-to very uncomfortable scenarios when user space may start issuing
-compaction 'randomly' or from crontab (for example). Fragmentation
-is not always necessarily bad, allocated and unused objects, after all,
-may be filled with the data later, w/o the need of allocating a new
-zspage. On the other hand, we obviously don't want to waste memory
-when the system needs it.
+On Mon 01-06-15 15:00:03, Michal Hocko wrote:
+> page_cache_read has been historically using page_cache_alloc_cold to
+> allocate a new page. This means that mapping_gfp_mask is used as the
+> base for the gfp_mask. Many filesystems are setting this mask to
+> GFP_NOFS to prevent from fs recursion issues. page_cache_read is,
+> however, not called from the fs layera directly so it doesn't need this
+> protection normally.
+> 
+> ceph and ocfs2 which call filemap_fault from their fault handlers
+> seem to be OK because they are not taking any fs lock before invoking
+> generic implementation. xfs which takes XFS_MMAPLOCK_SHARED is safe
+> from the reclaim recursion POV because this lock serializes truncate
+> and punch hole with the page faults and it doesn't get involved in the
+> reclaim.
+> 
+> The GFP_NOFS protection might be even harmful. There is a push to fail
+> GFP_NOFS allocations rather than loop within allocator indefinitely with
+> a very limited reclaim ability. Once we start failing those requests
+> the OOM killer might be triggered prematurely because the page cache
+> allocation failure is propagated up the page fault path and end up in
+> pagefault_out_of_memory.
+> 
+> We cannot play with mapping_gfp_mask directly because that would be racy
+> wrt. parallel page faults and it might interfere with other users who
+> really rely on NOFS semantic from the stored gfp_mask. The mask is also
+> inode proper so it would even be a layering violation. What we can do
+> instead is to push the gfp_mask into struct vm_fault and allow fs layer
+> to overwrite it should the callback need to be called with a different
+> allocation context.
+> 
+> Initialize the default to (mapping_gfp_mask | GFP_IOFS) because this
+> should be safe from the page fault path normally. Why do we care
+> about mapping_gfp_mask at all then? Because this doesn't hold only
+> reclaim protection flags but it also might contain zone and movability
+> restrictions (GFP_DMA32, __GFP_MOVABLE and others) so we have to respect
+> those.
+> 
+> Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  include/linux/mm.h |  4 ++++
+>  mm/filemap.c       |  9 ++++-----
+>  mm/memory.c        | 17 +++++++++++++++++
+>  3 files changed, 25 insertions(+), 5 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 76376e04988a..03b8420e123c 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -219,10 +219,14 @@ extern pgprot_t protection_map[16];
+>   * ->fault function. The vma's ->fault is responsible for returning a bitmask
+>   * of VM_FAULT_xxx flags that give details about how the fault was handled.
+>   *
+> + * MM layer fills up gfp_mask for page allocations but fault handler might
+> + * alter it if its implementation requires a different allocation context.
+> + *
+>   * pgoff should be used in favour of virtual_address, if possible.
+>   */
+>  struct vm_fault {
+>  	unsigned int flags;		/* FAULT_FLAG_xxx flags */
+> +	gfp_t gfp_mask;			/* gfp mask to be used for allocations */
+>  	pgoff_t pgoff;			/* Logical page offset based on vma */
+>  	void __user *virtual_address;	/* Faulting virtual address */
+>  
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index adfc5d2e21c8..bfbc30ff47a4 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1760,19 +1760,18 @@ EXPORT_SYMBOL(generic_file_read_iter);
+>   * This adds the requested page to the page cache if it isn't already there,
+>   * and schedules an I/O to read in its contents from disk.
+>   */
+> -static int page_cache_read(struct file *file, pgoff_t offset)
+> +static int page_cache_read(struct file *file, pgoff_t offset, gfp_t gfp_mask)
+>  {
+>  	struct address_space *mapping = file->f_mapping;
+>  	struct page *page;
+>  	int ret;
+>  
+>  	do {
+> -		page = page_cache_alloc_cold(mapping);
+> +		page = __page_cache_alloc(gfp_mask|__GFP_COLD);
+>  		if (!page)
+>  			return -ENOMEM;
+>  
+> -		ret = add_to_page_cache_lru(page, mapping, offset,
+> -				GFP_KERNEL & mapping_gfp_mask(mapping));
+> +		ret = add_to_page_cache_lru(page, mapping, offset, GFP_KERNEL & gfp_mask);
+>  		if (ret == 0)
+>  			ret = mapping->a_ops->readpage(file, page);
+>  		else if (ret == -EEXIST)
+> @@ -1955,7 +1954,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+>  	 * We're only likely to ever get here if MADV_RANDOM is in
+>  	 * effect.
+>  	 */
+> -	error = page_cache_read(file, offset);
+> +	error = page_cache_read(file, offset, vmf->gfp_mask);
+>  
+>  	/*
+>  	 * The page we want has now been added to the page cache.
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 8a2fc9945b46..25ab29560dca 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1949,6 +1949,20 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
+>  		copy_user_highpage(dst, src, va, vma);
+>  }
+>  
+> +static gfp_t __get_fault_gfp_mask(struct vm_area_struct *vma)
+> +{
+> +	struct file *vm_file = vma->vm_file;
+> +
+> +	if (vm_file)
+> +		return mapping_gfp_mask(vm_file->f_mapping) | GFP_IOFS;
+> +
+> +	/*
+> +	 * Special mappings (e.g. VDSO) do not have any file so fake
+> +	 * a default GFP_KERNEL for them.
+> +	 */
+> +	return GFP_KERNEL;
+> +}
+> +
+>  /*
+>   * Notify the address space that the page is about to become writable so that
+>   * it can prohibit this or wait for the page to get into an appropriate state.
+> @@ -1964,6 +1978,7 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
+>  	vmf.virtual_address = (void __user *)(address & PAGE_MASK);
+>  	vmf.pgoff = page->index;
+>  	vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
+> +	vmf.gfp_mask = __get_fault_gfp_mask(vma);
+>  	vmf.page = page;
+>  	vmf.cow_page = NULL;
+>  
+> @@ -2763,6 +2778,7 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
+>  	vmf.pgoff = pgoff;
+>  	vmf.flags = flags;
+>  	vmf.page = NULL;
+> +	vmf.gfp_mask = __get_fault_gfp_mask(vma);
+>  	vmf.cow_page = cow_page;
+>  
+>  	ret = vma->vm_ops->fault(vma, &vmf);
+> @@ -2929,6 +2945,7 @@ static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
+>  	vmf.pgoff = pgoff;
+>  	vmf.max_pgoff = max_pgoff;
+>  	vmf.flags = flags;
+> +	vmf.gfp_mask = __get_fault_gfp_mask(vma);
+>  	vma->vm_ops->map_pages(vma, &vmf);
+>  }
+>  
+> -- 
+> 2.1.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Compaction now has a relatively quick pool scan so we are able to
-estimate the number of pages that will be freed easily, which makes it
-possible to call this function from a shrinker->count_objects() callback.
-We also abort compaction as soon as we detect that we can't free any
-pages any more, preventing wasteful objects migrations.
-
-Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Suggested-by: Minchan Kim <minchan@kernel.org>
----
- mm/zsmalloc.c | 78 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 78 insertions(+)
-
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index e774aad..615b9b9 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -246,6 +246,14 @@ struct zs_pool {
- 	atomic_long_t pages_allocated;
- 
- 	struct zs_pool_stats stats;
-+
-+	/* Compact classes */
-+	struct shrinker shrinker;
-+	/*
-+	 * To signify that register_shrinker() was successful
-+	 * and unregister_shrinker() will not Oops.
-+	 */
-+	bool shrinker_enabled;
- #ifdef CONFIG_ZSMALLOC_STAT
- 	struct dentry *stat_dentry;
- #endif
-@@ -1787,6 +1795,69 @@ void zs_pool_stats(struct zs_pool *pool, struct zs_pool_stats *stats)
- }
- EXPORT_SYMBOL_GPL(zs_pool_stats);
- 
-+static unsigned long zs_shrinker_scan(struct shrinker *shrinker,
-+		struct shrink_control *sc)
-+{
-+	unsigned long pages_freed;
-+	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
-+			shrinker);
-+
-+	pages_freed = pool->stats.pages_compacted;
-+	/*
-+	 * Compact classes and calculate compaction delta.
-+	 * Can run concurrently with a manually triggered
-+	 * (by user) compaction.
-+	 */
-+	pages_freed = zs_compact(pool) - pages_freed;
-+
-+	return pages_freed ? pages_freed : SHRINK_STOP;
-+}
-+
-+static unsigned long zs_shrinker_count(struct shrinker *shrinker,
-+		struct shrink_control *sc)
-+{
-+	int i;
-+	struct size_class *class;
-+	unsigned long pages_to_free = 0;
-+	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
-+			shrinker);
-+
-+	if (!pool->shrinker_enabled)
-+		return 0;
-+
-+	for (i = zs_size_classes - 1; i >= 0; i--) {
-+		class = pool->size_class[i];
-+		if (!class)
-+			continue;
-+		if (class->index != i)
-+			continue;
-+
-+		spin_lock(&class->lock);
-+		pages_to_free += zs_can_compact(class);
-+		spin_unlock(&class->lock);
-+	}
-+
-+	return pages_to_free;
-+}
-+
-+static void zs_unregister_shrinker(struct zs_pool *pool)
-+{
-+	if (pool->shrinker_enabled) {
-+		unregister_shrinker(&pool->shrinker);
-+		pool->shrinker_enabled = false;
-+	}
-+}
-+
-+static int zs_register_shrinker(struct zs_pool *pool)
-+{
-+	pool->shrinker.scan_objects = zs_shrinker_scan;
-+	pool->shrinker.count_objects = zs_shrinker_count;
-+	pool->shrinker.batch = 0;
-+	pool->shrinker.seeks = DEFAULT_SEEKS;
-+
-+	return register_shrinker(&pool->shrinker);
-+}
-+
- /**
-  * zs_create_pool - Creates an allocation pool to work from.
-  * @flags: allocation flags used to allocate pool metadata
-@@ -1872,6 +1943,12 @@ struct zs_pool *zs_create_pool(char *name, gfp_t flags)
- 	if (zs_pool_stat_create(name, pool))
- 		goto err;
- 
-+	/*
-+	 * Not critical, we still can use the pool
-+	 * and user can trigger compaction manually.
-+	 */
-+	if (zs_register_shrinker(pool) == 0)
-+		pool->shrinker_enabled = true;
- 	return pool;
- 
- err:
-@@ -1884,6 +1961,7 @@ void zs_destroy_pool(struct zs_pool *pool)
- {
- 	int i;
- 
-+	zs_unregister_shrinker(pool);
- 	zs_pool_stat_destroy(pool);
- 
- 	for (i = 0; i < zs_size_classes; i++) {
 -- 
-2.4.5
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
