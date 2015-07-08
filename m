@@ -1,71 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f42.google.com (mail-oi0-f42.google.com [209.85.218.42])
-	by kanga.kvack.org (Postfix) with ESMTP id BDF046B0038
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 03:02:26 -0400 (EDT)
-Received: by oihr66 with SMTP id r66so103313541oih.2
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 00:02:26 -0700 (PDT)
-Received: from mail-ob0-x234.google.com (mail-ob0-x234.google.com. [2607:f8b0:4003:c01::234])
-        by mx.google.com with ESMTPS id y186si865687oif.37.2015.07.08.00.02.25
+Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F4FE6B0038
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 03:34:32 -0400 (EDT)
+Received: by qkhu186 with SMTP id u186so157447258qkh.0
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 00:34:32 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i35si1915796qgd.126.2015.07.08.00.34.31
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jul 2015 00:02:26 -0700 (PDT)
-Received: by obdbs4 with SMTP id bs4so144726502obd.3
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 00:02:25 -0700 (PDT)
+        Wed, 08 Jul 2015 00:34:31 -0700 (PDT)
+Subject: Re: [dm-devel] [PATCH 2/7] mm: introduce kvmalloc and kvmalloc_node
+References: <alpine.LRH.2.02.1507071058350.23387@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.LRH.2.02.1507071109490.23387@file01.intranet.prod.int.rdu2.redhat.com>
+ <20150707144117.5b38ac38efda238af8a1f536@linux-foundation.org>
+From: Zdenek Kabelac <zkabelac@redhat.com>
+Message-ID: <559CD283.4020605@redhat.com>
+Date: Wed, 8 Jul 2015 09:34:27 +0200
 MIME-Version: 1.0
-In-Reply-To: <20150708064607.GB7079@osiris>
-References: <1436288623-13007-1-git-send-email-emunson@akamai.com>
-	<1436288623-13007-3-git-send-email-emunson@akamai.com>
-	<20150708064607.GB7079@osiris>
-Date: Wed, 8 Jul 2015 09:02:25 +0200
-Message-ID: <CAMuHMdUS72nYDo=chtcZMv-ZNVU0RhxvVLvMYvSFLtRk_wXrgw@mail.gmail.com>
-Subject: Re: [PATCH V3 2/5] mm: mlock: Add new mlock, munlock, and munlockall
- system calls
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20150707144117.5b38ac38efda238af8a1f536@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Eric B Munson <emunson@akamai.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, alpha <linux-alpha@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "adi-buildroot-devel@lists.sourceforge.net" <adi-buildroot-devel@lists.sourceforge.net>, Cris <linux-cris-kernel@axis.com>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>, Linux MIPS Mailing List <linux-mips@linux-mips.org>, "moderated list:PANASONIC MN10300..." <linux-am33-list@redhat.com>, Parisc List <linux-parisc@vger.kernel.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, linux-s390 <linux-s390@vger.kernel.org>, Linux-sh list <linux-sh@vger.kernel.org>, sparclinux <sparclinux@vger.kernel.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>, "linux-api@vger.kernel.org" <linux-api@vger.kernel.org>, Linux-Arch <linux-arch@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: device-mapper development <dm-devel@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>
+Cc: Mike Snitzer <msnitzer@redhat.com>, Edward Thornber <thornber@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Alasdair G. Kergon" <agk@redhat.com>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Vivek Goyal <vgoyal@redhat.com>
 
-On Wed, Jul 8, 2015 at 8:46 AM, Heiko Carstens
-<heiko.carstens@de.ibm.com> wrote:
->> diff --git a/arch/s390/kernel/syscalls.S b/arch/s390/kernel/syscalls.S
->> index 1acad02..f6d81d6 100644
->> --- a/arch/s390/kernel/syscalls.S
->> +++ b/arch/s390/kernel/syscalls.S
->> @@ -363,3 +363,6 @@ SYSCALL(sys_bpf,compat_sys_bpf)
->>  SYSCALL(sys_s390_pci_mmio_write,compat_sys_s390_pci_mmio_write)
->>  SYSCALL(sys_s390_pci_mmio_read,compat_sys_s390_pci_mmio_read)
->>  SYSCALL(sys_execveat,compat_sys_execveat)
->> +SYSCALL(sys_mlock2,compat_sys_mlock2)                        /* 355 */
->> +SYSCALL(sys_munlock2,compat_sys_munlock2)
->> +SYSCALL(sys_munlockall2,compat_sys_munlockall2)
+Dne 7.7.2015 v 23:41 Andrew Morton napsal(a):
+> On Tue, 7 Jul 2015 11:10:09 -0400 (EDT) Mikulas Patocka <mpatocka@redhat.com> wrote:
 >
-> FWIW, you would also need to add matching lines to the two files
+>> Introduce the functions kvmalloc and kvmalloc_node. These functions
+>> provide reliable allocation of object of arbitrary size. They attempt to
+>> do allocation with kmalloc and if it fails, use vmalloc. Memory allocated
+>> with these functions should be freed with kvfree.
 >
-> arch/s390/include/uapi/asm/unistd.h
-> arch/s390/kernel/compat_wrapper.c
+> Sigh.  We've resisted doing this because vmalloc() is somewhat of a bad
+> thing, and we don't want to make it easy for people to do bad things.
 >
-> so that the system call would be wired up on s390.
+> And vmalloc is bad because a) it's slow and b) it does GFP_KERNEL
+> allocations for page tables and c) it is susceptible to arena
+> fragmentation.
+>
+> We'd prefer that people fix their junk so it doesn't depend upon large
+> contiguous allocations.  This isn't userspace - kernel space is hostile
+> and kernel code should be robust.
+>
+> So I dunno.  Should we continue to make it a bit more awkward to use
+> vmalloc()?  Probably that tactic isn't being very successful - people
+> will just go ahead and open-code it.  And given the surprising amount
+> of stuff you've placed in kvmalloc_node(), they'll implement it
+> incorrectly...
 
-Similar comment for m68k:
+Hi
 
-arch/m68k/include/asm/unistd.h
-arch/m68k/include/uapi/asm/unistd.h
+ From my naive view:  4K-128K were nice restriction in the age of 16MB Pentium 
+machines - but the time has changed and now users need to work with TB of memory.
 
-I think you best look at the last commits that added system calls, for all
-architectures, to make sure you don't do partial updates.
+So if the kernel driver is going to maintain such a huge chunk - it could 
+hardly fit its resources into KB blocks.
 
-Gr{oetje,eeting}s,
+So there are options - you could make complex code inside the driver to 
+address every little kmalloc-ed chunk (and have a lot of potential for bugs) 
+or you could always use vmalloc() and leave it on 'slow/GFP_KERNEL'.
 
-                        Geert
+So IMHO it's quite right to have the 'middle' road here - if there is enough 
+memory to proceed with kmalloc - fine and if not - then driver will be 
+somewhat slower but the coder will not have to spend months of coding 
+reinvention of the wheel...
 
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+Personally I even find 128K pretty small if this limit comes from MB era and 
+we are in the age of commonly available 32G laptops...
 
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+IMHO also it's kind of weird when kernel is not able to satisfy  128K 
+allocation if there are gigabytes of free RAM in my system - there should be 
+some defrag process running behind if there is such constrained kmalloc 
+interface...
+
+Zdenek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
