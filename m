@@ -1,116 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 8166F6B0038
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 20:35:21 -0400 (EDT)
-Received: by pacws9 with SMTP id ws9so122812515pac.0
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 17:35:21 -0700 (PDT)
-Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com. [2607:f8b0:400e:c02::22e])
-        by mx.google.com with ESMTPS id kn8si857755pab.45.2015.07.07.17.35.20
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E1136B0038
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2015 22:18:07 -0400 (EDT)
+Received: by pactm7 with SMTP id tm7so122736901pac.2
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 19:18:07 -0700 (PDT)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id li4si1207629pbc.199.2015.07.07.19.18.05
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Jul 2015 17:35:20 -0700 (PDT)
-Received: by pddu5 with SMTP id u5so47214508pdd.3
-        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 17:35:20 -0700 (PDT)
-Date: Wed, 8 Jul 2015 09:35:08 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFCv3 0/5] enable migration of driver pages
-Message-ID: <20150708003507.GA8764@blaptop.AC68U>
-References: <1436243785-24105-1-git-send-email-gioh.kim@lge.com>
- <20150707153701.bfcde75108d1fb8aaedc8134@linux-foundation.org>
- <559C68B3.3010105@lge.com>
- <20150707170746.1b91ba0d07382cbc9ba3db92@linux-foundation.org>
- <559C6CA6.1050809@lge.com>
+        Tue, 07 Jul 2015 19:18:06 -0700 (PDT)
+Received: by pacws9 with SMTP id ws9so124160350pac.0
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2015 19:18:05 -0700 (PDT)
+Date: Wed, 8 Jul 2015 11:18:36 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v6 7/7] zsmalloc: use shrinker to trigger auto-compaction
+Message-ID: <20150708021836.GA1520@swordfish>
+References: <1436270221-17844-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1436270221-17844-8-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150707134445.GD3898@blaptop>
+ <20150707144107.GC1450@swordfish>
+ <20150707150143.GC23003@blaptop>
+ <20150707151204.GE1450@swordfish>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <559C6CA6.1050809@lge.com>
+In-Reply-To: <20150707151204.GE1450@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, jlayton@poochiereds.net, bfields@fieldses.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, viro@zeniv.linux.org.uk, mst@redhat.com, koct9i@gmail.com, aquini@redhat.com, linux-fsdevel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, gunho.lee@lge.com, Gioh Kim <gurugio@hanmail.net>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Wed, Jul 08, 2015 at 09:19:50AM +0900, Gioh Kim wrote:
+On (07/08/15 00:12), Sergey Senozhatsky wrote:
+> > I don't think it would fail in *real practice*.
+> > Althout it might happen, what does zram could help in that cases?
+> > 
 > 
+> This argument depends on the current register_shrinker() implementation,
+> should some one add additional return branch there and it's done.
 > 
-> 2015-07-08 i??i ? 9:07i?? Andrew Morton i?'(e??) i?' e,?:
-> >On Wed, 08 Jul 2015 09:02:59 +0900 Gioh Kim <gioh.kim@lge.com> wrote:
-> >
-> >>
-> >>
-> >>2015-07-08 ______ 7:37___ Andrew Morton ___(___) ___ ___:
-> >>>On Tue,  7 Jul 2015 13:36:20 +0900 Gioh Kim <gioh.kim@lge.com> wrote:
-> >>>
-> >>>>From: Gioh Kim <gurugio@hanmail.net>
-> >>>>
-> >>>>Hello,
-> >>>>
-> >>>>This series try to enable migration of non-LRU pages, such as driver's page.
-> >>>>
-> >>>>My ARM-based platform occured severe fragmentation problem after long-term
-> >>>>(several days) test. Sometimes even order-3 page allocation failed. It has
-> >>>>memory size 512MB ~ 1024MB. 30% ~ 40% memory is consumed for graphic processing
-> >>>>and 20~30 memory is reserved for zram.
-> >>>>
-> >>>>I found that many pages of GPU driver and zram are non-movable pages. So I
-> >>>>reported Minchan Kim, the maintainer of zram, and he made the internal
-> >>>>compaction logic of zram. And I made the internal compaction of GPU driver.
-> >>>>
-> >>>>They reduced some fragmentation but they are not enough effective.
-> >>>>They are activated by its own interface, /sys, so they are not cooperative
-> >>>>with kernel compaction. If there is too much fragmentation and kernel starts
-> >>>>to compaction, zram and GPU driver cannot work with the kernel compaction.
-> >>>>
-> >>>>...
-> >>>>
-> >>>>This patch set is tested:
-> >>>>- turn on Ubuntu 14.04 with 1G memory on qemu.
-> >>>>- do kernel building
-> >>>>- after several seconds check more than 512MB is used with free command
-> >>>>- command "balloon 512" in qemu monitor
-> >>>>- check hundreds MB of pages are migrated
-> >>>
-> >>>OK, but what happens if the balloon driver is not used to force
-> >>>compaction?  Does your test machine successfully compact pages on
-> >>>demand, so those order-3 allocations now succeed?
-> >>
-> >>If any driver that has many pages like the balloon driver is forced to compact,
-> >>the system can get free high-order pages.
-> >>
-> >>I have to show how this patch work with a driver existing in the kernel source,
-> >>for kernel developers' undestanding. So I selected the balloon driver
-> >>because it has already compaction and working with kernel compaction.
-> >>I can show how driver pages is compacted with lru-pages together.
-> >>
-> >>Actually balloon driver is not best example to show how this patch compacts pages.
-> >>The balloon driver compaction is decreasing page consumtion, for instance 1024MB -> 512MB.
-> >>I think it is not compaction precisely. It frees pages.
-> >>Of course there will be many high-order pages after 512MB is freed.
-> >
-> >Can the various in-kernel GPU drivers benefit from this?  If so, wiring
-> >up one or more of those would be helpful?
+> > If it were failed, it means there is already little memory on the system
+> > so zram could not be helpful for those environment.
+> > IOW, zram should be enabled earlier.
+> > 
+> > If you want it strongly, please reproduce such failing and prove that
+> > zram was helpful for the system.
 > 
-> I'm sure that other in-kernel GPU drivers can have benefit.
-> It must be helpful.
-> 
-> If I was familiar with other in-kernel GPU drivers code, I tried to patch them.
-> It's too bad.
-> 
-> Minchan Kim said he had a plan to apply this patch into zram compaction.
-> Many embedded machines use several hundreds MB for zram.
-> The zram can also have benefit with this patch as much as GPU drivers.
+> No, thanks. I'll just remove it.
 > 
 
-Hello Gioh,
+hm... This makes error path a bit ugly. What we have now is
+pretty straight forward
 
-It would be helpful for fork-latency and zra+CMA in small memory system.
-I will implement zsmalloc.migratepages after I finish current going works.
+... zs_create_pool(char *name, gfp_t flags)
+{
+	..
+	if (zs_register_shrinker(pool) == 0)
+		pool->shrinker_enabled = true;
+	..
+err:
+	zs_destroy_pool(pool);
+	return NULL;
+}
 
-Thanks for the nice work!
+zs_destroy_pool() does a destruction. It performs unconditional
+zs_unregister_shrinker(), which does unregister_shrinker() _if needed_.
 
--- 
-Kind regards,
-Minchan Kim
+Shrinker API does not handle nicely unregister_shrinker() on a not-registered
+->shrinker. And error path can be triggered even before we do register_shrinker(),
+so we can't 'fix' unregister_shrinker() in a common way, doing something like
+
+ void unregister_shrinker(struct shrinker *shrinker)
+ {
++       if (!unlikely(shrinker->nr_deferred))
++               return;
++
+        down_write(&shrinker_rwsem);
+        list_del(&shrinker->list);
+        up_write(&shrinker_rwsem);
+
+
+(just for example), because someone can accidentally pass a dirty (not zeroed
+out) `struct shrinker'. e.g.
+
+struct foo {
+	const char *b;
+...
+	struct shrinker s;
+};
+
+void bar(void)
+{
+	struct foo *f = kmalloc(...);
+
+	if (!f)
+		return;
+
+	f->a = kmalloc(...);
+	if (!f->a)
+		goto err;
+
+err:
+	unregister_shrinker(f->s);
+			^^^^^^ boom
+	...
+}
+
+
+
+So... options:
+
+(a) we need something to signify that zs_unregister_shrinker() was successful
+
+or
+
+(b) factor out 'core' part of zs_destroy_pool() and do a full destruction when
+called from the outside (from zram for example), or a partial destruction when
+called from zs_create_pool() error path.
+
+
+
+or
+
+(c) introduce INIT_SHRINKER macro to init `struct shrinker' internal
+members
+
+(!!! composed in email client, not tested !!!)
+
+include/linux/shrinker.h
+
+#define INIT_SHRINKER(s)			\
+	do {					\
+		(s)->nr_deferred = NULL;	\
+		INIT_LIST_HEAD(&(s)->list);	\
+	} while (0)
+
+
+and do
+
+struct zs_pool *zs_create_pool(char *name, gfp_t flags)
+{
+	..
+	INIT_SHRINKER(&pool->shrinker);
+
+	pool->name = kstrdup(name, GFP_KERNEL);
+	..
+}
+
+
+
+Looking at shrinker users, they all have to carry on some sort of
+a flag telling that "unregister_shrinker()" will not blow up... or
+just be fishy... like
+
+ int ldlm_pools_init(void)
+ {
+         int rc;
+
+         rc = ldlm_pools_thread_start();
+         if (rc == 0) {
+                 register_shrinker(&ldlm_pools_srv_shrinker);
+                 register_shrinker(&ldlm_pools_cli_shrinker);
+         }
+         return rc;
+ }
+ EXPORT_SYMBOL(ldlm_pools_init);
+
+ void ldlm_pools_fini(void)
+ {
+         unregister_shrinker(&ldlm_pools_srv_shrinker);
+         unregister_shrinker(&ldlm_pools_cli_shrinker);
+         ldlm_pools_thread_stop();
+ }
+ EXPORT_SYMBOL(ldlm_pools_fini);
+
+
+
+or access private members of the `struct shrinker', like
+
+
+struct cache_set {
+...
+	struct shrinker		shrink;
+...
+};
+
+ void bch_btree_cache_free(struct cache_set *c)
+ {
+         struct btree *b;
+         struct closure cl;
+         closure_init_stack(&cl);
+
+         if (c->shrink.list.next)
+                 unregister_shrinker(&c->shrink);
+
+
+Note that `shrink.list.next' check.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
