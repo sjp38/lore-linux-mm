@@ -1,103 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 31CBF9003C7
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 12:38:33 -0400 (EDT)
-Received: by qkei195 with SMTP id i195so167042959qke.3
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 09:38:32 -0700 (PDT)
-Received: from emvm-gh1-uea08.nsa.gov (emvm-gh1-uea08.nsa.gov. [63.239.67.9])
-        by mx.google.com with ESMTP id g193si3340644qhc.81.2015.07.08.09.38.31
-        for <linux-mm@kvack.org>;
-        Wed, 08 Jul 2015 09:38:32 -0700 (PDT)
-Message-ID: <559D51C2.7060603@tycho.nsa.gov>
-Date: Wed, 08 Jul 2015 12:37:22 -0400
-From: Stephen Smalley <sds@tycho.nsa.gov>
-MIME-Version: 1.0
-Subject: Re: mm: shmem_zero_setup skip security check and lockdep conflict
- with XFS
-References: <alpine.LSU.2.11.1506140944380.11018@eggly.anvils> <CAB9W1A2ekXaqHfcUxpmx_5rwxfP+wMHA17BdrA7f=Ey-rp0Lvw@mail.gmail.com>
-In-Reply-To: <CAB9W1A2ekXaqHfcUxpmx_5rwxfP+wMHA17BdrA7f=Ey-rp0Lvw@mail.gmail.com>
-Content-Type: text/plain; charset=windows-1252
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id EE0F46B0038
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 12:59:43 -0400 (EDT)
+Received: by iecuq6 with SMTP id uq6so159782872iec.2
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 09:59:43 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o139si3162738ioo.84.2015.07.08.09.59.43
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Jul 2015 09:59:43 -0700 (PDT)
+Date: Wed, 8 Jul 2015 10:00:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V3 0/5] Allow user to request memory to be locked on
+ page fault
+Message-Id: <20150708100008.e8a000ec.akpm@linux-foundation.org>
+In-Reply-To: <20150708132302.GB4669@akamai.com>
+References: <1436288623-13007-1-git-send-email-emunson@akamai.com>
+	<20150707141613.f945c98279dcb71c9743d5f2@linux-foundation.org>
+	<20150708132302.GB4669@akamai.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Smalley <stephen.smalley@gmail.com>, Hugh Dickins <hughd@google.com>
-Cc: Prarit Bhargava <prarit@redhat.com>, Morten Stevens <mstevens@fedoraproject.org>, Eric Sandeen <esandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, Daniel Wagner <wagi@monom.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Eric Paris <eparis@redhat.com>, linux-mm@kvack.org, selinux <selinux@tycho.nsa.gov>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Eric B Munson <emunson@akamai.com>
+Cc: Shuah Khan <shuahkh@osg.samsung.com>, Michal Hocko <mhocko@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On 07/08/2015 09:13 AM, Stephen Smalley wrote:
-> On Sun, Jun 14, 2015 at 12:48 PM, Hugh Dickins <hughd@google.com> wrote:
->> It appears that, at some point last year, XFS made directory handling
->> changes which bring it into lockdep conflict with shmem_zero_setup():
->> it is surprising that mmap() can clone an inode while holding mmap_sem,
->> but that has been so for many years.
->>
->> Since those few lockdep traces that I've seen all implicated selinux,
->> I'm hoping that we can use the __shmem_file_setup(,,,S_PRIVATE) which
->> v3.13's commit c7277090927a ("security: shmem: implement kernel private
->> shmem inodes") introduced to avoid LSM checks on kernel-internal inodes:
->> the mmap("/dev/zero") cloned inode is indeed a kernel-internal detail.
->>
->> This also covers the !CONFIG_SHMEM use of ramfs to support /dev/zero
->> (and MAP_SHARED|MAP_ANONYMOUS).  I thought there were also drivers
->> which cloned inode in mmap(), but if so, I cannot locate them now.
-> 
-> This causes a regression for SELinux (please, in the future, cc
-> selinux list and Paul Moore on SELinux-related changes).  In
-> particular, this change disables SELinux checking of mprotect
-> PROT_EXEC on shared anonymous mappings, so we lose the ability to
-> control executable mappings.  That said, we are only getting that
-> check today as a side effect of our file execute check on the tmpfs
-> inode, whereas it would be better (and more consistent with the
-> mmap-time checks) to apply an execmem check in that case, in which
-> case we wouldn't care about the inode-based check.  However, I am
-> unclear on how to correctly detect that situation from
-> selinux_file_mprotect() -> file_map_prot_check(), because we do have a
-> non-NULL vma->vm_file so we treat it as a file execute check.  In
-> contrast, if directly creating an anonymous shared mapping with
-> PROT_EXEC via mmap(...PROT_EXEC...),  selinux_mmap_file is called with
-> a NULL file and therefore we end up applying an execmem check.
+On Wed, 8 Jul 2015 09:23:02 -0400 Eric B Munson <emunson@akamai.com> wrote:
 
-Also, can you provide the lockdep traces that motivated this change?
+> > I don't know whether these syscalls should be documented via new
+> > manpages, or if we should instead add them to the existing
+> > mlock/munlock/mlockall manpages.  Michael, could you please advise?
+> > 
+> 
+> Thanks for adding the series.  I owe you several updates (getting the
+> new syscall right for all architectures and a set of tests for the new
+> syscalls).  Would you prefer a new pair of patches or I update this set?
 
-> 
->>
->> Reported-and-tested-by: Prarit Bhargava <prarit@redhat.com>
->> Reported-by: Daniel Wagner <wagi@monom.org>
->> Reported-by: Morten Stevens <mstevens@fedoraproject.org>
->> Signed-off-by: Hugh Dickins <hughd@google.com>
->> ---
->>
->>  mm/shmem.c |    8 +++++++-
->>  1 file changed, 7 insertions(+), 1 deletion(-)
->>
->> --- 4.1-rc7/mm/shmem.c  2015-04-26 19:16:31.352191298 -0700
->> +++ linux/mm/shmem.c    2015-06-14 09:26:49.461120166 -0700
->> @@ -3401,7 +3401,13 @@ int shmem_zero_setup(struct vm_area_stru
->>         struct file *file;
->>         loff_t size = vma->vm_end - vma->vm_start;
->>
->> -       file = shmem_file_setup("dev/zero", size, vma->vm_flags);
->> +       /*
->> +        * Cloning a new file under mmap_sem leads to a lock ordering conflict
->> +        * between XFS directory reading and selinux: since this file is only
->> +        * accessible to the user through its mapping, use S_PRIVATE flag to
->> +        * bypass file security, in the same way as shmem_kernel_file_setup().
->> +        */
->> +       file = __shmem_file_setup("dev/zero", size, vma->vm_flags, S_PRIVATE);
->>         if (IS_ERR(file))
->>                 return PTR_ERR(file);
->>
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->> Please read the FAQ at  http://www.tux.org/lkml/
-> _______________________________________________
-> Selinux mailing list
-> Selinux@tycho.nsa.gov
-> To unsubscribe, send email to Selinux-leave@tycho.nsa.gov.
-> To get help, send an email containing "help" to Selinux-request@tycho.nsa.gov.
-> 
-> 
+It doesn't matter much.  I guess a full update will be more convenient
+at your end.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
