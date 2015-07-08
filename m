@@ -1,121 +1,312 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id C2AA76B0038
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 13:43:51 -0400 (EDT)
-Received: by pacgz10 with SMTP id gz10so61764229pac.3
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 10:43:51 -0700 (PDT)
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id F3F466B0038
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 13:47:56 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so17899092pdr.2
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 10:47:56 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id of16si5166593pdb.108.2015.07.08.10.43.49
+        by mx.google.com with ESMTPS id zn2si5169329pbc.102.2015.07.08.10.47.55
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jul 2015 10:43:50 -0700 (PDT)
-Date: Wed, 8 Jul 2015 20:43:31 +0300
+        Wed, 08 Jul 2015 10:47:56 -0700 (PDT)
+Date: Wed, 8 Jul 2015 20:47:42 +0300
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH 8/8] memcg: get rid of mem_cgroup_from_task
-Message-ID: <20150708174331.GH2436@esperanza>
-References: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
- <1436358472-29137-9-git-send-email-mhocko@kernel.org>
+Subject: Re: [PATCH -mm v6 0/6] idle memory tracking
+Message-ID: <20150708174742.GI2436@esperanza>
+References: <cover.1434102076.git.vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1436358472-29137-9-git-send-email-mhocko@kernel.org>
+In-Reply-To: <cover.1434102076.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 08, 2015 at 02:27:52PM +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.cz>
-> 
-> mem_cgroup_from_task has always been a tricky API. It was added
-> by 78fb74669e80 ("Memory controller: accounting setup") for
-> mm_struct::mem_cgroup initialization. Later on it gained new callers
-> mostly due to mm_struct::mem_cgroup -> mem_cgroup::owner transition and
-> most users had to do mem_cgroup_from_task(mm->owner) to get the
-> resulting memcg. Now that mm_struct::owner is gone this is not
-> necessary, yet the API is still confusing.
-> 
-> One tricky part has always been that the API sounds generic but it is
-> not really. mem_cgroup_from_task(current) doesn't necessarily mean the
-> same thing as current->mm->memcg (resp.
-> mem_cgroup_from_task(current->mm->owner) previously) because mm might be
-> associated with a different cgroup than the process.
-> 
-> Another tricky part is that p->mm->memcg is unsafe if p!=current
-> as pointed by Oleg because nobody is holding a reference on that
-> mm. This is not a problem right now because we have only 2 callers in
-> the tree. sock_update_memcg operates on current and task_in_mem_cgroup
-> is providing non-NULL task so it is always using task_css.
-> 
-> Let's ditch this function and use current->mm->memcg for
-> sock_update_memcg and use task_css for task_in_mem_cgroup. This doesn't
-> have any functional effect.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> ---
->  mm/memcontrol.c | 24 +++++++-----------------
->  1 file changed, 7 insertions(+), 17 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 4069ec8f52be..fb8e9bd04a29 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -294,18 +294,6 @@ static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
->  	return mem_cgroup_from_css(css);
->  }
->  
-> -static struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
-> -{
-> -	if (p->mm)
-> -		return rcu_dereference(p->mm->memcg);
-> -
-> -	/*
-> -	 * If the process doesn't have mm struct anymore we have to fallback
-> -	 * to the task_css.
-> -	 */
-> -	return mem_cgroup_from_css(task_css(p, memory_cgrp_id));
-> -}
-> -
->  /* Writing them here to avoid exposing memcg's inner layout */
->  #if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
->  
-> @@ -332,7 +320,7 @@ void sock_update_memcg(struct sock *sk)
->  		}
->  
->  		rcu_read_lock();
-> -		memcg = mem_cgroup_from_task(current);
-> +		memcg = rcu_dereference(current->mm->memcg);
->  		cg_proto = sk->sk_prot->proto_cgroup(memcg);
->  		if (cg_proto && memcg_proto_active(cg_proto) &&
->  		    css_tryget_online(&memcg->css)) {
-> @@ -1091,12 +1079,14 @@ bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg)
->  		task_unlock(p);
->  	} else {
->  		/*
-> -		 * All threads may have already detached their mm's, but the oom
-> -		 * killer still needs to detect if they have already been oom
-> -		 * killed to prevent needlessly killing additional tasks.
-> +		 * All threads have already detached their mm's but we should
-> +		 * still be able to at least guess the original memcg from the
-> +		 * task_css. These two will match most of the time but there are
-> +		 * corner cases where task->mm and task_css refer to a different
-> +		 * cgroups.
->  		 */
->  		rcu_read_lock();
-> -		task_memcg = mem_cgroup_from_task(task);
-> +		task_memcg = mem_cgroup_from_css(task_css(task, memory_cgrp_id));
->  		css_get(&task_memcg->css);
+Hi,
 
-I wonder why it's safe to call css_get here.
+Any comments, thoughts, proposals regarding this patch? Any chance for
+it to get merged?
 
-The patch itself looks good though,
+Thanks,
+Vladimir
 
-Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
-
->  		rcu_read_unlock();
->  	}
+On Fri, Jun 12, 2015 at 12:52:20PM +0300, Vladimir Davydov wrote:
+> Hi,
+> 
+> This patch set introduces a new user API for tracking user memory pages
+> that have not been used for a given period of time. The purpose of this
+> is to provide the userspace with the means of tracking a workload's
+> working set, i.e. the set of pages that are actively used by the
+> workload. Knowing the working set size can be useful for partitioning
+> the system more efficiently, e.g. by tuning memory cgroup limits
+> appropriately, or for job placement within a compute cluster.
+> 
+> ---- USE CASES ----
+> 
+> The unified cgroup hierarchy has memory.low and memory.high knobs, which
+> are defined as the low and high boundaries for the workload working set
+> size. However, the working set size of a workload may be unknown or
+> change in time. With this patch set, one can periodically estimate the
+> amount of memory unused by each cgroup and tune their memory.low and
+> memory.high parameters accordingly, therefore optimizing the overall
+> memory utilization.
+> 
+> Another use case is balancing workloads within a compute cluster.
+> Knowing how much memory is not really used by a workload unit may help
+> take a more optimal decision when considering migrating the unit to
+> another node within the cluster.
+> 
+> Also, as noted by Minchan, this would be useful for per-process reclaim
+> (https://lwn.net/Articles/545668/). With idle tracking, we could reclaim idle
+> pages only by smart user memory manager.
+> 
+> ---- USER API ----
+> 
+> The user API consists of two new proc files:
+> 
+>  * /proc/kpageidle.  This file implements a bitmap where each bit corresponds
+>    to a page, indexed by PFN. When the bit is set, the corresponding page is
+>    idle. A page is considered idle if it has not been accessed since it was
+>    marked idle. To mark a page idle one should set the bit corresponding to the
+>    page by writing to the file. A value written to the file is OR-ed with the
+>    current bitmap value. Only user memory pages can be marked idle, for other
+>    page types input is silently ignored. Writing to this file beyond max PFN
+>    results in the ENXIO error. Only available when CONFIG_IDLE_PAGE_TRACKING is
+>    set.
+> 
+>    This file can be used to estimate the amount of pages that are not
+>    used by a particular workload as follows:
+> 
+>    1. mark all pages of interest idle by setting corresponding bits in the
+>       /proc/kpageidle bitmap
+>    2. wait until the workload accesses its working set
+>    3. read /proc/kpageidle and count the number of bits set
+> 
+>  * /proc/kpagecgroup.  This file contains a 64-bit inode number of the
+>    memory cgroup each page is charged to, indexed by PFN. Only available when
+>    CONFIG_MEMCG is set.
+> 
+>    This file can be used to find all pages (including unmapped file
+>    pages) accounted to a particular cgroup. Using /proc/kpageidle, one
+>    can then estimate the cgroup working set size.
+> 
+> For an example of using these files for estimating the amount of unused
+> memory pages per each memory cgroup, please see the script attached
+> below.
+> 
+> ---- REASONING ----
+> 
+> The reason to introduce the new user API instead of using
+> /proc/PID/{clear_refs,smaps} is that the latter has two serious
+> drawbacks:
+> 
+>  - it does not count unmapped file pages
+>  - it affects the reclaimer logic
+> 
+> The new API attempts to overcome them both. For more details on how it
+> is achieved, please see the comment to patch 5.
+> 
+> ---- CHANGE LOG ----
+> 
+> Changes in v6:
+> 
+>  - Split the patch introducing page_cgroup_ino helper to ease review.
+>  - Rebase on top of v4.1-rc7-mmotm-2015-06-09-16-55
+> 
+> Changes in v5:
+> 
+>  - Fix possible race between kpageidle_clear_pte_refs() and
+>    __page_set_anon_rmap() by checking that a page is on an LRU list
+>    under zone->lru_lock (Minchan).
+>  - Export idle flag via /proc/kpageflags (Minchan).
+>  - Rebase on top of 4.1-rc3.
+> 
+> Changes in v4:
+> 
+> This iteration primarily addresses Minchan's comments to v3:
+> 
+>  - Implement /proc/kpageidle as a bitmap instead of using u64 per each page,
+>    because there does not seem to be any future uses for the other 63 bits.
+>  - Do not double-increase pra->referenced in page_referenced_one() if the page
+>    was young and referenced recently.
+>  - Remove the pointless (page_count == 0) check from kpageidle_get_page().
+>  - Rename kpageidle_clear_refs() to kpageidle_clear_pte_refs().
+>  - Improve comments to kpageidle-related functions.
+>  - Rebase on top of 4.1-rc2.
+> 
+> Note it does not address Minchan's concern of possible __page_set_anon_rmap vs
+> page_referenced race (see https://lkml.org/lkml/2015/5/3/220) since it is still
+> unclear if this race can really happen (see https://lkml.org/lkml/2015/5/4/160)
+> 
+> Changes in v3:
+> 
+>  - Enable CONFIG_IDLE_PAGE_TRACKING for 32 bit. Since this feature
+>    requires two extra page flags and there is no space for them on 32
+>    bit, page ext is used (thanks to Minchan Kim).
+>  - Minor code cleanups and comments improved.
+>  - Rebase on top of 4.1-rc1.
+> 
+> Changes in v2:
+> 
+>  - The main difference from v1 is the API change. In v1 the user can
+>    only set the idle flag for all pages at once, and for clearing the
+>    Idle flag on pages accessed via page tables /proc/PID/clear_refs
+>    should be used.
+>    The main drawback of the v1 approach, as noted by Minchan, is that on
+>    big machines setting the idle flag for each pages can result in CPU
+>    bursts, which would be especially frustrating if the user only wanted
+>    to estimate the amount of idle pages for a particular process or VMA.
+>    With the new API a more fine-grained approach is possible: one can
+>    read a process's /proc/PID/pagemap and set/check the Idle flag only
+>    for those pages of the process's address space he or she is
+>    interested in.
+>    Another good point about the v2 API is that it is possible to limit
+>    /proc/kpage* scanning rate when the user wants to estimate the total
+>    number of idle pages, which is unachievable with the v1 approach.
+>  - Make /proc/kpagecgroup return the ino of the closest online ancestor
+>    in case the cgroup a page is charged to is offline.
+>  - Fix /proc/PID/clear_refs not clearing Young page flag.
+>  - Rebase on top of v4.0-rc6-mmotm-2015-04-01-14-54
+> 
+> v4: https://lkml.org/lkml/2015/5/7/580
+> v3: https://lkml.org/lkml/2015/4/28/224
+> v2: https://lkml.org/lkml/2015/4/7/260
+> v1: https://lkml.org/lkml/2015/3/18/794
+> 
+> ---- PATCH SET STRUCTURE ----
+> 
+> The patch set is organized as follows:
+> 
+>  - patch 1 adds page_cgroup_ino() helper for the sake of
+>    /proc/kpagecgroup and patches 2-3 do related cleanup
+>  - patch 4 adds /proc/kpagecgroup, which reports cgroup ino each page is
+>    charged to
+>  - patch 5 implements the idle page tracking feature, including the
+>    userspace API, /proc/kpageidle
+>  - patch 6 exports idle flag via /proc/kpageflags
+> 
+> ---- SIMILAR WORKS ----
+> 
+> Originally, the patch for tracking idle memory was proposed back in 2011
+> by Michel Lespinasse (see http://lwn.net/Articles/459269/). The main
+> difference between Michel's patch and this one is that Michel
+> implemented a kernel space daemon for estimating idle memory size per
+> cgroup while this patch only provides the userspace with the minimal API
+> for doing the job, leaving the rest up to the userspace. However, they
+> both share the same idea of Idle/Young page flags to avoid affecting the
+> reclaimer logic.
+> 
+> ---- SCRIPT FOR COUNTING IDLE PAGES PER CGROUP ----
+> #! /usr/bin/python
+> #
+> 
+> import os
+> import stat
+> import errno
+> import struct
+> 
+> CGROUP_MOUNT = "/sys/fs/cgroup/memory"
+> BUFSIZE = 8 * 1024  # must be multiple of 8
+> 
+> 
+> def set_idle():
+>     f = open("/proc/kpageidle", "wb", BUFSIZE)
+>     while True:
+>         try:
+>             f.write(struct.pack("Q", pow(2, 64) - 1))
+>         except IOError as err:
+>             if err.errno == errno.ENXIO:
+>                 break
+>             raise
+>     f.close()
+> 
+> 
+> def count_idle():
+>     f_flags = open("/proc/kpageflags", "rb", BUFSIZE)
+>     f_cgroup = open("/proc/kpagecgroup", "rb", BUFSIZE)
+>     f_idle = open("/proc/kpageidle", "rb", BUFSIZE)
+> 
+>     pfn = 0
+>     nr_idle = {}
+>     while True:
+>         s = f_flags.read(8)
+>         if not s:
+>             break
+> 
+>         flags, = struct.unpack('Q', s)
+>         cgino, = struct.unpack('Q', f_cgroup.read(8))
+> 
+>         bit = pfn % 64
+>         if not bit:
+>             idle_bitmap, = struct.unpack('Q', f_idle.read(8))
+> 
+>         idle = idle_bitmap >> bit & 1
+>         pfn += 1
+> 
+>         unevictable = flags >> 18 & 1
+>         huge = flags >> 22 & 1
+> 
+>         if idle and not unevictable:
+>             nr_idle[cgino] = nr_idle.get(cgino, 0) + (512 if huge else 1)
+> 
+>     f_flags.close()
+>     f_cgroup.close()
+>     f_idle.close()
+>     return nr_idle
+> 
+> 
+> print "Setting the idle flag for each page..."
+> set_idle()
+> 
+> raw_input("Wait until the workload accesses its working set, then press Enter")
+> 
+> print "Counting idle pages..."
+> nr_idle = count_idle()
+> 
+> for dir, subdirs, files in os.walk(CGROUP_MOUNT):
+>     ino = os.stat(dir)[stat.ST_INO]
+>     print dir + ": " + str(nr_idle.get(ino, 0) * 4) + " KB"
+> ---- END SCRIPT ----
+> 
+> Comments are more than welcome.
+> 
+> Thanks,
+> 
+> Vladimir Davydov (6):
+>   memcg: add page_cgroup_ino helper
+>   hwpoison: use page_cgroup_ino for filtering by memcg
+>   memcg: zap try_get_mem_cgroup_from_page
+>   proc: add kpagecgroup file
+>   proc: add kpageidle file
+>   proc: export idle flag via kpageflags
+> 
+>  Documentation/vm/pagemap.txt           |  22 +++-
+>  fs/proc/page.c                         | 234 +++++++++++++++++++++++++++++++++
+>  fs/proc/task_mmu.c                     |   4 +-
+>  include/linux/memcontrol.h             |   7 +-
+>  include/linux/mm.h                     |  88 +++++++++++++
+>  include/linux/page-flags.h             |   9 ++
+>  include/linux/page_ext.h               |   4 +
+>  include/uapi/linux/kernel-page-flags.h |   1 +
+>  mm/Kconfig                             |  12 ++
+>  mm/debug.c                             |   4 +
+>  mm/hwpoison-inject.c                   |   5 +-
+>  mm/memcontrol.c                        |  71 +++++-----
+>  mm/memory-failure.c                    |  16 +--
+>  mm/page_ext.c                          |   3 +
+>  mm/rmap.c                              |   8 ++
+>  mm/swap.c                              |   2 +
+>  16 files changed, 428 insertions(+), 62 deletions(-)
+> 
 > -- 
 > 2.1.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
 --
