@@ -1,81 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F4FE6B0038
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 03:34:32 -0400 (EDT)
-Received: by qkhu186 with SMTP id u186so157447258qkh.0
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 00:34:32 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i35si1915796qgd.126.2015.07.08.00.34.31
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id B15C86B0038
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 04:02:41 -0400 (EDT)
+Received: by pdbdz6 with SMTP id dz6so46790673pdb.0
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 01:02:41 -0700 (PDT)
+Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com. [202.81.31.140])
+        by mx.google.com with ESMTPS id pv10si2747451pbc.93.2015.07.08.01.02.39
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jul 2015 00:34:31 -0700 (PDT)
-Subject: Re: [dm-devel] [PATCH 2/7] mm: introduce kvmalloc and kvmalloc_node
-References: <alpine.LRH.2.02.1507071058350.23387@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.LRH.2.02.1507071109490.23387@file01.intranet.prod.int.rdu2.redhat.com>
- <20150707144117.5b38ac38efda238af8a1f536@linux-foundation.org>
-From: Zdenek Kabelac <zkabelac@redhat.com>
-Message-ID: <559CD283.4020605@redhat.com>
-Date: Wed, 8 Jul 2015 09:34:27 +0200
-MIME-Version: 1.0
-In-Reply-To: <20150707144117.5b38ac38efda238af8a1f536@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Wed, 08 Jul 2015 01:02:40 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
+	Wed, 8 Jul 2015 18:02:34 +1000
+Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 706242CE8040
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 18:02:32 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t6882Oxr50069634
+	for <linux-mm@kvack.org>; Wed, 8 Jul 2015 18:02:33 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t6881w6R017351
+	for <linux-mm@kvack.org>; Wed, 8 Jul 2015 18:01:58 +1000
+From: Wei Yang <weiyang@linux.vnet.ibm.com>
+Subject: [PATCH] mm/memblock: WARN_ON when nid differs from overlap region
+Date: Wed,  8 Jul 2015 16:01:28 +0800
+Message-Id: <1436342488-19851-1-git-send-email-weiyang@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: device-mapper development <dm-devel@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>
-Cc: Mike Snitzer <msnitzer@redhat.com>, Edward Thornber <thornber@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Alasdair G. Kergon" <agk@redhat.com>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Vivek Goyal <vgoyal@redhat.com>
+To: akpm@linux-foundation.org, tj@kernel.org
+Cc: linux-mm@kvack.org, Wei Yang <weiyang@linux.vnet.ibm.com>
 
-Dne 7.7.2015 v 23:41 Andrew Morton napsal(a):
-> On Tue, 7 Jul 2015 11:10:09 -0400 (EDT) Mikulas Patocka <mpatocka@redhat.com> wrote:
->
->> Introduce the functions kvmalloc and kvmalloc_node. These functions
->> provide reliable allocation of object of arbitrary size. They attempt to
->> do allocation with kmalloc and if it fails, use vmalloc. Memory allocated
->> with these functions should be freed with kvfree.
->
-> Sigh.  We've resisted doing this because vmalloc() is somewhat of a bad
-> thing, and we don't want to make it easy for people to do bad things.
->
-> And vmalloc is bad because a) it's slow and b) it does GFP_KERNEL
-> allocations for page tables and c) it is susceptible to arena
-> fragmentation.
->
-> We'd prefer that people fix their junk so it doesn't depend upon large
-> contiguous allocations.  This isn't userspace - kernel space is hostile
-> and kernel code should be robust.
->
-> So I dunno.  Should we continue to make it a bit more awkward to use
-> vmalloc()?  Probably that tactic isn't being very successful - people
-> will just go ahead and open-code it.  And given the surprising amount
-> of stuff you've placed in kvmalloc_node(), they'll implement it
-> incorrectly...
+Each memblock_region has nid to indicates the Node ID of this range. For
+the overlap case, memblock_add_range() inserts the lower part and leave the
+upper part as indicated in the overlapped region.
 
-Hi
+If the nid of the new range differs from the overlapped region, the
+information recorded is not correct.
 
- From my naive view:  4K-128K were nice restriction in the age of 16MB Pentium 
-machines - but the time has changed and now users need to work with TB of memory.
+This patch adds a WARN_ON when the nid of the new range differs from the
+overlapped region.
 
-So if the kernel driver is going to maintain such a huge chunk - it could 
-hardly fit its resources into KB blocks.
+---
 
-So there are options - you could make complex code inside the driver to 
-address every little kmalloc-ed chunk (and have a lot of potential for bugs) 
-or you could always use vmalloc() and leave it on 'slow/GFP_KERNEL'.
+I am not familiar with the lower level topology, maybe this case will not
+happen. 
 
-So IMHO it's quite right to have the 'middle' road here - if there is enough 
-memory to proceed with kmalloc - fine and if not - then driver will be 
-somewhat slower but the coder will not have to spend months of coding 
-reinvention of the wheel...
+If current implementation is based on the assumption, that overlapped
+ranges' nid and flags are the same, I would suggest to add a comment to
+indicates this background.
 
-Personally I even find 128K pretty small if this limit comes from MB era and 
-we are in the age of commonly available 32G laptops...
+If the assumption is not correct, I suggest to add a WARN_ON or BUG_ON to
+indicates this case.
 
-IMHO also it's kind of weird when kernel is not able to satisfy  128K 
-allocation if there are gigabytes of free RAM in my system - there should be 
-some defrag process running behind if there is such constrained kmalloc 
-interface...
+Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
+---
+ mm/memblock.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
-Zdenek
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 9318b56..09efe70 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -540,6 +540,9 @@ repeat:
+ 		 * area, insert that portion.
+ 		 */
+ 		if (rbase > base) {
++#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
++			WARN_ON(nid != memblock_get_region_node(rgn));
++#endif
+ 			nr_new++;
+ 			if (insert)
+ 				memblock_insert_region(type, i++, base,
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
