@@ -1,52 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B0F56B0038
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 19:28:33 -0400 (EDT)
-Received: by igrv9 with SMTP id v9so211729295igr.1
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 16:28:32 -0700 (PDT)
-Received: from mail-ig0-x22d.google.com (mail-ig0-x22d.google.com. [2607:f8b0:4001:c05::22d])
-        by mx.google.com with ESMTPS id x12si3964285ici.80.2015.07.08.16.28.32
+Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 773FB6B0038
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 19:36:16 -0400 (EDT)
+Received: by iecvh10 with SMTP id vh10so166403478iec.3
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 16:36:16 -0700 (PDT)
+Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com. [2607:f8b0:4001:c05::234])
+        by mx.google.com with ESMTPS id n6si3973612igx.49.2015.07.08.16.36.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jul 2015 16:28:32 -0700 (PDT)
-Received: by igau2 with SMTP id u2so76232867iga.0
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 16:28:32 -0700 (PDT)
-Date: Wed, 8 Jul 2015 16:28:30 -0700 (PDT)
+        Wed, 08 Jul 2015 16:36:15 -0700 (PDT)
+Received: by igcqs7 with SMTP id qs7so68101533igc.0
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 16:36:15 -0700 (PDT)
+Date: Wed, 8 Jul 2015 16:36:14 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2 2/3] mm, oom: organize oom context into struct
-In-Reply-To: <20150702060111.GB3989@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1507081624440.16585@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1506181555350.13736@chino.kir.corp.google.com> <alpine.DEB.2.10.1507011435150.14014@chino.kir.corp.google.com> <alpine.DEB.2.10.1507011436080.14014@chino.kir.corp.google.com> <20150702060111.GB3989@dhcp22.suse.cz>
+Subject: Re: [PATCH 1/4] oom: Do not panic when OOM killer is sysrq
+ triggered
+In-Reply-To: <1436360661-31928-2-git-send-email-mhocko@suse.com>
+Message-ID: <alpine.DEB.2.10.1507081635030.16585@chino.kir.corp.google.com>
+References: <1436360661-31928-1-git-send-email-mhocko@suse.com> <1436360661-31928-2-git-send-email-mhocko@suse.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jakob Unterwurzacher <jakobunt@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>
 
-On Thu, 2 Jul 2015, Michal Hocko wrote:
+On Wed, 8 Jul 2015, Michal Hocko wrote:
 
-> On Wed 01-07-15 14:37:14, David Rientjes wrote:
-> > The force_kill member of struct oom_control isn't needed if an order of
-> > -1 is used instead.  This is the same as order == -1 in
-> > struct compact_control which requires full memory compaction.
-> > 
-> > This patch introduces no functional change.
+> From: Michal Hocko <mhocko@suse.cz>
 > 
-> But it obscures the code and I really dislike this change as pointed out
-> previously.
+> OOM killer might be triggered explicitly via sysrq+f. This is supposed
+> to kill a task no matter what e.g. a task is selected even though there
+> is an OOM victim on the way to exit. This is a big hammer for an admin
+> to help to resolve a memory short condition when the system is not able
+> to cope with it on its own in a reasonable time frame (e.g. when the
+> system is trashing or the OOM killer cannot make sufficient progress)
 > 
+> E.g. it doesn't make any sense to obey panic_on_oom setting because
+> a) administrator could have used other sysrqs to achieve the
+> panic/reboot and b) the policy would break an existing usecase to
+> kill a memory hog which would be recoverable unlike the panic which
+> might be configured for the real OOM condition.
+> 
+> It also doesn't make much sense to panic the system when there is no
+> OOM killable task because administrator might choose to do additional
+> steps before rebooting/panicking the system.
+> 
+> While we are there also add a comment explaining why
+> sysctl_oom_kill_allocating_task doesn't apply to sysrq triggered OOM
+> killer even though there is no explicit check and we subtly rely
+> on current->mm being NULL for the context from which it is triggered.
+> 
+> Also be more explicit about sysrq+f behavior in the documentation.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-The oom killer is often called at the end of a very lengthy stack since 
-memory allocation itself can be called deep in the stack.  Thus, reducing 
-the amount of memory, even for a small lil bool, is helpful.  This is 
-especially true when other such structs, struct compact_control, does the 
-exact same thing by using order == -1 to mean explicit compaction.
-
-I'm personally tired of fixing stack overflows and you're arguing against 
-"obscurity" that even occurs in other parts of the mm code.  
-oc->force_kill has no reason to exist, and thus it's removed in this patch 
-and for good reason.
+Nack, this is already handled by patch 2 in my series.  I understand that 
+the titles were wrong for patches 2 and 3, but it doesn't mean we need to 
+add hacks around the code before organizing this into struct oom_control 
+or completely pointless comments and printks that will fill the kernel 
+log.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
