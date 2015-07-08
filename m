@@ -1,94 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 0620C6B0255
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 09:13:11 -0400 (EDT)
-Received: by lbzd8 with SMTP id d8so10478624lbz.0
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 06:13:10 -0700 (PDT)
-Received: from mail-wg0-x22b.google.com (mail-wg0-x22b.google.com. [2a00:1450:400c:c00::22b])
-        by mx.google.com with ESMTPS id d8si3932318wjx.17.2015.07.08.06.13.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jul 2015 06:13:09 -0700 (PDT)
-Received: by wgjx7 with SMTP id x7so195374374wgj.2
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 06:13:08 -0700 (PDT)
+Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com [209.85.220.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 7276B6B0255
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 09:23:04 -0400 (EDT)
+Received: by qkhu186 with SMTP id u186so162634835qkh.0
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 06:23:04 -0700 (PDT)
+Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
+        by mx.google.com with ESMTP id g193si2646801qhc.81.2015.07.08.06.23.03
+        for <linux-mm@kvack.org>;
+        Wed, 08 Jul 2015 06:23:03 -0700 (PDT)
+Date: Wed, 8 Jul 2015 09:23:02 -0400
+From: Eric B Munson <emunson@akamai.com>
+Subject: Re: [PATCH V3 0/5] Allow user to request memory to be locked on page
+ fault
+Message-ID: <20150708132302.GB4669@akamai.com>
+References: <1436288623-13007-1-git-send-email-emunson@akamai.com>
+ <20150707141613.f945c98279dcb71c9743d5f2@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1506140944380.11018@eggly.anvils>
-References: <alpine.LSU.2.11.1506140944380.11018@eggly.anvils>
-Date: Wed, 8 Jul 2015 09:13:08 -0400
-Message-ID: <CAB9W1A2ekXaqHfcUxpmx_5rwxfP+wMHA17BdrA7f=Ey-rp0Lvw@mail.gmail.com>
-Subject: Re: mm: shmem_zero_setup skip security check and lockdep conflict
- with XFS
-From: Stephen Smalley <stephen.smalley@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="3uo+9/B/ebqu+fSQ"
+Content-Disposition: inline
+In-Reply-To: <20150707141613.f945c98279dcb71c9743d5f2@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Prarit Bhargava <prarit@redhat.com>, Morten Stevens <mstevens@fedoraproject.org>, Daniel Wagner <wagi@monom.org>, Dave Chinner <david@fromorbit.com>, Eric Paris <eparis@redhat.com>, Eric Sandeen <esandeen@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>, Stephen Smalley <sds@tycho.nsa.gov>, Paul Moore <paul@paul-moore.com>, selinux <selinux@tycho.nsa.gov>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Shuah Khan <shuahkh@osg.samsung.com>, Michal Hocko <mhocko@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On Sun, Jun 14, 2015 at 12:48 PM, Hugh Dickins <hughd@google.com> wrote:
-> It appears that, at some point last year, XFS made directory handling
-> changes which bring it into lockdep conflict with shmem_zero_setup():
-> it is surprising that mmap() can clone an inode while holding mmap_sem,
-> but that has been so for many years.
->
-> Since those few lockdep traces that I've seen all implicated selinux,
-> I'm hoping that we can use the __shmem_file_setup(,,,S_PRIVATE) which
-> v3.13's commit c7277090927a ("security: shmem: implement kernel private
-> shmem inodes") introduced to avoid LSM checks on kernel-internal inodes:
-> the mmap("/dev/zero") cloned inode is indeed a kernel-internal detail.
->
-> This also covers the !CONFIG_SHMEM use of ramfs to support /dev/zero
-> (and MAP_SHARED|MAP_ANONYMOUS).  I thought there were also drivers
-> which cloned inode in mmap(), but if so, I cannot locate them now.
 
-This causes a regression for SELinux (please, in the future, cc
-selinux list and Paul Moore on SELinux-related changes).  In
-particular, this change disables SELinux checking of mprotect
-PROT_EXEC on shared anonymous mappings, so we lose the ability to
-control executable mappings.  That said, we are only getting that
-check today as a side effect of our file execute check on the tmpfs
-inode, whereas it would be better (and more consistent with the
-mmap-time checks) to apply an execmem check in that case, in which
-case we wouldn't care about the inode-based check.  However, I am
-unclear on how to correctly detect that situation from
-selinux_file_mprotect() -> file_map_prot_check(), because we do have a
-non-NULL vma->vm_file so we treat it as a file execute check.  In
-contrast, if directly creating an anonymous shared mapping with
-PROT_EXEC via mmap(...PROT_EXEC...),  selinux_mmap_file is called with
-a NULL file and therefore we end up applying an execmem check.
+--3uo+9/B/ebqu+fSQ
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
->
-> Reported-and-tested-by: Prarit Bhargava <prarit@redhat.com>
-> Reported-by: Daniel Wagner <wagi@monom.org>
-> Reported-by: Morten Stevens <mstevens@fedoraproject.org>
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
->
->  mm/shmem.c |    8 +++++++-
->  1 file changed, 7 insertions(+), 1 deletion(-)
->
-> --- 4.1-rc7/mm/shmem.c  2015-04-26 19:16:31.352191298 -0700
-> +++ linux/mm/shmem.c    2015-06-14 09:26:49.461120166 -0700
-> @@ -3401,7 +3401,13 @@ int shmem_zero_setup(struct vm_area_stru
->         struct file *file;
->         loff_t size = vma->vm_end - vma->vm_start;
->
-> -       file = shmem_file_setup("dev/zero", size, vma->vm_flags);
-> +       /*
-> +        * Cloning a new file under mmap_sem leads to a lock ordering conflict
-> +        * between XFS directory reading and selinux: since this file is only
-> +        * accessible to the user through its mapping, use S_PRIVATE flag to
-> +        * bypass file security, in the same way as shmem_kernel_file_setup().
-> +        */
-> +       file = __shmem_file_setup("dev/zero", size, vma->vm_flags, S_PRIVATE);
->         if (IS_ERR(file))
->                 return PTR_ERR(file);
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+On Tue, 07 Jul 2015, Andrew Morton wrote:
+
+> On Tue,  7 Jul 2015 13:03:38 -0400 Eric B Munson <emunson@akamai.com> wro=
+te:
+>=20
+> > mlock() allows a user to control page out of program memory, but this
+> > comes at the cost of faulting in the entire mapping when it is
+> > allocated.  For large mappings where the entire area is not necessary
+> > this is not ideal.  Instead of forcing all locked pages to be present
+> > when they are allocated, this set creates a middle ground.  Pages are
+> > marked to be placed on the unevictable LRU (locked) when they are first
+> > used, but they are not faulted in by the mlock call.
+> >=20
+> > This series introduces a new mlock() system call that takes a flags
+> > argument along with the start address and size.  This flags argument
+> > gives the caller the ability to request memory be locked in the
+> > traditional way, or to be locked after the page is faulted in.  New
+> > calls are added for munlock() and munlockall() which give the called a
+> > way to specify which flags are supposed to be cleared.  A new MCL flag
+> > is added to mirror the lock on fault behavior from mlock() in
+> > mlockall().  Finally, a flag for mmap() is added that allows a user to
+> > specify that the covered are should not be paged out, but only after the
+> > memory has been used the first time.
+>=20
+> Thanks for sticking with this.  Adding new syscalls is a bit of a
+> hassle but I do think we end up with a better interface - the existing
+> mlock/munlock/mlockall interfaces just aren't appropriate for these
+> things.
+>=20
+> I don't know whether these syscalls should be documented via new
+> manpages, or if we should instead add them to the existing
+> mlock/munlock/mlockall manpages.  Michael, could you please advise?
+>=20
+
+Thanks for adding the series.  I owe you several updates (getting the
+new syscall right for all architectures and a set of tests for the new
+syscalls).  Would you prefer a new pair of patches or I update this set?
+
+Eric
+
+--3uo+9/B/ebqu+fSQ
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBAgAGBQJVnSQ2AAoJELbVsDOpoOa9jHcP/RLEmYajmHZ/hRFflieosbLl
+xfDDa3xIpZh7VCBCdjAu96XR7jc5Af66dF7GpeB2Vqv/PAI739slpzUqyaXSdEK9
+1HpgGkjAHYagYa/BSLRpmDCYKGph2zWsKEUK0xrCaRKbAwytEk2rw863ZoFHM4tv
+sftQYCqhB5bkdEQuVu4Hl9D7k9CnrshKl5rURSe+Ub5nj44W47IUyjFugRDi1eRO
+WbddZd8e9av7Qte7l1rtQMxch/L4WM5LICujQx9FrNiz0Cb/flG6v3JvW1G50fym
+NINBwp64GAbE4jYxpvn5zvIHc9IU8G1As6B7tcXTBzPnjx1zQQuxP7pTmpVoAsVQ
+dhJndlDWt3RhdcPz2QDtd9EbUvDdyeLmeyWciB1cx7CZbxnwzqiSXMVzswEqbXiq
+RPTEON/PJ3IsyeQ1Pi/Ygnf/LQVwQtYAut+fZZKUIEofARkUGf6V2ReWDdrBB2t5
+zdOL4Qgr+GNGpaPqp3kr+vcF7ouIFa7ldH7OblI9yqQHufVFX8slDLtial6j4xXa
+D6oU0KUJCjusSpSTbm+KxFPuaC1O+v4lit/GoMvIcdFC6CS5a/hZK+e1QNfOFCh3
+uwVDY1DpI0Qq4ESNAFgjyf/HgiKZUPwvTy5zeq42esGbvhBHgIl62NCrk96JYCoO
+nkBCH/HT50sOYD+mO/s8
+=+7yp
+-----END PGP SIGNATURE-----
+
+--3uo+9/B/ebqu+fSQ--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
