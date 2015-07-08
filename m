@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D7066B0253
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 19:38:27 -0400 (EDT)
-Received: by ieru20 with SMTP id u20so22835118ier.0
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 16:38:27 -0700 (PDT)
-Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com. [2607:f8b0:4001:c05::236])
-        by mx.google.com with ESMTPS id th17si3995988icb.46.2015.07.08.16.38.26
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DCB66B0038
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 19:41:25 -0400 (EDT)
+Received: by igau2 with SMTP id u2so76410306iga.0
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 16:41:25 -0700 (PDT)
+Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com. [2607:f8b0:4001:c03::22b])
+        by mx.google.com with ESMTPS id bx19si21312537igb.63.2015.07.08.16.41.24
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jul 2015 16:38:26 -0700 (PDT)
-Received: by igrv9 with SMTP id v9so180322879igr.1
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 16:38:26 -0700 (PDT)
-Date: Wed, 8 Jul 2015 16:38:25 -0700 (PDT)
+        Wed, 08 Jul 2015 16:41:24 -0700 (PDT)
+Received: by iebmu5 with SMTP id mu5so165857706ieb.1
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 16:41:24 -0700 (PDT)
+Date: Wed, 8 Jul 2015 16:41:23 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 3/4] mm, oom: organize oom context into struct
-In-Reply-To: <1436360661-31928-4-git-send-email-mhocko@suse.com>
-Message-ID: <alpine.DEB.2.10.1507081637540.16585@chino.kir.corp.google.com>
-References: <1436360661-31928-1-git-send-email-mhocko@suse.com> <1436360661-31928-4-git-send-email-mhocko@suse.com>
+Subject: Re: [PATCH 4/4] oom: split out forced OOM killer
+In-Reply-To: <1436360661-31928-5-git-send-email-mhocko@suse.com>
+Message-ID: <alpine.DEB.2.10.1507081638290.16585@chino.kir.corp.google.com>
+References: <1436360661-31928-1-git-send-email-mhocko@suse.com> <1436360661-31928-5-git-send-email-mhocko@suse.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,23 +26,38 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Jakob Unterwurzacher <jakobunt@gm
 
 On Wed, 8 Jul 2015, Michal Hocko wrote:
 
-> From: David Rientjes <rientjes@google.com>
+> From: Michal Hocko <mhocko@suse.cz>
 > 
-> There are essential elements to an oom context that are passed around to
-> multiple functions.
+> The forced OOM killing is currently wired into out_of_memory() call
+> even though their objective is different which makes the code ugly
+> and harder to follow. Generic out_of_memory path has to deal with
+> configuration settings and heuristics which are completely irrelevant
+> to the forced OOM killer (e.g. sysctl_oom_kill_allocating_task or
+> OOM killer prevention for already dying tasks). All of them are
+> either relying on explicit force_kill check or indirectly by checking
+> current->mm which is always NULL for sysrq+f. This is not nice, hard
+> to follow and error prone.
 > 
-> Organize these elements into a new struct, struct oom_context, that
-> specifies the context for an oom condition.
+> Let's pull forced OOM killer code out into a separate function
+> (force_out_of_memory) which is really trivial now.
+> As a bonus we can clearly state that this is a forced OOM killer
+> in the OOM message which is helpful to distinguish it from the
+> regular OOM killer.
 > 
-> This patch introduces no functional change.
-> 
-> [mhocko@suse.cz: s@oom_control@oom_context@]
-> [mhocko@suse.cz: do not initialize on stack oom_context with NULL or 0]
-> Signed-off-by: David Rientjes <rientjes@google.com>
 > Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-I hate to appear to be nacking my own patch, but it was correct when 
-included in my series and should be merged as part of the larger cleanup.
+It's really absurd that we have to go through this over and over and that 
+your patches are actually being merged into -mm just because you don't get 
+the point.
+
+We have no need for a force_out_of_memory() function.  None whatsoever.  
+Keeping oc->force_kill around is just more pointless space on a very deep 
+stack and I'm tired of fixing stack overflows.  I'm certainly not going to 
+introduce others because you think it looks cleaner in the code when 
+memory compaction does the exact same thing by using cc->order == -1 to 
+mean explicit compaction.
+
+This is turning into a complete waste of time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
