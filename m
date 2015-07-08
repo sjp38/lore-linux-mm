@@ -1,107 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id BC8366B0259
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 08:28:22 -0400 (EDT)
-Received: by wiclp1 with SMTP id lp1so78873695wic.0
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 05:28:22 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 8646A6B0038
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 09:04:27 -0400 (EDT)
+Received: by wiwl6 with SMTP id l6so344120630wiw.0
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 06:04:27 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id oy8si3641016wjb.145.2015.07.08.05.28.03
+        by mx.google.com with ESMTPS id e8si3810356wjf.156.2015.07.08.06.04.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 08 Jul 2015 05:28:04 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 8/8] memcg: get rid of mem_cgroup_from_task
-Date: Wed,  8 Jul 2015 14:27:52 +0200
-Message-Id: <1436358472-29137-9-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
-References: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
+        Wed, 08 Jul 2015 06:04:25 -0700 (PDT)
+From: Michal Hocko <mhocko@suse.com>
+Subject: [PATCH 2/4] oom: Do not invoke oom notifiers on sysrq+f
+Date: Wed,  8 Jul 2015 15:04:19 +0200
+Message-Id: <1436360661-31928-3-git-send-email-mhocko@suse.com>
+In-Reply-To: <1436360661-31928-1-git-send-email-mhocko@suse.com>
+References: <1436360661-31928-1-git-send-email-mhocko@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Jakob Unterwurzacher <jakobunt@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>
 
 From: Michal Hocko <mhocko@suse.cz>
 
-mem_cgroup_from_task has always been a tricky API. It was added
-by 78fb74669e80 ("Memory controller: accounting setup") for
-mm_struct::mem_cgroup initialization. Later on it gained new callers
-mostly due to mm_struct::mem_cgroup -> mem_cgroup::owner transition and
-most users had to do mem_cgroup_from_task(mm->owner) to get the
-resulting memcg. Now that mm_struct::owner is gone this is not
-necessary, yet the API is still confusing.
+A github user rfjakob has reported the following issue via IRC.
+<rfjakob> Manually triggering the OOM killer does not work anymore in 4.0.5
+<rfjakob> This is what it looks like: https://gist.github.com/rfjakob/346b7dc611fc3cdf4011
+<rfjakob> Basically, what happens is that the GPU driver frees some memory, that satisfies the OOM killer
+<rfjakob> But the memory is allocated immediately again, and in the, no processes are killed no matter how often you trigger the oom killer
+<rfjakob> "in the end"
 
-One tricky part has always been that the API sounds generic but it is
-not really. mem_cgroup_from_task(current) doesn't necessarily mean the
-same thing as current->mm->memcg (resp.
-mem_cgroup_from_task(current->mm->owner) previously) because mm might be
-associated with a different cgroup than the process.
+Quoting from the github:
+"
+[19291.202062] sysrq: SysRq : Manual OOM execution
+[19291.208335] Purging GPU memory, 74399744 bytes freed, 8728576 bytes still pinned.
+[19291.390767] sysrq: SysRq : Manual OOM execution
+[19291.396792] Purging GPU memory, 74452992 bytes freed, 8728576 bytes still pinned.
+[19291.560349] sysrq: SysRq : Manual OOM execution
+[19291.566018] Purging GPU memory, 75489280 bytes freed, 8728576 bytes still pinned.
+[19291.729944] sysrq: SysRq : Manual OOM execution
+[19291.735686] Purging GPU memory, 74399744 bytes freed, 8728576 bytes still pinned.
+[19291.918637] sysrq: SysRq : Manual OOM execution
+[19291.924299] Purging GPU memory, 74403840 bytes freed, 8728576 bytes still pinned.
+"
 
-Another tricky part is that p->mm->memcg is unsafe if p!=current
-as pointed by Oleg because nobody is holding a reference on that
-mm. This is not a problem right now because we have only 2 callers in
-the tree. sock_update_memcg operates on current and task_in_mem_cgroup
-is providing non-NULL task so it is always using task_css.
+The issue is that sysrq+f (force_kill) gets confused by the regular OOM
+heuristic which tries to prevent from OOM killer if some of the oom
+notifier can relase a memory. The heuristic doesn't make much sense for
+the sysrq+f path because this one is used by the administrator to kill
+a memory hog.
 
-Let's ditch this function and use current->mm->memcg for
-sock_update_memcg and use task_css for task_in_mem_cgroup. This doesn't
-have any functional effect.
-
+Reported-by: Jakob Unterwurzacher <jakobunt@gmail.com>
 Signed-off-by: Michal Hocko <mhocko@suse.cz>
 ---
- mm/memcontrol.c | 24 +++++++-----------------
- 1 file changed, 7 insertions(+), 17 deletions(-)
+ mm/oom_kill.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4069ec8f52be..fb8e9bd04a29 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -294,18 +294,6 @@ static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
- 	return mem_cgroup_from_css(css);
- }
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index f2737d66f66a..0b1b0b25f928 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -661,10 +661,12 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 	if (oom_killer_disabled)
+ 		return false;
  
--static struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
--{
--	if (p->mm)
--		return rcu_dereference(p->mm->memcg);
--
--	/*
--	 * If the process doesn't have mm struct anymore we have to fallback
--	 * to the task_css.
--	 */
--	return mem_cgroup_from_css(task_css(p, memory_cgrp_id));
--}
--
- /* Writing them here to avoid exposing memcg's inner layout */
- #if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
+-	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+-	if (freed > 0)
+-		/* Got some memory back in the last second. */
+-		goto out;
++	if (!force_kill) {
++		blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
++		if (freed > 0)
++			/* Got some memory back in the last second. */
++			goto out;
++	}
  
-@@ -332,7 +320,7 @@ void sock_update_memcg(struct sock *sk)
- 		}
- 
- 		rcu_read_lock();
--		memcg = mem_cgroup_from_task(current);
-+		memcg = rcu_dereference(current->mm->memcg);
- 		cg_proto = sk->sk_prot->proto_cgroup(memcg);
- 		if (cg_proto && memcg_proto_active(cg_proto) &&
- 		    css_tryget_online(&memcg->css)) {
-@@ -1091,12 +1079,14 @@ bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg)
- 		task_unlock(p);
- 	} else {
- 		/*
--		 * All threads may have already detached their mm's, but the oom
--		 * killer still needs to detect if they have already been oom
--		 * killed to prevent needlessly killing additional tasks.
-+		 * All threads have already detached their mm's but we should
-+		 * still be able to at least guess the original memcg from the
-+		 * task_css. These two will match most of the time but there are
-+		 * corner cases where task->mm and task_css refer to a different
-+		 * cgroups.
- 		 */
- 		rcu_read_lock();
--		task_memcg = mem_cgroup_from_task(task);
-+		task_memcg = mem_cgroup_from_css(task_css(task, memory_cgrp_id));
- 		css_get(&task_memcg->css);
- 		rcu_read_unlock();
- 	}
+ 	/*
+ 	 * If current has a pending SIGKILL or is exiting, then automatically
 -- 
 2.1.4
 
