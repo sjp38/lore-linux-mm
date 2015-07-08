@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BE2BF6B0253
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 06:50:13 -0400 (EDT)
-Received: by qkbp125 with SMTP id p125so159589340qkb.2
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 03:50:13 -0700 (PDT)
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id A927C6B0254
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 06:50:15 -0400 (EDT)
+Received: by qget71 with SMTP id t71so97559466qge.2
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 03:50:15 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o72si1691905qkh.20.2015.07.08.03.50.12
+        by mx.google.com with ESMTPS id l80si1632133qkh.114.2015.07.08.03.50.12
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 08 Jul 2015 03:50:12 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 1/5] userfaultfd: require UFFDIO_API before other ioctls
-Date: Wed,  8 Jul 2015 12:50:04 +0200
-Message-Id: <1436352608-8455-2-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 3/5] userfaultfd: propagate the full address in THP faults
+Date: Wed,  8 Jul 2015 12:50:06 +0200
+Message-Id: <1436352608-8455-4-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1436352608-8455-1-git-send-email-aarcange@redhat.com>
 References: <1436352608-8455-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,46 +20,70 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Pavel Emelyanov <xemul@parallels.com>, Dave Hansen <dave.hansen@intel.com>
 
-UFFDIO_API was already forced before read/poll could work. This
-makes the code more strict to force it also for all other ioctls.
+The THP faults were not propagating the original fault address. The latest
+version of the API with uffd.arg.pagefault.address is supposed to propagate the
+full address through THP faults.
 
-All users would already have been required to call UFFDIO_API before
-invoking other ioctls but this makes it more explicit.
+This was not a kernel crashing bug and it wouldn't risk to corrupt
+user memory, but it would cause a SIGBUS failure because the wrong page was
+being copied.
 
-This will ensure we can change all ioctls (all but UFFDIO_API/struct
-uffdio_api) with a bump of uffdio_api.api.
-
-There's no actual plan or need to change the API or the ioctl, the
-current API already should cover fine even the non cooperative usage,
-but this is just for the longer term future just in case.
+For various reasons this wasn't easily reproducible in the qemu
+workload, but the strestest exposed the problem immediately.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- fs/userfaultfd.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ mm/huge_memory.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index 89067cf..901d52a 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -577,7 +577,6 @@ static ssize_t userfaultfd_read(struct file *file, char __user *buf,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 68fb507..f9f3337 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -717,13 +717,14 @@ static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
  
- 	if (ctx->state == UFFD_STATE_WAIT_API)
- 		return -EINVAL;
--	BUG_ON(ctx->state != UFFD_STATE_RUNNING);
+ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
+ 					struct vm_area_struct *vma,
+-					unsigned long haddr, pmd_t *pmd,
++					unsigned long address, pmd_t *pmd,
+ 					struct page *page, gfp_t gfp,
+ 					unsigned int flags)
+ {
+ 	struct mem_cgroup *memcg;
+ 	pgtable_t pgtable;
+ 	spinlock_t *ptl;
++	unsigned long haddr = address & HPAGE_PMD_MASK;
  
- 	for (;;) {
- 		if (count < sizeof(msg))
-@@ -1115,6 +1114,9 @@ static long userfaultfd_ioctl(struct file *file, unsigned cmd,
- 	int ret = -EINVAL;
- 	struct userfaultfd_ctx *ctx = file->private_data;
+ 	VM_BUG_ON_PAGE(!PageCompound(page), page);
  
-+	if (cmd != UFFDIO_API && ctx->state == UFFD_STATE_WAIT_API)
-+		return -EINVAL;
-+
- 	switch(cmd) {
- 	case UFFDIO_API:
- 		ret = userfaultfd_api(ctx, arg);
+@@ -765,7 +766,7 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
+ 			mem_cgroup_cancel_charge(page, memcg);
+ 			put_page(page);
+ 			pte_free(mm, pgtable);
+-			ret = handle_userfault(vma, haddr, flags,
++			ret = handle_userfault(vma, address, flags,
+ 					       VM_UFFD_MISSING);
+ 			VM_BUG_ON(ret & VM_FAULT_FALLBACK);
+ 			return ret;
+@@ -841,7 +842,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		if (pmd_none(*pmd)) {
+ 			if (userfaultfd_missing(vma)) {
+ 				spin_unlock(ptl);
+-				ret = handle_userfault(vma, haddr, flags,
++				ret = handle_userfault(vma, address, flags,
+ 						       VM_UFFD_MISSING);
+ 				VM_BUG_ON(ret & VM_FAULT_FALLBACK);
+ 			} else {
+@@ -865,7 +866,8 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		count_vm_event(THP_FAULT_FALLBACK);
+ 		return VM_FAULT_FALLBACK;
+ 	}
+-	return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page, gfp, flags);
++	return __do_huge_pmd_anonymous_page(mm, vma, address, pmd, page, gfp,
++					    flags);
+ }
+ 
+ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
