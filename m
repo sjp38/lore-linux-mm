@@ -1,87 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id DBA196B0254
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 19:42:49 -0400 (EDT)
-Received: by igrv9 with SMTP id v9so180380991igr.1
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 16:42:49 -0700 (PDT)
-Received: from mail-ie0-x22c.google.com (mail-ie0-x22c.google.com. [2607:f8b0:4001:c03::22c])
-        by mx.google.com with ESMTPS id i5si21321142igt.43.2015.07.08.16.42.49
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jul 2015 16:42:49 -0700 (PDT)
-Received: by ieru20 with SMTP id u20so22881718ier.0
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 16:42:49 -0700 (PDT)
-Date: Wed, 8 Jul 2015 16:42:47 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v3 3/3] mm, oom: do not panic for oom kills triggered from
- sysrq
-In-Reply-To: <alpine.DEB.2.10.1507081641480.16585@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1507081642250.16585@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1506181555350.13736@chino.kir.corp.google.com> <alpine.DEB.2.10.1507011435150.14014@chino.kir.corp.google.com> <alpine.DEB.2.10.1507081641480.16585@chino.kir.corp.google.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id DE4076B0038
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 19:55:28 -0400 (EDT)
+Received: by pacws9 with SMTP id ws9so141153379pac.0
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 16:55:28 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id kr2si6229327pdb.200.2015.07.08.16.55.26
+        for <linux-mm@kvack.org>;
+        Wed, 08 Jul 2015 16:55:28 -0700 (PDT)
+Message-ID: <559DB86D.40000@lge.com>
+Date: Thu, 09 Jul 2015 08:55:25 +0900
+From: Gioh Kim <gioh.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFCv3 0/5] enable migration of driver pages
+References: <1436243785-24105-1-git-send-email-gioh.kim@lge.com>	<20150707153701.bfcde75108d1fb8aaedc8134@linux-foundation.org>	<559C68B3.3010105@lge.com>	<20150707170746.1b91ba0d07382cbc9ba3db92@linux-foundation.org>	<559C6CA6.1050809@lge.com> <CAPM=9txmUJ58=CAxDhf12Y3Y8wz7CGBy-Bd4pQ8YAAKDsCxU8w@mail.gmail.com>
+In-Reply-To: <CAPM=9txmUJ58=CAxDhf12Y3Y8wz7CGBy-Bd4pQ8YAAKDsCxU8w@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Airlie <airlied@gmail.com>, dri-devel <dri-devel@lists.freedesktop.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, jlayton@poochiereds.net, bfields@fieldses.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, Al Viro <viro@zeniv.linux.org.uk>, "Michael S. Tsirkin" <mst@redhat.com>, koct9i@gmail.com, minchan@kernel.org, aquini@redhat.com, linux-fsdevel@vger.kernel.org, "open list:VIRTIO CORE, NET..." <virtualization@lists.linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, open@kvack.org, list@kvack.org, ABI/API <linux-api@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, gunho.lee@lge.com, Gioh Kim <gurugio@hanmail.net>
 
-Sysrq+f is used to kill a process either for debug or when the VM is
-otherwise unresponsive.
 
-It is not intended to trigger a panic when no process may be killed.
 
-Avoid panicking the system for sysrq+f when no processes are killed.
+2015-07-09 i??i ? 7:47i?? Dave Airlie i?'(e??) i?' e,?:
+>>>
+>>>
+>>> Can the various in-kernel GPU drivers benefit from this?  If so, wiring
+>>> up one or more of those would be helpful?
+>>
+>>
+>> I'm sure that other in-kernel GPU drivers can have benefit.
+>> It must be helpful.
+>>
+>> If I was familiar with other in-kernel GPU drivers code, I tried to patch
+>> them.
+>> It's too bad.
+>
+> I'll bring dri-devel into the loop here.
+>
+> ARM GPU developers please take a look at this stuff, Laurent, Rob,
+> Eric I suppose.
 
-Suggested-by: Michal Hocko <mhocko@suse.cz>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- v2: no change
- v3: fix title per Hillf
+I sent a patch, https://lkml.org/lkml/2015/3/24/1182, and my opinion about compaction
+to ARM GPU developers via Korea ARM branch.
+I got a reply that they had no time to review it.
 
- Documentation/sysrq.txt | 3 ++-
- mm/oom_kill.c           | 7 +++++--
- 2 files changed, 7 insertions(+), 3 deletions(-)
+I hope they're interested to this patch.
 
-diff --git a/Documentation/sysrq.txt b/Documentation/sysrq.txt
---- a/Documentation/sysrq.txt
-+++ b/Documentation/sysrq.txt
-@@ -75,7 +75,8 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
- 
- 'e'     - Send a SIGTERM to all processes, except for init.
- 
--'f'	- Will call oom_kill to kill a memory hog process.
-+'f'	- Will call the oom killer to kill a memory hog process, but do not
-+	  panic if nothing can be killed.
- 
- 'g'	- Used by kgdb (kernel debugger)
- 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -607,6 +607,9 @@ void check_panic_on_oom(struct oom_control *oc, enum oom_constraint constraint,
- 		if (constraint != CONSTRAINT_NONE)
- 			return;
- 	}
-+	/* Do not panic for oom kills triggered by sysrq */
-+	if (oc->order == -1)
-+		return;
- 	dump_header(oc, NULL, memcg);
- 	panic("Out of memory: %s panic_on_oom is enabled\n",
- 		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
-@@ -686,11 +689,11 @@ bool out_of_memory(struct oom_control *oc)
- 
- 	p = select_bad_process(oc, &points, totalpages);
- 	/* Found nothing?!?! Either we hang forever, or we panic. */
--	if (!p) {
-+	if (!p && oc->order != -1) {
- 		dump_header(oc, NULL, NULL);
- 		panic("Out of memory and no killable processes...\n");
- 	}
--	if (p != (void *)-1UL) {
-+	if (p && p != (void *)-1UL) {
- 		oom_kill_process(oc, p, points, totalpages, NULL,
- 				 "Out of memory");
- 		killed = 1;
+
+>
+> Daniel Vetter you might have some opinions as well.
+>
+> Dave.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
