@@ -1,53 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id AD5936B0038
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 12:02:11 -0400 (EDT)
-Received: by pdbep18 with SMTP id ep18so147902516pdb.1
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 09:02:11 -0700 (PDT)
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 43F6C6B0253
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 12:05:56 -0400 (EDT)
+Received: by pabvl15 with SMTP id vl15so133895013pab.1
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 09:05:56 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ew8si4815722pac.28.2015.07.08.09.02.10
+        by mx.google.com with ESMTPS id wm10si4819298pbc.54.2015.07.08.09.05.54
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jul 2015 09:02:10 -0700 (PDT)
-Date: Wed, 8 Jul 2015 19:01:59 +0300
+        Wed, 08 Jul 2015 09:05:55 -0700 (PDT)
+Date: Wed, 8 Jul 2015 19:05:44 +0300
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH 4/8] memcg, mm: move mem_cgroup_select_victim_node into
- vmscan
-Message-ID: <20150708160159.GD2436@esperanza>
+Subject: Re: [PATCH 5/8] memcg: restructure mem_cgroup_can_attach()
+Message-ID: <20150708160544.GE2436@esperanza>
 References: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
- <1436358472-29137-5-git-send-email-mhocko@kernel.org>
+ <1436358472-29137-6-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1436358472-29137-5-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1436358472-29137-6-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 08, 2015 at 02:27:48PM +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.cz>
+On Wed, Jul 08, 2015 at 02:27:49PM +0200, Michal Hocko wrote:
+> From: Tejun Heo <tj@kernel.org>
 > 
-> We currently have only one caller of mem_cgroup_select_victim_node which
-> is sitting in mm/vmscan.c and which is already wrapped by CONFIG_MEMCG
-> ifdef. Now that we have struct mem_cgroup visible outside of
-> mm/memcontrol.c we can move the function and its dependencies there.
-> This even shrinks the code size by few bytes:
+> Restructure it to lower nesting level and help the planned threadgroup
+> leader iteration changes.
 > 
->    text    data     bss     dec     hex filename
->  478509   65806   26384  570699   8b54b mm/built-in.o.before
->  478445   65806   26384  570635   8b50b mm/built-in.o.after
+> This is pure reorganization.
 > 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Michal Hocko <mhocko@suse.cz>
 
-I dislike this patch, because I don't see any reason why logic specific
-to per memcg reclaim should live in the file representing the global
-reclaim path. With such an approach you may end up with moving
-mem_cgroup_low, mem_cgroup_soft_limit_reclaim, etc to vmscan.c, because
-they are used only there. I don't think it's right.
-
-Thanks,
-Vladimir
+Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
