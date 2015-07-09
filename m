@@ -1,114 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E9226B0038
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 21:40:28 -0400 (EDT)
-Received: by wifm2 with SMTP id m2so4500431wif.1
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 18:40:28 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n2si6336947wic.122.2015.07.08.18.40.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 08 Jul 2015 18:40:27 -0700 (PDT)
-Date: Thu, 9 Jul 2015 03:40:20 +0200
-From: "Luis R. Rodriguez" <mcgrof@suse.com>
-Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
-Message-ID: <20150709014020.GA7021@wotan.suse.de>
-References: <CAPcyv4h5OXyRvZvLGD5ZknO-YUPn675YGv0XdtW1QOO9qmZsug@mail.gmail.com>
- <20150701062352.GA3739@lst.de>
- <CAMuHMdUO4uSWH1Qc0SfDTLuXbiG2N9fq8Tf6j+3RoqVKdPugbA@mail.gmail.com>
- <20150701065948.GA4355@lst.de>
- <CAMuHMdXqjmo2T3V=msZySVSu2j4YjyE7FnVXWTjySEyfYLSg1A@mail.gmail.com>
- <20150701072828.GA4881@lst.de>
- <20150707095012.GQ7021@wotan.suse.de>
- <20150707101330.GJ7557@n2100.arm.linux.org.uk>
- <20150707160703.GR7021@wotan.suse.de>
- <1436310658.3214.85.camel@hp.com>
+Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 99B4D6B0038
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 23:36:32 -0400 (EDT)
+Received: by oiyy130 with SMTP id y130so180699275oiy.0
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 20:36:32 -0700 (PDT)
+Received: from zte.com.cn (mx7.zte.com.cn. [202.103.147.169])
+        by mx.google.com with ESMTP id t2si3492716obs.15.2015.07.08.20.36.30
+        for <linux-mm@kvack.org>;
+        Wed, 08 Jul 2015 20:36:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1436310658.3214.85.camel@hp.com>
+Subject: slab:Fix the unexpected index mapping result of kmalloc_size(INDEX_NODE + 1)
+Message-ID: <OFBE857209.A1B3F378-ON48257E7D.001269A1-48257E7D.0013C0AF@zte.com.cn>
+From: liu.hailong6@zte.com.cn
+Date: Thu, 9 Jul 2015 11:35:29 +0800
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Andy Lutomirski <luto@amacapital.net>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Julia Lawall <julia.lawall@lip6.fr>, Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Linux MM <linux-mm@kvack.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Michael Ellerman <mpe@ellerman.id.au>, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>, mcgrof@do-not-panic.com, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-mm@kvack.org, jiang.xuexin@zte.com.cn, huang.jian@zte.com.cn
 
-On Tue, Jul 07, 2015 at 05:10:58PM -0600, Toshi Kani wrote:
-> On Tue, 2015-07-07 at 18:07 +0200, Luis R. Rodriguez wrote:
-> > On Tue, Jul 07, 2015 at 11:13:30AM +0100, Russell King - ARM Linux 
-> > wrote:
->   :
-> > > On ARM, we (probably) have a lot of cases where ioremap() is used 
-> > > multiple
-> > > times for the same physical address space, so we shouldn't rule out 
-> > > having
-> > > multiple mappings of the same type.
-> > 
-> > Why is that done? Don't worry if you are not sure why but only 
-> > speculate of the
-> > practice's existence (sloppy drivers or lazy driver developers). FWIW 
-> > for x86
-> > IIRC I ended up concluding that overlapping ioremap() calls with the 
-> > same type
-> > would work but not if they differ in type.  Although I haven't 
-> > written a
-> > grammer rule to hunt down overlapping ioremap() I suspected its use 
-> > was likely
-> > odd and likely should be reconsidered. Would this be true for ARM too 
-> > ? Or are
-> > you saying this should be a feature ? I don't expect an answer now 
-> > but I'm
-> > saying we *should* all together decide on this, and if you're 
-> > inclined to
-> > believe that this should ideally be avoided I'd like to hear that. If 
-> > you feel
-> > strongly though this should be a feature I would like to know why.
-> 
-> There are multiple mapping interfaces, and overlapping can happen among
-> them as well.  For instance, remap_pfn_range() (and 
-> io_remap_pfn_range(), which is the same as remap_pfn_range() on x86)
-> creates a mapping to user space. The same physical ranges may be
-> mapped to kernel and user spaces.  /dev/mem is one example that may
-> create a user space mapping to a physical address that is already
-> mapped with ioremap() by other module.
-
-Thanks for the feedback. The restriction seems to be differing cache types
-requirements, other than this, are there any other concerns ? For instance are
-we completley happy with aliasing so long as cache types match everywhere?  I'd
-expect no architecture would want cache types to differ when aliasing, what
-should differ then I think would just be how to verify this and it doesn't seem
-we may be doing this for all architectures.
-
-Even for userspace we seem to be covered -- we enable userspace mmap() calls to
-get their mapped space with a cache type, on the kernel we'd say use
-pgprot_writecombine() on the vma->vm_page_prot prior to the
-io_remap_pfn_range() -- that maps to remap_pfn_range() on x86 and as you note
-that checks cache type via reserve_memtype() -- but only on x86...
-
-Other than this differing cache type concern are we OK with aliasing in
-userspace all the time ?
-
-If we want to restrict aliasing either for the kernel or userspace mapping
-we might be able to do it, I just want to know if we want to or not care
-at all.
-
-> pmem and DAX also create mappings to the same NVDIMM ranges.  DAX calls
-> vm_insert_mixed(), which is particularly a problematic since
-> vm_insert_mixed() does not verify aliasing.  ioremap() and remap_pfn_range()
-> call reserve_memtype() to verify aliasing on x86.  reserve_memtype() is
-> x86-specific and there is no arch-generic wrapper for such check.
-
-As clarified by Matthew Wilcox via commit d92576f1167cacf7844 ("dax: does not
-work correctly with virtual aliasing caches") caches are virtually mapped for
-some architectures, it seems it should be possible to fix this for DAX somehow
-though.
-
-> I think DAX could get a cache type from pmem to keep them in sync, though.
-
-pmem is x86 specific right now, are other folks going to expose something
-similar ? Otherwise we seem to only be addressing these deep concerns for
-x86 so far.
-
- Luis
+RnJvbSBlNzc0OWE5NGQ2M2RhZTIxZmVhYTUzOTUzYzhhZmZlYjIzMDUwZDA0IE1vbiBTZXAgMTcg
+MDA6MDA6MDAgMjAwMQ0KRnJvbTogbGl1aGFpbG9uZyA8bGl1LmhhaWxvbmc2QHp0ZS5jb20uY24+
+DQpEYXRlOiBUaHUsIDkgSnVsIDIwMTUgMDk6MDI6MjcgKzA4MDANClN1YmplY3Q6IFtQQVRDSF0g
+c2xhYjpGaXggdGhlIHVuZXhwZWN0ZWQgaW5kZXggbWFwcGluZyByZXN1bHQgb2YgDQprbWFsbG9j
+X3NpemUoSU5ERVhfTk9ERSArIDEpDQoNCktlcm5lbCBhZnRlciB2My45IHVzaW5nIGttYWxsb2Nf
+c2l6ZShJTkRFWF9OT0RFICsgMSkgdG8gZ2V0IHRoZSBuZXh0IA0KbGFyZ2VyDQpjYWNoZSBzaXpl
+IHRoYW4gdGhlIHNpemUgaW5kZXggSU5ERVhfTk9ERSBtYXBwaW5nLCBpbnN0ZWFkIG9mDQptYWxs
+b2Nfc2l6ZXNbSU5ERVhfTDMgKyAxXS5jc19zaXplIHdoaWNoIHJlYWxpemVkIGluIHRoZSBrZXJu
+ZWwgMy45Lg0KSG93ZXZlciwgc29tZXRpbWVzIHdlIGNhbid0IGdldCB0aGUgcmlnaHQgb3V0cHV0
+IHdlIGV4cGVjdGVkIGJ5DQprbWFsbG9jX3NpemUoSU5ERVhfTk9ERSArIDEpLGFuZCAsdGhpcyBt
+YXkgY2F1c2Ugc29tZSBCVUdzLg0KDQpUaGUgbWFwcGluZyB0YWJsZSBpbiBsYXRlc3Qga2VybmVs
+IGxpa2VzOg0KICAgIGluZGV4ID0gezAsICAgMSwgIDIgLCAgMywgIDQsICAgNSwgICA2LCAgICAg
+bn0NCiAgICAgc2l6ZSA9IHswLCAgIDk2LCAxOTIsIDgsIDE277yMIDMy77yMICA2NO+8jCAyXm59
+DQpUaGUgbWFwcGluZyB0YWJsZSBiZWZvcmUgMy4xMCBsaWtlcyB0aGlzOg0KICAgIGluZGV4ID0g
+ezAgLCAxICwgMiwgICAzLCAgNCAsICA1ICwgIDYsICAgbn0NCiAgICBzaXplICA9IHszMiwgNjQs
+IDk2LCAxMjgsIDE5MiwgMjU2LCA1MTIsIDJeKG4rMyl9DQoNClRoZSBwcm9ibGVtIGRpc2NyaWJl
+ZCBhcyBmb2xsb3dpbmcgb24gbXkgbWlwczY0IG1hY2hpbmU6DQogICgxKVdoZW4gY29uZmlndXJl
+ZCBERUJVR19TTEFCICYmIERFQlVHX1BBR0VBTExPQyAmJiBERUJVR19MT0NLX0FMTE9DDQomJiBE
+RUJVR19TUElOTE9DSywgdGhlIHNpemVvZihzdHJ1Y3Qga21lbV9jYWNoZV9ub2RlKSB3aWxsIGJl
+ICIxNTAiLCBhbmQNCnRoZSBtYWNybyBJTkRFWF9OT0RFIHR1cm5zIG91dCB0byBiZSAiMiI6DQoj
+ZGVmaW5lIElOREVYX05PREUga21hbGxvY19pbmRleChzaXplb2Yoc3RydWN0IGttZW1fY2FjaGVf
+bm9kZSkpDQogICgyKVRoZW4gdGhlIHJlc3VsdCBvZiBrbWFsbG9jX3NpemUoSU5ERVhfTk9ERSAr
+IDEpIGlzIDguDQogICgzKVRoZW4gImlmKHNpemUgPj0ga21hbGxvY19zaXplKElOREVYX05PREUg
+KyAxKSIgd2lsbCBsZWFkIHRvICJzaXplDQo9IFBBR0VfU0laRSIuDQogICg0KVRoZW4gImlmICgo
+c2l6ZSA+PSAoUEFHRV9TSVpFID4+IDMpKSIgdGVzdCB3aWxsIGJlIHNhdGlzZmllZCBhbmQNCiJm
+bGFncyB8PSBDRkxHU19PRkZfU0xBQiIgd2lsbCBiZSBleGN1dGVkLg0KICAoNSkiaWYgKGZsYWdz
+ICYgQ0ZMR1NfT0ZGX1NMQUIpIiB0ZXN0IHdpbGwgYmUgc2F0aXNmaWVkIGFuZCB3aWxsIGdvDQp0
+byAiY2FjaGVwLT5zbGFicF9jYWNoZSA9IGttYWxsb2Nfc2xhYihzbGFiX3NpemUsIDB1KSIsIGFu
+ZCB0aGUgcmVzdWx0DQpoZXJlIG1heSBiZSBOVUxMIHdoaWxlIGtlcm5lbCBib290dXAuDQogICg2
+KUZpbmFsbHksIkJVR19PTihaRVJPX09SX05VTExfUFRSKGNhY2hlcC0+c2xhYnBfY2FjaGUpKTsi
+IGNhdXNlIHRoZQ0KQlVHIGluZm8gYXMgdGhlIGZvbGxvd2luZyBzaG93cyhtYXkgYmUgb25seSBt
+aXBzNjQgaGFzIHRoaXMgcHJvYmxlbSk6DQoNCiAjMjANCnRhc2s6IGZmZmZmZmZmYzA3MmNkYzAg
+dGk6IGZmZmZmZmZmYzA2YjQwMDAgdGFzay50aTogZmZmZmZmZmZjMDZiNDAwMA0KJCAwICAgOiAw
+MDAwMDAwMDAwMDAwMDAwIDAwMDAwMDAwMDAwMDAwMTggMDAwMDAwMDAwMDAwMDAwMSANCjAwMDAw
+MDAxMDAwMDBmZmYNCiQgNCAgIDogMDAwMDAwMDAwMDAwMDAzMCAwMDAwMDAwMDAwMDAwMDAwIDAw
+MDAwMDAwMDAwMDEwMDQgDQowMDAwMDAwMDAwMDAxMDAwDQokIDggICA6IGZmZmZmZmZmODAwMDI4
+MDAgMDAwMDAwMDAwMDAwMDAwYiAwMDAwMDAwMDAwMDAwMDAwIA0KMDAwMDAwMDAwMDAwMDAwMA0K
+JDEyICAgOiAwMDAwMDAwMDgwMDAwMDAwIDAwMDAwMDAwMDAwMDAwMDAgYzAwMDAwMDBiZjgxOGVi
+YyANCmMwMDAwMDAwYmY4MThlYjgNCiQxNiAgIDogYzAwMDAwMDBiZjgxOGVhMCAwMDAwMDAwMDgw
+MDAyODAwIDAwMDAwMDAwMDAwMDAwMDAgDQowMDAwMDAwMDAwMDAxMDAwDQokMjAgICA6IDAwMDAw
+MDAwMDAwMDAwMzQgMDAwMDAwMDA4MDAwMDAwMCAwMDAwMDAwMDAwMDAwMDAwIA0KMDAwMDAwMDAw
+MDAwMDAwNg0KJDI0ICAgOiBmZmZmZmZmZmMxMTYwMDAwIDAwMDAwMDAwMDAwMDAzZjQNCiQyOCAg
+IDogZmZmZmZmZmZjMDZiNDAwMCBmZmZmZmZmZmMwNmI3ZDQwIDAwMDAwMDAwMDAwMDIwMDAgDQpm
+ZmZmZmZmZmMwMWQwNzdjDQpIaSAgICA6IDAwMDAwMDAwMDAwMDBmZmYNCkxvICAgIDogMDAwMDAw
+MDAwMDEwMDAwMA0KZXBjICAgOiBmZmZmZmZmZmMwMWQwNzg0IF9fa21lbV9jYWNoZV9jcmVhdGUr
+MHgyYWMvMHg1MzANCiAgICBOb3QgdGFpbnRlZA0KcmEgICAgOiBmZmZmZmZmZmMwMWQwNzdjIF9f
+a21lbV9jYWNoZV9jcmVhdGUrMHgyYTQvMHg1MzANClN0YXR1czogMTQxMDAwZTIgICAgICAgIEtY
+IFNYIFVYIEtFUk5FTCBFWEwNCkNhdXNlIDogNDA4MDgwMzQNClBySWQgIDogMDAwYzEzMDAgKEJy
+b2FkY29tIFhMUElJKQ0KUHJvY2VzcyBzd2FwcGVyIChwaWQ6IDAsIHRocmVhZGluZm89ZmZmZmZm
+ZmZjMDZiNDAwMCwgdGFzaz1mZmZmZmZmZmMwNzJjZGMNCiAgICAgICAgMCx0bHM9MDAwMDAwMDAw
+MDAwMDAwMCkNCipId1RMUzogZmZmZmZmZmZmYWRlYmVlZg0KU3RhY2sgOiAwMDAwMDAwMGMwNzNi
+MDE4IGMwMDAwMDAwYmY4MThlYTAgMDAwMDAwMDAwMDAwMDA0MCANCjAwMDAwMDAwMDAwMDAwMDAN
+CiAgICAgICAgZmZmZmZmZmZjMTE1YjM2MCBmZmZmZmZmZmMxMTViMzYwIDAwMDAwMDAwMDAwMDAw
+MTcgDQowMDAwMDAwMDAwMDAwMDA3DQogICAgICAgIDAwMDAwMDAwMDAwMDAwMDYgZmZmZmZmZmZj
+MDc4MGY1NCAwMDAwMDAwMDAwMDAyMDAwIA0KMDAwMDAwMDAwMDAwMDA0MA0KICAgICAgICBjMDAw
+MDAwMGJmODE4ZWEwIDAwMDAwMDAwMDAwMDAwMDAgMDAwMDAwMDAwMDAwMDA0MCANCmZmZmZmZmZm
+YzA3ODBmZWMNCiAgICAgICAgMDAwMDAwMDAwMDAwMjAwMCBjMDAwMDAwMGJmODEwZmMwIGZmZmZm
+ZmZmYzExNWIzOTAgDQowMDAwMDAwMDAwMDAwMDA2DQogICAgICAgIGZmZmZmZmZmYzExNjAwMDAg
+ZmZmZmZmZmZjMDc4MTBiMCAwMDAwMDAwMDAwMDAwMDAxIA0KYzAwMDAwMDBiZjgwOTAwMA0KICAg
+ICAgICBmZmZmZmZmZmMwYTMwMDAwIGZmZmZmZmZmYzA3YTAwMDAgZmZmZmZmZmZjMDdhMTc1OCAN
+CmZmZmZmZmZmYzBhMzAwMDANCiAgICAgICAgZmZmZmZmZmY4YzE5MDAwMCBmZmZmZmZmZjhiZDAy
+OTgzIDAwMDAwMDAwMDAwMDAwMDAgDQpmZmZmZmZmZjhjMThmNzk4DQogICAgICAgIDAwMDAwMDAw
+MDAwMDAwMDAgZmZmZmZmZmZjMDc3NDZlMCBmZmZmZmZmZmMwN2ExNzU4IA0KMDAwMDAwMDAwMDAw
+MDAwMA0KICAgICAgICAwMDAwMDAwMDAwMDAwMDAwIGZmZmZmZmZmODA1YzU1ODAgMDAwMDAwMDAw
+MDAwMDAwMCANCjAwMDAwMDAwMDAwMDAwMDANCiAgICAgICAgICAuLi4NCkNhbGwgVHJhY2U6DQpb
+PGZmZmZmZmZmYzAxZDA3ODQ+XSBfX2ttZW1fY2FjaGVfY3JlYXRlKzB4MmFjLzB4NTMwDQpbPGZm
+ZmZmZmZmYzA3ODBmNTQ+XSBjcmVhdGVfYm9vdF9jYWNoZSsweDU0LzB4OTANCls8ZmZmZmZmZmZj
+MDc4MGZlYz5dIGNyZWF0ZV9rbWFsbG9jX2NhY2hlKzB4NWMvMHg5NA0KWzxmZmZmZmZmZmMwNzgx
+MGIwPl0gY3JlYXRlX2ttYWxsb2NfY2FjaGVzKzB4OGMvMHgxYjANCls8ZmZmZmZmZmZjMDc3NDZl
+MD5dIHN0YXJ0X2tlcm5lbCsweDFhMC8weDQwOA0KDQpUaGlzIHBhdGNoIGNhbiBmaXggdGhlIHBy
+b2JsZW0gb2Yga21hbGxvY19zaXplKElOREVYX05PREUgKyAxKWFuZCB3aWxsDQpyZW1vdmUgdGhl
+IEJVRyBhYm92ZSwgSSB0ZXN0IGl0IG9uIG15IG1pcHM2NCBtZWNoaW5lLg0KDQpTaWduZWQtb2Zm
+LWJ5OiBMaXVoYWlsb25nIDxsaXUuaGFpbG9uZzZAenRlLmNvbS5jbj4NClJldmlld2VkLWJ5OiBK
+aWFuZ3h1ZXhpbiA8amlhbmcueHVleGluQHp0ZS5jb20uY24+DQoNCi0tLQ0KIG1tL3NsYWIuYyB8
+ICAgIDIgKy0NCiAxIGZpbGVzIGNoYW5nZWQsIDEgaW5zZXJ0aW9ucygrKSwgMSBkZWxldGlvbnMo
+LSkNCg0KZGlmZiAtLWdpdCBhL21tL3NsYWIuYyBiL21tL3NsYWIuYw0KaW5kZXggNjhiOTVhOC4u
+ZjFkMzNkOSAxMDA2NDQNCi0tLSBhL21tL3NsYWIuYw0KKysrIGIvbW0vc2xhYi5jDQpAQCAtMjIw
+NCw3ICsyMjA0LDcgQEAgX19rbWVtX2NhY2hlX2NyZWF0ZSAoc3RydWN0IGttZW1fY2FjaGUgKmNh
+Y2hlcCwgDQp1bnNpZ25lZCBsb25nIGZsYWdzKQ0KICAgICAgICAgICAgICAgICAgICAgICAgc2l6
+ZSArPSBCWVRFU19QRVJfV09SRDsNCiAgICAgICAgfQ0KICNpZiBGT1JDRURfREVCVUcgJiYgZGVm
+aW5lZChDT05GSUdfREVCVUdfUEFHRUFMTE9DKQ0KLSAgICAgICBpZiAoc2l6ZSA+PSBrbWFsbG9j
+X3NpemUoa21hbGxvY19uZXh0X2luZGV4KElOREVYX05PREUpKQ0KKyAgICAgICBpZiAoc2l6ZSA+
+PSBrbWFsbG9jX3NpemUoSU5ERVhfTk9ERSkqMg0KICAgICAgICAgICAgJiYgY2FjaGVwLT5vYmpl
+Y3Rfc2l6ZSA+IGNhY2hlX2xpbmVfc2l6ZSgpDQogICAgICAgICAgICAmJiBBTElHTihzaXplLCBj
+YWNoZXAtPmFsaWduKSA8IFBBR0VfU0laRSkgew0KICAgICAgICAgICAgICAgIGNhY2hlcC0+b2Jq
+X29mZnNldCArPSBQQUdFX1NJWkUgLSBBTElHTihzaXplLCANCmNhY2hlcC0+YWxpZ24pOw0KLS0g
+DQoxLjcuMQ0KDQotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLQ0KWlRFIEluZm9ybWF0aW9uIFNlY3VyaXR5IE5vdGljZTogVGhlIGluZm9ybWF0
+aW9uIGNvbnRhaW5lZCBpbiB0aGlzIG1haWwgKGFuZCBhbnkgYXR0YWNobWVudCB0cmFuc21pdHRl
+ZCBoZXJld2l0aCkgaXMgcHJpdmlsZWdlZCBhbmQgY29uZmlkZW50aWFsIGFuZCBpcyBpbnRlbmRl
+ZCBmb3IgdGhlIGV4Y2x1c2l2ZSB1c2Ugb2YgdGhlIGFkZHJlc3NlZShzKS4gIElmIHlvdSBhcmUg
+bm90IGFuIGludGVuZGVkIHJlY2lwaWVudCwgYW55IGRpc2Nsb3N1cmUsIHJlcHJvZHVjdGlvbiwg
+ZGlzdHJpYnV0aW9uIG9yIG90aGVyIGRpc3NlbWluYXRpb24gb3IgdXNlIG9mIHRoZSBpbmZvcm1h
+dGlvbiBjb250YWluZWQgaXMgc3RyaWN0bHkgcHJvaGliaXRlZC4gIElmIHlvdSBoYXZlIHJlY2Vp
+dmVkIHRoaXMgbWFpbCBpbiBlcnJvciwgcGxlYXNlIGRlbGV0ZSBpdCBhbmQgbm90aWZ5IHVzIGlt
+bWVkaWF0ZWx5Lg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
