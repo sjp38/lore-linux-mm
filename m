@@ -1,113 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id BE96B6B0038
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 21:25:38 -0400 (EDT)
-Received: by pddu5 with SMTP id u5so67733625pdd.3
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 18:25:38 -0700 (PDT)
-Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com. [122.248.162.4])
-        by mx.google.com with ESMTPS id kl10si6533284pbd.72.2015.07.08.18.25.36
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E9226B0038
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 21:40:28 -0400 (EDT)
+Received: by wifm2 with SMTP id m2so4500431wif.1
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 18:40:28 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n2si6336947wic.122.2015.07.08.18.40.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Wed, 08 Jul 2015 18:25:37 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
-	Thu, 9 Jul 2015 06:55:32 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 44AA0E0054
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 06:59:20 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t691PTdX61997140
-	for <linux-mm@kvack.org>; Thu, 9 Jul 2015 06:55:29 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t691PSJ9009959
-	for <linux-mm@kvack.org>; Thu, 9 Jul 2015 06:55:29 +0530
-Date: Thu, 9 Jul 2015 09:25:27 +0800
-From: Wei Yang <weiyang@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/memblock: WARN_ON when nid differs from overlap region
-Message-ID: <20150709012527.GA5958@richard>
-Reply-To: Wei Yang <weiyang@linux.vnet.ibm.com>
-References: <1436342488-19851-1-git-send-email-weiyang@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1507081750240.16585@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 08 Jul 2015 18:40:27 -0700 (PDT)
+Date: Thu, 9 Jul 2015 03:40:20 +0200
+From: "Luis R. Rodriguez" <mcgrof@suse.com>
+Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
+Message-ID: <20150709014020.GA7021@wotan.suse.de>
+References: <CAPcyv4h5OXyRvZvLGD5ZknO-YUPn675YGv0XdtW1QOO9qmZsug@mail.gmail.com>
+ <20150701062352.GA3739@lst.de>
+ <CAMuHMdUO4uSWH1Qc0SfDTLuXbiG2N9fq8Tf6j+3RoqVKdPugbA@mail.gmail.com>
+ <20150701065948.GA4355@lst.de>
+ <CAMuHMdXqjmo2T3V=msZySVSu2j4YjyE7FnVXWTjySEyfYLSg1A@mail.gmail.com>
+ <20150701072828.GA4881@lst.de>
+ <20150707095012.GQ7021@wotan.suse.de>
+ <20150707101330.GJ7557@n2100.arm.linux.org.uk>
+ <20150707160703.GR7021@wotan.suse.de>
+ <1436310658.3214.85.camel@hp.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1507081750240.16585@chino.kir.corp.google.com>
+In-Reply-To: <1436310658.3214.85.camel@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Wei Yang <weiyang@linux.vnet.ibm.com>, akpm@linux-foundation.org, tj@kernel.org, linux-mm@kvack.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Andy Lutomirski <luto@amacapital.net>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Julia Lawall <julia.lawall@lip6.fr>, Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Linux MM <linux-mm@kvack.org>, Ralf Baechle <ralf@linux-mips.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Michael Ellerman <mpe@ellerman.id.au>, Tejun Heo <tj@kernel.org>, Paul Mackerras <paulus@samba.org>, mcgrof@do-not-panic.com, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Wed, Jul 08, 2015 at 05:54:18PM -0700, David Rientjes wrote:
->On Wed, 8 Jul 2015, Wei Yang wrote:
->
->> Each memblock_region has nid to indicates the Node ID of this range. For
->> the overlap case, memblock_add_range() inserts the lower part and leave the
->> upper part as indicated in the overlapped region.
->> 
->> If the nid of the new range differs from the overlapped region, the
->> information recorded is not correct.
->> 
->> This patch adds a WARN_ON when the nid of the new range differs from the
->> overlapped region.
->> 
->> ---
->> 
->> I am not familiar with the lower level topology, maybe this case will not
->> happen. 
->> 
->> If current implementation is based on the assumption, that overlapped
->> ranges' nid and flags are the same, I would suggest to add a comment to
->> indicates this background.
->> 
->> If the assumption is not correct, I suggest to add a WARN_ON or BUG_ON to
->> indicates this case.
->> 
->> Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
->> ---
->>  mm/memblock.c |    3 +++
->>  1 file changed, 3 insertions(+)
->> 
->> diff --git a/mm/memblock.c b/mm/memblock.c
->> index 9318b56..09efe70 100644
->> --- a/mm/memblock.c
->> +++ b/mm/memblock.c
->> @@ -540,6 +540,9 @@ repeat:
->>  		 * area, insert that portion.
->>  		 */
->>  		if (rbase > base) {
->> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->> +			WARN_ON(nid != memblock_get_region_node(rgn));
->> +#endif
->>  			nr_new++;
->>  			if (insert)
->>  				memblock_insert_region(type, i++, base,
->
->I think the assertion that nid should match memblock_get_region_node() of 
->the overlapped region is correct.  It only functionally makes a difference 
->if insert == true, but I don't think there's harm in verifying it 
->regardless.
->
->Acked-by: David Rientjes <rientjes@google.com>
->
->I think your supplemental to the changelog suggests that you haven't seen 
->this actually occur, but in the off chance that you have then it would be 
->interesting to see it.
+On Tue, Jul 07, 2015 at 05:10:58PM -0600, Toshi Kani wrote:
+> On Tue, 2015-07-07 at 18:07 +0200, Luis R. Rodriguez wrote:
+> > On Tue, Jul 07, 2015 at 11:13:30AM +0100, Russell King - ARM Linux 
+> > wrote:
+>   :
+> > > On ARM, we (probably) have a lot of cases where ioremap() is used 
+> > > multiple
+> > > times for the same physical address space, so we shouldn't rule out 
+> > > having
+> > > multiple mappings of the same type.
+> > 
+> > Why is that done? Don't worry if you are not sure why but only 
+> > speculate of the
+> > practice's existence (sloppy drivers or lazy driver developers). FWIW 
+> > for x86
+> > IIRC I ended up concluding that overlapping ioremap() calls with the 
+> > same type
+> > would work but not if they differ in type.  Although I haven't 
+> > written a
+> > grammer rule to hunt down overlapping ioremap() I suspected its use 
+> > was likely
+> > odd and likely should be reconsidered. Would this be true for ARM too 
+> > ? Or are
+> > you saying this should be a feature ? I don't expect an answer now 
+> > but I'm
+> > saying we *should* all together decide on this, and if you're 
+> > inclined to
+> > believe that this should ideally be avoided I'd like to hear that. If 
+> > you feel
+> > strongly though this should be a feature I would like to know why.
+> 
+> There are multiple mapping interfaces, and overlapping can happen among
+> them as well.  For instance, remap_pfn_range() (and 
+> io_remap_pfn_range(), which is the same as remap_pfn_range() on x86)
+> creates a mapping to user space. The same physical ranges may be
+> mapped to kernel and user spaces.  /dev/mem is one example that may
+> create a user space mapping to a physical address that is already
+> mapped with ioremap() by other module.
 
-Hi David,
+Thanks for the feedback. The restriction seems to be differing cache types
+requirements, other than this, are there any other concerns ? For instance are
+we completley happy with aliasing so long as cache types match everywhere?  I'd
+expect no architecture would want cache types to differ when aliasing, what
+should differ then I think would just be how to verify this and it doesn't seem
+we may be doing this for all architectures.
 
-Thanks for your comments.
+Even for userspace we seem to be covered -- we enable userspace mmap() calls to
+get their mapped space with a cache type, on the kernel we'd say use
+pgprot_writecombine() on the vma->vm_page_prot prior to the
+io_remap_pfn_range() -- that maps to remap_pfn_range() on x86 and as you note
+that checks cache type via reserve_memtype() -- but only on x86...
 
-Yes, I don't see this actually occur. This is a guard to indicates if the
-lower level hardware is not functioning well.
+Other than this differing cache type concern are we OK with aliasing in
+userspace all the time ?
 
-Also, as the supplemental in the change log mentioned, the flags of the
-overlapped region needs to be checked too. If you think this is proper, I
-would like to form a patch to have the assertion on the flags. 
+If we want to restrict aliasing either for the kernel or userspace mapping
+we might be able to do it, I just want to know if we want to or not care
+at all.
 
--- 
-Richard Yang
-Help you, Help me
+> pmem and DAX also create mappings to the same NVDIMM ranges.  DAX calls
+> vm_insert_mixed(), which is particularly a problematic since
+> vm_insert_mixed() does not verify aliasing.  ioremap() and remap_pfn_range()
+> call reserve_memtype() to verify aliasing on x86.  reserve_memtype() is
+> x86-specific and there is no arch-generic wrapper for such check.
+
+As clarified by Matthew Wilcox via commit d92576f1167cacf7844 ("dax: does not
+work correctly with virtual aliasing caches") caches are virtually mapped for
+some architectures, it seems it should be possible to fix this for DAX somehow
+though.
+
+> I think DAX could get a cache type from pmem to keep them in sync, though.
+
+pmem is x86 specific right now, are other folks going to expose something
+similar ? Otherwise we seem to only be addressing these deep concerns for
+x86 so far.
+
+ Luis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
