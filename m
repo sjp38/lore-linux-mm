@@ -1,96 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 470136B0038
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 08:13:34 -0400 (EDT)
-Received: by lagx9 with SMTP id x9so244877900lag.1
-        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 05:13:33 -0700 (PDT)
-Received: from lb1-smtp-cloud2.xs4all.net (lb1-smtp-cloud2.xs4all.net. [194.109.24.21])
-        by mx.google.com with ESMTPS id on7si8799759wic.76.2015.07.09.05.13.31
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 09 Jul 2015 05:13:32 -0700 (PDT)
-Message-ID: <559E6538.9080100@xs4all.nl>
-Date: Thu, 09 Jul 2015 14:12:40 +0200
-From: Hans Verkuil <hverkuil@xs4all.nl>
+Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 89A706B0038
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 09:00:23 -0400 (EDT)
+Received: by qkcl188 with SMTP id l188so1771893qkc.1
+        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 06:00:23 -0700 (PDT)
+Received: from emvm-gh1-uea09.nsa.gov (emvm-gh1-uea09.nsa.gov. [63.239.67.10])
+        by mx.google.com with ESMTP id r82si5946756qkh.74.2015.07.09.06.00.20
+        for <linux-mm@kvack.org>;
+        Thu, 09 Jul 2015 06:00:21 -0700 (PDT)
+Message-ID: <559E7023.8040203@tycho.nsa.gov>
+Date: Thu, 09 Jul 2015 08:59:15 -0400
+From: Stephen Smalley <sds@tycho.nsa.gov>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/10 v6] Helper to abstract vma handling in media layer
-References: <1434636520-25116-1-git-send-email-jack@suse.cz> <20150709114848.GA9189@quack.suse.cz>
-In-Reply-To: <20150709114848.GA9189@quack.suse.cz>
+Subject: Re: mm: shmem_zero_setup skip security check and lockdep conflict
+ with XFS
+References: <alpine.LSU.2.11.1506140944380.11018@eggly.anvils> <CAB9W1A2ekXaqHfcUxpmx_5rwxfP+wMHA17BdrA7f=Ey-rp0Lvw@mail.gmail.com> <559D51C2.7060603@tycho.nsa.gov> <alpine.LSU.2.11.1507090112430.2698@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1507090112430.2698@eggly.anvils>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-media@vger.kernel.org, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, linux-samsung-soc@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Stephen Smalley <stephen.smalley@gmail.com>, Prarit Bhargava <prarit@redhat.com>, Morten Stevens <mstevens@fedoraproject.org>, Eric Sandeen <esandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, Daniel Wagner <wagi@monom.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Eric Paris <eparis@redhat.com>, linux-mm@kvack.org, selinux <selinux@tycho.nsa.gov>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
 
-On 07/09/2015 01:48 PM, Jan Kara wrote:
->   Hello,
+On 07/09/2015 04:23 AM, Hugh Dickins wrote:
+> On Wed, 8 Jul 2015, Stephen Smalley wrote:
+>> On 07/08/2015 09:13 AM, Stephen Smalley wrote:
+>>> On Sun, Jun 14, 2015 at 12:48 PM, Hugh Dickins <hughd@google.com> wrote:
+>>>> It appears that, at some point last year, XFS made directory handling
+>>>> changes which bring it into lockdep conflict with shmem_zero_setup():
+>>>> it is surprising that mmap() can clone an inode while holding mmap_sem,
+>>>> but that has been so for many years.
+>>>>
+>>>> Since those few lockdep traces that I've seen all implicated selinux,
+>>>> I'm hoping that we can use the __shmem_file_setup(,,,S_PRIVATE) which
+>>>> v3.13's commit c7277090927a ("security: shmem: implement kernel private
+>>>> shmem inodes") introduced to avoid LSM checks on kernel-internal inodes:
+>>>> the mmap("/dev/zero") cloned inode is indeed a kernel-internal detail.
+>>>>
+>>>> This also covers the !CONFIG_SHMEM use of ramfs to support /dev/zero
+>>>> (and MAP_SHARED|MAP_ANONYMOUS).  I thought there were also drivers
+>>>> which cloned inode in mmap(), but if so, I cannot locate them now.
+>>>
+>>> This causes a regression for SELinux (please, in the future, cc
+>>> selinux list and Paul Moore on SELinux-related changes).  In
 > 
->   Hans, did you have a chance to look at these patches? I have tested them
-> with the vivid driver but it would be good if you could run them through
-> your standard testing procedure as well. Andrew has updated the patches in
-> his tree but some ack from you would be welcome...
-
-I've planned a 'patch day' for Monday. So hopefully you'll see a pull request
-by then.
-
-Regards,
-
-	Hans
-
+> Surprised and sorry about that, yes, I should have Cc'ed.
 > 
-> 								Honza
-> On Thu 18-06-15 16:08:30, Jan Kara wrote:
->>   Hello,
->>
->> I'm sending the sixth version of my patch series to abstract vma handling from
->> the various media drivers. Since the previous version I have added a patch to
->> move mm helpers into a separate file and behind a config option. I also
->> changed patch pushing mmap_sem down in videobuf2 core to avoid lockdep warning
->> and NULL dereference Hans found in his testing. I've also included small
->> fixups Andrew was carrying.
->>
->> After this patch set drivers have to know much less details about vmas, their
->> types, and locking. Also quite some code is removed from them. As a bonus
->> drivers get automatically VM_FAULT_RETRY handling. The primary motivation for
->> this series is to remove knowledge about mmap_sem locking from as many places a
->> possible so that we can change it with reasonable effort.
->>
->> The core of the series is the new helper get_vaddr_frames() which is given a
->> virtual address and it fills in PFNs / struct page pointers (depending on VMA
->> type) into the provided array. If PFNs correspond to normal pages it also grabs
->> references to these pages. The difference from get_user_pages() is that this
->> function can also deal with pfnmap, and io mappings which is what the media
->> drivers need.
->>
->> I have tested the patches with vivid driver so at least vb2 code got some
->> exposure. Conversion of other drivers was just compile-tested (for x86 so e.g.
->> exynos driver which is only for Samsung platform is completely untested).
->>
->> Andrew, can you please update the patches in mm three? Thanks!
->>
->> 								Honza
->>
->> Changes since v5:
->> * Moved mm helper into a separate file and behind a config option
->> * Changed the first patch pushing mmap_sem down in videobuf2 core to avoid
->>   possible deadlock
->>
->> Changes since v4:
->> * Minor cleanups and fixes pointed out by Mel and Vlasta
->> * Added Acked-by tags
->>
->> Changes since v3:
->> * Added include <linux/vmalloc.h> into mm/gup.c as it's needed for some archs
->> * Fixed error path for exynos driver
->>
->> Changes since v2:
->> * Renamed functions and structures as Mel suggested
->> * Other minor changes suggested by Mel
->> * Rebased on top of 4.1-rc2
->> * Changed functions to get pointer to array of pages / pfns to perform
->>   conversion if necessary. This fixes possible issue in the omap I may have
->>   introduced in v2 and generally makes the API less errorprone.
+>>> particular, this change disables SELinux checking of mprotect
+>>> PROT_EXEC on shared anonymous mappings, so we lose the ability to
+>>> control executable mappings.  That said, we are only getting that
+>>> check today as a side effect of our file execute check on the tmpfs
+>>> inode, whereas it would be better (and more consistent with the
+>>> mmap-time checks) to apply an execmem check in that case, in which
+>>> case we wouldn't care about the inode-based check.  However, I am
+>>> unclear on how to correctly detect that situation from
+>>> selinux_file_mprotect() -> file_map_prot_check(), because we do have a
+>>> non-NULL vma->vm_file so we treat it as a file execute check.  In
+>>> contrast, if directly creating an anonymous shared mapping with
+>>> PROT_EXEC via mmap(...PROT_EXEC...),  selinux_mmap_file is called with
+>>> a NULL file and therefore we end up applying an execmem check.
+> 
+> If you're willing to go forward with the change, rather than just call
+> for an immediate revert of it, then I think the right way to detect
+> the situation would be to check IS_PRIVATE(file_inode(vma->vm_file)),
+> wouldn't it?
+
+That seems misleading and might trigger execmem checks on non-shmem
+inodes.  S_PRIVATE was originally introduced for fs-internal inodes that
+are never directly exposed to userspace, originally for reiserfs xattr
+inodes (reiserfs xattrs are internally implemented as their own files
+that are hidden from userspace) and later also applied to anon inodes.
+It would be better if we had an explicit way of testing that we are
+dealing with an anonymous shared mapping in selinux_file_mprotect() ->
+file_map_prot_check().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
