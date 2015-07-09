@@ -1,78 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id ED1B26B0038
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 14:54:48 -0400 (EDT)
-Received: by wgxm20 with SMTP id m20so47847987wgx.3
-        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 11:54:48 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hf9si10649647wib.39.2015.07.09.11.54.46
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id CB4506B0038
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 17:03:55 -0400 (EDT)
+Received: by igcqs7 with SMTP id qs7so89052344igc.0
+        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 14:03:55 -0700 (PDT)
+Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com. [2607:f8b0:4001:c03::22b])
+        by mx.google.com with ESMTPS id 15si6323936ioo.98.2015.07.09.14.03.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 09 Jul 2015 11:54:47 -0700 (PDT)
-Date: Thu, 9 Jul 2015 20:54:41 +0200
-From: "Luis R. Rodriguez" <mcgrof@suse.com>
-Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
-Message-ID: <20150709185441.GE7021@wotan.suse.de>
-References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com>
- <20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Jul 2015 14:03:55 -0700 (PDT)
+Received: by iecvh10 with SMTP id vh10so184988315iec.3
+        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 14:03:55 -0700 (PDT)
+Date: Thu, 9 Jul 2015 14:03:53 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/4] oom: Do not panic when OOM killer is sysrq
+ triggered
+In-Reply-To: <20150709082304.GA13872@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1507091352150.17177@chino.kir.corp.google.com>
+References: <1436360661-31928-1-git-send-email-mhocko@suse.com> <1436360661-31928-2-git-send-email-mhocko@suse.com> <alpine.DEB.2.10.1507081635030.16585@chino.kir.corp.google.com> <20150709082304.GA13872@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: arnd@arndb.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, jgross@suse.com, x86@kernel.org, toshi.kani@hp.com, linux-nvdimm@lists.01.org, benh@kernel.crashing.org, konrad.wilk@oracle.com, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, mpe@ellerman.id.au, tj@kernel.org, paulus@samba.org, hch@lst.de
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jakob Unterwurzacher <jakobunt@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jun 22, 2015 at 04:24:27AM -0400, Dan Williams wrote:
-> diff --git a/include/asm-generic/iomap.h b/include/asm-generic/iomap.h
-> index d8f8622fa044..4789b1cec313 100644
-> --- a/include/asm-generic/iomap.h
-> +++ b/include/asm-generic/iomap.h
-> @@ -62,14 +62,6 @@ extern void __iomem *ioport_map(unsigned long port, unsigned int nr);
->  extern void ioport_unmap(void __iomem *);
->  #endif
->  
-> -#ifndef ARCH_HAS_IOREMAP_WC
-> -#define ioremap_wc ioremap_nocache
-> -#endif
-> -
-> -#ifndef ARCH_HAS_IOREMAP_WT
-> -#define ioremap_wt ioremap_nocache
-> -#endif
-> -
->  #ifdef CONFIG_PCI
->  /* Destroy a virtual mapping cookie for a PCI BAR (memory or IO) */
->  struct pci_dev;
+On Thu, 9 Jul 2015, Michal Hocko wrote:
 
-While at it we should also detangle ioremap() variants default implementations
-from requiring !CONFIG_MMU, so to be clear, if you have CONFIG_MMU you should
-implement ioremap() and iounmap(), then additionally if you have a way to
-support an ioremap_*() variant you should do so as well. You can
-include asm-generic/iomap.h to help complete ioremap_*() variants you may not
-have defined but note below.
+> > the titles were wrong for patches 2 and 3, but it doesn't mean we need to 
+> > add hacks around the code before organizing this into struct oom_control 
+> 
+> It is much easier to backport _fixes_ into older kernels (and yes I do
+> care about that) if they do not depend on other cleanups. So I do not
+> understand your point here. Besides that the cleanup really didn't make
+> much change to the actuall fix because one way or another you still have
+> to add a simple condition to rule out a heuristic/configuration which
+> doesn't apply to sysrq+f path.
+> 
+> So I am really lost in your argumentation here.
+> 
 
-***Big fat note**: this however assumes we have a *safe* general ioremap() to
-default to for all architectures but for a slew of reasons we cannot have this
-today and further discussion is needed to see if it may be possible one day. In
-the meantime we must then settle to advocate architecture developers to
-provide their own ioremap_*() variant implementations. We can do this two ways:
+This isn't a bugfix: sysrq+f has, at least for eight years, been able to 
+panic the kernel.  We're not fixing a bug, we're changing behavior.  It's 
+quite appropriate to reorganize code before a behavior change to make it 
+cleaner.
 
-  1) make new defaults return NULL - to avoid improper behaviour
-  2) revisit current default implementations on asm-generic for
-     ioremap_*() variants and vet that they are safe for each architecture
-     actually using them, if they are safe tuck under each arch its own
-     mapping. After all this then convert default to return NULL. This
-     will prevent future issues with other architectures.
-  3) long term: work towards the lofty objective of defining an architecturally
-     sane iorema_*() variant default. This can only be done once all the
-     semantics of all the others are well established.
+> > or completely pointless comments and printks that will fill the kernel 
+> > log.
+> 
+> Could you explain what is so pointless about a comment which clarifies
+> the fact which is not obviously visible from the current function?
+> 
 
-I'll provide a small demo patch with a very specific fix. We can either
-address this as separate work prior to your patchset or mesh this work
-together.
+It states the obvious, a kthread is not going to be oom killed for 
+oom_kill_allocating_task: it's not only current->mm, but also 
+oom_unkillable_task(), which quite explicitly checks for PF_KTHREAD.  I 
+don't think any reader of this code will assume a kthread is going to be 
+oom killed.
 
-  Luis
+> Also could you explain why the admin shouldn't get an information if
+> sysrq+f didn't kill anything because no eligible task has been found?
+
+The kernel log is the only notification mechanism that we have of the 
+kernel killing a process, we want to avoid spamming it unnecessarily.  The 
+kernel log is not the appropriate place for your debugging information 
+that would only specify that yes, out_of_memory() was called, but there 
+was nothing actionable, especially when that trigger can be constantly 
+invoked by userspace once panicking is no longer possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
