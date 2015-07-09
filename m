@@ -1,89 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id A43239003C7
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 17:30:49 -0400 (EDT)
-Received: by iggp10 with SMTP id p10so23137048igg.0
-        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 14:30:49 -0700 (PDT)
-Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com. [2607:f8b0:4001:c05::235])
-        by mx.google.com with ESMTPS id mp20si6559906icb.12.2015.07.09.14.30.49
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id E007B6B0038
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 17:53:30 -0400 (EDT)
+Received: by igcqs7 with SMTP id qs7so209965igc.0
+        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 14:53:30 -0700 (PDT)
+Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com. [2607:f8b0:4001:c05::22b])
+        by mx.google.com with ESMTPS id xp6si6564448icb.51.2015.07.09.14.53.30
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Jul 2015 14:30:49 -0700 (PDT)
-Received: by igrv9 with SMTP id v9so233243936igr.1
-        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 14:30:49 -0700 (PDT)
-Date: Thu, 9 Jul 2015 14:30:47 -0700 (PDT)
+        Thu, 09 Jul 2015 14:53:30 -0700 (PDT)
+Received: by iggp10 with SMTP id p10so23473837igg.0
+        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 14:53:30 -0700 (PDT)
+Date: Thu, 9 Jul 2015 14:53:27 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v3 3/3] mm, oom: do not panic for oom kills triggered
- from sysrq
-In-Reply-To: <02e601d0b9fd$d644ec50$82cec4f0$@alibaba-inc.com>
-Message-ID: <alpine.DEB.2.10.1507091428340.17177@chino.kir.corp.google.com>
-References: <02e601d0b9fd$d644ec50$82cec4f0$@alibaba-inc.com>
+Subject: Re: [RFC 1/4] mm, compaction: introduce kcompactd
+In-Reply-To: <1435826795-13777-2-git-send-email-vbabka@suse.cz>
+Message-ID: <alpine.DEB.2.10.1507091439100.17177@chino.kir.corp.google.com>
+References: <1435826795-13777-1-git-send-email-vbabka@suse.cz> <1435826795-13777-2-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, 9 Jul 2015, Hillf Danton wrote:
+On Thu, 2 Jul 2015, Vlastimil Babka wrote:
 
-> > diff --git a/Documentation/sysrq.txt b/Documentation/sysrq.txt
-> > --- a/Documentation/sysrq.txt
-> > +++ b/Documentation/sysrq.txt
-> > @@ -75,7 +75,8 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
-> > 
-> >  'e'     - Send a SIGTERM to all processes, except for init.
-> > 
-> > -'f'	- Will call oom_kill to kill a memory hog process.
-> > +'f'	- Will call the oom killer to kill a memory hog process, but do not
-> > +	  panic if nothing can be killed.
-> > 
-> >  'g'	- Used by kgdb (kernel debugger)
-> > 
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -607,6 +607,9 @@ void check_panic_on_oom(struct oom_control *oc, enum oom_constraint constraint,
-> >  		if (constraint != CONSTRAINT_NONE)
-> >  			return;
-> >  	}
-> > +	/* Do not panic for oom kills triggered by sysrq */
-> > +	if (oc->order == -1)
-> > +		return;
-> >  	dump_header(oc, NULL, memcg);
-> >  	panic("Out of memory: %s panic_on_oom is enabled\n",
-> >  		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
-> > @@ -686,11 +689,11 @@ bool out_of_memory(struct oom_control *oc)
-> > 
-> >  	p = select_bad_process(oc, &points, totalpages);
-> >  	/* Found nothing?!?! Either we hang forever, or we panic. */
-> > -	if (!p) {
-> > +	if (!p && oc->order != -1) {
-> >  		dump_header(oc, NULL, NULL);
-> >  		panic("Out of memory and no killable processes...\n");
-> >  	}
+> Memory compaction can be currently performed in several contexts:
 > 
-> Given sysctl_panic_on_oom checked, AFAICU there seems
-> no chance for panic, no matter -1 or not.
+> - kswapd balancing a zone after a high-order allocation failure
+> - direct compaction to satisfy a high-order allocation, including THP page
+>   fault attemps
+> - khugepaged trying to collapse a hugepage
+> - manually from /proc
+> 
+> The purpose of compaction is two-fold. The obvious purpose is to satisfy a
+> (pending or future) high-order allocation, and is easy to evaluate. The other
+> purpose is to keep overal memory fragmentation low and help the
+> anti-fragmentation mechanism. The success wrt the latter purpose is more
+> difficult to evaluate.
+> 
+> The current situation wrt the purposes has a few drawbacks:
+> 
+> - compaction is invoked only when a high-order page or hugepage is not
+>   available (or manually). This might be too late for the purposes of keeping
+>   memory fragmentation low.
+> - direct compaction increases latency of allocations. Again, it would be
+>   better if compaction was performed asynchronously to keep fragmentation low,
+>   before the allocation itself comes.
+> - (a special case of the previous) the cost of compaction during THP page
+>   faults can easily offset the benefits of THP.
+> 
+> To improve the situation, we need an equivalent of kswapd, but for compaction.
+> E.g. a background thread which responds to fragmentation and the need for
+> high-order allocations (including hugepages) somewhat proactively.
+> 
+> One possibility is to extend the responsibilities of kswapd, which could
+> however complicate its design too much. It should be better to let kswapd
+> handle reclaim, as order-0 allocations are often more critical than high-order
+> ones.
+> 
+> Another possibility is to extend khugepaged, but this kthread is a single
+> instance and tied to THP configs.
+> 
+> This patch goes with the option of a new set of per-node kthreads called
+> kcompactd, and lays the foundations. The lifecycle mimics kswapd kthreads.
+> 
+> The work loop of kcompactd currently mimics an pageblock-order direct
+> compaction attempt each 15 seconds. This might not be enough to keep
+> fragmentation low, and needs evaluation.
+> 
+> When there's not enough free memory for compaction, kswapd is woken up for
+> reclaim only (not compaction/reclaim).
+> 
+> Further patches will add the ability to wake up kcompactd on demand in special
+> situations such as when hugepages are not available, or when a fragmentation
+> event occured.
 > 
 
-I'm not sure I understand your point.
+Thanks for looking at this again.
 
-There are two oom killer panics: when panic_on_oom is enabled and when the 
-oom killer can't find an eligible process.
+The code is certainly clean and the responsibilities vs kswapd and 
+khugepaged are clearly defined, but I'm not sure how receptive others 
+would be of another per-node kthread.
 
-The change to the panic_on_oom panic is dealt with in check_panic_on_oom() 
-and the no eligible process panic is dealt with here.
+Khugepaged benefits from the periodic memory compaction being done 
+immediately before it attempts to compact memory, and that may be lost 
+with a de-coupled approach like this.
 
-If the sysctl is disabled, and there are no eligible processes to kill, 
-the change in behavior here is that we don't panic when triggered from 
-sysrq.  That's the change in the hunk above.
+Initially, I suggested implementing this inside khugepaged for that 
+purpose, and the full compaction could be done on the next 
+scan_sleep_millisecs wakeup before allocating a hugepage and when 
+kcompactd_sleep_millisecs would have expired.  So the true period between 
+memory compaction events could actually be
+kcompactd_sleep_millisecs - scan_sleep_millisecs.
 
-> > -	if (p != (void *)-1UL) {
-> > +	if (p && p != (void *)-1UL) {
-> >  		oom_kill_process(oc, p, points, totalpages, NULL,
-> >  				 "Out of memory");
-> >  		killed = 1;
+You bring up an interesting point, though, about non-hugepage uses of 
+memory compaction and its effect on keeping fragmentation low.  I'm not 
+sure of any reports of that actually being an issue in the wild?
+
+I know that the networking layer has done work recently to reduce page 
+allocator latency for high-order allocations that can easily fallback to 
+order-0 memory: see commit fb05e7a89f50 ("net: don't wait for order-3 page 
+allocation").
+
+The slub allocator does try to allocate its high-order memory with 
+__GFP_WAIT before falling back to lower orders if possible.  I would think 
+that this would be the greatest sign of on-demand memory compaction being 
+a problem, especially since CONFIG_SLUB is the default, but I haven't seen 
+such reports.
+
+So I'm inclined to think that the current trouble spot for memory 
+compaction is thp allocations.  I may live to find differently :)
+
+How would you feel about implementing this as part of the khugepaged loop 
+before allocating a hugepage and scanning memory?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
