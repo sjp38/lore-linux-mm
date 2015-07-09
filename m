@@ -1,104 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id AD13E6B0038
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 14:46:37 -0400 (EDT)
-Received: by qgep37 with SMTP id p37so27222977qge.1
-        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 11:46:37 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com ([23.79.238.175])
-        by mx.google.com with ESMTP id g196si7607079qhc.80.2015.07.09.11.46.36
-        for <linux-mm@kvack.org>;
-        Thu, 09 Jul 2015 11:46:36 -0700 (PDT)
-Date: Thu, 9 Jul 2015 14:46:35 -0400
-From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [PATCH V3 3/5] mm: mlock: Introduce VM_LOCKONFAULT and add mlock
- flags to enable it
-Message-ID: <20150709184635.GE4669@akamai.com>
-References: <1436288623-13007-1-git-send-email-emunson@akamai.com>
- <1436288623-13007-4-git-send-email-emunson@akamai.com>
- <20150708132351.61c13db6@lwn.net>
- <20150708203456.GC4669@akamai.com>
- <20150708151750.75e65859@lwn.net>
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id ED1B26B0038
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 14:54:48 -0400 (EDT)
+Received: by wgxm20 with SMTP id m20so47847987wgx.3
+        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 11:54:48 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id hf9si10649647wib.39.2015.07.09.11.54.46
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 09 Jul 2015 11:54:47 -0700 (PDT)
+Date: Thu, 9 Jul 2015 20:54:41 +0200
+From: "Luis R. Rodriguez" <mcgrof@suse.com>
+Subject: Re: [PATCH v5 2/6] arch: unify ioremap prototypes and macro aliases
+Message-ID: <20150709185441.GE7021@wotan.suse.de>
+References: <20150622081028.35954.89885.stgit@dwillia2-desk3.jf.intel.com>
+ <20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="d8Lz2Tf5e5STOWUP"
-Content-Disposition: inline
-In-Reply-To: <20150708151750.75e65859@lwn.net>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
-
-
---d8Lz2Tf5e5STOWUP
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20150622082427.35954.73529.stgit@dwillia2-desk3.jf.intel.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: arnd@arndb.de, mingo@redhat.com, bp@alien8.de, hpa@zytor.com, tglx@linutronix.de, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, jgross@suse.com, x86@kernel.org, toshi.kani@hp.com, linux-nvdimm@lists.01.org, benh@kernel.crashing.org, konrad.wilk@oracle.com, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, linux-mm@kvack.org, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, mpe@ellerman.id.au, tj@kernel.org, paulus@samba.org, hch@lst.de
 
-On Wed, 08 Jul 2015, Jonathan Corbet wrote:
+On Mon, Jun 22, 2015 at 04:24:27AM -0400, Dan Williams wrote:
+> diff --git a/include/asm-generic/iomap.h b/include/asm-generic/iomap.h
+> index d8f8622fa044..4789b1cec313 100644
+> --- a/include/asm-generic/iomap.h
+> +++ b/include/asm-generic/iomap.h
+> @@ -62,14 +62,6 @@ extern void __iomem *ioport_map(unsigned long port, unsigned int nr);
+>  extern void ioport_unmap(void __iomem *);
+>  #endif
+>  
+> -#ifndef ARCH_HAS_IOREMAP_WC
+> -#define ioremap_wc ioremap_nocache
+> -#endif
+> -
+> -#ifndef ARCH_HAS_IOREMAP_WT
+> -#define ioremap_wt ioremap_nocache
+> -#endif
+> -
+>  #ifdef CONFIG_PCI
+>  /* Destroy a virtual mapping cookie for a PCI BAR (memory or IO) */
+>  struct pci_dev;
 
-> On Wed, 8 Jul 2015 16:34:56 -0400
-> Eric B Munson <emunson@akamai.com> wrote:
->=20
-> > > Quick, possibly dumb question: I've been beating my head against thes=
-e for
-> > > a little bit, and I can't figure out what's supposed to happen in this
-> > > case:
-> > >=20
-> > > 	mlock2(addr, len, MLOCK_ONFAULT);
-> > > 	munlock2(addr, len, MLOCK_LOCKED);
-> > >=20
-> > > It looks to me like it will clear VM_LOCKED without actually unlockin=
-g any
-> > > pages.  Is that the intended result? =20
-> >=20
-> > This is not quite right, what happens when you call munlock2(addr, len,
-> > MLOCK_LOCKED); is we call apply_vma_flags(addr, len, VM_LOCKED, false).
->=20
-> From your explanation, it looks like what I said *was* right...what I was
-> missing was the fact that VM_LOCKED isn't set in the first place.  So that
-> call would be a no-op, clearing a flag that's already cleared.
+While at it we should also detangle ioremap() variants default implementations
+from requiring !CONFIG_MMU, so to be clear, if you have CONFIG_MMU you should
+implement ioremap() and iounmap(), then additionally if you have a way to
+support an ioremap_*() variant you should do so as well. You can
+include asm-generic/iomap.h to help complete ioremap_*() variants you may not
+have defined but note below.
 
-Sorry, I misread the original.  You are correct with the addition that
-the call to munlock2(MLOCK_LOCKED) is a noop in this case.
+***Big fat note**: this however assumes we have a *safe* general ioremap() to
+default to for all architectures but for a slew of reasons we cannot have this
+today and further discussion is needed to see if it may be possible one day. In
+the meantime we must then settle to advocate architecture developers to
+provide their own ioremap_*() variant implementations. We can do this two ways:
 
->=20
-> One other question...if I call mlock2(MLOCK_ONFAULT) on a range that
-> already has resident pages, I believe that those pages will not be locked
-> until they are reclaimed and faulted back in again, right?  I suspect that
-> could be surprising to users.
+  1) make new defaults return NULL - to avoid improper behaviour
+  2) revisit current default implementations on asm-generic for
+     ioremap_*() variants and vet that they are safe for each architecture
+     actually using them, if they are safe tuck under each arch its own
+     mapping. After all this then convert default to return NULL. This
+     will prevent future issues with other architectures.
+  3) long term: work towards the lofty objective of defining an architecturally
+     sane iorema_*() variant default. This can only be done once all the
+     semantics of all the others are well established.
 
-That is the case.  I am looking into what it would take to find only the
-present pages in a range and lock them, if that is the behavior that is
-preferred I can include it in the updated series.
+I'll provide a small demo patch with a very specific fix. We can either
+address this as separate work prior to your patchset or mesh this work
+together.
 
->=20
-> Thanks,
->=20
-> jon
-
---d8Lz2Tf5e5STOWUP
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQIcBAEBAgAGBQJVnsGLAAoJELbVsDOpoOa9fD4P+wfJut0yfq/Eut90zuluJASG
-y2/MKnGXk/YAwdE9jVyUs/if3S6y9E+nzr9h10jjiAzl7Ek3fbjvGQGtSJee0nxv
-xprvjrX8StCUyubIAdvuvBDAQ2uruWlWPt0/WYlTppmm3Ws7sXk6Rc9uyAaYvO8k
-cb/3b2hDUz4X3buHx7rbontLHI+PkJyOMC0wwhlgc/TnIyGAOINbxf4jYR9MTOP1
-OjpudgitD2855bIJVi9VnOkbG7tvRqJA5azlVkcwlUBqezjSKz5K+NANc4zL5xQ1
-uBN9QJXvbiGBzpKXSjmCgtQYRpUq5fN4hZOjq3lo6nill+E+F6eL415ON/5mpRvR
-8JeYOUZt/Gua6W0fxLTscnp3E5cpu4oUrzY43J9jJ5HA34s0W8mj/ssey/lDxUo/
-LzoeORqwByyNuESJHtHSYJUB24FDQeQJ1cjMLqoZmpyjlFnUoVgzFox+jdtwZ80P
-3LMoWN7h6NyQ6GtQDHF1033vsxAHBQ04x96kch9Ztx3BGoWVZoXO1Lsr6X6EHCIV
-DmQW1k8HPLsUbkXtOlGR36opxF1fbdBzAyN7V8rWXnNFiyDCl/ImUtEVKQ/VPp9k
-T2FjdgDFkTetH6KHVOztE1Ya08wHX4Yy/qxxFH1sPMfVIHFUE7ATTP+00Oc30E32
-vBEzC6L/dMQNWWAIbaEJ
-=CLFc
------END PGP SIGNATURE-----
-
---d8Lz2Tf5e5STOWUP--
+  Luis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
