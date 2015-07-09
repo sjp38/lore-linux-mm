@@ -1,65 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 47FFB6B0038
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 10:33:05 -0400 (EDT)
-Received: by oiyy130 with SMTP id y130so190574718oiy.0
-        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 07:33:05 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id bm1si9506653pbd.212.2015.07.09.07.33.03
+Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 13F276B0038
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 10:45:34 -0400 (EDT)
+Received: by qkhu186 with SMTP id u186so187407505qkh.0
+        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 07:45:33 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w65si7025389qgw.115.2015.07.09.07.45.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Jul 2015 07:33:03 -0700 (PDT)
-Date: Thu, 9 Jul 2015 17:32:47 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH 8/8] memcg: get rid of mem_cgroup_from_task
-Message-ID: <20150709143246.GL2436@esperanza>
-References: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
- <1436358472-29137-9-git-send-email-mhocko@kernel.org>
- <20150708174331.GH2436@esperanza>
- <20150709141320.GH13872@dhcp22.suse.cz>
+        Thu, 09 Jul 2015 07:45:33 -0700 (PDT)
+Date: Thu, 9 Jul 2015 10:45:30 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH 2/7] mm: introduce kvmalloc and kvmalloc_node
+In-Reply-To: <20150708161815.bdff609d77868dbdc2e1ce64@linux-foundation.org>
+Message-ID: <alpine.LRH.2.02.1507091039440.30842@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1507071058350.23387@file01.intranet.prod.int.rdu2.redhat.com> <alpine.LRH.2.02.1507071109490.23387@file01.intranet.prod.int.rdu2.redhat.com> <20150707144117.5b38ac38efda238af8a1f536@linux-foundation.org>
+ <alpine.LRH.2.02.1507081855340.32526@file01.intranet.prod.int.rdu2.redhat.com> <20150708161815.bdff609d77868dbdc2e1ce64@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20150709141320.GH13872@dhcp22.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mike Snitzer <msnitzer@redhat.com>, "Alasdair G. Kergon" <agk@redhat.com>, Edward Thornber <thornber@redhat.com>, David Rientjes <rientjes@google.com>, Vivek Goyal <vgoyal@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dm-devel@redhat.com, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Thu, Jul 09, 2015 at 04:13:21PM +0200, Michal Hocko wrote:
-> On Wed 08-07-15 20:43:31, Vladimir Davydov wrote:
-> > On Wed, Jul 08, 2015 at 02:27:52PM +0200, Michal Hocko wrote:
-> [...]
-> > > @@ -1091,12 +1079,14 @@ bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg)
-> > >  		task_unlock(p);
-> > >  	} else {
-> > >  		/*
-> > > -		 * All threads may have already detached their mm's, but the oom
-> > > -		 * killer still needs to detect if they have already been oom
-> > > -		 * killed to prevent needlessly killing additional tasks.
-> > > +		 * All threads have already detached their mm's but we should
-> > > +		 * still be able to at least guess the original memcg from the
-> > > +		 * task_css. These two will match most of the time but there are
-> > > +		 * corner cases where task->mm and task_css refer to a different
-> > > +		 * cgroups.
-> > >  		 */
-> > >  		rcu_read_lock();
-> > > -		task_memcg = mem_cgroup_from_task(task);
-> > > +		task_memcg = mem_cgroup_from_css(task_css(task, memory_cgrp_id));
-> > >  		css_get(&task_memcg->css);
-> > 
-> > I wonder why it's safe to call css_get here.
+
+
+On Wed, 8 Jul 2015, Andrew Morton wrote:
+
+> On Wed, 8 Jul 2015 19:03:08 -0400 (EDT) Mikulas Patocka <mpatocka@redhat.com> wrote:
 > 
-> What do you mean by safe? Memcg cannot go away because we are under rcu
-> lock.
+> > 
+> > 
+> > On Tue, 7 Jul 2015, Andrew Morton wrote:
+> > 
+> > > On Tue, 7 Jul 2015 11:10:09 -0400 (EDT) Mikulas Patocka <mpatocka@redhat.com> wrote:
+> > > 
+> > > > Introduce the functions kvmalloc and kvmalloc_node. These functions
+> > > > provide reliable allocation of object of arbitrary size. They attempt to
+> > > > do allocation with kmalloc and if it fails, use vmalloc. Memory allocated
+> > > > with these functions should be freed with kvfree.
+> > > 
+> > > Sigh.  We've resisted doing this because vmalloc() is somewhat of a bad
+> > > thing, and we don't want to make it easy for people to do bad things.
+> > > 
+> > > And vmalloc is bad because a) it's slow and b) it does GFP_KERNEL
+> > > allocations for page tables and c) it is susceptible to arena
+> > > fragmentation.
+> > 
+> > This patch makes less use of vmalloc.
+> > 
+> > The typical pattern is that someone notices random failures due to memory 
+> > fragmentation in some subsystem that uses large kmalloc - so he replaces 
+> > kmalloc with vmalloc - and the code gets slower because of that. With this 
+> > patch, you can replace many vmalloc users with kvmalloc - and vmalloc will 
+> > be used only very rarely, when the memory is too fragmented for kmalloc.
+> 
+> Yes, I guess there is that.
+> 
+> > Here I'm sending next version of the patch with comments added.
+> 
+> You didn't like kvzalloc()?  We can always add those later...
+> 
+> > --- linux-4.2-rc1.orig/include/linux/mm.h	2015-07-07 15:58:11.000000000 +0200
+> > +++ linux-4.2-rc1/include/linux/mm.h	2015-07-08 19:22:24.000000000 +0200
+> > @@ -400,6 +400,11 @@ static inline int is_vmalloc_or_module_a
+> >  }
+> >  #endif
+> >  
+> > +extern void *kvmalloc_node(size_t size, gfp_t gfp, int node);
+> > +static inline void *kvmalloc(size_t size, gfp_t gfp)
+> > +{
+> > +	return kvmalloc_node(size, gfp, NUMA_NO_NODE);
+> > +}
+> >  extern void kvfree(const void *addr);
+> >  
+> >  static inline void compound_lock(struct page *page)
+> > Index: linux-4.2-rc1/mm/util.c
+> > ===================================================================
+> > --- linux-4.2-rc1.orig/mm/util.c	2015-07-07 15:58:11.000000000 +0200
+> > +++ linux-4.2-rc1/mm/util.c	2015-07-08 19:22:26.000000000 +0200
+> > @@ -316,6 +316,61 @@ unsigned long vm_mmap(struct file *file,
+> >  }
+> >  EXPORT_SYMBOL(vm_mmap);
+> >  
+> > +void *kvmalloc_node(size_t size, gfp_t gfp, int node)
+> > +{
+> > +	void *p;
+> > +	unsigned uninitialized_var(noio_flag);
+> > +
+> > +	/* vmalloc doesn't support no-wait allocations */
+> > +	WARN_ON_ONCE(!(gfp & __GFP_WAIT));
+> > +
+> > +	if (likely(size <= KMALLOC_MAX_SIZE)) {
+> > +		/*
+> > +		 * Use __GFP_NORETRY so that we don't loop waiting for the
+> > +		 *	allocation - we don't have to loop here, if the memory
+> > +		 *	is too fragmented, we fallback to vmalloc.
+> 
+> I'm not sure about this decision.  The direct reclaim retry code is the
+> normal default behaviour and becomes more important with larger allocation
+> attempts.  So why turn it off, and make it more likely that we return
+> vmalloc memory?
 
-No, it can't, but css->refcnt can reach zero while we are here, can't
-it? If it happens, css->refcnt.release will be called twice, which will
-have very bad consequences. I think it's OK to call css_tryget{_online}
-from an RCU read-side section, but not css_get. Am I missing something?
+It can avoid triggering the OOM killer in case of fragmented memory.
 
-Thanks,
-Vladimir
+This is general question - if the code can handle allocation failure 
+gracefully, what gfp flags should it use? Maybe add some flag 
+__GFP_MAYFAIL instead of __GFP_NORETRY that changes the behavior in 
+desired way?
+
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
