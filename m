@@ -1,114 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id CA0AC6B0253
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 21:00:40 -0400 (EDT)
-Received: by qget71 with SMTP id t71so108776223qge.2
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 18:00:40 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 132si4862839qhx.34.2015.07.08.18.00.39
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id BE96B6B0038
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2015 21:25:38 -0400 (EDT)
+Received: by pddu5 with SMTP id u5so67733625pdd.3
+        for <linux-mm@kvack.org>; Wed, 08 Jul 2015 18:25:38 -0700 (PDT)
+Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com. [122.248.162.4])
+        by mx.google.com with ESMTPS id kl10si6533284pbd.72.2015.07.08.18.25.36
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jul 2015 18:00:40 -0700 (PDT)
-Date: Wed, 8 Jul 2015 21:00:29 -0400
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [RFCv3 0/5] enable migration of driver pages
-Message-ID: <20150709010028.GA25264@t510.redhat.com>
-References: <1436243785-24105-1-git-send-email-gioh.kim@lge.com>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Wed, 08 Jul 2015 18:25:37 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
+	Thu, 9 Jul 2015 06:55:32 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 44AA0E0054
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 06:59:20 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay02.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t691PTdX61997140
+	for <linux-mm@kvack.org>; Thu, 9 Jul 2015 06:55:29 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t691PSJ9009959
+	for <linux-mm@kvack.org>; Thu, 9 Jul 2015 06:55:29 +0530
+Date: Thu, 9 Jul 2015 09:25:27 +0800
+From: Wei Yang <weiyang@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/memblock: WARN_ON when nid differs from overlap region
+Message-ID: <20150709012527.GA5958@richard>
+Reply-To: Wei Yang <weiyang@linux.vnet.ibm.com>
+References: <1436342488-19851-1-git-send-email-weiyang@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1507081750240.16585@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1436243785-24105-1-git-send-email-gioh.kim@lge.com>
+In-Reply-To: <alpine.DEB.2.10.1507081750240.16585@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>
-Cc: jlayton@poochiereds.net, bfields@fieldses.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, viro@zeniv.linux.org.uk, mst@redhat.com, koct9i@gmail.com, minchan@kernel.org, linux-fsdevel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, gunho.lee@lge.com, akpm@linux-foundation.org, Gioh Kim <gurugio@hanmail.net>
+To: David Rientjes <rientjes@google.com>
+Cc: Wei Yang <weiyang@linux.vnet.ibm.com>, akpm@linux-foundation.org, tj@kernel.org, linux-mm@kvack.org
 
-On Tue, Jul 07, 2015 at 01:36:20PM +0900, Gioh Kim wrote:
-> From: Gioh Kim <gurugio@hanmail.net>
-> 
-> Hello,
-> 
-> This series try to enable migration of non-LRU pages, such as driver's page.
-> 
-> My ARM-based platform occured severe fragmentation problem after long-term
-> (several days) test. Sometimes even order-3 page allocation failed. It has
-> memory size 512MB ~ 1024MB. 30% ~ 40% memory is consumed for graphic processing
-> and 20~30 memory is reserved for zram.
-> 
-> I found that many pages of GPU driver and zram are non-movable pages. So I
-> reported Minchan Kim, the maintainer of zram, and he made the internal 
-> compaction logic of zram. And I made the internal compaction of GPU driver.
-> 
-> They reduced some fragmentation but they are not enough effective.
-> They are activated by its own interface, /sys, so they are not cooperative
-> with kernel compaction. If there is too much fragmentation and kernel starts
-> to compaction, zram and GPU driver cannot work with the kernel compaction.
-> 
-> This patch set combines 5 patches.
-> 
-> 1. patch 1/5: get inode from anon_inodes
-> This patch adds new interface to create inode from anon_inodes.
-> 
-> 2. patch 2/5: framework to isolate/migrate/putback page
-> Add isolatepage, putbackpage into address_space_operations
-> and wrapper function to call them
-> 
-> 3. patch 3/5: apply the framework into balloon driver
-> The balloon driver is applied into the framework. It gets a inode
-> from anon_inodes and register operations in the inode.
-> Any other drivers can register operations via inode like this
-> to migrate it's pages.
-> 
-> 4. patch 4/5: compaction/migration call the generic interfaces
-> Compaction and migration pages call the generic interfaces of the framework,
-> instead of calling balloon migration directly.
-> 
-> 5. patch 5/5: remove direct calling of migration of driver pages
-> Non-lru pages are migrated with lru pages by move_to_new_page().
-> 
-> This patch set is tested:
-> - turn on Ubuntu 14.04 with 1G memory on qemu.
-> - do kernel building
-> - after several seconds check more than 512MB is used with free command
-> - command "balloon 512" in qemu monitor
-> - check hundreds MB of pages are migrated
-> 
-> My thanks to Konstantin Khlebnikov for his reviews of the v2 patch set.
-> Most of the changes were based on his feedback.
-> 
-> Changes since v2:
-> - change the name of page type from migratable page into mobile page
-> - get and lock page to isolate page
-> - add wrapper interfaces for page->mapping->a_ops->isolate/putback
-> - leave balloon pages marked as balloon
-> 
-> This patch-set is based on v4.1
-> 
-> Gioh Kim (5):
->   fs/anon_inodes: new interface to create new inode
->   mm/compaction: enable mobile-page migration
->   mm/balloon: apply mobile page migratable into balloon
->   mm/compaction: call generic migration callbacks
->   mm: remove direct calling of migration
-> 
->  drivers/virtio/virtio_balloon.c        |  3 ++
->  fs/anon_inodes.c                       |  6 +++
->  fs/proc/page.c                         |  3 ++
->  include/linux/anon_inodes.h            |  1 +
->  include/linux/balloon_compaction.h     | 15 +++++--
->  include/linux/compaction.h             | 76 ++++++++++++++++++++++++++++++++++
->  include/linux/fs.h                     |  2 +
->  include/linux/page-flags.h             | 19 +++++++++
->  include/uapi/linux/kernel-page-flags.h |  1 +
->  mm/balloon_compaction.c                | 71 ++++++++++---------------------
->  mm/compaction.c                        |  8 ++--
->  mm/migrate.c                           | 24 +++--------
->  12 files changed, 154 insertions(+), 75 deletions(-)
-> 
-> -- 
-> 2.1.4
-> 
-Acked-by: Rafael Aquini <aquini@redhat.com>
+On Wed, Jul 08, 2015 at 05:54:18PM -0700, David Rientjes wrote:
+>On Wed, 8 Jul 2015, Wei Yang wrote:
+>
+>> Each memblock_region has nid to indicates the Node ID of this range. For
+>> the overlap case, memblock_add_range() inserts the lower part and leave the
+>> upper part as indicated in the overlapped region.
+>> 
+>> If the nid of the new range differs from the overlapped region, the
+>> information recorded is not correct.
+>> 
+>> This patch adds a WARN_ON when the nid of the new range differs from the
+>> overlapped region.
+>> 
+>> ---
+>> 
+>> I am not familiar with the lower level topology, maybe this case will not
+>> happen. 
+>> 
+>> If current implementation is based on the assumption, that overlapped
+>> ranges' nid and flags are the same, I would suggest to add a comment to
+>> indicates this background.
+>> 
+>> If the assumption is not correct, I suggest to add a WARN_ON or BUG_ON to
+>> indicates this case.
+>> 
+>> Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
+>> ---
+>>  mm/memblock.c |    3 +++
+>>  1 file changed, 3 insertions(+)
+>> 
+>> diff --git a/mm/memblock.c b/mm/memblock.c
+>> index 9318b56..09efe70 100644
+>> --- a/mm/memblock.c
+>> +++ b/mm/memblock.c
+>> @@ -540,6 +540,9 @@ repeat:
+>>  		 * area, insert that portion.
+>>  		 */
+>>  		if (rbase > base) {
+>> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+>> +			WARN_ON(nid != memblock_get_region_node(rgn));
+>> +#endif
+>>  			nr_new++;
+>>  			if (insert)
+>>  				memblock_insert_region(type, i++, base,
+>
+>I think the assertion that nid should match memblock_get_region_node() of 
+>the overlapped region is correct.  It only functionally makes a difference 
+>if insert == true, but I don't think there's harm in verifying it 
+>regardless.
+>
+>Acked-by: David Rientjes <rientjes@google.com>
+>
+>I think your supplemental to the changelog suggests that you haven't seen 
+>this actually occur, but in the off chance that you have then it would be 
+>interesting to see it.
+
+Hi David,
+
+Thanks for your comments.
+
+Yes, I don't see this actually occur. This is a guard to indicates if the
+lower level hardware is not functioning well.
+
+Also, as the supplemental in the change log mentioned, the flags of the
+overlapped region needs to be checked too. If you think this is proper, I
+would like to form a patch to have the assertion on the flags. 
+
+-- 
+Richard Yang
+Help you, Help me
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
