@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id DE7419003DA
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 13:43:21 -0400 (EDT)
-Received: by pdbep18 with SMTP id ep18so187904329pdb.1
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 10:43:21 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id ej13si15513843pdb.155.2015.07.10.10.43.16
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 693509003C7
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 13:47:40 -0400 (EDT)
+Received: by pdbqm3 with SMTP id qm3so43965643pdb.0
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 10:47:40 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id di10si15548480pdb.34.2015.07.10.10.42.35
         for <linux-mm@kvack.org>;
-        Fri, 10 Jul 2015 10:43:16 -0700 (PDT)
+        Fri, 10 Jul 2015 10:42:35 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 34/36] thp: introduce deferred_split_huge_page()
-Date: Fri, 10 Jul 2015 20:42:08 +0300
-Message-Id: <1436550130-112636-35-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 32/36] thp: reintroduce split_huge_page()
+Date: Fri, 10 Jul 2015 20:42:06 +0300
+Message-Id: <1436550130-112636-33-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,329 +19,487 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Currently we don't split huge page on partial unmap. It's not an ideal
-situation. It can lead to memory overhead.
+This patch adds implementation of split_huge_page() for new
+refcountings.
 
-Furtunately, we can detect partial unmap on page_remove_rmap(). But we
-cannot call split_huge_page() from there due to locking context.
+Unlike previous implementation, new split_huge_page() can fail if
+somebody holds GUP pin on the page. It also means that pin on page
+would prevent it from bening split under you. It makes situation in
+many places much cleaner.
 
-It's also counterproductive to do directly from munmap() codepath: in
-many cases we will hit this from exit(2) and splitting the huge page
-just to free it up in small pages is not what we really want.
+The basic scheme of split_huge_page():
 
-The patch introduce deferred_split_huge_page() which put the huge page
-into queue for splitting. The splitting itself will happen when we get
-memory pressure via shrinker interface. The page will be dropped from
-list on freeing through compound page destructor.
+  - Check that sum of mapcounts of all subpage is equal to page_count()
+    plus one (caller pin). Foll off with -EBUSY. This way we can avoid
+    useless PMD-splits.
+
+  - Freeze the page counters by splitting all PMD and setup migration
+    PTEs.
+
+  - Re-check sum of mapcounts against page_count(). Page's counts are
+    stable now. -EBUSY if page is pinned.
+
+  - Split compound page.
+
+  - Unfreeze the page by removing migration entries.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Tested-by: Sasha Levin <sasha.levin@oracle.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- include/linux/huge_mm.h |   4 ++
- include/linux/mm.h      |   2 +
- mm/huge_memory.c        | 127 ++++++++++++++++++++++++++++++++++++++++++++++--
- mm/migrate.c            |   1 +
- mm/page_alloc.c         |   2 +-
- mm/rmap.c               |   7 ++-
- 6 files changed, 138 insertions(+), 5 deletions(-)
+ include/linux/huge_mm.h |   7 +-
+ include/linux/pagemap.h |  13 +-
+ mm/huge_memory.c        | 318 ++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/internal.h           |  26 +++-
+ mm/rmap.c               |  21 ----
+ 5 files changed, 357 insertions(+), 28 deletions(-)
 
 diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 89981a042d85..c1cca36c73db 100644
+index 9cfce23ab9d0..89981a042d85 100644
 --- a/include/linux/huge_mm.h
 +++ b/include/linux/huge_mm.h
-@@ -92,11 +92,14 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+@@ -92,8 +92,11 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
  
  extern unsigned long transparent_hugepage_flags;
  
-+extern void prep_transhuge_page(struct page *page);
-+
- int split_huge_page_to_list(struct page *page, struct list_head *list);
- static inline int split_huge_page(struct page *page)
- {
- 	return split_huge_page_to_list(page, NULL);
- }
-+void deferred_split_huge_page(struct page *page);
+-#define split_huge_page_to_list(page, list) BUILD_BUG()
+-#define split_huge_page(page) BUILD_BUG()
++int split_huge_page_to_list(struct page *page, struct list_head *list);
++static inline int split_huge_page(struct page *page)
++{
++	return split_huge_page_to_list(page, NULL);
++}
  
  void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
  		unsigned long address);
-@@ -174,6 +177,7 @@ static inline int split_huge_page(struct page *page)
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 4779de5ed499..3f0da5cd8cca 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -387,10 +387,21 @@ static inline struct page *read_mapping_page(struct address_space *mapping,
+  */
+ static inline pgoff_t page_to_pgoff(struct page *page)
  {
- 	return 0;
- }
-+static inline void deferred_split_huge_page(struct page *page) {}
- #define split_huge_pmd(__vma, __pmd, __address)	\
- 	do { } while (0)
- static inline int hugepage_madvise(struct vm_area_struct *vma,
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0a30485c2e61..e50e6479b78e 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -523,6 +523,8 @@ static inline void set_compound_order(struct page *page, unsigned long order)
- 	page[1].compound_order = order;
++	pgoff_t pgoff;
++
+ 	if (unlikely(PageHeadHuge(page)))
+ 		return page->index << compound_order(page);
+-	else
++
++	if (likely(!PageTransTail(page)))
+ 		return page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
++
++	/*
++	 *  We don't initialize ->index for tail pages: calculate based on
++	 *  head page
++	 */
++	pgoff = page->first_page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
++	pgoff += page - page->first_page;
++	return pgoff;
  }
  
-+void free_compound_page(struct page *page);
-+
- #ifdef CONFIG_MMU
  /*
-  * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 5df1b76837c7..54030e5de674 100644
+index affbabaf31bd..5df1b76837c7 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -71,6 +71,8 @@ static int khugepaged(void *none);
- static int khugepaged_slab_init(void);
- static void khugepaged_slab_exit(void);
- 
-+static void free_transhuge_page(struct page *page);
-+
- #define MM_SLOTS_HASH_BITS 10
- static __read_mostly DEFINE_HASHTABLE(mm_slots_hash, MM_SLOTS_HASH_BITS);
- 
-@@ -105,6 +107,10 @@ static struct khugepaged_scan khugepaged_scan = {
- 	.mm_head = LIST_HEAD_INIT(khugepaged_scan.mm_head),
- };
- 
-+static DEFINE_SPINLOCK(split_queue_lock);
-+static LIST_HEAD(split_queue);
-+static unsigned long split_queue_len;
-+static struct shrinker deferred_split_shrinker;
- 
- static int set_recommended_min_free_kbytes(void)
- {
-@@ -643,6 +649,9 @@ static int __init hugepage_init(void)
- 	err = register_shrinker(&huge_zero_page_shrinker);
- 	if (err)
- 		goto err_hzp_shrinker;
-+	err = register_shrinker(&deferred_split_shrinker);
-+	if (err)
-+		goto err_split_shrinker;
- 
- 	/*
- 	 * By default disable transparent hugepages on smaller systems,
-@@ -660,6 +669,8 @@ static int __init hugepage_init(void)
- 
- 	return 0;
- err_khugepaged:
-+	unregister_shrinker(&deferred_split_shrinker);
-+err_split_shrinker:
- 	unregister_shrinker(&huge_zero_page_shrinker);
- err_hzp_shrinker:
- 	khugepaged_slab_exit();
-@@ -716,6 +727,19 @@ static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
- 	return entry;
+@@ -2749,3 +2749,321 @@ void __vma_adjust_trans_huge(struct vm_area_struct *vma,
+ 			split_huge_pmd_address(next, nstart);
+ 	}
  }
- 
-+void prep_transhuge_page(struct page *page)
-+{
-+	/* we use page->lru in second tail page: assuming THP order >= 2 */
-+	BUILD_BUG_ON(HPAGE_PMD_ORDER < 2);
 +
-+	/*
-+	 *  ->lru in the first tail page is occupied by destructor
-+	 *  and order of the compound page
-+	 */
-+	INIT_LIST_HEAD(&page[2].lru);
-+	set_compound_page_dtor(page, free_transhuge_page);
++static void freeze_page_vma(struct vm_area_struct *vma, struct page *page,
++		unsigned long address)
++{
++	spinlock_t *ptl;
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++	pte_t *pte;
++	int i;
++
++	pgd = pgd_offset(vma->vm_mm, address);
++	if (!pgd_present(*pgd))
++		return;
++	pud = pud_offset(pgd, address);
++	if (!pud_present(*pud))
++		return;
++	pmd = pmd_offset(pud, address);
++	ptl = pmd_lock(vma->vm_mm, pmd);
++	if (!pmd_present(*pmd)) {
++		spin_unlock(ptl);
++		return;
++	}
++	if (pmd_trans_huge(*pmd)) {
++		if (page == pmd_page(*pmd))
++			__split_huge_pmd_locked(vma, pmd, address, true);
++		spin_unlock(ptl);
++		return;
++	}
++	spin_unlock(ptl);
++
++	pte = pte_offset_map_lock(vma->vm_mm, pmd, address, &ptl);
++	for (i = 0; i < HPAGE_PMD_NR; i++, address += PAGE_SIZE, page++) {
++		pte_t entry, swp_pte;
++		swp_entry_t swp_entry;
++
++		if (!pte_present(pte[i]))
++			continue;
++		if (page_to_pfn(page) != pte_pfn(pte[i]))
++			continue;
++		flush_cache_page(vma, address, page_to_pfn(page));
++		entry = ptep_clear_flush(vma, address, pte + i);
++		swp_entry = make_migration_entry(page, pte_write(entry));
++		swp_pte = swp_entry_to_pte(swp_entry);
++		if (pte_soft_dirty(entry))
++			swp_pte = pte_swp_mksoft_dirty(swp_pte);
++		set_pte_at(vma->vm_mm, address, pte + i, swp_pte);
++	}
++	pte_unmap_unlock(pte, ptl);
 +}
 +
- static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 					struct vm_area_struct *vma,
- 					unsigned long haddr, pmd_t *pmd,
-@@ -868,6 +892,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		count_vm_event(THP_FAULT_FALLBACK);
- 		return VM_FAULT_FALLBACK;
- 	}
-+	prep_transhuge_page(page);
- 	return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page, gfp, flags);
- }
- 
-@@ -1120,7 +1145,9 @@ alloc:
- 	} else
- 		new_page = NULL;
- 
--	if (unlikely(!new_page)) {
-+	if (likely(new_page)) {
-+		prep_transhuge_page(new_page);
++static void freeze_page(struct anon_vma *anon_vma, struct page *page)
++{
++	struct anon_vma_chain *avc;
++	pgoff_t pgoff = page_to_pgoff(page);
++
++	VM_BUG_ON_PAGE(!PageHead(page), page);
++
++	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root, pgoff,
++			pgoff + HPAGE_PMD_NR - 1) {
++		unsigned long haddr;
++
++		haddr = __vma_address(page, avc->vma) & HPAGE_PMD_MASK;
++		mmu_notifier_invalidate_range_start(avc->vma->vm_mm,
++				haddr, haddr + HPAGE_PMD_SIZE);
++		freeze_page_vma(avc->vma, page, haddr);
++		mmu_notifier_invalidate_range_end(avc->vma->vm_mm,
++				haddr, haddr + HPAGE_PMD_SIZE);
++	}
++}
++
++static void unfreeze_page_vma(struct vm_area_struct *vma, struct page *page,
++		unsigned long address)
++{
++	spinlock_t *ptl;
++	pmd_t *pmd;
++	pte_t *pte, entry;
++	swp_entry_t swp_entry;
++	int i;
++
++	pmd = mm_find_pmd(vma->vm_mm, address);
++	if (!pmd)
++		return;
++	pte = pte_offset_map_lock(vma->vm_mm, pmd, address, &ptl);
++	for (i = 0; i < HPAGE_PMD_NR; i++, address += PAGE_SIZE, page++) {
++		if (!page_mapped(page))
++			continue;
++		if (!is_swap_pte(pte[i]))
++			continue;
++
++		swp_entry = pte_to_swp_entry(pte[i]);
++		if (!is_migration_entry(swp_entry))
++			continue;
++		if (migration_entry_to_page(swp_entry) != page)
++			continue;
++
++		entry = pte_mkold(mk_pte(page, vma->vm_page_prot));
++		if (is_write_migration_entry(swp_entry))
++			entry = maybe_mkwrite(entry, vma);
++
++		flush_dcache_page(page);
++		set_pte_at(vma->vm_mm, address, pte + i, entry);
++
++		/* No need to invalidate - it was non-present before */
++		update_mmu_cache(vma, address, pte + i);
++	}
++	pte_unmap_unlock(pte, ptl);
++}
++
++static void unfreeze_page(struct anon_vma *anon_vma, struct page *page)
++{
++	struct anon_vma_chain *avc;
++	pgoff_t pgoff = page_to_pgoff(page);
++
++	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root,
++			pgoff, pgoff + HPAGE_PMD_NR - 1) {
++		unsigned long address = __vma_address(page, avc->vma);
++
++		mmu_notifier_invalidate_range_start(avc->vma->vm_mm,
++				address, address + HPAGE_PMD_SIZE);
++		unfreeze_page_vma(avc->vma, page, address);
++		mmu_notifier_invalidate_range_end(avc->vma->vm_mm,
++				address, address + HPAGE_PMD_SIZE);
++	}
++}
++
++static int total_mapcount(struct page *page)
++{
++	int i, ret;
++
++	ret = compound_mapcount(page);
++	for (i = 0; i < HPAGE_PMD_NR; i++)
++		ret += atomic_read(&page[i]._mapcount) + 1;
++
++	if (PageDoubleMap(page))
++		ret -= HPAGE_PMD_NR;
++
++	return ret;
++}
++
++static int __split_huge_page_tail(struct page *head, int tail,
++		struct lruvec *lruvec, struct list_head *list)
++{
++	int mapcount;
++	struct page *page_tail = head + tail;
++
++	mapcount = atomic_read(&page_tail->_mapcount) + 1;
++	VM_BUG_ON_PAGE(atomic_read(&page_tail->_count) != 0, page_tail);
++
++	/*
++	 * tail_page->_count is zero and not changing from under us. But
++	 * get_page_unless_zero() may be running from under us on the
++	 * tail_page. If we used atomic_set() below instead of atomic_add(), we
++	 * would then run atomic_set() concurrently with
++	 * get_page_unless_zero(), and atomic_set() is implemented in C not
++	 * using locked ops. spin_unlock on x86 sometime uses locked ops
++	 * because of PPro errata 66, 92, so unless somebody can guarantee
++	 * atomic_set() here would be safe on all archs (and not only on x86),
++	 * it's safer to use atomic_add().
++	 */
++	atomic_add(mapcount + 1, &page_tail->_count);
++
++	/* after clearing PageTail the gup refcount can be released */
++	smp_mb__after_atomic();
++
++	/*
++	 * retain hwpoison flag of the poisoned tail page:
++	 *   fix for the unsuitable process killed on Guest Machine(KVM)
++	 *   by the memory-failure.
++	 */
++	page_tail->flags &= ~PAGE_FLAGS_CHECK_AT_PREP | __PG_HWPOISON;
++	page_tail->flags |= (head->flags &
++			((1L << PG_referenced) |
++			 (1L << PG_swapbacked) |
++			 (1L << PG_mlocked) |
++			 (1L << PG_uptodate) |
++			 (1L << PG_active) |
++			 (1L << PG_locked) |
++			 (1L << PG_unevictable)));
++	page_tail->flags |= (1L << PG_dirty);
++
++	/* clear PageTail before overwriting first_page */
++	smp_wmb();
++
++	/* ->mapping in first tail page is compound_mapcount */
++	VM_BUG_ON_PAGE(tail != 1 && page_tail->mapping != TAIL_MAPPING,
++			page_tail);
++	page_tail->mapping = head->mapping;
++
++	page_tail->index = head->index + tail;
++	page_cpupid_xchg_last(page_tail, page_cpupid_last(head));
++	lru_add_page_tail(head, page_tail, lruvec, list);
++
++	return mapcount;
++}
++
++static void __split_huge_page(struct page *page, struct list_head *list)
++{
++	struct page *head = compound_head(page);
++	struct zone *zone = page_zone(head);
++	struct lruvec *lruvec;
++	int i, tail_mapcount;
++
++	/* prevent PageLRU to go away from under us, and freeze lru stats */
++	spin_lock_irq(&zone->lru_lock);
++	lruvec = mem_cgroup_page_lruvec(head, zone);
++
++	/* complete memcg works before add pages to LRU */
++	mem_cgroup_split_huge_fixup(head);
++
++	tail_mapcount = 0;
++	for (i = HPAGE_PMD_NR - 1; i >= 1; i--)
++		tail_mapcount += __split_huge_page_tail(head, i, lruvec, list);
++	atomic_sub(tail_mapcount, &head->_count);
++
++	ClearPageCompound(head);
++	spin_unlock_irq(&zone->lru_lock);
++
++	unfreeze_page(page_anon_vma(head), head);
++
++	for (i = 0; i < HPAGE_PMD_NR; i++) {
++		struct page *subpage = head + i;
++		if (subpage == page)
++			continue;
++		unlock_page(subpage);
++
++		/*
++		 * Subpages may be freed if there wasn't any mapping
++		 * like if add_to_swap() is running on a lru page that
++		 * had its mapping zapped. And freeing these pages
++		 * requires taking the lru_lock so we do the put_page
++		 * of the tail pages after the split is complete.
++		 */
++		put_page(subpage);
++	}
++}
++
++/*
++ * This function splits huge page into normal pages. @page can point to any
++ * subpage of huge page to split. Split doesn't change the position of @page.
++ *
++ * Only caller must hold pin on the @page, otherwise split fails with -EBUSY.
++ * The huge page must be locked.
++ *
++ * If @list is null, tail pages will be added to LRU list, otherwise, to @list.
++ *
++ * Both head page and tail pages will inherit mapping, flags, and so on from
++ * the hugepage.
++ *
++ * GUP pin and PG_locked transfered to @page. Rest subpages can be freed if
++ * they are not mapped.
++ *
++ * Returns 0 if the hugepage is split successfully.
++ * Returns -EBUSY if the page is pinned or if anon_vma disappeared from under
++ * us.
++ */
++int split_huge_page_to_list(struct page *page, struct list_head *list)
++{
++	struct page *head = compound_head(page);
++	struct anon_vma *anon_vma;
++	int count, mapcount, ret;
++
++	VM_BUG_ON_PAGE(is_huge_zero_page(page), page);
++	VM_BUG_ON_PAGE(!PageAnon(page), page);
++	VM_BUG_ON_PAGE(!PageLocked(page), page);
++	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
++	VM_BUG_ON_PAGE(!PageCompound(page), page);
++
++	/*
++	 * The caller does not necessarily hold an mmap_sem that would prevent
++	 * the anon_vma disappearing so we first we take a reference to it
++	 * and then lock the anon_vma for write. This is similar to
++	 * page_lock_anon_vma_read except the write lock is taken to serialise
++	 * against parallel split or collapse operations.
++	 */
++	anon_vma = page_get_anon_vma(head);
++	if (!anon_vma) {
++		ret = -EBUSY;
++		goto out;
++	}
++	anon_vma_lock_write(anon_vma);
++
++	/*
++	 * Racy check if we can split the page, before freeze_page() will
++	 * split PMDs
++	 */
++	if (total_mapcount(head) != page_count(head) - 1) {
++		ret = -EBUSY;
++		goto out_unlock;
++	}
++
++	freeze_page(anon_vma, head);
++	VM_BUG_ON_PAGE(compound_mapcount(head), head);
++
++	count = page_count(head);
++	mapcount = total_mapcount(head);
++	if (mapcount == count - 1) {
++		__split_huge_page(page, list);
++		ret = 0;
++	} else if (IS_ENABLED(CONFIG_DEBUG_VM) && mapcount > count - 1) {
++		pr_alert("total_mapcount: %u, page_count(): %u\n",
++				mapcount, count);
++		if (PageTail(page))
++			dump_page(head, NULL);
++		dump_page(page, "total_mapcount(head) > page_count(head) - 1");
++		BUG();
 +	} else {
- 		if (!page) {
- 			split_huge_pmd(vma, pmd, address);
- 			ret |= VM_FAULT_FALLBACK;
-@@ -2045,6 +2072,7 @@ khugepaged_alloc_page(struct page **hpage, gfp_t gfp, struct mm_struct *mm,
- 		return NULL;
- 	}
- 
-+	prep_transhuge_page(*hpage);
- 	count_vm_event(THP_COLLAPSE_ALLOC);
- 	return *hpage;
- }
-@@ -2056,8 +2084,12 @@ static int khugepaged_find_target_node(void)
- 
- static inline struct page *alloc_hugepage(int defrag)
- {
--	return alloc_pages(alloc_hugepage_gfpmask(defrag, 0),
--			   HPAGE_PMD_ORDER);
-+	struct page *page;
-+
-+	page = alloc_pages(alloc_hugepage_gfpmask(defrag, 0), HPAGE_PMD_ORDER);
-+	if (page)
-+		prep_transhuge_page(page);
-+	return page;
- }
- 
- static struct page *khugepaged_alloc_hugepage(bool *wait)
-@@ -2956,6 +2988,13 @@ static void __split_huge_page(struct page *page, struct list_head *list)
- 	spin_lock_irq(&zone->lru_lock);
- 	lruvec = mem_cgroup_page_lruvec(head, zone);
- 
-+	spin_lock(&split_queue_lock);
-+	if (!list_empty(&head[2].lru)) {
-+		split_queue_len--;
-+		list_del(&head[2].lru);
++		unfreeze_page(anon_vma, head);
++		ret = -EBUSY;
 +	}
-+	spin_unlock(&split_queue_lock);
 +
- 	/* complete memcg works before add pages to LRU */
- 	mem_cgroup_split_huge_fixup(head);
++out_unlock:
++	anon_vma_unlock_write(anon_vma);
++	put_anon_vma(anon_vma);
++out:
++	count_vm_event(!ret ? THP_SPLIT_PAGE : THP_SPLIT_PAGE_FAILED);
++	return ret;
++}
+diff --git a/mm/internal.h b/mm/internal.h
+index 6aa08db10589..a2e466bc60b2 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -13,6 +13,7 @@
  
-@@ -3067,3 +3106,85 @@ out:
- 	count_vm_event(!ret ? THP_SPLIT_PAGE : THP_SPLIT_PAGE_FAILED);
- 	return ret;
- }
-+
-+static void free_transhuge_page(struct page *page)
+ #include <linux/fs.h>
+ #include <linux/mm.h>
++#include <linux/pagemap.h>
+ 
+ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+ 		unsigned long floor, unsigned long ceiling);
+@@ -245,10 +246,27 @@ static inline void mlock_migrate_page(struct page *newpage, struct page *page)
+ 
+ extern pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma);
+ 
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-extern unsigned long vma_address(struct page *page,
+-				 struct vm_area_struct *vma);
+-#endif
++/*
++ * At what user virtual address is page expected in @vma?
++ */
++static inline unsigned long
++__vma_address(struct page *page, struct vm_area_struct *vma)
 +{
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&split_queue_lock, flags);
-+	if (!list_empty(&page[2].lru)) {
-+		split_queue_len--;
-+		list_del(&page[2].lru);
-+	}
-+	spin_unlock_irqrestore(&split_queue_lock, flags);
-+	free_compound_page(page);
++	pgoff_t pgoff = page_to_pgoff(page);
++	return vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 +}
 +
-+void deferred_split_huge_page(struct page *page)
++static inline unsigned long
++vma_address(struct page *page, struct vm_area_struct *vma)
 +{
-+	unsigned long flags;
++	unsigned long address = __vma_address(page, vma);
 +
-+	VM_BUG_ON_PAGE(!PageTransHuge(page), page);
++	/* page should be within @vma mapping range */
++	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
 +
-+	spin_lock_irqsave(&split_queue_lock, flags);
-+	if (list_empty(&page[2].lru)) {
-+		list_add_tail(&page[2].lru, &split_queue);
-+		split_queue_len++;
-+	}
-+	spin_unlock_irqrestore(&split_queue_lock, flags);
++	return address;
 +}
 +
-+static unsigned long deferred_split_count(struct shrinker *shrink,
-+		struct shrink_control *sc)
-+{
-+	/*
-+	 * Split a page from split_queue will free up at least one page,
-+	 * at most HPAGE_PMD_NR - 1. We don't track exact number.
-+	 * Let's use HPAGE_PMD_NR / 2 as ballpark.
-+	 */
-+	return ACCESS_ONCE(split_queue_len) * HPAGE_PMD_NR / 2;
-+}
-+
-+static unsigned long deferred_split_scan(struct shrinker *shrink,
-+		struct shrink_control *sc)
-+{
-+	unsigned long flags;
-+	LIST_HEAD(list);
-+	struct page *page, *next;
-+	int split = 0;
-+
-+	spin_lock_irqsave(&split_queue_lock, flags);
-+	list_splice_init(&split_queue, &list);
-+
-+	/* Take pin on all head pages to avoid freeing them under us */
-+	list_for_each_entry_safe(page, next, &list, lru) {
-+		page = compound_head(page);
-+		/* race with put_compound_page() */
-+		if (!get_page_unless_zero(page)) {
-+			list_del_init(&page[2].lru);
-+			split_queue_len--;
-+		}
-+	}
-+	spin_unlock_irqrestore(&split_queue_lock, flags);
-+
-+	list_for_each_entry_safe(page, next, &list, lru) {
-+		lock_page(page);
-+		/* split_huge_page() removes page from list on success */
-+		if (!split_huge_page(page))
-+			split++;
-+		unlock_page(page);
-+		put_page(page);
-+	}
-+
-+	spin_lock_irqsave(&split_queue_lock, flags);
-+	list_splice_tail(&list, &split_queue);
-+	spin_unlock_irqrestore(&split_queue_lock, flags);
-+
-+	return split * HPAGE_PMD_NR / 2;
-+}
-+
-+static struct shrinker deferred_split_shrinker = {
-+	.count_objects = deferred_split_count,
-+	.scan_objects = deferred_split_scan,
-+	.seeks = DEFAULT_SEEKS,
-+};
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 8bb2107b8751..4c79c5447623 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1742,6 +1742,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 		HPAGE_PMD_ORDER);
- 	if (!new_page)
- 		goto out_fail;
-+	prep_transhuge_page(new_page);
- 
- 	isolated = numamigrate_isolate_page(pgdat, page);
- 	if (!isolated) {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6e3b42763894..f46b6ef06748 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -430,7 +430,7 @@ out:
-  * This usage means that zero-order pages may not be compound.
-  */
- 
--static void free_compound_page(struct page *page)
-+void free_compound_page(struct page *page)
- {
- 	__free_pages_ok(page, compound_order(page));
- }
+ #else /* !CONFIG_MMU */
+ static inline void clear_page_mlock(struct page *page) { }
+ static inline void mlock_vma_page(struct page *page) { }
 diff --git a/mm/rmap.c b/mm/rmap.c
-index 89908269fdf4..aeb52e6f2037 100644
+index bae27e4608b5..89908269fdf4 100644
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -1204,8 +1204,10 @@ static void page_remove_anon_compound_rmap(struct page *page)
- 		nr = HPAGE_PMD_NR;
- 	}
- 
--	if (nr)
-+	if (nr) {
- 		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
-+		deferred_split_huge_page(page);
-+	}
+@@ -563,27 +563,6 @@ void page_unlock_anon_vma_read(struct anon_vma *anon_vma)
  }
  
- /**
-@@ -1240,6 +1242,9 @@ void page_remove_rmap(struct page *page, bool compound)
- 	if (unlikely(PageMlocked(page)))
- 		clear_page_mlock(page);
- 
-+	if (PageTransCompound(page))
-+		deferred_split_huge_page(compound_head(page));
-+
- 	/*
- 	 * It would be tidy to reset the PageAnon mapping here,
- 	 * but that might overwrite a racing page_add_anon_rmap
+ /*
+- * At what user virtual address is page expected in @vma?
+- */
+-static inline unsigned long
+-__vma_address(struct page *page, struct vm_area_struct *vma)
+-{
+-	pgoff_t pgoff = page_to_pgoff(page);
+-	return vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+-}
+-
+-inline unsigned long
+-vma_address(struct page *page, struct vm_area_struct *vma)
+-{
+-	unsigned long address = __vma_address(page, vma);
+-
+-	/* page should be within @vma mapping range */
+-	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
+-
+-	return address;
+-}
+-
+-/*
+  * At what user virtual address is page expected in vma?
+  * Caller should check the page is actually part of the vma.
+  */
 -- 
 2.1.4
 
