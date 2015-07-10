@@ -1,524 +1,414 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id E05BC9003C7
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 13:50:36 -0400 (EDT)
-Received: by pdbep18 with SMTP id ep18so187993914pdb.1
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 10:50:36 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id rh7si15467627pdb.245.2015.07.10.10.42.31
-        for <linux-mm@kvack.org>;
-        Fri, 10 Jul 2015 10:42:31 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 26/36] mm: rework mapcount accounting to enable 4k mapping of THPs
-Date: Fri, 10 Jul 2015 20:42:00 +0300
-Message-Id: <1436550130-112636-27-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D0439003C7
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 15:10:52 -0400 (EDT)
+Received: by iebmu5 with SMTP id mu5so201789501ieb.1
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 12:10:52 -0700 (PDT)
+Received: from mail-ig0-x22d.google.com (mail-ig0-x22d.google.com. [2607:f8b0:4001:c05::22d])
+        by mx.google.com with ESMTPS id je2si8580508icb.65.2015.07.10.12.10.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Jul 2015 12:10:51 -0700 (PDT)
+Received: by igrv9 with SMTP id v9so19473435igr.1
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 12:10:51 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20150709131900.GK2436@esperanza>
+References: <cover.1434102076.git.vdavydov@parallels.com>
+	<50b7cd0f35f651481ce32414fab5210de5dc1714.1434102076.git.vdavydov@parallels.com>
+	<CAJu=L5-fwHMEKmL1Sp7owXyBa0GCrGR=TdKZbh15CJA3WrcwqA@mail.gmail.com>
+	<20150709131900.GK2436@esperanza>
+Date: Fri, 10 Jul 2015 12:10:51 -0700
+Message-ID: <CAJu=L5_BX_bbOHcLFXCry=RxYxFHkwDcLSL+KEoHf8LaNSRjBQ@mail.gmail.com>
+Subject: Re: [PATCH -mm v6 5/6] proc: add kpageidle file
+From: Andres Lagar-Cavilla <andreslc@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-We're going to allow mapping of individual 4k pages of THP compound.
-It means we need to track mapcount on per small page basis.
+Hi Vladimir,
 
-Straight-forward approach is to use ->_mapcount in all subpages to track
-how many time this subpage is mapped with PMDs or PTEs combined. But
-this is rather expensive: mapping or unmapping of a THP page with PMD
-would require HPAGE_PMD_NR atomic operations instead of single we have
-now.
+On Thu, Jul 9, 2015 at 6:19 AM, Vladimir Davydov <vdavydov@parallels.com> wrote:
+> Hi Andres,
+>
+> On Wed, Jul 08, 2015 at 04:01:13PM -0700, Andres Lagar-Cavilla wrote:
+>> On Fri, Jun 12, 2015 at 2:52 AM, Vladimir Davydov
+> [...]
+>> > @@ -275,6 +276,179 @@ static const struct file_operations proc_kpagecgroup_operations = {
+>> >  };
+>> >  #endif /* CONFIG_MEMCG */
+>> >
+>> > +#ifdef CONFIG_IDLE_PAGE_TRACKING
+>> > +/*
+>> > + * Idle page tracking only considers user memory pages, for other types of
+>> > + * pages the idle flag is always unset and an attempt to set it is silently
+>> > + * ignored.
+>> > + *
+>> > + * We treat a page as a user memory page if it is on an LRU list, because it is
+>> > + * always safe to pass such a page to page_referenced(), which is essential for
+>> > + * idle page tracking. With such an indicator of user pages we can skip
+>> > + * isolated pages, but since there are not usually many of them, it will hardly
+>> > + * affect the overall result.
+>> > + *
+>> > + * This function tries to get a user memory page by pfn as described above.
+>> > + */
+>> > +static struct page *kpageidle_get_page(unsigned long pfn)
+>> > +{
+>> > +       struct page *page;
+>> > +       struct zone *zone;
+>> > +
+>> > +       if (!pfn_valid(pfn))
+>> > +               return NULL;
+>> > +
+>> > +       page = pfn_to_page(pfn);
+>> > +       if (!page || !PageLRU(page))
+>>
+>> Isolation can race in while you're processing the page, after these
+>> checks. This is ok, but worth a small comment.
+>
+> Agree, will add one.
+>
+>>
+>> > +               return NULL;
+>> > +       if (!get_page_unless_zero(page))
+>> > +               return NULL;
+>> > +
+>> > +       zone = page_zone(page);
+>> > +       spin_lock_irq(&zone->lru_lock);
+>> > +       if (unlikely(!PageLRU(page))) {
+>> > +               put_page(page);
+>> > +               page = NULL;
+>> > +       }
+>> > +       spin_unlock_irq(&zone->lru_lock);
+>> > +       return page;
+>> > +}
+>> > +
+>> > +/*
+>> > + * This function calls page_referenced() to clear the referenced bit for all
+>> > + * mappings to a page. Since the latter also clears the page idle flag if the
+>> > + * page was referenced, it can be used to update the idle flag of a page.
+>> > + */
+>> > +static void kpageidle_clear_pte_refs(struct page *page)
+>> > +{
+>> > +       unsigned long dummy;
+>> > +
+>> > +       if (page_referenced(page, 0, NULL, &dummy, NULL))
+>>
+>> Because of pte/pmd_clear_flush_young* called in the guts of
+>> page_referenced_one, an N byte write or read to /proc/kpageidle will
+>> cause N * 64 TLB flushes.
+>>
+>> Additionally, because of the _notify connection to mmu notifiers, this
+>> will also cause N * 64 EPT TLB flushes (in the KVM Intel case, similar
+>> for other notifier flavors, you get the point).
+>>
+>> The solution is relatively straightforward: augment
+>> page_referenced_one with a mode marker or boolean that determines
+>> whether tlb flushing is required.
+>
+> Frankly, I don't think that tlb flushes are such a big deal in the scope
+> of this feature, because one is not supposed to write to kpageidle that
+> often. However, I agree we'd better avoid overhead we can easily avoid,
+> so I'll add a new flag to differentiate between kpageidle and reclaim
+> path in page_referenced, as you suggested.
 
-The idea is to store separately how many times the page was mapped as
-whole -- compound_mapcount. This frees up ->_mapcount in subpages to
-track PTE mapcount.
+Yes, it's a performance optimization, but fairly critical. Once you
+open up a user-space interface, it will take off. What prevents people
+from writing a daemon that will scan the entire host space every N
+seconds (N=10? 60? 90? 120?). That means tens or hundreds of millions
+of individual TLB flushes, which will hurt performance.
 
-We use the same approach as with compound page destructor and compound
-order to store compound_mapcount: use space in first tail page,
-->mapping this time.
+The KVM issue is not minor.
 
-Any time we map/unmap whole compound page (THP or hugetlb) -- we
-increment/decrement compound_mapcount. When we map part of compound page
-with PTE we operate on ->_mapcount of the subpage.
+>
+>>
+>> For an access pattern tracker such as the one you propose, flushing is
+>> not strictly necessary: the next context switch will take care. Too
+>> bad if you missed a few accesses because the pte/pmd was loaded in the
+>> TLB. Not so easy for MMU notifiers, because each secondary MMU has its
+>> own semantics. You could arguably throw the towel in there, or try to
+>> provide a framework (i.e. propagate the flushing flag) and let each
+>> implementation fill the gaps.
+>>
+>> > +               /*
+>> > +                * We cleared the referenced bit in a mapping to this page. To
+>> > +                * avoid interference with the reclaimer, mark it young so that
+>> > +                * the next call to page_referenced() will also return > 0 (see
+>> > +                * page_referenced_one())
+>> > +                */
+>> > +               set_page_young(page);
+>> > +}
+>> > +
+>> > +static ssize_t kpageidle_read(struct file *file, char __user *buf,
+>> > +                             size_t count, loff_t *ppos)
+>> > +{
+>> > +       u64 __user *out = (u64 __user *)buf;
+>> > +       struct page *page;
+>> > +       unsigned long pfn, end_pfn;
+>> > +       ssize_t ret = 0;
+>> > +       u64 idle_bitmap = 0;
+>> > +       int bit;
+>> > +
+>> > +       if (*ppos & KPMMASK || count & KPMMASK)
+>> > +               return -EINVAL;
+>> > +
+>> > +       pfn = *ppos * BITS_PER_BYTE;
+>> > +       if (pfn >= max_pfn)
+>> > +               return 0;
+>> > +
+>> > +       end_pfn = pfn + count * BITS_PER_BYTE;
+>> > +       if (end_pfn > max_pfn)
+>> > +               end_pfn = ALIGN(max_pfn, KPMBITS);
+>> > +
+>> > +       for (; pfn < end_pfn; pfn++) {
+>> > +               bit = pfn % KPMBITS;
+>> > +               page = kpageidle_get_page(pfn);
+>> > +               if (page) {
+>> > +                       if (page_is_idle(page)) {
+>> > +                               /*
+>> > +                                * The page might have been referenced via a
+>> > +                                * pte, in which case it is not idle. Clear
+>> > +                                * refs and recheck.
+>> > +                                */
+>> > +                               kpageidle_clear_pte_refs(page);
+>> > +                               if (page_is_idle(page))
+>> > +                                       idle_bitmap |= 1ULL << bit;
+>> > +                       }
+>> > +                       put_page(page);
+>> > +               }
+>> > +               if (bit == KPMBITS - 1) {
+>> > +                       if (put_user(idle_bitmap, out)) {
+>> > +                               ret = -EFAULT;
+>> > +                               break;
+>> > +                       }
+>> > +                       idle_bitmap = 0;
+>> > +                       out++;
+>> > +               }
+>> > +       }
+>> > +
+>> > +       *ppos += (char __user *)out - buf;
+>> > +       if (!ret)
+>> > +               ret = (char __user *)out - buf;
+>> > +       return ret;
+>> > +}
+>> > +
+>> > +static ssize_t kpageidle_write(struct file *file, const char __user *buf,
+>>
+>> Your reasoning for a host wide /proc/kpageidle is well argued, but I'm
+>> still hesitant.
+>>
+>> mincore() shows how to (relatively simply) resolve unmapped file pages
+>> to their backing page cache destination. You could recycle that code
+>> and then you'd have per process idle/idling interfaces. With the
+>> advantage of a clear TLB flush demarcation.
+>
+> Hmm, I still don't see how we could handle page cache that does not
+> belong to any process in the scope of sys_mincore.
 
-page_mapcount() counts both: PTE and PMD mappings of the page.
+You're correct.
 
-Basically, we have mapcount for a subpage spread over two counters.
-It makes tricky to detect when last mapcount for a page goes away.
+I wasn't asking to use mincore, just pointing out an extant code
+pattern that could get you beyond the concerns re unmapping (and which
+can be implemented as a proc file).
 
-We introduced PageDoubleMap() for this. When we split THP PMD for the
-first time and there's other PMD mapping left we offset up ->_mapcount
-in all subpages by one and set PG_double_map on the compound page.
-These additional references go away with last compound_mapcount.
+My view is that the key pieces of infrastructure (the flags, the
+interactions with page_referenced_one, clear_refs, mark_page_accessed)
+your patchset brings along then can be reused in many ways. Michel
+Lespinasse's kernel thread can reuse them, or proc/smaps can be
+augmented (or a new proc entry), to get per process idle maps.
 
-This approach provides a way to detect when last mapcount goes away on
-per small page basis without introducing new overhead for most common
-cases.
+So /proc/kpageidle is fine with me, but not crazy appealing.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- include/linux/mm.h         | 26 ++++++++++++-
- include/linux/mm_types.h   |  1 +
- include/linux/page-flags.h | 37 ++++++++++++++++++
- include/linux/rmap.h       |  4 +-
- mm/debug.c                 |  5 ++-
- mm/huge_memory.c           |  2 +-
- mm/hugetlb.c               |  4 +-
- mm/memory.c                |  2 +-
- mm/migrate.c               |  2 +-
- mm/page_alloc.c            | 14 +++++--
- mm/rmap.c                  | 96 +++++++++++++++++++++++++++++++++++-----------
- 11 files changed, 158 insertions(+), 35 deletions(-)
+>
+> Besides, it'd be awkward to reuse sys_mincore for idle page tracking,
+> because we need two operations, set idle and check idle, while the
+> sys_mincore semantic implies only getting information from the kernel,
+> not vice versa.
+>
+> Of course, we could introduce a separate syscall, say sys_idlecore, but
+> IMO it is not a good idea to add a syscall for such a specific feature,
+> which can be compiled out. I think a proc file suits better for the
+> purpose, especially counting that we have a bunch of similar files
+> (pagemap, kpageflags, kpagecount).
+>
+> Anyway, I'm open for suggestions. If you have a different user API
+> design in mind, which in your opinion would fit better, please share.
+>
+>>
+>> > +                              size_t count, loff_t *ppos)
+>> > +{
+>> > +       const u64 __user *in = (const u64 __user *)buf;
+>> > +       struct page *page;
+>> > +       unsigned long pfn, end_pfn;
+>> > +       ssize_t ret = 0;
+>> > +       u64 idle_bitmap = 0;
+>> > +       int bit;
+>> > +
+>> > +       if (*ppos & KPMMASK || count & KPMMASK)
+>> > +               return -EINVAL;
+>> > +
+>> > +       pfn = *ppos * BITS_PER_BYTE;
+>> > +       if (pfn >= max_pfn)
+>> > +               return -ENXIO;
+>> > +
+>> > +       end_pfn = pfn + count * BITS_PER_BYTE;
+>> > +       if (end_pfn > max_pfn)
+>> > +               end_pfn = ALIGN(max_pfn, KPMBITS);
+>> > +
+>> > +       for (; pfn < end_pfn; pfn++) {
+>>
+>> Relatively straight forward to teleport forward 512 (or more
+>> correctly: 1 << compound_order(page)) pages for THP pages, once done
+>> with a THP head, and avoid 511 fruitless trips down rmap.c for each
+>> tail.
+>
+> Right, will fix.
+>
+>>
+>> > +               bit = pfn % KPMBITS;
+>> > +               if (bit == 0) {
+>> > +                       if (get_user(idle_bitmap, in)) {
+>> > +                               ret = -EFAULT;
+>> > +                               break;
+>> > +                       }
+>> > +                       in++;
+>> > +               }
+>> > +               if (idle_bitmap >> bit & 1) {
+>> > +                       page = kpageidle_get_page(pfn);
+>> > +                       if (page) {
+>> > +                               kpageidle_clear_pte_refs(page);
+>> > +                               set_page_idle(page);
+>>
+>> In the common case this will make a page both young and idle. This is
+>> fine. We will come back to it below.
+>>
+>> > +                               put_page(page);
+>> > +                       }
+>> > +               }
+>> > +       }
+>> > +
+>> > +       *ppos += (const char __user *)in - buf;
+>> > +       if (!ret)
+>> > +               ret = (const char __user *)in - buf;
+>> > +       return ret;
+>> > +}
+>> > +
+>> > +static const struct file_operations proc_kpageidle_operations = {
+>> > +       .llseek = mem_lseek,
+>> > +       .read = kpageidle_read,
+>> > +       .write = kpageidle_write,
+>> > +};
+>> > +
+>> > +#ifndef CONFIG_64BIT
+>> > +static bool need_page_idle(void)
+>> > +{
+>> > +       return true;
+>> > +}
+>> > +struct page_ext_operations page_idle_ops = {
+>> > +       .need = need_page_idle,
+>> > +};
+>> > +#endif
+>> > +#endif /* CONFIG_IDLE_PAGE_TRACKING */
+>> > +
+>> >  static int __init proc_page_init(void)
+>> >  {
+>> >         proc_create("kpagecount", S_IRUSR, NULL, &proc_kpagecount_operations);
+> [...]
+>> > @@ -798,6 +798,14 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+>> >                 pte_unmap_unlock(pte, ptl);
+>>
+>> This is not in your patch, but further up in page_referenced_one there
+>> is the pmd case.
+>>
+>> So what happens on THP split? That was a leading question: you should
+>> propagate the young and idle flags to the split-up tail pages.
+>
+> Good catch! I completely forgot about THP slit. Will fix in the next
+> iteration.
+>
+>>
+>> >         }
+>> >
+>> > +       if (referenced && page_is_idle(page))
+>> > +               clear_page_idle(page);
+>>
+>> Is it so expensive to just call clear without the test .. ?
+>
+> This function is normally called from a relatively cold path - memory
+> reclaim, where we modify page->flags anyway, so I think it won't make
+> any difference if we drop this check.
+>
+>>
+>> > +
+>> > +       if (page_is_young(page)) {
+>> > +               clear_page_young(page);
+>>
+>> referenced += test_and_clear_page_young(page) .. ?
+>
+> Yeah, that does look better.
+>
+>>
+>> > +               referenced++;
+>> > +       }
+>> > +
+>>
+>> Invert the order. A page can be both young and idle -- we noted that
+>> closer to the top of the patch.
+>>
+>> So young bumps referenced up, and then the final referenced value is
+>> used to clear idle.
+>
+> I don't think it'd work. Look, kpageidle_write clears pte references and
+> sets the idle flag. If the page was referenced it also sets the young
+> flag in order not to interfere with the reclaimer. When kpageidle_read
+> is called afterwards, it must see the idle flag set iff the page has not
+> been referenced since kpageidle_write set it. However, if
+> page_referenced was not called on the page from the reclaim path, it
+> will still be young no matter if it has been referenced or not and
+> therefore will always be identified as not idle, which is incorrect.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 755c8d4b6226..d0a80644b1c1 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -404,6 +404,19 @@ static inline int is_vmalloc_or_module_addr(const void *x)
- 
- extern void kvfree(const void *addr);
- 
-+static inline atomic_t *compound_mapcount_ptr(struct page *page)
-+{
-+	return &page[1].compound_mapcount;
-+}
-+
-+static inline int compound_mapcount(struct page *page)
-+{
-+	if (!PageCompound(page))
-+		return 0;
-+	page = compound_head(page);
-+	return atomic_read(compound_mapcount_ptr(page)) + 1;
-+}
-+
- /*
-  * The atomic page->_mapcount, starts from -1: so that transitions
-  * both from it and to it can be tracked, using atomic_inc_and_test
-@@ -416,8 +429,17 @@ static inline void page_mapcount_reset(struct page *page)
- 
- static inline int page_mapcount(struct page *page)
- {
-+	int ret;
- 	VM_BUG_ON_PAGE(PageSlab(page), page);
--	return atomic_read(&page->_mapcount) + 1;
-+
-+	ret = atomic_read(&page->_mapcount) + 1;
-+	if (PageCompound(page)) {
-+		page = compound_head(page);
-+		ret += atomic_read(compound_mapcount_ptr(page)) + 1;
-+		if (PageDoubleMap(page))
-+			ret--;
-+	}
-+	return ret;
- }
- 
- static inline int page_count(struct page *page)
-@@ -899,7 +921,7 @@ static inline pgoff_t page_file_index(struct page *page)
-  */
- static inline int page_mapped(struct page *page)
- {
--	return atomic_read(&(page)->_mapcount) >= 0;
-+	return atomic_read(&(page)->_mapcount) + compound_mapcount(page) >= 0;
- }
- 
- /*
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 4b51a59160ab..4d182cd14c1f 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -56,6 +56,7 @@ struct page {
- 						 * see PAGE_MAPPING_ANON below.
- 						 */
- 		void *s_mem;			/* slab first object */
-+		atomic_t compound_mapcount;	/* first tail page */
- 	};
- 
- 	/* Second double word */
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 74b7cece1dfa..757a4b162242 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -127,6 +127,9 @@ enum pageflags {
- 
- 	/* SLOB */
- 	PG_slob_free = PG_private,
-+
-+	/* Compound pages. Stored in first tail page's flags */
-+	PG_double_map = PG_private_2,
- };
- 
- #ifndef __GENERATING_BOUNDS_H
-@@ -593,10 +596,44 @@ static inline int PageTransTail(struct page *page)
- 	return PageTail(page);
- }
- 
-+/*
-+ * PageDoubleMap indicates that the compound page is mapped with PTEs as well
-+ * as PMDs.
-+ *
-+ * This is required for optimization of rmap oprations for THP: we can postpone
-+ * per small page mapcount accounting (and its overhead from atomic operations)
-+ * until the first PMD split.
-+ *
-+ * For the page PageDoubleMap means ->_mapcount in all sub-pages is offset up
-+ * by one. This reference will go away with last compound_mapcount.
-+ *
-+ * See also __split_huge_pmd_locked() and page_remove_anon_compound_rmap().
-+ */
-+static inline int PageDoubleMap(struct page *page)
-+{
-+	VM_BUG_ON_PAGE(!PageHead(page), page);
-+	return page[1].flags & PG_double_map;
-+}
-+
-+static inline int TestSetPageDoubleMap(struct page *page)
-+{
-+	VM_BUG_ON_PAGE(!PageHead(page), page);
-+	return test_and_set_bit(PG_double_map, &page[1].flags);
-+}
-+
-+static inline int TestClearPageDoubleMap(struct page *page)
-+{
-+	VM_BUG_ON_PAGE(!PageHead(page), page);
-+	return test_and_clear_bit(PG_double_map, &page[1].flags);
-+}
-+
- #else
- TESTPAGEFLAG_FALSE(TransHuge)
- TESTPAGEFLAG_FALSE(TransCompound)
- TESTPAGEFLAG_FALSE(TransTail)
-+TESTPAGEFLAG_FALSE(DoubleMap)
-+	TESTSETFLAG_FALSE(DoubleMap)
-+	CLEARPAGEFLAG_NOOP(DoubleMap)
- #endif
- 
- /*
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 2bc86dc14305..1757854cd35c 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -181,9 +181,9 @@ void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,
- void hugepage_add_new_anon_rmap(struct page *, struct vm_area_struct *,
- 				unsigned long);
- 
--static inline void page_dup_rmap(struct page *page)
-+static inline void page_dup_rmap(struct page *page, bool compound)
- {
--	atomic_inc(&page->_mapcount);
-+	atomic_inc(compound ? compound_mapcount_ptr(page) : &page->_mapcount);
- }
- 
- /*
-diff --git a/mm/debug.c b/mm/debug.c
-index 9dfcd77e7354..4a82f639b964 100644
---- a/mm/debug.c
-+++ b/mm/debug.c
-@@ -80,9 +80,12 @@ static void dump_flags(unsigned long flags,
- void dump_page_badflags(struct page *page, const char *reason,
- 		unsigned long badflags)
- {
--	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
-+	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx",
- 		  page, atomic_read(&page->_count), page_mapcount(page),
- 		  page->mapping, page->index);
-+	if (PageCompound(page))
-+		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
-+	pr_cont("\n");
- 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS);
- 	dump_flags(page->flags, pageflag_names, ARRAY_SIZE(pageflag_names));
- 	if (reason)
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index efe52b5bd979..5b0a13d2f28c 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -917,7 +917,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	src_page = pmd_page(pmd);
- 	VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
- 	get_page(src_page);
--	page_dup_rmap(src_page);
-+	page_dup_rmap(src_page, true);
- 	add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
- 
- 	pmdp_set_wrprotect(src_mm, addr, src_pmd);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 633fd8d19e31..cad96259ed44 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2795,7 +2795,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 			entry = huge_ptep_get(src_pte);
- 			ptepage = pte_page(entry);
- 			get_page(ptepage);
--			page_dup_rmap(ptepage);
-+			page_dup_rmap(ptepage, true);
- 			set_huge_pte_at(dst, addr, dst_pte, entry);
- 		}
- 		spin_unlock(src_ptl);
-@@ -3256,7 +3256,7 @@ retry:
- 		ClearPagePrivate(page);
- 		hugepage_add_new_anon_rmap(page, vma, address);
- 	} else
--		page_dup_rmap(page);
-+		page_dup_rmap(page, true);
- 	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
- 				&& (vma->vm_flags & VM_SHARED)));
- 	set_huge_pte_at(mm, address, ptep, new_pte);
-diff --git a/mm/memory.c b/mm/memory.c
-index ff2e8ed5b82a..cdc20d674675 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -867,7 +867,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	page = vm_normal_page(vma, addr, pte);
- 	if (page) {
- 		get_page(page);
--		page_dup_rmap(page);
-+		page_dup_rmap(page, false);
- 		if (PageAnon(page))
- 			rss[MM_ANONPAGES]++;
- 		else
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 9cabb25fb16e..dfd24cb7afc6 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -164,7 +164,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
- 		if (PageAnon(new))
- 			hugepage_add_anon_rmap(new, vma, addr);
- 		else
--			page_dup_rmap(new);
-+			page_dup_rmap(new, false);
- 	} else if (PageAnon(new))
- 		page_add_anon_rmap(new, vma, addr, false);
- 	else
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1f9ffbb087cb..6e3b42763894 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -452,6 +452,7 @@ void prep_compound_page(struct page *page, unsigned long order)
- 		smp_wmb();
- 		__SetPageTail(p);
- 	}
-+	atomic_set(compound_mapcount_ptr(page), -1);
- }
- 
- #ifdef CONFIG_DEBUG_PAGEALLOC
-@@ -716,7 +717,7 @@ static inline int free_pages_check(struct page *page)
- 	const char *bad_reason = NULL;
- 	unsigned long bad_flags = 0;
- 
--	if (unlikely(page_mapcount(page)))
-+	if (unlikely(atomic_read(&page->_mapcount) != -1))
- 		bad_reason = "nonzero mapcount";
- 	if (unlikely(page->mapping != NULL))
- 		bad_reason = "non-NULL mapping";
-@@ -825,7 +826,14 @@ static void free_one_page(struct zone *zone,
- 
- static int free_tail_pages_check(struct page *head_page, struct page *page)
- {
--	if (page->mapping != TAIL_MAPPING) {
-+	/* mapping in first tail page is used for compound_mapcount() */
-+	if (page - head_page == 1) {
-+		if (unlikely(compound_mapcount(page))) {
-+			bad_page(page, "nonzero compound_mapcount", 0);
-+			page->mapping = NULL;
-+			return 1;
-+		}
-+	} else if (page->mapping != TAIL_MAPPING) {
- 		bad_page(page, "corrupted mapping in tail page", 0);
- 		page->mapping = NULL;
- 		return 1;
-@@ -1288,7 +1296,7 @@ static inline int check_new_page(struct page *page)
- 	const char *bad_reason = NULL;
- 	unsigned long bad_flags = 0;
- 
--	if (unlikely(page_mapcount(page)))
-+	if (unlikely(atomic_read(&page->_mapcount) != -1))
- 		bad_reason = "nonzero mapcount";
- 	if (unlikely(page->mapping != NULL))
- 		bad_reason = "non-NULL mapping";
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 332cf7b831ae..bae27e4608b5 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1037,7 +1037,7 @@ static void __page_check_anon_rmap(struct page *page,
- 	 * over the call to page_add_new_anon_rmap.
- 	 */
- 	BUG_ON(page_anon_vma(page)->root != vma->anon_vma->root);
--	BUG_ON(page->index != linear_page_index(vma, address));
-+	BUG_ON(page_to_pgoff(page) != linear_page_index(vma, address));
- #endif
- }
- 
-@@ -1067,9 +1067,26 @@ void page_add_anon_rmap(struct page *page,
- void do_page_add_anon_rmap(struct page *page,
- 	struct vm_area_struct *vma, unsigned long address, int flags)
- {
--	int first = atomic_inc_and_test(&page->_mapcount);
-+	bool compound = flags & RMAP_COMPOUND;
-+	bool first;
-+
-+	if (PageTransCompound(page)) {
-+		VM_BUG_ON_PAGE(!PageLocked(page), page);
-+		if (compound) {
-+			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-+			first = atomic_inc_and_test(compound_mapcount_ptr(page));
-+		} else {
-+			/* Anon THP always mapped first with PMD */
-+			first = 0;
-+			VM_BUG_ON_PAGE(!page_mapcount(page), page);
-+			atomic_inc(&page->_mapcount);
-+		}
-+	} else {
-+		VM_BUG_ON_PAGE(compound, page);
-+		first = atomic_inc_and_test(&page->_mapcount);
-+	}
-+
- 	if (first) {
--		bool compound = flags & RMAP_COMPOUND;
- 		int nr = compound ? hpage_nr_pages(page) : 1;
- 		/*
- 		 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
-@@ -1088,6 +1105,7 @@ void do_page_add_anon_rmap(struct page *page,
- 		return;
- 
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
-+
- 	/* address might be in next vma when migration races vma_adjust */
- 	if (first)
- 		__page_set_anon_rmap(page, vma, address,
-@@ -1114,10 +1132,16 @@ void page_add_new_anon_rmap(struct page *page,
- 
- 	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
- 	SetPageSwapBacked(page);
--	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
- 	if (compound) {
- 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-+		/* increment count (starts at -1) */
-+		atomic_set(compound_mapcount_ptr(page), 0);
- 		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+	} else {
-+		/* Anon THP always mapped first with PMD */
-+		VM_BUG_ON_PAGE(PageTransCompound(page), page);
-+		/* increment count (starts at -1) */
-+		atomic_set(&page->_mapcount, 0);
- 	}
- 	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, nr);
- 	__page_set_anon_rmap(page, vma, address, 1);
-@@ -1147,12 +1171,15 @@ static void page_remove_file_rmap(struct page *page)
- 
- 	memcg = mem_cgroup_begin_page_stat(page);
- 
--	/* page still mapped by someone else? */
--	if (!atomic_add_negative(-1, &page->_mapcount))
-+	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
-+	if (unlikely(PageHuge(page))) {
-+		/* hugetlb pages are always mapped with pmds */
-+		atomic_dec(compound_mapcount_ptr(page));
- 		goto out;
-+	}
- 
--	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
--	if (unlikely(PageHuge(page)))
-+	/* page still mapped by someone else? */
-+	if (!atomic_add_negative(-1, &page->_mapcount))
- 		goto out;
- 
- 	/*
-@@ -1169,6 +1196,39 @@ out:
- 	mem_cgroup_end_page_stat(memcg);
- }
- 
-+static void page_remove_anon_compound_rmap(struct page *page)
-+{
-+	int i, nr;
-+
-+	if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
-+		return;
-+
-+	/* Hugepages are not counted in NR_ANON_PAGES for now. */
-+	if (unlikely(PageHuge(page)))
-+		return;
-+
-+	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
-+		return;
-+
-+	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+
-+	if (TestClearPageDoubleMap(page)) {
-+		/*
-+		 * Subpages can be mapped with PTEs too. Check how many of
-+		 * themi are still mapped.
-+		 */
-+		for (i = 0, nr = 0; i < HPAGE_PMD_NR; i++) {
-+			if (atomic_add_negative(-1, &page[i]._mapcount))
-+				nr++;
-+		}
-+	} else {
-+		nr = HPAGE_PMD_NR;
-+	}
-+
-+	if (nr)
-+		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
-+}
-+
- /**
-  * page_remove_rmap - take down pte mapping from a page
-  * @page:	page to remove mapping from
-@@ -1178,33 +1238,25 @@ out:
-  */
- void page_remove_rmap(struct page *page, bool compound)
- {
--	int nr = compound ? hpage_nr_pages(page) : 1;
--
- 	if (!PageAnon(page)) {
- 		VM_BUG_ON_PAGE(compound && !PageHuge(page), page);
- 		page_remove_file_rmap(page);
- 		return;
- 	}
- 
-+	if (compound)
-+		return page_remove_anon_compound_rmap(page);
-+
- 	/* page still mapped by someone else? */
- 	if (!atomic_add_negative(-1, &page->_mapcount))
- 		return;
- 
--	/* Hugepages are not counted in NR_ANON_PAGES for now. */
--	if (unlikely(PageHuge(page)))
--		return;
--
- 	/*
- 	 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
- 	 * these counters are not modified in interrupt context, and
- 	 * pte lock(a spinlock) is held, which implies preemption disabled.
- 	 */
--	if (compound) {
--		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
--		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
--	}
--
--	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
-+	__dec_zone_page_state(page, NR_ANON_PAGES);
- 
- 	if (unlikely(PageMlocked(page)))
- 		clear_page_mlock(page);
-@@ -1645,7 +1697,7 @@ void hugepage_add_anon_rmap(struct page *page,
- 	BUG_ON(!PageLocked(page));
- 	BUG_ON(!anon_vma);
- 	/* address might be in next vma when migration races vma_adjust */
--	first = atomic_inc_and_test(&page->_mapcount);
-+	first = atomic_inc_and_test(compound_mapcount_ptr(page));
- 	if (first)
- 		__hugepage_set_anon_rmap(page, vma, address, 0);
- }
-@@ -1654,7 +1706,7 @@ void hugepage_add_new_anon_rmap(struct page *page,
- 			struct vm_area_struct *vma, unsigned long address)
- {
- 	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
--	atomic_set(&page->_mapcount, 0);
-+	atomic_set(compound_mapcount_ptr(page), 0);
- 	__hugepage_set_anon_rmap(page, vma, address, 1);
- }
- #endif /* CONFIG_HUGETLB_PAGE */
+You're right. Thanks!
+Andres
+>
+>>
+>> >         if (referenced) {
+>>
+>> At this point, if you follow my suggestion of augmenting
+>> page_referenced_one with a mode indicator (for TLB flushing), you can
+>> set page young here. There is the added benefit of holding the
+>> mmap_mutex lock or vma_lock, which prevents reclaim, try_to_unmap,
+>> migration, from exploiting a small window where page young is not set
+>> but should.
+>
+> Yeah, if we go with the page_referenced mode switcher you suggested
+> above, it's definitely worth moving set_page_young here.
+>
+> Thank you for the review!
+>
+> Vladimir
+>
+>>
+>> >                 pra->referenced++;
+>> >                 pra->vm_flags |= vma->vm_flags;
+>> > diff --git a/mm/swap.c b/mm/swap.c
+>> > index ab7c338eda87..db43c9b4891d 100644
+>> > --- a/mm/swap.c
+>> > +++ b/mm/swap.c
+>> > @@ -623,6 +623,8 @@ void mark_page_accessed(struct page *page)
+>> >         } else if (!PageReferenced(page)) {
+>> >                 SetPageReferenced(page);
+>> >         }
+>> > +       if (page_is_idle(page))
+>> > +               clear_page_idle(page);
+>> >  }
+>> >  EXPORT_SYMBOL(mark_page_accessed);
+>> >
+
+
+
 -- 
-2.1.4
+Andres Lagar-Cavilla | Google Kernel Team | andreslc@google.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
