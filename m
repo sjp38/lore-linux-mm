@@ -1,50 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 970856B0038
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 10:19:17 -0400 (EDT)
-Received: by iebmu5 with SMTP id mu5so196702975ieb.1
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 07:19:17 -0700 (PDT)
-Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [69.252.207.36])
-        by mx.google.com with ESMTPS id s9si1522621ign.77.2015.07.10.07.19.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 10 Jul 2015 07:19:15 -0700 (PDT)
-Date: Fri, 10 Jul 2015 09:19:11 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id CDC646B0253
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 11:02:48 -0400 (EDT)
+Received: by iecvh10 with SMTP id vh10so198368312iec.3
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 08:02:48 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0065.hostedemail.com. [216.40.44.65])
+        by mx.google.com with ESMTP id 9si1631392igr.5.2015.07.10.08.02.47
+        for <linux-mm@kvack.org>;
+        Fri, 10 Jul 2015 08:02:47 -0700 (PDT)
+Date: Fri, 10 Jul 2015 11:02:42 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
 Subject: Re: [patch] mm/slub: Move slab initialization into irq enabled
  region
+Message-ID: <20150710110242.25c84965@gandalf.local.home>
 In-Reply-To: <20150710120259.836414367@linutronix.de>
-Message-ID: <alpine.DEB.2.11.1507100918380.5980@east.gentwo.org>
 References: <20150710120259.836414367@linutronix.de>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Thomas Gleixner <tglx@linutronix.de>
-Cc: LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Peter Zijlstra <peterz@infradead.org>
 
-There is a duplicate check for page == NULL now.
+On Fri, 10 Jul 2015 12:07:13 -0000
+Thomas Gleixner <tglx@linutronix.de> wrote:
 
 
-Subject: slub: allocate_slab: no need to check twice for page == NULL
+>  /*
+>   * Slab allocation and freeing
+>   */
+> @@ -1336,6 +1347,8 @@ static struct page *allocate_slab(struct
+>  	struct page *page;
+>  	struct kmem_cache_order_objects oo = s->oo;
+>  	gfp_t alloc_gfp;
+> +	void *start, *p;
+> +	int idx, order;
+>  
+>  	flags &= gfp_allowed_mask;
+>  
+> @@ -1364,8 +1377,11 @@ static struct page *allocate_slab(struct
+>  			stat(s, ORDER_FALLBACK);
+>  	}
+>  
+> -	if (kmemcheck_enabled && page
+> -		&& !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
+> +	if (!page)
+> +		goto out;
 
-Remove the second check.
+Since the above now looks like this:
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+	page = alloc_slab_page(s, alloc_gfp, node, oo);
+	if (unlikely(!page)) {
+		oo = s->min;
+		alloc_gfp = flags;
+		/*
+		 * Allocation may have failed due to fragmentation.
+		 * Try a lower order alloc if possible
+		 */
+		page = alloc_slab_page(s, alloc_gfp, node, oo);
 
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c
-+++ linux/mm/slub.c
-@@ -1396,9 +1396,6 @@ static struct page *allocate_slab(struct
- 			kmemcheck_mark_unallocated_pages(page, pages);
- 	}
+		if (page)
+			stat(s, ORDER_FALLBACK);
+	}
 
--	if (!page)
--		goto out;
--
- 	page->objects = oo_objects(oo);
+	if (!page)
+		goto out;
 
- 	order = compound_order(page);
+Why not have it do this:
+
+	page = alloc_slab_page(s, alloc_gfp, node, oo);
+	if (unlikely(!page)) {
+		oo = s->min;
+		alloc_gfp = flags;
+		/*
+		 * Allocation may have failed due to fragmentation.
+		 * Try a lower order alloc if possible
+		 */
+		page = alloc_slab_page(s, alloc_gfp, node, oo);
+		if (unlikely(!page))
+			goto out;
+
+		stat(s, ORDER_FALLBACK);
+	}
+
+And get rid of the double check for !page in the fast path.
+
+-- Steve
+
+
+> +
+> +	if (kmemcheck_enabled &&
+> +	    !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
+>  		int pages = 1 << oo_order(oo);
+>  
+>  		kmemcheck_alloc_shadow(page, oo_order(oo), alloc_gfp, node);
+> @@ -1380,51 +1396,12 @@ static struct page *allocate_slab(struct
+>  			kmemcheck_mark_unallocated_pages(page, pages);
+>  	}
+>  
+> -	if (flags & __GFP_WAIT)
+> -		local_irq_disable();
+>  	if (!page)
+> -		return NULL;
+> +		goto out;
+>  
+>  	page->objects = oo_objects(oo);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
