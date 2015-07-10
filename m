@@ -1,150 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 410226B0038
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 03:54:15 -0400 (EDT)
-Received: by pdjr16 with SMTP id r16so18782793pdj.3
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 00:54:15 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id qn16si13282313pab.235.2015.07.10.00.54.14
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id A04186B0038
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 04:28:51 -0400 (EDT)
+Received: by pdbqm3 with SMTP id qm3so36745984pdb.0
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 01:28:51 -0700 (PDT)
+Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com. [202.81.31.145])
+        by mx.google.com with ESMTPS id cj15si13458169pdb.199.2015.07.10.01.28.49
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Jul 2015 00:54:14 -0700 (PDT)
-Date: Fri, 10 Jul 2015 10:54:00 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH 7/8] memcg: get rid of mm_struct::owner
-Message-ID: <20150710075400.GN2436@esperanza>
-References: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
- <1436358472-29137-8-git-send-email-mhocko@kernel.org>
- <20150708173251.GG2436@esperanza>
- <20150709140941.GG13872@dhcp22.suse.cz>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Fri, 10 Jul 2015 01:28:50 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
+	Fri, 10 Jul 2015 18:28:46 +1000
+Received: from d23relay08.au.ibm.com (d23relay08.au.ibm.com [9.185.71.33])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id C84B72CE8040
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 18:28:42 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t6A8SVuj66584734
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 18:28:40 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t6A8S92b003967
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 18:28:09 +1000
+Date: Fri, 10 Jul 2015 16:27:51 +0800
+From: Wei Yang <weiyang@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/page: refine the calculation of highest possible node
+ id
+Message-ID: <20150710082751.GA21679@richard>
+Reply-To: Wei Yang <weiyang@linux.vnet.ibm.com>
+References: <1436509581-9370-1-git-send-email-weiyang@linux.vnet.ibm.com>
+ <20150710003555.4398c8ad.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150709140941.GG13872@dhcp22.suse.cz>
+In-Reply-To: <20150710003555.4398c8ad.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Wei Yang <weiyang@linux.vnet.ibm.com>, tj@kernel.org, linux-mm@kvack.org
 
-On Thu, Jul 09, 2015 at 04:09:41PM +0200, Michal Hocko wrote:
-> On Wed 08-07-15 20:32:51, Vladimir Davydov wrote:
-> > On Wed, Jul 08, 2015 at 02:27:51PM +0200, Michal Hocko wrote:
-[...]
-> > > @@ -474,7 +519,7 @@ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
-> > >  		return;
-> > >  
-> > >  	rcu_read_lock();
-> > > -	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
-> > > +	memcg = rcu_dereference(mm->memcg);
-> > >  	if (unlikely(!memcg))
-> > >  		goto out;
-> > >  
-> > 
-> > If I'm not mistaken, mm->memcg equals NULL for any task in the root
-> > memory cgroup
-> 
-> right
-> 
-> > (BTW, it it's true, it's worth mentioning in the comment
-> > to mm->memcg definition IMO). As a result, we won't account the stats
-> > for such tasks, will we?
-> 
-> well spotted! This is certainly a bug. There are more places which are
-> checking for mm->memcg being NULL and falling back to root_mem_cgroup. I
-> think it would be better to simply use root_mem_cgroup right away. We
-> can setup init_mm.memcg = root_mem_cgroup during initialization and be
-> done with it. What do you think? The diff is in the very end of the
-> email (completely untested yet).
+On Fri, Jul 10, 2015 at 12:35:55AM -0700, Andrew Morton wrote:
+>On Fri, 10 Jul 2015 14:26:21 +0800 Wei Yang <weiyang@linux.vnet.ibm.com> wrote:
+>
+>> nr_node_ids records the highest possible node id, which is calculated by
+>> scanning the bitmap node_states[N_POSSIBLE]. Current implementation scan
+>> the bitmap from the beginning, which will scan the whole bitmap.
+>> 
+>> This patch reverse the order by scanning from the end. By doing so, this
+>> will save some time whose worst case is the best case of current
+>> implementation.
+>
+>It hardly matters - setup_nr_node_ids() is called a single time, at boot.
 
-I'd prefer initializing init_mm.memcg to root_mem_cgroup. This way we
-wouldn't have to check whether mm->memcg is NULL or not here and there,
-which would make the code cleaner IMO.
+Hi, Andrew,
 
-[...]
-> > > @@ -4932,14 +4943,26 @@ static void mem_cgroup_move_task(struct cgroup_subsys_state *css,
-> > >  {
-> > >  	struct task_struct *p = cgroup_taskset_first(tset);
-> > >  	struct mm_struct *mm = get_task_mm(p);
-> > > +	struct mem_cgroup *old_memcg = NULL;
-> > >  
-> > >  	if (mm) {
-> > > +		old_memcg = READ_ONCE(mm->memcg);
-> > > +		__mm_set_memcg(mm, mem_cgroup_from_css(css));
-> > > +
-> > >  		if (mc.to)
-> > >  			mem_cgroup_move_charge(mm);
-> > >  		mmput(mm);
-> > >  	}
-> > >  	if (mc.to)
-> > >  		mem_cgroup_clear_mc();
-> > > +
-> > > +	/*
-> > > +	 * Be careful and drop the reference only after we are done because
-> > > +	 * p's task_css memcg might be different from p->memcg and nothing else
-> > > +	 * might be pinning the old memcg.
-> > > +	 */
-> > > +	if (old_memcg)
-> > > +		css_put(&old_memcg->css);
-> > 
-> > Please explain why the following race is impossible:
-> > 
-> > CPU0					CPU1
-> > ----					----
-> > [current = T]
-> > dup_mm or exec_mmap
-> >  mm_inherit_memcg
-> >   memcg = current->mm->memcg;
-> > 					mem_cgroup_move_task
-> > 					 p = T;
-> > 					 mm = get_task_mm(p);
-> > 					 old_memcg = mm->memcg;
-> > 					 css_put(&old_memcg->css);
-> > 					 /* old_memcg can be freed now */
-> >   css_get(memcg); /*  BUG */
-> 
-> I guess you are right. The window seem to be very small but CPU0 simly
-> might get preempted by the moving task and so even cgroup pinning
-> wouldn't help here.
-> 
-> I guess we need
-> ---
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index b3e7e30b5a74..6fbd33273b6d 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -300,9 +300,17 @@ void __mm_set_memcg(struct mm_struct *mm, struct mem_cgroup *memcg)
->  static inline
->  void mm_inherit_memcg(struct mm_struct *newmm, struct mm_struct *oldmm)
->  {
-> -	struct mem_cgroup *memcg = oldmm->memcg;
-> +	struct mem_cgroup *memcg;
->  
-> +	/*
-> +	 * oldmm might be under move and just replacing its memcg (see
-> +	 * mem_cgroup_move_task) so we have to protect from its memcg
-> +	 * going away between we dereference and take a reference.
-> +	 */
-> +	rcu_read_lock();
-> +	memcg = rcu_dereference(oldmm->memcg);
->  	__mm_set_memcg(newmm, memcg);
+Glad to receive your comment :-)
 
-If it's safe to call css_get under rcu_read_lock, then it's OK,
-otherwise we probably need to use a do {} while (!css_tryget(memcg))
-loop in __mm_set_memcg.
+Yes, the hardly matters on the performance side, while scanning from the end is
+a better way to me. Hope you like it.
 
-> +	rcu_read_unlock();
->  }
->  
->  /**
-> 
-> 
-> Make sure that all tasks have non NULL memcg.
-[...]
+>
+>> --- a/include/linux/nodemask.h
+>> +++ b/include/linux/nodemask.h
+>> @@ -253,6 +253,12 @@ static inline int __first_node(const nodemask_t *srcp)
+>>  	return min_t(int, MAX_NUMNODES, find_first_bit(srcp->bits, MAX_NUMNODES));
+>>  }
+>>  
+>> +#define last_node(src) __last_node(&(src))
+>> +static inline int __last_node(const nodemask_t *srcp)
+>> +{
+>> +	return min_t(int, MAX_NUMNODES, find_last_bit(srcp->bits, MAX_NUMNODES));
+>> +}
+>
+>hm.  Why isn't this just
+>
+>	return find_last_bit(srcp->bits, MAX_NUMNODES);
+>
+>?
 
-That looks better to me.
+I found this comment in the code:
 
-Thanks,
-Vladimir
+/* FIXME: better would be to fix all architectures to never return
+          > MAX_NUMNODES, then the silly min_ts could be dropped. */
+
+While I didn't find the original commit for this change, so not dear to change
+the related code format.
+
+>
+>> @@ -360,10 +366,20 @@ static inline void __nodes_fold(nodemask_t *dstp, const nodemask_t *origp,
+>>  	for ((node) = first_node(mask);			\
+>>  		(node) < MAX_NUMNODES;			\
+>>  		(node) = next_node((node), (mask)))
+>> +
+>> +static inline int highest_node_id(const nodemask_t possible)
+>> +{
+>> +	return last_node(possible);
+>> +}
+>
+>`possible' isn't a good identifier.  This function doesn't *know* that
+>its caller passed node_possible_map.  Another caller could pass some
+>other nodemask.
+>
+
+Agree. I would change it.
+
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -5453,8 +5453,7 @@ void __init setup_nr_node_ids(void)
+>>  	unsigned int node;
+>>  	unsigned int highest = 0;
+>
+>The "= 0" can now be removed.
+>
+>> -	for_each_node_mask(node, node_possible_map)
+>> -		highest = node;
+>> +	highest = highest_node_id(node_possible_map);
+>
+>I suspect we can just open-code a find_last_bit() here and all the
+>infrastructure isn't needed.
+>
+
+This is reasonable. If so, the code would be more clear.
+
+>>  	nr_node_ids = highest + 1;
+>>  }
+>
+>
+>And I suspect the "#if MAX_NUMNODES > 1" around setup_nr_node_ids() can
+>be removed.  Because if MAX_NUMNODES is ever <= 1 when
+>CONFIG_HAVE_MEMBLOCK_NODE_MAP=y, the kernel won't compile.
+
+Hmm... for this one, I am not sure.
+
+#define MAX_NUMNODES    (1 << NODES_SHIFT)
+#define NODES_SHIFT     CONFIG_NODES_SHIFT
+
+CONFIG_NODES_SHIFT depends on CONFIG_NEED_MULTIPLE_NODES, which depends on
+CONFIG_DISCONTIGMEM or CONFIG_NUMA.
+
+And I grep the kernel tree, not see other configuration would depend on
+HAVE_MEMBLOCK_NODE_MAP.
+
+So I am don't get a clear clue for this suspection.
+
+-- 
+Richard Yang
+Help you, Help me
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
