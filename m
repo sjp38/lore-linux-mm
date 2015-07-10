@@ -1,80 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id C94B36B0038
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 08:45:25 -0400 (EDT)
-Received: by wgxm20 with SMTP id m20so65122640wgx.3
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 05:45:25 -0700 (PDT)
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com. [74.125.82.43])
-        by mx.google.com with ESMTPS id c6si3272854wie.78.2015.07.10.05.45.23
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A7926B0254
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 08:47:26 -0400 (EDT)
+Received: by wiwl6 with SMTP id l6so45615759wiw.0
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 05:47:25 -0700 (PDT)
+Received: from e06smtp16.uk.ibm.com (e06smtp16.uk.ibm.com. [195.75.94.112])
+        by mx.google.com with ESMTPS id cw1si3323943wib.15.2015.07.10.05.47.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Jul 2015 05:45:24 -0700 (PDT)
-Received: by wgjx7 with SMTP id x7so248230242wgj.2
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 05:45:23 -0700 (PDT)
-Date: Fri, 10 Jul 2015 14:45:20 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 7/8] memcg: get rid of mm_struct::owner
-Message-ID: <20150710124520.GA29540@dhcp22.suse.cz>
-References: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
- <1436358472-29137-8-git-send-email-mhocko@kernel.org>
- <20150708173251.GG2436@esperanza>
- <20150709140941.GG13872@dhcp22.suse.cz>
- <20150710075400.GN2436@esperanza>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Fri, 10 Jul 2015 05:47:24 -0700 (PDT)
+Received: from /spool/local
+	by e06smtp16.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Fri, 10 Jul 2015 13:47:23 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 4270C1B08067
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 13:48:32 +0100 (BST)
+Received: from d06av08.portsmouth.uk.ibm.com (d06av08.portsmouth.uk.ibm.com [9.149.37.249])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t6AClJWV32768008
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 12:47:20 GMT
+Received: from d06av08.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av08.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t6AClJ1l029952
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 06:47:19 -0600
+Message-ID: <559FBED6.5080902@linux.vnet.ibm.com>
+Date: Fri, 10 Jul 2015 14:47:18 +0200
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150710075400.GN2436@esperanza>
+Subject: Re: [PATCH v2] mm: cleaning per architecture MM hook header files
+References: <55924508.9080101@synopsys.com> <1435745853-27535-1-git-send-email-ldufour@linux.vnet.ibm.com> <20150709160934.888dad2b24ce45957e65b139@linux-foundation.org>
+In-Reply-To: <20150709160934.888dad2b24ce45957e65b139@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vineet Gupta <Vineet.Gupta1@synopsys.com>, Geert Uytterhoeven <geert@linux-m68k.org>, uclinux-h8-devel@lists.sourceforge.jp, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>
 
-On Fri 10-07-15 10:54:00, Vladimir Davydov wrote:
-> On Thu, Jul 09, 2015 at 04:09:41PM +0200, Michal Hocko wrote:
-> > On Wed 08-07-15 20:32:51, Vladimir Davydov wrote:
-> > > On Wed, Jul 08, 2015 at 02:27:51PM +0200, Michal Hocko wrote:
-> [...]
-> > > > @@ -474,7 +519,7 @@ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
-> > > >  		return;
-> > > >  
-> > > >  	rcu_read_lock();
-> > > > -	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
-> > > > +	memcg = rcu_dereference(mm->memcg);
-> > > >  	if (unlikely(!memcg))
-> > > >  		goto out;
-> > > >  
-> > > 
-> > > If I'm not mistaken, mm->memcg equals NULL for any task in the root
-> > > memory cgroup
-> > 
-> > right
-> > 
-> > > (BTW, it it's true, it's worth mentioning in the comment
-> > > to mm->memcg definition IMO). As a result, we won't account the stats
-> > > for such tasks, will we?
-> > 
-> > well spotted! This is certainly a bug. There are more places which are
-> > checking for mm->memcg being NULL and falling back to root_mem_cgroup. I
-> > think it would be better to simply use root_mem_cgroup right away. We
-> > can setup init_mm.memcg = root_mem_cgroup during initialization and be
-> > done with it. What do you think? The diff is in the very end of the
-> > email (completely untested yet).
+On 10/07/2015 01:09, Andrew Morton wrote:
+> On Wed,  1 Jul 2015 12:17:33 +0200 Laurent Dufour <ldufour@linux.vnet.ibm.com> wrote:
 > 
-> I'd prefer initializing init_mm.memcg to root_mem_cgroup. This way we
-> wouldn't have to check whether mm->memcg is NULL or not here and there,
-> which would make the code cleaner IMO.
+>> The commit 2ae416b142b6 ("mm: new mm hook framework") introduced an empty
+>> header file (mm-arch-hooks.h) for every architecture, even those which
+>> doesn't need to define mm hooks.
+>>
+>> As suggested by Geert Uytterhoeven, this could be cleaned through the use
+>> of a generic header file included via each per architecture
+>> asm/include/Kbuild file.
+>>
+>> The PowerPC architecture is not impacted here since this architecture has
+>> to defined the arch_remap MM hook.
+> 
+> So the way this works is that if an arch wants to override a hook, it
+> will remove the "generic-y += mm-arch-hooks.h" and add
+> arch/XXX/include/asm/mm-arch-hooks.h, yes?
+>
+> And the new arch/XXX/include/asm/mm-arch-hooks.h only needs to define
+> the hook(s) which the arch wants to override?
 
-So the patch I've posted will not work as a simple boot test told me. We
-are initializing root_mem_cgroup too late. This will be more complicated.
-I will leave this idea outside of this patch series and will come up
-with a separate patch which will clean this up later. I will update the
-doc discouraging any use of mm->memcg outside of memcg and use accessor
-functions instead. There is only one currently (mm/debug.c) and this is
-used only to print the pointer which is safe.
+Yes that's the way it should work.
 
--- 
-Michal Hocko
-SUSE Labs
+> So nothing will ever be added to include/asm-generic/mm-arch-hooks.h?
+
+This file is the fallback one when no hooks is defined. It is here for
+the compiler happiness, and should be kept empty.
+
+> Seems fair enough.
+> 
+> Oleg is angling to remove arch_remap(), so there won't be anything left
+> in these files!  But there are plenty of ad-hoc things which *should*
+> be moved over.
+
+I'll try to move some hooks there as soon as I've so free time.
+
+> 
+>> Changes in V2:
+>> --------------
+>>  - Vineet Gupta reported that the Kbuild files should be kept sorted.
+> 
+> Yes, we do this to avoid patch collisions.  Everyone always adds stuff
+> to the end of the list (Makefiles, #includes, etc etc), thus carefully
+> maximizing the number of patch collisions :(
+
+This makes sense.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
