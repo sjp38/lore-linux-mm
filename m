@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 533DC9003C8
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 13:42:59 -0400 (EDT)
-Received: by pactm7 with SMTP id tm7so171648168pac.2
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 10:42:59 -0700 (PDT)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id AB76F9003C8
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 13:43:01 -0400 (EDT)
+Received: by pactm7 with SMTP id tm7so171648568pac.2
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 10:43:01 -0700 (PDT)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id i3si14788729pbq.157.2015.07.10.10.42.34
+        by mx.google.com with ESMTP id i6si15538496pdr.64.2015.07.10.10.42.36
         for <linux-mm@kvack.org>;
-        Fri, 10 Jul 2015 10:42:35 -0700 (PDT)
+        Fri, 10 Jul 2015 10:42:36 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 27/36] mm: differentiate page_mapped() from page_mapcount() for compound pages
-Date: Fri, 10 Jul 2015 20:42:01 +0300
-Message-Id: <1436550130-112636-28-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 36/36] thp: update documentation
+Date: Fri, 10 Jul 2015 20:42:10 +0300
+Message-Id: <1436550130-112636-37-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,250 +19,227 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Let's define page_mapped() to be true for compound pages if any
-sub-pages of the compound page is mapped (with PMD or PTE).
-
-On other hand page_mapcount() return mapcount for this particular small
-page.
-
-This will make cases like page_get_anon_vma() behave correctly once we
-allow huge pages to be mapped with PTE.
-
-Most users outside core-mm should use page_mapcount() instead of
-page_mapped().
+The patch updates Documentation/vm/transhuge.txt to reflect changes in
+THP design.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Tested-by: Sasha Levin <sasha.levin@oracle.com>
 ---
- arch/arc/mm/cache_arc700.c |  4 ++--
- arch/arm/mm/flush.c        |  2 +-
- arch/mips/mm/c-r4k.c       |  3 ++-
- arch/mips/mm/cache.c       |  2 +-
- arch/mips/mm/init.c        |  6 +++---
- arch/sh/mm/cache-sh4.c     |  2 +-
- arch/sh/mm/cache.c         |  8 ++++----
- arch/xtensa/mm/tlb.c       |  2 +-
- fs/proc/page.c             |  4 ++--
- include/linux/mm.h         | 15 +++++++++++++--
- mm/filemap.c               |  2 +-
- 11 files changed, 31 insertions(+), 19 deletions(-)
+ Documentation/vm/transhuge.txt | 151 ++++++++++++++++++++++++++---------------
+ 1 file changed, 96 insertions(+), 55 deletions(-)
 
-diff --git a/arch/arc/mm/cache_arc700.c b/arch/arc/mm/cache_arc700.c
-index 12b2100db073..43a42ddaef23 100644
---- a/arch/arc/mm/cache_arc700.c
-+++ b/arch/arc/mm/cache_arc700.c
-@@ -490,7 +490,7 @@ void flush_dcache_page(struct page *page)
- 	 */
- 	if (!mapping_mapped(mapping)) {
- 		clear_bit(PG_dc_clean, &page->flags);
--	} else if (page_mapped(page)) {
-+	} else if (page_mapcount(page)) {
+diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
+index 8143b9e8373d..bfd967e442e1 100644
+--- a/Documentation/vm/transhuge.txt
++++ b/Documentation/vm/transhuge.txt
+@@ -35,10 +35,10 @@ miss is going to run faster.
  
- 		/* kernel reading from page with U-mapping */
- 		void *paddr = page_address(page);
-@@ -675,7 +675,7 @@ void copy_user_highpage(struct page *to, struct page *from,
- 	 * Note that while @u_vaddr refers to DST page's userspace vaddr, it is
- 	 * equally valid for SRC page as well
- 	 */
--	if (page_mapped(from) && addr_not_cache_congruent(kfrom, u_vaddr)) {
-+	if (page_mapcount(from) && addr_not_cache_congruent(kfrom, u_vaddr)) {
- 		__flush_dcache_page(kfrom, u_vaddr);
- 		clean_src_k_mappings = 1;
- 	}
-diff --git a/arch/arm/mm/flush.c b/arch/arm/mm/flush.c
-index 77f229302032..4da544aa25ef 100644
---- a/arch/arm/mm/flush.c
-+++ b/arch/arm/mm/flush.c
-@@ -315,7 +315,7 @@ void flush_dcache_page(struct page *page)
- 	mapping = page_mapping(page);
+ == Design ==
  
- 	if (!cache_ops_need_broadcast() &&
--	    mapping && !page_mapped(page))
-+	    mapping && !page_mapcount(page))
- 		clear_bit(PG_dcache_clean, &page->flags);
- 	else {
- 		__flush_dcache_page(mapping, page);
-diff --git a/arch/mips/mm/c-r4k.c b/arch/mips/mm/c-r4k.c
-index 2e03ab173591..35994acf25b5 100644
---- a/arch/mips/mm/c-r4k.c
-+++ b/arch/mips/mm/c-r4k.c
-@@ -579,7 +579,8 @@ static inline void local_r4k_flush_cache_page(void *args)
- 		 * another ASID than the current one.
- 		 */
- 		map_coherent = (cpu_has_dc_aliases &&
--				page_mapped(page) && !Page_dcache_dirty(page));
-+				page_mapcount(page) &&
-+				!Page_dcache_dirty(page));
- 		if (map_coherent)
- 			vaddr = kmap_coherent(page, addr);
- 		else
-diff --git a/arch/mips/mm/cache.c b/arch/mips/mm/cache.c
-index 77d96db8253c..d054da62c2bb 100644
---- a/arch/mips/mm/cache.c
-+++ b/arch/mips/mm/cache.c
-@@ -106,7 +106,7 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
- 	unsigned long addr = (unsigned long) page_address(page);
+-- "graceful fallback": mm components which don't have transparent
+-  hugepage knowledge fall back to breaking a transparent hugepage and
+-  working on the regular pages and their respective regular pmd/pte
+-  mappings
++- "graceful fallback": mm components which don't have transparent hugepage
++  knowledge fall back to breaking huge pmd mapping into table of ptes and,
++  if necessary, split a transparent hugepage. Therefore these components
++  can continue working on the regular pages or regular pte mappings.
  
- 	if (pages_do_alias(addr, vmaddr)) {
--		if (page_mapped(page) && !Page_dcache_dirty(page)) {
-+		if (page_mapcount(page) && !Page_dcache_dirty(page)) {
- 			void *kaddr;
+ - if a hugepage allocation fails because of memory fragmentation,
+   regular pages should be gracefully allocated instead and mixed in
+@@ -211,9 +211,18 @@ thp_collapse_alloc_failed is incremented if khugepaged found a range
+ 	of pages that should be collapsed into one huge page but failed
+ 	the allocation.
  
- 			kaddr = kmap_coherent(page, vmaddr);
-diff --git a/arch/mips/mm/init.c b/arch/mips/mm/init.c
-index faa5c9822ecc..6095f15db03d 100644
---- a/arch/mips/mm/init.c
-+++ b/arch/mips/mm/init.c
-@@ -161,7 +161,7 @@ void copy_user_highpage(struct page *to, struct page *from,
+-thp_split is incremented every time a huge page is split into base
++thp_split_page is incremented every time a huge page is split into base
+ 	pages. This can happen for a variety of reasons but a common
+ 	reason is that a huge page is old and is being reclaimed.
++	This action implies splitting all PMD the page mapped with.
++
++thp_split_page_failed is is incremented if kernel fails to split huge
++	page. This can happen if the page was pinned by somebody.
++
++thp_split_pmd is incremented every time a PMD split into table of PTEs.
++	This can happen, for instance, when application calls mprotect() or
++	munmap() on part of huge page. It doesn't split huge page, only
++	page table entry.
  
- 	vto = kmap_atomic(to);
- 	if (cpu_has_dc_aliases &&
--	    page_mapped(from) && !Page_dcache_dirty(from)) {
-+	    page_mapcount(from) && !Page_dcache_dirty(from)) {
- 		vfrom = kmap_coherent(from, vaddr);
- 		copy_page(vto, vfrom);
- 		kunmap_coherent();
-@@ -183,7 +183,7 @@ void copy_to_user_page(struct vm_area_struct *vma,
- 	unsigned long len)
- {
- 	if (cpu_has_dc_aliases &&
--	    page_mapped(page) && !Page_dcache_dirty(page)) {
-+	    page_mapcount(page) && !Page_dcache_dirty(page)) {
- 		void *vto = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
- 		memcpy(vto, src, len);
- 		kunmap_coherent();
-@@ -201,7 +201,7 @@ void copy_from_user_page(struct vm_area_struct *vma,
- 	unsigned long len)
- {
- 	if (cpu_has_dc_aliases &&
--	    page_mapped(page) && !Page_dcache_dirty(page)) {
-+	    page_mapcount(page) && !Page_dcache_dirty(page)) {
- 		void *vfrom = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
- 		memcpy(dst, vfrom, len);
- 		kunmap_coherent();
-diff --git a/arch/sh/mm/cache-sh4.c b/arch/sh/mm/cache-sh4.c
-index 51d8f7f31d1d..58aaa4f33b81 100644
---- a/arch/sh/mm/cache-sh4.c
-+++ b/arch/sh/mm/cache-sh4.c
-@@ -241,7 +241,7 @@ static void sh4_flush_cache_page(void *args)
- 		 */
- 		map_coherent = (current_cpu_data.dcache.n_aliases &&
- 			test_bit(PG_dcache_clean, &page->flags) &&
--			page_mapped(page));
-+			page_mapcount(page));
- 		if (map_coherent)
- 			vaddr = kmap_coherent(page, address);
- 		else
-diff --git a/arch/sh/mm/cache.c b/arch/sh/mm/cache.c
-index f770e3992620..e58cfbf45150 100644
---- a/arch/sh/mm/cache.c
-+++ b/arch/sh/mm/cache.c
-@@ -59,7 +59,7 @@ void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
- 		       unsigned long vaddr, void *dst, const void *src,
- 		       unsigned long len)
- {
--	if (boot_cpu_data.dcache.n_aliases && page_mapped(page) &&
-+	if (boot_cpu_data.dcache.n_aliases && page_mapcount(page) &&
- 	    test_bit(PG_dcache_clean, &page->flags)) {
- 		void *vto = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
- 		memcpy(vto, src, len);
-@@ -78,7 +78,7 @@ void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
- 			 unsigned long vaddr, void *dst, const void *src,
- 			 unsigned long len)
- {
--	if (boot_cpu_data.dcache.n_aliases && page_mapped(page) &&
-+	if (boot_cpu_data.dcache.n_aliases && page_mapcount(page) &&
- 	    test_bit(PG_dcache_clean, &page->flags)) {
- 		void *vfrom = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
- 		memcpy(dst, vfrom, len);
-@@ -97,7 +97,7 @@ void copy_user_highpage(struct page *to, struct page *from,
+ thp_zero_page_alloc is incremented every time a huge zero page is
+ 	successfully allocated. It includes allocations which where
+@@ -264,10 +273,8 @@ is complete, so they won't ever notice the fact the page is huge. But
+ if any driver is going to mangle over the page structure of the tail
+ page (like for checking page->mapping or other bits that are relevant
+ for the head page and not the tail page), it should be updated to jump
+-to check head page instead (while serializing properly against
+-split_huge_page() to avoid the head and tail pages to disappear from
+-under it, see the futex code to see an example of that, hugetlbfs also
+-needed special handling in futex code for similar reasons).
++to check head page instead. Taking reference on any head/tail page would
++prevent page from being split by anyone.
  
- 	vto = kmap_atomic(to);
+ NOTE: these aren't new constraints to the GUP API, and they match the
+ same constrains that applies to hugetlbfs too, so any driver capable
+@@ -302,9 +309,9 @@ unaffected. libhugetlbfs will also work fine as usual.
+ == Graceful fallback ==
  
--	if (boot_cpu_data.dcache.n_aliases && page_mapped(from) &&
-+	if (boot_cpu_data.dcache.n_aliases && page_mapcount(from) &&
- 	    test_bit(PG_dcache_clean, &from->flags)) {
- 		vfrom = kmap_coherent(from, vaddr);
- 		copy_page(vto, vfrom);
-@@ -153,7 +153,7 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
- 	unsigned long addr = (unsigned long) page_address(page);
+ Code walking pagetables but unware about huge pmds can simply call
+-split_huge_page_pmd(vma, addr, pmd) where the pmd is the one returned by
++split_huge_pmd(vma, pmd, addr) where the pmd is the one returned by
+ pmd_offset. It's trivial to make the code transparent hugepage aware
+-by just grepping for "pmd_offset" and adding split_huge_page_pmd where
++by just grepping for "pmd_offset" and adding split_huge_pmd where
+ missing after pmd_offset returns the pmd. Thanks to the graceful
+ fallback design, with a one liner change, you can avoid to write
+ hundred if not thousand of lines of complex code to make your code
+@@ -313,7 +320,8 @@ hugepage aware.
+ If you're not walking pagetables but you run into a physical hugepage
+ but you can't handle it natively in your code, you can split it by
+ calling split_huge_page(page). This is what the Linux VM does before
+-it tries to swapout the hugepage for example.
++it tries to swapout the hugepage for example. split_huge_page() can fail
++if the page is pinned and you must handle this correctly.
  
- 	if (pages_do_alias(addr, vmaddr)) {
--		if (boot_cpu_data.dcache.n_aliases && page_mapped(page) &&
-+		if (boot_cpu_data.dcache.n_aliases && page_mapcount(page) &&
- 		    test_bit(PG_dcache_clean, &page->flags)) {
- 			void *kaddr;
+ Example to make mremap.c transparent hugepage aware with a one liner
+ change:
+@@ -325,14 +333,14 @@ diff --git a/mm/mremap.c b/mm/mremap.c
+ 		return NULL;
  
-diff --git a/arch/xtensa/mm/tlb.c b/arch/xtensa/mm/tlb.c
-index 5ece856c5725..35c822286bbe 100644
---- a/arch/xtensa/mm/tlb.c
-+++ b/arch/xtensa/mm/tlb.c
-@@ -245,7 +245,7 @@ static int check_tlb_entry(unsigned w, unsigned e, bool dtlb)
- 						page_mapcount(p));
- 				if (!page_count(p))
- 					rc |= TLB_INSANE;
--				else if (page_mapped(p))
-+				else if (page_mapcount(p))
- 					rc |= TLB_SUSPICIOUS;
- 			} else {
- 				rc |= TLB_INSANE;
-diff --git a/fs/proc/page.c b/fs/proc/page.c
-index 7eee2d8b97d9..e99c059339f6 100644
---- a/fs/proc/page.c
-+++ b/fs/proc/page.c
-@@ -97,9 +97,9 @@ u64 stable_page_flags(struct page *page)
- 	 * pseudo flags for the well known (anonymous) memory mapped pages
- 	 *
- 	 * Note that page->_mapcount is overloaded in SLOB/SLUB/SLQB, so the
--	 * simple test in page_mapped() is not enough.
-+	 * simple test in page_mapcount() is not enough.
- 	 */
--	if (!PageSlab(page) && page_mapped(page))
-+	if (!PageSlab(page) && page_mapcount(page))
- 		u |= 1 << KPF_MMAP;
- 	if (PageAnon(page))
- 		u |= 1 << KPF_ANON;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index d0a80644b1c1..0a30485c2e61 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -918,10 +918,21 @@ static inline pgoff_t page_file_index(struct page *page)
+ 	pmd = pmd_offset(pud, addr);
+-+	split_huge_page_pmd(vma, addr, pmd);
+++	split_huge_pmd(vma, pmd, addr);
+ 	if (pmd_none_or_clear_bad(pmd))
+ 		return NULL;
  
- /*
-  * Return true if this page is mapped into pagetables.
-+ * For compound page it returns true if any subpage of compound page is mapped.
-  */
--static inline int page_mapped(struct page *page)
-+static inline bool page_mapped(struct page *page)
- {
--	return atomic_read(&(page)->_mapcount) + compound_mapcount(page) >= 0;
-+	int i;
-+	if (likely(!PageCompound(page)))
-+		return atomic_read(&page->_mapcount) >= 0;
-+	page = compound_head(page);
-+	if (atomic_read(compound_mapcount_ptr(page)) + 1)
-+		return true;
-+	for (i = 0; i < hpage_nr_pages(page); i++) {
-+		if (atomic_read(&page[i]._mapcount) >= 0)
-+			return true;
-+	}
-+	return false;
- }
+ == Locking in hugepage aware code ==
  
- /*
-diff --git a/mm/filemap.c b/mm/filemap.c
-index a88532622781..a8cd3340b602 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -204,7 +204,7 @@ void __delete_from_page_cache(struct page *page, void *shadow,
- 		__dec_zone_page_state(page, NR_FILE_PAGES);
- 	if (PageSwapBacked(page))
- 		__dec_zone_page_state(page, NR_SHMEM);
--	BUG_ON(page_mapped(page));
-+	VM_BUG_ON_PAGE(page_mapped(page), page);
+ We want as much code as possible hugepage aware, as calling
+-split_huge_page() or split_huge_page_pmd() has a cost.
++split_huge_page() or split_huge_pmd() has a cost.
  
- 	/*
- 	 * At this point page must be either written or cleaned by truncate.
+ To make pagetable walks huge pmd aware, all you need to do is to call
+ pmd_trans_huge() on the pmd returned by pmd_offset. You must hold the
+@@ -341,47 +349,80 @@ created from under you by khugepaged (khugepaged collapse_huge_page
+ takes the mmap_sem in write mode in addition to the anon_vma lock). If
+ pmd_trans_huge returns false, you just fallback in the old code
+ paths. If instead pmd_trans_huge returns true, you have to take the
+-mm->page_table_lock and re-run pmd_trans_huge. Taking the
+-page_table_lock will prevent the huge pmd to be converted into a
+-regular pmd from under you (split_huge_page can run in parallel to the
++page table lock (pmd_lock()) and re-run pmd_trans_huge. Taking the
++page table lock will prevent the huge pmd to be converted into a
++regular pmd from under you (split_huge_pmd can run in parallel to the
+ pagetable walk). If the second pmd_trans_huge returns false, you
+-should just drop the page_table_lock and fallback to the old code as
+-before. Otherwise you should run pmd_trans_splitting on the pmd. In
+-case pmd_trans_splitting returns true, it means split_huge_page is
+-already in the middle of splitting the page. So if pmd_trans_splitting
+-returns true it's enough to drop the page_table_lock and call
+-wait_split_huge_page and then fallback the old code paths. You are
+-guaranteed by the time wait_split_huge_page returns, the pmd isn't
+-huge anymore. If pmd_trans_splitting returns false, you can proceed to
+-process the huge pmd and the hugepage natively. Once finished you can
+-drop the page_table_lock.
+-
+-== compound_lock, get_user_pages and put_page ==
++should just drop the page table lock and fallback to the old code as
++before. Otherwise you can proceed to process the huge pmd and the
++hugepage natively. Once finished you can drop the page table lock.
++
++== Refcounts and transparent huge pages ==
++
++Refcounting on THP is mostly consistent with refcounting on other compound
++pages:
++
++  - get_page()/put_page() and GUP operate in head page's ->_count.
++
++  - ->_count in tail pages is always zero: get_page_unless_zero() never
++    succeed on tail pages.
++
++  - map/unmap of the pages with PTE entry increment/decrement ->_mapcount
++    on relevent sub-page of the compound page.
++
++  - map/unmap of the whole compound page accounted in compound_mapcount
++    (stored in first tail page).
++
++PageDoubleMap() indicates that ->_mapcount in all subpages is offset up by one.
++This additional reference is required to get race-free detection of unmap of
++subpages when we have them mapped with both PMDs and PTEs.
++
++This is optimization required to lower overhead of per-subpage mapcount
++tracking. The alternative is alter ->_mapcount in all subpages on each
++map/unmap of the whole compound page.
++
++We set PG_double_map when a PMD of the page got split for the first time,
++but still have PMD mapping. The addtional references go away with last
++compound_mapcount.
+ 
+ split_huge_page internally has to distribute the refcounts in the head
+-page to the tail pages before clearing all PG_head/tail bits from the
+-page structures. It can do that easily for refcounts taken by huge pmd
+-mappings. But the GUI API as created by hugetlbfs (that returns head
+-and tail pages if running get_user_pages on an address backed by any
+-hugepage), requires the refcount to be accounted on the tail pages and
+-not only in the head pages, if we want to be able to run
+-split_huge_page while there are gup pins established on any tail
+-page. Failure to be able to run split_huge_page if there's any gup pin
+-on any tail page, would mean having to split all hugepages upfront in
+-get_user_pages which is unacceptable as too many gup users are
+-performance critical and they must work natively on hugepages like
+-they work natively on hugetlbfs already (hugetlbfs is simpler because
+-hugetlbfs pages cannot be split so there wouldn't be requirement of
+-accounting the pins on the tail pages for hugetlbfs). If we wouldn't
+-account the gup refcounts on the tail pages during gup, we won't know
+-anymore which tail page is pinned by gup and which is not while we run
+-split_huge_page. But we still have to add the gup pin to the head page
+-too, to know when we can free the compound page in case it's never
+-split during its lifetime. That requires changing not just
+-get_page, but put_page as well so that when put_page runs on a tail
+-page (and only on a tail page) it will find its respective head page,
+-and then it will decrease the head page refcount in addition to the
+-tail page refcount. To obtain a head page reliably and to decrease its
+-refcount without race conditions, put_page has to serialize against
+-__split_huge_page_refcount using a special per-page lock called
+-compound_lock.
++page to the tail pages before clearing all PG_head/tail bits from the page
++structures. It can be done easily for refcounts taken by page table
++entries. But we don't have enough information on how to distribute any
++additional pins (i.e. from get_user_pages). split_huge_page() fails any
++requests to split pinned huge page: it expects page count to be equal to
++sum of mapcount of all sub-pages plus one (split_huge_page caller must
++have reference for head page).
++
++split_huge_page uses migration entries to stabilize page->_count and
++page->_mapcount.
++
++We safe against physical memory scanners too: the only legitimate way
++scanner can get reference to a page is get_page_unless_zero().
++
++All tail pages has zero ->_count until atomic_add(). It prevent scanner
++from geting reference to tail page up to the point. After the atomic_add()
++we don't care about ->_count value.  We already known how many references
++with should uncharge from head page.
++
++For head page get_page_unless_zero() will succeed and we don't mind. It's
++clear where reference should go after split: it will stay on head page.
++
++Note that split_huge_pmd() doesn't have any limitation on refcounting:
++pmd can be split at any point and never fails.
++
++== Partial unmap and deferred_split_huge_page() ==
++
++Unmapping part of THP (with munmap() or other way) is not going to free
++memory immediately. Instead, we detect that a subpage of THP is not in use
++in page_remove_rmap() and queue the THP for splitting if memory pressure
++comes. Splitting will free up unused subpages.
++
++Splitting the page right away is not an option due to locking context in
++the place where we can detect partial unmap. It's also might be
++counterproductive since in many cases partial unmap unmap happens during
++exit(2) if an THP crosses VMA boundary.
++
++Function deferred_split_huge_page() is used to queue page for splitting.
++The splitting itself will happen when we get memory pressure via shrinker
++interface.
 -- 
 2.1.4
 
