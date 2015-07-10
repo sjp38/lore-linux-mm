@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 98D2F9003C8
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 13:42:54 -0400 (EDT)
-Received: by pactm7 with SMTP id tm7so171647350pac.2
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 10:42:54 -0700 (PDT)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id DBFC19003C8
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 13:42:56 -0400 (EDT)
+Received: by padck2 with SMTP id ck2so7136089pad.0
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 10:42:56 -0700 (PDT)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id ko11si14827141pbd.60.2015.07.10.10.42.31
+        by mx.google.com with ESMTP id db1si15550073pdb.30.2015.07.10.10.42.30
         for <linux-mm@kvack.org>;
         Fri, 10 Jul 2015 10:42:31 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 19/36] mips, thp: remove infrastructure for handling splitting PMDs
-Date: Fri, 10 Jul 2015 20:41:53 +0300
-Message-Id: <1436550130-112636-20-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 16/36] mm, thp: remove compound_lock
+Date: Fri, 10 Jul 2015 20:41:50 +0300
+Message-Id: <1436550130-112636-17-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,136 +19,152 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With new refcounting we don't need to mark PMDs splitting. Let's drop
-code to handle this.
-
-pmdp_splitting_flush() is not needed too: on splitting PMD we will do
-pmdp_clear_flush() + set_pte_at(). pmdp_clear_flush() will do IPI as
-needed for fast_gup.
+We are going to use migration entries to stabilize page counts. It means
+we don't need compound_lock() for that.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Tested-by: Sasha Levin <sasha.levin@oracle.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- arch/mips/include/asm/pgtable-bits.h |  6 ++----
- arch/mips/include/asm/pgtable.h      | 18 ------------------
- arch/mips/mm/gup.c                   | 13 +------------
- arch/mips/mm/pgtable-64.c            | 14 --------------
- arch/mips/mm/tlbex.c                 |  1 -
- 5 files changed, 3 insertions(+), 49 deletions(-)
+ include/linux/mm.h         | 35 -----------------------------------
+ include/linux/page-flags.h | 12 +-----------
+ mm/debug.c                 |  3 ---
+ mm/memcontrol.c            | 11 +++--------
+ 4 files changed, 4 insertions(+), 57 deletions(-)
 
-diff --git a/arch/mips/include/asm/pgtable-bits.h b/arch/mips/include/asm/pgtable-bits.h
-index c28a8499aec7..9bf8b2b87364 100644
---- a/arch/mips/include/asm/pgtable-bits.h
-+++ b/arch/mips/include/asm/pgtable-bits.h
-@@ -131,14 +131,12 @@
- /* Huge TLB page */
- #define _PAGE_HUGE_SHIFT	(_PAGE_MODIFIED_SHIFT + 1)
- #define _PAGE_HUGE		(1 << _PAGE_HUGE_SHIFT)
--#define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT + 1)
--#define _PAGE_SPLITTING		(1 << _PAGE_SPLITTING_SHIFT)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 57fcb78a3cef..755c8d4b6226 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -404,41 +404,6 @@ static inline int is_vmalloc_or_module_addr(const void *x)
  
- /* Only R2 or newer cores have the XI bit */
- #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
--#define _PAGE_NO_EXEC_SHIFT	(_PAGE_SPLITTING_SHIFT + 1)
-+#define _PAGE_NO_EXEC_SHIFT	(_PAGE_HUGE_SHIFT + 1)
- #else
--#define _PAGE_GLOBAL_SHIFT	(_PAGE_SPLITTING_SHIFT + 1)
-+#define _PAGE_GLOBAL_SHIFT	(_PAGE_HUGE_SHIFT + 1)
- #define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
- #endif	/* CONFIG_CPU_MIPSR2 || CONFIG_CPU_MIPSR6 */
+ extern void kvfree(const void *addr);
  
-diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
-index 9d8106758142..556c02a0706a 100644
---- a/arch/mips/include/asm/pgtable.h
-+++ b/arch/mips/include/asm/pgtable.h
-@@ -449,27 +449,9 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
- 	return pmd;
- }
- 
--static inline int pmd_trans_splitting(pmd_t pmd)
+-static inline void compound_lock(struct page *page)
 -{
--	return !!(pmd_val(pmd) & _PAGE_SPLITTING);
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	VM_BUG_ON_PAGE(PageSlab(page), page);
+-	bit_spin_lock(PG_compound_lock, &page->flags);
+-#endif
 -}
 -
--static inline pmd_t pmd_mksplitting(pmd_t pmd)
+-static inline void compound_unlock(struct page *page)
 -{
--	pmd_val(pmd) |= _PAGE_SPLITTING;
--
--	return pmd;
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	VM_BUG_ON_PAGE(PageSlab(page), page);
+-	bit_spin_unlock(PG_compound_lock, &page->flags);
+-#endif
 -}
 -
- extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
- 		       pmd_t *pmdp, pmd_t pmd);
- 
--#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
--/* Extern to avoid header file madness */
--extern void pmdp_splitting_flush(struct vm_area_struct *vma,
--					unsigned long address,
--					pmd_t *pmdp);
+-static inline unsigned long compound_lock_irqsave(struct page *page)
+-{
+-	unsigned long uninitialized_var(flags);
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	local_irq_save(flags);
+-	compound_lock(page);
+-#endif
+-	return flags;
+-}
 -
- #define __HAVE_ARCH_PMD_WRITE
- static inline int pmd_write(pmd_t pmd)
- {
-diff --git a/arch/mips/mm/gup.c b/arch/mips/mm/gup.c
-index 36a35115dc2e..1afd87c999b0 100644
---- a/arch/mips/mm/gup.c
-+++ b/arch/mips/mm/gup.c
-@@ -107,18 +107,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
- 		pmd_t pmd = *pmdp;
+-static inline void compound_unlock_irqrestore(struct page *page,
+-					      unsigned long flags)
+-{
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	compound_unlock(page);
+-	local_irq_restore(flags);
+-#endif
+-}
+-
+ /*
+  * The atomic page->_mapcount, starts from -1: so that transitions
+  * both from it and to it can be tracked, using atomic_inc_and_test
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 91b7f9b2b774..74b7cece1dfa 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -106,9 +106,6 @@ enum pageflags {
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	PG_hwpoison,		/* hardware poisoned page. Don't touch */
+ #endif
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	PG_compound_lock,
+-#endif
+ 	__NR_PAGEFLAGS,
  
- 		next = pmd_addr_end(addr, end);
--		/*
--		 * The pmd_trans_splitting() check below explains why
--		 * pmdp_splitting_flush has to flush the tlb, to stop
--		 * this gup-fast code from running while we set the
--		 * splitting bit in the pmd. Returning zero will take
--		 * the slow path that will call wait_split_huge_page()
--		 * if the pmd is still in splitting state. gup-fast
--		 * can't because it has irq disabled and
--		 * wait_split_huge_page() would never return as the
--		 * tlb flush IPI wouldn't run.
--		 */
--		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
-+		if (pmd_none(pmd))
- 			return 0;
- 		if (unlikely(pmd_huge(pmd))) {
- 			if (!gup_huge_pmd(pmd, addr, next, write, pages,nr))
-diff --git a/arch/mips/mm/pgtable-64.c b/arch/mips/mm/pgtable-64.c
-index e8adc0069d66..ce4473e7c0d2 100644
---- a/arch/mips/mm/pgtable-64.c
-+++ b/arch/mips/mm/pgtable-64.c
-@@ -62,20 +62,6 @@ void pmd_init(unsigned long addr, unsigned long pagetable)
- }
+ 	/* Filesystems */
+@@ -683,12 +680,6 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
+ #define __PG_MLOCKED		0
  #endif
  
 -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
--
--void pmdp_splitting_flush(struct vm_area_struct *vma,
--			 unsigned long address,
--			 pmd_t *pmdp)
--{
--	if (!pmd_trans_splitting(*pmdp)) {
--		pmd_t pmd = pmd_mksplitting(*pmdp);
--		set_pmd_at(vma->vm_mm, address, pmdp, pmd);
--	}
--}
--
+-#define __PG_COMPOUND_LOCK		(1 << PG_compound_lock)
+-#else
+-#define __PG_COMPOUND_LOCK		0
 -#endif
 -
- pmd_t mk_pmd(struct page *page, pgprot_t prot)
- {
- 	pmd_t pmd;
-diff --git a/arch/mips/mm/tlbex.c b/arch/mips/mm/tlbex.c
-index 97c87027c17f..02b53ce7fc2e 100644
---- a/arch/mips/mm/tlbex.c
-+++ b/arch/mips/mm/tlbex.c
-@@ -240,7 +240,6 @@ static void output_pgtable_bits_defines(void)
- 	pr_define("_PAGE_MODIFIED_SHIFT %d\n", _PAGE_MODIFIED_SHIFT);
- #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
- 	pr_define("_PAGE_HUGE_SHIFT %d\n", _PAGE_HUGE_SHIFT);
--	pr_define("_PAGE_SPLITTING_SHIFT %d\n", _PAGE_SPLITTING_SHIFT);
+ /*
+  * Flags checked when a page is freed.  Pages being freed should not have
+  * these flags set.  It they are, there is a problem.
+@@ -698,8 +689,7 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
+ 	 1 << PG_private | 1 << PG_private_2 | \
+ 	 1 << PG_writeback | 1 << PG_reserved | \
+ 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
+-	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
+-	 __PG_COMPOUND_LOCK)
++	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON )
+ 
+ /*
+  * Flags checked when a page is prepped for return by the page allocator.
+diff --git a/mm/debug.c b/mm/debug.c
+index 3eb3ac2fcee7..9dfcd77e7354 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -45,9 +45,6 @@ static const struct trace_print_flags pageflag_names[] = {
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	{1UL << PG_hwpoison,		"hwpoison"	},
  #endif
- #ifdef CONFIG_CPU_MIPSR2
- 	if (cpu_has_rixi) {
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	{1UL << PG_compound_lock,	"compound_lock"	},
+-#endif
+ };
+ 
+ static void dump_flags(unsigned long flags,
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 2648cd75b858..bbc520160ed1 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2763,9 +2763,7 @@ struct mem_cgroup *__mem_cgroup_from_kmem(void *ptr)
+ 
+ /*
+  * Because tail pages are not marked as "used", set it. We're under
+- * zone->lru_lock, 'splitting on pmd' and compound_lock.
+- * charge/uncharge will be never happen and move_account() is done under
+- * compound_lock(), so we don't have to take care of races.
++ * zone->lru_lock and migration entries setup in all page mappings.
+  */
+ void mem_cgroup_split_huge_fixup(struct page *head)
+ {
+@@ -4845,9 +4843,7 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
+  * @from: mem_cgroup which the page is moved from.
+  * @to:	mem_cgroup which the page is moved to. @from != @to.
+  *
+- * The caller must confirm following.
+- * - page is not on LRU (isolate_page() is useful.)
+- * - compound_lock is held when nr_pages > 1
++ * The caller must make sure the page is not on LRU (isolate_page() is useful.)
+  *
+  * This function doesn't do "charge" to new cgroup and doesn't do "uncharge"
+  * from old cgroup.
+@@ -5187,8 +5183,7 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 	struct page *page;
+ 
+ 	/*
+-	 * We don't take compound_lock() here but no race with splitting thp
+-	 * happens because:
++	 * No race with splitting thp happens because:
+ 	 *  - if pmd_trans_huge_lock() returns 1, the relevant thp is not
+ 	 *    under splitting, which means there's no concurrent thp split,
+ 	 *  - if another thread runs into split_huge_page() just after we
 -- 
 2.1.4
 
