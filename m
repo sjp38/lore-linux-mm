@@ -1,90 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 667656B0253
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 03:41:28 -0400 (EDT)
-Received: by wiga1 with SMTP id a1so7939747wig.0
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 00:41:28 -0700 (PDT)
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com. [209.85.212.180])
-        by mx.google.com with ESMTPS id uj1si14007879wjc.177.2015.07.10.00.41.26
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F2B06B0038
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 03:48:27 -0400 (EDT)
+Received: by pacgz10 with SMTP id gz10so91033655pac.3
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 00:48:27 -0700 (PDT)
+Received: from mail-pd0-x22c.google.com (mail-pd0-x22c.google.com. [2607:f8b0:400e:c02::22c])
+        by mx.google.com with ESMTPS id pi7si13234018pac.229.2015.07.10.00.48.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Jul 2015 00:41:26 -0700 (PDT)
-Received: by wifm2 with SMTP id m2so38604403wif.1
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 00:41:26 -0700 (PDT)
-Date: Fri, 10 Jul 2015 09:41:24 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/4] oom: Do not panic when OOM killer is sysrq triggered
-Message-ID: <20150710074124.GB7343@dhcp22.suse.cz>
-References: <1436360661-31928-1-git-send-email-mhocko@suse.com>
- <1436360661-31928-2-git-send-email-mhocko@suse.com>
- <alpine.DEB.2.10.1507081635030.16585@chino.kir.corp.google.com>
- <20150709082304.GA13872@dhcp22.suse.cz>
- <alpine.DEB.2.10.1507091352150.17177@chino.kir.corp.google.com>
+        Fri, 10 Jul 2015 00:48:26 -0700 (PDT)
+Received: by pdbep18 with SMTP id ep18so179994404pdb.1
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 00:48:26 -0700 (PDT)
+Date: Fri, 10 Jul 2015 00:48:14 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: mm: shmem_zero_setup skip security check and lockdep conflict
+ with XFS
+In-Reply-To: <559E7023.8040203@tycho.nsa.gov>
+Message-ID: <alpine.LSU.2.11.1507100013270.5082@eggly.anvils>
+References: <alpine.LSU.2.11.1506140944380.11018@eggly.anvils> <CAB9W1A2ekXaqHfcUxpmx_5rwxfP+wMHA17BdrA7f=Ey-rp0Lvw@mail.gmail.com> <559D51C2.7060603@tycho.nsa.gov> <alpine.LSU.2.11.1507090112430.2698@eggly.anvils> <559E7023.8040203@tycho.nsa.gov>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1507091352150.17177@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jakob Unterwurzacher <jakobunt@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Stephen Smalley <sds@tycho.nsa.gov>
+Cc: Hugh Dickins <hughd@google.com>, Stephen Smalley <stephen.smalley@gmail.com>, Prarit Bhargava <prarit@redhat.com>, Morten Stevens <mstevens@fedoraproject.org>, Eric Sandeen <esandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, Daniel Wagner <wagi@monom.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Eric Paris <eparis@redhat.com>, linux-mm@kvack.org, selinux <selinux@tycho.nsa.gov>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
 
-On Thu 09-07-15 14:03:53, David Rientjes wrote:
-> On Thu, 9 Jul 2015, Michal Hocko wrote:
-> 
-> > > the titles were wrong for patches 2 and 3, but it doesn't mean we need to 
-> > > add hacks around the code before organizing this into struct oom_control 
+On Thu, 9 Jul 2015, Stephen Smalley wrote:
+> On 07/09/2015 04:23 AM, Hugh Dickins wrote:
+> > On Wed, 8 Jul 2015, Stephen Smalley wrote:
+> >> On 07/08/2015 09:13 AM, Stephen Smalley wrote:
+> >>> On Sun, Jun 14, 2015 at 12:48 PM, Hugh Dickins <hughd@google.com> wrote:
+> >>>> It appears that, at some point last year, XFS made directory handling
+> >>>> changes which bring it into lockdep conflict with shmem_zero_setup():
+> >>>> it is surprising that mmap() can clone an inode while holding mmap_sem,
+> >>>> but that has been so for many years.
+> >>>>
+> >>>> Since those few lockdep traces that I've seen all implicated selinux,
+> >>>> I'm hoping that we can use the __shmem_file_setup(,,,S_PRIVATE) which
+> >>>> v3.13's commit c7277090927a ("security: shmem: implement kernel private
+> >>>> shmem inodes") introduced to avoid LSM checks on kernel-internal inodes:
+> >>>> the mmap("/dev/zero") cloned inode is indeed a kernel-internal detail.
+> >>>>
+> >>>> This also covers the !CONFIG_SHMEM use of ramfs to support /dev/zero
+> >>>> (and MAP_SHARED|MAP_ANONYMOUS).  I thought there were also drivers
+> >>>> which cloned inode in mmap(), but if so, I cannot locate them now.
+> >>>
+> >>> This causes a regression for SELinux (please, in the future, cc
+> >>> selinux list and Paul Moore on SELinux-related changes).  In
 > > 
-> > It is much easier to backport _fixes_ into older kernels (and yes I do
-> > care about that) if they do not depend on other cleanups. So I do not
-> > understand your point here. Besides that the cleanup really didn't make
-> > much change to the actuall fix because one way or another you still have
-> > to add a simple condition to rule out a heuristic/configuration which
-> > doesn't apply to sysrq+f path.
+> > Surprised and sorry about that, yes, I should have Cc'ed.
 > > 
-> > So I am really lost in your argumentation here.
+> >>> particular, this change disables SELinux checking of mprotect
+> >>> PROT_EXEC on shared anonymous mappings, so we lose the ability to
+> >>> control executable mappings.  That said, we are only getting that
+> >>> check today as a side effect of our file execute check on the tmpfs
+> >>> inode, whereas it would be better (and more consistent with the
+> >>> mmap-time checks) to apply an execmem check in that case, in which
+> >>> case we wouldn't care about the inode-based check.  However, I am
+> >>> unclear on how to correctly detect that situation from
+> >>> selinux_file_mprotect() -> file_map_prot_check(), because we do have a
+> >>> non-NULL vma->vm_file so we treat it as a file execute check.  In
+> >>> contrast, if directly creating an anonymous shared mapping with
+> >>> PROT_EXEC via mmap(...PROT_EXEC...),  selinux_mmap_file is called with
+> >>> a NULL file and therefore we end up applying an execmem check.
 > > 
+> > If you're willing to go forward with the change, rather than just call
+> > for an immediate revert of it, then I think the right way to detect
+> > the situation would be to check IS_PRIVATE(file_inode(vma->vm_file)),
+> > wouldn't it?
 > 
-> This isn't a bugfix: sysrq+f has, at least for eight years, been able to 
-> panic the kernel.
+> That seems misleading and might trigger execmem checks on non-shmem
+> inodes.  S_PRIVATE was originally introduced for fs-internal inodes that
+> are never directly exposed to userspace, originally for reiserfs xattr
+> inodes (reiserfs xattrs are internally implemented as their own files
+> that are hidden from userspace) and later also applied to anon inodes.
+> It would be better if we had an explicit way of testing that we are
+> dealing with an anonymous shared mapping in selinux_file_mprotect() ->
+> file_map_prot_check().
 
-This is an unwanted behavior and that is why I call it a bug. The mere
-fact that nobody has noticed because panic_on_oom is not used widely and
-even less with sysrq+f has nothing to do with it.
+But how would any of those original S_PRIVATE inodes arrive at
+selinux_file_mprotect()?  Now we have added the anon shared mmap case
+which can arrive there, but the S_PRIVATE check seems just the right
+tool for the job of distinguishing those from the user-visible inodes.
 
-> We're not fixing a bug, we're changing behavior.  It's 
-> quite appropriate to reorganize code before a behavior change to make it 
-> cleaner.
-> 
-> > > or completely pointless comments and printks that will fill the kernel 
-> > > log.
-> > 
-> > Could you explain what is so pointless about a comment which clarifies
-> > the fact which is not obviously visible from the current function?
-> > 
-> 
-> It states the obvious, a kthread is not going to be oom killed for 
-> oom_kill_allocating_task:
+I don't see how adding some other flag for this case would be better
+- though certainly I can see that adding an "anon shared shmem"
+comment on its use in that check would be helpful.
 
-Sigh. The comment says that the force_kill path _runs_ from the kthread
-context which is far from obvious in out_of_memory.
+Or is there some further difficulty in this use of S_PRIVATE, beyond
+the mprotect case that you've mentioned?  Unless there is some further
+difficulty, duplicating all the code relating to S_PRIVATE for a
+differently named flag seems counter-productive to me.
 
-[...]
+(There is a bool shmem_mapping(mapping) that could be used to confirm
+that the inode you're looking at indeed belongs to shmem; but of
+course that would say yes on all the user-visible shmem inodes too,
+so it wouldn't be a useful test on its own, and I don't see that
+adding it to an S_PRIVATE test would add any real value.)
 
-> > Also could you explain why the admin shouldn't get an information if
-> > sysrq+f didn't kill anything because no eligible task has been found?
-> 
-> The kernel log is the only notification mechanism that we have of the 
-> kernel killing a process, we want to avoid spamming it unnecessarily.  The 
-> kernel log is not the appropriate place for your debugging information 
-> that would only specify that yes, out_of_memory() was called, but there 
-> was nothing actionable, especially when that trigger can be constantly 
-> invoked by userspace once panicking is no longer possible.
+Probably you were hoping that there's already some distinguishing
+feature of anon shared shmem inodes that you could check: I can't
+think of one offhand, beyond S_PRIVATE: if there is another,
+it would be accidental.
 
-So how would you find out that there is no oom killable task?
--- 
-Michal Hocko
-SUSE Labs
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
