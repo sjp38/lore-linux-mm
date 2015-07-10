@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C7B99003C7
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 13:48:10 -0400 (EDT)
-Received: by pdjr16 with SMTP id r16so26526057pdj.3
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 10:48:09 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id pi2si14807136pbb.128.2015.07.10.10.42.35
+	by kanga.kvack.org (Postfix) with ESMTP id 4BAEC9003C7
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 13:49:19 -0400 (EDT)
+Received: by pdbep18 with SMTP id ep18so187978116pdb.1
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 10:49:19 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id i3si14788729pbq.157.2015.07.10.10.42.35
         for <linux-mm@kvack.org>;
         Fri, 10 Jul 2015 10:42:35 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 35/36] mm: re-enable THP
-Date: Fri, 10 Jul 2015 20:42:09 +0300
-Message-Id: <1436550130-112636-36-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 31/36] thp, mm: split_huge_page(): caller need to lock page
+Date: Fri, 10 Jul 2015 20:42:05 +0300
+Message-Id: <1436550130-112636-32-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,28 +19,80 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-All parts of THP with new refcounting are now in place. We can now allow
-to enable THP.
+We're going to use migration entries instead of compound_lock() to
+stabilize page refcounts. Setup and remove migration entries require
+page to be locked.
+
+Some of split_huge_page() callers already have the page locked. Let's
+require everybody to lock the page before calling split_huge_page().
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Tested-by: Sasha Levin <sasha.levin@oracle.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/Kconfig | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/memory-failure.c | 10 ++++++++--
+ mm/migrate.c        |  8 ++++++--
+ 2 files changed, 14 insertions(+), 4 deletions(-)
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index c973f416cbe5..e79de2bd12cd 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -410,7 +410,7 @@ config NOMMU_INITIAL_TRIM_EXCESS
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 1cf7f2988422..0d9989a36d32 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1143,15 +1143,18 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+ 				put_page(hpage);
+ 			return -EBUSY;
+ 		}
++		lock_page(hpage);
+ 		if (unlikely(split_huge_page(hpage))) {
+ 			pr_err("MCE: %#lx: thp split failed\n", pfn);
+ 			if (TestClearPageHWPoison(p))
+ 				atomic_long_sub(nr_pages, &num_poisoned_pages);
++			unlock_page(hpage);
+ 			put_page(p);
+ 			if (p != hpage)
+ 				put_page(hpage);
+ 			return -EBUSY;
+ 		}
++		unlock_page(hpage);
+ 		VM_BUG_ON_PAGE(!page_count(p), p);
+ 		hpage = compound_head(p);
+ 	}
+@@ -1714,10 +1717,13 @@ int soft_offline_page(struct page *page, int flags)
+ 		return -EBUSY;
+ 	}
+ 	if (!PageHuge(page) && PageTransHuge(hpage)) {
+-		if (PageAnon(hpage) && unlikely(split_huge_page(hpage))) {
++		lock_page(page);
++		ret = split_huge_page(hpage);
++		unlock_page(page);
++		if (unlikely(ret)) {
+ 			pr_info("soft offline: %#lx: failed to split THP\n",
+ 				pfn);
+-			return -EBUSY;
++			return ret;
+ 		}
+ 	}
  
- config TRANSPARENT_HUGEPAGE
- 	bool "Transparent Hugepage Support"
--	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE && BROKEN
-+	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE
- 	select COMPACTION
- 	help
- 	  Transparent Hugepages allows the kernel to use huge pages and
+diff --git a/mm/migrate.c b/mm/migrate.c
+index dfd24cb7afc6..8bb2107b8751 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -933,9 +933,13 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+ 		goto out;
+ 	}
+ 
+-	if (unlikely(PageTransHuge(page)))
+-		if (unlikely(split_huge_page(page)))
++	if (unlikely(PageTransHuge(page))) {
++		lock_page(page);
++		rc = split_huge_page(page);
++		unlock_page(page);
++		if (rc)
+ 			goto out;
++	}
+ 
+ 	rc = __unmap_and_move(page, newpage, force, mode);
+ 
 -- 
 2.1.4
 
