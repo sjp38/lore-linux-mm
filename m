@@ -1,187 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 651FA6B0038
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 21:11:49 -0400 (EDT)
-Received: by pdbep18 with SMTP id ep18so174322142pdb.1
-        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 18:11:49 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id o6si11801358pdn.123.2015.07.09.18.11.48
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B5ADE6B0038
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 21:27:14 -0400 (EDT)
+Received: by pdbep18 with SMTP id ep18so174533813pdb.1
+        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 18:27:14 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id qe2si11854301pab.128.2015.07.09.18.27.13
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Jul 2015 18:11:48 -0700 (PDT)
-Received: by pactm7 with SMTP id tm7so159127613pac.2
-        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 18:11:48 -0700 (PDT)
-Date: Fri, 10 Jul 2015 10:12:11 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: [RFC] mm/shrinker: define INIT_SHRINKER macro
-Message-ID: <20150710011211.GB584@swordfish>
+        Thu, 09 Jul 2015 18:27:13 -0700 (PDT)
+Received: by pabvl15 with SMTP id vl15so159050323pab.1
+        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 18:27:13 -0700 (PDT)
+From: "Luis R. Rodriguez" <mcgrof@do-not-panic.com>
+Subject: [PATCH v6 0/4] atyfb: atyfb: address MTRR corner case
+Date: Thu,  9 Jul 2015 18:24:55 -0700
+Message-Id: <1436491499-3289-1-git-send-email-mcgrof@do-not-panic.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: mingo@kernel.org
+Cc: bp@suse.de, tomi.valkeinen@ti.com, airlied@redhat.com, arnd@arndb.de, dan.j.williams@intel.com, hch@lst.de, luto@amacapital.net, hpa@zytor.com, tglx@linutronix.de, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, jgross@suse.com, benh@kernel.crashing.org, mpe@ellerman.id.au, tj@kernel.org, x86@kernel.org, mst@redhat.com, toshi.kani@hp.com, stefan.bader@canonical.com, syrjala@sci.fi, ville.syrjala@linux.intel.com, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fbdev@vger.kernel.org, linux-kernel@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@suse.com>
 
-Hello,
+From: "Luis R. Rodriguez" <mcgrof@suse.com>
 
-Forked from http://www.gossamer-threads.com/lists/linux/kernel/2209873#2209873
-with some adjustments.
+Ingo,
 
-Shrinker API does not handle nicely unregister_shrinker() on a not-registered
-->shrinker. Looking at shrinker users, they all have to (a) carry on some sort
-of a flag telling that "unregister_shrinker()" will not blow up... or (b) just
-be fishy
+Boris is on vacation so sending these through you. This v6 addresses one code
+comment update requested by Ville. Boris had picked up these patches on his
+tree and this series had gone through 0-day bot testing. The only issue it
+found was the lack of ioremap_uc() implementation on some architectures which
+have an IOMMU. There are two approaches to this issue, one is to go and define
+ioremap_uc() on all architectures, another is to provide a default for
+ioremap_uc() as architectures catch up. I've gone with the later approach [0],
+and so to ensure things won't build-break this patch series must also go
+through the same tree as the patch-fixes for ioremap_uc() for missing
+ioremap_uc() implementations go through. I intend on following up with
+implementing ioremap_uc() for other architectures but for that I need to get
+feedback from other architecture developers and that will take time.
 
-: int ldlm_pools_init(void)
-: {
-:         int rc;
-:
-:         rc = ldlm_pools_thread_start();
-:         if (rc == 0) {
-:                 register_shrinker(&ldlm_pools_srv_shrinker);
-:                 register_shrinker(&ldlm_pools_cli_shrinker);
-:         }
-:         return rc;
-: }
-: EXPORT_SYMBOL(ldlm_pools_init);
-:
-: void ldlm_pools_fini(void)
-: {
-:         unregister_shrinker(&ldlm_pools_srv_shrinker);
-:         unregister_shrinker(&ldlm_pools_cli_shrinker);
-:         ldlm_pools_thread_stop();
-: }
-: EXPORT_SYMBOL(ldlm_pools_fini);
+Tomi, the framebuffer maintainer had already expressed he was OK for this to go
+through you. The driver maintainer, Ville, has been Cc'd on all the series, but
+has only provided feedback for the comment request as I noted above. This
+series addresses the more complex work on the entire series I've been putting
+out and as such I've provided a TL;DR full review of what this series does in
+my previous v5 patch series, that can be looked at for more details if needed
+[1].
 
-or (c) access private members `struct shrinker'
+This series depends on the patch which I recently posted to address compilation
+issue on architectures missing ioremap_uc() [0]. If that goes through then it
+should be safe to apply this series, otherwise we have to sit and wait until
+all architectures get ioremap_uc() properly defined.
 
-:struct cache_set {
-: ...
-:	struct shrinker		shrink;
-: ...
-:};
-:
-: ...
-:
-: void bch_btree_cache_free(struct cache_set *c)
-: {
-:         struct btree *b;
-:         struct closure cl;
-:         closure_init_stack(&cl);
-:
-:         if (c->shrink.list.next)
-:                 unregister_shrinker(&c->shrink);
+Please let me know if there are any questions.
 
+[0] http://lkml.kernel.org/r/1436488096-3165-1-git-send-email-mcgrof@do-not-panic.com
+[1] http://lkml.kernel.org/r/1435196060-27350-1-git-send-email-mcgrof@do-not-panic.com
 
-Note that `shrink.list.next' check.
+Luis R. Rodriguez (4):
+  drivers/video/fbdev/atyfb: Carve out framebuffer length fudging into a
+    helper
+  drivers/video/fbdev/atyfb: Clarify ioremap() base and length used
+  drivers/video/fbdev/atyfb: Replace MTRR UC hole with strong UC
+  drivers/video/fbdev/atyfb: Use arch_phys_wc_add() and ioremap_wc()
 
+ drivers/video/fbdev/aty/atyfb.h      |   5 +-
+ drivers/video/fbdev/aty/atyfb_base.c | 109 ++++++++++++++++-------------------
+ 2 files changed, 51 insertions(+), 63 deletions(-)
 
-We can't `fix' unregister_shrinker() (by looking at some flag or checking
-`!shrinker->nr_deferred'), simply because someone can do something like
-this:
-
-:struct foo {
-:	const char *b;
-: ...
-:	struct shrinker s;
-:};
-:
-:void bar(void)
-:{
-:	struct foo *f = kmalloc(...); /* or kzalloc() to NULL deref it*/
-:
-:	if (!f)
-:		return;
-:
-:	f->a = kmalloc(...);
-:	if (!f->a)
-:		goto err;
-: ...
-:	register_shrinker(...);
-: ...
-:	return;
-:
-:err:
-:	unregister_shrinker(&f->s);
-:			^^^^^^ boom
-: ...
-:}
-
-Passing a `garbaged' or zeroed out `struct shrinker' to unregister_shrinker()
-
-:void unregister_shrinker(struct shrinker *shrinker)
-:{
-:        down_write(&shrinker_rwsem);
-:        list_del(&shrinker->list);
-:        up_write(&shrinker_rwsem);
-:        kfree(shrinker->nr_deferred);
-:}
-
-
-I was thinking of a trivial INIT_SHRINKER macro to init `struct shrinker'
-internal members (composed in email client, not tested)
-
-include/linux/shrinker.h
-
-#define INIT_SHRINKER(s)			\
-	do {					\
-		(s)->nr_deferred = NULL;	\
-		INIT_LIST_HEAD(&(s)->list);	\
-	} while (0)
-
-Of course, every shrinker user need to INIT_SHRINKER() early enough to
-guarantee that unregister_shrinker() will be legal should anything go
-wrong. Example:
-
-:struct zs_pool *zs_create_pool(char *name, gfp_t flags)
-:{
-:	..
-:+	INIT_SHRINKER(&pool->shrinker);
-:
-:	pool->name = kstrdup(name, GFP_KERNEL);
-:	if (!pool->name)
-		goto err;
-:	..
-:	register_shrinker(&pool->shrinker);
-:	..
-:	return pool;
-:
-:err:
-:	unregister_shrinker(&pool->shrinker);
-:	..
-:}
-
-Not much better, but at least some hacks can be avoided and
-accidental unregister_shrinker() happening in error path is
-safe now.
-
-How does it sound?
-
----
-
- include/linux/shrinker.h | 6 ++++++
- 1 file changed, 6 insertions(+)
-
-diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-index 4fcacd9..10adfc2 100644
---- a/include/linux/shrinker.h
-+++ b/include/linux/shrinker.h
-@@ -63,6 +63,12 @@ struct shrinker {
- };
- #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
- 
-+#define INIT_SHRINKER(s) 			\
-+	do {					\
-+		INIT_LIST_HEAD(&(s)->list);	\
-+		(s)->nr_deferred = NULL;	\
-+	} while (0)
-+
- /* Flags */
- #define SHRINKER_NUMA_AWARE	(1 << 0)
- #define SHRINKER_MEMCG_AWARE	(1 << 1)
 -- 
-2.4.5
+2.3.2.209.gd67f9d5.dirty
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
