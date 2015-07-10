@@ -1,244 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id C38DE9003C7
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 16:29:54 -0400 (EDT)
-Received: by pdbqm3 with SMTP id qm3so45803095pdb.0
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 13:29:54 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id uj2si15991650pab.146.2015.07.10.13.29.37
-        for <linux-mm@kvack.org>;
-        Fri, 10 Jul 2015 13:29:37 -0700 (PDT)
-From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH 07/10] dax: Add huge page fault support
-Date: Fri, 10 Jul 2015 16:29:22 -0400
-Message-Id: <1436560165-8943-8-git-send-email-matthew.r.wilcox@intel.com>
-In-Reply-To: <1436560165-8943-1-git-send-email-matthew.r.wilcox@intel.com>
-References: <1436560165-8943-1-git-send-email-matthew.r.wilcox@intel.com>
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 15F4D9003C7
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 16:30:59 -0400 (EDT)
+Received: by obdbs4 with SMTP id bs4so198298211obd.3
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 13:30:58 -0700 (PDT)
+Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com. [209.85.214.173])
+        by mx.google.com with ESMTPS id wc3si7614781oeb.6.2015.07.10.13.30.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Jul 2015 13:30:58 -0700 (PDT)
+Received: by obbkm3 with SMTP id km3so198016309obb.1
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 13:30:57 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1436535659-13124-1-git-send-email-sds@tycho.nsa.gov>
+References: <1436535659-13124-1-git-send-email-sds@tycho.nsa.gov>
+Date: Fri, 10 Jul 2015 16:30:57 -0400
+Message-ID: <CAHC9VhTMvQP034xj9xq6Bcfre4ZCFTzGOGcUyPzKD-rBrOJOsg@mail.gmail.com>
+Subject: Re: [PATCH] selinux: fix mprotect PROT_EXEC regression caused by mm change
+From: Paul Moore <paul@paul-moore.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Matthew Wilcox <willy@linux.intel.com>
+To: Stephen Smalley <sds@tycho.nsa.gov>
+Cc: hughd@google.com, prarit@redhat.com, mstevens@fedoraproject.org, esandeen@redhat.com, david@fromorbit.com, linux-kernel@vger.kernel.org, Eric Paris <eparis@redhat.com>, linux-mm@kvack.org, wagi@monom.org, selinux@tycho.nsa.gov, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-From: Matthew Wilcox <willy@linux.intel.com>
+On Fri, Jul 10, 2015 at 9:40 AM, Stephen Smalley <sds@tycho.nsa.gov> wrote:
+> commit 66fc13039422ba7df2d01a8ee0873e4ef965b50b ("mm: shmem_zero_setup skip
+> security check and lockdep conflict with XFS") caused a regression for
+> SELinux by disabling any SELinux checking of mprotect PROT_EXEC on
+> shared anonymous mappings.  However, even before that regression, the
+> checking on such mprotect PROT_EXEC calls was inconsistent with the
+> checking on a mmap PROT_EXEC call for a shared anonymous mapping.  On a
+> mmap, the security hook is passed a NULL file and knows it is dealing with
+> an anonymous mapping and therefore applies an execmem check and no file
+> checks.  On a mprotect, the security hook is passed a vma with a
+> non-NULL vm_file (as this was set from the internally-created shmem
+> file during mmap) and therefore applies the file-based execute check and
+> no execmem check.  Since the aforementioned commit now marks the shmem
+> zero inode with the S_PRIVATE flag, the file checks are disabled and
+> we have no checking at all on mprotect PROT_EXEC.  Add a test to
+> the mprotect hook logic for such private inodes, and apply an execmem
+> check in that case.  This makes the mmap and mprotect checking consistent
+> for shared anonymous mappings, as well as for /dev/zero and ashmem.
+>
+> Signed-off-by: Stephen Smalley <sds@tycho.nsa.gov>
+> ---
+>  security/selinux/hooks.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
 
-This is the support code for DAX-enabled filesystems to allow them to
-provide huge pages in response to faults.
+Thanks for the discussion, and the patch.  I'll send this up to James
+for 4.2 and mark it for stable.
 
-Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
----
- Documentation/filesystems/dax.txt |   7 +-
- fs/dax.c                          | 152 ++++++++++++++++++++++++++++++++++++++
- include/linux/dax.h               |  14 ++++
- 3 files changed, 170 insertions(+), 3 deletions(-)
+> diff --git a/security/selinux/hooks.c b/security/selinux/hooks.c
+> index 6231081..564079c 100644
+> --- a/security/selinux/hooks.c
+> +++ b/security/selinux/hooks.c
+> @@ -3283,7 +3283,8 @@ static int file_map_prot_check(struct file *file, unsigned long prot, int shared
+>         int rc = 0;
+>
+>         if (default_noexec &&
+> -           (prot & PROT_EXEC) && (!file || (!shared && (prot & PROT_WRITE)))) {
+> +           (prot & PROT_EXEC) && (!file || IS_PRIVATE(file_inode(file)) ||
+> +                                  (!shared && (prot & PROT_WRITE)))) {
+>                 /*
+>                  * We are making executable an anonymous mapping or a
+>                  * private file mapping that will also be writable.
+> --
+> 2.1.0
+>
 
-diff --git a/Documentation/filesystems/dax.txt b/Documentation/filesystems/dax.txt
-index 7af2851..7bde640 100644
---- a/Documentation/filesystems/dax.txt
-+++ b/Documentation/filesystems/dax.txt
-@@ -60,9 +60,10 @@ Filesystem support consists of
- - implementing the direct_IO address space operation, and calling
-   dax_do_io() instead of blockdev_direct_IO() if S_DAX is set
- - implementing an mmap file operation for DAX files which sets the
--  VM_MIXEDMAP flag on the VMA, and setting the vm_ops to include handlers
--  for fault and page_mkwrite (which should probably call dax_fault() and
--  dax_mkwrite(), passing the appropriate get_block() callback)
-+  VM_MIXEDMAP and VM_HUGEPAGE flags on the VMA, and setting the vm_ops to
-+  include handlers for fault, pmd_fault and page_mkwrite (which should
-+  probably call dax_fault(), dax_pmd_fault() and dax_mkwrite(), passing the
-+  appropriate get_block() callback)
- - calling dax_truncate_page() instead of block_truncate_page() for DAX files
- - calling dax_zero_page_range() instead of zero_user() for DAX files
- - ensuring that there is sufficient locking between reads, writes,
-diff --git a/fs/dax.c b/fs/dax.c
-index c3e21cc..20cf3b0 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -484,6 +484,158 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- }
- EXPORT_SYMBOL_GPL(dax_fault);
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+/*
-+ * The 'colour' (ie low bits) within a PMD of a page offset.  This comes up
-+ * more often than one might expect in the below function.
-+ */
-+#define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
-+
-+int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
-+		pmd_t *pmd, unsigned int flags, get_block_t get_block,
-+		dax_iodone_t complete_unwritten)
-+{
-+	struct file *file = vma->vm_file;
-+	struct address_space *mapping = file->f_mapping;
-+	struct inode *inode = mapping->host;
-+	struct buffer_head bh;
-+	unsigned blkbits = inode->i_blkbits;
-+	unsigned long pmd_addr = address & PMD_MASK;
-+	bool write = flags & FAULT_FLAG_WRITE;
-+	long length;
-+	void *kaddr;
-+	pgoff_t size, pgoff;
-+	sector_t block, sector;
-+	unsigned long pfn;
-+	int result = 0;
-+
-+	/* Fall back to PTEs if we're going to COW */
-+	if (write && !(vma->vm_flags & VM_SHARED))
-+		return VM_FAULT_FALLBACK;
-+	/* If the PMD would extend outside the VMA */
-+	if (pmd_addr < vma->vm_start)
-+		return VM_FAULT_FALLBACK;
-+	if ((pmd_addr + PMD_SIZE) > vma->vm_end)
-+		return VM_FAULT_FALLBACK;
-+
-+	pgoff = ((pmd_addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-+	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-+	if (pgoff >= size)
-+		return VM_FAULT_SIGBUS;
-+	/* If the PMD would cover blocks out of the file */
-+	if ((pgoff | PG_PMD_COLOUR) >= size)
-+		return VM_FAULT_FALLBACK;
-+
-+	memset(&bh, 0, sizeof(bh));
-+	block = (sector_t)pgoff << (PAGE_SHIFT - blkbits);
-+
-+	bh.b_size = PMD_SIZE;
-+	length = get_block(inode, block, &bh, write);
-+	if (length)
-+		return VM_FAULT_SIGBUS;
-+	i_mmap_lock_read(mapping);
-+
-+	/*
-+	 * If the filesystem isn't willing to tell us the length of a hole,
-+	 * just fall back to PTEs.  Calling get_block 512 times in a loop
-+	 * would be silly.
-+	 */
-+	if (!buffer_size_valid(&bh) || bh.b_size < PMD_SIZE)
-+		goto fallback;
-+
-+	/* Guard against a race with truncate */
-+	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-+	if (pgoff >= size) {
-+		result = VM_FAULT_SIGBUS;
-+		goto out;
-+	}
-+	if ((pgoff | PG_PMD_COLOUR) >= size)
-+		goto fallback;
-+
-+	if (is_huge_zero_pmd(*pmd))
-+		unmap_mapping_range(mapping, pgoff << PAGE_SHIFT, PMD_SIZE, 0);
-+
-+	if (!write && !buffer_mapped(&bh) && buffer_uptodate(&bh)) {
-+		bool set;
-+		spinlock_t *ptl;
-+		struct mm_struct *mm = vma->vm_mm;
-+		struct page *zero_page = get_huge_zero_page();
-+		if (unlikely(!zero_page))
-+			goto fallback;
-+
-+		ptl = pmd_lock(mm, pmd);
-+		set = set_huge_zero_page(NULL, mm, vma, pmd_addr, pmd,
-+								zero_page);
-+		spin_unlock(ptl);
-+		result = VM_FAULT_NOPAGE;
-+	} else {
-+		sector = bh.b_blocknr << (blkbits - 9);
-+		length = bdev_direct_access(bh.b_bdev, sector, &kaddr, &pfn,
-+						bh.b_size);
-+		if (length < 0) {
-+			result = VM_FAULT_SIGBUS;
-+			goto out;
-+		}
-+		if ((length < PMD_SIZE) || (pfn & PG_PMD_COLOUR))
-+			goto fallback;
-+
-+		if (buffer_unwritten(&bh) || buffer_new(&bh)) {
-+			int i;
-+			for (i = 0; i < PTRS_PER_PMD; i++)
-+				clear_page(kaddr + i * PAGE_SIZE);
-+			count_vm_event(PGMAJFAULT);
-+			mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
-+			result |= VM_FAULT_MAJOR;
-+		}
-+
-+		result |= vmf_insert_pfn_pmd(vma, address, pmd, pfn, write);
-+	}
-+
-+ out:
-+	i_mmap_unlock_read(mapping);
-+
-+	if (buffer_unwritten(&bh))
-+		complete_unwritten(&bh, !(result & VM_FAULT_ERROR));
-+
-+	return result;
-+
-+ fallback:
-+	count_vm_event(THP_FAULT_FALLBACK);
-+	result = VM_FAULT_FALLBACK;
-+	goto out;
-+}
-+EXPORT_SYMBOL_GPL(__dax_pmd_fault);
-+
-+/**
-+ * dax_pmd_fault - handle a PMD fault on a DAX file
-+ * @vma: The virtual memory area where the fault occurred
-+ * @vmf: The description of the fault
-+ * @get_block: The filesystem method used to translate file offsets to blocks
-+ *
-+ * When a page fault occurs, filesystems may call this helper in their
-+ * pmd_fault handler for DAX files.
-+ */
-+int dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
-+			pmd_t *pmd, unsigned int flags, get_block_t get_block,
-+			dax_iodone_t complete_unwritten)
-+{
-+	int result;
-+	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
-+
-+	if (flags & FAULT_FLAG_WRITE) {
-+		sb_start_pagefault(sb);
-+		file_update_time(vma->vm_file);
-+	}
-+	result = __dax_pmd_fault(vma, address, pmd, flags, get_block,
-+				complete_unwritten);
-+	if (flags & FAULT_FLAG_WRITE)
-+		sb_end_pagefault(sb);
-+
-+	return result;
-+}
-+EXPORT_SYMBOL_GPL(dax_pmd_fault);
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGES */
-+
- /**
-  * dax_pfn_mkwrite - handle first write to DAX page
-  * @vma: The virtual memory area where the fault occurred
-diff --git a/include/linux/dax.h b/include/linux/dax.h
-index 9b51f9d..b415e52 100644
---- a/include/linux/dax.h
-+++ b/include/linux/dax.h
-@@ -14,6 +14,20 @@ int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t,
- 		dax_iodone_t);
- int __dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t,
- 		dax_iodone_t);
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+int dax_pmd_fault(struct vm_area_struct *, unsigned long addr, pmd_t *,
-+				unsigned int flags, get_block_t, dax_iodone_t);
-+int __dax_pmd_fault(struct vm_area_struct *, unsigned long addr, pmd_t *,
-+				unsigned int flags, get_block_t, dax_iodone_t);
-+#else
-+static inline int dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
-+				pmd_t *pmd, unsigned int flags, get_block_t gb,
-+				dax_iodone_t di)
-+{
-+	return VM_FAULT_FALLBACK;
-+}
-+#define __dax_pmd_fault dax_pmd_fault
-+#endif
- int dax_pfn_mkwrite(struct vm_area_struct *, struct vm_fault *);
- #define dax_mkwrite(vma, vmf, gb, iod)		dax_fault(vma, vmf, gb, iod)
- #define __dax_mkwrite(vma, vmf, gb, iod)	__dax_fault(vma, vmf, gb, iod)
 -- 
-2.1.4
+paul moore
+www.paul-moore.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
