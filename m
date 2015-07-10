@@ -1,414 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D0439003C7
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 15:10:52 -0400 (EDT)
-Received: by iebmu5 with SMTP id mu5so201789501ieb.1
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 12:10:52 -0700 (PDT)
-Received: from mail-ig0-x22d.google.com (mail-ig0-x22d.google.com. [2607:f8b0:4001:c05::22d])
-        by mx.google.com with ESMTPS id je2si8580508icb.65.2015.07.10.12.10.51
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 573C06B025D
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 15:19:23 -0400 (EDT)
+Received: by igrv9 with SMTP id v9so19948374igr.1
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 12:19:23 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id f100si1243341ioi.34.2015.07.10.12.19.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Jul 2015 12:10:51 -0700 (PDT)
-Received: by igrv9 with SMTP id v9so19473435igr.1
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 12:10:51 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150709131900.GK2436@esperanza>
-References: <cover.1434102076.git.vdavydov@parallels.com>
-	<50b7cd0f35f651481ce32414fab5210de5dc1714.1434102076.git.vdavydov@parallels.com>
-	<CAJu=L5-fwHMEKmL1Sp7owXyBa0GCrGR=TdKZbh15CJA3WrcwqA@mail.gmail.com>
-	<20150709131900.GK2436@esperanza>
-Date: Fri, 10 Jul 2015 12:10:51 -0700
-Message-ID: <CAJu=L5_BX_bbOHcLFXCry=RxYxFHkwDcLSL+KEoHf8LaNSRjBQ@mail.gmail.com>
-Subject: Re: [PATCH -mm v6 5/6] proc: add kpageidle file
-From: Andres Lagar-Cavilla <andreslc@google.com>
-Content-Type: text/plain; charset=UTF-8
+        Fri, 10 Jul 2015 12:19:22 -0700 (PDT)
+Date: Fri, 10 Jul 2015 12:19:21 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] selinux: fix mprotect PROT_EXEC regression caused by mm
+ change
+Message-Id: <20150710121921.e02eb9f1041432ff2dca4667@linux-foundation.org>
+In-Reply-To: <1436535659-13124-1-git-send-email-sds@tycho.nsa.gov>
+References: <1436535659-13124-1-git-send-email-sds@tycho.nsa.gov>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Stephen Smalley <sds@tycho.nsa.gov>
+Cc: paul@paul-moore.com, hughd@google.com, prarit@redhat.com, mstevens@fedoraproject.org, esandeen@redhat.com, david@fromorbit.com, linux-kernel@vger.kernel.org, eparis@redhat.com, linux-mm@kvack.org, wagi@monom.org, selinux@tycho.nsa.gov, torvalds@linux-foundation.org, stable@vger.kernel.org
 
-Hi Vladimir,
+On Fri, 10 Jul 2015 09:40:59 -0400 Stephen Smalley <sds@tycho.nsa.gov> wrote:
 
-On Thu, Jul 9, 2015 at 6:19 AM, Vladimir Davydov <vdavydov@parallels.com> wrote:
-> Hi Andres,
->
-> On Wed, Jul 08, 2015 at 04:01:13PM -0700, Andres Lagar-Cavilla wrote:
->> On Fri, Jun 12, 2015 at 2:52 AM, Vladimir Davydov
-> [...]
->> > @@ -275,6 +276,179 @@ static const struct file_operations proc_kpagecgroup_operations = {
->> >  };
->> >  #endif /* CONFIG_MEMCG */
->> >
->> > +#ifdef CONFIG_IDLE_PAGE_TRACKING
->> > +/*
->> > + * Idle page tracking only considers user memory pages, for other types of
->> > + * pages the idle flag is always unset and an attempt to set it is silently
->> > + * ignored.
->> > + *
->> > + * We treat a page as a user memory page if it is on an LRU list, because it is
->> > + * always safe to pass such a page to page_referenced(), which is essential for
->> > + * idle page tracking. With such an indicator of user pages we can skip
->> > + * isolated pages, but since there are not usually many of them, it will hardly
->> > + * affect the overall result.
->> > + *
->> > + * This function tries to get a user memory page by pfn as described above.
->> > + */
->> > +static struct page *kpageidle_get_page(unsigned long pfn)
->> > +{
->> > +       struct page *page;
->> > +       struct zone *zone;
->> > +
->> > +       if (!pfn_valid(pfn))
->> > +               return NULL;
->> > +
->> > +       page = pfn_to_page(pfn);
->> > +       if (!page || !PageLRU(page))
->>
->> Isolation can race in while you're processing the page, after these
->> checks. This is ok, but worth a small comment.
->
-> Agree, will add one.
->
->>
->> > +               return NULL;
->> > +       if (!get_page_unless_zero(page))
->> > +               return NULL;
->> > +
->> > +       zone = page_zone(page);
->> > +       spin_lock_irq(&zone->lru_lock);
->> > +       if (unlikely(!PageLRU(page))) {
->> > +               put_page(page);
->> > +               page = NULL;
->> > +       }
->> > +       spin_unlock_irq(&zone->lru_lock);
->> > +       return page;
->> > +}
->> > +
->> > +/*
->> > + * This function calls page_referenced() to clear the referenced bit for all
->> > + * mappings to a page. Since the latter also clears the page idle flag if the
->> > + * page was referenced, it can be used to update the idle flag of a page.
->> > + */
->> > +static void kpageidle_clear_pte_refs(struct page *page)
->> > +{
->> > +       unsigned long dummy;
->> > +
->> > +       if (page_referenced(page, 0, NULL, &dummy, NULL))
->>
->> Because of pte/pmd_clear_flush_young* called in the guts of
->> page_referenced_one, an N byte write or read to /proc/kpageidle will
->> cause N * 64 TLB flushes.
->>
->> Additionally, because of the _notify connection to mmu notifiers, this
->> will also cause N * 64 EPT TLB flushes (in the KVM Intel case, similar
->> for other notifier flavors, you get the point).
->>
->> The solution is relatively straightforward: augment
->> page_referenced_one with a mode marker or boolean that determines
->> whether tlb flushing is required.
->
-> Frankly, I don't think that tlb flushes are such a big deal in the scope
-> of this feature, because one is not supposed to write to kpageidle that
-> often. However, I agree we'd better avoid overhead we can easily avoid,
-> so I'll add a new flag to differentiate between kpageidle and reclaim
-> path in page_referenced, as you suggested.
+> commit 66fc13039422ba7df2d01a8ee0873e4ef965b50b ("mm: shmem_zero_setup skip
+> security check and lockdep conflict with XFS") caused a regression for
+> SELinux by disabling any SELinux checking of mprotect PROT_EXEC on
+> shared anonymous mappings.  However, even before that regression, the
+> checking on such mprotect PROT_EXEC calls was inconsistent with the
+> checking on a mmap PROT_EXEC call for a shared anonymous mapping.  On a
+> mmap, the security hook is passed a NULL file and knows it is dealing with
+> an anonymous mapping and therefore applies an execmem check and no file
+> checks.  On a mprotect, the security hook is passed a vma with a
+> non-NULL vm_file (as this was set from the internally-created shmem
+> file during mmap) and therefore applies the file-based execute check and
+> no execmem check.  Since the aforementioned commit now marks the shmem
+> zero inode with the S_PRIVATE flag, the file checks are disabled and
+> we have no checking at all on mprotect PROT_EXEC.  Add a test to
+> the mprotect hook logic for such private inodes, and apply an execmem
+> check in that case.  This makes the mmap and mprotect checking consistent
+> for shared anonymous mappings, as well as for /dev/zero and ashmem.
+> 
+> Signed-off-by: Stephen Smalley <sds@tycho.nsa.gov>
 
-Yes, it's a performance optimization, but fairly critical. Once you
-open up a user-space interface, it will take off. What prevents people
-from writing a daemon that will scan the entire host space every N
-seconds (N=10? 60? 90? 120?). That means tens or hundreds of millions
-of individual TLB flushes, which will hurt performance.
-
-The KVM issue is not minor.
-
->
->>
->> For an access pattern tracker such as the one you propose, flushing is
->> not strictly necessary: the next context switch will take care. Too
->> bad if you missed a few accesses because the pte/pmd was loaded in the
->> TLB. Not so easy for MMU notifiers, because each secondary MMU has its
->> own semantics. You could arguably throw the towel in there, or try to
->> provide a framework (i.e. propagate the flushing flag) and let each
->> implementation fill the gaps.
->>
->> > +               /*
->> > +                * We cleared the referenced bit in a mapping to this page. To
->> > +                * avoid interference with the reclaimer, mark it young so that
->> > +                * the next call to page_referenced() will also return > 0 (see
->> > +                * page_referenced_one())
->> > +                */
->> > +               set_page_young(page);
->> > +}
->> > +
->> > +static ssize_t kpageidle_read(struct file *file, char __user *buf,
->> > +                             size_t count, loff_t *ppos)
->> > +{
->> > +       u64 __user *out = (u64 __user *)buf;
->> > +       struct page *page;
->> > +       unsigned long pfn, end_pfn;
->> > +       ssize_t ret = 0;
->> > +       u64 idle_bitmap = 0;
->> > +       int bit;
->> > +
->> > +       if (*ppos & KPMMASK || count & KPMMASK)
->> > +               return -EINVAL;
->> > +
->> > +       pfn = *ppos * BITS_PER_BYTE;
->> > +       if (pfn >= max_pfn)
->> > +               return 0;
->> > +
->> > +       end_pfn = pfn + count * BITS_PER_BYTE;
->> > +       if (end_pfn > max_pfn)
->> > +               end_pfn = ALIGN(max_pfn, KPMBITS);
->> > +
->> > +       for (; pfn < end_pfn; pfn++) {
->> > +               bit = pfn % KPMBITS;
->> > +               page = kpageidle_get_page(pfn);
->> > +               if (page) {
->> > +                       if (page_is_idle(page)) {
->> > +                               /*
->> > +                                * The page might have been referenced via a
->> > +                                * pte, in which case it is not idle. Clear
->> > +                                * refs and recheck.
->> > +                                */
->> > +                               kpageidle_clear_pte_refs(page);
->> > +                               if (page_is_idle(page))
->> > +                                       idle_bitmap |= 1ULL << bit;
->> > +                       }
->> > +                       put_page(page);
->> > +               }
->> > +               if (bit == KPMBITS - 1) {
->> > +                       if (put_user(idle_bitmap, out)) {
->> > +                               ret = -EFAULT;
->> > +                               break;
->> > +                       }
->> > +                       idle_bitmap = 0;
->> > +                       out++;
->> > +               }
->> > +       }
->> > +
->> > +       *ppos += (char __user *)out - buf;
->> > +       if (!ret)
->> > +               ret = (char __user *)out - buf;
->> > +       return ret;
->> > +}
->> > +
->> > +static ssize_t kpageidle_write(struct file *file, const char __user *buf,
->>
->> Your reasoning for a host wide /proc/kpageidle is well argued, but I'm
->> still hesitant.
->>
->> mincore() shows how to (relatively simply) resolve unmapped file pages
->> to their backing page cache destination. You could recycle that code
->> and then you'd have per process idle/idling interfaces. With the
->> advantage of a clear TLB flush demarcation.
->
-> Hmm, I still don't see how we could handle page cache that does not
-> belong to any process in the scope of sys_mincore.
-
-You're correct.
-
-I wasn't asking to use mincore, just pointing out an extant code
-pattern that could get you beyond the concerns re unmapping (and which
-can be implemented as a proc file).
-
-My view is that the key pieces of infrastructure (the flags, the
-interactions with page_referenced_one, clear_refs, mark_page_accessed)
-your patchset brings along then can be reused in many ways. Michel
-Lespinasse's kernel thread can reuse them, or proc/smaps can be
-augmented (or a new proc entry), to get per process idle maps.
-
-So /proc/kpageidle is fine with me, but not crazy appealing.
-
->
-> Besides, it'd be awkward to reuse sys_mincore for idle page tracking,
-> because we need two operations, set idle and check idle, while the
-> sys_mincore semantic implies only getting information from the kernel,
-> not vice versa.
->
-> Of course, we could introduce a separate syscall, say sys_idlecore, but
-> IMO it is not a good idea to add a syscall for such a specific feature,
-> which can be compiled out. I think a proc file suits better for the
-> purpose, especially counting that we have a bunch of similar files
-> (pagemap, kpageflags, kpagecount).
->
-> Anyway, I'm open for suggestions. If you have a different user API
-> design in mind, which in your opinion would fit better, please share.
->
->>
->> > +                              size_t count, loff_t *ppos)
->> > +{
->> > +       const u64 __user *in = (const u64 __user *)buf;
->> > +       struct page *page;
->> > +       unsigned long pfn, end_pfn;
->> > +       ssize_t ret = 0;
->> > +       u64 idle_bitmap = 0;
->> > +       int bit;
->> > +
->> > +       if (*ppos & KPMMASK || count & KPMMASK)
->> > +               return -EINVAL;
->> > +
->> > +       pfn = *ppos * BITS_PER_BYTE;
->> > +       if (pfn >= max_pfn)
->> > +               return -ENXIO;
->> > +
->> > +       end_pfn = pfn + count * BITS_PER_BYTE;
->> > +       if (end_pfn > max_pfn)
->> > +               end_pfn = ALIGN(max_pfn, KPMBITS);
->> > +
->> > +       for (; pfn < end_pfn; pfn++) {
->>
->> Relatively straight forward to teleport forward 512 (or more
->> correctly: 1 << compound_order(page)) pages for THP pages, once done
->> with a THP head, and avoid 511 fruitless trips down rmap.c for each
->> tail.
->
-> Right, will fix.
->
->>
->> > +               bit = pfn % KPMBITS;
->> > +               if (bit == 0) {
->> > +                       if (get_user(idle_bitmap, in)) {
->> > +                               ret = -EFAULT;
->> > +                               break;
->> > +                       }
->> > +                       in++;
->> > +               }
->> > +               if (idle_bitmap >> bit & 1) {
->> > +                       page = kpageidle_get_page(pfn);
->> > +                       if (page) {
->> > +                               kpageidle_clear_pte_refs(page);
->> > +                               set_page_idle(page);
->>
->> In the common case this will make a page both young and idle. This is
->> fine. We will come back to it below.
->>
->> > +                               put_page(page);
->> > +                       }
->> > +               }
->> > +       }
->> > +
->> > +       *ppos += (const char __user *)in - buf;
->> > +       if (!ret)
->> > +               ret = (const char __user *)in - buf;
->> > +       return ret;
->> > +}
->> > +
->> > +static const struct file_operations proc_kpageidle_operations = {
->> > +       .llseek = mem_lseek,
->> > +       .read = kpageidle_read,
->> > +       .write = kpageidle_write,
->> > +};
->> > +
->> > +#ifndef CONFIG_64BIT
->> > +static bool need_page_idle(void)
->> > +{
->> > +       return true;
->> > +}
->> > +struct page_ext_operations page_idle_ops = {
->> > +       .need = need_page_idle,
->> > +};
->> > +#endif
->> > +#endif /* CONFIG_IDLE_PAGE_TRACKING */
->> > +
->> >  static int __init proc_page_init(void)
->> >  {
->> >         proc_create("kpagecount", S_IRUSR, NULL, &proc_kpagecount_operations);
-> [...]
->> > @@ -798,6 +798,14 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
->> >                 pte_unmap_unlock(pte, ptl);
->>
->> This is not in your patch, but further up in page_referenced_one there
->> is the pmd case.
->>
->> So what happens on THP split? That was a leading question: you should
->> propagate the young and idle flags to the split-up tail pages.
->
-> Good catch! I completely forgot about THP slit. Will fix in the next
-> iteration.
->
->>
->> >         }
->> >
->> > +       if (referenced && page_is_idle(page))
->> > +               clear_page_idle(page);
->>
->> Is it so expensive to just call clear without the test .. ?
->
-> This function is normally called from a relatively cold path - memory
-> reclaim, where we modify page->flags anyway, so I think it won't make
-> any difference if we drop this check.
->
->>
->> > +
->> > +       if (page_is_young(page)) {
->> > +               clear_page_young(page);
->>
->> referenced += test_and_clear_page_young(page) .. ?
->
-> Yeah, that does look better.
->
->>
->> > +               referenced++;
->> > +       }
->> > +
->>
->> Invert the order. A page can be both young and idle -- we noted that
->> closer to the top of the patch.
->>
->> So young bumps referenced up, and then the final referenced value is
->> used to clear idle.
->
-> I don't think it'd work. Look, kpageidle_write clears pte references and
-> sets the idle flag. If the page was referenced it also sets the young
-> flag in order not to interfere with the reclaimer. When kpageidle_read
-> is called afterwards, it must see the idle flag set iff the page has not
-> been referenced since kpageidle_write set it. However, if
-> page_referenced was not called on the page from the reclaim path, it
-> will still be young no matter if it has been referenced or not and
-> therefore will always be identified as not idle, which is incorrect.
-
-You're right. Thanks!
-Andres
->
->>
->> >         if (referenced) {
->>
->> At this point, if you follow my suggestion of augmenting
->> page_referenced_one with a mode indicator (for TLB flushing), you can
->> set page young here. There is the added benefit of holding the
->> mmap_mutex lock or vma_lock, which prevents reclaim, try_to_unmap,
->> migration, from exploiting a small window where page young is not set
->> but should.
->
-> Yeah, if we go with the page_referenced mode switcher you suggested
-> above, it's definitely worth moving set_page_young here.
->
-> Thank you for the review!
->
-> Vladimir
->
->>
->> >                 pra->referenced++;
->> >                 pra->vm_flags |= vma->vm_flags;
->> > diff --git a/mm/swap.c b/mm/swap.c
->> > index ab7c338eda87..db43c9b4891d 100644
->> > --- a/mm/swap.c
->> > +++ b/mm/swap.c
->> > @@ -623,6 +623,8 @@ void mark_page_accessed(struct page *page)
->> >         } else if (!PageReferenced(page)) {
->> >                 SetPageReferenced(page);
->> >         }
->> > +       if (page_is_idle(page))
->> > +               clear_page_idle(page);
->> >  }
->> >  EXPORT_SYMBOL(mark_page_accessed);
->> >
-
-
-
--- 
-Andres Lagar-Cavilla | Google Kernel Team | andreslc@google.com
+Cc: <stable@vger.kernel.org>	[4.1.x]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
