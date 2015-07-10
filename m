@@ -1,74 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id B5ADE6B0038
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 21:27:14 -0400 (EDT)
-Received: by pdbep18 with SMTP id ep18so174533813pdb.1
-        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 18:27:14 -0700 (PDT)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id qe2si11854301pab.128.2015.07.09.18.27.13
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F89F6B0038
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2015 21:29:26 -0400 (EDT)
+Received: by pacws9 with SMTP id ws9so160817786pac.0
+        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 18:29:26 -0700 (PDT)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id ca1si11144883pbb.169.2015.07.09.18.29.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Jul 2015 18:27:13 -0700 (PDT)
-Received: by pabvl15 with SMTP id vl15so159050323pab.1
-        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 18:27:13 -0700 (PDT)
+        Thu, 09 Jul 2015 18:29:25 -0700 (PDT)
+Received: by pabvl15 with SMTP id vl15so159077966pab.1
+        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 18:29:25 -0700 (PDT)
 From: "Luis R. Rodriguez" <mcgrof@do-not-panic.com>
-Subject: [PATCH v6 0/4] atyfb: atyfb: address MTRR corner case
-Date: Thu,  9 Jul 2015 18:24:55 -0700
-Message-Id: <1436491499-3289-1-git-send-email-mcgrof@do-not-panic.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: [PATCH v6 1/4] drivers/video/fbdev/atyfb: Carve out framebuffer length fudging into a helper
+Date: Thu,  9 Jul 2015 18:24:56 -0700
+Message-Id: <1436491499-3289-2-git-send-email-mcgrof@do-not-panic.com>
+In-Reply-To: <1436491499-3289-1-git-send-email-mcgrof@do-not-panic.com>
+References: <1436491499-3289-1-git-send-email-mcgrof@do-not-panic.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mingo@kernel.org
-Cc: bp@suse.de, tomi.valkeinen@ti.com, airlied@redhat.com, arnd@arndb.de, dan.j.williams@intel.com, hch@lst.de, luto@amacapital.net, hpa@zytor.com, tglx@linutronix.de, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, jgross@suse.com, benh@kernel.crashing.org, mpe@ellerman.id.au, tj@kernel.org, x86@kernel.org, mst@redhat.com, toshi.kani@hp.com, stefan.bader@canonical.com, syrjala@sci.fi, ville.syrjala@linux.intel.com, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fbdev@vger.kernel.org, linux-kernel@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@suse.com>
+Cc: bp@suse.de, tomi.valkeinen@ti.com, airlied@redhat.com, arnd@arndb.de, dan.j.williams@intel.com, hch@lst.de, luto@amacapital.net, hpa@zytor.com, tglx@linutronix.de, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, jgross@suse.com, benh@kernel.crashing.org, mpe@ellerman.id.au, tj@kernel.org, x86@kernel.org, mst@redhat.com, toshi.kani@hp.com, stefan.bader@canonical.com, syrjala@sci.fi, ville.syrjala@linux.intel.com, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fbdev@vger.kernel.org, linux-kernel@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@suse.com>, Jean-Christophe Plagniol-Villard <plagnioj@jcrosoft.com>, Mathias Krause <minipli@googlemail.com>
 
 From: "Luis R. Rodriguez" <mcgrof@suse.com>
 
-Ingo,
+The size of the framebuffer to be used needs to be fudged to account for
+the different type of devices that are out there. This captures what is
+required to do well, we'll reuse this later.
 
-Boris is on vacation so sending these through you. This v6 addresses one code
-comment update requested by Ville. Boris had picked up these patches on his
-tree and this series had gone through 0-day bot testing. The only issue it
-found was the lack of ioremap_uc() implementation on some architectures which
-have an IOMMU. There are two approaches to this issue, one is to go and define
-ioremap_uc() on all architectures, another is to provide a default for
-ioremap_uc() as architectures catch up. I've gone with the later approach [0],
-and so to ensure things won't build-break this patch series must also go
-through the same tree as the patch-fixes for ioremap_uc() for missing
-ioremap_uc() implementations go through. I intend on following up with
-implementing ioremap_uc() for other architectures but for that I need to get
-feedback from other architecture developers and that will take time.
+This has no functional changes.
 
-Tomi, the framebuffer maintainer had already expressed he was OK for this to go
-through you. The driver maintainer, Ville, has been Cc'd on all the series, but
-has only provided feedback for the comment request as I noted above. This
-series addresses the more complex work on the entire series I've been putting
-out and as such I've provided a TL;DR full review of what this series does in
-my previous v5 patch series, that can be looked at for more details if needed
-[1].
+Signed-off-by: Luis R. Rodriguez <mcgrof@suse.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Jean-Christophe Plagniol-Villard <plagnioj@jcrosoft.com>
+Cc: Mathias Krause <minipli@googlemail.com>
+Cc: Tomi Valkeinen <tomi.valkeinen@ti.com>
+Cc: linux-fbdev@vger.kernel.org
+Link: http://lkml.kernel.org/r/1435251019-32421-1-git-send-email-mcgrof@do-not-panic.com
+Signed-off-by: Borislav Petkov <bp@suse.de>
+---
+ drivers/video/fbdev/aty/atyfb_base.c | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)
 
-This series depends on the patch which I recently posted to address compilation
-issue on architectures missing ioremap_uc() [0]. If that goes through then it
-should be safe to apply this series, otherwise we have to sit and wait until
-all architectures get ioremap_uc() properly defined.
-
-Please let me know if there are any questions.
-
-[0] http://lkml.kernel.org/r/1436488096-3165-1-git-send-email-mcgrof@do-not-panic.com
-[1] http://lkml.kernel.org/r/1435196060-27350-1-git-send-email-mcgrof@do-not-panic.com
-
-Luis R. Rodriguez (4):
-  drivers/video/fbdev/atyfb: Carve out framebuffer length fudging into a
-    helper
-  drivers/video/fbdev/atyfb: Clarify ioremap() base and length used
-  drivers/video/fbdev/atyfb: Replace MTRR UC hole with strong UC
-  drivers/video/fbdev/atyfb: Use arch_phys_wc_add() and ioremap_wc()
-
- drivers/video/fbdev/aty/atyfb.h      |   5 +-
- drivers/video/fbdev/aty/atyfb_base.c | 109 ++++++++++++++++-------------------
- 2 files changed, 51 insertions(+), 63 deletions(-)
-
+diff --git a/drivers/video/fbdev/aty/atyfb_base.c b/drivers/video/fbdev/aty/atyfb_base.c
+index 8789e487b96e..16936bb1f865 100644
+--- a/drivers/video/fbdev/aty/atyfb_base.c
++++ b/drivers/video/fbdev/aty/atyfb_base.c
+@@ -427,6 +427,20 @@ static struct {
+ #endif /* CONFIG_FB_ATY_CT */
+ };
+ 
++/*
++ * Last page of 8 MB (4 MB on ISA) aperture is MMIO,
++ * unless the auxiliary register aperture is used.
++ */
++static void aty_fudge_framebuffer_len(struct fb_info *info)
++{
++	struct atyfb_par *par = (struct atyfb_par *) info->par;
++
++	if (!par->aux_start &&
++	    (info->fix.smem_len == 0x800000 ||
++	     (par->bus_type == ISA && info->fix.smem_len == 0x400000)))
++		info->fix.smem_len -= GUI_RESERVE;
++}
++
+ static int correct_chipset(struct atyfb_par *par)
+ {
+ 	u8 rev;
+@@ -2603,14 +2617,7 @@ static int aty_init(struct fb_info *info)
+ 	if (par->pll_ops->resume_pll)
+ 		par->pll_ops->resume_pll(info, &par->pll);
+ 
+-	/*
+-	 * Last page of 8 MB (4 MB on ISA) aperture is MMIO,
+-	 * unless the auxiliary register aperture is used.
+-	 */
+-	if (!par->aux_start &&
+-	    (info->fix.smem_len == 0x800000 ||
+-	     (par->bus_type == ISA && info->fix.smem_len == 0x400000)))
+-		info->fix.smem_len -= GUI_RESERVE;
++	aty_fudge_framebuffer_len(info);
+ 
+ 	/*
+ 	 * Disable register access through the linear aperture
 -- 
 2.3.2.209.gd67f9d5.dirty
 
