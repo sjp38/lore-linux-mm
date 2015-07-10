@@ -1,86 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 73DFD6B0038
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 01:21:24 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so45919835pdr.2
-        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 22:21:24 -0700 (PDT)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id ib8si12038683pbc.44.2015.07.09.22.21.23
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Jul 2015 22:21:23 -0700 (PDT)
-Received: by pactm7 with SMTP id tm7so162349332pac.2
-        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 22:21:23 -0700 (PDT)
-Date: Fri, 10 Jul 2015 14:21:13 +0900
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 1906B6B0038
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 01:32:01 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so46067966pdr.2
+        for <linux-mm@kvack.org>; Thu, 09 Jul 2015 22:32:00 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id ut8si12783138pac.57.2015.07.09.22.31.58
+        for <linux-mm@kvack.org>;
+        Thu, 09 Jul 2015 22:32:00 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] zsmalloc: consider ZS_ALMOST_FULL as migrate source
-Message-ID: <20150710052113.GA11329@bgram>
-References: <1436491929-6617-1-git-send-email-minchan@kernel.org>
- <20150710015828.GA692@swordfish>
- <20150710022910.GA18266@blaptop>
- <20150710041929.GC692@swordfish>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150710041929.GC692@swordfish>
+Subject: [PATCH v2] zsmalloc: consider ZS_ALMOST_FULL as migrate source
+Date: Fri, 10 Jul 2015 14:31:59 +0900
+Message-Id: <1436506319-12885-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan.kim@lge.com>
 
-On Fri, Jul 10, 2015 at 01:19:29PM +0900, Sergey Senozhatsky wrote:
-> On (07/10/15 11:29), Minchan Kim wrote:
-> > Good question.
-> > 
-> > My worry was failure of order-0 page allocation in zram-swap path
-> > when memory presssure is really heavy but I didn't insist to you
-> > from sometime. The reason I changed my mind was
-> > 
-> > 1. It's almost dead system if there is no order-0 page
-> > 2. If old might be working well, it's not our design, just luck.
-> 
-> I mean I find your argument that some level of fragmentation
-> can be of use to be valid, to some degree.
+From: Minchan Kim <minchan.kim@lge.com>
 
-The benefit I had in mind was to prevent failure of allocation.
+There is no reason to prevent select ZS_ALMOST_FULL as migration
+source if we cannot find source from ZS_ALMOST_EMPTY.
 
-> 
-> 
-> hm... by the way,
-> 
-> unsigned long zs_malloc(struct zs_pool *pool, size_t size)
-> {
-> ...
->    size += ZS_HANDLE_SIZE;
->    class = pool->size_class[get_size_class_index(size)];
-> ...
->    if (!first_page) {
-> 	   spin_unlock(&class->lock);
-> 	   first_page = alloc_zspage(class, pool->flags);
-> 	   if (unlikely(!first_page)) {
-> 		   free_handle(pool, handle);
-> 		   return 0;
-> 	   }
->    ...
-> 
-> I'm thinking now, does it make sense to try harder here? if we
-> failed to alloc_zspage(), then may be we can try any of unused
-> objects from a 'upper' (larger/next) class?  there might be a
-> plenty of them.
+With this patch, zs_can_compact will return more exact result.
 
-I actually thought about that but I didn't have any report from
-community and product division of my compamy until now.
-But with auto-compaction, the chance would be higher than old
-so let's keep an eye on it(I think users can find it easily because
-swap layer emits "write write failure").
+* From v1
+  * remove unnecessary found variable - Sergey
 
-If it happens(ie, any report from someone), we could try to compact
-and then if it fails, we could fall back to upper class as a last
-resort.
+Signed-off-by: Minchan Kim <minchan.kim@lge.com>
+---
+ mm/zsmalloc.c |   17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
 
-Thanks.
-> 
-> 	-ss
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 8c78bcb..9012645 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -1686,11 +1686,17 @@ static enum fullness_group putback_zspage(struct zs_pool *pool,
+ 
+ static struct page *isolate_source_page(struct size_class *class)
+ {
+-	struct page *page;
++	int i;
++	struct page *page = NULL;
++
++	for (i = ZS_ALMOST_EMPTY; i >= ZS_ALMOST_FULL; i--) {
++		page = class->fullness_list[i];
++		if (!page)
++			continue;
+ 
+-	page = class->fullness_list[ZS_ALMOST_EMPTY];
+-	if (page)
+-		remove_zspage(page, class, ZS_ALMOST_EMPTY);
++		remove_zspage(page, class, i);
++		break;
++	}
+ 
+ 	return page;
+ }
+@@ -1706,9 +1712,6 @@ static unsigned long zs_can_compact(struct size_class *class)
+ {
+ 	unsigned long obj_wasted;
+ 
+-	if (!zs_stat_get(class, CLASS_ALMOST_EMPTY))
+-		return 0;
+-
+ 	obj_wasted = zs_stat_get(class, OBJ_ALLOCATED) -
+ 		zs_stat_get(class, OBJ_USED);
+ 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
