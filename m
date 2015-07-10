@@ -1,175 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 608B76B0038
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 08:07:30 -0400 (EDT)
-Received: by wicmv11 with SMTP id mv11so12328730wic.1
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 05:07:29 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id dh3si15036585wjc.175.2015.07.10.05.07.28
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id C94B36B0038
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 08:45:25 -0400 (EDT)
+Received: by wgxm20 with SMTP id m20so65122640wgx.3
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 05:45:25 -0700 (PDT)
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com. [74.125.82.43])
+        by mx.google.com with ESMTPS id c6si3272854wie.78.2015.07.10.05.45.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 10 Jul 2015 05:07:28 -0700 (PDT)
-Message-Id: <20150710120259.836414367@linutronix.de>
-Date: Fri, 10 Jul 2015 12:07:13 -0000
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch] mm/slub: Move slab initialization into irq enabled region
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Jul 2015 05:45:24 -0700 (PDT)
+Received: by wgjx7 with SMTP id x7so248230242wgj.2
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 05:45:23 -0700 (PDT)
+Date: Fri, 10 Jul 2015 14:45:20 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 7/8] memcg: get rid of mm_struct::owner
+Message-ID: <20150710124520.GA29540@dhcp22.suse.cz>
+References: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
+ <1436358472-29137-8-git-send-email-mhocko@kernel.org>
+ <20150708173251.GG2436@esperanza>
+ <20150709140941.GG13872@dhcp22.suse.cz>
+ <20150710075400.GN2436@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Disposition: inline;
- filename=slub-move-slab-init-into-irq-enabled-region.patch
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150710075400.GN2436@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Initializing a new slab can introduce rather large latencies because
-most of the initialization runs always with interrupts disabled.
+On Fri 10-07-15 10:54:00, Vladimir Davydov wrote:
+> On Thu, Jul 09, 2015 at 04:09:41PM +0200, Michal Hocko wrote:
+> > On Wed 08-07-15 20:32:51, Vladimir Davydov wrote:
+> > > On Wed, Jul 08, 2015 at 02:27:51PM +0200, Michal Hocko wrote:
+> [...]
+> > > > @@ -474,7 +519,7 @@ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
+> > > >  		return;
+> > > >  
+> > > >  	rcu_read_lock();
+> > > > -	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
+> > > > +	memcg = rcu_dereference(mm->memcg);
+> > > >  	if (unlikely(!memcg))
+> > > >  		goto out;
+> > > >  
+> > > 
+> > > If I'm not mistaken, mm->memcg equals NULL for any task in the root
+> > > memory cgroup
+> > 
+> > right
+> > 
+> > > (BTW, it it's true, it's worth mentioning in the comment
+> > > to mm->memcg definition IMO). As a result, we won't account the stats
+> > > for such tasks, will we?
+> > 
+> > well spotted! This is certainly a bug. There are more places which are
+> > checking for mm->memcg being NULL and falling back to root_mem_cgroup. I
+> > think it would be better to simply use root_mem_cgroup right away. We
+> > can setup init_mm.memcg = root_mem_cgroup during initialization and be
+> > done with it. What do you think? The diff is in the very end of the
+> > email (completely untested yet).
+> 
+> I'd prefer initializing init_mm.memcg to root_mem_cgroup. This way we
+> wouldn't have to check whether mm->memcg is NULL or not here and there,
+> which would make the code cleaner IMO.
 
-There is no point in doing so. The newly allocated slab is not visible
-yet, so there is no reason to protect it against concurrent alloc/free.
+So the patch I've posted will not work as a simple boot test told me. We
+are initializing root_mem_cgroup too late. This will be more complicated.
+I will leave this idea outside of this patch series and will come up
+with a separate patch which will clean this up later. I will update the
+doc discouraging any use of mm->memcg outside of memcg and use accessor
+functions instead. There is only one currently (mm/debug.c) and this is
+used only to print the pointer which is safe.
 
-Move the expensive parts of the initialization into allocate_slab(),
-so for all allocations with GFP_WAIT set, interrupts are enabled.
-
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
----
- mm/slub.c |   85 +++++++++++++++++++++++++++++++-------------------------------
- 1 file changed, 43 insertions(+), 42 deletions(-)
-
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c
-+++ linux/mm/slub.c
-@@ -1306,6 +1306,17 @@ static inline void slab_free_hook(struct
- 	kasan_slab_free(s, x);
- }
- 
-+static void setup_object(struct kmem_cache *s, struct page *page,
-+				void *object)
-+{
-+	setup_object_debug(s, page, object);
-+	if (unlikely(s->ctor)) {
-+		kasan_unpoison_object_data(s, object);
-+		s->ctor(object);
-+		kasan_poison_object_data(s, object);
-+	}
-+}
-+
- /*
-  * Slab allocation and freeing
-  */
-@@ -1336,6 +1347,8 @@ static struct page *allocate_slab(struct
- 	struct page *page;
- 	struct kmem_cache_order_objects oo = s->oo;
- 	gfp_t alloc_gfp;
-+	void *start, *p;
-+	int idx, order;
- 
- 	flags &= gfp_allowed_mask;
- 
-@@ -1364,8 +1377,11 @@ static struct page *allocate_slab(struct
- 			stat(s, ORDER_FALLBACK);
- 	}
- 
--	if (kmemcheck_enabled && page
--		&& !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
-+	if (!page)
-+		goto out;
-+
-+	if (kmemcheck_enabled &&
-+	    !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
- 		int pages = 1 << oo_order(oo);
- 
- 		kmemcheck_alloc_shadow(page, oo_order(oo), alloc_gfp, node);
-@@ -1380,51 +1396,12 @@ static struct page *allocate_slab(struct
- 			kmemcheck_mark_unallocated_pages(page, pages);
- 	}
- 
--	if (flags & __GFP_WAIT)
--		local_irq_disable();
- 	if (!page)
--		return NULL;
-+		goto out;
- 
- 	page->objects = oo_objects(oo);
--	mod_zone_page_state(page_zone(page),
--		(s->flags & SLAB_RECLAIM_ACCOUNT) ?
--		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
--		1 << oo_order(oo));
--
--	return page;
--}
--
--static void setup_object(struct kmem_cache *s, struct page *page,
--				void *object)
--{
--	setup_object_debug(s, page, object);
--	if (unlikely(s->ctor)) {
--		kasan_unpoison_object_data(s, object);
--		s->ctor(object);
--		kasan_poison_object_data(s, object);
--	}
--}
--
--static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
--{
--	struct page *page;
--	void *start;
--	void *p;
--	int order;
--	int idx;
--
--	if (unlikely(flags & GFP_SLAB_BUG_MASK)) {
--		pr_emerg("gfp: %u\n", flags & GFP_SLAB_BUG_MASK);
--		BUG();
--	}
--
--	page = allocate_slab(s,
--		flags & (GFP_RECLAIM_MASK | GFP_CONSTRAINT_MASK), node);
--	if (!page)
--		goto out;
- 
- 	order = compound_order(page);
--	inc_slabs_node(s, page_to_nid(page), page->objects);
- 	page->slab_cache = s;
- 	__SetPageSlab(page);
- 	if (page->pfmemalloc)
-@@ -1448,10 +1425,34 @@ static struct page *new_slab(struct kmem
- 	page->freelist = start;
- 	page->inuse = page->objects;
- 	page->frozen = 1;
-+
- out:
-+	if (flags & __GFP_WAIT)
-+		local_irq_disable();
-+	if (!page)
-+		return NULL;
-+
-+	mod_zone_page_state(page_zone(page),
-+		(s->flags & SLAB_RECLAIM_ACCOUNT) ?
-+		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
-+		1 << oo_order(oo));
-+
-+	inc_slabs_node(s, page_to_nid(page), page->objects);
-+
- 	return page;
- }
- 
-+static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
-+{
-+	if (unlikely(flags & GFP_SLAB_BUG_MASK)) {
-+		pr_emerg("gfp: %u\n", flags & GFP_SLAB_BUG_MASK);
-+		BUG();
-+	}
-+
-+	return allocate_slab(s,
-+		flags & (GFP_RECLAIM_MASK | GFP_CONSTRAINT_MASK), node);
-+}
-+
- static void __free_slab(struct kmem_cache *s, struct page *page)
- {
- 	int order = compound_order(page);
-
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
