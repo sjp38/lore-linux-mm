@@ -1,102 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id B0EEB6B0255
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 08:48:16 -0400 (EDT)
-Received: by wgov12 with SMTP id v12so63938309wgo.1
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 05:48:16 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ey5si15253703wjd.74.2015.07.10.05.48.14
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id E6A6A6B0038
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 09:07:06 -0400 (EDT)
+Received: by lagx9 with SMTP id x9so264843497lag.1
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 06:07:06 -0700 (PDT)
+Received: from mail-la0-x22f.google.com (mail-la0-x22f.google.com. [2a00:1450:4010:c03::22f])
+        by mx.google.com with ESMTPS id z1si7620885lbm.136.2015.07.10.06.07.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 10 Jul 2015 05:48:15 -0700 (PDT)
-From: Juergen Gross <jgross@suse.com>
-Subject: [Patch V5 12/16] mm: provide early_memremap_ro to establish read-only mapping
-Date: Fri, 10 Jul 2015 14:47:57 +0200
-Message-Id: <1436532481-1224-13-git-send-email-jgross@suse.com>
-In-Reply-To: <1436532481-1224-1-git-send-email-jgross@suse.com>
-References: <1436532481-1224-1-git-send-email-jgross@suse.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Jul 2015 06:07:05 -0700 (PDT)
+Received: by lagx9 with SMTP id x9so264842904lag.1
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 06:07:04 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1436243785-24105-3-git-send-email-gioh.kim@lge.com>
+References: <1436243785-24105-1-git-send-email-gioh.kim@lge.com>
+	<1436243785-24105-3-git-send-email-gioh.kim@lge.com>
+Date: Fri, 10 Jul 2015 16:07:04 +0300
+Message-ID: <CALYGNiPBPzA0QCXZKXKye++xVSeO_nBW4gV+ukk2jPiBOM+n=A@mail.gmail.com>
+Subject: Re: [RFCv3 2/5] mm/compaction: enable mobile-page migration
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com
-Cc: Juergen Gross <jgross@suse.com>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Gioh Kim <gioh.kim@lge.com>
+Cc: Jeff Layton <jlayton@poochiereds.net>, Bruce Fields <bfields@fieldses.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Al Viro <viro@zeniv.linux.org.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Minchan Kim <minchan@kernel.org>, Rafael Aquini <aquini@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, virtualization@lists.linux-foundation.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, gunho.lee@lge.com, Andrew Morton <akpm@linux-foundation.org>, Gioh Kim <gurugio@hanmail.net>
 
-During early boot as Xen pv domain the kernel needs to map some page
-tables supplied by the hypervisor read only. This is needed to be
-able to relocate some data structures conflicting with the physical
-memory map especially on systems with huge RAM (above 512GB).
+On Tue, Jul 7, 2015 at 7:36 AM, Gioh Kim <gioh.kim@lge.com> wrote:
+> From: Gioh Kim <gurugio@hanmail.net>
+>
+> Add framework to register callback functions and check page mobility.
+> There are some modes for page isolation so that isolate interface
+> has arguments of page address and isolation mode while putback
+> interface has only page address as argument.
+>
+> Signed-off-by: Gioh Kim <gioh.kim@lge.com>
+> ---
+>  fs/proc/page.c                         |  3 ++
+>  include/linux/compaction.h             | 76 ++++++++++++++++++++++++++++++++++
+>  include/linux/fs.h                     |  2 +
+>  include/linux/page-flags.h             | 19 +++++++++
+>  include/uapi/linux/kernel-page-flags.h |  1 +
+>  5 files changed, 101 insertions(+)
+>
+> diff --git a/fs/proc/page.c b/fs/proc/page.c
+> index 7eee2d8..a4f5a00 100644
+> --- a/fs/proc/page.c
+> +++ b/fs/proc/page.c
+> @@ -146,6 +146,9 @@ u64 stable_page_flags(struct page *page)
+>         if (PageBalloon(page))
+>                 u |= 1 << KPF_BALLOON;
+>
+> +       if (PageMobile(page))
+> +               u |= 1 << KPF_MOBILE;
+> +
+>         u |= kpf_copy_bit(k, KPF_LOCKED,        PG_locked);
+>
+>         u |= kpf_copy_bit(k, KPF_SLAB,          PG_slab);
+> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+> index aa8f61c..c375a89 100644
+> --- a/include/linux/compaction.h
+> +++ b/include/linux/compaction.h
+> @@ -1,6 +1,9 @@
+>  #ifndef _LINUX_COMPACTION_H
+>  #define _LINUX_COMPACTION_H
+>
+> +#include <linux/page-flags.h>
+> +#include <linux/pagemap.h>
+> +
+>  /* Return values for compact_zone() and try_to_compact_pages() */
+>  /* compaction didn't start as it was deferred due to past failures */
+>  #define COMPACT_DEFERRED       0
+> @@ -51,6 +54,66 @@ extern void compaction_defer_reset(struct zone *zone, int order,
+>                                 bool alloc_success);
+>  extern bool compaction_restarting(struct zone *zone, int order);
+>
+> +static inline bool mobile_page(struct page *page)
+> +{
+> +       return page->mapping && page->mapping->a_ops &&
 
-Provide the function early_memremap_ro() to provide this read only
-mapping.
+Dereferncing mapping->a_ops isn't safe without page-lock and isn't required:
+all mappings always have ->a_ops.
 
-Signed-off-by: Juergen Gross <jgross@suse.com>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: linux-mm@kvack.org
-Cc: linux-arch@vger.kernel.org
----
- include/asm-generic/early_ioremap.h |  2 ++
- include/asm-generic/fixmap.h        |  3 +++
- mm/early_ioremap.c                  | 12 ++++++++++++
- 3 files changed, 17 insertions(+)
+> +               (PageMobile(page) || PageBalloon(page));
+> +}
+> +
+> +static inline bool isolate_mobilepage(struct page *page, isolate_mode_t mode)
+> +{
+> +       bool ret;
+> +
+> +       /*
+> +        * Avoid burning cycles with pages that are yet under __free_pages(),
+> +        * or just got freed under us.
+> +        *
+> +        * In case we 'win' a race for a mobile page being freed under us and
+> +        * raise its refcount preventing __free_pages() from doing its job
+> +        * the put_page() at the end of this block will take care of
+> +        * release this page, thus avoiding a nasty leakage.
+> +        */
+> +       if (likely(get_page_unless_zero(page))) {
+> +               /*
+> +                * As mobile pages are not isolated from LRU lists, concurrent
+> +                * compaction threads can race against page migration functions
+> +                * as well as race against the releasing a page.
+> +                *
+> +                * In order to avoid having an already isolated mobile page
+> +                * being (wrongly) re-isolated while it is under migration,
+> +                * or to avoid attempting to isolate pages being released,
+> +                * lets be sure we have the page lock
+> +                * before proceeding with the mobile page isolation steps.
+> +                */
+> +               if (likely(trylock_page(page))) {
+> +                       if (mobile_page(page) &&
+> +                           page->mapping->a_ops->isolatepage) {
+> +                               ret = page->mapping->a_ops->isolatepage(page,
+> +                                                                       mode);
+> +                               unlock_page(page);
+> +                               return ret;
+> +                       }
+> +                       unlock_page(page);
+> +               }
+> +               put_page(page);
+> +       }
+> +       return false;
+> +}
+> +
+> +static inline void putback_mobilepage(struct page *page)
+> +{
+> +       /*
+> +        * 'lock_page()' stabilizes the page and prevents races against
+> +        * concurrent isolation threads attempting to re-isolate it.
+> +        */
+> +       lock_page(page);
+> +       if (mobile_page(page) && page->mapping->a_ops->putbackpage) {
 
-diff --git a/include/asm-generic/early_ioremap.h b/include/asm-generic/early_ioremap.h
-index a5de55c..316bd04 100644
---- a/include/asm-generic/early_ioremap.h
-+++ b/include/asm-generic/early_ioremap.h
-@@ -11,6 +11,8 @@ extern void __iomem *early_ioremap(resource_size_t phys_addr,
- 				   unsigned long size);
- extern void *early_memremap(resource_size_t phys_addr,
- 			    unsigned long size);
-+extern void *early_memremap_ro(resource_size_t phys_addr,
-+			       unsigned long size);
- extern void early_iounmap(void __iomem *addr, unsigned long size);
- extern void early_memunmap(void *addr, unsigned long size);
- 
-diff --git a/include/asm-generic/fixmap.h b/include/asm-generic/fixmap.h
-index f23174f..1cbb833 100644
---- a/include/asm-generic/fixmap.h
-+++ b/include/asm-generic/fixmap.h
-@@ -46,6 +46,9 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
- #ifndef FIXMAP_PAGE_NORMAL
- #define FIXMAP_PAGE_NORMAL PAGE_KERNEL
- #endif
-+#if !defined(FIXMAP_PAGE_RO) && defined(PAGE_KERNEL_RO)
-+#define FIXMAP_PAGE_RO PAGE_KERNEL_RO
-+#endif
- #ifndef FIXMAP_PAGE_NOCACHE
- #define FIXMAP_PAGE_NOCACHE PAGE_KERNEL_NOCACHE
- #endif
-diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
-index e10ccd2..0cfadaf 100644
---- a/mm/early_ioremap.c
-+++ b/mm/early_ioremap.c
-@@ -217,6 +217,13 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
- 	return (__force void *)__early_ioremap(phys_addr, size,
- 					       FIXMAP_PAGE_NORMAL);
- }
-+#ifdef FIXMAP_PAGE_RO
-+void __init *
-+early_memremap_ro(resource_size_t phys_addr, unsigned long size)
-+{
-+	return (__force void *)__early_ioremap(phys_addr, size, FIXMAP_PAGE_RO);
-+}
-+#endif
- #else /* CONFIG_MMU */
- 
- void __init __iomem *
-@@ -231,6 +238,11 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
- {
- 	return (void *)phys_addr;
- }
-+void __init *
-+early_memremap_ro(resource_size_t phys_addr, unsigned long size)
-+{
-+	return (void *)phys_addr;
-+}
- 
- void __init early_iounmap(void __iomem *addr, unsigned long size)
- {
--- 
-2.1.4
+It seems "if (page->mapping && page->mapping->a_ops->putbackpage)"
+should be enough: we already seen that page as mobile.
+
+> +               page->mapping->a_ops->putbackpage(page);
+> +               /* drop the extra ref count taken for mobile page isolation */
+> +               put_page(page);
+> +       }
+> +       unlock_page(page);
+
+call put_page() after unlock and do that always -- putback must drop
+page reference from caller.
+
+lock_page(page);
+if (page->mapping && page->mapping->a_ops->putbackpage)
+     page->mapping->a_ops->putbackpage(page);
+unlock_page();
+put_page(page);
+
+> +}
+>  #else
+>  static inline unsigned long try_to_compact_pages(gfp_t gfp_mask,
+>                         unsigned int order, int alloc_flags,
+> @@ -83,6 +146,19 @@ static inline bool compaction_deferred(struct zone *zone, int order)
+>         return true;
+>  }
+>
+> +static inline bool mobile_page(struct page *page)
+> +{
+> +       return false;
+> +}
+> +
+> +static inline bool isolate_mobilepage(struct page *page, isolate_mode_t mode)
+> +{
+> +       return false;
+> +}
+> +
+> +static inline void putback_mobilepage(struct page *page)
+> +{
+> +}
+>  #endif /* CONFIG_COMPACTION */
+>
+>  #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index 35ec87e..33c9aa5 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -395,6 +395,8 @@ struct address_space_operations {
+>          */
+>         int (*migratepage) (struct address_space *,
+>                         struct page *, struct page *, enum migrate_mode);
+> +       bool (*isolatepage) (struct page *, isolate_mode_t);
+> +       void (*putbackpage) (struct page *);
+>         int (*launder_page) (struct page *);
+>         int (*is_partially_uptodate) (struct page *, unsigned long,
+>                                         unsigned long);
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index f34e040..abef145 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -582,6 +582,25 @@ static inline void __ClearPageBalloon(struct page *page)
+>         atomic_set(&page->_mapcount, -1);
+>  }
+>
+> +#define PAGE_MOBILE_MAPCOUNT_VALUE (-255)
+> +
+> +static inline int PageMobile(struct page *page)
+> +{
+> +       return atomic_read(&page->_mapcount) == PAGE_MOBILE_MAPCOUNT_VALUE;
+> +}
+> +
+> +static inline void __SetPageMobile(struct page *page)
+> +{
+> +       VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
+> +       atomic_set(&page->_mapcount, PAGE_MOBILE_MAPCOUNT_VALUE);
+> +}
+> +
+> +static inline void __ClearPageMobile(struct page *page)
+> +{
+> +       VM_BUG_ON_PAGE(!PageMobile(page), page);
+> +       atomic_set(&page->_mapcount, -1);
+> +}
+> +
+>  /*
+>   * If network-based swap is enabled, sl*b must keep track of whether pages
+>   * were allocated from pfmemalloc reserves.
+> diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
+> index a6c4962..d50d9e8 100644
+> --- a/include/uapi/linux/kernel-page-flags.h
+> +++ b/include/uapi/linux/kernel-page-flags.h
+> @@ -33,6 +33,7 @@
+>  #define KPF_THP                        22
+>  #define KPF_BALLOON            23
+>  #define KPF_ZERO_PAGE          24
+> +#define KPF_MOBILE             25
+>
+>
+>  #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
+> --
+> 2.1.4
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
