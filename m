@@ -1,72 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 80FFD6B0253
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 23:08:55 -0400 (EDT)
-Received: by pdbqm3 with SMTP id qm3so49668010pdb.0
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 20:08:55 -0700 (PDT)
-Received: from e28smtp07.in.ibm.com (e28smtp07.in.ibm.com. [122.248.162.7])
-        by mx.google.com with ESMTPS id nl1si17204876pdb.146.2015.07.10.20.08.52
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id B152C6B0253
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2015 23:13:04 -0400 (EDT)
+Received: by pachj5 with SMTP id hj5so1864605pac.3
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 20:13:04 -0700 (PDT)
+Received: from e28smtp05.in.ibm.com (e28smtp05.in.ibm.com. [122.248.162.5])
+        by mx.google.com with ESMTPS id d16si16517193pbu.108.2015.07.10.20.13.02
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Fri, 10 Jul 2015 20:08:54 -0700 (PDT)
+        Fri, 10 Jul 2015 20:13:03 -0700 (PDT)
 Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
-	Sat, 11 Jul 2015 08:38:49 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 02F91E004C
-	for <linux-mm@kvack.org>; Sat, 11 Jul 2015 08:42:40 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay02.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t6B38cea35389526
-	for <linux-mm@kvack.org>; Sat, 11 Jul 2015 08:38:40 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t6B38bJU024945
-	for <linux-mm@kvack.org>; Sat, 11 Jul 2015 08:38:37 +0530
+	Sat, 11 Jul 2015 08:42:59 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 506C73940048
+	for <linux-mm@kvack.org>; Sat, 11 Jul 2015 08:42:57 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t6B3CuKo9830808
+	for <linux-mm@kvack.org>; Sat, 11 Jul 2015 08:42:57 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t6B1xCFn032163
+	for <linux-mm@kvack.org>; Sat, 11 Jul 2015 07:29:12 +0530
 From: Wei Yang <weiyang@linux.vnet.ibm.com>
-Subject: [PATCH V2] mm/page: refine the calculation of highest possible node id
-Date: Sat, 11 Jul 2015 11:08:16 +0800
-Message-Id: <1436584096-7016-1-git-send-email-weiyang@linux.vnet.ibm.com>
-In-Reply-To: <20150710003555.4398c8ad.akpm@linux-foundation.org>
-References: <20150710003555.4398c8ad.akpm@linux-foundation.org>
+Subject: [PATCH] mm/page: remove unused variable of free_area_init_core()
+Date: Sat, 11 Jul 2015 11:12:48 +0800
+Message-Id: <1436584368-7639-1-git-send-email-weiyang@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Wei Yang <weiyang@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>
+Cc: linux-mm@kvack.org, Wei Yang <weiyang@linux.vnet.ibm.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>
 
-nr_node_ids records the highest possible node id, which is calculated by
-scanning the bitmap node_states[N_POSSIBLE]. Current implementation scan
-the bitmap from the beginning, which will scan the whole bitmap.
+commit <febd5949e134> ("mm/memory hotplug: init the zone's size when
+calculating node totalpages") refine the function free_area_init_core().
+After doing so, these two parameter is not used anymore.
 
-This patch reverse the order by scanning from the end with find_last_bit().
+This patch removes these two parameters.
 
 Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: Tejun Heo <tj@kernel.org>
-
----
-v2:
-   Just call find_last_bit() on node_possible_map.
+CC: Gu Zheng <guz.fnst@cn.fujitsu.com>
 ---
  mm/page_alloc.c |    5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 59248f4..f8d0a98 100644
+index 07aeae8..f8d0a98 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -5450,10 +5450,9 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- void __init setup_nr_node_ids(void)
+@@ -5275,8 +5275,7 @@ static unsigned long __paginginit calc_memmap_size(unsigned long spanned_pages,
+  *
+  * NOTE: pgdat should get zeroed by caller.
+  */
+-static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+-		unsigned long node_start_pfn, unsigned long node_end_pfn)
++static void __paginginit free_area_init_core(struct pglist_data *pgdat)
  {
- 	unsigned int node;
--	unsigned int highest = 0;
-+	unsigned int highest;
- 
--	for_each_node_mask(node, node_possible_map)
--		highest = node;
-+	highest = find_last_bit(node_possible_map.bits, MAX_NUMNODES);
- 	nr_node_ids = highest + 1;
- }
+ 	enum zone_type j;
+ 	int nid = pgdat->node_id;
+@@ -5439,7 +5438,7 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+ 		(unsigned long)pgdat->node_mem_map);
  #endif
+ 
+-	free_area_init_core(pgdat, start_pfn, end_pfn);
++	free_area_init_core(pgdat);
+ }
+ 
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
 -- 
 1.7.9.5
 
