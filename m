@@ -1,67 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 90F516B0253
-	for <linux-mm@kvack.org>; Sat, 11 Jul 2015 00:19:59 -0400 (EDT)
-Received: by pactm7 with SMTP id tm7so177758475pac.2
-        for <linux-mm@kvack.org>; Fri, 10 Jul 2015 21:19:59 -0700 (PDT)
-Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com. [122.248.162.6])
-        by mx.google.com with ESMTPS id ca15si17493439pdb.31.2015.07.10.21.19.57
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A06556B0253
+	for <linux-mm@kvack.org>; Sat, 11 Jul 2015 03:09:20 -0400 (EDT)
+Received: by pdjr16 with SMTP id r16so34403697pdj.3
+        for <linux-mm@kvack.org>; Sat, 11 Jul 2015 00:09:20 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id pw8si18059395pdb.85.2015.07.11.00.09.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Fri, 10 Jul 2015 21:19:58 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
-	Sat, 11 Jul 2015 09:49:55 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 6A773394005E
-	for <linux-mm@kvack.org>; Sat, 11 Jul 2015 09:49:52 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay02.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t6B4Jqns11599974
-	for <linux-mm@kvack.org>; Sat, 11 Jul 2015 09:49:52 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t6B4JpXL020323
-	for <linux-mm@kvack.org>; Sat, 11 Jul 2015 09:49:51 +0530
-From: Wei Yang <weiyang@linux.vnet.ibm.com>
-Subject: [PATCH] mm/memblock: WARN_ON when flags differs from overlap region
-Date: Sat, 11 Jul 2015 12:19:36 +0800
-Message-Id: <1436588376-25808-1-git-send-email-weiyang@linux.vnet.ibm.com>
-In-Reply-To: <1436342488-19851-1-git-send-email-weiyang@linux.vnet.ibm.com>
-References: <1436342488-19851-1-git-send-email-weiyang@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 11 Jul 2015 00:09:19 -0700 (PDT)
+Date: Sat, 11 Jul 2015 10:09:06 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH 7/8] memcg: get rid of mm_struct::owner
+Message-ID: <20150711070905.GO2436@esperanza>
+References: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
+ <1436358472-29137-8-git-send-email-mhocko@kernel.org>
+ <20150708173251.GG2436@esperanza>
+ <20150709140941.GG13872@dhcp22.suse.cz>
+ <20150710075400.GN2436@esperanza>
+ <20150710124520.GA29540@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150710124520.GA29540@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com, akpm@linux-foundation.org, tj@kernel.org
-Cc: linux-mm@kvack.org, Wei Yang <weiyang@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Each memblock_region has flags to indicates the Node ID of this range. For
-the overlap case, memblock_add_range() inserts the lower part and leave the
-upper part as indicated in the overlapped region.
+On Fri, Jul 10, 2015 at 02:45:20PM +0200, Michal Hocko wrote:
+> On Fri 10-07-15 10:54:00, Vladimir Davydov wrote:
+> > On Thu, Jul 09, 2015 at 04:09:41PM +0200, Michal Hocko wrote:
+> > > On Wed 08-07-15 20:32:51, Vladimir Davydov wrote:
+> > > > On Wed, Jul 08, 2015 at 02:27:51PM +0200, Michal Hocko wrote:
+> > [...]
+> > > > > @@ -474,7 +519,7 @@ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
+> > > > >  		return;
+> > > > >  
+> > > > >  	rcu_read_lock();
+> > > > > -	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
+> > > > > +	memcg = rcu_dereference(mm->memcg);
+> > > > >  	if (unlikely(!memcg))
+> > > > >  		goto out;
+> > > > >  
+> > > > 
+> > > > If I'm not mistaken, mm->memcg equals NULL for any task in the root
+> > > > memory cgroup
+> > > 
+> > > right
+> > > 
+> > > > (BTW, it it's true, it's worth mentioning in the comment
+> > > > to mm->memcg definition IMO). As a result, we won't account the stats
+> > > > for such tasks, will we?
+> > > 
+> > > well spotted! This is certainly a bug. There are more places which are
+> > > checking for mm->memcg being NULL and falling back to root_mem_cgroup. I
+> > > think it would be better to simply use root_mem_cgroup right away. We
+> > > can setup init_mm.memcg = root_mem_cgroup during initialization and be
+> > > done with it. What do you think? The diff is in the very end of the
+> > > email (completely untested yet).
+> > 
+> > I'd prefer initializing init_mm.memcg to root_mem_cgroup. This way we
+> > wouldn't have to check whether mm->memcg is NULL or not here and there,
+> > which would make the code cleaner IMO.
+> 
+> So the patch I've posted will not work as a simple boot test told me. We
+> are initializing root_mem_cgroup too late. This will be more complicated.
+> I will leave this idea outside of this patch series and will come up
+> with a separate patch which will clean this up later. I will update the
+> doc discouraging any use of mm->memcg outside of memcg and use accessor
+> functions instead. There is only one currently (mm/debug.c) and this is
+> used only to print the pointer which is safe.
 
-If the flags of the new range differs from the overlapped region, the
-information recorded is not correct.
+Why can't we make root_mem_cgroup statically allocated? AFAICS it's a
+common practice - e.g. see blkcg_root, root_task_group.
 
-This patch adds a WARN_ON when the flags of the new range differs from the
-overlapped region.
-
-Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
----
- mm/memblock.c |    1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 95ce68c..bde61e8 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -569,6 +569,7 @@ repeat:
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 			WARN_ON(nid != memblock_get_region_node(rgn));
- #endif
-+			WARN_ON(flags != rgn->flags);
- 			nr_new++;
- 			if (insert)
- 				memblock_insert_region(type, i++, base,
--- 
-1.7.9.5
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
