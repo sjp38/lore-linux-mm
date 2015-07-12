@@ -1,85 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B06086B0253
-	for <linux-mm@kvack.org>; Sat, 11 Jul 2015 15:43:42 -0400 (EDT)
-Received: by pdbep18 with SMTP id ep18so202068847pdb.1
-        for <linux-mm@kvack.org>; Sat, 11 Jul 2015 12:43:42 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id ob4si7298899pdb.122.2015.07.11.12.43.41
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 765C86B0253
+	for <linux-mm@kvack.org>; Sat, 11 Jul 2015 22:48:24 -0400 (EDT)
+Received: by pdjr16 with SMTP id r16so43478721pdj.3
+        for <linux-mm@kvack.org>; Sat, 11 Jul 2015 19:48:24 -0700 (PDT)
+Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com. [2607:f8b0:400e:c02::22b])
+        by mx.google.com with ESMTPS id x10si21548330pdr.182.2015.07.11.19.48.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 11 Jul 2015 12:43:41 -0700 (PDT)
-Received: by pabvl15 with SMTP id vl15so184746029pab.1
-        for <linux-mm@kvack.org>; Sat, 11 Jul 2015 12:43:41 -0700 (PDT)
-Date: Sat, 11 Jul 2015 12:43:31 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] selinux: fix mprotect PROT_EXEC regression caused by mm
- change
-In-Reply-To: <1436535659-13124-1-git-send-email-sds@tycho.nsa.gov>
-Message-ID: <alpine.LSU.2.11.1507111233001.2032@eggly.anvils>
-References: <1436535659-13124-1-git-send-email-sds@tycho.nsa.gov>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 11 Jul 2015 19:48:23 -0700 (PDT)
+Received: by pdbep18 with SMTP id ep18so205408943pdb.1
+        for <linux-mm@kvack.org>; Sat, 11 Jul 2015 19:48:23 -0700 (PDT)
+Date: Sun, 12 Jul 2015 11:47:32 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH 0/2] mm/shrinker: make unregister_shrinker() less fragile
+Message-ID: <20150712024732.GA787@swordfish>
+References: <1436583115-6323-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150711100232.GA4607@infradead.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150711100232.GA4607@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Smalley <sds@tycho.nsa.gov>
-Cc: paul@paul-moore.com, hughd@google.com, prarit@redhat.com, mstevens@fedoraproject.org, esandeen@redhat.com, david@fromorbit.com, linux-kernel@vger.kernel.org, eparis@redhat.com, linux-mm@kvack.org, wagi@monom.org, selinux@tycho.nsa.gov, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Fri, 10 Jul 2015, Stephen Smalley wrote:
+Hello Christoph,
 
-> commit 66fc13039422ba7df2d01a8ee0873e4ef965b50b ("mm: shmem_zero_setup skip
-> security check and lockdep conflict with XFS") caused a regression for
-> SELinux by disabling any SELinux checking of mprotect PROT_EXEC on
-> shared anonymous mappings.  However, even before that regression, the
-> checking on such mprotect PROT_EXEC calls was inconsistent with the
-> checking on a mmap PROT_EXEC call for a shared anonymous mapping.  On a
-> mmap, the security hook is passed a NULL file and knows it is dealing with
-> an anonymous mapping and therefore applies an execmem check and no file
-> checks.  On a mprotect, the security hook is passed a vma with a
-> non-NULL vm_file (as this was set from the internally-created shmem
-> file during mmap) and therefore applies the file-based execute check and
-> no execmem check.  Since the aforementioned commit now marks the shmem
-> zero inode with the S_PRIVATE flag, the file checks are disabled and
-> we have no checking at all on mprotect PROT_EXEC.  Add a test to
-> the mprotect hook logic for such private inodes, and apply an execmem
-> check in that case.  This makes the mmap and mprotect checking consistent
-> for shared anonymous mappings, as well as for /dev/zero and ashmem.
+On (07/11/15 03:02), Christoph Hellwig wrote:
+> > Shrinker API does not handle nicely unregister_shrinker() on a not-registered
+> > ->shrinker. Looking at shrinker users, they all have to
+> > (a) carry on some sort of a flag to make sure that "unregister_shrinker()"
+> > will not blow up later
+> > (b) be fishy (potentially can Oops)
+> > (c) access private members `struct shrinker' (e.g. `shrink.list.next')
 > 
-> Signed-off-by: Stephen Smalley <sds@tycho.nsa.gov>
-
-Thank you for correcting that, Stephen (and for the nicely detailed
-commit description): it looks right to me so I'll say
-
-Acked-by: Hugh Dickins <hughd@google.com>
-
-but I know far too little of SElinux, and its defaults, to confirm
-whether it actually does all you need - I'll trust you on that.
-
-(There being various other references to the file in file_map_prot_check()
-and selinux_file_mprotect(), and I couldn't tell if they should or should
-not be modified by IS_PRIVATE(file_inode(file) checks too: my best guess
-was that they wouldn't matter.)
-
-> ---
->  security/selinux/hooks.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+> Ayone who does that is broken.  You just need to have clear init (with
+> proper unwinding) and exit functions and order things properly.  It
+> works like most register/unregister calls and should stay that way.
 > 
-> diff --git a/security/selinux/hooks.c b/security/selinux/hooks.c
-> index 6231081..564079c 100644
-> --- a/security/selinux/hooks.c
-> +++ b/security/selinux/hooks.c
-> @@ -3283,7 +3283,8 @@ static int file_map_prot_check(struct file *file, unsigned long prot, int shared
->  	int rc = 0;
->  
->  	if (default_noexec &&
-> -	    (prot & PROT_EXEC) && (!file || (!shared && (prot & PROT_WRITE)))) {
-> +	    (prot & PROT_EXEC) && (!file || IS_PRIVATE(file_inode(file)) ||
-> +				   (!shared && (prot & PROT_WRITE)))) {
->  		/*
->  		 * We are making executable an anonymous mapping or a
->  		 * private file mapping that will also be writable.
-> -- 
-> 2.1.0
+> Maye you you should ty to explain what practical problem you're seeing
+> to start with.
+
+Yes, but the main difference here is that it seems that shrinker users
+don't tend to treat shrinker registration failures as fatal errors and
+just continue with shrinker functionality disabled. And it makes sense.
+
+(copy paste from https://lkml.org/lkml/2015/7/9/751)
+
+> Ayone who does that is broken
+
+I'm afraid, in that case we almost don't have not-broken shrinker users.
+
+
+-- ignoring register_shrinker() error
+
+: int ldlm_pools_init(void)
+: {
+:         int rc;
+:
+:         rc = ldlm_pools_thread_start();
+:         if (rc == 0) {
+:                 register_shrinker(&ldlm_pools_srv_shrinker);
+:                 register_shrinker(&ldlm_pools_cli_shrinker);
+:         }
+:         return rc;
+: }
+: EXPORT_SYMBOL(ldlm_pools_init);
+:
+: void ldlm_pools_fini(void)
+: {
+:         unregister_shrinker(&ldlm_pools_srv_shrinker);
+:         unregister_shrinker(&ldlm_pools_cli_shrinker);
+:         ldlm_pools_thread_stop();
+: }
+: EXPORT_SYMBOL(ldlm_pools_fini);
+
+
+-- and here
+
+:void i915_gem_shrinker_init(struct drm_i915_private *dev_priv)
+:{
+:        dev_priv->mm.shrinker.scan_objects = i915_gem_shrinker_scan;
+:        dev_priv->mm.shrinker.count_objects = i915_gem_shrinker_count;
+:        dev_priv->mm.shrinker.seeks = DEFAULT_SEEKS;
+:        register_shrinker(&dev_priv->mm.shrinker);
+:
+:        dev_priv->mm.oom_notifier.notifier_call = i915_gem_shrinker_oom;
+:        register_oom_notifier(&dev_priv->mm.oom_notifier);
+:}
+
+
+-- and here
+
+:int __init gfs2_glock_init(void)
+:{
+:        unsigned i;
+...
+:        register_shrinker(&glock_shrinker);
+:
+:        return 0;
+:}
+:
+:void gfs2_glock_exit(void)
+:{
+:        unregister_shrinker(&glock_shrinker);
+:        destroy_workqueue(glock_workqueue);
+:        destroy_workqueue(gfs2_delete_workqueue);
+:}
+
+
+-- and here
+
+:static int __init lowmem_init(void)
+:{
+:        register_shrinker(&lowmem_shrinker);
+:        return 0;
+:}
+:
+:static void __exit lowmem_exit(void)
+:{
+:        unregister_shrinker(&lowmem_shrinker);
+:}
+
+
+
+-- accessing private member 'c->shrink.list.next' to distinguish between
+'register_shrinker() was successful and need to unregister it' and
+'register_shrinker() failed, don't unregister_shrinker() because it
+may Oops'
+
+:struct cache_set {
+: ...
+:	struct shrinker		shrink;
+: ...
+:};
+:
+: ...
+:
+: void bch_btree_cache_free(struct cache_set *c)
+: {
+:         struct btree *b;
+:         struct closure cl;
+:         closure_init_stack(&cl);
+:
+:         if (c->shrink.list.next)
+:                 unregister_shrinker(&c->shrink);
+
+
+-- and here
+:int bch_btree_cache_alloc(struct cache_set *c)
+:{
+...
+:        register_shrinker(&c->shrink);
+:
+:
+...
+:
+:void bch_btree_cache_free(struct cache_set *c)
+:{
+:        struct btree *b;
+:        struct closure cl;
+:        closure_init_stack(&cl);
+:
+:        if (c->shrink.list.next)
+:                unregister_shrinker(&c->shrink);
+:
+
+
+And so on and on.
+
+In fact, 'git grep = register_shrinker' gives only
+
+$ git grep '= register_shrinker'
+fs/ext4/extents_status.c:       err = register_shrinker(&sbi->s_es_shrinker);
+fs/nfsd/nfscache.c:     status = register_shrinker(&nfsd_reply_cache_shrinker);
+fs/ubifs/super.c:       err = register_shrinker(&ubifs_shrinker_info);
+mm/huge_memory.c:       err = register_shrinker(&huge_zero_page_shrinker);
+mm/workingset.c:        ret = register_shrinker(&workingset_shadow_shrinker);
+
+
+The rest is 'broken'.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
