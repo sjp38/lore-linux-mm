@@ -1,162 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id CAD3C6B0253
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 04:45:49 -0400 (EDT)
-Received: by pachj5 with SMTP id hj5so28615474pac.3
-        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 01:45:49 -0700 (PDT)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id el7si27288381pdb.190.2015.07.13.01.45.48
-        for <linux-mm@kvack.org>;
-        Mon, 13 Jul 2015 01:45:48 -0700 (PDT)
-Message-ID: <55A37ABA.3000001@lge.com>
-Date: Mon, 13 Jul 2015 17:45:46 +0900
-From: Gioh Kim <gioh.kim@lge.com>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C16E66B0253
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 04:46:23 -0400 (EDT)
+Received: by widjy10 with SMTP id jy10so62550077wid.1
+        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 01:46:23 -0700 (PDT)
+Received: from lb3-smtp-cloud2.xs4all.net (lb3-smtp-cloud2.xs4all.net. [194.109.24.29])
+        by mx.google.com with ESMTPS id d15si12269784wiv.56.2015.07.13.01.46.21
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 13 Jul 2015 01:46:22 -0700 (PDT)
+Message-ID: <55A37AA5.1020809@xs4all.nl>
+Date: Mon, 13 Jul 2015 10:45:25 +0200
+From: Hans Verkuil <hverkuil@xs4all.nl>
 MIME-Version: 1.0
-Subject: Re: [RFCv3 2/5] mm/compaction: enable mobile-page migration
-References: <1436243785-24105-1-git-send-email-gioh.kim@lge.com>	<1436243785-24105-3-git-send-email-gioh.kim@lge.com> <CALYGNiPBPzA0QCXZKXKye++xVSeO_nBW4gV+ukk2jPiBOM+n=A@mail.gmail.com>
-In-Reply-To: <CALYGNiPBPzA0QCXZKXKye++xVSeO_nBW4gV+ukk2jPiBOM+n=A@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+Subject: Re: [PATCH 0/10 v6] Helper to abstract vma handling in media layer
+References: <1434636520-25116-1-git-send-email-jack@suse.cz> <20150709114848.GA9189@quack.suse.cz> <559E6538.9080100@xs4all.nl>
+In-Reply-To: <559E6538.9080100@xs4all.nl>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: Jeff Layton <jlayton@poochiereds.net>, Bruce Fields <bfields@fieldses.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Al Viro <viro@zeniv.linux.org.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Minchan Kim <minchan@kernel.org>, Rafael Aquini <aquini@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, virtualization@lists.linux-foundation.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, gunho.lee@lge.com, Andrew Morton <akpm@linux-foundation.org>, Gioh Kim <gurugio@hanmail.net>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-media@vger.kernel.org, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, linux-samsung-soc@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-
->> @@ -51,6 +54,66 @@ extern void compaction_defer_reset(struct zone *zone, int order,
->>                                  bool alloc_success);
->>   extern bool compaction_restarting(struct zone *zone, int order);
+On 07/09/2015 02:12 PM, Hans Verkuil wrote:
+> On 07/09/2015 01:48 PM, Jan Kara wrote:
+>>   Hello,
 >>
->> +static inline bool mobile_page(struct page *page)
->> +{
->> +       return page->mapping && page->mapping->a_ops &&
->
-> Dereferncing mapping->a_ops isn't safe without page-lock and isn't required:
-> all mappings always have ->a_ops.
->
+>>   Hans, did you have a chance to look at these patches? I have tested them
+>> with the vivid driver but it would be good if you could run them through
+>> your standard testing procedure as well. Andrew has updated the patches in
+>> his tree but some ack from you would be welcome...
+> 
+> I've planned a 'patch day' for Monday. So hopefully you'll see a pull request
+> by then.
 
-I got it.
+OK, I'm confused. I thought the non-vb2 patches would go in for 4.2? That didn't
+happen, so I guess the plan is to merge the whole lot for 4.3 via our media
+tree? If that's the case, can you post a new patch series on top of the master
+branch of the media tree? I want to make sure I use the right patches. Also, if
+you do make a new patch series, then it would be better if patch 10/10 is folded
+into patch 2/10.
 
->> +static inline void putback_mobilepage(struct page *page)
->> +{
->> +       /*
->> +        * 'lock_page()' stabilizes the page and prevents races against
->> +        * concurrent isolation threads attempting to re-isolate it.
->> +        */
->> +       lock_page(page);
->> +       if (mobile_page(page) && page->mapping->a_ops->putbackpage) {
->
-> It seems "if (page->mapping && page->mapping->a_ops->putbackpage)"
-> should be enough: we already seen that page as mobile.
+If that's not the case, then you have to let me know what I should do.
 
-Ditto.
+Regards,
 
->
->> +               page->mapping->a_ops->putbackpage(page);
->> +               /* drop the extra ref count taken for mobile page isolation */
->> +               put_page(page);
->> +       }
->> +       unlock_page(page);
->
-> call put_page() after unlock and do that always -- putback must drop
-> page reference from caller.
->
-> lock_page(page);
-> if (page->mapping && page->mapping->a_ops->putbackpage)
->       page->mapping->a_ops->putbackpage(page);
-> unlock_page();
-> put_page(page);
->
+	Hans
 
-Ditto.
-
->> +}
->>   #else
->>   static inline unsigned long try_to_compact_pages(gfp_t gfp_mask,
->>                          unsigned int order, int alloc_flags,
->> @@ -83,6 +146,19 @@ static inline bool compaction_deferred(struct zone *zone, int order)
->>          return true;
->>   }
 >>
->> +static inline bool mobile_page(struct page *page)
->> +{
->> +       return false;
->> +}
->> +
->> +static inline bool isolate_mobilepage(struct page *page, isolate_mode_t mode)
->> +{
->> +       return false;
->> +}
->> +
->> +static inline void putback_mobilepage(struct page *page)
->> +{
->> +}
->>   #endif /* CONFIG_COMPACTION */
->>
->>   #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
->> diff --git a/include/linux/fs.h b/include/linux/fs.h
->> index 35ec87e..33c9aa5 100644
->> --- a/include/linux/fs.h
->> +++ b/include/linux/fs.h
->> @@ -395,6 +395,8 @@ struct address_space_operations {
->>           */
->>          int (*migratepage) (struct address_space *,
->>                          struct page *, struct page *, enum migrate_mode);
->> +       bool (*isolatepage) (struct page *, isolate_mode_t);
->> +       void (*putbackpage) (struct page *);
->>          int (*launder_page) (struct page *);
->>          int (*is_partially_uptodate) (struct page *, unsigned long,
->>                                          unsigned long);
->> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
->> index f34e040..abef145 100644
->> --- a/include/linux/page-flags.h
->> +++ b/include/linux/page-flags.h
->> @@ -582,6 +582,25 @@ static inline void __ClearPageBalloon(struct page *page)
->>          atomic_set(&page->_mapcount, -1);
->>   }
->>
->> +#define PAGE_MOBILE_MAPCOUNT_VALUE (-255)
->> +
->> +static inline int PageMobile(struct page *page)
->> +{
->> +       return atomic_read(&page->_mapcount) == PAGE_MOBILE_MAPCOUNT_VALUE;
->> +}
->> +
->> +static inline void __SetPageMobile(struct page *page)
->> +{
->> +       VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
->> +       atomic_set(&page->_mapcount, PAGE_MOBILE_MAPCOUNT_VALUE);
->> +}
->> +
->> +static inline void __ClearPageMobile(struct page *page)
->> +{
->> +       VM_BUG_ON_PAGE(!PageMobile(page), page);
->> +       atomic_set(&page->_mapcount, -1);
->> +}
->> +
->>   /*
->>    * If network-based swap is enabled, sl*b must keep track of whether pages
->>    * were allocated from pfmemalloc reserves.
->> diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
->> index a6c4962..d50d9e8 100644
->> --- a/include/uapi/linux/kernel-page-flags.h
->> +++ b/include/uapi/linux/kernel-page-flags.h
->> @@ -33,6 +33,7 @@
->>   #define KPF_THP                        22
->>   #define KPF_BALLOON            23
->>   #define KPF_ZERO_PAGE          24
->> +#define KPF_MOBILE             25
->>
->>
->>   #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
->> --
->> 2.1.4
->>
->
-
-I fixed the code as your comments and I found patch 3/5 and 4/5 could not be applied separately.
-So I merge them and report new [PATCH].
-I appreciate your reviews.
+>> 								Honza
+>> On Thu 18-06-15 16:08:30, Jan Kara wrote:
+>>>   Hello,
+>>>
+>>> I'm sending the sixth version of my patch series to abstract vma handling from
+>>> the various media drivers. Since the previous version I have added a patch to
+>>> move mm helpers into a separate file and behind a config option. I also
+>>> changed patch pushing mmap_sem down in videobuf2 core to avoid lockdep warning
+>>> and NULL dereference Hans found in his testing. I've also included small
+>>> fixups Andrew was carrying.
+>>>
+>>> After this patch set drivers have to know much less details about vmas, their
+>>> types, and locking. Also quite some code is removed from them. As a bonus
+>>> drivers get automatically VM_FAULT_RETRY handling. The primary motivation for
+>>> this series is to remove knowledge about mmap_sem locking from as many places a
+>>> possible so that we can change it with reasonable effort.
+>>>
+>>> The core of the series is the new helper get_vaddr_frames() which is given a
+>>> virtual address and it fills in PFNs / struct page pointers (depending on VMA
+>>> type) into the provided array. If PFNs correspond to normal pages it also grabs
+>>> references to these pages. The difference from get_user_pages() is that this
+>>> function can also deal with pfnmap, and io mappings which is what the media
+>>> drivers need.
+>>>
+>>> I have tested the patches with vivid driver so at least vb2 code got some
+>>> exposure. Conversion of other drivers was just compile-tested (for x86 so e.g.
+>>> exynos driver which is only for Samsung platform is completely untested).
+>>>
+>>> Andrew, can you please update the patches in mm three? Thanks!
+>>>
+>>> 								Honza
+>>>
+>>> Changes since v5:
+>>> * Moved mm helper into a separate file and behind a config option
+>>> * Changed the first patch pushing mmap_sem down in videobuf2 core to avoid
+>>>   possible deadlock
+>>>
+>>> Changes since v4:
+>>> * Minor cleanups and fixes pointed out by Mel and Vlasta
+>>> * Added Acked-by tags
+>>>
+>>> Changes since v3:
+>>> * Added include <linux/vmalloc.h> into mm/gup.c as it's needed for some archs
+>>> * Fixed error path for exynos driver
+>>>
+>>> Changes since v2:
+>>> * Renamed functions and structures as Mel suggested
+>>> * Other minor changes suggested by Mel
+>>> * Rebased on top of 4.1-rc2
+>>> * Changed functions to get pointer to array of pages / pfns to perform
+>>>   conversion if necessary. This fixes possible issue in the omap I may have
+>>>   introduced in v2 and generally makes the API less errorprone.
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-media" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
