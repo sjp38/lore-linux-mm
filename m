@@ -1,119 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com [209.85.220.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 0132F6B0253
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 10:20:26 -0400 (EDT)
-Received: by qkdv3 with SMTP id v3so59602196qkd.3
-        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 07:20:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f185si20744474qhc.71.2015.07.13.07.20.24
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 785226B0253
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 10:56:00 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so32138255wib.1
+        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 07:55:59 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id hg7si13859123wib.66.2015.07.13.07.55.57
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Jul 2015 07:20:24 -0700 (PDT)
-Date: Mon, 13 Jul 2015 10:20:14 -0400
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH 0/4] enable migration of driver pages
-Message-ID: <20150713142013.GA4025@t510.redhat.com>
-References: <1436776519-17337-1-git-send-email-gioh.kim@lge.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1436776519-17337-1-git-send-email-gioh.kim@lge.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 13 Jul 2015 07:55:58 -0700 (PDT)
+From: Jan Kara <jack@suse.com>
+Subject: [PATCH 1/9] [media] vb2: Push mmap_sem down to memops
+Date: Mon, 13 Jul 2015 16:55:43 +0200
+Message-Id: <1436799351-21975-2-git-send-email-jack@suse.com>
+In-Reply-To: <1436799351-21975-1-git-send-email-jack@suse.com>
+References: <1436799351-21975-1-git-send-email-jack@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>
-Cc: jlayton@poochiereds.net, bfields@fieldses.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, viro@zeniv.linux.org.uk, mst@redhat.com, koct9i@gmail.com, minchan@kernel.org, linux-fsdevel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, akpm@linux-foundation.org, Gioh Kim <gurugio@hanmail.net>
+To: Hans Verkuil <hverkuil@xs4all.nl>
+Cc: linux-media@vger.kernel.org, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, linux-samsung-soc@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
 
-On Mon, Jul 13, 2015 at 05:35:15PM +0900, Gioh Kim wrote:
-> From: Gioh Kim <gurugio@hanmail.net>
-> 
-> Hello,
-> 
-> This series try to enable migration of non-LRU pages, such as driver's page.
-> 
-> My ARM-based platform occured severe fragmentation problem after long-term
-> (several days) test. Sometimes even order-3 page allocation failed. It has
-> memory size 512MB ~ 1024MB. 30% ~ 40% memory is consumed for graphic processing
-> and 20~30 memory is reserved for zram.
-> 
-> I found that many pages of GPU driver and zram are non-movable pages. So I
-> reported Minchan Kim, the maintainer of zram, and he made the internal 
-> compaction logic of zram. And I made the internal compaction of GPU driver.
-> 
-> They reduced some fragmentation but they are not enough effective.
-> They are activated by its own interface, /sys, so they are not cooperative
-> with kernel compaction. If there is too much fragmentation and kernel starts
-> to compaction, zram and GPU driver cannot work with the kernel compaction.
-> 
-> So I thought there needs a interface to combine driver and kernel compaction.
-> This patch adds a generic isolate/migrate/putback callbacks for page
-> address-space and a new interface to create anon-inode to manage
-> address_space_operation. The zram and GPU, and any other modules can create
-> anon_inode and register its own migration method. The kernel compaction can
-> call the registered migration when it does compaction.
-> 
-> My GPU driver source is not in-kernel driver so that I apply the interface
-> into balloon driver. The balloon driver is already merged
-> into the kernel compaction as a corner-case. This patch have the balloon
-> driver migration be called by the generic interface.
-> 
-> 
-> This patch set combines 4 patches.
-> 
-> 1. patch 1/4: get inode from anon_inodes
-> This patch adds new interface to create inode from anon_inodes.
-> 
-> 2. patch 2/4: framework to isolate/migrate/putback page
-> Add isolatepage, putbackpage into address_space_operations
-> and wrapper function to call them.
-> 
-> 3. patch 3/4: apply the framework into balloon driver
-> The balloon driver is applied into the framework. It gets a inode
-> from anon_inodes and register operations in the inode.
-> The kernel compaction calls generic interfaces, not balloon
-> driver interfaces. 
-> Any other drivers can register operations via inode like this
-> to migrate it's pages.
-> 
-> 4. patch 4/4: remove direct calling of migration of driver pages
-> Non-lru pages are also migrated with lru pages by move_to_new_page().
-> 
-> This patch set is tested:
-> - turn on Ubuntu 14.04 with 1G memory on qemu.
-> - do kernel building
-> - after several seconds check more than 512MB is used with free command
-> - command "balloon 512" in qemu monitor
-> - check hundreds MB of pages are migrated
-> 
-> My thanks to Konstantin Khlebnikov for his reviews of the RFC patch set.
-> Most of the changes were based on his feedback.
-> 
-> This patch-set is based on v4.1
-> 
-> 
-> Gioh Kim (4):
->   fs/anon_inodes: new interface to create new inode
->   mm/compaction: enable mobile-page migration
->   mm/balloon: apply mobile page migratable into balloon
->   mm: remove direct calling of migration
-> 
->  drivers/virtio/virtio_balloon.c        |  3 ++
->  fs/anon_inodes.c                       |  6 +++
->  fs/proc/page.c                         |  3 ++
->  include/linux/anon_inodes.h            |  1 +
->  include/linux/balloon_compaction.h     | 15 +++++--
->  include/linux/compaction.h             | 80 ++++++++++++++++++++++++++++++++++
->  include/linux/fs.h                     |  2 +
->  include/linux/page-flags.h             | 19 ++++++++
->  include/uapi/linux/kernel-page-flags.h |  1 +
->  mm/balloon_compaction.c                | 72 ++++++++++--------------------
->  mm/compaction.c                        |  8 ++--
->  mm/migrate.c                           | 24 +++-------
->  12 files changed, 160 insertions(+), 74 deletions(-)
-> 
-> -- 
-> 2.1.4
-> 
-Acked-by: Rafael Aquini <aquini@redhat.com>
+From: Jan Kara <jack@suse.cz>
+
+Currently vb2 core acquires mmap_sem just around call to
+__qbuf_userptr(). However since commit f035eb4e976ef5 (videobuf2: fix
+lockdep warning) it isn't necessary to acquire it so early as we no
+longer have to drop queue mutex before acquiring mmap_sem. So push
+acquisition of mmap_sem down into .get_userptr memop so that the
+semaphore is acquired for a shorter time and it is clearer what it is
+needed for.
+
+Note that we also need mmap_sem in .put_userptr memop since that ends up
+calling vb2_put_vma() which calls vma->vm_ops->close() which should be
+called with mmap_sem held. However we didn't hold mmap_sem in some code
+paths anyway (e.g. when called via vb2_ioctl_reqbufs() ->
+__vb2_queue_free() -> vb2_dma_sg_put_userptr()) and getting mmap_sem in
+put_userptr() introduces a lock inversion with queue->mmap_lock in the
+above mentioned call path.
+
+Luckily this whole locking mess will get resolved once we convert
+videobuf2 core to the new mm helper which avoids the need for mmap_sem
+in .put_userptr memop altogether.
+
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ drivers/media/v4l2-core/videobuf2-core.c       | 2 --
+ drivers/media/v4l2-core/videobuf2-dma-contig.c | 5 +++++
+ drivers/media/v4l2-core/videobuf2-dma-sg.c     | 4 ++++
+ drivers/media/v4l2-core/videobuf2-vmalloc.c    | 4 +++-
+ 4 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/media/v4l2-core/videobuf2-core.c b/drivers/media/v4l2-core/videobuf2-core.c
+index 93b315459098..4df6dfc47fc8 100644
+--- a/drivers/media/v4l2-core/videobuf2-core.c
++++ b/drivers/media/v4l2-core/videobuf2-core.c
+@@ -1675,9 +1675,7 @@ static int __buf_prepare(struct vb2_buffer *vb, const struct v4l2_buffer *b)
+ 		ret = __qbuf_mmap(vb, b);
+ 		break;
+ 	case V4L2_MEMORY_USERPTR:
+-		down_read(&current->mm->mmap_sem);
+ 		ret = __qbuf_userptr(vb, b);
+-		up_read(&current->mm->mmap_sem);
+ 		break;
+ 	case V4L2_MEMORY_DMABUF:
+ 		ret = __qbuf_dmabuf(vb, b);
+diff --git a/drivers/media/v4l2-core/videobuf2-dma-contig.c b/drivers/media/v4l2-core/videobuf2-dma-contig.c
+index 94c1e6455d36..c548ce425701 100644
+--- a/drivers/media/v4l2-core/videobuf2-dma-contig.c
++++ b/drivers/media/v4l2-core/videobuf2-dma-contig.c
+@@ -616,6 +616,7 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 		goto fail_buf;
+ 	}
+ 
++	down_read(&current->mm->mmap_sem);
+ 	/* current->mm->mmap_sem is taken by videobuf2 core */
+ 	vma = find_vma(current->mm, vaddr);
+ 	if (!vma) {
+@@ -642,6 +643,7 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 	if (ret) {
+ 		unsigned long pfn;
+ 		if (vb2_dc_get_user_pfn(start, n_pages, vma, &pfn) == 0) {
++			up_read(&current->mm->mmap_sem);
+ 			buf->dma_addr = vb2_dc_pfn_to_dma(buf->dev, pfn);
+ 			buf->size = size;
+ 			kfree(pages);
+@@ -651,6 +653,7 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 		pr_err("failed to get user pages\n");
+ 		goto fail_vma;
+ 	}
++	up_read(&current->mm->mmap_sem);
+ 
+ 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+ 	if (!sgt) {
+@@ -713,10 +716,12 @@ fail_get_user_pages:
+ 		while (n_pages)
+ 			put_page(pages[--n_pages]);
+ 
++	down_read(&current->mm->mmap_sem);
+ fail_vma:
+ 	vb2_put_vma(buf->vma);
+ 
+ fail_pages:
++	up_read(&current->mm->mmap_sem);
+ 	kfree(pages); /* kfree is NULL-proof */
+ 
+ fail_buf:
+diff --git a/drivers/media/v4l2-core/videobuf2-dma-sg.c b/drivers/media/v4l2-core/videobuf2-dma-sg.c
+index 7289b81bd7b7..d2cf113d1933 100644
+--- a/drivers/media/v4l2-core/videobuf2-dma-sg.c
++++ b/drivers/media/v4l2-core/videobuf2-dma-sg.c
+@@ -264,6 +264,7 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 	if (!buf->pages)
+ 		goto userptr_fail_alloc_pages;
+ 
++	down_read(&current->mm->mmap_sem);
+ 	vma = find_vma(current->mm, vaddr);
+ 	if (!vma) {
+ 		dprintk(1, "no vma for address %lu\n", vaddr);
+@@ -302,6 +303,7 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 					     1, /* force */
+ 					     buf->pages,
+ 					     NULL);
++	up_read(&current->mm->mmap_sem);
+ 
+ 	if (num_pages_from_user != buf->num_pages)
+ 		goto userptr_fail_get_user_pages;
+@@ -331,8 +333,10 @@ userptr_fail_get_user_pages:
+ 	if (!vma_is_io(buf->vma))
+ 		while (--num_pages_from_user >= 0)
+ 			put_page(buf->pages[num_pages_from_user]);
++	down_read(&current->mm->mmap_sem);
+ 	vb2_put_vma(buf->vma);
+ userptr_fail_find_vma:
++	up_read(&current->mm->mmap_sem);
+ 	kfree(buf->pages);
+ userptr_fail_alloc_pages:
+ 	kfree(buf);
+diff --git a/drivers/media/v4l2-core/videobuf2-vmalloc.c b/drivers/media/v4l2-core/videobuf2-vmalloc.c
+index 2fe4c27f524a..63bef959623e 100644
+--- a/drivers/media/v4l2-core/videobuf2-vmalloc.c
++++ b/drivers/media/v4l2-core/videobuf2-vmalloc.c
+@@ -89,7 +89,7 @@ static void *vb2_vmalloc_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 	offset = vaddr & ~PAGE_MASK;
+ 	buf->size = size;
+ 
+-
++	down_read(&current->mm->mmap_sem);
+ 	vma = find_vma(current->mm, vaddr);
+ 	if (vma && (vma->vm_flags & VM_PFNMAP) && (vma->vm_pgoff)) {
+ 		if (vb2_get_contig_userptr(vaddr, size, &vma, &physp))
+@@ -121,6 +121,7 @@ static void *vb2_vmalloc_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 		if (!buf->vaddr)
+ 			goto fail_get_user_pages;
+ 	}
++	up_read(&current->mm->mmap_sem);
+ 
+ 	buf->vaddr += offset;
+ 	return buf;
+@@ -133,6 +134,7 @@ fail_get_user_pages:
+ 	kfree(buf->pages);
+ 
+ fail_pages_array_alloc:
++	up_read(&current->mm->mmap_sem);
+ 	kfree(buf);
+ 
+ 	return NULL;
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
