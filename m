@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 785226B0253
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 10:56:00 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so32138255wib.1
-        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 07:55:59 -0700 (PDT)
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 69A386B0254
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 10:56:01 -0400 (EDT)
+Received: by wgkl9 with SMTP id l9so28071679wgk.1
+        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 07:56:00 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hg7si13859123wib.66.2015.07.13.07.55.57
+        by mx.google.com with ESMTPS id p3si30344756wjz.93.2015.07.13.07.55.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Mon, 13 Jul 2015 07:55:58 -0700 (PDT)
 From: Jan Kara <jack@suse.com>
-Subject: [PATCH 1/9] [media] vb2: Push mmap_sem down to memops
-Date: Mon, 13 Jul 2015 16:55:43 +0200
-Message-Id: <1436799351-21975-2-git-send-email-jack@suse.com>
+Subject: [PATCH 3/9] media: omap_vout: Convert omap_vout_uservirt_to_phys() to use get_vaddr_pfns()
+Date: Mon, 13 Jul 2015 16:55:45 +0200
+Message-Id: <1436799351-21975-4-git-send-email-jack@suse.com>
 In-Reply-To: <1436799351-21975-1-git-send-email-jack@suse.com>
 References: <1436799351-21975-1-git-send-email-jack@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,149 +22,134 @@ Cc: linux-media@vger.kernel.org, Mauro Carvalho Chehab <mchehab@osg.samsung.com>
 
 From: Jan Kara <jack@suse.cz>
 
-Currently vb2 core acquires mmap_sem just around call to
-__qbuf_userptr(). However since commit f035eb4e976ef5 (videobuf2: fix
-lockdep warning) it isn't necessary to acquire it so early as we no
-longer have to drop queue mutex before acquiring mmap_sem. So push
-acquisition of mmap_sem down into .get_userptr memop so that the
-semaphore is acquired for a shorter time and it is clearer what it is
-needed for.
-
-Note that we also need mmap_sem in .put_userptr memop since that ends up
-calling vb2_put_vma() which calls vma->vm_ops->close() which should be
-called with mmap_sem held. However we didn't hold mmap_sem in some code
-paths anyway (e.g. when called via vb2_ioctl_reqbufs() ->
-__vb2_queue_free() -> vb2_dma_sg_put_userptr()) and getting mmap_sem in
-put_userptr() introduces a lock inversion with queue->mmap_lock in the
-above mentioned call path.
-
-Luckily this whole locking mess will get resolved once we convert
-videobuf2 core to the new mm helper which avoids the need for mmap_sem
-in .put_userptr memop altogether.
+Convert omap_vout_uservirt_to_phys() to use get_vaddr_pfns() instead of
+hand made mapping of virtual address to physical address. Also the
+function leaked page reference from get_user_pages() so fix that by
+properly release the reference when omap_vout_buffer_release() is
+called.
 
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- drivers/media/v4l2-core/videobuf2-core.c       | 2 --
- drivers/media/v4l2-core/videobuf2-dma-contig.c | 5 +++++
- drivers/media/v4l2-core/videobuf2-dma-sg.c     | 4 ++++
- drivers/media/v4l2-core/videobuf2-vmalloc.c    | 4 +++-
- 4 files changed, 12 insertions(+), 3 deletions(-)
+ drivers/media/platform/omap/Kconfig     |  1 +
+ drivers/media/platform/omap/omap_vout.c | 67 +++++++++++++++------------------
+ 2 files changed, 32 insertions(+), 36 deletions(-)
 
-diff --git a/drivers/media/v4l2-core/videobuf2-core.c b/drivers/media/v4l2-core/videobuf2-core.c
-index 93b315459098..4df6dfc47fc8 100644
---- a/drivers/media/v4l2-core/videobuf2-core.c
-+++ b/drivers/media/v4l2-core/videobuf2-core.c
-@@ -1675,9 +1675,7 @@ static int __buf_prepare(struct vb2_buffer *vb, const struct v4l2_buffer *b)
- 		ret = __qbuf_mmap(vb, b);
- 		break;
- 	case V4L2_MEMORY_USERPTR:
--		down_read(&current->mm->mmap_sem);
- 		ret = __qbuf_userptr(vb, b);
--		up_read(&current->mm->mmap_sem);
- 		break;
- 	case V4L2_MEMORY_DMABUF:
- 		ret = __qbuf_dmabuf(vb, b);
-diff --git a/drivers/media/v4l2-core/videobuf2-dma-contig.c b/drivers/media/v4l2-core/videobuf2-dma-contig.c
-index 94c1e6455d36..c548ce425701 100644
---- a/drivers/media/v4l2-core/videobuf2-dma-contig.c
-+++ b/drivers/media/v4l2-core/videobuf2-dma-contig.c
-@@ -616,6 +616,7 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
- 		goto fail_buf;
- 	}
+diff --git a/drivers/media/platform/omap/Kconfig b/drivers/media/platform/omap/Kconfig
+index dc2aaab54aef..217d613b0fe7 100644
+--- a/drivers/media/platform/omap/Kconfig
++++ b/drivers/media/platform/omap/Kconfig
+@@ -10,6 +10,7 @@ config VIDEO_OMAP2_VOUT
+ 	select OMAP2_DSS if HAS_IOMEM && ARCH_OMAP2PLUS
+ 	select OMAP2_VRFB if ARCH_OMAP2 || ARCH_OMAP3
+ 	select VIDEO_OMAP2_VOUT_VRFB if VIDEO_OMAP2_VOUT && OMAP2_VRFB
++	select FRAME_VECTOR
+ 	default n
+ 	---help---
+ 	  V4L2 Display driver support for OMAP2/3 based boards.
+diff --git a/drivers/media/platform/omap/omap_vout.c b/drivers/media/platform/omap/omap_vout.c
+index f09c5f17a42f..b0dad941f7cb 100644
+--- a/drivers/media/platform/omap/omap_vout.c
++++ b/drivers/media/platform/omap/omap_vout.c
+@@ -195,46 +195,34 @@ static int omap_vout_try_format(struct v4l2_pix_format *pix)
+ }
  
-+	down_read(&current->mm->mmap_sem);
- 	/* current->mm->mmap_sem is taken by videobuf2 core */
- 	vma = find_vma(current->mm, vaddr);
- 	if (!vma) {
-@@ -642,6 +643,7 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
- 	if (ret) {
- 		unsigned long pfn;
- 		if (vb2_dc_get_user_pfn(start, n_pages, vma, &pfn) == 0) {
-+			up_read(&current->mm->mmap_sem);
- 			buf->dma_addr = vb2_dc_pfn_to_dma(buf->dev, pfn);
- 			buf->size = size;
- 			kfree(pages);
-@@ -651,6 +653,7 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
- 		pr_err("failed to get user pages\n");
- 		goto fail_vma;
- 	}
-+	up_read(&current->mm->mmap_sem);
+ /*
+- * omap_vout_uservirt_to_phys: This inline function is used to convert user
+- * space virtual address to physical address.
++ * omap_vout_get_userptr: Convert user space virtual address to physical
++ * address.
+  */
+-static unsigned long omap_vout_uservirt_to_phys(unsigned long virtp)
++static int omap_vout_get_userptr(struct videobuf_buffer *vb, u32 virtp,
++				 u32 *physp)
+ {
+-	unsigned long physp = 0;
+-	struct vm_area_struct *vma;
+-	struct mm_struct *mm = current->mm;
++	struct frame_vector *vec;
++	int ret;
  
- 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
- 	if (!sgt) {
-@@ -713,10 +716,12 @@ fail_get_user_pages:
- 		while (n_pages)
- 			put_page(pages[--n_pages]);
- 
-+	down_read(&current->mm->mmap_sem);
- fail_vma:
- 	vb2_put_vma(buf->vma);
- 
- fail_pages:
-+	up_read(&current->mm->mmap_sem);
- 	kfree(pages); /* kfree is NULL-proof */
- 
- fail_buf:
-diff --git a/drivers/media/v4l2-core/videobuf2-dma-sg.c b/drivers/media/v4l2-core/videobuf2-dma-sg.c
-index 7289b81bd7b7..d2cf113d1933 100644
---- a/drivers/media/v4l2-core/videobuf2-dma-sg.c
-+++ b/drivers/media/v4l2-core/videobuf2-dma-sg.c
-@@ -264,6 +264,7 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
- 	if (!buf->pages)
- 		goto userptr_fail_alloc_pages;
- 
-+	down_read(&current->mm->mmap_sem);
- 	vma = find_vma(current->mm, vaddr);
- 	if (!vma) {
- 		dprintk(1, "no vma for address %lu\n", vaddr);
-@@ -302,6 +303,7 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
- 					     1, /* force */
- 					     buf->pages,
- 					     NULL);
-+	up_read(&current->mm->mmap_sem);
- 
- 	if (num_pages_from_user != buf->num_pages)
- 		goto userptr_fail_get_user_pages;
-@@ -331,8 +333,10 @@ userptr_fail_get_user_pages:
- 	if (!vma_is_io(buf->vma))
- 		while (--num_pages_from_user >= 0)
- 			put_page(buf->pages[num_pages_from_user]);
-+	down_read(&current->mm->mmap_sem);
- 	vb2_put_vma(buf->vma);
- userptr_fail_find_vma:
-+	up_read(&current->mm->mmap_sem);
- 	kfree(buf->pages);
- userptr_fail_alloc_pages:
- 	kfree(buf);
-diff --git a/drivers/media/v4l2-core/videobuf2-vmalloc.c b/drivers/media/v4l2-core/videobuf2-vmalloc.c
-index 2fe4c27f524a..63bef959623e 100644
---- a/drivers/media/v4l2-core/videobuf2-vmalloc.c
-+++ b/drivers/media/v4l2-core/videobuf2-vmalloc.c
-@@ -89,7 +89,7 @@ static void *vb2_vmalloc_get_userptr(void *alloc_ctx, unsigned long vaddr,
- 	offset = vaddr & ~PAGE_MASK;
- 	buf->size = size;
- 
+ 	/* For kernel direct-mapped memory, take the easy way */
+-	if (virtp >= PAGE_OFFSET)
+-		return virt_to_phys((void *) virtp);
 -
-+	down_read(&current->mm->mmap_sem);
- 	vma = find_vma(current->mm, vaddr);
- 	if (vma && (vma->vm_flags & VM_PFNMAP) && (vma->vm_pgoff)) {
- 		if (vb2_get_contig_userptr(vaddr, size, &vma, &physp))
-@@ -121,6 +121,7 @@ static void *vb2_vmalloc_get_userptr(void *alloc_ctx, unsigned long vaddr,
- 		if (!buf->vaddr)
- 			goto fail_get_user_pages;
+-	down_read(&current->mm->mmap_sem);
+-	vma = find_vma(mm, virtp);
+-	if (vma && (vma->vm_flags & VM_IO) && vma->vm_pgoff) {
+-		/* this will catch, kernel-allocated, mmaped-to-usermode
+-		   addresses */
+-		physp = (vma->vm_pgoff << PAGE_SHIFT) + (virtp - vma->vm_start);
+-		up_read(&current->mm->mmap_sem);
+-	} else {
+-		/* otherwise, use get_user_pages() for general userland pages */
+-		int res, nr_pages = 1;
+-		struct page *pages;
++	if (virtp >= PAGE_OFFSET) {
++		*physp = virt_to_phys((void *)virtp);
++		return 0;
++	}
+ 
+-		res = get_user_pages(current, current->mm, virtp, nr_pages, 1,
+-				0, &pages, NULL);
+-		up_read(&current->mm->mmap_sem);
++	vec = frame_vector_create(1);
++	if (!vec)
++		return -ENOMEM;
+ 
+-		if (res == nr_pages) {
+-			physp =  __pa(page_address(&pages[0]) +
+-					(virtp & ~PAGE_MASK));
+-		} else {
+-			printk(KERN_WARNING VOUT_NAME
+-					"get_user_pages failed\n");
+-			return 0;
+-		}
++	ret = get_vaddr_frames(virtp, 1, true, false, vec);
++	if (ret != 1) {
++		frame_vector_destroy(vec);
++		return -EINVAL;
  	}
-+	up_read(&current->mm->mmap_sem);
++	*physp = __pfn_to_phys(frame_vector_pfns(vec)[0]);
++	vb->priv = vec;
  
- 	buf->vaddr += offset;
- 	return buf;
-@@ -133,6 +134,7 @@ fail_get_user_pages:
- 	kfree(buf->pages);
+-	return physp;
++	return 0;
+ }
  
- fail_pages_array_alloc:
-+	up_read(&current->mm->mmap_sem);
- 	kfree(buf);
+ /*
+@@ -784,11 +772,15 @@ static int omap_vout_buffer_prepare(struct videobuf_queue *q,
+ 	 * address of the buffer
+ 	 */
+ 	if (V4L2_MEMORY_USERPTR == vb->memory) {
++		int ret;
++
+ 		if (0 == vb->baddr)
+ 			return -EINVAL;
+ 		/* Physical address */
+-		vout->queued_buf_addr[vb->i] = (u8 *)
+-			omap_vout_uservirt_to_phys(vb->baddr);
++		ret = omap_vout_get_userptr(vb, vb->baddr,
++				(u32 *)&vout->queued_buf_addr[vb->i]);
++		if (ret < 0)
++			return ret;
+ 	} else {
+ 		unsigned long addr, dma_addr;
+ 		unsigned long size;
+@@ -837,9 +829,12 @@ static void omap_vout_buffer_release(struct videobuf_queue *q,
+ 	struct omap_vout_device *vout = q->priv_data;
  
- 	return NULL;
+ 	vb->state = VIDEOBUF_NEEDS_INIT;
++	if (vb->memory == V4L2_MEMORY_USERPTR && vb->priv) {
++		struct frame_vector *vec = vb->priv;
+ 
+-	if (V4L2_MEMORY_MMAP != vout->memory)
+-		return;
++		put_vaddr_frames(vec);
++		frame_vector_destroy(vec);
++	}
+ }
+ 
+ /*
 -- 
 2.1.4
 
