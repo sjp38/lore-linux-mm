@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 46FBA6B025B
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 10:56:21 -0400 (EDT)
-Received: by wiga1 with SMTP id a1so72051039wig.0
-        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 07:56:20 -0700 (PDT)
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id BF4696B025C
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 10:56:23 -0400 (EDT)
+Received: by wgjx7 with SMTP id x7so298109075wgj.2
+        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 07:56:23 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id en7si8403149wjd.61.2015.07.13.07.55.58
+        by mx.google.com with ESMTPS id h2si27641207wjx.174.2015.07.13.07.55.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Mon, 13 Jul 2015 07:55:59 -0700 (PDT)
 From: Jan Kara <jack@suse.com>
-Subject: [PATCH 9/9] drm/exynos: Convert g2d_userptr_get_dma_addr() to use get_vaddr_frames()
-Date: Mon, 13 Jul 2015 16:55:51 +0200
-Message-Id: <1436799351-21975-10-git-send-email-jack@suse.com>
+Subject: [PATCH 7/9] media: vb2: Convert vb2_dc_get_userptr() to use frame vector
+Date: Mon, 13 Jul 2015 16:55:49 +0200
+Message-Id: <1436799351-21975-8-git-send-email-jack@suse.com>
 In-Reply-To: <1436799351-21975-1-git-send-email-jack@suse.com>
 References: <1436799351-21975-1-git-send-email-jack@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,302 +22,328 @@ Cc: linux-media@vger.kernel.org, Mauro Carvalho Chehab <mchehab@osg.samsung.com>
 
 From: Jan Kara <jack@suse.cz>
 
-Convert g2d_userptr_get_dma_addr() to pin pages using get_vaddr_frames().
-This removes the knowledge about vmas and mmap_sem locking from exynos
-driver. Also it fixes a problem that the function has been mapping user
-provided address without holding mmap_sem.
+Convert vb2_dc_get_userptr() to use frame vector infrastructure. When we
+are doing that there's no need to allocate page array and some code can
+be simplified.
 
+Acked-by: Marek Szyprowski <m.szyprowski@samsung.com>
+Tested-by: Marek Szyprowski <m.szyprowski@samsung.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- drivers/gpu/drm/exynos/Kconfig          |  1 +
- drivers/gpu/drm/exynos/exynos_drm_g2d.c | 91 ++++++++++---------------------
- drivers/gpu/drm/exynos/exynos_drm_gem.c | 97 ---------------------------------
- 3 files changed, 30 insertions(+), 159 deletions(-)
+ drivers/media/v4l2-core/videobuf2-dma-contig.c | 212 ++++---------------------
+ 1 file changed, 34 insertions(+), 178 deletions(-)
 
-diff --git a/drivers/gpu/drm/exynos/Kconfig b/drivers/gpu/drm/exynos/Kconfig
-index 43003c4ad80b..b364562dc6c1 100644
---- a/drivers/gpu/drm/exynos/Kconfig
-+++ b/drivers/gpu/drm/exynos/Kconfig
-@@ -77,6 +77,7 @@ config DRM_EXYNOS_VIDI
- config DRM_EXYNOS_G2D
- 	bool "Exynos DRM G2D"
- 	depends on DRM_EXYNOS && !VIDEO_SAMSUNG_S5P_G2D
-+	select FRAME_VECTOR
- 	help
- 	  Choose this option if you want to use Exynos G2D for DRM.
+diff --git a/drivers/media/v4l2-core/videobuf2-dma-contig.c b/drivers/media/v4l2-core/videobuf2-dma-contig.c
+index c548ce425701..2397ceb1dc6b 100644
+--- a/drivers/media/v4l2-core/videobuf2-dma-contig.c
++++ b/drivers/media/v4l2-core/videobuf2-dma-contig.c
+@@ -32,15 +32,13 @@ struct vb2_dc_buf {
+ 	dma_addr_t			dma_addr;
+ 	enum dma_data_direction		dma_dir;
+ 	struct sg_table			*dma_sgt;
++	struct frame_vector		*vec;
  
-diff --git a/drivers/gpu/drm/exynos/exynos_drm_g2d.c b/drivers/gpu/drm/exynos/exynos_drm_g2d.c
-index 81a250830808..1d8d9a508373 100644
---- a/drivers/gpu/drm/exynos/exynos_drm_g2d.c
-+++ b/drivers/gpu/drm/exynos/exynos_drm_g2d.c
-@@ -190,10 +190,8 @@ struct g2d_cmdlist_userptr {
- 	dma_addr_t		dma_addr;
- 	unsigned long		userptr;
- 	unsigned long		size;
--	struct page		**pages;
--	unsigned int		npages;
-+	struct frame_vector	*vec;
- 	struct sg_table		*sgt;
--	struct vm_area_struct	*vma;
- 	atomic_t		refcount;
- 	bool			in_pool;
- 	bool			out_of_list;
-@@ -363,6 +361,7 @@ static void g2d_userptr_put_dma_addr(struct drm_device *drm_dev,
+ 	/* MMAP related */
+ 	struct vb2_vmarea_handler	handler;
+ 	atomic_t			refcount;
+ 	struct sg_table			*sgt_base;
+ 
+-	/* USERPTR related */
+-	struct vm_area_struct		*vma;
+-
+ 	/* DMABUF related */
+ 	struct dma_buf_attachment	*db_attach;
+ };
+@@ -49,24 +47,6 @@ struct vb2_dc_buf {
+ /*        scatterlist table functions        */
+ /*********************************************/
+ 
+-
+-static void vb2_dc_sgt_foreach_page(struct sg_table *sgt,
+-	void (*cb)(struct page *pg))
+-{
+-	struct scatterlist *s;
+-	unsigned int i;
+-
+-	for_each_sg(sgt->sgl, s, sgt->orig_nents, i) {
+-		struct page *page = sg_page(s);
+-		unsigned int n_pages = PAGE_ALIGN(s->offset + s->length)
+-			>> PAGE_SHIFT;
+-		unsigned int j;
+-
+-		for (j = 0; j < n_pages; ++j, ++page)
+-			cb(page);
+-	}
+-}
+-
+ static unsigned long vb2_dc_get_contiguous_size(struct sg_table *sgt)
  {
- 	struct g2d_cmdlist_userptr *g2d_userptr =
- 					(struct g2d_cmdlist_userptr *)obj;
-+	struct page **pages;
+ 	struct scatterlist *s;
+@@ -429,92 +409,12 @@ static struct dma_buf *vb2_dc_get_dmabuf(void *buf_priv, unsigned long flags)
+ /*       callbacks for USERPTR buffers       */
+ /*********************************************/
  
- 	if (!obj)
- 		return;
-@@ -382,19 +381,21 @@ out:
- 	exynos_gem_unmap_sgt_from_dma(drm_dev, g2d_userptr->sgt,
- 					DMA_BIDIRECTIONAL);
- 
--	exynos_gem_put_pages_to_userptr(g2d_userptr->pages,
--					g2d_userptr->npages,
--					g2d_userptr->vma);
-+	pages = frame_vector_pages(g2d_userptr->vec);
-+	if (!IS_ERR(pages)) {
-+		int i;
- 
--	exynos_gem_put_vma(g2d_userptr->vma);
-+		for (i = 0; i < frame_vector_count(g2d_userptr->vec); i++)
-+			set_page_dirty_lock(pages[i]);
-+	}
-+	put_vaddr_frames(g2d_userptr->vec);
-+	frame_vector_destroy(g2d_userptr->vec);
- 
- 	if (!g2d_userptr->out_of_list)
- 		list_del_init(&g2d_userptr->list);
- 
- 	sg_free_table(g2d_userptr->sgt);
- 	kfree(g2d_userptr->sgt);
--
--	drm_free_large(g2d_userptr->pages);
- 	kfree(g2d_userptr);
- }
- 
-@@ -408,9 +409,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
- 	struct exynos_drm_g2d_private *g2d_priv = file_priv->g2d_priv;
- 	struct g2d_cmdlist_userptr *g2d_userptr;
- 	struct g2d_data *g2d;
--	struct page **pages;
- 	struct sg_table	*sgt;
--	struct vm_area_struct *vma;
- 	unsigned long start, end;
- 	unsigned int npages, offset;
- 	int ret;
-@@ -456,65 +455,38 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
- 		return ERR_PTR(-ENOMEM);
- 
- 	atomic_set(&g2d_userptr->refcount, 1);
-+	g2d_userptr->size = size;
- 
- 	start = userptr & PAGE_MASK;
- 	offset = userptr & ~PAGE_MASK;
- 	end = PAGE_ALIGN(userptr + size);
- 	npages = (end - start) >> PAGE_SHIFT;
--	g2d_userptr->npages = npages;
--
--	pages = drm_calloc_large(npages, sizeof(struct page *));
--	if (!pages) {
--		DRM_ERROR("failed to allocate pages.\n");
--		ret = -ENOMEM;
-+	g2d_userptr->vec = frame_vector_create(npages);
-+	if (!g2d_userptr->vec)
- 		goto err_free;
--	}
- 
--	down_read(&current->mm->mmap_sem);
--	vma = find_vma(current->mm, userptr);
--	if (!vma) {
--		up_read(&current->mm->mmap_sem);
--		DRM_ERROR("failed to get vm region.\n");
-+	ret = get_vaddr_frames(start, npages, true, true, g2d_userptr->vec);
-+	if (ret != npages) {
-+		DRM_ERROR("failed to get user pages from userptr.\n");
-+		if (ret < 0)
-+			goto err_destroy_framevec;
- 		ret = -EFAULT;
--		goto err_free_pages;
-+		goto err_put_framevec;
- 	}
--
--	if (vma->vm_end < userptr + size) {
--		up_read(&current->mm->mmap_sem);
--		DRM_ERROR("vma is too small.\n");
-+	if (frame_vector_to_pages(g2d_userptr->vec) < 0) {
- 		ret = -EFAULT;
--		goto err_free_pages;
-+		goto err_put_framevec;
- 	}
- 
--	g2d_userptr->vma = exynos_gem_get_vma(vma);
--	if (!g2d_userptr->vma) {
--		up_read(&current->mm->mmap_sem);
--		DRM_ERROR("failed to copy vma.\n");
--		ret = -ENOMEM;
--		goto err_free_pages;
--	}
--
--	g2d_userptr->size = size;
--
--	ret = exynos_gem_get_pages_from_userptr(start & PAGE_MASK,
--						npages, pages, vma);
--	if (ret < 0) {
--		up_read(&current->mm->mmap_sem);
--		DRM_ERROR("failed to get user pages from userptr.\n");
--		goto err_put_vma;
--	}
--
--	up_read(&current->mm->mmap_sem);
--	g2d_userptr->pages = pages;
--
- 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
- 	if (!sgt) {
- 		ret = -ENOMEM;
--		goto err_free_userptr;
-+		goto err_put_framevec;
- 	}
- 
--	ret = sg_alloc_table_from_pages(sgt, pages, npages, offset,
--					size, GFP_KERNEL);
-+	ret = sg_alloc_table_from_pages(sgt,
-+					frame_vector_pages(g2d_userptr->vec),
-+					npages, offset, size, GFP_KERNEL);
- 	if (ret < 0) {
- 		DRM_ERROR("failed to get sgt from pages.\n");
- 		goto err_free_sgt;
-@@ -549,16 +521,11 @@ err_sg_free_table:
- err_free_sgt:
- 	kfree(sgt);
- 
--err_free_userptr:
--	exynos_gem_put_pages_to_userptr(g2d_userptr->pages,
--					g2d_userptr->npages,
--					g2d_userptr->vma);
--
--err_put_vma:
--	exynos_gem_put_vma(g2d_userptr->vma);
-+err_put_framevec:
-+	put_vaddr_frames(g2d_userptr->vec);
- 
--err_free_pages:
--	drm_free_large(pages);
-+err_destroy_framevec:
-+	frame_vector_destroy(g2d_userptr->vec);
- 
- err_free:
- 	kfree(g2d_userptr);
-diff --git a/drivers/gpu/drm/exynos/exynos_drm_gem.c b/drivers/gpu/drm/exynos/exynos_drm_gem.c
-index 0d5b9698d384..47068ae44ced 100644
---- a/drivers/gpu/drm/exynos/exynos_drm_gem.c
-+++ b/drivers/gpu/drm/exynos/exynos_drm_gem.c
-@@ -378,103 +378,6 @@ int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
- 	return 0;
- }
- 
--struct vm_area_struct *exynos_gem_get_vma(struct vm_area_struct *vma)
+-static inline int vma_is_io(struct vm_area_struct *vma)
 -{
--	struct vm_area_struct *vma_copy;
--
--	vma_copy = kmalloc(sizeof(*vma_copy), GFP_KERNEL);
--	if (!vma_copy)
--		return NULL;
--
--	if (vma->vm_ops && vma->vm_ops->open)
--		vma->vm_ops->open(vma);
--
--	if (vma->vm_file)
--		get_file(vma->vm_file);
--
--	memcpy(vma_copy, vma, sizeof(*vma));
--
--	vma_copy->vm_mm = NULL;
--	vma_copy->vm_next = NULL;
--	vma_copy->vm_prev = NULL;
--
--	return vma_copy;
+-	return !!(vma->vm_flags & (VM_IO | VM_PFNMAP));
 -}
 -
--void exynos_gem_put_vma(struct vm_area_struct *vma)
+-static int vb2_dc_get_user_pfn(unsigned long start, int n_pages,
+-	struct vm_area_struct *vma, unsigned long *res)
 -{
--	if (!vma)
--		return;
+-	unsigned long pfn, start_pfn, prev_pfn;
+-	unsigned int i;
+-	int ret;
 -
--	if (vma->vm_ops && vma->vm_ops->close)
--		vma->vm_ops->close(vma);
+-	if (!vma_is_io(vma))
+-		return -EFAULT;
 -
--	if (vma->vm_file)
--		fput(vma->vm_file);
+-	ret = follow_pfn(vma, start, &pfn);
+-	if (ret)
+-		return ret;
 -
--	kfree(vma);
+-	start_pfn = pfn;
+-	start += PAGE_SIZE;
+-
+-	for (i = 1; i < n_pages; ++i, start += PAGE_SIZE) {
+-		prev_pfn = pfn;
+-		ret = follow_pfn(vma, start, &pfn);
+-
+-		if (ret) {
+-			pr_err("no page for address %lu\n", start);
+-			return ret;
+-		}
+-		if (pfn != prev_pfn + 1)
+-			return -EINVAL;
+-	}
+-
+-	*res = start_pfn;
+-	return 0;
 -}
 -
--int exynos_gem_get_pages_from_userptr(unsigned long start,
--						unsigned int npages,
--						struct page **pages,
--						struct vm_area_struct *vma)
+-static int vb2_dc_get_user_pages(unsigned long start, struct page **pages,
+-	int n_pages, struct vm_area_struct *vma,
+-	enum dma_data_direction dma_dir)
 -{
--	int get_npages;
--
--	/* the memory region mmaped with VM_PFNMAP. */
 -	if (vma_is_io(vma)) {
 -		unsigned int i;
 -
--		for (i = 0; i < npages; ++i, start += PAGE_SIZE) {
+-		for (i = 0; i < n_pages; ++i, start += PAGE_SIZE) {
 -			unsigned long pfn;
 -			int ret = follow_pfn(vma, start, &pfn);
--			if (ret)
--				return ret;
 -
+-			if (!pfn_valid(pfn))
+-				return -EINVAL;
+-
+-			if (ret) {
+-				pr_err("no page for address %lu\n", start);
+-				return ret;
+-			}
 -			pages[i] = pfn_to_page(pfn);
 -		}
+-	} else {
+-		int n;
 -
--		if (i != npages) {
--			DRM_ERROR("failed to get user_pages.\n");
--			return -EINVAL;
+-		n = get_user_pages(current, current->mm, start & PAGE_MASK,
+-			n_pages, dma_dir == DMA_FROM_DEVICE, 1, pages, NULL);
+-		/* negative error means that no page was pinned */
+-		n = max(n, 0);
+-		if (n != n_pages) {
+-			pr_err("got only %d of %d user pages\n", n, n_pages);
+-			while (n)
+-				put_page(pages[--n]);
+-			return -EFAULT;
 -		}
--
--		return 0;
--	}
--
--	get_npages = get_user_pages(current, current->mm, start,
--					npages, 1, 1, pages, NULL);
--	get_npages = max(get_npages, 0);
--	if (get_npages != npages) {
--		DRM_ERROR("failed to get user_pages.\n");
--		while (get_npages)
--			put_page(pages[--get_npages]);
--		return -EFAULT;
 -	}
 -
 -	return 0;
 -}
 -
--void exynos_gem_put_pages_to_userptr(struct page **pages,
--					unsigned int npages,
--					struct vm_area_struct *vma)
+-static void vb2_dc_put_dirty_page(struct page *page)
 -{
--	if (!vma_is_io(vma)) {
--		unsigned int i;
--
--		for (i = 0; i < npages; i++) {
--			set_page_dirty_lock(pages[i]);
--
--			/*
--			 * undo the reference we took when populating
--			 * the table.
--			 */
--			put_page(pages[i]);
--		}
--	}
+-	set_page_dirty_lock(page);
+-	put_page(page);
 -}
 -
- int exynos_gem_map_sgt_with_dma(struct drm_device *drm_dev,
- 				struct sg_table *sgt,
- 				enum dma_data_direction dir)
+ static void vb2_dc_put_userptr(void *buf_priv)
+ {
+ 	struct vb2_dc_buf *buf = buf_priv;
+ 	struct sg_table *sgt = buf->dma_sgt;
++	int i;
++	struct page **pages;
+ 
+ 	if (sgt) {
+ 		DEFINE_DMA_ATTRS(attrs);
+@@ -526,13 +426,15 @@ static void vb2_dc_put_userptr(void *buf_priv)
+ 		 */
+ 		dma_unmap_sg_attrs(buf->dev, sgt->sgl, sgt->orig_nents,
+ 				   buf->dma_dir, &attrs);
+-		if (!vma_is_io(buf->vma))
+-			vb2_dc_sgt_foreach_page(sgt, vb2_dc_put_dirty_page);
+-
++		pages = frame_vector_pages(buf->vec);
++		/* sgt should exist only if vector contains pages... */
++		BUG_ON(IS_ERR(pages));
++		for (i = 0; i < frame_vector_count(buf->vec); i++)
++			set_page_dirty_lock(pages[i]);
+ 		sg_free_table(sgt);
+ 		kfree(sgt);
+ 	}
+-	vb2_put_vma(buf->vma);
++	vb2_destroy_framevec(buf->vec);
+ 	kfree(buf);
+ }
+ 
+@@ -572,13 +474,10 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ {
+ 	struct vb2_dc_conf *conf = alloc_ctx;
+ 	struct vb2_dc_buf *buf;
+-	unsigned long start;
+-	unsigned long end;
++	struct frame_vector *vec;
+ 	unsigned long offset;
+-	struct page **pages;
+-	int n_pages;
++	int n_pages, i;
+ 	int ret = 0;
+-	struct vm_area_struct *vma;
+ 	struct sg_table *sgt;
+ 	unsigned long contig_size;
+ 	unsigned long dma_align = dma_get_cache_alignment();
+@@ -604,75 +503,43 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 	buf->dev = conf->dev;
+ 	buf->dma_dir = dma_dir;
+ 
+-	start = vaddr & PAGE_MASK;
+ 	offset = vaddr & ~PAGE_MASK;
+-	end = PAGE_ALIGN(vaddr + size);
+-	n_pages = (end - start) >> PAGE_SHIFT;
+-
+-	pages = kmalloc(n_pages * sizeof(pages[0]), GFP_KERNEL);
+-	if (!pages) {
+-		ret = -ENOMEM;
+-		pr_err("failed to allocate pages table\n");
++	vec = vb2_create_framevec(vaddr, size, dma_dir == DMA_FROM_DEVICE);
++	if (IS_ERR(vec)) {
++		ret = PTR_ERR(vec);
+ 		goto fail_buf;
+ 	}
++	buf->vec = vec;
++	n_pages = frame_vector_count(vec);
++	ret = frame_vector_to_pages(vec);
++	if (ret < 0) {
++		unsigned long *nums = frame_vector_pfns(vec);
+ 
+-	down_read(&current->mm->mmap_sem);
+-	/* current->mm->mmap_sem is taken by videobuf2 core */
+-	vma = find_vma(current->mm, vaddr);
+-	if (!vma) {
+-		pr_err("no vma for address %lu\n", vaddr);
+-		ret = -EFAULT;
+-		goto fail_pages;
+-	}
+-
+-	if (vma->vm_end < vaddr + size) {
+-		pr_err("vma at %lu is too small for %lu bytes\n", vaddr, size);
+-		ret = -EFAULT;
+-		goto fail_pages;
+-	}
+-
+-	buf->vma = vb2_get_vma(vma);
+-	if (!buf->vma) {
+-		pr_err("failed to copy vma\n");
+-		ret = -ENOMEM;
+-		goto fail_pages;
+-	}
+-
+-	/* extract page list from userspace mapping */
+-	ret = vb2_dc_get_user_pages(start, pages, n_pages, vma, dma_dir);
+-	if (ret) {
+-		unsigned long pfn;
+-		if (vb2_dc_get_user_pfn(start, n_pages, vma, &pfn) == 0) {
+-			up_read(&current->mm->mmap_sem);
+-			buf->dma_addr = vb2_dc_pfn_to_dma(buf->dev, pfn);
+-			buf->size = size;
+-			kfree(pages);
+-			return buf;
+-		}
+-
+-		pr_err("failed to get user pages\n");
+-		goto fail_vma;
++		/*
++		 * Failed to convert to pages... Check the memory is physically
++		 * contiguous and use direct mapping
++		 */
++		for (i = 1; i < n_pages; i++)
++			if (nums[i-1] + 1 != nums[i])
++				goto fail_pfnvec;
++		buf->dma_addr = vb2_dc_pfn_to_dma(buf->dev, nums[0]);
++		goto out;
+ 	}
+-	up_read(&current->mm->mmap_sem);
+ 
+ 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+ 	if (!sgt) {
+ 		pr_err("failed to allocate sg table\n");
+ 		ret = -ENOMEM;
+-		goto fail_get_user_pages;
++		goto fail_pfnvec;
+ 	}
+ 
+-	ret = sg_alloc_table_from_pages(sgt, pages, n_pages,
++	ret = sg_alloc_table_from_pages(sgt, frame_vector_pages(vec), n_pages,
+ 		offset, size, GFP_KERNEL);
+ 	if (ret) {
+ 		pr_err("failed to initialize sg table\n");
+ 		goto fail_sgt;
+ 	}
+ 
+-	/* pages are no longer needed */
+-	kfree(pages);
+-	pages = NULL;
+-
+ 	/*
+ 	 * No need to sync to the device, this will happen later when the
+ 	 * prepare() memop is called.
+@@ -694,8 +561,9 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 	}
+ 
+ 	buf->dma_addr = sg_dma_address(sgt->sgl);
+-	buf->size = size;
+ 	buf->dma_sgt = sgt;
++out:
++	buf->size = size;
+ 
+ 	return buf;
+ 
+@@ -704,25 +572,13 @@ fail_map_sg:
+ 			   buf->dma_dir, &attrs);
+ 
+ fail_sgt_init:
+-	if (!vma_is_io(buf->vma))
+-		vb2_dc_sgt_foreach_page(sgt, put_page);
+ 	sg_free_table(sgt);
+ 
+ fail_sgt:
+ 	kfree(sgt);
+ 
+-fail_get_user_pages:
+-	if (pages && !vma_is_io(buf->vma))
+-		while (n_pages)
+-			put_page(pages[--n_pages]);
+-
+-	down_read(&current->mm->mmap_sem);
+-fail_vma:
+-	vb2_put_vma(buf->vma);
+-
+-fail_pages:
+-	up_read(&current->mm->mmap_sem);
+-	kfree(pages); /* kfree is NULL-proof */
++fail_pfnvec:
++	vb2_destroy_framevec(vec);
+ 
+ fail_buf:
+ 	kfree(buf);
 -- 
 2.1.4
 
