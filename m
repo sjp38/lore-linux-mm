@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 57B036B0255
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 00:21:55 -0400 (EDT)
-Received: by padck2 with SMTP id ck2so35589715pad.0
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 114C86B0256
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 00:21:56 -0400 (EDT)
+Received: by pdbep18 with SMTP id ep18so217991298pdb.1
         for <linux-mm@kvack.org>; Sun, 12 Jul 2015 21:21:55 -0700 (PDT)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id h4si26277246pdi.136.2015.07.12.21.21.54
+        by mx.google.com with ESMTPS id af12si26281027pac.137.2015.07.12.21.21.54
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 12 Jul 2015 21:21:54 -0700 (PDT)
+        Sun, 12 Jul 2015 21:21:55 -0700 (PDT)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH v3 04/10] hugetlbfs: hugetlb_vmtruncate_list() needs to take a range to delete
-Date: Sun, 12 Jul 2015 21:21:02 -0700
-Message-Id: <1436761268-6397-5-git-send-email-mike.kravetz@oracle.com>
+Subject: [PATCH v3 02/10] mm/hugetlb: add region_del() to delete a specific range of entries
+Date: Sun, 12 Jul 2015 21:21:00 -0700
+Message-Id: <1436761268-6397-3-git-send-email-mike.kravetz@oracle.com>
 In-Reply-To: <1436761268-6397-1-git-send-email-mike.kravetz@oracle.com>
 References: <1436761268-6397-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,76 +20,162 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>
 
-fallocate hole punch will want to unmap a specific range of pages.
-Modify the existing hugetlb_vmtruncate_list() routine to take a
-start/end range.  If end is 0, this indicates all pages after start
-should be unmapped.  This is the same as the existing truncate
-functionality.  Modify existing callers to add 0 as end of range.
+fallocate hole punch will want to remove a specific range of pages.
+The existing region_truncate() routine deletes all region/reserve
+map entries after a specified offset.  region_del() will provide
+this same functionality if the end of region is specified as LONG_MAX.
+Hence, region_del() can replace region_truncate().
 
-Since the routine will be used in hole punch as well as truncate
-operations, it is more appropriately renamed to hugetlb_vmdelete_list().
+Unlike region_truncate(), region_del() can return an error in the
+rare case where it can not allocate memory for a region descriptor.
+This ONLY happens in the case where an existing region must be split.
+Current callers passing LONG_MAX as end of range will never experience
+this error and do not need to deal with error handling.  Future
+callers of region_del() (such as fallocate hole punch) will need to
+handle this error.
 
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- fs/hugetlbfs/inode.c | 25 ++++++++++++++++++-------
- 1 file changed, 18 insertions(+), 7 deletions(-)
+ mm/hugetlb.c | 99 ++++++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 73 insertions(+), 26 deletions(-)
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 0cf74df..ed40f56 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -349,11 +349,15 @@ static void hugetlbfs_evict_inode(struct inode *inode)
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 241d16d..a5c8b3c 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -461,43 +461,90 @@ static void region_abort(struct resv_map *resv, long f, long t)
  }
  
- static inline void
--hugetlb_vmtruncate_list(struct rb_root *root, pgoff_t pgoff)
-+hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
+ /*
+- * Truncate the reserve map at index 'end'.  Modify/truncate any
+- * region which contains end.  Delete any regions past end.
+- * Return the number of huge pages removed from the map.
++ * Delete the specified range [f, t) from the reserve map.  If the
++ * t parameter is LONG_MAX, this indicates that ALL regions after f
++ * should be deleted.  Locate the regions which intersect [f, t)
++ * and either trim, delete or split the existing regions.
++ *
++ * Returns the number of huge pages deleted from the reserve map.
++ * In the normal case, the return value is zero or more.  In the
++ * case where a region must be split, a new region descriptor must
++ * be allocated.  If the allocation fails, -ENOMEM will be returned.
++ * NOTE: If the parameter t == LONG_MAX, then we will never split
++ * a region and possibly return -ENOMEM.  Callers specifying
++ * t == LONG_MAX do not need to check for -ENOMEM error.
+  */
+-static long region_truncate(struct resv_map *resv, long end)
++static long region_del(struct resv_map *resv, long f, long t)
  {
- 	struct vm_area_struct *vma;
+ 	struct list_head *head = &resv->regions;
+ 	struct file_region *rg, *trg;
+-	long chg = 0;
++	struct file_region *nrg = NULL;
++	long del = 0;
  
--	vma_interval_tree_foreach(vma, root, pgoff, ULONG_MAX) {
-+	/*
-+	 * end == 0 indicates that the entire range after
-+	 * start should be unmapped.
-+	 */
-+	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
- 		unsigned long v_offset;
++retry:
+ 	spin_lock(&resv->lock);
+-	/* Locate the region we are either in or before. */
+-	list_for_each_entry(rg, head, link)
+-		if (end <= rg->to)
++	list_for_each_entry_safe(rg, trg, head, link) {
++		if (rg->to <= f)
++			continue;
++		if (rg->from >= t)
+ 			break;
+-	if (&rg->link == head)
+-		goto out;
  
- 		/*
-@@ -362,13 +366,20 @@ hugetlb_vmtruncate_list(struct rb_root *root, pgoff_t pgoff)
- 		 * which overlap the truncated area starting at pgoff,
- 		 * and no vma on a 32-bit arch can span beyond the 4GB.
- 		 */
--		if (vma->vm_pgoff < pgoff)
--			v_offset = (pgoff - vma->vm_pgoff) << PAGE_SHIFT;
-+		if (vma->vm_pgoff < start)
-+			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
- 		else
- 			v_offset = 0;
+-	/* If we are in the middle of a region then adjust it. */
+-	if (end > rg->from) {
+-		chg = rg->to - end;
+-		rg->to = end;
+-		rg = list_entry(rg->link.next, typeof(*rg), link);
+-	}
++		if (f > rg->from && t < rg->to) { /* Must split region */
++			/*
++			 * Check for an entry in the cache before dropping
++			 * lock and attempting allocation.
++			 */
++			if (!nrg &&
++			    resv->rgn_cache_count > resv->adds_in_progress) {
++				nrg = list_first_entry(&resv->rgn_cache,
++							struct file_region,
++							link);
++				list_del(&nrg->link);
++				resv->rgn_cache_count--;
++			}
  
--		unmap_hugepage_range(vma, vma->vm_start + v_offset,
--				     vma->vm_end, NULL);
-+		if (end) {
-+			end = ((end - start) << PAGE_SHIFT) +
-+			       vma->vm_start + v_offset;
-+			if (end > vma->vm_end)
-+				end = vma->vm_end;
-+		} else
-+			end = vma->vm_end;
+-	/* Drop any remaining regions. */
+-	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
+-		if (&rg->link == head)
++			if (!nrg) {
++				spin_unlock(&resv->lock);
++				nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
++				if (!nrg)
++					return -ENOMEM;
++				goto retry;
++			}
 +
-+		unmap_hugepage_range(vma, vma->vm_start + v_offset, end, NULL);
++			del += t - f;
++
++			/* New entry for end of split region */
++			nrg->from = t;
++			nrg->to = rg->to;
++			INIT_LIST_HEAD(&nrg->link);
++
++			/* Original entry is trimmed */
++			rg->to = f;
++
++			list_add(&nrg->link, &rg->link);
++			nrg = NULL;
+ 			break;
+-		chg += rg->to - rg->from;
+-		list_del(&rg->link);
+-		kfree(rg);
++		}
++
++		if (f <= rg->from && t >= rg->to) { /* Remove entire region */
++			del += rg->to - rg->from;
++			list_del(&rg->link);
++			kfree(rg);
++			continue;
++		}
++
++		if (f <= rg->from) {	/* Trim beginning of region */
++			del += t - rg->from;
++			rg->from = t;
++		} else {		/* Trim end of region */
++			del += rg->to - f;
++			rg->to = f;
++		}
  	}
+ 
+-out:
+ 	spin_unlock(&resv->lock);
+-	return chg;
++	kfree(nrg);
++	return del;
  }
  
-@@ -384,7 +395,7 @@ static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
- 	i_size_write(inode, offset);
- 	i_mmap_lock_write(mapping);
- 	if (!RB_EMPTY_ROOT(&mapping->i_mmap))
--		hugetlb_vmtruncate_list(&mapping->i_mmap, pgoff);
-+		hugetlb_vmdelete_list(&mapping->i_mmap, pgoff, 0);
- 	i_mmap_unlock_write(mapping);
- 	truncate_hugepages(inode, offset);
- 	return 0;
+ /*
+@@ -648,7 +695,7 @@ void resv_map_release(struct kref *ref)
+ 	struct file_region *rg, *trg;
+ 
+ 	/* Clear out any active regions before we release the map. */
+-	region_truncate(resv_map, 0);
++	region_del(resv_map, 0, LONG_MAX);
+ 
+ 	/* ... and any entries left in the cache */
+ 	list_for_each_entry_safe(rg, trg, head, link) {
+@@ -3871,7 +3918,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
+ 	long gbl_reserve;
+ 
+ 	if (resv_map)
+-		chg = region_truncate(resv_map, offset);
++		chg = region_del(resv_map, offset, LONG_MAX);
+ 	spin_lock(&inode->i_lock);
+ 	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
+ 	spin_unlock(&inode->i_lock);
 -- 
 2.1.0
 
