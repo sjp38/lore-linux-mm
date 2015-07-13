@@ -1,102 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 22E516B0253
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 08:42:49 -0400 (EDT)
-Received: by wicmz13 with SMTP id mz13so60750599wic.0
-        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 05:42:48 -0700 (PDT)
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com. [209.85.212.169])
-        by mx.google.com with ESMTPS id cw1si13257682wib.15.2015.07.13.05.42.47
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 284796B0253
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 09:08:44 -0400 (EDT)
+Received: by widic2 with SMTP id ic2so11899530wid.0
+        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 06:08:43 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id k4si28472404wjn.135.2015.07.13.06.08.42
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Jul 2015 05:42:47 -0700 (PDT)
-Received: by wiga1 with SMTP id a1so68269031wig.0
-        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 05:42:46 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150713122920.32C8CA4@black.fi.intel.com>
+        Mon, 13 Jul 2015 06:08:42 -0700 (PDT)
+Date: Mon, 13 Jul 2015 09:08:12 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 5/5] mm, memcontrol: use vma_is_anonymous() to check for
+ anon VMA
+Message-ID: <20150713130812.GA8115@cmpxchg.org>
 References: <1436784852-144369-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1436784852-144369-3-git-send-email-kirill.shutemov@linux.intel.com>
- <CALq1K=J-VqnTmgNj-pbfq8Ps-mgU3=10i0WiS2S5V37og9bMcw@mail.gmail.com> <20150713122920.32C8CA4@black.fi.intel.com>
-From: Leon Romanovsky <leon@leon.nu>
-Date: Mon, 13 Jul 2015 15:42:27 +0300
-Message-ID: <CALq1K=KvuUOKGpUHYAB=awyQWsEJXSNyA_C+P0VRw5cja4gq_w@mail.gmail.com>
-Subject: Re: [PATCH 2/5] x86, mpx: do not set ->vm_ops on mpx VMAs
-Content-Type: text/plain; charset=UTF-8
+ <1436784852-144369-6-git-send-email-kirill.shutemov@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1436784852-144369-6-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, Thomas Gleixner <tglx@linutronix.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>
 
-On Mon, Jul 13, 2015 at 3:29 PM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> Leon Romanovsky wrote:
->> Hi Kirill,
->>
->> On Mon, Jul 13, 2015 at 1:54 PM, Kirill A. Shutemov
->> <kirill.shutemov@linux.intel.com> wrote:
->> >
->> > MPX setups private anonymous mapping, but uses vma->vm_ops too.
->> > This can confuse core VM, as it relies on vm->vm_ops to distinguish
->> > file VMAs from anonymous.
->> >
->> > As result we will get SIGBUS, because handle_pte_fault() thinks it's
->> > file VMA without vm_ops->fault and it doesn't know how to handle the
->> > situation properly.
->> >
->> > Let's fix that by not setting ->vm_ops.
->> >
->> > We don't really need ->vm_ops here: MPX VMA can be detected with VM_MPX
->> > flag. And vma_merge() will not merge MPX VMA with non-MPX VMA, because
->> > ->vm_flags won't match.
->> >
->> > The only thing left is name of VMA. I'm not sure if it's part of ABI, or
->> > we can just drop it. The patch keep it by providing arch_vma_name() on x86.
->> >
->> > Build tested only.
->> >
->> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->> > Cc: Dave Hansen <dave.hansen@linux.intel.com>
->> > Cc: Andy Lutomirski <luto@amacapital.net>
->> > Cc: Thomas Gleixner <tglx@linutronix.de>
->> > ---
->> >  arch/x86/mm/mmap.c |  7 +++++++
->> >  arch/x86/mm/mpx.c  | 20 +-------------------
->> >  2 files changed, 8 insertions(+), 19 deletions(-)
->> >
->> > diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
->> > index 9d518d693b4b..844b06d67df4 100644
->> > --- a/arch/x86/mm/mmap.c
->> > +++ b/arch/x86/mm/mmap.c
->> > @@ -126,3 +126,10 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
->> >                 mm->get_unmapped_area = arch_get_unmapped_area_topdown;
->> >         }
->> >  }
->> > +
->> > +const char *arch_vma_name(struct vm_area_struct *vma)
->> > +{
->> > +       if (vma->vm_flags & VM_MPX)
->> > +               return "[mpx]";
->> > +       return NULL;
->> > +}
->>
->> I sure that I'm missing something important. This function stores
->> "[mpx]" string on this function stack and returns the pointer to that
->> address. In current flow, this address is visible and accessible,
->> however in can be a different in general case.
->
-> The string is not on stack. String literals are in .rodata and caller is
-> not allowed to modify it since it's "const char *".
-I see, it behaves similiar to global "const char *" variable definition.
-Thank you for clarification.
+On Mon, Jul 13, 2015 at 01:54:12PM +0300, Kirill A. Shutemov wrote:
+> !vma->vm_file is not reliable to detect anon VMA, because not all
+> drivers bother set it. Let's use vma_is_anonymous() instead.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> ---
+>  mm/memcontrol.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index acb93c554f6e..a624709f0dd7 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4809,7 +4809,7 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
+>  	struct address_space *mapping;
+>  	pgoff_t pgoff;
+>  
+> -	if (!vma->vm_file) /* anonymous vma */
+> +	if (vma_is_anonymous(vma)) /* anonymous vma */
+>  		return NULL;
+>  	if (!(mc.flags & MOVE_FILE))
+>  		return NULL;
 
->
-> --
->  Kirill
+The next line does vma->vm_file->f_mapping, so it had better be !NULL.
 
-
-
--- 
-Leon Romanovsky | Independent Linux Consultant
-        www.leon.nu | leon@leon.nu
+It's not about reliably detecting anonymous vs. file, it is about
+whether there is a mapping against which we can do find_get_page().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
