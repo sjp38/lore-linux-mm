@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 5565B6B0258
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 10:56:11 -0400 (EDT)
-Received: by wgmn9 with SMTP id n9so45161670wgm.0
-        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 07:56:10 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 464CE6B0259
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 10:56:16 -0400 (EDT)
+Received: by wicmz13 with SMTP id mz13so64305992wic.0
+        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 07:56:15 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q5si12300213wia.113.2015.07.13.07.55.58
+        by mx.google.com with ESMTPS id aq6si30325439wjc.144.2015.07.13.07.55.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Mon, 13 Jul 2015 07:55:59 -0700 (PDT)
 From: Jan Kara <jack@suse.com>
-Subject: [PATCH 5/9] media: vb2: Convert vb2_dma_sg_get_userptr() to use frame vector
-Date: Mon, 13 Jul 2015 16:55:47 +0200
-Message-Id: <1436799351-21975-6-git-send-email-jack@suse.com>
+Subject: [PATCH 8/9] media: vb2: Remove unused functions
+Date: Mon, 13 Jul 2015 16:55:50 +0200
+Message-Id: <1436799351-21975-9-git-send-email-jack@suse.com>
 In-Reply-To: <1436799351-21975-1-git-send-email-jack@suse.com>
 References: <1436799351-21975-1-git-send-email-jack@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,169 +22,159 @@ Cc: linux-media@vger.kernel.org, Mauro Carvalho Chehab <mchehab@osg.samsung.com>
 
 From: Jan Kara <jack@suse.cz>
 
+Conversion to the use of pinned pfns made some functions unused. Remove
+them. Also there's no need to lock mmap_sem in __buf_prepare() anymore.
+
 Acked-by: Marek Szyprowski <m.szyprowski@samsung.com>
 Tested-by: Marek Szyprowski <m.szyprowski@samsung.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- drivers/media/v4l2-core/videobuf2-dma-sg.c | 95 +++++-------------------------
- 1 file changed, 15 insertions(+), 80 deletions(-)
+ drivers/media/v4l2-core/videobuf2-memops.c | 114 -----------------------------
+ include/media/videobuf2-memops.h           |   6 --
+ 2 files changed, 120 deletions(-)
 
-diff --git a/drivers/media/v4l2-core/videobuf2-dma-sg.c b/drivers/media/v4l2-core/videobuf2-dma-sg.c
-index d2cf113d1933..be7bd6535c9d 100644
---- a/drivers/media/v4l2-core/videobuf2-dma-sg.c
-+++ b/drivers/media/v4l2-core/videobuf2-dma-sg.c
-@@ -38,6 +38,7 @@ struct vb2_dma_sg_buf {
- 	struct device			*dev;
- 	void				*vaddr;
- 	struct page			**pages;
-+	struct frame_vector		*vec;
- 	int				offset;
- 	enum dma_data_direction		dma_dir;
- 	struct sg_table			sg_table;
-@@ -51,7 +52,6 @@ struct vb2_dma_sg_buf {
- 	unsigned int			num_pages;
- 	atomic_t			refcount;
- 	struct vb2_vmarea_handler	handler;
--	struct vm_area_struct		*vma;
+diff --git a/drivers/media/v4l2-core/videobuf2-memops.c b/drivers/media/v4l2-core/videobuf2-memops.c
+index 0ec186d41b9b..48c6a49c4928 100644
+--- a/drivers/media/v4l2-core/videobuf2-memops.c
++++ b/drivers/media/v4l2-core/videobuf2-memops.c
+@@ -23,120 +23,6 @@
+ #include <media/videobuf2-memops.h>
  
- 	struct dma_buf_attachment	*db_attach;
- };
-@@ -225,25 +225,17 @@ static void vb2_dma_sg_finish(void *buf_priv)
- 	dma_sync_sg_for_cpu(buf->dev, sgt->sgl, sgt->nents, buf->dma_dir);
- }
- 
--static inline int vma_is_io(struct vm_area_struct *vma)
+ /**
+- * vb2_get_vma() - acquire and lock the virtual memory area
+- * @vma:	given virtual memory area
+- *
+- * This function attempts to acquire an area mapped in the userspace for
+- * the duration of a hardware operation. The area is "locked" by performing
+- * the same set of operation that are done when process calls fork() and
+- * memory areas are duplicated.
+- *
+- * Returns a copy of a virtual memory region on success or NULL.
+- */
+-struct vm_area_struct *vb2_get_vma(struct vm_area_struct *vma)
 -{
--	return !!(vma->vm_flags & (VM_IO | VM_PFNMAP));
+-	struct vm_area_struct *vma_copy;
+-
+-	vma_copy = kmalloc(sizeof(*vma_copy), GFP_KERNEL);
+-	if (vma_copy == NULL)
+-		return NULL;
+-
+-	if (vma->vm_ops && vma->vm_ops->open)
+-		vma->vm_ops->open(vma);
+-
+-	if (vma->vm_file)
+-		get_file(vma->vm_file);
+-
+-	memcpy(vma_copy, vma, sizeof(*vma));
+-
+-	vma_copy->vm_mm = NULL;
+-	vma_copy->vm_next = NULL;
+-	vma_copy->vm_prev = NULL;
+-
+-	return vma_copy;
 -}
+-EXPORT_SYMBOL_GPL(vb2_get_vma);
 -
- static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
- 				    unsigned long size,
- 				    enum dma_data_direction dma_dir)
- {
- 	struct vb2_dma_sg_conf *conf = alloc_ctx;
- 	struct vb2_dma_sg_buf *buf;
--	unsigned long first, last;
--	int num_pages_from_user;
+-/**
+- * vb2_put_userptr() - release a userspace virtual memory area
+- * @vma:	virtual memory region associated with the area to be released
+- *
+- * This function releases the previously acquired memory area after a hardware
+- * operation.
+- */
+-void vb2_put_vma(struct vm_area_struct *vma)
+-{
+-	if (!vma)
+-		return;
+-
+-	if (vma->vm_ops && vma->vm_ops->close)
+-		vma->vm_ops->close(vma);
+-
+-	if (vma->vm_file)
+-		fput(vma->vm_file);
+-
+-	kfree(vma);
+-}
+-EXPORT_SYMBOL_GPL(vb2_put_vma);
+-
+-/**
+- * vb2_get_contig_userptr() - lock physically contiguous userspace mapped memory
+- * @vaddr:	starting virtual address of the area to be verified
+- * @size:	size of the area
+- * @res_paddr:	will return physical address for the given vaddr
+- * @res_vma:	will return locked copy of struct vm_area for the given area
+- *
+- * This function will go through memory area of size @size mapped at @vaddr and
+- * verify that the underlying physical pages are contiguous. If they are
+- * contiguous the virtual memory area is locked and a @res_vma is filled with
+- * the copy and @res_pa set to the physical address of the buffer.
+- *
+- * Returns 0 on success.
+- */
+-int vb2_get_contig_userptr(unsigned long vaddr, unsigned long size,
+-			   struct vm_area_struct **res_vma, dma_addr_t *res_pa)
+-{
+-	struct mm_struct *mm = current->mm;
 -	struct vm_area_struct *vma;
- 	struct sg_table *sgt;
- 	DEFINE_DMA_ATTRS(attrs);
-+	struct frame_vector *vec;
- 
- 	dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
+-	unsigned long offset, start, end;
+-	unsigned long this_pfn, prev_pfn;
+-	dma_addr_t pa = 0;
 -
- 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
- 	if (!buf)
- 		return NULL;
-@@ -254,63 +246,19 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
- 	buf->offset = vaddr & ~PAGE_MASK;
- 	buf->size = size;
- 	buf->dma_sgt = &buf->sg_table;
-+	vec = vb2_create_framevec(vaddr, size, buf->dma_dir == DMA_FROM_DEVICE);
-+	if (IS_ERR(vec))
-+		goto userptr_fail_pfnvec;
-+	buf->vec = vec;
- 
--	first = (vaddr           & PAGE_MASK) >> PAGE_SHIFT;
--	last  = ((vaddr + size - 1) & PAGE_MASK) >> PAGE_SHIFT;
--	buf->num_pages = last - first + 1;
+-	start = vaddr;
+-	offset = start & ~PAGE_MASK;
+-	end = start + size;
 -
--	buf->pages = kzalloc(buf->num_pages * sizeof(struct page *),
--			     GFP_KERNEL);
--	if (!buf->pages)
--		goto userptr_fail_alloc_pages;
+-	vma = find_vma(mm, start);
 -
--	down_read(&current->mm->mmap_sem);
--	vma = find_vma(current->mm, vaddr);
--	if (!vma) {
--		dprintk(1, "no vma for address %lu\n", vaddr);
--		goto userptr_fail_find_vma;
+-	if (vma == NULL || vma->vm_end < end)
+-		return -EFAULT;
+-
+-	for (prev_pfn = 0; start < end; start += PAGE_SIZE) {
+-		int ret = follow_pfn(vma, start, &this_pfn);
+-		if (ret)
+-			return ret;
+-
+-		if (prev_pfn == 0)
+-			pa = this_pfn << PAGE_SHIFT;
+-		else if (this_pfn != prev_pfn + 1)
+-			return -EFAULT;
+-
+-		prev_pfn = this_pfn;
 -	}
 -
--	if (vma->vm_end < vaddr + size) {
--		dprintk(1, "vma at %lu is too small for %lu bytes\n",
--			vaddr, size);
--		goto userptr_fail_find_vma;
--	}
+-	/*
+-	 * Memory is contigous, lock vma and return to the caller
+-	 */
+-	*res_vma = vb2_get_vma(vma);
+-	if (*res_vma == NULL)
+-		return -ENOMEM;
 -
--	buf->vma = vb2_get_vma(vma);
--	if (!buf->vma) {
--		dprintk(1, "failed to copy vma\n");
--		goto userptr_fail_find_vma;
--	}
+-	*res_pa = pa + offset;
+-	return 0;
+-}
+-EXPORT_SYMBOL_GPL(vb2_get_contig_userptr);
 -
--	if (vma_is_io(buf->vma)) {
--		for (num_pages_from_user = 0;
--		     num_pages_from_user < buf->num_pages;
--		     ++num_pages_from_user, vaddr += PAGE_SIZE) {
--			unsigned long pfn;
+-/**
+  * vb2_create_framevec() - map virtual addresses to pfns
+  * @start:	Virtual user address where we start mapping
+  * @length:	Length of a range to map
+diff --git a/include/media/videobuf2-memops.h b/include/media/videobuf2-memops.h
+index 2f0564ff5f31..830b5239fd8b 100644
+--- a/include/media/videobuf2-memops.h
++++ b/include/media/videobuf2-memops.h
+@@ -31,12 +31,6 @@ struct vb2_vmarea_handler {
+ 
+ extern const struct vm_operations_struct vb2_common_vm_ops;
+ 
+-int vb2_get_contig_userptr(unsigned long vaddr, unsigned long size,
+-			   struct vm_area_struct **res_vma, dma_addr_t *res_pa);
 -
--			if (follow_pfn(vma, vaddr, &pfn)) {
--				dprintk(1, "no page for address %lu\n", vaddr);
--				break;
--			}
--			buf->pages[num_pages_from_user] = pfn_to_page(pfn);
--		}
--	} else
--		num_pages_from_user = get_user_pages(current, current->mm,
--					     vaddr & PAGE_MASK,
--					     buf->num_pages,
--					     buf->dma_dir == DMA_FROM_DEVICE,
--					     1, /* force */
--					     buf->pages,
--					     NULL);
--	up_read(&current->mm->mmap_sem);
+-struct vm_area_struct *vb2_get_vma(struct vm_area_struct *vma);
+-void vb2_put_vma(struct vm_area_struct *vma);
 -
--	if (num_pages_from_user != buf->num_pages)
--		goto userptr_fail_get_user_pages;
-+	buf->pages = frame_vector_pages(vec);
-+	if (IS_ERR(buf->pages))
-+		goto userptr_fail_sgtable;
-+	buf->num_pages = frame_vector_count(vec);
- 
- 	if (sg_alloc_table_from_pages(buf->dma_sgt, buf->pages,
- 			buf->num_pages, buf->offset, size, 0))
--		goto userptr_fail_alloc_table_from_pages;
-+		goto userptr_fail_sgtable;
- 
- 	sgt = &buf->sg_table;
- 	/*
-@@ -326,19 +274,9 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
- 
- userptr_fail_map:
- 	sg_free_table(&buf->sg_table);
--userptr_fail_alloc_table_from_pages:
--userptr_fail_get_user_pages:
--	dprintk(1, "get_user_pages requested/got: %d/%d]\n",
--		buf->num_pages, num_pages_from_user);
--	if (!vma_is_io(buf->vma))
--		while (--num_pages_from_user >= 0)
--			put_page(buf->pages[num_pages_from_user]);
--	down_read(&current->mm->mmap_sem);
--	vb2_put_vma(buf->vma);
--userptr_fail_find_vma:
--	up_read(&current->mm->mmap_sem);
--	kfree(buf->pages);
--userptr_fail_alloc_pages:
-+userptr_fail_sgtable:
-+	vb2_destroy_framevec(vec);
-+userptr_fail_pfnvec:
- 	kfree(buf);
- 	return NULL;
- }
-@@ -366,11 +304,8 @@ static void vb2_dma_sg_put_userptr(void *buf_priv)
- 	while (--i >= 0) {
- 		if (buf->dma_dir == DMA_FROM_DEVICE)
- 			set_page_dirty_lock(buf->pages[i]);
--		if (!vma_is_io(buf->vma))
--			put_page(buf->pages[i]);
- 	}
--	kfree(buf->pages);
--	vb2_put_vma(buf->vma);
-+	vb2_destroy_framevec(buf->vec);
- 	kfree(buf);
- }
- 
+ struct frame_vector *vb2_create_framevec(unsigned long start,
+ 					 unsigned long length,
+ 					 bool write);
 -- 
 2.1.4
 
