@@ -1,55 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 64A216B0253
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 05:34:11 -0400 (EDT)
-Received: by pachj5 with SMTP id hj5so29320271pac.3
-        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 02:34:11 -0700 (PDT)
-Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
-        by mx.google.com with ESMTPS id ol11si27581457pab.5.2015.07.13.02.34.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Jul 2015 02:34:10 -0700 (PDT)
-Received: by padck2 with SMTP id ck2so39993677pad.0
-        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 02:34:10 -0700 (PDT)
-Date: Mon, 13 Jul 2015 18:34:42 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH 0/2] mm/shrinker: make unregister_shrinker() less fragile
-Message-ID: <20150713092531.GA578@swordfish>
-References: <1436583115-6323-1-git-send-email-sergey.senozhatsky@gmail.com>
- <20150711100232.GA4607@infradead.org>
- <20150712024732.GA787@swordfish>
- <20150713063341.GA24167@infradead.org>
- <20150713065253.GA811@swordfish>
- <20150713090358.GA28901@infradead.org>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id CA6A36B0253
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2015 06:02:31 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so89769920pdr.2
+        for <linux-mm@kvack.org>; Mon, 13 Jul 2015 03:02:31 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id og9si26922902pbc.66.2015.07.13.03.02.29
+        for <linux-mm@kvack.org>;
+        Mon, 13 Jul 2015 03:02:30 -0700 (PDT)
+Message-ID: <55A38CB4.5050806@lge.com>
+Date: Mon, 13 Jul 2015 19:02:28 +0900
+From: Gioh Kim <gioh.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150713090358.GA28901@infradead.org>
+Subject: Re: [PATCH 0/4] enable migration of driver pages
+References: <1436776519-17337-1-git-send-email-gioh.kim@lge.com> <CALYGNiPZtJqcYW5Ob6TbRMGrJHP6zV7cKfbesBxprVQjqVmUSw@mail.gmail.com>
+In-Reply-To: <CALYGNiPZtJqcYW5Ob6TbRMGrJHP6zV7cKfbesBxprVQjqVmUSw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Jeff Layton <jlayton@poochiereds.net>, Bruce Fields <bfields@fieldses.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Al Viro <viro@zeniv.linux.org.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Minchan Kim <minchan@kernel.org>, Rafael Aquini <aquini@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, virtualization@lists.linux-foundation.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, dri-devel <dri-devel@lists.freedesktop.org>, Andrew Morton <akpm@linux-foundation.org>, Gioh Kim <gurugio@hanmail.net>
 
-On (07/13/15 02:03), Christoph Hellwig wrote:
-> On Mon, Jul 13, 2015 at 03:52:53PM +0900, Sergey Senozhatsky wrote:
-> > Why? In some sense, shrinker callbacks are just a way to be nice.
-> > No one writes a driver just to be able to handle shrinker calls. An
-> > ability to react to those calls is just additional option; it does
-> > not directly affect or limit driver's functionality (at least, it
-> > really should not).
-> 
-> No, they are not just nice.  They are a fundamental part of memory
-> management and required to reclaim (often large) amounts of memory.
 
-Yes. 'Nice' used in a sense that drivers have logic to release the
-memory anyway; mm asks volunteers (the drivers that have registered
-shrinker callbacks) to release some spare/wasted/etc. when things
-are getting tough (the drivers are not aware of that in general).
-This is surely important to mm, not to the driver though -- it just
-agrees to be 'nice', but even not expected to release any memory at
-all (IOW, this is not a contract).
 
-	-ss
+2015-07-13 i??i?? 6:24i?? Konstantin Khlebnikov i?'(e??) i?' e,?:
+> On Mon, Jul 13, 2015 at 11:35 AM, Gioh Kim <gioh.kim@lge.com> wrote:
+>> From: Gioh Kim <gurugio@hanmail.net>
+>>
+>> Hello,
+>>
+>> This series try to enable migration of non-LRU pages, such as driver's page.
+>>
+>> My ARM-based platform occured severe fragmentation problem after long-term
+>> (several days) test. Sometimes even order-3 page allocation failed. It has
+>> memory size 512MB ~ 1024MB. 30% ~ 40% memory is consumed for graphic processing
+>> and 20~30 memory is reserved for zram.
+>>
+>> I found that many pages of GPU driver and zram are non-movable pages. So I
+>> reported Minchan Kim, the maintainer of zram, and he made the internal
+>> compaction logic of zram. And I made the internal compaction of GPU driver.
+>>
+>> They reduced some fragmentation but they are not enough effective.
+>> They are activated by its own interface, /sys, so they are not cooperative
+>> with kernel compaction. If there is too much fragmentation and kernel starts
+>> to compaction, zram and GPU driver cannot work with the kernel compaction.
+>>
+>> So I thought there needs a interface to combine driver and kernel compaction.
+>> This patch adds a generic isolate/migrate/putback callbacks for page
+>> address-space and a new interface to create anon-inode to manage
+>> address_space_operation. The zram and GPU, and any other modules can create
+>> anon_inode and register its own migration method. The kernel compaction can
+>> call the registered migration when it does compaction.
+>>
+>> My GPU driver source is not in-kernel driver so that I apply the interface
+>> into balloon driver. The balloon driver is already merged
+>> into the kernel compaction as a corner-case. This patch have the balloon
+>> driver migration be called by the generic interface.
+>>
+>>
+>> This patch set combines 4 patches.
+>>
+>> 1. patch 1/4: get inode from anon_inodes
+>> This patch adds new interface to create inode from anon_inodes.
+>>
+>> 2. patch 2/4: framework to isolate/migrate/putback page
+>> Add isolatepage, putbackpage into address_space_operations
+>> and wrapper function to call them.
+>>
+>> 3. patch 3/4: apply the framework into balloon driver
+>> The balloon driver is applied into the framework. It gets a inode
+>> from anon_inodes and register operations in the inode.
+>> The kernel compaction calls generic interfaces, not balloon
+>> driver interfaces.
+>> Any other drivers can register operations via inode like this
+>> to migrate it's pages.
+>>
+>> 4. patch 4/4: remove direct calling of migration of driver pages
+>> Non-lru pages are also migrated with lru pages by move_to_new_page().
+>
+> The whole patchset looks good.
+>
+> Reviewed-by: Konstantin Khlebnikov <koct9i@gmail.com>
+>
+>>
+>> This patch set is tested:
+>> - turn on Ubuntu 14.04 with 1G memory on qemu.
+>> - do kernel building
+>> - after several seconds check more than 512MB is used with free command
+>> - command "balloon 512" in qemu monitor
+>> - check hundreds MB of pages are migrated
+>
+> Another simple test is several instances of
+> tools/testing/selftests/vm/transhuge-stress.c
+> runnng in parallel with balloon inflating/deflating.
+> (transparent huge pages must be enabled of course)
+> That catched a lot of races in ballooning code.
+>
+
+Great!
+I'll do it and inform you the result in this week.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
