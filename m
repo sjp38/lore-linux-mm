@@ -1,164 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B61C280250
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 11:37:55 -0400 (EDT)
-Received: by lahh5 with SMTP id h5so8427670lah.2
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 08:37:54 -0700 (PDT)
-Received: from forward-corp1o.mail.yandex.net (forward-corp1o.mail.yandex.net. [2a02:6b8:0:1a2d::1010])
-        by mx.google.com with ESMTPS id qo9si1245692lbc.100.2015.07.14.08.37.51
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Jul 2015 08:37:51 -0700 (PDT)
-Subject: [PATCH v4 5/5] pagemap: add mmap-exclusive bit for marking pages
- mapped only here
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Date: Tue, 14 Jul 2015 18:37:49 +0300
-Message-ID: <20150714153749.29844.81954.stgit@buzz>
-In-Reply-To: <20150714152516.29844.69929.stgit@buzz>
-References: <20150714152516.29844.69929.stgit@buzz>
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id E1C76280255
+	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 11:54:12 -0400 (EDT)
+Received: by igbpg9 with SMTP id pg9so15454119igb.0
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 08:54:12 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id z10si2471229pbt.122.2015.07.14.08.54.12
+        for <linux-mm@kvack.org>;
+        Tue, 14 Jul 2015 08:54:12 -0700 (PDT)
+Message-ID: <55A530A3.2080301@intel.com>
+Date: Tue, 14 Jul 2015 08:54:11 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Subject: 4.2-rc2: hitting "file-max limit 8192 reached"
+References: <1430231830-7702-1-git-send-email-mgorman@suse.de> <1430231830-7702-8-git-send-email-mgorman@suse.de>
+In-Reply-To: <1430231830-7702-8-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Mark Williamson <mwilliamson@undo-software.com>, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Nathan Zimmer <nzimmer@sgi.com>, Waiman Long <waiman.long@hp.com>, Scott Norton <scott.norton@hp.com>, Daniel J Blueman <daniel@numascale.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
 
-This patch sets bit 56 in pagemap if this page is mapped only once.
-It allows to detect exclusively used pages without exposing PFN:
+My laptop has been behaving strangely with 4.2-rc2.  Once I log in to my
+X session, I start getting all kinds of strange errors from applications
+and see this in my dmesg:
 
-present file exclusive state
-0       0    0         non-present
-1       1    0         file page mapped somewhere else
-1       1    1         file page mapped only here
-1       0    0         anon non-CoWed page (shared with parent/child)
-1       0    1         anon CoWed page (or never forked)
+	VFS: file-max limit 8192 reached
 
-CoWed pages in (MAP_FILE | MAP_PRIVATE) areas are anon in this context.
+Could this be from CONFIG_DEFERRED_STRUCT_PAGE_INIT=y?  files_init()
+seems top be sizing files_stat.max_files from memory sizes.
 
-MMap-exclusive bit doesn't reflect potential page-sharing via swapcache:
-page could be mapped once but has several swap-ptes which point to it.
-Application could detect that by swap bit in pagemap entry and touch
-that pte via /proc/pid/mem to get real information.
+vfs_caches_init() uses nr_free_pages() to figure out what the "current
+kernel size" is in early boot.  *But* since we have not freed most of
+our memory, nr_free_pages() is low and makes us calculate the reserve as
+if the kernel we huge.
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Requested-by: Mark Williamson <mwilliamson@undo-software.com>
-Link: http://lkml.kernel.org/r/CAEVpBa+_RyACkhODZrRvQLs80iy0sqpdrd0AaP_-tgnX3Y9yNQ@mail.gmail.com
----
- Documentation/vm/pagemap.txt |    3 ++-
- fs/proc/task_mmu.c           |   14 +++++++++++++-
- tools/vm/page-types.c        |   10 ++++++++++
- 3 files changed, 25 insertions(+), 2 deletions(-)
+Adding some printk's confirms this.  Broken kernel:
 
-diff --git a/Documentation/vm/pagemap.txt b/Documentation/vm/pagemap.txt
-index 6bfbc172cdb9..3cfbbb333ea1 100644
---- a/Documentation/vm/pagemap.txt
-+++ b/Documentation/vm/pagemap.txt
-@@ -16,7 +16,8 @@ There are three components to pagemap:
-     * Bits 0-4   swap type if swapped
-     * Bits 5-54  swap offset if swapped
-     * Bit  55    pte is soft-dirty (see Documentation/vm/soft-dirty.txt)
--    * Bits 56-60 zero
-+    * Bit  56    page exlusively mapped
-+    * Bits 57-60 zero
-     * Bit  61    page is file-page or shared-anon
-     * Bit  62    page swapped
-     * Bit  63    page present
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 3a5d338ea219..bac4c97f8ff8 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -947,6 +947,7 @@ struct pagemapread {
- #define PM_PFRAME_BITS		55
- #define PM_PFRAME_MASK		GENMASK_ULL(PM_PFRAME_BITS - 1, 0)
- #define PM_SOFT_DIRTY		BIT_ULL(55)
-+#define PM_MMAP_EXCLUSIVE	BIT_ULL(56)
- #define PM_FILE			BIT_ULL(61)
- #define PM_SWAP			BIT_ULL(62)
- #define PM_PRESENT		BIT_ULL(63)
-@@ -1034,6 +1035,8 @@ static pagemap_entry_t pte_to_pagemap_entry(struct pagemapread *pm,
- 
- 	if (page && !PageAnon(page))
- 		flags |= PM_FILE;
-+	if (page && page_mapcount(page) == 1)
-+		flags |= PM_MMAP_EXCLUSIVE;
- 	if (vma->vm_flags & VM_SOFTDIRTY)
- 		flags |= PM_SOFT_DIRTY;
- 
-@@ -1064,6 +1067,11 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
- 		 * This if-check is just to prepare for future implementation.
- 		 */
- 		if (pmd_present(pmd)) {
-+			struct page *page = pmd_page(pmd);
-+
-+			if (page_mapcount(page) == 1)
-+				flags |= PM_MMAP_EXCLUSIVE;
-+
- 			flags |= PM_PRESENT;
- 			if (pm->show_pfn)
- 				frame = pmd_pfn(pmd) +
-@@ -1129,6 +1137,9 @@ static int pagemap_hugetlb_range(pte_t *ptep, unsigned long hmask,
- 		if (!PageAnon(page))
- 			flags |= PM_FILE;
- 
-+		if (page_mapcount(page) == 1)
-+			flags |= PM_MMAP_EXCLUSIVE;
-+
- 		flags |= PM_PRESENT;
- 		if (pm->show_pfn)
- 			frame = pte_pfn(pte) +
-@@ -1161,7 +1172,8 @@ static int pagemap_hugetlb_range(pte_t *ptep, unsigned long hmask,
-  * Bits 0-4   swap type if swapped
-  * Bits 5-54  swap offset if swapped
-  * Bit  55    pte is soft-dirty (see Documentation/vm/soft-dirty.txt)
-- * Bits 56-60 zero
-+ * Bit  56    page exclusively mapped
-+ * Bits 57-60 zero
-  * Bit  61    page is file-page or shared-anon
-  * Bit  62    page swapped
-  * Bit  63    page present
-diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
-index 603ec916716b..7f73fa32a590 100644
---- a/tools/vm/page-types.c
-+++ b/tools/vm/page-types.c
-@@ -62,6 +62,7 @@
- #define PM_PFRAME_MASK		((1LL << PM_PFRAME_BITS) - 1)
- #define PM_PFRAME(x)		((x) & PM_PFRAME_MASK)
- #define PM_SOFT_DIRTY		(1ULL << 55)
-+#define PM_MMAP_EXCLUSIVE	(1ULL << 56)
- #define PM_FILE			(1ULL << 61)
- #define PM_SWAP			(1ULL << 62)
- #define PM_PRESENT		(1ULL << 63)
-@@ -91,6 +92,8 @@
- #define KPF_SLOB_FREE		49
- #define KPF_SLUB_FROZEN		50
- #define KPF_SLUB_DEBUG		51
-+#define KPF_FILE		62
-+#define KPF_MMAP_EXCLUSIVE	63
- 
- #define KPF_ALL_BITS		((uint64_t)~0ULL)
- #define KPF_HACKERS_BITS	(0xffffULL << 32)
-@@ -140,6 +143,9 @@ static const char * const page_flag_names[] = {
- 	[KPF_SLOB_FREE]		= "P:slob_free",
- 	[KPF_SLUB_FROZEN]	= "A:slub_frozen",
- 	[KPF_SLUB_DEBUG]	= "E:slub_debug",
-+
-+	[KPF_FILE]		= "F:file",
-+	[KPF_MMAP_EXCLUSIVE]	= "1:mmap_exclusive",
- };
- 
- 
-@@ -443,6 +449,10 @@ static uint64_t expand_overloaded_flags(uint64_t flags, uint64_t pme)
- 
- 	if (pme & PM_SOFT_DIRTY)
- 		flags |= BIT(SOFTDIRTY);
-+	if (pme & PM_FILE)
-+		flags |= BIT(FILE);
-+	if (pme & PM_MMAP_EXCLUSIVE)
-+		flags |= BIT(MMAP_EXCLUSIVE);
- 
- 	return flags;
- }
+	vfs_caches_init() mempages: 4026972
+	vfs_caches_init() reserve: 4021629
+	vfs_caches_init() mempages (after reserve minus): 5343
+	files_init() n: 2137
+	files_init() files_stat.max_files: 8192
+
+Working kernel:
+
+	vfs_caches_init() mempages: 4026972
+	vfs_caches_init() reserve: 375
+	vfs_caches_init() mempages2: 4026597
+	files_init() n: 1610638
+	files_init() files_stat.max_files: 1610638
+
+Do we have an alternative to call instead of nr_free_pages() in
+vfs_caches_init()?
+
+I guess we could save off 'nr_initialized' in memmap_init_zone() and
+then use "nr_initialized - nr_free_pages()", but that seems a bit hackish.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
