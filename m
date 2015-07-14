@@ -1,50 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E4EC06B026F
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 11:32:33 -0400 (EDT)
-Received: by wgjx7 with SMTP id x7so11781733wgj.2
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 08:32:33 -0700 (PDT)
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com. [74.125.82.50])
-        by mx.google.com with ESMTPS id r3si2483006wjo.69.2015.07.14.08.32.32
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 3291428024D
+	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 11:37:39 -0400 (EDT)
+Received: by lagx9 with SMTP id x9so8421930lag.1
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 08:37:38 -0700 (PDT)
+Received: from forward-corp1g.mail.yandex.net (forward-corp1g.mail.yandex.net. [95.108.253.251])
+        by mx.google.com with ESMTPS id t18si1228949laz.137.2015.07.14.08.37.36
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Jul 2015 08:32:32 -0700 (PDT)
-Received: by wgmn9 with SMTP id n9so11848274wgm.0
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 08:32:31 -0700 (PDT)
-Date: Tue, 14 Jul 2015 17:32:29 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 7/8] memcg: get rid of mm_struct::owner
-Message-ID: <20150714153229.GH17660@dhcp22.suse.cz>
-References: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
- <1436358472-29137-8-git-send-email-mhocko@kernel.org>
- <20150708173251.GG2436@esperanza>
- <20150709140941.GG13872@dhcp22.suse.cz>
- <20150710075400.GN2436@esperanza>
- <20150710124520.GA29540@dhcp22.suse.cz>
- <20150711070905.GO2436@esperanza>
+        Tue, 14 Jul 2015 08:37:37 -0700 (PDT)
+Subject: [PATCHSET v4 0/5] pagemap: make useable for non-privilege users
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Date: Tue, 14 Jul 2015 18:37:34 +0300
+Message-ID: <20150714152516.29844.69929.stgit@buzz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150711070905.GO2436@esperanza>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Mark Williamson <mwilliamson@undo-software.com>, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 
-On Sat 11-07-15 10:09:06, Vladimir Davydov wrote:
-[...]
-> Why can't we make root_mem_cgroup statically allocated? AFAICS it's a
-> common practice - e.g. see blkcg_root, root_task_group.
+This patchset makes pagemap useable again in the safe way (after row hammer
+bug it was made CAP_SYS_ADMIN-only). This patchset restores access for
+non-privileged users but hides PFNs from them.
 
-It's not that easy. mem_cgroup doesn't have a fixed size. It depends
-on the number of online nodes. I haven't looked closer to this yet but
-cgroup has an early init code path maybe we can hook in there.
+Also it adds bit 'map-exlusive' which is set if page is mapped only here:
+it helps in estimation of working set without exposing pfns and allows to
+distinguish CoWed and non-CoWed private anonymous pages.
 
-I would like to settle with the current issues described in other email
-first, though. This is just a cosmetic issue.
--- 
-Michal Hocko
-SUSE Labs
+Second patch removes page-shift bits and completes migration to the new
+pagemap format: flags soft-dirty and mmap-exlusive are available only
+in the new format.
+
+Changes since v3:
+* patches reordered: cleanup now in second patch
+* update pagemap for hugetlb, add missing 'FILE' bit
+* fix PM_PFRAME_BITS: its 55 not 54 as was in previous versions
+
+---
+
+Konstantin Khlebnikov (5):
+      pagemap: check permissions and capabilities at open time
+      pagemap: switch to the new format and do some cleanup
+      pagemap: rework hugetlb and thp report
+      pagemap: hide physical addresses from non-privileged users
+      pagemap: add mmap-exclusive bit for marking pages mapped only here
+
+
+ Documentation/vm/pagemap.txt |    3 
+ fs/proc/task_mmu.c           |  267 ++++++++++++++++++------------------------
+ tools/vm/page-types.c        |   35 +++---
+ 3 files changed, 137 insertions(+), 168 deletions(-)
+
+--
+Konstantin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
