@@ -1,71 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 659BB6B0282
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 18:52:53 -0400 (EDT)
-Received: by pacan13 with SMTP id an13so12595062pac.1
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 15:52:53 -0700 (PDT)
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id BB0E56B0285
+	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 19:03:02 -0400 (EDT)
+Received: by pdbqm3 with SMTP id qm3so13163788pdb.0
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 16:03:02 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id cm3si4066032pbb.125.2015.07.14.15.52.52
+        by mx.google.com with ESMTPS id ju8si4121351pbb.43.2015.07.14.16.03.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Jul 2015 15:52:52 -0700 (PDT)
-Date: Tue, 14 Jul 2015 15:52:51 -0700
+        Tue, 14 Jul 2015 16:03:02 -0700 (PDT)
+Date: Tue, 14 Jul 2015 16:03:00 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch v3 1/3] mm, oom: organize oom context into struct
-Message-Id: <20150714155251.ddb7ef5a54b3b1f49d5fc968@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.10.1507081641480.16585@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1506181555350.13736@chino.kir.corp.google.com>
-	<alpine.DEB.2.10.1507011435150.14014@chino.kir.corp.google.com>
-	<alpine.DEB.2.10.1507081641480.16585@chino.kir.corp.google.com>
+Subject: Re: [PATCH V2] checkpatch: Add some <foo>_destroy functions to
+ NEEDLESS_IF tests
+Message-Id: <20150714160300.e59bec100e2ba090bc5e2107@linux-foundation.org>
+In-Reply-To: <1433915549.2730.107.camel@perches.com>
+References: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com>
+	<20150609142523.b717dba6033ee08de997c8be@linux-foundation.org>
+	<1433894769.2730.87.camel@perches.com>
+	<1433911166.2730.98.camel@perches.com>
+	<1433915549.2730.107.camel@perches.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Joe Perches <joe@perches.com>
+Cc: Julia Lawall <julia.lawall@lip6.fr>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sergey.senozhatsky.work@gmail.com
 
-On Wed, 8 Jul 2015 16:42:42 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+On Tue, 09 Jun 2015 22:52:29 -0700 Joe Perches <joe@perches.com> wrote:
 
-> There are essential elements to an oom context that are passed around to
-> multiple functions.
+> Sergey Senozhatsky has modified several destroy functions that can
+> now be called with NULL values.
 > 
-> Organize these elements into a new struct, struct oom_control, that
-> specifies the context for an oom condition.
+>  - kmem_cache_destroy()
+>  - mempool_destroy()
+>  - dma_pool_destroy()
 > 
-> This patch introduces no functional change.
+> Update checkpatch to warn when those functions are preceded by an if.
 > 
-> ...
->
-> --- a/include/linux/oom.h
-> +++ b/include/linux/oom.h
-> @@ -12,6 +12,14 @@ struct notifier_block;
->  struct mem_cgroup;
->  struct task_struct;
->  
-> +struct oom_control {
-> +	struct zonelist *zonelist;
-> +	nodemask_t	*nodemask;
-> +	gfp_t		gfp_mask;
-> +	int		order;
-> +	bool		force_kill;
-> +};
+> Update checkpatch to --fix all the calls too only when the code style
+> form is using leading tabs.
+> 
+> from:
+> 	if (foo)
+> 		<func>(foo);
+> to:
+> 	<func>(foo);
 
-Some docs would be nice.
+There's also zpool_destroy_pool() and zs_destroy_pool().  Did we decide
+they're not worth bothering about?
 
-gfp_mask and order are what the page-allocating caller originally asked
-for, I think?  They haven't been mucked with?
-
-It's somewhat obvious what force_kill does, but why is it provided, why
-is it set?  And what does it actually kill?  A process which was
-selected based on the other fields...
-
-Also, it's a bit odd that zonelist and nodemask are here.  They're
-low-level implementation details whereas the other three fields are
-high-level caller control stuff.
-
-Anyway, please have a think about it.  The definition site for a controlling
-structure can be a great place to reveal the overall design and operation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
