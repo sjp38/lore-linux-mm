@@ -1,98 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id F23616B0266
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 11:18:26 -0400 (EDT)
-Received: by wgjx7 with SMTP id x7so11452999wgj.2
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 08:18:26 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o8si2424399wjo.49.2015.07.14.08.18.24
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 14 Jul 2015 08:18:25 -0700 (PDT)
-Date: Tue, 14 Jul 2015 17:18:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 7/8] memcg: get rid of mm_struct::owner
-Message-ID: <20150714151823.GG17660@dhcp22.suse.cz>
-References: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
- <1436358472-29137-8-git-send-email-mhocko@kernel.org>
- <20150710140533.GB29540@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150710140533.GB29540@dhcp22.suse.cz>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id A29BC6B026D
+	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 11:30:05 -0400 (EDT)
+Received: by pactm7 with SMTP id tm7so7434587pac.2
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 08:30:05 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id fo3si2409372pad.17.2015.07.14.08.30.04
+        for <linux-mm@kvack.org>;
+        Tue, 14 Jul 2015 08:30:04 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <55A4D110.2070103@redhat.com>
+References: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <55A4D110.2070103@redhat.com>
+Subject: Re: [PATCH 00/36] THP refcounting redesign
+Content-Transfer-Encoding: 7bit
+Message-Id: <20150714152929.141F2118@black.fi.intel.com>
+Date: Tue, 14 Jul 2015 18:29:29 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Jerome Marchand <jmarchan@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 10-07-15 16:05:33, Michal Hocko wrote:
-> JFYI: I've found some more issues while hamerring this more.
+Jerome Marchand wrote:
+> On 07/10/2015 07:41 PM, Kirill A. Shutemov wrote:
+> > Hello everybody,
+> > 
+> ...
+> > 
+> > git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git thp/refcounting/v5
+> > 
+> 
+> I guess you mean thp/refcounting/v8.
 
-OK so the main issue is quite simple but I have completely missed it when
-thinking about the patch before. clone(CLONE_VM) without CLONE_THREAD is
-really nasty and it will easily lockup the machine with preempt. disabled
-for ever. It goes like this:
-taskA (in memcg A)
-  taskB = clone(CLONE_VM)
-				taskB
-				  A -> B	# Both tasks charge to B now
-				  exit()	# No tasks in B -> can be
-				  		# offlined now
-				css_offline()
-  mem_cgroup_try_charge
-    get_mem_cgroup_from_mm
-      rcu_read_lock()
-      do {
-      } while css_tryget_online(mm->memcg)	# will never succeed
-      rcu_read_unlock()
+Right.
 
-taskA and taskB are basically independent entities wrt. the life
-cycle (unlike threads which are bound to the group leader). The
-previous code handles this by re-ownering during exit by the monster
-mm_update_next_owner.
+> Also you might want to add v8 to the subject.
 
-I can see the following options without reintroducing reintroducing
-some form of mm_update_next_owner:
+Yeah, sorry.
 
-1) Do not allow offlining a cgroup if we have active users in it.  This
-would require a callback from the cgroup core to the subsystem called if
-there are no active tasks tracked by the cgroup core. Tracking on the memcg
-side doesn't sound terribly hard - just mark a mm_struct as an alien and
-count the number of aliens during the move in mem_cgroup. mm_drop_memcg
-then drops the counter. We could end up with EBUSY cgroup without any
-visible tasks which is a bit awkward.
+> Still on the cosmetic side, checkpatch.pl show quite a few
+> coding style errors and warnings. You'll make maintainer life easier by
+> running checkpatch on your serie.
 
-2) update get_mem_cgroup_from_mm and others to fallback to the parent
-memcg if the current one is offline. This would be in line with charge
-reparenting we used to do. I cannot say I would like this because it
-allows for easy runaway to the root memcg if the hierarchy is not
-configured cautiously. The code would be also quite tricky because each
-direct consumer of mm->memcg would have to be aware of this. This is
-awkward.
+I've sent fixlets which addresses checkpach complains.
 
-3) fail mem_cgroup_can_attach if we are trying to migrate a task sharing
-mm_struct with a process outside of the tset. If I understand the
-tset properly this would require all the sharing tasks to be migrated
-together and we would never end up with task_css != &task->mm->css.
-__cgroup_procs_write doesn't seem to support multi pid move currently
-AFAICS, though. cgroup_migrate_add_src, however, seems to be intended
-for this purpose so this should be doable. Without that support we would
-basically disallow migrating these tasks - I wouldn't object if you ask
-me.
+I didn't fix warnings
 
-Do you see other options? From the above three options the 3rd one
-sounds the most sane to me and the 1st quite easy to implement. Both will
-require some cgroup core work though. But maybe we would be good enough
-with 3rd option without supporting moving schizophrenic tasks and that
-would be reduced to memcg code.
+"WARNING: Missing a blank line after declarations"
 
-Or we can, of course, stay with the current state but I think it would
-be much saner to get rid of the schizophrenia.
+I'm not convinced fixing them make any good, but I can if Andrew thinks it's
+beneficial.
 
-What do you think?
--- 
-Michal Hocko
-SUSE Labs
+I've updated the branch with checkpatch fixes.
+
+> On the content side: I've quickly tested this version without finding
+> any issue so far.
+> 
+> Thanks,
+> Jerome
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
