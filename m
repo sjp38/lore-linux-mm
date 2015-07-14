@@ -1,105 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 049C428024D
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 17:07:11 -0400 (EDT)
-Received: by pdbqm3 with SMTP id qm3so11862875pdb.0
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 14:07:10 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id rx6si3668666pab.219.2015.07.14.14.07.09
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id C715428024D
+	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 17:13:19 -0400 (EDT)
+Received: by iggf3 with SMTP id f3so21982417igg.1
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 14:13:19 -0700 (PDT)
+Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com. [2607:f8b0:4001:c03::234])
+        by mx.google.com with ESMTPS id m17si2400407icr.79.2015.07.14.14.13.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Jul 2015 14:07:10 -0700 (PDT)
-Date: Tue, 14 Jul 2015 14:07:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm: show proportional swap share of the mapping
-Message-Id: <20150714140708.c7a406aa2bf43ecf73844e96@linux-foundation.org>
-In-Reply-To: <1434373614-1041-1-git-send-email-minchan@kernel.org>
-References: <1434373614-1041-1-git-send-email-minchan@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 14 Jul 2015 14:13:19 -0700 (PDT)
+Received: by ietj16 with SMTP id j16so20477153iet.0
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 14:13:19 -0700 (PDT)
+Date: Tue, 14 Jul 2015 14:13:16 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 2/7] mm: introduce kvmalloc and kvmalloc_node
+In-Reply-To: <alpine.LRH.2.02.1507091039440.30842@file01.intranet.prod.int.rdu2.redhat.com>
+Message-ID: <alpine.DEB.2.10.1507141401170.16182@chino.kir.corp.google.com>
+References: <alpine.LRH.2.02.1507071058350.23387@file01.intranet.prod.int.rdu2.redhat.com> <alpine.LRH.2.02.1507071109490.23387@file01.intranet.prod.int.rdu2.redhat.com> <20150707144117.5b38ac38efda238af8a1f536@linux-foundation.org>
+ <alpine.LRH.2.02.1507081855340.32526@file01.intranet.prod.int.rdu2.redhat.com> <20150708161815.bdff609d77868dbdc2e1ce64@linux-foundation.org> <alpine.LRH.2.02.1507091039440.30842@file01.intranet.prod.int.rdu2.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Bongkyu Kim <bongkyu.kim@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Jonathan Corbet <corbet@lwn.net>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mike Snitzer <msnitzer@redhat.com>, "Alasdair G. Kergon" <agk@redhat.com>, Edward Thornber <thornber@redhat.com>, Vivek Goyal <vgoyal@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dm-devel@redhat.com, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Mon, 15 Jun 2015 22:06:54 +0900 Minchan Kim <minchan@kernel.org> wrote:
+On Thu, 9 Jul 2015, Mikulas Patocka wrote:
 
-> We want to know per-process workingset size for smart memory management
-> on userland and we use swap(ex, zram) heavily to maximize memory efficiency
-> so workingset includes swap as well as RSS.
+> > > Index: linux-4.2-rc1/mm/util.c
+> > > ===================================================================
+> > > --- linux-4.2-rc1.orig/mm/util.c	2015-07-07 15:58:11.000000000 +0200
+> > > +++ linux-4.2-rc1/mm/util.c	2015-07-08 19:22:26.000000000 +0200
+> > > @@ -316,6 +316,61 @@ unsigned long vm_mmap(struct file *file,
+> > >  }
+> > >  EXPORT_SYMBOL(vm_mmap);
+> > >  
+> > > +void *kvmalloc_node(size_t size, gfp_t gfp, int node)
+> > > +{
+> > > +	void *p;
+> > > +	unsigned uninitialized_var(noio_flag);
+> > > +
+> > > +	/* vmalloc doesn't support no-wait allocations */
+> > > +	WARN_ON_ONCE(!(gfp & __GFP_WAIT));
+> > > +
+> > > +	if (likely(size <= KMALLOC_MAX_SIZE)) {
+> > > +		/*
+> > > +		 * Use __GFP_NORETRY so that we don't loop waiting for the
+> > > +		 *	allocation - we don't have to loop here, if the memory
+> > > +		 *	is too fragmented, we fallback to vmalloc.
+> > 
+> > I'm not sure about this decision.  The direct reclaim retry code is the
+> > normal default behaviour and becomes more important with larger allocation
+> > attempts.  So why turn it off, and make it more likely that we return
+> > vmalloc memory?
 > 
-> On such system, if there are lots of shared anonymous pages, it's
-> really hard to figure out exactly how many each process consumes
-> memory(ie, rss + wap) if the system has lots of shared anonymous
-> memory(e.g, android).
+> It can avoid triggering the OOM killer in case of fragmented memory.
 > 
-> This patch introduces SwapPss field on /proc/<pid>/smaps so we can get
-> more exact workingset size per process.
+> This is general question - if the code can handle allocation failure 
+> gracefully, what gfp flags should it use? Maybe add some flag 
+> __GFP_MAYFAIL instead of __GFP_NORETRY that changes the behavior in 
+> desired way?
 > 
-> ...
->
-> +int swp_swapcount(swp_entry_t entry)
-> +{
-> +	int count, tmp_count, n;
-> +	struct swap_info_struct *p;
-> +	struct page *page;
-> +	pgoff_t offset;
-> +	unsigned char *map;
-> +
-> +	p = swap_info_get(entry);
-> +	if (!p)
-> +		return 0;
-> +
-> +	count = swap_count(p->swap_map[swp_offset(entry)]);
-> +	if (!(count & COUNT_CONTINUED))
-> +		goto out;
-> +
-> +	count &= ~COUNT_CONTINUED;
-> +	n = SWAP_MAP_MAX + 1;
-> +
-> +	offset = swp_offset(entry);
-> +	page = vmalloc_to_page(p->swap_map + offset);
-> +	offset &= ~PAGE_MASK;
-> +	VM_BUG_ON(page_private(page) != SWP_CONTINUED);
-> +
-> +	do {
-> +		page = list_entry(page->lru.next, struct page, lru);
-> +		map = kmap_atomic(page) + offset;
-> +		tmp_count = *map;
-> +		kunmap_atomic(map);
 
-A little thing: I've never liked the way that kunmap_atomic() accepts
-any address within the page.  It's weird, and it makes the reviewer
-have to scramble around to make sure the offset can never be >=
-PAGE_SIZE.
+There's a misunderstanding in regards to the comment: __GFP_NORETRY 
+doesn't turn direct reclaim or compaction off, it is still attempted and 
+with the same priority as any other allocation.  This only stops the page 
+allocator from calling the oom killer, which will free memory or panic the 
+system, and looping when memory is available.
 
-We can easily avoid doing it here:
+In regards to the proposal in general, I think it's unnecessary because we 
+are still left behind with other users who open code their call to 
+vmalloc.  I was interested in commit 058504edd026 ("fs/seq_file: fallback 
+to vmalloc allocation") since it solved an issue with high memory 
+fragmentation.  Note how it falls back to vmalloc(): _without_ this 
+__GFP_NORETRY.  That's because we only want to fallback when high-order 
+allocations fail and the page allocator doesn't implicitly loop due to the 
+order.  ext4_kvmalloc(), ext4_kzmalloc() does the same.
 
---- a/mm/swapfile.c~mm-show-proportional-swap-share-of-the-mapping-fix
-+++ a/mm/swapfile.c
-@@ -904,8 +904,8 @@ int swp_swapcount(swp_entry_t entry)
- 
- 	do {
- 		page = list_entry(page->lru.next, struct page, lru);
--		map = kmap_atomic(page) + offset;
--		tmp_count = *map;
-+		map = kmap_atomic(page);
-+		tmp_count = map[offset];
- 		kunmap_atomic(map);
- 
- 		count += (tmp_count & ~COUNT_CONTINUED) * n;
-
-> +		count += (tmp_count & ~COUNT_CONTINUED) * n;
-> +		n *= (SWAP_CONT_MAX + 1);
-> +	} while (tmp_count & COUNT_CONTINUED);
-> +out:
-> +	spin_unlock(&p->lock);
-> +	return count;
-> +}
->
-> ...
->
+The differences in implementations between those that do kmalloc() and 
+fallback to vmalloc() are different enough that I don't think we need this 
+addition.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
