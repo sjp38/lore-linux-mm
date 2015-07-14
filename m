@@ -1,115 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 001BC280246
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 10:41:16 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so7013991pdr.2
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 07:41:16 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id dl10si2187508pdb.10.2015.07.14.07.41.15
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 21CB7280246
+	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 11:04:52 -0400 (EDT)
+Received: by pdbep18 with SMTP id ep18so7615137pdb.1
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 08:04:51 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id qa6si2249252pab.102.2015.07.14.08.04.50
         for <linux-mm@kvack.org>;
-        Tue, 14 Jul 2015 07:41:16 -0700 (PDT)
-From: "Skidmore, Donald C" <donald.c.skidmore@intel.com>
-Subject: RE: [linux-nics] [E1000-devel] bad pages when up/down network cable
-Date: Tue, 14 Jul 2015 14:40:48 +0000
-Message-ID: <F6FB0E698C9B3143BDF729DF22286646913127E5@ORSMSX110.amr.corp.intel.com>
-References: <55A4C8F1.4000104@huawei.com>
-	<CAD=hENdLy_K6LFE3Cm2nfxxVOhWRZWiJmKX5-EKdoBtnWP3MJQ@mail.gmail.com>
-	<55A4D55A.2080903@huawei.com> <55A4D823.2090900@huawei.com>
-In-Reply-To: <55A4D823.2090900@huawei.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        Tue, 14 Jul 2015 08:04:51 -0700 (PDT)
+Date: Tue, 14 Jul 2015 16:04:45 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v2 5/5] arm64: add KASan support
+Message-ID: <20150714150445.GH13555@e104818-lin.cambridge.arm.com>
+References: <1431698344-28054-1-git-send-email-a.ryabinin@samsung.com>
+ <1431698344-28054-6-git-send-email-a.ryabinin@samsung.com>
+ <20150708154803.GE6944@e104818-lin.cambridge.arm.com>
+ <559FFCA7.4060008@samsung.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <559FFCA7.4060008@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>, zhuyj <zyjzyj2000@gmail.com>
-Cc: guozhibin 00179312 <g00179312@notesmail.huawei.com.cn>, Linux MM <linux-mm@kvack.org>, Linux NICS <Linux-nics@isotope.jf.intel.com>, LKML <linux-kernel@vger.kernel.org>, "e1000-devel@lists.sourceforge.net" <e1000-devel@lists.sourceforge.net>
+To: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, David Keitel <dkeitel@codeaurora.org>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org
 
-SGV5IFhpc2hpLA0KDQpZb3UgYXJlIHVzaW5nIGEgcmVhbGx5IG9sZCBkcml2ZXIsIG91ciBjdXJy
-ZW50IGlzIDQuMS4xIGFuZCAzLjkgZGF0ZXMgdG8gb3ZlciAzIHllYXJzIGFnby4gIFdlIGhhdmUg
-bWFrZXMgY2hhbmdlcyB0byBzdXBwb3J0IHN1cnByaXNlIHJlbW92YWwgdGhhdCB2ZXJ5IHdlbGwg
-bWF5IGFkZHJlc3MgdGhpcyBpc3N1ZS4gIEhhdmUgeW91IGF0dGVtcHRlZCB0byByZWNyZWF0ZSB0
-aGlzIGZhaWx1cmUgd2l0aCB0aGUgbGF0ZXN0IG91dCBvZiB0cmVlIGRyaXZlcj8NCg0KVGhhbmtz
-LA0KLURvbiA8ZG9uYWxkLmMuc2tpZG1vcmVAaW50ZWwuY29tPg0KDQoNCg0KPiAtLS0tLU9yaWdp
-bmFsIE1lc3NhZ2UtLS0tLQ0KPiBGcm9tOiBsaW51eC1uaWNzLWJvdW5jZXNAaXNvdG9wZS5qZi5p
-bnRlbC5jb20gW21haWx0bzpsaW51eC1uaWNzLQ0KPiBib3VuY2VzQGlzb3RvcGUuamYuaW50ZWwu
-Y29tXSBPbiBCZWhhbGYgT2YgWGlzaGkgUWl1DQo+IFNlbnQ6IFR1ZXNkYXksIEp1bHkgMTQsIDIw
-MTUgMjozNyBBTQ0KPiBUbzogemh1eWoNCj4gQ2M6IGd1b3poaWJpbiAwMDE3OTMxMjsgTGludXgg
-TU07IExpbnV4IE5JQ1M7IExLTUw7IGUxMDAwLQ0KPiBkZXZlbEBsaXN0cy5zb3VyY2Vmb3JnZS5u
-ZXQNCj4gU3ViamVjdDogUmU6IFtsaW51eC1uaWNzXSBbRTEwMDAtZGV2ZWxdIGJhZCBwYWdlcyB3
-aGVuIHVwL2Rvd24gbmV0d29yaw0KPiBjYWJsZQ0KPiANCj4gT24gMjAxNS83LzE0IDE3OjI0LCBY
-aXNoaSBRaXUgd3JvdGU6DQo+IA0KPiA+IE9uIDIwMTUvNy8xNCAxNzowMCwgemh1eWogd3JvdGU6
-DQo+ID4NCj4gPj4gRG8geW91IHVzZSB0aGUgZGVmYXVsdCBpeGdiZSBkcml2ZXI/IG9yIHRoZSBp
-eGdiZSBkcml2ZXIgaXMgbW9kaWZpZWQgYnkNCj4geW91Pw0KPiA+Pg0KPiA+DQo+ID4gWWVz77yM
-bm8gbW9kaWZ5Lg0KPiA+DQo+IA0KPiBTb3JyeSwgaXQgaXMgbW9kaWZpZWQgYnkgdXMuLi4NCj4g
-DQo+IHRoZSBkcml2ZXIgY29tZSBmcm9tIGludGVs77yMdGhlIGluZm/vvJoNCj4gcm9vdDp+ICMg
-ZXRodG9vbCAtaSBwMnAyDQo+IGRyaXZlcjogaXhnYmUNCj4gdmVyc2lvbjogMy45LjE2LU5BUEkN
-Cj4gZmlybXdhcmUtdmVyc2lvbjogMHgxOGYxMDAwMQ0KPiBidXMtaW5mbzogMDAwMDowNDowMC4x
-DQo+IHN1cHBvcnRzLXN0YXRpc3RpY3M6IHllcw0KPiBzdXBwb3J0cy10ZXN0OiB5ZXMNCj4gc3Vw
-cG9ydHMtZWVwcm9tLWFjY2VzczogeWVzDQo+IHN1cHBvcnRzLXJlZ2lzdGVyLWR1bXA6IHllcw0K
-PiANCj4gVGhhbmtzLA0KPiBYaXNoaSBRaXUNCj4gDQo+ID4NCj4gPj4gT24gVHVlLCBKdWwgMTQs
-IDIwMTUgYXQgNDozMSBQTSwgWGlzaGkgUWl1IDxxaXV4aXNoaUBodWF3ZWkuY29tDQo+IDxtYWls
-dG86cWl1eGlzaGlAaHVhd2VpLmNvbT4+IHdyb3RlOg0KPiA+Pg0KPiA+PiAgICAgMeOAgXRoZSBo
-b3N0IGRpcmVjdGx5IGxpbmsgdG8gdGhlIHN0b3JhZ2UgZGV2aWNl77yMYnkgaW50ZWwgaXhnYmUg
-TklDOw0KPiA+PiAgICAgYmV0d2VlbiB0aGVtLCBubyBzd2l0Y2ggb3Igcm91dGVyLg0KPiA+PiAg
-ICAgMuOAgXRoZSBuaWMgb2YgdGhlIHN0b3JhZ2UgZGV2aWNlIHN1ZGRlbmx5IGJlY29tZSB1bnVz
-ZWQgYW5kIHRoZW4gT0sNCj4gPj4gICAgIGFmdGVyIGEgbGl0dGxlIHRpbWUsIHRoaXMgaGFwcGVu
-ZWQgZnJlcXVlbmN5Lg0KPiA+PiAgICAgM+OAgXRoZSBob3N0IHByaW50ayBhIGxvdCBvZiBtZXNz
-YWdlIGxpa2UgdGhlc2U6DQo+ID4+DQo+ID4+ICAgICBUaGUga2VybmVsIGlzIFNVU0UgMy4wLjEz
-LCB1c2Ugc2xhYiwgYW5kIHRoZSBmb2xsb3dpbmcgbG9nIHNob3dzIHRoZQ0KPiA+PiAgICAgcGFn
-ZSBzdGlsbCBoYXZlIFBHX3NsYWIgd2hlbiBmcmVlX3BhZ2VzKCkuIERvZXMgYW55b25lIGhhdmUg
-c2VlbiB0aGUNCj4gPj4gICAgIHByb2JsZW0/DQo+ID4+DQo+ID4+ICAgICBKdWwgIDkgMTE6MzE6
-MzYgcm9vdCBrZXJuZWw6IFsxMDQyMjkxLjk3NzU2NV0gQlVHOiBCYWQgcGFnZSBzdGF0ZSBpbg0K
-PiBwcm9jZXNzIHN3YXBwZXIgIHBmbjowMGJmMg0KPiA+PiAgICAgSnVsICA5IDExOjMxOjM2IHJv
-b3Qga2VybmVsOiBbMTA0MjI5MS45Nzc1NjhdIHBhZ2U6ZmZmZmVhMDAwMDAyOWNmMA0KPiBjb3Vu
-dDowIG1hcGNvdW50OjAgbWFwcGluZzogICAgICAgICAgKG51bGwpIGluZGV4OjB4N2Y2ZDRmNTAw
-DQo+ID4+ICAgICBKdWwgIDkgMTE6MzE6MzYgcm9vdCBrZXJuZWw6IFsxMDQyMjkxLjk3NzU3MV0g
-cGFnZSBmbGFnczoNCj4gMHg0MDAwMDAwMDAwMDEwMChzbGFiKSAgLy8gaGVyZSBpcyB0aGUgcmVh
-c29uDQo+ID4+ICAgICBKdWwgIDkgMTE6MzE6MzYgcm9vdCBrZXJuZWw6IFsxMDQyMjkxLjk3NzU3
-NF0gUGlkOiAwLCBjb21tOiBzd2FwcGVyDQo+IFRhaW50ZWQ6IEcgICAgQiAgICAgICBYIDMuMC4x
-My0wLjI3LWRlZmF1bHQgIzENCj4gPj4gICAgIEp1bCAgOSAxMTozMTozNiByb290IGtlcm5lbDog
-WzEwNDIyOTEuOTc3NTc3XSBDYWxsIFRyYWNlOg0KPiA+PiAgICAgSnVsICA5IDExOjMxOjM2IHJv
-b3Qga2VybmVsOiBbMTA0MjI5MS45Nzc1ODNdICBbPGZmZmZmZmZmODEwMDQ4YjU+XQ0KPiBkdW1w
-X3RyYWNlKzB4NzUvMHgzMDANCj4gPj4gICAgIEp1bCAgOSAxMTozMTozNiByb290IGtlcm5lbDog
-WzEwNDIyOTEuOTc3NjM5XSAgWzxmZmZmZmZmZjgxNDNlYTBmPl0NCj4gZHVtcF9zdGFjaysweDY5
-LzB4NmYNCj4gPj4gICAgIEp1bCAgOSAxMTozMTozNiByb290IGtlcm5lbDogWzEwNDIyOTEuOTc3
-NjQ0XSAgWzxmZmZmZmZmZjgxMGY1M2ExPl0NCj4gYmFkX3BhZ2UrMHhiMS8weDEyMA0KPiA+PiAg
-ICAgSnVsICA5IDExOjMxOjM3IHJvb3Qga2VybmVsOiBbMTA0MjI5MS45Nzc2NDldICBbPGZmZmZm
-ZmZmODEwZjU5MjY+XQ0KPiBmcmVlX3BhZ2VzX3ByZXBhcmUrMHhlNi8weDExMA0KPiA+PiAgICAg
-SnVsICA5IDExOjMxOjM3IHJvb3Qga2VybmVsOiBbMTA0MjI5MS45Nzc2NTRdICBbPGZmZmZmZmZm
-ODEwZjkyNTk+XQ0KPiBmcmVlX2hvdF9jb2xkX3BhZ2UrMHg0OS8weDFmMA0KPiA+PiAgICAgSnVs
-ICA5IDExOjMxOjM3IHJvb3Qga2VybmVsOiBbMTA0MjI5MS45Nzc2NjBdICBbPGZmZmZmZmZmODEz
-N2EzYjQ+XQ0KPiBza2JfcmVsZWFzZV9kYXRhKzB4YjQvMHhlMA0KPiA+PiAgICAgSnVsICA5IDEx
-OjMxOjM3IHJvb3Qga2VybmVsOiBbMTA0MjI5MS45Nzc2NjVdICBbPGZmZmZmZmZmODEzNzllNzk+
-XQ0KPiBfX2tmcmVlX3NrYisweDkvMHg5MA0KPiA+PiAgICAgSnVsICA5IDExOjMxOjM3IHJvb3Qg
-a2VybmVsOiBbMTA0MjI5MS45Nzc2NzZdICBbPGZmZmZmZmZmYTAyNzg0YTk+XQ0KPiBpeGdiZV9j
-bGVhbl90eF9pcnErMHhhOS8weDQ4MCBbaXhnYmVdDQo+ID4+ICAgICBKdWwgIDkgMTE6MzE6Mzcg
-cm9vdCBrZXJuZWw6IFsxMDQyMjkxLjk3NzY5M10gIFs8ZmZmZmZmZmZhMDI3ODhjYj5dDQo+IGl4
-Z2JlX3BvbGwrMHg0Yi8weDFhMCBbaXhnYmVdDQo+ID4+ICAgICBKdWwgIDkgMTE6MzE6Mzcgcm9v
-dCBrZXJuZWw6IFsxMDQyMjkxLjk3NzcwNV0gIFs8ZmZmZmZmZmY4MTM4OWMzYT5dDQo+IG5ldF9y
-eF9hY3Rpb24rMHgxMGEvMHgyYzANCj4gPj4gICAgIEp1bCAgOSAxMTozMTozNyByb290IGtlcm5l
-bDogWzEwNDIyOTEuOTc3NzExXSAgWzxmZmZmZmZmZjgxMDYwYTFmPl0NCj4gX19kb19zb2Z0aXJx
-KzB4ZWYvMHgyMjANCj4gPj4gICAgIEp1bCAgOSAxMTozMTozNyByb290IGtlcm5lbDogWzEwNDIy
-OTEuOTc3NzE2XSAgWzxmZmZmZmZmZjgxNDRhOGJjPl0NCj4gY2FsbF9zb2Z0aXJxKzB4MWMvMHgz
-MA0KPiA+PiAgICAgSnVsICA5IDExOjMxOjM3IHJvb3Qga2VybmVsOiBbMTA0MjI5MS45Nzg5NzRd
-IERXQVJGMiB1bndpbmRlciBzdHVjayBhdA0KPiBjYWxsX3NvZnRpcnErMHgxYy8weDMwDQo+ID4+
-DQo+ID4+ICAgICBUaGFua3MsDQo+ID4+ICAgICBYaXNoaSBRaXUNCj4gPj4NCj4gPj4NCj4gPj4g
-ICAgIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQ0KPiA+PiAgICAgRG9uJ3QgTGltaXQgWW91ciBCdXNp
-bmVzcy4gUmVhY2ggZm9yIHRoZSBDbG91ZC4NCj4gPj4gICAgIEdpZ2VORVQncyBDbG91ZCBTb2x1
-dGlvbnMgcHJvdmlkZSB5b3Ugd2l0aCB0aGUgdG9vbHMgYW5kIHN1cHBvcnQgdGhhdA0KPiA+PiAg
-ICAgeW91IG5lZWQgdG8gb2ZmbG9hZCB5b3VyIElUIG5lZWRzIGFuZCBmb2N1cyBvbiBncm93aW5n
-IHlvdXIgYnVzaW5lc3MuDQo+ID4+ICAgICBDb25maWd1cmVkIEZvciBBbGwgQnVzaW5lc3Nlcy4g
-U3RhcnQgWW91ciBDbG91ZCBUb2RheS4NCj4gPj4gICAgIGh0dHBzOi8vd3d3LmdpZ2VuZXRjbG91
-ZC5jb20vDQo+ID4+ICAgICBfX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19f
-X19fX19fXw0KPiA+PiAgICAgRTEwMDAtZGV2ZWwgbWFpbGluZyBsaXN0DQo+ID4+ICAgICBFMTAw
-MC1kZXZlbEBsaXN0cy5zb3VyY2Vmb3JnZS5uZXQgPG1haWx0bzpFMTAwMC0NCj4gZGV2ZWxAbGlz
-dHMuc291cmNlZm9yZ2UubmV0Pg0KPiA+PiAgICAgaHR0cHM6Ly9saXN0cy5zb3VyY2Vmb3JnZS5u
-ZXQvbGlzdHMvbGlzdGluZm8vZTEwMDAtZGV2ZWwNCj4gPj4gICAgIFRvIGxlYXJuIG1vcmUgYWJv
-dXQgSW50ZWwmIzE3NDsgRXRoZXJuZXQsIHZpc2l0DQo+IGh0dHA6Ly9jb21tdW5pdGllcy5pbnRl
-bC5jb20vY29tbXVuaXR5L3dpcmVkDQo+ID4+DQo+ID4+DQo+ID4NCj4gPg0KPiANCj4gDQo+IA0K
-PiBfX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fXw0KPiBMaW51
-eC1uaWNzIG1haWxpbmcgbGlzdA0KPiBMaW51eC1uaWNzQGludGVsLmNvbQ0K
+On Fri, Jul 10, 2015 at 08:11:03PM +0300, Andrey Ryabinin wrote:
+> >> +#if CONFIG_PGTABLE_LEVELS > 3
+> >> +pud_t kasan_zero_pud[PTRS_PER_PUD] __page_aligned_bss;
+> >> +#endif
+> >> +#if CONFIG_PGTABLE_LEVELS > 2
+> >> +pmd_t kasan_zero_pmd[PTRS_PER_PMD] __page_aligned_bss;
+> >> +#endif
+> >> +pte_t kasan_zero_pte[PTRS_PER_PTE] __page_aligned_bss;
+> >> +
+> >> +static void __init kasan_early_pmd_populate(unsigned long start,
+> >> +					unsigned long end, pud_t *pud)
+> >> +{
+> >> +	unsigned long addr;
+> >> +	unsigned long next;
+> >> +	pmd_t *pmd;
+> >> +
+> >> +	pmd = pmd_offset(pud, start);
+> >> +	for (addr = start; addr < end; addr = next, pmd++) {
+> >> +		pmd_populate_kernel(&init_mm, pmd, kasan_zero_pte);
+> >> +		next = pmd_addr_end(addr, end);
+> >> +	}
+> >> +}
+> >> +
+> >> +static void __init kasan_early_pud_populate(unsigned long start,
+> >> +					unsigned long end, pgd_t *pgd)
+> >> +{
+> >> +	unsigned long addr;
+> >> +	unsigned long next;
+> >> +	pud_t *pud;
+> >> +
+> >> +	pud = pud_offset(pgd, start);
+> >> +	for (addr = start; addr < end; addr = next, pud++) {
+> >> +		pud_populate(&init_mm, pud, kasan_zero_pmd);
+> >> +		next = pud_addr_end(addr, end);
+> >> +		kasan_early_pmd_populate(addr, next, pud);
+> >> +	}
+> >> +}
+> >> +
+> >> +static void __init kasan_map_early_shadow(pgd_t *pgdp)
+> >> +{
+> >> +	int i;
+> >> +	unsigned long start = KASAN_SHADOW_START;
+> >> +	unsigned long end = KASAN_SHADOW_END;
+> >> +	unsigned long addr;
+> >> +	unsigned long next;
+> >> +	pgd_t *pgd;
+> >> +
+> >> +	for (i = 0; i < PTRS_PER_PTE; i++)
+> >> +		set_pte(&kasan_zero_pte[i], pfn_pte(
+> >> +				virt_to_pfn(kasan_zero_page), PAGE_KERNEL));
+> >> +
+> >> +	pgd = pgd_offset_k(start);
+> >> +	for (addr = start; addr < end; addr = next, pgd++) {
+> >> +		pgd_populate(&init_mm, pgd, kasan_zero_pud);
+> >> +		next = pgd_addr_end(addr, end);
+> >> +		kasan_early_pud_populate(addr, next, pgd);
+> >> +	}
+> > 
+> > I prefer to use "do ... while" constructs similar to __create_mapping()
+> > (or zero_{pgd,pud,pmd}_populate as you are more familiar with them).
+> > 
+> > But what I don't get here is that you repopulate the pud page for every
+> > pgd (and so on for pmd). You don't need this recursive call all the way
+> > to kasan_early_pmd_populate() but just sequential:
+> 
+> This repopulation needed for 3,2 level page tables configurations.
+> 
+> E.g. for 3-level page tables we need to call pud_populate(&init_mm,
+> pud, kasan_zero_pmd) for each pud in [KASAN_SHADOW_START,
+> KASAN_SHADOW_END] range, this causes repopopulation for 4-level page
+> tables, since we need to pud_populate() only [KASAN_SHADOW_START,
+> KASAN_SHADOW_START + PGDIR_SIZE] range.
+
+I'm referring to writing the same information multiple times over the
+same entry. kasan_map_early_shadow() goes over each pgd entry and writes
+the address of kasan_zero_pud. That's fine so far. However, in the same
+loop you call kasan_early_pud_populate(). The latter retrieves the pud
+page via pud_offset(pgd, start) which would always be kasan_zero_pud
+because that's what you wrote via pgd_populate() in each pgd entry. So
+for each pgd entry, you keep populating the same kasan_zero_pud page
+with pointers to kasan_zero_pmd. And so on for the pmd.
+
+> > 	kasan_early_pte_populate();
+> > 	kasan_early_pmd_populate(..., pte);
+> > 	kasan_early_pud_populate(..., pmd);
+> > 	kasan_early_pgd_populate(..., pud);
+> > 
+> > (or in reverse order)
+> 
+> Unless, I'm missing something, this will either work only with 4-level
+> page tables. We could do this without repopulation by using
+> CONFIG_PGTABLE_LEVELS ifdefs.
+
+Or you could move kasan_early_*_populate outside the loop. You already
+do this for the pte at the beginning of the kasan_map_early_shadow()
+function (and it probably makes more sense to create a separate
+kasan_early_pte_populate).
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
