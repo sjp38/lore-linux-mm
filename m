@@ -1,64 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id A29BC6B026D
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 11:30:05 -0400 (EDT)
-Received: by pactm7 with SMTP id tm7so7434587pac.2
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 08:30:05 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id fo3si2409372pad.17.2015.07.14.08.30.04
-        for <linux-mm@kvack.org>;
-        Tue, 14 Jul 2015 08:30:04 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <55A4D110.2070103@redhat.com>
-References: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
- <55A4D110.2070103@redhat.com>
-Subject: Re: [PATCH 00/36] THP refcounting redesign
-Content-Transfer-Encoding: 7bit
-Message-Id: <20150714152929.141F2118@black.fi.intel.com>
-Date: Tue, 14 Jul 2015 18:29:29 +0300 (EEST)
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E4EC06B026F
+	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 11:32:33 -0400 (EDT)
+Received: by wgjx7 with SMTP id x7so11781733wgj.2
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 08:32:33 -0700 (PDT)
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com. [74.125.82.50])
+        by mx.google.com with ESMTPS id r3si2483006wjo.69.2015.07.14.08.32.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Jul 2015 08:32:32 -0700 (PDT)
+Received: by wgmn9 with SMTP id n9so11848274wgm.0
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 08:32:31 -0700 (PDT)
+Date: Tue, 14 Jul 2015 17:32:29 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 7/8] memcg: get rid of mm_struct::owner
+Message-ID: <20150714153229.GH17660@dhcp22.suse.cz>
+References: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
+ <1436358472-29137-8-git-send-email-mhocko@kernel.org>
+ <20150708173251.GG2436@esperanza>
+ <20150709140941.GG13872@dhcp22.suse.cz>
+ <20150710075400.GN2436@esperanza>
+ <20150710124520.GA29540@dhcp22.suse.cz>
+ <20150711070905.GO2436@esperanza>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150711070905.GO2436@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Jerome Marchand wrote:
-> On 07/10/2015 07:41 PM, Kirill A. Shutemov wrote:
-> > Hello everybody,
-> > 
-> ...
-> > 
-> > git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git thp/refcounting/v5
-> > 
-> 
-> I guess you mean thp/refcounting/v8.
+On Sat 11-07-15 10:09:06, Vladimir Davydov wrote:
+[...]
+> Why can't we make root_mem_cgroup statically allocated? AFAICS it's a
+> common practice - e.g. see blkcg_root, root_task_group.
 
-Right.
+It's not that easy. mem_cgroup doesn't have a fixed size. It depends
+on the number of online nodes. I haven't looked closer to this yet but
+cgroup has an early init code path maybe we can hook in there.
 
-> Also you might want to add v8 to the subject.
-
-Yeah, sorry.
-
-> Still on the cosmetic side, checkpatch.pl show quite a few
-> coding style errors and warnings. You'll make maintainer life easier by
-> running checkpatch on your serie.
-
-I've sent fixlets which addresses checkpach complains.
-
-I didn't fix warnings
-
-"WARNING: Missing a blank line after declarations"
-
-I'm not convinced fixing them make any good, but I can if Andrew thinks it's
-beneficial.
-
-I've updated the branch with checkpatch fixes.
-
-> On the content side: I've quickly tested this version without finding
-> any issue so far.
-> 
-> Thanks,
-> Jerome
-> 
+I would like to settle with the current issues described in other email
+first, though. This is just a cosmetic issue.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
