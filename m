@@ -1,72 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E3806B0261
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 05:06:37 -0400 (EDT)
-Received: by qkdl129 with SMTP id l129so2044987qkd.0
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 02:06:37 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s33si350764qge.49.2015.07.14.02.06.36
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id A65A46B0263
+	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 05:18:12 -0400 (EDT)
+Received: by igbpg9 with SMTP id pg9so7773326igb.0
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 02:18:12 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id m67si310609iod.128.2015.07.14.02.18.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Jul 2015 02:06:36 -0700 (PDT)
-Message-ID: <55A4D110.2070103@redhat.com>
-Date: Tue, 14 Jul 2015 11:06:24 +0200
-From: Jerome Marchand <jmarchan@redhat.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 14 Jul 2015 02:18:11 -0700 (PDT)
+Message-ID: <55A4D300.5030704@huawei.com>
+Date: Tue, 14 Jul 2015 17:14:40 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/36] THP refcounting redesign
-References: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="avLne1GieRBlMITW4999kMSWxtOX2M621"
+Subject: Re: [BUG REPORT] OOM Killer is invoked while the system still has
+ much memory
+References: <6D317A699782EA4DB9A0E6266C9219696CA2B3BC@SZXEMA501-MBX.china.huawei.com> <20150714081521.GA17711@dhcp22.suse.cz> <55A4CB68.5060906@huawei.com> <20150714090025.GA17660@dhcp22.suse.cz>
+In-Reply-To: <20150714090025.GA17660@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Xuzhichuang <xuzhichuang@huawei.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Songjiangtao (mygirlsjt)" <songjiangtao.song@huawei.com>, "Zhangwei (FF)" <zw.zhang@huawei.com>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---avLne1GieRBlMITW4999kMSWxtOX2M621
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On 2015/7/14 17:00, Michal Hocko wrote:
 
-On 07/10/2015 07:41 PM, Kirill A. Shutemov wrote:
-> Hello everybody,
->=20
-=2E..
->=20
-> git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git thp/refcoun=
-ting/v5
->=20
+> On Tue 14-07-15 16:42:16, Xishi Qiu wrote:
+>> On 2015/7/14 16:15, Michal Hocko wrote:
+>>
+>>> On Tue 14-07-15 07:11:34, Xuzhichuang wrote:
+> [...]
+>>>> Jul 10 12:33:03 BMS_CNA04 kernel: [18136514.138968] DMA32: 188513*4kB 29459*8kB 2*16kB 2*32kB 1*64kB 0*128kB 0*256kB 1*512kB 0*1024kB 0*2048kB 0*4096kB = 990396kB
+>>>
+>>> Moreover your allocation request was oreder 2 and you do not have much
+>>> memory there because most of the free memory is in order-0-2.
+>>>
+>>
+>> Hi Michal,
+>>
+>> order=2 -> alloc 16kb memory, and DMA32 still has 2*16kB 2*32kB 1*64kB 1*512kB, 
+>> so you mean this large buddy block was reclaimed during the moment of oom and 
+>> print, right?
+> 
+> Not really. Those high order blocks are inaccessible for your GFP_KERNEL
+> allocation. See __zone_watermark_ok.
+> 
 
-I guess you mean thp/refcounting/v8. Also you might want to add v8 to
-the subject. Still on the cosmetic side, checkpatch.pl show quite a few
-coding style errors and warnings. You'll make maintainer life easier by
-running checkpatch on your serie.
-On the content side: I've quickly tested this version without finding
-any issue so far.
+I know, some of them are from reserved memory(MIGRATE_RESERVE), right?
 
 Thanks,
-Jerome
-
-
---avLne1GieRBlMITW4999kMSWxtOX2M621
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAEBCAAGBQJVpNEVAAoJEHTzHJCtsuoC6DEIAKheAIMKCNu7Lkh3XS/SyP7Y
-3IL2PEfOGJVifqY76mGiVtDnugAEE04wO4jLqj6uBG9Mq9yvLbj0FskkgBNs8U7a
-Tj28NnP78Ii9uEusFt6Gu7U7Ycki9/5v4FBY+W2x4nMKB5Xc+WgpzLIIdNSY5PR6
-MmlOWyHmqqhAV4jhhP1XPTqTvBfNSjNC9MU96YY7LyFVlxAjqMnNR5zL1n2U9Ekx
-lL5SOyeHUkfAdaQCwoR3IkrnPZ6ekSrj/6b6uFZwE1X1g+8uqrzgLFpIADu2KorK
-B3FGRP1KNp9QQhCXtznV1/p258bI/SsIqUzaDlMrj7n0/vr5FconvWlH8ki9vPg=
-=KaP9
------END PGP SIGNATURE-----
-
---avLne1GieRBlMITW4999kMSWxtOX2M621--
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
