@@ -1,214 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F2E09003C8
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 05:28:16 -0400 (EDT)
-Received: by wiga1 with SMTP id a1so93552828wig.0
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 02:28:15 -0700 (PDT)
-Received: from mail-wi0-x242.google.com (mail-wi0-x242.google.com. [2a00:1450:400c:c05::242])
-        by mx.google.com with ESMTPS id a6si1878165wix.99.2015.07.14.02.28.14
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id E34449003C8
+	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 05:28:29 -0400 (EDT)
+Received: by oiab3 with SMTP id b3so2633249oia.1
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 02:28:29 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id f124si390884oih.59.2015.07.14.02.28.27
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Jul 2015 02:28:14 -0700 (PDT)
-Received: by wilh8 with SMTP id h8so1089942wil.3
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 02:28:14 -0700 (PDT)
-From: Dmitry Safonov <0x7f454c46@gmail.com>
-Subject: [PATCH] mm: swap: zswap: maybe_preload & refactoring
-Date: Tue, 14 Jul 2015 12:28:52 +0300
-Message-Id: <1436866132-16331-1-git-send-email-0x7f454c46@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 14 Jul 2015 02:28:29 -0700 (PDT)
+Message-ID: <55A4D55A.2080903@huawei.com>
+Date: Tue, 14 Jul 2015 17:24:42 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [E1000-devel] bad pages when up/down network cable
+References: <55A4C8F1.4000104@huawei.com> <CAD=hENdLy_K6LFE3Cm2nfxxVOhWRZWiJmKX5-EKdoBtnWP3MJQ@mail.gmail.com>
+In-Reply-To: <CAD=hENdLy_K6LFE3Cm2nfxxVOhWRZWiJmKX5-EKdoBtnWP3MJQ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sjennings@variantweb.net
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, mhocko@suse.cz, hughd@google.com, 0x7f454c46@gmail.com, minchan@kernel.org, tj@kernel.org, axboe@fb.com, hch@lst.de, dh.herrmann@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: zhuyj <zyjzyj2000@gmail.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, guozhibin 00179312 <g00179312@notesmail.huawei.com.cn>, linux.nics@intel.com, "e1000-devel@lists.sourceforge.net" <e1000-devel@lists.sourceforge.net>
 
-zswap_get_swap_cache_page and read_swap_cache_async have pretty the same
-code with only significant difference in return value and usage of
-swap_readpage.
-I made helper function __read_swap_cache_async with the common code.
-Behavior change: now zswap_get_swap_cache_page will use
-radix_tree_maybe_preload instead radix_tree_preload. Looks like, this
-wasn't changed only by the reason of code duplication.
+On 2015/7/14 17:00, zhuyj wrote:
 
-Signed-off-by: Dmitry Safonov <0x7f454c46@gmail.com>
----
- include/linux/swap.h |  3 +++
- mm/swap_state.c      | 37 ++++++++++++++++++--------
- mm/zswap.c           | 73 +++++-----------------------------------------------
- 3 files changed, 35 insertions(+), 78 deletions(-)
+> Do you use the default ixgbe driver? or the ixgbe driver is modified by you?
+> 
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 3887472..cd2926e 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -398,6 +398,9 @@ extern void free_pages_and_swap_cache(struct page **, int);
- extern struct page *lookup_swap_cache(swp_entry_t);
- extern struct page *read_swap_cache_async(swp_entry_t, gfp_t,
- 			struct vm_area_struct *vma, unsigned long addr);
-+extern struct page *__read_swap_cache_async(swp_entry_t, gfp_t,
-+			struct vm_area_struct *vma, unsigned long addr,
-+			bool *new_page_allocated);
- extern struct page *swapin_readahead(swp_entry_t, gfp_t,
- 			struct vm_area_struct *vma, unsigned long addr);
- 
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 8bc8e66..d504adb 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -288,17 +288,14 @@ struct page * lookup_swap_cache(swp_entry_t entry)
- 	return page;
- }
- 
--/* 
-- * Locate a page of swap in physical memory, reserving swap cache space
-- * and reading the disk if it is not already cached.
-- * A failure return means that either the page allocation failed or that
-- * the swap entry is no longer in use.
-- */
--struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
--			struct vm_area_struct *vma, unsigned long addr)
-+struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
-+			struct vm_area_struct *vma, unsigned long addr,
-+			bool *new_page_allocated)
- {
- 	struct page *found_page, *new_page = NULL;
-+	struct address_space *swapper_space = swap_address_space(entry);
- 	int err;
-+	*new_page_allocated = false;
- 
- 	do {
- 		/*
-@@ -306,8 +303,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 		 * called after lookup_swap_cache() failed, re-calling
- 		 * that would confuse statistics.
- 		 */
--		found_page = find_get_page(swap_address_space(entry),
--					entry.val);
-+		found_page = find_get_page(swapper_space, entry.val);
- 		if (found_page)
- 			break;
- 
-@@ -366,7 +362,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 			 * Initiate read into locked page and return.
- 			 */
- 			lru_cache_add_anon(new_page);
--			swap_readpage(new_page);
-+			*new_page_allocated = true;
- 			return new_page;
- 		}
- 		radix_tree_preload_end();
-@@ -384,6 +380,25 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 	return found_page;
- }
- 
-+/*
-+ * Locate a page of swap in physical memory, reserving swap cache space
-+ * and reading the disk if it is not already cached.
-+ * A failure return means that either the page allocation failed or that
-+ * the swap entry is no longer in use.
-+ */
-+struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
-+			struct vm_area_struct *vma, unsigned long addr)
-+{
-+	bool page_was_allocated;
-+	struct page *retpage = __read_swap_cache_async(entry, gfp_mask,
-+			vma, addr, &page_was_allocated);
-+
-+	if (page_was_allocated)
-+		swap_readpage(retpage);
-+
-+	return retpage;
-+}
-+
- static unsigned long swapin_nr_pages(unsigned long offset)
- {
- 	static unsigned long prev_offset;
-diff --git a/mm/zswap.c b/mm/zswap.c
-index 2d5727b..09208c7 100644
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -446,75 +446,14 @@ enum zswap_get_swap_ret {
- static int zswap_get_swap_cache_page(swp_entry_t entry,
- 				struct page **retpage)
- {
--	struct page *found_page, *new_page = NULL;
--	struct address_space *swapper_space = swap_address_space(entry);
--	int err;
-+	bool page_was_allocated;
- 
--	*retpage = NULL;
--	do {
--		/*
--		 * First check the swap cache.  Since this is normally
--		 * called after lookup_swap_cache() failed, re-calling
--		 * that would confuse statistics.
--		 */
--		found_page = find_get_page(swapper_space, entry.val);
--		if (found_page)
--			break;
--
--		/*
--		 * Get a new page to read into from swap.
--		 */
--		if (!new_page) {
--			new_page = alloc_page(GFP_KERNEL);
--			if (!new_page)
--				break; /* Out of memory */
--		}
--
--		/*
--		 * call radix_tree_preload() while we can wait.
--		 */
--		err = radix_tree_preload(GFP_KERNEL);
--		if (err)
--			break;
--
--		/*
--		 * Swap entry may have been freed since our caller observed it.
--		 */
--		err = swapcache_prepare(entry);
--		if (err == -EEXIST) { /* seems racy */
--			radix_tree_preload_end();
--			continue;
--		}
--		if (err) { /* swp entry is obsolete ? */
--			radix_tree_preload_end();
--			break;
--		}
--
--		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
--		__set_page_locked(new_page);
--		SetPageSwapBacked(new_page);
--		err = __add_to_swap_cache(new_page, entry);
--		if (likely(!err)) {
--			radix_tree_preload_end();
--			lru_cache_add_anon(new_page);
--			*retpage = new_page;
--			return ZSWAP_SWAPCACHE_NEW;
--		}
--		radix_tree_preload_end();
--		ClearPageSwapBacked(new_page);
--		__clear_page_locked(new_page);
--		/*
--		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
--		 * clear SWAP_HAS_CACHE flag.
--		 */
--		swapcache_free(entry);
--	} while (err != -ENOMEM);
--
--	if (new_page)
--		page_cache_release(new_page);
--	if (!found_page)
-+	*retpage = __read_swap_cache_async(entry, GFP_KERNEL,
-+			NULL, 0, &page_was_allocated);
-+	if (page_was_allocated)
-+		return ZSWAP_SWAPCACHE_NEW;
-+	if (!*retpage)
- 		return ZSWAP_SWAPCACHE_FAIL;
--	*retpage = found_page;
- 	return ZSWAP_SWAPCACHE_EXIST;
- }
- 
--- 
-2.4.5
+Yesi 1/4 ?no modify.
+
+Thanks,
+Xishi Qiu
+
+> On Tue, Jul 14, 2015 at 4:31 PM, Xishi Qiu <qiuxishi@huawei.com <mailto:qiuxishi@huawei.com>> wrote:
+> 
+>     1a??the host directly link to the storage devicei 1/4 ?by intel ixgbe NIC;
+>     between them, no switch or router.
+>     2a??the nic of the storage device suddenly become unused and then OK
+>     after a little time, this happened frequency.
+>     3a??the host printk a lot of message like these:
+> 
+>     The kernel is SUSE 3.0.13, use slab, and the following log shows the
+>     page still have PG_slab when free_pages(). Does anyone have seen the
+>     problem?
+> 
+>     Jul  9 11:31:36 root kernel: [1042291.977565] BUG: Bad page state in process swapper  pfn:00bf2
+>     Jul  9 11:31:36 root kernel: [1042291.977568] page:ffffea0000029cf0 count:0 mapcount:0 mapping:          (null) index:0x7f6d4f500
+>     Jul  9 11:31:36 root kernel: [1042291.977571] page flags: 0x40000000000100(slab)  // here is the reason
+>     Jul  9 11:31:36 root kernel: [1042291.977574] Pid: 0, comm: swapper Tainted: G    B       X 3.0.13-0.27-default #1
+>     Jul  9 11:31:36 root kernel: [1042291.977577] Call Trace:
+>     Jul  9 11:31:36 root kernel: [1042291.977583]  [<ffffffff810048b5>] dump_trace+0x75/0x300
+>     Jul  9 11:31:36 root kernel: [1042291.977639]  [<ffffffff8143ea0f>] dump_stack+0x69/0x6f
+>     Jul  9 11:31:36 root kernel: [1042291.977644]  [<ffffffff810f53a1>] bad_page+0xb1/0x120
+>     Jul  9 11:31:37 root kernel: [1042291.977649]  [<ffffffff810f5926>] free_pages_prepare+0xe6/0x110
+>     Jul  9 11:31:37 root kernel: [1042291.977654]  [<ffffffff810f9259>] free_hot_cold_page+0x49/0x1f0
+>     Jul  9 11:31:37 root kernel: [1042291.977660]  [<ffffffff8137a3b4>] skb_release_data+0xb4/0xe0
+>     Jul  9 11:31:37 root kernel: [1042291.977665]  [<ffffffff81379e79>] __kfree_skb+0x9/0x90
+>     Jul  9 11:31:37 root kernel: [1042291.977676]  [<ffffffffa02784a9>] ixgbe_clean_tx_irq+0xa9/0x480 [ixgbe]
+>     Jul  9 11:31:37 root kernel: [1042291.977693]  [<ffffffffa02788cb>] ixgbe_poll+0x4b/0x1a0 [ixgbe]
+>     Jul  9 11:31:37 root kernel: [1042291.977705]  [<ffffffff81389c3a>] net_rx_action+0x10a/0x2c0
+>     Jul  9 11:31:37 root kernel: [1042291.977711]  [<ffffffff81060a1f>] __do_softirq+0xef/0x220
+>     Jul  9 11:31:37 root kernel: [1042291.977716]  [<ffffffff8144a8bc>] call_softirq+0x1c/0x30
+>     Jul  9 11:31:37 root kernel: [1042291.978974] DWARF2 unwinder stuck at call_softirq+0x1c/0x30
+> 
+>     Thanks,
+>     Xishi Qiu
+> 
+> 
+>     ------------------------------------------------------------------------------
+>     Don't Limit Your Business. Reach for the Cloud.
+>     GigeNET's Cloud Solutions provide you with the tools and support that
+>     you need to offload your IT needs and focus on growing your business.
+>     Configured For All Businesses. Start Your Cloud Today.
+>     https://www.gigenetcloud.com/
+>     _______________________________________________
+>     E1000-devel mailing list
+>     E1000-devel@lists.sourceforge.net <mailto:E1000-devel@lists.sourceforge.net>
+>     https://lists.sourceforge.net/lists/listinfo/e1000-devel
+>     To learn more about Intel&#174; Ethernet, visit http://communities.intel.com/community/wired
+> 
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
