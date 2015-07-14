@@ -1,130 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 21CB7280246
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 11:04:52 -0400 (EDT)
-Received: by pdbep18 with SMTP id ep18so7615137pdb.1
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 08:04:51 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id qa6si2249252pab.102.2015.07.14.08.04.50
-        for <linux-mm@kvack.org>;
-        Tue, 14 Jul 2015 08:04:51 -0700 (PDT)
-Date: Tue, 14 Jul 2015 16:04:45 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v2 5/5] arm64: add KASan support
-Message-ID: <20150714150445.GH13555@e104818-lin.cambridge.arm.com>
-References: <1431698344-28054-1-git-send-email-a.ryabinin@samsung.com>
- <1431698344-28054-6-git-send-email-a.ryabinin@samsung.com>
- <20150708154803.GE6944@e104818-lin.cambridge.arm.com>
- <559FFCA7.4060008@samsung.com>
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id F23616B0266
+	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 11:18:26 -0400 (EDT)
+Received: by wgjx7 with SMTP id x7so11452999wgj.2
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 08:18:26 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o8si2424399wjo.49.2015.07.14.08.18.24
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 14 Jul 2015 08:18:25 -0700 (PDT)
+Date: Tue, 14 Jul 2015 17:18:23 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 7/8] memcg: get rid of mm_struct::owner
+Message-ID: <20150714151823.GG17660@dhcp22.suse.cz>
+References: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
+ <1436358472-29137-8-git-send-email-mhocko@kernel.org>
+ <20150710140533.GB29540@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <559FFCA7.4060008@samsung.com>
+In-Reply-To: <20150710140533.GB29540@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, David Keitel <dkeitel@codeaurora.org>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org
+To: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jul 10, 2015 at 08:11:03PM +0300, Andrey Ryabinin wrote:
-> >> +#if CONFIG_PGTABLE_LEVELS > 3
-> >> +pud_t kasan_zero_pud[PTRS_PER_PUD] __page_aligned_bss;
-> >> +#endif
-> >> +#if CONFIG_PGTABLE_LEVELS > 2
-> >> +pmd_t kasan_zero_pmd[PTRS_PER_PMD] __page_aligned_bss;
-> >> +#endif
-> >> +pte_t kasan_zero_pte[PTRS_PER_PTE] __page_aligned_bss;
-> >> +
-> >> +static void __init kasan_early_pmd_populate(unsigned long start,
-> >> +					unsigned long end, pud_t *pud)
-> >> +{
-> >> +	unsigned long addr;
-> >> +	unsigned long next;
-> >> +	pmd_t *pmd;
-> >> +
-> >> +	pmd = pmd_offset(pud, start);
-> >> +	for (addr = start; addr < end; addr = next, pmd++) {
-> >> +		pmd_populate_kernel(&init_mm, pmd, kasan_zero_pte);
-> >> +		next = pmd_addr_end(addr, end);
-> >> +	}
-> >> +}
-> >> +
-> >> +static void __init kasan_early_pud_populate(unsigned long start,
-> >> +					unsigned long end, pgd_t *pgd)
-> >> +{
-> >> +	unsigned long addr;
-> >> +	unsigned long next;
-> >> +	pud_t *pud;
-> >> +
-> >> +	pud = pud_offset(pgd, start);
-> >> +	for (addr = start; addr < end; addr = next, pud++) {
-> >> +		pud_populate(&init_mm, pud, kasan_zero_pmd);
-> >> +		next = pud_addr_end(addr, end);
-> >> +		kasan_early_pmd_populate(addr, next, pud);
-> >> +	}
-> >> +}
-> >> +
-> >> +static void __init kasan_map_early_shadow(pgd_t *pgdp)
-> >> +{
-> >> +	int i;
-> >> +	unsigned long start = KASAN_SHADOW_START;
-> >> +	unsigned long end = KASAN_SHADOW_END;
-> >> +	unsigned long addr;
-> >> +	unsigned long next;
-> >> +	pgd_t *pgd;
-> >> +
-> >> +	for (i = 0; i < PTRS_PER_PTE; i++)
-> >> +		set_pte(&kasan_zero_pte[i], pfn_pte(
-> >> +				virt_to_pfn(kasan_zero_page), PAGE_KERNEL));
-> >> +
-> >> +	pgd = pgd_offset_k(start);
-> >> +	for (addr = start; addr < end; addr = next, pgd++) {
-> >> +		pgd_populate(&init_mm, pgd, kasan_zero_pud);
-> >> +		next = pgd_addr_end(addr, end);
-> >> +		kasan_early_pud_populate(addr, next, pgd);
-> >> +	}
-> > 
-> > I prefer to use "do ... while" constructs similar to __create_mapping()
-> > (or zero_{pgd,pud,pmd}_populate as you are more familiar with them).
-> > 
-> > But what I don't get here is that you repopulate the pud page for every
-> > pgd (and so on for pmd). You don't need this recursive call all the way
-> > to kasan_early_pmd_populate() but just sequential:
-> 
-> This repopulation needed for 3,2 level page tables configurations.
-> 
-> E.g. for 3-level page tables we need to call pud_populate(&init_mm,
-> pud, kasan_zero_pmd) for each pud in [KASAN_SHADOW_START,
-> KASAN_SHADOW_END] range, this causes repopopulation for 4-level page
-> tables, since we need to pud_populate() only [KASAN_SHADOW_START,
-> KASAN_SHADOW_START + PGDIR_SIZE] range.
+On Fri 10-07-15 16:05:33, Michal Hocko wrote:
+> JFYI: I've found some more issues while hamerring this more.
 
-I'm referring to writing the same information multiple times over the
-same entry. kasan_map_early_shadow() goes over each pgd entry and writes
-the address of kasan_zero_pud. That's fine so far. However, in the same
-loop you call kasan_early_pud_populate(). The latter retrieves the pud
-page via pud_offset(pgd, start) which would always be kasan_zero_pud
-because that's what you wrote via pgd_populate() in each pgd entry. So
-for each pgd entry, you keep populating the same kasan_zero_pud page
-with pointers to kasan_zero_pmd. And so on for the pmd.
+OK so the main issue is quite simple but I have completely missed it when
+thinking about the patch before. clone(CLONE_VM) without CLONE_THREAD is
+really nasty and it will easily lockup the machine with preempt. disabled
+for ever. It goes like this:
+taskA (in memcg A)
+  taskB = clone(CLONE_VM)
+				taskB
+				  A -> B	# Both tasks charge to B now
+				  exit()	# No tasks in B -> can be
+				  		# offlined now
+				css_offline()
+  mem_cgroup_try_charge
+    get_mem_cgroup_from_mm
+      rcu_read_lock()
+      do {
+      } while css_tryget_online(mm->memcg)	# will never succeed
+      rcu_read_unlock()
 
-> > 	kasan_early_pte_populate();
-> > 	kasan_early_pmd_populate(..., pte);
-> > 	kasan_early_pud_populate(..., pmd);
-> > 	kasan_early_pgd_populate(..., pud);
-> > 
-> > (or in reverse order)
-> 
-> Unless, I'm missing something, this will either work only with 4-level
-> page tables. We could do this without repopulation by using
-> CONFIG_PGTABLE_LEVELS ifdefs.
+taskA and taskB are basically independent entities wrt. the life
+cycle (unlike threads which are bound to the group leader). The
+previous code handles this by re-ownering during exit by the monster
+mm_update_next_owner.
 
-Or you could move kasan_early_*_populate outside the loop. You already
-do this for the pte at the beginning of the kasan_map_early_shadow()
-function (and it probably makes more sense to create a separate
-kasan_early_pte_populate).
+I can see the following options without reintroducing reintroducing
+some form of mm_update_next_owner:
 
+1) Do not allow offlining a cgroup if we have active users in it.  This
+would require a callback from the cgroup core to the subsystem called if
+there are no active tasks tracked by the cgroup core. Tracking on the memcg
+side doesn't sound terribly hard - just mark a mm_struct as an alien and
+count the number of aliens during the move in mem_cgroup. mm_drop_memcg
+then drops the counter. We could end up with EBUSY cgroup without any
+visible tasks which is a bit awkward.
+
+2) update get_mem_cgroup_from_mm and others to fallback to the parent
+memcg if the current one is offline. This would be in line with charge
+reparenting we used to do. I cannot say I would like this because it
+allows for easy runaway to the root memcg if the hierarchy is not
+configured cautiously. The code would be also quite tricky because each
+direct consumer of mm->memcg would have to be aware of this. This is
+awkward.
+
+3) fail mem_cgroup_can_attach if we are trying to migrate a task sharing
+mm_struct with a process outside of the tset. If I understand the
+tset properly this would require all the sharing tasks to be migrated
+together and we would never end up with task_css != &task->mm->css.
+__cgroup_procs_write doesn't seem to support multi pid move currently
+AFAICS, though. cgroup_migrate_add_src, however, seems to be intended
+for this purpose so this should be doable. Without that support we would
+basically disallow migrating these tasks - I wouldn't object if you ask
+me.
+
+Do you see other options? From the above three options the 3rd one
+sounds the most sane to me and the 1st quite easy to implement. Both will
+require some cgroup core work though. But maybe we would be good enough
+with 3rd option without supporting moving schizophrenic tasks and that
+would be reduced to memcg code.
+
+Or we can, of course, stay with the current state but I think it would
+be much saner to get rid of the schizophrenia.
+
+What do you think?
 -- 
-Catalin
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
