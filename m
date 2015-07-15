@@ -1,278 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3601728029C
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 12:36:14 -0400 (EDT)
-Received: by qgy5 with SMTP id 5so20674858qgy.3
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 09:36:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k39si6008483qgk.87.2015.07.15.09.36.12
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jul 2015 09:36:12 -0700 (PDT)
-Subject: [PATCH 3/3] slub: build detached freelist with look-ahead
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Wed, 15 Jul 2015 18:02:39 +0200
-Message-ID: <20150715160212.17525.88123.stgit@devil>
-In-Reply-To: <20150715155934.17525.2835.stgit@devil>
-References: <20150715155934.17525.2835.stgit@devil>
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id EC3BC28029C
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 12:37:38 -0400 (EDT)
+Received: by pdbep18 with SMTP id ep18so28717634pdb.1
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 09:37:38 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id ue10si8417844pab.139.2015.07.15.09.37.37
+        for <linux-mm@kvack.org>;
+        Wed, 15 Jul 2015 09:37:38 -0700 (PDT)
+Date: Wed, 15 Jul 2015 17:37:32 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v2 5/5] arm64: add KASan support
+Message-ID: <20150715163732.GF20186@e104818-lin.cambridge.arm.com>
+References: <1431698344-28054-1-git-send-email-a.ryabinin@samsung.com>
+ <1431698344-28054-6-git-send-email-a.ryabinin@samsung.com>
+ <20150708154803.GE6944@e104818-lin.cambridge.arm.com>
+ <559FFCA7.4060008@samsung.com>
+ <20150714150445.GH13555@e104818-lin.cambridge.arm.com>
+ <55A61FF8.9000603@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <55A61FF8.9000603@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Alexander Duyck <alexander.duyck@gmail.com>, Hannes Frederic Sowa <hannes@stressinduktion.org>, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, linux-arm-kernel@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>
 
-This change is a more advanced use of detached freelist.  The bulk
-free array is scanned is a progressive manor with a limited look-ahead
-facility.
+On Wed, Jul 15, 2015 at 11:55:20AM +0300, Andrey Ryabinin wrote:
+> On 07/14/2015 06:04 PM, Catalin Marinas wrote:
+> > On Fri, Jul 10, 2015 at 08:11:03PM +0300, Andrey Ryabinin wrote:
+> >>> 	kasan_early_pte_populate();
+> >>> 	kasan_early_pmd_populate(..., pte);
+> >>> 	kasan_early_pud_populate(..., pmd);
+> >>> 	kasan_early_pgd_populate(..., pud);
+> >>>
+> >>> (or in reverse order)
+> >>
+> >> Unless, I'm missing something, this will either work only with 4-level
+> >> page tables. We could do this without repopulation by using
+> >> CONFIG_PGTABLE_LEVELS ifdefs.
+> > 
+> > Or you could move kasan_early_*_populate outside the loop. You already
+> > do this for the pte at the beginning of the kasan_map_early_shadow()
+> > function (and it probably makes more sense to create a separate
+> > kasan_early_pte_populate).
+> 
+> Ok, let's try to implement that.
+> And for example, let's consider CONFIG_PGTABLE_LEVELS=3 case:
+> 
+>  * pgd_populate() is nop, so kasan_early_pgd_populate() won't do anything.
+> 
+>  * pud_populate() in kasan_early_pud_populate() actually will setup pgd entries in swapper_pg_dir,
+>    so pud_populate() should be called for the whole shadow range: [KASAN_SHADOW_START, KASAN_SHADOW_END]
+> 	IOW: kasan_early_pud_populate(KASAN_SHADOW_START, KASAN_SHADOW_END, kasan_zero_pmd);
+> 	
+> 	We will need to slightly change kasan_early_pud_populate() implementation for that
+> 	(Current implementation implies that [start, end) addresses belong to one pgd)
+> 
+> 	void kasan_early_pud_populate(unsigned long start, unsigned long end, pmd_t *pmd)
+> 	{
+> 		unsigned long addr;
+> 		long next;
+> 
+> 		for (addr = start; addr < end; addr = next) {
+> 			pud_t *pud = pud_offset(pgd_offset_k(addr), addr);
+> 			pud_populate(&init_mm, pud, pmd);
+> 			next = pud_addr_end(addr, pgd_addr_end(addr, end));
+> 		}
+> 	}
+> 
+> 	But, wait! In 4-level page tables case this will be the same repopulation as we had before!
 
-To maintain the same performance level, as the previous simple
-implementation, the look-ahead have been limited to only 3 objects.
-This number have been determined my experimental micro benchmarking.
+Ok, so simply taking the call out of the loop won't work unless we
+conditionally define these functions (wouldn't be too bad since we have
+some #if CONFIG_PGTABLE_LEVELS already introduced by this patch but it
+would be nicer without).
 
-For performance the free loop in kmem_cache_free_bulk have been
-significantly reorganized, with a focus on making the branches more
-predictable for the compiler.  E.g. the per CPU c->freelist is also
-build as a detached freelist, even-though it would be just as fast as
-freeing directly to it, but it save creating an unpredictable branch.
+Anyway, I think we can keep the current iterations but exit early if
+!pud_none() because it means we already populated it (reworked to match
+other such patterns throughout the kernel with pgd_populate called from
+the pud function; and untested):
 
-Another benefit of this change is that kmem_cache_free_bulk() runs
-mostly with IRQs enabled.  The local IRQs are only disabled when
-updating the per CPU c->freelist.  This should please Thomas Gleixner.
+void kasan_early_pmd_populate(pud_t *pud, unsigned long addr, unsigned long end)
+{
+	pmd_t *pmd;
+	unsigned long next;
 
-Pitfall(1): Removed kmem debug support.
+	if (pud_none(*pud))
+		pud_populate(&init_mm, pud, kasan_zero_pmd);
 
-Pitfall(2): No BUG_ON() freeing NULL pointers, but the algorithm
-            handles and skips these NULL pointers.
+	pmd = pmd_offset(pud, addr);
+	do {
+		next = pmd_addr_end(addr, end);
+		kasan_early_pte_populate(pmd, addr, next);
+	} while (pmd++, addr = next, addr != end && pmd_none(*pmd));
+}
 
-Compare against previous patch:
- There is some fluctuation in the benchmarks between runs.  To counter
-this I've run some specific[1] bulk sizes, repeated 100 times and run
-dmesg through  Rusty's "stats"[2] tool.
+void kasan_early_pud_populate(pgd_t *pgd, unsigned long addr, unsigned long end)
+{
+	pud_t *pud;
+	unsigned long next;
 
-Command line:
-  sudo dmesg -c ;\
-  for x in `seq 100`; do \
-    modprobe slab_bulk_test02 bulksz=48 loops=100000 && rmmod slab_bulk_test02; \
-    echo $x; \
-    sleep 0.${RANDOM} ;\
-  done; \
-  dmesg | stats
+	if (pgd_none(*pgd))
+		pgd_populate(&init_mm, pgd, kasan_zero_pud);
 
-Results:
+	pud = pud_offset(pgd, addr);
+	do {
+		next = pud_addr_end(addr, end);
+		kasan_early_pmd_populate(pud, addr, next);
+	} while (pud++, addr = next, addr != end && pud_none(*pud));
+}
 
-bulk size:16, average: +2.01 cycles
- Prev: between 19-52 (average: 22.65 stddev:+/-6.9)
- This: between 19-67 (average: 24.67 stddev:+/-9.9)
+Given that we check pud_none() after the first iterations, it covers the
+lower levels if needed.
 
-bulk size:48, average: +1.54 cycles
- Prev: between 23-45 (average: 27.88 stddev:+/-4)
- This: between 24-41 (average: 29.42 stddev:+/-3.7)
-
-bulk size:144, average: +1.73 cycles
- Prev: between 44-76 (average: 60.31 stddev:+/-7.7)
- This: between 49-80 (average: 62.04 stddev:+/-7.3)
-
-bulk size:512, average: +8.94 cycles
- Prev: between 50-68 (average: 60.11 stddev: +/-4.3)
- This: between 56-80 (average: 69.05 stddev: +/-5.2)
-
-bulk size:2048, average: +26.81 cycles
- Prev: between 61-73 (average: 68.10 stddev:+/-2.9)
- This: between 90-104(average: 94.91 stddev:+/-2.1)
-
-[1] https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/slab_bulk_test02.c
-[2] https://github.com/rustyrussell/stats
-
-Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
-
----
-bulk- Fallback                  - Bulk API
-  1 -  64 cycles(tsc) 16.144 ns - 47 cycles(tsc) 11.931 - improved 26.6%
-  2 -  57 cycles(tsc) 14.397 ns - 29 cycles(tsc)  7.368 - improved 49.1%
-  3 -  55 cycles(tsc) 13.797 ns - 24 cycles(tsc)  6.003 - improved 56.4%
-  4 -  53 cycles(tsc) 13.500 ns - 22 cycles(tsc)  5.543 - improved 58.5%
-  8 -  52 cycles(tsc) 13.008 ns - 20 cycles(tsc)  5.047 - improved 61.5%
- 16 -  51 cycles(tsc) 12.763 ns - 20 cycles(tsc)  5.015 - improved 60.8%
- 30 -  50 cycles(tsc) 12.743 ns - 20 cycles(tsc)  5.062 - improved 60.0%
- 32 -  51 cycles(tsc) 12.908 ns - 20 cycles(tsc)  5.089 - improved 60.8%
- 34 -  87 cycles(tsc) 21.936 ns - 28 cycles(tsc)  7.006 - improved 67.8%
- 48 -  79 cycles(tsc) 19.840 ns - 31 cycles(tsc)  7.755 - improved 60.8%
- 64 -  86 cycles(tsc) 21.669 ns - 68 cycles(tsc) 17.203 - improved 20.9%
-128 - 101 cycles(tsc) 25.340 ns - 72 cycles(tsc) 18.195 - improved 28.7%
-158 - 112 cycles(tsc) 28.152 ns - 73 cycles(tsc) 18.372 - improved 34.8%
-250 - 110 cycles(tsc) 27.727 ns - 73 cycles(tsc) 18.430 - improved 33.6%
-
- mm/slub.c |  138 ++++++++++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 90 insertions(+), 48 deletions(-)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index ce4118566761..06fef8f503a1 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2762,71 +2762,113 @@ struct detached_freelist {
- 	int cnt;
- };
- 
--/* Note that interrupts must be enabled when calling this function. */
--void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
-+/*
-+ * This function extract objects belonging to the same page, and
-+ * builds a detached freelist directly within the given page/objects.
-+ * This can happen without any need for synchronization, because the
-+ * objects are owned by running process.  The freelist is build up as
-+ * a single linked list in the objects.  The idea is, that this
-+ * detached freelist can then be bulk transferred to the real
-+ * freelist(s), but only requiring a single synchronization primitive.
-+ */
-+static inline int build_detached_freelist(
-+	struct kmem_cache *s, size_t size, void **p,
-+	struct detached_freelist *df, int start_index)
- {
--	struct kmem_cache_cpu *c;
- 	struct page *page;
- 	int i;
--	/* Opportunistically delay updating page->freelist, hoping
--	 * next free happen to same page.  Start building the freelist
--	 * in the page, but keep local stack ptr to freelist.  If
--	 * successful several object can be transferred to page with a
--	 * single cmpxchg_double.
--	 */
--	struct detached_freelist df = {0};
-+	int lookahead = 0;
-+	void *object;
- 
--	local_irq_disable();
--	c = this_cpu_ptr(s->cpu_slab);
-+	/* Always re-init detached_freelist */
-+	do {
-+		object = p[start_index];
-+		if (object) {
-+			/* Start new delayed freelist */
-+			df->page = virt_to_head_page(object);
-+			df->tail_object = object;
-+			set_freepointer(s, object, NULL);
-+			df->freelist = object;
-+			df->cnt = 1;
-+			p[start_index] = NULL; /* mark object processed */
-+		} else {
-+			df->page = NULL; /* Handle NULL ptr in array */
-+		}
-+		start_index++;
-+	} while (!object && start_index < size);
- 
--	for (i = 0; i < size; i++) {
--		void *object = p[i];
-+	for (i = start_index; i < size; i++) {
-+		object = p[i];
- 
--		BUG_ON(!object);
--		/* kmem cache debug support */
--		s = cache_from_obj(s, object);
--		if (unlikely(!s))
--			goto exit;
--		slab_free_hook(s, object);
-+		if (!object)
-+			continue; /* Skip processed objects */
- 
- 		page = virt_to_head_page(object);
- 
--		if (page == df.page) {
--			/* Oppotunity to delay real free */
--			set_freepointer(s, object, df.freelist);
--			df.freelist = object;
--			df.cnt++;
--		} else if (c->page == page) {
--			/* Fastpath: local CPU free */
--			set_freepointer(s, object, c->freelist);
--			c->freelist = object;
-+		/* df->page is always set at this point */
-+		if (page == df->page) {
-+			/* Oppotunity build freelist */
-+			set_freepointer(s, object, df->freelist);
-+			df->freelist = object;
-+			df->cnt++;
-+			p[i] = NULL; /* mark object processed */
-+			if (!lookahead)
-+				start_index++;
- 		} else {
--			/* Slowpath: Flush delayed free */
--			if (df.page) {
-+			/* Limit look ahead search */
-+			if (++lookahead >= 3 )
-+				return start_index;
-+			continue;
-+		}
-+	}
-+	return start_index;
-+}
-+
-+/* Note that interrupts must be enabled when calling this function. */
-+void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
-+{
-+	struct kmem_cache_cpu *c;
-+	int iterator = 0;
-+	struct detached_freelist df;
-+
-+	BUG_ON(!size);
-+
-+	/* Per CPU ptr may change afterwards */
-+	c = this_cpu_ptr(s->cpu_slab);
-+
-+	while (likely(iterator < size)) {
-+		iterator = build_detached_freelist(s, size, p, &df, iterator);
-+		if (likely(df.page)) {
-+		redo:
-+			if (c->page == df.page) {
-+				/*
-+				 * Local CPU free require disabling
-+				 * IRQs.  It is possible to miss the
-+				 * oppotunity and instead free to
-+				 * page->freelist, but it does not
-+				 * matter as page->freelist will
-+				 * eventually be transferred to
-+				 * c->freelist
-+				 */
-+				local_irq_disable();
-+				c = this_cpu_ptr(s->cpu_slab); /* reload */
-+				if (c->page != df.page) {
-+					local_irq_enable();
-+					goto redo;
-+				}
-+				/* Bulk transfer to CPU c->freelist */
-+				set_freepointer(s, df.tail_object, c->freelist);
-+				c->freelist = df.freelist;
-+
- 				c->tid = next_tid(c->tid);
- 				local_irq_enable();
-+			} else {
-+				/* Bulk transfer to page->freelist */
- 				__slab_free(s, df.page, df.tail_object,
- 					    _RET_IP_, df.freelist, df.cnt);
--				local_irq_disable();
--				c = this_cpu_ptr(s->cpu_slab);
- 			}
--			/* Start new round of delayed free */
--			df.page = page;
--			df.tail_object = object;
--			set_freepointer(s, object, NULL);
--			df.freelist = object;
--			df.cnt = 1;
- 		}
- 	}
--exit:
--	c->tid = next_tid(c->tid);
--	local_irq_enable();
--
--	/* Flush detached freelist */
--	if (df.page) {
--		__slab_free(s, df.page, df.tail_object,
--			    _RET_IP_, df.freelist, df.cnt);
--	}
- }
- EXPORT_SYMBOL(kmem_cache_free_bulk);
- 
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
