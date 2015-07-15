@@ -1,164 +1,277 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 0658928029C
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 12:25:08 -0400 (EDT)
-Received: by obbgp5 with SMTP id gp5so29883948obb.0
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 09:25:07 -0700 (PDT)
-Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
-        by mx.google.com with ESMTPS id nr4si4161672obb.80.2015.07.15.09.25.03
+Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3601728029C
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 12:36:14 -0400 (EDT)
+Received: by qgy5 with SMTP id 5so20674858qgy.3
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 09:36:14 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k39si6008483qgk.87.2015.07.15.09.36.12
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jul 2015 09:25:03 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v2 4/4] x86, mm: Fix page table dump to show PAT bit
-Date: Wed, 15 Jul 2015 10:23:55 -0600
-Message-Id: <1436977435-31826-5-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1436977435-31826-1-git-send-email-toshi.kani@hp.com>
-References: <1436977435-31826-1-git-send-email-toshi.kani@hp.com>
+        Wed, 15 Jul 2015 09:36:12 -0700 (PDT)
+Subject: [PATCH 3/3] slub: build detached freelist with look-ahead
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Date: Wed, 15 Jul 2015 18:02:39 +0200
+Message-ID: <20150715160212.17525.88123.stgit@devil>
+In-Reply-To: <20150715155934.17525.2835.stgit@devil>
+References: <20150715155934.17525.2835.stgit@devil>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com
-Cc: akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hp.com, Toshi Kani <toshi.kani@hp.com>
+To: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Alexander Duyck <alexander.duyck@gmail.com>, Hannes Frederic Sowa <hannes@stressinduktion.org>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-/sys/kernel/debug/kernel_page_tables does not show the PAT bit
-for PUD and PMD mappings.  This is because walk_pud_level(),
-walk_pmd_level() and note_page() mask the flags with PTE_FLAGS_MASK,
-which does not cover their PAT bit, _PAGE_PAT_LARGE.
+This change is a more advanced use of detached freelist.  The bulk
+free array is scanned is a progressive manor with a limited look-ahead
+facility.
 
-Fix it by replacing the use of PTE_FLAGS_MASK with p?d_flags(),
-which masks the flags properly.
+To maintain the same performance level, as the previous simple
+implementation, the look-ahead have been limited to only 3 objects.
+This number have been determined my experimental micro benchmarking.
 
-Change also to show the PAT bit as "PAT" to be consistent with
-other bits.
+For performance the free loop in kmem_cache_free_bulk have been
+significantly reorganized, with a focus on making the branches more
+predictable for the compiler.  E.g. the per CPU c->freelist is also
+build as a detached freelist, even-though it would be just as fast as
+freeing directly to it, but it save creating an unpredictable branch.
 
-Reported-by: Robert Elliott <elliott@hp.com>
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Robert Elliott <elliott@hp.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+Another benefit of this change is that kmem_cache_free_bulk() runs
+mostly with IRQs enabled.  The local IRQs are only disabled when
+updating the per CPU c->freelist.  This should please Thomas Gleixner.
+
+Pitfall(1): Removed kmem debug support.
+
+Pitfall(2): No BUG_ON() freeing NULL pointers, but the algorithm
+            handles and skips these NULL pointers.
+
+Compare against previous patch:
+ There is some fluctuation in the benchmarks between runs.  To counter
+this I've run some specific[1] bulk sizes, repeated 100 times and run
+dmesg through  Rusty's "stats"[2] tool.
+
+Command line:
+  sudo dmesg -c ;\
+  for x in `seq 100`; do \
+    modprobe slab_bulk_test02 bulksz=48 loops=100000 && rmmod slab_bulk_test02; \
+    echo $x; \
+    sleep 0.${RANDOM} ;\
+  done; \
+  dmesg | stats
+
+Results:
+
+bulk size:16, average: +2.01 cycles
+ Prev: between 19-52 (average: 22.65 stddev:+/-6.9)
+ This: between 19-67 (average: 24.67 stddev:+/-9.9)
+
+bulk size:48, average: +1.54 cycles
+ Prev: between 23-45 (average: 27.88 stddev:+/-4)
+ This: between 24-41 (average: 29.42 stddev:+/-3.7)
+
+bulk size:144, average: +1.73 cycles
+ Prev: between 44-76 (average: 60.31 stddev:+/-7.7)
+ This: between 49-80 (average: 62.04 stddev:+/-7.3)
+
+bulk size:512, average: +8.94 cycles
+ Prev: between 50-68 (average: 60.11 stddev: +/-4.3)
+ This: between 56-80 (average: 69.05 stddev: +/-5.2)
+
+bulk size:2048, average: +26.81 cycles
+ Prev: between 61-73 (average: 68.10 stddev:+/-2.9)
+ This: between 90-104(average: 94.91 stddev:+/-2.1)
+
+[1] https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/slab_bulk_test02.c
+[2] https://github.com/rustyrussell/stats
+
+Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+
 ---
- arch/x86/mm/dump_pagetables.c |   39 +++++++++++++++++++++------------------
- 1 file changed, 21 insertions(+), 18 deletions(-)
+bulk- Fallback                  - Bulk API
+  1 -  64 cycles(tsc) 16.144 ns - 47 cycles(tsc) 11.931 - improved 26.6%
+  2 -  57 cycles(tsc) 14.397 ns - 29 cycles(tsc)  7.368 - improved 49.1%
+  3 -  55 cycles(tsc) 13.797 ns - 24 cycles(tsc)  6.003 - improved 56.4%
+  4 -  53 cycles(tsc) 13.500 ns - 22 cycles(tsc)  5.543 - improved 58.5%
+  8 -  52 cycles(tsc) 13.008 ns - 20 cycles(tsc)  5.047 - improved 61.5%
+ 16 -  51 cycles(tsc) 12.763 ns - 20 cycles(tsc)  5.015 - improved 60.8%
+ 30 -  50 cycles(tsc) 12.743 ns - 20 cycles(tsc)  5.062 - improved 60.0%
+ 32 -  51 cycles(tsc) 12.908 ns - 20 cycles(tsc)  5.089 - improved 60.8%
+ 34 -  87 cycles(tsc) 21.936 ns - 28 cycles(tsc)  7.006 - improved 67.8%
+ 48 -  79 cycles(tsc) 19.840 ns - 31 cycles(tsc)  7.755 - improved 60.8%
+ 64 -  86 cycles(tsc) 21.669 ns - 68 cycles(tsc) 17.203 - improved 20.9%
+128 - 101 cycles(tsc) 25.340 ns - 72 cycles(tsc) 18.195 - improved 28.7%
+158 - 112 cycles(tsc) 28.152 ns - 73 cycles(tsc) 18.372 - improved 34.8%
+250 - 110 cycles(tsc) 27.727 ns - 73 cycles(tsc) 18.430 - improved 33.6%
 
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index f0cedf3..71ab2d7 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -155,7 +155,7 @@ static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
- 			pt_dump_cont_printf(m, dmsg, "    ");
- 		if ((level == 4 && pr & _PAGE_PAT) ||
- 		    ((level == 3 || level == 2) && pr & _PAGE_PAT_LARGE))
--			pt_dump_cont_printf(m, dmsg, "pat ");
-+			pt_dump_cont_printf(m, dmsg, "PAT ");
- 		else
- 			pt_dump_cont_printf(m, dmsg, "    ");
- 		if (pr & _PAGE_GLOBAL)
-@@ -198,8 +198,8 @@ static void note_page(struct seq_file *m, struct pg_state *st,
- 	 * we have now. "break" is either changing perms, levels or
- 	 * address space marker.
- 	 */
--	prot = pgprot_val(new_prot) & PTE_FLAGS_MASK;
--	cur = pgprot_val(st->current_prot) & PTE_FLAGS_MASK;
-+	prot = pgprot_val(new_prot);
-+	cur = pgprot_val(st->current_prot);
+ mm/slub.c |  138 ++++++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 90 insertions(+), 48 deletions(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index ce4118566761..06fef8f503a1 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2762,71 +2762,113 @@ struct detached_freelist {
+ 	int cnt;
+ };
  
- 	if (!st->level) {
- 		/* First entry */
-@@ -269,13 +269,13 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
+-/* Note that interrupts must be enabled when calling this function. */
+-void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
++/*
++ * This function extract objects belonging to the same page, and
++ * builds a detached freelist directly within the given page/objects.
++ * This can happen without any need for synchronization, because the
++ * objects are owned by running process.  The freelist is build up as
++ * a single linked list in the objects.  The idea is, that this
++ * detached freelist can then be bulk transferred to the real
++ * freelist(s), but only requiring a single synchronization primitive.
++ */
++static inline int build_detached_freelist(
++	struct kmem_cache *s, size_t size, void **p,
++	struct detached_freelist *df, int start_index)
  {
+-	struct kmem_cache_cpu *c;
+ 	struct page *page;
  	int i;
- 	pte_t *start;
-+	pgprotval_t prot;
+-	/* Opportunistically delay updating page->freelist, hoping
+-	 * next free happen to same page.  Start building the freelist
+-	 * in the page, but keep local stack ptr to freelist.  If
+-	 * successful several object can be transferred to page with a
+-	 * single cmpxchg_double.
+-	 */
+-	struct detached_freelist df = {0};
++	int lookahead = 0;
++	void *object;
  
- 	start = (pte_t *) pmd_page_vaddr(addr);
- 	for (i = 0; i < PTRS_PER_PTE; i++) {
--		pgprot_t prot = pte_pgprot(*start);
--
-+		prot = pte_flags(*start);
- 		st->current_address = normalize_addr(P + i * PTE_LEVEL_MULT);
--		note_page(m, st, prot, 4);
-+		note_page(m, st, __pgprot(prot), 4);
- 		start++;
+-	local_irq_disable();
+-	c = this_cpu_ptr(s->cpu_slab);
++	/* Always re-init detached_freelist */
++	do {
++		object = p[start_index];
++		if (object) {
++			/* Start new delayed freelist */
++			df->page = virt_to_head_page(object);
++			df->tail_object = object;
++			set_freepointer(s, object, NULL);
++			df->freelist = object;
++			df->cnt = 1;
++			p[start_index] = NULL; /* mark object processed */
++		} else {
++			df->page = NULL; /* Handle NULL ptr in array */
++		}
++		start_index++;
++	} while (!object && start_index < size);
+ 
+-	for (i = 0; i < size; i++) {
+-		void *object = p[i];
++	for (i = start_index; i < size; i++) {
++		object = p[i];
+ 
+-		BUG_ON(!object);
+-		/* kmem cache debug support */
+-		s = cache_from_obj(s, object);
+-		if (unlikely(!s))
+-			goto exit;
+-		slab_free_hook(s, object);
++		if (!object)
++			continue; /* Skip processed objects */
+ 
+ 		page = virt_to_head_page(object);
+ 
+-		if (page == df.page) {
+-			/* Oppotunity to delay real free */
+-			set_freepointer(s, object, df.freelist);
+-			df.freelist = object;
+-			df.cnt++;
+-		} else if (c->page == page) {
+-			/* Fastpath: local CPU free */
+-			set_freepointer(s, object, c->freelist);
+-			c->freelist = object;
++		/* df->page is always set at this point */
++		if (page == df->page) {
++			/* Oppotunity build freelist */
++			set_freepointer(s, object, df->freelist);
++			df->freelist = object;
++			df->cnt++;
++			p[i] = NULL; /* mark object processed */
++			if (!lookahead)
++				start_index++;
+ 		} else {
+-			/* Slowpath: Flush delayed free */
+-			if (df.page) {
++			/* Limit look ahead search */
++			if (++lookahead >= 3 )
++				return start_index;
++			continue;
++		}
++	}
++	return start_index;
++}
++
++/* Note that interrupts must be enabled when calling this function. */
++void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
++{
++	struct kmem_cache_cpu *c;
++	int iterator = 0;
++	struct detached_freelist df;
++
++	BUG_ON(!size);
++
++	/* Per CPU ptr may change afterwards */
++	c = this_cpu_ptr(s->cpu_slab);
++
++	while (likely(iterator < size)) {
++		iterator = build_detached_freelist(s, size, p, &df, iterator);
++		if (likely(df.page)) {
++		redo:
++			if (c->page == df.page) {
++				/*
++				 * Local CPU free require disabling
++				 * IRQs.  It is possible to miss the
++				 * oppotunity and instead free to
++				 * page->freelist, but it does not
++				 * matter as page->freelist will
++				 * eventually be transferred to
++				 * c->freelist
++				 */
++				local_irq_disable();
++				c = this_cpu_ptr(s->cpu_slab); /* reload */
++				if (c->page != df.page) {
++					local_irq_enable();
++					goto redo;
++				}
++				/* Bulk transfer to CPU c->freelist */
++				set_freepointer(s, df.tail_object, c->freelist);
++				c->freelist = df.freelist;
++
+ 				c->tid = next_tid(c->tid);
+ 				local_irq_enable();
++			} else {
++				/* Bulk transfer to page->freelist */
+ 				__slab_free(s, df.page, df.tail_object,
+ 					    _RET_IP_, df.freelist, df.cnt);
+-				local_irq_disable();
+-				c = this_cpu_ptr(s->cpu_slab);
+ 			}
+-			/* Start new round of delayed free */
+-			df.page = page;
+-			df.tail_object = object;
+-			set_freepointer(s, object, NULL);
+-			df.freelist = object;
+-			df.cnt = 1;
+ 		}
  	}
+-exit:
+-	c->tid = next_tid(c->tid);
+-	local_irq_enable();
+-
+-	/* Flush detached freelist */
+-	if (df.page) {
+-		__slab_free(s, df.page, df.tail_object,
+-			    _RET_IP_, df.freelist, df.cnt);
+-	}
  }
-@@ -287,18 +287,19 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr,
- {
- 	int i;
- 	pmd_t *start;
-+	pgprotval_t prot;
- 
- 	start = (pmd_t *) pud_page_vaddr(addr);
- 	for (i = 0; i < PTRS_PER_PMD; i++) {
- 		st->current_address = normalize_addr(P + i * PMD_LEVEL_MULT);
- 		if (!pmd_none(*start)) {
--			pgprotval_t prot = pmd_val(*start) & PTE_FLAGS_MASK;
--
--			if (pmd_large(*start) || !pmd_present(*start))
-+			if (pmd_large(*start) || !pmd_present(*start)) {
-+				prot = pmd_flags(*start);
- 				note_page(m, st, __pgprot(prot), 3);
--			else
-+			} else {
- 				walk_pte_level(m, st, *start,
- 					       P + i * PMD_LEVEL_MULT);
-+			}
- 		} else
- 			note_page(m, st, __pgprot(0), 3);
- 		start++;
-@@ -318,19 +319,20 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
- {
- 	int i;
- 	pud_t *start;
-+	pgprotval_t prot;
- 
- 	start = (pud_t *) pgd_page_vaddr(addr);
- 
- 	for (i = 0; i < PTRS_PER_PUD; i++) {
- 		st->current_address = normalize_addr(P + i * PUD_LEVEL_MULT);
- 		if (!pud_none(*start)) {
--			pgprotval_t prot = pud_val(*start) & PTE_FLAGS_MASK;
--
--			if (pud_large(*start) || !pud_present(*start))
-+			if (pud_large(*start) || !pud_present(*start)) {
-+				prot = pud_flags(*start);
- 				note_page(m, st, __pgprot(prot), 2);
--			else
-+			} else {
- 				walk_pmd_level(m, st, *start,
- 					       P + i * PUD_LEVEL_MULT);
-+			}
- 		} else
- 			note_page(m, st, __pgprot(0), 2);
- 
-@@ -351,6 +353,7 @@ void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
- #else
- 	pgd_t *start = swapper_pg_dir;
- #endif
-+	pgprotval_t prot;
- 	int i;
- 	struct pg_state st = {};
- 
-@@ -362,13 +365,13 @@ void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
- 	for (i = 0; i < PTRS_PER_PGD; i++) {
- 		st.current_address = normalize_addr(i * PGD_LEVEL_MULT);
- 		if (!pgd_none(*start)) {
--			pgprotval_t prot = pgd_val(*start) & PTE_FLAGS_MASK;
--
--			if (pgd_large(*start) || !pgd_present(*start))
-+			if (pgd_large(*start) || !pgd_present(*start)) {
-+				prot = pgd_flags(*start);
- 				note_page(m, &st, __pgprot(prot), 1);
--			else
-+			} else {
- 				walk_pud_level(m, &st, *start,
- 					       i * PGD_LEVEL_MULT);
-+			}
- 		} else
- 			note_page(m, &st, __pgprot(0), 1);
+ EXPORT_SYMBOL(kmem_cache_free_bulk);
  
 
 --
