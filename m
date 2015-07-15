@@ -1,69 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id DC4B5280277
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 00:06:43 -0400 (EDT)
-Received: by pdbep18 with SMTP id ep18so17771101pdb.1
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 21:06:43 -0700 (PDT)
-Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com. [2607:f8b0:400e:c02::235])
-        by mx.google.com with ESMTPS id z5si5150321pbw.233.2015.07.14.21.06.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Jul 2015 21:06:43 -0700 (PDT)
-Received: by pdbep18 with SMTP id ep18so17770803pdb.1
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 21:06:42 -0700 (PDT)
-Date: Wed, 15 Jul 2015 13:07:03 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH 3/3] zsmalloc: do not take class lock in
- zs_pages_to_compact()
-Message-ID: <20150715040703.GA545@swordfish>
-References: <1436607932-7116-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1436607932-7116-4-git-send-email-sergey.senozhatsky@gmail.com>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B414280267
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 01:35:09 -0400 (EDT)
+Received: by pdbep18 with SMTP id ep18so19091055pdb.1
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 22:35:09 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id tl1si5600308pac.65.2015.07.14.22.35.08
+        for <linux-mm@kvack.org>;
+        Tue, 14 Jul 2015 22:35:08 -0700 (PDT)
+Message-ID: <55A5F109.3020705@linux.intel.com>
+Date: Wed, 15 Jul 2015 13:35:05 +0800
+From: Jiang Liu <jiang.liu@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1436607932-7116-4-git-send-email-sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH 3/5] x86, acpi, cpu-hotplug: Introduce apicid_to_cpuid[]
+ array to store persistent cpuid <-> apicid mapping.
+References: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com>	<1436261425-29881-4-git-send-email-tangchen@cn.fujitsu.com> <CAChTCPw6ZLs7XgApfN1exeB6TVcQji6ryq+HrK-admp=FGfiTA@mail.gmail.com> <55A5D4A5.8040806@cn.fujitsu.com>
+In-Reply-To: <55A5D4A5.8040806@cn.fujitsu.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>, =?UTF-8?B?TWlrYSBQZW50dGlsw6Q=?= <mika.j.penttila@gmail.com>
+Cc: rjw@rjwysocki.net, gongzhaogang@inspur.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On (07/11/15 18:45), Sergey Senozhatsky wrote:
-[..]
-> We re-do this calculations during compaction on a per class basis
-> anyway.
+On 2015/7/15 11:33, Tang Chen wrote:
+> Hi Mika,
 > 
-> zs_unregister_shrinker() will not return until we have an active
-> shrinker, so classes won't unexpectedly disappear while
-> zs_pages_to_compact(), invoked by zs_shrinker_count(), iterates
-> them.
+> On 07/07/2015 07:14 PM, Mika PenttilA? wrote:
+>> I think you forgot to reserve CPU 0 for BSP in cpuid mask.
 > 
-> When called from zram, we are protected by zram's ->init_lock,
-> so, again, classes will be there until zs_pages_to_compact()
-> iterates them.
+> Sorry for the late reply.
 > 
-> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> ---
->  mm/zsmalloc.c | 2 --
->  1 file changed, 2 deletions(-)
+> I'm not familiar with BSP.  Do you mean in get_cpuid(),
+> I should reserve 0 for physical cpu0 in BSP ?
 > 
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index b10a228..824c182 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -1811,9 +1811,7 @@ unsigned long zs_pages_to_compact(struct zs_pool *pool)
->  		if (class->index != i)
->  			continue;
->  
-> -		spin_lock(&class->lock);
->  		pages_to_free += zs_can_compact(class);
-> -		spin_unlock(&class->lock);
->  	}
->  
->  	return pages_to_free;
+> Would you please share more detail ?
 
-This patch still makes sense. Agree?
-
-	-ss
+BSP stands for "Bootstrapping Processor". In other word,
+BSP is CPU0.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
