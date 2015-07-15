@@ -1,137 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id AFB352802C4
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 18:44:39 -0400 (EDT)
-Received: by iggf3 with SMTP id f3so693108igg.1
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:44:39 -0700 (PDT)
-Received: from mail-ie0-x230.google.com (mail-ie0-x230.google.com. [2607:f8b0:4001:c03::230])
-        by mx.google.com with ESMTPS id x6si74471igl.12.2015.07.15.15.44.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jul 2015 15:44:37 -0700 (PDT)
-Received: by ieik3 with SMTP id k3so44495625iei.3
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:44:37 -0700 (PDT)
-Date: Wed, 15 Jul 2015 15:44:36 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm] mm, oom: move oom notifiers to page allocator
-In-Reply-To: <20150715094240.GF5101@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1507151543270.14906@chino.kir.corp.google.com>
-References: <1436360661-31928-1-git-send-email-mhocko@suse.com> <1436360661-31928-3-git-send-email-mhocko@suse.com> <alpine.DEB.2.10.1507081636180.16585@chino.kir.corp.google.com> <20150709085505.GB13872@dhcp22.suse.cz> <alpine.DEB.2.10.1507091404200.17177@chino.kir.corp.google.com>
- <20150710074032.GA7343@dhcp22.suse.cz> <alpine.DEB.2.10.1507141458350.16182@chino.kir.corp.google.com> <20150715094240.GF5101@dhcp22.suse.cz>
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id C43392802C4
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 19:15:55 -0400 (EDT)
+Received: by pdjr16 with SMTP id r16so32857561pdj.3
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 16:15:55 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id hn3si9794732pac.142.2015.07.15.16.15.54
+        for <linux-mm@kvack.org>;
+        Wed, 15 Jul 2015 16:15:54 -0700 (PDT)
+Date: Wed, 15 Jul 2015 16:13:57 -0700
+From: "Sean O. Stalley" <sean.stalley@intel.com>
+Subject: Re: [PATCH 1/4] mm: Add support for __GFP_ZERO flag to
+ dma_pool_alloc()
+Message-ID: <20150715231356.GA16638@sean.stalley.intel.com>
+References: <1436994883-16563-1-git-send-email-sean.stalley@intel.com>
+ <1436994883-16563-2-git-send-email-sean.stalley@intel.com>
+ <20150715142907.ccfd473ea0e039642d46893d@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150715142907.ccfd473ea0e039642d46893d@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Jakob Unterwurzacher <jakobunt@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: corbet@lwn.net, vinod.koul@intel.com, bhelgaas@google.com, Julia.Lawall@lip6.fr, Gilles.Muller@lip6.fr, nicolas.palix@imag.fr, mmarek@suse.cz, bigeasy@linutronix.de, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, dmaengine@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, cocci@systeme.lip6.fr
 
-OOM notifiers exist to give one last chance at reclaiming memory before
-the oom killer does its work.
+Thanks for the review Andrew, my responses are inline.
 
-Thus, they don't actually belong in the oom killer proper, but rather in
-the page allocator where reclaim is invoked.
+-Sean
 
-Move the oom notifiers to their proper place: before out_of_memory(),
-which now deals solely with providing access to memory reserves and
-ensuring a process is exiting to free its memory.
+On Wed, Jul 15, 2015 at 02:29:07PM -0700, Andrew Morton wrote:
+> On Wed, 15 Jul 2015 14:14:40 -0700 "Sean O. Stalley" <sean.stalley@intel.com> wrote:
+> 
+> > Currently the __GFP_ZERO flag is ignored by dma_pool_alloc().
+> > Make dma_pool_alloc() zero the memory if this flag is set.
+> > 
+> > ...
+> >
+> > --- a/mm/dmapool.c
+> > +++ b/mm/dmapool.c
+> > @@ -334,7 +334,7 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
+> >  	/* pool_alloc_page() might sleep, so temporarily drop &pool->lock */
+> >  	spin_unlock_irqrestore(&pool->lock, flags);
+> >  
+> > -	page = pool_alloc_page(pool, mem_flags);
+> > +	page = pool_alloc_page(pool, mem_flags & (~__GFP_ZERO));
+> >  	if (!page)
+> >  		return NULL;
+> >  
+> > @@ -375,6 +375,10 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
+> >  	memset(retval, POOL_POISON_ALLOCATED, pool->size);
+> >  #endif
+> >  	spin_unlock_irqrestore(&pool->lock, flags);
+> > +
+> > +	if (mem_flags & __GFP_ZERO)
+> > +		memset(retval, 0, pool->size);
+> > +
+> >  	return retval;
+> >  }
+> >  EXPORT_SYMBOL(dma_pool_alloc);
+> 
+> hm, this code is all a bit confused.
+> 
+> We'd really prefer that the __GFP_ZERO be passed all the way to the
+> bottom level, so that places which are responsible for zeroing memory
+> (eg, the page allocator) can do their designated function.  One reason
+> for this is that if someone comes up with a whizzy way of zeroing
+> memory on their architecture (eg, non-temporal store) then that will be
+> implemented in the core page allocator and the dma code will miss out.
 
-This also fixes an issue that invoked the oom notifiers and aborted oom
-kill when triggered manually with sysrq+f.  Sysrq+f now properly triggers
-an oom kill in all instances.
+It would be nice if we could use the page allocator for whizzy zeroing.
+There are a few reasons why I didn't pass __GFP_ZERO down to the allocator:
 
-Such callbacks should use register_shrinker() so they are a part of
-reclaim, and there should be no need for oom notifiers at all.  Thus,
-add a new comment directed to reclaim rather than continuing to use this
-interface.
+ - dma_pool_alloc() reuses blocks of memory that were recently freed by dma_pool_free().
+   We have to memset(0) old blocks, since we don't know what's in them.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c   | 20 --------------------
- mm/page_alloc.c | 22 ++++++++++++++++++++++
- 2 files changed, 22 insertions(+), 20 deletions(-)
+ - When a new page is alloced, pool_initalize_page() writes an integer to every block.
+   So even if we passed __GFP_ZERO down to the allocator, the block would not be empty
+   by the time dma_pool_alloc() returns.
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -615,20 +615,6 @@ void check_panic_on_oom(struct oom_control *oc, enum oom_constraint constraint,
- 		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
- }
- 
--static BLOCKING_NOTIFIER_HEAD(oom_notify_list);
--
--int register_oom_notifier(struct notifier_block *nb)
--{
--	return blocking_notifier_chain_register(&oom_notify_list, nb);
--}
--EXPORT_SYMBOL_GPL(register_oom_notifier);
--
--int unregister_oom_notifier(struct notifier_block *nb)
--{
--	return blocking_notifier_chain_unregister(&oom_notify_list, nb);
--}
--EXPORT_SYMBOL_GPL(unregister_oom_notifier);
--
- /**
-  * out_of_memory - kill the "best" process when we run out of memory
-  * @oc: pointer to struct oom_control
-@@ -642,18 +628,12 @@ bool out_of_memory(struct oom_control *oc)
- {
- 	struct task_struct *p;
- 	unsigned long totalpages;
--	unsigned long freed = 0;
- 	unsigned int uninitialized_var(points);
- 	enum oom_constraint constraint = CONSTRAINT_NONE;
- 
- 	if (oom_killer_disabled)
- 		return false;
- 
--	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
--	if (freed > 0)
--		/* Got some memory back in the last second. */
--		return true;
--
- 	/*
- 	 * If current has a pending SIGKILL or is exiting, then automatically
- 	 * select it.  The goal is to allow it to allocate so that it may
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2676,6 +2676,23 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...)
- 		show_mem(filter);
- }
- 
-+static BLOCKING_NOTIFIER_HEAD(oom_notify_list);
-+/*
-+ * Deprecated -- no new callers of this interface should be added.  Instead,
-+ * use reclaim shrinkers: see register_shrinker().
-+ */
-+int register_oom_notifier(struct notifier_block *nb)
-+{
-+	return blocking_notifier_chain_register(&oom_notify_list, nb);
-+}
-+EXPORT_SYMBOL_GPL(register_oom_notifier);
-+
-+int unregister_oom_notifier(struct notifier_block *nb)
-+{
-+	return blocking_notifier_chain_unregister(&oom_notify_list, nb);
-+}
-+EXPORT_SYMBOL_GPL(unregister_oom_notifier);
-+
- static inline struct page *
- __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 	const struct alloc_context *ac, unsigned long *did_some_progress)
-@@ -2736,6 +2753,11 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 		if (gfp_mask & __GFP_THISNODE)
- 			goto out;
- 	}
-+
-+	blocking_notifier_call_chain(&oom_notify_list, 0, did_some_progress);
-+	if (*did_some_progress > 0)
-+		goto out;
-+
- 	/* Exhausted what can be done so it's blamo time */
- 	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
- 		*did_some_progress = 1;
+ - Assuming a driver is allocing as often as it is freeing,
+   once the pool has enough memory it shouldn't call down to the allocator very often,
+   so any optimization down in the allocator shouldn't make much of a difference
+
+> Also, and just from a brief look around,
+> drivers/base/dma-coherent.c:dma_alloc_from_coherent() is already
+> zeroing the memory so under some circumstances I think we'll zero the
+> memory twice?  We could fix that by passing the gfp_t to
+> dma_alloc_from_coherent() and then changing dma_alloc_from_coherent()
+> to *not* zero the memory if __GFP_ZERO, but wouldn't that be peculiar?
+
+I noticed this as well. In this case, we would be zeroing twice.
+This is no worse than the current case (where dma_pool_alloc() returns,
+then the driver calls memset(0)).
+
+> Also, passing __GFP_ZERO will now cause pool_alloc_page()'s
+> memset(POOL_POISON_FREED) to be wiped out.  I guess that's harmless,
+> but a bit inefficient?
+
+Inefficient, but no more inefficient than the current case.
+I didn't think it would be a problem (since it only happens if dma pool debuging is enabled).
+I could add a check to only memset the poison if __GFP_ZERO is not set.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
