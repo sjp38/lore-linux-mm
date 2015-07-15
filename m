@@ -1,71 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 86C2E28027E
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 18:13:48 -0400 (EDT)
-Received: by ykay190 with SMTP id y190so49111775yka.3
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:13:48 -0700 (PDT)
-Received: from mail-yk0-x236.google.com (mail-yk0-x236.google.com. [2607:f8b0:4002:c07::236])
-        by mx.google.com with ESMTPS id v138si4101865ywe.4.2015.07.15.15.13.47
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 745842802BB
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 18:18:58 -0400 (EDT)
+Received: by igbij6 with SMTP id ij6so307660igb.1
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:18:58 -0700 (PDT)
+Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com. [2607:f8b0:4001:c05::233])
+        by mx.google.com with ESMTPS id j9si5741ige.71.2015.07.15.15.18.57
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jul 2015 15:13:47 -0700 (PDT)
-Received: by ykax123 with SMTP id x123so49206816yka.1
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:13:47 -0700 (PDT)
-Date: Wed, 15 Jul 2015 18:13:45 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 0/5] Make cpuid <-> nodeid mapping persistent.
-Message-ID: <20150715221345.GO15934@mtj.duckdns.org>
-References: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com>
+        Wed, 15 Jul 2015 15:18:57 -0700 (PDT)
+Received: by igbij6 with SMTP id ij6so307507igb.1
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:18:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <CALZtONAJogDgMJ45v6KLFbbe+SeDjfBFKDFv2VFC1zLJ8VGy7g@mail.gmail.com>
+References: <1433419358-21820-1-git-send-email-ddstreet@ieee.org>
+ <CALZtONC_-uQcE30hgzwD-V9Ps9k8g2Y_XUTjD9xcXaiXAc-hGw@mail.gmail.com>
+ <CALZtONA6C3v0mwwgbf4QqLqehqtrdqs9Y=Td2-HXyhQhySki_w@mail.gmail.com>
+ <CALZtOND9wWe_58PNW396dpUy_HBrr+pv5_-KNfUGjvrPiGV0Gw@mail.gmail.com>
+ <CALZtONCHfcK4wUhQOiiXRL6D4fR92sKqZ+edctSZU3Xf0qWx_w@mail.gmail.com>
+ <20150625133557.c519c933c104a2657417bd02@linux-foundation.org> <CALZtONAJogDgMJ45v6KLFbbe+SeDjfBFKDFv2VFC1zLJ8VGy7g@mail.gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Wed, 15 Jul 2015 18:18:38 -0400
+Message-ID: <CALZtOND3CpQQCdLbTrgML5KSWtUUzXzODPt9zttXbAj7g_9BoA@mail.gmail.com>
+Subject: Re: [PATCH] zswap: dynamic pool creation
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, laijs@cn.fujitsu.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, qiaonuohan@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Seth Jennings <sjennings@variantweb.net>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-Hello,
+On Thu, Jun 25, 2015 at 4:37 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+> On Thu, Jun 25, 2015 at 4:35 PM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+>> On Thu, 25 Jun 2015 16:22:07 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
+>>
+>>> Andrew (or anyone else) do you have any objection to this patch?  I
+>>> assume Seth is on an extended vacation; maybe you could add this to
+>>> your mmotm?  If Seth prefers changes to it he still has a couple
+>>> months-ish until the next merge window.  I could then send the
+>>> follow-on patches, that allow zswap params to be set at runtime.  I
+>>> can resend them all as a series, if you prefer that.
+>>
+>> I'll take a look once the merge window mayhem settles down.  But it
+>> never hurts to do a refresh/retest/resend.
+>
+> Sure, let me rebase the whole thing onto the latest upstream, and I'll
+> resend the series.
 
-On Tue, Jul 07, 2015 at 05:30:20PM +0800, Tang Chen wrote:
-> [Solution]
-> 
-> To fix this problem, we establish cpuid <-> nodeid mapping for all the possible
-> cpus at boot time, and make it invariable. And according to init_cpu_to_node(),
-> cpuid <-> nodeid mapping is based on apicid <-> nodeid mapping and cpuid <-> apicid
-> mapping. So the key point is obtaining all cpus' apicid.
-> 
-> apicid can be obtained by _MAT (Multiple APIC Table Entry) method or found in
-> MADT (Multiple APIC Description Table). So we finish the job in the following steps:
-> 
-> 1. Enable apic registeration flow to handle both enabled and disabled cpus.
->    This is done by introducing an extra parameter to generic_processor_info to let the
->    caller control if disabled cpus are ignored.
-> 
-> 2. Introduce a new array storing all possible cpuid <-> apicid mapping. And also modify
->    the way cpuid is calculated. Establish all possible cpuid <-> apicid mapping when
->    registering local apic. Store the mapping in the array introduced above.
-> 
-> 4. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
->    This is also done by introducing an extra parameter to these apis to let the caller
->    control if disabled cpus are ignored.
-> 
-> 5. Establish all possible cpuid <-> nodeid mapping.
->    This is done via an additional acpi namespace walk for processors.
+Seth,
 
-Hmmm... given that we probably want to allocate lower ids to the
-online cpus, as otherwise we can end up failing to bring existing cpus
-online because NR_CPUS is lower than the number of possible cpus, I
-wonder whether doing this lazily could be better / easier.  e.g. just
-remember the mapping as cpus come online.  When a new cpu comes up,
-look up whether it came up before.  If so, use the ids from the last
-time.  If not, allocate new ones.  I think that would be less amount
-of change but does require updating the mapping dynamically.
+I don't know what happened, but I never got any of your replies (in my
+gmail account), although I see them in the list archives :(
 
-Thanks.
-
--- 
-tejun
+Just to reset everything, I'll rebase the patches and resend them, and
+we can continue the discussion.  Sorry for the confusion!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
