@@ -1,81 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 15D18280245
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:19:35 -0400 (EDT)
-Received: by wgxm20 with SMTP id m20so43302984wgx.3
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 14:19:34 -0700 (PDT)
-Received: from johanna1.inet.fi (mta-out1.inet.fi. [62.71.2.229])
-        by mx.google.com with ESMTP id df10si10104476wjc.48.2015.07.15.14.19.32
-        for <linux-mm@kvack.org>;
-        Wed, 15 Jul 2015 14:19:33 -0700 (PDT)
-Date: Thu, 16 Jul 2015 00:18:53 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 00/16] Sanitize usage of ->flags and ->mapping for tail
- pages
-Message-ID: <20150715211853.GA25181@node.dhcp.inet.fi>
-References: <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com>
- <alpine.DEB.2.11.1507151517290.30883@east.gentwo.org>
+Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CDF3280245
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:20:13 -0400 (EDT)
+Received: by ykay190 with SMTP id y190so48026803yka.3
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 14:20:13 -0700 (PDT)
+Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
+        by mx.google.com with ESMTPS id r7si4005772yke.66.2015.07.15.14.20.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Jul 2015 14:20:12 -0700 (PDT)
+Received: by ykeo3 with SMTP id o3so47906703yke.0
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 14:20:11 -0700 (PDT)
+Date: Wed, 15 Jul 2015 17:20:08 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 1/1] mem-hotplug: Handle node hole when initializing
+ numa_meminfo.
+Message-ID: <20150715212008.GK15934@mtj.duckdns.org>
+References: <1435720614-16480-1-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1507151517290.30883@east.gentwo.org>
+In-Reply-To: <1435720614-16480-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, dyoung@redhat.com, isimatu.yasuaki@jp.fujitsu.com, yasu.isimatu@gmail.com, lcapitulino@redhat.com, qiuxishi@huawei.com, will.deacon@arm.com, tony.luck@intel.com, vladimir.murzin@arm.com, fabf@skynet.be, kuleshovmail@gmail.com, bhe@redhat.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jul 15, 2015 at 03:20:01PM -0500, Christoph Lameter wrote:
-> On Thu, 19 Mar 2015, Kirill A. Shutemov wrote:
-> 
-> > Currently we take naive approach to page flags on compound -- we set the
-> > flag on the page without consideration if the flag makes sense for tail
-> > page or for compound page in general. This patchset try to sort this out
-> > by defining per-flag policy on what need to be done if page-flag helper
-> > operate on compound page.
-> 
-> Well we hand pointers to head pages around if handling compound pages.
-> References to tail pages are dicey and should only be used in a limited
-> way. At least that is true in the slab allocators and that was my
-> understanding in earlier years. Therefore it does not make sense
-> then check for tail pages.
+On Wed, Jul 01, 2015 at 11:16:54AM +0800, Tang Chen wrote:
+...
+> -		/* and there's no empty block */
+> -		if (bi->start >= bi->end)
+> +		/* and there's no empty or non-exist block */
+> +		if (bi->start >= bi->end ||
+> +		    memblock_overlaps_region(&memblock.memory,
+> +			bi->start, bi->end - bi->start) == -1)
 
-This is preparation patchset for THP refcounting rework. With new
-refcounting sub-pages for THP can be mapped with PTEs, therefore we will
-see tail pages returned from pte_page().
+Ugh.... can you please change memblock_overlaps_region() to return
+bool instead?
 
-I've tried ad-hoc approach to page flags wrt tail pages on earlier (pre
-LFS/MM) revisions of THP refcounting patchset. And IIRC, *you* pointed
-that it would be nice to have more systematic approach.
-
-And here's my attempt.
-
-> > For now I catched one case of illigal usage of page flags or ->mapping:
-> > sound subsystem allocates pages with __GFP_COMP and maps them with PTEs.
-> > It leads to setting dirty bit on tail pages and access to tail_page's
-> > ->mapping. I don't see any bad behaviour caused by this, but worth fixing
-> > anyway.
-> 
-> Does this catch any errors?
-
-It helped to catch BUG fixed by c761471b58e6 (mm: avoid tail page
-refcounting on non-THP compound pages) and helped with work on
-refcounting patchset.
- 
-> > This patchset makes more sense if you take my THP refcounting into
-> > account: we will see more compound pages mapped with PTEs and we need to
-> > define behaviour of flags on compound pages to avoid bugs.
-> 
-> Ok that introduces the risk of pointers to tail pages becoming more of an
-> issue. But that does not affect non pagecache pages.
-
-We don't have huge pages in pagecache yet. Refcounting patchset only
-affects anon-THP. And makes compound pages suitable for pagecache.
-
-We also have PTE-mapped compound pages -- in sound subsystem and some
-drivers (framebuffer, etc.)
+Thanks.
 
 -- 
- Kirill A. Shutemov
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
