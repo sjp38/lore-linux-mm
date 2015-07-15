@@ -1,49 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D15992802BB
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 18:25:01 -0400 (EDT)
-Received: by ietj16 with SMTP id j16so44006208iet.0
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:25:01 -0700 (PDT)
-Received: from mail-ie0-x22f.google.com (mail-ie0-x22f.google.com. [2607:f8b0:4001:c03::22f])
-        by mx.google.com with ESMTPS id wf6si5340557icb.81.2015.07.15.15.25.01
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A5632802BB
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 18:26:28 -0400 (EDT)
+Received: by pdjr16 with SMTP id r16so32253320pdj.3
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:26:28 -0700 (PDT)
+Received: from e33.co.us.ibm.com (e33.co.us.ibm.com. [32.97.110.151])
+        by mx.google.com with ESMTPS id qz5si9546910pbb.239.2015.07.15.15.26.25
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jul 2015 15:25:01 -0700 (PDT)
-Received: by ietj16 with SMTP id j16so44006141iet.0
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:25:01 -0700 (PDT)
-Date: Wed, 15 Jul 2015 15:24:59 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: + mm-oom-organize-oom-context-into-struct.patch added to -mm
- tree
-In-Reply-To: <20150715094138.GE5101@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1507151523430.3514@chino.kir.corp.google.com>
-References: <55a5931c.OSAbN+RkFn80ERhn%akpm@linux-foundation.org> <20150715094138.GE5101@dhcp22.suse.cz>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Wed, 15 Jul 2015 15:26:26 -0700 (PDT)
+Received: from /spool/local
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 15 Jul 2015 16:26:23 -0600
+Received: from b03cxnp07029.gho.boulder.ibm.com (b03cxnp07029.gho.boulder.ibm.com [9.17.130.16])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 944853E40047
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 16:26:19 -0600 (MDT)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by b03cxnp07029.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t6FMQJVb57344178
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:26:19 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t6FMQJLt008041
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 16:26:19 -0600
+Date: Wed, 15 Jul 2015 15:26:12 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: cpu_hotplug vs oom_notify_list: possible circular locking
+ dependency detected
+Message-ID: <20150715222612.GP3717@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20150712105634.GA11708@marcin-Inspiron-7720>
+ <alpine.DEB.2.10.1507141508590.16182@chino.kir.corp.google.com>
+ <20150714232943.GW3717@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1507141647531.16182@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <alpine.DEB.2.10.1507141647531.16182@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, sergey.senozhatsky.work@gmail.com, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Marcin =?utf-8?Q?=C5=9Alusarz?= <marcin.slusarz@gmail.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed, 15 Jul 2015, Michal Hocko wrote:
-
-> On Tue 14-07-15 15:54:20, Andrew Morton wrote:
-> [...]
-> > From: David Rientjes <rientjes@google.com>
-> > Subject: mm, oom: organize oom context into struct
-> > 
-> > There are essential elements to an oom context that are passed around to
-> > multiple functions.
-> > 
-> > Organize these elements into a new struct, struct oom_control, that
-> > specifies the context for an oom condition.
+On Tue, Jul 14, 2015 at 04:48:24PM -0700, David Rientjes wrote:
+> On Tue, 14 Jul 2015, Paul E. McKenney wrote:
 > 
-> Didn't you intend to name it oom_context so that it's less confusing wrt.
-> oom_control usage in memcg?
->  
+> > commit a1992f2f3b8e174d740a8f764d0d51344bed2eed
+> > Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+> > Date:   Tue Jul 14 16:24:14 2015 -0700
+> > 
+> >     rcu: Don't disable CPU hotplug during OOM notifiers
+> >     
+> >     RCU's rcu_oom_notify() disables CPU hotplug in order to stabilize the
+> >     list of online CPUs, which it traverses.  However, this is completely
+> >     pointless because smp_call_function_single() will quietly fail if invoked
+> >     on an offline CPU.  Because the count of requests is incremented in the
+> >     rcu_oom_notify_cpu() function that is remotely invoked, everything works
+> >     nicely even in the face of concurrent CPU-hotplug operations.
+> >     
+> >     Furthermore, in recent kernels, invoking get_online_cpus() from an OOM
+> >     notifier can result in deadlock.  This commit therefore removes the
+> >     call to get_online_cpus() and put_online_cpus() from rcu_oom_notify().
+> >     
+> >     Reported-by: Marcin A?lusarz <marcin.slusarz@gmail.com>
+> >     Reported-by: David Rientjes <rientjes@google.com>
+> >     Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+> 
+> Acked-by: David Rientjes <rientjes@google.com>
 
-It's similar to struct compact_control in more ways than one, so I felt 
-this naming was better.  No strong opinion.
+Thank you!
+
+Any news on whether or not it solves the problem?
+
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
