@@ -1,40 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 276BD2802C4
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 19:56:09 -0400 (EDT)
-Received: by iecuq6 with SMTP id uq6so45168608iec.2
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 16:56:09 -0700 (PDT)
-Received: from mail-ie0-x22a.google.com (mail-ie0-x22a.google.com. [2607:f8b0:4001:c03::22a])
-        by mx.google.com with ESMTPS id i4si174733igj.30.2015.07.15.16.56.08
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id EA72C2802C4
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 19:59:13 -0400 (EDT)
+Received: by pachj5 with SMTP id hj5so32187489pac.3
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 16:59:13 -0700 (PDT)
+Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com. [2607:f8b0:400e:c02::236])
+        by mx.google.com with ESMTPS id m3si9948904pdh.67.2015.07.15.16.59.12
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jul 2015 16:56:08 -0700 (PDT)
-Received: by iecuq6 with SMTP id uq6so45168535iec.2
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 16:56:08 -0700 (PDT)
-Date: Wed, 15 Jul 2015 16:56:07 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2 2/3] memtest: cleanup log messages
-In-Reply-To: <1436863249-1219-3-git-send-email-vladimir.murzin@arm.com>
-Message-ID: <alpine.DEB.2.10.1507151655440.9230@chino.kir.corp.google.com>
-References: <1436863249-1219-1-git-send-email-vladimir.murzin@arm.com> <1436863249-1219-3-git-send-email-vladimir.murzin@arm.com>
+        Wed, 15 Jul 2015 16:59:13 -0700 (PDT)
+Received: by pdbep18 with SMTP id ep18so34426162pdb.1
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 16:59:12 -0700 (PDT)
+Date: Thu, 16 Jul 2015 08:59:44 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH 3/3] zsmalloc: do not take class lock in
+ zs_pages_to_compact()
+Message-ID: <20150715235944.GA3970@swordfish>
+References: <1436607932-7116-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1436607932-7116-4-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150715040703.GA545@swordfish>
+ <20150715233834.GA988@bgram>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150715233834.GA988@bgram>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Murzin <vladimir.murzin@arm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, leon@leon.nu
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Tue, 14 Jul 2015, Vladimir Murzin wrote:
+Hi,
 
-> - prefer pr_info(...  to printk(KERN_INFO ...
-> - use %pa for phys_addr_t
-> - use cpu_to_be64 while printing pattern in reserve_bad_mem()
+On (07/16/15 08:38), Minchan Kim wrote:
+> > > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> > > index b10a228..824c182 100644
+> > > --- a/mm/zsmalloc.c
+> > > +++ b/mm/zsmalloc.c
+> > > @@ -1811,9 +1811,7 @@ unsigned long zs_pages_to_compact(struct zs_pool *pool)
+> > >  		if (class->index != i)
+> > >  			continue;
+> > >  
+> > > -		spin_lock(&class->lock);
+> > >  		pages_to_free += zs_can_compact(class);
+> > > -		spin_unlock(&class->lock);
+> > >  	}
+> > >  
+> > >  	return pages_to_free;
+> > 
+> > This patch still makes sense. Agree?
 > 
-> Signed-off-by: Vladimir Murzin <vladimir.murzin@arm.com>
+> There is already race window between shrink_count and shrink_slab so
+> it would be okay if we return stale stat with removing the lock if
+> the difference is not huge.
+> 
+> Even, now we don't obey nr_to_scan of shrinker in zs_shrinker_scan
+> so the such accuracy would be pointless.
 
-Acked-by: David Rientjes <rientjes@google.com>
+Yeah, automatic shrinker may work concurrently with the user triggered
+one, so it may be hard (time consuming) to release the exact amount of
+pages that we returned from _count(). We can look at `sc->nr_to_reclaim'
+to avoid releasing more pages than shrinker wants us to release, but
+I'd probably prefer to keep the existing behaviour if we were called by
+the shrinker.
 
-Not sure why you changed the whitespace in reserve_bad_mem() though.
+OK, will resend later today.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
