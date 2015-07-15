@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
-	by kanga.kvack.org (Postfix) with ESMTP id E759028029C
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 12:25:02 -0400 (EDT)
-Received: by oibn4 with SMTP id n4so32140270oib.3
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 09:25:02 -0700 (PDT)
-Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
-        by mx.google.com with ESMTPS id o7si4193787obp.14.2015.07.15.09.25.02
+Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 7781728029C
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 12:25:03 -0400 (EDT)
+Received: by oibn4 with SMTP id n4so32140459oib.3
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 09:25:03 -0700 (PDT)
+Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
+        by mx.google.com with ESMTPS id mm1si4148988obb.103.2015.07.15.09.25.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 15 Jul 2015 09:25:02 -0700 (PDT)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v2 2/4] x86, asm: Move PUD_PAGE macros to page_types.h
-Date: Wed, 15 Jul 2015 10:23:53 -0600
-Message-Id: <1436977435-31826-3-git-send-email-toshi.kani@hp.com>
+Subject: [PATCH v2 3/4] x86: Fix pud/pmd interfaces to handle large PAT bit
+Date: Wed, 15 Jul 2015 10:23:54 -0600
+Message-Id: <1436977435-31826-4-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1436977435-31826-1-git-send-email-toshi.kani@hp.com>
 References: <1436977435-31826-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,54 +20,148 @@ List-ID: <linux-mm.kvack.org>
 To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com
 Cc: akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hp.com, Toshi Kani <toshi.kani@hp.com>
 
-PUD_SHIFT is defined according to a kernel configuration, which
-allows it be commonly used by any kernels.  However, PUD_PAGE_SIZE
-and PUD_PAGE_MASK, which are calculated from PUD_SHIFT, are defined
-in page_64_types.h, which allows them be used by a 64-bit kernel
-only.
+The PAT bit gets relocated to bit 12 when PUD and PMD mappings are
+used.  This bit 12, however, is not covered by PTE_FLAGS_MASK, which
+is corrently used for masking pfn and flags for all cases.
 
-Move PUD_PAGE_SIZE and PUD_PAGE_MASK to page_types.h so that they
-can be used by any kernels as well.
+Fix pud/pmd interfaces to handle pfn and flags properly by using
+P?D_PAGE_MASK when PUD/PMD mappings are used, i.e. PSE bit is set.
 
+Suggested-by: Juergen Gross <jgross@suse.com>
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 Cc: Juergen Gross <jgross@suse.com>
+Cc: Konrad Wilk <konrad.wilk@oracle.com>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: H. Peter Anvin <hpa@zytor.com>
 Cc: Ingo Molnar <mingo@redhat.com>
 Cc: Borislav Petkov <bp@alien8.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- arch/x86/include/asm/page_64_types.h |    3 ---
- arch/x86/include/asm/page_types.h    |    3 +++
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ arch/x86/include/asm/pgtable.h       |   14 +++++++-----
+ arch/x86/include/asm/pgtable_types.h |   40 +++++++++++++++++++++++++++++++---
+ 2 files changed, 44 insertions(+), 10 deletions(-)
 
-diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h
-index 4edd53b..4928cf0 100644
---- a/arch/x86/include/asm/page_64_types.h
-+++ b/arch/x86/include/asm/page_64_types.h
-@@ -26,9 +26,6 @@
- #define MCE_STACK 4
- #define N_EXCEPTION_STACKS 4  /* hw limit: 7 */
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 867da5b..0733ec7 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -142,12 +142,12 @@ static inline unsigned long pte_pfn(pte_t pte)
  
--#define PUD_PAGE_SIZE		(_AC(1, UL) << PUD_SHIFT)
--#define PUD_PAGE_MASK		(~(PUD_PAGE_SIZE-1))
--
+ static inline unsigned long pmd_pfn(pmd_t pmd)
+ {
+-	return (pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT;
++	return (pmd_val(pmd) & pmd_pfn_mask(pmd)) >> PAGE_SHIFT;
+ }
+ 
+ static inline unsigned long pud_pfn(pud_t pud)
+ {
+-	return (pud_val(pud) & PTE_PFN_MASK) >> PAGE_SHIFT;
++	return (pud_val(pud) & pud_pfn_mask(pud)) >> PAGE_SHIFT;
+ }
+ 
+ #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
+@@ -502,14 +502,15 @@ static inline int pmd_none(pmd_t pmd)
+ 
+ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
+ {
+-	return (unsigned long)__va(pmd_val(pmd) & PTE_PFN_MASK);
++	return (unsigned long)__va(pmd_val(pmd) & pmd_pfn_mask(pmd));
+ }
+ 
  /*
-  * Set __PAGE_OFFSET to the most negative possible address +
-  * PGDIR_SIZE*16 (pgd slot 272).  The gap is to allow a space for a
-diff --git a/arch/x86/include/asm/page_types.h b/arch/x86/include/asm/page_types.h
-index c7c712f..c5b7fb2 100644
---- a/arch/x86/include/asm/page_types.h
-+++ b/arch/x86/include/asm/page_types.h
-@@ -20,6 +20,9 @@
- #define PMD_PAGE_SIZE		(_AC(1, UL) << PMD_SHIFT)
- #define PMD_PAGE_MASK		(~(PMD_PAGE_SIZE-1))
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
+  */
+-#define pmd_page(pmd)	pfn_to_page((pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT)
++#define pmd_page(pmd)		\
++	pfn_to_page((pmd_val(pmd) & pmd_pfn_mask(pmd)) >> PAGE_SHIFT)
  
-+#define PUD_PAGE_SIZE		(_AC(1, UL) << PUD_SHIFT)
-+#define PUD_PAGE_MASK		(~(PUD_PAGE_SIZE-1))
+ /*
+  * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
+@@ -570,14 +571,15 @@ static inline int pud_present(pud_t pud)
+ 
+ static inline unsigned long pud_page_vaddr(pud_t pud)
+ {
+-	return (unsigned long)__va((unsigned long)pud_val(pud) & PTE_PFN_MASK);
++	return (unsigned long)__va(pud_val(pud) & pud_pfn_mask(pud));
+ }
+ 
+ /*
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
+  */
+-#define pud_page(pud)		pfn_to_page(pud_val(pud) >> PAGE_SHIFT)
++#define pud_page(pud)		\
++	pfn_to_page((pud_val(pud) & pud_pfn_mask(pud)) >> PAGE_SHIFT)
+ 
+ /* Find an entry in the second-level page table.. */
+ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index 13f310b..dd5b0aa 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -209,10 +209,10 @@ enum page_cache_mode {
+ 
+ #include <linux/types.h>
+ 
+-/* PTE_PFN_MASK extracts the PFN from a (pte|pmd|pud|pgd)val_t */
++/* Extracts the PFN from a (pte|pmd|pud|pgd)val_t of a 4KB page */
+ #define PTE_PFN_MASK		((pteval_t)PHYSICAL_PAGE_MASK)
+ 
+-/* PTE_FLAGS_MASK extracts the flags from a (pte|pmd|pud|pgd)val_t */
++/* Extracts the flags from a (pte|pmd|pud|pgd)val_t of a 4KB page */
+ #define PTE_FLAGS_MASK		(~PTE_PFN_MASK)
+ 
+ typedef struct pgprot { pgprotval_t pgprot; } pgprot_t;
+@@ -276,14 +276,46 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
+ }
+ #endif
+ 
++static inline pudval_t pud_pfn_mask(pud_t pud)
++{
++	if (native_pud_val(pud) & _PAGE_PSE)
++		return PUD_PAGE_MASK & PHYSICAL_PAGE_MASK;
++	else
++		return PTE_PFN_MASK;
++}
 +
- #define HPAGE_SHIFT		PMD_SHIFT
- #define HPAGE_SIZE		(_AC(1,UL) << HPAGE_SHIFT)
- #define HPAGE_MASK		(~(HPAGE_SIZE - 1))
++static inline pudval_t pud_flags_mask(pud_t pud)
++{
++	if (native_pud_val(pud) & _PAGE_PSE)
++		return ~(PUD_PAGE_MASK & (pudval_t)PHYSICAL_PAGE_MASK);
++	else
++		return ~PTE_PFN_MASK;
++}
++
+ static inline pudval_t pud_flags(pud_t pud)
+ {
+-	return native_pud_val(pud) & PTE_FLAGS_MASK;
++	return native_pud_val(pud) & pud_flags_mask(pud);
++}
++
++static inline pmdval_t pmd_pfn_mask(pmd_t pmd)
++{
++	if (native_pmd_val(pmd) & _PAGE_PSE)
++		return PMD_PAGE_MASK & PHYSICAL_PAGE_MASK;
++	else
++		return PTE_PFN_MASK;
++}
++
++static inline pmdval_t pmd_flags_mask(pmd_t pmd)
++{
++	if (native_pmd_val(pmd) & _PAGE_PSE)
++		return ~(PMD_PAGE_MASK & (pmdval_t)PHYSICAL_PAGE_MASK);
++	else
++		return ~PTE_PFN_MASK;
+ }
+ 
+ static inline pmdval_t pmd_flags(pmd_t pmd)
+ {
+-	return native_pmd_val(pmd) & PTE_FLAGS_MASK;
++	return native_pmd_val(pmd) & pmd_flags_mask(pmd);
+ }
+ 
+ static inline pte_t native_make_pte(pteval_t val)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
