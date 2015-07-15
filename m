@@ -1,59 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 745842802BB
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 18:18:58 -0400 (EDT)
-Received: by igbij6 with SMTP id ij6so307660igb.1
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:18:58 -0700 (PDT)
-Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com. [2607:f8b0:4001:c05::233])
-        by mx.google.com with ESMTPS id j9si5741ige.71.2015.07.15.15.18.57
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 4370D2802BB
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 18:21:48 -0400 (EDT)
+Received: by igbpg9 with SMTP id pg9so385892igb.0
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:21:48 -0700 (PDT)
+Received: from mail-ie0-x231.google.com (mail-ie0-x231.google.com. [2607:f8b0:4001:c03::231])
+        by mx.google.com with ESMTPS id ah9si5324831icc.105.2015.07.15.15.21.47
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jul 2015 15:18:57 -0700 (PDT)
-Received: by igbij6 with SMTP id ij6so307507igb.1
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:18:57 -0700 (PDT)
+        Wed, 15 Jul 2015 15:21:47 -0700 (PDT)
+Received: by ietj16 with SMTP id j16so43962444iet.0
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:21:47 -0700 (PDT)
+Date: Wed, 15 Jul 2015 15:21:46 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 2/4] oom: Do not invoke oom notifiers on sysrq+f
+In-Reply-To: <20150715094240.GF5101@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1507151521250.3514@chino.kir.corp.google.com>
+References: <1436360661-31928-1-git-send-email-mhocko@suse.com> <1436360661-31928-3-git-send-email-mhocko@suse.com> <alpine.DEB.2.10.1507081636180.16585@chino.kir.corp.google.com> <20150709085505.GB13872@dhcp22.suse.cz> <alpine.DEB.2.10.1507091404200.17177@chino.kir.corp.google.com>
+ <20150710074032.GA7343@dhcp22.suse.cz> <alpine.DEB.2.10.1507141458350.16182@chino.kir.corp.google.com> <20150715094240.GF5101@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CALZtONAJogDgMJ45v6KLFbbe+SeDjfBFKDFv2VFC1zLJ8VGy7g@mail.gmail.com>
-References: <1433419358-21820-1-git-send-email-ddstreet@ieee.org>
- <CALZtONC_-uQcE30hgzwD-V9Ps9k8g2Y_XUTjD9xcXaiXAc-hGw@mail.gmail.com>
- <CALZtONA6C3v0mwwgbf4QqLqehqtrdqs9Y=Td2-HXyhQhySki_w@mail.gmail.com>
- <CALZtOND9wWe_58PNW396dpUy_HBrr+pv5_-KNfUGjvrPiGV0Gw@mail.gmail.com>
- <CALZtONCHfcK4wUhQOiiXRL6D4fR92sKqZ+edctSZU3Xf0qWx_w@mail.gmail.com>
- <20150625133557.c519c933c104a2657417bd02@linux-foundation.org> <CALZtONAJogDgMJ45v6KLFbbe+SeDjfBFKDFv2VFC1zLJ8VGy7g@mail.gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Wed, 15 Jul 2015 18:18:38 -0400
-Message-ID: <CALZtOND3CpQQCdLbTrgML5KSWtUUzXzODPt9zttXbAj7g_9BoA@mail.gmail.com>
-Subject: Re: [PATCH] zswap: dynamic pool creation
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jakob Unterwurzacher <jakobunt@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 25, 2015 at 4:37 PM, Dan Streetman <ddstreet@ieee.org> wrote:
-> On Thu, Jun 25, 2015 at 4:35 PM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
->> On Thu, 25 Jun 2015 16:22:07 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
->>
->>> Andrew (or anyone else) do you have any objection to this patch?  I
->>> assume Seth is on an extended vacation; maybe you could add this to
->>> your mmotm?  If Seth prefers changes to it he still has a couple
->>> months-ish until the next merge window.  I could then send the
->>> follow-on patches, that allow zswap params to be set at runtime.  I
->>> can resend them all as a series, if you prefer that.
->>
->> I'll take a look once the merge window mayhem settles down.  But it
->> never hurts to do a refresh/retest/resend.
->
-> Sure, let me rebase the whole thing onto the latest upstream, and I'll
-> resend the series.
+On Wed, 15 Jul 2015, Michal Hocko wrote:
 
-Seth,
+> > > Shrinkers are there to reclaim and prevent from OOM. This API is a gray
+> > > zone. It looks generic method for the notification yet it allows to
+> > > prevent from oom killer. I can imagine somebody might abuse this
+> > > interface to implement OOM killer policies.
+> > > 
+> > > Anyway, I think it would be preferable to kill it altogether rather than
+> > > play with its placing. It will always be a questionable API.
+> > > 
+> > 
+> > Agreed.
+> 
+> In such a case it would be still good to fix the bug fixed by this
+> patch.
+> 
 
-I don't know what happened, but I never got any of your replies (in my
-gmail account), although I see them in the list archives :(
-
-Just to reset everything, I'll rebase the patches and resend them, and
-we can continue the discussion.  Sorry for the confusion!
+It's fixed if you follow the suggestion of moving the oom notification out 
+of the oom killer where it doesn't belong.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
