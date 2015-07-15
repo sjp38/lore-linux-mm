@@ -1,96 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id C626D280292
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 09:55:31 -0400 (EDT)
-Received: by pdbep18 with SMTP id ep18so26445837pdb.1
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 06:55:31 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id l3si7720964pdp.109.2015.07.15.06.55.30
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id CFE0C6B02D0
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 11:24:04 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so1154471wib.0
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 08:24:04 -0700 (PDT)
+Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [207.82.80.143])
+        by mx.google.com with ESMTPS id ei6si490516wib.96.2015.07.15.08.24.01
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jul 2015 06:55:31 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm v8 7/7] proc: export idle flag via kpageflags
-Date: Wed, 15 Jul 2015 16:54:11 +0300
-Message-ID: <024b60a19e5ef246c9af3c5ff7652e71576e0bcc.1436967694.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1436967694.git.vdavydov@parallels.com>
-References: <cover.1436967694.git.vdavydov@parallels.com>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 15 Jul 2015 08:24:03 -0700 (PDT)
+Message-ID: <55A67B0D.9030804@arm.com>
+Date: Wed, 15 Jul 2015 16:23:57 +0100
+From: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH 17/36] arm64, thp: remove infrastructure for handling
+ splitting PMDs
+References: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com> <1436550130-112636-18-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1436550130-112636-18-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=WINDOWS-1252; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-As noted by Minchan, a benefit of reading idle flag from
-/proc/kpageflags is that one can easily filter dirty and/or unevictable
-pages while estimating the size of unused memory.
+On 10/07/15 18:41, Kirill A. Shutemov wrote:
+> With new refcounting we don't need to mark PMDs splitting. Let's drop
+> code to handle this.
+>
+> pmdp_splitting_flush() is not needed too: on splitting PMD we will do
+> pmdp_clear_flush() + set_pte_at(). pmdp_clear_flush() will do IPI as
+> needed for fast_gup.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>   arch/arm64/include/asm/pgtable.h |  9 ---------
+>   arch/arm64/mm/flush.c            | 16 ----------------
+>   2 files changed, 25 deletions(-)
+>
+> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pg=
+table.h
+> index bd5db28324ba..37cdbf37934c 100644
+> --- a/arch/arm64/include/asm/pgtable.h
+> +++ b/arch/arm64/include/asm/pgtable.h
+> @@ -274,20 +274,11 @@ static inline pgprot_t mk_sect_prot(pgprot_t prot)
+>
+>   #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>   #define pmd_trans_huge(pmd)=09(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TAB=
+LE_BIT))
+> -#define pmd_trans_splitting(pmd)=09pte_special(pmd_pte(pmd))
+> -#ifdef CONFIG_HAVE_RCU_TABLE_FREE
+> -#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+> -struct vm_area_struct;
+> -void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long addr=
+ess,
+> -=09=09=09  pmd_t *pmdp);
+> -#endif /* CONFIG_HAVE_RCU_TABLE_FREE */
+> -#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
-Note that idle flag read from /proc/kpageflags may be stale in case the
-page was accessed via a PTE, because it would be too costly to iterate
-over all page mappings on each /proc/kpageflags read to provide an
-up-to-date value. To make sure the flag is up-to-date one has to read
-/proc/kpageidle first.
+Wouldn't this cause a build failure(Untested) ? We need to retain the last =
+line,
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
----
- Documentation/vm/pagemap.txt           | 6 ++++++
- fs/proc/page.c                         | 3 +++
- include/uapi/linux/kernel-page-flags.h | 1 +
- 3 files changed, 10 insertions(+)
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
-diff --git a/Documentation/vm/pagemap.txt b/Documentation/vm/pagemap.txt
-index c9266340852c..5896b7d7fd74 100644
---- a/Documentation/vm/pagemap.txt
-+++ b/Documentation/vm/pagemap.txt
-@@ -64,6 +64,7 @@ There are five components to pagemap:
-     22. THP
-     23. BALLOON
-     24. ZERO_PAGE
-+    25. IDLE
- 
-  * /proc/kpagecgroup.  This file contains a 64-bit inode number of the
-    memory cgroup each page is charged to, indexed by PFN. Only available when
-@@ -124,6 +125,11 @@ Short descriptions to the page flags:
- 24. ZERO_PAGE
-     zero page for pfn_zero or huge_zero page
- 
-+25. IDLE
-+    page has not been accessed since it was marked idle (see /proc/kpageidle)
-+    Note that this flag may be stale in case the page was accessed via a PTE.
-+    To make sure the flag is up-to-date one has to read /proc/kpageidle first.
-+
-     [IO related page flags]
-  1. ERROR     IO error occurred
-  3. UPTODATE  page has up-to-date data
-diff --git a/fs/proc/page.c b/fs/proc/page.c
-index 273537885ab4..13dcb823fe4e 100644
---- a/fs/proc/page.c
-+++ b/fs/proc/page.c
-@@ -150,6 +150,9 @@ u64 stable_page_flags(struct page *page)
- 	if (PageBalloon(page))
- 		u |= 1 << KPF_BALLOON;
- 
-+	if (page_is_idle(page))
-+		u |= 1 << KPF_IDLE;
-+
- 	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
- 
- 	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
-diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
-index a6c4962e5d46..5da5f8751ce7 100644
---- a/include/uapi/linux/kernel-page-flags.h
-+++ b/include/uapi/linux/kernel-page-flags.h
-@@ -33,6 +33,7 @@
- #define KPF_THP			22
- #define KPF_BALLOON		23
- #define KPF_ZERO_PAGE		24
-+#define KPF_IDLE		25
- 
- 
- #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
--- 
-2.1.4
+isn't it ?
+
+
+Thanks
+Suzuki
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
