@@ -1,82 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 1629A2802C4
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 19:53:31 -0400 (EDT)
-Received: by pachj5 with SMTP id hj5so32120134pac.3
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 16:53:30 -0700 (PDT)
-Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com. [2607:f8b0:400e:c02::22b])
-        by mx.google.com with ESMTPS id re6si9942338pab.88.2015.07.15.16.53.30
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 31E402802C4
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 19:55:42 -0400 (EDT)
+Received: by igbij6 with SMTP id ij6so1689856igb.1
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 16:55:42 -0700 (PDT)
+Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com. [2607:f8b0:4001:c05::235])
+        by mx.google.com with ESMTPS id ng9si5508188icb.4.2015.07.15.16.55.41
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jul 2015 16:53:30 -0700 (PDT)
-Received: by pdjr16 with SMTP id r16so33319582pdj.3
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 16:53:30 -0700 (PDT)
-Date: Thu, 16 Jul 2015 08:53:35 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 1/2] mm/page_owner: fix possible access violation
-Message-ID: <20150715235335.GD988@bgram>
-References: <1436942039-16897-1-git-send-email-iamjoonsoo.kim@lge.com>
+        Wed, 15 Jul 2015 16:55:41 -0700 (PDT)
+Received: by iggf3 with SMTP id f3so1651322igg.1
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 16:55:41 -0700 (PDT)
+Date: Wed, 15 Jul 2015 16:55:40 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2 1/3] memtest: use kstrtouint instead of
+ simple_strtoul
+In-Reply-To: <1436863249-1219-2-git-send-email-vladimir.murzin@arm.com>
+Message-ID: <alpine.DEB.2.10.1507151655290.9230@chino.kir.corp.google.com>
+References: <1436863249-1219-1-git-send-email-vladimir.murzin@arm.com> <1436863249-1219-2-git-send-email-vladimir.murzin@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1436942039-16897-1-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Vladimir Murzin <vladimir.murzin@arm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, leon@leon.nu
 
-On Wed, Jul 15, 2015 at 03:33:58PM +0900, Joonsoo Kim wrote:
-> When I tested my new patches, I found that page pointer which is used
-> for setting page_owner information is changed. This is because page
-> pointer is used to set new migratetype in loop. After this work,
-> page pointer could be out of bound. If this wrong pointer is used for
-> page_owner, access violation happens. Below is error message that I got.
-> 
-> [ 6175.025217] BUG: unable to handle kernel paging request at 0000000000b00018
-> [ 6175.026400] IP: [<ffffffff81025f30>] save_stack_address+0x30/0x40
-> [ 6175.027341] PGD 1af2d067 PUD 166e0067 PMD 0
-> [ 6175.028129] Oops: 0002 [#1] SMP
-> snip...
-> [ 6175.055349] Call Trace:
-> [ 6175.055780]  [<ffffffff81018c0f>] print_context_stack+0xcf/0x100
-> [ 6175.056794]  [<ffffffff810f8552>] ? __module_text_address+0x12/0x70
-> [ 6175.057848]  [<ffffffff810177cf>] dump_trace+0x15f/0x320
-> [ 6175.058751]  [<ffffffff8106b140>] ? do_flush_tlb_all+0x50/0x50
-> [ 6175.059732]  [<ffffffff810f5529>] ? smp_call_function_single+0xb9/0x120
-> [ 6175.060856]  [<ffffffff81025e3f>] save_stack_trace+0x2f/0x50
-> [ 6175.061812]  [<ffffffff811e3366>] __set_page_owner+0x46/0x70
-> [ 6175.062774]  [<ffffffff8117bd47>] __isolate_free_page+0x1f7/0x210
-> [ 6175.063804]  [<ffffffff8117bd81>] split_free_page+0x21/0xb0
-> [ 6175.064757]  [<ffffffff8119aa82>] isolate_freepages_block+0x1e2/0x410
-> [ 6175.065855]  [<ffffffff8119b53d>] compaction_alloc+0x22d/0x2d0
-> [ 6175.066850]  [<ffffffff811d3779>] migrate_pages+0x289/0x8b0
-> [ 6175.067798]  [<ffffffff8119c16a>] ? isolate_migratepages_block+0x28a/0x6e0
-> [ 6175.068960]  [<ffffffff8119a000>] ? kmalloc_slab+0xa0/0xa0
-> [ 6175.069892]  [<ffffffff8119b310>] ? ftrace_raw_event_mm_compaction_deplete_template+0xc0/0xc0
-> [ 6175.071327]  [<ffffffff8119ce49>] compact_zone+0x409/0x880
-> [ 6175.072261]  [<ffffffff8119d32d>] compact_zone_order+0x6d/0x90
-> [ 6175.073250]  [<ffffffff8119d5d0>] try_to_compact_pages+0x110/0x210
-> [ 6175.074297]  [<ffffffff8176e9e8>] __alloc_pages_direct_compact+0x3d/0xe6
-> [ 6175.075427]  [<ffffffff8117d42d>] __alloc_pages_nodemask+0x6cd/0x9a0
-> [ 6175.076517]  [<ffffffff811c2bf1>] alloc_pages_current+0x91/0x100
-> [ 6175.077545]  [<ffffffff811e7216>] runtest_store+0x296/0xa50
-> [ 6175.078497]  [<ffffffff813a553c>] ? simple_strtoull+0x2c/0x50
-> [ 6175.079465]  [<ffffffff812130bd>] simple_attr_write+0xbd/0xe0
-> [ 6175.080458]  [<ffffffff811eb038>] __vfs_write+0x28/0xf0
-> [ 6175.081349]  [<ffffffff811edc39>] ? __sb_start_write+0x49/0xf0
-> [ 6175.082345]  [<ffffffff8130fe25>] ? security_file_permission+0x45/0xd0
-> [ 6175.083453]  [<ffffffff811eb729>] vfs_write+0xa9/0x1b0
-> [ 6175.084334]  [<ffffffff811ec4f6>] SyS_write+0x46/0xb0
-> [ 6175.085196]  [<ffffffff81172803>] ? context_tracking_user_enter+0x13/0x20
-> [ 6175.086339]  [<ffffffff81024c55>] ? syscall_trace_leave+0xa5/0x120
-> [ 6175.087389]  [<ffffffff81779472>] system_call_fastpath+0x16/0x75
-> 
-> This patch fixes this error by moving up set_page_owner().
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Acked-by: Minchan Kim <minchan@kernel.org>
+On Tue, 14 Jul 2015, Vladimir Murzin wrote:
 
--stable material?
+> Since simple_strtoul is obsolete and memtest_pattern is type of int, use
+> kstrtouint instead.
+> 
+> Signed-off-by: Vladimir Murzin <vladimir.murzin@arm.com>
+
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
