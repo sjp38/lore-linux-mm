@@ -1,126 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D8D528027E
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 07:15:19 -0400 (EDT)
-Received: by wiga1 with SMTP id a1so125755130wig.0
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 04:15:19 -0700 (PDT)
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com. [74.125.82.45])
-        by mx.google.com with ESMTPS id bd2si7304056wjc.130.2015.07.15.04.15.17
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 1133A28027E
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 07:15:21 -0400 (EDT)
+Received: by wgmn9 with SMTP id n9so30811209wgm.0
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 04:15:20 -0700 (PDT)
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com. [209.85.212.180])
+        by mx.google.com with ESMTPS id u3si7289432wje.160.2015.07.15.04.15.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jul 2015 04:15:18 -0700 (PDT)
-Received: by wgxm20 with SMTP id m20so30741800wgx.3
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 04:15:17 -0700 (PDT)
+        Wed, 15 Jul 2015 04:15:19 -0700 (PDT)
+Received: by wibud3 with SMTP id ud3so78208821wib.1
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 04:15:19 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 4/5] memcg: restructure mem_cgroup_can_attach()
-Date: Wed, 15 Jul 2015 13:14:44 +0200
-Message-Id: <1436958885-18754-5-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 5/5] memcg, tcp_kmem: check for cg_proto in sock_update_memcg
+Date: Wed, 15 Jul 2015 13:14:45 +0200
+Message-Id: <1436958885-18754-6-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1436958885-18754-1-git-send-email-mhocko@kernel.org>
 References: <1436958885-18754-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>
 
-From: Tejun Heo <tj@kernel.org>
+From: Michal Hocko <mhocko@suse.cz>
 
-Restructure it to lower nesting level and help the planned threadgroup
-leader iteration changes.
+sk_prot->proto_cgroup is allowed to return NULL but sock_update_memcg
+doesn't check for NULL. The function relies on the mem_cgroup_is_root
+check because we shouldn't get NULL otherwise because
+mem_cgroup_from_task will always return !NULL.
 
-This is pure reorganization.
+All other callers are checking for NULL and we can safely replace
+mem_cgroup_is_root() check by cg_proto != NULL which will be more
+straightforward (proto_cgroup returns NULL for the root memcg already).
 
 Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
-Signed-off-by: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
 ---
- mm/memcontrol.c | 61 ++++++++++++++++++++++++++++++---------------------------
- 1 file changed, 32 insertions(+), 29 deletions(-)
+ mm/memcontrol.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a3543dedc153..5d4fba8cbdd0 100644
+index 5d4fba8cbdd0..cf9fb1f41831 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -4828,10 +4828,12 @@ static void mem_cgroup_clear_mc(void)
- static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
- 				 struct cgroup_taskset *tset)
- {
--	struct task_struct *p = cgroup_taskset_first(tset);
--	int ret = 0;
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-+	struct mem_cgroup *from;
-+	struct task_struct *p;
-+	struct mm_struct *mm;
- 	unsigned long move_flags;
-+	int ret = 0;
- 
- 	/*
- 	 * We are now commited to this value whatever it is. Changes in this
-@@ -4839,36 +4841,37 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
- 	 * So we need to save it, and keep it going.
- 	 */
- 	move_flags = READ_ONCE(memcg->move_charge_at_immigrate);
--	if (move_flags) {
--		struct mm_struct *mm;
--		struct mem_cgroup *from = mem_cgroup_from_task(p);
-+	if (!move_flags)
-+		return 0;
- 
--		VM_BUG_ON(from == memcg);
-+	p = cgroup_taskset_first(tset);
-+	from = mem_cgroup_from_task(p);
- 
--		mm = get_task_mm(p);
--		if (!mm)
--			return 0;
--		/* We move charges only when we move a owner of the mm */
--		if (mm->owner == p) {
--			VM_BUG_ON(mc.from);
--			VM_BUG_ON(mc.to);
--			VM_BUG_ON(mc.precharge);
--			VM_BUG_ON(mc.moved_charge);
--			VM_BUG_ON(mc.moved_swap);
--
--			spin_lock(&mc.lock);
--			mc.from = from;
--			mc.to = memcg;
--			mc.flags = move_flags;
--			spin_unlock(&mc.lock);
--			/* We set mc.moving_task later */
--
--			ret = mem_cgroup_precharge_mc(mm);
--			if (ret)
--				mem_cgroup_clear_mc();
--		}
--		mmput(mm);
-+	VM_BUG_ON(from == memcg);
-+
-+	mm = get_task_mm(p);
-+	if (!mm)
-+		return 0;
-+	/* We move charges only when we move a owner of the mm */
-+	if (mm->owner == p) {
-+		VM_BUG_ON(mc.from);
-+		VM_BUG_ON(mc.to);
-+		VM_BUG_ON(mc.precharge);
-+		VM_BUG_ON(mc.moved_charge);
-+		VM_BUG_ON(mc.moved_swap);
-+
-+		spin_lock(&mc.lock);
-+		mc.from = from;
-+		mc.to = memcg;
-+		mc.flags = move_flags;
-+		spin_unlock(&mc.lock);
-+		/* We set mc.moving_task later */
-+
-+		ret = mem_cgroup_precharge_mc(mm);
-+		if (ret)
-+			mem_cgroup_clear_mc();
- 	}
-+	mmput(mm);
- 	return ret;
- }
- 
+@@ -315,8 +315,7 @@ void sock_update_memcg(struct sock *sk)
+ 		rcu_read_lock();
+ 		memcg = mem_cgroup_from_task(current);
+ 		cg_proto = sk->sk_prot->proto_cgroup(memcg);
+-		if (!mem_cgroup_is_root(memcg) &&
+-		    memcg_proto_active(cg_proto) &&
++		if (cg_proto && memcg_proto_active(cg_proto) &&
+ 		    css_tryget_online(&memcg->css)) {
+ 			sk->sk_cgrp = cg_proto;
+ 		}
 -- 
 2.1.4
 
