@@ -1,87 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id C44E128027E
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 07:15:17 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so37792126wib.0
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 04:15:17 -0700 (PDT)
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
-        by mx.google.com with ESMTPS id i8si8493307wiy.38.2015.07.15.04.15.15
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D8D528027E
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 07:15:19 -0400 (EDT)
+Received: by wiga1 with SMTP id a1so125755130wig.0
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 04:15:19 -0700 (PDT)
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com. [74.125.82.45])
+        by mx.google.com with ESMTPS id bd2si7304056wjc.130.2015.07.15.04.15.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jul 2015 04:15:16 -0700 (PDT)
-Received: by widic2 with SMTP id ic2so60740136wid.0
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 04:15:15 -0700 (PDT)
+        Wed, 15 Jul 2015 04:15:18 -0700 (PDT)
+Received: by wgxm20 with SMTP id m20so30741800wgx.3
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 04:15:17 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 3/5] memcg: get rid of extern for functions in memcontrol.h
-Date: Wed, 15 Jul 2015 13:14:43 +0200
-Message-Id: <1436958885-18754-4-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 4/5] memcg: restructure mem_cgroup_can_attach()
+Date: Wed, 15 Jul 2015 13:14:44 +0200
+Message-Id: <1436958885-18754-5-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1436958885-18754-1-git-send-email-mhocko@kernel.org>
 References: <1436958885-18754-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-From: Michal Hocko <mhocko@suse.cz>
+From: Tejun Heo <tj@kernel.org>
 
-Most of the exported functions in this header are not marked extern so
-change the rest to follow the same style.
+Restructure it to lower nesting level and help the planned threadgroup
+leader iteration changes.
+
+This is pure reorganization.
 
 Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Michal Hocko <mhocko@suse.cz>
 ---
- include/linux/memcontrol.h | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ mm/memcontrol.c | 61 ++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 32 insertions(+), 29 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 292e6701f3fd..ce85bdb556f5 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -305,10 +305,10 @@ struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index a3543dedc153..5d4fba8cbdd0 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4828,10 +4828,12 @@ static void mem_cgroup_clear_mc(void)
+ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
+ 				 struct cgroup_taskset *tset)
+ {
+-	struct task_struct *p = cgroup_taskset_first(tset);
+-	int ret = 0;
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
++	struct mem_cgroup *from;
++	struct task_struct *p;
++	struct mm_struct *mm;
+ 	unsigned long move_flags;
++	int ret = 0;
  
- bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
+ 	/*
+ 	 * We are now commited to this value whatever it is. Changes in this
+@@ -4839,36 +4841,37 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
+ 	 * So we need to save it, and keep it going.
+ 	 */
+ 	move_flags = READ_ONCE(memcg->move_charge_at_immigrate);
+-	if (move_flags) {
+-		struct mm_struct *mm;
+-		struct mem_cgroup *from = mem_cgroup_from_task(p);
++	if (!move_flags)
++		return 0;
  
--extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
--extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
-+struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
-+struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+-		VM_BUG_ON(from == memcg);
++	p = cgroup_taskset_first(tset);
++	from = mem_cgroup_from_task(p);
  
--extern struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
-+struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
- static inline
- struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
- 	return css ? container_of(css, struct mem_cgroup, css) : NULL;
-@@ -343,7 +343,7 @@ static inline bool mm_match_cgroup(struct mm_struct *mm,
- 	return match;
+-		mm = get_task_mm(p);
+-		if (!mm)
+-			return 0;
+-		/* We move charges only when we move a owner of the mm */
+-		if (mm->owner == p) {
+-			VM_BUG_ON(mc.from);
+-			VM_BUG_ON(mc.to);
+-			VM_BUG_ON(mc.precharge);
+-			VM_BUG_ON(mc.moved_charge);
+-			VM_BUG_ON(mc.moved_swap);
+-
+-			spin_lock(&mc.lock);
+-			mc.from = from;
+-			mc.to = memcg;
+-			mc.flags = move_flags;
+-			spin_unlock(&mc.lock);
+-			/* We set mc.moving_task later */
+-
+-			ret = mem_cgroup_precharge_mc(mm);
+-			if (ret)
+-				mem_cgroup_clear_mc();
+-		}
+-		mmput(mm);
++	VM_BUG_ON(from == memcg);
++
++	mm = get_task_mm(p);
++	if (!mm)
++		return 0;
++	/* We move charges only when we move a owner of the mm */
++	if (mm->owner == p) {
++		VM_BUG_ON(mc.from);
++		VM_BUG_ON(mc.to);
++		VM_BUG_ON(mc.precharge);
++		VM_BUG_ON(mc.moved_charge);
++		VM_BUG_ON(mc.moved_swap);
++
++		spin_lock(&mc.lock);
++		mc.from = from;
++		mc.to = memcg;
++		mc.flags = move_flags;
++		spin_unlock(&mc.lock);
++		/* We set mc.moving_task later */
++
++		ret = mem_cgroup_precharge_mc(mm);
++		if (ret)
++			mem_cgroup_clear_mc();
+ 	}
++	mmput(mm);
+ 	return ret;
  }
  
--extern struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page);
-+struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page);
- 
- static inline bool mem_cgroup_disabled(void)
- {
-@@ -402,8 +402,8 @@ static inline int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
- 	return inactive * inactive_ratio < active;
- }
- 
--extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
--					struct task_struct *p);
-+void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
-+				struct task_struct *p);
- 
- static inline void mem_cgroup_oom_enable(void)
- {
-@@ -718,8 +718,8 @@ static inline void sock_release_memcg(struct sock *sk)
- extern struct static_key memcg_kmem_enabled_key;
- 
- extern int memcg_nr_cache_ids;
--extern void memcg_get_cache_ids(void);
--extern void memcg_put_cache_ids(void);
-+void memcg_get_cache_ids(void);
-+void memcg_put_cache_ids(void);
- 
- /*
-  * Helper macro to loop through all memcg-specific caches. Callers must still
 -- 
 2.1.4
 
