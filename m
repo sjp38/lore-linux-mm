@@ -1,137 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 6733A28027E
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 02:34:23 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so19302566pdr.2
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 23:34:23 -0700 (PDT)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id fo7si5834737pac.56.2015.07.14.23.34.22
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 004D928027E
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 02:35:43 -0400 (EDT)
+Received: by pdjr16 with SMTP id r16so19398664pdj.3
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 23:35:42 -0700 (PDT)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id db5si5804832pbb.103.2015.07.14.23.35.41
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Jul 2015 23:34:22 -0700 (PDT)
-Received: by pactm7 with SMTP id tm7so18733897pac.2
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 23:34:22 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Jul 2015 23:35:42 -0700 (PDT)
+Received: by padck2 with SMTP id ck2so18570364pad.0
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 23:35:41 -0700 (PDT)
 From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH 2/2] mm/page_owner: set correct gfp_mask on page_owner
-Date: Wed, 15 Jul 2015 15:33:59 +0900
-Message-Id: <1436942039-16897-2-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1436942039-16897-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1436942039-16897-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 1/2] mm/cma_debug: fix debugging alloc/free interface
+Date: Wed, 15 Jul 2015 15:35:28 +0900
+Message-Id: <1436942129-18020-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Stefan Strogin <stefan.strogin@gmail.com>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Currently, we set wrong gfp_mask to page_owner info in case of
-isolated freepage by compaction and split page. It causes incorrect
-mixed pageblock report that we can get from '/proc/pagetypeinfo'.
-This metric is really useful to measure fragmentation effect so
-should be accurate. This patch fixes it by setting correct
-information.
+CMA has alloc/free interface for debugging. It is intended that alloc/free
+occurs in specific CMA region, but, currently, alloc/free interface is
+on root dir due to the bug so we can't select CMA region where alloc/free
+happens.
 
-Without this patch, after kernel build workload is finished, number
-of mixed pageblock is 112 among roughly 210 movable pageblocks.
-
-But, with this fix, output shows that mixed pageblock is just 57.
+This patch fixes this problem by making alloc/free interface per
+CMA region.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- include/linux/page_owner.h | 13 +++++++++++++
- mm/page_alloc.c            |  8 +++++---
- mm/page_owner.c            |  7 +++++++
- 3 files changed, 25 insertions(+), 3 deletions(-)
+ mm/cma_debug.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/page_owner.h b/include/linux/page_owner.h
-index b48c347..cacaabe 100644
---- a/include/linux/page_owner.h
-+++ b/include/linux/page_owner.h
-@@ -8,6 +8,7 @@ extern struct page_ext_operations page_owner_ops;
- extern void __reset_page_owner(struct page *page, unsigned int order);
- extern void __set_page_owner(struct page *page,
- 			unsigned int order, gfp_t gfp_mask);
-+extern gfp_t __get_page_owner_gfp(struct page *page);
+diff --git a/mm/cma_debug.c b/mm/cma_debug.c
+index 7621ee3..22190a7 100644
+--- a/mm/cma_debug.c
++++ b/mm/cma_debug.c
+@@ -170,10 +170,10 @@ static void cma_debugfs_add_one(struct cma *cma, int idx)
  
- static inline void reset_page_owner(struct page *page, unsigned int order)
- {
-@@ -25,6 +26,14 @@ static inline void set_page_owner(struct page *page,
+ 	tmp = debugfs_create_dir(name, cma_debugfs_root);
  
- 	__set_page_owner(page, order, gfp_mask);
- }
-+
-+static inline gfp_t get_page_owner_gfp(struct page *page)
-+{
-+	if (likely(!page_owner_inited))
-+		return 0;
-+
-+	return __get_page_owner_gfp(page);
-+}
- #else
- static inline void reset_page_owner(struct page *page, unsigned int order)
- {
-@@ -33,6 +42,10 @@ static inline void set_page_owner(struct page *page,
- 			unsigned int order, gfp_t gfp_mask)
- {
- }
-+static inline gfp_t get_page_owner_gfp(struct page *page)
-+{
-+	return 0;
-+}
+-	debugfs_create_file("alloc", S_IWUSR, cma_debugfs_root, cma,
++	debugfs_create_file("alloc", S_IWUSR, tmp, cma,
+ 				&cma_alloc_fops);
  
- #endif /* CONFIG_PAGE_OWNER */
- #endif /* __LINUX_PAGE_OWNER_H */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 70d6a85..3ce3ec2 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1957,6 +1957,7 @@ void free_hot_cold_page_list(struct list_head *list, bool cold)
- void split_page(struct page *page, unsigned int order)
- {
- 	int i;
-+	gfp_t gfp_mask;
+-	debugfs_create_file("free", S_IWUSR, cma_debugfs_root, cma,
++	debugfs_create_file("free", S_IWUSR, tmp, cma,
+ 				&cma_free_fops);
  
- 	VM_BUG_ON_PAGE(PageCompound(page), page);
- 	VM_BUG_ON_PAGE(!page_count(page), page);
-@@ -1970,10 +1971,11 @@ void split_page(struct page *page, unsigned int order)
- 		split_page(virt_to_page(page[0].shadow), order);
- #endif
- 
--	set_page_owner(page, 0, 0);
-+	gfp_mask = get_page_owner_gfp(page);
-+	set_page_owner(page, 0, gfp_mask);
- 	for (i = 1; i < (1 << order); i++) {
- 		set_page_refcounted(page + i);
--		set_page_owner(page + i, 0, 0);
-+		set_page_owner(page + i, 0, gfp_mask);
- 	}
- }
- EXPORT_SYMBOL_GPL(split_page);
-@@ -2003,7 +2005,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
- 	zone->free_area[order].nr_free--;
- 	rmv_page_order(page);
- 
--	set_page_owner(page, order, 0);
-+	set_page_owner(page, order, __GFP_MOVABLE);
- 
- 	/* Set the pageblock if the isolated page is at least a pageblock */
- 	if (order >= pageblock_order - 1) {
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 0993f5f..a3c4aed 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -76,6 +76,13 @@ void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
- 	__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
- }
- 
-+gfp_t __get_page_owner_gfp(struct page *page)
-+{
-+	struct page_ext *page_ext = lookup_page_ext(page);
-+
-+	return page_ext->gfp_mask;
-+}
-+
- static ssize_t
- print_page_owner(char __user *buf, size_t count, unsigned long pfn,
- 		struct page *page, struct page_ext *page_ext)
+ 	debugfs_create_file("base_pfn", S_IRUGO, tmp,
 -- 
 1.9.1
 
