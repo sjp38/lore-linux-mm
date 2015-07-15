@@ -1,73 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id CFE0C6B02D0
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 11:24:04 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so1154471wib.0
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 08:24:04 -0700 (PDT)
-Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [207.82.80.143])
-        by mx.google.com with ESMTPS id ei6si490516wib.96.2015.07.15.08.24.01
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id E090328027E
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 12:01:51 -0400 (EDT)
+Received: by qget71 with SMTP id t71so20175037qge.2
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 09:01:51 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d140si5852799qhc.123.2015.07.15.09.01.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 15 Jul 2015 08:24:03 -0700 (PDT)
-Message-ID: <55A67B0D.9030804@arm.com>
-Date: Wed, 15 Jul 2015 16:23:57 +0100
-From: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Jul 2015 09:01:51 -0700 (PDT)
+Subject: [PATCH 0/3] slub: introducing detached freelist
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Date: Wed, 15 Jul 2015 18:01:08 +0200
+Message-ID: <20150715155934.17525.2835.stgit@devil>
 MIME-Version: 1.0
-Subject: Re: [PATCH 17/36] arm64, thp: remove infrastructure for handling
- splitting PMDs
-References: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com> <1436550130-112636-18-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1436550130-112636-18-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=WINDOWS-1252; format=flowed
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Alexander Duyck <alexander.duyck@gmail.com>, Hannes Frederic Sowa <hannes@stressinduktion.org>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On 10/07/15 18:41, Kirill A. Shutemov wrote:
-> With new refcounting we don't need to mark PMDs splitting. Let's drop
-> code to handle this.
->
-> pmdp_splitting_flush() is not needed too: on splitting PMD we will do
-> pmdp_clear_flush() + set_pte_at(). pmdp_clear_flush() will do IPI as
-> needed for fast_gup.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->   arch/arm64/include/asm/pgtable.h |  9 ---------
->   arch/arm64/mm/flush.c            | 16 ----------------
->   2 files changed, 25 deletions(-)
->
-> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pg=
-table.h
-> index bd5db28324ba..37cdbf37934c 100644
-> --- a/arch/arm64/include/asm/pgtable.h
-> +++ b/arch/arm64/include/asm/pgtable.h
-> @@ -274,20 +274,11 @@ static inline pgprot_t mk_sect_prot(pgprot_t prot)
->
->   #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->   #define pmd_trans_huge(pmd)=09(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TAB=
-LE_BIT))
-> -#define pmd_trans_splitting(pmd)=09pte_special(pmd_pte(pmd))
-> -#ifdef CONFIG_HAVE_RCU_TABLE_FREE
-> -#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
-> -struct vm_area_struct;
-> -void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long addr=
-ess,
-> -=09=09=09  pmd_t *pmdp);
-> -#endif /* CONFIG_HAVE_RCU_TABLE_FREE */
-> -#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+Introducing what I call detached freelist, for improving the
+performance of object freeing in the "slowpath" of kmem_cache_free_bulk,
+which calls __slab_free().
 
-Wouldn't this cause a build failure(Untested) ? We need to retain the last =
-line,
+The benchmarking tool are avail here:
+ https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm
+ See: slab_bulk_test0{1,2,3}.c
 
-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+Compared against existing bulk-API (in AKPMs tree), we see a small
+regression for the fastpath (between 2-5 cycles), but a huge
+improvement for the slowpath.
 
-isn't it ?
+bulk- Bulk-API-before           - Bulk-API with patchset
+  1 -  42 cycles(tsc) 10.520 ns - 47 cycles(tsc) 11.931 ns - improved -11.9%
+  2 -  26 cycles(tsc)  6.697 ns - 29 cycles(tsc)  7.368 ns - improved -11.5%
+  3 -  22 cycles(tsc)  5.589 ns - 24 cycles(tsc)  6.003 ns - improved -9.1%
+  4 -  19 cycles(tsc)  4.921 ns - 22 cycles(tsc)  5.543 ns - improved -15.8%
+  8 -  17 cycles(tsc)  4.499 ns - 20 cycles(tsc)  5.047 ns - improved -17.6%
+ 16 -  69 cycles(tsc) 17.424 ns - 20 cycles(tsc)  5.015 ns - improved 71.0%
+ 30 -  88 cycles(tsc) 22.075 ns - 20 cycles(tsc)  5.062 ns - improved 77.3%
+ 32 -  83 cycles(tsc) 20.965 ns - 20 cycles(tsc)  5.089 ns - improved 75.9%
+ 34 -  80 cycles(tsc) 20.039 ns - 28 cycles(tsc)  7.006 ns - improved 65.0%
+ 48 -  76 cycles(tsc) 19.252 ns - 31 cycles(tsc)  7.755 ns - improved 59.2%
+ 64 -  86 cycles(tsc) 21.523 ns - 68 cycles(tsc) 17.203 ns - improved 20.9%
+128 -  97 cycles(tsc) 24.444 ns - 72 cycles(tsc) 18.195 ns - improved 25.8%
+158 -  96 cycles(tsc) 24.036 ns - 73 cycles(tsc) 18.372 ns - improved 24.0%
+250 - 100 cycles(tsc) 25.007 ns - 73 cycles(tsc) 18.430 ns - improved 27.0%
+
+Patchset based on top of commit aefbef10e3ae with previous accepted
+bulk patchset(V2) applied (avail in AKPMs quilt).
+
+Small note, benchmark run with kernel compiled with .config
+CONFIG_FTRACE in-order to use the perf probes to measure the amount of
+page bulking into __slab_free().  While running the "worse-case"
+testing module slab_bulk_test03.c
+
+---
+
+Jesper Dangaard Brouer (3):
+      slub: extend slowpath __slab_free() to handle bulk free
+      slub: optimize bulk slowpath free by detached freelist
+      slub: build detached freelist with look-ahead
 
 
-Thanks
-Suzuki
+ mm/slub.c |  141 ++++++++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 111 insertions(+), 30 deletions(-)
+
+--
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
