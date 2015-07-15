@@ -1,49 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 4370D2802BB
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 18:21:48 -0400 (EDT)
-Received: by igbpg9 with SMTP id pg9so385892igb.0
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:21:48 -0700 (PDT)
-Received: from mail-ie0-x231.google.com (mail-ie0-x231.google.com. [2607:f8b0:4001:c03::231])
-        by mx.google.com with ESMTPS id ah9si5324831icc.105.2015.07.15.15.21.47
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D15992802BB
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 18:25:01 -0400 (EDT)
+Received: by ietj16 with SMTP id j16so44006208iet.0
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:25:01 -0700 (PDT)
+Received: from mail-ie0-x22f.google.com (mail-ie0-x22f.google.com. [2607:f8b0:4001:c03::22f])
+        by mx.google.com with ESMTPS id wf6si5340557icb.81.2015.07.15.15.25.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jul 2015 15:21:47 -0700 (PDT)
-Received: by ietj16 with SMTP id j16so43962444iet.0
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:21:47 -0700 (PDT)
-Date: Wed, 15 Jul 2015 15:21:46 -0700 (PDT)
+        Wed, 15 Jul 2015 15:25:01 -0700 (PDT)
+Received: by ietj16 with SMTP id j16so44006141iet.0
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 15:25:01 -0700 (PDT)
+Date: Wed, 15 Jul 2015 15:24:59 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/4] oom: Do not invoke oom notifiers on sysrq+f
-In-Reply-To: <20150715094240.GF5101@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1507151521250.3514@chino.kir.corp.google.com>
-References: <1436360661-31928-1-git-send-email-mhocko@suse.com> <1436360661-31928-3-git-send-email-mhocko@suse.com> <alpine.DEB.2.10.1507081636180.16585@chino.kir.corp.google.com> <20150709085505.GB13872@dhcp22.suse.cz> <alpine.DEB.2.10.1507091404200.17177@chino.kir.corp.google.com>
- <20150710074032.GA7343@dhcp22.suse.cz> <alpine.DEB.2.10.1507141458350.16182@chino.kir.corp.google.com> <20150715094240.GF5101@dhcp22.suse.cz>
+Subject: Re: + mm-oom-organize-oom-context-into-struct.patch added to -mm
+ tree
+In-Reply-To: <20150715094138.GE5101@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1507151523430.3514@chino.kir.corp.google.com>
+References: <55a5931c.OSAbN+RkFn80ERhn%akpm@linux-foundation.org> <20150715094138.GE5101@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jakob Unterwurzacher <jakobunt@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: akpm@linux-foundation.org, sergey.senozhatsky.work@gmail.com, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
 On Wed, 15 Jul 2015, Michal Hocko wrote:
 
-> > > Shrinkers are there to reclaim and prevent from OOM. This API is a gray
-> > > zone. It looks generic method for the notification yet it allows to
-> > > prevent from oom killer. I can imagine somebody might abuse this
-> > > interface to implement OOM killer policies.
-> > > 
-> > > Anyway, I think it would be preferable to kill it altogether rather than
-> > > play with its placing. It will always be a questionable API.
-> > > 
+> On Tue 14-07-15 15:54:20, Andrew Morton wrote:
+> [...]
+> > From: David Rientjes <rientjes@google.com>
+> > Subject: mm, oom: organize oom context into struct
 > > 
-> > Agreed.
+> > There are essential elements to an oom context that are passed around to
+> > multiple functions.
+> > 
+> > Organize these elements into a new struct, struct oom_control, that
+> > specifies the context for an oom condition.
 > 
-> In such a case it would be still good to fix the bug fixed by this
-> patch.
-> 
+> Didn't you intend to name it oom_context so that it's less confusing wrt.
+> oom_control usage in memcg?
+>  
 
-It's fixed if you follow the suggestion of moving the oom notification out 
-of the oom killer where it doesn't belong.
+It's similar to struct compact_control in more ways than one, so I felt 
+this naming was better.  No strong opinion.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
