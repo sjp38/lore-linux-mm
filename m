@@ -1,68 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 06F6228027E
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 07:17:18 -0400 (EDT)
-Received: by pacan13 with SMTP id an13so22785936pac.1
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 04:17:17 -0700 (PDT)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id r12si6989352pdi.246.2015.07.15.04.17.16
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 4746928027E
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 07:31:14 -0400 (EDT)
+Received: by pdbqm3 with SMTP id qm3so23698575pdb.0
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 04:31:14 -0700 (PDT)
+Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com. [122.248.162.2])
+        by mx.google.com with ESMTPS id bt8si7094235pdb.92.2015.07.15.04.31.12
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jul 2015 04:17:17 -0700 (PDT)
-Received: by pachj5 with SMTP id hj5so22693934pac.3
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 04:17:16 -0700 (PDT)
-Date: Wed, 15 Jul 2015 20:16:25 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH 0/3] zsmalloc: small compaction improvements
-Message-ID: <20150715111625.GC3998@swordfish>
-References: <1436607932-7116-1-git-send-email-sergey.senozhatsky@gmail.com>
- <20150713233602.GA31822@blaptop.AC68U>
- <20150714003132.GA2463@swordfish>
- <20150714005459.GA12786@blaptop.AC68U>
- <20150714122932.GA597@swordfish>
- <20150714165224.GA384@blaptop>
- <20150715002106.GA742@swordfish>
- <20150715002359.GA29240@blaptop.AC68U>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Wed, 15 Jul 2015 04:31:13 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 15 Jul 2015 17:01:09 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 890B2E0060
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:04:59 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t6FBV2qv36634782
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:01:03 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t6FBUv1n025707
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:01:00 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 00/36] THP refcounting redesign
+In-Reply-To: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Wed, 15 Jul 2015 17:00:47 +0530
+Message-ID: <87twt51wuw.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150715002359.GA29240@blaptop.AC68U>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On (07/15/15 09:24), Minchan Kim wrote:
-> On Wed, Jul 15, 2015 at 09:21:06AM +0900, Sergey Senozhatsky wrote:
-> > On (07/15/15 01:52), Minchan Kim wrote:
-> > > > alrighty... again...
-> > > > 
-> > > > > > 
-> > > > > > /sys/block/zram<id>/compact is a black box. We provide it, we don't
-> > > > > > throttle it in the kernel, and user space is absolutely clueless when
-> > > > > > it invokes compaction. From some remote (or alternative) point of
-> > > > > 
-> > > > > But we have zs_can_compact so it can effectively skip the class if it
-> > > > > is not proper class.
-> > > > 
-> > > > user triggered compaction can compact too much.
-> > > > in its current state triggering a compaction from user space is like
-> > > > playing a lottery or a russian roulette.
-> > > 
-> > > We were on different page.
-> > 
-> > > I thought the motivation from this patchset is to prevent compaction
-> > > overhead by frequent user-driven compaction request because user
-> > > don't know how they can get free pages by compaction so they should
-> > > ask compact frequently with blind.
-> > 
-> > this is exactly the motivation for this patchset. seriously.
-> 
-> User should rely on the auto-compaction.
+"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
 
-yep, which will be available in 5-6 months... right behind the corner.
+> Hello everybody,
+>
+> The THP refcounting has been rebased onto current since-4.1 as requested.
+>
+> The goal of patchset is to make refcounting on THP pages cheaper with
+> simpler semantics and allow the same THP compound page to be mapped with
+> PMD and PTEs. This is required to get reasonable THP-pagecache
+> implementation.
+>
+> With the new refcounting design it's much easier to protect against
+> split_huge_page(): simple reference on a page will make you the deal.
+> It makes gup_fast() implementation simpler and doesn't require
+> special-case in futex code to handle tail THP pages.
+>
+> It should improve THP utilization over the system since splitting THP in
+> one process doesn't necessary lead to splitting the page in all other
+> processes have the page mapped.
+>
+> The patchset drastically lower complexity of get_page()/put_page()
+> codepaths. I encourage people look on this code before-and-after to
+> justify time budget on reviewing this patchset.
+>
 
-	-ss
+Tested this series of ppc64. Please feel free to add to the series
+
+Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
