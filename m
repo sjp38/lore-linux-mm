@@ -1,71 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 38A4B280267
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 20:24:10 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so14090599pdr.2
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 17:24:10 -0700 (PDT)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id ca1si4332779pbb.169.2015.07.14.17.24.09
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Jul 2015 17:24:09 -0700 (PDT)
-Received: by pachj5 with SMTP id hj5so13614729pac.3
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 17:24:09 -0700 (PDT)
-Date: Wed, 15 Jul 2015 09:24:00 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 0/3] zsmalloc: small compaction improvements
-Message-ID: <20150715002359.GA29240@blaptop.AC68U>
-References: <1436607932-7116-1-git-send-email-sergey.senozhatsky@gmail.com>
- <20150713233602.GA31822@blaptop.AC68U>
- <20150714003132.GA2463@swordfish>
- <20150714005459.GA12786@blaptop.AC68U>
- <20150714122932.GA597@swordfish>
- <20150714165224.GA384@blaptop>
- <20150715002106.GA742@swordfish>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 21242280267
+	for <linux-mm@kvack.org>; Tue, 14 Jul 2015 20:25:57 -0400 (EDT)
+Received: by pdjr16 with SMTP id r16so14188665pdj.3
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 17:25:56 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id gp1si4305244pbd.238.2015.07.14.17.25.54
+        for <linux-mm@kvack.org>;
+        Tue, 14 Jul 2015 17:25:56 -0700 (PDT)
+Date: Wed, 15 Jul 2015 10:25:40 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 2/7] mm: introduce kvmalloc and kvmalloc_node
+Message-ID: <20150715002540.GR3902@dastard>
+References: <alpine.LRH.2.02.1507071109490.23387@file01.intranet.prod.int.rdu2.redhat.com>
+ <20150707144117.5b38ac38efda238af8a1f536@linux-foundation.org>
+ <alpine.LRH.2.02.1507081855340.32526@file01.intranet.prod.int.rdu2.redhat.com>
+ <20150708161815.bdff609d77868dbdc2e1ce64@linux-foundation.org>
+ <alpine.LRH.2.02.1507091039440.30842@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.10.1507141401170.16182@chino.kir.corp.google.com>
+ <20150714211918.GC7915@redhat.com>
+ <alpine.DEB.2.10.1507141420350.16182@chino.kir.corp.google.com>
+ <20150714215413.GP3902@dastard>
+ <alpine.DEB.2.10.1507141536590.16182@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150715002106.GA742@swordfish>
+In-Reply-To: <alpine.DEB.2.10.1507141536590.16182@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Mike Snitzer <snitzer@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>, Edward Thornber <thornber@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dm-devel@redhat.com, Vivek Goyal <vgoyal@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Alasdair G. Kergon" <agk@redhat.com>
 
-On Wed, Jul 15, 2015 at 09:21:06AM +0900, Sergey Senozhatsky wrote:
-> On (07/15/15 01:52), Minchan Kim wrote:
-> > > alrighty... again...
+On Tue, Jul 14, 2015 at 03:45:40PM -0700, David Rientjes wrote:
+> On Wed, 15 Jul 2015, Dave Chinner wrote:
+> 
+> > > Sure, but it's not accomplishing the same thing: things like 
+> > > ext4_kvmalloc() only want to fallback to vmalloc() when high-order 
+> > > allocations fail: the function is used for different sizes.  This cannot 
+> > > be converted to kvmalloc_node() since it fallsback immediately when 
+> > > reclaim fails.  Same issue with single_file_open() for the seq_file code.  
+> > > We could go through every kmalloc() -> vmalloc() fallback for more 
+> > > examples in the code, but those two instances were the first I looked at 
+> > > and couldn't be converted to kvmalloc_node() without work.
 > > > 
-> > > > > 
-> > > > > /sys/block/zram<id>/compact is a black box. We provide it, we don't
-> > > > > throttle it in the kernel, and user space is absolutely clueless when
-> > > > > it invokes compaction. From some remote (or alternative) point of
+> > > > It is always easier to shoehorn utility functions locally within a
+> > > > subsystem (be it ext4, dm, etc) but once enough do something in a
+> > > > similar but different way it really should get elevated.
 > > > > 
-> > > > But we have zs_can_compact so it can effectively skip the class if it
-> > > > is not proper class.
 > > > 
-> > > user triggered compaction can compact too much.
-> > > in its current state triggering a compaction from user space is like
-> > > playing a lottery or a russian roulette.
+> > > I would argue that
+> > > 
+> > > void *ext4_kvmalloc(size_t size, gfp_t flags)
+> > > {
+> > > 	void *ret;
+> > > 
+> > > 	ret = kmalloc(size, flags | __GFP_NOWARN);
+> > > 	if (!ret)
+> > > 		ret = __vmalloc(size, flags, PAGE_KERNEL);
+> > > 	return ret;
+> > > }
+> > > 
+> > > is simple enough that we don't need to convert it to anything.
 > > 
-> > We were on different page.
+> > Except that it will have problems with GFP_NOFS context when the pte
+> > code inside vmalloc does a GFP_KERNEL allocation. Hence we have
+> > stuff in other subsystems (such as XFS) where we've noticed lockdep
+> > whining about this:
+> > 
 > 
-> > I thought the motivation from this patchset is to prevent compaction
-> > overhead by frequent user-driven compaction request because user
-> > don't know how they can get free pages by compaction so they should
-> > ask compact frequently with blind.
-> 
-> this is exactly the motivation for this patchset. seriously.
+> Does anyone have an example of ext4_kvmalloc() having a lockdep violation?  
+> Presumably the GFP_NOFS calls to ext4_kvmalloc() will never have 
+> size > (1 << (PAGE_SHIFT + PAGE_ALLOC_COSTLY_ORDER)) so that kmalloc() 
+> above actually never returns NULL and __vmalloc() only gets used for the 
+> ext4_kvmalloc(..., GFP_KERNEL) call.
 
-User should rely on the auto-compaction.
+Code inspection is all that is necessary. For example,
+fs/ext4/resize.c::add_new_gdb() does:
 
-> 
-> whatever.
-> 
-> 	-ss
+ 818         n_group_desc = ext4_kvmalloc((gdb_num + 1) *
+ 819                                      sizeof(struct buffer_head *),
+ 820                                      GFP_NOFS);
 
+I have to assume this was done because resize was failing kmalloc()
+calls on large filesystems in GFP_NOFS context as the commit message
+is less than helpful:
+
+commit f18a5f21c25707b4fe64b326e2b4d150565e7300
+Author: Theodore Ts'o <tytso@mit.edu>
+Date:   Mon Aug 1 08:45:38 2011 -0400
+
+    ext4: use ext4_kvzalloc()/ext4_kvmalloc() for s_group_desc and s_group_info
+
+    Signed-off-by: "Theodore Ts'o" <tytso@mit.edu>
+
+
+> It should be fixed, though, probably in the same way as 
+> kmem_zalloc_large() today, but it seems the real fix would be to attack 
+> the whole vmalloc() GFP_KERNEL issue that has been talked about several 
+> times in the past.  Then the existing ext4_kvmalloc() implementation 
+> should be fine.
+
+Agreed, we really need to ensure that the generic kernel allocation
+functions follow the context guidelines they are provided by
+callers. I'm not going to hold my breathe waiting for this to
+happen, though....
+
+Cheers,
+
+Dave.
 -- 
-Kind regards,
-Minchan Kim
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
