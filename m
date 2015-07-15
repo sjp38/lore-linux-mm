@@ -1,51 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 4577F28027E
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 07:32:30 -0400 (EDT)
-Received: by padck2 with SMTP id ck2so22764804pad.0
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 04:32:30 -0700 (PDT)
-Received: from e28smtp08.in.ibm.com (e28smtp08.in.ibm.com. [122.248.162.8])
-        by mx.google.com with ESMTPS id hb1si7095762pbd.49.2015.07.15.04.32.28
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FB33280267
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 08:03:26 -0400 (EDT)
+Received: by wicmv11 with SMTP id mv11so38797320wic.1
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 05:03:25 -0700 (PDT)
+Received: from mail-wg0-x235.google.com (mail-wg0-x235.google.com. [2a00:1450:400c:c00::235])
+        by mx.google.com with ESMTPS id q13si25086872wik.98.2015.07.15.05.03.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 15 Jul 2015 04:32:29 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 15 Jul 2015 17:02:26 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id C26D9E006C
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:06:14 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t6FBW0F820709582
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:02:01 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t6FBVwNK016953
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:02:00 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 20/36] powerpc, thp: remove infrastructure for handling splitting PMDs
-In-Reply-To: <1436550130-112636-21-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1436550130-112636-1-git-send-email-kirill.shutemov@linux.intel.com> <1436550130-112636-21-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Wed, 15 Jul 2015 17:01:57 +0530
-Message-ID: <87r3o91wsy.fsf@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Jul 2015 05:03:24 -0700 (PDT)
+Received: by wgxm20 with SMTP id m20so31752636wgx.3
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 05:03:24 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH 1/2] mm/cma_debug: fix debugging alloc/free interface
+In-Reply-To: <1436942129-18020-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1436942129-18020-1-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Wed, 15 Jul 2015 14:03:20 +0200
+Message-ID: <xa1t4ml5fx13.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Stefan Strogin <stefan.strogin@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
-
-> With new refcounting we don't need to mark PMDs splitting. Let's drop
-> code to handle this.
+On Wed, Jul 15 2015, Joonsoo Kim wrote:
+> CMA has alloc/free interface for debugging. It is intended that alloc/free
+> occurs in specific CMA region, but, currently, alloc/free interface is
+> on root dir due to the bug so we can't select CMA region where alloc/free
+> happens.
 >
-> pmdp_splitting_flush() is not needed too: on splitting PMD we will do
-> pmdp_clear_flush() + set_pte_at(). pmdp_clear_flush() will do IPI as
-> needed for fast_gup.
+> This patch fixes this problem by making alloc/free interface per
+> CMA region.
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
+
+> ---
+>  mm/cma_debug.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/cma_debug.c b/mm/cma_debug.c
+> index 7621ee3..22190a7 100644
+> --- a/mm/cma_debug.c
+> +++ b/mm/cma_debug.c
+> @@ -170,10 +170,10 @@ static void cma_debugfs_add_one(struct cma *cma, in=
+t idx)
+>=20=20
+>  	tmp =3D debugfs_create_dir(name, cma_debugfs_root);
+>=20=20
+> -	debugfs_create_file("alloc", S_IWUSR, cma_debugfs_root, cma,
+> +	debugfs_create_file("alloc", S_IWUSR, tmp, cma,
+>  				&cma_alloc_fops);
+>=20=20
+> -	debugfs_create_file("free", S_IWUSR, cma_debugfs_root, cma,
+> +	debugfs_create_file("free", S_IWUSR, tmp, cma,
+>  				&cma_free_fops);
+>=20=20
+>  	debugfs_create_file("base_pfn", S_IRUGO, tmp,
+> --=20
+> 1.9.1
 >
 
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
