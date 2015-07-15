@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FCEB280245
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id E9D4E280245
 	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:17:02 -0400 (EDT)
-Received: by pdjr16 with SMTP id r16so31421010pdj.3
+Received: by pachj5 with SMTP id hj5so30316215pac.3
         for <linux-mm@kvack.org>; Wed, 15 Jul 2015 14:17:02 -0700 (PDT)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id uc10si9463457pac.78.2015.07.15.14.17.00
+        by mx.google.com with ESMTP id uc10si9463457pac.78.2015.07.15.14.17.02
         for <linux-mm@kvack.org>;
-        Wed, 15 Jul 2015 14:17:01 -0700 (PDT)
+        Wed, 15 Jul 2015 14:17:02 -0700 (PDT)
 From: "Sean O. Stalley" <sean.stalley@intel.com>
-Subject: [PATCH 1/4] mm: Add support for __GFP_ZERO flag to dma_pool_alloc()
-Date: Wed, 15 Jul 2015 14:14:40 -0700
-Message-Id: <1436994883-16563-2-git-send-email-sean.stalley@intel.com>
+Subject: [PATCH 2/4] mm: Add dma_pool_zalloc() call to DMA API
+Date: Wed, 15 Jul 2015 14:14:41 -0700
+Message-Id: <1436994883-16563-3-git-send-email-sean.stalley@intel.com>
 In-Reply-To: <1436994883-16563-1-git-send-email-sean.stalley@intel.com>
 References: <1436994883-16563-1-git-send-email-sean.stalley@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,38 +19,49 @@ List-ID: <linux-mm.kvack.org>
 To: corbet@lwn.net, vinod.koul@intel.com, bhelgaas@google.com, Julia.Lawall@lip6.fr, Gilles.Muller@lip6.fr, nicolas.palix@imag.fr, mmarek@suse.cz
 Cc: sean.stalley@intel.com, akpm@linux-foundation.org, bigeasy@linutronix.de, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, dmaengine@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, cocci@systeme.lip6.fr
 
-Currently the __GFP_ZERO flag is ignored by dma_pool_alloc().
-Make dma_pool_alloc() zero the memory if this flag is set.
+Add a wrapper function for dma_pool_alloc() to get zeroed memory.
 
 Signed-off-by: Sean O. Stalley <sean.stalley@intel.com>
 ---
- mm/dmapool.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ Documentation/DMA-API.txt | 7 +++++++
+ include/linux/dmapool.h   | 6 ++++++
+ 2 files changed, 13 insertions(+)
 
-diff --git a/mm/dmapool.c b/mm/dmapool.c
-index fd5fe43..449a5d09 100644
---- a/mm/dmapool.c
-+++ b/mm/dmapool.c
-@@ -334,7 +334,7 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
- 	/* pool_alloc_page() might sleep, so temporarily drop &pool->lock */
- 	spin_unlock_irqrestore(&pool->lock, flags);
+diff --git a/Documentation/DMA-API.txt b/Documentation/DMA-API.txt
+index 5208840..988f757 100644
+--- a/Documentation/DMA-API.txt
++++ b/Documentation/DMA-API.txt
+@@ -104,6 +104,13 @@ crossing restrictions, pass 0 for alloc; passing 4096 says memory allocated
+ from this pool must not cross 4KByte boundaries.
  
--	page = pool_alloc_page(pool, mem_flags);
-+	page = pool_alloc_page(pool, mem_flags & (~__GFP_ZERO));
- 	if (!page)
- 		return NULL;
  
-@@ -375,6 +375,10 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
- 	memset(retval, POOL_POISON_ALLOCATED, pool->size);
- #endif
- 	spin_unlock_irqrestore(&pool->lock, flags);
++	void *dma_pool_zalloc(struct dma_pool *pool, gfp_t mem_flags,
++			      dma_addr_t *handle)
 +
-+	if (mem_flags & __GFP_ZERO)
-+		memset(retval, 0, pool->size);
++Wraps dma_pool_alloc() and also zeroes the returned memory if the
++allocation attempt succeeded.
 +
- 	return retval;
- }
- EXPORT_SYMBOL(dma_pool_alloc);
++
+ 	void *dma_pool_alloc(struct dma_pool *pool, gfp_t gfp_flags,
+ 			dma_addr_t *dma_handle);
+ 
+diff --git a/include/linux/dmapool.h b/include/linux/dmapool.h
+index 022e34f..6d8079b 100644
+--- a/include/linux/dmapool.h
++++ b/include/linux/dmapool.h
+@@ -22,6 +22,12 @@ void dma_pool_destroy(struct dma_pool *pool);
+ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
+ 		     dma_addr_t *handle);
+ 
++static inline void *dma_pool_zalloc(struct dma_pool *pool, gfp_t mem_flags,
++				    dma_addr_t *handle)
++{
++	return dma_pool_alloc(pool, mem_flags | __GFP_ZERO, handle);
++}
++
+ void dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t addr);
+ 
+ /*
 -- 
 1.9.1
 
