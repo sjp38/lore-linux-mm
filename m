@@ -1,79 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 331CE6B02DC
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:29:09 -0400 (EDT)
-Received: by igbpg9 with SMTP id pg9so46643748igb.0
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 14:29:09 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id s77si4697298ioi.60.2015.07.15.14.29.08
+Received: from mail-yk0-f171.google.com (mail-yk0-f171.google.com [209.85.160.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EFEA28027E
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:48:07 -0400 (EDT)
+Received: by ykay190 with SMTP id y190so48602156yka.3
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 14:48:07 -0700 (PDT)
+Received: from mail-yk0-x229.google.com (mail-yk0-x229.google.com. [2607:f8b0:4002:c07::229])
+        by mx.google.com with ESMTPS id g193si4051077ywb.75.2015.07.15.14.48.06
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jul 2015 14:29:08 -0700 (PDT)
-Date: Wed, 15 Jul 2015 14:29:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/4] mm: Add support for __GFP_ZERO flag to
- dma_pool_alloc()
-Message-Id: <20150715142907.ccfd473ea0e039642d46893d@linux-foundation.org>
-In-Reply-To: <1436994883-16563-2-git-send-email-sean.stalley@intel.com>
-References: <1436994883-16563-1-git-send-email-sean.stalley@intel.com>
-	<1436994883-16563-2-git-send-email-sean.stalley@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 15 Jul 2015 14:48:06 -0700 (PDT)
+Received: by ykay190 with SMTP id y190so48601778yka.3
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 14:48:06 -0700 (PDT)
+Date: Wed, 15 Jul 2015 17:48:02 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 1/5] x86, gfp: Cache best near node for memory allocation.
+Message-ID: <20150715214802.GL15934@mtj.duckdns.org>
+References: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1436261425-29881-2-git-send-email-tangchen@cn.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1436261425-29881-2-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Sean O. Stalley" <sean.stalley@intel.com>
-Cc: corbet@lwn.net, vinod.koul@intel.com, bhelgaas@google.com, Julia.Lawall@lip6.fr, Gilles.Muller@lip6.fr, nicolas.palix@imag.fr, mmarek@suse.cz, bigeasy@linutronix.de, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, dmaengine@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, cocci@systeme.lip6.fr
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, laijs@cn.fujitsu.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, qiaonuohan@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>
 
-On Wed, 15 Jul 2015 14:14:40 -0700 "Sean O. Stalley" <sean.stalley@intel.com> wrote:
+Hello,
 
-> Currently the __GFP_ZERO flag is ignored by dma_pool_alloc().
-> Make dma_pool_alloc() zero the memory if this flag is set.
+On Tue, Jul 07, 2015 at 05:30:21PM +0800, Tang Chen wrote:
+...
+> Why doing this is to prevent memory allocation failure if the cpu is
+
+"The reason for doing this ..."
+
+> online but there is no memory on that node.
 > 
-> ...
->
-> --- a/mm/dmapool.c
-> +++ b/mm/dmapool.c
-> @@ -334,7 +334,7 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
->  	/* pool_alloc_page() might sleep, so temporarily drop &pool->lock */
->  	spin_unlock_irqrestore(&pool->lock, flags);
->  
-> -	page = pool_alloc_page(pool, mem_flags);
-> +	page = pool_alloc_page(pool, mem_flags & (~__GFP_ZERO));
->  	if (!page)
->  		return NULL;
->  
-> @@ -375,6 +375,10 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
->  	memset(retval, POOL_POISON_ALLOCATED, pool->size);
+> But since cpuid <-> nodeid mapping will fix after this patch-set, doing
+
+"But since cpuid <-> nodeid mapping is planned to be made static, ..."
+
+> so in initialization pharse makes no sense any more. The best near online
+> node for each cpu should be cached somewhere.
+
+I'm not really following.  Is this because the now offline node can
+later come online and we'd have to break the constant mapping
+invariant if we update the mapping later?  If so, it'd be nice to
+spell that out.
+
+>  void numa_set_node(int cpu, int node)
+>  {
+>  	int *cpu_to_node_map = early_per_cpu_ptr(x86_cpu_to_node_map);
+> @@ -95,7 +121,11 @@ void numa_set_node(int cpu, int node)
+>  		return;
+>  	}
 >  #endif
->  	spin_unlock_irqrestore(&pool->lock, flags);
 > +
-> +	if (mem_flags & __GFP_ZERO)
-> +		memset(retval, 0, pool->size);
-> +
->  	return retval;
+> +	per_cpu(x86_cpu_to_near_online_node, cpu) =
+> +			find_near_online_node(numa_cpu_node(cpu));
+>  	per_cpu(x86_cpu_to_node_map, cpu) = node;
+> +	cpumask_set_cpu(cpu, &node_to_cpuid_mask_map[numa_cpu_node(cpu)]);
+>  
+>  	set_cpu_numa_node(cpu, node);
 >  }
->  EXPORT_SYMBOL(dma_pool_alloc);
+> @@ -105,6 +135,13 @@ void numa_clear_node(int cpu)
+>  	numa_set_node(cpu, NUMA_NO_NODE);
+>  }
+>  
+> +int get_near_online_node(int node)
+> +{
+> +	return per_cpu(x86_cpu_to_near_online_node,
+> +		       cpumask_first(&node_to_cpuid_mask_map[node]));
+> +}
+> +EXPORT_SYMBOL(get_near_online_node);
 
-hm, this code is all a bit confused.
+Umm... this function is sitting on a fairly hot path and scanning a
+cpumask each time.  Why not just build a numa node -> numa node array?
 
-We'd really prefer that the __GFP_ZERO be passed all the way to the
-bottom level, so that places which are responsible for zeroing memory
-(eg, the page allocator) can do their designated function.  One reason
-for this is that if someone comes up with a whizzy way of zeroing
-memory on their architecture (eg, non-temporal store) then that will be
-implemented in the core page allocator and the dma code will miss out.
+> @@ -702,24 +739,6 @@ void __init x86_numa_init(void)
+>  	numa_init(dummy_numa_init);
+>  }
+>  
+> -static __init int find_near_online_node(int node)
+> -{
+> -	int n, val;
+> -	int min_val = INT_MAX;
+> -	int best_node = -1;
+> -
+> -	for_each_online_node(n) {
+> -		val = node_distance(node, n);
+> -
+> -		if (val < min_val) {
+> -			min_val = val;
+> -			best_node = n;
+> -		}
+> -	}
+> -
+> -	return best_node;
+> -}
 
-Also, and just from a brief look around,
-drivers/base/dma-coherent.c:dma_alloc_from_coherent() is already
-zeroing the memory so under some circumstances I think we'll zero the
-memory twice?  We could fix that by passing the gfp_t to
-dma_alloc_from_coherent() and then changing dma_alloc_from_coherent()
-to *not* zero the memory if __GFP_ZERO, but wouldn't that be peculiar?
+It's usually better to not mix code movement with actual changes.
 
-Also, passing __GFP_ZERO will now cause pool_alloc_page()'s
-memset(POOL_POISON_FREED) to be wiped out.  I guess that's harmless,
-but a bit inefficient?
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 6ba7cf2..4a18b21 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -307,13 +307,23 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+>  	if (nid < 0)
+>  		nid = numa_node_id();
+>  
+> +#if IS_ENABLED(CONFIG_X86) && IS_ENABLED(CONFIG_NUMA)
+> +	if (!node_online(nid))
+> +		nid = get_near_online_node(nid);
+> +#endif
+
+Can you please introduce a wrapper function to do the above so that we
+don't open code ifdefs?
+
+> +
+>  	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+>  }
+>  
+>  static inline struct page *alloc_pages_exact_node(int nid, gfp_t gfp_mask,
+>  						unsigned int order)
+>  {
+> -	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
+> +	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
+> +
+> +#if IS_ENABLED(CONFIG_X86) && IS_ENABLED(CONFIG_NUMA)
+> +	if (!node_online(nid))
+> +		nid = get_near_online_node(nid);
+> +#endif
+>  
+>  	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+>  }
+
+Ditto.  Also, what's the synchronization rules for NUMA node
+on/offlining.  If you end up updating the mapping later, how would
+that be synchronized against the above usages?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
