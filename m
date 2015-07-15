@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AF9E280245
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:17:07 -0400 (EDT)
-Received: by pachj5 with SMTP id hj5so30317084pac.3
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 14:17:07 -0700 (PDT)
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 39C21280245
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:17:09 -0400 (EDT)
+Received: by pdbqm3 with SMTP id qm3so31366697pdb.0
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 14:17:09 -0700 (PDT)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id n6si9386807pdr.195.2015.07.15.14.17.01
+        by mx.google.com with ESMTP id uc10si9463457pac.78.2015.07.15.14.17.02
         for <linux-mm@kvack.org>;
-        Wed, 15 Jul 2015 14:17:02 -0700 (PDT)
+        Wed, 15 Jul 2015 14:17:03 -0700 (PDT)
 From: "Sean O. Stalley" <sean.stalley@intel.com>
-Subject: [PATCH 3/4] pci: mm: Add pci_pool_zalloc() call
-Date: Wed, 15 Jul 2015 14:14:42 -0700
-Message-Id: <1436994883-16563-4-git-send-email-sean.stalley@intel.com>
+Subject: [PATCH 4/4] coccinelle: mm: scripts/coccinelle/api/alloc/pool_zalloc-simple.cocci
+Date: Wed, 15 Jul 2015 14:14:43 -0700
+Message-Id: <1436994883-16563-5-git-send-email-sean.stalley@intel.com>
 In-Reply-To: <1436994883-16563-1-git-send-email-sean.stalley@intel.com>
 References: <1436994883-16563-1-git-send-email-sean.stalley@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,26 +19,106 @@ List-ID: <linux-mm.kvack.org>
 To: corbet@lwn.net, vinod.koul@intel.com, bhelgaas@google.com, Julia.Lawall@lip6.fr, Gilles.Muller@lip6.fr, nicolas.palix@imag.fr, mmarek@suse.cz
 Cc: sean.stalley@intel.com, akpm@linux-foundation.org, bigeasy@linutronix.de, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, dmaengine@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, cocci@systeme.lip6.fr
 
-Add a wrapper function for pci_pool_alloc() to get zeroed memory.
+add [pci|dma]_pool_zalloc coccinelle check.
+replaces instances of [pci|dma]_pool_alloc() followed by memset(0)
+with [pci|dma]_pool_zalloc().
 
 Signed-off-by: Sean O. Stalley <sean.stalley@intel.com>
 ---
- include/linux/pci.h | 2 ++
- 1 file changed, 2 insertions(+)
+ .../coccinelle/api/alloc/pool_zalloc-simple.cocci  | 84 ++++++++++++++++++++++
+ 1 file changed, 84 insertions(+)
+ create mode 100644 scripts/coccinelle/api/alloc/pool_zalloc-simple.cocci
 
-diff --git a/include/linux/pci.h b/include/linux/pci.h
-index 755a2cd..e6ec7d9 100644
---- a/include/linux/pci.h
-+++ b/include/linux/pci.h
-@@ -1176,6 +1176,8 @@ int pci_set_vga_state(struct pci_dev *pdev, bool decode,
- 		dma_pool_create(name, &pdev->dev, size, align, allocation)
- #define	pci_pool_destroy(pool) dma_pool_destroy(pool)
- #define	pci_pool_alloc(pool, flags, handle) dma_pool_alloc(pool, flags, handle)
-+#define	pci_pool_zalloc(pool, flags, handle) \
-+		dma_pool_zalloc(pool, flags, handle)
- #define	pci_pool_free(pool, vaddr, addr) dma_pool_free(pool, vaddr, addr)
- 
- enum pci_dma_burst_strategy {
+diff --git a/scripts/coccinelle/api/alloc/pool_zalloc-simple.cocci b/scripts/coccinelle/api/alloc/pool_zalloc-simple.cocci
+new file mode 100644
+index 0000000..9b7eb32
+--- /dev/null
++++ b/scripts/coccinelle/api/alloc/pool_zalloc-simple.cocci
+@@ -0,0 +1,84 @@
++///
++/// Use *_pool_zalloc rather than *_pool_alloc followed by memset with 0
++///
++// Copyright: (C) 2015 Intel Corp.  GPLv2.
++// Options: --no-includes --include-headers
++//
++// Keywords: dma_pool_zalloc, pci_pool_zalloc
++//
++
++virtual context
++virtual patch
++virtual org
++virtual report
++
++//----------------------------------------------------------
++//  For context mode
++//----------------------------------------------------------
++
++@depends on context@
++expression x;
++statement S;
++@@
++
++* x = \(dma_pool_alloc\|pci_pool_alloc\)(...);
++  if ((x==NULL) || ...) S
++* memset(x,0, ...);
++
++//----------------------------------------------------------
++//  For patch mode
++//----------------------------------------------------------
++
++@depends on patch@
++expression x;
++expression a,b,c;
++statement S;
++@@
++
++- x = dma_pool_alloc(a,b,c);
+++ x = dma_pool_zalloc(a,b,c);
++  if ((x==NULL) || ...) S
++- memset(x,0,...);
++
++@depends on patch@
++expression x;
++expression a,b,c;
++statement S;
++@@
++
++- x = pci_pool_alloc(a,b,c);
+++ x = pci_pool_zalloc(a,b,c);
++  if ((x==NULL) || ...) S
++- memset(x,0,...);
++
++//----------------------------------------------------------
++//  For org and report mode
++//----------------------------------------------------------
++
++@r depends on org || report@
++expression x;
++expression a,b,c;
++statement S;
++position p;
++@@
++
++ x = @p\(dma_pool_alloc\|pci_pool_alloc\)(a,b,c);
++ if ((x==NULL) || ...) S
++ memset(x,0, ...);
++
++@script:python depends on org@
++p << r.p;
++x << r.x;
++@@
++
++msg="%s" % (x)
++msg_safe=msg.replace("[","@(").replace("]",")")
++coccilib.org.print_todo(p[0], msg_safe)
++
++@script:python depends on report@
++p << r.p;
++x << r.x;
++@@
++
++msg="WARNING: *_pool_zalloc should be used for %s, instead of *_pool_alloc/memset" % (x)
++coccilib.report.print_report(p[0], msg)
 -- 
 1.9.1
 
