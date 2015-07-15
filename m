@@ -1,55 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 004D928027E
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 02:35:43 -0400 (EDT)
-Received: by pdjr16 with SMTP id r16so19398664pdj.3
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 23:35:42 -0700 (PDT)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id db5si5804832pbb.103.2015.07.14.23.35.41
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C5DB28027E
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 02:35:46 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so19324140pdr.2
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 23:35:45 -0700 (PDT)
+Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com. [2607:f8b0:400e:c02::22d])
+        by mx.google.com with ESMTPS id r15si5896482pdn.4.2015.07.14.23.35.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Jul 2015 23:35:42 -0700 (PDT)
-Received: by padck2 with SMTP id ck2so18570364pad.0
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 23:35:41 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Jul 2015 23:35:45 -0700 (PDT)
+Received: by pdbqm3 with SMTP id qm3so19382577pdb.0
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2015 23:35:45 -0700 (PDT)
 From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH 1/2] mm/cma_debug: fix debugging alloc/free interface
-Date: Wed, 15 Jul 2015 15:35:28 +0900
-Message-Id: <1436942129-18020-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 2/2] mm/cma_debug: correct size input to bitmap function
+Date: Wed, 15 Jul 2015 15:35:29 +0900
+Message-Id: <1436942129-18020-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1436942129-18020-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1436942129-18020-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Sasha Levin <sasha.levin@oracle.com>, Stefan Strogin <stefan.strogin@gmail.com>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-CMA has alloc/free interface for debugging. It is intended that alloc/free
-occurs in specific CMA region, but, currently, alloc/free interface is
-on root dir due to the bug so we can't select CMA region where alloc/free
-happens.
-
-This patch fixes this problem by making alloc/free interface per
-CMA region.
+In CMA, 1 bit in bitmap means 1 << order_per_bits pages so
+size of bitmap is cma->count >> order_per_bits rather than
+just cma->count. This patch fixes it.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/cma_debug.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/cma_debug.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/mm/cma_debug.c b/mm/cma_debug.c
-index 7621ee3..22190a7 100644
+index 22190a7..f8e4b60 100644
 --- a/mm/cma_debug.c
 +++ b/mm/cma_debug.c
-@@ -170,10 +170,10 @@ static void cma_debugfs_add_one(struct cma *cma, int idx)
+@@ -39,7 +39,7 @@ static int cma_used_get(void *data, u64 *val)
  
- 	tmp = debugfs_create_dir(name, cma_debugfs_root);
+ 	mutex_lock(&cma->lock);
+ 	/* pages counter is smaller than sizeof(int) */
+-	used = bitmap_weight(cma->bitmap, (int)cma->count);
++	used = bitmap_weight(cma->bitmap, (int)cma_bitmap_maxno(cma));
+ 	mutex_unlock(&cma->lock);
+ 	*val = (u64)used << cma->order_per_bit;
  
--	debugfs_create_file("alloc", S_IWUSR, cma_debugfs_root, cma,
-+	debugfs_create_file("alloc", S_IWUSR, tmp, cma,
- 				&cma_alloc_fops);
+@@ -52,13 +52,14 @@ static int cma_maxchunk_get(void *data, u64 *val)
+ 	struct cma *cma = data;
+ 	unsigned long maxchunk = 0;
+ 	unsigned long start, end = 0;
++	unsigned long bitmap_maxno = cma_bitmap_maxno(cma);
  
--	debugfs_create_file("free", S_IWUSR, cma_debugfs_root, cma,
-+	debugfs_create_file("free", S_IWUSR, tmp, cma,
- 				&cma_free_fops);
- 
- 	debugfs_create_file("base_pfn", S_IRUGO, tmp,
+ 	mutex_lock(&cma->lock);
+ 	for (;;) {
+-		start = find_next_zero_bit(cma->bitmap, cma->count, end);
++		start = find_next_zero_bit(cma->bitmap, bitmap_maxno, end);
+ 		if (start >= cma->count)
+ 			break;
+-		end = find_next_bit(cma->bitmap, cma->count, start);
++		end = find_next_bit(cma->bitmap, bitmap_maxno, start);
+ 		maxchunk = max(end - start, maxchunk);
+ 	}
+ 	mutex_unlock(&cma->lock);
 -- 
 1.9.1
 
