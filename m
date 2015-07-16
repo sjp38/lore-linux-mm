@@ -1,154 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F1942802E6
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 03:12:05 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so7394102wib.0
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 00:12:04 -0700 (PDT)
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
-        by mx.google.com with ESMTPS id le4si12233526wjc.18.2015.07.16.00.12.03
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ABF32802E6
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 03:19:53 -0400 (EDT)
+Received: by wicmv11 with SMTP id mv11so7503003wic.1
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 00:19:52 -0700 (PDT)
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com. [74.125.82.49])
+        by mx.google.com with ESMTPS id qg11si1936269wic.73.2015.07.16.00.19.51
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jul 2015 00:12:03 -0700 (PDT)
-Received: by widic2 with SMTP id ic2so7178742wid.0
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 00:12:03 -0700 (PDT)
-Date: Thu, 16 Jul 2015 09:12:01 +0200
+        Thu, 16 Jul 2015 00:19:51 -0700 (PDT)
+Received: by wgkl9 with SMTP id l9so50776772wgk.1
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 00:19:51 -0700 (PDT)
+Date: Thu, 16 Jul 2015 09:19:49 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch -mm] mm, oom: move oom notifiers to page allocator
-Message-ID: <20150716071200.GB3077@dhcp22.suse.cz>
-References: <1436360661-31928-1-git-send-email-mhocko@suse.com>
- <1436360661-31928-3-git-send-email-mhocko@suse.com>
- <alpine.DEB.2.10.1507081636180.16585@chino.kir.corp.google.com>
- <20150709085505.GB13872@dhcp22.suse.cz>
- <alpine.DEB.2.10.1507091404200.17177@chino.kir.corp.google.com>
- <20150710074032.GA7343@dhcp22.suse.cz>
- <alpine.DEB.2.10.1507141458350.16182@chino.kir.corp.google.com>
- <20150715094240.GF5101@dhcp22.suse.cz>
- <alpine.DEB.2.10.1507151543270.14906@chino.kir.corp.google.com>
+Subject: Re: [PATCH 1/5] memcg: export struct mem_cgroup
+Message-ID: <20150716071948.GC3077@dhcp22.suse.cz>
+References: <1436958885-18754-1-git-send-email-mhocko@kernel.org>
+ <1436958885-18754-2-git-send-email-mhocko@kernel.org>
+ <20150715135711.1778a8c08f2ea9560a7c1f6f@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1507151543270.14906@chino.kir.corp.google.com>
+In-Reply-To: <20150715135711.1778a8c08f2ea9560a7c1f6f@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Jakob Unterwurzacher <jakobunt@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 15-07-15 15:44:36, David Rientjes wrote:
-> OOM notifiers exist to give one last chance at reclaiming memory before
-> the oom killer does its work.
+On Wed 15-07-15 13:57:11, Andrew Morton wrote:
+> On Wed, 15 Jul 2015 13:14:41 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> Thus, they don't actually belong in the oom killer proper, but rather in
-> the page allocator where reclaim is invoked.
-
-Why this is not needed in the page fault oom path anymore?
-
-> Move the oom notifiers to their proper place: before out_of_memory(),
-> which now deals solely with providing access to memory reserves and
-> ensuring a process is exiting to free its memory.
+> > mem_cgroup structure is defined in mm/memcontrol.c currently which
+> > means that the code outside of this file has to use external API even
+> > for trivial access stuff.
+> > 
+> > This patch exports mm_struct with its dependencies and makes some of the
+> > exported functions inlines. This even helps to reduce the code size a bit
+> > (make defconfig + CONFIG_MEMCG=y)
+> > 
+> > text		data    bss     dec     	 hex 	filename
+> > 12355346        1823792 1089536 15268674         e8fb42 vmlinux.before
+> > 12354970        1823792 1089536 15268298         e8f9ca vmlinux.after
+> > 
+> > This is not much (370B) but better than nothing. We also save a function
+> > call in some hot paths like callers of mem_cgroup_count_vm_event which is
+> > used for accounting.
+> > 
+> > The patch doesn't introduce any functional changes.
+> > 
+> > ...
+> >
+> >  include/linux/memcontrol.h | 369 +++++++++++++++++++++++++++++++++++++++++----
 > 
-> This also fixes an issue that invoked the oom notifiers and aborted oom
-> kill when triggered manually with sysrq+f.  Sysrq+f now properly triggers
-> an oom kill in all instances.
-> 
-> Such callbacks should use register_shrinker() so they are a part of
-> reclaim, and there should be no need for oom notifiers at all.  Thus,
-> add a new comment directed to reclaim rather than continuing to use this
-> interface.
+> Boy, that's a ton of new stuff into the header file.  Do we actually
+> *need* to expose all this?
 
-I do not see anybody from the subsystems using oom notifiers CCed here
-for their opinion.
+I am exporting struct mem_cgroup with its dependencies + some small
+functions which allow to inline some really trivial code and helps to
+generate a better code.
 
-I guess Reported-by could have been preserved
+> Is some other patch dependent on it? 
 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/oom_kill.c   | 20 --------------------
->  mm/page_alloc.c | 22 ++++++++++++++++++++++
->  2 files changed, 22 insertions(+), 20 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -615,20 +615,6 @@ void check_panic_on_oom(struct oom_control *oc, enum oom_constraint constraint,
->  		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
->  }
->  
-> -static BLOCKING_NOTIFIER_HEAD(oom_notify_list);
-> -
-> -int register_oom_notifier(struct notifier_block *nb)
-> -{
-> -	return blocking_notifier_chain_register(&oom_notify_list, nb);
-> -}
-> -EXPORT_SYMBOL_GPL(register_oom_notifier);
-> -
-> -int unregister_oom_notifier(struct notifier_block *nb)
-> -{
-> -	return blocking_notifier_chain_unregister(&oom_notify_list, nb);
-> -}
-> -EXPORT_SYMBOL_GPL(unregister_oom_notifier);
-> -
->  /**
->   * out_of_memory - kill the "best" process when we run out of memory
->   * @oc: pointer to struct oom_control
-> @@ -642,18 +628,12 @@ bool out_of_memory(struct oom_control *oc)
->  {
->  	struct task_struct *p;
->  	unsigned long totalpages;
-> -	unsigned long freed = 0;
->  	unsigned int uninitialized_var(points);
->  	enum oom_constraint constraint = CONSTRAINT_NONE;
->  
->  	if (oom_killer_disabled)
->  		return false;
->  
-> -	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
-> -	if (freed > 0)
-> -		/* Got some memory back in the last second. */
-> -		return true;
-> -
->  	/*
->  	 * If current has a pending SIGKILL or is exiting, then automatically
->  	 * select it.  The goal is to allow it to allocate so that it may
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2676,6 +2676,23 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...)
->  		show_mem(filter);
->  }
->  
-> +static BLOCKING_NOTIFIER_HEAD(oom_notify_list);
-> +/*
-> + * Deprecated -- no new callers of this interface should be added.  Instead,
-> + * use reclaim shrinkers: see register_shrinker().
-> + */
-> +int register_oom_notifier(struct notifier_block *nb)
-> +{
-> +	return blocking_notifier_chain_register(&oom_notify_list, nb);
-> +}
-> +EXPORT_SYMBOL_GPL(register_oom_notifier);
-> +
-> +int unregister_oom_notifier(struct notifier_block *nb)
-> +{
-> +	return blocking_notifier_chain_unregister(&oom_notify_list, nb);
-> +}
-> +EXPORT_SYMBOL_GPL(unregister_oom_notifier);
-> +
->  static inline struct page *
->  __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
->  	const struct alloc_context *ac, unsigned long *did_some_progress)
-> @@ -2736,6 +2753,11 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
->  		if (gfp_mask & __GFP_THISNODE)
->  			goto out;
->  	}
-> +
-> +	blocking_notifier_call_chain(&oom_notify_list, 0, did_some_progress);
-> +	if (*did_some_progress > 0)
-> +		goto out;
-> +
->  	/* Exhausted what can be done so it's blamo time */
->  	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
->  		*did_some_progress = 1;
+Without mem_cgroup visible outside of memcontrol.c we couldn't inline
+and now we can also use some fields from mem_cgroup directly and get rid
+of some really trivial access functions.
 
+> If
+> not then perhaps we shouldn't do this - if the code was already this
+> way, I'd be attracted to a patch which was the reverse of this one!
+
+I agree with Johannes who originally suggested to expose mem_cgroup that
+it will allow for a better code later.
+ 
+> There's some risk of build breakage here - just from a quick scan,
+> memcontrol.h is going to need eventfd.h for eventfd_ctx.  But what else
+> is needed?
+
+I have tested this with all{mod,yes,no}config + my battery of configs
+which I am using for mm git tree testing + some randconfig without
+issues. Sure there might be some config combo I haven't tested but I
+guess it should be quite unlikely.
 -- 
 Michal Hocko
 SUSE Labs
