@@ -1,87 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 724EC280309
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 17:34:35 -0400 (EDT)
-Received: by igvi1 with SMTP id i1so22878421igv.1
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 14:34:35 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id h9si7522174ioh.8.2015.07.16.14.34.34
+Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DDAF280309
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 18:27:49 -0400 (EDT)
+Received: by qged69 with SMTP id d69so10278136qge.0
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 15:27:48 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m2si11369872qhb.129.2015.07.16.15.27.48
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jul 2015 14:34:34 -0700 (PDT)
-Date: Thu, 16 Jul 2015 14:34:33 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/5] memcg: export struct mem_cgroup
-Message-Id: <20150716143433.e43554a19b1c89a8524020cb@linux-foundation.org>
-In-Reply-To: <20150716071948.GC3077@dhcp22.suse.cz>
-References: <1436958885-18754-1-git-send-email-mhocko@kernel.org>
-	<1436958885-18754-2-git-send-email-mhocko@kernel.org>
-	<20150715135711.1778a8c08f2ea9560a7c1f6f@linux-foundation.org>
-	<20150716071948.GC3077@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 16 Jul 2015 15:27:48 -0700 (PDT)
+Date: Fri, 17 Jul 2015 00:26:03 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: [PATCH 0/1] mm, mpx: add "vm_flags_t vm_flags" arg to
+	do_mmap_pgoff()
+Message-ID: <20150716222603.GA21791@redhat.com>
+References: <1436784852-144369-1-git-send-email-kirill.shutemov@linux.intel.com> <1436784852-144369-3-git-send-email-kirill.shutemov@linux.intel.com> <20150713165323.GA7906@redhat.com> <55A3EFE9.7080101@linux.intel.com> <20150716110503.9A4F5196@black.fi.intel.com> <55A7D38C.7070907@linux.intel.com> <20150716160927.GA27037@node.dhcp.inet.fi>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150716160927.GA27037@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Thomas Gleixner <tglx@linutronix.de>
 
-On Thu, 16 Jul 2015 09:19:49 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+On 07/16, Kirill A. Shutemov wrote:
+>
+> On Thu, Jul 16, 2015 at 08:53:48AM -0700, Dave Hansen wrote:
+> > On 07/16/2015 04:05 AM, Kirill A. Shutemov wrote:
+> > >> > These both look nice to me (and they both cull specialty MPX code which
+> > >> > is excellent).  I'll run them through a quick test.
+> > > Any update?
+> >
+> > Both patches look fine to me and test OK.  Feel free to add my
+> > acked/tested/etc...
+>
+> Oleg, could you prepare a proper patch with description/signed-off-by?
+>
+> I'll send updated patchset with all changes to Andrew.
 
-> On Wed 15-07-15 13:57:11, Andrew Morton wrote:
-> > On Wed, 15 Jul 2015 13:14:41 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> > 
-> > > mem_cgroup structure is defined in mm/memcontrol.c currently which
-> > > means that the code outside of this file has to use external API even
-> > > for trivial access stuff.
-> > > 
-> > > This patch exports mm_struct with its dependencies and makes some of the
-> > > exported functions inlines. This even helps to reduce the code size a bit
-> > > (make defconfig + CONFIG_MEMCG=y)
-> > > 
-> > > text		data    bss     dec     	 hex 	filename
-> > > 12355346        1823792 1089536 15268674         e8fb42 vmlinux.before
-> > > 12354970        1823792 1089536 15268298         e8f9ca vmlinux.after
-> > > 
-> > > This is not much (370B) but better than nothing. We also save a function
-> > > call in some hot paths like callers of mem_cgroup_count_vm_event which is
-> > > used for accounting.
-> > > 
-> > > The patch doesn't introduce any functional changes.
-> > > 
-> > > ...
-> > >
-> > >  include/linux/memcontrol.h | 369 +++++++++++++++++++++++++++++++++++++++++----
-> > 
-> > Boy, that's a ton of new stuff into the header file.  Do we actually
-> > *need* to expose all this?
-> 
-> I am exporting struct mem_cgroup with its dependencies + some small
-> functions which allow to inline some really trivial code and helps to
-> generate a better code.
-> 
-> > Is some other patch dependent on it? 
-> 
-> Without mem_cgroup visible outside of memcontrol.c we couldn't inline
-> and now we can also use some fields from mem_cgroup directly and get rid
-> of some really trivial access functions.
-> 
-> > If
-> > not then perhaps we shouldn't do this - if the code was already this
-> > way, I'd be attracted to a patch which was the reverse of this one!
-> 
-> I agree with Johannes who originally suggested to expose mem_cgroup that
-> it will allow for a better code later.
+With pleasure, please see 1/1.
 
-Sure, but how *much* better?  Are there a significant number of
-fastpath functions involved?
+Changes:
 
->From a maintainability/readability point of view, this is quite a bad
-patch.  It exposes a *lot* of stuff to the whole world.  We need to get
-a pretty good runtime benefit from doing this to ourselves.  I don't
-think that saving 376 bytes on a fatconfig build is sufficient
-justification?
+	- s/__do_mmap_pgoff/do_mmap/
 
+	- update mm/nommu.c too
+
+	- make do_mmap_pgoff() inline (perhaps we should kill it),
+	  this also avoids another change in nommu.c
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
