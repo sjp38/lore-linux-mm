@@ -1,58 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 923A9280303
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 15:35:54 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so48960379pdr.2
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 12:35:54 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id af4si14508876pbc.227.2015.07.16.12.35.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jul 2015 12:35:53 -0700 (PDT)
-From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [PATCH] mm: trace tlb flush after disabling preemption in try_to_unmap_flush
-Date: Thu, 16 Jul 2015 15:35:39 -0400
-Message-Id: <1437075339-32715-1-git-send-email-sasha.levin@oracle.com>
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 96D02280303
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 15:40:42 -0400 (EDT)
+Received: by qgii95 with SMTP id i95so6509396qgi.2
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 12:40:42 -0700 (PDT)
+Date: Thu, 16 Jul 2015 21:38:56 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [mmotm:master 140/321] fs/built-in.o:undefined reference to
+	`filemap_page_mkwrite'
+Message-ID: <20150716193856.GA25255@redhat.com>
+References: <201507160919.VRGXvreQ%fengguang.wu@intel.com> <20150716190503.GA22146@redhat.com> <20150716191258.GA22760@kvack.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150716191258.GA22760@kvack.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@suse.de
-Cc: mhocko@suse.cz, riel@redhat.com, mingo@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sasha Levin <sasha.levin@oracle.com>
+To: Benjamin LaHaise <bcrl@kvack.org>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Jeff Moyer <jmoyer@redhat.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-Commit "mm: send one IPI per CPU to TLB flush all entries after unmapping
-pages" added a trace_tlb_flush() while preemption was still enabled. This
-means that we'll access smp_processor_id() which in turn will get us quite
-a few warnings.
+On 07/16, Benjamin LaHaise wrote:
+>
+> On Thu, Jul 16, 2015 at 09:05:03PM +0200, Oleg Nesterov wrote:
+> > Thanks!
+> ...
+> > but the problem looks clear: CONFIG_MMU is not set, so we need
+> > a dummy filemap_page_mkwrite() along with generic_file_mmap() and
+> > generic_file_readonly_mmap().
+> >
+> > I'll send the fix, but...
+> >
+> > Benjamin, Jeff, shouldn't AIO depend on MMU? Or it can actually work even
+> > if CONFIG_MMU=n?
+>
+> It should work when CONFIG_MMU=n,
 
-Fix it by moving the trace to where the preemption is disabled, one line
-down.
+Really? I am just curious.
 
-Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
----
+alloc_anon_inode() doesn't set S_IFREG, it seems that nommu.c:do_mmap_pgoff()
+should just fail in validate_mmap_request() ?
 
-The diff is all lies: I've moved trace_tlb_flush() one line down rather
-than get_cpu() a line up ;)
+Even if not, it should fail because of MAP_SHARED && !NOMMU_MAP_DIRECT?
 
- mm/rmap.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+I am just trying to understand, could you explain?
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 30812e9..63ba46c 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -613,9 +613,10 @@ void try_to_unmap_flush(void)
- 	if (!tlb_ubc->flush_required)
- 		return;
- 
-+	cpu = get_cpu();
-+
- 	trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, -1UL);
- 
--	cpu = get_cpu();
- 	if (cpumask_test_cpu(cpu, &tlb_ubc->cpumask))
- 		percpu_flush_tlb_batch_pages(&tlb_ubc->cpumask);
- 
--- 
-1.7.10.4
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
