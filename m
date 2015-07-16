@@ -1,56 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FBD32802EB
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 01:29:56 -0400 (EDT)
-Received: by pdjr16 with SMTP id r16so37979003pdj.3
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 22:29:55 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id f10si11060295pdp.225.2015.07.15.22.29.54
-        for <linux-mm@kvack.org>;
-        Wed, 15 Jul 2015 22:29:55 -0700 (PDT)
-Message-ID: <55A7417C.6000106@cn.fujitsu.com>
-Date: Thu, 16 Jul 2015 13:30:36 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F1942802E6
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 03:12:05 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so7394102wib.0
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 00:12:04 -0700 (PDT)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
+        by mx.google.com with ESMTPS id le4si12233526wjc.18.2015.07.16.00.12.03
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Jul 2015 00:12:03 -0700 (PDT)
+Received: by widic2 with SMTP id ic2so7178742wid.0
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 00:12:03 -0700 (PDT)
+Date: Thu, 16 Jul 2015 09:12:01 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch -mm] mm, oom: move oom notifiers to page allocator
+Message-ID: <20150716071200.GB3077@dhcp22.suse.cz>
+References: <1436360661-31928-1-git-send-email-mhocko@suse.com>
+ <1436360661-31928-3-git-send-email-mhocko@suse.com>
+ <alpine.DEB.2.10.1507081636180.16585@chino.kir.corp.google.com>
+ <20150709085505.GB13872@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1507091404200.17177@chino.kir.corp.google.com>
+ <20150710074032.GA7343@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1507141458350.16182@chino.kir.corp.google.com>
+ <20150715094240.GF5101@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1507151543270.14906@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] mem-hotplug: Handle node hole when initializing numa_meminfo.
-References: <1435720614-16480-1-git-send-email-tangchen@cn.fujitsu.com> <20150715212008.GK15934@mtj.duckdns.org>
-In-Reply-To: <20150715212008.GK15934@mtj.duckdns.org>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1507151543270.14906@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, dyoung@redhat.com, isimatu.yasuaki@jp.fujitsu.com, yasu.isimatu@gmail.com, lcapitulino@redhat.com, qiuxishi@huawei.com, will.deacon@arm.com, tony.luck@intel.com, vladimir.murzin@arm.com, fabf@skynet.be, kuleshovmail@gmail.com, bhe@redhat.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Jakob Unterwurzacher <jakobunt@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Wed 15-07-15 15:44:36, David Rientjes wrote:
+> OOM notifiers exist to give one last chance at reclaiming memory before
+> the oom killer does its work.
+> 
+> Thus, they don't actually belong in the oom killer proper, but rather in
+> the page allocator where reclaim is invoked.
 
-On 07/16/2015 05:20 AM, Tejun Heo wrote:
-> On Wed, Jul 01, 2015 at 11:16:54AM +0800, Tang Chen wrote:
-> ...
->> -		/* and there's no empty block */
->> -		if (bi->start >= bi->end)
->> +		/* and there's no empty or non-exist block */
->> +		if (bi->start >= bi->end ||
->> +		    memblock_overlaps_region(&memblock.memory,
->> +			bi->start, bi->end - bi->start) == -1)
-> Ugh.... can you please change memblock_overlaps_region() to return
-> bool instead?
+Why this is not needed in the page fault oom path anymore?
 
-Well, I think memblock_overlaps_region() is designed to return
-the index of the region overlapping with the given region.
-Maybe it had some users before.
+> Move the oom notifiers to their proper place: before out_of_memory(),
+> which now deals solely with providing access to memory reserves and
+> ensuring a process is exiting to free its memory.
+> 
+> This also fixes an issue that invoked the oom notifiers and aborted oom
+> kill when triggered manually with sysrq+f.  Sysrq+f now properly triggers
+> an oom kill in all instances.
+> 
+> Such callbacks should use register_shrinker() so they are a part of
+> reclaim, and there should be no need for oom notifiers at all.  Thus,
+> add a new comment directed to reclaim rather than continuing to use this
+> interface.
 
-Of course for now, it is only called by memblock_is_region_reserved().
+I do not see anybody from the subsystems using oom notifiers CCed here
+for their opinion.
 
-It is OK to change the return value of memblock_overlaps_region() to bool.
-But any caller of memblock_is_region_reserved() should also be changed.
+I guess Reported-by could have been preserved
 
-I think it is OK to leave it there.
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  mm/oom_kill.c   | 20 --------------------
+>  mm/page_alloc.c | 22 ++++++++++++++++++++++
+>  2 files changed, 22 insertions(+), 20 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -615,20 +615,6 @@ void check_panic_on_oom(struct oom_control *oc, enum oom_constraint constraint,
+>  		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
+>  }
+>  
+> -static BLOCKING_NOTIFIER_HEAD(oom_notify_list);
+> -
+> -int register_oom_notifier(struct notifier_block *nb)
+> -{
+> -	return blocking_notifier_chain_register(&oom_notify_list, nb);
+> -}
+> -EXPORT_SYMBOL_GPL(register_oom_notifier);
+> -
+> -int unregister_oom_notifier(struct notifier_block *nb)
+> -{
+> -	return blocking_notifier_chain_unregister(&oom_notify_list, nb);
+> -}
+> -EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+> -
+>  /**
+>   * out_of_memory - kill the "best" process when we run out of memory
+>   * @oc: pointer to struct oom_control
+> @@ -642,18 +628,12 @@ bool out_of_memory(struct oom_control *oc)
+>  {
+>  	struct task_struct *p;
+>  	unsigned long totalpages;
+> -	unsigned long freed = 0;
+>  	unsigned int uninitialized_var(points);
+>  	enum oom_constraint constraint = CONSTRAINT_NONE;
+>  
+>  	if (oom_killer_disabled)
+>  		return false;
+>  
+> -	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+> -	if (freed > 0)
+> -		/* Got some memory back in the last second. */
+> -		return true;
+> -
+>  	/*
+>  	 * If current has a pending SIGKILL or is exiting, then automatically
+>  	 * select it.  The goal is to allow it to allocate so that it may
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2676,6 +2676,23 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...)
+>  		show_mem(filter);
+>  }
+>  
+> +static BLOCKING_NOTIFIER_HEAD(oom_notify_list);
+> +/*
+> + * Deprecated -- no new callers of this interface should be added.  Instead,
+> + * use reclaim shrinkers: see register_shrinker().
+> + */
+> +int register_oom_notifier(struct notifier_block *nb)
+> +{
+> +	return blocking_notifier_chain_register(&oom_notify_list, nb);
+> +}
+> +EXPORT_SYMBOL_GPL(register_oom_notifier);
+> +
+> +int unregister_oom_notifier(struct notifier_block *nb)
+> +{
+> +	return blocking_notifier_chain_unregister(&oom_notify_list, nb);
+> +}
+> +EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+> +
+>  static inline struct page *
+>  __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+>  	const struct alloc_context *ac, unsigned long *did_some_progress)
+> @@ -2736,6 +2753,11 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+>  		if (gfp_mask & __GFP_THISNODE)
+>  			goto out;
+>  	}
+> +
+> +	blocking_notifier_call_chain(&oom_notify_list, 0, did_some_progress);
+> +	if (*did_some_progress > 0)
+> +		goto out;
+> +
+>  	/* Exhausted what can be done so it's blamo time */
+>  	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
+>  		*did_some_progress = 1;
 
-Thanks.
-
->
-> Thanks.
->
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
