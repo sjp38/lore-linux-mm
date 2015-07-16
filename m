@@ -1,49 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7ABD96B032D
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 07:05:38 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so42590016pdr.2
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 04:05:38 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id hc9si12430554pac.157.2015.07.16.04.05.37
-        for <linux-mm@kvack.org>;
-        Thu, 16 Jul 2015 04:05:37 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <55A3EFE9.7080101@linux.intel.com>
-References: <1436784852-144369-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1436784852-144369-3-git-send-email-kirill.shutemov@linux.intel.com>
- <20150713165323.GA7906@redhat.com>
- <55A3EFE9.7080101@linux.intel.com>
-Subject: Re: [PATCH 2/5] x86, mpx: do not set ->vm_ops on mpx VMAs
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id E95872802F6
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 07:35:15 -0400 (EDT)
+Received: by qgy5 with SMTP id 5so30955768qgy.3
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 04:35:15 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m77si9168871qgm.53.2015.07.16.04.35.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Jul 2015 04:35:15 -0700 (PDT)
+Subject: Re: [PATCH -mm v8 5/7] mmu-notifier: add clear_young callback
+References: <cover.1436967694.git.vdavydov@parallels.com>
+ <82693bd5b5dbf4e65657fa22288942650aa04a0a.1436967694.git.vdavydov@parallels.com>
+ <CAJu=L58yzBr8+XaV90x+S60YnJzd7Yr2fDEgaQ0bcCKpwzSAhw@mail.gmail.com>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <55A796E6.3090603@redhat.com>
+Date: Thu, 16 Jul 2015 13:35:02 +0200
+MIME-Version: 1.0
+In-Reply-To: <CAJu=L58yzBr8+XaV90x+S60YnJzd7Yr2fDEgaQ0bcCKpwzSAhw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
-Message-Id: <20150716110503.9A4F5196@black.fi.intel.com>
-Date: Thu, 16 Jul 2015 14:05:03 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Thomas Gleixner <tglx@linutronix.de>
+To: Andres Lagar-Cavilla <andreslc@google.com>, Vladimir Davydov <vdavydov@parallels.com>, kvm@vger.kernel.org, Eric Northup <digitaleric@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Dave Hansen wrote:
-> On 07/13/2015 09:53 AM, Oleg Nesterov wrote:
-> > On 07/13, Kirill A. Shutemov wrote:
-> >>
-> >> We don't really need ->vm_ops here: MPX VMA can be detected with VM_MPX
-> >> flag. And vma_merge() will not merge MPX VMA with non-MPX VMA, because
-> >> ->vm_flags won't match.
-> > 
-> > Agreed.
-> > 
-> > I am wondering if something like the patch below (on top of yours) makes
-> > sense... Not sure, but mpx_mmap() doesn't look nice too, and with this
-> > change we can unexport mmap_region().
-> 
-> These both look nice to me (and they both cull specialty MPX code which
-> is excellent).  I'll run them through a quick test.
 
-Any update?
 
--- 
- Kirill A. Shutemov
+On 15/07/2015 21:16, Andres Lagar-Cavilla wrote:
+>> > +static int kvm_mmu_notifier_clear_young(struct mmu_notifier *mn,
+>> > +                                       struct mm_struct *mm,
+>> > +                                       unsigned long start,
+>> > +                                       unsigned long end)
+>> > +{
+>> > +       struct kvm *kvm = mmu_notifier_to_kvm(mn);
+>> > +       int young, idx;
+> For reclaim, the clear_flush_young notifier may blow up the secondary
+> pte to estimate the access pattern, depending on hardware support (EPT
+> access bits available in Haswell onwards, not sure about AMD, PPC,
+> etc).
+
+It seems like this problem is limited to pre-Haswell EPT.
+
+I'm okay with the patch.  If we find problems later we can always add a
+parameter to kvm_age_hva so that it effectively doesn't do anything on
+clear_young.
+
+Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+
+Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
