@@ -1,61 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 246C4280309
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 19:04:00 -0400 (EDT)
-Received: by ietj16 with SMTP id j16so66403636iet.0
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 16:03:59 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id co1si2896526igb.16.2015.07.16.16.03.59
+Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 11171280309
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 19:24:22 -0400 (EDT)
+Received: by oibn4 with SMTP id n4so60809134oib.3
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 16:24:21 -0700 (PDT)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id td6si7672271oeb.84.2015.07.16.16.24.21
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jul 2015 16:03:59 -0700 (PDT)
-Date: Thu, 16 Jul 2015 16:03:58 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/5] memcg: export struct mem_cgroup
-Message-Id: <20150716160358.de3404c44ba29dc132032bbc@linux-foundation.org>
-In-Reply-To: <20150716225639.GA11131@cmpxchg.org>
-References: <1436958885-18754-1-git-send-email-mhocko@kernel.org>
-	<1436958885-18754-2-git-send-email-mhocko@kernel.org>
-	<20150715135711.1778a8c08f2ea9560a7c1f6f@linux-foundation.org>
-	<20150716071948.GC3077@dhcp22.suse.cz>
-	<20150716143433.e43554a19b1c89a8524020cb@linux-foundation.org>
-	<20150716225639.GA11131@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 16 Jul 2015 16:24:21 -0700 (PDT)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH RESEND 0/3] mm, x86: Fix ioremap RAM check interfaces
+Date: Thu, 16 Jul 2015 17:23:13 -0600
+Message-Id: <1437088996-28511-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org
+Cc: travis@sgi.com, roland@purestorage.com, dan.j.williams@intel.com, mcgrof@suse.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 16 Jul 2015 18:56:39 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+ioremap() checks if a target range is in RAM and fails the request
+if true.  There are multiple issues in the iormap RAM check interfaces.
 
-> On Thu, Jul 16, 2015 at 02:34:33PM -0700, Andrew Morton wrote:
-> > On Thu, 16 Jul 2015 09:19:49 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> > > I agree with Johannes who originally suggested to expose mem_cgroup that
-> > > it will allow for a better code later.
-> > 
-> > Sure, but how *much* better?  Are there a significant number of
-> > fastpath functions involved?
-> > 
-> > From a maintainability/readability point of view, this is quite a bad
-> > patch.  It exposes a *lot* of stuff to the whole world.  We need to get
-> > a pretty good runtime benefit from doing this to ourselves.  I don't
-> > think that saving 376 bytes on a fatconfig build is sufficient
-> > justification?
-> 
-> It's not a performance issue for me.  Some stuff is hard to read when
-> you have memcg functions with klunky names interrupting the code flow
-> to do something trivial to a struct mem_cgroup member, like
-> mem_cgroup_lruvec_online() and mem_cgroup_get_lru_size().
-> 
-> Maybe we can keep thresholds private and encapsulate the softlimit
-> tree stuff in mem_cgroup_per_zone into something private as well, as
-> this is not used - and unlikely to be used - outside of memcg proper.
-> 
-> But otherwise, I think struct mem_cgroup should have mm-scope.
+ 1. region_is_ram() always fails with -1.
+ 2. The check calls two functions, region_is_ram() and
+    walk_system_ram_range(), which are redundant as both walk the
+    same iomem_resource table.
+ 3. walk_system_ram_range() requires RAM ranges be page-aligned in
+    the iomem_resource table to work properly.  This restriction
+    has allowed multiple ioremaps to RAM which are page-unaligned.
 
-Meaning a new mm/memcontrol.h?  That's a bit better I suppose.
+This patchset solves issue 1 and 2.  It does not address issue 3,
+but continues to allow the existing ioremaps to work until it is
+addressed.
+
+---
+resend:
+ - Rebased to 4.2-rc2 (no change needed). Modified change logs.
+
+---
+Toshi Kani (3):
+  1/3 mm, x86: Fix warning in ioremap RAM check
+  2/3 mm, x86: Remove region_is_ram() call from ioremap
+  3/3 mm: Fix bugs in region_is_ram()
+
+---
+ arch/x86/mm/ioremap.c | 23 ++++++-----------------
+ kernel/resource.c     |  6 +++---
+ 2 files changed, 9 insertions(+), 20 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
