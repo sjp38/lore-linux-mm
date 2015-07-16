@@ -1,52 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id DBA3B2802E6
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 03:21:06 -0400 (EDT)
-Received: by pactm7 with SMTP id tm7so38404811pac.2
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 00:21:06 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id e5si11535484pdf.100.2015.07.16.00.21.05
-        for <linux-mm@kvack.org>;
-        Thu, 16 Jul 2015 00:21:06 -0700 (PDT)
-Message-ID: <55A75B8D.5010009@cn.fujitsu.com>
-Date: Thu, 16 Jul 2015 15:21:49 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 60EB72802E6
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 04:26:13 -0400 (EDT)
+Received: by pachj5 with SMTP id hj5so39102810pac.3
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 01:26:13 -0700 (PDT)
+Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com. [2607:f8b0:400e:c02::22b])
+        by mx.google.com with ESMTPS id yd8si11775409pbc.112.2015.07.16.01.26.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Jul 2015 01:26:12 -0700 (PDT)
+Received: by pdbep18 with SMTP id ep18so41786348pdb.1
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 01:26:11 -0700 (PDT)
+Date: Thu, 16 Jul 2015 17:26:43 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [RFC][PATCH 1/5] mm/slab_common: allow NULL cache pointer in
+ kmem_cache_destroy()
+Message-ID: <20150716082643.GA622@swordfish>
+References: <1433851493-23685-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1433851493-23685-2-git-send-email-sergey.senozhatsky@gmail.com>
+ <alpine.DEB.2.10.1506171613170.8203@chino.kir.corp.google.com>
+ <20150617235205.GA3422@swordfish>
+ <alpine.DEB.2.02.1506201824510.2067@localhost6.localdomain6>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] mem-hotplug: Handle node hole when initializing numa_meminfo.
-References: <1435720614-16480-1-git-send-email-tangchen@cn.fujitsu.com> <20150715212008.GK15934@mtj.duckdns.org>
-In-Reply-To: <20150715212008.GK15934@mtj.duckdns.org>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1506201824510.2067@localhost6.localdomain6>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, dyoung@redhat.com, isimatu.yasuaki@jp.fujitsu.com, yasu.isimatu@gmail.com, lcapitulino@redhat.com, qiuxishi@huawei.com, will.deacon@arm.com, tony.luck@intel.com, vladimir.murzin@arm.com, fabf@skynet.be, kuleshovmail@gmail.com, bhe@redhat.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Julia Lawall <julia.lawall@lip6.fr>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
+On (06/20/15 18:25), Julia Lawall wrote:
+> > On (06/17/15 16:14), David Rientjes wrote:
+> > [..]
+> > > > 
+> > > > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> > > > Reported-by: Andrew Morton <akpm@linux-foundation.org>
+> > > > LKML-reference: https://lkml.org/lkml/2015/6/8/583
+> > > 
+> > > Acked-by: David Rientjes <rientjes@google.com>
+> > > 
+> > > kmem_cache_destroy() isn't a fastpath, this is long overdue.  Now where's 
+> > > the patch to remove the NULL checks from the callers? ;)
+> > > 
+> > 
+> > Thanks.
+> > 
+> > Yes, Julia Lawall (Cc'd) already has a patch set ready for submission.
+> 
+> The patch for making these functions able to tolerate NULL doesn't seem to 
+> be in linux-next yet, so I will wait until it appears.
 
-On 07/16/2015 05:20 AM, Tejun Heo wrote:
-> On Wed, Jul 01, 2015 at 11:16:54AM +0800, Tang Chen wrote:
-> ...
->> -		/* and there's no empty block */
->> -		if (bi->start >= bi->end)
->> +		/* and there's no empty or non-exist block */
->> +		if (bi->start >= bi->end ||
->> +		    memblock_overlaps_region(&memblock.memory,
->> +			bi->start, bi->end - bi->start) == -1)
-> Ugh.... can you please change memblock_overlaps_region() to return
-> bool instead?
+Hello Julia,
 
-Well, I think memblock_overlaps_region() is designed to return
-the index of the region overlapping with the given region.
+The patches are in -next now.
 
-Of course for now, it is only called by memblock_is_region_reserved().
+mm/dmapool: 8bf49946ed8fa01a0b5e7d0de94655c072525344
+mm/mempool: eb54bc8469e2977bcef4e284d24cbf3578ce9cd9
+mm/slab_common: e88672f95907c14cf8ab2cce592c41bbb9cefc5f
 
-Will post a patch to do this.
-
-Thanks.
-
->
-> Thanks.
->
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
