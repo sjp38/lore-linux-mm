@@ -1,88 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 17CA22802E6
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 22:23:50 -0400 (EDT)
-Received: by padck2 with SMTP id ck2so33915002pad.0
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 19:23:49 -0700 (PDT)
-Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com. [122.248.162.9])
-        by mx.google.com with ESMTPS id pf6si10405270pbb.67.2015.07.15.19.23.48
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 155642802E6
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 22:33:10 -0400 (EDT)
+Received: by wicmv11 with SMTP id mv11so3437354wic.1
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 19:33:09 -0700 (PDT)
+Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
+        by mx.google.com with ESMTPS id z12si11214573wjw.88.2015.07.15.19.33.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Wed, 15 Jul 2015 19:23:49 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
-	Thu, 16 Jul 2015 07:53:45 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id BDDB91258056
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 07:56:38 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t6G2NgVc40763616
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 07:53:42 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t6G2Ng8N003542
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 07:53:42 +0530
-Date: Thu, 16 Jul 2015 10:23:40 +0800
-From: Wei Yang <weiyang@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/memblock: WARN_ON when flags differs from overlap
- region
-Message-ID: <20150716022340.GA13777@richard>
-Reply-To: Wei Yang <weiyang@linux.vnet.ibm.com>
-References: <1436342488-19851-1-git-send-email-weiyang@linux.vnet.ibm.com>
- <1436588376-25808-1-git-send-email-weiyang@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1507151719230.9230@chino.kir.corp.google.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Jul 2015 19:33:08 -0700 (PDT)
+Date: Thu, 16 Jul 2015 04:33:07 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH v1 3/4] mm/memory-failure: give up error handling for
+ non-tail-refcounted thp
+Message-ID: <20150716023307.GF1747@two.firstfloor.org>
+References: <1437010894-10262-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1437010894-10262-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1507151719230.9230@chino.kir.corp.google.com>
+In-Reply-To: <1437010894-10262-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Wei Yang <weiyang@linux.vnet.ibm.com>, akpm@linux-foundation.org, tj@kernel.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Dean Nelson <dnelson@redhat.com>, Tony Luck <tony.luck@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Wed, Jul 15, 2015 at 05:19:39PM -0700, David Rientjes wrote:
->On Sat, 11 Jul 2015, Wei Yang wrote:
->
->> Each memblock_region has flags to indicates the Node ID of this range. For
->> the overlap case, memblock_add_range() inserts the lower part and leave the
->> upper part as indicated in the overlapped region.
->> 
->
->Memblock region flags do not specify node ids, so this is somewhat 
->misleading.
->
+> @@ -909,6 +909,15 @@ int get_hwpoison_page(struct page *page)
+>  	 * directly for tail pages.
+>  	 */
+>  	if (PageTransHuge(head)) {
+> +		/*
+> +		 * Non anonymous thp exists only in allocation/free time. We
+> +		 * can't handle such a case correctly, so let's give it up.
+> +		 * This should be better than triggering BUG_ON when kernel
+> +		 * tries to touch a "partially handled" page.
+> +		 */
+> +		if (!PageAnon(head))
+> +			return 0;
 
-Thanks for pointing out, the commit message is not correct.
+Please print a message for this case. In the future there will be
+likely more non anonymous THP pages from Kirill's large page cache work
+(so eventually we'll need it)
 
-It should be "type" instead of "Node ID".
-
->> If the flags of the new range differs from the overlapped region, the
->> information recorded is not correct.
->> 
->> This patch adds a WARN_ON when the flags of the new range differs from the
->> overlapped region.
->> 
->> Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
->> ---
->>  mm/memblock.c |    1 +
->>  1 file changed, 1 insertion(+)
->> 
->> diff --git a/mm/memblock.c b/mm/memblock.c
->> index 95ce68c..bde61e8 100644
->> --- a/mm/memblock.c
->> +++ b/mm/memblock.c
->> @@ -569,6 +569,7 @@ repeat:
->>  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->>  			WARN_ON(nid != memblock_get_region_node(rgn));
->>  #endif
->> +			WARN_ON(flags != rgn->flags);
->>  			nr_new++;
->>  			if (insert)
->>  				memblock_insert_region(type, i++, base,
-
--- 
-Richard Yang
-Help you, Help me
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
