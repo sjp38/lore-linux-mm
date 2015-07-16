@@ -1,74 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B287280309
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 17:02:00 -0400 (EDT)
-Received: by pachj5 with SMTP id hj5so48667128pac.3
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 14:01:59 -0700 (PDT)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id ki8si14898025pdb.218.2015.07.16.14.01.59
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 724EC280309
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 17:34:35 -0400 (EDT)
+Received: by igvi1 with SMTP id i1so22878421igv.1
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 14:34:35 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id h9si7522174ioh.8.2015.07.16.14.34.34
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jul 2015 14:01:59 -0700 (PDT)
-Received: by pdbbh15 with SMTP id bh15so4604526pdb.1
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 14:01:59 -0700 (PDT)
-Date: Thu, 16 Jul 2015 14:01:56 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: cpu_hotplug vs oom_notify_list: possible circular locking
- dependency detected
-In-Reply-To: <20150715222612.GP3717@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.10.1507161401320.14938@chino.kir.corp.google.com>
-References: <20150712105634.GA11708@marcin-Inspiron-7720> <alpine.DEB.2.10.1507141508590.16182@chino.kir.corp.google.com> <20150714232943.GW3717@linux.vnet.ibm.com> <alpine.DEB.2.10.1507141647531.16182@chino.kir.corp.google.com>
- <20150715222612.GP3717@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="397176738-1189911053-1437080517=:14938"
+        Thu, 16 Jul 2015 14:34:34 -0700 (PDT)
+Date: Thu, 16 Jul 2015 14:34:33 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/5] memcg: export struct mem_cgroup
+Message-Id: <20150716143433.e43554a19b1c89a8524020cb@linux-foundation.org>
+In-Reply-To: <20150716071948.GC3077@dhcp22.suse.cz>
+References: <1436958885-18754-1-git-send-email-mhocko@kernel.org>
+	<1436958885-18754-2-git-send-email-mhocko@kernel.org>
+	<20150715135711.1778a8c08f2ea9560a7c1f6f@linux-foundation.org>
+	<20150716071948.GC3077@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: =?UTF-8?Q?Marcin_=C5=9Alusarz?= <marcin.slusarz@gmail.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Thu, 16 Jul 2015 09:19:49 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 
---397176738-1189911053-1437080517=:14938
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: 8BIT
-
-On Wed, 15 Jul 2015, Paul E. McKenney wrote:
-
-> On Tue, Jul 14, 2015 at 04:48:24PM -0700, David Rientjes wrote:
-> > On Tue, 14 Jul 2015, Paul E. McKenney wrote:
+> On Wed 15-07-15 13:57:11, Andrew Morton wrote:
+> > On Wed, 15 Jul 2015 13:14:41 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 > > 
-> > > commit a1992f2f3b8e174d740a8f764d0d51344bed2eed
-> > > Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> > > Date:   Tue Jul 14 16:24:14 2015 -0700
+> > > mem_cgroup structure is defined in mm/memcontrol.c currently which
+> > > means that the code outside of this file has to use external API even
+> > > for trivial access stuff.
 > > > 
-> > >     rcu: Don't disable CPU hotplug during OOM notifiers
-> > >     
-> > >     RCU's rcu_oom_notify() disables CPU hotplug in order to stabilize the
-> > >     list of online CPUs, which it traverses.  However, this is completely
-> > >     pointless because smp_call_function_single() will quietly fail if invoked
-> > >     on an offline CPU.  Because the count of requests is incremented in the
-> > >     rcu_oom_notify_cpu() function that is remotely invoked, everything works
-> > >     nicely even in the face of concurrent CPU-hotplug operations.
-> > >     
-> > >     Furthermore, in recent kernels, invoking get_online_cpus() from an OOM
-> > >     notifier can result in deadlock.  This commit therefore removes the
-> > >     call to get_online_cpus() and put_online_cpus() from rcu_oom_notify().
-> > >     
-> > >     Reported-by: Marcin A?lusarz <marcin.slusarz@gmail.com>
-> > >     Reported-by: David Rientjes <rientjes@google.com>
-> > >     Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+> > > This patch exports mm_struct with its dependencies and makes some of the
+> > > exported functions inlines. This even helps to reduce the code size a bit
+> > > (make defconfig + CONFIG_MEMCG=y)
+> > > 
+> > > text		data    bss     dec     	 hex 	filename
+> > > 12355346        1823792 1089536 15268674         e8fb42 vmlinux.before
+> > > 12354970        1823792 1089536 15268298         e8f9ca vmlinux.after
+> > > 
+> > > This is not much (370B) but better than nothing. We also save a function
+> > > call in some hot paths like callers of mem_cgroup_count_vm_event which is
+> > > used for accounting.
+> > > 
+> > > The patch doesn't introduce any functional changes.
+> > > 
+> > > ...
+> > >
+> > >  include/linux/memcontrol.h | 369 +++++++++++++++++++++++++++++++++++++++++----
 > > 
-> > Acked-by: David Rientjes <rientjes@google.com>
+> > Boy, that's a ton of new stuff into the header file.  Do we actually
+> > *need* to expose all this?
 > 
-> Thank you!
+> I am exporting struct mem_cgroup with its dependencies + some small
+> functions which allow to inline some really trivial code and helps to
+> generate a better code.
 > 
-> Any news on whether or not it solves the problem?
+> > Is some other patch dependent on it? 
 > 
+> Without mem_cgroup visible outside of memcontrol.c we couldn't inline
+> and now we can also use some fields from mem_cgroup directly and get rid
+> of some really trivial access functions.
+> 
+> > If
+> > not then perhaps we shouldn't do this - if the code was already this
+> > way, I'd be attracted to a patch which was the reverse of this one!
+> 
+> I agree with Johannes who originally suggested to expose mem_cgroup that
+> it will allow for a better code later.
 
-Marcin, is your lockdep violation reproducible?  If so, does this patch 
-fix it?
---397176738-1189911053-1437080517=:14938--
+Sure, but how *much* better?  Are there a significant number of
+fastpath functions involved?
+
+>From a maintainability/readability point of view, this is quite a bad
+patch.  It exposes a *lot* of stuff to the whole world.  We need to get
+a pretty good runtime benefit from doing this to ourselves.  I don't
+think that saving 376 bytes on a fatconfig build is sufficient
+justification?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
