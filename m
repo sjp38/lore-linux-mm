@@ -1,59 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A58E2802C4
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 20:10:38 -0400 (EDT)
-Received: by pachj5 with SMTP id hj5so32336237pac.3
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:10:38 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id fj8si9975419pdb.93.2015.07.15.17.10.36
-        for <linux-mm@kvack.org>;
-        Wed, 15 Jul 2015 17:10:37 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2] zsmalloc: use class->pages_per_zspage
-Date: Thu, 16 Jul 2015 09:10:54 +0900
-Message-Id: <1437005454-3338-1-git-send-email-minchan@kernel.org>
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 03B792802C4
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 20:10:56 -0400 (EDT)
+Received: by igcqs7 with SMTP id qs7so1931800igc.0
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:10:55 -0700 (PDT)
+Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com. [2607:f8b0:4001:c03::233])
+        by mx.google.com with ESMTPS id bx19si185096igb.63.2015.07.15.17.10.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Jul 2015 17:10:55 -0700 (PDT)
+Received: by ietj16 with SMTP id j16so45335109iet.0
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:10:55 -0700 (PDT)
+Date: Wed, 15 Jul 2015 17:10:54 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm/page: remove unused variable of
+ free_area_init_core()
+In-Reply-To: <1436584368-7639-1-git-send-email-weiyang@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.10.1507151710430.9230@chino.kir.corp.google.com>
+References: <1436584368-7639-1-git-send-email-weiyang@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
+To: Wei Yang <weiyang@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>
 
-There is no need to recalcurate pages_per_zspage in runtime.
-Just use class->pages_per_zspage to avoid unnecessary runtime
-overhead.
+On Sat, 11 Jul 2015, Wei Yang wrote:
 
-* From v1
-  * fix up __zs_compact - Sergey
+> commit <febd5949e134> ("mm/memory hotplug: init the zone's size when
+> calculating node totalpages") refine the function free_area_init_core().
+> After doing so, these two parameter is not used anymore.
+> 
+> This patch removes these two parameters.
+> 
+> Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
+> CC: Gu Zheng <guz.fnst@cn.fujitsu.com>
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/zsmalloc.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
-
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 27b9661c8fa6..c9685bb2bb92 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -1711,7 +1711,7 @@ static unsigned long zs_can_compact(struct size_class *class)
- 	obj_wasted /= get_maxobj_per_zspage(class->size,
- 			class->pages_per_zspage);
- 
--	return obj_wasted * get_pages_per_zspage(class->size);
-+	return obj_wasted * class->pages_per_zspage;
- }
- 
- static void __zs_compact(struct zs_pool *pool, struct size_class *class)
-@@ -1749,8 +1749,7 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
- 
- 		putback_zspage(pool, class, dst_page);
- 		if (putback_zspage(pool, class, src_page) == ZS_EMPTY)
--			pool->stats.pages_compacted +=
--				get_pages_per_zspage(class->size);
-+			pool->stats.pages_compacted += class->pages_per_zspage;
- 		spin_unlock(&class->lock);
- 		cond_resched();
- 		spin_lock(&class->lock);
--- 
-1.9.1
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
