@@ -1,55 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 645A92802E6
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 22:44:14 -0400 (EDT)
-Received: by obre1 with SMTP id e1so38901432obr.1
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 19:44:14 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id a4si5161953oib.120.2015.07.15.19.44.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 15 Jul 2015 19:44:13 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v1 3/4] mm/memory-failure: give up error handling for
- non-tail-refcounted thp
-Date: Thu, 16 Jul 2015 02:41:07 +0000
-Message-ID: <20150716024106.GA13135@hori1.linux.bs1.fc.nec.co.jp>
-References: <1437010894-10262-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1437010894-10262-4-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20150716023307.GF1747@two.firstfloor.org>
-In-Reply-To: <20150716023307.GF1747@two.firstfloor.org>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <40B8A6E291556241882BF753BB4C77A1@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FBD32802EB
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 01:29:56 -0400 (EDT)
+Received: by pdjr16 with SMTP id r16so37979003pdj.3
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 22:29:55 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id f10si11060295pdp.225.2015.07.15.22.29.54
+        for <linux-mm@kvack.org>;
+        Wed, 15 Jul 2015 22:29:55 -0700 (PDT)
+Message-ID: <55A7417C.6000106@cn.fujitsu.com>
+Date: Thu, 16 Jul 2015 13:30:36 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH 1/1] mem-hotplug: Handle node hole when initializing numa_meminfo.
+References: <1435720614-16480-1-git-send-email-tangchen@cn.fujitsu.com> <20150715212008.GK15934@mtj.duckdns.org>
+In-Reply-To: <20150715212008.GK15934@mtj.duckdns.org>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dean Nelson <dnelson@redhat.com>, Tony Luck <tony.luck@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, dyoung@redhat.com, isimatu.yasuaki@jp.fujitsu.com, yasu.isimatu@gmail.com, lcapitulino@redhat.com, qiuxishi@huawei.com, will.deacon@arm.com, tony.luck@intel.com, vladimir.murzin@arm.com, fabf@skynet.be, kuleshovmail@gmail.com, bhe@redhat.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Jul 16, 2015 at 04:33:07AM +0200, Andi Kleen wrote:
-> > @@ -909,6 +909,15 @@ int get_hwpoison_page(struct page *page)
-> >  	 * directly for tail pages.
-> >  	 */
-> >  	if (PageTransHuge(head)) {
-> > +		/*
-> > +		 * Non anonymous thp exists only in allocation/free time. We
-> > +		 * can't handle such a case correctly, so let's give it up.
-> > +		 * This should be better than triggering BUG_ON when kernel
-> > +		 * tries to touch a "partially handled" page.
-> > +		 */
-> > +		if (!PageAnon(head))
-> > +			return 0;
->=20
-> Please print a message for this case. In the future there will be
-> likely more non anonymous THP pages from Kirill's large page cache work
-> (so eventually we'll need it)
 
-OK, I'll do this.
+On 07/16/2015 05:20 AM, Tejun Heo wrote:
+> On Wed, Jul 01, 2015 at 11:16:54AM +0800, Tang Chen wrote:
+> ...
+>> -		/* and there's no empty block */
+>> -		if (bi->start >= bi->end)
+>> +		/* and there's no empty or non-exist block */
+>> +		if (bi->start >= bi->end ||
+>> +		    memblock_overlaps_region(&memblock.memory,
+>> +			bi->start, bi->end - bi->start) == -1)
+> Ugh.... can you please change memblock_overlaps_region() to return
+> bool instead?
 
-Thanks,
-Naoya Horiguchi=
+Well, I think memblock_overlaps_region() is designed to return
+the index of the region overlapping with the given region.
+Maybe it had some users before.
+
+Of course for now, it is only called by memblock_is_region_reserved().
+
+It is OK to change the return value of memblock_overlaps_region() to bool.
+But any caller of memblock_is_region_reserved() should also be changed.
+
+I think it is OK to leave it there.
+
+Thanks.
+
+>
+> Thanks.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
