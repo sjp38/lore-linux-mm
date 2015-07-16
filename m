@@ -1,54 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id E95872802F6
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 07:35:15 -0400 (EDT)
-Received: by qgy5 with SMTP id 5so30955768qgy.3
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 04:35:15 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m77si9168871qgm.53.2015.07.16.04.35.14
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 9068F2802F6
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 08:01:52 -0400 (EDT)
+Received: by pactm7 with SMTP id tm7so42192544pac.2
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 05:01:52 -0700 (PDT)
+Received: from mail-pd0-x233.google.com (mail-pd0-x233.google.com. [2607:f8b0:400e:c02::233])
+        by mx.google.com with ESMTPS id i10si12759258pdo.14.2015.07.16.05.01.51
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jul 2015 04:35:15 -0700 (PDT)
-Subject: Re: [PATCH -mm v8 5/7] mmu-notifier: add clear_young callback
-References: <cover.1436967694.git.vdavydov@parallels.com>
- <82693bd5b5dbf4e65657fa22288942650aa04a0a.1436967694.git.vdavydov@parallels.com>
- <CAJu=L58yzBr8+XaV90x+S60YnJzd7Yr2fDEgaQ0bcCKpwzSAhw@mail.gmail.com>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Message-ID: <55A796E6.3090603@redhat.com>
-Date: Thu, 16 Jul 2015 13:35:02 +0200
-MIME-Version: 1.0
-In-Reply-To: <CAJu=L58yzBr8+XaV90x+S60YnJzd7Yr2fDEgaQ0bcCKpwzSAhw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+        Thu, 16 Jul 2015 05:01:51 -0700 (PDT)
+Received: by pdjr16 with SMTP id r16so43523780pdj.3
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 05:01:51 -0700 (PDT)
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: [PATCH] zsmalloc: do not take class lock in zs_shrinker_count()
+Date: Thu, 16 Jul 2015 21:00:54 +0900
+Message-Id: <1437048054-4916-1-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andres Lagar-Cavilla <andreslc@google.com>, Vladimir Davydov <vdavydov@parallels.com>, kvm@vger.kernel.org, Eric Northup <digitaleric@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
+We can avoid taking class ->lock around zs_can_compact() in
+zs_pages_to_compact(), because the number that we return back
+is outdated in general case, by design. We have different
+sources that are able to change class's state right after we
+return from zs_can_compact() -- ongoing I/O operations, manually
+triggered compaction, or two of them happening simultaneously.
 
+We re-do this calculations during compaction on a per class basis
+anyway.
 
-On 15/07/2015 21:16, Andres Lagar-Cavilla wrote:
->> > +static int kvm_mmu_notifier_clear_young(struct mmu_notifier *mn,
->> > +                                       struct mm_struct *mm,
->> > +                                       unsigned long start,
->> > +                                       unsigned long end)
->> > +{
->> > +       struct kvm *kvm = mmu_notifier_to_kvm(mn);
->> > +       int young, idx;
-> For reclaim, the clear_flush_young notifier may blow up the secondary
-> pte to estimate the access pattern, depending on hardware support (EPT
-> access bits available in Haswell onwards, not sure about AMD, PPC,
-> etc).
+zs_unregister_shrinker() will not return until we have an active
+shrinker, so classes won't unexpectedly disappear while
+zs_pages_to_compact(), invoked by zs_shrinker_count(), iterates
+them.
 
-It seems like this problem is limited to pre-Haswell EPT.
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+---
+ mm/zsmalloc.c | 2 --
+ 1 file changed, 2 deletions(-)
 
-I'm okay with the patch.  If we find problems later we can always add a
-parameter to kvm_age_hva so that it effectively doesn't do anything on
-clear_young.
-
-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
-
-Paolo
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 1edd8a0..ed64cf5 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -1836,9 +1836,7 @@ static unsigned long zs_shrinker_count(struct shrinker *shrinker,
+ 		if (class->index != i)
+ 			continue;
+ 
+-		spin_lock(&class->lock);
+ 		pages_to_free += zs_can_compact(class);
+-		spin_unlock(&class->lock);
+ 	}
+ 
+ 	return pages_to_free;
+-- 
+2.4.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
