@@ -1,85 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id AC84E28027E
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 05:11:03 -0400 (EDT)
-Received: by pdjr16 with SMTP id r16so41241963pdj.3
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 02:11:03 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id bs11si12027072pdb.26.2015.07.16.02.11.02
-        for <linux-mm@kvack.org>;
-        Thu, 16 Jul 2015 02:11:02 -0700 (PDT)
-Date: Thu, 16 Jul 2015 17:10:30 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [linux-next:master 2811/2969] lib/test-parse-integer.c:118:57:
- sparse: constant 4294967296 is so big it is long
-Message-ID: <201507161728.QVcHY3Ks%fengguang.wu@intel.com>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 78FE12802DE
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 05:28:57 -0400 (EDT)
+Received: by pdbqm3 with SMTP id qm3so41400685pdb.0
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 02:28:57 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id xh6si12078158pbc.57.2015.07.16.02.28.56
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Jul 2015 02:28:56 -0700 (PDT)
+Date: Thu, 16 Jul 2015 12:28:41 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm v8 4/7] proc: add kpagecgroup file
+Message-ID: <20150716092841.GA2001@esperanza>
+References: <cover.1436967694.git.vdavydov@parallels.com>
+ <c6cbd44b9d5127cdaaa6f7d330e9bf715ec55534.1436967694.git.vdavydov@parallels.com>
+ <CAJu=L58kZW2WRpx8wLx=FXdS29BJ+euLRdDcTXJKwf-VLT6SCA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
+In-Reply-To: <CAJu=L58kZW2WRpx8wLx=FXdS29BJ+euLRdDcTXJKwf-VLT6SCA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andres Lagar-Cavilla <andreslc@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-head:   6593e2dcdedd0493e1b1fcb419609d2101c4d0be
-commit: 8b4d3eb762c8ab82d175c2f410323f84aa775dc0 [2811/2969] parse_integer: add runtime testsuite
-reproduce:
-  # apt-get install sparse
-  git checkout 8b4d3eb762c8ab82d175c2f410323f84aa775dc0
-  make ARCH=x86_64 allmodconfig
-  make C=1 CF=-D__CHECK_ENDIAN__
+On Wed, Jul 15, 2015 at 12:03:18PM -0700, Andres Lagar-Cavilla wrote:
+> For both /proc/kpage* interfaces you add (and more critically for the
+> rmap-causing one, kpageidle):
+> 
+> It's a good idea to do cond_sched(). Whether after each pfn, each Nth
+> pfn, each put_user, I leave to you, but a reasonable cadence is
+> needed, because user-space can call this on the entire physical
+> address space, and that's a lot of work to do without re-scheduling.
 
+I really don't think it's necessary. These files can only be
+read/written by the root, who has plenty ways to kill the system anyway.
+The program that is allowed to read/write these files must be conscious
+and do it in batches of reasonable size. AFAICS the same reasoning
+already lays behind /proc/kpagecount and /proc/kpageflag, which also do
+not thrust the "right" batch size on their readers.
 
-sparse warnings: (new ones prefixed by >>)
-
->> lib/test-parse-integer.c:118:57: sparse: constant 4294967296 is so big it is long
-   lib/test-parse-integer.c:119:57: sparse: constant 9223372036854775807 is so big it is long
-   lib/test-parse-integer.c:134:57: sparse: constant 040000000000 is so big it is long
-   lib/test-parse-integer.c:135:57: sparse: constant 0777777777777777777777 is so big it is long
->> lib/test-parse-integer.c:136:57: sparse: constant 01000000000000000000000 is so big it is unsigned long
-   lib/test-parse-integer.c:137:57: sparse: constant 01777777777777777777777 is so big it is unsigned long
-   lib/test-parse-integer.c:150:49: sparse: constant 0x100000000 is so big it is long
-   lib/test-parse-integer.c:151:49: sparse: constant 0x7fffffffffffffff is so big it is long
-   lib/test-parse-integer.c:152:49: sparse: constant 0x8000000000000000 is so big it is unsigned long
-   lib/test-parse-integer.c:153:49: sparse: constant 0xffffffffffffffff is so big it is unsigned long
-   lib/test-parse-integer.c:287:50: sparse: constant 4294967296 is so big it is long
-   lib/test-parse-integer.c:301:49: sparse: constant 9223372036854775807 is so big it is long
-
-vim +118 lib/test-parse-integer.c
-
-   112		{"32768",			10,	5,	32768},
-   113		{"65535",			10,	5,	65535},
-   114		{"65536",			10,	5,	65536},
-   115		{"2147483647",			10,	10,	2147483647},
-   116		{"2147483648",			10,	10,	2147483648ull},
-   117		{"4294967295",			10,	10,	4294967295ull},
- > 118		{"4294967296",			10,	10,	4294967296},
-   119		{"9223372036854775807",		10,	19,	9223372036854775807},
-   120		{"9223372036854775808",		10,	19,	9223372036854775808ull},
-   121		{"18446744073709551615",	10,	20,	18446744073709551615ull},
-   122	
-   123		{"177",				8,	3,	0177},
-   124		{"200",				8,	3,	0200},
-   125		{"377",				8,	3,	0377},
-   126		{"400",				8,	3,	0400},
-   127		{"77777",			8,	5,	077777},
-   128		{"100000",			8,	6,	0100000},
-   129		{"177777",			8,	6,	0177777},
-   130		{"200000",			8,	6,	0200000},
-   131		{"17777777777",			8,	11,	017777777777},
-   132		{"20000000000",			8,	11,	020000000000},
-   133		{"37777777777",			8,	11,	037777777777},
-   134		{"40000000000",			8,	11,	040000000000},
-   135		{"777777777777777777777",	8,	21,	0777777777777777777777},
- > 136		{"1000000000000000000000",	8,	22,	01000000000000000000000},
-   137		{"1777777777777777777777",	8,	22,	01777777777777777777777},
-   138	
-   139		{"7f",			16,	2,	0x7f},
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
