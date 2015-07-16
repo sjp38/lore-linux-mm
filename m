@@ -1,50 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id D0B296B029F
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 13:51:44 -0400 (EDT)
-Received: by widic2 with SMTP id ic2so21466848wid.0
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 10:51:44 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id mn10si15012213wjc.72.2015.07.16.10.51.43
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CB342802FF
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 14:47:47 -0400 (EDT)
+Received: by lagw2 with SMTP id w2so48769973lag.3
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 11:47:46 -0700 (PDT)
+Received: from forward-corp1g.mail.yandex.net (forward-corp1g.mail.yandex.net. [95.108.253.251])
+        by mx.google.com with ESMTPS id az11si7697475lab.27.2015.07.16.11.47.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 16 Jul 2015 10:51:43 -0700 (PDT)
-Date: Thu, 16 Jul 2015 18:51:39 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [mminit] [ INFO: possible recursive locking detected ]
-Message-ID: <20150716175139.GB2561@suse.de>
-References: <20150714000910.GA8160@wfg-t540p.sh.intel.com>
- <20150714103108.GA6812@suse.de>
- <CALYGNiMUXMvvvi-+64Nd6Qb8Db2EiGZ26jbP8yotUHWS4uF1jg@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Jul 2015 11:47:45 -0700 (PDT)
+Subject: [PATCH] pagemap: update documentation
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Date: Thu, 16 Jul 2015 21:47:42 +0300
+Message-ID: <20150716184742.8858.14639.stgit@buzz>
+In-Reply-To: <20150714152516.29844.69929.stgit@buzz>
+References: <20150714152516.29844.69929.stgit@buzz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <CALYGNiMUXMvvvi-+64Nd6Qb8Db2EiGZ26jbP8yotUHWS4uF1jg@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, nicstange@gmail.com, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Jul 16, 2015 at 08:13:38PM +0300, Konstantin Khlebnikov wrote:
-> > @@ -1187,14 +1195,14 @@ void __init page_alloc_init_late(void)
-> >  {pgdat_init_rwsempgdat_init_rwsempgdat_init_rwsem
-> >         int nid;
-> >
-> > +       /* There will be num_node_state(N_MEMORY) threads */
-> > +       atomic_set(&pgdat_init_n_undone, num_node_state(N_MEMORY));
-> >         for_each_node_state(nid, N_MEMORY) {
-> > -               down_read(&pgdat_init_rwsem);
-> 
-> Rw-sem have special "non-owner" mode for keeping lockdep away.
-> This should be enough:
-> 
+Notes about recent changes.
 
-I think in this case that the completions look nicer though so I think
-I'll keep them.
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+---
+ Documentation/vm/pagemap.txt |   14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
 
--- 
-Mel Gorman
-SUSE Labs
+diff --git a/Documentation/vm/pagemap.txt b/Documentation/vm/pagemap.txt
+index 3cfbbb333ea1..aab39aa7dd8f 100644
+--- a/Documentation/vm/pagemap.txt
++++ b/Documentation/vm/pagemap.txt
+@@ -16,12 +16,17 @@ There are three components to pagemap:
+     * Bits 0-4   swap type if swapped
+     * Bits 5-54  swap offset if swapped
+     * Bit  55    pte is soft-dirty (see Documentation/vm/soft-dirty.txt)
+-    * Bit  56    page exlusively mapped
++    * Bit  56    page exclusively mapped (since 4.2)
+     * Bits 57-60 zero
+-    * Bit  61    page is file-page or shared-anon
++    * Bit  61    page is file-page or shared-anon (since 3.5)
+     * Bit  62    page swapped
+     * Bit  63    page present
+ 
++   Since Linux 4.0 only users with the CAP_SYS_ADMIN capability can get PFNs:
++   for unprivileged users from 4.0 till 4.2 open fails with -EPERM, starting
++   from from 4.2 PFN field is zeroed if user has no CAP_SYS_ADMIN capability.
++   Reason: information about PFNs helps in exploiting Rowhammer vulnerability.
++
+    If the page is not present but in swap, then the PFN contains an
+    encoding of the swap file number and the page's offset into the
+    swap. Unmapped pages return a null PFN. This allows determining
+@@ -160,3 +165,8 @@ Other notes:
+ Reading from any of the files will return -EINVAL if you are not starting
+ the read on an 8-byte boundary (e.g., if you sought an odd number of bytes
+ into the file), or if the size of the read is not a multiple of 8 bytes.
++
++Before Linux 3.11 pagemap bits 55-60 were used for "page-shift" (which is
++always 12 at most architectures). Since Linux 3.11 their meaning changes
++after first clear of soft-dirty bits. Since Linux 4.2 they are used for
++flags unconditionally.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
