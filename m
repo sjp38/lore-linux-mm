@@ -1,66 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id EC2B32802C4
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 20:01:54 -0400 (EDT)
-Received: by pdjr16 with SMTP id r16so33428736pdj.3
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:01:54 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id km10si9834654pbd.253.2015.07.15.17.01.53
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FA532802C4
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2015 20:06:09 -0400 (EDT)
+Received: by pachj5 with SMTP id hj5so32279263pac.3
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:06:08 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id k16si9889090pdm.244.2015.07.15.17.06.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jul 2015 17:01:53 -0700 (PDT)
-Received: by pacan13 with SMTP id an13so32353615pac.1
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:01:53 -0700 (PDT)
-Date: Thu, 16 Jul 2015 09:02:25 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] zsmalloc: use class->pages_per_zspage
-Message-ID: <20150716000225.GB3970@swordfish>
-References: <1437003764-2968-1-git-send-email-minchan@kernel.org>
+        Wed, 15 Jul 2015 17:06:08 -0700 (PDT)
+Received: by padck2 with SMTP id ck2so32123879pad.0
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2015 17:06:08 -0700 (PDT)
+Date: Thu, 16 Jul 2015 09:06:13 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 2/2] mm/page_owner: set correct gfp_mask on page_owner
+Message-ID: <20150716000613.GE988@bgram>
+References: <1436942039-16897-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1436942039-16897-2-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1437003764-2968-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1436942039-16897-2-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On (07/16/15 08:42), Minchan Kim wrote:
-> There is no need to recalcurate pages_per_zspage in runtime.
-> Just use class->pages_per_zspage to avoid unnecessary runtime
-> overhead.
+On Wed, Jul 15, 2015 at 03:33:59PM +0900, Joonsoo Kim wrote:
+> Currently, we set wrong gfp_mask to page_owner info in case of
+> isolated freepage by compaction and split page. It causes incorrect
+> mixed pageblock report that we can get from '/proc/pagetypeinfo'.
+> This metric is really useful to measure fragmentation effect so
+> should be accurate. This patch fixes it by setting correct
+> information.
 > 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> Without this patch, after kernel build workload is finished, number
+> of mixed pageblock is 112 among roughly 210 movable pageblocks.
+> 
+> But, with this fix, output shows that mixed pageblock is just 57.
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > ---
->  mm/zsmalloc.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+>  include/linux/page_owner.h | 13 +++++++++++++
+>  mm/page_alloc.c            |  8 +++++---
+>  mm/page_owner.c            |  7 +++++++
+>  3 files changed, 25 insertions(+), 3 deletions(-)
 > 
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index 27b9661c8fa6..154a30e9c8a8 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -1711,7 +1711,7 @@ static unsigned long zs_can_compact(struct size_class *class)
->  	obj_wasted /= get_maxobj_per_zspage(class->size,
->  			class->pages_per_zspage);
+> diff --git a/include/linux/page_owner.h b/include/linux/page_owner.h
+> index b48c347..cacaabe 100644
+> --- a/include/linux/page_owner.h
+> +++ b/include/linux/page_owner.h
+> @@ -8,6 +8,7 @@ extern struct page_ext_operations page_owner_ops;
+>  extern void __reset_page_owner(struct page *page, unsigned int order);
+>  extern void __set_page_owner(struct page *page,
+>  			unsigned int order, gfp_t gfp_mask);
+> +extern gfp_t __get_page_owner_gfp(struct page *page);
 >  
-> -	return obj_wasted * get_pages_per_zspage(class->size);
-> +	return obj_wasted * class->pages_per_zspage;
+>  static inline void reset_page_owner(struct page *page, unsigned int order)
+>  {
+> @@ -25,6 +26,14 @@ static inline void set_page_owner(struct page *page,
+>  
+>  	__set_page_owner(page, order, gfp_mask);
 >  }
+> +
+> +static inline gfp_t get_page_owner_gfp(struct page *page)
+> +{
+> +	if (likely(!page_owner_inited))
+> +		return 0;
+> +
+> +	return __get_page_owner_gfp(page);
+> +}
+>  #else
+>  static inline void reset_page_owner(struct page *page, unsigned int order)
+>  {
+> @@ -33,6 +42,10 @@ static inline void set_page_owner(struct page *page,
+>  			unsigned int order, gfp_t gfp_mask)
+>  {
+>  }
+> +static inline gfp_t get_page_owner_gfp(struct page *page)
+> +{
+> +	return 0;
+> +}
+>  
+>  #endif /* CONFIG_PAGE_OWNER */
+>  #endif /* __LINUX_PAGE_OWNER_H */
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 70d6a85..3ce3ec2 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1957,6 +1957,7 @@ void free_hot_cold_page_list(struct list_head *list, bool cold)
+>  void split_page(struct page *page, unsigned int order)
+>  {
+>  	int i;
+> +	gfp_t gfp_mask;
+>  
+>  	VM_BUG_ON_PAGE(PageCompound(page), page);
+>  	VM_BUG_ON_PAGE(!page_count(page), page);
+> @@ -1970,10 +1971,11 @@ void split_page(struct page *page, unsigned int order)
+>  		split_page(virt_to_page(page[0].shadow), order);
+>  #endif
+>  
+> -	set_page_owner(page, 0, 0);
+> +	gfp_mask = get_page_owner_gfp(page);
+> +	set_page_owner(page, 0, gfp_mask);
+>  	for (i = 1; i < (1 << order); i++) {
+>  		set_page_refcounted(page + i);
+> -		set_page_owner(page + i, 0, 0);
+> +		set_page_owner(page + i, 0, gfp_mask);
+>  	}
+>  }
+>  EXPORT_SYMBOL_GPL(split_page);
+> @@ -2003,7 +2005,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
+>  	zone->free_area[order].nr_free--;
+>  	rmv_page_order(page);
+>  
+> -	set_page_owner(page, order, 0);
+> +	set_page_owner(page, order, __GFP_MOVABLE);
 
-plus __zs_compact():
+It seems the reason why  __GFP_MOVABLE is okay is that __isolate_free_page
+works on a free page on MIGRATE_MOVABLE|MIGRATE_CMA's pageblock. But if we
+break the assumption in future, here is broken again?
 
-@@ -1761,8 +1761,7 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
- 
-                putback_zspage(pool, class, dst_page);
-                if (putback_zspage(pool, class, src_page) == ZS_EMPTY)
--                       pool->stats.pages_compacted +=
--                               get_pages_per_zspage(class->size);
-+                       pool->stats.pages_compacted += class->pages_per_zspage;
-                spin_unlock(&class->lock);
-                cond_resched();
-                spin_lock(&class->lock);
+Please put the comment here to cause it.
 
-	-ss
+Otherwise, Good spot!
+
+Reviewed-by: Minchan Kim <minchan@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
