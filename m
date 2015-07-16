@@ -1,63 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 118102802DE
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 06:20:02 -0400 (EDT)
-Received: by wicmv11 with SMTP id mv11so11709128wic.1
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 03:20:01 -0700 (PDT)
-Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [207.82.80.143])
-        by mx.google.com with ESMTPS id o3si1626390wix.62.2015.07.16.03.20.00
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 16 Jul 2015 03:20:00 -0700 (PDT)
-Message-ID: <55A78548.1070603@arm.com>
-Date: Thu, 16 Jul 2015 11:19:52 +0100
-From: Vladimir Murzin <vladimir.murzin@arm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/3] memtest: cleanup log messages
-References: <1436863249-1219-1-git-send-email-vladimir.murzin@arm.com> <1436863249-1219-3-git-send-email-vladimir.murzin@arm.com> <alpine.DEB.2.10.1507151655440.9230@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1507151655440.9230@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=WINDOWS-1252
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7ABD96B032D
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2015 07:05:38 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so42590016pdr.2
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 04:05:38 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id hc9si12430554pac.157.2015.07.16.04.05.37
+        for <linux-mm@kvack.org>;
+        Thu, 16 Jul 2015 04:05:37 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <55A3EFE9.7080101@linux.intel.com>
+References: <1436784852-144369-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1436784852-144369-3-git-send-email-kirill.shutemov@linux.intel.com>
+ <20150713165323.GA7906@redhat.com>
+ <55A3EFE9.7080101@linux.intel.com>
+Subject: Re: [PATCH 2/5] x86, mpx: do not set ->vm_ops on mpx VMAs
+Content-Transfer-Encoding: 7bit
+Message-Id: <20150716110503.9A4F5196@black.fi.intel.com>
+Date: Thu, 16 Jul 2015 14:05:03 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "leon@leon.nu" <leon@leon.nu>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Thomas Gleixner <tglx@linutronix.de>
 
-On 16/07/15 00:56, David Rientjes wrote:
-> On Tue, 14 Jul 2015, Vladimir Murzin wrote:
->=20
->> - prefer pr_info(...  to printk(KERN_INFO ...
->> - use %pa for phys_addr_t
->> - use cpu_to_be64 while printing pattern in reserve_bad_mem()
->>
->> Signed-off-by: Vladimir Murzin <vladimir.murzin@arm.com>
->=20
-> Acked-by: David Rientjes <rientjes@google.com>
->=20
-> Not sure why you changed the whitespace in reserve_bad_mem() though.
->=20
->=20
+Dave Hansen wrote:
+> On 07/13/2015 09:53 AM, Oleg Nesterov wrote:
+> > On 07/13, Kirill A. Shutemov wrote:
+> >>
+> >> We don't really need ->vm_ops here: MPX VMA can be detected with VM_MPX
+> >> flag. And vma_merge() will not merge MPX VMA with non-MPX VMA, because
+> >> ->vm_flags won't match.
+> > 
+> > Agreed.
+> > 
+> > I am wondering if something like the patch below (on top of yours) makes
+> > sense... Not sure, but mpx_mmap() doesn't look nice too, and with this
+> > change we can unexport mmap_region().
+> 
+> These both look nice to me (and they both cull specialty MPX code which
+> is excellent).  I'll run them through a quick test.
 
-I was changed by accident, thanks for pointing it out!
+Any update?
 
-Andrew, could you apply the following fixup, please?
-
----8<---
-diff --git a/mm/memtest.c b/mm/memtest.c
-index 332facd..4b4f36b 100644
---- a/mm/memtest.c
-+++ b/mm/memtest.c
-@@ -26,7 +26,7 @@ static u64 patterns[] __initdata =3D {
-
- static void __init reserve_bad_mem(u64 pattern, phys_addr_t start_bad,
-phys_addr_t end_bad)
- {
--=09pr_info("%016llx bad mem addr %pa - %pa reserved\n",
-+=09pr_info("  %016llx bad mem addr %pa - %pa reserved\n",
- =09=09cpu_to_be64(pattern), &start_bad, &end_bad);
- =09memblock_reserve(start_bad, end_bad - start_bad);
- }
---->8---
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
