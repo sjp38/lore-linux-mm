@@ -1,60 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 63E43280322
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 07:19:22 -0400 (EDT)
-Received: by pdjr16 with SMTP id r16so61155766pdj.3
-        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 04:19:22 -0700 (PDT)
-Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com. [2607:f8b0:400e:c02::229])
-        by mx.google.com with ESMTPS id rh1si18195687pbc.88.2015.07.17.04.19.21
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id CAFE7280324
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 07:20:36 -0400 (EDT)
+Received: by pdbqm3 with SMTP id qm3so60557457pdb.0
+        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 04:20:36 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id et2si18168121pbc.69.2015.07.17.04.20.35
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Jul 2015 04:19:21 -0700 (PDT)
-Received: by pdbqm3 with SMTP id qm3so60542637pdb.0
-        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 04:19:21 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Jul 2015 04:20:36 -0700 (PDT)
+Received: by padck2 with SMTP id ck2so59207680pad.0
+        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 04:20:35 -0700 (PDT)
+Date: Fri, 17 Jul 2015 20:19:43 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: [PATCH v2] zsmalloc: do not take class lock in zs_shrinker_count()
-Date: Fri, 17 Jul 2015 20:18:18 +0900
-Message-Id: <1437131898-2231-1-git-send-email-sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH] mm/rmap: disable preemption for trace_tlb_flush()
+Message-ID: <20150717111943.GA636@swordfish>
+References: <1437113574-2047-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <20150717103939.GD2561@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150717103939.GD2561@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-We can avoid taking class ->lock around zs_can_compact() in
-zs_shrinker_count(), because the number that we return back
-is outdated in general case, by design. We have different
-sources that are able to change class's state right after we
-return from zs_can_compact() -- ongoing I/O operations, manually
-triggered compaction, or two of them happening simultaneously.
+On (07/17/15 11:39), Mel Gorman wrote:
+> On Fri, Jul 17, 2015 at 03:12:54PM +0900, Sergey Senozhatsky wrote:
+> > tlb_flush contains TP_CONDITION(cpu_online(smp_processor_id()))
+> > which is better be executed with preemption disabled.
+> > 
+> > Move trace_tlb_flush(TLB_REMOTE_SHOOTDOWN) in try_to_unmap_flush()
+> > under get_cpu().
+> > 
+> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> 
+> Your patch is valid but Sasha also had sent an almost identicial fix a few
+> hours ago for identical reasons that Andrew picked up. Thanks for sending
+> it in.
 
-We re-do this calculations during compaction on a per class basis
-anyway.
+Oh, didn't know that. Thanks.
 
-zs_unregister_shrinker() will not return until we have an
-active shrinker, so classes won't unexpectedly disappear
-while zs_shrinker_count() iterates them.
-
-Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
----
- mm/zsmalloc.c | 2 --
- 1 file changed, 2 deletions(-)
-
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 1edd8a0..ed64cf5 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -1836,9 +1836,7 @@ static unsigned long zs_shrinker_count(struct shrinker *shrinker,
- 		if (class->index != i)
- 			continue;
- 
--		spin_lock(&class->lock);
- 		pages_to_free += zs_can_compact(class);
--		spin_unlock(&class->lock);
- 	}
- 
- 	return pages_to_free;
--- 
-2.4.6
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
