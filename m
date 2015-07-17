@@ -1,73 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D971280324
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 07:53:24 -0400 (EDT)
-Received: by pactm7 with SMTP id tm7so60256768pac.2
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 308F7280324
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 07:53:25 -0400 (EDT)
+Received: by pacan13 with SMTP id an13so60165596pac.1
         for <linux-mm@kvack.org>; Fri, 17 Jul 2015 04:53:24 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id kt9si18326203pab.169.2015.07.17.04.53.23
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id xw10si18320279pac.200.2015.07.17.04.53.23
         for <linux-mm@kvack.org>;
         Fri, 17 Jul 2015 04:53:23 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 0/6] Make vma_is_anonymous() reliable
-Date: Fri, 17 Jul 2015 14:53:07 +0300
-Message-Id: <1437133993-91885-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 3/6] mm, mpx: add "vm_flags_t vm_flags" arg to do_mmap_pgoff()
+Date: Fri, 17 Jul 2015 14:53:10 +0300
+Message-Id: <1437133993-91885-4-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1437133993-91885-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1437133993-91885-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We rely on ->vm_ops == NULL to detect anonymous VMA but this check is not
-always reliable:
+From: Oleg Nesterov <oleg@redhat.com>
 
- - MPX sets ->vm_ops on anonymous VMA;
+Add the additional "vm_flags_t vm_flags" argument to do_mmap_pgoff(),
+rename it to do_mmap(), and re-introduce do_mmap_pgoff() as a simple
+wrapper on top of do_mmap(). Perhaps we should update the callers of
+do_mmap_pgoff() and kill it later.
 
-  - many drivers don't set ->vm_ops. See for instance hpet_mmap().
+This way mpx_mmap() can simply call do_mmap(vm_flags => VM_MPX) and
+do not play with vm internals.
 
-  This patchset makes vma_is_anonymous() more reliable and makes few
-  cleanups around the code.
+After this change mmap_region() has a single user outside of mmap.c,
+arch/tile/mm/elf.c:arch_setup_additional_pages(). It would be nice
+to change arch/tile/ and unexport mmap_region().
 
-v2:
- - drop broken patch;
- - more cleanup for mpx code (Oleg);
- - vma_is_anonymous() in create_huge_pmd() and wp_huge_pmd();
+Signed-off-by: Oleg Nesterov <oleg@redhat.com>
+Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
+Tested-by: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/mm/mpx.c  | 51 +++++++--------------------------------------------
+ include/linux/mm.h | 12 ++++++++++--
+ mm/mmap.c          | 10 ++++------
+ mm/nommu.c         | 15 ++++++++-------
+ 4 files changed, 29 insertions(+), 59 deletions(-)
 
-Kirill A. Shutemov (5):
-  mm: mark most vm_operations_struct const
-  x86, mpx: do not set ->vm_ops on mpx VMAs
-  mm: make sure all file VMAs have ->vm_ops set
-  mm: use vma_is_anonymous() in create_huge_pmd() and wp_huge_pmd()
-  mm, madvise: use vma_is_anonymous() to check for anon VMA
-
-Oleg Nesterov (1):
-  mm, mpx: add "vm_flags_t vm_flags" arg to do_mmap_pgoff()
-
- arch/x86/kernel/vsyscall_64.c                  |  2 +-
- arch/x86/mm/mmap.c                             |  7 +++
- arch/x86/mm/mpx.c                              | 71 +++-----------------------
- drivers/android/binder.c                       |  2 +-
- drivers/gpu/drm/vgem/vgem_drv.c                |  2 +-
- drivers/hsi/clients/cmt_speech.c               |  2 +-
- drivers/infiniband/hw/qib/qib_file_ops.c       |  2 +-
- drivers/infiniband/hw/qib/qib_mmap.c           |  2 +-
- drivers/media/platform/omap/omap_vout.c        |  2 +-
- drivers/misc/genwqe/card_dev.c                 |  2 +-
- drivers/staging/android/ion/ion.c              |  2 +-
- drivers/staging/comedi/comedi_fops.c           |  2 +-
- drivers/video/fbdev/omap2/omapfb/omapfb-main.c |  2 +-
- drivers/xen/gntalloc.c                         |  2 +-
- drivers/xen/gntdev.c                           |  2 +-
- drivers/xen/privcmd.c                          |  4 +-
- fs/ceph/addr.c                                 |  2 +-
- fs/cifs/file.c                                 |  2 +-
- include/linux/mm.h                             | 12 ++++-
- mm/madvise.c                                   |  2 +-
- mm/memory.c                                    |  4 +-
- mm/mmap.c                                      | 18 ++++---
- mm/nommu.c                                     | 15 +++---
- security/selinux/selinuxfs.c                   |  2 +-
- 24 files changed, 66 insertions(+), 99 deletions(-)
-
+diff --git a/arch/x86/mm/mpx.c b/arch/x86/mm/mpx.c
+index 4d1c11c07fe1..fdbd3e0b1dad 100644
+--- a/arch/x86/mm/mpx.c
++++ b/arch/x86/mm/mpx.c
+@@ -24,58 +24,21 @@
+  */
+ static unsigned long mpx_mmap(unsigned long len)
+ {
+-	unsigned long ret;
+-	unsigned long addr, pgoff;
+ 	struct mm_struct *mm = current->mm;
+-	vm_flags_t vm_flags;
+-	struct vm_area_struct *vma;
++	unsigned long addr, populate;
+ 
+ 	/* Only bounds table and bounds directory can be allocated here */
+ 	if (len != MPX_BD_SIZE_BYTES && len != MPX_BT_SIZE_BYTES)
+ 		return -EINVAL;
+ 
+ 	down_write(&mm->mmap_sem);
+-
+-	/* Too many mappings? */
+-	if (mm->map_count > sysctl_max_map_count) {
+-		ret = -ENOMEM;
+-		goto out;
+-	}
+-
+-	/* Obtain the address to map to. we verify (or select) it and ensure
+-	 * that it represents a valid section of the address space.
+-	 */
+-	addr = get_unmapped_area(NULL, 0, len, 0, MAP_ANONYMOUS | MAP_PRIVATE);
+-	if (addr & ~PAGE_MASK) {
+-		ret = addr;
+-		goto out;
+-	}
+-
+-	vm_flags = VM_READ | VM_WRITE | VM_MPX |
+-			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+-
+-	/* Set pgoff according to addr for anon_vma */
+-	pgoff = addr >> PAGE_SHIFT;
+-
+-	ret = mmap_region(NULL, addr, len, vm_flags, pgoff);
+-	if (IS_ERR_VALUE(ret))
+-		goto out;
+-
+-	vma = find_vma(mm, ret);
+-	if (!vma) {
+-		ret = -ENOMEM;
+-		goto out;
+-	}
+-
+-	if (vm_flags & VM_LOCKED) {
+-		up_write(&mm->mmap_sem);
+-		mm_populate(ret, len);
+-		return ret;
+-	}
+-
+-out:
++	addr = do_mmap(NULL, 0, len, PROT_READ | PROT_WRITE,
++			MAP_ANONYMOUS | MAP_PRIVATE, VM_MPX, 0, &populate);
+ 	up_write(&mm->mmap_sem);
+-	return ret;
++	if (populate)
++		mm_populate(addr, populate);
++
++	return addr;
+ }
+ 
+ enum reg_type {
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index c3a2b37365f6..fcf255a78b1f 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1811,11 +1811,19 @@ extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned lo
+ 
+ extern unsigned long mmap_region(struct file *file, unsigned long addr,
+ 	unsigned long len, vm_flags_t vm_flags, unsigned long pgoff);
+-extern unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
++extern unsigned long do_mmap(struct file *file, unsigned long addr,
+ 	unsigned long len, unsigned long prot, unsigned long flags,
+-	unsigned long pgoff, unsigned long *populate);
++	vm_flags_t vm_flags, unsigned long pgoff, unsigned long *populate);
+ extern int do_munmap(struct mm_struct *, unsigned long, size_t);
+ 
++static inline unsigned long
++do_mmap_pgoff(struct file *file, unsigned long addr,
++	unsigned long len, unsigned long prot, unsigned long flags,
++	unsigned long pgoff, unsigned long *populate)
++{
++	return do_mmap(file, addr, len, prot, flags, 0, pgoff, populate);
++}
++
+ #ifdef CONFIG_MMU
+ extern int __mm_populate(unsigned long addr, unsigned long len,
+ 			 int ignore_errors);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 4f2fb700a2e5..2e98784d5b7c 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1260,14 +1260,12 @@ static inline int mlock_future_check(struct mm_struct *mm,
+ /*
+  * The caller must hold down_write(&current->mm->mmap_sem).
+  */
+-
+-unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
++unsigned long do_mmap(struct file *file, unsigned long addr,
+ 			unsigned long len, unsigned long prot,
+-			unsigned long flags, unsigned long pgoff,
+-			unsigned long *populate)
++			unsigned long flags, vm_flags_t vm_flags,
++			unsigned long pgoff, unsigned long *populate)
+ {
+ 	struct mm_struct *mm = current->mm;
+-	vm_flags_t vm_flags;
+ 
+ 	*populate = 0;
+ 
+@@ -1311,7 +1309,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 	 * to. we assume access permissions have been handled by the open
+ 	 * of the memory object, so we don't do any here.
+ 	 */
+-	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
++	vm_flags |= calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
+ 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+ 
+ 	if (flags & (MAP_LOCKED | MAP_LOCKONFAULT))
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 05e7447d960b..18dcf48883dc 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1233,13 +1233,14 @@ enomem:
+ /*
+  * handle mapping creation for uClinux
+  */
+-unsigned long do_mmap_pgoff(struct file *file,
+-			    unsigned long addr,
+-			    unsigned long len,
+-			    unsigned long prot,
+-			    unsigned long flags,
+-			    unsigned long pgoff,
+-			    unsigned long *populate)
++unsigned long do_mmap(struct file *file,
++			unsigned long addr,
++			unsigned long len,
++			unsigned long prot,
++			unsigned long flags,
++			vm_flags_t vm_flags,
++			unsigned long pgoff,
++			unsigned long *populate)
+ {
+ 	struct vm_area_struct *vma;
+ 	struct vm_region *region;
 -- 
 2.1.4
 
