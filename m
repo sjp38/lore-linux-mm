@@ -1,103 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7748B6B02A7
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 00:51:46 -0400 (EDT)
-Received: by wgkl9 with SMTP id l9so73117849wgk.1
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 21:51:46 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v7si17498152wjq.11.2015.07.16.21.51.44
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id A119F6B02A8
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 01:06:52 -0400 (EDT)
+Received: by lbbyj8 with SMTP id yj8so55180215lbb.0
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 22:06:51 -0700 (PDT)
+Received: from mail-la0-x232.google.com (mail-la0-x232.google.com. [2a00:1450:4010:c03::232])
+        by mx.google.com with ESMTPS id n4si8876242lbc.63.2015.07.16.22.06.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 16 Jul 2015 21:51:44 -0700 (PDT)
-From: Juergen Gross <jgross@suse.com>
-Subject: [Patch V6 12/16] mm: provide early_memremap_ro to establish read-only mapping
-Date: Fri, 17 Jul 2015 06:51:33 +0200
-Message-Id: <1437108697-4115-13-git-send-email-jgross@suse.com>
-In-Reply-To: <1437108697-4115-1-git-send-email-jgross@suse.com>
-References: <1437108697-4115-1-git-send-email-jgross@suse.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Jul 2015 22:06:50 -0700 (PDT)
+Received: by lagw2 with SMTP id w2so54962917lag.3
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 22:06:49 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20150716175139.GB2561@suse.de>
+References: <20150714000910.GA8160@wfg-t540p.sh.intel.com>
+	<20150714103108.GA6812@suse.de>
+	<CALYGNiMUXMvvvi-+64Nd6Qb8Db2EiGZ26jbP8yotUHWS4uF1jg@mail.gmail.com>
+	<20150716175139.GB2561@suse.de>
+Date: Fri, 17 Jul 2015 08:06:49 +0300
+Message-ID: <CALYGNiMMeyW7GXHpdAONn4CckE5Q4cn64wwekZfk18q_W7xMsQ@mail.gmail.com>
+Subject: Re: [mminit] [ INFO: possible recursive locking detected ]
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com
-Cc: Juergen Gross <jgross@suse.com>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Nicolai Stange <nicstange@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>
 
-During early boot as Xen pv domain the kernel needs to map some page
-tables supplied by the hypervisor read only. This is needed to be
-able to relocate some data structures conflicting with the physical
-memory map especially on systems with huge RAM (above 512GB).
+On Thu, Jul 16, 2015 at 8:51 PM, Mel Gorman <mgorman@suse.de> wrote:
+> On Thu, Jul 16, 2015 at 08:13:38PM +0300, Konstantin Khlebnikov wrote:
+>> > @@ -1187,14 +1195,14 @@ void __init page_alloc_init_late(void)
+>> >  {pgdat_init_rwsempgdat_init_rwsempgdat_init_rwsem
+>> >         int nid;
+>> >
+>> > +       /* There will be num_node_state(N_MEMORY) threads */
+>> > +       atomic_set(&pgdat_init_n_undone, num_node_state(N_MEMORY));
+>> >         for_each_node_state(nid, N_MEMORY) {
+>> > -               down_read(&pgdat_init_rwsem);
+>>
+>> Rw-sem have special "non-owner" mode for keeping lockdep away.
+>> This should be enough:
+>>
+>
+> I think in this case that the completions look nicer though so I think
+> I'll keep them.
 
-Provide the function early_memremap_ro() to provide this read only
-mapping.
+Ok. Not a big deal, they are anyway in init sections.
 
-Signed-off-by: Juergen Gross <jgross@suse.com>
-Acked-by: Konrad Rzeszutek Wilk <Konrad.wilk@oracle.com>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: linux-mm@kvack.org
-Cc: linux-arch@vger.kernel.org
----
- include/asm-generic/early_ioremap.h |  2 ++
- include/asm-generic/fixmap.h        |  3 +++
- mm/early_ioremap.c                  | 12 ++++++++++++
- 3 files changed, 17 insertions(+)
+BTW there's another option: wait_on_atomic_t / wake_up_atomic_t
+like wait_on_bit but atomic_t
 
-diff --git a/include/asm-generic/early_ioremap.h b/include/asm-generic/early_ioremap.h
-index a5de55c..316bd04 100644
---- a/include/asm-generic/early_ioremap.h
-+++ b/include/asm-generic/early_ioremap.h
-@@ -11,6 +11,8 @@ extern void __iomem *early_ioremap(resource_size_t phys_addr,
- 				   unsigned long size);
- extern void *early_memremap(resource_size_t phys_addr,
- 			    unsigned long size);
-+extern void *early_memremap_ro(resource_size_t phys_addr,
-+			       unsigned long size);
- extern void early_iounmap(void __iomem *addr, unsigned long size);
- extern void early_memunmap(void *addr, unsigned long size);
- 
-diff --git a/include/asm-generic/fixmap.h b/include/asm-generic/fixmap.h
-index f23174f..1cbb833 100644
---- a/include/asm-generic/fixmap.h
-+++ b/include/asm-generic/fixmap.h
-@@ -46,6 +46,9 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
- #ifndef FIXMAP_PAGE_NORMAL
- #define FIXMAP_PAGE_NORMAL PAGE_KERNEL
- #endif
-+#if !defined(FIXMAP_PAGE_RO) && defined(PAGE_KERNEL_RO)
-+#define FIXMAP_PAGE_RO PAGE_KERNEL_RO
-+#endif
- #ifndef FIXMAP_PAGE_NOCACHE
- #define FIXMAP_PAGE_NOCACHE PAGE_KERNEL_NOCACHE
- #endif
-diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
-index e10ccd2..0cfadaf 100644
---- a/mm/early_ioremap.c
-+++ b/mm/early_ioremap.c
-@@ -217,6 +217,13 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
- 	return (__force void *)__early_ioremap(phys_addr, size,
- 					       FIXMAP_PAGE_NORMAL);
- }
-+#ifdef FIXMAP_PAGE_RO
-+void __init *
-+early_memremap_ro(resource_size_t phys_addr, unsigned long size)
-+{
-+	return (__force void *)__early_ioremap(phys_addr, size, FIXMAP_PAGE_RO);
-+}
-+#endif
- #else /* CONFIG_MMU */
- 
- void __init __iomem *
-@@ -231,6 +238,11 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
- {
- 	return (void *)phys_addr;
- }
-+void __init *
-+early_memremap_ro(resource_size_t phys_addr, unsigned long size)
-+{
-+	return (void *)phys_addr;
-+}
- 
- void __init early_iounmap(void __iomem *addr, unsigned long size)
- {
--- 
-2.1.4
+>
+> --
+> Mel Gorman
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
