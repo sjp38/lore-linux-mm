@@ -1,67 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id A1A70280340
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 16:37:59 -0400 (EDT)
-Received: by wgmn9 with SMTP id n9so90431956wgm.0
-        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 13:37:59 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id on6si11097294wic.8.2015.07.17.13.37.57
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 4869D280344
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 18:42:45 -0400 (EDT)
+Received: by pactm7 with SMTP id tm7so67964960pac.2
+        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 15:42:45 -0700 (PDT)
+Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com. [2607:f8b0:400e:c02::231])
+        by mx.google.com with ESMTPS id da5si20762716pbc.20.2015.07.17.15.42.42
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 17 Jul 2015 13:37:57 -0700 (PDT)
-Date: Fri, 17 Jul 2015 22:37:55 +0200
-From: "Luis R. Rodriguez" <mcgrof@suse.com>
-Subject: Re: [PATCH v6 0/4] atyfb: atyfb: address MTRR corner case
-Message-ID: <20150717203755.GE30479@wotan.suse.de>
-References: <1436491499-3289-1-git-send-email-mcgrof@do-not-panic.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Jul 2015 15:42:43 -0700 (PDT)
+Received: by pdbqm3 with SMTP id qm3so68301808pdb.0
+        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 15:42:42 -0700 (PDT)
+Date: Sat, 18 Jul 2015 07:42:33 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2] zsmalloc: do not take class lock in
+ zs_shrinker_count()
+Message-ID: <20150717224233.GA7334@blaptop>
+References: <1437131898-2231-1-git-send-email-sergey.senozhatsky@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1436491499-3289-1-git-send-email-mcgrof@do-not-panic.com>
+In-Reply-To: <1437131898-2231-1-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luis R. Rodriguez" <mcgrof@do-not-panic.com>
-Cc: mingo@kernel.org, bp@suse.de, tomi.valkeinen@ti.com, airlied@redhat.com, arnd@arndb.de, dan.j.williams@intel.com, hch@lst.de, luto@amacapital.net, hpa@zytor.com, tglx@linutronix.de, geert@linux-m68k.org, ralf@linux-mips.org, hmh@hmh.eng.br, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, jgross@suse.com, benh@kernel.crashing.org, mpe@ellerman.id.au, tj@kernel.org, x86@kernel.org, mst@redhat.com, toshi.kani@hp.com, stefan.bader@canonical.com, syrjala@sci.fi, ville.syrjala@linux.intel.com, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fbdev@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Thu, Jul 09, 2015 at 06:24:55PM -0700, Luis R. Rodriguez wrote:
-> From: "Luis R. Rodriguez" <mcgrof@suse.com>
-> 
-> Ingo,
-> 
-> Boris is on vacation so sending these through you. This v6 addresses one code
-> comment update requested by Ville. Boris had picked up these patches on his
-> tree and this series had gone through 0-day bot testing. The only issue it
-> found was the lack of ioremap_uc() implementation on some architectures which
-> have an IOMMU. There are two approaches to this issue, one is to go and define
-> ioremap_uc() on all architectures, another is to provide a default for
-> ioremap_uc() as architectures catch up. I've gone with the later approach [0],
-> and so to ensure things won't build-break this patch series must also go
-> through the same tree as the patch-fixes for ioremap_uc() for missing
-> ioremap_uc() implementations go through. I intend on following up with
-> implementing ioremap_uc() for other architectures but for that I need to get
-> feedback from other architecture developers and that will take time.
-> 
-> Tomi, the framebuffer maintainer had already expressed he was OK for this to go
-> through you. The driver maintainer, Ville, has been Cc'd on all the series, but
-> has only provided feedback for the comment request as I noted above. This
-> series addresses the more complex work on the entire series I've been putting
-> out and as such I've provided a TL;DR full review of what this series does in
-> my previous v5 patch series, that can be looked at for more details if needed
-> [1].
-> 
-> This series depends on the patch which I recently posted to address compilation
-> issue on architectures missing ioremap_uc() [0]. If that goes through then it
-> should be safe to apply this series, otherwise we have to sit and wait until
-> all architectures get ioremap_uc() properly defined.
-> 
-> Please let me know if there are any questions.
-> 
-> [0] http://lkml.kernel.org/r/1436488096-3165-1-git-send-email-mcgrof@do-not-panic.com
-> [1] http://lkml.kernel.org/r/1435196060-27350-1-git-send-email-mcgrof@do-not-panic.com
+Hi Sergey,
 
-Ingo, please let me know if there are any questions or issues with this series.
+On Fri, Jul 17, 2015 at 08:18:18PM +0900, Sergey Senozhatsky wrote:
+> We can avoid taking class ->lock around zs_can_compact() in
+> zs_shrinker_count(), because the number that we return back
+> is outdated in general case, by design. We have different
+> sources that are able to change class's state right after we
+> return from zs_can_compact() -- ongoing I/O operations, manually
+> triggered compaction, or two of them happening simultaneously.
+> 
+> We re-do this calculations during compaction on a per class basis
+> anyway.
+> 
+> zs_unregister_shrinker() will not return until we have an
+> active shrinker, so classes won't unexpectedly disappear
+> while zs_shrinker_count() iterates them.
+> 
+> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-  Luis
+I asked to remove the comment of zs_can_compact about lock.
+"Should be called under class->lock."
+
+Otherwise,
+
+Acked-by: Minchan Kim <minchan@kernel.org>
+
+> ---
+>  mm/zsmalloc.c | 2 --
+>  1 file changed, 2 deletions(-)
+> 
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index 1edd8a0..ed64cf5 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -1836,9 +1836,7 @@ static unsigned long zs_shrinker_count(struct shrinker *shrinker,
+>  		if (class->index != i)
+>  			continue;
+>  
+> -		spin_lock(&class->lock);
+>  		pages_to_free += zs_can_compact(class);
+> -		spin_unlock(&class->lock);
+>  	}
+>  
+>  	return pages_to_free;
+> -- 
+> 2.4.6
+> 
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
