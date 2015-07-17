@@ -1,62 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id A7DE628033A
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 09:50:49 -0400 (EDT)
-Received: by padck2 with SMTP id ck2so61024187pad.0
-        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 06:50:49 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id oc5si18856967pdb.180.2015.07.17.06.50.48
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 2649928033A
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 11:09:51 -0400 (EDT)
+Received: by igvi1 with SMTP id i1so37223301igv.1
+        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 08:09:51 -0700 (PDT)
+Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
+        by mx.google.com with ESMTPS id l1si9456595iol.110.2015.07.17.08.09.50
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Jul 2015 06:50:48 -0700 (PDT)
-Date: Fri, 17 Jul 2015 15:50:42 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 3/3] mm, meminit: Allow early_pfn_to_nid to be used
- during runtime
-Message-ID: <20150717135042.GO19282@twins.programming.kicks-ass.net>
-References: <1437135724-20110-1-git-send-email-mgorman@suse.de>
- <1437135724-20110-4-git-send-email-mgorman@suse.de>
- <20150717131232.GK19282@twins.programming.kicks-ass.net>
- <20150717131729.GE2561@suse.de>
- <20150717132922.GN19282@twins.programming.kicks-ass.net>
- <20150717133913.GF2561@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150717133913.GF2561@suse.de>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 17 Jul 2015 08:09:50 -0700 (PDT)
+Date: Fri, 17 Jul 2015 10:09:49 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 2/2] mm/slub: disable merging after enabling debug in
+ runtime
+In-Reply-To: <CALYGNiM6iKzwSiKRu79N-pjnSQZR_P3t9q50vV3cHtvLQz=dCA@mail.gmail.com>
+Message-ID: <alpine.DEB.2.11.1507171008080.17929@east.gentwo.org>
+References: <20150714131704.21442.17939.stgit@buzz> <20150714131705.21442.99279.stgit@buzz> <alpine.DEB.2.11.1507141304430.28065@east.gentwo.org> <CALYGNiPKgfE+KNNgmW0ZGrFqU4NSsz_vm14Zu2gXFyjPWnE57g@mail.gmail.com> <alpine.DEB.2.11.1507141616440.12219@east.gentwo.org>
+ <CALYGNiM6iKzwSiKRu79N-pjnSQZR_P3t9q50vV3cHtvLQz=dCA@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nicolai Stange <nicstange@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Alex Ng <alexng@microsoft.com>, Fengguang Wu <fengguang.wu@intel.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Fri, Jul 17, 2015 at 02:39:13PM +0100, Mel Gorman wrote:
+On Fri, 17 Jul 2015, Konstantin Khlebnikov wrote:
 
-> I'm don't know and no longer have access to the necessary machine to test
-> any more. You make a reasonable point and I would be surprised if it was
-> noticable. On the other hand, conditional locking is evil and the patch
-> reflected my thinking at the time "we don't need locks during boot". It's
-> the type of thinking that should be backed with figures if it was to be
-> used at all so lets go with;
+> > Hrm.... Bad. Maybe drop the checks for the debug options that can be
+> > configured when merging slabs? They do not influence the object layout
+> > per definition.
+>
+> I don't understand that. Debug options do changes in object layout.
 
-Last time I tested it, an uncontended spinlock (cache hot) ran around 20
-cycles, the unlock is a regular store (x86) and in single digit cycles.
-I doubt modern hardware makes it go slower.
+Only some debug options change the object layout and those are alrady
+forbidden for caches with objects.
 
-> ---8<---
-> mm, meminit: Allow early_pfn_to_nid to be used during runtime v2
-> 
-> early_pfn_to_nid historically was inherently not SMP safe but only
-> used during boot which is inherently single threaded or during hotplug
-> which is protected by a giant mutex. With deferred memory initialisation
-> there was a thread-safe version introduced and the early_pfn_to_nid
-> would trigger a BUG_ON if used unsafely. Memory hotplug hit that check.
-> This patch makes early_pfn_to_nid introduces a lock to make it safe to
-> use during hotplug.
-> 
-> Reported-and-tested-by: Alex Ng <alexng@microsoft.com>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Since they add significant performance overhead and cannot be undone in runtime
+> it's unlikely that anyone who uses them don't care about merging after that.
 
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Those that do not affect the object layout can be undone.
+
+> Also I don't see how merging could affect debugging in positive way
+> (except debugging bugs in merging logic itself).
+
+The problem here is that debugging is switched on for slabs that are
+already merged right?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
