@@ -1,56 +1,339 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id C1017280319
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 05:37:42 -0400 (EDT)
-Received: by lbbyj8 with SMTP id yj8so58179542lbb.0
-        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 02:37:42 -0700 (PDT)
-Received: from mail-la0-x235.google.com (mail-la0-x235.google.com. [2a00:1450:4010:c03::235])
-        by mx.google.com with ESMTPS id kw7si9400312lac.136.2015.07.17.02.37.40
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id B89C128031E
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 06:21:54 -0400 (EDT)
+Received: by widic2 with SMTP id ic2so35684783wid.0
+        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 03:21:54 -0700 (PDT)
+Received: from lb3-smtp-cloud6.xs4all.net (lb3-smtp-cloud6.xs4all.net. [194.109.24.31])
+        by mx.google.com with ESMTPS id f8si8454435wiz.88.2015.07.17.03.21.52
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Jul 2015 02:37:41 -0700 (PDT)
-Received: by lagx9 with SMTP id x9so57967080lag.1
-        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 02:37:40 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 17 Jul 2015 03:21:52 -0700 (PDT)
+Message-ID: <55A8D700.9080203@xs4all.nl>
+Date: Fri, 17 Jul 2015 12:20:48 +0200
+From: Hans Verkuil <hverkuil@xs4all.nl>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.11.1507141616440.12219@east.gentwo.org>
-References: <20150714131704.21442.17939.stgit@buzz>
-	<20150714131705.21442.99279.stgit@buzz>
-	<alpine.DEB.2.11.1507141304430.28065@east.gentwo.org>
-	<CALYGNiPKgfE+KNNgmW0ZGrFqU4NSsz_vm14Zu2gXFyjPWnE57g@mail.gmail.com>
-	<alpine.DEB.2.11.1507141616440.12219@east.gentwo.org>
-Date: Fri, 17 Jul 2015 12:37:40 +0300
-Message-ID: <CALYGNiM6iKzwSiKRu79N-pjnSQZR_P3t9q50vV3cHtvLQz=dCA@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm/slub: disable merging after enabling debug in runtime
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 9/9] drm/exynos: Convert g2d_userptr_get_dma_addr() to
+ use get_vaddr_frames()
+References: <1436799351-21975-1-git-send-email-jack@suse.com> <1436799351-21975-10-git-send-email-jack@suse.com>
+In-Reply-To: <1436799351-21975-10-git-send-email-jack@suse.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Jan Kara <jack@suse.com>
+Cc: linux-media@vger.kernel.org, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, linux-samsung-soc@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Marek Szyprowski <m.szyprowski@samsung.com>, Inki Dae <inki.dae@samsung.com>
 
-On Wed, Jul 15, 2015 at 12:18 AM, Christoph Lameter <cl@linux.com> wrote:
->
-> On Tue, 14 Jul 2015, Konstantin Khlebnikov wrote:
->> > What breaks?
->>
->> The same commands from first patch:
->>
->> # echo 1 | tee /sys/kernel/slab/*/sanity_checks
->> # modprobe configfs
->>
->> loading configfs now fails (without crashing kernel though) because of
->> "sysfs: cannot create duplicate filename '/kernel/slab/:t-0000096'"
->
-> Hrm.... Bad. Maybe drop the checks for the debug options that can be
-> configured when merging slabs? They do not influence the object layout
-> per definition.
+On 07/13/2015 04:55 PM, Jan Kara wrote:
+> From: Jan Kara <jack@suse.cz>
+> 
+> Convert g2d_userptr_get_dma_addr() to pin pages using get_vaddr_frames().
+> This removes the knowledge about vmas and mmap_sem locking from exynos
+> driver. Also it fixes a problem that the function has been mapping user
+> provided address without holding mmap_sem.
 
-I don't understand that. Debug options do changes in object layout.
+I'd like to see an Ack from one of the exynos drm driver maintainers before
+I merge this.
 
-Since they add significant performance overhead and cannot be undone in runtime
-it's unlikely that anyone who uses them don't care about merging after that.
-Also I don't see how merging could affect debugging in positive way
-(except debugging bugs in merging logic itself).
+Inki, Marek?
+
+Regards,
+
+	Hans
+
+> 
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> ---
+>  drivers/gpu/drm/exynos/Kconfig          |  1 +
+>  drivers/gpu/drm/exynos/exynos_drm_g2d.c | 91 ++++++++++---------------------
+>  drivers/gpu/drm/exynos/exynos_drm_gem.c | 97 ---------------------------------
+>  3 files changed, 30 insertions(+), 159 deletions(-)
+> 
+> diff --git a/drivers/gpu/drm/exynos/Kconfig b/drivers/gpu/drm/exynos/Kconfig
+> index 43003c4ad80b..b364562dc6c1 100644
+> --- a/drivers/gpu/drm/exynos/Kconfig
+> +++ b/drivers/gpu/drm/exynos/Kconfig
+> @@ -77,6 +77,7 @@ config DRM_EXYNOS_VIDI
+>  config DRM_EXYNOS_G2D
+>  	bool "Exynos DRM G2D"
+>  	depends on DRM_EXYNOS && !VIDEO_SAMSUNG_S5P_G2D
+> +	select FRAME_VECTOR
+>  	help
+>  	  Choose this option if you want to use Exynos G2D for DRM.
+>  
+> diff --git a/drivers/gpu/drm/exynos/exynos_drm_g2d.c b/drivers/gpu/drm/exynos/exynos_drm_g2d.c
+> index 81a250830808..1d8d9a508373 100644
+> --- a/drivers/gpu/drm/exynos/exynos_drm_g2d.c
+> +++ b/drivers/gpu/drm/exynos/exynos_drm_g2d.c
+> @@ -190,10 +190,8 @@ struct g2d_cmdlist_userptr {
+>  	dma_addr_t		dma_addr;
+>  	unsigned long		userptr;
+>  	unsigned long		size;
+> -	struct page		**pages;
+> -	unsigned int		npages;
+> +	struct frame_vector	*vec;
+>  	struct sg_table		*sgt;
+> -	struct vm_area_struct	*vma;
+>  	atomic_t		refcount;
+>  	bool			in_pool;
+>  	bool			out_of_list;
+> @@ -363,6 +361,7 @@ static void g2d_userptr_put_dma_addr(struct drm_device *drm_dev,
+>  {
+>  	struct g2d_cmdlist_userptr *g2d_userptr =
+>  					(struct g2d_cmdlist_userptr *)obj;
+> +	struct page **pages;
+>  
+>  	if (!obj)
+>  		return;
+> @@ -382,19 +381,21 @@ out:
+>  	exynos_gem_unmap_sgt_from_dma(drm_dev, g2d_userptr->sgt,
+>  					DMA_BIDIRECTIONAL);
+>  
+> -	exynos_gem_put_pages_to_userptr(g2d_userptr->pages,
+> -					g2d_userptr->npages,
+> -					g2d_userptr->vma);
+> +	pages = frame_vector_pages(g2d_userptr->vec);
+> +	if (!IS_ERR(pages)) {
+> +		int i;
+>  
+> -	exynos_gem_put_vma(g2d_userptr->vma);
+> +		for (i = 0; i < frame_vector_count(g2d_userptr->vec); i++)
+> +			set_page_dirty_lock(pages[i]);
+> +	}
+> +	put_vaddr_frames(g2d_userptr->vec);
+> +	frame_vector_destroy(g2d_userptr->vec);
+>  
+>  	if (!g2d_userptr->out_of_list)
+>  		list_del_init(&g2d_userptr->list);
+>  
+>  	sg_free_table(g2d_userptr->sgt);
+>  	kfree(g2d_userptr->sgt);
+> -
+> -	drm_free_large(g2d_userptr->pages);
+>  	kfree(g2d_userptr);
+>  }
+>  
+> @@ -408,9 +409,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
+>  	struct exynos_drm_g2d_private *g2d_priv = file_priv->g2d_priv;
+>  	struct g2d_cmdlist_userptr *g2d_userptr;
+>  	struct g2d_data *g2d;
+> -	struct page **pages;
+>  	struct sg_table	*sgt;
+> -	struct vm_area_struct *vma;
+>  	unsigned long start, end;
+>  	unsigned int npages, offset;
+>  	int ret;
+> @@ -456,65 +455,38 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
+>  		return ERR_PTR(-ENOMEM);
+>  
+>  	atomic_set(&g2d_userptr->refcount, 1);
+> +	g2d_userptr->size = size;
+>  
+>  	start = userptr & PAGE_MASK;
+>  	offset = userptr & ~PAGE_MASK;
+>  	end = PAGE_ALIGN(userptr + size);
+>  	npages = (end - start) >> PAGE_SHIFT;
+> -	g2d_userptr->npages = npages;
+> -
+> -	pages = drm_calloc_large(npages, sizeof(struct page *));
+> -	if (!pages) {
+> -		DRM_ERROR("failed to allocate pages.\n");
+> -		ret = -ENOMEM;
+> +	g2d_userptr->vec = frame_vector_create(npages);
+> +	if (!g2d_userptr->vec)
+>  		goto err_free;
+> -	}
+>  
+> -	down_read(&current->mm->mmap_sem);
+> -	vma = find_vma(current->mm, userptr);
+> -	if (!vma) {
+> -		up_read(&current->mm->mmap_sem);
+> -		DRM_ERROR("failed to get vm region.\n");
+> +	ret = get_vaddr_frames(start, npages, true, true, g2d_userptr->vec);
+> +	if (ret != npages) {
+> +		DRM_ERROR("failed to get user pages from userptr.\n");
+> +		if (ret < 0)
+> +			goto err_destroy_framevec;
+>  		ret = -EFAULT;
+> -		goto err_free_pages;
+> +		goto err_put_framevec;
+>  	}
+> -
+> -	if (vma->vm_end < userptr + size) {
+> -		up_read(&current->mm->mmap_sem);
+> -		DRM_ERROR("vma is too small.\n");
+> +	if (frame_vector_to_pages(g2d_userptr->vec) < 0) {
+>  		ret = -EFAULT;
+> -		goto err_free_pages;
+> +		goto err_put_framevec;
+>  	}
+>  
+> -	g2d_userptr->vma = exynos_gem_get_vma(vma);
+> -	if (!g2d_userptr->vma) {
+> -		up_read(&current->mm->mmap_sem);
+> -		DRM_ERROR("failed to copy vma.\n");
+> -		ret = -ENOMEM;
+> -		goto err_free_pages;
+> -	}
+> -
+> -	g2d_userptr->size = size;
+> -
+> -	ret = exynos_gem_get_pages_from_userptr(start & PAGE_MASK,
+> -						npages, pages, vma);
+> -	if (ret < 0) {
+> -		up_read(&current->mm->mmap_sem);
+> -		DRM_ERROR("failed to get user pages from userptr.\n");
+> -		goto err_put_vma;
+> -	}
+> -
+> -	up_read(&current->mm->mmap_sem);
+> -	g2d_userptr->pages = pages;
+> -
+>  	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+>  	if (!sgt) {
+>  		ret = -ENOMEM;
+> -		goto err_free_userptr;
+> +		goto err_put_framevec;
+>  	}
+>  
+> -	ret = sg_alloc_table_from_pages(sgt, pages, npages, offset,
+> -					size, GFP_KERNEL);
+> +	ret = sg_alloc_table_from_pages(sgt,
+> +					frame_vector_pages(g2d_userptr->vec),
+> +					npages, offset, size, GFP_KERNEL);
+>  	if (ret < 0) {
+>  		DRM_ERROR("failed to get sgt from pages.\n");
+>  		goto err_free_sgt;
+> @@ -549,16 +521,11 @@ err_sg_free_table:
+>  err_free_sgt:
+>  	kfree(sgt);
+>  
+> -err_free_userptr:
+> -	exynos_gem_put_pages_to_userptr(g2d_userptr->pages,
+> -					g2d_userptr->npages,
+> -					g2d_userptr->vma);
+> -
+> -err_put_vma:
+> -	exynos_gem_put_vma(g2d_userptr->vma);
+> +err_put_framevec:
+> +	put_vaddr_frames(g2d_userptr->vec);
+>  
+> -err_free_pages:
+> -	drm_free_large(pages);
+> +err_destroy_framevec:
+> +	frame_vector_destroy(g2d_userptr->vec);
+>  
+>  err_free:
+>  	kfree(g2d_userptr);
+> diff --git a/drivers/gpu/drm/exynos/exynos_drm_gem.c b/drivers/gpu/drm/exynos/exynos_drm_gem.c
+> index 0d5b9698d384..47068ae44ced 100644
+> --- a/drivers/gpu/drm/exynos/exynos_drm_gem.c
+> +++ b/drivers/gpu/drm/exynos/exynos_drm_gem.c
+> @@ -378,103 +378,6 @@ int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
+>  	return 0;
+>  }
+>  
+> -struct vm_area_struct *exynos_gem_get_vma(struct vm_area_struct *vma)
+> -{
+> -	struct vm_area_struct *vma_copy;
+> -
+> -	vma_copy = kmalloc(sizeof(*vma_copy), GFP_KERNEL);
+> -	if (!vma_copy)
+> -		return NULL;
+> -
+> -	if (vma->vm_ops && vma->vm_ops->open)
+> -		vma->vm_ops->open(vma);
+> -
+> -	if (vma->vm_file)
+> -		get_file(vma->vm_file);
+> -
+> -	memcpy(vma_copy, vma, sizeof(*vma));
+> -
+> -	vma_copy->vm_mm = NULL;
+> -	vma_copy->vm_next = NULL;
+> -	vma_copy->vm_prev = NULL;
+> -
+> -	return vma_copy;
+> -}
+> -
+> -void exynos_gem_put_vma(struct vm_area_struct *vma)
+> -{
+> -	if (!vma)
+> -		return;
+> -
+> -	if (vma->vm_ops && vma->vm_ops->close)
+> -		vma->vm_ops->close(vma);
+> -
+> -	if (vma->vm_file)
+> -		fput(vma->vm_file);
+> -
+> -	kfree(vma);
+> -}
+> -
+> -int exynos_gem_get_pages_from_userptr(unsigned long start,
+> -						unsigned int npages,
+> -						struct page **pages,
+> -						struct vm_area_struct *vma)
+> -{
+> -	int get_npages;
+> -
+> -	/* the memory region mmaped with VM_PFNMAP. */
+> -	if (vma_is_io(vma)) {
+> -		unsigned int i;
+> -
+> -		for (i = 0; i < npages; ++i, start += PAGE_SIZE) {
+> -			unsigned long pfn;
+> -			int ret = follow_pfn(vma, start, &pfn);
+> -			if (ret)
+> -				return ret;
+> -
+> -			pages[i] = pfn_to_page(pfn);
+> -		}
+> -
+> -		if (i != npages) {
+> -			DRM_ERROR("failed to get user_pages.\n");
+> -			return -EINVAL;
+> -		}
+> -
+> -		return 0;
+> -	}
+> -
+> -	get_npages = get_user_pages(current, current->mm, start,
+> -					npages, 1, 1, pages, NULL);
+> -	get_npages = max(get_npages, 0);
+> -	if (get_npages != npages) {
+> -		DRM_ERROR("failed to get user_pages.\n");
+> -		while (get_npages)
+> -			put_page(pages[--get_npages]);
+> -		return -EFAULT;
+> -	}
+> -
+> -	return 0;
+> -}
+> -
+> -void exynos_gem_put_pages_to_userptr(struct page **pages,
+> -					unsigned int npages,
+> -					struct vm_area_struct *vma)
+> -{
+> -	if (!vma_is_io(vma)) {
+> -		unsigned int i;
+> -
+> -		for (i = 0; i < npages; i++) {
+> -			set_page_dirty_lock(pages[i]);
+> -
+> -			/*
+> -			 * undo the reference we took when populating
+> -			 * the table.
+> -			 */
+> -			put_page(pages[i]);
+> -		}
+> -	}
+> -}
+> -
+>  int exynos_gem_map_sgt_with_dma(struct drm_device *drm_dev,
+>  				struct sg_table *sgt,
+>  				enum dma_data_direction dir)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
