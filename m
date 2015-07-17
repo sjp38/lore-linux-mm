@@ -1,79 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 222EF280324
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 08:22:15 -0400 (EDT)
-Received: by wgxm20 with SMTP id m20so80923155wgx.3
-        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 05:22:14 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cs3si8937553wib.117.2015.07.17.05.22.13
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 21CFA280324
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 08:28:50 -0400 (EDT)
+Received: by wgkl9 with SMTP id l9so81004148wgk.1
+        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 05:28:49 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id du7si8984953wib.95.2015.07.17.05.28.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 17 Jul 2015 05:22:13 -0700 (PDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 3/3] mm, meminit: Allow early_pfn_to_nid to be used during runtime
-Date: Fri, 17 Jul 2015 13:22:04 +0100
-Message-Id: <1437135724-20110-4-git-send-email-mgorman@suse.de>
-In-Reply-To: <1437135724-20110-1-git-send-email-mgorman@suse.de>
-References: <1437135724-20110-1-git-send-email-mgorman@suse.de>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Jul 2015 05:28:48 -0700 (PDT)
+Date: Fri, 17 Jul 2015 08:28:19 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/5] memcg: export struct mem_cgroup
+Message-ID: <20150717122819.GA14895@cmpxchg.org>
+References: <1436958885-18754-1-git-send-email-mhocko@kernel.org>
+ <1436958885-18754-2-git-send-email-mhocko@kernel.org>
+ <20150715135711.1778a8c08f2ea9560a7c1f6f@linux-foundation.org>
+ <20150716071948.GC3077@dhcp22.suse.cz>
+ <20150716143433.e43554a19b1c89a8524020cb@linux-foundation.org>
+ <20150716225639.GA11131@cmpxchg.org>
+ <20150716160358.de3404c44ba29dc132032bbc@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150716160358.de3404c44ba29dc132032bbc@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nicolai Stange <nicstange@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Alex Ng <alexng@microsoft.com>, Fengguang Wu <fengguang.wu@intel.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-early_pfn_to_nid historically was inherently not SMP safe but only
-used during boot which is inherently single threaded or during hotplug
-which is protected by a giant mutex. With deferred memory initialisation
-there was a thread-safe version introduced and the early_pfn_to_nid
-would trigger a BUG_ON if used unsafely. Memory hotplug hit that check.
-This patch makes early_pfn_to_nid introduces a lock to make it safe to
-use during hotplug.
+On Thu, Jul 16, 2015 at 04:03:58PM -0700, Andrew Morton wrote:
+> On Thu, 16 Jul 2015 18:56:39 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+> 
+> > On Thu, Jul 16, 2015 at 02:34:33PM -0700, Andrew Morton wrote:
+> > > On Thu, 16 Jul 2015 09:19:49 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+> > > > I agree with Johannes who originally suggested to expose mem_cgroup that
+> > > > it will allow for a better code later.
+> > > 
+> > > Sure, but how *much* better?  Are there a significant number of
+> > > fastpath functions involved?
+> > > 
+> > > From a maintainability/readability point of view, this is quite a bad
+> > > patch.  It exposes a *lot* of stuff to the whole world.  We need to get
+> > > a pretty good runtime benefit from doing this to ourselves.  I don't
+> > > think that saving 376 bytes on a fatconfig build is sufficient
+> > > justification?
+> > 
+> > It's not a performance issue for me.  Some stuff is hard to read when
+> > you have memcg functions with klunky names interrupting the code flow
+> > to do something trivial to a struct mem_cgroup member, like
+> > mem_cgroup_lruvec_online() and mem_cgroup_get_lru_size().
+> > 
+> > Maybe we can keep thresholds private and encapsulate the softlimit
+> > tree stuff in mem_cgroup_per_zone into something private as well, as
+> > this is not used - and unlikely to be used - outside of memcg proper.
+> > 
+> > But otherwise, I think struct mem_cgroup should have mm-scope.
+> 
+> Meaning a new mm/memcontrol.h?  That's a bit better I suppose.
 
-Reported-and-tested-by: Alex Ng <alexng@microsoft.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/page_alloc.c | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 94e2599830c2..f1e841c67b7a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -982,21 +982,26 @@ static void __init __free_pages_boot_core(struct page *page,
- 
- #if defined(CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID) || \
- 	defined(CONFIG_HAVE_MEMBLOCK_NODE_MAP)
--/* Only safe to use early in boot when initialisation is single-threaded */
-+
- static struct mminit_pfnnid_cache early_pfnnid_cache __meminitdata;
- 
- int __meminit early_pfn_to_nid(unsigned long pfn)
- {
-+	static DEFINE_SPINLOCK(early_pfn_lock);
- 	int nid;
- 
--	/* The system will behave unpredictably otherwise */
--	BUG_ON(system_state != SYSTEM_BOOTING);
-+	/* Avoid locking overhead during boot but hotplug must lock */
-+	if (system_state != SYSTEM_BOOTING)
-+		spin_lock(&early_pfn_lock);
- 
- 	nid = __early_pfn_to_nid(pfn, &early_pfnnid_cache);
--	if (nid >= 0)
--		return nid;
--	/* just returns 0 */
--	return 0;
-+	if (nid < 0)
-+		nid = 0;
-+
-+	if (system_state != SYSTEM_BOOTING)
-+		spin_unlock(&early_pfn_lock);
-+
-+	return nid;
- }
- #endif
- 
--- 
-2.4.3
+I meant as opposed to being private to memcontrol.c.  I'm not sure I
+quite see the problem of having these definitions in include/linux, as
+long as we keep the stuff that is genuinely only used in memcontrol.c
+private to that file.  But mm/memcontrol.h would probably work too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
