@@ -1,48 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id CAFE7280324
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 07:20:36 -0400 (EDT)
-Received: by pdbqm3 with SMTP id qm3so60557457pdb.0
-        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 04:20:36 -0700 (PDT)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id et2si18168121pbc.69.2015.07.17.04.20.35
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Jul 2015 04:20:36 -0700 (PDT)
-Received: by padck2 with SMTP id ck2so59207680pad.0
-        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 04:20:35 -0700 (PDT)
-Date: Fri, 17 Jul 2015 20:19:43 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH] mm/rmap: disable preemption for trace_tlb_flush()
-Message-ID: <20150717111943.GA636@swordfish>
-References: <1437113574-2047-1-git-send-email-sergey.senozhatsky@gmail.com>
- <20150717103939.GD2561@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150717103939.GD2561@suse.de>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D971280324
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 07:53:24 -0400 (EDT)
+Received: by pactm7 with SMTP id tm7so60256768pac.2
+        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 04:53:24 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id kt9si18326203pab.169.2015.07.17.04.53.23
+        for <linux-mm@kvack.org>;
+        Fri, 17 Jul 2015 04:53:23 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 0/6] Make vma_is_anonymous() reliable
+Date: Fri, 17 Jul 2015 14:53:07 +0300
+Message-Id: <1437133993-91885-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On (07/17/15 11:39), Mel Gorman wrote:
-> On Fri, Jul 17, 2015 at 03:12:54PM +0900, Sergey Senozhatsky wrote:
-> > tlb_flush contains TP_CONDITION(cpu_online(smp_processor_id()))
-> > which is better be executed with preemption disabled.
-> > 
-> > Move trace_tlb_flush(TLB_REMOTE_SHOOTDOWN) in try_to_unmap_flush()
-> > under get_cpu().
-> > 
-> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> 
-> Your patch is valid but Sasha also had sent an almost identicial fix a few
-> hours ago for identical reasons that Andrew picked up. Thanks for sending
-> it in.
+We rely on ->vm_ops == NULL to detect anonymous VMA but this check is not
+always reliable:
 
-Oh, didn't know that. Thanks.
+ - MPX sets ->vm_ops on anonymous VMA;
 
-	-ss
+  - many drivers don't set ->vm_ops. See for instance hpet_mmap().
+
+  This patchset makes vma_is_anonymous() more reliable and makes few
+  cleanups around the code.
+
+v2:
+ - drop broken patch;
+ - more cleanup for mpx code (Oleg);
+ - vma_is_anonymous() in create_huge_pmd() and wp_huge_pmd();
+
+Kirill A. Shutemov (5):
+  mm: mark most vm_operations_struct const
+  x86, mpx: do not set ->vm_ops on mpx VMAs
+  mm: make sure all file VMAs have ->vm_ops set
+  mm: use vma_is_anonymous() in create_huge_pmd() and wp_huge_pmd()
+  mm, madvise: use vma_is_anonymous() to check for anon VMA
+
+Oleg Nesterov (1):
+  mm, mpx: add "vm_flags_t vm_flags" arg to do_mmap_pgoff()
+
+ arch/x86/kernel/vsyscall_64.c                  |  2 +-
+ arch/x86/mm/mmap.c                             |  7 +++
+ arch/x86/mm/mpx.c                              | 71 +++-----------------------
+ drivers/android/binder.c                       |  2 +-
+ drivers/gpu/drm/vgem/vgem_drv.c                |  2 +-
+ drivers/hsi/clients/cmt_speech.c               |  2 +-
+ drivers/infiniband/hw/qib/qib_file_ops.c       |  2 +-
+ drivers/infiniband/hw/qib/qib_mmap.c           |  2 +-
+ drivers/media/platform/omap/omap_vout.c        |  2 +-
+ drivers/misc/genwqe/card_dev.c                 |  2 +-
+ drivers/staging/android/ion/ion.c              |  2 +-
+ drivers/staging/comedi/comedi_fops.c           |  2 +-
+ drivers/video/fbdev/omap2/omapfb/omapfb-main.c |  2 +-
+ drivers/xen/gntalloc.c                         |  2 +-
+ drivers/xen/gntdev.c                           |  2 +-
+ drivers/xen/privcmd.c                          |  4 +-
+ fs/ceph/addr.c                                 |  2 +-
+ fs/cifs/file.c                                 |  2 +-
+ include/linux/mm.h                             | 12 ++++-
+ mm/madvise.c                                   |  2 +-
+ mm/memory.c                                    |  4 +-
+ mm/mmap.c                                      | 18 ++++---
+ mm/nommu.c                                     | 15 +++---
+ security/selinux/selinuxfs.c                   |  2 +-
+ 24 files changed, 66 insertions(+), 99 deletions(-)
+
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
