@@ -1,59 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id A119F6B02A8
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 01:06:52 -0400 (EDT)
-Received: by lbbyj8 with SMTP id yj8so55180215lbb.0
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 22:06:51 -0700 (PDT)
-Received: from mail-la0-x232.google.com (mail-la0-x232.google.com. [2a00:1450:4010:c03::232])
-        by mx.google.com with ESMTPS id n4si8876242lbc.63.2015.07.16.22.06.50
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id AA6722802E4
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 02:12:28 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so56450843pdr.2
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 23:12:28 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id hw8si16865797pbc.91.2015.07.16.23.12.27
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jul 2015 22:06:50 -0700 (PDT)
-Received: by lagw2 with SMTP id w2so54962917lag.3
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 22:06:49 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150716175139.GB2561@suse.de>
-References: <20150714000910.GA8160@wfg-t540p.sh.intel.com>
-	<20150714103108.GA6812@suse.de>
-	<CALYGNiMUXMvvvi-+64Nd6Qb8Db2EiGZ26jbP8yotUHWS4uF1jg@mail.gmail.com>
-	<20150716175139.GB2561@suse.de>
-Date: Fri, 17 Jul 2015 08:06:49 +0300
-Message-ID: <CALYGNiMMeyW7GXHpdAONn4CckE5Q4cn64wwekZfk18q_W7xMsQ@mail.gmail.com>
-Subject: Re: [mminit] [ INFO: possible recursive locking detected ]
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        Thu, 16 Jul 2015 23:12:27 -0700 (PDT)
+Received: by pachj5 with SMTP id hj5so55451449pac.3
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2015 23:12:27 -0700 (PDT)
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: [PATCH] mm/rmap: disable preemption for trace_tlb_flush()
+Date: Fri, 17 Jul 2015 15:12:54 +0900
+Message-Id: <1437113574-2047-1-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Nicolai Stange <nicstange@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Thu, Jul 16, 2015 at 8:51 PM, Mel Gorman <mgorman@suse.de> wrote:
-> On Thu, Jul 16, 2015 at 08:13:38PM +0300, Konstantin Khlebnikov wrote:
->> > @@ -1187,14 +1195,14 @@ void __init page_alloc_init_late(void)
->> >  {pgdat_init_rwsempgdat_init_rwsempgdat_init_rwsem
->> >         int nid;
->> >
->> > +       /* There will be num_node_state(N_MEMORY) threads */
->> > +       atomic_set(&pgdat_init_n_undone, num_node_state(N_MEMORY));
->> >         for_each_node_state(nid, N_MEMORY) {
->> > -               down_read(&pgdat_init_rwsem);
->>
->> Rw-sem have special "non-owner" mode for keeping lockdep away.
->> This should be enough:
->>
->
-> I think in this case that the completions look nicer though so I think
-> I'll keep them.
+tlb_flush contains TP_CONDITION(cpu_online(smp_processor_id()))
+which is better be executed with preemption disabled.
 
-Ok. Not a big deal, they are anyway in init sections.
+Move trace_tlb_flush(TLB_REMOTE_SHOOTDOWN) in try_to_unmap_flush()
+under get_cpu().
 
-BTW there's another option: wait_on_atomic_t / wake_up_atomic_t
-like wait_on_bit but atomic_t
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+---
+ mm/rmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
->
-> --
-> Mel Gorman
-> SUSE Labs
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 30812e9..74086cc 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -613,9 +613,9 @@ void try_to_unmap_flush(void)
+ 	if (!tlb_ubc->flush_required)
+ 		return;
+ 
++	cpu = get_cpu();
+ 	trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, -1UL);
+ 
+-	cpu = get_cpu();
+ 	if (cpumask_test_cpu(cpu, &tlb_ubc->cpumask))
+ 		percpu_flush_tlb_batch_pages(&tlb_ubc->cpumask);
+ 
+-- 
+2.4.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
