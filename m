@@ -1,75 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id CDCEE280344
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 20:54:11 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so69307631pdr.2
-        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 17:54:11 -0700 (PDT)
-Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com. [2607:f8b0:400e:c02::235])
-        by mx.google.com with ESMTPS id ki10si21046222pbc.218.2015.07.17.17.54.05
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 73D81280344
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2015 21:23:38 -0400 (EDT)
+Received: by widjy10 with SMTP id jy10so53093182wid.1
+        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 18:23:38 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
+        by mx.google.com with ESMTPS id p3si448243wia.63.2015.07.17.18.23.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Jul 2015 17:54:10 -0700 (PDT)
-Received: by pdrg1 with SMTP id g1so69306742pdr.2
-        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 17:54:05 -0700 (PDT)
-Date: Sat, 18 Jul 2015 09:53:10 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH v2] zsmalloc: do not take class lock in
- zs_shrinker_count()
-Message-ID: <20150718005310.GA638@swordfish>
-References: <1437131898-2231-1-git-send-email-sergey.senozhatsky@gmail.com>
- <20150717224233.GA7334@blaptop>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Jul 2015 18:23:36 -0700 (PDT)
+Received: by widjy10 with SMTP id jy10so53092891wid.1
+        for <linux-mm@kvack.org>; Fri, 17 Jul 2015 18:23:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150717224233.GA7334@blaptop>
+In-Reply-To: <1437088996-28511-1-git-send-email-toshi.kani@hp.com>
+References: <1437088996-28511-1-git-send-email-toshi.kani@hp.com>
+Date: Fri, 17 Jul 2015 18:23:35 -0700
+Message-ID: <CAPcyv4hgKmd2V_7FeDLi4cb2EQOPtX4QWhKU1bZBGcKXFFVfDw@mail.gmail.com>
+Subject: Re: [PATCH RESEND 0/3] mm, x86: Fix ioremap RAM check interfaces
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, travis@sgi.com, roland@purestorage.com, Luis Rodriguez <mcgrof@suse.com>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-Hi,
+On Thu, Jul 16, 2015 at 4:23 PM, Toshi Kani <toshi.kani@hp.com> wrote:
+> ioremap() checks if a target range is in RAM and fails the request
+> if true.  There are multiple issues in the iormap RAM check interfaces.
+>
+>  1. region_is_ram() always fails with -1.
+>  2. The check calls two functions, region_is_ram() and
+>     walk_system_ram_range(), which are redundant as both walk the
+>     same iomem_resource table.
+>  3. walk_system_ram_range() requires RAM ranges be page-aligned in
+>     the iomem_resource table to work properly.  This restriction
+>     has allowed multiple ioremaps to RAM which are page-unaligned.
+>
+> This patchset solves issue 1 and 2.  It does not address issue 3,
+> but continues to allow the existing ioremaps to work until it is
+> addressed.
+>
+> ---
+> resend:
+>  - Rebased to 4.2-rc2 (no change needed). Modified change logs.
+>
+> ---
+> Toshi Kani (3):
+>   1/3 mm, x86: Fix warning in ioremap RAM check
+>   2/3 mm, x86: Remove region_is_ram() call from ioremap
+>   3/3 mm: Fix bugs in region_is_ram()
+>
 
-On (07/18/15 07:42), Minchan Kim wrote:
-> I asked to remove the comment of zs_can_compact about lock.
-> "Should be called under class->lock."
+For the series...
 
-Oh... I somehow quickly read it and thought you were talking
-about the commit message. Fixed and resent.
+Reviewed-by: Dan Williams <dan.j.williams@intel.com>
 
-> Otherwise,
-> 
-> Acked-by: Minchan Kim <minchan@kernel.org>
-
-Thanks.
-
-	-ss
-
-> > ---
-> >  mm/zsmalloc.c | 2 --
-> >  1 file changed, 2 deletions(-)
-> > 
-> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> > index 1edd8a0..ed64cf5 100644
-> > --- a/mm/zsmalloc.c
-> > +++ b/mm/zsmalloc.c
-> > @@ -1836,9 +1836,7 @@ static unsigned long zs_shrinker_count(struct shrinker *shrinker,
-> >  		if (class->index != i)
-> >  			continue;
-> >  
-> > -		spin_lock(&class->lock);
-> >  		pages_to_free += zs_can_compact(class);
-> > -		spin_unlock(&class->lock);
-> >  	}
-> >  
-> >  	return pages_to_free;
-> > -- 
-> > 2.4.6
-> > 
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
-> 
+I'm going to base my ioremap + memremap series on top of these fixes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
