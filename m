@@ -1,80 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
-	by kanga.kvack.org (Postfix) with ESMTP id A333D28035A
-	for <linux-mm@kvack.org>; Sun, 19 Jul 2015 05:58:31 -0400 (EDT)
-Received: by lbbyj8 with SMTP id yj8so80618804lbb.0
-        for <linux-mm@kvack.org>; Sun, 19 Jul 2015 02:58:31 -0700 (PDT)
-Received: from mail-lb0-x232.google.com (mail-lb0-x232.google.com. [2a00:1450:4010:c04::232])
-        by mx.google.com with ESMTPS id r6si14728057lag.118.2015.07.19.02.58.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 Jul 2015 02:58:29 -0700 (PDT)
-Received: by lbbqi7 with SMTP id qi7so189355lbb.3
-        for <linux-mm@kvack.org>; Sun, 19 Jul 2015 02:58:28 -0700 (PDT)
-Date: Sun, 19 Jul 2015 11:58:18 +0200
-From: Marcin =?utf-8?Q?=C5=9Alusarz?= <marcin.slusarz@gmail.com>
-Subject: Re: cpu_hotplug vs oom_notify_list: possible circular locking
- dependency detected
-Message-ID: <20150719095818.GA7200@marcin-Inspiron-7720>
-References: <20150712105634.GA11708@marcin-Inspiron-7720>
- <alpine.DEB.2.10.1507141508590.16182@chino.kir.corp.google.com>
- <20150714232943.GW3717@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1507141647531.16182@chino.kir.corp.google.com>
- <20150715222612.GP3717@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1507161401320.14938@chino.kir.corp.google.com>
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 683DB2802E6
+	for <linux-mm@kvack.org>; Sun, 19 Jul 2015 07:03:22 -0400 (EDT)
+Received: by wgkl9 with SMTP id l9so110973203wgk.1
+        for <linux-mm@kvack.org>; Sun, 19 Jul 2015 04:03:20 -0700 (PDT)
+Received: from johanna2.inet.fi (mta-out1.inet.fi. [62.71.2.230])
+        by mx.google.com with ESMTP id pl7si7324528wic.103.2015.07.19.04.03.19
+        for <linux-mm@kvack.org>;
+        Sun, 19 Jul 2015 04:03:19 -0700 (PDT)
+Date: Sun, 19 Jul 2015 14:03:05 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 03/10] thp: Prepare for DAX huge pages
+Message-ID: <20150719110305.GA2341@node.dhcp.inet.fi>
+References: <1436560165-8943-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1436560165-8943-4-git-send-email-matthew.r.wilcox@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.10.1507161401320.14938@chino.kir.corp.google.com>
+In-Reply-To: <1436560165-8943-4-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>
 
-On Thu, Jul 16, 2015 at 02:01:56PM -0700, David Rientjes wrote:
-> On Wed, 15 Jul 2015, Paul E. McKenney wrote:
+On Fri, Jul 10, 2015 at 04:29:18PM -0400, Matthew Wilcox wrote:
+> From: Matthew Wilcox <willy@linux.intel.com>
 > 
-> > On Tue, Jul 14, 2015 at 04:48:24PM -0700, David Rientjes wrote:
-> > > On Tue, 14 Jul 2015, Paul E. McKenney wrote:
-> > > 
-> > > > commit a1992f2f3b8e174d740a8f764d0d51344bed2eed
-> > > > Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> > > > Date:   Tue Jul 14 16:24:14 2015 -0700
-> > > > 
-> > > >     rcu: Don't disable CPU hotplug during OOM notifiers
-> > > >     
-> > > >     RCU's rcu_oom_notify() disables CPU hotplug in order to stabilize the
-> > > >     list of online CPUs, which it traverses.  However, this is completely
-> > > >     pointless because smp_call_function_single() will quietly fail if invoked
-> > > >     on an offline CPU.  Because the count of requests is incremented in the
-> > > >     rcu_oom_notify_cpu() function that is remotely invoked, everything works
-> > > >     nicely even in the face of concurrent CPU-hotplug operations.
-> > > >     
-> > > >     Furthermore, in recent kernels, invoking get_online_cpus() from an OOM
-> > > >     notifier can result in deadlock.  This commit therefore removes the
-> > > >     call to get_online_cpus() and put_online_cpus() from rcu_oom_notify().
-> > > >     
-> > > >     Reported-by: Marcin A?lusarz <marcin.slusarz@gmail.com>
-> > > >     Reported-by: David Rientjes <rientjes@google.com>
-> > > >     Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> > > 
-> > > Acked-by: David Rientjes <rientjes@google.com>
-> > 
-> > Thank you!
-> > 
-> > Any news on whether or not it solves the problem?
-> > 
+> Add a vma_is_dax() helper macro to test whether the VMA is DAX, and use
+> it in zap_huge_pmd() and __split_huge_page_pmd().
 > 
-> Marcin, is your lockdep violation reproducible?  If so, does this patch 
-> fix it?
+> Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+> ---
+>  include/linux/dax.h |  4 ++++
+>  mm/huge_memory.c    | 46 ++++++++++++++++++++++++++++------------------
+>  2 files changed, 32 insertions(+), 18 deletions(-)
+> 
+> diff --git a/include/linux/dax.h b/include/linux/dax.h
+> index 4f27d3d..9b51f9d 100644
+> --- a/include/linux/dax.h
+> +++ b/include/linux/dax.h
+> @@ -18,4 +18,8 @@ int dax_pfn_mkwrite(struct vm_area_struct *, struct vm_fault *);
+>  #define dax_mkwrite(vma, vmf, gb, iod)		dax_fault(vma, vmf, gb, iod)
+>  #define __dax_mkwrite(vma, vmf, gb, iod)	__dax_fault(vma, vmf, gb, iod)
+>  
+> +static inline bool vma_is_dax(struct vm_area_struct *vma)
+> +{
+> +	return vma->vm_file && IS_DAX(vma->vm_file->f_mapping->host);
+> +}
+>  #endif
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 911071b..b7bd855 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -23,6 +23,7 @@
+>  #include <linux/pagemap.h>
+>  #include <linux/migrate.h>
+>  #include <linux/hashtable.h>
+> +#include <linux/dax.h>
+>  
+>  #include <asm/tlb.h>
+>  #include <asm/pgalloc.h>
+> @@ -1391,7 +1392,6 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+>  	int ret = 0;
+>  
+>  	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+> -		struct page *page;
+>  		pgtable_t pgtable;
+>  		pmd_t orig_pmd;
+>  		/*
+> @@ -1403,13 +1403,22 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+>  		orig_pmd = pmdp_huge_get_and_clear_full(tlb->mm, addr, pmd,
+>  							tlb->fullmm);
+>  		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
+> -		pgtable = pgtable_trans_huge_withdraw(tlb->mm, pmd);
+> +		if (vma_is_dax(vma)) {
+> +			if (is_huge_zero_pmd(orig_pmd)) {
+> +				pgtable = NULL;
 
-I finally found enough time today to test it. I can reproduce it without
-the above patch and can't with. So:
-Tested-by: Marcin A?lusarz <marcin.slusarz@gmail.com>
+pgtable_t is not always a pointer. See arch/arc.
 
-Thanks,
-Marcin
+> +			} else {
+> +				spin_unlock(ptl);
+> +				return 1;
+> +			}
+> +		} else {
+> +			pgtable = pgtable_trans_huge_withdraw(tlb->mm, pmd);
+> +		}
+>  		if (is_huge_zero_pmd(orig_pmd)) {
+>  			atomic_long_dec(&tlb->mm->nr_ptes);
+>  			spin_unlock(ptl);
+>  			put_huge_zero_page();
+>  		} else {
+> -			page = pmd_page(orig_pmd);
+> +			struct page *page = pmd_page(orig_pmd);
+>  			page_remove_rmap(page);
+>  			VM_BUG_ON_PAGE(page_mapcount(page) < 0, page);
+>  			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
+> @@ -1418,7 +1427,8 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+>  			spin_unlock(ptl);
+>  			tlb_remove_page(tlb, page);
+>  		}
+> -		pte_free(tlb->mm, pgtable);
+> +		if (pgtable)
+> +			pte_free(tlb->mm, pgtable);
+
+It's better to drop "pgtable = NULL;" above and use "if (vma_is_dax(vma))"
+here.
+
+>  		ret = 1;
+>  	}
+>  	return ret;
+> @@ -2887,7 +2897,7 @@ void __split_huge_page_pmd(struct vm_area_struct *vma, unsigned long address,
+>  		pmd_t *pmd)
+>  {
+>  	spinlock_t *ptl;
+> -	struct page *page;
+> +	struct page *page = NULL;
+>  	struct mm_struct *mm = vma->vm_mm;
+>  	unsigned long haddr = address & HPAGE_PMD_MASK;
+>  	unsigned long mmun_start;	/* For mmu_notifiers */
+> @@ -2900,25 +2910,25 @@ void __split_huge_page_pmd(struct vm_area_struct *vma, unsigned long address,
+>  again:
+>  	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+>  	ptl = pmd_lock(mm, pmd);
+> -	if (unlikely(!pmd_trans_huge(*pmd))) {
+> -		spin_unlock(ptl);
+> -		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+> -		return;
+> -	}
+> -	if (is_huge_zero_pmd(*pmd)) {
+> +	if (unlikely(!pmd_trans_huge(*pmd)))
+> +		goto unlock;
+> +	if (vma_is_dax(vma)) {
+> +		pmdp_huge_clear_flush(vma, haddr, pmd);
+
+pmdp_huge_clear_flush_notify()
+
+> +	} else if (is_huge_zero_pmd(*pmd)) {
+>  		__split_huge_zero_page_pmd(vma, haddr, pmd);
+> -		spin_unlock(ptl);
+> -		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+> -		return;
+> +	} else {
+> +		page = pmd_page(*pmd);
+> +		VM_BUG_ON_PAGE(!page_count(page), page);
+> +		get_page(page);
+>  	}
+> -	page = pmd_page(*pmd);
+> -	VM_BUG_ON_PAGE(!page_count(page), page);
+> -	get_page(page);
+> + unlock:
+>  	spin_unlock(ptl);
+>  	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+>  
+> -	split_huge_page(page);
+> +	if (!page)
+> +		return;
+>  
+> +	split_huge_page(page);
+>  	put_page(page);
+>  
+>  	/*
+> -- 
+> 2.1.4
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
