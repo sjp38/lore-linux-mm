@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id ED486280360
-	for <linux-mm@kvack.org>; Sun, 19 Jul 2015 08:32:02 -0400 (EDT)
-Received: by pdbnt7 with SMTP id nt7so16646625pdb.0
-        for <linux-mm@kvack.org>; Sun, 19 Jul 2015 05:32:02 -0700 (PDT)
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 459C1280360
+	for <linux-mm@kvack.org>; Sun, 19 Jul 2015 08:32:12 -0400 (EDT)
+Received: by pdbnt7 with SMTP id nt7so16648261pdb.0
+        for <linux-mm@kvack.org>; Sun, 19 Jul 2015 05:32:12 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id lj8si28607208pbc.11.2015.07.19.05.32.01
+        by mx.google.com with ESMTPS id b12si28685865pat.64.2015.07.19.05.32.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 Jul 2015 05:32:01 -0700 (PDT)
+        Sun, 19 Jul 2015 05:32:11 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm v9 3/8] memcg: zap try_get_mem_cgroup_from_page
-Date: Sun, 19 Jul 2015 15:31:12 +0300
-Message-ID: <3bb9e74b22a8bea4709b411857f6461e22b8c006.1437303956.git.vdavydov@parallels.com>
+Subject: [PATCH -mm v9 4/8] proc: add kpagecgroup file
+Date: Sun, 19 Jul 2015 15:31:13 +0300
+Message-ID: <679498f8d3f87c1ee57b7c3b58382193c9046b6a.1437303956.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1437303956.git.vdavydov@parallels.com>
 References: <cover.1437303956.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,118 +22,117 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-It is only used in mem_cgroup_try_charge, so fold it in and zap it.
+/proc/kpagecgroup contains a 64-bit inode number of the memory cgroup
+each page is charged to, indexed by PFN. Having this information is
+useful for estimating a cgroup working set size.
+
+The file is present if CONFIG_PROC_PAGE_MONITOR && CONFIG_MEMCG.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- include/linux/memcontrol.h |  9 +--------
- mm/memcontrol.c            | 48 ++++++++++++----------------------------------
- 2 files changed, 13 insertions(+), 44 deletions(-)
+ Documentation/vm/pagemap.txt |  6 ++++-
+ fs/proc/page.c               | 53 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 99b0e43cac45..d644aadfdd0d 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -305,11 +305,9 @@ struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);
- struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
+diff --git a/Documentation/vm/pagemap.txt b/Documentation/vm/pagemap.txt
+index 56faec0f73f7..3a37ed184258 100644
+--- a/Documentation/vm/pagemap.txt
++++ b/Documentation/vm/pagemap.txt
+@@ -5,7 +5,7 @@ pagemap is a new (as of 2.6.25) set of interfaces in the kernel that allow
+ userspace programs to examine the page tables and related information by
+ reading files in /proc.
  
- bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
--
--struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
- struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
--
- struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
-+
- static inline
- struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
- 	return css ? container_of(css, struct mem_cgroup, css) : NULL;
-@@ -556,11 +554,6 @@ static inline struct lruvec *mem_cgroup_page_lruvec(struct page *page,
- 	return &zone->lruvec;
- }
+-There are three components to pagemap:
++There are four components to pagemap:
  
--static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
--{
--	return NULL;
--}
--
- static inline bool mm_match_cgroup(struct mm_struct *mm,
- 		struct mem_cgroup *memcg)
- {
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a91bc1ee964c..b9c76a0906f9 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2094,40 +2094,6 @@ static void cancel_charge(struct mem_cgroup *memcg, unsigned int nr_pages)
- 	css_put_many(&memcg->css, nr_pages);
- }
+  * /proc/pid/pagemap.  This file lets a userspace process find out which
+    physical frame each virtual page is mapped to.  It contains one 64-bit
+@@ -66,6 +66,10 @@ There are three components to pagemap:
+     23. BALLOON
+     24. ZERO_PAGE
  
--/*
-- * try_get_mem_cgroup_from_page - look up page's memcg association
-- * @page: the page
-- *
-- * Look up, get a css reference, and return the memcg that owns @page.
-- *
-- * The page must be locked to prevent racing with swap-in and page
-- * cache charges.  If coming from an unlocked page table, the caller
-- * must ensure the page is on the LRU or this can race with charging.
-- */
--struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
--{
--	struct mem_cgroup *memcg;
--	unsigned short id;
--	swp_entry_t ent;
--
--	VM_BUG_ON_PAGE(!PageLocked(page), page);
--
--	memcg = page->mem_cgroup;
--	if (memcg) {
--		if (!css_tryget_online(&memcg->css))
--			memcg = NULL;
--	} else if (PageSwapCache(page)) {
--		ent.val = page_private(page);
--		id = lookup_swap_cgroup_id(ent);
--		rcu_read_lock();
--		memcg = mem_cgroup_from_id(id);
--		if (memcg && !css_tryget_online(&memcg->css))
--			memcg = NULL;
--		rcu_read_unlock();
--	}
--	return memcg;
--}
--
- static void lock_page_lru(struct page *page, int *isolated)
- {
- 	struct zone *zone = page_zone(page);
-@@ -5327,8 +5293,20 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
- 		 * the page lock, which serializes swap cache removal, which
- 		 * in turn serializes uncharging.
- 		 */
-+		VM_BUG_ON_PAGE(!PageLocked(page), page);
- 		if (page->mem_cgroup)
- 			goto out;
++ * /proc/kpagecgroup.  This file contains a 64-bit inode number of the
++   memory cgroup each page is charged to, indexed by PFN. Only available when
++   CONFIG_MEMCG is set.
 +
-+		if (do_swap_account) {
-+			swp_entry_t ent = { .val = page_private(page), };
-+			unsigned short id = lookup_swap_cgroup_id(ent);
+ Short descriptions to the page flags:
+ 
+  0. LOCKED
+diff --git a/fs/proc/page.c b/fs/proc/page.c
+index 7eee2d8b97d9..70d23245dd43 100644
+--- a/fs/proc/page.c
++++ b/fs/proc/page.c
+@@ -9,6 +9,7 @@
+ #include <linux/proc_fs.h>
+ #include <linux/seq_file.h>
+ #include <linux/hugetlb.h>
++#include <linux/memcontrol.h>
+ #include <linux/kernel-page-flags.h>
+ #include <asm/uaccess.h>
+ #include "internal.h"
+@@ -225,10 +226,62 @@ static const struct file_operations proc_kpageflags_operations = {
+ 	.read = kpageflags_read,
+ };
+ 
++#ifdef CONFIG_MEMCG
++static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
++				size_t count, loff_t *ppos)
++{
++	u64 __user *out = (u64 __user *)buf;
++	struct page *ppage;
++	unsigned long src = *ppos;
++	unsigned long pfn;
++	ssize_t ret = 0;
++	u64 ino;
 +
-+			rcu_read_lock();
-+			memcg = mem_cgroup_from_id(id);
-+			if (memcg && !css_tryget_online(&memcg->css))
-+				memcg = NULL;
-+			rcu_read_unlock();
++	pfn = src / KPMSIZE;
++	count = min_t(unsigned long, count, (max_pfn * KPMSIZE) - src);
++	if (src & KPMMASK || count & KPMMASK)
++		return -EINVAL;
++
++	while (count > 0) {
++		if (pfn_valid(pfn))
++			ppage = pfn_to_page(pfn);
++		else
++			ppage = NULL;
++
++		if (ppage)
++			ino = page_cgroup_ino(ppage);
++		else
++			ino = 0;
++
++		if (put_user(ino, out)) {
++			ret = -EFAULT;
++			break;
 +		}
- 	}
- 
- 	if (PageTransHuge(page)) {
-@@ -5336,8 +5314,6 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
- 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
- 	}
- 
--	if (do_swap_account && PageSwapCache(page))
--		memcg = try_get_mem_cgroup_from_page(page);
- 	if (!memcg)
- 		memcg = get_mem_cgroup_from_mm(mm);
- 
++
++		pfn++;
++		out++;
++		count -= KPMSIZE;
++	}
++
++	*ppos += (char __user *)out - buf;
++	if (!ret)
++		ret = (char __user *)out - buf;
++	return ret;
++}
++
++static const struct file_operations proc_kpagecgroup_operations = {
++	.llseek = mem_lseek,
++	.read = kpagecgroup_read,
++};
++#endif /* CONFIG_MEMCG */
++
+ static int __init proc_page_init(void)
+ {
+ 	proc_create("kpagecount", S_IRUSR, NULL, &proc_kpagecount_operations);
+ 	proc_create("kpageflags", S_IRUSR, NULL, &proc_kpageflags_operations);
++#ifdef CONFIG_MEMCG
++	proc_create("kpagecgroup", S_IRUSR, NULL, &proc_kpagecgroup_operations);
++#endif
+ 	return 0;
+ }
+ fs_initcall(proc_page_init);
 -- 
 2.1.4
 
