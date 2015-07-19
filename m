@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 8986D280360
-	for <linux-mm@kvack.org>; Sun, 19 Jul 2015 08:32:41 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so87569484pdr.2
-        for <linux-mm@kvack.org>; Sun, 19 Jul 2015 05:32:41 -0700 (PDT)
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 7402E280367
+	for <linux-mm@kvack.org>; Sun, 19 Jul 2015 08:32:50 -0400 (EDT)
+Received: by pacan13 with SMTP id an13so87747069pac.1
+        for <linux-mm@kvack.org>; Sun, 19 Jul 2015 05:32:50 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id xp5si28712654pab.69.2015.07.19.05.32.40
+        by mx.google.com with ESMTPS id x7si28603230par.193.2015.07.19.05.32.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 Jul 2015 05:32:40 -0700 (PDT)
+        Sun, 19 Jul 2015 05:32:49 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm v9 7/8] proc: export idle flag via kpageflags
-Date: Sun, 19 Jul 2015 15:31:16 +0300
-Message-ID: <4c1eb396150ee14d7c3abf1a6f36ec8cc9dd9435.1437303956.git.vdavydov@parallels.com>
+Subject: [PATCH -mm v9 8/8] proc: add cond_resched to /proc/kpage* read/write loop
+Date: Sun, 19 Jul 2015 15:31:17 +0300
+Message-ID: <a13b8941bff79ac35d9e62c1f17c3ab82ea8c9a0.1437303956.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1437303956.git.vdavydov@parallels.com>
 References: <cover.1437303956.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,74 +22,62 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-As noted by Minchan, a benefit of reading idle flag from
-/proc/kpageflags is that one can easily filter dirty and/or unevictable
-pages while estimating the size of unused memory.
+Reading/writing a /proc/kpage* file may take long on machines with a lot
+of RAM installed.
 
-Note that idle flag read from /proc/kpageflags may be stale in case the
-page was accessed via a PTE, because it would be too costly to iterate
-over all page mappings on each /proc/kpageflags read to provide an
-up-to-date value. To make sure the flag is up-to-date one has to read
-/proc/kpageidle first.
-
+Suggested-by: Andres Lagar-Cavilla <andreslc@google.com>
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-Reviewed-by: Andres Lagar-Cavilla <andreslc@google.com>
 ---
- Documentation/vm/pagemap.txt           | 6 ++++++
- fs/proc/page.c                         | 3 +++
- include/uapi/linux/kernel-page-flags.h | 1 +
- 3 files changed, 10 insertions(+)
+ fs/proc/page.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-diff --git a/Documentation/vm/pagemap.txt b/Documentation/vm/pagemap.txt
-index 34fe828c3007..538735465693 100644
---- a/Documentation/vm/pagemap.txt
-+++ b/Documentation/vm/pagemap.txt
-@@ -65,6 +65,7 @@ There are five components to pagemap:
-     22. THP
-     23. BALLOON
-     24. ZERO_PAGE
-+    25. IDLE
- 
-  * /proc/kpagecgroup.  This file contains a 64-bit inode number of the
-    memory cgroup each page is charged to, indexed by PFN. Only available when
-@@ -125,6 +126,11 @@ Short descriptions to the page flags:
- 24. ZERO_PAGE
-     zero page for pfn_zero or huge_zero page
- 
-+25. IDLE
-+    page has not been accessed since it was marked idle (see /proc/kpageidle)
-+    Note that this flag may be stale in case the page was accessed via a PTE.
-+    To make sure the flag is up-to-date one has to read /proc/kpageidle first.
-+
-     [IO related page flags]
-  1. ERROR     IO error occurred
-  3. UPTODATE  page has up-to-date data
 diff --git a/fs/proc/page.c b/fs/proc/page.c
-index 273537885ab4..13dcb823fe4e 100644
+index 13dcb823fe4e..7ff7cba8617b 100644
 --- a/fs/proc/page.c
 +++ b/fs/proc/page.c
-@@ -150,6 +150,9 @@ u64 stable_page_flags(struct page *page)
- 	if (PageBalloon(page))
- 		u |= 1 << KPF_BALLOON;
- 
-+	if (page_is_idle(page))
-+		u |= 1 << KPF_IDLE;
+@@ -58,6 +58,8 @@ static ssize_t kpagecount_read(struct file *file, char __user *buf,
+ 		pfn++;
+ 		out++;
+ 		count -= KPMSIZE;
 +
- 	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
++		cond_resched();
+ 	}
  
- 	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
-diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
-index a6c4962e5d46..5da5f8751ce7 100644
---- a/include/uapi/linux/kernel-page-flags.h
-+++ b/include/uapi/linux/kernel-page-flags.h
-@@ -33,6 +33,7 @@
- #define KPF_THP			22
- #define KPF_BALLOON		23
- #define KPF_ZERO_PAGE		24
-+#define KPF_IDLE		25
+ 	*ppos += (char __user *)out - buf;
+@@ -219,6 +221,8 @@ static ssize_t kpageflags_read(struct file *file, char __user *buf,
+ 		pfn++;
+ 		out++;
+ 		count -= KPMSIZE;
++
++		cond_resched();
+ 	}
  
+ 	*ppos += (char __user *)out - buf;
+@@ -267,6 +271,8 @@ static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
+ 		pfn++;
+ 		out++;
+ 		count -= KPMSIZE;
++
++		cond_resched();
+ 	}
  
- #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
+ 	*ppos += (char __user *)out - buf;
+@@ -421,6 +427,7 @@ static ssize_t kpageidle_read(struct file *file, char __user *buf,
+ 			idle_bitmap = 0;
+ 			out++;
+ 		}
++		cond_resched();
+ 	}
+ 
+ 	*ppos += (char __user *)out - buf;
+@@ -467,6 +474,7 @@ static ssize_t kpageidle_write(struct file *file, const char __user *buf,
+ 				put_page(page);
+ 			}
+ 		}
++		cond_resched();
+ 	}
+ 
+ 	*ppos += (const char __user *)in - buf;
 -- 
 2.1.4
 
