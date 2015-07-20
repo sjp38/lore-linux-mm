@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id C4EB4280256
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 10:22:00 -0400 (EDT)
-Received: by pabkd10 with SMTP id kd10so30100585pab.2
-        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 07:22:00 -0700 (PDT)
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id E8138280256
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 10:22:02 -0400 (EDT)
+Received: by pacan13 with SMTP id an13so103115795pac.1
+        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 07:22:02 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id wk5si2174505pab.37.2015.07.20.07.21.52
+        by mx.google.com with ESMTP id wk5si2174505pab.37.2015.07.20.07.21.56
         for <linux-mm@kvack.org>;
-        Mon, 20 Jul 2015 07:21:52 -0700 (PDT)
+        Mon, 20 Jul 2015 07:21:57 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9 07/36] thp, mlock: do not allow huge pages in mlocked area
-Date: Mon, 20 Jul 2015 17:20:40 +0300
-Message-Id: <1437402069-105900-8-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9 19/36] mips, thp: remove infrastructure for handling splitting PMDs
+Date: Mon, 20 Jul 2015 17:20:52 +0300
+Message-Id: <1437402069-105900-20-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1437402069-105900-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1437402069-105900-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,146 +19,136 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With new refcounting THP can belong to several VMAs. This makes tricky
-to track THP pages, when they partially mlocked. It can lead to leaking
-mlocked pages to non-VM_LOCKED vmas and other problems.
+With new refcounting we don't need to mark PMDs splitting. Let's drop
+code to handle this.
 
-With this patch we will split all pages on mlock and avoid
-fault-in/collapse new THP in VM_LOCKED vmas.
-
-I've tried alternative approach: do not mark THP pages mlocked and keep
-them on normal LRUs. This way vmscan could try to split huge pages on
-memory pressure and free up subpages which doesn't belong to VM_LOCKED
-vmas.  But this is user-visible change: we screw up Mlocked accouting
-reported in meminfo, so I had to leave this approach aside.
-
-We can bring something better later, but this should be good enough for
-now.
+pmdp_splitting_flush() is not needed too: on splitting PMD we will do
+pmdp_clear_flush() + set_pte_at(). pmdp_clear_flush() will do IPI as
+needed for fast_gup.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Tested-by: Sasha Levin <sasha.levin@oracle.com>
-Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Acked-by: Jerome Marchand <jmarchan@redhat.com>
 ---
- mm/gup.c         |  2 ++
- mm/huge_memory.c |  5 ++++-
- mm/memory.c      |  3 ++-
- mm/mlock.c       | 51 +++++++++++++++++++--------------------------------
- 4 files changed, 27 insertions(+), 34 deletions(-)
+ arch/mips/include/asm/pgtable-bits.h |  6 ++----
+ arch/mips/include/asm/pgtable.h      | 18 ------------------
+ arch/mips/mm/gup.c                   | 13 +------------
+ arch/mips/mm/pgtable-64.c            | 14 --------------
+ arch/mips/mm/tlbex.c                 |  1 -
+ 5 files changed, 3 insertions(+), 49 deletions(-)
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 6b9f578cff2e..b8bba5589be6 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -920,6 +920,8 @@ long populate_vma_page_range(struct vm_area_struct *vma,
- 	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
+diff --git a/arch/mips/include/asm/pgtable-bits.h b/arch/mips/include/asm/pgtable-bits.h
+index c28a8499aec7..9bf8b2b87364 100644
+--- a/arch/mips/include/asm/pgtable-bits.h
++++ b/arch/mips/include/asm/pgtable-bits.h
+@@ -131,14 +131,12 @@
+ /* Huge TLB page */
+ #define _PAGE_HUGE_SHIFT	(_PAGE_MODIFIED_SHIFT + 1)
+ #define _PAGE_HUGE		(1 << _PAGE_HUGE_SHIFT)
+-#define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT + 1)
+-#define _PAGE_SPLITTING		(1 << _PAGE_SPLITTING_SHIFT)
  
- 	gup_flags = FOLL_TOUCH | FOLL_POPULATE;
-+	if (vma->vm_flags & VM_LOCKED)
-+		gup_flags |= FOLL_SPLIT;
- 	/*
- 	 * We want to touch writable mappings with a write fault in order
- 	 * to break COW, except for shared mappings because these don't COW
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 8d5a8881c60e..eebb518a7267 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -814,6 +814,8 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ /* Only R2 or newer cores have the XI bit */
+ #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
+-#define _PAGE_NO_EXEC_SHIFT	(_PAGE_SPLITTING_SHIFT + 1)
++#define _PAGE_NO_EXEC_SHIFT	(_PAGE_HUGE_SHIFT + 1)
+ #else
+-#define _PAGE_GLOBAL_SHIFT	(_PAGE_SPLITTING_SHIFT + 1)
++#define _PAGE_GLOBAL_SHIFT	(_PAGE_HUGE_SHIFT + 1)
+ #define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
+ #endif	/* CONFIG_CPU_MIPSR2 || CONFIG_CPU_MIPSR6 */
  
- 	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
- 		return VM_FAULT_FALLBACK;
-+	if (vma->vm_flags & VM_LOCKED)
-+		return VM_FAULT_FALLBACK;
- 	if (unlikely(anon_vma_prepare(vma)))
- 		return VM_FAULT_OOM;
- 	if (unlikely(khugepaged_enter(vma, vma->vm_flags)))
-@@ -2545,7 +2547,8 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
- 	if ((!(vma->vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
- 	    (vma->vm_flags & VM_NOHUGEPAGE))
- 		return false;
+diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
+index 9d8106758142..556c02a0706a 100644
+--- a/arch/mips/include/asm/pgtable.h
++++ b/arch/mips/include/asm/pgtable.h
+@@ -449,27 +449,9 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
+ 	return pmd;
+ }
+ 
+-static inline int pmd_trans_splitting(pmd_t pmd)
+-{
+-	return !!(pmd_val(pmd) & _PAGE_SPLITTING);
+-}
 -
-+	if (vma->vm_flags & VM_LOCKED)
-+		return false;
- 	if (!vma->anon_vma || vma->vm_ops)
- 		return false;
- 	if (is_vma_temporary_stack(vma))
-diff --git a/mm/memory.c b/mm/memory.c
-index 1149f788603d..720b3bebf1f9 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2161,7 +2161,8 @@ static int wp_page_copy(struct mm_struct *mm, struct vm_area_struct *vma,
+-static inline pmd_t pmd_mksplitting(pmd_t pmd)
+-{
+-	pmd_val(pmd) |= _PAGE_SPLITTING;
+-
+-	return pmd;
+-}
+-
+ extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+ 		       pmd_t *pmdp, pmd_t pmd);
  
- 	pte_unmap_unlock(page_table, ptl);
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
--	if (old_page) {
-+	/* THP pages are never mlocked */
-+	if (old_page && !PageTransCompound(old_page)) {
- 		/*
- 		 * Don't let another task, with possibly unlocked vma,
- 		 * keep the mlocked page.
-diff --git a/mm/mlock.c b/mm/mlock.c
-index df91dadf6c7a..3c2e1290edfc 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -443,39 +443,26 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
- 		page = follow_page_mask(vma, start, FOLL_GET | FOLL_DUMP,
- 				&page_mask);
+-#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+-/* Extern to avoid header file madness */
+-extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+-					unsigned long address,
+-					pmd_t *pmdp);
+-
+ #define __HAVE_ARCH_PMD_WRITE
+ static inline int pmd_write(pmd_t pmd)
+ {
+diff --git a/arch/mips/mm/gup.c b/arch/mips/mm/gup.c
+index 36a35115dc2e..1afd87c999b0 100644
+--- a/arch/mips/mm/gup.c
++++ b/arch/mips/mm/gup.c
+@@ -107,18 +107,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+ 		pmd_t pmd = *pmdp;
  
--		if (page && !IS_ERR(page)) {
--			if (PageTransHuge(page)) {
--				lock_page(page);
--				/*
--				 * Any THP page found by follow_page_mask() may
--				 * have gotten split before reaching
--				 * munlock_vma_page(), so we need to recompute
--				 * the page_mask here.
--				 */
--				page_mask = munlock_vma_page(page);
--				unlock_page(page);
--				put_page(page); /* follow_page_mask() */
--			} else {
--				/*
--				 * Non-huge pages are handled in batches via
--				 * pagevec. The pin from follow_page_mask()
--				 * prevents them from collapsing by THP.
--				 */
--				pagevec_add(&pvec, page);
--				zone = page_zone(page);
--				zoneid = page_zone_id(page);
-+		if (page && !IS_ERR(page) && !PageTransCompound(page)) {
-+			/*
-+			 * Non-huge pages are handled in batches via
-+			 * pagevec. The pin from follow_page_mask()
-+			 * prevents them from collapsing by THP.
-+			 */
-+			pagevec_add(&pvec, page);
-+			zone = page_zone(page);
-+			zoneid = page_zone_id(page);
+ 		next = pmd_addr_end(addr, end);
+-		/*
+-		 * The pmd_trans_splitting() check below explains why
+-		 * pmdp_splitting_flush has to flush the tlb, to stop
+-		 * this gup-fast code from running while we set the
+-		 * splitting bit in the pmd. Returning zero will take
+-		 * the slow path that will call wait_split_huge_page()
+-		 * if the pmd is still in splitting state. gup-fast
+-		 * can't because it has irq disabled and
+-		 * wait_split_huge_page() would never return as the
+-		 * tlb flush IPI wouldn't run.
+-		 */
+-		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
++		if (pmd_none(pmd))
+ 			return 0;
+ 		if (unlikely(pmd_huge(pmd))) {
+ 			if (!gup_huge_pmd(pmd, addr, next, write, pages,nr))
+diff --git a/arch/mips/mm/pgtable-64.c b/arch/mips/mm/pgtable-64.c
+index e8adc0069d66..ce4473e7c0d2 100644
+--- a/arch/mips/mm/pgtable-64.c
++++ b/arch/mips/mm/pgtable-64.c
+@@ -62,20 +62,6 @@ void pmd_init(unsigned long addr, unsigned long pagetable)
+ }
+ #endif
  
--				/*
--				 * Try to fill the rest of pagevec using fast
--				 * pte walk. This will also update start to
--				 * the next page to process. Then munlock the
--				 * pagevec.
--				 */
--				start = __munlock_pagevec_fill(&pvec, vma,
--						zoneid, start, end);
--				__munlock_pagevec(&pvec, zone);
--				goto next;
--			}
-+			/*
-+			 * Try to fill the rest of pagevec using fast
-+			 * pte walk. This will also update start to
-+			 * the next page to process. Then munlock the
-+			 * pagevec.
-+			 */
-+			start = __munlock_pagevec_fill(&pvec, vma,
-+					zoneid, start, end);
-+			__munlock_pagevec(&pvec, zone);
-+			goto next;
- 		}
- 		/* It's a bug to munlock in the middle of a THP page */
- 		VM_BUG_ON((start >> PAGE_SHIFT) & page_mask);
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-
+-void pmdp_splitting_flush(struct vm_area_struct *vma,
+-			 unsigned long address,
+-			 pmd_t *pmdp)
+-{
+-	if (!pmd_trans_splitting(*pmdp)) {
+-		pmd_t pmd = pmd_mksplitting(*pmdp);
+-		set_pmd_at(vma->vm_mm, address, pmdp, pmd);
+-	}
+-}
+-
+-#endif
+-
+ pmd_t mk_pmd(struct page *page, pgprot_t prot)
+ {
+ 	pmd_t pmd;
+diff --git a/arch/mips/mm/tlbex.c b/arch/mips/mm/tlbex.c
+index 97c87027c17f..02b53ce7fc2e 100644
+--- a/arch/mips/mm/tlbex.c
++++ b/arch/mips/mm/tlbex.c
+@@ -240,7 +240,6 @@ static void output_pgtable_bits_defines(void)
+ 	pr_define("_PAGE_MODIFIED_SHIFT %d\n", _PAGE_MODIFIED_SHIFT);
+ #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
+ 	pr_define("_PAGE_HUGE_SHIFT %d\n", _PAGE_HUGE_SHIFT);
+-	pr_define("_PAGE_SPLITTING_SHIFT %d\n", _PAGE_SPLITTING_SHIFT);
+ #endif
+ #ifdef CONFIG_CPU_MIPSR2
+ 	if (cpu_has_rixi) {
 -- 
 2.1.4
 
