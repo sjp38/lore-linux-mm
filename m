@@ -1,105 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B0B9E28024F
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 10:55:44 -0400 (EDT)
-Received: by qgeu79 with SMTP id u79so17867323qge.1
-        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 07:55:44 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f79si15411590qki.10.2015.07.20.07.55.43
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id CDB8A9003C7
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 11:29:17 -0400 (EDT)
+Received: by lbbyj8 with SMTP id yj8so97602119lbb.0
+        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 08:29:17 -0700 (PDT)
+Received: from forward-corp1f.mail.yandex.net (forward-corp1f.mail.yandex.net. [95.108.130.40])
+        by mx.google.com with ESMTPS id ng4si18208680lbc.115.2015.07.20.08.29.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Jul 2015 07:55:44 -0700 (PDT)
-From: Baoquan He <bhe@redhat.com>
-Subject: [PATCH 3/3] percpu: add macro PCPU_CHUNK_AREA_IN_USE
-Date: Mon, 20 Jul 2015 22:55:30 +0800
-Message-Id: <1437404130-5188-3-git-send-email-bhe@redhat.com>
-In-Reply-To: <1437404130-5188-1-git-send-email-bhe@redhat.com>
-References: <1437404130-5188-1-git-send-email-bhe@redhat.com>
+        Mon, 20 Jul 2015 08:29:15 -0700 (PDT)
+Subject: [PATCH v2] mm/slub: allow merging when SLAB_DEBUG_FREE is set
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Date: Mon, 20 Jul 2015 18:29:13 +0300
+Message-ID: <20150720152913.14239.69304.stgit@buzz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tj@kernel.org, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Baoquan He <bhe@redhat.com>
+To: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-chunk->map[] contains <offset|in-use flag> of each area. Now add a
-new macro PCPU_CHUNK_AREA_IN_USE and use it as the in-use flag to
-replace all magic number '1'.
+This patch fixes creation of new kmem-caches after enabling sanity_checks
+for existing mergeable kmem-caches in runtime: before that patch creation
+fails because unique name in sysfs already taken by existing kmem-cache.
 
-Signed-off-by: Baoquan He <bhe@redhat.com>
+Unlike to other debug options this doesn't change object layout and could
+be enabled and disabled at any time.
+
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 ---
- mm/percpu.c | 18 ++++++++++--------
- 1 file changed, 10 insertions(+), 8 deletions(-)
+ mm/slab_common.c |    3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/mm/percpu.c b/mm/percpu.c
-index f7e02c0..2f99073 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -80,6 +80,7 @@
- #define PCPU_ATOMIC_MAP_MARGIN_HIGH	64
- #define PCPU_EMPTY_POP_PAGES_LOW	2
- #define PCPU_EMPTY_POP_PAGES_HIGH	4
-+#define PCPU_CHUNK_AREA_IN_USE		1
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 3e5f8f29c286..86831105a09f 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -37,8 +37,7 @@ struct kmem_cache *kmem_cache;
+ 		SLAB_TRACE | SLAB_DESTROY_BY_RCU | SLAB_NOLEAKTRACE | \
+ 		SLAB_FAILSLAB)
  
- #ifdef CONFIG_SMP
- /* default addr <-> pcpu_ptr mapping, override in asm/percpu.h if necessary */
-@@ -328,8 +329,8 @@ static void pcpu_mem_free(void *ptr, size_t size)
-  */
- static int pcpu_count_occupied_pages(struct pcpu_chunk *chunk, int i)
- {
--	int off = chunk->map[i] & ~1;
--	int end = chunk->map[i + 1] & ~1;
-+	int off = chunk->map[i] & ~PCPU_CHUNK_AREA_IN_USE;
-+	int end = chunk->map[i + 1] & ~PCPU_CHUNK_AREA_IN_USE;
+-#define SLAB_MERGE_SAME (SLAB_DEBUG_FREE | SLAB_RECLAIM_ACCOUNT | \
+-		SLAB_CACHE_DMA | SLAB_NOTRACK)
++#define SLAB_MERGE_SAME (SLAB_RECLAIM_ACCOUNT | SLAB_CACHE_DMA | SLAB_NOTRACK)
  
- 	if (!PAGE_ALIGNED(off) && i > 0) {
- 		int prev = chunk->map[i - 1];
-@@ -340,7 +341,7 @@ static int pcpu_count_occupied_pages(struct pcpu_chunk *chunk, int i)
- 
- 	if (!PAGE_ALIGNED(end) && i + 1 < chunk->map_used) {
- 		int next = chunk->map[i + 1];
--		int nend = chunk->map[i + 2] & ~1;
-+		int nend = chunk->map[i + 2] & ~PCPU_CHUNK_AREA_IN_USE;
- 
- 		if (!(next & 1) && nend >= round_up(end, PAGE_SIZE))
- 			end = round_up(end, PAGE_SIZE);
-@@ -738,7 +739,7 @@ static struct pcpu_chunk *pcpu_alloc_chunk(void)
- 
- 	chunk->map_alloc = PCPU_DFL_MAP_ALLOC;
- 	chunk->map[0] = 0;
--	chunk->map[1] = pcpu_unit_size | 1;
-+	chunk->map[1] = pcpu_unit_size | PCPU_CHUNK_AREA_IN_USE;
- 	chunk->map_used = 1;
- 
- 	INIT_LIST_HEAD(&chunk->list);
-@@ -1664,12 +1665,12 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 	}
- 	schunk->contig_hint = schunk->free_size;
- 
--	schunk->map[0] = 1;
-+	schunk->map[0] = PCPU_CHUNK_AREA_IN_USE;
- 	schunk->map[1] = ai->static_size;
- 	schunk->map_used = 1;
- 	if (schunk->free_size)
- 		schunk->map[++schunk->map_used] = ai->static_size + schunk->free_size;
--	schunk->map[schunk->map_used] |= 1;
-+	schunk->map[schunk->map_used] |= PCPU_CHUNK_AREA_IN_USE;
- 
- 	/* init dynamic chunk if necessary */
- 	if (dyn_size) {
-@@ -1684,9 +1685,10 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 		dchunk->nr_populated = pcpu_unit_pages;
- 
- 		dchunk->contig_hint = dchunk->free_size = dyn_size;
--		dchunk->map[0] = 1;
-+		dchunk->map[0] = PCPU_CHUNK_AREA_IN_USE;
- 		dchunk->map[1] = pcpu_reserved_chunk_limit;
--		dchunk->map[2] = (pcpu_reserved_chunk_limit + dchunk->free_size) | 1;
-+		dchunk->map[2] = (pcpu_reserved_chunk_limit + dchunk->free_size)
-+					| PCPU_CHUNK_AREA_IN_USE;
- 		dchunk->map_used = 2;
- 	}
- 
--- 
-1.9.3
+ /*
+  * Merge control. If this is set then no merging of slab caches will occur.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
