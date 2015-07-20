@@ -1,243 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 114BF9003C7
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 15:59:57 -0400 (EDT)
-Received: by qged69 with SMTP id d69so64034542qge.0
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 12:59:56 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com ([23.79.238.175])
-        by mx.google.com with ESMTP id r88si29635596qkh.64.2015.07.21.12.59.42
-        for <linux-mm@kvack.org>;
-        Tue, 21 Jul 2015 12:59:43 -0700 (PDT)
-From: Eric B Munson <emunson@akamai.com>
-Subject: [PATCH V4 3/6] mm: gup: Add mm_lock_present()
-Date: Tue, 21 Jul 2015 15:59:38 -0400
-Message-Id: <1437508781-28655-4-git-send-email-emunson@akamai.com>
-In-Reply-To: <1437508781-28655-1-git-send-email-emunson@akamai.com>
-References: <1437508781-28655-1-git-send-email-emunson@akamai.com>
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 647C69003C7
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 16:26:20 -0400 (EDT)
+Received: by wibxm9 with SMTP id xm9so71838412wib.1
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 13:26:20 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bb10si20958578wib.69.2015.07.21.13.26.18
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 21 Jul 2015 13:26:18 -0700 (PDT)
+Date: Mon, 20 Jul 2015 10:03:35 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 9/9] drm/exynos: Convert g2d_userptr_get_dma_addr() to
+ use get_vaddr_frames()
+Message-ID: <20150720080335.GB3131@quack.suse.cz>
+References: <1436799351-21975-1-git-send-email-jack@suse.com>
+ <1436799351-21975-10-git-send-email-jack@suse.com>
+ <55A8D700.9080203@xs4all.nl>
+ <55A8D903.2080102@samsung.com>
+ <55A8D96F.5000704@xs4all.nl>
+ <55A9C484.2090707@samsung.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="6TrnltStXW4iwmi0"
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <55A9C484.2090707@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric B Munson <emunson@akamai.com>, Jonathan Corbet <corbet@lwn.net>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Inki Dae <inki.dae@samsung.com>
+Cc: Hans Verkuil <hverkuil@xs4all.nl>, Jan Kara <jack@suse.com>, linux-media@vger.kernel.org, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, linux-samsung-soc@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-The upcoming mlock(MLOCK_ONFAULT) implementation will need a way to
-request that all present pages in a range are locked without faulting in
-pages that are not present.  This logic is very close to what the
-__mm_populate() call handles without faulting pages so the patch pulls
-out the pieces that can be shared and adds mm_lock_present() to gup.c.
-The following patch will call it from do_mlock() when MLOCK_ONFAULT is
-specified.
 
-Signed-off-by: Eric B Munson <emunson@akamai.com>
-Cc: Jonathan Corbet <corbet@lwn.net>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- mm/gup.c | 172 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 157 insertions(+), 15 deletions(-)
+--6TrnltStXW4iwmi0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 6297f6b..233ef17 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -818,6 +818,30 @@ long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- }
- EXPORT_SYMBOL(get_user_pages);
+On Sat 18-07-15 12:14:12, Inki Dae wrote:
+> On 2015e?? 07i?? 17i? 1/4  19:31, Hans Verkuil wrote:
+> > On 07/17/2015 12:29 PM, Inki Dae wrote:
+> >> On 2015e?? 07i?? 17i? 1/4  19:20, Hans Verkuil wrote:
+> >>> On 07/13/2015 04:55 PM, Jan Kara wrote:
+> >>>> From: Jan Kara <jack@suse.cz>
+> >>>>
+> >>>> Convert g2d_userptr_get_dma_addr() to pin pages using get_vaddr_frames().
+> >>>> This removes the knowledge about vmas and mmap_sem locking from exynos
+> >>>> driver. Also it fixes a problem that the function has been mapping user
+> >>>> provided address without holding mmap_sem.
+> >>>
+> >>> I'd like to see an Ack from one of the exynos drm driver maintainers before
+> >>> I merge this.
+> >>>
+> >>> Inki, Marek?
+> >>
+> >> I already gave Ack but it seems that Jan missed it while updating.
+> >>
+> >> Anyway,
+> >> Acked-by: Inki Dae <inki.dae@samsung.com>
+> > 
+> > Thanks!
+> 
+> Oops, sorry. This patch would incur a build warning. Below is my comment.
+> 
+> >>>> @@ -456,65 +455,38 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
+> >>>>  		return ERR_PTR(-ENOMEM);
+> >>>>  
+> >>>>  	atomic_set(&g2d_userptr->refcount, 1);
+> >>>> +	g2d_userptr->size = size;
+> >>>>  
+> >>>>  	start = userptr & PAGE_MASK;
+> >>>>  	offset = userptr & ~PAGE_MASK;
+> >>>>  	end = PAGE_ALIGN(userptr + size);
+> >>>>  	npages = (end - start) >> PAGE_SHIFT;
+> >>>> -	g2d_userptr->npages = npages;
+> >>>> -
+> >>>> -	pages = drm_calloc_large(npages, sizeof(struct page *));
+> >>>> -	if (!pages) {
+> >>>> -		DRM_ERROR("failed to allocate pages.\n");
+> >>>> -		ret = -ENOMEM;
+> >>>> +	g2d_userptr->vec = frame_vector_create(npages);
+> >>>> +	if (!g2d_userptr->vec)
+> 
+> You would need ret = -EFAULT here. And below is a patch posted already,
+> 	http://www.spinics.net/lists/dri-devel/msg85321.html
+
+The error should IMHO be -ENOMEM because frame_vector_create() fails only
+if we fail to allocate the structure. Attached is the updated version of
+the patch. Hans, can you please pick this one?
  
-+/*
-+ * Helper function used by both populate_vma_page_range() and pin_user_pages
-+ */
-+static int get_gup_flags(vm_flags_t vm_flags)
-+{
-+	int gup_flags = FOLL_TOUCH | FOLL_POPULATE;
-+	/*
-+	 * We want to touch writable mappings with a write fault in order
-+	 * to break COW, except for shared mappings because these don't COW
-+	 * and we would not want to dirty them for nothing.
-+	 */
-+	if ((vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
-+		gup_flags |= FOLL_WRITE;
-+
-+	/*
-+	 * We want mlock to succeed for regions that have any permissions
-+	 * other than PROT_NONE.
-+	 */
-+	if (vm_flags & (VM_READ | VM_WRITE | VM_EXEC))
-+		gup_flags |= FOLL_FORCE;
-+
-+	return gup_flags;
-+}
-+
- /**
-  * populate_vma_page_range() -  populate a range of pages in the vma.
-  * @vma:   target vma
-@@ -850,21 +874,7 @@ long populate_vma_page_range(struct vm_area_struct *vma,
- 	VM_BUG_ON_VMA(end   > vma->vm_end, vma);
- 	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
- 
--	gup_flags = FOLL_TOUCH | FOLL_POPULATE;
--	/*
--	 * We want to touch writable mappings with a write fault in order
--	 * to break COW, except for shared mappings because these don't COW
--	 * and we would not want to dirty them for nothing.
--	 */
--	if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
--		gup_flags |= FOLL_WRITE;
--
--	/*
--	 * We want mlock to succeed for regions that have any permissions
--	 * other than PROT_NONE.
--	 */
--	if (vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC))
--		gup_flags |= FOLL_FORCE;
-+	gup_flags = get_gup_flags(vma->vm_flags);
- 
- 	/*
- 	 * We made sure addr is within a VMA, so the following will
-@@ -874,6 +884,138 @@ long populate_vma_page_range(struct vm_area_struct *vma,
- 				NULL, NULL, nonblocking);
- }
- 
-+static long pin_user_pages(struct vm_area_struct *vma, unsigned long start,
-+			unsigned long end, int *nonblocking)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
-+	unsigned long nr_pages = (end - start) / PAGE_SIZE;
-+	int gup_flags;
-+	long i = 0;
-+	unsigned int page_mask;
-+
-+	VM_BUG_ON(start & ~PAGE_MASK);
-+	VM_BUG_ON(end   & ~PAGE_MASK);
-+	VM_BUG_ON_VMA(start < vma->vm_start, vma);
-+	VM_BUG_ON_VMA(end   > vma->vm_end, vma);
-+	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
-+
-+	if (!nr_pages)
-+		return 0;
-+
-+	gup_flags = get_gup_flags(vma->vm_flags);
-+
-+	/*
-+	 * If FOLL_FORCE is set then do not force a full fault as the hinting
-+	 * fault information is unrelated to the reference behaviour of a task
-+	 * using the address space
-+	 */
-+	if (!(gup_flags & FOLL_FORCE))
-+		gup_flags |= FOLL_NUMA;
-+
-+	vma = NULL;
-+
-+	do {
-+		struct page *page;
-+		unsigned int foll_flags = gup_flags;
-+		unsigned int page_increm;
-+
-+		/* first iteration or cross vma bound */
-+		if (!vma || start >= vma->vm_end) {
-+			vma = find_extend_vma(mm, start);
-+			if (!vma && in_gate_area(mm, start)) {
-+				int ret;
-+				ret = get_gate_page(mm, start & PAGE_MASK,
-+						gup_flags, &vma, NULL);
-+				if (ret)
-+					return i ? : ret;
-+				page_mask = 0;
-+				goto next_page;
-+			}
-+
-+			if (!vma)
-+				return i ? : -EFAULT;
-+			if (is_vm_hugetlb_page(vma)) {
-+				i = follow_hugetlb_page(mm, vma, NULL, NULL,
-+						&start, &nr_pages, i,
-+						gup_flags);
-+				continue;
-+			}
-+		}
-+
-+		/*
-+		 * If we have a pending SIGKILL, don't keep pinning pages
-+		 */
-+		if (unlikely(fatal_signal_pending(current)))
-+			return i ? i : -ERESTARTSYS;
-+		cond_resched();
-+		page = follow_page_mask(vma, start, foll_flags, &page_mask);
-+		if (!page)
-+			goto next_page;
-+		if (IS_ERR(page))
-+			return i ? i : PTR_ERR(page);
-+next_page:
-+		page_increm = 1 + (~(start >> PAGE_SHIFT) & page_mask);
-+		if (page_increm > nr_pages)
-+			page_increm = nr_pages;
-+		i += page_increm;
-+		start += page_increm * PAGE_SIZE;
-+		nr_pages -= page_increm;
-+	} while (nr_pages);
-+	return i;
-+}
-+
-+/*
-+ * mm_lock_present - lock present pages within a range of address space.
-+ *
-+ * This is used to implement mlock2(MLOCK_LOCKONFAULT).  VMAs must be already
-+ * marked with the desired vm_flags, and mmap_sem must not be held.
-+ */
-+int mm_lock_present(unsigned long start, unsigned long len)
-+{
-+	struct mm_struct *mm = current->mm;
-+	unsigned long end, nstart, nend;
-+	struct vm_area_struct *vma = NULL;
-+	int locked = 0;
-+	long ret = 0;
-+
-+	VM_BUG_ON(start & ~PAGE_MASK);
-+	VM_BUG_ON(len != PAGE_ALIGN(len));
-+	end = start + len;
-+
-+	for (nstart = start; nstart < end; nstart = nend) {
-+		/*
-+		 * We want to fault in pages for [nstart; end) address range.
-+		 * Find first corresponding VMA.
-+		 */
-+		if (!locked) {
-+			locked = 1;
-+			down_read(&mm->mmap_sem);
-+			vma = find_vma(mm, nstart);
-+		} else if (nstart >= vma->vm_end)
-+			vma = vma->vm_next;
-+		if (!vma || vma->vm_start >= end)
-+			break;
-+		/*
-+		 * Set [nstart; nend) to intersection of desired address
-+		 * range with the first VMA. Also, skip undesirable VMA types.
-+		 */
-+		nend = min(end, vma->vm_end);
-+		if (vma->vm_flags & (VM_IO | VM_PFNMAP))
-+			continue;
-+		if (nstart < vma->vm_start)
-+			nstart = vma->vm_start;
-+
-+		ret = pin_user_pages(vma, nstart, nend, &locked);
-+		if (ret < 0)
-+			break;
-+		nend = nstart + ret * PAGE_SIZE;
-+		ret = 0;
-+	}
-+	if (locked)
-+		up_read(&mm->mmap_sem);
-+	return ret;	/* 0 or negative error code */
-+}
-+
- /*
-  * __mm_populate - populate and/or mlock pages within a range of address space.
-  *
+> ps. please, ignore the codes related to build error in the patch.
+> 
+> With the change, Acked-by: Inki Dae <inki.dae@samsung.com>
+
+Thanks and sorry for making so many stupid mistakes in the Exynos driver.
+
+								Honza
 -- 
-1.9.1
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--6TrnltStXW4iwmi0
+Content-Type: text/x-patch; charset=us-ascii
+Content-Disposition: attachment; filename="0009-drm-exynos-Convert-g2d_userptr_get_dma_addr-to-use-g.patch"
+
+
+--6TrnltStXW4iwmi0--
