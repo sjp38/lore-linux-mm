@@ -1,240 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F37C9003C7
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 04:00:48 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so84487330wib.0
-        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 01:00:47 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id n7si33834415wjb.50.2015.07.20.01.00.23
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 929F59003C7
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 04:28:31 -0400 (EDT)
+Received: by wgav7 with SMTP id v7so59023924wga.2
+        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 01:28:31 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dh8si33884874wjb.210.2015.07.20.01.28.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 20 Jul 2015 01:00:24 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 1B88C98B57
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 08:00:23 +0000 (UTC)
-From: Mel Gorman <mgorman@suse.com>
-Subject: [PATCH 05/10] mm, page_alloc: Remove unnecessary updating of GFP flags during normal operation
-Date: Mon, 20 Jul 2015 09:00:14 +0100
-Message-Id: <1437379219-9160-6-git-send-email-mgorman@suse.com>
-In-Reply-To: <1437379219-9160-1-git-send-email-mgorman@suse.com>
-References: <1437379219-9160-1-git-send-email-mgorman@suse.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 20 Jul 2015 01:28:29 -0700 (PDT)
+Date: Mon, 20 Jul 2015 09:28:10 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v3 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory
+ feature
+Message-ID: <20150720082810.GG2561@suse.de>
+References: <1437114578-2502-1-git-send-email-pintu.k@samsung.com>
+ <1437366544-32673-1-git-send-email-pintu.k@samsung.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1437366544-32673-1-git-send-email-pintu.k@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Kumar <pintu.k@samsung.com>, Xishi Qiu <qiuxishi@huawei.com>, Gioh Kim <gioh.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Pintu Kumar <pintu.k@samsung.com>
+Cc: akpm@linux-foundation.org, corbet@lwn.net, vbabka@suse.cz, gorcunov@openvz.org, mhocko@suse.cz, emunson@akamai.com, kirill.shutemov@linux.intel.com, standby24x7@gmail.com, hannes@cmpxchg.org, vdavydov@parallels.com, hughd@google.com, minchan@kernel.org, tj@kernel.org, rientjes@google.com, xypron.glpk@gmx.de, dzickus@redhat.com, prarit@redhat.com, ebiederm@xmission.com, rostedt@goodmis.org, uobergfe@redhat.com, paulmck@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, ddstreet@ieee.org, sasha.levin@oracle.com, koct9i@gmail.com, cj@linux.com, opensource.ganesh@gmail.com, vinmenon@codeaurora.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, qiuxishi@huawei.com, Valdis.Kletnieks@vt.edu, cpgs@samsung.com, pintu_agarwal@yahoo.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, iqbal.ams@samsung.com, pintu.ping@gmail.com, pintu.k@outlook.com
 
-From: Mel Gorman <mgorman@suse.de>
+On Mon, Jul 20, 2015 at 09:59:04AM +0530, Pintu Kumar wrote:
+> This patch provides 2 things:
+> 1. Add new control called shrink_memory in /proc/sys/vm/.
+> This control can be used to aggressively reclaim memory system-wide
+> in one shot from the user space. A value of 1 will instruct the
+> kernel to reclaim as much as totalram_pages in the system.
+> Example: echo 1 > /proc/sys/vm/shrink_memory
+> 
+> If any other value than 1 is written to shrink_memory an error EINVAL
+> occurs.
+> 
+> 2. Enable shrink_all_memory API in kernel with new CONFIG_SHRINK_MEMORY.
+> Currently, shrink_all_memory function is used only during hibernation.
+> With the new config we can make use of this API for non-hibernation case
+> also without disturbing the hibernation case.
+> 
+> The detailed paper was presented in Embedded Linux Conference, Mar-2015
+> http://events.linuxfoundation.org/sites/events/files/slides/
+> %5BELC-2015%5D-System-wide-Memory-Defragmenter.pdf
+> 
 
-During boot and suspend there is a restriction on the allowed GFP
-flags. During boot it prevents blocking operations before the scheduler
-is active. During suspend it is to avoid IO operations when storage is
-unavailable. The restriction on the mask is applied in some allocator
-hot-paths during normal operation which is wasteful. Use jump labels
-to only update the GFP mask when it is restricted.
+Johannes has already reviewed this series and explained why it's a bad
+idea. This is just a note to say that I agree the points he made and also
+think that adding an additional knob to reclaim data from user space is a bad
+idea. Even drop_caches is only intended as a debugging tool to illustrate
+cases where normal reclaim is broken. Similarly compact_node exists as a
+debugging tool to check if direct compaction is not behaving as expected.
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/linux/gfp.h | 33 ++++++++++++++++++++++++++++-----
- init/main.c         |  2 +-
- mm/page_alloc.c     | 21 +++++++--------------
- mm/slab.c           |  4 ++--
- mm/slob.c           |  4 ++--
- mm/slub.c           |  6 +++---
- 6 files changed, 43 insertions(+), 27 deletions(-)
+If this is invoked when high-order allocations start failing and memory is
+fragmented with unreclaimable memory then it'll potentially keep thrashing
+depending on the userspace monitor implementation.  If the latency of
+a high order allocation is important then reclaim/compaction should be
+examined and improved. If the reliability of high-order allocations are
+important then you either need to reserve the memory in advance. If that
+is undesirable due to a constrained memory environment then one approach
+is to modify how pages are grouped by mobility as described in the leader
+of the series "Remove zonelist cache and high-order watermark checking".
+There are two suggestions there for out-of-tree patches that would make
+high-order allocations more reliable that are not suitable for mainline.
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index ad35f300b9a4..6d3a2d430715 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -394,12 +394,35 @@ static inline void page_alloc_init_late(void)
- 
- /*
-  * gfp_allowed_mask is set to GFP_BOOT_MASK during early boot to restrict what
-- * GFP flags are used before interrupts are enabled. Once interrupts are
-- * enabled, it is set to __GFP_BITS_MASK while the system is running. During
-- * hibernation, it is used by PM to avoid I/O during memory allocation while
-- * devices are suspended.
-+ * GFP flags are used before interrupts are enabled. During hibernation, it is
-+ * used by PM to avoid I/O during memory allocation while devices are suspended.
-  */
--extern gfp_t gfp_allowed_mask;
-+extern gfp_t __gfp_allowed_mask;
-+
-+/* Only update the gfp_mask when it is restricted */
-+extern struct static_key gfp_restricted_key;
-+
-+static inline gfp_t gfp_allowed_mask(gfp_t gfp_mask)
-+{
-+	if (static_key_false(&gfp_restricted_key))
-+		return gfp_mask;
-+
-+	return gfp_mask & __gfp_allowed_mask;
-+}
-+
-+static inline void unrestrict_gfp_allowed_mask(void)
-+{
-+	WARN_ON(!static_key_enabled(&gfp_restricted_key));
-+	__gfp_allowed_mask = __GFP_BITS_MASK;
-+	static_key_slow_dec(&gfp_restricted_key);
-+}
-+
-+static inline void restrict_gfp_allowed_mask(gfp_t gfp_mask)
-+{
-+	WARN_ON(static_key_enabled(&gfp_restricted_key));
-+	__gfp_allowed_mask = gfp_mask;
-+	static_key_slow_inc(&gfp_restricted_key);
-+}
- 
- /* Returns true if the gfp_mask allows use of ALLOC_NO_WATERMARK */
- bool gfp_pfmemalloc_allowed(gfp_t gfp_mask);
-diff --git a/init/main.c b/init/main.c
-index c5d5626289ce..7e3a227559c6 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -983,7 +983,7 @@ static noinline void __init kernel_init_freeable(void)
- 	wait_for_completion(&kthreadd_done);
- 
- 	/* Now the scheduler is fully set up and can do blocking allocations */
--	gfp_allowed_mask = __GFP_BITS_MASK;
-+	unrestrict_gfp_allowed_mask();
- 
- 	/*
- 	 * init can allocate pages on any node
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7c2dc022f4ba..56432b59b797 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -124,7 +124,9 @@ unsigned long totalcma_pages __read_mostly;
- unsigned long dirty_balance_reserve __read_mostly;
- 
- int percpu_pagelist_fraction;
--gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
-+
-+gfp_t __gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
-+struct static_key gfp_restricted_key __read_mostly = STATIC_KEY_INIT_TRUE;
- 
- #ifdef CONFIG_PM_SLEEP
- /*
-@@ -136,30 +138,21 @@ gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
-  * guaranteed not to run in parallel with that modification).
-  */
- 
--static gfp_t saved_gfp_mask;
--
- void pm_restore_gfp_mask(void)
- {
- 	WARN_ON(!mutex_is_locked(&pm_mutex));
--	if (saved_gfp_mask) {
--		gfp_allowed_mask = saved_gfp_mask;
--		saved_gfp_mask = 0;
--	}
-+	unrestrict_gfp_allowed_mask();
- }
- 
- void pm_restrict_gfp_mask(void)
- {
- 	WARN_ON(!mutex_is_locked(&pm_mutex));
--	WARN_ON(saved_gfp_mask);
--	saved_gfp_mask = gfp_allowed_mask;
--	gfp_allowed_mask &= ~GFP_IOFS;
-+	restrict_gfp_allowed_mask(__GFP_BITS_MASK & ~GFP_IOFS);
- }
- 
- bool pm_suspended_storage(void)
- {
--	if ((gfp_allowed_mask & GFP_IOFS) == GFP_IOFS)
--		return false;
--	return true;
-+	return static_key_enabled(&gfp_restricted_key);
- }
- #endif /* CONFIG_PM_SLEEP */
- 
-@@ -2968,7 +2961,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 		.migratetype = gfpflags_to_migratetype(gfp_mask),
- 	};
- 
--	gfp_mask &= gfp_allowed_mask;
-+	gfp_mask = gfp_allowed_mask(gfp_mask);
- 
- 	lockdep_trace_alloc(gfp_mask);
- 
-diff --git a/mm/slab.c b/mm/slab.c
-index 200e22412a16..2c715b8c88f7 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3151,7 +3151,7 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
- 	void *ptr;
- 	int slab_node = numa_mem_id();
- 
--	flags &= gfp_allowed_mask;
-+	flags = gfp_allowed_mask(flags);
- 
- 	lockdep_trace_alloc(flags);
- 
-@@ -3239,7 +3239,7 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
- 	unsigned long save_flags;
- 	void *objp;
- 
--	flags &= gfp_allowed_mask;
-+	flags = gfp_allowed_mask(flags);
- 
- 	lockdep_trace_alloc(flags);
- 
-diff --git a/mm/slob.c b/mm/slob.c
-index 4765f65019c7..23dbdac87fcb 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -430,7 +430,7 @@ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
- 	int align = max_t(size_t, ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
- 	void *ret;
- 
--	gfp &= gfp_allowed_mask;
-+	gfp = gfp_allowed_mask(gfp);
- 
- 	lockdep_trace_alloc(gfp);
- 
-@@ -536,7 +536,7 @@ static void *slob_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
- {
- 	void *b;
- 
--	flags &= gfp_allowed_mask;
-+	flags = gfp_allowed_mask(flags);
- 
- 	lockdep_trace_alloc(flags);
- 
-diff --git a/mm/slub.c b/mm/slub.c
-index 816df0016555..9eb79f7a48ba 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1261,7 +1261,7 @@ static inline void kfree_hook(const void *x)
- static inline struct kmem_cache *slab_pre_alloc_hook(struct kmem_cache *s,
- 						     gfp_t flags)
- {
--	flags &= gfp_allowed_mask;
-+	flags = gfp_allowed_mask(flags);
- 	lockdep_trace_alloc(flags);
- 	might_sleep_if(flags & __GFP_WAIT);
- 
-@@ -1274,7 +1274,7 @@ static inline struct kmem_cache *slab_pre_alloc_hook(struct kmem_cache *s,
- static inline void slab_post_alloc_hook(struct kmem_cache *s,
- 					gfp_t flags, void *object)
- {
--	flags &= gfp_allowed_mask;
-+	flags = gfp_allowed_mask(flags);
- 	kmemcheck_slab_alloc(s, flags, object, slab_ksize(s));
- 	kmemleak_alloc_recursive(object, s->object_size, 1, s->flags, flags);
- 	memcg_kmem_put_cache(s);
-@@ -1337,7 +1337,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	struct kmem_cache_order_objects oo = s->oo;
- 	gfp_t alloc_gfp;
- 
--	flags &= gfp_allowed_mask;
-+	flags = gfp_allowed_mask(flags);
- 
- 	if (flags & __GFP_WAIT)
- 		local_irq_enable();
+Yes, I read your presentation but lets go through the use cases you
+list again;
+
+> Various other use cases where this can be used:
+> ----------------------------------------------------------------------------
+> 1) Just after system boot-up is finished, using the sysctl configuration from
+>    bootup script.
+
+Almost no benefit. Any page cache that is active and now cold would be
+trivially reclaimed later.
+
+> 2) During system suspend state, after suspend_freeze_processes()
+>    [kernel/power/suspend.c]
+>    Based on certain condition about fragmentation or free memory state.
+
+No gain.
+
+> 3) From Android ION system heap driver, when order-4 allocation starts failing.
+>    By calling shrink_all_memory, in a separate worker thread, based on certain
+>    condition.
+
+If order-4 allocations fail when shrink_all_memory works and the order-4
+allocation is required to work then the aggressiveness of reclaim/compaction
+needs to be fixed to reclaim all system memory if necessary. Right now
+it can bail because generally it is expected that no subsystem depends on
+high order allocations succeeding for functional correctness.
+
+> 4) It can be combined with compact_memory to achieve better results on memory
+>    fragmentation.
+
+Only by reclaiming the world. In 3.0 the system behaved like this. High order
+stress tests could take hours to complete as the system was continually
+thrashed. Today the same test would complete in about 15 minutes albeit
+with lower allocation success rates. We ran into multiple issues where
+high order allocation requests caused the system to thrash and triggering
+such thrashing from userspace is not an improvement.
+
+> 5) It can be helpful in debugging and tuning various vm parameters.
+
+No more than drop_caches is.
+
+> 6) It can be helpful to identify how much of maximum memory could be
+>    reclaimable at any point of time.
+
+Only by reclaiming the world. A less destructive means is using
+MemAvailable from /proc/meminfo
+
+>    And how much higher-order pages could be formed with this amount of
+>    reclaimable memory.
+
+Only by reclaiming the world
+
+>    Thus it can be helpful in accordingly tuning the reserved memory needs
+>    of a system.
+
+By which time it's too late as a reboot will be necessary to set the
+reserve.
+
+> 7) It can be helpful in properly tuning the SWAP size in the system.
+
+Only for a single point in time as it's workload dependant. The same
+data can be inferred from smaps.
+
+>    In shrink_all_memory, we enable may_swap = 1, that means all unused pages
+>    will be swapped out.
+>    Thus, running shrink_memory on a heavy loaded system, we can check how much
+>    swap is getting full.
+>    That can be the maximum swap size with a 10% delta.
+>    Also if ZRAM is used, it helps us in compressing and storing the pages for
+>    later use.
+> 8) It can be helpful to allow more new applications to be launched, without
+>    killing the older once.
+
+Reclaim would achieve the same effect over time.
+
+>    And moving the least recently used pages to the SWAP area.
+>    Thus user data can be retained.
+> 9) Can be part of a system utility to quickly defragment entire system
+>    memory.
+
+Any memory that is not on the LRU or indirectly pinned by pages on the
+LRU are unaffected.
+
+If high-order allocation latency or reliability is important then you
+really need a different solution because unless this thing runs
+continually to keep memory unused then it'll eventually fail hard and
+the system will perform poorly in the meantime.
+
 -- 
-2.4.3
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
