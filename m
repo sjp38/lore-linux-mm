@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id C038B9003C7
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 04:00:30 -0400 (EDT)
-Received: by wgmn9 with SMTP id n9so124042844wgm.0
-        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 01:00:30 -0700 (PDT)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id h2si33778629wjx.174.2015.07.20.01.00.22
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 120839003C7
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 04:00:33 -0400 (EDT)
+Received: by wicgb10 with SMTP id gb10so19399911wic.1
+        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 01:00:32 -0700 (PDT)
+Received: from outbound-smtp01.blacknight.com (outbound-smtp01.blacknight.com. [81.17.249.7])
+        by mx.google.com with ESMTPS id w2si11996802wiy.40.2015.07.20.01.00.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Mon, 20 Jul 2015 01:00:23 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 3176C98B8F
+	by outbound-smtp01.blacknight.com (Postfix) with ESMTPS id A4B1198BE1
 	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 08:00:22 +0000 (UTC)
 From: Mel Gorman <mgorman@suse.com>
-Subject: [PATCH 03/10] mm, page_alloc: Remove unnecessary recalculations for dirty zone balancing
-Date: Mon, 20 Jul 2015 09:00:12 +0100
-Message-Id: <1437379219-9160-4-git-send-email-mgorman@suse.com>
+Subject: [PATCH 04/10] mm, page_alloc: Remove unnecessary taking of a seqlock when cpusets are disabled
+Date: Mon, 20 Jul 2015 09:00:13 +0100
+Message-Id: <1437379219-9160-5-git-send-email-mgorman@suse.com>
 In-Reply-To: <1437379219-9160-1-git-send-email-mgorman@suse.com>
 References: <1437379219-9160-1-git-send-email-mgorman@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,69 +25,39 @@ Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlasti
 
 From: Mel Gorman <mgorman@suse.de>
 
-File-backed pages that will be immediately dirtied are balanced between
-zones but it's unnecessarily expensive. Move consider_zone_balanced into
-the alloc_context instead of checking bitmaps multiple times.
+There is a seqcounter that protects spurious allocation fails when a task
+is changing the allowed nodes in a cpuset. There is no need to check the
+seqcounter until a cpuset exists.
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Mel Gorman <mgorman@sujse.de>
 ---
- mm/internal.h   | 1 +
- mm/page_alloc.c | 9 ++++++---
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ include/linux/cpuset.h | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-diff --git a/mm/internal.h b/mm/internal.h
-index 36b23f1e2ca6..8977348fbeec 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -129,6 +129,7 @@ struct alloc_context {
- 	int classzone_idx;
- 	int migratetype;
- 	enum zone_type high_zoneidx;
-+	bool consider_zone_dirty;
- };
- 
- /*
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4b35b196aeda..7c2dc022f4ba 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2295,8 +2295,6 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 	struct zoneref *z;
- 	struct page *page = NULL;
- 	struct zone *zone;
--	bool consider_zone_dirty = (alloc_flags & ALLOC_WMARK_LOW) &&
--				(gfp_mask & __GFP_WRITE);
- 	int nr_fair_skipped = 0;
- 	bool zonelist_rescan;
- 
-@@ -2355,7 +2353,7 @@ zonelist_scan:
- 		 * will require awareness of zones in the
- 		 * dirty-throttling and the flusher threads.
- 		 */
--		if (consider_zone_dirty && !zone_dirty_ok(zone))
-+		if (ac->consider_zone_dirty && !zone_dirty_ok(zone))
- 			continue;
- 
- 		mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
-@@ -2995,6 +2993,10 @@ retry_cpuset:
- 
- 	/* We set it here, as __alloc_pages_slowpath might have changed it */
- 	ac.zonelist = zonelist;
+diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+index 1b357997cac5..6eb27cb480b7 100644
+--- a/include/linux/cpuset.h
++++ b/include/linux/cpuset.h
+@@ -104,6 +104,9 @@ extern void cpuset_print_task_mems_allowed(struct task_struct *p);
+  */
+ static inline unsigned int read_mems_allowed_begin(void)
+ {
++	if (!cpusets_enabled())
++		return 0;
 +
-+	/* Dirty zone balancing only done in the fast path */
-+	ac.consider_zone_dirty = (gfp_mask & __GFP_WRITE);
-+
- 	/* The preferred zone is used for statistics later */
- 	preferred_zoneref = first_zones_zonelist(ac.zonelist, ac.high_zoneidx,
- 				ac.nodemask, &ac.preferred_zone);
-@@ -3012,6 +3014,7 @@ retry_cpuset:
- 		 * complete.
- 		 */
- 		alloc_mask = memalloc_noio_flags(gfp_mask);
-+		ac.consider_zone_dirty = false;
+ 	return read_seqcount_begin(&current->mems_allowed_seq);
+ }
  
- 		page = __alloc_pages_slowpath(alloc_mask, order, &ac);
- 	}
+@@ -115,6 +118,9 @@ static inline unsigned int read_mems_allowed_begin(void)
+  */
+ static inline bool read_mems_allowed_retry(unsigned int seq)
+ {
++	if (!cpusets_enabled())
++		return false;
++
+ 	return read_seqcount_retry(&current->mems_allowed_seq, seq);
+ }
+ 
 -- 
 2.4.3
 
