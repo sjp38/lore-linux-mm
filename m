@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id A83B69003C7
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 04:00:35 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so89201675wib.0
-        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 01:00:35 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id pc3si12010796wic.24.2015.07.20.01.00.24
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D8A129003C7
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 04:00:39 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so80960414wib.1
+        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 01:00:39 -0700 (PDT)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id n18si11961176wij.109.2015.07.20.01.00.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Mon, 20 Jul 2015 01:00:24 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 135BA98C18
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 08:00:24 +0000 (UTC)
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 8E07C98B6D
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 08:00:23 +0000 (UTC)
 From: Mel Gorman <mgorman@suse.com>
-Subject: [PATCH 07/10] mm, page_alloc: Use masks and shifts when converting GFP flags to migrate types
-Date: Mon, 20 Jul 2015 09:00:16 +0100
-Message-Id: <1437379219-9160-8-git-send-email-mgorman@suse.com>
+Subject: [PATCH 06/10] mm, page_alloc: Use jump label to check if page grouping by mobility is enabled
+Date: Mon, 20 Jul 2015 09:00:15 +0100
+Message-Id: <1437379219-9160-7-git-send-email-mgorman@suse.com>
 In-Reply-To: <1437379219-9160-1-git-send-email-mgorman@suse.com>
 References: <1437379219-9160-1-git-send-email-mgorman@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,81 +25,107 @@ Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlasti
 
 From: Mel Gorman <mgorman@suse.de>
 
-This patch redefines which GFP bits are used for specifying mobility and
-the order of the migrate types. Once redefined it's possible to convert
-GFP flags to a migrate type with a simple mask and shift. The only downside
-is that readers of OOM kill messages and allocation failures may have been
-used to the existing values but scripts/gfp-translate will help.
+The global variable page_group_by_mobility_disabled remembers if page grouping
+by mobility was disabled at boot time. It's more efficient to do this by jump
+label.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/gfp.h    | 12 +++++++-----
- include/linux/mmzone.h |  2 +-
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ include/linux/gfp.h    |  2 +-
+ include/linux/mmzone.h |  7 ++++++-
+ mm/page_alloc.c        | 15 ++++++---------
+ 3 files changed, 13 insertions(+), 11 deletions(-)
 
 diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 5a27bbba63ed..ec00a8263f5b 100644
+index 6d3a2d430715..5a27bbba63ed 100644
 --- a/include/linux/gfp.h
 +++ b/include/linux/gfp.h
-@@ -14,7 +14,7 @@ struct vm_area_struct;
- #define ___GFP_HIGHMEM		0x02u
- #define ___GFP_DMA32		0x04u
- #define ___GFP_MOVABLE		0x08u
--#define ___GFP_WAIT		0x10u
-+#define ___GFP_RECLAIMABLE	0x10u
- #define ___GFP_HIGH		0x20u
- #define ___GFP_IO		0x40u
- #define ___GFP_FS		0x80u
-@@ -29,7 +29,7 @@ struct vm_area_struct;
- #define ___GFP_NOMEMALLOC	0x10000u
- #define ___GFP_HARDWALL		0x20000u
- #define ___GFP_THISNODE		0x40000u
--#define ___GFP_RECLAIMABLE	0x80000u
-+#define ___GFP_WAIT		0x80000u
- #define ___GFP_NOACCOUNT	0x100000u
- #define ___GFP_NOTRACK		0x200000u
- #define ___GFP_NO_KSWAPD	0x400000u
-@@ -123,6 +123,7 @@ struct vm_area_struct;
- 
- /* This mask makes up all the page movable related flags */
- #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
-+#define GFP_MOVABLE_SHIFT 3
- 
- /* Control page allocator reclaim behavior */
- #define GFP_RECLAIM_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS|\
-@@ -149,14 +150,15 @@ struct vm_area_struct;
- /* Convert GFP flags to their corresponding migrate type */
- static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
+@@ -151,7 +151,7 @@ static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
  {
--	WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
-+	VM_WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
-+	BUILD_BUG_ON(1UL << GFP_MOVABLE_SHIFT != ___GFP_MOVABLE);
-+	BUILD_BUG_ON(___GFP_MOVABLE >> GFP_MOVABLE_SHIFT != MIGRATE_MOVABLE);
+ 	WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
  
- 	if (page_group_by_mobility_disabled())
+-	if (unlikely(page_group_by_mobility_disabled))
++	if (page_group_by_mobility_disabled())
  		return MIGRATE_UNMOVABLE;
  
  	/* Group based on mobility */
--	return (((gfp_flags & __GFP_MOVABLE) != 0) << 1) |
--		((gfp_flags & __GFP_RECLAIMABLE) != 0);
-+	return (gfp_flags & GFP_MOVABLE_MASK) >> GFP_MOVABLE_SHIFT;
- }
- 
- #ifdef CONFIG_HIGHMEM
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index c9497519340a..3afd1ca2ca98 100644
+index 672ac437c43c..c9497519340a 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -37,8 +37,8 @@
+@@ -73,7 +73,12 @@ enum {
+ 	for (order = 0; order < MAX_ORDER; order++) \
+ 		for (type = 0; type < MIGRATE_TYPES; type++)
  
- enum {
- 	MIGRATE_UNMOVABLE,
--	MIGRATE_RECLAIMABLE,
- 	MIGRATE_MOVABLE,
-+	MIGRATE_RECLAIMABLE,
- 	MIGRATE_PCPTYPES,	/* the number of types on the pcp lists */
- 	MIGRATE_RESERVE = MIGRATE_PCPTYPES,
- #ifdef CONFIG_CMA
+-extern int page_group_by_mobility_disabled;
++extern struct static_key page_group_by_mobility_key;
++
++static inline bool page_group_by_mobility_disabled(void)
++{
++	return static_key_false(&page_group_by_mobility_key);
++}
+ 
+ #define NR_MIGRATETYPE_BITS (PB_migrate_end - PB_migrate + 1)
+ #define MIGRATETYPE_MASK ((1UL << NR_MIGRATETYPE_BITS) - 1)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 56432b59b797..403cf31f8cf9 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -228,7 +228,7 @@ EXPORT_SYMBOL(nr_node_ids);
+ EXPORT_SYMBOL(nr_online_nodes);
+ #endif
+ 
+-int page_group_by_mobility_disabled __read_mostly;
++struct static_key page_group_by_mobility_key __read_mostly = STATIC_KEY_INIT_FALSE;
+ 
+ #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+ static inline void reset_deferred_meminit(pg_data_t *pgdat)
+@@ -303,8 +303,7 @@ static inline bool update_defer_init(pg_data_t *pgdat,
+ 
+ void set_pageblock_migratetype(struct page *page, int migratetype)
+ {
+-	if (unlikely(page_group_by_mobility_disabled &&
+-		     migratetype < MIGRATE_PCPTYPES))
++	if (page_group_by_mobility_disabled() && migratetype < MIGRATE_PCPTYPES)
+ 		migratetype = MIGRATE_UNMOVABLE;
+ 
+ 	set_pageblock_flags_group(page, (unsigned long)migratetype,
+@@ -1501,7 +1500,7 @@ static bool can_steal_fallback(unsigned int order, int start_mt)
+ 	if (order >= pageblock_order / 2 ||
+ 		start_mt == MIGRATE_RECLAIMABLE ||
+ 		start_mt == MIGRATE_UNMOVABLE ||
+-		page_group_by_mobility_disabled)
++		page_group_by_mobility_disabled())
+ 		return true;
+ 
+ 	return false;
+@@ -1530,7 +1529,7 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
+ 
+ 	/* Claim the whole block if over half of it is free */
+ 	if (pages >= (1 << (pageblock_order-1)) ||
+-			page_group_by_mobility_disabled)
++			page_group_by_mobility_disabled())
+ 		set_pageblock_migratetype(page, start_type);
+ }
+ 
+@@ -4156,15 +4155,13 @@ void __ref build_all_zonelists(pg_data_t *pgdat, struct zone *zone)
+ 	 * disabled and enable it later
+ 	 */
+ 	if (vm_total_pages < (pageblock_nr_pages * MIGRATE_TYPES))
+-		page_group_by_mobility_disabled = 1;
+-	else
+-		page_group_by_mobility_disabled = 0;
++		static_key_slow_inc(&page_group_by_mobility_key);
+ 
+ 	pr_info("Built %i zonelists in %s order, mobility grouping %s.  "
+ 		"Total pages: %ld\n",
+ 			nr_online_nodes,
+ 			zonelist_order_name[current_zonelist_order],
+-			page_group_by_mobility_disabled ? "off" : "on",
++			page_group_by_mobility_disabled() ? "off" : "on",
+ 			vm_total_pages);
+ #ifdef CONFIG_NUMA
+ 	pr_info("Policy zone: %s\n", zone_names[policy_zone]);
 -- 
 2.4.3
 
