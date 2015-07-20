@@ -1,78 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 029D49003C7
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 07:54:16 -0400 (EDT)
-Received: by pacan13 with SMTP id an13so101437423pac.1
-        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 04:54:15 -0700 (PDT)
-Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com. [2607:f8b0:400e:c02::22e])
-        by mx.google.com with ESMTPS id dt1si35537664pdb.120.2015.07.20.04.54.15
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Jul 2015 04:54:15 -0700 (PDT)
-Received: by pdbnt7 with SMTP id nt7so29992748pdb.0
-        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 04:54:14 -0700 (PDT)
-Date: Mon, 20 Jul 2015 20:54:13 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 2/2] mm/page_owner: set correct gfp_mask on page_owner
-Message-ID: <20150720115352.GA13474@bgram>
-References: <1436942039-16897-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1436942039-16897-2-git-send-email-iamjoonsoo.kim@lge.com>
- <20150716000613.GE988@bgram>
- <55ACDB3B.8010607@suse.cz>
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A1439003C7
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 10:03:03 -0400 (EDT)
+Received: by igvi1 with SMTP id i1so77320600igv.1
+        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 07:03:03 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id h10si6079084iga.77.2015.07.20.07.03.01
+        for <linux-mm@kvack.org>;
+        Mon, 20 Jul 2015 07:03:02 -0700 (PDT)
+Date: Mon, 20 Jul 2015 22:01:11 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [mminit] [ INFO: possible recursive locking detected ]
+Message-ID: <20150720140111.GA4715@wfg-t540p.sh.intel.com>
+References: <20150714000910.GA8160@wfg-t540p.sh.intel.com>
+ <20150714103108.GA6812@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <55ACDB3B.8010607@suse.cz>
+In-Reply-To: <20150714103108.GA6812@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, peterz@infradead.org, nicstange@gmail.com, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, LKP <lkp@01.org>
 
-On Mon, Jul 20, 2015 at 01:27:55PM +0200, Vlastimil Babka wrote:
-> On 07/16/2015 02:06 AM, Minchan Kim wrote:
-> >On Wed, Jul 15, 2015 at 03:33:59PM +0900, Joonsoo Kim wrote:
-> >>@@ -2003,7 +2005,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
-> >>  	zone->free_area[order].nr_free--;
-> >>  	rmv_page_order(page);
-> >>
-> >>-	set_page_owner(page, order, 0);
-> >>+	set_page_owner(page, order, __GFP_MOVABLE);
-> >
-> >It seems the reason why  __GFP_MOVABLE is okay is that __isolate_free_page
-> >works on a free page on MIGRATE_MOVABLE|MIGRATE_CMA's pageblock. But if we
-> >break the assumption in future, here is broken again?
+Hi Mel,
+
+On Tue, Jul 14, 2015 at 11:31:08AM +0100, Mel Gorman wrote:
+> On Tue, Jul 14, 2015 at 08:09:10AM +0800, Fengguang Wu wrote:
+> > Greetings,
+> > 
+> > 0day kernel testing robot got the below dmesg and the first bad commit is
+> > 
+> > git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+> > 
 > 
-> I didn't study the page owner code yet and I'm catching up after
-> vacation, but I share your concern. But I don't think the
-> correctness depends on the pageblock we are isolating from. I think
-> the assumption is that the isolated freepage will be used as a
-> target for migration, and that only movable pages can be
-> successfully migrated (but also CMA pages, and that information can
-> be lost?). However there are also efforts to allow migrate e.g.
-> driver pages that won't be marked as movable. And I'm not sure which
-> migratetype are balloon pages which already have special migration
-> code.
+> Can you check if this patch addresses the problem please?
 
-I am one of people who want to migrate driver pages from compaction
-from zram point of view so I agree with you.
-However, If I make zram support migratepages, I will use __GFP_MOVABLE.
-So, I'm not sure there is any special driver that it can support migrate
-via migratepage but it doesn't set __GFP_MOVABLE.
+It works!
 
-Having said that, I support your opinion because __GFP_MOVABLE is not
-only gfp mask for allocating so we should take care of complete gfp
-mask from original page.
+Tested-by: Fengguang Wu <fengguang.wu@intel.com>
 
+Thanks,
+Fengguang
 
+> ---8<---
+> mm, meminit: replace rwsem with completion
 > 
-> So what I would think (without knowing all details) that the page
-> owner info should be transferred during page migration with all the
-> other flags, and shouldn't concern __isolate_free_page() at all?
+> From: Nicolai Stange <nicstange@gmail.com>
 > 
-
-I agree.
- 
-Thanks.
+> Commit 0e1cc95b4cc7 ("mm: meminit: finish initialisation of struct pages
+> before basic setup") introduced a rwsem to signal completion of the
+> initialization workers.
+> 
+> Lockdep complains about possible recursive locking:
+>   =============================================
+>   [ INFO: possible recursive locking detected ]
+>   4.1.0-12802-g1dc51b8 #3 Not tainted
+>   ---------------------------------------------
+>   swapper/0/1 is trying to acquire lock:
+>   (pgdat_init_rwsem){++++.+},
+>     at: [<ffffffff8424c7fb>] page_alloc_init_late+0xc7/0xe6
+> 
+>   but task is already holding lock:
+>   (pgdat_init_rwsem){++++.+},
+>     at: [<ffffffff8424c772>] page_alloc_init_late+0x3e/0xe6
+> 
+> Replace the rwsem by a completion together with an atomic
+> "outstanding work counter".
+> 
+> [peterz@infradead.org: Barrier removal on the grounds of being pointless]
+> [mgorman@suse.de: Applied review feedback]
+> Signed-off-by: Nicolai Stange <nicstange@gmail.com>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> ---
+>  mm/page_alloc.c | 22 +++++++++++++++-------
+>  1 file changed, 15 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 506eac8b38af..a69e78c396a0 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -18,7 +18,6 @@
+>  #include <linux/mm.h>
+>  #include <linux/swap.h>
+>  #include <linux/interrupt.h>
+> -#include <linux/rwsem.h>
+>  #include <linux/pagemap.h>
+>  #include <linux/jiffies.h>
+>  #include <linux/bootmem.h>
+> @@ -1062,7 +1061,15 @@ static void __init deferred_free_range(struct page *page,
+>  		__free_pages_boot_core(page, pfn, 0);
+>  }
+>  
+> -static __initdata DECLARE_RWSEM(pgdat_init_rwsem);
+> +/* Completion tracking for deferred_init_memmap() threads */
+> +static atomic_t pgdat_init_n_undone __initdata;
+> +static __initdata DECLARE_COMPLETION(pgdat_init_all_done_comp);
+> +
+> +static inline void __init pgdat_init_report_one_done(void)
+> +{
+> +	if (atomic_dec_and_test(&pgdat_init_n_undone))
+> +		complete(&pgdat_init_all_done_comp);
+> +}
+>  
+>  /* Initialise remaining memory on a node */
+>  static int __init deferred_init_memmap(void *data)
+> @@ -1079,7 +1086,7 @@ static int __init deferred_init_memmap(void *data)
+>  	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
+>  
+>  	if (first_init_pfn == ULONG_MAX) {
+> -		up_read(&pgdat_init_rwsem);
+> +		pgdat_init_report_one_done();
+>  		return 0;
+>  	}
+>  
+> @@ -1179,7 +1186,8 @@ free_range:
+>  
+>  	pr_info("node %d initialised, %lu pages in %ums\n", nid, nr_pages,
+>  					jiffies_to_msecs(jiffies - start));
+> -	up_read(&pgdat_init_rwsem);
+> +
+> +	pgdat_init_report_one_done();
+>  	return 0;
+>  }
+>  
+> @@ -1187,14 +1195,14 @@ void __init page_alloc_init_late(void)
+>  {
+>  	int nid;
+>  
+> +	/* There will be num_node_state(N_MEMORY) threads */
+> +	atomic_set(&pgdat_init_n_undone, num_node_state(N_MEMORY));
+>  	for_each_node_state(nid, N_MEMORY) {
+> -		down_read(&pgdat_init_rwsem);
+>  		kthread_run(deferred_init_memmap, NODE_DATA(nid), "pgdatinit%d", nid);
+>  	}
+>  
+>  	/* Block until all are initialised */
+> -	down_write(&pgdat_init_rwsem);
+> -	up_write(&pgdat_init_rwsem);
+> +	wait_for_completion(&pgdat_init_all_done_comp);
+>  }
+>  #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
