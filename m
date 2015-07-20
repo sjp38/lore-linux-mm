@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B296280266
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 10:29:23 -0400 (EDT)
-Received: by igr7 with SMTP id 7so14864370igr.0
-        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 07:29:23 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id c7si36291879pdn.193.2015.07.20.07.21.28
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
+	by kanga.kvack.org (Postfix) with ESMTP id B513A280266
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 10:29:37 -0400 (EDT)
+Received: by obdeg2 with SMTP id eg2so6581735obd.0
+        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 07:29:37 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id qp5si36269530pab.241.2015.07.20.07.21.30
         for <linux-mm@kvack.org>;
-        Mon, 20 Jul 2015 07:21:28 -0700 (PDT)
+        Mon, 20 Jul 2015 07:21:31 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9 18/36] arm, thp: remove infrastructure for handling splitting PMDs
-Date: Mon, 20 Jul 2015 17:20:51 +0300
-Message-Id: <1437402069-105900-19-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9 33/36] migrate_pages: try to split pages on qeueuing
+Date: Mon, 20 Jul 2015 17:21:06 +0300
+Message-Id: <1437402069-105900-34-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1437402069-105900-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1437402069-105900-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,98 +19,74 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With new refcounting we don't need to mark PMDs splitting. Let's drop
-code to handle this.
-
-pmdp_splitting_flush() is not needed too: on splitting PMD we will do
-pmdp_clear_flush() + set_pte_at(). pmdp_clear_flush() will do IPI as
-needed for fast_gup.
+We are not able to migrate THPs. It means it's not enough to split only
+PMD on migration -- we need to split compound page under it too.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/arm/include/asm/pgtable-3level.h | 10 ----------
- arch/arm/lib/uaccess_with_memcpy.c    |  5 ++---
- arch/arm/mm/flush.c                   | 15 ---------------
- 3 files changed, 2 insertions(+), 28 deletions(-)
+ mm/mempolicy.c | 37 +++++++++++++++++++++++++++++++++----
+ 1 file changed, 33 insertions(+), 4 deletions(-)
 
-diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
-index 6d6012a320b2..d42f81f13618 100644
---- a/arch/arm/include/asm/pgtable-3level.h
-+++ b/arch/arm/include/asm/pgtable-3level.h
-@@ -88,7 +88,6 @@
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index b6122c0f613d..f815d7dfd4ad 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -489,14 +489,31 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+ 	struct page *page;
+ 	struct queue_pages *qp = walk->private;
+ 	unsigned long flags = qp->flags;
+-	int nid;
++	int nid, ret;
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
  
- #define L_PMD_SECT_VALID	(_AT(pmdval_t, 1) << 0)
- #define L_PMD_SECT_DIRTY	(_AT(pmdval_t, 1) << 55)
--#define L_PMD_SECT_SPLITTING	(_AT(pmdval_t, 1) << 56)
- #define L_PMD_SECT_NONE		(_AT(pmdval_t, 1) << 57)
- #define L_PMD_SECT_RDONLY	(_AT(pteval_t, 1) << 58)
+-	split_huge_pmd(vma, pmd, addr);
+-	if (pmd_trans_unstable(pmd))
+-		return 0;
++	if (pmd_trans_huge(*pmd)) {
++		ptl = pmd_lock(walk->mm, pmd);
++		if (pmd_trans_huge(*pmd)) {
++			page = pmd_page(*pmd);
++			if (is_huge_zero_page(page)) {
++				spin_unlock(ptl);
++				split_huge_pmd(vma, pmd, addr);
++			} else {
++				get_page(page);
++				spin_unlock(ptl);
++				lock_page(page);
++				ret = split_huge_page(page);
++				unlock_page(page);
++				put_page(page);
++				if (ret)
++					return 0;
++			}
++		}
++	}
  
-@@ -232,21 +231,12 @@ static inline pte_t pte_mkspecial(pte_t pte)
++retry:
+ 	pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
+ 	for (; addr != end; pte++, addr += PAGE_SIZE) {
+ 		if (!pte_present(*pte))
+@@ -513,6 +530,18 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+ 		nid = page_to_nid(page);
+ 		if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
+ 			continue;
++		if (PageTail(page) && PageAnon(page)) {
++			get_page(page);
++			pte_unmap_unlock(pte - 1, ptl);
++			lock_page(page);
++			ret = split_huge_page(page);
++			unlock_page(page);
++			put_page(page);
++			/* Failed to split -- skip. */
++			if (ret)
++				continue;
++			goto retry;
++		}
  
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- #define pmd_trans_huge(pmd)	(pmd_val(pmd) && !pmd_table(pmd))
--#define pmd_trans_splitting(pmd) (pmd_isset((pmd), L_PMD_SECT_SPLITTING))
--
--#ifdef CONFIG_HAVE_RCU_TABLE_FREE
--#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
--void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
--			  pmd_t *pmdp);
--#endif
--#endif
- 
- #define PMD_BIT_FUNC(fn,op) \
- static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
- 
- PMD_BIT_FUNC(wrprotect,	|= L_PMD_SECT_RDONLY);
- PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
--PMD_BIT_FUNC(mksplitting, |= L_PMD_SECT_SPLITTING);
- PMD_BIT_FUNC(mkwrite,   &= ~L_PMD_SECT_RDONLY);
- PMD_BIT_FUNC(mkdirty,   |= L_PMD_SECT_DIRTY);
- PMD_BIT_FUNC(mkclean,   &= ~L_PMD_SECT_DIRTY);
-diff --git a/arch/arm/lib/uaccess_with_memcpy.c b/arch/arm/lib/uaccess_with_memcpy.c
-index 3e58d710013c..11af98f46f05 100644
---- a/arch/arm/lib/uaccess_with_memcpy.c
-+++ b/arch/arm/lib/uaccess_with_memcpy.c
-@@ -52,14 +52,13 @@ pin_page_for_write(const void __user *_addr, pte_t **ptep, spinlock_t **ptlp)
- 	 *
- 	 * Lock the page table for the destination and check
- 	 * to see that it's still huge and whether or not we will
--	 * need to fault on write, or if we have a splitting THP.
-+	 * need to fault on write.
- 	 */
- 	if (unlikely(pmd_thp_or_huge(*pmd))) {
- 		ptl = &current->mm->page_table_lock;
- 		spin_lock(ptl);
- 		if (unlikely(!pmd_thp_or_huge(*pmd)
--			|| pmd_hugewillfault(*pmd)
--			|| pmd_trans_splitting(*pmd))) {
-+			|| pmd_hugewillfault(*pmd))) {
- 			spin_unlock(ptl);
- 			return 0;
- 		}
-diff --git a/arch/arm/mm/flush.c b/arch/arm/mm/flush.c
-index 34b66af516ea..77f229302032 100644
---- a/arch/arm/mm/flush.c
-+++ b/arch/arm/mm/flush.c
-@@ -400,18 +400,3 @@ void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned l
- 	 */
- 	__cpuc_flush_dcache_area(page_address(page), PAGE_SIZE);
- }
--
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
--#ifdef CONFIG_HAVE_RCU_TABLE_FREE
--void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
--			  pmd_t *pmdp)
--{
--	pmd_t pmd = pmd_mksplitting(*pmdp);
--	VM_BUG_ON(address & ~PMD_MASK);
--	set_pmd_at(vma->vm_mm, address, pmdp, pmd);
--
--	/* dummy IPI to serialise against fast_gup */
--	kick_all_cpus_sync();
--}
--#endif /* CONFIG_HAVE_RCU_TABLE_FREE */
--#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+ 			migrate_page_add(page, qp->pagelist, flags);
 -- 
 2.1.4
 
