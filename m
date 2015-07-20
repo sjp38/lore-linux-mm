@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D06D09003C7
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 04:00:45 -0400 (EDT)
-Received: by wgbcc4 with SMTP id cc4so30877744wgb.3
-        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 01:00:45 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id fu7si11983729wib.72.2015.07.20.01.00.25
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F37C9003C7
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 04:00:48 -0400 (EDT)
+Received: by wibxm9 with SMTP id xm9so84487330wib.0
+        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 01:00:47 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id n7si33834415wjb.50.2015.07.20.01.00.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 20 Jul 2015 01:00:26 -0700 (PDT)
+        Mon, 20 Jul 2015 01:00:24 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 75A2A98624
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 08:00:25 +0000 (UTC)
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 1B88C98B57
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 08:00:23 +0000 (UTC)
 From: Mel Gorman <mgorman@suse.com>
-Subject: [PATCH 10/10] mm, page_alloc: Only enforce watermarks for order-0 allocations
-Date: Mon, 20 Jul 2015 09:00:19 +0100
-Message-Id: <1437379219-9160-11-git-send-email-mgorman@suse.com>
+Subject: [PATCH 05/10] mm, page_alloc: Remove unnecessary updating of GFP flags during normal operation
+Date: Mon, 20 Jul 2015 09:00:14 +0100
+Message-Id: <1437379219-9160-6-git-send-email-mgorman@suse.com>
 In-Reply-To: <1437379219-9160-1-git-send-email-mgorman@suse.com>
 References: <1437379219-9160-1-git-send-email-mgorman@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,121 +25,214 @@ Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlasti
 
 From: Mel Gorman <mgorman@suse.de>
 
-The primary purpose of watermarks is to ensure that reclaim can always
-make forward progress in PF_MEMALLOC context (kswapd and direct reclaim).
-These assume that order-0 allocations are all that is necessary for
-forward progress.
-
-High-order watermarks serve a different purpose. Kswapd had no high-order
-awareness before they were introduced (https://lkml.org/lkml/2004/9/5/9).
-This was particularly important when there were high-order atomic requests.
-The watermarks both gave kswapd awareness and made a reserve for those
-atomic requests.
-
-There are two important side-effects of this. The most important is that
-a non-atomic high-order request can fail even though free pages are available
-and the order-0 watermarks are ok. The second is that high-order watermark
-checks are expensive as the free list counts up to the requested order must
-be examined.
-
-With the introduction of MIGRATE_HIGHATOMIC it is no longer necessary to
-have high-order watermarks. Kswapd and compaction still need high-order
-awareness which is handled by checking that at least one suitable high-order
-page is free.
-
-In kernel 4.2-rc1 running this workload on a single-node machine there
-were 339574 allocation failures. With HighAtomic reserves, it drops to
-28798 failures. With this patch applied, it drops to 9567 failures --
-a 98% reduction compared to the vanilla kernel or 67% in comparison to
-having high atomic reserves with watermark checking.
-
-The one potential side-effect of this is that in a vanilla kernel, the
-watermark checks may have kept a free page for an atomic allocation. Now,
-we are 100% relying on the HighAtomic reserves and an early allocation to
-have allocated them.  If the first high-order atomic allocation is after
-the system is already heavily fragmented then it'll fail.
+During boot and suspend there is a restriction on the allowed GFP
+flags. During boot it prevents blocking operations before the scheduler
+is active. During suspend it is to avoid IO operations when storage is
+unavailable. The restriction on the mask is applied in some allocator
+hot-paths during normal operation which is wasteful. Use jump labels
+to only update the GFP mask when it is restricted.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/page_alloc.c | 38 ++++++++++++++++++++++++--------------
- 1 file changed, 24 insertions(+), 14 deletions(-)
+ include/linux/gfp.h | 33 ++++++++++++++++++++++++++++-----
+ init/main.c         |  2 +-
+ mm/page_alloc.c     | 21 +++++++--------------
+ mm/slab.c           |  4 ++--
+ mm/slob.c           |  4 ++--
+ mm/slub.c           |  6 +++---
+ 6 files changed, 43 insertions(+), 27 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e5755390a5e5..e756df60dba6 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2250,8 +2250,10 @@ static inline bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
- #endif /* CONFIG_FAIL_PAGE_ALLOC */
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index ad35f300b9a4..6d3a2d430715 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -394,12 +394,35 @@ static inline void page_alloc_init_late(void)
  
  /*
-- * Return true if free pages are above 'mark'. This takes into account the order
-- * of the allocation.
-+ * Return true if free base pages are above 'mark'. For high-order checks it
-+ * will return true of the order-0 watermark is reached and there is at least
-+ * one free page of a suitable size. Checking now avoids taking the zone lock
-+ * to check in the allocation paths if no pages are free.
+  * gfp_allowed_mask is set to GFP_BOOT_MASK during early boot to restrict what
+- * GFP flags are used before interrupts are enabled. Once interrupts are
+- * enabled, it is set to __GFP_BITS_MASK while the system is running. During
+- * hibernation, it is used by PM to avoid I/O during memory allocation while
+- * devices are suspended.
++ * GFP flags are used before interrupts are enabled. During hibernation, it is
++ * used by PM to avoid I/O during memory allocation while devices are suspended.
   */
- static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- 			unsigned long mark, int classzone_idx, int alloc_flags,
-@@ -2259,7 +2261,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
+-extern gfp_t gfp_allowed_mask;
++extern gfp_t __gfp_allowed_mask;
++
++/* Only update the gfp_mask when it is restricted */
++extern struct static_key gfp_restricted_key;
++
++static inline gfp_t gfp_allowed_mask(gfp_t gfp_mask)
++{
++	if (static_key_false(&gfp_restricted_key))
++		return gfp_mask;
++
++	return gfp_mask & __gfp_allowed_mask;
++}
++
++static inline void unrestrict_gfp_allowed_mask(void)
++{
++	WARN_ON(!static_key_enabled(&gfp_restricted_key));
++	__gfp_allowed_mask = __GFP_BITS_MASK;
++	static_key_slow_dec(&gfp_restricted_key);
++}
++
++static inline void restrict_gfp_allowed_mask(gfp_t gfp_mask)
++{
++	WARN_ON(static_key_enabled(&gfp_restricted_key));
++	__gfp_allowed_mask = gfp_mask;
++	static_key_slow_inc(&gfp_restricted_key);
++}
+ 
+ /* Returns true if the gfp_mask allows use of ALLOC_NO_WATERMARK */
+ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask);
+diff --git a/init/main.c b/init/main.c
+index c5d5626289ce..7e3a227559c6 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -983,7 +983,7 @@ static noinline void __init kernel_init_freeable(void)
+ 	wait_for_completion(&kthreadd_done);
+ 
+ 	/* Now the scheduler is fully set up and can do blocking allocations */
+-	gfp_allowed_mask = __GFP_BITS_MASK;
++	unrestrict_gfp_allowed_mask();
+ 
+ 	/*
+ 	 * init can allocate pages on any node
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 7c2dc022f4ba..56432b59b797 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -124,7 +124,9 @@ unsigned long totalcma_pages __read_mostly;
+ unsigned long dirty_balance_reserve __read_mostly;
+ 
+ int percpu_pagelist_fraction;
+-gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
++
++gfp_t __gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
++struct static_key gfp_restricted_key __read_mostly = STATIC_KEY_INIT_TRUE;
+ 
+ #ifdef CONFIG_PM_SLEEP
+ /*
+@@ -136,30 +138,21 @@ gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
+  * guaranteed not to run in parallel with that modification).
+  */
+ 
+-static gfp_t saved_gfp_mask;
+-
+ void pm_restore_gfp_mask(void)
  {
- 	long min = mark;
- 	int o;
--	long free_cma = 0;
-+	const bool atomic = (alloc_flags & ALLOC_HARDER);
- 
- 	/* free_pages may go negative - that's OK */
- 	free_pages -= (1 << order) - 1;
-@@ -2271,7 +2273,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- 	 * If the caller is not atomic then discount the reserves. This will
- 	 * over-estimate how the atomic reserve but it avoids a search
- 	 */
--	if (likely(!(alloc_flags & ALLOC_HARDER)))
-+	if (likely(!atomic))
- 		free_pages -= z->nr_reserved_highatomic;
- 	else
- 		min -= min / 4;
-@@ -2279,22 +2281,30 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- #ifdef CONFIG_CMA
- 	/* If allocation can't use CMA areas don't use free CMA pages */
- 	if (!(alloc_flags & ALLOC_CMA))
--		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
-+		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
- #endif
- 
--	if (free_pages - free_cma <= min + z->lowmem_reserve[classzone_idx])
-+	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
- 		return false;
--	for (o = 0; o < order; o++) {
--		/* At the next order, this order's pages become unavailable */
--		free_pages -= z->free_area[o].nr_free << o;
- 
--		/* Require fewer higher order pages to be free */
--		min >>= 1;
-+	/* order-0 watermarks are ok */
-+	if (!order)
-+		return true;
-+
-+	/* Check at least one high-order page is free */
-+	for (o = order; o < MAX_ORDER; o++) {
-+		struct free_area *area = &z->free_area[o];
-+		int mt;
-+
-+		if (atomic && area->nr_free)
-+			return true;
- 
--		if (free_pages <= min)
--			return false;
-+		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
-+			if (!list_empty(&area->free_list[mt]))
-+				return true;
-+		}
- 	}
--	return true;
-+	return false;
+ 	WARN_ON(!mutex_is_locked(&pm_mutex));
+-	if (saved_gfp_mask) {
+-		gfp_allowed_mask = saved_gfp_mask;
+-		saved_gfp_mask = 0;
+-	}
++	unrestrict_gfp_allowed_mask();
  }
  
- bool zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+ void pm_restrict_gfp_mask(void)
+ {
+ 	WARN_ON(!mutex_is_locked(&pm_mutex));
+-	WARN_ON(saved_gfp_mask);
+-	saved_gfp_mask = gfp_allowed_mask;
+-	gfp_allowed_mask &= ~GFP_IOFS;
++	restrict_gfp_allowed_mask(__GFP_BITS_MASK & ~GFP_IOFS);
+ }
+ 
+ bool pm_suspended_storage(void)
+ {
+-	if ((gfp_allowed_mask & GFP_IOFS) == GFP_IOFS)
+-		return false;
+-	return true;
++	return static_key_enabled(&gfp_restricted_key);
+ }
+ #endif /* CONFIG_PM_SLEEP */
+ 
+@@ -2968,7 +2961,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 		.migratetype = gfpflags_to_migratetype(gfp_mask),
+ 	};
+ 
+-	gfp_mask &= gfp_allowed_mask;
++	gfp_mask = gfp_allowed_mask(gfp_mask);
+ 
+ 	lockdep_trace_alloc(gfp_mask);
+ 
+diff --git a/mm/slab.c b/mm/slab.c
+index 200e22412a16..2c715b8c88f7 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3151,7 +3151,7 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
+ 	void *ptr;
+ 	int slab_node = numa_mem_id();
+ 
+-	flags &= gfp_allowed_mask;
++	flags = gfp_allowed_mask(flags);
+ 
+ 	lockdep_trace_alloc(flags);
+ 
+@@ -3239,7 +3239,7 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
+ 	unsigned long save_flags;
+ 	void *objp;
+ 
+-	flags &= gfp_allowed_mask;
++	flags = gfp_allowed_mask(flags);
+ 
+ 	lockdep_trace_alloc(flags);
+ 
+diff --git a/mm/slob.c b/mm/slob.c
+index 4765f65019c7..23dbdac87fcb 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -430,7 +430,7 @@ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
+ 	int align = max_t(size_t, ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+ 	void *ret;
+ 
+-	gfp &= gfp_allowed_mask;
++	gfp = gfp_allowed_mask(gfp);
+ 
+ 	lockdep_trace_alloc(gfp);
+ 
+@@ -536,7 +536,7 @@ static void *slob_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+ {
+ 	void *b;
+ 
+-	flags &= gfp_allowed_mask;
++	flags = gfp_allowed_mask(flags);
+ 
+ 	lockdep_trace_alloc(flags);
+ 
+diff --git a/mm/slub.c b/mm/slub.c
+index 816df0016555..9eb79f7a48ba 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1261,7 +1261,7 @@ static inline void kfree_hook(const void *x)
+ static inline struct kmem_cache *slab_pre_alloc_hook(struct kmem_cache *s,
+ 						     gfp_t flags)
+ {
+-	flags &= gfp_allowed_mask;
++	flags = gfp_allowed_mask(flags);
+ 	lockdep_trace_alloc(flags);
+ 	might_sleep_if(flags & __GFP_WAIT);
+ 
+@@ -1274,7 +1274,7 @@ static inline struct kmem_cache *slab_pre_alloc_hook(struct kmem_cache *s,
+ static inline void slab_post_alloc_hook(struct kmem_cache *s,
+ 					gfp_t flags, void *object)
+ {
+-	flags &= gfp_allowed_mask;
++	flags = gfp_allowed_mask(flags);
+ 	kmemcheck_slab_alloc(s, flags, object, slab_ksize(s));
+ 	kmemleak_alloc_recursive(object, s->object_size, 1, s->flags, flags);
+ 	memcg_kmem_put_cache(s);
+@@ -1337,7 +1337,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 	struct kmem_cache_order_objects oo = s->oo;
+ 	gfp_t alloc_gfp;
+ 
+-	flags &= gfp_allowed_mask;
++	flags = gfp_allowed_mask(flags);
+ 
+ 	if (flags & __GFP_WAIT)
+ 		local_irq_enable();
 -- 
 2.4.3
 
