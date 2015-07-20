@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id ECFD9280256
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 10:21:44 -0400 (EDT)
-Received: by pdbnt7 with SMTP id nt7so31626242pdb.0
-        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 07:21:44 -0700 (PDT)
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BF2B280256
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 10:21:47 -0400 (EDT)
+Received: by pdjr16 with SMTP id r16so104388694pdj.3
+        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 07:21:47 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id c7si36291879pdn.193.2015.07.20.07.21.24
+        by mx.google.com with ESMTP id c7si36291879pdn.193.2015.07.20.07.21.23
         for <linux-mm@kvack.org>;
         Mon, 20 Jul 2015 07:21:24 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9 14/36] futex, thp: remove special case for THP in get_futex_key
-Date: Mon, 20 Jul 2015 17:20:47 +0300
-Message-Id: <1437402069-105900-15-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9 05/36] mm: adjust FOLL_SPLIT for new refcounting
+Date: Mon, 20 Jul 2015 17:20:38 +0300
+Message-Id: <1437402069-105900-6-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1437402069-105900-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1437402069-105900-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,126 +19,108 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With new THP refcounting, we don't need tricks to stabilize huge page.
-If we've got reference to tail page, it can't split under us.
+We need to prepare kernel to allow transhuge pages to be mapped with
+ptes too. We need to handle FOLL_SPLIT in follow_page_pte().
 
-This patch effectively reverts a5b338f2b0b1.
+Also we use split_huge_page() directly instead of split_huge_page_pmd().
+split_huge_page_pmd() will gone.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Tested-by: Sasha Levin <sasha.levin@oracle.com>
 Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- kernel/futex.c | 61 ++++++++++++----------------------------------------------
- 1 file changed, 12 insertions(+), 49 deletions(-)
+ mm/gup.c | 67 +++++++++++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 49 insertions(+), 18 deletions(-)
 
-diff --git a/kernel/futex.c b/kernel/futex.c
-index 2579e407ff67..2c7cec27058b 100644
---- a/kernel/futex.c
-+++ b/kernel/futex.c
-@@ -399,7 +399,7 @@ get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key, int rw)
- {
- 	unsigned long address = (unsigned long)uaddr;
- 	struct mm_struct *mm = current->mm;
--	struct page *page, *page_head;
-+	struct page *page;
- 	int err, ro = 0;
- 
- 	/*
-@@ -442,46 +442,9 @@ again:
- 	else
- 		err = 0;
- 
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
--	page_head = page;
--	if (unlikely(PageTail(page))) {
--		put_page(page);
--		/* serialize against __split_huge_page_splitting() */
--		local_irq_disable();
--		if (likely(__get_user_pages_fast(address, 1, !ro, &page) == 1)) {
--			page_head = compound_head(page);
--			/*
--			 * page_head is valid pointer but we must pin
--			 * it before taking the PG_lock and/or
--			 * PG_compound_lock. The moment we re-enable
--			 * irqs __split_huge_page_splitting() can
--			 * return and the head page can be freed from
--			 * under us. We can't take the PG_lock and/or
--			 * PG_compound_lock on a page that could be
--			 * freed from under us.
--			 */
--			if (page != page_head) {
--				get_page(page_head);
--				put_page(page);
--			}
--			local_irq_enable();
--		} else {
--			local_irq_enable();
--			goto again;
--		}
--	}
--#else
--	page_head = compound_head(page);
--	if (page != page_head) {
--		get_page(page_head);
--		put_page(page);
--	}
--#endif
--
--	lock_page(page_head);
--
-+	lock_page(page);
- 	/*
--	 * If page_head->mapping is NULL, then it cannot be a PageAnon
-+	 * If page->mapping is NULL, then it cannot be a PageAnon
- 	 * page; but it might be the ZERO_PAGE or in the gate area or
- 	 * in a special mapping (all cases which we are happy to fail);
- 	 * or it may have been a good file page when get_user_pages_fast
-@@ -493,12 +456,12 @@ again:
- 	 *
- 	 * The case we do have to guard against is when memory pressure made
- 	 * shmem_writepage move it from filecache to swapcache beneath us:
--	 * an unlikely race, but we do need to retry for page_head->mapping.
-+	 * an unlikely race, but we do need to retry for page->mapping.
- 	 */
--	if (!page_head->mapping) {
--		int shmem_swizzled = PageSwapCache(page_head);
--		unlock_page(page_head);
--		put_page(page_head);
-+	if (!page->mapping) {
-+		int shmem_swizzled = PageSwapCache(page);
-+		unlock_page(page);
-+		put_page(page);
- 		if (shmem_swizzled)
- 			goto again;
- 		return -EFAULT;
-@@ -511,7 +474,7 @@ again:
- 	 * it's a read-only handle, it's expected that futexes attach to
- 	 * the object not the particular process.
- 	 */
--	if (PageAnon(page_head)) {
-+	if (PageAnon(page)) {
- 		/*
- 		 * A RO anonymous page will never change and thus doesn't make
- 		 * sense for futex operations.
-@@ -526,15 +489,15 @@ again:
- 		key->private.address = address;
- 	} else {
- 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
--		key->shared.inode = page_head->mapping->host;
-+		key->shared.inode = page->mapping->host;
- 		key->shared.pgoff = basepage_index(page);
+diff --git a/mm/gup.c b/mm/gup.c
+index fca048cde973..55c87b16289b 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -114,6 +114,19 @@ retry:
+ 		}
  	}
  
- 	get_futex_key_refs(key); /* implies MB (B) */
- 
- out:
--	unlock_page(page_head);
--	put_page(page_head);
-+	unlock_page(page);
-+	put_page(page);
- 	return err;
++	if (flags & FOLL_SPLIT && PageTransCompound(page)) {
++		int ret;
++		get_page(page);
++		pte_unmap_unlock(ptep, ptl);
++		lock_page(page);
++		ret = split_huge_page(page);
++		unlock_page(page);
++		put_page(page);
++		if (ret)
++			return ERR_PTR(ret);
++		goto retry;
++	}
++
+ 	if (flags & FOLL_GET)
+ 		get_page_foll(page);
+ 	if (flags & FOLL_TOUCH) {
+@@ -218,27 +231,45 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
+ 	}
+ 	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
+ 		return no_page_table(vma, flags);
+-	if (pmd_trans_huge(*pmd)) {
+-		if (flags & FOLL_SPLIT) {
++	if (likely(!pmd_trans_huge(*pmd)))
++		return follow_page_pte(vma, address, pmd, flags);
++
++	ptl = pmd_lock(mm, pmd);
++	if (unlikely(!pmd_trans_huge(*pmd))) {
++		spin_unlock(ptl);
++		return follow_page_pte(vma, address, pmd, flags);
++	}
++
++	if (unlikely(pmd_trans_splitting(*pmd))) {
++		spin_unlock(ptl);
++		wait_split_huge_page(vma->anon_vma, pmd);
++		return follow_page_pte(vma, address, pmd, flags);
++	}
++
++	if (flags & FOLL_SPLIT) {
++		int ret;
++		page = pmd_page(*pmd);
++		if (is_huge_zero_page(page)) {
++			spin_unlock(ptl);
++			ret = 0;
+ 			split_huge_page_pmd(vma, address, pmd);
+-			return follow_page_pte(vma, address, pmd, flags);
+-		}
+-		ptl = pmd_lock(mm, pmd);
+-		if (likely(pmd_trans_huge(*pmd))) {
+-			if (unlikely(pmd_trans_splitting(*pmd))) {
+-				spin_unlock(ptl);
+-				wait_split_huge_page(vma->anon_vma, pmd);
+-			} else {
+-				page = follow_trans_huge_pmd(vma, address,
+-							     pmd, flags);
+-				spin_unlock(ptl);
+-				*page_mask = HPAGE_PMD_NR - 1;
+-				return page;
+-			}
+-		} else
++		} else {
++			get_page(page);
+ 			spin_unlock(ptl);
++			lock_page(page);
++			ret = split_huge_page(page);
++			unlock_page(page);
++			put_page(page);
++		}
++
++		return ret ? ERR_PTR(ret) :
++			follow_page_pte(vma, address, pmd, flags);
+ 	}
+-	return follow_page_pte(vma, address, pmd, flags);
++
++	page = follow_trans_huge_pmd(vma, address, pmd, flags);
++	spin_unlock(ptl);
++	*page_mask = HPAGE_PMD_NR - 1;
++	return page;
  }
  
+ static int get_gate_page(struct mm_struct *mm, unsigned long address,
 -- 
 2.1.4
 
