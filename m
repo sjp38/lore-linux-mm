@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id B513A280266
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 10:29:37 -0400 (EDT)
-Received: by obdeg2 with SMTP id eg2so6581735obd.0
-        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 07:29:37 -0700 (PDT)
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id AA6BE280266
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 10:29:44 -0400 (EDT)
+Received: by obbop1 with SMTP id op1so102402048obb.2
+        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 07:29:44 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id qp5si36269530pab.241.2015.07.20.07.21.30
+        by mx.google.com with ESMTP id ng15si36317183pdb.208.2015.07.20.07.21.27
         for <linux-mm@kvack.org>;
-        Mon, 20 Jul 2015 07:21:31 -0700 (PDT)
+        Mon, 20 Jul 2015 07:21:28 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9 33/36] migrate_pages: try to split pages on qeueuing
-Date: Mon, 20 Jul 2015 17:21:06 +0300
-Message-Id: <1437402069-105900-34-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9 30/36] thp: add option to setup migration entiries during PMD split
+Date: Mon, 20 Jul 2015 17:21:03 +0300
+Message-Id: <1437402069-105900-31-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1437402069-105900-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1437402069-105900-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,74 +19,74 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We are not able to migrate THPs. It means it's not enough to split only
-PMD on migration -- we need to split compound page under it too.
+We are going to use migration PTE entires to stabilize page counts.
+If the page is mapped with PMDs we need to split the PMD and setup
+migration enties. It's reasonable to combine these operations to avoid
+double-scanning over the page table.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Tested-by: Sasha Levin <sasha.levin@oracle.com>
 Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/mempolicy.c | 37 +++++++++++++++++++++++++++++++++----
- 1 file changed, 33 insertions(+), 4 deletions(-)
+ mm/huge_memory.c | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index b6122c0f613d..f815d7dfd4ad 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -489,14 +489,31 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 1f7a7288ffa3..103fa12cf3a4 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -25,6 +25,7 @@
+ #include <linux/migrate.h>
+ #include <linux/hashtable.h>
+ #include <linux/userfaultfd_k.h>
++#include <linux/swapops.h>
+ 
+ #include <asm/tlb.h>
+ #include <asm/pgalloc.h>
+@@ -2628,7 +2629,7 @@ static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
+ }
+ 
+ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+-		unsigned long haddr)
++		unsigned long haddr, bool freeze)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
  	struct page *page;
- 	struct queue_pages *qp = walk->private;
- 	unsigned long flags = qp->flags;
--	int nid;
-+	int nid, ret;
- 	pte_t *pte;
- 	spinlock_t *ptl;
- 
--	split_huge_pmd(vma, pmd, addr);
--	if (pmd_trans_unstable(pmd))
--		return 0;
-+	if (pmd_trans_huge(*pmd)) {
-+		ptl = pmd_lock(walk->mm, pmd);
-+		if (pmd_trans_huge(*pmd)) {
-+			page = pmd_page(*pmd);
-+			if (is_huge_zero_page(page)) {
-+				spin_unlock(ptl);
-+				split_huge_pmd(vma, pmd, addr);
-+			} else {
-+				get_page(page);
-+				spin_unlock(ptl);
-+				lock_page(page);
-+				ret = split_huge_page(page);
-+				unlock_page(page);
-+				put_page(page);
-+				if (ret)
-+					return 0;
-+			}
+@@ -2670,12 +2671,18 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 		 * transferred to avoid any possibility of altering
+ 		 * permissions across VMAs.
+ 		 */
+-		entry = mk_pte(page + i, vma->vm_page_prot);
+-		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+-		if (!write)
+-			entry = pte_wrprotect(entry);
+-		if (!young)
+-			entry = pte_mkold(entry);
++		if (freeze) {
++			swp_entry_t swp_entry;
++			swp_entry = make_migration_entry(page + i, write);
++			entry = swp_entry_to_pte(swp_entry);
++		} else {
++			entry = mk_pte(page + i, vma->vm_page_prot);
++			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
++			if (!write)
++				entry = pte_wrprotect(entry);
++			if (!young)
++				entry = pte_mkold(entry);
 +		}
-+	}
- 
-+retry:
- 	pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
- 	for (; addr != end; pte++, addr += PAGE_SIZE) {
- 		if (!pte_present(*pte))
-@@ -513,6 +530,18 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
- 		nid = page_to_nid(page);
- 		if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
- 			continue;
-+		if (PageTail(page) && PageAnon(page)) {
-+			get_page(page);
-+			pte_unmap_unlock(pte - 1, ptl);
-+			lock_page(page);
-+			ret = split_huge_page(page);
-+			unlock_page(page);
-+			put_page(page);
-+			/* Failed to split -- skip. */
-+			if (ret)
-+				continue;
-+			goto retry;
-+		}
- 
- 		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
- 			migrate_page_add(page, qp->pagelist, flags);
+ 		pte = pte_offset_map(&_pmd, haddr);
+ 		BUG_ON(!pte_none(*pte));
+ 		set_pte_at(mm, haddr, pte, entry);
+@@ -2716,7 +2723,7 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 	mmu_notifier_invalidate_range_start(mm, haddr, haddr + HPAGE_PMD_SIZE);
+ 	ptl = pmd_lock(mm, pmd);
+ 	if (likely(pmd_trans_huge(*pmd)))
+-		__split_huge_pmd_locked(vma, pmd, haddr);
++		__split_huge_pmd_locked(vma, pmd, haddr, false);
+ 	spin_unlock(ptl);
+ 	mmu_notifier_invalidate_range_end(mm, haddr, haddr + HPAGE_PMD_SIZE);
+ }
 -- 
 2.1.4
 
