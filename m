@@ -1,35 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CD269003C7
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 11:35:04 -0400 (EDT)
-Received: by oige126 with SMTP id e126so110959197oig.0
-        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 08:35:04 -0700 (PDT)
-Received: from resqmta-po-11v.sys.comcast.net (resqmta-po-11v.sys.comcast.net. [2001:558:fe16:19:96:114:154:170])
-        by mx.google.com with ESMTPS id m4si17329211icp.1.2015.07.20.08.35.03
+Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C98A9003C7
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 11:37:39 -0400 (EDT)
+Received: by qkdv3 with SMTP id v3so114374216qkd.3
+        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 08:37:39 -0700 (PDT)
+Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
+        by mx.google.com with ESMTPS id z65si24558621qhd.115.2015.07.20.08.37.37
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 20 Jul 2015 08:35:03 -0700 (PDT)
-Date: Mon, 20 Jul 2015 10:35:02 -0500 (CDT)
+        Mon, 20 Jul 2015 08:37:38 -0700 (PDT)
+Date: Mon, 20 Jul 2015 10:37:37 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 3/3] percpu: add macro PCPU_CHUNK_AREA_IN_USE
-In-Reply-To: <1437404130-5188-3-git-send-email-bhe@redhat.com>
-Message-ID: <alpine.DEB.2.11.1507201034210.14535@east.gentwo.org>
-References: <1437404130-5188-1-git-send-email-bhe@redhat.com> <1437404130-5188-3-git-send-email-bhe@redhat.com>
+Subject: Re: [PATCH v2] mm/slub: allow merging when SLAB_DEBUG_FREE is set
+In-Reply-To: <20150720152913.14239.69304.stgit@buzz>
+Message-ID: <alpine.DEB.2.11.1507201037220.15495@east.gentwo.org>
+References: <20150720152913.14239.69304.stgit@buzz>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: tj@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Mon, 20 Jul 2015, Baoquan He wrote:
+On Mon, 20 Jul 2015, Konstantin Khlebnikov wrote:
 
-> chunk->map[] contains <offset|in-use flag> of each area. Now add a
-> new macro PCPU_CHUNK_AREA_IN_USE and use it as the in-use flag to
-> replace all magic number '1'.
+> This patch fixes creation of new kmem-caches after enabling sanity_checks
+> for existing mergeable kmem-caches in runtime: before that patch creation
+> fails because unique name in sysfs already taken by existing kmem-cache.
+>
+> Unlike to other debug options this doesn't change object layout and could
+> be enabled and disabled at any time.
 
-Hmmm... This is a bitflag and the code now looks like there is some sort
-of bitmask that were are using. Use bitops or something else that clearly
-implies that a bit is flipped instead?
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
