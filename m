@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 15E229003C8
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 10:27:23 -0400 (EDT)
-Received: by igbpg9 with SMTP id pg9so82661255igb.0
-        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 07:27:22 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id j66si16508312ioi.48.2015.07.20.07.21.27
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 97041280266
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2015 10:27:27 -0400 (EDT)
+Received: by pdjr16 with SMTP id r16so104453542pdj.3
+        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 07:27:27 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id ng15si36317183pdb.208.2015.07.20.07.21.26
         for <linux-mm@kvack.org>;
-        Mon, 20 Jul 2015 07:21:28 -0700 (PDT)
+        Mon, 20 Jul 2015 07:21:26 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9 31/36] thp, mm: split_huge_page(): caller need to lock page
-Date: Mon, 20 Jul 2015 17:21:04 +0300
-Message-Id: <1437402069-105900-32-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9 15/36] ksm: prepare to new THP semantics
+Date: Mon, 20 Jul 2015 17:20:48 +0300
+Message-Id: <1437402069-105900-16-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1437402069-105900-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1437402069-105900-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,81 +19,130 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We're going to use migration entries instead of compound_lock() to
-stabilize page refcounts. Setup and remove migration entries require
-page to be locked.
+We don't need special code to stabilize THP. If you've got reference to
+any subpage of THP it will not be split under you.
 
-Some of split_huge_page() callers already have the page locked. Let's
-require everybody to lock the page before calling split_huge_page().
+New split_huge_page() also accepts tail pages: no need in special code
+to get reference to head page.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Tested-by: Sasha Levin <sasha.levin@oracle.com>
 Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/memory-failure.c | 10 ++++++++--
- mm/migrate.c        |  8 ++++++--
- 2 files changed, 14 insertions(+), 4 deletions(-)
+ mm/ksm.c | 57 ++++++++++-----------------------------------------------
+ 1 file changed, 10 insertions(+), 47 deletions(-)
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index ef33ccf37224..f32a607d1aa3 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1143,15 +1143,18 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 				put_page(hpage);
- 			return -EBUSY;
- 		}
-+		lock_page(hpage);
- 		if (unlikely(split_huge_page(hpage))) {
- 			pr_err("MCE: %#lx: thp split failed\n", pfn);
- 			if (TestClearPageHWPoison(p))
- 				atomic_long_sub(nr_pages, &num_poisoned_pages);
-+			unlock_page(hpage);
- 			put_page(p);
- 			if (p != hpage)
- 				put_page(hpage);
- 			return -EBUSY;
- 		}
-+		unlock_page(hpage);
- 		VM_BUG_ON_PAGE(!page_count(p), p);
- 		hpage = compound_head(p);
- 	}
-@@ -1714,10 +1717,13 @@ int soft_offline_page(struct page *page, int flags)
- 		return -EBUSY;
- 	}
- 	if (!PageHuge(page) && PageTransHuge(hpage)) {
--		if (PageAnon(hpage) && unlikely(split_huge_page(hpage))) {
-+		lock_page(page);
-+		ret = split_huge_page(hpage);
-+		unlock_page(page);
-+		if (unlikely(ret)) {
- 			pr_info("soft offline: %#lx: failed to split THP\n",
- 				pfn);
--			return -EBUSY;
-+			return ret;
- 		}
- 	}
+diff --git a/mm/ksm.c b/mm/ksm.c
+index fe09f3ddc912..fb333d8188fc 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -441,20 +441,6 @@ static void break_cow(struct rmap_item *rmap_item)
+ 	up_read(&mm->mmap_sem);
+ }
  
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 67970faf544d..a9dbfd356e9d 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -933,9 +933,13 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+-static struct page *page_trans_compound_anon(struct page *page)
+-{
+-	if (PageTransCompound(page)) {
+-		struct page *head = compound_head(page);
+-		/*
+-		 * head may actually be splitted and freed from under
+-		 * us but it's ok here.
+-		 */
+-		if (PageAnon(head))
+-			return head;
+-	}
+-	return NULL;
+-}
+-
+ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
+ {
+ 	struct mm_struct *mm = rmap_item->mm;
+@@ -470,7 +456,7 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
+ 	page = follow_page(vma, addr, FOLL_GET);
+ 	if (IS_ERR_OR_NULL(page))
  		goto out;
+-	if (PageAnon(page) || page_trans_compound_anon(page)) {
++	if (PageAnon(page)) {
+ 		flush_anon_page(vma, page, addr);
+ 		flush_dcache_page(page);
+ 	} else {
+@@ -976,33 +962,6 @@ out:
+ 	return err;
+ }
+ 
+-static int page_trans_compound_anon_split(struct page *page)
+-{
+-	int ret = 0;
+-	struct page *transhuge_head = page_trans_compound_anon(page);
+-	if (transhuge_head) {
+-		/* Get the reference on the head to split it. */
+-		if (get_page_unless_zero(transhuge_head)) {
+-			/*
+-			 * Recheck we got the reference while the head
+-			 * was still anonymous.
+-			 */
+-			if (PageAnon(transhuge_head))
+-				ret = split_huge_page(transhuge_head);
+-			else
+-				/*
+-				 * Retry later if split_huge_page run
+-				 * from under us.
+-				 */
+-				ret = 1;
+-			put_page(transhuge_head);
+-		} else
+-			/* Retry later if split_huge_page run from under us. */
+-			ret = 1;
+-	}
+-	return ret;
+-}
+-
+ /*
+  * try_to_merge_one_page - take two pages and merge them into one
+  * @vma: the vma that holds the pte pointing to page
+@@ -1023,9 +982,6 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
+ 
+ 	if (!(vma->vm_flags & VM_MERGEABLE))
+ 		goto out;
+-	if (PageTransCompound(page) && page_trans_compound_anon_split(page))
+-		goto out;
+-	BUG_ON(PageTransCompound(page));
+ 	if (!PageAnon(page))
+ 		goto out;
+ 
+@@ -1038,6 +994,13 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
+ 	 */
+ 	if (!trylock_page(page))
+ 		goto out;
++
++	if (PageTransCompound(page)) {
++		err = split_huge_page(page);
++		if (err)
++			goto out_unlock;
++	}
++
+ 	/*
+ 	 * If this anonymous page is mapped only here, its pte may need
+ 	 * to be write-protected.  If it's mapped elsewhere, all of its
+@@ -1068,6 +1031,7 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
+ 		}
  	}
  
--	if (unlikely(PageTransHuge(page)))
--		if (unlikely(split_huge_page(page)))
-+	if (unlikely(PageTransHuge(page))) {
-+		lock_page(page);
-+		rc = split_huge_page(page);
-+		unlock_page(page);
-+		if (rc)
- 			goto out;
-+	}
- 
- 	rc = __unmap_and_move(page, newpage, force, mode);
- 
++out_unlock:
+ 	unlock_page(page);
+ out:
+ 	return err;
+@@ -1620,8 +1584,7 @@ next_mm:
+ 				cond_resched();
+ 				continue;
+ 			}
+-			if (PageAnon(*page) ||
+-			    page_trans_compound_anon(*page)) {
++			if (PageAnon(*page)) {
+ 				flush_anon_page(vma, *page, ksm_scan.address);
+ 				flush_dcache_page(*page);
+ 				rmap_item = get_next_rmap_item(slot,
 -- 
 2.1.4
 
