@@ -1,218 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id D997D6B028B
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 05:36:09 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so114880837wib.0
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 02:36:09 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j8si18093749wiy.23.2015.07.21.02.36.07
+Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 54BFB6B0283
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 06:36:29 -0400 (EDT)
+Received: by oige126 with SMTP id e126so123452012oig.0
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 03:36:29 -0700 (PDT)
+Received: from mail-oi0-f53.google.com (mail-oi0-f53.google.com. [209.85.218.53])
+        by mx.google.com with ESMTPS id f71si4479993oib.58.2015.07.21.03.36.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Jul 2015 02:36:08 -0700 (PDT)
-Message-ID: <55AE1285.4010600@suse.cz>
-Date: Tue, 21 Jul 2015 11:36:05 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Jul 2015 03:36:28 -0700 (PDT)
+Received: by oige126 with SMTP id e126so123451890oig.0
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 03:36:27 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [rfc] mm, thp: allow khugepaged to periodically compact memory
- synchronously
-References: <alpine.DEB.2.10.1507141918340.11697@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1507141918340.11697@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAPAsAGw-iawTpjJh66rQN5fqBFT6UBZCcv2eKx7JTqCXzhzpsw@mail.gmail.com>
+References: <1431698344-28054-1-git-send-email-a.ryabinin@samsung.com>
+	<1431698344-28054-6-git-send-email-a.ryabinin@samsung.com>
+	<CACRpkdaRJJjCXR=vK1M2YhR26JZfGoBB+jcqz8r2MhERfxRzqA@mail.gmail.com>
+	<CAPAsAGy-r8Z2N09wKV+e0kLfbwxd-eWK6N5Xajsnqq9jfyWqcQ@mail.gmail.com>
+	<CACRpkdZmHLMxosLXjyOPdkavo=UNzmTcHOLF5vV4cS1ULfbq6A@mail.gmail.com>
+	<CAPAsAGw-iawTpjJh66rQN5fqBFT6UBZCcv2eKx7JTqCXzhzpsw@mail.gmail.com>
+Date: Tue, 21 Jul 2015 12:36:27 +0200
+Message-ID: <CACRpkdY2i2M27gP_fXawkFrC_GFgWaKr5rEn6d47refNPiEk=g@mail.gmail.com>
+Subject: Re: [PATCH v2 5/5] arm64: add KASan support
+From: Linus Walleij <linus.walleij@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, David Keitel <dkeitel@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 07/15/2015 04:19 AM, David Rientjes wrote:
-> We have seen a large benefit in the amount of hugepages that can be
-> allocated at fault
+On Wed, Jun 17, 2015 at 11:32 PM, Andrey Ryabinin
+<ryabinin.a.a@gmail.com> wrote:
+> 2015-06-13 18:25 GMT+03:00 Linus Walleij <linus.walleij@linaro.org>:
+>>
+>> On Fri, Jun 12, 2015 at 8:14 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
+>> > 2015-06-11 16:39 GMT+03:00 Linus Walleij <linus.walleij@linaro.org>:
+>> >> On Fri, May 15, 2015 at 3:59 PM, Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
+>> >>
+>> >>> This patch adds arch specific code for kernel address sanitizer
+>> >>> (see Documentation/kasan.txt).
+>> >>
+>> >> I looked closer at this again ... I am trying to get KASan up for
+>> >> ARM(32) with some tricks and hacks.
+>> >>
+>> >
+>> > I have some patches for that. They still need some polishing, but works for me.
+>> > I could share after I get back to office on Tuesday.
+>>
+>> OK! I'd be happy to test!
+>>
+>
+> I've pushed it here : git://github.com/aryabinin/linux.git kasan/arm_v0
+>
+> It far from ready. Firstly I've tried it only in qemu and it works.
 
-That's understandable...
+Hm what QEMU model are you using? I tried to test it with Versatile
+(the most common) and it kinda boots and hangs:
 
-> and by khugepaged when memory is periodically
-> compacted in the background.
+Memory: 106116K/131072K available (3067K kernel code, 166K rwdata,
+864K rodata, 3072K init, 130K bss, 24956K reserved, 0K cma-reserved)
+Virtual kernel memory layout:
+    vector  : 0xffff0000 - 0xffff1000   (   4 kB)
+    fixmap  : 0xffc00000 - 0xfff00000   (3072 kB)
+    kasan   : 0x9f000000 - 0xbf000000   ( 512 MB)
+    vmalloc : 0xc8800000 - 0xff000000   ( 872 MB)
+(...)
 
-... but for khugepaged it's surprising. Doesn't khugepaged (unlike page 
-faults) attempt the same sync compaction as your manual triggers?
+Looks correct, no highmem on this beast.
 
-> We trigger synchronous memory compaction over all memory every 15 minutes
-> to keep fragmentation low and to offset the lightweight compaction that
-> is done at page fault to keep latency low.
+Then I get this.
 
-I'm surprised that 15 minutes is frequent enough to make a difference. 
-I'd expect it very much depends on the memory size and workload though.
+Unable to handle kernel NULL pointer dereference at virtual address 00000130
+pgd = c5ea8000
+[00000130] *pgd=00000000
+Internal error: Oops: 5 [#1] ARM
+Modules linked in:
+CPU: 0 PID: 19 Comm: modprobe Not tainted 4.1.0-rc8+ #7
+Hardware name: ARM-Versatile (Device Tree Support)
+task: c5e0b5a0 ti: c5ea0000 task.ti: c5ea0000
+PC is at v4wbi_flush_user_tlb_range+0x10/0x4c
+LR is at move_page_tables+0x218/0x308
+pc : [<c001e870>]    lr : [<c008f230>]    psr: 20000153
+sp : c5ea7df0  ip : c5e8c000  fp : ff8ec000
+r10: 00bf334f  r9 : c5ead3b0  r8 : 9e8ec000
+r7 : 00000001  r6 : 00002000  r5 : 9f000000  r4 : 9effe000
+r3 : 00000000  r2 : c5e8a000  r1 : 9f000000  r0 : 9effe000
+Flags: nzCv  IRQs on  FIQs off  Mode SVC_32  ISA ARM  Segment user
+Control: 00093177  Table: 05ea8000  DAC: 00000015
+Process modprobe (pid: 19, stack limit = 0xc5ea0190)
+Stack: (0xc5ea7df0 to 0xc5ea8000)
+7de0:                                     00000000 9f000000 c5e8a000 00000000
+7e00: 00000000 00000000 c5e8a000 9effe000 000000c0 c5e8a000 c68c5700 9e8ec000
+7e20: c5e8c034 9effe000 9e8ea000 9f000000 00002000 c00a9384 00002000 00000000
+7e40: c5e8c000 00000000 00000000 c5e8a000 00000000 00000000 00000000 00000000
+7e60: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+7e80: c5e870e0 5e5e8830 c0701808 00000013 c5ea7ec0 c5eac000 c5e870e0 c5e26140
+7ea0: c68c5700 00000000 c5ea7ec0 c5eac000 c5e870e0 c6a2d8c0 00000001 c00e4530
+7ec0: c68c5700 00000080 c5df2480 9f000000 00000000 c5ea0000 0000000a c00a99ec
+7ee0: 00000017 c5ea7ef4 00000000 00000000 00000000 c7f10e60 c0377bc0 c0bf3f99
+7f00: 0000000f 00000000 00000000 c00a9c28 9efff000 c06fa2c8 c68c5700 c06f9eb8
+7f20: 00000001 fffffff8 c68c5700 00000000 00000001 c00a9770 c5e0b5a0 00000013
+7f40: c5e87ee0 c06ef0c8 c6a60000 c00aabd0 c5e8c034 00000000 00000000 c5e0b790
+7f60: c06e8190 c5ddcc60 c5d4c300 0000003f ffffffff 00000000 00000000 00000000
+7f80: 00000000 c00aad00 00000000 00000000 00000000 c0030f48 c5d4c300 c0030e54
+7fa0: 00000000 00000000 00000000 c0014960 00000000 00000000 00000000 00000000
+7fc0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+7fe0: 00000000 00000000 00000000 00000000 00000013 00000000 00000000 00000000
+[<c001e870>] (v4wbi_flush_user_tlb_range) from [<00000000>] (  (null))
+Code: e592c020 e3cd3d7f e3c3303f e593300c (e5933130)
+---[ end trace b3c4eba35670ba77 ]---
 
-> compact_sleep_millisecs controls how often khugepaged will compact all
-> memory.  Each scan_sleep_millisecs wakeup after this value has expired, a
-> node is synchronously compacted until all memory has been scanned.  Then,
-> khugepaged will restart the process compact_sleep_millisecs later.
->
-> This defaults to 0, which means no memory compaction is done.
-
-Being another tunable and defaulting to 0 it means that most people 
-won't use it at all, or their distro will provide some other value. We 
-should really strive to make it self-tuning based on e.g. memory 
-fragmentation statistics. But I know that my kcompactd proposal also 
-wasn't quite there yet...
-
->
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->   RFC: this is for initial comment on whether it's appropriate to do this
->   in khugepaged.  We already do to the background compaction for the
->   benefit of thp, but others may feel like this belongs in a new per-node
->   kcompactd thread as proposed by Vlastimil.
->
->   Regardless, it appears there is a substantial need for periodic memory
->   compaction in the background to reduce the latency of thp page faults
->   and still have a reasonable chance of having the allocation succeed.
->
->   We could also speed up this process in the case of alloc_sleep_millisecs
->   timeout since allocation recently failed for khugepaged.
->
->   Documentation/vm/transhuge.txt | 10 +++++++
->   mm/huge_memory.c               | 65 ++++++++++++++++++++++++++++++++++++++++++
->   2 files changed, 75 insertions(+)
->
-> diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
-> --- a/Documentation/vm/transhuge.txt
-> +++ b/Documentation/vm/transhuge.txt
-> @@ -170,6 +170,16 @@ A lower value leads to gain less thp performance. Value of
->   max_ptes_none can waste cpu time very little, you can
->   ignore it.
->
-> +/sys/kernel/mm/transparent_hugepage/khugepaged/compact_sleep_millisecs
-> +
-> +controls how often khugepaged will utilize memory compaction to defragment
-> +memory.  This makes it easier to allocate hugepages both at page fault and
-> +by khugepaged since this compaction can be synchronous.
-> +
-> +This only occurs if scan_sleep_millisecs is configured.  One node per
-> +scan_sleep_millisecs wakeup is compacted when compact_sleep_millisecs
-> +expires until all memory has been compacted.
-> +
->   == Boot parameter ==
->
->   You can change the sysfs boot time defaults of Transparent Hugepage
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -23,6 +23,7 @@
->   #include <linux/pagemap.h>
->   #include <linux/migrate.h>
->   #include <linux/hashtable.h>
-> +#include <linux/compaction.h>
->
->   #include <asm/tlb.h>
->   #include <asm/pgalloc.h>
-> @@ -65,6 +66,16 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
->    */
->   static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
->
-> +/*
-> + * Khugepaged may memory compaction over all memory at regular intervals.
-> + * It round-robins through all nodes, compacting one at a time each
-> + * scan_sleep_millisecs wakeup when triggered.
-> + * May be set with compact_sleep_millisecs, which is disabled by default.
-> + */
-> +static unsigned long khugepaged_compact_sleep_millisecs __read_mostly;
-> +static unsigned long khugepaged_compact_jiffies;
-> +static int next_compact_node = MAX_NUMNODES;
-> +
->   static int khugepaged(void *none);
->   static int khugepaged_slab_init(void);
->   static void khugepaged_slab_exit(void);
-> @@ -463,6 +474,34 @@ static struct kobj_attribute alloc_sleep_millisecs_attr =
->   	__ATTR(alloc_sleep_millisecs, 0644, alloc_sleep_millisecs_show,
->   	       alloc_sleep_millisecs_store);
->
-> +static ssize_t compact_sleep_millisecs_show(struct kobject *kobj,
-> +					    struct kobj_attribute *attr,
-> +					    char *buf)
-> +{
-> +	return sprintf(buf, "%lu\n", khugepaged_compact_sleep_millisecs);
-> +}
-> +
-> +static ssize_t compact_sleep_millisecs_store(struct kobject *kobj,
-> +					     struct kobj_attribute *attr,
-> +					     const char *buf, size_t count)
-> +{
-> +	unsigned long msecs;
-> +	int err;
-> +
-> +	err = kstrtoul(buf, 10, &msecs);
-> +	if (err || msecs > ULONG_MAX)
-> +		return -EINVAL;
-> +
-> +	khugepaged_compact_sleep_millisecs = msecs;
-> +	khugepaged_compact_jiffies = jiffies + msecs_to_jiffies(msecs);
-> +	wake_up_interruptible(&khugepaged_wait);
-> +
-> +	return count;
-> +}
-> +static struct kobj_attribute compact_sleep_millisecs_attr =
-> +	__ATTR(compact_sleep_millisecs, 0644, compact_sleep_millisecs_show,
-> +	       compact_sleep_millisecs_store);
-> +
->   static ssize_t pages_to_scan_show(struct kobject *kobj,
->   				  struct kobj_attribute *attr,
->   				  char *buf)
-> @@ -564,6 +603,7 @@ static struct attribute *khugepaged_attr[] = {
->   	&full_scans_attr.attr,
->   	&scan_sleep_millisecs_attr.attr,
->   	&alloc_sleep_millisecs_attr.attr,
-> +	&compact_sleep_millisecs_attr.attr,
->   	NULL,
->   };
->
-> @@ -652,6 +692,10 @@ static int __init hugepage_init(void)
->   		return 0;
->   	}
->
-> +	if (khugepaged_compact_sleep_millisecs)
-> +		khugepaged_compact_jiffies = jiffies +
-> +			msecs_to_jiffies(khugepaged_compact_sleep_millisecs);
-> +
->   	err = start_stop_khugepaged();
->   	if (err)
->   		goto err_khugepaged;
-> @@ -2834,6 +2878,26 @@ static void khugepaged_wait_work(void)
->   		wait_event_freezable(khugepaged_wait, khugepaged_wait_event());
->   }
->
-> +static void khugepaged_compact_memory(void)
-> +{
-> +	if (!khugepaged_compact_jiffies ||
-> +	    time_before(jiffies, khugepaged_compact_jiffies))
-> +		return;
-> +
-> +	get_online_mems();
-> +	if (next_compact_node == MAX_NUMNODES)
-> +		next_compact_node = first_node(node_states[N_MEMORY]);
-> +
-> +	compact_pgdat(NODE_DATA(next_compact_node), -1);
-> +
-> +	next_compact_node = next_node(next_compact_node, node_states[N_MEMORY]);
-> +	put_online_mems();
-> +
-> +	if (next_compact_node == MAX_NUMNODES)
-> +		khugepaged_compact_jiffies = jiffies +
-> +			msecs_to_jiffies(khugepaged_compact_sleep_millisecs);
-> +}
-> +
->   static int khugepaged(void *none)
->   {
->   	struct mm_slot *mm_slot;
-> @@ -2842,6 +2906,7 @@ static int khugepaged(void *none)
->   	set_user_nice(current, MAX_NICE);
->
->   	while (!kthread_should_stop()) {
-> +		khugepaged_compact_memory();
->   		khugepaged_do_scan();
->   		khugepaged_wait_work();
->   	}
->
+Yours,
+Linus Walleij
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
